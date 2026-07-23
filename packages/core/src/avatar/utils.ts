@@ -2,8 +2,10 @@ import {
   ROBOT_ID_MIN,
   ROBOT_ID_MAX,
   DEFAULT_ROBOT_ID,
+  GRUENERATOR_FRIENDS,
   type AvatarDisplayProps,
   type AvatarProfile,
+  type GrueneratorFriend,
 } from './types.js';
 
 const DEFAULT_BASE_URL = 'https://gruenerator.eu';
@@ -21,8 +23,20 @@ export const getRandomRobotId = (): number => {
   return Math.floor(Math.random() * ROBOT_ID_MAX) + 1;
 };
 
+export const getFriend = (robotId: unknown): GrueneratorFriend => {
+  const id = validateRobotId(robotId);
+  return (
+    GRUENERATOR_FRIENDS.find((friend) => friend.id === id) ??
+    // Unreachable while GRUENERATOR_FRIENDS covers ROBOT_ID_MIN…MAX, but keeps
+    // the return type non-nullable for every caller.
+    (GRUENERATOR_FRIENDS[0] as GrueneratorFriend)
+  );
+};
+
+export const getFriendName = (robotId: unknown): string => getFriend(robotId).name;
+
 export const getRobotAvatarAlt = (robotId: number): string => {
-  return `Roboter Avatar ${validateRobotId(robotId)}`;
+  return getFriendName(robotId);
 };
 
 export const shouldShowRobotAvatar = (avatarRobotId: unknown): boolean => {

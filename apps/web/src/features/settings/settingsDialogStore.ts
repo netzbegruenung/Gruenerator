@@ -3,6 +3,7 @@ import { create } from 'zustand';
 export type SettingsTab =
   | 'allgemein'
   | 'konto'
+  | 'friends'
   | 'personalisierung'
   | 'texte-anlernen'
   | 'erinnerungen'

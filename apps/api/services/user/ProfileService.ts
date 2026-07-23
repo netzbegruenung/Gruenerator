@@ -1,3 +1,4 @@
+import { type ChatBackground } from '@gruenerator/contracts';
 import { ROBOT_ID_MIN, ROBOT_ID_MAX } from '@gruenerator/core/avatar';
 import { eq, sql } from 'drizzle-orm';
 
@@ -180,6 +181,7 @@ class ProfileService {
 
       const knownTextColumns = [
         'locale',
+        'chat_background',
         'custom_prompt',
         'presseabbinder',
         'custom_antrag_gliederung',
@@ -389,6 +391,20 @@ class ProfileService {
       return result;
     } catch (error: unknown) {
       console.error('[ProfileService] Error updating chat color:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update the chat-start background preset for a user
+   */
+  async updateChatBackground(userId: string, background: ChatBackground): Promise<UserProfile> {
+    try {
+      const result = await this.updateProfile(userId, { chat_background: background });
+      console.log(`[ProfileService] Chat background updated for user ${userId}: ${background}`);
+      return result;
+    } catch (error: unknown) {
+      console.error('[ProfileService] Error updating chat background:', error);
       throw error;
     }
   }

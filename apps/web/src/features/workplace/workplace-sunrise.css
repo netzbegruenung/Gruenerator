@@ -1,7 +1,10 @@
-/* One-shot "sunrise" for the chat-tab warm radial glow. The gradient is the
+/* One-shot "sunrise" for the chat-tab radial glow. The gradient is the
    permanent resting state (initial-values below match the design); only the
    entrance animation runs once and settles into it (animation-fill-mode: forwards).
-   Registered @property values are what makes the gradient stops interpolable. */
+   Registered @property values are what makes the gradient stops interpolable.
+
+   The tint is a variable so the user-chosen preset only swaps two values
+   (--wp-bg-base / --wp-bg-tint) — the geometry and the animation stay shared. */
 
 @property --wp-sunrise-y {
   syntax: '<percentage>';
@@ -16,14 +19,50 @@
 }
 
 .workplace-chat-sunrise {
-  background-color: #fefcf5;
+  /* Defaults = the `sunrise` preset; the modifier classes below override them. */
+  --wp-bg-base: #fefcf5;
+  --wp-bg-tint: 233 214 150;
+  --wp-bg-base-dark: transparent;
+
+  background-color: var(--wp-bg-base);
   background-image: radial-gradient(
     88% 58% at 50% var(--wp-sunrise-y),
-    rgb(233 214 150 / calc(0.5 * var(--wp-sunrise-glow))) 0%,
-    rgb(233 214 150 / calc(0.18 * var(--wp-sunrise-glow))) 40%,
+    rgb(var(--wp-bg-tint) / calc(0.5 * var(--wp-sunrise-glow))) 0%,
+    rgb(var(--wp-bg-tint) / calc(0.18 * var(--wp-sunrise-glow))) 40%,
     rgb(255 255 255 / 0) 74%
   );
   animation: workplace-sunrise 2.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* ── Presets ──────────────────────────────────────────────────────────────
+   Keys match `chatBackgroundSchema` in @gruenerator/contracts. `sunrise` needs
+   no class — it is the base above. */
+
+.workplace-chat-bg--tanne {
+  --wp-bg-base: #f5faf7;
+  --wp-bg-tint: 122 176 143;
+}
+
+.workplace-chat-bg--himmel {
+  --wp-bg-base: #f5f9fd;
+  --wp-bg-tint: 137 186 231;
+}
+
+.workplace-chat-bg--sand {
+  --wp-bg-base: #fbf8f3;
+  --wp-bg-tint: 214 190 158;
+}
+
+.workplace-chat-bg--magenta {
+  --wp-bg-base: #fdf5f9;
+  --wp-bg-tint: 228 152 190;
+}
+
+/* Neutral opts out entirely so the page falls through to the theme background. */
+.workplace-chat-bg--neutral {
+  background-color: transparent;
+  background-image: none;
+  animation: none;
 }
 
 @keyframes workplace-sunrise {
@@ -39,17 +78,21 @@
 
 /* Dark mode is toggled via [data-theme="dark"] (see @custom-variant in the
    theme CSS), not a .dark class — a plain `.dark` selector never matches here.
-   Keep a faint warm glow over the theme background so the chat hero still reads
-   as a designed surface in dark mode. */
+   Keep a faint glow of the chosen tint over the theme background so the chat
+   hero still reads as a designed surface in dark mode. */
 [data-theme='dark'] .workplace-chat-sunrise {
   background-color: transparent;
   background-image: radial-gradient(
     88% 58% at 50% 52%,
-    rgb(233 214 150 / 0.1) 0%,
-    rgb(233 214 150 / 0.035) 42%,
+    rgb(var(--wp-bg-tint) / 0.1) 0%,
+    rgb(var(--wp-bg-tint) / 0.035) 42%,
     rgb(0 0 0 / 0) 74%
   );
   animation: none;
+}
+
+[data-theme='dark'] .workplace-chat-bg--neutral {
+  background-image: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

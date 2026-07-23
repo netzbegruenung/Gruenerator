@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     sharepic BOOLEAN DEFAULT FALSE,
     anweisungen BOOLEAN DEFAULT FALSE,
     chat_color TEXT,
+    chat_background TEXT,
     content_management BOOLEAN DEFAULT FALSE,
     labor_enabled BOOLEAN DEFAULT FALSE,
     sites BOOLEAN DEFAULT FALSE,

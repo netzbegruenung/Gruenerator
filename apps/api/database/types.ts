@@ -44,6 +44,7 @@ export interface ProfileRow {
   sharepic: boolean;
   anweisungen: boolean;
   chat_color: string | null;
+  chat_background: string | null;
   content_management: boolean;
   labor_enabled: boolean;
   sites: boolean;
