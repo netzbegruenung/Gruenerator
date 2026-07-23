@@ -10,6 +10,7 @@ import { getPostgresInstance } from '../../../database/services/PostgresService.
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../../middleware/validateBody.js';
 import { getLikeCountsForEntities } from '../../../services/entityLikes/EntityLikesService.js';
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import type { AuthRequest } from '../types.js';
@@ -234,7 +235,7 @@ router.get(
       log.error('[Template Gallery /examples GET] Error:', err);
       res.status(500).json({
         success: false,
-        message: err.message || 'Fehler beim Laden der Beispiele.',
+        message: toUserFacingMessage(err) || 'Fehler beim Laden der Beispiele.',
       });
     }
   }
@@ -363,7 +364,7 @@ router.post(
       log.error('[Template Gallery /examples/similar POST] Error:', err);
       res.status(500).json({
         success: false,
-        message: err.message || 'Fehler bei der Ähnlichkeitssuche.',
+        message: toUserFacingMessage(err) || 'Fehler bei der Ähnlichkeitssuche.',
       });
     }
   }

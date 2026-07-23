@@ -93,6 +93,7 @@ export * from './schemas/globalSearch.js';
 export * from './schemas/research.js';
 export * from './schemas/chatGraph.js';
 export * from './schemas/chatStreamEvents.js';
+export * from './schemas/jobErrors.js';
 export * from './schemas/socialPost.js';
 export * from './schemas/bundestag.js';
 export * from './schemas/bahn.js';

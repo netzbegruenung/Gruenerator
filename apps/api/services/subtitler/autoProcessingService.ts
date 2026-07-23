@@ -8,9 +8,10 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { type AutoProgress, type SubtitleSegment } from '@gruenerator/contracts';
+import { type AutoProgress, type JobErrorCode, type SubtitleSegment } from '@gruenerator/contracts';
 import { v4 as uuidv4 } from 'uuid';
 
+import { toJobError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
@@ -65,6 +66,9 @@ interface ProgressData {
   stageProgress?: number;
   overallProgress?: number;
   error?: string | null;
+  errorCode?: JobErrorCode | null;
+  retryable?: boolean | null;
+  errorId?: string | null;
   outputPath?: string | null;
   duration?: number | null;
 }
@@ -101,6 +105,9 @@ async function updateProgress(uploadId: string, progressData: ProgressData): Pro
     stageProgress: progressData.stageProgress || 0,
     overallProgress: progressData.overallProgress || 0,
     error: progressData.error || null,
+    errorCode: progressData.errorCode || null,
+    retryable: progressData.retryable ?? null,
+    errorId: progressData.errorId || null,
     outputPath: progressData.outputPath || null,
     duration: progressData.duration || null,
   };
@@ -321,9 +328,10 @@ async function processVideoAutomatically(
         log.info(`Pre-scaled video ready: ${metadata.width}x${metadata.height}`);
       }
     } catch (transcriptionError: unknown) {
-      log.error(
-        `Transcription/scaling failed: ${transcriptionError instanceof Error ? transcriptionError.message : String(transcriptionError)}`
-      );
+      const jobError = toJobError(transcriptionError, {
+        scope: 'subtitler-auto-processing',
+        meta: { uploadId, phase: 'transcription' },
+      });
       if (preScaledTempPath) {
         await fs.unlink(preScaledTempPath).catch(() => {});
       }
@@ -331,7 +339,10 @@ async function processVideoAutomatically(
         status: 'error',
         stage: STAGES.SUBTITLES.id,
         stageName: STAGES.SUBTITLES.name,
-        error: 'Untertitel konnten nicht generiert werden. Bitte versuche es erneut.',
+        error: jobError.message,
+        errorCode: jobError.code,
+        retryable: jobError.retryable,
+        errorId: jobError.errorId,
       });
       throw transcriptionError;
     }
@@ -401,9 +412,10 @@ async function processVideoAutomatically(
       metadata,
     };
   } catch (error: unknown) {
-    log.error(
-      `Automatic processing failed: ${error instanceof Error ? error.message : String(error)}`
-    );
+    const jobError = toJobError(error, {
+      scope: 'subtitler-auto-processing',
+      meta: { uploadId },
+    });
 
     if (preScaledTempPath) {
       await fs.unlink(preScaledTempPath).catch(() => {});
@@ -411,8 +423,10 @@ async function processVideoAutomatically(
 
     await updateProgress(uploadId, {
       status: 'error',
-      error:
-        (error instanceof Error ? error.message : String(error)) || 'Verarbeitung fehlgeschlagen',
+      error: jobError.message,
+      errorCode: jobError.code,
+      retryable: jobError.retryable,
+      errorId: jobError.errorId,
     });
 
     throw error;

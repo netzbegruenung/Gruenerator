@@ -148,6 +148,7 @@ import { mountRecentActivityContractRouter } from './routes/workplace/recentActi
 import recentActivityRouter from './routes/workplace/recentActivityController.js';
 import * as sharepicGenerationService from './services/chat/sharepicGenerationService.js';
 import * as tusServiceModule from './services/subtitler/tusService.js';
+import { toUserFacingMessage } from './utils/errors/index.js';
 import { createLogger } from './utils/logger.js';
 import { RouteStatsTracker } from './utils/routeStats.js';
 
@@ -604,9 +605,10 @@ export async function setupRoutes(app: Application): Promise<void> {
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
         console.error('[UnifiedSharepic] Error:', err);
-        res
-          .status(500)
-          .json({ success: false, error: err.message || 'Failed to generate sharepic' });
+        res.status(500).json({
+          success: false,
+          error: toUserFacingMessage(err, 'Das Sharepic konnte nicht erstellt werden.'),
+        });
       }
     }
   );
@@ -840,7 +842,7 @@ export async function setupRoutes(app: Application): Promise<void> {
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
         log.error(`Route stats fetch failed: ${err.message}`);
-        res.status(500).json({ success: false, error: err.message });
+        res.status(500).json({ success: false, error: toUserFacingMessage(err) });
       }
     }
   );

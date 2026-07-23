@@ -44,6 +44,7 @@ import {
   USER_VISIBLE_SHARE_STATUSES,
 } from '../../../services/sharedMediaService.js';
 import { getSubtitlerProjectService } from '../../../services/subtitler/ProjectService.js';
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import {
   listUserDocuments,
   officeKindLabel,
@@ -600,7 +601,7 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
         return { ok: true, note };
       } catch (err) {
         return {
-          error: err instanceof Error ? err.message : 'Karte konnte nicht bearbeitet werden.',
+          error: toUserFacingMessage(err, 'Karte konnte nicht bearbeitet werden.'),
         };
       }
     },

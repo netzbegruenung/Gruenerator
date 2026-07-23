@@ -14,6 +14,7 @@ import { SOCIAL_PLATFORM_INFO, type SocialPostToolResult } from '@gruenerator/co
 
 import { rubricForPlatform } from '../../../agents/langgraph/ChatGraph/nodes/socialMediaComposerNode.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { parseSocialPostText } from './socialPostService.js';
@@ -267,7 +268,7 @@ Ziel: ~${info.recommendedChars} Zeichen. Hartes Maximum: ${info.maxChars} Zeiche
     log.error('[SocialPostEdit] Edit turn failed:', error);
     if (!sse.isEnded()) {
       sse.send('social_post_edit_error', {
-        error: error instanceof Error ? error.message : 'Unbekannter Fehler',
+        error: toUserFacingMessage(error, 'Unbekannter Fehler'),
       });
       await finishWithText(
         args,

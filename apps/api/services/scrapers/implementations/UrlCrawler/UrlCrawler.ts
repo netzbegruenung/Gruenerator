@@ -5,6 +5,7 @@
  */
 
 import { env } from '../../../../config/env.js';
+import { toUserFacingMessage } from '../../../../utils/errors/index.js';
 
 import { CrawleeCrawler } from './crawlers/CrawleeCrawler.js';
 import { FetchCrawler } from './crawlers/FetchCrawler.js';
@@ -144,7 +145,7 @@ export class UrlCrawler {
       console.error(`[UrlCrawler] Crawl failed for ${url}:`, error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to crawl URL',
+        error: toUserFacingMessage(error, 'Failed to crawl URL'),
       };
     }
   }
@@ -206,7 +207,7 @@ export class UrlCrawler {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to preview URL',
+        error: toUserFacingMessage(error, 'Failed to preview URL'),
       };
     }
   }

@@ -4,6 +4,7 @@ import { eq, sql } from 'drizzle-orm';
 import { profiles } from '../../database/schema/core.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { type DeleteResult, getPostgresInstance } from '../../database/services/PostgresService.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 
 import { toUserProfile } from './profileMapper.js';
 
@@ -699,7 +700,7 @@ class ProfileService {
       return {
         status: 'unhealthy',
         database: 'postgresql',
-        error: error instanceof Error ? error.message : String(error),
+        error: toUserFacingMessage(error),
       };
     }
   }

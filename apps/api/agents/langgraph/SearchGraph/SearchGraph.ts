@@ -16,6 +16,7 @@ import { StateGraph, Annotation } from '@langchain/langgraph';
 
 import { getAllCollectionIds } from '../../../config/notebookCollectionMap.js';
 import { getDefaultAgentId, getAgent } from '../../../routes/chat/agents/agentLoader.js';
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { qualityGateNode } from '../ChatGraph/nodes/qualityGateNode.js';
 import { rerankNode } from '../ChatGraph/nodes/rerankNode.js';
@@ -424,7 +425,7 @@ export async function runSearchGraph(input: SearchGraphInput): Promise<SearchGra
         searchedCollections: [],
         responseTimeMs: 0,
       },
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: toUserFacingMessage(error, 'Unknown error'),
     };
   }
 }

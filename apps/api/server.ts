@@ -716,6 +716,7 @@ async function startWorker(): Promise<void> {
     res.status(statusCode).json({
       success: false,
       error: 'Ein Serverfehler ist aufgetreten',
+
       message: isDev ? err.message : errorMessage,
       stack: isDev ? err.stack : undefined,
       errorId: `${Date.now()}-${Math.floor(Math.random() * 1000)}`,

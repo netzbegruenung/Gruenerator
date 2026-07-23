@@ -15,6 +15,7 @@ import {
   joinGroupByToken,
 } from '../../services/groups/groupMutations.js';
 import { findGroups } from '../../services/groups/groupQueries.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { hasWriteAccess } from '../chat/confirmController.js';
 
 import { absolutizeUrl } from './chatToolBridge.js';
@@ -148,6 +149,6 @@ export async function shareDocToGroupMcp(
     });
     return { ok: true, note: result.message };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : 'Teilen fehlgeschlagen.' };
+    return { error: toUserFacingMessage(err, 'Teilen fehlgeschlagen.') };
   }
 }

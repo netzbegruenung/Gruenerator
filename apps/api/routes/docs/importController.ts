@@ -11,6 +11,7 @@ import { markdownToHtml } from '../../services/markdown/index.js';
 import { ocrService } from '../../services/OcrService/index.js';
 import { getWolkeSyncService } from '../../services/sync/index.js';
 import { extractTitleFromHtml } from '../../services/tiptap/contentConverter.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 
 const router = Router();
 const db = getPostgresInstance();
@@ -170,7 +171,7 @@ router.post(
       console.error('[DocsImport] Error importing file:', error);
 
       if (error instanceof OcrImportError) {
-        return res.status(error.status).json({ error: error.message });
+        return res.status(error.status).json({ error: toUserFacingMessage(error) });
       }
 
       return res.status(500).json({
@@ -256,7 +257,7 @@ router.post(
       console.error('[DocsImport:Wolke] Error:', error);
 
       if (error instanceof OcrImportError) {
-        return res.status(error.status).json({ error: error.message });
+        return res.status(error.status).json({ error: toUserFacingMessage(error) });
       }
 
       return res.status(500).json({
