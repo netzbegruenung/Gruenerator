@@ -45,6 +45,17 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: 'react-dom'
         update-types: ['version-update:semver-major']
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # FRONTEND - React web application (apps/web)
@@ -113,6 +124,17 @@ updates:
       - dependency-name: 'react'
         update-types: ['version-update:semver-major']
       - dependency-name: 'react-dom'
+        update-types: ['version-update:semver-major']
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
 
   # =============================================================================
@@ -212,6 +234,18 @@ updates:
           - 'turndown'
           - '@sentry/*'
           - '@tus/*'
+    ignore:
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # GRUEN-O-MAT (apps/gruen-o-mat)
@@ -231,6 +265,18 @@ updates:
       all-dependencies:
         patterns:
           - '*'
+    ignore:
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # MOBILE - Expo React Native app (apps/mobile)
@@ -281,6 +327,17 @@ updates:
       # drift them — they move only via `npx expo install` on an SDK upgrade.
       - dependency-name: 'react'
       - dependency-name: 'react-dom'
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # SHARED PACKAGE (packages/shared)
@@ -302,6 +359,17 @@ updates:
           - '*'
     ignore:
       - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
 
   # =============================================================================
@@ -331,6 +399,17 @@ updates:
     ignore:
       - dependency-name: 'react'
         update-types: ['version-update:semver-major']
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # DOCS PACKAGE (packages/docs)
@@ -359,6 +438,17 @@ updates:
     ignore:
       - dependency-name: 'react'
         update-types: ['version-update:semver-major']
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # ESLINT CONFIG (packages/eslint-config)
@@ -378,6 +468,18 @@ updates:
       all-dependencies:
         patterns:
           - '*'
+    ignore:
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # MCP SERVER (services/mcp)
@@ -397,6 +499,18 @@ updates:
       all-dependencies:
         patterns:
           - '*'
+    ignore:
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # HOCUSPOCUS SERVER (services/hocuspocus)
@@ -416,6 +530,18 @@ updates:
       all-dependencies:
         patterns:
           - '*'
+    ignore:
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # DOCUMENTATION - Docusaurus site (documentation/)
@@ -441,6 +567,18 @@ updates:
           - 'patch'
         exclude-patterns:
           - '@docusaurus/*'
+    ignore:
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # DESKTOP - Tauri desktop app npm deps (apps/desktop)
@@ -460,6 +598,18 @@ updates:
       tauri:
         patterns:
           - '@tauri-apps/*'
+    ignore:
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # DESKTOP - Tauri Rust dependencies (Cargo)
@@ -509,6 +659,18 @@ updates:
       all-dependencies:
         patterns:
           - '*'
+    ignore:
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # CANVAS EDITOR PACKAGE (packages/canvas-editor)
@@ -530,6 +692,17 @@ updates:
           - '*'
     ignore:
       - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
 
   # =============================================================================
@@ -553,6 +726,17 @@ updates:
     ignore:
       - dependency-name: 'react'
         update-types: ['version-update:semver-major']
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # UI PACKAGE (packages/ui)
@@ -574,6 +758,17 @@ updates:
           - '*'
     ignore:
       - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
 
   # =============================================================================
@@ -597,6 +792,17 @@ updates:
     ignore:
       - dependency-name: 'react'
         update-types: ['version-update:semver-major']
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # WOLKE PACKAGE (packages/wolke)
@@ -619,6 +825,17 @@ updates:
     ignore:
       - dependency-name: 'react'
         update-types: ['version-update:semver-major']
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # SITES DESIGN PACKAGE (packages/sites-design)
@@ -638,6 +855,18 @@ updates:
       all-dependencies:
         patterns:
           - '*'
+    ignore:
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # CONTRACTS PACKAGE (packages/contracts)
@@ -657,6 +886,18 @@ updates:
       all-dependencies:
         patterns:
           - '*'
+    ignore:
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # CORE PACKAGE (packages/core)
@@ -676,6 +917,18 @@ updates:
       all-dependencies:
         patterns:
           - '*'
+    ignore:
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # SITES PACKAGE (packages/sites)
@@ -697,6 +950,116 @@ updates:
           - '*'
     ignore:
       - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+
+  # =============================================================================
+  # PRESENTATIONS PACKAGE (packages/presentations)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/packages/presentations'
+    schedule:
+      interval: 'weekly'
+      day: 'friday'
+      time: '20:00'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'presentations'
+    groups:
+      all-dependencies:
+        patterns:
+          - '*'
+    ignore:
+      - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+
+  # =============================================================================
+  # SHEETS PACKAGE (packages/sheets)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/packages/sheets'
+    schedule:
+      interval: 'weekly'
+      day: 'friday'
+      time: '20:15'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'sheets'
+    groups:
+      all-dependencies:
+        patterns:
+          - '*'
+    ignore:
+      - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+
+  # =============================================================================
+  # QUERY PACKAGE (packages/query)
+  # =============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/packages/query'
+    schedule:
+      interval: 'weekly'
+      day: 'friday'
+      time: '20:30'
+      timezone: 'Europe/Berlin'
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'query'
+    groups:
+      all-dependencies:
+        patterns:
+          - '*'
+    ignore:
+      - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
+      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
+      # Drop these once both ship support, then bump monorepo-wide in ONE
+      # PR — per-package bumps desync the shared toolchain.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
 
   # =============================================================================
