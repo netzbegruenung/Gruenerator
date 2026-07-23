@@ -8,6 +8,7 @@ export type SettingsTab =
   | 'erinnerungen'
   | 'benachrichtigungen'
   | 'wolke'
+  | 'websites'
   | 'konnektoren'
   | 'support';
 

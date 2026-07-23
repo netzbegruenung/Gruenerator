@@ -125,6 +125,12 @@ export default function DocumentsPanel({
                 placeholder="Dokumente durchsuchen…"
                 aria-label="Dokumente durchsuchen"
                 className="pl-[2rem]"
+                // The edit view wraps this panel in a <form>, where Enter in a
+                // lone text input implicitly submits — searching would save the
+                // notebook and close the editor.
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') e.preventDefault();
+                }}
               />
             </div>
 
