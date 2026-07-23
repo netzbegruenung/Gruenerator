@@ -1,11 +1,17 @@
-import { MAX_TEXT_FORM_EXAMPLES, type TextForm, type TextFormType } from '@gruenerator/contracts';
+import {
+  MAX_TEXT_FORM_EXAMPLE_CHARS,
+  MAX_TEXT_FORM_EXAMPLES,
+  type TextForm,
+  type TextFormType,
+} from '@gruenerator/contracts';
 import { useUserGroups } from '@gruenerator/shared/groups';
 import { slugifyName } from '@gruenerator/shared/utils';
 import { Button, toast } from '@gruenerator/ui';
-import { useMemo, useState } from 'react';
-import { FiPlus, FiShare2, FiTrash2, FiX } from 'react-icons/fi';
+import { useMemo, useRef, useState } from 'react';
+import { FiPlus, FiShare2, FiTrash2, FiUpload, FiX } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
+import { EXAMPLE_FILE_ACCEPT, extractExampleText } from './extractExampleText';
 import { type useTextForms } from './useTextForms';
 
 const TEXTAREA_CLASS =
@@ -57,6 +63,8 @@ const TextFormEditor = ({
   const [mentionTouched, setMentionTouched] = useState(false);
   const [examples, setExamples] = useState<string[]>(() => seedExamples(initialForm));
   const [styleBlock, setStyleBlock] = useState(initialForm?.styleBlock ?? '');
+  const [isReadingFiles, setIsReadingFiles] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const effectiveMention = useMemo(() => {
     if (fixedTextType) return fixedTextType;
@@ -72,6 +80,72 @@ const TextFormEditor = ({
   const addExample = () => canAddExample && setExamples((prev) => [...prev, '']);
   const removeExample = (idx: number) =>
     setExamples((prev) => (prev.length <= 1 ? [''] : prev.filter((_, i) => i !== idx)));
+
+  /**
+   * Uploaded files land in the example textareas rather than in a hidden list:
+   * whatever the OCR read stays visible and editable, so a botched extraction is
+   * obvious before it is analysed. Empty slots fill first, then we append up to
+   * the cap.
+   */
+  const handleFiles = async (fileList: FileList | null) => {
+    const files = Array.from(fileList ?? []);
+    if (files.length === 0) return;
+
+    setIsReadingFiles(true);
+    try {
+      const results = await Promise.allSettled(files.map((file) => extractExampleText(file)));
+      const next = [...examples];
+      let added = 0;
+      let overCap = 0;
+      let truncated = 0;
+
+      results.forEach((result, i) => {
+        const name = files[i]?.name ?? 'Datei';
+        if (result.status === 'rejected') {
+          const err = result.reason as unknown;
+          toast.error(
+            err instanceof Error ? err.message : `„${name}" konnte nicht gelesen werden.`
+          );
+          return;
+        }
+        const text = result.value.trim();
+        if (text.length === 0) {
+          toast.error(`Aus „${name}" ließ sich kein Text lesen.`);
+          return;
+        }
+        if (text.length > MAX_TEXT_FORM_EXAMPLE_CHARS) truncated += 1;
+        const content = text.slice(0, MAX_TEXT_FORM_EXAMPLE_CHARS);
+
+        const blank = next.findIndex((e) => e.trim().length === 0);
+        if (blank >= 0) next[blank] = content;
+        else if (next.length < MAX_TEXT_FORM_EXAMPLES) next.push(content);
+        else {
+          overCap += 1;
+          return;
+        }
+        added += 1;
+      });
+
+      setExamples(next);
+      if (added > 0) {
+        toast.success(
+          added === 1 ? 'Beispiel aus Datei übernommen.' : `${added} Beispiele übernommen.`
+        );
+      }
+      if (truncated > 0) {
+        toast.info(
+          `Sehr lange Texte wurden auf ${MAX_TEXT_FORM_EXAMPLE_CHARS.toLocaleString('de-DE')} Zeichen gekürzt.`
+        );
+      }
+      if (overCap > 0) {
+        toast.error(
+          `Mehr als ${MAX_TEXT_FORM_EXAMPLES} Beispiele gehen nicht — ${overCap} ${overCap === 1 ? 'Datei blieb' : 'Dateien blieben'} außen vor.`
+        );
+      }
+    } finally {
+      setIsReadingFiles(false);
+    }
+  };
 
   const handleAnalyze = async () => {
     if (filledExamples.length === 0) {
@@ -210,15 +284,39 @@ const TextFormEditor = ({
             )}
           </div>
         ))}
-        {canAddExample && (
+        <div className="flex flex-wrap items-center gap-md">
+          {canAddExample && (
+            <button
+              type="button"
+              onClick={addExample}
+              className="flex items-center gap-1 text-xs text-primary-600 hover:underline dark:text-primary-400"
+            >
+              <FiPlus size={14} /> Beispiel hinzufügen
+            </button>
+          )}
           <button
             type="button"
-            onClick={addExample}
-            className="flex items-center gap-1 self-start text-xs text-primary-600 hover:underline dark:text-primary-400"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isReadingFiles}
+            className="flex items-center gap-1 text-xs text-primary-600 hover:underline disabled:opacity-60 dark:text-primary-400"
           >
-            <FiPlus size={14} /> Beispiel hinzufügen
+            <FiUpload size={14} /> {isReadingFiles ? 'Lese Dateien…' : 'Dateien hochladen'}
           </button>
-        )}
+          <span className="text-xs text-grey-500 dark:text-grey-400">
+            PDF, Word, PowerPoint, Bilder oder Textdateien
+          </span>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept={EXAMPLE_FILE_ACCEPT}
+            className="hidden"
+            onChange={(e) => {
+              void handleFiles(e.target.files);
+              e.target.value = '';
+            }}
+          />
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
