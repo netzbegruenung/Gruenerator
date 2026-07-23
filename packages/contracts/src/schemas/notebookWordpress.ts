@@ -23,10 +23,19 @@ export const wpDiscoveredCategorySchema = z.object({
 });
 export type WpDiscoveredCategory = z.infer<typeof wpDiscoveredCategorySchema>;
 
+/** A single WP "page" (not a pagination page) offered for individual selection. */
+export const wpDiscoveredPageSchema = z.object({
+  id: z.number(),
+  title: z.string(),
+});
+export type WpDiscoveredPage = z.infer<typeof wpDiscoveredPageSchema>;
+
 export const wpDiscoverResponseSchema = z.object({
   success: z.literal(true),
   site: z.object({ url: z.string(), name: z.string() }),
   categories: z.array(wpDiscoveredCategorySchema),
+  /** The site's pages, for the "welche Seiten?" dropdown. Capped at PAGE_LIST_LIMIT. */
+  pages: z.array(wpDiscoveredPageSchema),
   total_posts: z.number(),
   total_pages: z.number(),
 });
@@ -37,6 +46,11 @@ export const wpImportBodySchema = z.object({
   categories: z.array(wordpressCategoryRefSchema),
   all_posts: z.boolean(),
   pages: z.boolean(),
+  /**
+   * Subset of page ids to import. Null/empty while `pages` is true means every
+   * page — that is the pre-dropdown behaviour and what legacy refs replay.
+   */
+  page_ids: z.array(z.number()).nullish(),
   /** ISO timestamp for incremental sync; null/omitted = full import of the latest 50 per scope. */
   modified_after: z.string().nullish(),
   /** Document ids the client already holds for this site — lets a full run compute removals. */
