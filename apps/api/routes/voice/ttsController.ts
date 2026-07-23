@@ -1,6 +1,7 @@
 import express, { type Request, type Response, type Router } from 'express';
 
 import ttsService from '../../services/voice/ttsService.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { buildContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -97,7 +98,9 @@ router.post('/stream', async (req: GenerateRequest, res: Response) => {
           res.end();
         },
         onError: (error) => {
-          res.write(`event: error\ndata: ${JSON.stringify({ error: error.message })}\n\n`);
+          res.write(
+            `event: error\ndata: ${JSON.stringify({ error: toUserFacingMessage(error) })}\n\n`
+          );
           res.end();
         },
       }

@@ -369,6 +369,7 @@ async function auditDoc(docPath: string, model: string): Promise<DocResult> {
       status: 'error',
       upToDate: true,
       findings: [],
+
       error: err instanceof Error ? err.message : String(err),
       durationS: Math.round((Date.now() - start) / 1000),
     };

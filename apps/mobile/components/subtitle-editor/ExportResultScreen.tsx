@@ -31,6 +31,7 @@ interface ExportScreenProps {
   progress: number;
   videoUri: string | null;
   error: string | null;
+  errorId?: string | null;
   onBackToEditor: () => void;
   onGoHome: () => void;
 }
@@ -82,6 +83,7 @@ export function ExportScreen({
   progress,
   videoUri,
   error,
+  errorId,
   onBackToEditor,
   onGoHome,
 }: ExportScreenProps) {
@@ -218,6 +220,7 @@ export function ExportScreen({
         <Ionicons name="alert-circle" size={48} color={colors.error[500]} />
         <Text style={[styles.progressTitle, { color: theme.text }]}>Export fehlgeschlagen</Text>
         <Text style={styles.errorText}>{error}</Text>
+        {errorId ? <Text style={styles.errorIdText}>Fehler-ID: {errorId}</Text> : null}
         <Button onPress={onBackToEditor} variant="outline">
           Zurück zum Editor
         </Button>
@@ -353,6 +356,12 @@ const styles = StyleSheet.create({
   },
   progressPercent: {
     fontSize: 14,
+  },
+  errorIdText: {
+    fontSize: 12,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    color: colors.grey[500],
+    marginBottom: 8,
   },
   errorText: {
     fontSize: 14,

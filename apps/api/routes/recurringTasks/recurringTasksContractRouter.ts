@@ -19,6 +19,7 @@ import {
   updateRecurringTask,
 } from '../../services/recurringTasks/recurringTasksRepository.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -42,7 +43,7 @@ export const recurringTasksContractRouter = s.router(recurringTasksContract, {
     } catch (error) {
       const err = error as Error;
       log.error('[recurringTasks.list] Error:', err);
-      return { status: 500 as const, body: { success: false, message: err.message } };
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
     }
   },
 
@@ -54,7 +55,7 @@ export const recurringTasksContractRouter = s.router(recurringTasksContract, {
     } catch (error) {
       const err = error as Error;
       log.error('[recurringTasks.create] Error:', err);
-      return { status: 500 as const, body: { success: false, message: err.message } };
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
     }
   },
 
@@ -67,7 +68,7 @@ export const recurringTasksContractRouter = s.router(recurringTasksContract, {
     } catch (error) {
       const err = error as Error;
       log.error('[recurringTasks.get] Error:', err);
-      return { status: 500 as const, body: { success: false, message: err.message } };
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
     }
   },
 
@@ -80,7 +81,7 @@ export const recurringTasksContractRouter = s.router(recurringTasksContract, {
     } catch (error) {
       const err = error as Error;
       log.error('[recurringTasks.update] Error:', err);
-      return { status: 500 as const, body: { success: false, message: err.message } };
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
     }
   },
 
@@ -93,7 +94,7 @@ export const recurringTasksContractRouter = s.router(recurringTasksContract, {
     } catch (error) {
       const err = error as Error;
       log.error('[recurringTasks.remove] Error:', err);
-      return { status: 500 as const, body: { success: false, message: err.message } };
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
     }
   },
 
@@ -110,7 +111,7 @@ export const recurringTasksContractRouter = s.router(recurringTasksContract, {
     } catch (error) {
       const err = error as Error;
       log.error('[recurringTasks.runNow] Error:', err);
-      return { status: 500 as const, body: { success: false, message: err.message } };
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
     }
   },
 
@@ -122,7 +123,7 @@ export const recurringTasksContractRouter = s.router(recurringTasksContract, {
     } catch (error) {
       const err = error as Error;
       log.error('[recurringTasks.listRuns] Error:', err);
-      return { status: 500 as const, body: { success: false, message: err.message } };
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
     }
   },
 });
