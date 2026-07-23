@@ -1,5 +1,6 @@
 import { type TextForm, type TextFormType } from '@gruenerator/contracts';
 import { useState } from 'react';
+import { FiArrowLeft, FiChevronRight, FiPlus } from 'react-icons/fi';
 
 import TextFormEditor from './texteAnlernen/TextFormEditor';
 import { useTextForms } from './texteAnlernen/useTextForms';
@@ -14,11 +15,60 @@ const PRESETS: { textType: TextFormType; label: string; hint: string }[] = [
   { textType: 'antrag', label: 'Anträge', hint: 'Anträge' },
 ];
 
+/**
+ * Which editor the tab is showing; `null` is the overview list.
+ *
+ * The editor takes over the whole tab instead of sitting expanded inside the
+ * list. Five editors open at once meant a fresh account landed on a wall of
+ * empty textareas, and the question people actually arrive with — what have I
+ * already taught? — was nowhere on screen.
+ */
+type EditorTarget =
+  | { kind: 'preset'; textType: TextFormType; label: string; hint: string }
+  | { kind: 'custom'; form: TextForm }
+  | { kind: 'new' };
+
+function formatLearned(form: TextForm | undefined): string {
+  if (!form || form.styleBlock.trim().length === 0) return 'Noch nicht angelernt';
+  const iso = form.analyzedAt ?? form.updatedAt;
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return 'Angelernt';
+  const days = Math.floor((Date.now() - then) / 86_400_000);
+  if (days <= 0) return 'Angelernt · heute';
+  if (days === 1) return 'Angelernt · gestern';
+  if (days < 30) return `Angelernt · vor ${days} Tagen`;
+  return `Angelernt · ${new Date(iso).toLocaleDateString('de-DE')}`;
+}
+
+const FormRow = ({
+  label,
+  meta,
+  status,
+  onClick,
+}: {
+  label: string;
+  meta: string;
+  status: string;
+  onClick: () => void;
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="flex w-full items-center gap-md rounded-lg border border-grey-200 px-md py-sm text-left transition-colors hover:bg-background-alt dark:border-grey-700"
+  >
+    <span className="min-w-0 flex-1">
+      <span className="block truncate text-sm font-medium text-foreground">{label}</span>
+      <span className="block truncate text-xs text-grey-500 dark:text-grey-400">{meta}</span>
+    </span>
+    <span className="shrink-0 text-xs text-grey-500 dark:text-grey-400">{status}</span>
+    <FiChevronRight size={16} className="shrink-0 text-grey-400" aria-hidden />
+  </button>
+);
+
 const TexteAnlernenTab = () => {
   const user = useAuthStore((s) => s.user);
   const api = useTextForms(!!user);
-  // Force-remount the "new custom form" editor after a create, clearing its fields.
-  const [newFormKey, setNewFormKey] = useState(0);
+  const [target, setTarget] = useState<EditorTarget | null>(null);
 
   if (api.query.isLoading) {
     return (
@@ -32,6 +82,62 @@ const TexteAnlernenTab = () => {
   const byMention = (mention: string): TextForm | undefined =>
     forms.find((f) => f.mention === mention);
   const customForms = forms.filter((f) => f.kind === 'custom');
+  const backToList = () => setTarget(null);
+
+  if (target) {
+    const heading =
+      target.kind === 'preset'
+        ? target.label
+        : target.kind === 'custom'
+          ? target.form.title
+          : 'Neue Textform';
+
+    return (
+      <div className="flex flex-col gap-md">
+        <button
+          type="button"
+          onClick={backToList}
+          className="flex items-center gap-1 self-start text-sm text-grey-500 hover:text-foreground dark:text-grey-400"
+        >
+          <FiArrowLeft size={14} /> Alle Textformen
+        </button>
+        <h3 className="m-0 text-base font-semibold text-foreground-heading">{heading}</h3>
+
+        {target.kind === 'preset' ? (
+          <TextFormEditor
+            kind="preset"
+            fixedTextType={target.textType}
+            initialForm={byMention(target.textType)}
+            defaultTitle={target.label}
+            hint={target.hint}
+            api={api}
+            onCreated={backToList}
+            onDeleted={backToList}
+          />
+        ) : target.kind === 'custom' ? (
+          <TextFormEditor
+            kind="custom"
+            initialForm={target.form}
+            defaultTitle={target.form.title}
+            hint={target.form.title}
+            api={api}
+            onCreated={backToList}
+            onDeleted={backToList}
+          />
+        ) : (
+          <TextFormEditor
+            kind="custom"
+            defaultTitle=""
+            hint="deine Textform"
+            editableMeta
+            api={api}
+            onCreated={backToList}
+            onDeleted={backToList}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-xl">
@@ -41,24 +147,22 @@ const TexteAnlernenTab = () => {
         Textform im Chat aktivierst.
       </p>
 
-      <section className="flex flex-col gap-md">
+      <section className="flex flex-col gap-sm">
         <h3 className="m-0 text-sm font-semibold text-foreground-heading">
           Vorgegebene Textformen
         </h3>
         {PRESETS.map((preset) => (
-          <TextFormEditor
+          <FormRow
             key={preset.textType}
-            kind="preset"
-            fixedTextType={preset.textType}
-            initialForm={byMention(preset.textType)}
-            defaultTitle={preset.label}
-            hint={preset.hint}
-            api={api}
+            label={preset.label}
+            meta={`Ersetzt den Standard beim /${preset.textType}-Skill`}
+            status={formatLearned(byMention(preset.textType))}
+            onClick={() => setTarget({ kind: 'preset', ...preset })}
           />
         ))}
       </section>
 
-      <section className="flex flex-col gap-md">
+      <section className="flex flex-col gap-sm">
         <div>
           <h3 className="m-0 text-sm font-semibold text-foreground-heading">Eigene Textformen</h3>
           <p className="m-0 text-xs text-grey-500 dark:text-grey-400">
@@ -68,25 +172,22 @@ const TexteAnlernenTab = () => {
         </div>
 
         {customForms.map((form) => (
-          <TextFormEditor
+          <FormRow
             key={form.mention}
-            kind="custom"
-            initialForm={form}
-            defaultTitle={form.title}
-            hint={form.title}
-            api={api}
+            label={form.title}
+            meta={`/${form.mention}`}
+            status={formatLearned(form)}
+            onClick={() => setTarget({ kind: 'custom', form })}
           />
         ))}
 
-        <TextFormEditor
-          key={`new-${newFormKey}`}
-          kind="custom"
-          defaultTitle=""
-          hint="deine Textform"
-          editableMeta
-          api={api}
-          onCreated={() => setNewFormKey((k) => k + 1)}
-        />
+        <button
+          type="button"
+          onClick={() => setTarget({ kind: 'new' })}
+          className="flex items-center gap-1 self-start text-sm text-primary-600 hover:underline dark:text-primary-400"
+        >
+          <FiPlus size={14} /> Eigene Textform anlegen
+        </button>
       </section>
     </div>
   );
