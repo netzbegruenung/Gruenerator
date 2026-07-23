@@ -39,6 +39,7 @@ import {
   notebookContract,
   notebookCollectionsContract,
   wolkePendingContract,
+  notebookWordpressContract,
   notebookSharingContract,
   transferContract,
   notificationsContract,
@@ -200,6 +201,7 @@ const _publicBoardsClient = () => initClient(publicBoardsContract, CLIENT_OPTS);
 const _notebookClient = () => initClient(notebookContract, CLIENT_OPTS);
 const _notebookCollectionsClient = () => initClient(notebookCollectionsContract, CLIENT_OPTS);
 const _wolkePendingClient = () => initClient(wolkePendingContract, CLIENT_OPTS);
+const _notebookWordpressClient = () => initClient(notebookWordpressContract, CLIENT_OPTS);
 const _notebookSharingClient = () => initClient(notebookSharingContract, CLIENT_OPTS);
 const _transferClient = () => initClient(transferContract, CLIENT_OPTS);
 const _notificationsClient = () => initClient(notificationsContract, CLIENT_OPTS);
@@ -253,6 +255,7 @@ export interface ContractsClient {
   notebook: ReturnType<typeof _notebookClient>;
   notebookCollections: ReturnType<typeof _notebookCollectionsClient>;
   wolkePending: ReturnType<typeof _wolkePendingClient>;
+  notebookWordpress: ReturnType<typeof _notebookWordpressClient>;
   notebookSharing: ReturnType<typeof _notebookSharingClient>;
   transfer: ReturnType<typeof _transferClient>;
   notifications: ReturnType<typeof _notificationsClient>;
@@ -323,6 +326,7 @@ export function getContractsClient(): ContractsClient {
     notebook: _notebookClient(),
     notebookCollections: _notebookCollectionsClient(),
     wolkePending: _wolkePendingClient(),
+    notebookWordpress: _notebookWordpressClient(),
     notebookSharing: _notebookSharingClient(),
     transfer: _transferClient(),
     notifications: _notificationsClient(),

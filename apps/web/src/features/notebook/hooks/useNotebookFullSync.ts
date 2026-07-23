@@ -1,4 +1,8 @@
-import { type LinkedDocRef, type WolkeFolderRef } from '@gruenerator/contracts';
+import {
+  NOTEBOOK_MAX_DOCUMENTS,
+  type LinkedDocRef,
+  type WolkeFolderRef,
+} from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useMutation } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
@@ -11,7 +15,7 @@ import { syncWolkeFolder, type WolkeFolderSyncResult } from './syncWolkeFolder';
 
 import type { NotebookCollection } from '../../../types/notebook';
 
-const MAX_DOCUMENTS = 100;
+const MAX_DOCUMENTS = NOTEBOOK_MAX_DOCUMENTS;
 
 export type SyncProgressStatus = 'pending' | 'running' | 'done' | 'error';
 

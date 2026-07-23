@@ -12,7 +12,13 @@
  * guard only — should never fire in production).
  */
 
-import { notebookCollectionsContract, type WolkeFolderRef } from '@gruenerator/contracts';
+import {
+  NOTEBOOK_MAX_DOCUMENTS,
+  notebookCollectionsContract,
+  type LinkedDocRef,
+  type WolkeFolderRef,
+  type WordpressSiteRef,
+} from '@gruenerator/contracts';
 import { extractSlugSuffix, sortByUsage } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
@@ -182,6 +188,12 @@ async function enrichNotebookCollection(
   const wolke_folders = Array.isArray(settings.wolke_folders)
     ? (settings.wolke_folders as WolkeFolderRef[])
     : [];
+  const linked_docs = Array.isArray(settings.linked_docs)
+    ? (settings.linked_docs as LinkedDocRef[])
+    : [];
+  const wordpress_sites = Array.isArray(settings.wordpress_sites)
+    ? (settings.wordpress_sites as WordpressSiteRef[])
+    : [];
 
   return {
     ...collection,
@@ -195,6 +207,8 @@ async function enrichNotebookCollection(
     remove_missing_on_sync: !!collection.remove_missing_on_sync,
     labels,
     wolke_folders,
+    linked_docs,
+    wordpress_sites,
     is_public: collection.is_public === true,
     public_ownership: collection.public_ownership ?? null,
     access_source: accessSource,
@@ -370,6 +384,12 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
           const wolke_folders = Array.isArray(settings.wolke_folders)
             ? (settings.wolke_folders as WolkeFolderRef[])
             : [];
+          const linked_docs = Array.isArray(settings.linked_docs)
+            ? (settings.linked_docs as LinkedDocRef[])
+            : [];
+          const wordpress_sites = Array.isArray(settings.wordpress_sites)
+            ? (settings.wordpress_sites as WordpressSiteRef[])
+            : [];
 
           return {
             ...collection,
@@ -383,6 +403,8 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
             remove_missing_on_sync: !!collection.remove_missing_on_sync,
             labels,
             wolke_folders,
+            linked_docs,
+            wordpress_sites,
             is_public: collection.is_public === true,
             public_ownership: collection.public_ownership ?? null,
             likes_count: likeCounts.get(collection.id) ?? 0,
@@ -418,6 +440,8 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         labels,
         is_public,
         wolke_folders: wolkeFoldersRaw,
+        linked_docs: linkedDocsRaw,
+        wordpress_sites: wordpressSitesRaw,
         audience: audienceRaw,
       } = args.body;
       // Default audience to the creator's locale so an Austrian user creating
@@ -429,6 +453,8 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       const document_ids = documentIdsRaw ?? [];
       const wolke_share_link_ids = wolkeLinkIdsRaw ?? [];
       const wolke_folders = Array.isArray(wolkeFoldersRaw) ? wolkeFoldersRaw : [];
+      const linked_docs = Array.isArray(linkedDocsRaw) ? linkedDocsRaw : [];
+      const wordpress_sites = Array.isArray(wordpressSitesRaw) ? wordpressSitesRaw : [];
       log.debug(
         `[createCollection] incoming wolke_folders raw=${typeof wolkeFoldersRaw} array=${Array.isArray(wolkeFoldersRaw)} count=${wolke_folders.length}`
       );
@@ -437,10 +463,10 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         return { status: 400 as const, body: { error: 'Name is required' } };
       }
 
-      if (Array.isArray(document_ids) && document_ids.length > 100) {
+      if (Array.isArray(document_ids) && document_ids.length > NOTEBOOK_MAX_DOCUMENTS) {
         return {
           status: 400 as const,
-          body: { error: 'A notebook can contain at most 100 documents' },
+          body: { error: `A notebook can contain at most ${NOTEBOOK_MAX_DOCUMENTS} documents` },
         };
       }
 
@@ -529,6 +555,8 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         settings: {
           ...(Array.isArray(labels) ? { labels: labels.map((l) => l.trim()).filter(Boolean) } : {}),
           wolke_folders,
+          linked_docs,
+          wordpress_sites,
         },
         // Always created private; publishing happens later via the share modal
         // (rejected above if is_public was requested at create time).
@@ -591,6 +619,8 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         is_public,
         public_ownership,
         wolke_folders: wolkeFoldersRaw,
+        linked_docs: linkedDocsRaw,
+        wordpress_sites: wordpressSitesRaw,
       } = args.body;
 
       const selection_mode = selectionModeRaw ?? 'documents';
@@ -605,10 +635,10 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         return { status: 400 as const, body: { error: 'Name is required' } };
       }
 
-      if (Array.isArray(document_ids) && document_ids.length > 100) {
+      if (Array.isArray(document_ids) && document_ids.length > NOTEBOOK_MAX_DOCUMENTS) {
         return {
           status: 400 as const,
-          body: { error: 'A notebook can contain at most 100 documents' },
+          body: { error: `A notebook can contain at most ${NOTEBOOK_MAX_DOCUMENTS} documents` },
         };
       }
 
@@ -713,6 +743,14 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       }
       if (Array.isArray(wolkeFoldersRaw)) {
         settingsPatch.wolke_folders = wolkeFoldersRaw;
+        settingsChanged = true;
+      }
+      if (Array.isArray(linkedDocsRaw)) {
+        settingsPatch.linked_docs = linkedDocsRaw;
+        settingsChanged = true;
+      }
+      if (Array.isArray(wordpressSitesRaw)) {
+        settingsPatch.wordpress_sites = wordpressSitesRaw;
         settingsChanged = true;
       }
       if (settingsChanged) {
