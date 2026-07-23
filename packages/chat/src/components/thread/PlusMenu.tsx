@@ -3,12 +3,14 @@
 import { memo, useState } from 'react';
 import {
   BookOpen,
+  Check,
   ExternalLink,
   FileSearch,
   LayoutTemplate,
   Library,
   MessageSquare,
   Paperclip,
+  Plug,
   PlusIcon,
   Settings,
   Upload,
@@ -32,10 +34,12 @@ import { useUserProfileStore } from '../../stores/userProfileStore';
 import {
   getAgentMentionables,
   getCustomAgentMentionables,
+  getMcpServerMentionables,
   toolMentionables,
   notebookMentionables,
   type Mentionable,
 } from '../../lib/mentionables';
+import { useAgentStore } from '../../stores/chatStore';
 import {
   useScopedThreadMode,
   useScopedSelectedNotebookId,
@@ -93,6 +97,21 @@ export const PlusMenu = memo(function PlusMenu({
     (a) => a.isSystemDefault || favorites.includes(a.mention.toLowerCase())
   );
   const allQuickSkills = [...quickSkills, ...customAgents];
+
+  const mcpConnectors = getMcpServerMentionables();
+  const pinnedConnector = useAgentStore((s) => s.pinnedConnector);
+  const setPinnedConnector = useAgentStore((s) => s.setPinnedConnector);
+
+  // Pin (not one-off insert) a connector so its MCP scope holds across
+  // follow-ups; selecting the pinned one again unpins.
+  const togglePinnedConnector = (connector: Mentionable) => {
+    const id = connector.identifier.slice(4); // strip 'mcp:'
+    if (pinnedConnector?.id === id) {
+      setPinnedConnector(null);
+      return;
+    }
+    setPinnedConnector({ id, label: connector.title });
+  };
 
   const threadMode = useScopedThreadMode();
   const selectedNotebookId = useScopedSelectedNotebookId();
@@ -310,6 +329,33 @@ export const PlusMenu = memo(function PlusMenu({
         </DropdownMenuSubContent>
       </DropdownMenuSub>
 
+      {mcpConnectors.length > 0 && (
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger className={pinnedConnector ? activeClass : ''}>
+            <Plug className="h-3.5 w-3.5" />
+            <span className="flex-1 truncate">
+              {pinnedConnector ? pinnedConnector.label : 'Konnektoren'}
+            </span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="max-h-[24rem] overflow-y-auto">
+            {mcpConnectors.map((connector) => {
+              const isActive = pinnedConnector?.id === connector.identifier.slice(4);
+              return (
+                <DropdownMenuItem
+                  key={connector.identifier}
+                  onClick={() => togglePinnedConnector(connector)}
+                  className={isActive ? activeClass : ''}
+                >
+                  <Plug className="h-3.5 w-3.5" />
+                  <span className="flex-1 truncate">{connector.title}</span>
+                  {isActive && <Check className="h-3.5 w-3.5" />}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+      )}
+
       <DropdownMenuSub>
         <DropdownMenuSubTrigger>
           <Paperclip className="h-3.5 w-3.5" />
@@ -472,6 +518,21 @@ export const PlusMenu = memo(function PlusMenu({
           );
         })}
       </ResponsiveMenuSection>
+
+      {mcpConnectors.length > 0 && (
+        <ResponsiveMenuSection title="Konnektoren">
+          {mcpConnectors.map((connector) => (
+            <ResponsiveMenuItem
+              key={connector.identifier}
+              icon={<Plug />}
+              active={pinnedConnector?.id === connector.identifier.slice(4)}
+              onClick={() => handleMobileAction(() => togglePinnedConnector(connector))}
+            >
+              {connector.title}
+            </ResponsiveMenuItem>
+          ))}
+        </ResponsiveMenuSection>
+      )}
 
       {includeModes && insideAgent && onNavigate && (
         <ResponsiveMenuSection title="Profil">

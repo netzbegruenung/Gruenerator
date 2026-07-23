@@ -64,6 +64,7 @@ export type SSEEventType =
   | 'reel_picker'
   | 'reel_updated'
   | 'reel_edit_error'
+  | 'mcp_tool_error'
   | 'tool_step_start'
   | 'tool_step_result'
   | 'response_start'
@@ -209,6 +210,11 @@ export interface SSEEventPayloads {
     changedIndices: number[];
   };
   reel_edit_error: { projectId?: string; error: string };
+  // Connector (user MCP) tool failure — a first-class, user-facing error the
+  // frontend can render as a banner. The generic tool_step_result{ok:false}
+  // card still fires; this names the server and the human-readable error so the
+  // failure isn't only implied by a greyed-out tool card.
+  mcp_tool_error: { toolName: string; serverName: string; error: string };
   // Agentic tool loop: one start/result pair per tool step. Args/summaries are
   // compact display data. `title`/`serverName` label the card (MCP/connector
   // tools); `result` carries the rich per-tool payload the UI cards read

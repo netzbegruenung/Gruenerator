@@ -81,4 +81,38 @@ describe('buildTrace', () => {
     const t = parseTrace(frame('text_delta', { text: 'hi' }), 1);
     expect(t.error).toMatch(/without a done/);
   });
+
+  it('captures a modify_doc confirm card target id as a referenced id', () => {
+    const raw =
+      frame('intent', { intent: 'modify_doc' }) +
+      frame('confirm_action', {
+        actionId: 'a1',
+        type: 'modify_doc',
+        title: 'Dokument ändern?',
+        metadata: [{ key: 'Dokument', value: 'doc-123' }],
+      }) +
+      frame('done', {});
+    const t = parseTrace(raw, 1);
+    expect(t.referencedIds).toContain('doc-123');
+  });
+
+  it('ignores confirm cards that are not artifact edits', () => {
+    const raw =
+      frame('confirm_action', {
+        actionId: 'a1',
+        type: 'save_as_doc',
+        title: 'Speichern?',
+        metadata: [{ key: 'Titel', value: 'Mein Antrag' }],
+      }) + frame('done', {});
+    expect(parseTrace(raw, 1).referencedIds).toHaveLength(0);
+  });
+
+  it('replaces streamed deltas with the completion event (citation clamp)', () => {
+    const raw =
+      frame('text_delta', { text: 'Rohtext [5].' }) +
+      frame('completion', { text: 'Rohtext.', citations: [] }) +
+      frame('done', { citations: [] });
+    const t = parseTrace(raw, 1);
+    expect(t.fullText).toBe('Rohtext.');
+  });
 });

@@ -450,6 +450,9 @@ export const profileApiService = {
       ...(Array.isArray(collectionData.wolkeFolders)
         ? { wolke_folders: collectionData.wolkeFolders }
         : {}),
+      ...(Array.isArray(collectionData.wordpressSites)
+        ? { wordpress_sites: collectionData.wordpressSites }
+        : {}),
       ...(Array.isArray(collectionData.linkedDocs)
         ? { linked_docs: collectionData.linkedDocs }
         : {}),
@@ -496,6 +499,9 @@ export const profileApiService = {
         : {}),
       ...(Array.isArray(collectionData.wolkeFolders)
         ? { wolke_folders: collectionData.wolkeFolders }
+        : {}),
+      ...(Array.isArray(collectionData.wordpressSites)
+        ? { wordpress_sites: collectionData.wordpressSites }
         : {}),
       ...(Array.isArray(collectionData.linkedDocs)
         ? { linked_docs: collectionData.linkedDocs }

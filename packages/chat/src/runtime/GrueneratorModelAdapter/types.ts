@@ -57,6 +57,11 @@ export interface GrueneratorAdapterConfig {
   /** Mention key of the active /skill (e.g. 'instagram'). Server appends the
    *  skill's `skillSystemPrompt` to the agent's systemRole when set. */
   activeSkillMention?: string | null;
+  /** Pinned MCP connector — while set, the adapter injects its durable
+   *  `@[Label](mcp:id)` token into every sent message and forces `mcp:<id>`,
+   *  holding the tool scope across follow-ups. Web-only for now; null on other
+   *  surfaces (e.g. the editor). */
+  pinnedConnector?: { id: string; label: string } | null;
 }
 
 export interface GrueneratorAdapterCallbacks {
