@@ -10,7 +10,6 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  Input,
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -21,6 +20,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { HiChevronDown, HiExclamation, HiGlobeAlt, HiPencil, HiRefresh, HiX } from 'react-icons/hi';
 
 import { cn } from '../../../utils/cn';
+import { useUserWebsites } from '../../settings/hooks/useUserWebsites';
 import {
   useWordpressDiscovery,
   useWordpressDiscoveryPrefetch,
@@ -46,7 +46,9 @@ interface Props {
 
 /** Which site the selection panel is open for, and whether it edits an existing one. */
 interface DiscoveryTarget {
+  websiteId: string;
   url: string;
+  name: string;
   editingSite: WordpressSiteRef | null;
 }
 
@@ -96,7 +98,6 @@ const NotebookEditorWordpressSection = ({
   disabled,
 }: Props) => {
   const [addOpen, setAddOpen] = useState(false);
-  const [urlInput, setUrlInput] = useState('');
   const [target, setTarget] = useState<DiscoveryTarget | null>(null);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<number>>(() => new Set());
   const [selAllPosts, setSelAllPosts] = useState(false);
@@ -104,13 +105,26 @@ const NotebookEditorWordpressSection = ({
   const [selectedPageIds, setSelectedPageIds] = useState<Set<number>>(() => new Set());
   const [pagesOpen, setPagesOpen] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [syncingUrl, setSyncingUrl] = useState<string | null>(null);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
+  const { data: catalogue } = useUserWebsites();
   const discoveryQuery = useWordpressDiscovery(target?.url ?? null);
   const prefetchDiscovery = useWordpressDiscoveryPrefetch();
   const discovery = discoveryQuery.data ?? null;
+
+  /** A notebook ref only stores websiteId — name and URL come from the catalogue. */
+  const resolve = useCallback(
+    (websiteId: string) => catalogue?.find((w) => w.id === websiteId) ?? null,
+    [catalogue]
+  );
+
+  /** Websites connected to the account but not yet used by this notebook. */
+  const available = useMemo(
+    () => (catalogue ?? []).filter((w) => !sites.some((s) => s.websiteId === w.id)),
+    [catalogue, sites]
+  );
 
   const resetChecklist = useCallback(() => {
     setTarget(null);
@@ -126,16 +140,29 @@ const NotebookEditorWordpressSection = ({
    * usable the moment it opens — the category and page lists stream in from
    * the (usually cached) discovery query.
    */
-  const openPanel = useCallback((rawUrl: string, editingSite: WordpressSiteRef | null) => {
-    setError(null);
-    setNotice(null);
-    setSelectedCategoryIds(new Set(editingSite?.categories.map((c) => c.id) ?? []));
-    setSelAllPosts(editingSite?.allPosts ?? false);
-    setSelPages(editingSite?.pages ?? false);
-    setSelectedPageIds(new Set(editingSite?.selectedPages?.map((p) => p.id) ?? []));
-    setPagesOpen(false);
-    setTarget({ url: rawUrl, editingSite });
-  }, []);
+  const openPanel = useCallback(
+    (websiteId: string, editingSite: WordpressSiteRef | null) => {
+      const website = resolve(websiteId);
+      if (!website) {
+        // Catalogue still loading, or the site was disconnected in settings —
+        // returning silently would make the button look broken.
+        setError(
+          'Diese Website ist gerade nicht verfügbar. Prüfe in den Einstellungen unter „Meine Websites".'
+        );
+        return;
+      }
+      setError(null);
+      setNotice(null);
+      setAddOpen(false);
+      setSelectedCategoryIds(new Set(editingSite?.categories.map((c) => c.id) ?? []));
+      setSelAllPosts(editingSite?.allPosts ?? false);
+      setSelPages(editingSite?.pages ?? false);
+      setSelectedPageIds(new Set(editingSite?.selectedPages?.map((p) => p.id) ?? []));
+      setPagesOpen(false);
+      setTarget({ websiteId, url: website.siteUrl, name: website.siteName, editingSite });
+    },
+    [resolve]
+  );
 
   /** Apply an import response to parent state and return the site's new documentIds. */
   const applyImportResult = useCallback(
@@ -182,11 +209,10 @@ const NotebookEditorWordpressSection = ({
     setImporting(true);
     setError(null);
     try {
-      // A site added a second time (the server normalises "example.de" and
-      // "https://example.de/" to the same URL) must reconfigure the existing
-      // entry rather than append a twin that fights over the same documents.
+      // Picking a site that is already attached must reconfigure that entry
+      // rather than append a twin fighting over the same documents.
       const editing =
-        target.editingSite ?? sites.find((s) => s.siteUrl === discovery.site.url) ?? null;
+        target.editingSite ?? sites.find((s) => s.websiteId === target.websiteId) ?? null;
       const result = await getContractsClient().notebookWordpress.importSite({
         body: {
           site_url: discovery.site.url,
@@ -206,8 +232,7 @@ const NotebookEditorWordpressSection = ({
 
       const documentIds = applyImportResult(result.body, editing?.documentIds ?? []);
       const nextRef: WordpressSiteRef = {
-        siteUrl: discovery.site.url,
-        siteName: discovery.site.name,
+        websiteId: target.websiteId,
         categories: selectedCategories,
         allPosts: selAllPosts,
         pages: selPages,
@@ -217,12 +242,11 @@ const NotebookEditorWordpressSection = ({
       };
       onSitesChange(
         editing
-          ? sites.map((s) => (s.siteUrl === editing.siteUrl ? nextRef : s))
+          ? sites.map((s) => (s.websiteId === editing.websiteId ? nextRef : s))
           : [...sites, nextRef]
       );
       setNotice(buildSummary(result.body));
       setAddOpen(false);
-      setUrlInput('');
       resetChecklist();
     } catch {
       setError(WP_ERROR_MESSAGES.fetch_failed);
@@ -246,13 +270,18 @@ const NotebookEditorWordpressSection = ({
 
   const handleSync = useCallback(
     async (site: WordpressSiteRef) => {
-      setSyncingUrl(site.siteUrl);
+      const website = resolve(site.websiteId);
+      if (!website) {
+        setError('Diese Website ist nicht mehr mit deinem Konto verbunden.');
+        return;
+      }
+      setSyncingId(site.websiteId);
       setError(null);
       setNotice(null);
       try {
         const result = await getContractsClient().notebookWordpress.importSite({
           body: {
-            site_url: site.siteUrl,
+            site_url: website.siteUrl,
             categories: site.categories,
             all_posts: site.allPosts,
             pages: site.pages,
@@ -269,7 +298,7 @@ const NotebookEditorWordpressSection = ({
         const documentIds = applyImportResult(result.body, site.documentIds);
         onSitesChange(
           sites.map((s) =>
-            s.siteUrl === site.siteUrl
+            s.websiteId === site.websiteId
               ? { ...s, documentIds, lastSyncedAt: new Date().toISOString() }
               : s
           )
@@ -278,21 +307,21 @@ const NotebookEditorWordpressSection = ({
       } catch {
         setError(WP_ERROR_MESSAGES.fetch_failed);
       } finally {
-        setSyncingUrl(null);
+        setSyncingId(null);
       }
     },
-    [sites, remainingSlots, onSitesChange, applyImportResult, buildSummary]
+    [sites, remainingSlots, onSitesChange, applyImportResult, buildSummary, resolve]
   );
 
   const handleRemove = useCallback(
     (site: WordpressSiteRef) => {
-      onSitesChange(sites.filter((s) => s.siteUrl !== site.siteUrl));
+      onSitesChange(sites.filter((s) => s.websiteId !== site.websiteId));
     },
     [sites, onSitesChange]
   );
 
   const discovering = discoveryQuery.isFetching;
-  const busy = discovering || importing || syncingUrl !== null;
+  const busy = discovering || importing || syncingId !== null;
   const showAddForm = (addOpen || sites.length === 0) && !target;
   const discoveryError = discoveryQuery.isError
     ? discoveryQuery.error instanceof Error
@@ -325,36 +354,46 @@ const NotebookEditorWordpressSection = ({
       />
 
       {showAddForm && (
-        <div className="mb-md flex flex-col gap-xs rounded-xl border border-dashed border-grey-300 bg-background p-md dark:border-grey-700">
+        <div className="mb-md flex flex-col gap-sm rounded-xl border border-dashed border-grey-300 bg-background p-md dark:border-grey-700">
           <p className="m-0 text-sm text-foreground">
-            Beiträge einer WordPress-Website als Quelle importieren.
+            Beiträge einer verbundenen Website als Quelle importieren.
           </p>
-          <div className="flex items-center gap-xs">
-            <Input
-              type="url"
-              value={urlInput}
-              onChange={(e) => setUrlInput(e.target.value)}
-              placeholder="https://gruene-beispielstadt.de"
-              disabled={disabled || busy}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  if (urlInput.trim()) openPanel(urlInput.trim(), null);
-                }
-              }}
-            />
-            <Button
-              type="button"
-              size="sm"
-              disabled={disabled || busy || !urlInput.trim()}
-              onClick={() => openPanel(urlInput.trim(), null)}
-            >
-              {discovering ? (
-                <span className="size-3 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
-              ) : null}
-              Verbinden
-            </Button>
-          </div>
+
+          {available.length === 0 ? (
+            <p className="m-0 text-xs text-grey-500">
+              {catalogue && catalogue.length > 0
+                ? 'Alle verbundenen Websites werden in diesem Notebook bereits genutzt.'
+                : 'Noch keine Website mit deinem Konto verbunden — das geht in den Einstellungen unter „Meine Websites".'}
+            </p>
+          ) : (
+            <div className="flex flex-col gap-1">
+              {available.map((website) => (
+                <button
+                  key={website.id}
+                  type="button"
+                  disabled={disabled || busy}
+                  onClick={() => openPanel(website.id, null)}
+                  className="flex items-center gap-sm rounded-lg px-sm py-xs text-left transition-colors hover:bg-background-alt disabled:opacity-50"
+                >
+                  <HiGlobeAlt
+                    size={16}
+                    className="shrink-0 text-secondary-600 dark:text-secondary-400"
+                    aria-hidden
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-foreground">
+                      {website.siteName}
+                    </span>
+                    <span className="block truncate text-xs text-grey-500">
+                      {website.categories.length} Kategorien · {website.totalPosts} Beiträge
+                      {website.usage.documentCount > 0 &&
+                        ` · ${website.usage.documentCount} bereits importiert`}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -367,9 +406,7 @@ const NotebookEditorWordpressSection = ({
                 className="shrink-0 text-secondary-600 dark:text-secondary-400"
                 aria-hidden
               />
-              <span className="truncate text-sm font-medium text-foreground">
-                {discovery?.site.name ?? target.editingSite?.siteName ?? target.url}
-              </span>
+              <span className="truncate text-sm font-medium text-foreground">{target.name}</span>
             </div>
             <Button
               type="button"
@@ -519,15 +556,17 @@ const NotebookEditorWordpressSection = ({
       {sites.length > 0 && (
         <div className="grid grid-cols-1 gap-md sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
           {sites.map((site) => {
-            const isSyncing = syncingUrl === site.siteUrl;
+            const isSyncing = syncingId === site.websiteId;
+            const website = resolve(site.websiteId);
+            const displayName = website?.siteName ?? 'Unbekannte Website';
             return (
               <div
-                key={site.siteUrl}
+                key={site.websiteId}
                 className={cn(
                   'group relative flex min-h-[112px] min-w-0 flex-col gap-xs overflow-hidden rounded-xl border border-grey-200 bg-background p-md transition-all duration-200 dark:border-grey-800',
                   isSyncing ? 'opacity-90' : 'hover:shadow-sm'
                 )}
-                aria-label={`WordPress-Website: ${site.siteName}`}
+                aria-label={`WordPress-Website: ${displayName}`}
               >
                 <div
                   className="pointer-events-none absolute right-0 top-0 h-[3px] w-12 rounded-bl-md bg-secondary-400 dark:bg-secondary-700"
@@ -546,7 +585,7 @@ const NotebookEditorWordpressSection = ({
                   disabled={disabled || isSyncing}
                   onClick={() => handleRemove(site)}
                   title="Bereits importierte Dokumente bleiben im Notebook."
-                  aria-label={`${site.siteName} entfernen`}
+                  aria-label={`${displayName} entfernen`}
                 >
                   <HiX size={12} />
                 </Button>
@@ -559,9 +598,9 @@ const NotebookEditorWordpressSection = ({
                   <div className="min-w-0">
                     <div
                       className="line-clamp-1 break-words text-sm font-medium leading-snug text-foreground"
-                      title={site.siteName}
+                      title={displayName}
                     >
-                      {site.siteName}
+                      {displayName}
                     </div>
                     <div
                       className="line-clamp-1 text-xs text-grey-500"
@@ -581,11 +620,11 @@ const NotebookEditorWordpressSection = ({
                       variant="ghost"
                       size="icon-xs"
                       disabled={disabled || busy}
-                      onClick={() => openPanel(site.siteUrl, site)}
-                      onMouseEnter={() => prefetchDiscovery(site.siteUrl)}
-                      onFocus={() => prefetchDiscovery(site.siteUrl)}
+                      onClick={() => openPanel(site.websiteId, site)}
+                      onMouseEnter={() => website && prefetchDiscovery(website.siteUrl)}
+                      onFocus={() => website && prefetchDiscovery(website.siteUrl)}
                       title="Auswahl ändern"
-                      aria-label={`Auswahl für ${site.siteName} ändern`}
+                      aria-label={`Auswahl für ${displayName} ändern`}
                     >
                       <HiPencil size={12} />
                     </Button>
@@ -595,7 +634,7 @@ const NotebookEditorWordpressSection = ({
                       size="sm"
                       disabled={disabled || busy}
                       onClick={() => void handleSync(site)}
-                      aria-label={`${site.siteName} synchronisieren`}
+                      aria-label={`${displayName} synchronisieren`}
                     >
                       {isSyncing ? (
                         <span className="size-3 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
