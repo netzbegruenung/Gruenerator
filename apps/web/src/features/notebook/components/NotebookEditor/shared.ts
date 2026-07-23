@@ -30,7 +30,7 @@ export interface UploadedDocument {
 }
 
 export const ACCEPTED_EXTENSIONS = ['.pdf', '.docx', '.doc', '.txt', '.md', '.odt', '.rtf'];
-export const MAX_DOCUMENTS = 100;
+export const MAX_DOCUMENTS = 1000;
 export const TOTAL_STEPS = 3;
 
 export function getFileTypeStyle(filename: string): { label: string; accentVia: string } {
