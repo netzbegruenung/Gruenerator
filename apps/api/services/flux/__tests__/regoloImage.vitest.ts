@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
+
 import { RegoloImageService } from '../RegoloImageService.js';
 
 const HAS_REGOLO_KEY = !!process.env.REGOLO_API_KEY;
+// Live image generation is a real, billable, minute-long Regolo call — opt in
+// with RUN_LIVE_PROVIDER_TESTS=1 so the default `pnpm test` stays deterministic
+// and offline even when a key is present in the local .env.
+const RUN_LIVE = HAS_REGOLO_KEY && !!process.env.RUN_LIVE_PROVIDER_TESTS;
 
 describe('RegoloImageService — unit tests', () => {
   it('is importable and constructable', () => {
@@ -23,8 +28,8 @@ describe('RegoloImageService — unit tests', () => {
   });
 });
 
-describe.skipIf(!HAS_REGOLO_KEY)(
-  'RegoloImageService — integration tests (requires REGOLO_API_KEY)',
+describe.skipIf(!RUN_LIVE)(
+  'RegoloImageService — integration tests (RUN_LIVE_PROVIDER_TESTS=1 + REGOLO_API_KEY)',
   () => {
     it('generates an image from a prompt', async () => {
       const service = new RegoloImageService();
