@@ -12,9 +12,7 @@
 export async function ensureFontsReady(): Promise<void> {
   if (typeof document === 'undefined' || !document.fonts) return;
   try {
-    await Promise.all(
-      Array.from(document.fonts, (face) => face.load().catch(() => undefined))
-    );
+    await Promise.all(Array.from(document.fonts, (face) => face.load().catch(() => undefined)));
     await document.fonts.ready;
   } catch {
     // best-effort — never block an export on font loading
