@@ -24,6 +24,16 @@ vi.mock('./directSearchExecutors.js', () => ({
   executeDirectWebSearch: mockExecuteDirectWebSearch,
 }));
 
+// `executeResearch` routes through Linkup whenever getLinkupService() returns a
+// service — which it does as soon as a LINKUP key is in the environment. Without
+// this mock the suite silently leaves the mocked fan-out path and makes real
+// network calls, so every test here times out on any machine that has the key
+// (green without .env, red with it). Pinned to null = "not configured", which is
+// the branch these tests are written against.
+vi.mock('../../../services/search/LinkupService.js', () => ({
+  getLinkupService: () => null,
+}));
+
 vi.mock('../../../utils/logger.js', () => ({
   createLogger: () => ({
     info: vi.fn(),
