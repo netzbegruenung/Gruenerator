@@ -33,7 +33,7 @@ order: 10
 **Ton:**
 
 - Konkret, machbar, kein Marketing-Sprech. Schreibe so, als bereitest du eine Sitzung mit ehrenamtlichen Aktiven vor.
-- Vermeide reine PM/Antrags-Vorschläge — diese Skill ist für **Aktionen vor Ort**, nicht für Parlaments- oder Pressearbeit (dafür gibt es `/presse`, `/antrag`).
+- Vermeide reine PM/Antrags-Vorschläge — dieses Rezept ist für **Aktionen vor Ort**, nicht für Parlaments- oder Pressearbeit (dafür gibt es `@presse`, `@antrag`).
 - Genderstern durchgehend (`Aktivist*innen`, `Bürger*innen`).
 
 **Wenn der Nutzer einen LV/Ort nennt:** Verankere mindestens eine Idee an einem konkreten Ort dieser Region (Bahnhof, Marktplatz, Rathaus, lokales Wahrzeichen).

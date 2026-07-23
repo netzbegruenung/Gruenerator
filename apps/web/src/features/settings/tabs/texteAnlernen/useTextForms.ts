@@ -71,5 +71,31 @@ export function useTextForms(enabled: boolean) {
     },
   });
 
-  return { query, analyze, save, remove };
+  const share = useMutation({
+    mutationFn: async (input: { mention: string; groupId: string }): Promise<void> => {
+      const res = await getContractsClient().userTextForms.share({
+        params: { mention: input.mention },
+        body: { group_id: input.groupId },
+      });
+      if (res.status !== 200) throw new Error(errorMessage(res.body, res.status));
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: TEXT_FORMS_KEY });
+    },
+  });
+
+  const unshare = useMutation({
+    mutationFn: async (input: { mention: string; groupId: string }): Promise<void> => {
+      const res = await getContractsClient().userTextForms.unshare({
+        params: { mention: input.mention },
+        body: { group_id: input.groupId },
+      });
+      if (res.status !== 200) throw new Error(errorMessage(res.body, res.status));
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: TEXT_FORMS_KEY });
+    },
+  });
+
+  return { query, analyze, save, remove, share, unshare };
 }

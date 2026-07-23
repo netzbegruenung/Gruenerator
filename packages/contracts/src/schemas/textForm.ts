@@ -38,8 +38,17 @@ export const textFormExampleSchema = z.object({
 });
 export type TextFormExample = z.infer<typeof textFormExampleSchema>;
 
-/** A learned text form as returned to the client. */
+/** A group a recipe is shared with. */
+export const textFormGroupShareSchema = z.object({
+  groupId: z.string(),
+  groupName: z.string(),
+});
+export type TextFormGroupShare = z.infer<typeof textFormGroupShareSchema>;
+
+/** A learned text form ("Rezept") as returned to the client. */
 export const textFormSchema = z.object({
+  /** Row id — the handle group shares point at. */
+  id: z.string(),
   kind: textFormKindSchema,
   textType: textFormTypeSchema.nullable(),
   mention: z.string(),
@@ -49,6 +58,15 @@ export const textFormSchema = z.object({
   model: z.string().nullable(),
   analyzedAt: z.string().nullable(),
   updatedAt: z.string(),
+  /** Groups the owner shared this recipe with. Empty for recipes owned by others. */
+  sharedWithGroups: z.array(textFormGroupShareSchema).default([]),
+  /**
+   * Set only on recipes that reached the user through a group share. The UI
+   * lists those separately and does not offer editing or re-sharing.
+   */
+  sharedFromGroup: z.string().nullable().default(null),
+  /** Display name of the owner, for recipes shared into one of the user's groups. */
+  ownerName: z.string().nullable().default(null),
 });
 export type TextForm = z.infer<typeof textFormSchema>;
 
@@ -103,4 +121,15 @@ export const textFormDeleteResponseSchema = z.object({
 export const textFormErrorResponseSchema = z.object({
   success: z.boolean(),
   message: z.string(),
+});
+
+/** Body for sharing a recipe with a group / revoking that share. */
+export const textFormShareBodySchema = z.object({
+  group_id: z.string(),
+});
+export type TextFormShareBody = z.infer<typeof textFormShareBodySchema>;
+
+export const textFormShareResponseSchema = z.object({
+  success: z.boolean(),
+  sharedWithGroups: z.array(textFormGroupShareSchema),
 });

@@ -1,4 +1,5 @@
 import { MAX_TEXT_FORM_EXAMPLES, type TextForm, type TextFormType } from '@gruenerator/contracts';
+import { useUserGroups } from '@gruenerator/shared/groups';
 import { slugifyName } from '@gruenerator/shared/utils';
 import { Button, toast } from '@gruenerator/ui';
 import { useMemo, useState } from 'react';
@@ -45,6 +46,12 @@ const TextFormEditor = ({
   onDeleted,
 }: TextFormEditorProps) => {
   const navigate = useNavigate();
+  const { data: groupsData } = useUserGroups();
+  const groups = groupsData ?? [];
+  const sharedGroupIds = useMemo(
+    () => new Set((initialForm?.sharedWithGroups ?? []).map((g) => g.groupId)),
+    [initialForm]
+  );
   const [title, setTitle] = useState(initialForm?.title ?? defaultTitle);
   const [mention, setMention] = useState(initialForm?.mention ?? '');
   const [mentionTouched, setMentionTouched] = useState(false);
@@ -89,7 +96,7 @@ const TextFormEditor = ({
       return;
     }
     if (kind === 'custom' && effectiveMention.length < 2) {
-      toast.error('Bitte einen Namen für die Textform angeben.');
+      toast.error('Bitte einen Namen für das Rezept angeben.');
       return;
     }
     try {
@@ -103,7 +110,7 @@ const TextFormEditor = ({
           styleBlock: styleBlock.trim(),
         },
       });
-      toast.success('Textform gespeichert.');
+      toast.success('Rezept gespeichert.');
       onCreated?.();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Speichern fehlgeschlagen.');
@@ -114,7 +121,7 @@ const TextFormEditor = ({
     if (!initialForm) return;
     try {
       await api.remove.mutateAsync(initialForm.mention);
-      toast.success('Textform gelöscht.');
+      toast.success('Rezept gelöscht.');
       onDeleted?.();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Löschen fehlgeschlagen.');
@@ -143,7 +150,7 @@ const TextFormEditor = ({
             className="flex-1 rounded-md border border-grey-300 bg-input-bg px-sm py-1.5 text-sm text-foreground placeholder:text-grey-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-grey-600"
           />
           <div className="flex items-center gap-1 rounded-md border border-grey-300 bg-input-bg px-sm py-1.5 text-sm text-grey-500 dark:border-grey-600">
-            <span>/</span>
+            <span>@</span>
             <input
               value={effectiveMention}
               onChange={(e) => {
@@ -161,8 +168,8 @@ const TextFormEditor = ({
             <p className="m-0 text-sm font-semibold text-foreground">{title}</p>
             <p className="m-0 text-xs text-grey-500 dark:text-grey-400">
               {kind === 'custom'
-                ? `/${effectiveMention}`
-                : `Ersetzt den Standard beim /${effectiveMention}-Skill`}
+                ? `@${effectiveMention}`
+                : `Ersetzt das mitgelieferte Rezept @${effectiveMention}`}
             </p>
           </div>
           {initialForm && (
@@ -170,7 +177,7 @@ const TextFormEditor = ({
               type="button"
               onClick={() => void handleDelete()}
               className="text-grey-400 hover:text-red-500"
-              title="Textform löschen"
+              title="Rezept löschen"
             >
               <FiTrash2 size={16} />
             </button>
@@ -237,6 +244,51 @@ const TextFormEditor = ({
             rows={8}
             className={TEXTAREA_CLASS}
           />
+          {initialForm && groups.length > 0 && (
+            <div className="flex flex-col gap-2 rounded-lg border border-grey-200 p-sm dark:border-grey-700">
+              <p className="m-0 text-xs font-medium text-grey-500 dark:text-grey-400">
+                Mit Gruppen teilen — Mitglieder können das Rezept dann im Chat nutzen
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {groups.map((group) => {
+                  const isShared = sharedGroupIds.has(group.id);
+                  return (
+                    <button
+                      key={group.id}
+                      type="button"
+                      disabled={api.share.isPending || api.unshare.isPending}
+                      onClick={() => {
+                        const mutation = isShared ? api.unshare : api.share;
+                        mutation.mutate(
+                          { mention: effectiveMention, groupId: group.id },
+                          {
+                            onSuccess: () =>
+                              toast.success(
+                                isShared
+                                  ? `Nicht mehr mit ${group.name} geteilt.`
+                                  : `Mit ${group.name} geteilt.`
+                              ),
+                            onError: (e) =>
+                              toast.error(
+                                e instanceof Error ? e.message : 'Teilen fehlgeschlagen.'
+                              ),
+                          }
+                        );
+                      }}
+                      className={
+                        isShared
+                          ? 'rounded-full border border-primary-500 bg-primary-50 px-sm py-[0.2rem] text-xs text-primary-800 dark:bg-primary-950/40 dark:text-primary-200'
+                          : 'rounded-full border border-grey-200 px-sm py-[0.2rem] text-xs text-grey-600 hover:bg-background-alt dark:border-grey-700 dark:text-grey-400'
+                      }
+                    >
+                      {group.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-wrap justify-end gap-2">
             <Button
               type="button"
