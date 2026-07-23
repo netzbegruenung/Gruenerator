@@ -13,7 +13,7 @@ import { ArrowUp, Mic, Square, X } from 'lucide-react';
 import { RiVoiceAiFill } from 'react-icons/ri';
 import { cn, useIsMobile } from '@gruenerator/ui';
 import { useScopedAgentId } from '../../lib/useScopedAgentState';
-import { useAgentStore, type ThreadMode } from '../../stores/chatStore';
+import { useAgentStore } from '../../stores/chatStore';
 import { SearchDepthToggle } from '../SearchDepthToggle';
 import { getSystemAgent } from '@gruenerator/shared/agents';
 import { ComposerAttachments } from '../assistant-ui/attachment';
@@ -61,7 +61,6 @@ interface GrueneratorComposerProps {
   /** Forwarded to ModelPicker for surfaces without a ChatSurfaceProvider
    * (e.g. NotebookChatProvider) so auto-mode resolves to the surface's
    * implicit thread mode. */
-  modelPickerThreadModeOverride?: ThreadMode;
   insideAgent?: boolean;
   /** Surface-specific prompt presets, shown as a "Vorlagen" submenu in the
    * plus menu (e.g. the workplace example prompts). */
@@ -243,7 +242,6 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   showPlusMenu = true,
   showToolToggles = true,
   showModelPicker = true,
-  modelPickerThreadModeOverride,
   insideAgent = false,
   presets,
   variant = 'card',
@@ -745,13 +743,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     />
   ) : null;
 
-  const modelPickerNode = showModelPicker ? (
-    <ModelPicker
-      {...(modelPickerThreadModeOverride && {
-        threadModeOverride: modelPickerThreadModeOverride,
-      })}
-    />
-  ) : null;
+  const modelPickerNode = showModelPicker ? <ModelPicker /> : null;
 
   const composerInput = (
     <ComposerPrimitive.Input
