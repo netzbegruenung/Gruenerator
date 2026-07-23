@@ -30,6 +30,21 @@ export interface UploadedDocument {
   [key: string]: unknown;
 }
 
+/** Where a document came from — a facet of the one document list, not a separate list. */
+export type DocumentSource = 'upload' | 'wolke' | 'docs' | 'wordpress';
+
+export interface DocumentWithSource {
+  doc: UploadedDocument;
+  source: DocumentSource;
+}
+
+export const DOCUMENT_SOURCE_LABELS: Record<DocumentSource, string> = {
+  upload: 'Upload',
+  wolke: 'Wolke',
+  docs: 'Docs',
+  wordpress: 'WordPress',
+};
+
 export const ACCEPTED_EXTENSIONS = ['.pdf', '.docx', '.doc', '.txt', '.md', '.odt', '.rtf'];
 export const MAX_DOCUMENTS = NOTEBOOK_MAX_DOCUMENTS;
 export const TOTAL_STEPS = 3;

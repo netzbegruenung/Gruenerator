@@ -182,7 +182,11 @@ const NotebookEditorWordpressSection = ({
     setImporting(true);
     setError(null);
     try {
-      const editing = target.editingSite;
+      // A site added a second time (the server normalises "example.de" and
+      // "https://example.de/" to the same URL) must reconfigure the existing
+      // entry rather than append a twin that fights over the same documents.
+      const editing =
+        target.editingSite ?? sites.find((s) => s.siteUrl === discovery.site.url) ?? null;
       const result = await getContractsClient().notebookWordpress.importSite({
         body: {
           site_url: discovery.site.url,

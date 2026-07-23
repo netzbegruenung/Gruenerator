@@ -6,7 +6,7 @@ import NotebookEditorDocsSection from '../NotebookEditorDocsSection';
 import NotebookEditorWolkeSection from '../NotebookEditorWolkeSection';
 import NotebookEditorWordpressSection from '../NotebookEditorWordpressSection';
 
-import DocumentCard from './DocumentCard';
+import DocumentsPanel from './DocumentsPanel';
 import { ACCEPTED_EXTENSIONS, MAX_DOCUMENTS } from './shared';
 
 import type { NotebookEditorStateBundle } from './useNotebookEditorState';
@@ -18,6 +18,9 @@ interface SourcesStepProps {
 export default function SourcesStep({ state }: SourcesStepProps) {
   const {
     uploadedDocuments,
+    documentCount,
+    documentsWithSource,
+    remainingSlots,
     stagedFiles,
     wolkeFolders,
     wolkePanelOpen,
@@ -28,8 +31,6 @@ export default function SourcesStep({ state }: SourcesStepProps) {
     uploadError,
     indexingDocIds,
     loading,
-    wolkeDocuments,
-    manualDocuments,
     fileInputRef,
     handleFileSelect,
     handleDrop,
@@ -37,6 +38,7 @@ export default function SourcesStep({ state }: SourcesStepProps) {
     handleDragOver,
     handleDragLeave,
     handleRemoveDocument,
+    handleRemoveDocuments,
     handleUnstageFile,
     handleCommitStagedUpload,
     handleWolkeDocsImported,
@@ -53,7 +55,6 @@ export default function SourcesStep({ state }: SourcesStepProps) {
     setWordpressSites,
     wordpressPanelOpen,
     setWordpressPanelOpen,
-    wordpressDocuments,
   } = state;
 
   return (
@@ -90,7 +91,7 @@ export default function SourcesStep({ state }: SourcesStepProps) {
               <div>
                 <p className="m-0 text-base font-semibold text-foreground">Dateien hochladen</p>
                 <p className="mt-xs m-0 text-xs text-grey-500">
-                  PDF, DOCX, TXT, MD, ODT, RTF · bis zu {MAX_DOCUMENTS} Dateien
+                  PDF, DOCX, TXT, MD, ODT, RTF · {remainingSlots} von {MAX_DOCUMENTS} Plätzen frei
                 </p>
               </div>
             </>
@@ -208,7 +209,7 @@ export default function SourcesStep({ state }: SourcesStepProps) {
           <NotebookEditorWolkeSection
             folders={wolkeFolders}
             onFoldersChange={setWolkeFolders}
-            remainingSlots={MAX_DOCUMENTS - uploadedDocuments.length}
+            remainingSlots={remainingSlots}
             onDocsImported={handleWolkeDocsImported}
             disabled={loading || isUploading}
           />
@@ -220,7 +221,7 @@ export default function SourcesStep({ state }: SourcesStepProps) {
           <NotebookEditorDocsSection
             linkedDocs={linkedDocs}
             onLinkedDocsChange={setLinkedDocs}
-            remainingSlots={MAX_DOCUMENTS - uploadedDocuments.length}
+            remainingSlots={remainingSlots}
             onDocsImported={handleDocsImported}
             onUploadedDocumentRemoved={handleRemoveDocument}
             disabled={loading || isUploading}
@@ -233,7 +234,7 @@ export default function SourcesStep({ state }: SourcesStepProps) {
           <NotebookEditorWordpressSection
             sites={wordpressSites}
             onSitesChange={setWordpressSites}
-            remainingSlots={MAX_DOCUMENTS - uploadedDocuments.length}
+            remainingSlots={remainingSlots}
             onDocsImported={handleWordpressDocsImported}
             onUploadedDocumentRemoved={handleRemoveDocument}
             disabled={loading || isUploading}
@@ -243,43 +244,15 @@ export default function SourcesStep({ state }: SourcesStepProps) {
 
       {uploadedDocuments.length > 0 && (
         <section className="space-y-md">
-          <SectionHeader
-            title="Hinzugefügte Dokumente"
-            actions={
-              <span className="text-sm text-grey-500">
-                {uploadedDocuments.length}/{MAX_DOCUMENTS}
-              </span>
-            }
+          <DocumentsPanel
+            documents={documentsWithSource}
+            documentCount={documentCount}
+            indexingDocIds={indexingDocIds}
+            loading={loading}
+            onRemove={handleRemoveDocument}
+            onRemoveMany={handleRemoveDocuments}
+            onAddClick={() => fileInputRef.current?.click()}
           />
-          <div className="grid grid-cols-1 gap-md sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-            {wolkeDocuments.map((doc) => (
-              <DocumentCard
-                key={doc.id}
-                doc={doc}
-                indexing={indexingDocIds.has(doc.id)}
-                loading={loading}
-                onRemove={handleRemoveDocument}
-              />
-            ))}
-            {wordpressDocuments.map((doc) => (
-              <DocumentCard
-                key={doc.id}
-                doc={doc}
-                indexing={indexingDocIds.has(doc.id)}
-                loading={loading}
-                onRemove={handleRemoveDocument}
-              />
-            ))}
-            {manualDocuments.map((doc) => (
-              <DocumentCard
-                key={doc.id}
-                doc={doc}
-                indexing={indexingDocIds.has(doc.id)}
-                loading={loading}
-                onRemove={handleRemoveDocument}
-              />
-            ))}
-          </div>
         </section>
       )}
 

@@ -16,6 +16,7 @@ import {
   MAX_DOCUMENTS,
   TOTAL_STEPS,
   hasFileDrag,
+  type DocumentWithSource,
   type NotebookCollection,
   type NotebookEditorFormData,
   type UploadedDocument,
@@ -145,7 +146,7 @@ export function useNotebookEditorState({
       }
       if (skipped > 0) {
         setUploadError(
-          `${skipped} Datei${skipped === 1 ? '' : 'en'} übersprungen — maximal ${MAX_DOCUMENTS} Dateien pro Notebook.`
+          `${skipped} Datei${skipped === 1 ? '' : 'en'} übersprungen — ein Notebook fasst insgesamt ${MAX_DOCUMENTS} Dokumente über alle Quellen hinweg.`
         );
       }
     },
@@ -245,6 +246,12 @@ export function useNotebookEditorState({
 
   const handleRemoveDocument = useCallback((id: string) => {
     setUploadedDocuments((prev) => prev.filter((doc) => doc.id !== id));
+  }, []);
+
+  const handleRemoveDocuments = useCallback((ids: string[]) => {
+    if (ids.length === 0) return;
+    const drop = new Set(ids);
+    setUploadedDocuments((prev) => prev.filter((doc) => !drop.has(doc.id)));
   }, []);
 
   const handleDocsImported = useCallback(
@@ -368,6 +375,37 @@ export function useNotebookEditorState({
     [uploadedDocuments, linkedDocDocumentIds]
   );
 
+  /**
+   * One list for every document, with its provenance resolved. The unified
+   * document panel filters this instead of rendering a grid per source —
+   * "where did it come from" is a facet, not a separate place to look.
+   */
+  const documentsWithSource = useMemo<DocumentWithSource[]>(
+    () =>
+      uploadedDocuments.map((doc) => ({
+        doc,
+        source:
+          doc.source === 'wolke'
+            ? 'wolke'
+            : doc.source === 'wordpress'
+              ? 'wordpress'
+              : linkedDocDocumentIds.has(doc.id)
+                ? 'docs'
+                : 'upload',
+      })),
+    [uploadedDocuments, linkedDocDocumentIds]
+  );
+
+  /**
+   * The document cap is a single pool shared by every source — uploads, Wolke,
+   * verlinkte Docs and WordPress all draw from it, and staged-but-not-yet-
+   * uploaded files already count. `uploadedDocuments` is the notebook's whole
+   * document list (the per-source lists above are just views of it), so this is
+   * the one place any source may ask how much room is left.
+   */
+  const documentCount = uploadedDocuments.length + stagedFiles.length;
+  const remainingSlots = Math.max(0, MAX_DOCUMENTS - documentCount);
+
   const handleBack = useCallback(() => setStep((s) => Math.max(0, s - 1)), []);
   const handleNext = useCallback(() => setStep((s) => Math.min(TOTAL_STEPS - 1, s + 1)), []);
 
@@ -433,6 +471,9 @@ export function useNotebookEditorState({
     wolkeDocuments,
     wordpressDocuments,
     manualDocuments,
+    documentsWithSource,
+    documentCount,
+    remainingSlots,
     loading,
     canAdvanceFromSources,
     canAdvanceFromDetails,
@@ -454,6 +495,7 @@ export function useNotebookEditorState({
     handleDragOver,
     handleDragLeave,
     handleRemoveDocument,
+    handleRemoveDocuments,
     handleUnstageFile,
     handleCommitStagedUpload,
     handleWolkeDocsImported,
