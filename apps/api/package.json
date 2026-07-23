@@ -150,7 +150,7 @@
     "@types/turndown": "^5.0.6",
     "cross-env": "^10.1.0",
     "drizzle-kit": "^0.31.10",
-    "eslint": "^9.39.5",
+    "eslint": "^10.7.0",
     "tsx": "^4.23.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
