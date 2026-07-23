@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import { filterMentionables, type Mentionable } from '../../lib/mentionables';
-import { getFilteredFunctions } from '../../lib/mentionDetection';
+import { getFilteredMentionables } from '../../lib/mentionDetection';
 import { MentionFloatingPanel } from './MentionFloatingPanel';
 
 interface MentionPopoverProps {
@@ -29,8 +29,19 @@ export function MentionPopover({
   anchorRect,
 }: MentionPopoverProps) {
   const listRef = useRef<HTMLDivElement>(null);
-  const { notebooks, userNotebooks, tools, boards, docs, documents, wolke, connect, canva } =
-    filterMentionables(query);
+  const {
+    agents,
+    customAgents,
+    notebooks,
+    userNotebooks,
+    tools,
+    boards,
+    docs,
+    documents,
+    wolke,
+    connect,
+    canva,
+  } = filterMentionables(query);
 
   const sections: MentionSection[] = useMemo(() => {
     const notebookGroups: MentionSubgroup[] = [];
@@ -41,7 +52,22 @@ export function MentionPopover({
       notebookGroups.push({ sublabel: 'system', items: notebooks });
     }
 
+    // Recipes lost their own '/' trigger, so they lead the combined list.
+    // "Aus deinen Gruppen" stays a separate sublabel: a shared recipe is
+    // usable right away, but it should never look like one of your own.
+    const recipeGroups: MentionSubgroup[] = [];
+    const ownRecipes = customAgents.filter((m) => !m.sharedFromGroup);
+    const sharedRecipes = customAgents.filter((m) => m.sharedFromGroup);
+    if (agents.length > 0) recipeGroups.push({ sublabel: 'mitgeliefert', items: agents });
+    if (ownRecipes.length > 0) recipeGroups.push({ sublabel: 'eigene', items: ownRecipes });
+    if (sharedRecipes.length > 0) {
+      recipeGroups.push({ sublabel: 'aus deinen Gruppen', items: sharedRecipes });
+    }
+
     const all: MentionSection[] = [
+      ...(recipeGroups.length > 0
+        ? [{ kind: 'grouped' as const, label: 'Rezepte', groups: recipeGroups }]
+        : []),
       { kind: 'flat', label: 'Werkzeuge', items: tools },
       { kind: 'flat', label: 'Boards', items: boards },
       { kind: 'flat', label: 'Dokumente', items: docs },
@@ -57,7 +83,19 @@ export function MentionPopover({
     return all.filter((s) =>
       s.kind === 'flat' ? s.items.length > 0 : s.groups.some((g) => g.items.length > 0)
     );
-  }, [tools, boards, docs, documents, wolke, connect, canva, notebooks, userNotebooks]);
+  }, [
+    agents,
+    customAgents,
+    tools,
+    boards,
+    docs,
+    documents,
+    wolke,
+    connect,
+    canva,
+    notebooks,
+    userNotebooks,
+  ]);
 
   const totalItems = sections.reduce(
     (sum, s) =>
@@ -156,4 +194,4 @@ function MentionItem({
   );
 }
 
-export { getFilteredFunctions as filterMentionables };
+export { getFilteredMentionables as filterMentionables };

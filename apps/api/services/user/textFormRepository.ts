@@ -6,11 +6,20 @@
  * camelCase `TextForm` contract shape at the boundary.
  */
 
-import { type TextForm, type TextFormKind, type TextFormType } from '@gruenerator/contracts';
+import {
+  type TextForm,
+  type TextFormGroupShare,
+  type TextFormKind,
+  type TextFormType,
+} from '@gruenerator/contracts';
 import { and, eq } from 'drizzle-orm';
 
 import { userTextForms, type UserTextFormRow } from '../../database/schema/textForms.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
+import { getPostgresInstance } from '../../database/services/PostgresService.js';
+
+/** Discriminator in the polymorphic `group_content_shares` table. */
+const TEXT_FORM_CONTENT_TYPE = 'user_text_forms';
 
 export interface TextFormInput {
   kind: TextFormKind;
@@ -41,8 +50,12 @@ function invalidateInjectionCache(userId: string, mention: string): void {
   injectionCache.delete(cacheKey(userId, mention));
 }
 
-function rowToTextForm(row: UserTextFormRow): TextForm {
+function rowToTextForm(
+  row: UserTextFormRow,
+  extra: Partial<Pick<TextForm, 'sharedWithGroups' | 'sharedFromGroup' | 'ownerName'>> = {}
+): TextForm {
   return {
+    id: String(row.id),
     kind: row.kind as TextFormKind,
     textType: (row.text_type as TextFormType | null) ?? null,
     mention: row.mention,
@@ -52,13 +65,134 @@ function rowToTextForm(row: UserTextFormRow): TextForm {
     model: row.model ?? null,
     analyzedAt: row.analyzed_at ? row.analyzed_at.toISOString() : null,
     updatedAt: row.updated_at.toISOString(),
+    sharedWithGroups: extra.sharedWithGroups ?? [],
+    sharedFromGroup: extra.sharedFromGroup ?? null,
+    ownerName: extra.ownerName ?? null,
   };
 }
 
+/** Which groups each of the given recipes is shared with. */
+async function loadSharesFor(textFormIds: string[]): Promise<Map<string, TextFormGroupShare[]>> {
+  const byForm = new Map<string, TextFormGroupShare[]>();
+  if (textFormIds.length === 0) return byForm;
+
+  const db = getPostgresInstance();
+  const rows = (await db.query(
+    `SELECT gcs.content_id, gcs.group_id, g.name AS group_name
+       FROM group_content_shares gcs
+       INNER JOIN groups g ON g.id = gcs.group_id
+      WHERE gcs.content_type = $1 AND gcs.content_id = ANY($2::text[])`,
+    [TEXT_FORM_CONTENT_TYPE, textFormIds]
+  )) as unknown as Array<{ content_id: string; group_id: string; group_name: string }>;
+
+  for (const row of rows) {
+    const list = byForm.get(row.content_id) ?? [];
+    list.push({ groupId: String(row.group_id), groupName: row.group_name });
+    byForm.set(row.content_id, list);
+  }
+  return byForm;
+}
+
+/**
+ * The user's own recipes plus every recipe shared into a group they belong to.
+ *
+ * Shared ones carry `sharedFromGroup`, so the UI can list them apart instead of
+ * blending them into the user's own. A recipe the user already owns wins over an
+ * incoming share of the same mention — otherwise a shared one could shadow it.
+ */
 export async function listTextForms(userId: string): Promise<TextForm[]> {
   const db = getDrizzleInstance();
-  const rows = await db.select().from(userTextForms).where(eq(userTextForms.user_id, userId));
-  return rows.map(rowToTextForm);
+  const ownRows = await db.select().from(userTextForms).where(eq(userTextForms.user_id, userId));
+  const shares = await loadSharesFor(ownRows.map((r) => String(r.id)));
+  const own = ownRows.map((row) =>
+    rowToTextForm(row, { sharedWithGroups: shares.get(String(row.id)) ?? [] })
+  );
+
+  const pg = getPostgresInstance();
+  const sharedRows = (await pg.query(
+    `SELECT tf.*, g.name AS group_name, p.name AS owner_name
+       FROM user_text_forms tf
+       INNER JOIN group_content_shares gcs
+               ON gcs.content_type = $1 AND gcs.content_id = tf.id::text
+       INNER JOIN groups g ON g.id = gcs.group_id
+       INNER JOIN group_memberships gm
+               ON gm.group_id = gcs.group_id AND gm.user_id = $2::uuid AND gm.is_active = TRUE
+       LEFT JOIN profiles p ON p.id = tf.user_id
+      WHERE tf.user_id <> $2::uuid`,
+    [TEXT_FORM_CONTENT_TYPE, userId]
+  )) as unknown as Array<UserTextFormRow & { group_name: string; owner_name: string | null }>;
+
+  const ownMentions = new Set(own.map((f) => f.mention));
+  const seenShared = new Set<string>();
+  const shared: TextForm[] = [];
+  for (const row of sharedRows) {
+    if (ownMentions.has(row.mention) || seenShared.has(row.mention)) continue;
+    seenShared.add(row.mention);
+    shared.push(
+      rowToTextForm(row, { sharedFromGroup: row.group_name, ownerName: row.owner_name ?? null })
+    );
+  }
+
+  return [...own, ...shared];
+}
+
+/** Share a recipe the user owns with one of their groups. */
+export async function shareTextFormWithGroup(
+  userId: string,
+  mention: string,
+  groupId: string
+): Promise<TextFormGroupShare[] | null> {
+  const db = getDrizzleInstance();
+  const rows = await db
+    .select({ id: userTextForms.id })
+    .from(userTextForms)
+    .where(and(eq(userTextForms.user_id, userId), eq(userTextForms.mention, mention)))
+    .limit(1);
+  const form = rows[0];
+  if (!form) return null;
+
+  const pg = getPostgresInstance();
+  // Membership is checked in SQL: the insert only happens for a group the user
+  // is actually an active member of, so a forged group id cannot leak a recipe.
+  await pg.query(
+    `INSERT INTO group_content_shares (group_id, shared_by_user_id, content_type, content_id)
+     SELECT gm.group_id, $1::uuid, $2, $3
+       FROM group_memberships gm
+      WHERE gm.group_id = $4::uuid AND gm.user_id = $1::uuid AND gm.is_active = TRUE
+        AND NOT EXISTS (
+          SELECT 1 FROM group_content_shares x
+           WHERE x.group_id = gm.group_id AND x.content_type = $2 AND x.content_id = $3
+        )`,
+    [userId, TEXT_FORM_CONTENT_TYPE, String(form.id), groupId]
+  );
+
+  const shares = await loadSharesFor([String(form.id)]);
+  return shares.get(String(form.id)) ?? [];
+}
+
+export async function unshareTextFormFromGroup(
+  userId: string,
+  mention: string,
+  groupId: string
+): Promise<TextFormGroupShare[] | null> {
+  const db = getDrizzleInstance();
+  const rows = await db
+    .select({ id: userTextForms.id })
+    .from(userTextForms)
+    .where(and(eq(userTextForms.user_id, userId), eq(userTextForms.mention, mention)))
+    .limit(1);
+  const form = rows[0];
+  if (!form) return null;
+
+  const pg = getPostgresInstance();
+  await pg.query(
+    `DELETE FROM group_content_shares
+      WHERE content_type = $1 AND content_id = $2 AND group_id = $3::uuid`,
+    [TEXT_FORM_CONTENT_TYPE, String(form.id), groupId]
+  );
+
+  const shares = await loadSharesFor([String(form.id)]);
+  return shares.get(String(form.id)) ?? [];
 }
 
 export async function upsertTextForm(userId: string, input: TextFormInput): Promise<TextForm> {
@@ -122,17 +256,31 @@ export async function getTextFormForInjection(
   const cached = injectionCache.get(key);
   if (cached && cached.expires > Date.now()) return cached.value;
 
-  const db = getDrizzleInstance();
-  const rows = await db
-    .select({
-      kind: userTextForms.kind,
-      text_type: userTextForms.text_type,
-      title: userTextForms.title,
-      style_block: userTextForms.style_block,
-    })
-    .from(userTextForms)
-    .where(and(eq(userTextForms.user_id, userId), eq(userTextForms.mention, mention)))
-    .limit(1);
+  // Own recipe first, then any shared into one of the user's groups — a shared
+  // recipe has to actually inject its style, or sharing would be cosmetic.
+  const pg = getPostgresInstance();
+  const rows = (await pg.query(
+    `SELECT tf.kind, tf.text_type, tf.title, tf.style_block
+       FROM user_text_forms tf
+      WHERE tf.mention = $2
+        AND (
+          tf.user_id = $1::uuid
+          OR tf.id::text IN (
+            SELECT gcs.content_id FROM group_content_shares gcs
+             INNER JOIN group_memberships gm
+                     ON gm.group_id = gcs.group_id AND gm.user_id = $1::uuid AND gm.is_active = TRUE
+             WHERE gcs.content_type = $3
+          )
+        )
+      ORDER BY (tf.user_id = $1::uuid) DESC
+      LIMIT 1`,
+    [userId, mention, TEXT_FORM_CONTENT_TYPE]
+  )) as unknown as Array<{
+    kind: string;
+    text_type: string | null;
+    title: string;
+    style_block: string;
+  }>;
 
   const r = rows[0];
   const value: TextFormInjection | null =
