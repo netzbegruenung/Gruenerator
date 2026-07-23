@@ -35,9 +35,9 @@
     "path": "/chat"
   },
   "catalog.tool-gruppen": {
-    "title": "Spaces",
+    "title": "Projekte",
     "subtitle": "Chats & Inhalte bündeln, Zusammenarbeit im Team",
-    "path": "/gruppen"
+    "path": "/projekte"
   },
   "catalog.tool-imagine": {
     "title": "KI-Bild erstellen",
@@ -233,9 +233,9 @@
     "subtitle": "Leere Kalkulationstabelle"
   },
   "workplace.spaces": {
-    "title": "Spaces",
+    "title": "Projekte",
     "subtitle": "Chats & Inhalte bündeln",
-    "path": "/gruppen"
+    "path": "/projekte"
   },
   "workplace.transkription": {
     "title": "Transkription",
