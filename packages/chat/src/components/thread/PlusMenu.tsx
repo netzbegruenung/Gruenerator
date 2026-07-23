@@ -35,6 +35,7 @@ import {
   getAgentMentionables,
   getCustomAgentMentionables,
   getMcpServerMentionables,
+  getTextformMentionables,
   toolMentionables,
   notebookMentionables,
   type Mentionable,
@@ -92,11 +93,13 @@ export const PlusMenu = memo(function PlusMenu({
   const [menuOpen, setMenuOpen] = useState(false);
   const isCompact = useChatDensity() === 'compact';
   const customAgents = getCustomAgentMentionables();
+  // Own learned recipes were reachable only via typeahead before.
+  const textforms = getTextformMentionables();
   const favorites = useSkillFavoritesStore((s) => s.favorites);
   const quickSkills = getAgentMentionables().filter(
     (a) => a.isSystemDefault || favorites.includes(a.mention.toLowerCase())
   );
-  const allQuickSkills = [...quickSkills, ...customAgents];
+  const allQuickSkills = [...quickSkills, ...customAgents, ...textforms];
 
   const mcpConnectors = getMcpServerMentionables();
   const pinnedConnector = useAgentStore((s) => s.pinnedConnector);
@@ -241,7 +244,7 @@ export const PlusMenu = memo(function PlusMenu({
       <DropdownMenuSub>
         <DropdownMenuSubTrigger>
           <Wand2 className="h-3.5 w-3.5" />
-          Skills
+          Rezepte
         </DropdownMenuSubTrigger>
         <DropdownMenuSubContent className="max-h-[24rem] overflow-y-auto">
           {allQuickSkills.map((skill) => {
@@ -256,12 +259,12 @@ export const PlusMenu = memo(function PlusMenu({
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => setLibraryOpen(true)}>
             <Library className="h-3.5 w-3.5" />
-            Alle Skills durchsuchen...
+            Alle Rezepte durchsuchen…
           </DropdownMenuItem>
           {onOpenSkillsPage && (
             <DropdownMenuItem onClick={onOpenSkillsPage}>
               <ExternalLink className="h-3.5 w-3.5" />
-              Zur Skill-Bibliothek
+              Zur Rezept-Bibliothek
             </DropdownMenuItem>
           )}
         </DropdownMenuSubContent>
@@ -437,7 +440,7 @@ export const PlusMenu = memo(function PlusMenu({
         </ResponsiveMenuItem>
       </ResponsiveMenuSection>
 
-      <ResponsiveMenuSection title="Skills">
+      <ResponsiveMenuSection title="Rezepte">
         {allQuickSkills.map((skill) => {
           const Icon = skill.icon;
           return (

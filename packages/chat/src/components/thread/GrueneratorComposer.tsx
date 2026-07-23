@@ -35,9 +35,8 @@ import { SearchDepthToggle } from '../SearchDepthToggle';
 import { getSystemAgent } from '@gruenerator/shared/agents';
 import { ComposerAttachments } from '../assistant-ui/attachment';
 import { MentionPopover } from './MentionPopover';
-import { SkillPopover } from './SkillPopover';
 import { detectMention } from '../../lib/mentionDetection';
-import { getFilteredForMode } from '../../lib/mentionDetection';
+import { getFilteredMentionables } from '../../lib/mentionDetection';
 import { computeMentionInsertion } from '../../lib/mentionInsertion';
 import { FileMentionPopover } from './FileMentionPopover';
 import { WolkeMentionPopover } from './WolkeMentionPopover';
@@ -255,7 +254,7 @@ function ComposerButtons({
 
 interface MentionState {
   visible: boolean;
-  mode: 'functions' | 'skills' | 'datei' | 'wolke' | 'connect' | 'canva' | 'vorlagen' | 'web';
+  mode: 'functions' | 'datei' | 'wolke' | 'connect' | 'canva' | 'vorlagen' | 'web';
   query: string;
   selectedIndex: number;
   anchorRect: { x: number; y: number } | null;
@@ -665,7 +664,9 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         const coords = getCaretCoords(textarea, detected.mentionStart);
         setMention({
           visible: true,
-          mode: detected.mode,
+          // Reset to the combined list: the state may still hold a picker mode
+          // (datei/wolke/…) from a previous, now-edited-away mention.
+          mode: 'functions',
           query: detected.query,
           selectedIndex: 0,
           anchorRect: coords,
@@ -705,7 +706,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         return;
       }
 
-      const filtered = getFilteredForMode(mention.mode, mention.query);
+      const filtered = getFilteredMentionables(mention.query);
       if (filtered.length === 0) return;
 
       switch (e.key) {
@@ -906,15 +907,6 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
               visible={mention.visible}
               onSelect={handleWebSelect}
               onDismiss={dismissPopover}
-            />
-          ) : mention.mode === 'skills' ? (
-            <SkillPopover
-              query={mention.query}
-              visible={mention.visible}
-              onSelect={handleSelect}
-              onDismiss={dismissPopover}
-              selectedIndex={mention.selectedIndex}
-              anchorRect={mention.anchorRect}
             />
           ) : (
             <MentionPopover
