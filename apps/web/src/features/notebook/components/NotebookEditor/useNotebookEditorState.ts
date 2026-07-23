@@ -145,7 +145,7 @@ export function useNotebookEditorState({
       }
       if (skipped > 0) {
         setUploadError(
-          `${skipped} Datei${skipped === 1 ? '' : 'en'} übersprungen — maximal ${MAX_DOCUMENTS} Dateien pro Notebook.`
+          `${skipped} Datei${skipped === 1 ? '' : 'en'} übersprungen — ein Notebook fasst insgesamt ${MAX_DOCUMENTS} Dokumente über alle Quellen hinweg.`
         );
       }
     },
@@ -368,6 +368,16 @@ export function useNotebookEditorState({
     [uploadedDocuments, linkedDocDocumentIds]
   );
 
+  /**
+   * The document cap is a single pool shared by every source — uploads, Wolke,
+   * verlinkte Docs and WordPress all draw from it, and staged-but-not-yet-
+   * uploaded files already count. `uploadedDocuments` is the notebook's whole
+   * document list (the per-source lists above are just views of it), so this is
+   * the one place any source may ask how much room is left.
+   */
+  const documentCount = uploadedDocuments.length + stagedFiles.length;
+  const remainingSlots = Math.max(0, MAX_DOCUMENTS - documentCount);
+
   const handleBack = useCallback(() => setStep((s) => Math.max(0, s - 1)), []);
   const handleNext = useCallback(() => setStep((s) => Math.min(TOTAL_STEPS - 1, s + 1)), []);
 
@@ -433,6 +443,8 @@ export function useNotebookEditorState({
     wolkeDocuments,
     wordpressDocuments,
     manualDocuments,
+    documentCount,
+    remainingSlots,
     loading,
     canAdvanceFromSources,
     canAdvanceFromDetails,

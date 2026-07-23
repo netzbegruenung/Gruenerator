@@ -18,6 +18,8 @@ interface SourcesStepProps {
 export default function SourcesStep({ state }: SourcesStepProps) {
   const {
     uploadedDocuments,
+    documentCount,
+    remainingSlots,
     stagedFiles,
     wolkeFolders,
     wolkePanelOpen,
@@ -90,7 +92,7 @@ export default function SourcesStep({ state }: SourcesStepProps) {
               <div>
                 <p className="m-0 text-base font-semibold text-foreground">Dateien hochladen</p>
                 <p className="mt-xs m-0 text-xs text-grey-500">
-                  PDF, DOCX, TXT, MD, ODT, RTF · bis zu {MAX_DOCUMENTS} Dateien
+                  PDF, DOCX, TXT, MD, ODT, RTF · {remainingSlots} von {MAX_DOCUMENTS} Plätzen frei
                 </p>
               </div>
             </>
@@ -208,7 +210,7 @@ export default function SourcesStep({ state }: SourcesStepProps) {
           <NotebookEditorWolkeSection
             folders={wolkeFolders}
             onFoldersChange={setWolkeFolders}
-            remainingSlots={MAX_DOCUMENTS - uploadedDocuments.length}
+            remainingSlots={remainingSlots}
             onDocsImported={handleWolkeDocsImported}
             disabled={loading || isUploading}
           />
@@ -220,7 +222,7 @@ export default function SourcesStep({ state }: SourcesStepProps) {
           <NotebookEditorDocsSection
             linkedDocs={linkedDocs}
             onLinkedDocsChange={setLinkedDocs}
-            remainingSlots={MAX_DOCUMENTS - uploadedDocuments.length}
+            remainingSlots={remainingSlots}
             onDocsImported={handleDocsImported}
             onUploadedDocumentRemoved={handleRemoveDocument}
             disabled={loading || isUploading}
@@ -233,7 +235,7 @@ export default function SourcesStep({ state }: SourcesStepProps) {
           <NotebookEditorWordpressSection
             sites={wordpressSites}
             onSitesChange={setWordpressSites}
-            remainingSlots={MAX_DOCUMENTS - uploadedDocuments.length}
+            remainingSlots={remainingSlots}
             onDocsImported={handleWordpressDocsImported}
             onUploadedDocumentRemoved={handleRemoveDocument}
             disabled={loading || isUploading}
@@ -246,8 +248,11 @@ export default function SourcesStep({ state }: SourcesStepProps) {
           <SectionHeader
             title="Hinzugefügte Dokumente"
             actions={
-              <span className="text-sm text-grey-500">
-                {uploadedDocuments.length}/{MAX_DOCUMENTS}
+              <span
+                className="text-sm text-grey-500"
+                title="Alle Quellen zusammen — Uploads, Wolke, verlinkte Docs und WordPress."
+              >
+                {documentCount}/{MAX_DOCUMENTS} gesamt
               </span>
             }
           />
