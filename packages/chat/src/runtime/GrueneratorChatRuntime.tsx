@@ -21,11 +21,9 @@ import {
   RuntimeAdapterProvider,
   ExportedMessageRepository,
 } from '@assistant-ui/react';
-import { getSystemAgent } from '@gruenerator/shared/agents';
 import { createChatApiClient } from '../context/ChatContext';
 import { useAgentStore } from '../stores/chatStore';
 import { usePythonFileStore } from '../stores/pythonFileStore';
-import { AUTO_MODEL_ID, resolveAutoModel } from '../lib/resolveAutoModel';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { getDefaultAgent } from '../lib/agents';
 import { useChatCollaboration } from '../hooks/useChatCollaboration';
@@ -207,16 +205,13 @@ function useGrueneratorThreadRuntime() {
   const triggerCompaction = useAgentStore((s) => s.triggerCompaction);
 
   const getConfig = useCallback((): GrueneratorAdapterConfig => {
-    const resolvedModelId =
-      selectedModel === AUTO_MODEL_ID
-        ? resolveAutoModel({
-            threadMode,
-            agent: selectedAgentId ? (getSystemAgent(selectedAgentId) ?? null) : null,
-          })
-        : selectedModel;
+    // `auto` is sent through as-is: the server resolves it AFTER the classifier
+    // has run, so the choice can depend on the intent (and complexity) of the
+    // turn — something we cannot know here, before the request goes out.
+    // See apps/api/routes/chat/agents/autoPolicy.ts.
     return {
       agentId: selectedAgentId,
-      modelId: resolvedModelId,
+      modelId: selectedModel,
       enabledTools,
       threadId: useAgentStore.getState().currentThreadId,
       selectedNotebookId,

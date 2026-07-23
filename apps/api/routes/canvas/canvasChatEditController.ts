@@ -156,10 +156,13 @@ router.post(
     ];
 
     const requestId = `canvas_chat_${Date.now()}`;
+    // No classifier runs on this surface, so `auto` gets a fixed intent hint:
+    // this is an editing surface, which puts it on the tool lane.
     const resolution = await resolveModel(
       { provider: DEFAULT_PROVIDER, model: DEFAULT_MODEL },
       model,
-      requestId
+      requestId,
+      { intent: 'edit_current_doc' }
     );
 
     if (!isProviderConfigured(resolution.provider)) {

@@ -1457,6 +1457,8 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             {
               hasImages: imageAttachments.length > 0,
               intent: finalState.intent,
+              agentId: finalState.agentConfig.identifier,
+              ...(finalState.complexity != null && { complexity: finalState.complexity }),
             }
           );
           if (resolution.unknownModelId) {
@@ -1469,12 +1471,17 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           const prunedValidMessages = pruneMessages(
             validMessages as Parameters<typeof pruneMessages>[0]
           );
+          // contextWindowTokens was computed before the classifier ran, when
+          // `auto` had no concrete model yet (→ conservative 32k default). Now
+          // that the policy has picked a lane, use its real window so a
+          // long-context model isn't compacted as if it were a short one.
+          const resolvedContextWindow = resolution.contextWindow ?? contextWindowTokens;
           const finalSystemMessage = actualThreadId
             ? await applyCompaction(
                 actualThreadId,
                 prunedValidMessages,
                 systemMessage,
-                contextWindowTokens
+                resolvedContextWindow
               )
             : systemMessage;
 
