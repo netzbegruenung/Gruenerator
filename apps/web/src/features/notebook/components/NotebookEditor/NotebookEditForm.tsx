@@ -28,6 +28,8 @@ interface NotebookEditFormProps {
 export default function NotebookEditForm({ state }: NotebookEditFormProps) {
   const {
     uploadedDocuments,
+    documentCount,
+    remainingSlots,
     stagedFiles,
     wolkeDocuments,
     manualDocuments,
@@ -68,7 +70,7 @@ export default function NotebookEditForm({ state }: NotebookEditFormProps) {
         <NotebookEditorWolkeSection
           folders={wolkeFolders}
           onFoldersChange={setWolkeFolders}
-          remainingSlots={MAX_DOCUMENTS - uploadedDocuments.length}
+          remainingSlots={remainingSlots}
           onDocsImported={handleWolkeDocsImported}
           disabled={loading || isUploading}
         />
@@ -76,7 +78,7 @@ export default function NotebookEditForm({ state }: NotebookEditFormProps) {
         <NotebookEditorDocsSection
           linkedDocs={linkedDocs}
           onLinkedDocsChange={setLinkedDocs}
-          remainingSlots={MAX_DOCUMENTS - uploadedDocuments.length}
+          remainingSlots={remainingSlots}
           onDocsImported={handleDocsImported}
           onUploadedDocumentRemoved={handleRemoveDocument}
           disabled={loading || isUploading}
@@ -85,7 +87,7 @@ export default function NotebookEditForm({ state }: NotebookEditFormProps) {
         <NotebookEditorWordpressSection
           sites={wordpressSites}
           onSitesChange={setWordpressSites}
-          remainingSlots={MAX_DOCUMENTS - uploadedDocuments.length}
+          remainingSlots={remainingSlots}
           onDocsImported={handleWordpressDocsImported}
           onUploadedDocumentRemoved={handleRemoveDocument}
           disabled={loading || isUploading}
@@ -143,8 +145,11 @@ export default function NotebookEditForm({ state }: NotebookEditFormProps) {
             onCreate={() => fileInputRef.current?.click()}
             createLabel="Dokumente hinzufügen"
             actions={
-              <span className="text-sm text-grey-500">
-                {manualDocuments.length}/{MAX_DOCUMENTS}
+              <span
+                className="text-sm text-grey-500"
+                title="Alle Quellen zusammen — Uploads, Wolke, verlinkte Docs und WordPress."
+              >
+                {documentCount}/{MAX_DOCUMENTS} gesamt
               </span>
             }
           />
