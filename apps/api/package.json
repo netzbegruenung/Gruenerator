@@ -78,7 +78,7 @@
     "@ts-rest/core": "^3.52.1",
     "@ts-rest/express": "^3.52.1",
     "@tus/file-store": "^2.1.0",
-    "@tus/server": "^2.4.1",
+    "@tus/server": "^2.4.2",
     "@types/archiver": "^8.0.0",
     "@types/ws": "^8.18.1",
     "adm-zip": "^0.6.0",
