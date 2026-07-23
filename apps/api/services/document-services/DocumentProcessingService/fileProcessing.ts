@@ -6,7 +6,7 @@
 import fs from 'fs';
 
 import { chunkAndEmbedText } from './chunkingPipeline.js';
-import { extractTextFromFile, generateContentPreview } from './textExtraction.js';
+import { capStoredText, extractTextFromFile, generateContentPreview } from './textExtraction.js';
 
 import type {
   UploadedFile,
@@ -43,6 +43,7 @@ export async function processFileUpload(
     vectorCount: chunks.length,
     fileSize: file.size,
     status: 'completed',
+    markdownContent: capStoredText(extractedText),
     additionalMetadata: {
       content_preview: generateContentPreview(extractedText),
     },
@@ -164,6 +165,10 @@ export async function processUploadedDocument(
     await postgresDocumentService.updateDocumentMetadata(documentId, userId, {
       status: 'completed',
       vectorCount: chunks.length,
+      // Keep the extracted text: the source file is deleted right below and the
+      // chunks in Qdrant are overlapping fragments, so without this the only way
+      // back to the full text is re-fetching (and for uploads, not at all).
+      markdownContent: capStoredText(extractedText),
       additionalMetadata: {
         ...metadata,
         filePath: undefined,
