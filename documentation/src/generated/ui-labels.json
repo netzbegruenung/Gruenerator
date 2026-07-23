@@ -90,37 +90,58 @@
     "path": "/zeichenzaehler"
   },
   "lv.bayern": {
-    "title": "Bayern"
+    "title": "Bayern",
+    "notebook": "bayern",
+    "agentSlug": "gruene-bayern"
   },
   "lv.berlin": {
-    "title": "Berlin"
+    "title": "Berlin",
+    "notebook": "berlin",
+    "agentSlug": "gruene-berlin"
   },
   "lv.brandenburg": {
-    "title": "Brandenburg"
+    "title": "Brandenburg",
+    "notebook": "brandenburg",
+    "agentSlug": "gruene-brandenburg"
   },
   "lv.hamburg": {
-    "title": "Hamburg"
+    "title": "Hamburg",
+    "notebook": "hamburg",
+    "agentSlug": "gruene-hamburg"
   },
   "lv.hessen": {
-    "title": "Hessen"
+    "title": "Hessen",
+    "notebook": "hessen",
+    "agentSlug": "gruene-hessen"
   },
   "lv.mecklenburg-vorpommern": {
-    "title": "Mecklenburg-Vorpommern"
+    "title": "Mecklenburg-Vorpommern",
+    "notebook": "mecklenburg-vorpommern",
+    "agentSlug": "gruene-mv"
   },
   "lv.oesterreich": {
-    "title": "Österreich"
+    "title": "Österreich",
+    "notebook": "oesterreich",
+    "agentSlug": "gruene-oesterreich"
   },
   "lv.saarland": {
-    "title": "Saarland"
+    "title": "Saarland",
+    "notebook": "saarland",
+    "agentSlug": "gruene-saarland"
   },
   "lv.sachsen-anhalt": {
-    "title": "Sachsen-Anhalt"
+    "title": "Sachsen-Anhalt",
+    "notebook": "sachsen-anhalt",
+    "agentSlug": "gruene-sachsen-anhalt"
   },
   "lv.schleswig-holstein": {
-    "title": "Schleswig-Holstein"
+    "title": "Schleswig-Holstein",
+    "notebook": "schleswig-holstein"
   },
   "lv.thueringen": {
-    "title": "Thüringen"
+    "title": "Thüringen",
+    "notebook": "thueringen",
+    "agentSlug": "gruene-thueringen"
   },
   "menu.apps": {
     "title": "Apps & Connect",
