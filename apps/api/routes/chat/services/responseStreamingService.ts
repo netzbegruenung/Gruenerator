@@ -13,8 +13,14 @@ import { isReasoningCapable } from '../../../services/ai/modelDiscovery.js';
 import {
   isReasoningStreamModel,
   streamWithReasoning,
+  type ThinkingEffort,
 } from '../../../services/ai/regoloReasoningStream.js';
 import { createLogger } from '../../../utils/logger.js';
+import {
+  resolveAutoSelection,
+  type Complexity,
+  type ReasoningSetting,
+} from '../agents/autoPolicy.js';
 import {
   getModel,
   resolveModelTuple,
@@ -60,8 +66,20 @@ const LITELLM_FIRST_TOKEN_DEADLINE_MS = 30_000;
  */
 const REASONING_FIRST_TOKEN_DEADLINE_MS = 20_000;
 
-export function getFirstTokenDeadlineMs(provider: string, modelName: string): number {
-  if (isReasoningStreamModel(provider, modelName)) return REASONING_FIRST_TOKEN_DEADLINE_MS;
+/**
+ * `thinking` defaults to true so an unqualified call keeps the pre-policy
+ * behaviour. When the auto policy turned reasoning OFF for a lane that would
+ * normally think, there is no thinking phase to wait through — it should be
+ * held to the ordinary deadline, not the generous reasoning one.
+ */
+export function getFirstTokenDeadlineMs(
+  provider: string,
+  modelName: string,
+  thinking = true
+): number {
+  if (thinking && isReasoningStreamModel(provider, modelName)) {
+    return REASONING_FIRST_TOKEN_DEADLINE_MS;
+  }
   if (provider === 'litellm') return LITELLM_FIRST_TOKEN_DEADLINE_MS;
   return FIRST_TOKEN_DEADLINE_MS;
 }
@@ -82,10 +100,41 @@ interface ModelResolution {
    *  agent default was used instead — callers surface this to the client so
    *  the selection isn't ignored silently. */
   unknownModelId?: string;
+  /** Reasoning strength for this turn, from the auto policy (or the default
+   *  for an explicit user selection). `off` means do not think at all. */
+  reasoningEffort: ReasoningSetting;
+  /** True when the auto policy — not the user — picked this model. The loop
+   *  uses it to know a deliberate choice was already made for the synth slot. */
+  fromAutoPolicy: boolean;
+  /** Context window of the RESOLVED lane. Callers computing token budgets
+   *  before the model was known (streamContext runs pre-classifier, so `auto`
+   *  yields the conservative default there) should prefer this. Absent when
+   *  the agent default was used and no registry entry applied. */
+  contextWindow?: number;
+}
+
+/** Explicit user selections keep the previous behaviour: think when the model
+ *  can. Only `auto` turns are graded by intent + complexity. */
+const EXPLICIT_SELECTION_REASONING: ReasoningSetting = 'high';
+
+/**
+ * Mistral's dial is BINARY: `@ai-sdk/mistral` validates reasoningEffort against
+ * `'high' | 'none'` and throws a ZodError on 'low'/'medium' (verified live
+ * against the API). Our 4-step scale therefore collapses here — anything below
+ * `medium` means "don't think", which is also the honest reading of `low` on a
+ * model that has no low setting.
+ *
+ * Returns null when no provider option should be sent at all.
+ */
+export function mistralReasoningOption(setting: ReasoningSetting): 'high' | null {
+  return setting === 'medium' || setting === 'high' ? 'high' : null;
 }
 
 /**
- * Resolve which AI model to use: user selection overrides agent default.
+ * Resolve which AI model to use.
+ *
+ * Order: explicit user selection → auto policy (intent + complexity) → agent
+ * default. The vision override runs last and beats all of them.
  *
  * Async because overflow lanes (gpt-oss, gemma-4) acquire a Redis slot before
  * choosing Verdigado vs Regolo. requestId tags the slot for correct release.
@@ -94,7 +143,14 @@ export async function resolveModel(
   agentConfig: { provider: string; model: string; defaultModel?: string | undefined },
   modelId: string | undefined,
   requestId: string,
-  options?: { hasImages?: boolean; intent?: string }
+  options?: {
+    hasImages?: boolean;
+    intent?: string;
+    complexity?: Complexity;
+    agentId?: string | null;
+    /** For surfaces without a classifier (notebook) — see resolveAutoSelection. */
+    surface?: 'notebook';
+  }
 ): Promise<ModelResolution> {
   let modelProvider = agentConfig.provider;
   let modelName = agentConfig.model;
@@ -102,19 +158,56 @@ export async function resolveModel(
   let releaseSlot: (() => Promise<void>) | undefined;
   let resolvedId: string | undefined;
   let unknownModelId: string | undefined;
+  let reasoningEffort: ReasoningSetting = EXPLICIT_SELECTION_REASONING;
+  let fromAutoPolicy = false;
+  let contextWindow: number | undefined;
 
-  if (modelId && modelId !== 'mistral' && modelId !== 'auto') {
+  const isAuto = !modelId || modelId === 'mistral' || modelId === 'auto';
+
+  if (!isAuto) {
     const tuple = await resolveModelTuple(modelId, requestId);
     if (tuple) {
       modelProvider = tuple.provider;
       modelName = tuple.model;
       resolvedId = modelId;
+      contextWindow = tuple.contextWindow;
       if (tuple.sibling) sibling = tuple.sibling;
       if (tuple.releaseSlot) releaseSlot = tuple.releaseSlot;
       log.info(`[ChatGraph] Using user-selected model: ${modelId} → ${modelProvider}/${modelName}`);
     } else {
       log.warn(`[ChatGraph] Unknown model ID "${modelId}", using agent default`);
       unknownModelId = modelId;
+    }
+  } else {
+    // Auto: the classifier has already run, so the intent is known here. This
+    // is the whole point of resolving auto on the server instead of the client.
+    const selection = resolveAutoSelection({
+      ...(options?.intent != null && { intent: options.intent }),
+      ...(options?.complexity != null && { complexity: options.complexity }),
+      ...(options?.agentId != null && { agentId: options.agentId }),
+      ...(options?.surface != null && { surface: options.surface }),
+    });
+    reasoningEffort = selection.reasoning;
+    const tuple = await resolveModelTuple(selection.modelId, requestId);
+    if (tuple) {
+      modelProvider = tuple.provider;
+      modelName = tuple.model;
+      resolvedId = selection.modelId;
+      contextWindow = tuple.contextWindow;
+      fromAutoPolicy = true;
+      if (tuple.sibling) sibling = tuple.sibling;
+      if (tuple.releaseSlot) releaseSlot = tuple.releaseSlot;
+      log.info(
+        `[ChatGraph] auto → ${selection.modelId} (${modelProvider}/${modelName}) ` +
+          `intent=${options?.intent ?? 'none'} complexity=${options?.complexity ?? 'simple'} ` +
+          `reasoning=${selection.reasoning}`
+      );
+    } else {
+      // The policy names a lane that is not in AVAILABLE_MODELS — a code bug,
+      // not user input. Fall back to the agent default rather than failing.
+      log.error(
+        `[ChatGraph] auto policy returned unknown lane "${selection.modelId}" — using agent default`
+      );
     }
   }
 
@@ -169,11 +262,14 @@ export async function resolveModel(
     model: getModel(modelProvider, modelName),
     provider: modelProvider,
     modelName,
+    reasoningEffort,
+    fromAutoPolicy,
   };
   if (resolvedId) result.modelId = resolvedId;
   if (sibling) result.sibling = sibling;
   if (releaseSlot) result.releaseSlot = releaseSlot;
   if (unknownModelId) result.unknownModelId = unknownModelId;
+  if (contextWindow != null) result.contextWindow = contextWindow;
   return result;
 }
 
@@ -464,6 +560,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
   logPrefix?: string;
   firstTokenDeadlineMs?: number;
   wallClockMs?: number;
+  effort?: ThinkingEffort;
 }): Promise<string | null> {
   const {
     provider,
@@ -473,6 +570,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
     temperature,
     sse,
     signal,
+    effort,
     logPrefix = '[ChatGraph]',
     firstTokenDeadlineMs = FIRST_TOKEN_DEADLINE_MS,
     wallClockMs = SINGLE_PASS_WALL_CLOCK_MS,
@@ -495,6 +593,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
     maxTokens,
     temperature,
     signal: composed,
+    ...(effort && { effort }),
   };
 
   const iterator = streamWithReasoning(streamParams)[Symbol.asyncIterator]();
@@ -636,6 +735,10 @@ export async function streamWithFallback(params: {
       model: getModel(sibling.provider, sibling.model),
       provider: sibling.provider,
       modelName: sibling.model,
+      // The turn's task hasn't changed, only the host — keep the policy's
+      // reasoning setting so the fallback doesn't silently start thinking.
+      reasoningEffort: primary.reasoningEffort,
+      fromAutoPolicy: primary.fromAutoPolicy,
     };
     if (primary.modelId) fallbackResolution.modelId = primary.modelId;
 
@@ -652,9 +755,16 @@ export async function streamWithFallback(params: {
 }
 
 /**
- * Dispatch entry point paired with streamWithFallback. Routes Regolo
- * reasoning models through the reasoning-aware streamer; everything else
- * through the standard AI SDK path.
+ * Dispatch entry point paired with streamWithFallback. Routes reasoning-capable
+ * lanes through the reasoning-aware streamer; everything else through the
+ * standard AI SDK path.
+ *
+ * Reasoning has three different shapes upstream, all driven by the single
+ * `resolution.reasoningEffort` value:
+ *   - Mistral: a per-request `reasoningEffort` provider option.
+ *   - Regolo (vLLM): the `enable_thinking` chat-template flag.
+ *   - LiteLLM/Ollama: thinking is ON by default; `off` means taking the SDK
+ *     path instead, which sets `think: false` via litellmFetchWithThinkingDisabled.
  */
 export async function streamForResolution(params: {
   resolution: ModelResolution;
@@ -669,9 +779,18 @@ export async function streamForResolution(params: {
   const { resolution, messages, maxTokens, temperature, sse, signal, logPrefix, telemetry } =
     params;
 
-  const firstTokenDeadlineMs = getFirstTokenDeadlineMs(resolution.provider, resolution.modelName);
+  const thinking = resolution.reasoningEffort !== 'off';
+  const firstTokenDeadlineMs = getFirstTokenDeadlineMs(
+    resolution.provider,
+    resolution.modelName,
+    thinking
+  );
 
-  if (isReasoningStreamModel(resolution.provider, resolution.modelName)) {
+  // `off` deliberately skips the reasoning streamer entirely: for the lanes
+  // that stream thinking by default (verdigado-pro/-think, the Regolo family)
+  // that is the ONLY way to actually stop them from thinking, and it is what
+  // makes `direct` a real speed path.
+  if (thinking && isReasoningStreamModel(resolution.provider, resolution.modelName)) {
     // Regolo reasoning path is a raw fetch (regoloReasoningStream), not the AI
     // SDK — no experimental_telemetry hook, so it stays uninstrumented for now.
     const args: Parameters<typeof streamAndAccumulateWithReasoningOrThrow>[0] = {
@@ -685,6 +804,8 @@ export async function streamForResolution(params: {
     };
     if (signal) args.signal = signal;
     if (logPrefix) args.logPrefix = logPrefix;
+    // `thinking` is true here, so the setting is one of low/medium/high.
+    args.effort = resolution.reasoningEffort as ThinkingEffort;
     return streamAndAccumulateWithReasoningOrThrow(args);
   }
 
@@ -702,8 +823,9 @@ export async function streamForResolution(params: {
   // Mistral reasoning models (e.g. Medium 3.5) only think when `reasoningEffort`
   // is set per request; @ai-sdk/mistral then surfaces the reasoning via
   // fullStream so streamAndAccumulateOrThrow can emit it as reasoning_delta.
-  if (resolution.provider === 'mistral' && isReasoningCapable(resolution.modelName)) {
-    args.providerOptions = { mistral: { reasoningEffort: 'high' } };
+  if (thinking && resolution.provider === 'mistral' && isReasoningCapable(resolution.modelName)) {
+    const mistralEffort = mistralReasoningOption(resolution.reasoningEffort);
+    if (mistralEffort) args.providerOptions = { mistral: { reasoningEffort: mistralEffort } };
   }
   return streamAndAccumulateOrThrow(args);
 }

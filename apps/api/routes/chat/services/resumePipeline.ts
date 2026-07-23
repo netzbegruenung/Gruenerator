@@ -422,6 +422,8 @@ export async function runChatGraphResume({
     const resolution2 = await resolveModel(agentConfigForResolve2, modelId, resumeRequestId, {
       hasImages: resumeImageAttachments.length > 0,
       intent: finalState.intent,
+      agentId: finalState.agentConfig.identifier,
+      ...(finalState.complexity != null && { complexity: finalState.complexity }),
     });
     if (resolution2.unknownModelId) {
       sse.send('warning', {
