@@ -7,7 +7,7 @@
  */
 
 import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
-import { generateText, type ModelMessage } from 'ai';
+import { generateText } from 'ai';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { upsertThreadRecallPoint } from '../../../services/chat/threadRecallEmbeddingService.js';
@@ -175,12 +175,12 @@ Halte die Zusammenfassung kompakt aber informativ (max. 400 Wörter). Schreibe i
  * This prepends the compaction summary to the system message and returns
  * only recent messages, reducing context window usage for long conversations.
  */
-export function prepareMessagesWithCompaction(
-  messages: ModelMessage[],
+export function prepareMessagesWithCompaction<T extends { role: string }>(
+  messages: T[],
   compactionState: CompactionState,
   baseSystemMessage: string,
   contextWindowTokens?: number
-): { messages: ModelMessage[]; systemMessage: string } {
+): { messages: T[]; systemMessage: string } {
   if (!compactionState.summary) {
     return {
       messages,

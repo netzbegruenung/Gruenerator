@@ -24,8 +24,8 @@ interface Option {
 
 const MAX_MATCHES = 6;
 
-const PLACEHOLDERS = ['Neuen Space erstellen …', 'Space suchen …', 'Team-Space anlegen …'];
-const PLACEHOLDERS_SHORT = ['Space erstellen …', 'Space suchen …', 'Team-Space …'];
+const PLACEHOLDERS = ['Neues Projekt erstellen …', 'Projekt suchen …', 'Gruppe anlegen …'];
+const PLACEHOLDERS_SHORT = ['Projekt erstellen …', 'Projekt suchen …', 'Gruppe …'];
 
 function TypeIcon({ type }: { type: SpaceType }) {
   const Icon = type === 'standard' ? HiUserGroup : HiUser;
@@ -37,10 +37,10 @@ function TypeIcon({ type }: { type: SpaceType }) {
 }
 
 /**
- * Create-or-search pill for the Spaces landing — same visual shell as the office
- * `DocsComposer`, pared down to two jobs: filter the user's own spaces (jump to
- * one) and create a new one, either as a "Single Space" (personal) or a
- * "Gruppenspace" (standard/team). No doc kinds, templates, backend search or
+ * Create-or-search pill for the Projekte landing — same visual shell as the office
+ * `DocsComposer`, pared down to two jobs: filter the user's own projects (jump to
+ * one) and create a new one, either as a "Projekt" (personal) or a
+ * "Gruppe" (standard/team). No doc kinds, templates, backend search or
  * imports.
  */
 export function SpacesComposer({ spaces, isCreating, onCreate }: SpacesComposerProps) {
@@ -81,7 +81,7 @@ export function SpacesComposer({ spaces, isCreating, onCreate }: SpacesComposerP
           <div className="truncate text-sm font-medium text-[#22382E] dark:text-foreground">
             {s.name}
           </div>
-          <div className="text-xs text-[#9AA8A1]">Space öffnen</div>
+          <div className="text-xs text-[#9AA8A1]">Projekt öffnen</div>
         </div>
       </div>
     ),
@@ -89,8 +89,8 @@ export function SpacesComposer({ spaces, isCreating, onCreate }: SpacesComposerP
 
   const createOptions: Option[] = query
     ? [
-        { type: 'personal' as const, label: 'als Single Space erstellen' },
-        { type: 'standard' as const, label: 'als Gruppenspace erstellen' },
+        { type: 'personal' as const, label: 'als Projekt erstellen' },
+        { type: 'standard' as const, label: 'als Gruppe erstellen' },
       ].map(({ type, label }) => ({
         key: `create-${type}`,
         onSelect: () => runCreate(type),
@@ -161,7 +161,7 @@ export function SpacesComposer({ spaces, isCreating, onCreate }: SpacesComposerP
               blurTimer.current = setTimeout(() => setOpen(false), 120);
             }}
             onKeyDown={onKeyDown}
-            aria-label="Space erstellen oder suchen"
+            aria-label="Projekt erstellen oder suchen"
             className="w-full min-w-0 border-0 bg-transparent py-[9px] text-base text-[#22382E] outline-none placeholder:text-[#9AA8A1] dark:text-foreground"
           />
         </div>
@@ -171,7 +171,7 @@ export function SpacesComposer({ spaces, isCreating, onCreate }: SpacesComposerP
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => runCreate('personal')}
           disabled={query.length === 0 || isCreating}
-          aria-label="Single Space erstellen"
+          aria-label="Projekt erstellen"
           className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-full bg-[#4C8A6E] text-white transition-[background,transform] hover:bg-[#3E7A5F] active:scale-95 disabled:opacity-50"
         >
           {isCreating ? (
@@ -203,7 +203,7 @@ export function SpacesComposer({ spaces, isCreating, onCreate }: SpacesComposerP
         >
           {!promptMode && (
             <div className="flex items-center gap-2 px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#9AA8A1]">
-              <FiSearch size={11} /> Deine Spaces
+              <FiSearch size={11} /> Deine Projekte
             </div>
           )}
           {options.map((opt, i) => (

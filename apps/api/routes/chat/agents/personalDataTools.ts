@@ -226,7 +226,7 @@ export function makeSearchThreadsTool(ctx: PersonalToolCtx): Tool {
   return tool({
     description: `Durchsucht die FRÜHEREN CHATS der angemeldeten Person (nicht Dokumente — dafür 'find_content'). Findet, was in vergangenen Unterhaltungen besprochen wurde, per Stichwort + Bedeutung.
 
-NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens gesprochen", "such in diesem Space", "was hatten wir zu X besprochen").
+NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens gesprochen", "such in diesem Projekt", "was hatten wir zu X besprochen").
 - scope="space": nur die Chats des aktuellen Space durchsuchen (Standard, wenn der Chat in einem Space liegt).
 - scope="all": alle eigenen Chats durchsuchen.
 - action="read": den vollständigen Verlauf EINES Threads lesen (threadId aus einem Suchergebnis).`,

@@ -152,6 +152,34 @@ describe('createToolLoopGuards — near-duplicate (Jaccard)', () => {
     ).not.toBeNull();
   });
 
+  it('skipNearDuplicate (MCP connectors) allows a "too similar" retry but still blocks exact repeats', () => {
+    const guards = createToolLoopGuards();
+    // A connector call, then a corrective retry that shares ≥0.6 tokens (would
+    // be near-dup-blocked for a search tool) — allowed for connectors.
+    expect(
+      guards.checkDuplicate(
+        'mb2__search_appointments',
+        { subject: 'Protokoll Juli' },
+        { skipNearDuplicate: true }
+      )
+    ).toBeNull();
+    expect(
+      guards.checkDuplicate(
+        'mb2__search_appointments',
+        { subject: 'Protokoll' },
+        { skipNearDuplicate: true }
+      )
+    ).toBeNull();
+    // Exact-normalized repeat is STILL blocked (prevents identical failure loops).
+    expect(
+      guards.checkDuplicate(
+        'mb2__search_appointments',
+        { subject: 'Protokoll' },
+        { skipNearDuplicate: true }
+      )
+    ).not.toBeNull();
+  });
+
   it('the Q5 regression: 4 Atomkraft variants collapse, other topics stay free', () => {
     const guards = createToolLoopGuards({
       searchToolNames: new Set(['gruenerator_search']),
