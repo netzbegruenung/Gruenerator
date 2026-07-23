@@ -102,6 +102,6 @@
     "eslint": "^9.39.4",
     "expo-atlas": "^0.4.0",
     "globals": "^17.7.0",
-    "typescript": "~6.0.3"
+    "typescript": "~7.0.2"
   }
 }
