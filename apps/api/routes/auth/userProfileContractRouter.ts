@@ -323,6 +323,43 @@ export const userProfileContractRouter = s.router(userProfileContract, {
     }
   },
 
+  updateChatBackground: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const profileService = getProfileService();
+      const { background } = args.body;
+
+      await profileService.updateChatBackground(userId, background);
+
+      // The Drizzle write bypasses Better Auth, so without this the cached
+      // session keeps the old preset for up to 300s and the background visibly
+      // reverts on the next reload.
+      await refreshSessionCookieCache(args.req, args.res);
+
+      const sessionUser = args.req.user as UserProfile | undefined;
+      if (sessionUser) sessionUser.chat_background = background;
+
+      return {
+        status: 200 as const,
+        body: {
+          success: true as const,
+          chatBackground: background,
+          message: 'Hintergrund erfolgreich aktualisiert!',
+        },
+      };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[Profile Contract PATCH /profile/chat-background] Error:', err);
+      return {
+        status: 500 as const,
+        body: {
+          success: false as const,
+          message: err.message || 'Fehler beim Aktualisieren des Hintergrunds.',
+        },
+      };
+    }
+  },
+
   updateLocale: async (args) => {
     try {
       const user = getUser(args.req);

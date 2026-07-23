@@ -21,7 +21,7 @@ import {
   FiSliders,
   FiUser,
 } from 'react-icons/fi';
-import { PiBrain, PiPencil } from 'react-icons/pi';
+import { PiBrain, PiPencil, PiRobot } from 'react-icons/pi';
 
 import Spinner from '../../components/common/Spinner';
 
@@ -31,6 +31,7 @@ import { useSettingsDialogStore, type SettingsTab } from './settingsDialogStore'
 const NAV: { value: SettingsTab; label: string; icon: IconType; hideHeading?: boolean }[] = [
   { value: 'allgemein', label: 'Allgemein', icon: FiSettings },
   { value: 'konto', label: 'Konto', icon: FiUser },
+  { value: 'friends', label: 'Grünerator Friends', icon: PiRobot },
   { value: 'personalisierung', label: 'Personalisierung', icon: FiSliders },
   { value: 'texte-anlernen', label: 'Texte anlernen', icon: PiPencil },
   { value: 'erinnerungen', label: 'Erinnerungen', icon: PiBrain, hideHeading: true },
@@ -44,6 +45,7 @@ const NAV: { value: SettingsTab; label: string; icon: IconType; hideHeading?: bo
 const TAB_COMPONENTS: Record<SettingsTab, LazyExoticComponent<ComponentType>> = {
   allgemein: lazy(() => import('./tabs/GeneralTab')),
   konto: lazy(() => import('./tabs/AccountTab')),
+  friends: lazy(() => import('./tabs/FriendsTab')),
   personalisierung: lazy(() => import('./tabs/PersonalizationTab')),
   'texte-anlernen': lazy(() => import('./tabs/TexteAnlernenTab')),
   erinnerungen: lazy(() => import('./tabs/MemoriesSection')),
