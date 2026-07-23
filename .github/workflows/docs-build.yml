@@ -1,0 +1,46 @@
+name: Docs Build
+
+# Builds the Docusaurus site on PRs so two guarantees have teeth:
+#   1. labels:check fails if src/generated/ui-labels.json is stale vs. the app's
+#      UI catalog configs (a title changed in code but the manifest wasn't
+#      regenerated).
+#   2. docusaurus build fails if any <UiLabel id="…"> references an id that no
+#      longer exists in the manifest (a renamed/removed catalog entry).
+# Triggers on doc changes and on the catalog source files the manifest derives
+# from. Blocking on purpose — both failures are real drift the author must fix.
+
+on:
+  pull_request:
+    paths:
+      - 'documentation/**'
+      - 'apps/web/src/features/global-search/toolCatalog.ts'
+      - 'apps/web/src/config/workplaceToolsConfig.ts'
+      - 'apps/web/src/components/layout/Header/menuData.tsx'
+      - 'packages/shared/src/agents/landesverbaende.ts'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build documentation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile --filter @gruenerator/documentation...
+
+      - name: Check ui-labels.json is in sync with the app source
+        run: pnpm --filter @gruenerator/documentation labels:check
+
+      - name: Build docs (fails on unknown UiLabel ids)
+        run: pnpm --filter @gruenerator/documentation build
