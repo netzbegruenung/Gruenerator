@@ -351,7 +351,7 @@ export async function importWordpressPosts(
 ): Promise<WpImportOutcome> {
   const siteUrl = normalizeSiteUrl(params.siteUrl);
   const modifiedAfter = params.modifiedAfter ?? null;
-  const budget = Math.max(0, Math.min(params.maxNewDocuments ?? 100, 100));
+  const budget = Math.max(0, Math.min(params.maxNewDocuments ?? 1000, 1000));
 
   const seenLinks = new Set<string>();
   const posts: WpPost[] = [];

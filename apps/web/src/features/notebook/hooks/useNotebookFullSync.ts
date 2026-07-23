@@ -11,7 +11,7 @@ import { syncWolkeFolder, type WolkeFolderSyncResult } from './syncWolkeFolder';
 
 import type { NotebookCollection } from '../../../types/notebook';
 
-const MAX_DOCUMENTS = 100;
+const MAX_DOCUMENTS = 1000;
 
 export type SyncProgressStatus = 'pending' | 'running' | 'done' | 'error';
 
