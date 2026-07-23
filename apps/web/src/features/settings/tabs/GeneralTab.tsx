@@ -1,7 +1,8 @@
+import { type StartPage } from '@gruenerator/contracts';
 import { Button, toast } from '@gruenerator/ui';
 import { RotateCcw } from 'lucide-react';
 import { type IconType } from 'react-icons';
-import { PiDesktop, PiMoon, PiSun } from 'react-icons/pi';
+import { PiBriefcase, PiChatCircle, PiDesktop, PiMoon, PiSun } from 'react-icons/pi';
 
 import SettingsRow from '../components/SettingsRow';
 
@@ -21,10 +22,17 @@ const LOCALE_OPTIONS: { value: SupportedLocale; flag: string; label: string }[] 
   { value: 'de-AT', flag: '🇦🇹', label: 'Deutsch (Österreich)' },
 ];
 
+const START_PAGE_OPTIONS: { value: StartPage; label: string; icon: IconType }[] = [
+  { value: 'chat', label: 'Chat', icon: PiChatCircle },
+  { value: 'arbeiten', label: 'Arbeiten', icon: PiBriefcase },
+];
+
 const GeneralTab = () => {
   const [, , themePreference, , setThemePreference] = useDarkMode();
   const locale = useAuthStore((s) => s.locale);
   const updateLocale = useAuthStore((s) => s.updateLocale);
+  const startPage = useAuthStore((s) => s.user?.default_startpage ?? 'chat');
+  const updateStartPage = useAuthStore((s) => s.updateStartPage);
 
   return (
     <div className="-my-4 divide-y divide-grey-200 dark:divide-grey-800">
@@ -67,6 +75,27 @@ const GeneralTab = () => {
               title={label}
             >
               {flag}
+            </button>
+          ))}
+        </div>
+      </SettingsRow>
+
+      <SettingsRow title="Startseite" description="Was das Start-Symbol in der Seitenleiste öffnet">
+        <div className="flex rounded-lg border border-grey-200 p-0.5 dark:border-grey-700">
+          {START_PAGE_OPTIONS.map(({ value, label, icon: Icon }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => void updateStartPage(value)}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors',
+                startPage === value
+                  ? 'bg-background-alt font-medium text-foreground'
+                  : 'text-grey-500 hover:text-foreground'
+              )}
+            >
+              <Icon className="size-4" />
+              {label}
             </button>
           ))}
         </div>

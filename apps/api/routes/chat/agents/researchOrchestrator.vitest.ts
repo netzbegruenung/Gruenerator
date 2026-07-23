@@ -24,14 +24,12 @@ vi.mock('./directSearchExecutors.js', () => ({
   executeDirectWebSearch: mockExecuteDirectWebSearch,
 }));
 
-// `executeResearch` routes through Linkup whenever getLinkupService() returns a
-// service — which it does as soon as a LINKUP key is in the environment. Without
-// this mock the suite silently leaves the mocked fan-out path and makes real
-// network calls, so every test here times out on any machine that has the key
-// (green without .env, red with it). Pinned to null = "not configured", which is
-// the branch these tests are written against.
+// Linkup deep-research short-circuits the whole orchestrator when
+// LINKUP_API_KEY is present (it is, in local .env). These tests exercise the
+// planner/fan-out path, so force getLinkupService → null to keep them hermetic
+// (otherwise executeResearch makes a real ~14s Linkup call and skips the fan-out).
 vi.mock('../../../services/search/LinkupService.js', () => ({
-  getLinkupService: () => null,
+  getLinkupService: vi.fn(() => null),
 }));
 
 vi.mock('../../../utils/logger.js', () => ({

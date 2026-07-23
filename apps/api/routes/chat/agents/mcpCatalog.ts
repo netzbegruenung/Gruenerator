@@ -15,11 +15,12 @@
  * (one MCP session = one JSON-RPC transport) since a step may issue parallel
  * tool calls.
  */
-import { dynamicTool, jsonSchema, type ToolSet } from 'ai';
+import { dynamicTool, jsonSchema, type JSONSchema7, type ToolSet } from 'ai';
 
 import { McpServerRegistry } from '../../../services/mcp/McpServerRegistry.js';
 import { UserMCPClient } from '../../../services/mcp/UserMCPClient.js';
 import { createLogger } from '../../../utils/logger.js';
+import { type McpToolResult } from '../services/agenticLoop/types.js';
 
 import { sanitizeMcpSchema } from './mcpSchemaSanitizer.js';
 
@@ -30,6 +31,18 @@ const MAX_TOOLS = 60;
 /** Anthropic/tool-name regex is ^[a-zA-Z0-9_-]{1,64}$. Shared with systemMcpCatalog. */
 export function sanitizeToolName(raw: string): string {
   return raw.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 60);
+}
+
+/** Required-param names of a sanitized MCP schema (drops non-string entries). */
+export function requiredParams(schema: JSONSchema7): string[] {
+  return Array.isArray(schema.required)
+    ? schema.required.filter((r): r is string => typeof r === 'string')
+    : [];
+}
+
+/** Planner catalog annotation: "(keine Pflichtfelder)" or "(benötigt: a|b)". */
+export function requiredParamsAnnotation(required: string[]): string {
+  return required.length === 0 ? '(keine Pflichtfelder)' : `(benötigt: ${required.join('|')})`;
 }
 
 /** Per-client mutex: serialize callTool on one MCP session (no p-limit dep). */
@@ -50,9 +63,18 @@ export interface McpCatalog {
   tools: ToolSet;
   /** namespaced name → display label ("Server · tool") for wrapTools titleFor. */
   labels: Map<string, { serverName: string; toolName: string }>;
+  /** Per-turn planner catalog: one line per connected server listing each tool
+   *  and its required params, so the planner can survey siblings (e.g. a
+   *  param-free "letzte/liste" tool) instead of giving up on a missing param. */
+  catalogSummary: string;
   /** True when a scope was requested but the server is gone/disabled — the
    *  caller should answer honestly instead of running a tool-less loop. */
   scopedServerMissing: boolean;
+  /** True when a scoped server was CONFIGURED but its connect/listTools failed
+   *  (or it exposed no usable tools) — distinct from `scopedServerMissing`
+   *  (deleted/disabled). Lets the caller say "gerade nicht erreichbar" instead
+   *  of a generic no-answer. */
+  scopedServerUnreachable: boolean;
   /** System catalogs only: keys of the sources that actually CONNECTED this
    *  turn (env-configured but unreachable sources are absent) — the prompt
    *  hints must be keyed to this, not to the env config. */
@@ -64,7 +86,9 @@ export interface McpCatalog {
 const EMPTY: McpCatalog = {
   tools: {},
   labels: new Map(),
+  catalogSummary: '',
   scopedServerMissing: false,
+  scopedServerUnreachable: false,
   close: async () => {},
 };
 
@@ -95,14 +119,31 @@ export async function loadMcpCatalog(params: {
   const tools: ToolSet = {};
   const labels = new Map<string, { serverName: string; toolName: string }>();
   const seen = new Set<string>();
+  // Keyed by config.id so the summary is emitted in stable configs order below
+  // (Promise.all resolves the servers in a nondeterministic order).
+  const catalogByServer = new Map<string, string>();
+  // A scoped load has exactly one config; track whether it failed to mount so
+  // the caller can report "gerade nicht erreichbar" instead of a silent miss.
+  let anyUnreachable = false;
 
   await Promise.all(
     configs.map(async (config) => {
       const client = new UserMCPClient(config);
+      const mountStart = Date.now();
       try {
         await client.connect();
         const listed = await client.listTools();
         clients.push(client);
+        // Mount timing was invisible: a slow-but-successful connect/listTools
+        // (a laggy remote server) ran unbudgeted and looked like a hang with no
+        // log. Surface duration + tool count per server.
+        log.info(
+          `[mcpCatalog] "${config.name}" mounted ${listed.length} tools in ${Date.now() - mountStart}ms`
+        );
+        if (listed.length === 0) {
+          log.warn(`[mcpCatalog] "${config.name}" connected but exposed 0 tools`);
+          anyUnreachable = true;
+        }
         void McpServerRegistry.saveToolsSnapshot(userId, config.id, listed);
         const callSerialized = createSerializer();
 
@@ -110,6 +151,7 @@ export async function loadMcpCatalog(params: {
         // (not the per-turn index) so a tool name persisted this turn resolves to
         // the SAME catalog entry next turn — the invariant cross-turn replay needs.
         const serverKey = config.id.replace(/-/g, '').slice(0, 8);
+        const toolEntries: string[] = [];
         for (const t of listed) {
           if (Object.keys(tools).length >= MAX_TOOLS) break;
           const providerName = `m${serverKey}__${sanitizeToolName(t.name)}`.slice(0, 64);
@@ -117,10 +159,16 @@ export async function loadMcpCatalog(params: {
           seen.add(providerName);
           labels.set(providerName, { serverName: config.name, toolName: t.name });
 
+          const sanitized = sanitizeMcpSchema(t.inputSchema);
+          const required = requiredParams(sanitized);
+          toolEntries.push(`${t.name} ${requiredParamsAnnotation(required)}`);
+          const requiredSuffix =
+            required.length > 0 ? ` — Pflichtfelder: ${required.join(', ')}` : '';
+
           tools[providerName] = dynamicTool({
-            description: `[${config.name}] ${t.description ?? ''}`.slice(0, 1024),
-            inputSchema: jsonSchema(sanitizeMcpSchema(t.inputSchema)),
-            execute: async (input) => {
+            description: `[${config.name}] ${t.description ?? ''}${requiredSuffix}`.slice(0, 1024),
+            inputSchema: jsonSchema(sanitized),
+            execute: async (input): Promise<McpToolResult> => {
               const result = await callSerialized(() =>
                 client.callTool(t.name, (input ?? {}) as Record<string, unknown>)
               );
@@ -131,19 +179,32 @@ export async function loadMcpCatalog(params: {
             },
           });
         }
+        if (toolEntries.length > 0) {
+          catalogByServer.set(config.id, `${config.name} · ${toolEntries.join(' · ')}`);
+        }
       } catch (err) {
         log.warn(
-          `[mcpCatalog] server "${config.name}" unreachable: ${err instanceof Error ? err.message : err}`
+          `[mcpCatalog] server "${config.name}" unreachable after ${Date.now() - mountStart}ms: ${err instanceof Error ? err.message : err}`
         );
+        anyUnreachable = true;
         await client.close();
       }
     })
   );
 
+  const catalogSummary = configs
+    .map((c) => catalogByServer.get(c.id))
+    .filter((line): line is string => line != null)
+    .join('\n');
+
   return {
     tools,
     labels,
+    catalogSummary,
     scopedServerMissing: false,
+    // Scoped single-server load that produced no usable tools (connect/listTools
+    // failed or the server exposed none) — honest signal, not a silent miss.
+    scopedServerUnreachable: scope != null && labels.size === 0 && anyUnreachable,
     close: async () => {
       await Promise.all(clients.map((c) => c.close()));
     },

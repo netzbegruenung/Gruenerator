@@ -3,12 +3,6 @@
 
 version: 2
 
-registries:
-  npm-npmjs:
-    type: npm-registry
-    url: https://registry.npmjs.org
-    replaces-base: true
-
 updates:
   # =============================================================================
   # ROOT WORKSPACE - Monorepo tooling and shared dev dependencies
