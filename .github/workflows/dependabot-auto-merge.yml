@@ -1,5 +1,5 @@
-# Auto-merge safe Dependabot pull requests
-# Only merges minor and patch updates after CI passes
+# Triage Dependabot pull requests: auto-approve patch/minor, label the rest.
+# Merging stays manual — see the "Enable auto-merge" note below.
 # Documentation: https://docs.github.com/en/code-security/dependabot/working-with-dependabot/automating-dependabot-with-github-actions
 
 name: Dependabot Auto-Merge
@@ -33,12 +33,13 @@ jobs:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Enable auto-merge for patch updates
-        if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
-        run: gh pr merge --auto --squash "$PR_URL"
-        env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # No auto-merge step on purpose. It used to run
+      # `gh pr merge --auto --squash`, which failed on every single patch PR
+      # ("Auto merge is not allowed for this repository") because the repo has
+      # allow_auto_merge disabled — so the job went red for free. It also used
+      # --squash, which this repo forbids: test-branch is long-lived and squash
+      # breaks commit identity across the master↔test-branch sync.
+      # Re-enabling it needs BOTH: allow_auto_merge on the repo AND --merge.
 
       - name: Comment on minor updates
         if: steps.metadata.outputs.update-type == 'version-update:semver-minor'
