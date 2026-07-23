@@ -229,7 +229,11 @@ export async function streamAgenticResponse(params: {
       },
       modelId,
       requestId,
-      { intent: finalState.intent }
+      {
+        intent: finalState.intent,
+        agentId: agentConfig.identifier,
+        ...(finalState.complexity != null && { complexity: finalState.complexity }),
+      }
     );
 
     const { tools } = buildChatToolCatalog({
@@ -470,15 +474,18 @@ export async function streamAgenticResponse(params: {
     };
 
     // Split slots pick the best model per phase (fast tool-caller plans, best
-    // writer synthesizes) for `auto`/think-lane users; an explicit fast model
-    // selection is honored. Unified (Mistral) uses one model for both.
-    const isAutoSelection = !modelId || modelId === 'auto' || modelId === 'mistral';
+    // writer synthesizes). Unified (Mistral) uses one model for both.
+    //
+    // `undecided` used to mean "the user sent auto" — but the auto policy now
+    // resolves auto to a concrete lane BEFORE this runs, using the classifier's
+    // intent. That IS a deliberate choice, so we let it reach the synth slot
+    // instead of blanket-replacing it with the writer lane. AVOID_AS_SYNTH
+    // still guards the slow think-lanes either way, so a policy pointing at
+    // gemma-litellm (→ verdigado-think) is still rewritten to gemma4-31b.
+    const undecided = !resolution.fromAutoPolicy && (!modelId || modelId === 'mistral');
     const synth =
       mode === 'split'
-        ? getLoopSynthModel(
-            { model: resolution.model, modelName: resolution.modelName },
-            isAutoSelection
-          )
+        ? getLoopSynthModel({ model: resolution.model, modelName: resolution.modelName }, undecided)
         : { model: resolution.model, name: resolution.modelName };
     synthName = synth.name;
 

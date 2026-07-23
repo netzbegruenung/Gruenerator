@@ -15,6 +15,14 @@ import {
   releaseVerdigadoSlot,
 } from '../../../services/providers/verdigadoSlot.js';
 
+import {
+  AVOID_AS_SYNTH,
+  LOOP_PLANNER_PRIMARY,
+  LOOP_PLANNER_FALLBACK,
+  LOOP_SYNTH_PRIMARY,
+  LOOP_SYNTH_FALLBACK,
+} from './autoPolicy.js';
+
 import type { AgentConfig } from './types.js';
 import type { LanguageModel } from 'ai';
 
@@ -114,6 +122,18 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
     provider: 'regolo',
     model: env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b',
     contextWindow: 32768,
+  },
+  // Backend-only lane, reachable via the auto policy but NOT in the model
+  // picker (that is driven by MODEL_OPTIONS in @gruenerator/core/models). Same
+  // model as INTERMEDIATE_MODEL: fast, tool-call verified (it is the regolo
+  // entry in DOCS_AI_MODELS / BOARD_AI_MODELS) and the right size for the
+  // short, structured turns the policy routes here.
+  'mistral-small-4': {
+    kind: 'single',
+    provider: 'regolo',
+    model: 'mistral-small-4-119b',
+    contextWindow: 32768,
+    fallback: 'gpt-oss',
   },
 
   // Overflow lanes — Verdigado primary, Regolo on overflow when slot is busy.
@@ -374,39 +394,13 @@ export function prefersUnifiedLoop(provider: string, _modelName: string): boolea
 /**
  * Split-mode model policy — the planner/executor split gives us two independent
  * slots, so we point each at its best NON-CHINESE model instead of forcing the
- * user's (often slow) lane model into both roles:
+ * user's (often slow) lane model into both roles.
  *
- *  - PLANNER (gather): needs fast, reliable NATIVE tool-calling; its prose is
- *    discarded. Prefer the cheaper regolo Mistral-small-4 (verified tool-caller,
- *    the user's requested tool model); fall back to always-up litellm/verdigado-
- *    pro when regolo is absent (it proved flaky in the test env — steps=0).
- *  - SYNTH (write): needs the best GERMAN WRITER and must NEVER be a reasoning
- *    model — litellm/verdigado-think as the synthesizer is the 18–76s latency
- *    culprit. For `auto` (and any think-lane selection) we write with gemma-4
- *    (best prose, 31b = fast); an explicit non-think model selection is honored.
- *
- * qwen / gpt-oss are never chosen here (Chinese lane / verified tool-call fail).
+ * The slot DECLARATIONS live in `autoPolicy.ts` alongside the intent table, so
+ * planner, synth and the single-pass answer read as one policy rather than two
+ * systems overriding each other. This module only turns them into
+ * LanguageModel instances (it owns env + getModel).
  */
-// Planner = native Mistral Small (mistral-small-latest): the planner only calls
-// tools + formulates queries (the synth writes the prose), so Small's tool-
-// calling is plenty — and it's faster/cheaper, cutting multi-step gather latency.
-// Reliability of "does it actually call the generation tool" is now backstopped
-// by the afterGather guarantee (agenticRespondService), so Small's lighter
-// judgment is safe. Native (not regolo — steps=0 gather regression). Bump to
-// mistral-medium-2604 here if Small proves weak on multi-step gather.
-// litellm/verdigado-pro is the cross-provider fallback if the Mistral API is down.
-const LOOP_PLANNER_PRIMARY = { provider: 'mistral' as const, model: 'mistral-small-latest' };
-const LOOP_PLANNER_FALLBACK = { provider: 'litellm' as const, model: LITELLM_DEFAULT_MODEL };
-// Synth = best writer. gemma-4 lives only on regolo; fall back to the always-up
-// litellm/verdigado-pro (fast, non-think) when regolo is absent.
-const LOOP_SYNTH_PRIMARY = { provider: 'regolo' as const, model: 'gemma4-31b' };
-const LOOP_SYNTH_FALLBACK = { provider: 'litellm' as const, model: LITELLM_DEFAULT_MODEL };
-
-/** Models that must NEVER write the loop answer: reasoning/"think" lanes (slow),
- *  Chinese lanes (qwen — excluded by policy), and gpt-oss (verified tool-call
- *  fail / reasoning leak). Any of these in the synth slot is rewritten to the
- *  best-writer lane. */
-const AVOID_AS_SYNTH = /verdigado-think|qwen|gpt-oss/i;
 
 function loopPlannerChoice(): { provider: Provider; model: string } {
   // Prefer the native Mistral tool-caller; fall back to litellm/verdigado-pro
@@ -431,26 +425,34 @@ export function getLoopPlannerModel(): LanguageModel {
 }
 
 /**
- * Synthesizer for the split's write phase. `auto` (or any think-lane selection)
- * writes with the best-writer lane; an explicit fast model is honored as-is.
- * Returns the name too so the caller can log which model actually wrote.
+ * Synthesizer for the split's write phase. Pure DECISION (no model
+ * instantiation) — env-free & unit-testable. `null` provider means "honor the
+ * resolved model as-is".
+ *
+ * `undecided` = no deliberate choice was made for this turn, so fall back to
+ * the best-writer lane. Since the auto policy now resolves `auto` to a concrete
+ * lane BEFORE the loop runs, that resolution IS a deliberate choice and callers
+ * pass `false` — the policy's pick reaches the synth slot instead of being
+ * silently replaced.
+ *
+ * AVOID_AS_SYNTH still applies either way: a policy pointing at
+ * `gemma-litellm` resolves to `verdigado-think` (a slow reasoning lane), and
+ * this rewrites it to the fast gemma4-31b host — same model family, right host.
  */
-/** Pure synth-model DECISION (no model instantiation) — env-free & unit-testable.
- *  `null` provider means "honor the resolved model as-is". */
 export function loopSynthChoice(
   resolvedModelName: string,
-  isAuto: boolean
+  undecided: boolean
 ): { provider: Provider | null; model: string } {
-  const useWriter = isAuto || AVOID_AS_SYNTH.test(resolvedModelName);
+  const useWriter = undecided || AVOID_AS_SYNTH.test(resolvedModelName);
   if (!useWriter) return { provider: null, model: resolvedModelName };
   return loopSynthWriterChoice();
 }
 
 export function getLoopSynthModel(
   resolution: { model: LanguageModel; modelName: string },
-  isAuto: boolean
+  undecided: boolean
 ): { model: LanguageModel; name: string } {
-  const choice = loopSynthChoice(resolution.modelName, isAuto);
+  const choice = loopSynthChoice(resolution.modelName, undecided);
   if (choice.provider === null) return { model: resolution.model, name: resolution.modelName };
   return { model: getModel(choice.provider, choice.model), name: choice.model };
 }
