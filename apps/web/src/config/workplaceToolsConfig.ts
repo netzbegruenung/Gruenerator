@@ -171,9 +171,9 @@ export const WORKPLACE_TOOLS: WorkplaceToolItem[] = [
   },
   {
     id: 'spaces',
-    title: 'Spaces',
+    title: 'Projekte',
     description: 'Chats & Inhalte bündeln',
-    path: '/gruppen',
+    path: '/projekte',
     icon: getIcon('navigation', 'gruppen')!,
   },
 ];

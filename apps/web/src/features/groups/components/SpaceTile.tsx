@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { getToolTheme } from '../../../config/toolTheme';
 
 // Square spaces-blue tile mirroring the OfficeTile idiom (aspect-square,
-// rounded-2xl, icon pinned top / label pinned bottom) so the "Deine Spaces"
+// rounded-2xl, icon pinned top / label pinned bottom) so the "Deine Projekte"
 // grid reads as one family with the create tiles above it.
 const TILE_BASE =
   'group relative flex aspect-square flex-col justify-between gap-2 rounded-2xl p-4 no-underline ' +
