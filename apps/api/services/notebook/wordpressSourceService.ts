@@ -397,6 +397,10 @@ async function createWordpressDocument(
     fileSize: Buffer.byteLength(content, 'utf-8'),
     status: 'uploaded',
     sourceUrl: post.link,
+    // The text is already in hand here, so it is stored right away rather than
+    // after processing: the site never has to be fetched a second time, and it
+    // survives even if chunking later fails.
+    markdownContent: content,
     additionalMetadata: {
       filePath,
       mimetype: 'text/markdown',
