@@ -239,7 +239,7 @@ function buildToolGuidelines(
       '- **search_threads**: Durchsuche die FRÜHEREN CHATS des Nutzers (nicht Dokumente).\n' +
         '  Nutze dieses Tool bei Bezug auf vergangene Unterhaltungen — "worüber haben wir letztens gesprochen",\n' +
         '  "such in diesem Space", "was hatten wir zu X besprochen". scope="space" durchsucht nur die Chats\n' +
-        '  des aktuellen Space, scope="all" alle eigenen Chats; action="read" liest einen Thread ganz.'
+        '  des aktuellen Projekts, scope="all" alle eigenen Chats; action="read" liest einen Thread ganz.'
     );
   }
 

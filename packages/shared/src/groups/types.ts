@@ -120,11 +120,12 @@ export const buildGroupInviteUrl = (joinToken: string): string =>
 /**
  * Path to a group's page. Uses the Notion-style slug when the suffix is known,
  * falling back to the raw UUID (still resolved by the backend) for legacy or
- * not-yet-backfilled groups.
+ * not-yet-backfilled groups. Canonical path is `/projekte/*` (formerly
+ * `/gruppen/*`, which still redirects here).
  */
 export const buildGroupPath = (group: {
   id: string;
   name: string;
   slug_suffix?: string | null;
 }): string =>
-  `/gruppen/${group.slug_suffix ? buildGroupSlug(group.name, group.slug_suffix) : group.id}`;
+  `/projekte/${group.slug_suffix ? buildGroupSlug(group.name, group.slug_suffix) : group.id}`;

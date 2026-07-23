@@ -37,10 +37,14 @@ const PublicGroupsSection = memo(
 
     return (
       <div className="mt-xl">
-        <SectionHeader title="Öffentliche Spaces" searchQuery={search} onSearchChange={setSearch} />
+        <SectionHeader
+          title="Öffentliche Gruppen"
+          searchQuery={search}
+          onSearchChange={setSearch}
+        />
         {filtered.length === 0 ? (
           <p className="text-sm text-grey-500 dark:text-grey-400 py-md text-center">
-            Keine öffentlichen Spaces gefunden.
+            Keine öffentlichen Gruppen gefunden.
           </p>
         ) : (
           <CardGrid columns="2">
