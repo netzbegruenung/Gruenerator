@@ -25,6 +25,31 @@ export const CONTEXT_CONFIG = {
   RESPONSE_RESERVE: 2000,
 };
 
+/** Share of a model's context window the conversation history may occupy. */
+const PRUNING_WINDOW_SHARE = 0.6;
+/** Floor so a tiny declared window can't prune a thread down to nothing. */
+const MIN_PRUNING_BUDGET = 8000;
+
+/**
+ * Token budget for message pruning, derived from the model's own window.
+ *
+ * MAX_CONTEXT_TOKENS is a ceiling, not a target. Without this the 32k lanes
+ * (verdigado-pro, gemma4-31b) get pruned to 40k — above the window they can
+ * actually accept. The remaining share covers the system prompt, whose
+ * retrieval context runs to several thousand tokens, plus the response.
+ *
+ * Raising the ceiling for the 128k lanes is a deliberate cost decision, not an
+ * oversight: it would roughly double the input tokens on long Mistral threads.
+ */
+export function getPruningBudget(contextWindowTokens?: number): number {
+  if (!contextWindowTokens) return CONTEXT_CONFIG.MAX_CONTEXT_TOKENS;
+
+  const modelBudget =
+    Math.floor(contextWindowTokens * PRUNING_WINDOW_SHARE) - CONTEXT_CONFIG.RESPONSE_RESERVE;
+
+  return Math.max(MIN_PRUNING_BUDGET, Math.min(modelBudget, CONTEXT_CONFIG.MAX_CONTEXT_TOKENS));
+}
+
 /**
  * Extract text content from a ModelMessage content field.
  * Handles both string content and AI SDK v6 parts array format.
@@ -102,7 +127,10 @@ export function filterEmptyAssistantMessages(messages: ModelMessage[]): ModelMes
  * attachmentContext, which respondNode injects into the system prompt.
  */
 export function sanitizeContentPartsForModel(messages: ModelMessage[]): ModelMessage[] {
-  const VALID_USER_PART_TYPES = new Set(['text', 'image']);
+  // 'tool-result' rides in role:'tool' messages, which fall into this branch.
+  // Omitting it would silently blank a tool result into an empty text part and
+  // orphan the matching tool-call.
+  const VALID_USER_PART_TYPES = new Set(['text', 'image', 'tool-result']);
   const VALID_ASSISTANT_PART_TYPES = new Set([
     'text',
     'reasoning',
