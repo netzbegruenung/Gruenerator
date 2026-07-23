@@ -14,6 +14,7 @@ import { type IconType } from 'react-icons';
 import {
   FiBell,
   FiCloud,
+  FiGlobe,
   FiHelpCircle,
   FiServer,
   FiSettings,
@@ -34,6 +35,7 @@ const NAV: { value: SettingsTab; label: string; icon: IconType; hideHeading?: bo
   { value: 'erinnerungen', label: 'Erinnerungen', icon: PiBrain, hideHeading: true },
   { value: 'benachrichtigungen', label: 'Benachrichtigungen', icon: FiBell },
   { value: 'wolke', label: 'Wolke', icon: FiCloud },
+  { value: 'websites', label: 'Meine Websites', icon: FiGlobe },
   { value: 'konnektoren', label: 'Konnektoren', icon: FiServer, hideHeading: true },
   { value: 'support', label: 'Support', icon: FiHelpCircle },
 ];
@@ -45,6 +47,7 @@ const TAB_COMPONENTS: Record<SettingsTab, LazyExoticComponent<ComponentType>> = 
   erinnerungen: lazy(() => import('./tabs/MemoriesSection')),
   benachrichtigungen: lazy(() => import('./tabs/NotificationsTab')),
   wolke: lazy(() => import('./tabs/WolkeTab')),
+  websites: lazy(() => import('./tabs/WebsitesTab')),
   konnektoren: lazy(() => import('./tabs/ConnectorsTab')),
   support: lazy(() => import('./tabs/SupportTab')),
 };
