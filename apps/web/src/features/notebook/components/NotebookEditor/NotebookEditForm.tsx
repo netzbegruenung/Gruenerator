@@ -13,10 +13,12 @@ import { HiOutlineDocument, HiUpload } from 'react-icons/hi';
 
 import NotebookEditorDocsSection from '../NotebookEditorDocsSection';
 import NotebookEditorWolkeSection from '../NotebookEditorWolkeSection';
+import NotebookEditorWordpressSection from '../NotebookEditorWordpressSection';
 
 import DocumentCard from './DocumentCard';
 import LabelsField from './LabelsField';
 import { ACCEPTED_EXTENSIONS, MAX_DOCUMENTS } from './shared';
+
 import type { NotebookEditorStateBundle } from './useNotebookEditorState';
 
 interface NotebookEditFormProps {
@@ -47,11 +49,15 @@ export default function NotebookEditForm({ state }: NotebookEditFormProps) {
     handleUnstageFile,
     handleCommitStagedUpload,
     handleWolkeDocsImported,
+    handleWordpressDocsImported,
     handleDocsImported,
     handleSubmit,
     onSubmit,
     linkedDocs,
     setLinkedDocs,
+    wordpressSites,
+    setWordpressSites,
+    wordpressDocuments,
   } = state;
 
   return (
@@ -75,6 +81,35 @@ export default function NotebookEditForm({ state }: NotebookEditFormProps) {
           onUploadedDocumentRemoved={handleRemoveDocument}
           disabled={loading || isUploading}
         />
+
+        <NotebookEditorWordpressSection
+          sites={wordpressSites}
+          onSitesChange={setWordpressSites}
+          remainingSlots={MAX_DOCUMENTS - uploadedDocuments.length}
+          onDocsImported={handleWordpressDocsImported}
+          onUploadedDocumentRemoved={handleRemoveDocument}
+          disabled={loading || isUploading}
+        />
+
+        {wordpressDocuments.length > 0 && (
+          <section>
+            <SectionHeader
+              title="WordPress Beiträge"
+              actions={<span className="text-sm text-grey-500">{wordpressDocuments.length}</span>}
+            />
+            <div className="grid grid-cols-1 gap-md sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+              {wordpressDocuments.map((doc) => (
+                <DocumentCard
+                  key={doc.id}
+                  doc={doc}
+                  indexing={indexingDocIds.has(doc.id)}
+                  loading={loading}
+                  onRemove={handleRemoveDocument}
+                />
+              ))}
+            </div>
+          </section>
+        )}
 
         {wolkeDocuments.length > 0 && (
           <section>

@@ -1,4 +1,8 @@
-import { type LinkedDocRef, type WolkeFolderRef } from '@gruenerator/contracts';
+import {
+  type LinkedDocRef,
+  type WolkeFolderRef,
+  type WordpressSiteRef,
+} from '@gruenerator/contracts';
 import { type DragEvent } from 'react';
 
 export interface NotebookCollection {
@@ -9,6 +13,7 @@ export interface NotebookCollection {
   labels?: string[];
   wolke_folders?: WolkeFolderRef[];
   linked_docs?: LinkedDocRef[];
+  wordpress_sites?: WordpressSiteRef[];
 }
 
 export interface NotebookEditorFormData {
@@ -20,7 +25,7 @@ export interface UploadedDocument {
   id: string;
   title: string;
   filename?: string;
-  source?: 'wolke';
+  source?: 'wolke' | 'wordpress';
   [key: string]: unknown;
 }
 

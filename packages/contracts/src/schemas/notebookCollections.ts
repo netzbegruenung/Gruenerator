@@ -77,6 +77,31 @@ export const linkedDocRefSchema = z.object({
 });
 export type LinkedDocRef = z.infer<typeof linkedDocRefSchema>;
 
+/**
+ * Experimental: WordPress site attached to a notebook as a source.
+ *
+ * Persisted inside `settings.wordpress_sites` (JSONB on `notebook_collections`).
+ * Remembers the user's category selection (plus the "Alle Beiträge" / "Seiten"
+ * pseudo-scopes) and the document ids imported from the site so a re-sync can
+ * update or remove them.
+ */
+export const wordpressCategoryRefSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+});
+export type WordpressCategoryRef = z.infer<typeof wordpressCategoryRefSchema>;
+
+export const wordpressSiteRefSchema = z.object({
+  siteUrl: z.string(),
+  siteName: z.string(),
+  categories: z.array(wordpressCategoryRefSchema),
+  allPosts: z.boolean(),
+  pages: z.boolean(),
+  documentIds: z.array(z.string()),
+  lastSyncedAt: z.string().nullable().optional(),
+});
+export type WordpressSiteRef = z.infer<typeof wordpressSiteRefSchema>;
+
 export const createCollectionBodySchema = z.object({
   name: z.string(),
   description: z.string().nullish(),
@@ -91,6 +116,7 @@ export const createCollectionBodySchema = z.object({
   public_ownership: publicOwnershipSchema.nullish(),
   wolke_folders: z.array(wolkeFolderRefSchema).nullish(),
   linked_docs: z.array(linkedDocRefSchema).nullish(),
+  wordpress_sites: z.array(wordpressSiteRefSchema).nullish(),
   audience: notebookAudienceSchema.nullish(),
 });
 
@@ -108,6 +134,7 @@ export const updateCollectionBodySchema = z.object({
   public_ownership: publicOwnershipSchema.nullish(),
   wolke_folders: z.array(wolkeFolderRefSchema).nullish(),
   linked_docs: z.array(linkedDocRefSchema).nullish(),
+  wordpress_sites: z.array(wordpressSiteRefSchema).nullish(),
   audience: notebookAudienceSchema.nullish(),
 });
 
@@ -136,6 +163,7 @@ export const notebookEditorSavePayloadSchema = z.object({
   labels: z.array(z.string()),
   wolkeFolders: z.array(wolkeFolderRefSchema).default([]),
   linkedDocs: z.array(linkedDocRefSchema).default([]),
+  wordpressSites: z.array(wordpressSiteRefSchema).default([]),
 });
 
 export type NotebookEditorSavePayload = z.infer<typeof notebookEditorSavePayloadSchema>;
@@ -192,6 +220,7 @@ export const transformedCollectionSchema = z.object({
   public_ownership: publicOwnershipSchema.nullable().optional(),
   wolke_folders: z.array(wolkeFolderRefSchema).nullish(),
   linked_docs: z.array(linkedDocRefSchema).nullish(),
+  wordpress_sites: z.array(wordpressSiteRefSchema).nullish(),
   likes_count: z.number().nullish(),
   share_mode: notebookShareModeSchema.nullish(),
   edit_policy: notebookEditPolicySchema.nullish(),
