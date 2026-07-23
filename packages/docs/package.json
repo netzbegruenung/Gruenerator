@@ -44,7 +44,7 @@
     "@gruenerator/ui": "workspace:*",
     "@gruenerator/voice": "workspace:*",
     "@handlewithcare/prosemirror-suggest-changes": "^0.1.8",
-    "@hocuspocus/provider": "^4.3.0",
+    "@hocuspocus/provider": "^4.4.0",
     "@react-pdf/renderer": "^4.5.1",
     "ai": "^6.0.224",
     "lodash.throttle": "^4.1.1",
@@ -54,7 +54,7 @@
   },
   "devDependencies": {
     "@types/lodash.throttle": "^4.1.9",
-    "@types/react": "19.2.14",
+    "@types/react": "19.2.17",
     "@types/react-dom": "^19.2.3",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
