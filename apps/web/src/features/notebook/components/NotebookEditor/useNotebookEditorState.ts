@@ -16,6 +16,7 @@ import {
   MAX_DOCUMENTS,
   TOTAL_STEPS,
   hasFileDrag,
+  type DocumentWithSource,
   type NotebookCollection,
   type NotebookEditorFormData,
   type UploadedDocument,
@@ -247,6 +248,12 @@ export function useNotebookEditorState({
     setUploadedDocuments((prev) => prev.filter((doc) => doc.id !== id));
   }, []);
 
+  const handleRemoveDocuments = useCallback((ids: string[]) => {
+    if (ids.length === 0) return;
+    const drop = new Set(ids);
+    setUploadedDocuments((prev) => prev.filter((doc) => !drop.has(doc.id)));
+  }, []);
+
   const handleDocsImported = useCallback(
     (docs: ImportedLinkedDoc[]) => {
       if (docs.length === 0) return;
@@ -369,6 +376,27 @@ export function useNotebookEditorState({
   );
 
   /**
+   * One list for every document, with its provenance resolved. The unified
+   * document panel filters this instead of rendering a grid per source —
+   * "where did it come from" is a facet, not a separate place to look.
+   */
+  const documentsWithSource = useMemo<DocumentWithSource[]>(
+    () =>
+      uploadedDocuments.map((doc) => ({
+        doc,
+        source:
+          doc.source === 'wolke'
+            ? 'wolke'
+            : doc.source === 'wordpress'
+              ? 'wordpress'
+              : linkedDocDocumentIds.has(doc.id)
+                ? 'docs'
+                : 'upload',
+      })),
+    [uploadedDocuments, linkedDocDocumentIds]
+  );
+
+  /**
    * The document cap is a single pool shared by every source — uploads, Wolke,
    * verlinkte Docs and WordPress all draw from it, and staged-but-not-yet-
    * uploaded files already count. `uploadedDocuments` is the notebook's whole
@@ -443,6 +471,7 @@ export function useNotebookEditorState({
     wolkeDocuments,
     wordpressDocuments,
     manualDocuments,
+    documentsWithSource,
     documentCount,
     remainingSlots,
     loading,
@@ -466,6 +495,7 @@ export function useNotebookEditorState({
     handleDragOver,
     handleDragLeave,
     handleRemoveDocument,
+    handleRemoveDocuments,
     handleUnstageFile,
     handleCommitStagedUpload,
     handleWolkeDocsImported,
