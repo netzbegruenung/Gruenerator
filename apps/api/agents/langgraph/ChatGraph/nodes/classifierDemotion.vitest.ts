@@ -220,6 +220,64 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
     expect(state.aiWorkerPool.processRequest).toHaveBeenCalledTimes(1);
   });
 
+  it('system-MCP phrasing is vetoed (hotel/reise reach the LLM tier, not demoted)', async () => {
+    const state = buildState({ userMessage: 'suche hotels für berlin' });
+    const result = await classifierNode(state);
+    expect(result.intent).not.toBe('agentic');
+    expect(state.aiWorkerPool.processRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it('a Bahn timetable phrasing also reaches the LLM tier', async () => {
+    const state = buildState({ userMessage: 'wann fährt der nächste zug nach hamburg' });
+    const result = await classifierNode(state);
+    expect(result.intent).not.toBe('agentic');
+    expect(state.aiWorkerPool.processRequest).toHaveBeenCalledTimes(1);
+  });
+
+  // Live failure (11:34): bare "bahnen" slipped the compound-only phrasing list
+  // (which only had zugverbindung/fahrplan/zug+nach) → demoted to agentic → the
+  // bahn intent never got a chance. The guard now covers bare Bahn/Bahnen/Zug.
+  it('bare "bahnen" (welche bahnen fahren) reaches the LLM tier, not demotion', async () => {
+    const state = buildState({ userMessage: 'welche bahnen fahren gerade nach berlin' });
+    const result = await classifierNode(state);
+    expect(result.intent).not.toBe('agentic');
+    expect(state.aiWorkerPool.processRequest).toHaveBeenCalledTimes(1);
+  });
+
+  // Live failure (11:34): bare "wetter" slipped the list (only wettervorhersage/
+  // wetterbericht) → demoted → wetter intent never assigned. Now guarded.
+  it('bare "wetter" (wie ist das wetter) reaches the LLM tier, not demotion', async () => {
+    const state = buildState({ userMessage: 'wie ist das wetter gerade in hamburg' });
+    const result = await classifierNode(state);
+    expect(result.intent).not.toBe('agentic');
+    expect(state.aiWorkerPool.processRequest).toHaveBeenCalledTimes(1);
+  });
+
+  // The bare-noun additions must stay policy-safe: "Bahnreform"/"Bahnpolitik"/
+  // "Wetterextreme" are single words where the trailing \b can't fall, so they
+  // must NOT be caught by the guard — they demote/search like any policy ask.
+  it('policy compounds (Bahnreform, Wetterextreme) are NOT caught by the guard', async () => {
+    const bahn = await classifierNode(
+      buildState({ userMessage: 'was fordern die grünen bei der bahnreform genau' })
+    );
+    expect(bahn.intent).toBe('agentic');
+    const wetter = await classifierNode(
+      buildState({
+        userMessage: 'welche position haben die grünen zu wetterextremen und klimaschutz',
+      })
+    );
+    expect(wetter.intent).toBe('agentic');
+  });
+
+  it('policy wording is NOT caught by the system-MCP guard (Tourismuspolitik still demotes/searches)', async () => {
+    const state = buildState({
+      userMessage: 'was ist die position der grünen zur tourismuspolitik',
+    });
+    const result = await classifierNode(state);
+    // Must not be forced to the LLM by the guard — a normal retrieval question.
+    expect(result.intent).toBe('agentic');
+  });
+
   it('confident heuristic (sharepic 0.93) returns directly — neither demoted nor LLM', async () => {
     const state = buildState({ userMessage: 'Mach mir ein Sharepic zu Solarenergie' });
     const result = await classifierNode(state);

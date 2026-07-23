@@ -1,4 +1,5 @@
 import { getSystemAgent } from '@gruenerator/shared/agents';
+import { buildMentionToken } from '@gruenerator/shared/utils';
 
 import { parseAllMentions } from '../../lib/mentionParser';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
@@ -418,6 +419,18 @@ export function createGrueneratorModelAdapter(
             // backend can re-derive the mention. Legacy fields above are still
             // sent for compat (old backend / old mobile apps).
             textPart.text = parsed.tokenText;
+
+            // Sticky connector (web-only): while a connector is pinned, hold its
+            // MCP scope on EVERY message by injecting the durable token + the
+            // matching forcedTool. Skip when the user already scoped to any mcp:
+            // server this turn (typed @connector) — their explicit choice wins
+            // and re-injecting would double the scope.
+            const pinned = config.pinnedConnector;
+            if (pinned && !forcedTools.some((t) => t.startsWith('mcp:'))) {
+              textPart.text =
+                `${textPart.text} ${buildMentionToken(pinned.label, 'mcp', pinned.id)}`.trim();
+              forcedTools = [...forcedTools, `mcp:${pinned.id}`];
+            }
 
             if (parsed.unresolvedMentions.length > 0) {
               const names = parsed.unresolvedMentions.map((m) => `@${m}`).join(', ');
