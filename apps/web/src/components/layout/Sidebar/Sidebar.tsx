@@ -80,6 +80,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
   const newMenuOpenRef = useRef(false);
   const accountMenuOpenRef = useRef(false);
+  const spacesMenuOpenRef = useRef(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
   const directMenuItems = useMemo(() => getDirectMenuItems({ isAustrian }), [isAustrian]);
@@ -186,7 +187,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
       // outside the sidebar (main content, or the window).
       const rt = e.relatedTarget;
       if (rt instanceof Node && e.currentTarget.contains(rt)) return;
-      if (!newMenuOpenRef.current && !accountMenuOpenRef.current) {
+      if (!newMenuOpenRef.current && !accountMenuOpenRef.current && !spacesMenuOpenRef.current) {
         close();
       }
     },
@@ -321,6 +322,15 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           onClose={close}
         />
 
+        {/* Projekte quick-view popup */}
+        <SpacesSidebarSection
+          openRef={spacesMenuOpenRef}
+          titleClass={titleClass}
+          collapsed={!sidebarExpanded}
+          onNavigate={handleLinkClick}
+          onClose={close}
+        />
+
         {/* Favourites */}
         <SidebarFavourites
           isOpen={isOpen}
@@ -331,18 +341,13 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
         />
       </nav>
 
-      {/* Scroll region: spaces + chat threads */}
+      {/* Scroll region: chat threads */}
       <div
         className={cn(
           'flex-1 min-h-0 overflow-y-auto scrollbar-thin',
           !sidebarExpanded && 'hidden'
         )}
       >
-        <SpacesSidebarSection
-          sidebarExpanded={sidebarExpanded}
-          onLinkClick={handleLinkClick}
-          isActive={isActive}
-        />
         {/* Registers the slot node synchronously (ref callback fires during
             commit), so the global chat runtime's thread-list portal follows it
             atomically across per-route remounts — no flicker. */}
