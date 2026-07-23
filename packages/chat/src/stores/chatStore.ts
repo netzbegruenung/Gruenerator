@@ -54,6 +54,14 @@ export type ToolKey = 'search' | 'web' | 'examples' | 'pressemitteilung_examples
 export type ThreadMode = 'chat' | 'notebook' | 'search' | 'eigener';
 export type SearchMode = 'web' | 'deep';
 
+/** A pinned MCP connector: while set, the composer auto-injects its durable
+ *  `@[Label](mcp:id)` token into every sent message so the tool scope is held
+ *  explicitly across follow-ups. Session-scoped — never persisted. */
+export interface PinnedConnector {
+  id: string;
+  label: string;
+}
+
 export interface ProviderOption {
   id: Provider;
   name: string;
@@ -106,11 +114,15 @@ interface AgentState {
    *  when a skill mention is inserted; cleared on agent change / new thread.
    *  Sent to backend so it appends only the relevant skill's prompt fragment. */
   activeSkillMention: string | null;
+  /** Pinned MCP connector (session-scoped, not persisted). Set from the
+   *  composer's "Konnektoren" menu; cleared on new thread / new chat. */
+  pinnedConnector: PinnedConnector | null;
   /** Transient (not persisted): set by restoreSelectedAgent so the
    *  AgentSwitchListener skips its new-thread reset for agent changes that
    *  come from a thread deep link rather than a user-initiated switch. */
   suppressAgentSwitchReset: boolean;
   setActiveSkillMention: (mention: string | null) => void;
+  setPinnedConnector: (connector: PinnedConnector | null) => void;
   setSelectedAgent: (agentId: string | null) => void;
   restoreSelectedAgent: (agentId: string | null) => void;
   setSelectedProvider: (provider: Provider) => void;
@@ -183,22 +195,28 @@ export const useAgentStore = create<AgentState>()(
       customRoleName: null,
       customEnabledTools: null,
       activeSkillMention: null,
+      pinnedConnector: null,
       suppressAgentSwitchReset: false,
 
       setActiveSkillMention: (mention) => set({ activeSkillMention: mention }),
 
-      setSelectedAgent: (agentId) => set({ selectedAgentId: agentId, activeSkillMention: null }),
+      setPinnedConnector: (connector) => set({ pinnedConnector: connector }),
+
+      setSelectedAgent: (agentId) =>
+        set({ selectedAgentId: agentId, activeSkillMention: null, pinnedConnector: null }),
 
       restoreSelectedAgent: (agentId) =>
         set({
           selectedAgentId: agentId,
           activeSkillMention: null,
+          pinnedConnector: null,
           suppressAgentSwitchReset: true,
         }),
 
       resetThreadContext: () =>
         set({
           activeSkillMention: null,
+          pinnedConnector: null,
           customSystemPrompt: null,
           customRoleName: null,
           customEnabledTools: null,
@@ -209,6 +227,7 @@ export const useAgentStore = create<AgentState>()(
         set({
           selectedAgentId: null,
           activeSkillMention: null,
+          pinnedConnector: null,
           customSystemPrompt: null,
           customRoleName: null,
           customEnabledTools: null,
@@ -238,6 +257,7 @@ export const useAgentStore = create<AgentState>()(
           messageCount: 0,
           needsCompaction: false,
           activeSkillMention: null,
+          pinnedConnector: null,
         });
         // The Sharepic-Modus (docked artifact panel) is thread-scoped: a
         // variant from the old thread must not stay pinned — nor be sent as

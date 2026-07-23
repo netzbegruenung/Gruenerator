@@ -72,6 +72,8 @@ export async function saveDocumentMetadata(
       vector_count: metadata.vectorCount || 0,
       file_size: metadata.fileSize || 0,
       status: metadata.status || 'processing',
+      source_url: metadata.sourceUrl || null,
+      markdown_content: metadata.markdownContent ?? null,
       metadata: metadata.additionalMetadata ? JSON.stringify(metadata.additionalMetadata) : null,
     };
 
@@ -152,6 +154,8 @@ export async function updateDocumentMetadata(
     if (updates.vectorCount !== undefined) updateData.vector_count = updates.vectorCount;
     if (updates.wolkeEtag !== undefined) updateData.wolke_etag = updates.wolkeEtag;
     if (updates.lastSyncedAt !== undefined) updateData.last_synced_at = updates.lastSyncedAt;
+    if (updates.markdownContent !== undefined)
+      updateData.markdown_content = updates.markdownContent;
 
     if (updates.additionalMetadata !== undefined) {
       // Merge with existing metadata to avoid losing fields

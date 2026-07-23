@@ -36,6 +36,7 @@ import {
   getSpaceRecallScope,
 } from './pastChatRecallService.js';
 import { pendingActionStore } from './pendingActionStore.js';
+import { resolveReferentialTopic } from './referentialTopic.js';
 import {
   detectPreferredVariant,
   generateSharepicVariants,
@@ -44,7 +45,7 @@ import {
 } from './sharepicVariantHelpers.js';
 import { generateSliderDeckVariant } from './sliderDeckService.js';
 import { PROGRESS_MESSAGES, sendSearchDegradedWarning } from './sseHelpers.js';
-import { createMessage, touchThread } from './threadPersistenceService.js';
+import { createMessage, setThreadToolContext, touchThread } from './threadPersistenceService.js';
 
 import type { SSEWriter, SearchResultPayload } from './sseHelpers.js';
 import type {
@@ -88,12 +89,15 @@ export async function handleBoardCreation(opts: {
     } = await import('../../../services/boards/BoardService.js');
 
     const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+    // A referential follow-up ("mach ein Board davon") inherits the prior turn's
+    // subject instead of generating a board about the bare instruction.
+    const boardTopic = resolveReferentialTopic(lastUserText, classifiedState.messages ?? []).text;
 
     const boardGenResult = await aiWorkerPool.processRequest(
       {
         type: 'board_generation',
         systemPrompt: BOARD_GENERATION_PROMPT,
-        messages: [{ role: 'user', content: lastUserText }],
+        messages: [{ role: 'user', content: boardTopic }],
         options: { temperature: 0.7, max_tokens: 2000 },
       },
       req as Express.Request & { user?: { id?: string }; sessionID?: string }
@@ -742,6 +746,30 @@ export async function generateAndCreateDocument(opts: {
 
     log.info(`[ChatGraph] Document created (${intent}): "${docTitle}" (${newDocId})`);
 
+    // Remember the created document as the thread's last tool context so a vague
+    // follow-up ("Kürze die Begründung") routes to modify_doc on THIS doc
+    // (classifier Tier-2.7). save_as_doc runs with skipTerminate → it never
+    // reaches persistAssistantResponse's deriveToolContext, so without this the
+    // edit gate has no target. Written for both the terminating (@dokument-
+    // erstellen) and skipTerminate (save_as_doc) paths.
+    if (actualThreadId) {
+      const contextKind = docSubtype.startsWith('presentation')
+        ? 'presentation'
+        : docSubtype.startsWith('sheet')
+          ? 'sheet'
+          : 'document';
+      // Awaited (not fire-and-forget): the `done` for this turn — and thus the
+      // NEXT turn's classifier reading last_tool_context — must not race ahead
+      // of this write, or the follow-up edit gate sees a stale/empty context.
+      await setThreadToolContext(actualThreadId, {
+        kind: contextKind,
+        ref: newDocId,
+        label: docTitle,
+      }).catch((err) =>
+        log.warn('[ChatGraph] Failed to persist document thread tool context:', err)
+      );
+    }
+
     if (!skipTerminate) {
       const totalTimeMs = Date.now() - classifiedState.startTime;
       sse.sendRaw('done', {
@@ -979,6 +1007,14 @@ export async function runSharepicGeneration(opts: {
     const messageText = rawText.replace(/@sharepic\b/gi, '').trim();
     const refinement = opts.sharepicRefinement;
     const preferredVariant = refinement ? null : detectPreferredVariant(messageText);
+    // A referential follow-up ("visualisiere in einem sharepic") names no subject
+    // — inherit it from the prior turn so the sharepic is ABOUT the previous topic
+    // (the confirmed context-loss bug), not the literal instruction. Variant
+    // preference is still read from the CURRENT message above.
+    const resolvedTopic = refinement
+      ? { text: messageText, inherited: false }
+      : resolveReferentialTopic(messageText, state.messages ?? []);
+    const topicText = resolvedTopic.text;
 
     // Quote sharepics are attributed to the person creating them — default the
     // author to the user's profile display name. Empty when no profile name
@@ -986,7 +1022,7 @@ export async function runSharepicGeneration(opts: {
     const authorName = await resolveSharepicAuthorName(state.agentConfig?.userId);
 
     log.info(
-      `[ChatGraph] Sharepic topic: "${messageText.slice(0, 100)}", ` +
+      `[ChatGraph] Sharepic topic: "${messageText.slice(0, 100)}"${resolvedTopic.inherited ? ' (topic inherited from prior turn)' : ''}, ` +
         `${refinement ? `refinement: "${refinement.instruction}" (${refinement.prior.canvasType})` : `preferredVariant: ${preferredVariant ?? 'all'}`}, ` +
         `author: ${authorName || '(none)'}`
     );
@@ -1001,7 +1037,7 @@ export async function runSharepicGeneration(opts: {
       variants = [
         await generateSliderDeckVariant({
           req: opts.req,
-          text: messageText,
+          text: topicText,
           threadId: opts.threadId ?? null,
           userId,
         }),
@@ -1009,7 +1045,7 @@ export async function runSharepicGeneration(opts: {
     } else {
       variants = await generateSharepicVariants({
         req: opts.req as SharepicExpressRequest,
-        text: messageText,
+        text: topicText,
         ...(refinement ? { refinement } : preferredVariant ? { preferredVariant } : {}),
         ...(authorName && { authorName }),
         ...(state.userLocale && { userLocale: state.userLocale }),

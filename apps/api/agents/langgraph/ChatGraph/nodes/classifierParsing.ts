@@ -27,6 +27,27 @@ export const CHAT_HISTORY_KEYWORDS =
   /\b(letzte[sn]?\s+gespräch|vorher\s+besprochen|letzte\s+woche|gestern\s+besprochen|was\s+haben\s+wir|erinnere?\s+dich|wir\s+hatten|früheres?\s+chat|voriges?\s+gespräch|damals\s+besprochen|da\s+weiter|wo\s+wir\s+aufgehört|mein(e|en)?\s+(dokument|präsentation|tabelle|notiz|antrag|board|kanban|tafel)|meine\s+(dokumente|präsentationen|tabellen|notizen|boards)|die\s+tabelle\s+die\s+ich|das\s+dokument\s+das\s+ich|das\s+board\s+das\s+ich)\b/i;
 
 /**
+ * Concrete travel / timetable / weather / news phrasings that map to a
+ * system-MCP intent (hotel/reise/bahn/wetter/news). Those intents are
+ * LLM-CLASSIFIED ONLY (excluded from the heuristic keyword table on purpose),
+ * so a bare "suche hotels …" would otherwise be swallowed by Tier-3.5 loop
+ * demotion → `agentic` before the LLM ever runs, and the system source never
+ * mounts. This guards the demotion gate (mirrors CHAT_HISTORY_KEYWORDS, the
+ * other LLM-only intent) so these phrasings fall through to the LLM tier.
+ * Deliberately phrasing-specific (concrete nouns) so it does NOT grab policy
+ * words like "Tourismuspolitik"/"Bahnreform"/"Klimapolitik" — those still
+ * route to `search`. The bare-noun alternatives are anchored with the trailing
+ * `\b` for exactly this reason: `bahn(?:en|hof…)?` matches "Bahn"/"Bahnen"/
+ * "Bahnhof" but NOT "Bahnreform"/"Bahnpolitik" (a boundary can't fall mid-word);
+ * bare `wetter` matches "das Wetter" but NOT "Wetterextreme"/"Unwetter". Bare
+ * "bahn(en)" and "wetter" were the two live misses — "welche bahnen fahren …"
+ * and "wie ist das wetter …" slipped the earlier compound-only list
+ * (zugverbindung/fahrplan/wettervorhersage) and got swallowed by demotion.
+ */
+export const SYSTEM_MCP_PHRASING =
+  /\b(hotels?|unterkun(ft|ft?e)|unterk[üu]nfte|[üu]bernacht\w+|absteige|pension|herberge|dienstreise\w*|reiseplan\w*|bahn(?:en|h(?:o|ö)f\w*)?|z(?:ü|ue)ge|zugverbindung\w*|fahrplan\w*|abfahrtszeit\w*|zug\s+nach|verbindung\s+nach|wetter|wettervorhersage|wetterbericht|regnet\s+es|schneit\s+es|tagesschau|schlagzeile\w*)\b/i;
+
+/**
  * Parse JSON response from classifier, with error handling.
  * Handles extended response format with typoAnalysis and contentType.
  */

@@ -189,6 +189,7 @@ function useGrueneratorThreadRuntime() {
     customRoleName,
     customEnabledTools,
     activeSkillMention,
+    pinnedConnector,
   } = useAgentStore(
     useShallow((s) => ({
       selectedAgentId: s.selectedAgentId,
@@ -201,6 +202,7 @@ function useGrueneratorThreadRuntime() {
       customRoleName: s.customRoleName,
       customEnabledTools: s.customEnabledTools,
       activeSkillMention: s.activeSkillMention,
+      pinnedConnector: s.pinnedConnector,
     }))
   );
   const incrementMessageCount = useAgentStore((s) => s.incrementMessageCount);
@@ -228,6 +230,7 @@ function useGrueneratorThreadRuntime() {
       customRoleName,
       customEnabledTools,
       activeSkillMention,
+      pinnedConnector,
     };
   }, [
     selectedAgentId,
@@ -240,6 +243,7 @@ function useGrueneratorThreadRuntime() {
     customRoleName,
     customEnabledTools,
     activeSkillMention,
+    pinnedConnector,
   ]);
 
   const fetchFn = useChatConfigStore((s) => s.fetch);

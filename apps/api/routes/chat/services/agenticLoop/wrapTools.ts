@@ -18,12 +18,16 @@
  * The wrapper never changes a tool's `inputSchema`/`description`; it only
  * decorates `execute`.
  */
+import { createLogger } from '../../../../utils/logger.js';
+
 import { truncateResultForModel } from './truncate.js';
+import { readMcpResult, type PersistedStep } from './types.js';
 
 import type { ToolLoopGuards } from './loopGuards.js';
-import type { PersistedStep } from './types.js';
 import type { SSEWriter } from '../sseHelpers.js';
 import type { ToolSet } from 'ai';
+
+const log = createLogger('agenticTools');
 
 export interface WrapToolsContext {
   sse: SSEWriter;
@@ -64,6 +68,18 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : { value };
+}
+
+/** For a connector (MCP) tool, describe what its result ACTUALLY carried — a
+ *  bare "ok" hid whether the service returned data or an empty string, which is
+ *  the single fact needed to tell "no entries" apart from a broken relay/synth
+ *  when a later answer claims "kein Zugriff / keine Einträge". */
+function describeMcpContent(output: unknown): string {
+  const view = readMcpResult(asRecord(output));
+  if (!view.ok) return 'Fehler';
+  if (view.content.trim() === '') return 'LEER (0 Zeichen zurückgegeben)';
+  const preview = view.content.slice(0, 140).replace(/\s+/g, ' ');
+  return `${view.content.length} Zeichen: "${preview}${view.content.length > 140 ? '…' : ''}"`;
 }
 
 class ToolTimeoutError extends Error {
@@ -142,7 +158,10 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         ctx.guards.checkTotalFailureBudget() ??
         ctx.guards.checkSearchBudget(toolName) ??
         ctx.guards.checkInternalFirst(toolName) ??
-        ctx.guards.checkDuplicate(toolName, input);
+        // Connector tools (server != null) skip the search-tuned near-dup
+        // heuristic: structured args collide falsely and corrective retries
+        // after a validation error would be wrongly blocked as "too similar".
+        ctx.guards.checkDuplicate(toolName, input, { skipNearDuplicate: !!server });
       if (guardError) {
         const result = { error: guardError };
         sendStart(stepId, args);
@@ -164,6 +183,31 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
       ctx.guards.noteCompletion(toolName);
       const ok = !isErrorResult(output);
       if (!ok) ctx.guards.noteFailure(toolName);
+
+      // Per-tool backend visibility: every tool outcome (internal OR MCP) is
+      // now logged, so a failing connector call (e.g. Tally "no workspace")
+      // shows up in the server logs instead of vanishing into the single
+      // end-of-turn `steps=N` line. Failures log at WARN with the error text.
+      const outcomeDetail = summarize(output) ?? (ok ? 'ok' : 'Fehler');
+      const serverTag = server ? ` server="${server}"` : '';
+      if (ok) {
+        // Connector tools log their real content size + preview (not just "ok"),
+        // so an empty-but-successful call is unmistakable in the backend.
+        const detail = server ? describeMcpContent(output) : outcomeDetail;
+        log.info(`[Tool] ${toolName}${serverTag} ok — ${detail}`);
+      } else {
+        log.warn(`[Tool] ${toolName}${serverTag} FEHLER — ${outcomeDetail}`);
+        // MCP/connector failures also get a first-class, user-facing error
+        // event (the generic tool card only carries ok:false); internal tools
+        // keep their own error channels.
+        if (server) {
+          ctx.sse.send('mcp_tool_error', {
+            toolName,
+            serverName: server,
+            error: outcomeDetail,
+          });
+        }
+      }
 
       ctx.recordStep({
         toolCallId: stepId,
