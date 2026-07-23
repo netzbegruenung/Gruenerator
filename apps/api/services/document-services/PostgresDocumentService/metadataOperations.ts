@@ -72,6 +72,7 @@ export async function saveDocumentMetadata(
       vector_count: metadata.vectorCount || 0,
       file_size: metadata.fileSize || 0,
       status: metadata.status || 'processing',
+      source_url: metadata.sourceUrl || null,
       metadata: metadata.additionalMetadata ? JSON.stringify(metadata.additionalMetadata) : null,
     };
 

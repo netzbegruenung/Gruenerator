@@ -21,6 +21,7 @@ export interface DocumentMetadata {
   vectorCount?: number | undefined;
   fileSize?: number | undefined;
   status?: string | undefined;
+  sourceUrl?: string | null | undefined;
   additionalMetadata?: Record<string, unknown> | null | undefined;
 }
 
