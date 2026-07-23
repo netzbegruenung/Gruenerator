@@ -73,7 +73,7 @@
       "ai": "^6.0.224",
       "@types/node": "^25.9.5",
       "katex": "^0.16.47",
-      "pyodide": "^0.29.4",
+      "pyodide": "^314.0.2",
       "react-dropzone": "^15.0.0",
       "@blocknote/core": "^0.51.4",
       "@blocknote/react": "^0.51.4",
