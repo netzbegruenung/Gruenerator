@@ -105,8 +105,11 @@ export const wordpressPageRefSchema = z.object({
 export type WordpressPageRef = z.infer<typeof wordpressPageRefSchema>;
 
 export const wordpressSiteRefSchema = z.object({
-  siteUrl: z.string(),
-  siteName: z.string(),
+  /**
+   * Points at the user's `user_websites` entry, which owns the URL, the name
+   * and the category catalogue. Only what THIS notebook imports lives here.
+   */
+  websiteId: z.string(),
   categories: z.array(wordpressCategoryRefSchema),
   allPosts: z.boolean(),
   pages: z.boolean(),

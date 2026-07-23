@@ -45,6 +45,7 @@ export {
   notebookCollectionsContract,
   wolkePendingContract,
   notebookWordpressContract,
+  userWebsitesContract,
   notebookSharingContract,
   docsContract,
   documentsContract,
@@ -108,6 +109,7 @@ export * from './schemas/notebook.js';
 export * from './schemas/notebookCollections.js';
 export * from './schemas/wolkePending.js';
 export * from './schemas/notebookWordpress.js';
+export * from './schemas/userWebsite.js';
 export * from './schemas/notebookSharing.js';
 export * from './schemas/docs.js';
 export * from './schemas/documents.js';
