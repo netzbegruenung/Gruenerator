@@ -14,6 +14,7 @@ import { randomUUID } from 'crypto';
 import fs from 'fs';
 import path from 'path';
 
+import { NOTEBOOK_MAX_DOCUMENTS } from '@gruenerator/contracts';
 import * as cheerio from 'cheerio';
 import { and, eq } from 'drizzle-orm';
 
@@ -344,14 +345,17 @@ export async function importWordpressPosts(
   params: {
     siteUrl: string;
     scopes: WpScope[];
-    modifiedAfter?: string | null | undefined;
-    knownDocumentIds?: string[] | undefined;
-    maxNewDocuments?: number | undefined;
+    modifiedAfter?: string | null;
+    knownDocumentIds?: string[] | null;
+    maxNewDocuments?: number | null;
   }
 ): Promise<WpImportOutcome> {
   const siteUrl = normalizeSiteUrl(params.siteUrl);
   const modifiedAfter = params.modifiedAfter ?? null;
-  const budget = Math.max(0, Math.min(params.maxNewDocuments ?? 1000, 1000));
+  const budget = Math.max(
+    0,
+    Math.min(params.maxNewDocuments ?? NOTEBOOK_MAX_DOCUMENTS, NOTEBOOK_MAX_DOCUMENTS)
+  );
 
   const seenLinks = new Set<string>();
   const posts: WpPost[] = [];

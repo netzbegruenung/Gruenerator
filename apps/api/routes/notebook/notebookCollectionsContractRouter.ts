@@ -13,6 +13,7 @@
  */
 
 import {
+  NOTEBOOK_MAX_DOCUMENTS,
   notebookCollectionsContract,
   type LinkedDocRef,
   type WolkeFolderRef,
@@ -462,10 +463,10 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         return { status: 400 as const, body: { error: 'Name is required' } };
       }
 
-      if (Array.isArray(document_ids) && document_ids.length > 1000) {
+      if (Array.isArray(document_ids) && document_ids.length > NOTEBOOK_MAX_DOCUMENTS) {
         return {
           status: 400 as const,
-          body: { error: 'A notebook can contain at most 1000 documents' },
+          body: { error: `A notebook can contain at most ${NOTEBOOK_MAX_DOCUMENTS} documents` },
         };
       }
 
@@ -634,10 +635,10 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         return { status: 400 as const, body: { error: 'Name is required' } };
       }
 
-      if (Array.isArray(document_ids) && document_ids.length > 1000) {
+      if (Array.isArray(document_ids) && document_ids.length > NOTEBOOK_MAX_DOCUMENTS) {
         return {
           status: 400 as const,
-          body: { error: 'A notebook can contain at most 1000 documents' },
+          body: { error: `A notebook can contain at most ${NOTEBOOK_MAX_DOCUMENTS} documents` },
         };
       }
 

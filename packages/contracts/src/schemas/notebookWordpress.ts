@@ -53,6 +53,7 @@ export const wpImportActionSchema = z.enum([
   'failed',
   'skipped_full',
 ]);
+export type WpImportAction = z.infer<typeof wpImportActionSchema>;
 
 export const wpImportResultItemSchema = z.object({
   documentId: z.string().nullable(),
@@ -79,6 +80,7 @@ export type WpImportResponse = z.infer<typeof wpImportResponseSchema>;
 
 export const wpErrorCodeSchema = z.enum([
   'invalid_url',
+  'no_scopes',
   'not_wordpress',
   'rest_disabled',
   'fetch_failed',

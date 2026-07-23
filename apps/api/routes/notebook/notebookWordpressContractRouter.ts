@@ -19,7 +19,7 @@ import { logContractValidationError } from '../../utils/contractValidationLogger
 import { createLogger } from '../../utils/logger.js';
 
 import type { UserProfile } from '../../services/user/types.js';
-import type { WpErrorResponse } from '@gruenerator/contracts';
+import type { WpErrorResponse, WpImportAction } from '@gruenerator/contracts';
 import type { Application, Request } from 'express';
 
 const log = createLogger('notebookWordpressContractRouter');
@@ -88,7 +88,7 @@ export const notebookWordpressContractRouter = s.router(notebookWordpressContrac
       if (scopes.length === 0) {
         return {
           status: 400 as const,
-          body: { error: 'Keine Kategorien ausgewählt', code: 'invalid_url' as const },
+          body: { error: 'Keine Kategorien ausgewählt', code: 'no_scopes' as const },
         };
       }
 
@@ -101,10 +101,11 @@ export const notebookWordpressContractRouter = s.router(notebookWordpressContrac
         scopes,
         modifiedAfter: body.modified_after ?? null,
         knownDocumentIds: body.known_document_ids ?? [],
-        maxNewDocuments: body.max_new_documents ?? undefined,
+        maxNewDocuments: body.max_new_documents ?? null,
       });
 
-      const count = (action: string) => outcome.results.filter((r) => r.action === action).length;
+      const count = (action: WpImportAction) =>
+        outcome.results.filter((r) => r.action === action).length;
 
       return {
         status: 200 as const,

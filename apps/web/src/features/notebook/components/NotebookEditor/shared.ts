@@ -1,4 +1,5 @@
 import {
+  NOTEBOOK_MAX_DOCUMENTS,
   type LinkedDocRef,
   type WolkeFolderRef,
   type WordpressSiteRef,
@@ -30,7 +31,7 @@ export interface UploadedDocument {
 }
 
 export const ACCEPTED_EXTENSIONS = ['.pdf', '.docx', '.doc', '.txt', '.md', '.odt', '.rtf'];
-export const MAX_DOCUMENTS = 1000;
+export const MAX_DOCUMENTS = NOTEBOOK_MAX_DOCUMENTS;
 export const TOTAL_STEPS = 3;
 
 export function getFileTypeStyle(filename: string): { label: string; accentVia: string } {
