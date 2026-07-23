@@ -11,7 +11,9 @@ import path from 'path';
 import { groupsContract } from '@gruenerator/contracts';
 import { extractSlugSuffix } from '@gruenerator/shared/utils';
 
+import { PRIMARY_URL } from '../../../../config/domains.js';
 import { getPostgresInstance } from '../../../../database/services/PostgresService.js';
+import { sendGroupInviteEmail } from '../../../../services/email/index.js';
 import {
   createGroupForUser,
   joinGroupByToken,
@@ -546,6 +548,69 @@ export const coreRoutes = {
       return {
         status: 500 as const,
         body: { success: false as const, message: 'Fehler beim Beitritt zur Gruppe.' },
+      };
+    }
+  }),
+
+  invite: s.route(groupsContract.invite, async (args) => {
+    const { groupId } = args.params;
+    try {
+      const userId = getUserId(args.req);
+      const inviterName = (args.req.user as UserProfile | undefined)?.display_name || 'Jemand';
+
+      let postgres: ReturnType<typeof getPostgresInstance>;
+      try {
+        ({ postgres } = await getPostgresAndCheckMembership(groupId, userId, true));
+      } catch {
+        return {
+          status: 403 as const,
+          body: {
+            success: false as const,
+            message: 'Keine Berechtigung, zu dieser Gruppe einzuladen.',
+          },
+        };
+      }
+
+      const group = (await postgres.queryOne(
+        'SELECT name, join_token FROM groups WHERE id = $1',
+        [groupId],
+        { table: 'groups' }
+      )) as { name: string; join_token: string | null } | null;
+
+      if (!group?.join_token) {
+        return {
+          status: 404 as const,
+          body: { success: false as const, message: 'Gruppe nicht gefunden.' },
+        };
+      }
+
+      const joinUrl = `${PRIMARY_URL}/join-group/${group.join_token}`;
+      // Dedupe + normalize; Zod already validated format and the ≤50 cap.
+      const emails = Array.from(
+        new Set(args.body.emails.map((e) => e.trim().toLowerCase()).filter(Boolean))
+      );
+
+      const results = await Promise.all(
+        emails.map((email) =>
+          sendGroupInviteEmail({
+            recipientEmail: email,
+            groupName: group.name,
+            inviterName,
+            joinUrl,
+          })
+        )
+      );
+
+      const failed = emails.filter((_, i) => !results[i]);
+      return {
+        status: 200 as const,
+        body: { success: true as const, sent: emails.length - failed.length, failed },
+      };
+    } catch (error) {
+      log.error('[groupsContract.invite] Error:', error);
+      return {
+        status: 500 as const,
+        body: { success: false as const, message: 'Fehler beim Versenden der Einladungen.' },
       };
     }
   }),

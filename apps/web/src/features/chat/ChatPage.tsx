@@ -15,6 +15,7 @@ import {
   resolveAgentSlug,
   resolveSkillMention,
 } from '@gruenerator/shared/agents';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useCallback, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
@@ -155,6 +156,44 @@ function ChatPage() {
       store.setChatViewMode('thread');
     }
   }, [agentParam, modeParam, threadSlug, userLocale, userAgents]);
+
+  // "Neuer Chat in diesem Projekt" arrives as /chat?projekt=<groupId>. File the
+  // freshly created thread into that Projekt, reusing the same thread-groupId
+  // PATCH as MoveToSpaceDialog. Guards against mis-filing:
+  //  - baseline: never file the thread that was already active when armed.
+  //  - live `projektParam`: only file while the intent is still in the URL.
+  //    Navigating to an EXISTING chat drops ?projekt= first (the URL becomes
+  //    /chat/<slug>), so an unrelated chat opened next is never captured; a
+  //    freshly created thread updates currentThreadId while ?projekt= is still
+  //    present (canonicalization to the pretty slug happens a tick later).
+  const currentThreadId = useAgentStore((s) => s.currentThreadId);
+  const projektParam = searchParams.get('projekt');
+  const projektBaselineThreadRef = useRef<string | null>(null);
+  const projektFiledThreadRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!projektParam) return;
+    projektBaselineThreadRef.current = useAgentStore.getState().currentThreadId;
+  }, [projektParam]);
+  useEffect(() => {
+    if (!projektParam || !currentThreadId) return;
+    if (currentThreadId === projektBaselineThreadRef.current) return;
+    if (projektFiledThreadRef.current === currentThreadId) return;
+    projektFiledThreadRef.current = currentThreadId;
+    void getContractsClient()
+      .threads.update({ body: { threadId: currentThreadId, groupId: projektParam } })
+      .then((res) => {
+        if (res.status === 200) {
+          try {
+            window.dispatchEvent(new CustomEvent('gruenerator:space-threads-changed'));
+          } catch {
+            // no window (SSR) — ignore
+          }
+        }
+      })
+      .catch(() => {
+        // Filing is best-effort; the chat itself already exists.
+      });
+  }, [currentThreadId, projektParam]);
 
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
 

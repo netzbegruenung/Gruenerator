@@ -530,7 +530,7 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
                       setLinkTitle(e.target.value);
                       setLinkTitleManual(true);
                     }}
-                    placeholder="z.B. Signal-Space"
+                    placeholder="z.B. Signal-Gruppe"
                     maxLength={100}
                   />
                 </div>
