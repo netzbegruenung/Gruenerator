@@ -156,9 +156,9 @@ const TexteAnlernenTab = () => {
   return (
     <div className="flex flex-col gap-xl">
       <p className="m-0 text-sm text-grey-500 dark:text-grey-400">
-        Füge echte Beispiele deiner Texte ein. Der Grünerator erkennt die Gemeinsamkeiten deines
-        Stils und verwendet ihn künftig — statt der Standard-Vorlage —, sobald du die passende
-        Textform im Chat aktivierst.
+        Füge echte Beispiele deiner Texte ein — getippt, per Copy-Paste oder als Datei hochgeladen.
+        Der Grünerator erkennt die Gemeinsamkeiten deines Stils und verwendet ihn künftig — statt
+        der Standard-Vorlage —, sobald du die passende Textform im Chat aktivierst.
       </p>
 
       <section className="flex flex-col gap-sm">
