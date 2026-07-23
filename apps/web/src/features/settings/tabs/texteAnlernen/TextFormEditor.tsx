@@ -23,7 +23,9 @@ interface TextFormEditorProps {
   /** New custom form: let the user name it and pick a mention. */
   editableMeta?: boolean;
   api: ReturnType<typeof useTextForms>;
+  /** Called after a successful save — the tab returns to the overview. */
   onCreated?: () => void;
+  onDeleted?: () => void;
 }
 
 function seedExamples(form: TextForm | undefined): string[] {
@@ -40,6 +42,7 @@ const TextFormEditor = ({
   editableMeta = false,
   api,
   onCreated,
+  onDeleted,
 }: TextFormEditorProps) => {
   const navigate = useNavigate();
   const [title, setTitle] = useState(initialForm?.title ?? defaultTitle);
@@ -112,6 +115,7 @@ const TextFormEditor = ({
     try {
       await api.remove.mutateAsync(initialForm.mention);
       toast.success('Textform gelöscht.');
+      onDeleted?.();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Löschen fehlgeschlagen.');
     }
@@ -129,7 +133,7 @@ const TextFormEditor = ({
   };
 
   return (
-    <div className="flex flex-col gap-sm rounded-lg border border-grey-200 p-md dark:border-grey-700">
+    <div className="flex flex-col gap-sm">
       {editableMeta ? (
         <div className="flex flex-col gap-2 sm:flex-row">
           <input
