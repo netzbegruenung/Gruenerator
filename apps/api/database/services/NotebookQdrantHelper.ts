@@ -830,6 +830,40 @@ class NotebookQdrantHelper {
   /**
    * Get documents associated with a Notebook collection
    */
+  /**
+   * Of the given documents, which are still attached to ANY notebook.
+   *
+   * A document can live in several notebooks at once — the WordPress importer
+   * reuses an existing document (matched by user + source_url) instead of
+   * creating a copy. Callers that would otherwise delete a document outright
+   * must ask here first, or removing it from one notebook destroys it for the
+   * others as well.
+   */
+  async findReferencedDocumentIds(documentIds: string[]): Promise<Set<string>> {
+    if (documentIds.length === 0) return new Set();
+    await this.ensureInitialized();
+
+    try {
+      const filter: QdrantFilter = {
+        must: [{ key: 'document_id', match: { any: documentIds } }],
+      };
+
+      const results = await this.qdrantOps!.scrollDocuments(
+        this.qdrant.collections.notebook_collection_documents,
+        filter,
+        { limit: 10000, withPayload: true }
+      );
+
+      return new Set(results.map((result: ScrollPoint) => String(result.payload.document_id)));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Error checking document references: ${message}`);
+      // Fail closed: treating everything as referenced skips deletion, which
+      // leaves clutter. The opposite would destroy other notebooks' documents.
+      return new Set(documentIds);
+    }
+  }
+
   async getCollectionDocuments(collectionId: string): Promise<CollectionDocument[]> {
     await this.ensureInitialized();
 
