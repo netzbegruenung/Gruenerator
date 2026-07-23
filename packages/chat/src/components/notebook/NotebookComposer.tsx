@@ -275,7 +275,6 @@ export function NotebookComposer({
       showMentions={false}
       showPlusMenu={false}
       showToolToggles={false}
-      modelPickerThreadModeOverride="notebook"
       slots={{
         leading: (
           <NotebookSettingsDropdown

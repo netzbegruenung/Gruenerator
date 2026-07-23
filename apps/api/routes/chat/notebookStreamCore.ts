@@ -265,7 +265,11 @@ export async function handleNotebookStream(
     // Determine AI provider and model (same resolution as chat — handles model ID → real name)
     const defaultAgentConfig = { provider: DEFAULT_PROVIDER, model: DEFAULT_MODEL };
     const notebookRequestId = `notebook_${Date.now()}`;
-    const primaryResolution = await resolveModel(defaultAgentConfig, model, notebookRequestId);
+    // No classifier on this surface — `auto` is pinned to the precise lane
+    // (see resolveAutoSelection); the web client also pre-resolves it locally.
+    const primaryResolution = await resolveModel(defaultAgentConfig, model, notebookRequestId, {
+      surface: 'notebook',
+    });
 
     if (!isProviderConfigured(primaryResolution.provider)) {
       // If we acquired the Verdigado slot but can't actually use the resolution,

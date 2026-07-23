@@ -28,6 +28,10 @@ export interface ReasoningStreamChunk {
   delta: string;
 }
 
+/** Reasoning strength for lanes that expose a dial. Lanes that only have
+ *  on/off ignore it — reaching this module at all already means "on". */
+export type ThinkingEffort = 'low' | 'medium' | 'high';
+
 export interface ReasoningStreamParams {
   provider: string;
   model: string;
@@ -35,6 +39,7 @@ export interface ReasoningStreamParams {
   maxTokens: number;
   temperature: number;
   signal?: AbortSignal;
+  effort?: ThinkingEffort;
 }
 
 interface ReasoningStreamConfig {
@@ -58,6 +63,11 @@ const REGOLO_REASONING_MODELS = new Set([
   'qwen3.6-27b',
   'gpt-oss-120b',
   'gemma4-31b',
+  // Small 4 is reasoning-capable but ran with thinking hard-off everywhere
+  // (it was only ever INTERMEDIATE_MODEL). The auto policy can now grade it up
+  // to `low` on moderate/complex turns; without this entry that grading would
+  // be silently ignored — the SDK path forces enable_thinking:false.
+  'mistral-small-4-119b',
 ]);
 const LITELLM_REASONING_MODELS = new Set(['verdigado-think', 'verdigado-pro']);
 
@@ -67,12 +77,26 @@ export function isReasoningStreamModel(provider: string, model: string): boolean
   return false;
 }
 
-function resolveConfig(provider: string): ReasoningStreamConfig | null {
+/**
+ * gpt-oss exposes a native low/medium/high `reasoning_effort` dial. The other
+ * lanes only have on/off (a chat-template flag or nothing at all), so effort is
+ * deliberately NOT sent to them — an unknown body field is a needless risk on a
+ * strict upstream.
+ */
+const EFFORT_AWARE_MODELS = new Set(['gpt-oss-120b', 'verdigado-pro']);
+
+function resolveConfig(
+  provider: string,
+  model: string,
+  effort?: ThinkingEffort
+): ReasoningStreamConfig | null {
+  const effortExtra = effort && EFFORT_AWARE_MODELS.has(model) ? { reasoning_effort: effort } : {};
+
   if (provider === 'regolo') {
     return {
       endpoint: REGOLO_ENDPOINT,
       apiKey: env.REGOLO_API_KEY,
-      bodyExtras: { chat_template_kwargs: { enable_thinking: true } },
+      bodyExtras: { chat_template_kwargs: { enable_thinking: true }, ...effortExtra },
     };
   }
   if (provider === 'litellm') {
@@ -80,7 +104,7 @@ function resolveConfig(provider: string): ReasoningStreamConfig | null {
     return {
       endpoint: base ? `${base}/v1/chat/completions` : '',
       apiKey: env.LITELLM_API_KEY,
-      bodyExtras: {},
+      bodyExtras: { ...effortExtra },
     };
   }
   return null;
@@ -94,7 +118,7 @@ function resolveConfig(provider: string): ReasoningStreamConfig | null {
 export async function* streamWithReasoning(
   params: ReasoningStreamParams
 ): AsyncGenerator<ReasoningStreamChunk, void, unknown> {
-  const config = resolveConfig(params.provider);
+  const config = resolveConfig(params.provider, params.model, params.effort);
   if (!config) {
     throw new Error(`No reasoning-stream config for provider '${params.provider}'`);
   }
