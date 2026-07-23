@@ -4,6 +4,7 @@ export type SettingsTab =
   | 'allgemein'
   | 'konto'
   | 'personalisierung'
+  | 'texte-anlernen'
   | 'erinnerungen'
   | 'benachrichtigungen'
   | 'wolke'
