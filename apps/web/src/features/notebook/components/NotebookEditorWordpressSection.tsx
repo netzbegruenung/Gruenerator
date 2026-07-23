@@ -1,16 +1,32 @@
-import {
-  wpErrorResponseSchema,
-  type WordpressSiteRef,
-  type WpDiscoverResponse,
-  type WpErrorCode,
-  type WpImportResponse,
-} from '@gruenerator/contracts';
+import { type WordpressSiteRef, type WpImportResponse } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
-import { Badge, Button, Checkbox, Input, SectionHeader } from '@gruenerator/ui';
-import { useCallback, useState } from 'react';
-import { HiExclamation, HiGlobeAlt, HiPencil, HiRefresh, HiX } from 'react-icons/hi';
+import {
+  Badge,
+  Button,
+  Checkbox,
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  Input,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  SectionHeader,
+  Skeleton,
+} from '@gruenerator/ui';
+import { useCallback, useMemo, useState } from 'react';
+import { HiChevronDown, HiExclamation, HiGlobeAlt, HiPencil, HiRefresh, HiX } from 'react-icons/hi';
 
 import { cn } from '../../../utils/cn';
+import {
+  useWordpressDiscovery,
+  useWordpressDiscoveryPrefetch,
+  wpErrorMessage,
+  WP_ERROR_MESSAGES,
+} from '../hooks/useWordpressDiscovery';
 
 export interface ImportedWordpressDocument {
   id: string;
@@ -28,36 +44,10 @@ interface Props {
   disabled: boolean;
 }
 
-interface DiscoveryState {
-  site: WpDiscoverResponse['site'];
-  categories: WpDiscoverResponse['categories'];
-  totalPosts: number;
-  totalPages: number;
-  /** Set when re-configuring an already-attached site ("Auswahl ändern"). */
+/** Which site the selection panel is open for, and whether it edits an existing one. */
+interface DiscoveryTarget {
+  url: string;
   editingSite: WordpressSiteRef | null;
-}
-
-const WP_ERROR_MESSAGES: Record<WpErrorCode, string> = {
-  invalid_url: 'Bitte gib eine gültige Website-Adresse ein.',
-  no_scopes: 'Wähle mindestens eine Kategorie aus.',
-  not_wordpress:
-    'Unter dieser Adresse ist keine WordPress-REST-API erreichbar. Ist es eine WordPress-Website?',
-  rest_disabled:
-    'Die WordPress-REST-API dieser Website ist deaktiviert oder geschützt. Viele Websites schalten sie aus Sicherheitsgründen ab.',
-  fetch_failed: 'Die Website ist nicht erreichbar. Prüfe die Adresse und versuche es erneut.',
-  internal: 'Import fehlgeschlagen. Bitte versuche es später erneut.',
-};
-
-/**
- * ts-rest types the body of unlisted status codes as `unknown`, so the error
- * body is parsed with its contract schema rather than cast — the parse is the
- * assertion, and `code` stays exhaustively typed against WP_ERROR_MESSAGES.
- */
-function wpErrorMessage(body: unknown): string {
-  const parsed = wpErrorResponseSchema.safeParse(body);
-  if (!parsed.success) return WP_ERROR_MESSAGES.internal;
-  if (parsed.data.code) return WP_ERROR_MESSAGES[parsed.data.code];
-  return parsed.data.error || WP_ERROR_MESSAGES.internal;
 }
 
 function formatRelative(iso: string | null | undefined): string {
@@ -81,7 +71,10 @@ function selectionSummary(site: WordpressSiteRef): string {
     );
   }
   if (site.allPosts) parts.push('Alle Beiträge');
-  if (site.pages) parts.push('Seiten');
+  if (site.pages) {
+    const picked = site.selectedPages?.length ?? 0;
+    parts.push(picked > 0 ? `${picked} Seiten` : 'Alle Seiten');
+  }
   return parts.join(' · ') || 'Keine Auswahl';
 }
 
@@ -104,54 +97,45 @@ const NotebookEditorWordpressSection = ({
 }: Props) => {
   const [addOpen, setAddOpen] = useState(false);
   const [urlInput, setUrlInput] = useState('');
-  const [discovering, setDiscovering] = useState(false);
-  const [discovery, setDiscovery] = useState<DiscoveryState | null>(null);
+  const [target, setTarget] = useState<DiscoveryTarget | null>(null);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<number>>(() => new Set());
   const [selAllPosts, setSelAllPosts] = useState(false);
   const [selPages, setSelPages] = useState(false);
+  const [selectedPageIds, setSelectedPageIds] = useState<Set<number>>(() => new Set());
+  const [pagesOpen, setPagesOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [syncingUrl, setSyncingUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
+  const discoveryQuery = useWordpressDiscovery(target?.url ?? null);
+  const prefetchDiscovery = useWordpressDiscoveryPrefetch();
+  const discovery = discoveryQuery.data ?? null;
+
   const resetChecklist = useCallback(() => {
-    setDiscovery(null);
+    setTarget(null);
     setSelectedCategoryIds(new Set());
     setSelAllPosts(false);
     setSelPages(false);
+    setSelectedPageIds(new Set());
+    setPagesOpen(false);
   }, []);
 
-  const handleDiscover = useCallback(
-    async (rawUrl: string, editingSite: WordpressSiteRef | null) => {
-      setDiscovering(true);
-      setError(null);
-      setNotice(null);
-      try {
-        const result = await getContractsClient().notebookWordpress.discoverSite({
-          body: { site_url: rawUrl },
-        });
-        if (result.status !== 200) {
-          setError(wpErrorMessage(result.body));
-          return;
-        }
-        setDiscovery({
-          site: result.body.site,
-          categories: result.body.categories,
-          totalPosts: result.body.total_posts,
-          totalPages: result.body.total_pages,
-          editingSite,
-        });
-        setSelectedCategoryIds(new Set(editingSite?.categories.map((c) => c.id) ?? []));
-        setSelAllPosts(editingSite?.allPosts ?? false);
-        setSelPages(editingSite?.pages ?? false);
-      } catch {
-        setError(WP_ERROR_MESSAGES.fetch_failed);
-      } finally {
-        setDiscovering(false);
-      }
-    },
-    []
-  );
+  /**
+   * Seeds the selection from the stored ref synchronously, so the panel is
+   * usable the moment it opens — the category and page lists stream in from
+   * the (usually cached) discovery query.
+   */
+  const openPanel = useCallback((rawUrl: string, editingSite: WordpressSiteRef | null) => {
+    setError(null);
+    setNotice(null);
+    setSelectedCategoryIds(new Set(editingSite?.categories.map((c) => c.id) ?? []));
+    setSelAllPosts(editingSite?.allPosts ?? false);
+    setSelPages(editingSite?.pages ?? false);
+    setSelectedPageIds(new Set(editingSite?.selectedPages?.map((p) => p.id) ?? []));
+    setPagesOpen(false);
+    setTarget({ url: rawUrl, editingSite });
+  }, []);
 
   /** Apply an import response to parent state and return the site's new documentIds. */
   const applyImportResult = useCallback(
@@ -185,7 +169,7 @@ const NotebookEditorWordpressSection = ({
   }, []);
 
   const handleImport = useCallback(async () => {
-    if (!discovery) return;
+    if (!discovery || !target) return;
     const selectedCategories = discovery.categories
       .filter((c) => selectedCategoryIds.has(c.id))
       .map((c) => ({ id: c.id, name: c.name }));
@@ -193,17 +177,19 @@ const NotebookEditorWordpressSection = ({
       setError(WP_ERROR_MESSAGES.no_scopes);
       return;
     }
+    const pickedPages = selPages ? discovery.pages.filter((p) => selectedPageIds.has(p.id)) : [];
 
     setImporting(true);
     setError(null);
     try {
-      const editing = discovery.editingSite;
+      const editing = target.editingSite;
       const result = await getContractsClient().notebookWordpress.importSite({
         body: {
           site_url: discovery.site.url,
           categories: selectedCategories,
           all_posts: selAllPosts,
           pages: selPages,
+          page_ids: pickedPages.length > 0 ? pickedPages.map((p) => p.id) : null,
           modified_after: null,
           known_document_ids: editing?.documentIds ?? [],
           max_new_documents: Math.max(0, remainingSlots),
@@ -221,6 +207,7 @@ const NotebookEditorWordpressSection = ({
         categories: selectedCategories,
         allPosts: selAllPosts,
         pages: selPages,
+        selectedPages: pickedPages,
         documentIds,
         lastSyncedAt: new Date().toISOString(),
       };
@@ -240,9 +227,11 @@ const NotebookEditorWordpressSection = ({
     }
   }, [
     discovery,
+    target,
     selectedCategoryIds,
     selAllPosts,
     selPages,
+    selectedPageIds,
     remainingSlots,
     sites,
     onSitesChange,
@@ -263,6 +252,7 @@ const NotebookEditorWordpressSection = ({
             categories: site.categories,
             all_posts: site.allPosts,
             pages: site.pages,
+            page_ids: site.selectedPages?.length ? site.selectedPages.map((p) => p.id) : null,
             modified_after: site.lastSyncedAt ?? null,
             known_document_ids: site.documentIds,
             max_new_documents: Math.max(0, remainingSlots),
@@ -297,8 +287,22 @@ const NotebookEditorWordpressSection = ({
     [sites, onSitesChange]
   );
 
+  const discovering = discoveryQuery.isFetching;
   const busy = discovering || importing || syncingUrl !== null;
-  const showAddForm = (addOpen || sites.length === 0) && !discovery;
+  const showAddForm = (addOpen || sites.length === 0) && !target;
+  const discoveryError = discoveryQuery.isError
+    ? discoveryQuery.error instanceof Error
+      ? discoveryQuery.error.message
+      : WP_ERROR_MESSAGES.internal
+    : null;
+
+  const pageSelectionLabel = useMemo(() => {
+    if (selectedPageIds.size === 0)
+      return `Alle Seiten${discovery ? ` (${discovery.pages.length})` : ''}`;
+    return selectedPageIds.size === 1
+      ? (discovery?.pages.find((p) => selectedPageIds.has(p.id))?.title ?? '1 Seite')
+      : `${selectedPageIds.size} Seiten ausgewählt`;
+  }, [selectedPageIds, discovery]);
 
   const headerActions = (
     <div className="flex items-center gap-xs">
@@ -331,7 +335,7 @@ const NotebookEditorWordpressSection = ({
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
-                  if (urlInput.trim()) void handleDiscover(urlInput.trim(), null);
+                  if (urlInput.trim()) openPanel(urlInput.trim(), null);
                 }
               }}
             />
@@ -339,7 +343,7 @@ const NotebookEditorWordpressSection = ({
               type="button"
               size="sm"
               disabled={disabled || busy || !urlInput.trim()}
-              onClick={() => void handleDiscover(urlInput.trim(), null)}
+              onClick={() => openPanel(urlInput.trim(), null)}
             >
               {discovering ? (
                 <span className="size-3 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
@@ -350,7 +354,7 @@ const NotebookEditorWordpressSection = ({
         </div>
       )}
 
-      {discovery && (
+      {target && (
         <div className="mb-md flex flex-col gap-sm rounded-xl border border-grey-200 bg-background p-md dark:border-grey-700">
           <div className="flex items-center justify-between gap-xs">
             <div className="flex min-w-0 items-center gap-xs">
@@ -360,7 +364,7 @@ const NotebookEditorWordpressSection = ({
                 aria-hidden
               />
               <span className="truncate text-sm font-medium text-foreground">
-                {discovery.site.name}
+                {discovery?.site.name ?? target.editingSite?.siteName ?? target.url}
               </span>
             </div>
             <Button
@@ -380,19 +384,86 @@ const NotebookEditorWordpressSection = ({
             <label className="flex cursor-pointer items-center gap-sm rounded-md px-sm py-xs hover:bg-background-alt">
               <Checkbox checked={selAllPosts} onCheckedChange={(v) => setSelAllPosts(v === true)} />
               <span className="text-sm text-foreground">Alle Beiträge</span>
-              <span className="ml-auto text-xs text-grey-500">{discovery.totalPosts}</span>
+              <span className="ml-auto text-xs text-grey-500">{discovery?.total_posts ?? '—'}</span>
             </label>
             <label className="flex cursor-pointer items-center gap-sm rounded-md px-sm py-xs hover:bg-background-alt">
               <Checkbox checked={selPages} onCheckedChange={(v) => setSelPages(v === true)} />
               <span className="text-sm text-foreground">Seiten</span>
-              <span className="ml-auto text-xs text-grey-500">{discovery.totalPages}</span>
+              <span className="ml-auto text-xs text-grey-500">{discovery?.total_pages ?? '—'}</span>
             </label>
-            {discovery.categories.length > 0 && (
+
+            {selPages && (
+              <div className="px-sm pb-xs pl-[2.1rem]">
+                <Popover open={pagesOpen} onOpenChange={setPagesOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-between font-normal"
+                      disabled={!discovery || discovery.pages.length === 0}
+                      aria-label="Seiten auswählen"
+                    >
+                      <span className="truncate">
+                        {discovery ? pageSelectionLabel : 'Seiten werden geladen…'}
+                      </span>
+                      <HiChevronDown size={12} className="ml-xs shrink-0 opacity-60" aria-hidden />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[min(20rem,80vw)] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Seite suchen…" />
+                      <CommandList>
+                        <CommandEmpty>Keine Seite gefunden.</CommandEmpty>
+                        <CommandGroup>
+                          <CommandItem
+                            value="__alle-seiten"
+                            onSelect={() => setSelectedPageIds(new Set())}
+                          >
+                            <Checkbox checked={selectedPageIds.size === 0} className="mr-sm" />
+                            <span className="text-sm">Alle Seiten</span>
+                          </CommandItem>
+                          {(discovery?.pages ?? []).map((page) => (
+                            <CommandItem
+                              key={page.id}
+                              value={`${page.title} ${page.id}`}
+                              onSelect={() => {
+                                setSelectedPageIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(page.id)) next.delete(page.id);
+                                  else next.add(page.id);
+                                  return next;
+                                });
+                              }}
+                            >
+                              <Checkbox
+                                checked={selectedPageIds.has(page.id)}
+                                className="mr-sm shrink-0"
+                              />
+                              <span className="truncate text-sm">{page.title}</span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+
+            {discoveryQuery.isPending && (
+              <div className="flex flex-col gap-1 px-sm pt-xs">
+                {[0, 1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-6 w-full rounded-md" />
+                ))}
+              </div>
+            )}
+            {discovery && discovery.categories.length > 0 && (
               <p className="m-0 px-sm pb-1 pt-xs text-xs uppercase tracking-wide text-grey-500">
                 Kategorien
               </p>
             )}
-            {discovery.categories.map((cat) => (
+            {(discovery?.categories ?? []).map((cat) => (
               <label
                 key={cat.id}
                 className={cn(
@@ -427,6 +498,7 @@ const NotebookEditorWordpressSection = ({
               disabled={
                 disabled ||
                 importing ||
+                !discovery ||
                 (selectedCategoryIds.size === 0 && !selAllPosts && !selPages)
               }
               onClick={() => void handleImport()}
@@ -505,7 +577,9 @@ const NotebookEditorWordpressSection = ({
                       variant="ghost"
                       size="icon-xs"
                       disabled={disabled || busy}
-                      onClick={() => void handleDiscover(site.siteUrl, site)}
+                      onClick={() => openPanel(site.siteUrl, site)}
+                      onMouseEnter={() => prefetchDiscovery(site.siteUrl)}
+                      onFocus={() => prefetchDiscovery(site.siteUrl)}
                       title="Auswahl ändern"
                       aria-label={`Auswahl für ${site.siteName} ändern`}
                     >
@@ -539,10 +613,10 @@ const NotebookEditorWordpressSection = ({
           {notice}
         </div>
       )}
-      {error && (
+      {(error || discoveryError) && (
         <div className="mt-md flex items-start gap-xs rounded-md bg-amber-50 px-sm py-xs text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
           <HiExclamation size={14} className="mt-[1px] shrink-0" aria-hidden />
-          <span>{error}</span>
+          <span>{error ?? discoveryError}</span>
         </div>
       )}
     </section>

@@ -27,7 +27,12 @@ import { getQdrantDocumentService } from '../document-services/DocumentSearchSer
 import { getPostgresDocumentService } from '../document-services/PostgresDocumentService/index.js';
 import { cleanText, stripHtmlTags } from '../scrapers/utils/htmlCleaner.js';
 
-import type { WpDiscoveredCategory, WpErrorCode, WpImportResultItem } from '@gruenerator/contracts';
+import type {
+  WpDiscoveredCategory,
+  WpDiscoveredPage,
+  WpErrorCode,
+  WpImportResultItem,
+} from '@gruenerator/contracts';
 
 const log = createLogger('notebook:wordpress-source');
 
@@ -37,6 +42,9 @@ const REQUEST_DELAY_MS = 300;
 const POSTS_PER_SCOPE = 50;
 const INCREMENTAL_MAX_PAGES = 3;
 const CATEGORY_MAX_PAGES = 5;
+/** WP REST caps per_page at 100; page listing therefore tops out at 500 entries. */
+const WP_MAX_PER_PAGE = 100;
+const PAGE_LIST_MAX_PAGES = 5;
 
 // Same target as manualController's PENDING_UPLOADS_DIR (routes/documents and
 // services/notebook sit at equal depth below apps/api).
@@ -57,11 +65,13 @@ export class WpSourceError extends Error {
 export type WpScope =
   | { kind: 'category'; id: number; name: string }
   | { kind: 'allPosts' }
-  | { kind: 'pages' };
+  /** `ids: null` (or empty) imports every page; otherwise only the listed ones. */
+  | { kind: 'pages'; ids: number[] | null };
 
 export interface WpDiscoverResult {
   site: { url: string; name: string };
   categories: WpDiscoveredCategory[];
+  pages: WpDiscoveredPage[];
   totalPosts: number;
   totalPages: number;
 }
@@ -159,9 +169,7 @@ async function fetchTotal(siteUrl: string, resource: 'posts' | 'pages'): Promise
   }
 }
 
-export async function discoverWordpressSite(rawUrl: string): Promise<WpDiscoverResult> {
-  const siteUrl = normalizeSiteUrl(rawUrl);
-
+async function fetchCategories(siteUrl: string): Promise<WpDiscoveredCategory[]> {
   const categories: WpDiscoveredCategory[] = [];
   for (let page = 1; page <= CATEGORY_MAX_PAGES; page++) {
     const result = await wpFetchJson(
@@ -185,29 +193,76 @@ export async function discoverWordpressSite(rawUrl: string): Promise<WpDiscoverR
     if (page >= totalPages || result.body.length < 100) break;
     await delay(REQUEST_DELAY_MS);
   }
+  return categories.filter((c) => c.count > 0).sort((a, b) => b.count - a.count);
+}
 
-  let siteName = new URL(siteUrl).hostname;
+/**
+ * The site's pages, for the selection dropdown. Also yields the total via the
+ * pagination header, so no extra count request is needed.
+ */
+async function fetchPageList(
+  siteUrl: string
+): Promise<{ pages: WpDiscoveredPage[]; total: number }> {
+  const pages: WpDiscoveredPage[] = [];
+  let total = 0;
+  for (let page = 1; page <= PAGE_LIST_MAX_PAGES; page++) {
+    const result = await wpFetchJson(
+      `${siteUrl}/wp-json/wp/v2/pages?per_page=100&page=${page}&_fields=id,title&orderby=title&order=asc`
+    );
+    if (!result || !Array.isArray(result.body)) break;
+    if (page === 1) total = Number(result.headers.get('x-wp-total') || 0);
+    for (const entry of result.body as Array<Record<string, unknown>>) {
+      if (typeof entry.id !== 'number') continue;
+      const rendered =
+        entry.title && typeof entry.title === 'object'
+          ? (entry.title as { rendered?: unknown }).rendered
+          : null;
+      const title =
+        typeof rendered === 'string' && rendered.trim()
+          ? stripHtmlTags(rendered.trim())
+          : `Seite ${entry.id}`;
+      pages.push({ id: entry.id, title });
+    }
+    const totalPages = Number(result.headers.get('x-wp-totalpages') || 1);
+    if (page >= totalPages || result.body.length < 100) break;
+    await delay(REQUEST_DELAY_MS);
+  }
+  return { pages, total: total || pages.length };
+}
+
+async function fetchSiteName(siteUrl: string): Promise<string> {
+  const fallback = new URL(siteUrl).hostname;
   try {
     const root = await wpFetchJson(`${siteUrl}/wp-json/?_fields=name`);
     const name =
       root && root.body && typeof root.body === 'object'
         ? (root.body as { name?: unknown }).name
         : null;
-    if (typeof name === 'string' && name.trim()) siteName = stripHtmlTags(name.trim());
+    return typeof name === 'string' && name.trim() ? stripHtmlTags(name.trim()) : fallback;
   } catch {
     // Root index unavailable — hostname fallback is fine.
+    return fallback;
   }
+}
 
-  const [totalPosts, totalPages] = await Promise.all([
+export async function discoverWordpressSite(rawUrl: string): Promise<WpDiscoverResult> {
+  const siteUrl = normalizeSiteUrl(rawUrl);
+
+  // Independent request streams — running them concurrently keeps discovery
+  // roughly as fast as before despite additionally listing every page.
+  const [categories, pageList, siteName, totalPosts] = await Promise.all([
+    fetchCategories(siteUrl),
+    fetchPageList(siteUrl),
+    fetchSiteName(siteUrl),
     fetchTotal(siteUrl, 'posts'),
-    fetchTotal(siteUrl, 'pages'),
   ]);
 
   return {
     site: { url: siteUrl, name: siteName },
-    categories: categories.filter((c) => c.count > 0).sort((a, b) => b.count - a.count),
+    categories,
+    pages: pageList.pages,
     totalPosts,
-    totalPages,
+    totalPages: pageList.total,
   };
 }
 
@@ -234,7 +289,7 @@ export function wpHtmlToText(html: string): string {
   return blocks.join('\n\n');
 }
 
-function buildScopeUrls(
+export function buildScopeUrls(
   siteUrl: string,
   scopes: WpScope[],
   modifiedAfter: string | null
@@ -243,10 +298,24 @@ function buildScopeUrls(
   const incremental = modifiedAfter
     ? `&modified_after=${encodeURIComponent(modifiedAfter)}&orderby=modified&order=desc`
     : '&orderby=date&order=desc';
-  return scopes.map((scope) => {
+  return scopes.flatMap((scope) => {
+    // Explicitly picked pages are all wanted, so they are requested by id in
+    // chunks of the WP per_page maximum rather than capped at POSTS_PER_SCOPE.
+    if (scope.kind === 'pages' && scope.ids && scope.ids.length > 0) {
+      const chunks: string[] = [];
+      for (let i = 0; i < scope.ids.length; i += WP_MAX_PER_PAGE) {
+        const chunk = scope.ids.slice(i, i + WP_MAX_PER_PAGE);
+        chunks.push(
+          `${siteUrl}/wp-json/wp/v2/pages?per_page=${chunk.length}&include=${chunk.join(',')}&${fields}${incremental}`
+        );
+      }
+      return chunks;
+    }
     const resource = scope.kind === 'pages' ? 'pages' : 'posts';
     const categoryFilter = scope.kind === 'category' ? `&categories=${scope.id}` : '';
-    return `${siteUrl}/wp-json/wp/v2/${resource}?per_page=${POSTS_PER_SCOPE}${categoryFilter}&${fields}${incremental}`;
+    return [
+      `${siteUrl}/wp-json/wp/v2/${resource}?per_page=${POSTS_PER_SCOPE}${categoryFilter}&${fields}${incremental}`,
+    ];
   });
 }
 
