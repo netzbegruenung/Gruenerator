@@ -41,7 +41,7 @@ function SkillDetailPage() {
 
   if (!skill) {
     return (
-      <PageContainer maxWidth="lg" title="Skill nicht gefunden">
+      <PageContainer maxWidth="lg" title="Rezept nicht gefunden">
         <div className="text-center">
           <Button asChild variant="brand">
             <Link to="/agentura">Zurück zur Agentura</Link>
@@ -76,7 +76,7 @@ function SkillDetailPage() {
           <div className="min-w-0">
             <div className="flex items-center gap-sm">
               <h1 className="m-0 text-2xl font-semibold text-foreground-heading">{skill.title}</h1>
-              <Badge variant="outline">Skill</Badge>
+              <Badge variant="outline">Rezept</Badge>
             </div>
             <div className="mt-sm flex flex-wrap gap-xs">
               {skill.skillCategory && (
@@ -113,7 +113,7 @@ function SkillDetailPage() {
       <Tabs defaultValue="skill">
         <TabsList className="mb-lg">
           <TabsTrigger value="skill">Anleitung</TabsTrigger>
-          {related.length > 0 && <TabsTrigger value="related">Verwandte Skills</TabsTrigger>}
+          {related.length > 0 && <TabsTrigger value="related">Verwandte Rezepte</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="skill">

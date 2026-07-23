@@ -41,7 +41,8 @@ export type MentionableCategory = 'skill' | 'function';
 export interface Mentionable {
   type: MentionableType;
   category: MentionableCategory;
-  trigger: '@' | '/';
+  /** Always '@' — the former '/' trigger for recipes was folded into it. */
+  trigger: '@';
   identifier: string;
   title: string;
   description: string;
@@ -55,6 +56,12 @@ export interface Mentionable {
   icon?: React.ComponentType<{ className?: string }>;
   /** Locale visibility (skills/agents): de-DE / de-AT / all. Undefined ≈ all. */
   audience?: 'de-DE' | 'de-AT' | 'all';
+  /**
+   * Name of the group a recipe was shared from. Set only on recipes that
+   * reached the user through a group share — the UI lists those separately so
+   * shared and own recipes never blur into each other.
+   */
+  sharedFromGroup?: string;
   /**
    * Extra mention strings that resolve to this same mentionable but are NOT
    * shown as separate picker entries. Used for back-compat after merging tools
@@ -99,7 +106,7 @@ export function agentToMentionable(agent: AgentListItem): Mentionable {
   return {
     type: 'agent',
     category: 'skill',
-    trigger: '/',
+    trigger: '@',
     identifier: agent.identifier,
     title: agent.title,
     description: agent.description,
@@ -119,7 +126,7 @@ export function customAgentToMentionable(agent: CustomAgentMentionable): Mention
   return {
     type: 'agent',
     category: 'skill',
-    trigger: '/',
+    trigger: '@',
     identifier: agent.id,
     title: agent.name,
     description: agent.description || '',
@@ -171,7 +178,7 @@ export function textformToMentionable(t: TextformMentionable): Mentionable {
   return {
     type: 'textform',
     category: 'skill',
-    trigger: '/',
+    trigger: '@',
     identifier: t.mention,
     title: t.title,
     description: 'Eigene Textform',

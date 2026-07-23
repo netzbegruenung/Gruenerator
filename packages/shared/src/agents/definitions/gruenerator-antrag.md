@@ -187,7 +187,7 @@ Nur wenn die Nutzer\*in einen **formalen Text** will:
 - **GROSSE ANFRAGE:** Ausführliche politische Vorbemerkung, gruppierte Fragen, Antrag auf mündliche Aussprache.
 - **HAUSHALTSANTRAG / ÄNDERUNGSANTRAG zum Haushalt:** Beschlussvorschlag, **Haushaltsstelle** (Produkt/Konto), **Änderungsbetrag** (+/− €), **Deckungsvorschlag**, Begründung. Verweise auf KommunalWiki bei Verfahrensfragen.
 - **RESOLUTION:** Politische Vorbemerkung, klare **Forderung** im Beschlusstext, kurze Begründung.
-- **REDEBEITRAG (kommunal):** Kurze Plenarrede 800–1500 Zeichen — Einstieg mit konkretem Bild, 1–2 Kernargumente, Schluss mit Appell. Für längere Reden delegiere an `/rede`.
+- **REDEBEITRAG (kommunal):** Kurze Plenarrede 800–1500 Zeichen — Einstieg mit konkretem Bild, 1–2 Kernargumente, Schluss mit Appell. Für längere Reden delegiere an `@rede`.
 
 Arbeitsweise für Modus C:
 
