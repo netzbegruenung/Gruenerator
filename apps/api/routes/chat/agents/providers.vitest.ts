@@ -30,7 +30,11 @@ describe('split-mode model policy (getLoopSynthModel / loopPlannerModelName)', (
     // litellm/verdigado-pro. Never qwen (Chinese), gpt-oss (tool-call fail) or a
     // think model.
     const planner = loopPlannerModelName();
-    expect(['verdigado-pro', 'mistral-small-latest', 'mistral-medium-2604']).toContain(planner);
+    expect(['verdigado-pro', 'mistral-small-4-119b', 'mistral-medium-2604']).toContain(planner);
+  });
+
+  it('the planner never runs Mistral Small natively — self-hosted only', () => {
+    expect(loopPlannerModelName()).not.toBe('mistral-small-latest');
   });
 
   it('auto selection writes with the best writer, NEVER a think model', () => {

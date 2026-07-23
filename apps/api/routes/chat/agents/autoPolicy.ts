@@ -227,15 +227,24 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
  * policy instead of two systems overriding each other. `providers.ts` turns
  * these into LanguageModel instances (it owns env + getModel).
  *
- * PLANNER: native Mistral Small. The planner only calls tools and formulates
- * queries — the synth writes the prose — so Small's tool-calling is plenty and
- * it is faster/cheaper on multi-step gather. Native, NOT regolo: the regolo
- * lane produced a steps=0 gather regression. Reliability of "does it actually
- * call the generation tool" is backstopped by the afterGather guarantee in
- * agenticRespondService. Bump to mistral-medium-2604 if Small proves weak.
- * litellm/verdigado-pro is the cross-provider fallback if the Mistral API is down.
+ * PLANNER: Mistral Small on REGOLO — Mistral Small always runs self-hosted, no
+ * exceptions. The planner only calls tools and formulates queries (the synth
+ * writes the prose), so Small's tool-calling is plenty.
+ *
+ * History worth knowing before touching this: an earlier attempt at the regolo
+ * planner was reverted for a "steps=0 gather" regression — the planner returned
+ * without calling any tool. It is back deliberately; the `afterGather`
+ * guarantee in agenticRespondService now backstops "did it actually call the
+ * generation tool", and tool calls were re-verified live on this lane. If
+ * multi-step gather degrades again, bump the model here (mistral-medium-2604)
+ * rather than moving the provider back.
+ *
+ * Trade-off accepted: Regolo has no Mistral prompt caching, so the planner's
+ * fixed tool-usage prefix is re-billed every turn.
+ *
+ * litellm/verdigado-pro is the cross-provider fallback when regolo is absent.
  */
-export const LOOP_PLANNER_PRIMARY = { provider: 'mistral' as const, model: 'mistral-small-latest' };
+export const LOOP_PLANNER_PRIMARY = { provider: 'regolo' as const, model: 'mistral-small-4-119b' };
 export const LOOP_PLANNER_FALLBACK = { provider: 'litellm' as const, model: 'verdigado-pro' };
 
 /** SYNTH: best German writer, and never a reasoning lane (latency). gemma-4

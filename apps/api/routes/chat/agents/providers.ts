@@ -403,9 +403,9 @@ export function prefersUnifiedLoop(provider: string, _modelName: string): boolea
  */
 
 function loopPlannerChoice(): { provider: Provider; model: string } {
-  // Prefer the native Mistral tool-caller; fall back to litellm/verdigado-pro
-  // only when the Mistral API isn't configured.
-  if (isProviderConfigured('mistral')) return LOOP_PLANNER_PRIMARY;
+  // Mistral Small always runs self-hosted on regolo; fall back to
+  // litellm/verdigado-pro only when regolo isn't configured.
+  if (isProviderConfigured('regolo')) return LOOP_PLANNER_PRIMARY;
   if (isProviderConfigured('litellm')) return LOOP_PLANNER_FALLBACK;
   return LOOP_PLANNER_PRIMARY;
 }
