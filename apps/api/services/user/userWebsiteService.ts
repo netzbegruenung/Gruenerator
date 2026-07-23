@@ -175,6 +175,9 @@ export async function addUserWebsite(userId: string, rawUrl: string): Promise<Us
 
   const discovery = await discoverWordpressSite(siteUrl);
 
+  // Discovery takes seconds, so the check above can go stale — a second tab
+  // may have inserted the same site meanwhile. The unique index is the real
+  // guard; translate its violation into the same duplicate signal.
   const inserted = await db
     .insert(userWebsites)
     .values({
@@ -189,7 +192,14 @@ export async function addUserWebsite(userId: string, rawUrl: string): Promise<Us
       total_pages: discovery.totalPages,
       discovered_at: new Date(),
     })
-    .returning();
+    .returning()
+    .catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('user_websites_user_url_unique') || message.includes('duplicate key')) {
+        throw new DuplicateWebsiteError(discovery.site.url);
+      }
+      throw error;
+    });
 
   const row = inserted[0];
   if (!row) throw new Error('Website konnte nicht gespeichert werden');
