@@ -63,6 +63,7 @@ export const notebookWordpressContractRouter = s.router(notebookWordpressContrac
           success: true as const,
           site: result.site,
           categories: result.categories,
+          pages: result.pages,
           total_posts: result.totalPosts,
           total_pages: result.totalPages,
         },
@@ -83,7 +84,7 @@ export const notebookWordpressContractRouter = s.router(notebookWordpressContrac
       const scopes: WpScope[] = [
         ...body.categories.map((c) => ({ kind: 'category' as const, id: c.id, name: c.name })),
         ...(body.all_posts ? [{ kind: 'allPosts' as const }] : []),
-        ...(body.pages ? [{ kind: 'pages' as const }] : []),
+        ...(body.pages ? [{ kind: 'pages' as const, ids: body.page_ids ?? null }] : []),
       ];
       if (scopes.length === 0) {
         return {
