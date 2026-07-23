@@ -134,6 +134,7 @@ import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractR
 import { mountItemUsageContractRouter } from './routes/usage/itemUsageContractRouter.js';
 import { recentValuesRouter } from './routes/user/index.js';
 import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
+import { mountUserWebsitesContractRouter } from './routes/user/userWebsitesContractRouter.js';
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
 import { mountUserAgentsSharingContractRouter } from './routes/userAgents/userAgentsSharingContractRouter.js';
 import { mountUserTextFormsContractRouter } from './routes/userTextForms/userTextFormsContractRouter.js';
@@ -373,6 +374,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // WordPress-source endpoints (discover/import) — own prefix, user-scoped.
   app.use('/api/auth/notebook-wordpress', requireAuth);
   mountNotebookWordpressContractRouter(app);
+
+  app.use('/api/auth/user-websites', requireAuth);
+  mountUserWebsitesContractRouter(app);
   // Neutral "my groups" endpoint used by share dialogs across features. Must
   // be `.use`'d before the contract router mounts the GET /api/auth/groups/me
   // handler so the middleware actually runs.
