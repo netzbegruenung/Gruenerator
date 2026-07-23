@@ -1344,21 +1344,22 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         // pre-decided single search is skipped entirely.
         const systemMessage = await buildSystemMessage(classifiedState);
         const prunedValidMessages = pruneMessages(
-          validMessages as Parameters<typeof pruneMessages>[0]
+          validMessages as Parameters<typeof pruneMessages>[0],
+          contextWindowTokens
         );
-        const finalSystemMessage = actualThreadId
+        const { systemMessage: finalSystemMessage, messages: contextMessages } = actualThreadId
           ? await applyCompaction(
               actualThreadId,
               prunedValidMessages,
               systemMessage,
               contextWindowTokens
             )
-          : systemMessage;
+          : { systemMessage, messages: prunedValidMessages };
 
         const outcome = await streamAgenticResponse({
           finalState: classifiedState,
           systemMessage: finalSystemMessage,
-          messages: prunedValidMessages as ModelMessage[],
+          messages: contextMessages as ModelMessage[],
           ...(modelId != null && { modelId }),
           requestId,
           sse,
@@ -1467,20 +1468,21 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           }
 
           const prunedValidMessages = pruneMessages(
-            validMessages as Parameters<typeof pruneMessages>[0]
+            validMessages as Parameters<typeof pruneMessages>[0],
+            contextWindowTokens
           );
-          const finalSystemMessage = actualThreadId
+          const { systemMessage: finalSystemMessage, messages: contextMessages } = actualThreadId
             ? await applyCompaction(
                 actualThreadId,
                 prunedValidMessages,
                 systemMessage,
                 contextWindowTokens
               )
-            : systemMessage;
+            : { systemMessage, messages: prunedValidMessages };
 
           let messagesForAI = buildMessagesForAI(
             finalSystemMessage,
-            prunedValidMessages as Parameters<typeof buildMessagesForAI>[1]
+            contextMessages as Parameters<typeof buildMessagesForAI>[1]
           );
           // image_edit narrates from BILDVERGLEICH text descriptions; the raw image
           // would put bytes in front of a non-vision model (since we no longer
