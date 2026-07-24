@@ -141,6 +141,7 @@ export const INTENT_KEYWORDS: Record<
     | 'save_as_doc'
     | 'create_sheet'
     | 'create_presentation'
+    | 'create_pdf'
     // create_recurring_task is LLM-classified (needs a schedule); no keyword heuristic.
     | 'create_recurring_task'
     | 'modify_doc'
@@ -173,6 +174,10 @@ export const INTENT_KEYWORDS: Record<
     | 'wetter'
     | 'news'
     | 'umfragen'
+    // hilfe is detected by the dedicated instructional-question gate
+    // (looksLikeDocsHelpQuestion, classifier Tier 2.9). Bare keywords like
+    // "hilfe"/"anleitung" would hijack content queries ("hilf mir bei ...").
+    | 'hilfe'
   >,
   string[]
 > = {
@@ -691,6 +696,23 @@ export function heuristicClassify(
   }
 
   // High confidence (0.90): Save as document requests.
+  // High confidence (0.9): Finished-PDF creation, including fillable forms.
+  // Checked BEFORE save_as_doc so "mach ein PDF-Dokument daraus" isn't stolen by
+  // machDarausPattern. Requires a creation verb, so reading an attachment ("fass
+  // das PDF zusammen") and filling one in ("füll das Formular aus") never match;
+  // deck nouns are excluded — "Präsentation als PDF" still builds a deck.
+  const pdfCreatePattern =
+    /\b(erstell|mach|generier|bau|entwirf|erzeug|schreib)[a-zäöü]*\b.{0,60}\b(als\s+pdf|ein\s+pdf|pdf[\s-]?(dokument|datei|formular|vorlage)|briefkopf|offiziell[a-zäöü]*\s+(brief|schreiben|anschreiben)|(ausfüllbar|ausfuellbar)[a-zäöü]*\s+(formular|vorlage|dokument)|formular\s+zum\s+ausfüllen|fragebogen|anmeldebogen|antragsformular|anmeldeformular)\b/i;
+  const deckNounPattern = /\b(präsentation|foliensatz|folien|slides?|pitch[\s-]?deck)\b/i;
+  if (!isLongPaste && pdfCreatePattern.test(q) && !deckNounPattern.test(q)) {
+    return {
+      intent: 'create_pdf',
+      searchQuery: null,
+      reasoning: 'PDF creation request detected',
+      confidence: 0.9,
+    };
+  }
+
   // Bare "als Dokument/Protokoll/Notiz/Checkliste" must be paired with an explicit
   // save imperative — otherwise prose mentions like "Pressemitteilung über das Dokument"
   // or "gilt als Protokoll" would falsely trigger document creation.

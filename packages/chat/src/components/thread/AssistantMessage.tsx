@@ -10,6 +10,7 @@ import { GrueneratorHomeIconLoading } from '../icons';
 import { CitationMarkdownText } from '../message-parts/CitationMarkdownText';
 import { MessageStreamingProvider } from '../message-parts/messageStreamingContext';
 import { Reasoning, ReasoningGroup } from '../assistant-ui/reasoning';
+import { ToolCallGroup } from '../message-parts/ToolCallGroup';
 import { ProgressIndicator } from '../message-parts/ProgressIndicator';
 import { useProgressDisplay } from '../message-parts/progressDisplayContext';
 import { ProgressTracker } from '../tool-ui/progress-tracker/ProgressTracker';
@@ -55,7 +56,12 @@ function AssistantMessageTextPart() {
   );
 }
 
-const partComponents = { Text: AssistantMessageTextPart, Reasoning, ReasoningGroup };
+const partComponents = {
+  Text: AssistantMessageTextPart,
+  Reasoning,
+  ReasoningGroup,
+  ToolGroup: ToolCallGroup,
+};
 
 export const AssistantMessage = memo(function AssistantMessage() {
   const message = useMessage();
@@ -253,6 +259,10 @@ export const AssistantMessage = memo(function AssistantMessage() {
         <CitationProvider citations={citations} fetchFullText={fetchFullText}>
           <MessagePrimitive.Parts components={partComponents} />
         </CitationProvider>
+
+        {custom?.interrupted && (
+          <p className="text-xs text-foreground-muted italic">Antwort wurde unterbrochen</p>
+        )}
 
         {!isStreaming && custom?.chartData && <ChatChart data={custom.chartData} />}
 

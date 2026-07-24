@@ -57,7 +57,7 @@ const GATHER_SUFFIX = [
   '- Verlass dich NICHT auf dein eigenes Wissen — belege mit Tools. Aber STOPPE, sobald die ersten 1–2 Treffer die Frage beantworten; sammle nicht auf Vorrat und wiederhole keine ähnlichen Suchen.',
   '- scrape_url NUR für URLs, die tatsächlich in Suchergebnissen erscheinen — rate keine Adressen.',
   '- Wenn der*die Nutzer*in ausdrücklich eine ERSTELLUNG wünscht (z.B. ein Sharepic, Bild, eine Präsentation, Tabelle, ein Dokument oder ein Board), MUSST du das passende Erstellungs-Tool (z.B. sharepic / generate_image / create_presentation / create_sheet / create_document / create_board) in dieser Phase aufrufen — recherchiere zuerst die Fakten, dann rufe das Tool mit dem belegten, konkreten Auftrag auf. Verweigere die Erstellung NICHT.',
-  '- Schreibe in dieser Phase KEINE finale Antwort; sobald die Belege reichen und angeforderte Inhalte erstellt sind, beende die Tool-Aufrufe.',
+  '- Schreibe in dieser Phase KEINE finale Antwort und KEINE Zusammenfassung. Du darfst vor einem Tool-Aufruf in EINEM kurzen Satz ankündigen, was du als Nächstes tust (z.B. "Ich suche jetzt im Wahlprogramm nach Windkraft."). Sobald die Belege reichen und angeforderte Inhalte erstellt sind, beende die Tool-Aufrufe ohne weiteren Text.',
 ].join('\n');
 
 /** Best-effort recovery of a malformed JSON tool-argument string. */
@@ -119,6 +119,71 @@ const repairToolCall: NonNullable<
   return { ...toolCall, input: JSON.stringify(fixed) };
 };
 
+/**
+ * Buffers streamed text deltas and hands `emit` ONE trimmed sentence at a time.
+ * A sentence flushes as soon as the buffer holds a sentence-end char `[.!?…:]`
+ * followed by whitespace/end, contains a newline, or grows past 160 chars. On a
+ * mid-buffer sentence end only the completed sentence is emitted; the remainder
+ * stays buffered. `flush()` emits whatever is left (run at phase end). Pure — no
+ * deps, so the split-gather narration path is unit-testable in isolation.
+ */
+export function createSentenceChunker(emit: (sentence: string) => void): {
+  push(delta: string): void;
+  flush(): void;
+} {
+  let buffer = '';
+  const sentenceEnd = /[.!?…:](?=\s|$)/;
+
+  const doEmit = (raw: string): void => {
+    const trimmed = raw.trim();
+    if (trimmed.length > 0) emit(trimmed);
+  };
+
+  const drainReady = (): void => {
+    let progressed = true;
+    while (progressed) {
+      progressed = false;
+      const match = sentenceEnd.exec(buffer);
+      const newline = buffer.indexOf('\n');
+      // Earliest boundary wins. Sentence end keeps the punctuation; a newline is
+      // consumed (trimmed away anyway) so the next sentence starts clean.
+      let emitEnd = -1;
+      let cutEnd = -1;
+      if (match) {
+        emitEnd = match.index + 1;
+        cutEnd = emitEnd;
+      }
+      if (newline >= 0 && (cutEnd < 0 || newline < cutEnd)) {
+        emitEnd = newline;
+        cutEnd = newline + 1;
+      }
+      if (cutEnd >= 0) {
+        doEmit(buffer.slice(0, emitEnd));
+        buffer = buffer.slice(cutEnd);
+        progressed = true;
+        continue;
+      }
+      if (buffer.length > 160) {
+        doEmit(buffer);
+        buffer = '';
+        progressed = true;
+      }
+    }
+  };
+
+  return {
+    push(delta: string): void {
+      if (!delta) return;
+      buffer += delta;
+      drainReady();
+    },
+    flush(): void {
+      doEmit(buffer);
+      buffer = '';
+    },
+  };
+}
+
 export interface LoopEngineParams {
   mode: LoopMode;
   /** Runs the tool loop. Equals synthModel in `unified`. */
@@ -143,6 +208,10 @@ export interface LoopEngineParams {
   forceFirstToolCall?: boolean;
   onText: (delta: string) => void;
   onReasoning: (delta: string) => void;
+  /** Split-gather only: the planner's inter-tool prose, delivered ONE sentence
+   *  at a time (via createSentenceChunker) so the client can show "Ich suche
+   *  jetzt …" narration. Never fires in unified mode. */
+  onNarration?: (sentence: string) => void;
   /** Split mode only: runs AFTER the gather phase and BEFORE synthesis. Used to
    *  GUARANTEE a compound turn's artifact — the split planner unreliably invokes
    *  the generation fat tool (it treats the turn as pure research and stops), so
@@ -197,11 +266,14 @@ async function streamWithTools(
 }
 
 /** Split phase 1: the planner runs the tool loop and fills the source registry.
- *  Its own text output is discarded — the answer comes from synthesis. */
+ *  Its prose is NOT the answer (synthesis writes that) — but when onNarration is
+ *  set we stream the planner's inter-tool sentences to the client as narration.
+ *  The stream is consumed in EVERY case (even without onNarration): the AI SDK's
+ *  tool loop only advances as the stream is drained. */
 async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
   try {
     const gatherSystem = `${p.toolSystem}${GATHER_SUFFIX}`;
-    await deps.generateText({
+    const result: Drainable = deps.streamText({
       model: p.plannerModel,
       system: gatherSystem,
       messages: p.messages,
@@ -219,6 +291,23 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
       ),
       experimental_repairToolCall: repairToolCall,
     });
+    const chunker = p.onNarration ? createSentenceChunker(p.onNarration) : null;
+    const iterator = result.stream[Symbol.asyncIterator]();
+    try {
+      while (true) {
+        const next = await iterator.next();
+        if (next.done) break;
+        const part = next.value;
+        if (part.type === 'error') throw part.error;
+        // reasoning-delta discarded; text-delta becomes narration (or is drained
+        // silently when no onNarration is wired).
+        if (part.type === 'text-delta' && part.text != null && part.text.length > 0) {
+          chunker?.push(part.text);
+        }
+      }
+    } finally {
+      chunker?.flush();
+    }
   } catch (err) {
     // Tools that already ran filled the registry before any error — degrade to
     // synthesis over whatever was collected rather than failing the whole turn.

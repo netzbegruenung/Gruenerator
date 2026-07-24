@@ -40,7 +40,9 @@ import {
 } from './types.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const BASE_URL = process.env.EVAL_BASE_URL ?? 'http://localhost:3001';
+// An unset repo secret arrives as '' , not undefined — `??` would keep it and
+// every case then dies with an unhelpful "Failed to parse URL from /api/...".
+const BASE_URL = process.env.EVAL_BASE_URL?.trim() || 'http://localhost:3001';
 const BYPASS = process.env.EVAL_BYPASS_TOKEN ?? '';
 const MODEL_ID = process.env.EVAL_MODEL_ID;
 const FILTER = process.env.EVAL_FILTER ?? '';
@@ -202,8 +204,7 @@ async function runTurn(
     const threadId =
       ctx.threadId ??
       (events.find((e) => typeof e.data.threadId === 'string')?.data.threadId as
-        | string
-        | undefined);
+        string | undefined);
     if (!threadId) {
       resumeError = 'clarification interrupt but no threadId to resume with';
     } else {

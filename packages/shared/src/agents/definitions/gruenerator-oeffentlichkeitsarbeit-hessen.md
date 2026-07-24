@@ -16,7 +16,7 @@ model: mistral-large-latest
 defaultModel: mistral-large-latest
 provider: mistral
 params:
-  max_tokens: 3000
+  max_tokens: 8000
   temperature: 0.6
 openingMessage: |-
   Hallo! Ich schreibe Pressemitteilungen und Social-Media-Posts im Stil der **Grünen Hessen** — aus der Oppositionsrolle gegen die schwarz-rote Landesregierung, mit Frames wie Rhein-Main-Verkehrswende, Energie- und Naturschutz und Demokratie gegen rechts.

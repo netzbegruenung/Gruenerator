@@ -502,14 +502,15 @@ TOGETHER_API_KEY=... .venv/bin/python scripts/togetherFineTune.py \
 ```
 
 **Collections used:**
-| Collection | Content | Est. examples after bucket cap |
-|---|---|---|
-| `landesverbaende_documents` | Presse, Beschlüsse, Anträge | ~300 |
-| `bundestag_content` | Bundestagsfraktion texts | ~100 |
-| `social_media_examples` | Facebook, Instagram | ~200 |
-| `gruene_de_documents` | Official website | ~100 |
-| `grundsatz_documents` | Grundsatzprogramm | ~30-60 |
-| **Total** | | **~730-760** |
+
+| Collection                  | Content                     | Est. examples after bucket cap |
+| --------------------------- | --------------------------- | ------------------------------ |
+| `landesverbaende_documents` | Presse, Beschlüsse, Anträge | ~300                           |
+| `bundestag_content`         | Bundestagsfraktion texts    | ~100                           |
+| `social_media_examples`     | Facebook, Instagram         | ~200                           |
+| `gruene_de_documents`       | Official website            | ~100                           |
+| `grundsatz_documents`       | Grundsatzprogramm           | ~30-60                         |
+| **Total**                   |                             | **~730-760**                   |
 
 **Collections excluded:**
 
@@ -539,11 +540,12 @@ TOGETHER_API_KEY=... .venv/bin/python scripts/togetherFineTune.py \
 ```
 
 **Collections used:**
-| Collection | Content | Docs |
-|---|---|---|
-| `oesterreich_gruene_documents` | Party programs | 3 (large, sliding window → ~60) |
-| `gruene_at_documents` | News, Themen, Organisation | 161 |
-| **Total** | | **~220** |
+
+| Collection                     | Content                    | Docs                            |
+| ------------------------------ | -------------------------- | ------------------------------- |
+| `oesterreich_gruene_documents` | Party programs             | 3 (large, sliding window → ~60) |
+| `gruene_at_documents`          | News, Themen, Organisation | 161                             |
+| **Total**                      |                            | **~220**                        |
 
 Estimated cost: **~$6** (minimum charge). Smaller dataset, but 220 examples is enough for LoRA style adaptation.
 
