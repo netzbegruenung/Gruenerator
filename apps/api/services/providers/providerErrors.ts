@@ -9,11 +9,7 @@
 import { APICallError } from 'ai';
 
 export type ProviderErrorCode =
-  | 'rate_limited'
-  | 'provider_unavailable'
-  | 'timeout'
-  | 'invalid_request'
-  | 'unknown';
+  'rate_limited' | 'provider_unavailable' | 'timeout' | 'invalid_request' | 'unknown';
 
 export interface ProviderErrorInfo {
   code: ProviderErrorCode;

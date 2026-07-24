@@ -1,13 +1,7 @@
 import { create } from 'zustand';
 
 export type SectionType =
-  | 'hero'
-  | 'about'
-  | 'heroImage'
-  | 'themes'
-  | 'actions'
-  | 'socialFeed'
-  | 'contact';
+  'hero' | 'about' | 'heroImage' | 'themes' | 'actions' | 'socialFeed' | 'contact';
 
 export interface FocusedField {
   section: SectionType;

@@ -202,8 +202,7 @@ async function runTurn(
     const threadId =
       ctx.threadId ??
       (events.find((e) => typeof e.data.threadId === 'string')?.data.threadId as
-        | string
-        | undefined);
+        string | undefined);
     if (!threadId) {
       resumeError = 'clarification interrupt but no threadId to resume with';
     } else {
