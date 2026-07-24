@@ -19,11 +19,9 @@ updates:
       - 'dependencies'
       - 'root'
     groups:
-      release-tooling:
+      commit-tooling:
         patterns:
-          - '@semantic-release/*'
           - '@commitlint/*'
-          - 'semantic-release'
           - 'husky'
       typescript:
         patterns:
@@ -34,9 +32,7 @@ updates:
           - 'minor'
           - 'patch'
         exclude-patterns:
-          - '@semantic-release/*'
           - '@commitlint/*'
-          - 'semantic-release'
           - 'husky'
           - 'typescript'
           - '@types/*'
