@@ -49,11 +49,6 @@ const TYPE_CONFIGS: Record<string, TypeConfig> = {
     fields: ['zitat'],
     mainKey: 'quote',
   },
-  headline: {
-    fields: ['zeile1', 'zeile2', 'zeile3'],
-    mainKey: 'mainSlogan',
-    maxLengths: { zeile1: 20, zeile2: 20, zeile3: 20 },
-  },
   simple: {
     fields: ['headline', 'subtext', 'suchbegriff'],
     mainKey: 'mainSimple',
@@ -80,7 +75,6 @@ function mapToResponseFormat(
         body: data.body,
       };
     case 'dreizeilen':
-    case 'headline':
       return {
         line1: data.zeile1,
         line2: data.zeile2,

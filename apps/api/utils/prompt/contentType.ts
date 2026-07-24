@@ -1,5 +1,7 @@
 import type { FormData, ContentType } from './types.js';
 
+// routePath ist der routeType aus dem PromptProcessor ('/social', '/universal',
+// '/antrag_simple', …) — NICHT die URL.
 export function detectContentType(routePath: string, formData: FormData = {}): ContentType {
   if (routePath.includes('antrag') || routePath.includes('antraege')) {
     const requestType = formData.requestType || 'antrag';
@@ -8,7 +10,7 @@ export function detectContentType(routePath: string, formData: FormData = {}): C
     return 'antrag';
   }
 
-  if (routePath.includes('claude_social')) {
+  if (routePath.includes('social')) {
     const platforms = formData.platforms || [];
     const socialPlatforms = platforms.filter((p: string) =>
       ['instagram', 'facebook', 'twitter', 'linkedin', 'actionIdeas', 'reelScript'].includes(p)
@@ -34,7 +36,7 @@ export function detectContentType(routePath: string, formData: FormData = {}): C
     return platforms[0] || 'social';
   }
 
-  if (routePath.includes('claude_universal')) {
+  if (routePath.includes('universal')) {
     const textForm = formData.textForm;
     if (textForm && typeof textForm === 'string') {
       const cleanTextForm = textForm
@@ -54,14 +56,6 @@ export function detectContentType(routePath: string, formData: FormData = {}): C
       return cleanTextForm;
     }
     return 'universal';
-  }
-
-  if (routePath.includes('claude_rede')) {
-    return 'rede';
-  }
-
-  if (routePath.includes('claude_wahlprogramm')) {
-    return 'wahlprogramm';
   }
 
   return 'universal';
