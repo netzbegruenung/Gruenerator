@@ -4,7 +4,7 @@ import { processGraphRequest } from '../../agents/langgraph/PromptProcessor.js';
 import { processGraphRequestStreaming } from '../../agents/langgraph/streamingProcessor.js';
 import { createLogger } from '../../utils/logger.js';
 
-const log = createLogger('claude_universa');
+const log = createLogger('texte/universal');
 
 function wantsStream(req: Request): boolean {
   return req.query.stream === 'true' || req.headers.accept === 'text/event-stream';
@@ -13,7 +13,7 @@ function wantsStream(req: Request): boolean {
 const universalRouter: Router = express.Router();
 
 const universalHandler = async (req: Request, res: Response): Promise<void> => {
-  log.debug('[claude_universal] Request received via promptProcessor');
+  log.debug('[texte/universal] Request received via promptProcessor');
   if (wantsStream(req)) return processGraphRequestStreaming('universal', req, res);
   await processGraphRequest('universal', req, res);
 };
