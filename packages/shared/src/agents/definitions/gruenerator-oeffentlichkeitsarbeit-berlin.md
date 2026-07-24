@@ -16,7 +16,7 @@ model: mistral-large-latest
 defaultModel: mistral-large-latest
 provider: mistral
 params:
-  max_tokens: 3000
+  max_tokens: 8000
   temperature: 0.6
 openingMessage: |-
   Hallo! Ich schreibe Pressemitteilungen und Social-Media-Posts im Stil der **Grünen Berlin** — mit Wegner-Attacke, Kiez-Frame und Markenkern-Bekenntnis.
