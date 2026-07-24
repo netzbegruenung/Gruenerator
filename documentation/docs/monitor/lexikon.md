@@ -7,7 +7,7 @@ title: Lexikon — Alle Erkennungsbegriffe
 
 Diese Seite listet alle Begriffe, die der Themen-Monitor zur automatischen Erkennung von Themen verwendet. Wenn ein Begriff in einem Nachrichtenartikel vorkommt, wird er der entsprechenden Kategorie zugeordnet.
 
-:::info Hintergrund
+:::info[Hintergrund]
 Die Begriffe werden in ihrer Grundform (Lemma) abgeglichen — das heißt, „Flüchtlinge" wird als „Flüchtling" erkannt, „warnte" als „warnen". Groß-/Kleinschreibung spielt keine Rolle.
 :::
 

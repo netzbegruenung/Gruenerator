@@ -43,7 +43,7 @@ Weiter unten auf der Seite findest du zwei Wortwolken:
 
 In beiden gilt: **Schriftgröße und Farbe** zeigen die Häufigkeit — große, grün hervorgehobene Wörter dominieren die Debatte, graue kommen seltener vor.
 
-:::tip Täglicher Schnellcheck
+:::tip[Täglicher Schnellcheck]
 Wirf morgens einen Blick auf das Hot Topic mit seiner KI-Einordnung und die Keywords. So weißt du sofort, welche Begriffe gerade die Debatte bestimmen und wie du sie grün einordnen kannst.
 :::
 

@@ -73,7 +73,10 @@ const SCOPE_FOLDERS = [
 // Optional hints (doc folder → likely source dirs) to focus the agent's search and
 // cut token use. Non-essential; the agent can grep without them.
 const AREA_HINTS: Record<string, string> = {
-  gruenerieren: 'packages/chat, apps/web/src/features/chat, apps/web/src/features/models',
+  // "Was kann ich fragen?" is verified against the chat's own registries, so the
+  // backend classifier/router dirs count as source for this folder too.
+  gruenerieren:
+    'packages/chat, apps/web/src/features/chat, apps/web/src/features/models, apps/api/routes/chat, apps/api/agents/langgraph/ChatGraph, packages/contracts/src/schemas',
   agents: 'apps/web/src/features/agents, packages/chat',
   notebooks: 'apps/web/src/features/notebook',
   monitor: 'apps/web/src/features/monitor',
