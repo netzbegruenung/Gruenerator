@@ -32,7 +32,7 @@
     "@gruenerator/query": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@qdrant/js-client-rest": "^1.18.0",
-    "@sentry/node": "^10.67.0",
+    "@sentry/node": "^10.68.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
