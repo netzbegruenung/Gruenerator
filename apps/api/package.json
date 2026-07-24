@@ -57,6 +57,7 @@
   "dependencies": {
     "@ai-sdk/mistral": "^4.0.14",
     "@ai-sdk/openai": "^4.0.19",
+    "@ai-sdk/otel": "^1.0.37",
     "@anthropic-ai/sdk": "^0.114.0",
     "@better-auth/drizzle-adapter": "^1.6.23",
     "@blocknote/xl-ai": "^0.52.1",
