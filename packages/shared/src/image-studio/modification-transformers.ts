@@ -170,7 +170,7 @@ export function applyModificationParams(
   if (!params) return request;
 
   // `type` is a plain string (open set); the default case below handles the rest.
-  // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check
+
   switch (type) {
     case 'dreizeilen':
       return applyDreizeilenParams(request, params as DreizeilenModificationParams);

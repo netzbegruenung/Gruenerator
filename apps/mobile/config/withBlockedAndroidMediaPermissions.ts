@@ -32,7 +32,9 @@ const withBlockedAndroidMediaPermissions: ConfigPlugin = (config) =>
     );
 
     const removals = BLOCKED_PERMISSIONS.map(
-      (name): UsesPermission => ({ $: { 'android:name': name, 'tools:node': 'remove' } })
+      (name): UsesPermission => ({
+        $: { 'android:name': name, 'tools:node': 'remove' },
+      })
     );
 
     manifest['uses-permission'] = [...kept, ...removals];
