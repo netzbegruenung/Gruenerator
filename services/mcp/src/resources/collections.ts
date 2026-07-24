@@ -5,6 +5,7 @@
 
 import { config } from '../config.ts';
 import { getCollectionInfo } from '../qdrant/client.ts';
+import { describeFetchError } from '../utils/errors.ts';
 
 /**
  * Get all available collections as MCP resources
@@ -128,7 +129,7 @@ export async function getCollectionResource(uri: string) {
             {
               collection: collectionKey,
               unavailable: true,
-              error: err instanceof Error ? err.message : String(err),
+              error: describeFetchError(err),
             },
             null,
             2
