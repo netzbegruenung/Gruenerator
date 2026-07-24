@@ -78,6 +78,9 @@ export const searchIntentSchema = z.enum([
   'hotel',
   // Wahlumfragen (Sonntagsfrage via PolitPro + Meinungsbild) — native domain tool.
   'umfragen',
+  // Grünerator-Bedienung: Anleitungen aus der Doku (doku.gruenerator.eu) —
+  // native domain tool over a generated, in-process index.
+  'hilfe',
   'wetter',
   'news',
   'image',
@@ -96,6 +99,8 @@ export const searchIntentSchema = z.enum([
   'share_doc',
   'create_sheet',
   'create_presentation',
+  // Finished, downloadable CI-styled PDF (optionally with Grünen letterhead).
+  'create_pdf',
   // EXPERIMENTAL: set up a recurring "Wiederkehrende Aufgabe" (agent runs on a schedule).
   'create_recurring_task',
   'chat_history',
@@ -491,6 +496,10 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
     .passthrough(),
   text_delta: z.object({ text: z.string() }).passthrough(),
   reasoning_delta: z.object({ text: z.string() }).passthrough(),
+  // Split-gather narration: one trimmed sentence per event (backend chunker),
+  // only between tool steps of the gather phase, never after response_start.
+  // Rendered as the live status line (custom.progress), never as a message part.
+  gather_narration: z.object({ text: z.string() }).passthrough(),
   fallback: z
     .object({
       from: z.object({ id: z.string(), name: z.string() }).passthrough(),

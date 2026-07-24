@@ -3,6 +3,8 @@ import { fileURLToPath } from 'url';
 import { Worker } from 'worker_threads';
 
 import { AiProviderError } from '../services/providers/providerErrors.js';
+import { recordTokenUsage } from '../services/usage/UsageTrackingService.js';
+import { getUsageFeature, getUsageUserId } from '../utils/usageContext.js';
 
 import config from './worker.config.js';
 
@@ -166,7 +168,12 @@ class AIWorkerPool {
 
     const processedData = { ...data };
 
-    return new Promise<AIWorkerResult>((resolve, reject) => {
+    // Captured here, in the request's async context — the worker 'message'
+    // event that resolves the promise fires outside of it.
+    const usageUserId = getUsageUserId();
+    const usageFeature = getUsageFeature();
+
+    const pending = new Promise<AIWorkerResult>((resolve, reject) => {
       const { workerIndex, worker } = this.selectWorker();
 
       const timeout = setTimeout(() => {
@@ -195,6 +202,33 @@ class AIWorkerPool {
 
       worker.postMessage(message);
     });
+
+    // The worker adapters already report token usage in `metadata.usage`; this
+    // is the only place it gets attributed to a user. The adapters themselves
+    // run in a worker thread without a usage context, so the model middleware
+    // in services/usage/usageModelMiddleware.ts stays silent there — that is
+    // what keeps worker calls from being counted twice.
+    if (usageUserId) {
+      void pending
+        .then((result) => {
+          const usage = (result.metadata as { usage?: Record<string, unknown> } | undefined)?.usage;
+          if (!usage) return;
+          const num = (value: unknown): number => (typeof value === 'number' ? value : 0);
+          recordTokenUsage({
+            provider: String(result.metadata?.provider ?? processedData.provider ?? 'unknown'),
+            model: String(result.metadata?.model ?? processedData.model ?? 'unknown'),
+            inputTokens: num(usage.prompt_tokens),
+            outputTokens: num(usage.completion_tokens),
+            userId: usageUserId,
+            feature: usageFeature,
+          });
+        })
+        .catch(() => {
+          /* failures are surfaced through the returned promise */
+        });
+    }
+
+    return pending;
   }
 
   shutdown(): Promise<PromiseSettledResult<number>[]> {

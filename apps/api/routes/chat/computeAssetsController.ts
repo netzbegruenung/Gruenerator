@@ -41,6 +41,10 @@ router.get('/:fileName', (req: Request, res: Response): void => {
 
   const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
   res.setHeader('Content-Type', CONTENT_TYPE_BY_EXT[ext] ?? 'application/octet-stream');
+  if (ext === 'pdf') {
+    // PDFs open in the browser viewer instead of forcing a download.
+    res.setHeader('Content-Disposition', 'inline');
+  }
   // Assets are immutable (uuid names) — cache privately for a day.
   res.setHeader('Cache-Control', 'private, max-age=86400');
   res.sendFile(filePath);

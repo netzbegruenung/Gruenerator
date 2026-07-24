@@ -32,6 +32,7 @@ import { hasBrokenComputeValues } from './computeResultSanity.js';
 import { pruneMessages } from './contextPruningService.js';
 import { executeIntentPipeline } from './intentExecutionService.js';
 import { extractTextContent } from './messageHelpers.js';
+import { createPendingAssistantWriter } from './pendingAssistantWriter.js';
 import { pipelineStateStore } from './pipelineStateStore.js';
 import { persistResumedResponse } from './postResponseService.js';
 import {
@@ -49,7 +50,12 @@ import {
   sseFail,
   sseInternalError,
 } from './sseHelpers.js';
-import { getUser } from './threadPersistenceService.js';
+import {
+  createPendingAssistantMessage,
+  deleteEmptyStreamingRows,
+  discardPendingAssistantIfEmpty,
+  getUser,
+} from './threadPersistenceService.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { ServerInferRequest } from '@ts-rest/core';
@@ -71,6 +77,19 @@ export async function runChatGraphResume({
 }): Promise<{ status: 200; body: undefined }> {
   const _requestId = `resume_${Date.now()}`;
   log.info('[chatGraphContract] resume handler entered, request_id=%s', _requestId);
+
+  // Turn persistence (WP-B) for the resume path: the placeholder assistant row
+  // + its streaming writer. Declared in the handler scope (not inside the try)
+  // so the outer catch can run cleanupPending too. Assigned only right before
+  // the truly streaming stage — the sharepic fixed-text branch and run_python
+  // correction rounds return earlier and must not stream into the placeholder.
+  let pendingId: string | null = null;
+  let pendingWriter: ReturnType<typeof createPendingAssistantWriter> | null = null;
+  const cleanupPending = async (discard: boolean): Promise<void> => {
+    sse.setTextListener(undefined);
+    await pendingWriter?.stop().catch(() => {});
+    if (discard && pendingId) await discardPendingAssistantIfEmpty(pendingId).catch(() => {});
+  };
 
   try {
     const { threadId } = body;
@@ -418,6 +437,26 @@ export async function runChatGraphResume({
       }
     }
 
+    // === Turn persistence: mint the placeholder + stream the reply into it ===
+    // Only from here does the answer truly stream (streamWithFallback). The
+    // sharepic fixed-text branch and the run_python correction rounds send their
+    // own text and return above this point, so registering the SSE text listener
+    // now keeps their output out of the placeholder. Requires a real thread row;
+    // without one we degrade to the in-place insert (pendingId stays null), same
+    // as the regular router path.
+    const persistThreadId = requestContext.actualThreadId;
+    if (persistThreadId) {
+      await deleteEmptyStreamingRows(persistThreadId).catch(() => {});
+      pendingId = await createPendingAssistantMessage(persistThreadId, requestContext.userId).catch(
+        () => null
+      );
+      pendingWriter = pendingId ? createPendingAssistantWriter(pendingId) : null;
+      if (pendingWriter) {
+        const activeWriter = pendingWriter;
+        sse.setTextListener((kind, text) => activeWriter.onText(kind, text));
+      }
+    }
+
     // === Response ===
     sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
 
@@ -474,9 +513,15 @@ export async function runChatGraphResume({
       if (resolution2.releaseSlot) await resolution2.releaseSlot();
     }
 
-    if (fullText === null) return { status: 200 as const, body: undefined };
+    if (fullText === null) {
+      await cleanupPending(true);
+      return { status: 200 as const, body: undefined };
+    }
 
     // === Persist & complete ===
+    // Stop the writer BEFORE persist so its final throttle write can't race the
+    // finalize UPDATE (both target the same placeholder row).
+    await cleanupPending(false);
     await persistResumedResponse({
       threadId: requestContext.actualThreadId!,
       fullText,
@@ -484,6 +529,7 @@ export async function runChatGraphResume({
       classifiedState,
       userId: requestContext.userId,
       processedMeta: requestContext.processedMeta,
+      pendingMessageId: pendingId,
     });
 
     const totalTimeMs = Date.now() - startTime;
@@ -509,6 +555,9 @@ export async function runChatGraphResume({
     const errorStack = error instanceof Error ? error.stack : undefined;
     log.error(`[ChatGraph:Resume] Controller error: ${errorMessage}`);
     if (errorStack) log.error(`[ChatGraph:Resume] Stack: ${errorStack}`);
+    // Best-effort: stop the writer and drop the placeholder only if it stayed
+    // empty; a row that already streamed partial text survives as an aborted turn.
+    await cleanupPending(true).catch(() => {});
     sseInternalError(sse, error);
     return { status: 200 as const, body: undefined };
   }

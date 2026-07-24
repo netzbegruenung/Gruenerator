@@ -34,7 +34,7 @@ router.get('/', async (req, res) => {
     }
 
     const messages = await postgres.query(
-      `SELECT cm.id, cm.thread_id, cm.role, cm.content, cm.tool_calls, cm.tool_results, cm.user_id, cm.created_at,
+      `SELECT cm.id, cm.thread_id, cm.role, cm.content, cm.tool_calls, cm.tool_results, cm.user_id, cm.status, cm.created_at,
               p.display_name as sender_name
        FROM chat_messages cm
        LEFT JOIN profiles p ON cm.user_id = p.id
@@ -219,6 +219,10 @@ router.get('/', async (req, res) => {
           ...metadata,
           ...(embeddedToolCalls ? { toolCalls: embeddedToolCalls } : {}),
           ...(msg.user_id ? { senderId: msg.user_id, senderName: msg.sender_name || null } : {}),
+          // A row still 'streaming' at read time is an aborted turn (the request
+          // ended before finalize) — surface it so the frontend can mark the
+          // partial reply as interrupted.
+          ...(msg.status === 'streaming' ? { interrupted: true } : {}),
         },
       };
     });

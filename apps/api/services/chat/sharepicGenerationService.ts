@@ -332,8 +332,7 @@ const callSharepicClaude = async (
     const res = createMockResponse(resolve, reject);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument -- bridge between mock request and typed handler params
     const maybePromise = sharepicClaudeHandler(mockReq as any, res as any, type as any) as
-      | Promise<unknown>
-      | undefined;
+      Promise<unknown> | undefined;
 
     if (maybePromise != null && typeof maybePromise.then === 'function') {
       void maybePromise.catch(reject);

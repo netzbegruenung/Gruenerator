@@ -5,7 +5,7 @@
 /**
  * AI Provider types
  */
-export type AIProvider = 'mistral' | 'litellm' | 'regolo';
+export type AIProvider = 'mistral' | 'litellm' | 'regolo' | 'greenpt';
 
 /**
  * Claude/Bedrock tool format
