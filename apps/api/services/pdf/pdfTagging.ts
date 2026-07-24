@@ -269,7 +269,11 @@ export class PdfTagger {
 </x:xmpmeta>
 <?xpacket end="w"?>`;
 
-    const stream = this.doc.context.stream(xmp, {
+    // Buffer, not string: pdf-lib encodes a string one charCode per byte
+    // (latin1), which mangles umlauts and turns a surrogate pair into stray
+    // bytes — an emoji in the title then breaks the XML and voids PDF/UA.
+    // A Uint8Array is passed through unchanged, so encode UTF-8 ourselves.
+    const stream = this.doc.context.stream(Buffer.from(xmp, 'utf8'), {
       Type: PDFName.of('Metadata'),
       Subtype: PDFName.of('XML'),
     });

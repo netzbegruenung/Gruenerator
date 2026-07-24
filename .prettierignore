@@ -38,6 +38,11 @@ apps/web/public/pyodide/
 # the sync check fail against its own generator.
 documentation/src/generated/
 
+# Export-Testkorpus: absichtlich unsauberer Eingabetext (nicht balancierte Tags,
+# Whitespace-only, ungerade Tabellen). Prettier würde genau die Eigenheiten
+# glattziehen, auf die diese Fixtures den Konverter prüfen sollen.
+apps/api/services/pdf/__fixtures__/export-content/
+
 # Misc
 *.lock
 *.log
