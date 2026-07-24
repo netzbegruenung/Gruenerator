@@ -23,6 +23,8 @@ import { createLogger } from '../../../utils/logger.js';
 import { reportBackgroundError } from '../../../utils/reportBackgroundError.js';
 import { getIntermediateModel } from '../agents/providers.js';
 
+import { isTabularAttachment } from './attachmentProcessingService.js';
+
 const log = createLogger('AttachmentPersistenceService');
 
 const SUMMARY_MAX_TOKENS = 400;
@@ -313,6 +315,10 @@ export async function embedThreadAttachmentForRag(params: {
  * Load the raw bytes of a thread's tabular attachments (CSV/Excel/ODS) so the
  * frontend can rehydrate the in-browser pandas interpreter after a reload.
  * Ownership is enforced by user_id.
+ *
+ * `file_data` is NOT tabular-only any more — fillable PDFs are stored in the
+ * same column for fill_pdf_form. Without the mimeType filter below they would
+ * be staged into the Pyodide FS and fed to pandas.
  */
 export async function getThreadTabularFiles(
   threadId: string,
@@ -328,9 +334,38 @@ export async function getThreadTabularFiles(
     [threadId, userId]
   );
 
+  return result
+    .map((row) => ({
+      name: row.name as string,
+      mimeType: row.mime_type as string,
+      data: row.file_data as string,
+    }))
+    .filter((row) => isTabularAttachment(row.name, row.mimeType));
+}
+
+/**
+ * Raw bytes of a thread's fillable PDF attachments, for the PDF form tools on
+ * follow-up turns (the current turn still has them in `processedMeta`).
+ * Ownership is enforced by user_id. Newest first: a re-uploaded form under the
+ * same name should resolve to the latest version.
+ */
+export async function getThreadPdfFiles(
+  threadId: string,
+  userId: string
+): Promise<Array<{ name: string; data: string }>> {
+  const postgres = getPostgresInstance();
+
+  const result = await postgres.query(
+    `SELECT name, file_data
+     FROM chat_thread_attachments
+     WHERE thread_id = $1 AND user_id = $2 AND file_data IS NOT NULL
+       AND mime_type = 'application/pdf'
+     ORDER BY created_at DESC`,
+    [threadId, userId]
+  );
+
   return result.map((row) => ({
     name: row.name as string,
-    mimeType: row.mime_type as string,
     data: row.file_data as string,
   }));
 }

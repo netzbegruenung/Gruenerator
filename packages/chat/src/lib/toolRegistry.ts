@@ -10,6 +10,8 @@ import { z } from 'zod';
 
 import {
   getArray,
+  getBoolean,
+  getNumber,
   getObject,
   getString,
   getToolMeta,
@@ -53,6 +55,8 @@ export const UI_TOOL_NAMES = z.enum([
   'groups',
   'media',
   'notebooks',
+  'read_pdf_form',
+  'fill_pdf_form',
 ]);
 export type UiToolName = z.infer<typeof UI_TOOL_NAMES>;
 
@@ -133,6 +137,42 @@ function parseImageVM(args: unknown, result: unknown): ToolResultVM {
   if (!url) return parseGenericFallback(args, result);
   const prompt = getString(args, 'prompt') ?? getString(image, 'prompt');
   return { kind: 'image', url, prompt, alt: prompt };
+}
+
+/** Field inventory of a PDF form — a compact summary, never the raw list (a
+ *  200-field form would bury the card). */
+function parsePdfFormReadVM(args: unknown, result: unknown): ToolResultVM {
+  const fieldCount = getNumber(result, 'fieldCount');
+  if (fieldCount == null) return parseGenericFallback(args, result);
+  if (fieldCount === 0) {
+    return {
+      kind: 'text-note',
+      text: getString(result, 'note') ?? 'Dieses PDF hat keine ausfüllbaren Formularfelder.',
+    };
+  }
+  const shown = getArray(result, 'fields')?.length ?? 0;
+  const entries: KeyValueEntry[] = [
+    { label: 'Datei', value: getString(result, 'fileName') ?? '—' },
+    { label: 'Felder', value: String(fieldCount) },
+  ];
+  // Paged reads must say so — otherwise the card implies the whole form.
+  if (getBoolean(result, 'hasMore')) {
+    entries.push({ label: 'Gelesen', value: `${shown} von ${fieldCount}` });
+  }
+  return { kind: 'key-value', entries, citations: [], markdown: null, imageUrl: null };
+}
+
+/** Fill outcome. Counts, not the field list — the arrays may be truncated. */
+function parsePdfFormFillVM(args: unknown, result: unknown): ToolResultVM {
+  const fileName = getString(result, 'fileName');
+  const filled = getNumber(result, 'filledCount');
+  if (!fileName || filled == null) return parseGenericFallback(args, result);
+  const skipped = getNumber(result, 'skippedCount');
+  const skipNote = skipped ? ` ${skipped} Feld(er) übersprungen.` : '';
+  return {
+    kind: 'text-note',
+    text: `${filled} Feld(er) in „${fileName}" ausgefüllt.${skipNote}`,
+  };
 }
 
 function parseTextNoteVM(args: unknown, result: unknown): ToolResultVM {
@@ -248,6 +288,10 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   groups: entry('groups', 'citations', parsePersonalDataVM),
   media: entry('media', 'citations', parsePersonalDataVM),
   notebooks: entry('notebooks', 'citations', parsePersonalDataVM),
+  read_pdf_form: entry('read_pdf_form', 'key-value', parsePdfFormReadVM),
+  // The filled file itself renders in the compute card (fileAssets); the tool
+  // card only reports what happened.
+  fill_pdf_form: entry('fill_pdf_form', 'text-note', parsePdfFormFillVM),
 };
 
 /** Lookup that degrades gracefully for unregistered tool names. */
