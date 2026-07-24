@@ -67,7 +67,8 @@ Regeln für den Code:
 - Verwende die ECHTEN Blatt- und Spaltennamen bzw. Zellbezüge aus dem Datei-Kontext. Rate keine Zellen: leite die Zielzelle aus der Beschriftung in der Nachbarzelle ab (Beschriftung in Spalte A → Wert in Spalte B derselben Zeile).
 - Trage NUR Werte ein, die die*der Nutzer*in genannt hat oder die sich eindeutig aus der Datei berechnen lassen. Erfinde nichts; lass unklare Felder leer.
 - Formelzellen NICHT überschreiben — sie rechnen sich selbst.
-- Printe nach dem Speichern eine Zeile pro befülltem Feld im Format \`print("B4 = Wert")\` und zum Schluss \`print("Datei erstellt: <Dateiname>")\`.
+- PRÜFE NACH DEM SPEICHERN NACH: öffne die geschriebene Datei erneut (\`openpyxl.load_workbook("<Zieldatei>")\` bzw. \`pd.read_csv\`) und lies die befüllten Zellen zurück. Verlasse dich nie darauf, dass Schreiben allein geklappt hat.
+- Printe für jedes Feld den ZURÜCKGELESENEN Wert im Format \`print("B4 = " + str(wert))\` und zum Schluss \`print("Datei erstellt: <Dateiname>")\`. Weicht ein zurückgelesener Wert ab oder ist leer, printe zusätzlich \`print("WARNUNG: <Zelle> konnte nicht gesetzt werden")\`.
 - Keine Netzwerkzugriffe. Nur gerade ASCII-Anführungszeichen (") im Code, keine typografischen.
 - Wenn die Anfrage nichts mit dem Ausfüllen dieser Datei zu tun hat, antworte mit {"related": false, "code": ""}`;
 

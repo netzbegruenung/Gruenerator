@@ -102,7 +102,8 @@ const FIELD_TYPE_LABEL: Record<string, string> = {
 export function makeReadPdfFormTool(ctx: PdfFormToolCtx): Tool {
   return tool({
     description:
-      'Listet die ausfüllbaren Felder eines angehängten PDF-Formulars auf (Feldname, Typ, erlaubte Werte, aktueller Inhalt). IMMER zuerst aufrufen, bevor du fill_pdf_form benutzt — nur so kennst du die echten Feldnamen.',
+      'Listet die ausfüllbaren Felder eines angehängten PDF-Formulars auf (Feldname, Typ, erlaubte Werte, aktueller Inhalt). IMMER zuerst aufrufen, bevor du fill_pdf_form benutzt — nur so kennst du die echten Feldnamen. ' +
+      'WICHTIG: Es werden nur Felder gezählt, die im Dokument auch eine sichtbare Position haben. Viele deutsche Behördenformulare (z.B. von MACH formsolutions) enthalten Dutzende benannter Felder OHNE sichtbare Position — dort lässt sich zwar schreiben, das Ergebnis wäre aber ein leeres Dokument. Wenn fieldCount 0 ist, lies den Hinweis in "note" und sage klar, dass automatisches Ausfüllen bei diesem PDF nicht geht. Behaupte NIE, ein Formular sei ausgefüllt, ohne dass fill_pdf_form das bestätigt hat.',
     inputSchema: z.object({
       fileName: z
         .string()
@@ -130,13 +131,20 @@ export function makeReadPdfFormTool(ctx: PdfFormToolCtx): Tool {
         return { error: `Das PDF "${pdf.name}" konnte nicht gelesen werden.` };
       }
 
-      if (fields.length === 0) {
-        // The single most common real-world case for German public forms.
-        // Reported explicitly so the model says so instead of going quiet.
+      // Only fields that can actually SHOW a value count. Some municipal forms
+      // (MACH formsolutions) carry a full set of named fields whose widgets have
+      // no size — writing to them succeeds and yields a blank document.
+      const usable = fields.filter((f) => f.renderable && !f.readOnly);
+
+      if (usable.length === 0) {
+        const reason =
+          fields.length === 0
+            ? `Das PDF "${pdf.name}" enthält keine Formularfelder (flaches bzw. gescanntes Dokument).`
+            : `Das PDF "${pdf.name}" hat zwar ${fields.length} benannte Felder, aber keines davon hat eine sichtbare Position im Dokument — Eintragungen wären in der fertigen Datei unsichtbar.`;
         return {
           fileName: pdf.name,
           fieldCount: 0,
-          note: `Das PDF "${pdf.name}" enthält keine ausfüllbaren Formularfelder (es ist ein flaches bzw. gescanntes Dokument). Automatisches Ausfüllen ist hier nicht möglich. Sage das der*dem Nutzer*in und biete an, die Angaben stattdessen als Text zusammenzustellen.`,
+          note: `${reason} Automatisches Ausfüllen ist hier nicht möglich. Sage das der*dem Nutzer*in klar und biete an, die Angaben stattdessen als Text zusammenzustellen.`,
         };
       }
 
@@ -146,14 +154,14 @@ export function makeReadPdfFormTool(ctx: PdfFormToolCtx): Tool {
       // hundreds of fields) does — silently, so the model would fill 20 fields
       // and report success. A page the model is TOLD about is honest and
       // addressable; a silent cap is neither.
-      const start = Math.min(offset ?? 0, fields.length);
-      const page = fields.slice(start, start + FIELD_PAGE_SIZE);
+      const start = Math.min(offset ?? 0, usable.length);
+      const page = usable.slice(start, start + FIELD_PAGE_SIZE);
       const nextOffset = start + page.length;
-      const hasMore = nextOffset < fields.length;
+      const hasMore = nextOffset < usable.length;
 
       return {
         fileName: pdf.name,
-        fieldCount: fields.length,
+        fieldCount: usable.length,
         shownFrom: start,
         shownTo: nextOffset - 1,
         fields: page.map((f) => ({
@@ -166,7 +174,7 @@ export function makeReadPdfFormTool(ctx: PdfFormToolCtx): Tool {
         ...(hasMore && {
           hasMore: true,
           nextOffset,
-          note: `Das Formular hat ${fields.length} Felder; hier sind ${start}–${nextOffset - 1}. Rufe read_pdf_form erneut mit offset=${nextOffset} auf, BEVOR du ausfüllst — sonst kennst du nicht alle Feldnamen.`,
+          note: `Das Formular hat ${usable.length} ausfüllbare Felder; hier sind ${start}–${nextOffset - 1}. Rufe read_pdf_form erneut mit offset=${nextOffset} auf, BEVOR du ausfüllst — sonst kennst du nicht alle Feldnamen.`,
         }),
       };
     },
@@ -176,7 +184,9 @@ export function makeReadPdfFormTool(ctx: PdfFormToolCtx): Tool {
 export function makeFillPdfFormTool(ctx: PdfFormToolCtx): Tool {
   return tool({
     description:
-      'Füllt die Felder eines angehängten PDF-Formulars aus und stellt die fertige Datei zum Download bereit. Verwende NUR Feldnamen, die read_pdf_form zurückgegeben hat. Trage nur Werte ein, die die*der Nutzer*in genannt hat — erfinde nichts.',
+      'Füllt die Felder eines angehängten PDF-Formulars aus und stellt die fertige Datei zum Download bereit. Verwende NUR Feldnamen, die read_pdf_form zurückgegeben hat. Trage nur Werte ein, die die*der Nutzer*in genannt hat — erfinde nichts. ' +
+      'Das Tool prüft die fertige Datei selbst nach und meldet, ob die Werte darin wirklich lesbar sind: In "geprueft" steht, wie viele der geschriebenen Werte im fertigen Dokument sichtbar sind. ' +
+      'Ein häufiger Fehler bei PDF-Formularen ist, dass ein Wert zwar gespeichert wird, im fertigen Dokument aber unsichtbar bleibt. Verlasse dich deshalb NICHT darauf, dass Schreiben = Erfolg. Prüfe immer "geprueft" und "nichtSichtbar" und nenne der*dem Nutzer*in offen, wenn Werte nicht sichtbar sind, statt einen Erfolg zu melden.',
     inputSchema: z.object({
       fileName: z
         .string()
@@ -223,6 +233,17 @@ export function makeFillPdfFormTool(ctx: PdfFormToolCtx): Tool {
         };
       }
 
+      // The post-condition check read the finished document back. If the values
+      // are not ON the page, the fill "worked" and is still useless — say so
+      // instead of handing over a blank form with a success message.
+      const check = result.verification;
+      if (check && check.visible === 0 && check.missing.length > 0) {
+        return {
+          error: `Die Werte wurden geschrieben, sind in der fertigen Datei aber nicht sichtbar — das PDF "${pdf.name}" lässt sich so nicht ausfüllen.`,
+          hint: 'Sage das der*dem Nutzer*in klar und biete an, die Angaben als Text zusammenzustellen. Es wurde KEINE Datei erzeugt.',
+        };
+      }
+
       const outName = pdf.name.replace(/\.pdf$/i, '') + '_ausgefuellt.pdf';
       // persistComputeAssets moves the base64 to uploads/compute-assets and
       // returns URL-only assets — the same path run_python exports take, so the
@@ -249,7 +270,22 @@ export function makeFillPdfFormTool(ctx: PdfFormToolCtx): Tool {
         fileName: outName,
         filledFields: result.filled,
         ...(Object.keys(result.skipped).length > 0 && { skipped: result.skipped }),
-        note: `Die ausgefüllte Datei "${outName}" steht der*dem Nutzer*in bereits zum Download bereit — erwähne das kurz. Gib KEINEN Link aus.`,
+        // The self-check, always reported — the model must not have to infer
+        // whether the values actually made it onto the page.
+        geprueft: check
+          ? `${check.visible} von ${result.filled.length} geschriebenen Werten sind in der fertigen Datei sichtbar`
+          : 'Sichtbarkeit konnte nicht geprüft werden',
+        // Partial invisibility is worth naming: the file is usable, but the
+        // model must not claim every value made it onto the page.
+        ...(check &&
+          check.missing.length > 0 && {
+            nichtSichtbar: check.missing,
+            warnung:
+              'Diese Werte stehen zwar im Formular, sind in der fertigen Datei aber nicht lesbar — sage das der*dem Nutzer*in offen und melde KEINEN vollständigen Erfolg.',
+          }),
+        note:
+          `Die ausgefüllte Datei "${outName}" steht der*dem Nutzer*in bereits zum Download bereit — erwähne das kurz. Gib KEINEN Link aus. ` +
+          `Nenne dabei auch das Prüfergebnis aus "geprueft", wenn nicht alle Werte sichtbar sind.`,
       };
     },
   });

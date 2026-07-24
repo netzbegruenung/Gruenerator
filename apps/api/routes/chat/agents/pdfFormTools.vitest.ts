@@ -95,6 +95,33 @@ describe('pdfFormTools', () => {
     expect(last.hasMore).toBeUndefined();
   });
 
+  it('reports a form whose fields have no visible position as unfillable', async () => {
+    // The Detmold Zweitwohnungssteuer case: 53 named fields, none of them
+    // placed anywhere. Counting them as "ausfüllbar" produced a blank document
+    // plus a success message.
+    const { PDFDocument, PDFName, PDFNumber, PDFArray } = await import('pdf-lib');
+    const doc = await PDFDocument.create();
+    const page = doc.addPage([600, 400]);
+    const form = doc.getForm();
+    const field = form.createTextField('Vorname(n)');
+    field.addToPage(page, { x: 20, y: 20, width: 100, height: 12 });
+    const zero = PDFArray.withContext(doc.context);
+    for (let i = 0; i < 4; i++) zero.push(PDFNumber.of(0));
+    for (const w of (
+      field as unknown as {
+        acroField: { getWidgets(): Array<{ dict: { set(k: unknown, v: unknown): void } }> };
+      }
+    ).acroField.getWidgets()) {
+      w.dict.set(PDFName.of('Rect'), zero);
+    }
+
+    const { ctx } = makeCtx(Buffer.from(await doc.save()).toString('base64'));
+    const result = await run(makeReadPdfFormTool(ctx), {});
+
+    expect(result.fieldCount).toBe(0);
+    expect(String(result.note)).toMatch(/keines davon hat eine sichtbare Position/);
+  });
+
   it('reports a flat PDF as unfillable instead of failing silently', async () => {
     const { PDFDocument } = await import('pdf-lib');
     const doc = await PDFDocument.create();
@@ -105,7 +132,7 @@ describe('pdfFormTools', () => {
     const result = await run(makeReadPdfFormTool(ctx), {});
 
     expect(result.fieldCount).toBe(0);
-    expect(String(result.note)).toMatch(/keine ausfüllbaren Formularfelder/);
+    expect(String(result.note)).toMatch(/enthält keine Formularfelder/);
   });
 
   it('fills, streams a compute event and seeds the state for persistence', async () => {
@@ -126,6 +153,20 @@ describe('pdfFormTools', () => {
     expect(sent.map((s) => s.event)).toContain('compute');
     expect(state.computedResultFresh).toBe(true);
     expect(state.computedResult).not.toBeNull();
+    // The model must SEE the self-check, not have to assume it happened.
+    expect(String(result.geprueft)).toMatch(/2 von 2 geschriebenen Werten sind .*sichtbar/);
+  });
+
+  it('names the visibility check in both tool descriptions', async () => {
+    // The guard only helps if the model is told to read it — a silent check it
+    // never looks at would leave the "written but invisible" trap wide open.
+    const { ctx } = makeCtx(smallForm);
+    const read = makeReadPdfFormTool(ctx) as { description?: string };
+    const fill = makeFillPdfFormTool(ctx) as { description?: string };
+
+    expect(read.description).toMatch(/sichtbare Position/);
+    expect(fill.description).toMatch(/geprueft/);
+    expect(fill.description).toMatch(/nicht darauf, dass Schreiben = Erfolg/i);
   });
 
   it('asks which PDF is meant instead of filling a random one', async () => {
