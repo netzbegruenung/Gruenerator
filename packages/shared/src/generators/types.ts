@@ -19,23 +19,14 @@ export type AntragRequestType = 'antrag' | 'kleine_anfrage' | 'grosse_anfrage';
 
 // Text type for Universal generator
 export type UniversalTextType =
-  | 'universal'
-  | 'rede'
-  | 'wahlprogramm'
-  | 'buergeranfragen'
-  | 'leichte_sprache';
+  'universal' | 'rede' | 'wahlprogramm' | 'buergeranfragen' | 'leichte_sprache';
 
 // Accessibility mode type
 export type AccessibilityMode = 'alt-text' | 'leichte-sprache';
 
 // Text improver action type
 export type TextImproverAction =
-  | 'improve'
-  | 'rewrite'
-  | 'summarize'
-  | 'spellcheck'
-  | 'formalize'
-  | 'simplify';
+  'improve' | 'rewrite' | 'summarize' | 'spellcheck' | 'formalize' | 'simplify';
 
 // Feature toggles shared across all generators
 export interface GeneratorFeatures {
