@@ -33,8 +33,17 @@ export const TAB_NOTES: TabNote[] = [
     intro:
       'Wer du bist. Name, Benutzername und E-Mail kommen aus deinem Grünen Login und lassen sich hier nur ansehen — ändern kannst du sie dort, wo du dich anmeldest.',
     extras: [
-      'Dein Avatar ist frei wählbar: ein Roboter-Bild aus einer Auswahl, kein Foto-Upload.',
+      'Dein Profilbild ist ein Grünerator Friend — ausgewählt wird er im Bereich „Grünerator Friends", hier siehst du den aktuellen.',
       'Ganz unten kannst du dein Konto endgültig löschen. Das entfernt deine Inhalte und lässt sich nicht rückgängig machen.',
+    ],
+  },
+  {
+    tab: 'friends',
+    intro:
+      'Dein Profilbild: eine Galerie gezeichneter Grünerator-Figuren, aus der du deinen „Friend" wählst. Er erscheint überall dort, wo du auftauchst — in Chats, Projekten und Kommentaren.',
+    extras: [
+      'Ein Klick auf eine Figur übernimmt sie sofort; ein Foto-Upload ist nicht vorgesehen.',
+      'Wolki ist zunächst gesperrt und wird freigeschaltet, sobald du deine Grüne Wolke verbunden hast.',
     ],
   },
   {
@@ -87,6 +96,15 @@ export const TAB_NOTES: TabNote[] = [
     tab: 'konnektoren',
     intro:
       'Externe Dienste, die der Chat mitbenutzen darf. Ist einer verbunden, kannst du ihn im Gespräch ansprechen — wie das im Detail geht, steht unter Konnektoren.',
+  },
+  {
+    tab: 'nutzung',
+    intro:
+      'Was dein Konto verbraucht hat — echte Zahlen statt einer abstrakten Quote: KI-Anfragen und Tokens pro Tag, dazu erzeugte Bilder, Transkriptionen und Web-Recherchen.',
+    extras: [
+      'Der Zeitraum ist umschaltbar (7, 30 oder 90 Tage); Tabellen schlüsseln den Verbrauch nach Bereich und nach Modell auf.',
+      'Hier gibt es nichts einzustellen — der Bereich zeigt nur an. Automatische Hintergrundprozesse zählen nicht mit.',
+    ],
   },
   {
     tab: 'support',

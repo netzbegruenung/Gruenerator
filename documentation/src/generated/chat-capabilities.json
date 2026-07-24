@@ -9,6 +9,7 @@
     "chat_history",
     "compare",
     "compute",
+    "create_pdf",
     "create_presentation",
     "create_recurring_task",
     "create_sheet",
@@ -16,6 +17,7 @@
     "edit_current_board",
     "edit_current_doc",
     "examples",
+    "hilfe",
     "hotel",
     "image",
     "image_edit",
@@ -86,6 +88,11 @@
       "description": "Erstellt ein Dokument aus dem Chatverlauf",
       "mention": "@dokument-erstellen"
     },
+    "hilfe": {
+      "title": "Hilfe & Anleitungen",
+      "description": "Anleitungen zum Grünerator aus der Doku",
+      "mention": "@doku"
+    },
     "image": {
       "title": "Bildgenerierung",
       "description": "Bild mit KI generieren (Flux)",
@@ -100,6 +107,11 @@
       "title": "Bild bearbeiten",
       "description": "Angehängtes Bild frei bearbeiten (z.B. \"jünger machen\", \"mehr Grün\")",
       "mention": "@bildbearbeiten"
+    },
+    "pdf-erstellen": {
+      "title": "PDF erstellen",
+      "description": "Erstellt ein barrierefreies PDF (PDF/UA-1) — Dokument, Brief mit Briefkopf oder ausfüllbares Formular",
+      "mention": "@pdf-erstellen"
     },
     "praesentation-erstellen": {
       "title": "Präsentation erstellen",
@@ -167,6 +179,10 @@
     "meinungsbild": {
       "label": "Umfragen",
       "description": "Ruft aktuelle Umfragewerte ab."
+    },
+    "pdf_form": {
+      "label": "Formulare ausfüllen",
+      "description": "Liest die Felder eines angehängten PDF-Formulars und füllt sie aus; die fertige Datei steht zum Download bereit."
     },
     "scrape": {
       "label": "Webseiten lesen",
