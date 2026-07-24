@@ -77,6 +77,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Du kannst dir im KI-Chat einen kompletten Social-Media-Post in einem Schritt erstellen lassen: Posttext und passende Sharepic-Grafik zusammen, in einer Karte."
   },
   {
+    "url": "/docs/gruenerieren/was-kann-ich-fragen",
+    "title": "Was kann ich fragen?",
+    "category": "Grünerieren",
+    "lead": "Der Grünerator ist kein Suchfeld mit festen Befehlen — du schreibst in normalem Deutsch, was du brauchst. Diese Seite zeigt, was dabei alles möglich ist, mit Musterfragen zum Abschauen und Weiterschr…"
+  },
+  {
     "url": "/docs/gruenerieren/websuche",
     "title": "Websuche",
     "category": "Grünerieren",
@@ -580,6 +586,38 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#was-du-mit-der-karte-machen-kannst",
     "category": "Grünerieren",
     "text": "Variante wählen: Klicke eine der drei Miniaturen an, um die Vorschau umzuschalten. Text kopieren: Über das Kopieren-Symbol übernimmst du die Caption direkt in die Zwischenablage. Herunterladen: Lädt die gewählte Sharepic-Variante als Bild herunter. Im Studio öffnen: Öffnet die Grafik im Sharepic-Studio, wo du Text, Farben und Layout weiter anpassen kannst. Im Chat bearbeiten: Beschreibe Änderungen einfach als Nachricht (z. B. „mach den Zitat-Text kürzer\" oder „anderer Hintergrund\") — der Grünerator passt Text oder Grafik direkt an. Nenne den Kanal in deiner Anfrage (Instagram, Facebook, LinkedIn …), damit Tonalität, Länge und Hashtags dazu passen."
+  },
+  {
+    "url": "/docs/gruenerieren/was-kann-ich-fragen",
+    "pageTitle": "Was kann ich fragen?",
+    "heading": "Was kann ich fragen?",
+    "anchor": "",
+    "category": "Grünerieren",
+    "text": "Der Grünerator ist kein Suchfeld mit festen Befehlen — du schreibst in normalem Deutsch, was du brauchst. Diese Seite zeigt, was dabei alles möglich ist, mit Musterfragen zum Abschauen und Weiterschreiben. Du findest den Chat unter dem Menüpunkt . Wie du dort Skills, Quellen und Dateien auswählst, steht unter KI-Chat."
+  },
+  {
+    "url": "/docs/gruenerieren/was-kann-ich-fragen",
+    "pageTitle": "Was kann ich fragen?",
+    "heading": "So stellst du eine gute Frage",
+    "anchor": "#so-stellst-du-eine-gute-frage",
+    "category": "Grünerieren",
+    "text": "Einfach lostippen. Der Grünerator erkennt an deiner Formulierung selbst, ob er nachschlagen, recherchieren, rechnen oder etwas erstellen soll. „Was steht im Grundsatzprogramm zum Mietendeckel?\" reicht — du musst kein Werkzeug auswählen. Nenne das Ziel, nicht den Weg. Statt „such im Web und schreib dann einen Post\" genügt „Schreib einen Instagram-Post zum aktuellen Stand der Wärmewende\". Mehrschrittige Aufträge löst der Grünerator in einem Rutsch. Werde konkret, wenn es darauf ankommt. Ort, Zeitraum, Länge und Zielgruppe verbessern das Ergebnis spürbar: „Pressemitteilung, etwa 2.000 Zeichen, für die Lokalpresse in Kassel.\" Mit @ steuerst du gezielt. Eine Erwähnung legt fest, worauf sich die Antwort stützt — eine Quelle, ein Dokument, ein Board oder ein verbundener Dienst. Mit / wählst du einen Schreib-Skill. Nachfragen ist erwünscht. Antworten lassen sich im Gespräch weiterentwickeln: „kürzer\", „sachlicher\", „mach ein Sharepic daraus\". Der Grünerator behält den Zusammenhang. „Was kannst du?\" oder „Wie erstelle ich ein Sharepic?\" beantwortet der Chat direkt — er kennt seinen eigenen Funktionsumfang."
+  },
+  {
+    "url": "/docs/gruenerieren/was-kann-ich-fragen",
+    "pageTitle": "Was kann ich fragen?",
+    "heading": "Was du fragen kannst",
+    "anchor": "#was-du-fragen-kannst",
+    "category": "Grünerieren",
+    "text": "Anfordern musst du nichts davon — es genügt, die Frage zu stellen. Die Kennzeichnungen an den Karten bedeuten: @kürzel — für diese Fähigkeit gibt es zusätzlich eine Erwähnung, mit der du sie im Eingabefeld vorwählen kannst. Nur ein Teil der Fähigkeiten hat so ein Kürzel, und das ist Absicht: Erwähnungen gibt es dort, wo die Vorauswahl wirklich etwas ändert — bei Quellen, die man gezielt ansteuert, und bei Formaten, die man bewusst wählt. Alles Übrige erkennt der Grünerator zuverlässig an der Formulierung allein („Wie wird das Wetter am Samstag?\" braucht kein @wetter), deshalb gibt es dafür bewusst keine Abkürzung. experimentell — noch jung. Funktioniert, kann sich aber in Bedienung und Ergebnis noch ändern und ist nicht überall verfügbar. Verlass dich für etwas Wichtiges nicht blind darauf. Werkzeug: … — diese Fähigkeit lässt sich in eigenen Grüneratoren gezielt an- und abschalten. Zusatzquelle: … — dahinter steckt ein externer Dienst (Bahn, Wetterdienst, tagesschau, trivago), der pro Umgebung angebunden wird. Fehlt die Anbindung gerade, bleibt die Frage nicht unbeantwortet: der Grünerator weicht auf die Websuche aus — bei Zugverbindungen dann ohne Live-Daten."
+  },
+  {
+    "url": "/docs/gruenerieren/was-kann-ich-fragen",
+    "pageTitle": "Was kann ich fragen?",
+    "heading": "Wenn etwas nicht geht",
+    "anchor": "#wenn-etwas-nicht-geht",
+    "category": "Grünerieren",
+    "text": "Manches ist nur in der Web-Version möglich. Sharepics und einige Editor-Funktionen brauchen die große Oberfläche; in der App wirst du dorthin weitergeleitet. Einige Quellen decken nur Deutschland ab. Bundestag, Abgeordnetenwatch, Bahn und tagesschau beziehen sich auf deutsche Daten. Bei österreichischen Fragen weicht der Grünerator auf die Websuche aus. Nicht jede Zusatzquelle ist überall angebunden. Bahn, Wetterdienst, tagesschau und trivago werden pro Umgebung eingerichtet. Fehlt eine, greift der Grünerator auf die Websuche zurück und sagt dazu, worauf die Antwort beruht — erfundene Abfahrtszeiten gibt es nicht. Erfindet der Grünerator nichts? Bei Recherchen und Datenquellen nennt er die Belege. Prüfe Zahlen und Zitate trotzdem, bevor sie nach außen gehen — mehr dazu unter Risiken und Gefahren von LLMs. Du nutzt den Grünerator in ChatGPT, Claude oder Le Chat? Dort steht ein kleinerer Funktionsumfang bereit — was dann möglich ist, steht unter Was kann ich den MCP-Server fragen?. Namen, Beschreibungen und Kürzel stammen direkt aus dem Programmcode des Grünerators. Kommt eine neue Fähigkeit dazu, meldet sich die Doku-Prüfung automatisch mit einem Hinweis, bis sie hier mit Musterfrag"
   },
   {
     "url": "/docs/gruenerieren/websuche",
