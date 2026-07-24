@@ -3,25 +3,6 @@ import { useState } from 'react';
 import { parseEndpointResponse } from '../../utils/responseParser';
 import { processText } from '../utils/apiClient';
 
-// Helper function to determine generator type from endpoint
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const getGeneratorTypeFromEndpoint = (endpoint: string): string | undefined => {
-  const endpointMap: Record<string, string> = {
-    '/claude_social': 'social_media',
-    claude_social: 'social_media',
-    'claude/antrag': 'antrag',
-    'claude/antrag-simple': 'antrag',
-    'antraege/generate-simple': 'antrag',
-    '/claude_universal': 'universal',
-    claude_universal: 'universal',
-    '/claude_rede': 'universal',
-    claude_rede: 'universal',
-    '/claude_wahlprogramm': 'universal',
-    claude_wahlprogramm: 'universal',
-  };
-  return endpointMap[endpoint];
-};
-
 interface ApiSubmitOptions {
   [key: string]: unknown;
 }
@@ -60,8 +41,8 @@ const useApiSubmit = (endpoint: string) => {
 
       const response = (await processText(endpoint, requestData)) as ApiSubmitResponse;
 
-      // Special validation for /claude_social endpoint to catch raw AI responses
-      if (endpoint === '/claude_social' && response && typeof response === 'object') {
+      // Special validation for the social endpoint to catch raw AI responses
+      if (endpoint === '/texte/social' && response && typeof response === 'object') {
         if ('tool_calls' in response) {
           console.error(
             '[useApiSubmit] Received raw AI response with tool_calls - this should have been handled by backend:',

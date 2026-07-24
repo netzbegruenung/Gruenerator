@@ -22,7 +22,7 @@ export const dreizeilenTypeConfig: TemplateTypeConfig = {
   inputBeforeImage: true,
   parallelPreload: true,
   endpoints: {
-    text: '/dreizeilen_claude',
+    text: '/sharepic/text/dreizeilen',
     canvas: '/dreizeilen_canvas',
   },
   formComponent: 'DreizeilenForm',

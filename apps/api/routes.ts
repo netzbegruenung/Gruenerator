@@ -9,6 +9,7 @@ import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { env } from './config/env.js';
 import { requireAdminToken } from './middleware/adminTokenMiddleware.js';
 import authMiddleware from './middleware/authMiddleware.js';
+import { deprecatedRoute } from './middleware/deprecatedRoute.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
 import { mountGroupsContractRouter } from './routes/auth/groups/groupsContract/index.js';
@@ -105,11 +106,12 @@ import veranstaltungCanvasRoute from './routes/sharepic/sharepic_canvas/veransta
 import zitatSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/zitat_canvas.js';
 import zitatPureSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/zitat_pure_canvas.js';
 // Österreich (de-AT) canvas renderers
-import sharepicClaudeRoute, {
-  handleClaudeRequest,
+import {
+  handleSharepicTextRequest,
   handleSliderSmartRequest,
-} from './routes/sharepic/sharepic_claude/index.js';
-import { type SharepicRequest } from './routes/sharepic/sharepic_claude/types.js';
+  type SharepicType,
+} from './routes/sharepic/sharepic_text/index.js';
+import { type SharepicRequest } from './routes/sharepic/sharepic_text/types.js';
 import { mountSheetsContractRouter } from './routes/sheets/sheetsContractRouter.js';
 import { mountSitesContractRouter } from './routes/sites/sitesContractRouter.js';
 import subtitlerRouter from './routes/subtitler/processingController.js';
@@ -118,8 +120,8 @@ import subtitlerShareRouter from './routes/subtitler/shareController.js';
 import { mountSubtitlerContractRouter } from './routes/subtitler/subtitlerContractRouter.js';
 import {
   universalRouter,
-  textAdjustmentRouter as claudeTextAdjustmentRoute,
-  leichteSpracheRouter as leichteSpracheRoute,
+  textAdjustmentRouter,
+  leichteSpracheRouter,
 } from './routes/texte/index.js';
 import { mountTransferContractRouter } from './routes/transfer/transferContractRouter.js';
 import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractRouter.js';
@@ -281,9 +283,9 @@ export async function setupRoutes(app: Application): Promise<void> {
     groupsRouter: _userGroupsRouter,
   } = await import('./routes/auth/index.js');
   const { default: documentsRouter } = await import('./routes/documents/index.js');
-  const { default: claudeSocialRoute } = await import('./routes/texte/social.js');
-  const { default: claudeAlttextRoute } = await import('./routes/texte/alttext.js');
-  const { default: claudeWebsiteRoute } = await import('./routes/texte/website.js');
+  const { default: socialRoute } = await import('./routes/texte/social.js');
+  const { default: alttextRoute } = await import('./routes/texte/alttext.js');
+  const { default: websiteRoute } = await import('./routes/texte/website.js');
   const { default: customPromptRoute } = await import('./routes/custom_prompts/custom_prompt.js');
   const { internalNotebookRouter } = await import('./routes/notebook/index.js');
   const { internalAgentInsightRouter } =
@@ -420,11 +422,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/scanner', publicReadLimiter, scannerRouter);
   app.use('/api/protokoll', publicReadLimiter, protokollRouter);
 
-  app.use('/api/claude_social', aiGenerationLimiter, claudeSocialRoute);
-  app.use('/api/claude_alttext', aiGenerationLimiter, claudeAlttextRoute);
+  app.use('/api/texte/social', aiGenerationLimiter, socialRoute);
+  app.use('/api/texte/alttext', aiGenerationLimiter, alttextRoute);
   app.use('/api/vision', aiGenerationLimiter, requireAuth, visionRouter);
-  app.use('/api/claude_website', aiGenerationLimiter, claudeWebsiteRoute);
-  app.use('/api/leichte_sprache', aiGenerationLimiter, leichteSpracheRoute);
+  app.use('/api/texte/website', aiGenerationLimiter, websiteRoute);
+  app.use('/api/texte/leichte-sprache', aiGenerationLimiter, leichteSpracheRouter);
   // ts-rest contract routers — mount before legacy routers.
   // Apply requireAuth on the path prefixes BEFORE the mount calls so
   // unauthenticated requests get a 401 instead of crashing the handlers
@@ -539,71 +541,63 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/profilbild_canvas', standardMutationLimiter, requireAuth, profilbildCanvasRoute);
   app.use('/api/simple_canvas', standardMutationLimiter, requireAuth, simpleCanvasRoute);
   app.use('/api/slider_canvas', standardMutationLimiter, requireAuth, sliderCanvasRoute);
-  app.use('/api/dreizeilen_claude', aiGenerationLimiter, requireAuth, sharepicClaudeRoute);
+  // Sharepic-Textgenerierung: ein Handler für alle Typen. Muss VOR
+  // `app.use('/api/sharepic', promptRoute)` stehen, damit /text/:type matcht.
+  const SHAREPIC_TEXT_TYPES: readonly SharepicType[] = [
+    'dreizeilen',
+    'zitat',
+    'zitat_pure',
+    'info',
+    'veranstaltung',
+    'simple',
+    'slider',
+    'default',
+  ];
+
+  const runSharepicText = async (
+    type: SharepicType,
+    req: Request,
+    res: Response
+  ): Promise<void> => {
+    if (type === 'slider' && (req.body as { smartCount?: unknown })?.smartCount) {
+      await handleSliderSmartRequest(req as SharepicRequest, res);
+      return;
+    }
+    await handleSharepicTextRequest(req as SharepicRequest, res, type);
+  };
+
+  app.post(
+    '/api/sharepic/text/:type',
+    aiGenerationLimiter,
+    requireAuth,
+    async (req: Request<{ type: string }>, res: Response): Promise<void> => {
+      const type = SHAREPIC_TEXT_TYPES.find((t) => t === req.params.type);
+      if (!type) {
+        res.status(400).json({ error: `Unbekannter Sharepic-Texttyp: ${req.params.type}` });
+        return;
+      }
+      await runSharepicText(type, req, res);
+    }
+  );
+
+  // DEPRECATED — die flachen `*_claude`-Pfade bleiben nur, bis das naechste
+  // Mobile-Release und der Desktop-Rebuild draussen sind. Danach ersatzlos
+  // entfernen; kanonisch ist POST /api/sharepic/text/:type.
+  for (const type of SHAREPIC_TEXT_TYPES) {
+    app.post(
+      `/api/${type}_claude`,
+      deprecatedRoute(`/api/sharepic/text/${type}`),
+      aiGenerationLimiter,
+      requireAuth,
+      async (req: Request, res: Response): Promise<void> => {
+        await runSharepicText(type, req, res);
+      }
+    );
+  }
+
   app.use('/api/sharepic/edit-session', standardMutationLimiter, requireAuth, editSessionRouter);
   app.use('/api/sharepic', aiGenerationLimiter, promptRoute);
   app.use('/api/background-removal', aiGenerationLimiter, requireAuth, backgroundRemovalRoute);
-
-  app.post(
-    '/api/zitat_claude',
-    aiGenerationLimiter,
-    requireAuth,
-    async (req: Request, res: Response): Promise<void> => {
-      await handleClaudeRequest(req as SharepicRequest, res, 'zitat');
-    }
-  );
-  app.post(
-    '/api/info_claude',
-    aiGenerationLimiter,
-    requireAuth,
-    async (req: Request, res: Response): Promise<void> => {
-      await handleClaudeRequest(req as SharepicRequest, res, 'info');
-    }
-  );
-  app.post(
-    '/api/veranstaltung_claude',
-    aiGenerationLimiter,
-    requireAuth,
-    async (req: Request, res: Response): Promise<void> => {
-      await handleClaudeRequest(req as SharepicRequest, res, 'veranstaltung');
-    }
-  );
-  app.post(
-    '/api/zitat_pure_claude',
-    aiGenerationLimiter,
-    requireAuth,
-    async (req: Request, res: Response): Promise<void> => {
-      await handleClaudeRequest(req as SharepicRequest, res, 'zitat_pure');
-    }
-  );
-  app.post(
-    '/api/simple_claude',
-    aiGenerationLimiter,
-    requireAuth,
-    async (req: Request, res: Response): Promise<void> => {
-      await handleClaudeRequest(req as SharepicRequest, res, 'simple');
-    }
-  );
-  app.post(
-    '/api/slider_claude',
-    aiGenerationLimiter,
-    requireAuth,
-    async (req: Request, res: Response): Promise<void> => {
-      if ((req.body as { smartCount?: unknown })?.smartCount) {
-        await handleSliderSmartRequest(req as SharepicRequest, res);
-      } else {
-        await handleClaudeRequest(req as SharepicRequest, res, 'slider');
-      }
-    }
-  );
-  app.post(
-    '/api/default_claude',
-    aiGenerationLimiter,
-    requireAuth,
-    async (req: Request, res: Response): Promise<void> => {
-      await handleClaudeRequest(req as SharepicRequest, res, 'default');
-    }
-  );
 
   app.post(
     '/api/generate-sharepic',
@@ -632,13 +626,50 @@ export async function setupRoutes(app: Application): Promise<void> {
     }
   );
 
+  app.use('/api/texte/adjustment', aiGenerationLimiter, requireAuth, textAdjustmentRouter);
+  app.use('/api/texte/universal', aiGenerationLimiter, requireAuth, universalRouter);
+
+  // DEPRECATED — flache `claude_*`-Pfade der ersten Generatoren-Generation.
+  // Bleiben nur, bis das naechste Mobile-Release und der Desktop-Rebuild
+  // draussen sind; danach ersatzlos entfernen.
+  app.use(
+    '/api/claude_social',
+    deprecatedRoute('/api/texte/social'),
+    aiGenerationLimiter,
+    socialRoute
+  );
+  app.use(
+    '/api/claude_alttext',
+    deprecatedRoute('/api/texte/alttext'),
+    aiGenerationLimiter,
+    alttextRoute
+  );
+  app.use(
+    '/api/claude_website',
+    deprecatedRoute('/api/texte/website'),
+    aiGenerationLimiter,
+    websiteRoute
+  );
+  app.use(
+    '/api/leichte_sprache',
+    deprecatedRoute('/api/texte/leichte-sprache'),
+    aiGenerationLimiter,
+    leichteSpracheRouter
+  );
   app.use(
     '/api/claude_text_adjustment',
+    deprecatedRoute('/api/texte/adjustment'),
     aiGenerationLimiter,
     requireAuth,
-    claudeTextAdjustmentRoute
+    textAdjustmentRouter
   );
-  app.use('/api/claude_universal', aiGenerationLimiter, requireAuth, universalRouter);
+  app.use(
+    '/api/claude_universal',
+    deprecatedRoute('/api/texte/universal'),
+    aiGenerationLimiter,
+    requireAuth,
+    universalRouter
+  );
   app.use('/api/texte/playground', requireAuth, aiGenerationLimiter, playgroundRouter);
   app.use('/api/custom_prompt', aiGenerationLimiter, customPromptRoute);
   app.use('/api/auth/custom_prompt', aiGenerationLimiter, customPromptRoute);
