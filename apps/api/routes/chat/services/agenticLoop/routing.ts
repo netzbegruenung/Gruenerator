@@ -64,6 +64,7 @@ export const COMPOUND_GENERATION_INTENTS: ReadonlySet<string> = new Set([
   'sharepic',
   'create_presentation',
   'create_sheet',
+  'create_pdf',
 ]);
 
 /**
@@ -75,7 +76,7 @@ export const COMPOUND_GENERATION_INTENTS: ReadonlySet<string> = new Set([
  * fixed-text/direct-dispatch contract.
  */
 const GENERATION_NOUN_RE =
-  /\b(sharepic|share-pic|grafik|kachel|pr[äa]sentation|presentation|folien?|slides?|tabelle|kalkulation|spreadsheet|sheet|dokument|schriftst[üu]ck|textdokument|entwurf|board|kanban|aufgabenboard|taskboard)\b/i;
+  /\b(sharepic|share-pic|grafik|kachel|pr[äa]sentation|presentation|folien?|slides?|tabelle|kalkulation|spreadsheet|sheet|dokument|schriftst[üu]ck|textdokument|entwurf|board|kanban|aufgabenboard|taskboard|pdf|briefkopf|antragsformular|anmeldeformular|fragebogen)\b/i;
 const RESEARCH_SIGNAL_RE =
   /\b(recherchier\w*|such[e]?\b|finde|informier\w*|aktuell\w*|zahlen|fakten|daten|statistik\w*|position\w*|programm\w*|beschl(u|ü)ss\w*|was\s+sag(t|en)|abgestimmt|studie\w*)\b/i;
 
@@ -121,7 +122,13 @@ export function isEditorSurface(enabledTools: Record<string, boolean> | undefine
   );
 }
 
-export type CompoundGenerationKind = 'sharepic' | 'presentation' | 'sheet' | 'document' | 'board';
+export type CompoundGenerationKind =
+  | 'sharepic'
+  | 'presentation'
+  | 'sheet'
+  | 'document'
+  | 'board'
+  | 'pdf';
 
 // Per-artifact nouns, used to recover the generation KIND from the text when the
 // intent no longer names it (a demoted `agentic` turn, or a `direct` misroute).
@@ -129,6 +136,8 @@ const SHAREPIC_NOUN_RE = /\b(sharepic|share-pic|grafik|kachel)\b/i;
 const PRESENTATION_NOUN_RE = /\b(pr[äa]sentation|presentation|folien?|slides?)\b/i;
 const SHEET_NOUN_RE = /\b(tabelle|kalkulation|spreadsheet|sheet)\b/i;
 const BOARD_NOUN_RE = /\b(board|kanban|aufgabenboard|taskboard)\b/i;
+const PDF_NOUN_RE =
+  /\b(pdf|briefkopf|antragsformular|anmeldeformular|fragebogen|(ausf(ü|ue)llbar)[a-zäöü]*\s+(formular|vorlage))\b/i;
 const DOCUMENT_NOUN_RE = /\b(dokument|schriftst[üu]ck|textdokument|entwurf)\b/i;
 
 /**
@@ -146,13 +155,16 @@ export function compoundGenerationKind(intent: string, raw: string): CompoundGen
   if (intent === 'sharepic') return 'sharepic';
   if (intent === 'create_presentation') return 'presentation';
   if (intent === 'create_sheet') return 'sheet';
+  if (intent === 'create_pdf') return 'pdf';
   if (intent === 'agentic' || intent === 'direct') {
     // Order = specificity: the concrete products first, the generic "Dokument"
     // last (it's the fallback artifact when nothing more specific matches).
+    // pdf before document: "PDF-Dokument" names both nouns but means a PDF.
     if (SHAREPIC_NOUN_RE.test(t)) return 'sharepic';
     if (PRESENTATION_NOUN_RE.test(t)) return 'presentation';
     if (SHEET_NOUN_RE.test(t)) return 'sheet';
     if (BOARD_NOUN_RE.test(t)) return 'board';
+    if (PDF_NOUN_RE.test(t)) return 'pdf';
     if (DOCUMENT_NOUN_RE.test(t)) return 'document';
   }
   return null;
