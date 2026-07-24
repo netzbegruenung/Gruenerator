@@ -768,6 +768,9 @@ export async function streamAgenticResponse(params: {
       text = finalState.editorEditsSummary
         ? `Erledigt — ${finalState.editorEditsSummary}.`
         : 'Ich konnte dazu leider keine passende Antwort finden. Magst du deine Frage anders formulieren?';
+      // Replacement text invalidates offsets recorded against the streamed
+      // (whitespace-only) text — drop them so reload keeps cards-first.
+      for (const s of steps) delete s.textOffset;
       startResponse();
       sse.send('text_delta', { text });
     }
@@ -780,6 +783,7 @@ export async function streamAgenticResponse(params: {
       text = aborted
         ? 'Das hat leider zu lange gedauert. Magst du es noch einmal versuchen oder die Frage eingrenzen?'
         : 'Bei der Antwort ist etwas schiefgelaufen. Versuch es bitte gleich noch einmal.';
+      for (const s of steps) delete s.textOffset;
       startResponse();
       sse.send('text_delta', { text });
     }
