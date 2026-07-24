@@ -110,6 +110,4 @@ export interface QuestionFlowReceiptProps extends BaseRuntimeProps, Serializable
 }
 
 export type QuestionFlowProps =
-  | QuestionFlowProgressiveProps
-  | QuestionFlowUpfrontProps
-  | QuestionFlowReceiptProps;
+  QuestionFlowProgressiveProps | QuestionFlowUpfrontProps | QuestionFlowReceiptProps;
