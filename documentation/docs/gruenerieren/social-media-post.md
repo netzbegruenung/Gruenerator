@@ -6,7 +6,7 @@ sidebar_position: 3
 
 Du kannst dir im [KI-Chat](./ki-chat.mdx) einen kompletten Social-Media-Post in einem Schritt erstellen lassen: **Posttext und passende Sharepic-Grafik zusammen**, in einer Karte.
 
-:::warning Experimentelles Feature
+:::warning[Experimentelles Feature]
 Diese Funktion ist noch in der Erprobung. Verhalten und Ergebnisse können sich ändern, und nicht alles funktioniert schon zuverlässig. Prüfe Text und Grafik vor der Veröffentlichung immer selbst.
 :::
 
@@ -29,7 +29,7 @@ Der Grünerator erzeugt daraufhin eine Karte mit:
 - **Im Studio öffnen:** Öffnet die Grafik im [Sharepic-Studio](./ki-chat.mdx), wo du Text, Farben und Layout weiter anpassen kannst.
 - **Im Chat bearbeiten:** Beschreibe Änderungen einfach als Nachricht (z. B. „mach den Zitat-Text kürzer" oder „anderer Hintergrund") — der Grünerator passt Text oder Grafik direkt an.
 
-:::tip Kanal wählen
+:::tip[Kanal wählen]
 Nenne den Kanal in deiner Anfrage (Instagram, Facebook, LinkedIn …), damit Tonalität, Länge und Hashtags dazu passen.
 :::
 
@@ -46,7 +46,7 @@ Ohne weitere Angabe bekommst du die drei Varianten **Dreizeiler**, **Zitat** und
 
 Beispiel: _„Erstelle ein Zitat-Sharepic zu Artenschutz"_ liefert direkt die Zitat-Variante.
 
-:::note Karussell / Slider
+:::note[Karussell / Slider]
 Ein **Slider** (mehrseitiges Insta-Karussell) ist ein eigenständiges Format und wird nur auf ausdrückliche Anfrage erzeugt — nicht als Teil der drei Standard-Varianten. Frag ihn z. B. mit _„… als Karussell"_ an.
 :::
 

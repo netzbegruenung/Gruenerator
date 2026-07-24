@@ -23,7 +23,7 @@ Die Websuche steht dir bei den meisten Grüneratoren zur Verfügung. Aktiviere e
 
 Bei einem Antrag zum Thema "Solarenergie in Kommunen fördern" durchsucht die Websuche das Internet nach aktuellen Informationen zu diesem Thema. Diese Informationen fließen automatisch in deinen Antrag ein.
 
-:::info Intelligente Zusammenfassung
+:::info[Intelligente Zusammenfassung]
 Die gefundenen Informationen werden von einer KI sinnvoll zusammengefasst und auf das Wesentliche reduziert. So erhältst du nur relevante Inhalte für deinen Text.
 :::
 

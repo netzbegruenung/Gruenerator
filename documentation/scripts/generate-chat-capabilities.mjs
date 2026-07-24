@@ -13,21 +13,27 @@
  *     env-gated everyday sources (Bahn, Wetter, Nachrichten, Hotel).
  *
  * The docs article embeds this via <ChatCapabilities>, which pairs every intent
- * with hand-written example questions and THROWS at build time when an intent
- * has none — so adding an intent in code fails `docusaurus build` until someone
- * documents what you can ask for it. That is the auto-update loop: names and
- * descriptions flow in on regeneration, new capabilities are forced into the
- * article by a red build.
+ * with hand-written example questions in ChatCapabilities/examples.ts.
+ *
+ * Drift between the two is REPORTED, not thrown: `--audit` compares the code's
+ * capabilities against what the article documents and, with `--apply`, files or
+ * updates one deduplicated GitHub issue (and closes it once the gap is filled).
+ * A new chat capability therefore never breaks anyone's build — it shows up as a
+ * task, the same shape as the weekly docs-freshness audit.
  *
  * Extraction is AST-based (TypeScript compiler API), never an import: these
  * modules pull in react-icons and workspace aliases that don't resolve under
  * plain Node. We only read string literals, so the app is never executed.
  *
  * Usage:
- *   node scripts/generate-chat-capabilities.mjs           # write the JSON
- *   node scripts/generate-chat-capabilities.mjs --check   # fail if committed JSON is stale
+ *   node scripts/generate-chat-capabilities.mjs                  # write the JSON
+ *   node scripts/generate-chat-capabilities.mjs --check          # exit 1 if the committed JSON is stale
+ *   node scripts/generate-chat-capabilities.mjs --audit          # report drift (always exit 0)
+ *   node scripts/generate-chat-capabilities.mjs --audit --apply  # …and sync the GitHub issue
+ *   node scripts/generate-chat-capabilities.mjs --audit --pr-comment  # …and post a sticky PR comment
  */
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { appendFileSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -240,8 +246,227 @@ function generate() {
   };
 }
 
+// ── Audit: what the code can do vs. what the article documents ──────────────
+
+const EXAMPLES_FILE = 'documentation/src/components/ChatCapabilities/examples.ts';
+const ARTICLE = 'documentation/docs/gruenerieren/was-kann-ich-fragen.mdx';
+const ISSUE_LABEL = 'docs-freshness';
+const ISSUE_TITLE = 'Docs freshness: Chat-Fähigkeiten ohne Musterfragen';
+const ISSUE_MARKER = '<!-- docs-capabilities -->';
+
+/** The intents the article documents, read from examples.ts by AST. */
+function extractDocumented() {
+  const sf = parse(EXAMPLES_FILE);
+  const examples = [];
+  const decl = unwrap(findDeclaration(sf, 'EXAMPLES'));
+  if (decl && ts.isArrayLiteralExpression(decl)) {
+    for (const el of decl.elements) {
+      if (!ts.isObjectLiteralExpression(el)) continue;
+      const intent = stringProp(el, 'intent');
+      if (!intent) continue;
+      examples.push({
+        intent,
+        mentionable: stringProp(el, 'mentionable'),
+        userTool: stringProp(el, 'userTool'),
+      });
+    }
+  }
+
+  const internal = [];
+  const internalDecl = unwrap(findDeclaration(sf, 'INTERNAL_INTENTS'));
+  if (internalDecl && ts.isObjectLiteralExpression(internalDecl)) {
+    for (const p of internalDecl.properties) {
+      if (!ts.isPropertyAssignment(p) || !p.name) continue;
+      if (ts.isIdentifier(p.name) || ts.isStringLiteral(p.name)) internal.push(p.name.text);
+    }
+  }
+
+  return { examples, internal };
+}
+
+function auditDrift(manifest) {
+  const { examples, internal } = extractDocumented();
+  const documented = new Set([...examples.map((e) => e.intent), ...internal]);
+  const known = new Set(manifest.intents);
+
+  return {
+    undocumented: manifest.intents.filter((i) => !documented.has(i)),
+    obsolete: [...documented].filter((i) => !known.has(i)).sort(),
+    danglingMentionables: examples
+      .filter((e) => e.mentionable && !manifest.mentionables[e.mentionable])
+      .map((e) => `${e.intent} → ${e.mentionable}`),
+    danglingTools: examples
+      .filter((e) => e.userTool && !manifest.userTools[e.userTool])
+      .map((e) => `${e.intent} → ${e.userTool}`),
+  };
+}
+
+function buildReport(drift, manifestStale) {
+  const lines = [ISSUE_MARKER, ''];
+  lines.push(
+    `Die Chat-Fähigkeiten im Code und der Artikel [\`was-kann-ich-fragen.mdx\`](${ARTICLE}) laufen auseinander.`,
+    ''
+  );
+
+  if (drift.undocumented.length > 0) {
+    lines.push('### Neue Fähigkeiten ohne Musterfragen', '');
+    for (const intent of drift.undocumented) lines.push(`- \`${intent}\``);
+    lines.push(
+      '',
+      `Trag sie in \`${EXAMPLES_FILE}\` mit 2–3 Musterfragen ein — in der Sprache, die Nutzer\\*innen tatsächlich tippen. Ist der Intent nichts, das man fragen kann (reine Routing-Weiche), gehört er stattdessen nach \`INTERNAL_INTENTS\`.`,
+      ''
+    );
+  }
+  if (drift.obsolete.length > 0) {
+    lines.push('### Dokumentiert, aber im Code nicht mehr vorhanden', '');
+    for (const intent of drift.obsolete) lines.push(`- \`${intent}\``);
+    lines.push('', `Eintrag aus \`${EXAMPLES_FILE}\` entfernen.`, '');
+  }
+  if (drift.danglingMentionables.length > 0) {
+    lines.push('### Verweise auf @-Kürzel, die es nicht mehr gibt', '');
+    for (const ref of drift.danglingMentionables) lines.push(`- \`${ref}\``);
+    lines.push('');
+  }
+  if (drift.danglingTools.length > 0) {
+    lines.push('### Verweise auf Werkzeuge, die es nicht mehr gibt', '');
+    for (const ref of drift.danglingTools) lines.push(`- \`${ref}\``);
+    lines.push('');
+  }
+  if (manifestStale) {
+    lines.push(
+      '### Manifest veraltet',
+      '',
+      'Namen oder Beschreibungen haben sich im Code geändert, `src/generated/chat-capabilities.json` wurde aber nicht neu erzeugt.',
+      ''
+    );
+  }
+
+  lines.push(
+    '---',
+    '',
+    'Danach einmal `pnpm --filter @gruenerator/documentation capabilities:generate` laufen lassen und das Ergebnis mitcommitten. Dieses Issue schließt sich von selbst, sobald die Lücke geschlossen ist.'
+  );
+  return lines.join('\n');
+}
+
+function gh(args) {
+  return execFileSync('gh', args, { encoding: 'utf-8' });
+}
+
+/** One issue for the whole article — create, update or close it. */
+function syncIssue(hasDrift, body) {
+  const open = JSON.parse(
+    gh([
+      'issue',
+      'list',
+      '--label',
+      ISSUE_LABEL,
+      '--state',
+      'open',
+      '--json',
+      'number,title',
+      '--limit',
+      '100',
+    ])
+  ).find((i) => i.title === ISSUE_TITLE);
+
+  if (!hasDrift) {
+    if (!open) return 'nichts zu tun (keine Drift, kein offenes Issue)';
+    gh([
+      'issue',
+      'close',
+      String(open.number),
+      '--comment',
+      'Alle Chat-Fähigkeiten sind wieder dokumentiert — automatisch geschlossen.',
+    ]);
+    return `Issue #${open.number} geschlossen`;
+  }
+  if (open) {
+    gh(['issue', 'edit', String(open.number), '--body', body]);
+    return `Issue #${open.number} aktualisiert`;
+  }
+  const url = gh([
+    'issue',
+    'create',
+    '--title',
+    ISSUE_TITLE,
+    '--label',
+    ISSUE_LABEL,
+    '--body',
+    body,
+  ]).trim();
+  return `Issue angelegt: ${url}`;
+}
+
+/** Sticky, marker-keyed comment on the PR named by PR_NUMBER. */
+function syncPrComment(hasDrift, body) {
+  const prNumber = process.env.PR_NUMBER;
+  if (!prNumber) return 'PR_NUMBER fehlt — kein Kommentar';
+  const existing = JSON.parse(gh(['pr', 'view', prNumber, '--json', 'comments'])).comments.find(
+    (c) => c.body.includes(ISSUE_MARKER)
+  );
+
+  if (!hasDrift) {
+    if (!existing) return 'nichts zu tun (keine Drift)';
+    // gh cannot delete comments; overwrite with the all-clear instead.
+    gh([
+      'pr',
+      'comment',
+      prNumber,
+      '--edit-last',
+      '--body',
+      `${ISSUE_MARKER}\n\n✓ Alle Chat-Fähigkeiten sind dokumentiert.`,
+    ]);
+    return 'Kommentar auf „alles dokumentiert" gesetzt';
+  }
+  if (existing) {
+    gh(['pr', 'comment', prNumber, '--edit-last', '--body', body]);
+    return 'PR-Kommentar aktualisiert';
+  }
+  gh(['pr', 'comment', prNumber, '--body', body]);
+  return 'PR-Kommentar gepostet';
+}
+
 const check = process.argv.includes('--check');
+const audit = process.argv.includes('--audit');
 const { json, count } = generate();
+
+if (audit) {
+  const manifest = JSON.parse(json);
+  let committed = '';
+  try {
+    committed = readFileSync(OUT_FILE, 'utf-8');
+  } catch {
+    // missing file → treat as stale
+  }
+  const manifestStale = committed !== json;
+  const drift = auditDrift(manifest);
+  const hasDrift =
+    manifestStale ||
+    drift.undocumented.length > 0 ||
+    drift.obsolete.length > 0 ||
+    drift.danglingMentionables.length > 0 ||
+    drift.danglingTools.length > 0;
+
+  const body = buildReport(drift, manifestStale);
+  console.log(
+    hasDrift
+      ? body
+      : `✓ Alle ${count} Chat-Fähigkeiten sind im Artikel dokumentiert und das Manifest ist aktuell.`
+  );
+
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    appendFileSync(
+      process.env.GITHUB_STEP_SUMMARY,
+      hasDrift ? body : `✓ Alle ${count} Chat-Fähigkeiten sind dokumentiert.\n`
+    );
+  }
+  if (process.argv.includes('--apply')) console.log(`→ ${syncIssue(hasDrift, body)}`);
+  if (process.argv.includes('--pr-comment')) console.log(`→ ${syncPrComment(hasDrift, body)}`);
+
+  // Reporting only — drift is a task, never a failed build.
+  process.exit(0);
+}
 
 if (check) {
   let current = '';

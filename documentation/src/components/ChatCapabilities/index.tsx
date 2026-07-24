@@ -21,70 +21,29 @@ interface Manifest {
 
 const manifest = manifestJson as Manifest;
 
-const REGENERATE = 'pnpm --filter @gruenerator/documentation capabilities:generate';
-
 /**
- * The drift trap. Runs at module load, i.e. during `docusaurus build`, so every
- * mismatch between the code's capability registries and this article is a red
- * build rather than a quietly outdated page:
+ * Drift between the code's capability registries and this article — a new intent
+ * without example questions, a documented intent that no longer exists, a dead
+ * mentionable reference — is deliberately NOT fatal here. The page degrades to
+ * what it can show (unknown references simply fall back to the local label), and
+ * `capabilities:audit` reports the gap as a GitHub issue instead. A backend
+ * change should never break someone else's docs build.
  *
- *   - a NEW intent in the code has no example questions here → build fails, and
- *     whoever added the capability writes the two sentences users need,
- *   - a REMOVED or renamed intent still documented here → build fails,
- *   - a mentionable / tool key referenced by an example vanished → build fails.
+ * Locally, a warning still points at the drift while you work.
  */
-function assertInSync(): void {
+function warnOnDrift(): void {
+  if (process.env.NODE_ENV === 'production') return;
   const documented = new Set([...EXAMPLES.map((e) => e.intent), ...Object.keys(INTERNAL_INTENTS)]);
-  const known = new Set(manifest.intents);
-  const problems: string[] = [];
-
-  for (const intent of manifest.intents) {
-    if (!documented.has(intent)) {
-      problems.push(
-        `Der Chat kennt den Intent "${intent}", der Artikel nicht. Trag ihn mit ` +
-          `2–3 Musterfragen in src/components/ChatCapabilities/examples.ts ein ` +
-          `(oder in INTERNAL_INTENTS, wenn er nichts ist, das man fragen kann).`
-      );
-    }
-  }
-  for (const intent of documented) {
-    if (!known.has(intent)) {
-      problems.push(
-        `examples.ts dokumentiert "${intent}", den es im Code nicht mehr gibt. ` +
-          `Eintrag entfernen — oder das Manifest ist veraltet: ${REGENERATE}`
-      );
-    }
-  }
-  const groupIds = new Set(GROUPS.map((g) => g.id));
-  for (const example of EXAMPLES) {
-    if (!groupIds.has(example.group)) {
-      problems.push(`"${example.intent}" verweist auf die unbekannte Gruppe "${example.group}".`);
-    }
-    if (example.questions.length < 2) {
-      problems.push(`"${example.intent}" braucht mindestens zwei Musterfragen.`);
-    }
-    if (example.mentionable && !manifest.mentionables[example.mentionable]) {
-      problems.push(
-        `"${example.intent}" verweist auf die Mention "${example.mentionable}", ` +
-          `die im Manifest fehlt. Umbenannt oder entfernt? ${REGENERATE}`
-      );
-    }
-    if (example.userTool && !manifest.userTools[example.userTool]) {
-      problems.push(
-        `"${example.intent}" verweist auf das Werkzeug "${example.userTool}", ` +
-          `das im Manifest fehlt. Umbenannt oder entfernt? ${REGENERATE}`
-      );
-    }
-  }
-
-  if (problems.length > 0) {
-    throw new Error(
-      `<ChatCapabilities> ist nicht mehr synchron mit dem Code:\n  - ${problems.join('\n  - ')}`
+  const missing = manifest.intents.filter((intent) => !documented.has(intent));
+  if (missing.length > 0) {
+    console.warn(
+      `[ChatCapabilities] Ohne Musterfragen und daher nicht im Artikel: ${missing.join(', ')}. ` +
+        `Ergänze sie in src/components/ChatCapabilities/examples.ts.`
     );
   }
 }
 
-assertInSync();
+warnOnDrift();
 
 function Badge({ kind, children }: { kind: string; children: React.ReactNode }): React.JSX.Element {
   return <span className={`${styles.badge} ${styles[kind] ?? ''}`}>{children}</span>;
@@ -132,7 +91,10 @@ export default function ChatCapabilities(): React.JSX.Element {
   return (
     <>
       {GROUPS.map((group) => {
-        const items = EXAMPLES.filter((e) => e.group === group.id);
+        // Only capabilities the code still has — a removed intent drops off the
+        // page by itself; the audit asks someone to delete its entry.
+        const known = new Set(manifest.intents);
+        const items = EXAMPLES.filter((e) => e.group === group.id && known.has(e.intent));
         if (items.length === 0) return null;
         return (
           <section key={group.id} className={styles.group}>
