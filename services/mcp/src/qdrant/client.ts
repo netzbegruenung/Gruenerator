@@ -488,7 +488,7 @@ export async function getCollectionInfo(collectionName: string) {
   } catch (err) {
     return {
       name: collectionName,
-      error: err instanceof Error ? err.message : String(err),
+      error: describeFetchError(err),
     };
   }
 }
