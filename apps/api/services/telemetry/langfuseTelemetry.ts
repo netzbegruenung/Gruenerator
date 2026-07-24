@@ -14,6 +14,7 @@
 
 import { randomBytes } from 'node:crypto';
 
+import { OpenTelemetry } from '@ai-sdk/otel';
 import { LangfuseSpanProcessor } from '@langfuse/otel';
 import {
   getLangfuseTracer,
@@ -24,6 +25,7 @@ import {
 import { context } from '@opentelemetry/api';
 import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks';
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
+import { registerTelemetry } from 'ai';
 
 import { env } from '../../config/env.js';
 
@@ -87,6 +89,16 @@ export function initLangfuseTelemetry(): void {
 
     provider = created;
     config = cfg;
+
+    // AI SDK 7 removed the per-call `experimental_telemetry.tracer` option — the
+    // tracer is now handed to the OpenTelemetry integration once, globally. We
+    // register OUR tracer (from the non-global provider above) so AI SDK spans
+    // still reach Langfuse and not Sentry's rate-0 global provider.
+    // NOTE: registering an integration makes AI SDK telemetry opt-OUT, so calls
+    // without buildAiTelemetry() now emit spans too (previously they were silent
+    // for lack of a tracer). Only ever reached when Langfuse is configured.
+    registerTelemetry(new OpenTelemetry({ tracer: getLangfuseTracer() }));
+
     console.info(`[langfuse] telemetry enabled → ${cfg.baseUrl}`);
   } catch (err) {
     provider = null;
@@ -116,12 +128,13 @@ export function buildAiTelemetry(
   functionId: string,
   metadata?: Record<string, string | number | boolean>
 ): AiTelemetry | undefined {
-  const tracer = getLangfuseTracerOrUndefined();
-  if (!tracer) return undefined;
+  // The tracer is registered globally in initLangfuseTelemetry (AI SDK 7 dropped
+  // the per-call `tracer` option) — this still gates on it so an unconfigured
+  // environment keeps returning undefined and call sites stay unchanged.
+  if (!getLangfuseTracerOrUndefined()) return undefined;
   return {
     isEnabled: true,
     functionId,
-    tracer,
     ...(metadata && { metadata }),
   };
 }
