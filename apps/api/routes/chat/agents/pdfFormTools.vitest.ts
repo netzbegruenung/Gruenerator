@@ -35,10 +35,10 @@ async function buildForm(fieldCount: number): Promise<string> {
   return Buffer.from(await pdfDoc.save()).toString('base64');
 }
 
-function makeCtx(data: string) {
+function makeCtx(data: string, extra: Array<{ name: string; data: string }> = []) {
   const sent: Array<{ event: string; payload: unknown }> = [];
   const state = {
-    pdfFormAttachments: [{ name: 'antrag.pdf', data }],
+    pdfFormAttachments: [{ name: 'antrag.pdf', data }, ...extra],
     agentConfig: { userId: 'user-1' },
   } as unknown as ChatGraphState;
   const sse = {
@@ -126,6 +126,34 @@ describe('pdfFormTools', () => {
     expect(sent.map((s) => s.event)).toContain('compute');
     expect(state.computedResultFresh).toBe(true);
     expect(state.computedResult).not.toBeNull();
+  });
+
+  it('asks which PDF is meant instead of filling a random one', async () => {
+    const { ctx, sent } = makeCtx(smallForm, [{ name: 'zweitantrag.pdf', data: smallForm }]);
+    const result = await run(makeFillPdfFormTool(ctx), {
+      values: { antragsteller_feld_0: 'X' },
+    });
+
+    expect(result.error).toBeDefined();
+    expect(result.pdfs).toEqual(['antrag.pdf', 'zweitantrag.pdf']);
+    // Nothing written, nothing streamed — the turn waits for the answer.
+    expect(sent).toHaveLength(0);
+  });
+
+  it('proceeds once the fileName hint narrows it to one', async () => {
+    const { ctx } = makeCtx(smallForm, [{ name: 'zweitantrag.pdf', data: smallForm }]);
+    const result = await run(makeReadPdfFormTool(ctx), { fileName: 'zweit' });
+
+    expect(result.fileName).toBe('zweitantrag.pdf');
+  });
+
+  it('does not ask when the same form is both attached and stored', async () => {
+    // De-dup by name: one form, two sources, must not look ambiguous.
+    const { ctx } = makeCtx(smallForm, [{ name: 'antrag.pdf', data: smallForm }]);
+    const result = await run(makeReadPdfFormTool(ctx), {});
+
+    expect(result.fileName).toBe('antrag.pdf');
+    expect(result.error).toBeUndefined();
   });
 
   it('returns an actionable error when no field name matched', async () => {
