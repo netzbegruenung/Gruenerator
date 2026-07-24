@@ -333,7 +333,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     model: 'mistral-large-latest',
     defaultModel: 'mistral-large-latest',
     provider: 'mistral',
-    params: { max_tokens: 3000, temperature: 0.6 },
+    params: { max_tokens: 8000, temperature: 0.6 },
     openingMessage:
       'Hallo! Ich schreibe Pressemitteilungen und Social-Media-Posts im Stil der **Grünen Hamburg** — koalitionsfreundlich, mit Bürgerschafts-Anker und hanseatischem Wir-Gefühl.\n\nNenne mir Thema und Kanal.',
     welcomeQuestion: 'Was soll Hamburg sagen?',
@@ -375,7 +375,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     model: 'mistral-large-latest',
     defaultModel: 'mistral-large-latest',
     provider: 'mistral',
-    params: { max_tokens: 3000, temperature: 0.6 },
+    params: { max_tokens: 8000, temperature: 0.6 },
     openingMessage:
       'Hallo! Ich schreibe Pressemitteilungen und Social-Media-Posts im Stil der **Grünen Mecklenburg-Vorpommern** — Ostsee-verankert, kämpferisch, mit Reiche als Dauer-Antagonistin.\n\nThema und Kanal?',
     welcomeQuestion: 'Was soll MV sagen?',
@@ -417,7 +417,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     model: 'mistral-large-latest',
     defaultModel: 'mistral-large-latest',
     provider: 'mistral',
-    params: { max_tokens: 3000, temperature: 0.6 },
+    params: { max_tokens: 8000, temperature: 0.6 },
     openingMessage:
       'Hallo! Ich schreibe Pressemitteilungen und Social-Media-Posts im Stil der **Grünen Thüringen** — außerparlamentarisch, gegen die Brombeer-Regierung, mit „Vorreiter verspielt"-Narrativ.\n\nThema und Kanal?',
     welcomeQuestion: 'Was soll Thüringen sagen?',
@@ -459,7 +459,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     model: 'mistral-large-latest',
     defaultModel: 'mistral-large-latest',
     provider: 'mistral',
-    params: { max_tokens: 3000, temperature: 0.6 },
+    params: { max_tokens: 8000, temperature: 0.6 },
     openingMessage:
       'Hallo! Ich schreibe Pressemitteilungen und Social-Media-Posts im Stil der **Brandenburger Bündnisgrünen** — nüchtern, mit Strukturwandel-/Lausitz-Frame und konsequenter „Bündnisgrüne"-Selbstbezeichnung (nicht „Grüne"!).\n\nThema und Kanal?',
     welcomeQuestion: 'Was soll Brandenburg sagen?',
@@ -501,7 +501,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     model: 'mistral-large-latest',
     defaultModel: 'mistral-large-latest',
     provider: 'mistral',
-    params: { max_tokens: 3000, temperature: 0.6 },
+    params: { max_tokens: 8000, temperature: 0.6 },
     openingMessage:
       'Hallo! Ich schreibe Pressemitteilungen und Social-Media-Posts im Stil der **Grünen Bayern** — mit Doppelspitzen-Zitat (Lettenbauer/Sengl), Freiheitsenergie-Frame und Söder-/Merz-Opposition.\n\nNenne mir Thema und Kanal (PM / Insta / FB / X / LinkedIn / Reel).',
     welcomeQuestion: 'Was soll Bayern sagen?',
@@ -543,7 +543,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     model: 'mistral-large-latest',
     defaultModel: 'mistral-large-latest',
     provider: 'mistral',
-    params: { max_tokens: 3000, temperature: 0.6 },
+    params: { max_tokens: 8000, temperature: 0.6 },
     openingMessage:
       'Hallo! Ich schreibe Pressemitteilungen und Social-Media-Posts im Stil der **Grünen Sachsen-Anhalt** — mit Blick auf die Landtagswahl 2026, Spitzenkandidatin Suse Sziborra-Seidlitz und Frames wie Strukturwandel/Wasserstoff und Demokratie gegen rechts.\n\nNenne mir Thema und Kanal (PM / Insta / FB / X / LinkedIn / Reel).',
     welcomeQuestion: 'Was soll Sachsen-Anhalt sagen?',
@@ -585,7 +585,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     model: 'mistral-large-latest',
     defaultModel: 'mistral-large-latest',
     provider: 'mistral',
-    params: { max_tokens: 3000, temperature: 0.6 },
+    params: { max_tokens: 8000, temperature: 0.6 },
     openingMessage:
       'Hallo! Ich schreibe Pressemitteilungen und Social-Media-Posts im Stil der **Grünen Hessen** — aus der Oppositionsrolle gegen die schwarz-rote Landesregierung, mit Frames wie Rhein-Main-Verkehrswende, Energie- und Naturschutz und Demokratie gegen rechts.\n\nNenne mir Thema und Kanal (PM / Insta / FB / X / LinkedIn / Reel).',
     welcomeQuestion: 'Was soll Hessen sagen?',
