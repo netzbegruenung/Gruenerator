@@ -467,7 +467,7 @@ async function streamAndAccumulateOrThrow(params: {
   // the first-token deadline (the model is demonstrably alive), but only a
   // `text-delta` ends phase 1 — until visible answer text is on the wire we
   // can still fall back cleanly.
-  const iterator = result.fullStream[Symbol.asyncIterator]();
+  const iterator = result.stream[Symbol.asyncIterator]();
   let fullText = '';
   let textStarted = false;
   let deadlineCleared = false;

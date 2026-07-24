@@ -330,10 +330,8 @@ export async function streamNormalSearch(req: AuthenticatedRequest, res: Respons
     const model = getModel('litellm', 'verdigado-pro');
     const streamResult = streamText({
       model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
       maxOutputTokens: 500,
       temperature: 0.2,
       abortSignal: abortController.signal,
@@ -589,10 +587,8 @@ ${refsSummary}`;
     const model = getModel('litellm', 'verdigado-pro');
     const streamResult = streamText({
       model,
-      messages: [
-        { role: 'system', content: enhancedSystemPrompt },
-        { role: 'user', content: enhancedUserPrompt },
-      ],
+      system: enhancedSystemPrompt,
+      messages: [{ role: 'user', content: enhancedUserPrompt }],
       maxOutputTokens: 6000,
       temperature: 0.3,
       abortSignal: abortController.signal,
