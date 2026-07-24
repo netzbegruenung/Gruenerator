@@ -21,6 +21,7 @@ import { z } from 'zod';
 import { imageNode } from '../../../agents/langgraph/ChatGraph/nodes/imageNode.js';
 import { searchNode } from '../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
 import { summarizeNode } from '../../../agents/langgraph/ChatGraph/nodes/summarizeNode.js';
+import { relatedDocsPages, searchDocs } from '../../../services/docs/docsIndex.js';
 import { lookupUmfragen } from '../../../services/monitor/UmfragenService.js';
 import {
   pdfKindFromText,
@@ -184,6 +185,70 @@ NUTZE WENN nach Umfragewerten, der Sonntagsfrage oder der Zustimmung zu einem Th
         },
       ]);
       return { resultCount: 1, sources: sources ?? '', umfragen: text };
+    },
+  });
+}
+
+/**
+ * `gruenerator_docs_search`: BM25 over the Grünerator user documentation
+ * (doku.gruenerator.eu), the retrieval half of the `hilfe` intent.
+ *
+ * The prompt half is the page MAP (`buildDocsPageMap`, injected by respondNode)
+ * — the two are complementary, not redundant: the map lists every page so the
+ * model can point at the right one, this tool pulls the actual section text so
+ * it can answer the question. Hits go through the source registry like any
+ * search tool, so the sections become numbered `[N]` citations that deep-link
+ * to `…/docs/page#section`.
+ *
+ * Purely in-process (a generated index, no network, no embeddings), so it is
+ * cheap enough to call speculatively and works in tests without fixtures.
+ */
+export function makeDocsSearchTool(ctx: { sourceRegistry: SourceRegistry }): Tool {
+  const { sourceRegistry } = ctx;
+  return tool({
+    description: `Durchsucht die offizielle Grünerator-Dokumentation (Anleitungen, Hilfeseiten, Funktionsbeschreibungen) und liefert Abschnitte mit direkt verlinkbaren Fundstellen.
+
+NUTZE WENN es um die BEDIENUNG des Grünerators geht: "wie erstelle ich ein Sharepic", "wie lege ich ein Notebook an", "wie binde ich die Grüne Wolke ein", "was ist die Agentura", "wo finde ich die Konnektoren".
+
+NICHT für politische Inhalte oder Parteiprogramme (nutze gruenerator_search), nicht für allgemeine Web-Recherche (nutze web_search), nicht für die eigenen Dokumente der Nutzer*innen.
+
+Verlinke die gefundenen Seiten in der Antwort mit ihrer vollständigen URL.`,
+    inputSchema: z.object({
+      query: z
+        .string()
+        .min(1)
+        .describe('Suchbegriff oder Frage zur Grünerator-Bedienung, auf Deutsch'),
+    }),
+    execute: async ({ query }) => {
+      const hits = searchDocs(query, 5);
+      if (hits.length === 0) {
+        return {
+          resultCount: 0,
+          sources: '',
+          note: 'Zu dieser Frage steht nichts in der Grünerator-Dokumentation. Sage das ehrlich, statt eine Anleitung zu erfinden.',
+        };
+      }
+      const results: SearchResult[] = hits.map((hit) => ({
+        source: 'gruenerator-docs',
+        url: hit.url,
+        title: hit.title,
+        content: hit.snippet,
+      }));
+      const sources = sourceRegistry.register(results);
+      return {
+        resultCount: results.length,
+        sources: sources ?? '',
+        // Unlike the other search tools, this one KEEPS a (lean) results array.
+        // The registry's `sources` block is `[N] title — snippet` with no URL,
+        // and linking the right doc page is the entire point of this tool — the
+        // model cannot write a link it was never given. Title+URL only, so the
+        // token cost stays ~15 per hit. It also gives the tool card something to
+        // render (parseSearchCitations reads `results`).
+        results: hits.map((hit) => ({ title: hit.title, url: hit.url })),
+        // Page-level neighbours so the model can offer "mehr dazu" without a
+        // second call.
+        verwandteSeiten: relatedDocsPages(query),
+      };
     },
   });
 }

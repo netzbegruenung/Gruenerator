@@ -50,6 +50,7 @@ import {
   makeCreateDocTool,
   makeCreatePdfTool,
   makeCreateSharepicTool,
+  makeDocsSearchTool,
   makeImageTool,
   makeSummaryTool,
   makeUmfragenTool,
@@ -230,6 +231,13 @@ NUTZE WENN:
     tools.bundestag = makeBundestagTool({ sse, state, sourceRegistry });
     tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
     tools.umfragen = makeUmfragenTool({ sourceRegistry });
+    // Documentation search (`hilfe`). Mounted broadly like the other domain
+    // tools — the classifier routinely labels an operating question `direct` or
+    // `search`, and gating on intent would hide the tool exactly then. In-process
+    // BM25, so an unnecessary mount costs nothing but a description.
+    if (state.enabledTools?.['hilfe'] !== false) {
+      tools.gruenerator_docs_search = makeDocsSearchTool({ sourceRegistry });
+    }
     // Product self-knowledge: what Grünerator itself offers (Grüneratoren,
     // Werkzeuge, MCP-Server, Wissenssammlungen). Same builder respondNode
     // injects when the meta regex matches — the loop inherits that system

@@ -135,12 +135,15 @@ export const SYSTEM_MCP_INTENTS: ReadonlySet<SearchIntent> = new Set([
 
 /**
  * Every intent that ONLY the agentic loop can execute (system MCP sources plus
- * the native umfragen tool). Single source for the router's loop-forcing gate,
- * its kill-switch degrade insurance and the internal-first search exemption.
+ * the native umfragen/hilfe tools). Single source for the router's loop-forcing
+ * gate, its kill-switch degrade insurance and the internal-first search
+ * exemption. `executeIntentPipeline` has no branch for any of these, so an
+ * intent listed here MUST reach the loop or be degraded by the router.
  */
 export const SYSTEM_TOOL_INTENTS: ReadonlySet<SearchIntent> = new Set([
   ...SYSTEM_MCP_INTENTS,
   'umfragen',
+  'hilfe',
 ] as SearchIntent[]);
 
 /** The env-configured sources the given system intent mounts (possibly []). */
