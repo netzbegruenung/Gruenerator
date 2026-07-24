@@ -44,7 +44,7 @@
     "@tauri-apps/plugin-shell": "^2.3.5",
     "@tauri-apps/plugin-store": "^2.4.4",
     "@uidotdev/usehooks": "^2.4.1",
-    "ai": "^6.0.224",
+    "ai": "^7.0.37",
     "axios": "^1.18.1",
     "browser-image-compression": "^2.0.2",
     "class-variance-authority": "^0.7.1",

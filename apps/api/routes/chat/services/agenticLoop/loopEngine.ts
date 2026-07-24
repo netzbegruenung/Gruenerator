@@ -21,7 +21,7 @@
 import {
   streamText as streamTextReal,
   generateText as generateTextReal,
-  stepCountIs,
+  isStepCount,
   InvalidToolInputError,
 } from 'ai';
 
@@ -180,7 +180,7 @@ async function streamWithTools(
     system: p.toolSystem,
     messages: p.messages,
     tools: p.tools,
-    stopWhen: stepCountIs(p.maxSteps),
+    stopWhen: isStepCount(p.maxSteps),
     temperature: p.temperature,
     maxOutputTokens: p.maxOutputTokens,
     abortSignal: p.abortSignal,
@@ -206,7 +206,7 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
       system: gatherSystem,
       messages: p.messages,
       tools: p.tools,
-      stopWhen: stepCountIs(p.maxSteps),
+      stopWhen: isStepCount(p.maxSteps),
       temperature: p.temperature,
       maxOutputTokens: p.maxOutputTokens,
       abortSignal: p.abortSignal,
@@ -242,7 +242,7 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: 
 }
 
 interface Drainable {
-  fullStream: AsyncIterable<{ type: string; text?: string; error?: unknown }>;
+  stream: AsyncIterable<{ type: string; text?: string; error?: unknown }>;
 }
 
 async function drain(
@@ -251,7 +251,7 @@ async function drain(
   onReasoning: (d: string) => void
 ): Promise<{ text: string }> {
   let text = '';
-  const iterator = result.fullStream[Symbol.asyncIterator]();
+  const iterator = result.stream[Symbol.asyncIterator]();
   while (true) {
     const next = await iterator.next();
     if (next.done) break;
