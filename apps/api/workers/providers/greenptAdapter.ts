@@ -1,6 +1,6 @@
 /**
- * Regolo AI Adapter
- * Uses Vercel AI SDK for text generation via OpenAI-compatible API (api.regolo.ai)
+ * GreenPT Adapter
+ * OpenAI-compatible API at api.greenpt.ai, driven through the Vercel AI SDK.
  */
 
 import { generateText } from 'ai';
@@ -16,13 +16,13 @@ import type { AIRequestData, AIWorkerResult, ToolCall, ContentBlock } from '../t
 async function execute(requestId: string, data: AIRequestData): Promise<AIWorkerResult> {
   const { messages, systemPrompt, options = {}, type, metadata: requestMetadata = {} } = data;
 
-  if (!isProviderConfigured('regolo')) {
+  if (!isProviderConfigured('greenpt')) {
     throw new Error(
-      'Regolo provider is not configured. Check REGOLO_API_KEY environment variable.'
+      'GreenPT provider is not configured. Check GREENPT_API_KEY environment variable.'
     );
   }
 
-  const model = options.model || env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b';
+  const model = options.model || env.GREENPT_DEFAULT_MODEL || 'mistral-medium-3.5-128b';
 
   const { system, messages: modelMessages } = convertMessagesWithImages(messages, systemPrompt);
 
@@ -31,7 +31,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
       ...(options.tools != null && { tools: options.tools }),
       ...(options.tool_choice != null && { tool_choice: options.tool_choice }),
     },
-    'regolo',
+    'greenpt',
     requestId,
     type
   );
@@ -49,7 +49,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     }
   }
 
-  const aiModel = getModel('regolo', model);
+  const aiModel = getModel('greenpt', model);
 
   try {
     const result = await generateText({
@@ -68,7 +68,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     const toolCalls: ToolCall[] | undefined =
       result.toolCalls && result.toolCalls.length > 0
         ? result.toolCalls.map((tc, index) => ({
-            id: tc.toolCallId || `regolo_tool_${index}`,
+            id: tc.toolCallId || `greenpt_tool_${index}`,
             name: tc.toolName,
             input: tc.input as Record<string, unknown>,
           }))
@@ -102,7 +102,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
           : [{ type: 'text', text: textContent || '' }],
       success: true,
       metadata: mergeMetadata(requestMetadata, {
-        provider: 'regolo',
+        provider: 'greenpt',
         model: model,
         timestamp: new Date().toISOString(),
         requestId,
@@ -117,7 +117,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     };
   } catch (error: unknown) {
     const err = error as { message?: string };
-    console.error(`[regoloAdapter ${requestId}] Error:`, err.message);
+    console.error(`[greenptAdapter ${requestId}] Error:`, err.message);
     throw error;
   }
 }

@@ -31,6 +31,7 @@ const BOARD_AI_MODELS: Record<AgentConfig['provider'], string> = {
   regolo: 'mistral-small-4-119b',
   mistral: 'mistral-medium-2604',
   anthropic: 'mistral-medium-2604',
+  greenpt: 'mistral-medium-3.5-128b',
 };
 
 const FIELD_IDS = {
