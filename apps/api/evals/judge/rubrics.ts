@@ -12,11 +12,7 @@ export interface JudgePrompt {
 }
 
 export type RubricName =
-  | 'groundedness'
-  | 'narration_consistency'
-  | 'known_answer'
-  | 'german_quality'
-  | 'parity';
+  'groundedness' | 'narration_consistency' | 'known_answer' | 'german_quality' | 'parity';
 
 const VERDICT_INSTRUCTION = `Antworte AUSSCHLIESSLICH mit einem JSON-Objekt: {"pass": true|false, "reason": "<ein Satz Begründung>"}. Kein anderer Text.`;
 

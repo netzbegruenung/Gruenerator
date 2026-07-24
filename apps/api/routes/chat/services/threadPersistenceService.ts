@@ -138,6 +138,93 @@ export async function createMessage(
 }
 
 /**
+ * Turn persistence (crash/abort durability). An assistant turn writes a
+ * placeholder row BEFORE the LLM stream starts (status 'streaming'), fills it
+ * periodically while streaming, and flips it to 'complete' on finalize. A row
+ * left 'streaming' after the request ended is an aborted turn — read-time
+ * derives `interrupted` from it (see messagesController). The empty ones are
+ * swept; ones carrying partial text are kept as interrupted turns.
+ */
+export async function createPendingAssistantMessage(
+  threadId: string,
+  userId?: string
+): Promise<string> {
+  const postgres = getPostgresInstance();
+  const result = (await postgres.query(
+    `INSERT INTO chat_messages (thread_id, role, content, user_id, status)
+     VALUES ($1, 'assistant', NULL, $2, 'streaming')
+     RETURNING id`,
+    [threadId, userId || null]
+  )) as { id: string }[];
+  return result[0].id;
+}
+
+/**
+ * Throttled partial-text write during streaming. Guarded on status='streaming'
+ * so a late flush that lands AFTER finalize (which set status='complete') is a
+ * no-op and can never clobber the finalized content.
+ */
+export async function updatePendingAssistantText(messageId: string, text: string): Promise<void> {
+  const postgres = getPostgresInstance();
+  await postgres.query(
+    `UPDATE chat_messages SET content = $2 WHERE id = $1 AND status = 'streaming'`,
+    [messageId, text]
+  );
+}
+
+/**
+ * Finalize the placeholder into a completed assistant message: set the final
+ * content + tool_results metadata and flip status to 'complete'. Returns false
+ * when no row matched (e.g. a regenerate from another tab deleted the row) —
+ * the caller then skips a re-insert and only warns.
+ */
+export async function finalizeAssistantMessage(
+  messageId: string,
+  content: string | null,
+  metadata?: Record<string, unknown>
+): Promise<boolean> {
+  const postgres = getPostgresInstance();
+  const result = (await postgres.query(
+    `UPDATE chat_messages
+     SET content = $2, tool_results = $3, status = 'complete'
+     WHERE id = $1
+     RETURNING id`,
+    [messageId, content, metadata ? JSON.stringify(metadata) : null]
+  )) as unknown[];
+  return result.length === 1;
+}
+
+/**
+ * Drop the placeholder iff it never received any text (still streaming + empty).
+ * Used on abort/early-return paths: an empty streaming row would otherwise
+ * render as a phantom interrupted assistant bubble. Rows WITH partial text are
+ * left untouched (they are the aborted turn we want to keep).
+ */
+export async function discardPendingAssistantIfEmpty(messageId: string): Promise<void> {
+  const postgres = getPostgresInstance();
+  await postgres.query(
+    `DELETE FROM chat_messages
+     WHERE id = $1 AND status = 'streaming' AND (content IS NULL OR content = '')`,
+    [messageId]
+  );
+}
+
+/**
+ * Sweep this thread's empty streaming orphans before a new turn starts — rows a
+ * previous crash left behind that carry no text. Rows with partial text stay as
+ * aborted turns.
+ */
+export async function deleteEmptyStreamingRows(threadId: string): Promise<void> {
+  const postgres = getPostgresInstance();
+  await postgres.query(
+    `DELETE FROM chat_messages
+     WHERE thread_id = $1 AND role = 'assistant' AND status = 'streaming'
+       AND (content IS NULL OR content = '')`,
+    [threadId]
+  );
+}
+
+/**
  * Truncate a thread from a given message onward — deletes that message and
  * every message created at or after it (by `created_at`). Used for
  * edit-and-resubmit: the edited user message and its now-stale replies are

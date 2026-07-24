@@ -179,9 +179,7 @@ export async function getCollectionStats(
     // Cast info to access potentially renamed/optional properties
     const infoData = info as Record<string, unknown>;
     const vectorsCount = (infoData.vectors_count ?? infoData.points_count) as
-      | number
-      | null
-      | undefined;
+      number | null | undefined;
     const indexedVectorsCount = info.indexed_vectors_count as number | null | undefined;
     const pointsCount = info.points_count as number | null | undefined;
     const segmentsCount = info.segments_count as number | null | undefined;

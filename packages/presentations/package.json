@@ -28,10 +28,10 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@gruenerator/contracts": "workspace:*",
     "@revealjs/react": "^0.2.1",
-    "@tiptap/extension-collaboration": "3.26.1",
-    "@tiptap/pm": "3.26.1",
-    "@tiptap/react": "3.26.1",
-    "katex": "^0.16.47",
+    "@tiptap/extension-collaboration": "3.29.0",
+    "@tiptap/pm": "3.29.0",
+    "@tiptap/react": "3.29.0",
+    "katex": "^0.18.1",
     "react-markdown": "^10.1.0",
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
@@ -41,9 +41,9 @@
     "yjs": "^13.6.31"
   },
   "devDependencies": {
-    "@types/react": "19.2.14",
+    "@types/react": "19.2.17",
     "typescript": "^6.0.3",
-    "vitest": "^3.2.7"
+    "vitest": "^4.1.10"
   },
   "peerDependencies": {
     "react": "^19.0.0",

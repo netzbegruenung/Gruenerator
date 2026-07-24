@@ -91,6 +91,7 @@ export const AGENTIC_INTENTS: ReadonlySet<string> = new Set([
   'wetter',
   'news',
   'umfragen',
+  'hilfe',
   'image',
   // Loop demotion (classifier Tier 3.5): low-confidence toolable turns that
   // skipped the LLM classifier entirely.
@@ -107,6 +108,7 @@ const COMPOUND_TOOL_FOR: Record<string, string> = {
   sheet: 'create_sheet',
   document: 'create_document',
   board: 'create_board',
+  pdf: 'create_pdf',
 };
 
 /** Tools counted against the per-turn search budget (loopGuards). */
@@ -132,6 +134,7 @@ const NON_REPLAYABLE_ACTION_TOOLS: ReadonlySet<string> = new Set([
   'create_board',
   'create_sheet',
   'create_presentation',
+  'create_pdf',
   'generate_image',
   'sharepic',
 ]);
@@ -424,6 +427,12 @@ export async function streamAgenticResponse(params: {
       guards,
       recordStep: (s) => steps.push(s),
       perCallTimeoutMs: budget.perCallTimeoutMs,
+      // Only unified mode streams answer text WHILE tools run, so its `text`
+      // length is a meaningful per-tool offset. In split mode `text` stays empty
+      // through the whole gather phase → return null so no (all-0) offsets are
+      // recorded, and reload falls back to the legacy cards-first layout.
+      // Reads `mode` lazily: it's finalized (line below) before the loop runs.
+      getTextOffset: () => (mode === 'unified' ? text.length : null),
       ...(toolLabels.size > 0
         ? {
             titleFor: (name: string) => {
@@ -632,15 +641,33 @@ export async function streamAgenticResponse(params: {
       const brief = sourcesBlock
         ? `${userAsk}\n\nNutze diese recherchierten Quellen für die Inhalte:\n${sourcesBlock}`
         : userAsk;
+      // Both arg shapes: doc/board tools read `prompt`, sharepic reads `text`.
+      const args = { prompt: brief, text: brief };
+      const stepId = 'forced-generation';
       log.info(`[Agentic] ${toolName} not called — forcing compound generation`);
+      // Emit the same tool_step_start/result SSE + persisted step a planner-issued
+      // call would, so a forced generation is a first-class tool step in the
+      // trace, the UI tool-card, and the persisted history — NOT an invisible
+      // out-of-band side effect. It bypasses the loop GUARDS on purpose: the
+      // fallback is intentional and must fire even when the loop already spent its
+      // failure/search budget (exactly the turns where the planner never reached
+      // the generation tool). The `already` check above keeps it idempotent.
+      sse.send('tool_step_start', { stepId, toolName, args });
+      let result: unknown;
       try {
-        // Both arg shapes: doc/board tools read `prompt`, sharepic reads `text`.
-        await genTool.execute({ prompt: brief, text: brief }, { toolCallId: 'forced-generation' });
+        result = await genTool.execute(args, { toolCallId: stepId });
       } catch (err) {
-        log.warn(
-          `[Agentic] forced ${toolName} failed: ${err instanceof Error ? err.message : String(err)}`
-        );
+        const message = err instanceof Error ? err.message : String(err);
+        log.warn(`[Agentic] forced ${toolName} failed: ${message}`);
+        result = { error: message };
       }
+      const resultRecord =
+        result && typeof result === 'object' && !Array.isArray(result)
+          ? (result as Record<string, unknown>)
+          : { value: result };
+      const ok = resultRecord.error == null;
+      sse.send('tool_step_result', { stepId, toolName, ok, result: resultRecord });
+      steps.push({ toolCallId: stepId, toolName, args, result: resultRecord });
     };
 
     const afterGather = async (): Promise<void> => {
@@ -726,6 +753,10 @@ export async function streamAgenticResponse(params: {
         sse.send('text_delta', { text: delta });
       },
       onReasoning: (delta) => sse.send('reasoning_delta', { text: delta }),
+      // Split-gather narration: the planner's inter-tool prose, sentence-wise.
+      // NOT routed through onText — that starts the response + persists it as
+      // answer text; narration is ephemeral progress, its own SSE channel.
+      onNarration: (s) => sse.send('gather_narration', { text: s }),
     });
 
     // Edit + compound-generation guarantees now run inside afterGather in BOTH
@@ -740,6 +771,9 @@ export async function streamAgenticResponse(params: {
       text = finalState.editorEditsSummary
         ? `Erledigt — ${finalState.editorEditsSummary}.`
         : 'Ich konnte dazu leider keine passende Antwort finden. Magst du deine Frage anders formulieren?';
+      // Replacement text invalidates offsets recorded against the streamed
+      // (whitespace-only) text — drop them so reload keeps cards-first.
+      for (const s of steps) delete s.textOffset;
       startResponse();
       sse.send('text_delta', { text });
     }
@@ -752,6 +786,7 @@ export async function streamAgenticResponse(params: {
       text = aborted
         ? 'Das hat leider zu lange gedauert. Magst du es noch einmal versuchen oder die Frage eingrenzen?'
         : 'Bei der Antwort ist etwas schiefgelaufen. Versuch es bitte gleich noch einmal.';
+      for (const s of steps) delete s.textOffset;
       startResponse();
       sse.send('text_delta', { text });
     }
@@ -768,6 +803,10 @@ export async function streamAgenticResponse(params: {
   const clamp = stripOutOfRangeCitations(text, sourceRegistry.size);
   if (clamp.changed) {
     text = clamp.text;
+    // Offset-drift protection: the clamp rewrote the answer text, so every
+    // recorded textOffset now points into a stale position. Drop them — reload
+    // then falls back to the cards-first layout instead of mis-interleaving.
+    for (const s of steps) delete s.textOffset;
     sse.send('completion', { text, citations: sourceRegistry.getCitations() });
   }
 

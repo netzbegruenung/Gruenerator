@@ -78,8 +78,7 @@ const MODE_WEIGHTS: Record<'hybrid' | 'vector' | 'text', readonly [number, numbe
 function requireAuthUser(
   req: Request
 ):
-  | { ok: true; userId: string }
-  | { ok: false; response: { status: 401; body: { error: string } } } {
+  { ok: true; userId: string } | { ok: false; response: { status: 401; body: { error: string } } } {
   const user = req.user as UserProfile | undefined;
   if (!user?.id) {
     return {

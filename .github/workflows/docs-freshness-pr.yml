@@ -12,6 +12,9 @@ on:
       - 'apps/web/src/**'
       - 'packages/chat/**'
       - 'packages/shared/src/**'
+      - 'packages/contracts/src/schemas/**'
+      - 'apps/api/routes/chat/**'
+      - 'apps/api/agents/langgraph/ChatGraph/**'
 
 permissions:
   contents: read
@@ -28,11 +31,11 @@ jobs:
     # Only a handful of docs per PR; each audit idles waiting on the agent.
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # need the base ref to diff changed files
       - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'pnpm'

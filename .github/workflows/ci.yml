@@ -9,9 +9,15 @@ on:
 permissions:
   contents: read
 
+# On PR branches, superseding a run is what you want — only the tip matters.
+# On master it is not: every push there is the post-merge verification of one
+# merge, and cancelling it means that merge is never verified. Merging several
+# PRs in a row used to cancel all but the last run, so a break could land
+# unnoticed (it did — see #1988, where 6 of 7 master runs were cancelled and
+# only the last one caught a red format:check).
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 jobs:
   quality:
@@ -19,13 +25,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -42,19 +48,106 @@ jobs:
       - name: Prettier format check
         run: pnpm format:check
 
+  pdf-accessibility:
+    name: PDF-Barrierefreiheit
+    runs-on: ubuntu-latest
+    env:
+      VERAPDF_IMAGE: verapdf/cli:v1.30.2
+      FIXTURE_DIR: ${{ github.workspace }}/pdf-fixtures
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Render PDF fixtures
+        working-directory: apps/api
+        run: npx tsx scripts/renderPdfFixtures.ts "$FIXTURE_DIR"
+
+      - name: Validate PDF/UA-1 with veraPDF
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$FIXTURE_DIR:/data:ro" "$VERAPDF_IMAGE" \
+            --format mrr -f ua1 --recurse /data > verapdf-report.xml || true
+
+          python3 - <<'PY'
+          import os, sys, xml.etree.ElementTree as ET
+
+          try:
+              tree = ET.parse('verapdf-report.xml')
+          except (ET.ParseError, FileNotFoundError) as exc:
+              print(f'::error::veraPDF hat keinen auswertbaren Report erzeugt: {exc}')
+              sys.exit(1)
+
+          jobs = list(tree.iter('job'))
+          if not jobs:
+              print('::error::veraPDF hat keine PDFs geprueft — Fixtures fehlen?')
+              sys.exit(1)
+
+          failed = 0
+          for job in jobs:
+              item = job.find('item/name')
+              name = os.path.basename(item.text) if item is not None and item.text else '?'
+              report = job.find('validationReport')
+              if report is None:
+                  err = job.findtext('taskException/exception/message', 'unbekannter Fehler')
+                  print(f'::error title=veraPDF ({name})::Datei konnte nicht geprueft werden: {err}')
+                  failed += 1
+                  continue
+              if report.get('isCompliant') == 'true':
+                  print(f'PASS  {name} — PDF/UA-1 konform')
+                  continue
+              failed += 1
+              print(f'FAIL  {name} — {report.get("statement")}')
+              for rule in report.iter('rule'):
+                  if rule.get('status') != 'failed':
+                      continue
+                  clause = f'{rule.get("clause")}-{rule.get("testNumber")}'
+                  desc = (rule.findtext('description') or '').strip()
+                  print(f'  Regel {clause} ({rule.get("failedChecks")} Verstoesse): {desc}')
+                  for check in list(rule.iter('check'))[:3]:
+                      msg = (check.findtext('errorMessage') or '').strip()
+                      ctx = (check.findtext('context') or '').strip()
+                      print(f'    - {msg} [{ctx}]')
+                  print(f'::error title=PDF/UA {clause} ({name})::{desc}')
+
+          if failed:
+              print(f'\n{failed} von {len(jobs)} Fixture(s) sind nicht PDF/UA-1 konform.')
+              sys.exit(1)
+          print(f'\nAlle {len(jobs)} Fixtures sind PDF/UA-1 konform.')
+          PY
+
+      - name: Upload veraPDF report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: verapdf-report
+          path: verapdf-report.xml
+          if-no-files-found: warn
+
   test:
     name: Tests
     runs-on: ubuntu-latest
     needs: quality
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -72,16 +165,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [web, api, docs, sites]
+        app: [web, api, docs, sites, wordpress]
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'pnpm'

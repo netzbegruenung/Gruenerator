@@ -26,10 +26,10 @@ Die Grünen-Zeile ist farblich hervorgehoben, damit du den eigenen Wert sofort f
 
 Eine **Landkarte** zeigt die Grünen-Werte im Vergleich: umschaltbar zwischen den **Bundesländern** (aktuelle Landtags-Umfragen) und **Europa** (grüne Parteien in anderen Ländern). Je dunkler das Grün, desto stärker stehen die Grünen dort.
 
-:::info Quelle
+:::info[Quelle]
 Die Daten stammen von **PolitPro** (politpro.eu), Europas führender Plattform für Wahltrends und politische Daten. Sonntagsfragen aller großen Institute werden dort zu wöchentlichen Durchschnittswerten aggregiert; die Werte werden alle 12 Stunden aktualisiert.
 :::
 
-:::tip Für die Pressearbeit
+:::tip[Für die Pressearbeit]
 Nutze die Verlaufskurve und das Delta zur letzten Wahl, um schnell einzuordnen, ob aktuelle Umfragewerte für die Grünen eine positive oder negative Entwicklung zeigen — das gibt Kontext für Presseanfragen.
 :::

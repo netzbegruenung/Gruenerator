@@ -46,10 +46,7 @@ const TestEmailRow = () => {
   };
 
   return (
-    <SettingsRow
-      title="E-Mail-Zustellung testen"
-      description="Sendet dir sofort eine Test-E-Mail an deine Profil-Adresse, um die Zustellung zu prüfen."
-    >
+    <SettingsRow id="benachrichtigungen.testmail">
       <Button type="button" variant="outline" onClick={handleSend} disabled={isSending}>
         <Send className="mr-xs h-4 w-4" />
         {isSending ? 'Wird gesendet…' : 'Test-E-Mail senden'}
