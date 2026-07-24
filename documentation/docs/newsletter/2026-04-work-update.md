@@ -31,7 +31,7 @@ Erstmals ermöglicht der Grünerator nun gemeinsames Arbeiten. Dafür starte ich
 
 Meiner Meinung nach kann dies ein echter Meilenstein für die gemeinsame, KI-assistierte Arbeit werden. Allerdings braucht es noch etwas Zeit, da kollaborative Features extrem schwer zu testen und zu debuggen sind. Dafür brauche ich jetzt deine Hilfe!
 
-:::tip Komm in die Grünerator-Testgruppe!
+:::tip[Komm in die Grünerator-Testgruppe!]
 Dort habe ich einige Dokumente und Boards hinterlegt, die du austesten kannst. Melde dich gern, wenn du dabei sein möchtest.
 :::
 

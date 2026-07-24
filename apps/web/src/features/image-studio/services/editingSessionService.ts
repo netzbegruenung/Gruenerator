@@ -223,8 +223,7 @@ function readPersistedGalleryEditSession(): PersistedGalleryEditSession | null {
 
 function isPageReload(): boolean {
   const nav = performance.getEntriesByType('navigation')[0] as
-    | PerformanceNavigationTiming
-    | undefined;
+    PerformanceNavigationTiming | undefined;
   return nav?.type === 'reload';
 }
 

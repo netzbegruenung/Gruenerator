@@ -3,14 +3,7 @@ import { getGlobalApiClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 
 export type GroupContentKind =
-  | 'doc'
-  | 'board'
-  | 'generator'
-  | 'notebook'
-  | 'agent'
-  | 'text'
-  | 'template'
-  | 'document';
+  'doc' | 'board' | 'generator' | 'notebook' | 'agent' | 'text' | 'template' | 'document';
 
 interface CollabDocRow {
   id: string;

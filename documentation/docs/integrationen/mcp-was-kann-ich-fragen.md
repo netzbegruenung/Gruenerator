@@ -6,7 +6,7 @@ sidebar_position: 2
 
 Du hast den [Grünerator mit deinem KI-Chat verbunden](./ki-chat-einrichten) — aber was kannst du damit eigentlich alles machen? Hier erfährst du, welche Fähigkeiten dir zur Verfügung stehen und wie du sie am besten nutzt.
 
-:::info Kurz erklärt
+:::info[Kurz erklärt]
 Der Grünerator MCP-Server gibt deinem KI-Assistenten Zugriff auf grüne Parteiprogramme, Beschlüsse, Analysen und Social-Media-Beispiele. Du kannst darin suchen, Inhalte filtern und sogar fertige Texte in verschiedenen Formaten erstellen lassen.
 :::
 
@@ -58,7 +58,7 @@ Zusätzlich kannst du gezielt in **Dokumenten einzelner Landesverbände** suchen
 | **Grüne Sachsen-Anhalt**         | Beschlüsse und Presse (LV + Fraktion) | _„Grüne Sachsen-Anhalt zu X"_                       |
 | **Grüne Hessen**                 | Beschlüsse und Presse (LV + Fraktion) | _„Grüne Hessen zu X"_                               |
 
-:::tip Mehrere Sammlungen vergleichen
+:::tip[Mehrere Sammlungen vergleichen]
 Du kannst auch nach demselben Thema in verschiedenen Sammlungen suchen lassen, z.B.: _„Vergleiche die Position von Deutschland und Österreich zum Thema Mobilität."_ Die KI sucht dann automatisch in beiden Sammlungen.
 :::
 
@@ -94,7 +94,7 @@ Du kannst die Suchergebnisse nach Kategorien einschränken. Sag der KI einfach, 
 | **Bundestagsfraktion, gruene.de, gruene.at** | + Land (DE/AT)                                                     |
 | **Landesverbände**                           | + Inhaltstyp (Typ), Themenbereich (Kategorie)                      |
 
-:::info Filter-Werte nicht raten
+:::info[Filter-Werte nicht raten]
 Die KI fragt automatisch die verfügbaren Filterwerte ab, bevor sie filtert. Du musst dir also keine exakten Werte merken — beschreib einfach, was du suchst.
 :::
 
@@ -118,7 +118,7 @@ Du kannst nach **Plattform** (Instagram, Facebook) und **Land** (Deutschland, Ö
 
 Das Herzstück für die Inhaltserstellung: Der MCP-Server bietet **über 30 spezialisierte KI-Assistenten**, die jeweils für eine bestimmte Textform optimiert sind. Jeder Assistent kennt den richtigen Ton, die passende Struktur und die formalen Anforderungen. Die wichtigsten stellen wir hier vor.
 
-:::tip Wie nutze ich die Assistenten?
+:::tip[Wie nutze ich die Assistenten?]
 In Claude kannst du Prompts direkt über die Prompt-Auswahl aktivieren. In anderen Clients beschreibe einfach, was du brauchst — die KI wählt den passenden Assistenten automatisch.
 :::
 

@@ -64,6 +64,7 @@ export const chatMessages = pgTable('chat_messages', {
   content: text('content'),
   tool_calls: jsonb('tool_calls').$type<Record<string, unknown>[]>(),
   tool_results: jsonb('tool_results').$type<Record<string, unknown>[]>(),
+  status: varchar('status', { length: 20 }).notNull().default('complete'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 

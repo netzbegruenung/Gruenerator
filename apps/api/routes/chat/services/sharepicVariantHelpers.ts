@@ -137,8 +137,7 @@ export async function getLastSharepicVariant(threadId: string): Promise<PriorSha
     };
     const sharepicCall = meta.toolCalls?.find((tc) => tc?.toolName === 'sharepic');
     const first = sharepicCall?.result?.variants?.[0] as
-      | { canvasType?: string; initialProps?: Record<string, unknown> }
-      | undefined;
+      { canvasType?: string; initialProps?: Record<string, unknown> } | undefined;
     if (!first?.canvasType) return null;
     return { canvasType: first.canvasType, props: first.initialProps ?? {} };
   } catch (err) {
