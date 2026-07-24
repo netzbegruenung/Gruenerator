@@ -78,6 +78,9 @@ export const searchIntentSchema = z.enum([
   'hotel',
   // Wahlumfragen (Sonntagsfrage via PolitPro + Meinungsbild) — native domain tool.
   'umfragen',
+  // Grünerator-Bedienung: Anleitungen aus der Doku (doku.gruenerator.eu) —
+  // native domain tool over a generated, in-process index.
+  'hilfe',
   'wetter',
   'news',
   'image',
