@@ -51,10 +51,7 @@ export interface QdrantTextCondition {
  * Union of all condition types
  */
 export type QdrantCondition =
-  | QdrantMatchCondition
-  | QdrantMatchAnyCondition
-  | QdrantRangeCondition
-  | QdrantTextCondition;
+  QdrantMatchCondition | QdrantMatchAnyCondition | QdrantRangeCondition | QdrantTextCondition;
 
 /**
  * Qdrant filter with must/should/must_not arrays

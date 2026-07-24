@@ -82,9 +82,7 @@ export interface UpdateFields {
 }
 
 export type UpdateResult =
-  | { status: 'not_found' }
-  | { status: 'forbidden' }
-  | { status: 'ok'; document: CollabDocRow };
+  { status: 'not_found' } | { status: 'forbidden' } | { status: 'ok'; document: CollabDocRow };
 
 /**
  * Update a document's metadata/editor state after an edit-access check.

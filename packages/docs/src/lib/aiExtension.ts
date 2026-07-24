@@ -68,7 +68,6 @@ export type DocAIMenuStore = {
 export function getDocAIMenuStore(editor: unknown): DocAIMenuStore | null {
   if (!editor) return null;
   const ext = (editor as EditorWithExtensions).getExtension?.(AIExtension) as
-    | { store?: DocAIMenuStore }
-    | undefined;
+    { store?: DocAIMenuStore } | undefined;
   return ext?.store ?? null;
 }
