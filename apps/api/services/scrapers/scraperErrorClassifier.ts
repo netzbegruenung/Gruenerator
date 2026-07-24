@@ -1,10 +1,5 @@
 export type ScraperErrorKind =
-  | 'timeout'
-  | 'http_404'
-  | 'http_5xx'
-  | 'network'
-  | 'layout_changed'
-  | 'unknown';
+  'timeout' | 'http_404' | 'http_5xx' | 'network' | 'layout_changed' | 'unknown';
 
 export interface ClassifiedScraperError {
   kind: ScraperErrorKind;

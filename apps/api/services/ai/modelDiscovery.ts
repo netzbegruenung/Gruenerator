@@ -6,6 +6,7 @@ import {
   LITELLM_DEFAULT_BASE_URL,
   MISTRAL_API_URL,
   REGOLO_BASE_URL,
+  GREENPT_BASE_URL,
   isProviderConfigured,
 } from './providers.js';
 
@@ -79,9 +80,10 @@ const CATEGORY_NAMES: Record<ProviderName, string> = {
   mistral: 'Mistral',
   litellm: 'LiteLLM',
   regolo: 'Regolo',
+  greenpt: 'GreenPT',
 };
 
-const CAT_ORDER: Record<string, number> = { Mistral: 0, Regolo: 1, LiteLLM: 2 };
+const CAT_ORDER: Record<string, number> = { Mistral: 0, Regolo: 1, LiteLLM: 2, GreenPT: 3 };
 
 let cachedModels: PlaygroundModel[] | null = null;
 let cacheTimestamp = 0;
@@ -174,6 +176,10 @@ const PROVIDER_ENDPOINTS: Record<
       return base.endsWith('/v1') ? `${base}/models` : `${base}/v1/models`;
     },
     getApiKey: () => env.LITELLM_API_KEY ?? null,
+  },
+  greenpt: {
+    url: () => `${GREENPT_BASE_URL}/models`,
+    getApiKey: () => env.GREENPT_API_KEY ?? null,
   },
   regolo: {
     url: () => `${REGOLO_BASE_URL}/models`,

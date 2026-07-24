@@ -25,9 +25,22 @@ import { type Logger } from 'winston';
  */
 const LOGGED_FLAG = Symbol.for('contractValidationErrorLogged');
 
+/**
+ * `req` is typed structurally rather than as `Request`: ts-rest hands the
+ * handler a `TsRestRequest` whose parsed `query` (coerced numbers) no longer
+ * satisfies Express' `ParsedQs` index signature. Only method and originalUrl
+ * are read here, so asking for less keeps every contract router assignable.
+ */
+type ValidationLogRequest = Pick<Request, 'method' | 'originalUrl'>;
+
 export function logContractValidationError(log: Logger, scope: string) {
-  return (err: RequestValidationError, req: Request, _res: Response, next: NextFunction): void => {
-    const reqWithFlag = req as Request & { [LOGGED_FLAG]?: true };
+  return (
+    err: RequestValidationError,
+    req: ValidationLogRequest,
+    _res: Response,
+    next: NextFunction
+  ): void => {
+    const reqWithFlag = req as ValidationLogRequest & { [LOGGED_FLAG]?: true };
     if (!reqWithFlag[LOGGED_FLAG]) {
       reqWithFlag[LOGGED_FLAG] = true;
       log.error(

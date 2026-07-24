@@ -26,6 +26,11 @@ interface PersistedToolCall {
   toolName: string;
   args: Record<string, unknown>;
   result?: unknown;
+  /** Character index into the final answer text at this tool call's start —
+   *  present only for unified-mode turns. When at least one tool call carries a
+   *  numeric offset, reload interleaves text segments and cards in live order;
+   *  absent (legacy / split turns) keeps the cards-first layout. */
+  textOffset?: number;
 }
 
 export interface LoadedMessage {
@@ -45,6 +50,9 @@ export interface LoadedMessage {
     senderId?: string;
     senderName?: string | null;
     roleName?: string;
+    /** Stamped by messagesController when the row is still status='streaming'
+     *  after request end — i.e. the turn was interrupted (crash/abort). */
+    interrupted?: boolean;
   };
 }
 
@@ -94,6 +102,7 @@ export const PASSTHROUGH_METADATA_FIELDS = [
   'computeData',
   'agentId',
   'roleName',
+  'interrupted',
 ] as const;
 
 /**
@@ -174,8 +183,7 @@ function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string
   if (reelProcessingCall?.result) custom.reelProcessing = reelProcessingCall.result;
   const reelPickerProjects = (
     metadata.toolCalls?.find((tc) => tc.toolName === 'reel_picker')?.result as
-      | { projects?: unknown }
-      | undefined
+      { projects?: unknown } | undefined
   )?.projects;
   if (Array.isArray(reelPickerProjects) && reelPickerProjects.length > 0) {
     custom.reelPicker = { projects: reelPickerProjects };
@@ -190,51 +198,114 @@ function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string
 }
 
 export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMessageLike[] {
-  return messages.map((m) => {
-    const textContent = extractContent(m.content);
+  return messages
+    .filter(
+      // An interrupted turn that never received a delta (crash before first
+      // token) has nothing to show — dropping it beats an empty bubble. Rows
+      // with partial text or tool cards render normally plus the marker.
+      (m) =>
+        !(
+          m.role === 'assistant' &&
+          m.metadata?.interrupted &&
+          !extractContent(m.content) &&
+          !m.metadata?.toolCalls?.length
+        )
+    )
+    .map((m) => {
+      const textContent = extractContent(m.content);
 
-    type ToolCallLike = {
-      readonly type: 'tool-call';
-      readonly toolCallId: string;
-      readonly toolName: string;
-      readonly args: Record<string, string>;
-      readonly result?: unknown;
-    };
+      type ToolCallLike = {
+        readonly type: 'tool-call';
+        readonly toolCallId: string;
+        readonly toolName: string;
+        readonly args: Record<string, string>;
+        readonly result?: unknown;
+        readonly parentId?: string;
+      };
 
-    const contentParts: Array<{ type: 'text'; text: string } | ToolCallLike> = [];
+      const contentParts: Array<{ type: 'text'; text: string } | ToolCallLike> = [];
 
-    if (m.metadata?.toolCalls) {
-      for (const tc of m.metadata.toolCalls) {
-        contentParts.push({
-          type: 'tool-call' as const,
-          toolCallId: tc.toolCallId || `tc_${m.id}`,
-          toolName: tc.toolName,
-          args: { query: String((tc.args as Record<string, unknown>)?.query ?? '') },
-          result: tc.result,
-        });
+      const cardFor = (tc: PersistedToolCall, parentId: string): ToolCallLike => ({
+        type: 'tool-call' as const,
+        toolCallId: tc.toolCallId || `tc_${m.id}`,
+        toolName: tc.toolName,
+        args: { query: String((tc.args as Record<string, unknown>)?.query ?? '') },
+        result: tc.result,
+        parentId,
+      });
+
+      const toolCalls = m.metadata?.toolCalls;
+      const hasOffsets = toolCalls?.some((tc) => typeof tc.textOffset === 'number') ?? false;
+
+      if (toolCalls && hasOffsets) {
+        // Interleaved reload (Stufe 2): mirror the live buildResult layout by
+        // slicing the answer text at each tool call's recorded offset. Sort by
+        // offset (stable on ties via original index) and stamp parentId run-groups
+        // — two cards belong to the same run when no non-empty text lies between
+        // their offsets. A trailing text part is always appended (even empty), to
+        // match the live tail behaviour.
+        const sorted = toolCalls
+          .map((tc, i) => ({ tc, i }))
+          .sort((a, b) => (a.tc.textOffset ?? 0) - (b.tc.textOffset ?? 0) || a.i - b.i)
+          .map((x) => x.tc);
+
+        let cursor = 0;
+        let runParentId: string | null = null;
+        let prevWasCard = false;
+        for (const tc of sorted) {
+          const offset = Math.max(cursor, Math.min(tc.textOffset ?? cursor, textContent.length));
+          const slice = textContent.slice(cursor, offset);
+          if (slice.length > 0) {
+            contentParts.push({ type: 'text' as const, text: slice });
+            prevWasCard = false;
+          }
+          const toolCallId = tc.toolCallId || `tc_${m.id}`;
+          const parentId: string = prevWasCard && runParentId ? runParentId : toolCallId;
+          runParentId = parentId;
+          contentParts.push(cardFor(tc, parentId));
+          prevWasCard = true;
+          cursor = offset;
+        }
+        contentParts.push({ type: 'text' as const, text: textContent.slice(cursor) });
+      } else {
+        // Legacy / split turns: cards first, then the full text — unchanged.
+        if (toolCalls) {
+          for (const tc of toolCalls) {
+            contentParts.push({
+              type: 'tool-call' as const,
+              toolCallId: tc.toolCallId || `tc_${m.id}`,
+              toolName: tc.toolName,
+              args: { query: String((tc.args as Record<string, unknown>)?.query ?? '') },
+              result: tc.result,
+            });
+          }
+        } else if (
+          m.role === 'assistant' &&
+          m.metadata?.intent &&
+          m.metadata.searchResults?.length
+        ) {
+          const toolName = INTENT_TO_TOOL[m.metadata.intent];
+          if (toolName) {
+            contentParts.push({
+              type: 'tool-call' as const,
+              toolCallId: `tc_legacy_${m.id}`,
+              toolName,
+              args: { query: '' },
+              result: { results: m.metadata.searchResults },
+            });
+          }
+        }
+
+        contentParts.push({ type: 'text' as const, text: textContent });
       }
-    } else if (m.role === 'assistant' && m.metadata?.intent && m.metadata.searchResults?.length) {
-      const toolName = INTENT_TO_TOOL[m.metadata.intent];
-      if (toolName) {
-        contentParts.push({
-          type: 'tool-call' as const,
-          toolCallId: `tc_legacy_${m.id}`,
-          toolName,
-          args: { query: '' },
-          result: { results: m.metadata.searchResults },
-        });
-      }
-    }
 
-    contentParts.push({ type: 'text' as const, text: textContent });
+      const custom = buildCustomMetadata(m.metadata);
 
-    const custom = buildCustomMetadata(m.metadata);
-
-    return {
-      role: m.role as 'user' | 'assistant',
-      content: contentParts,
-      id: m.id,
-      metadata: Object.keys(custom).length > 0 ? { custom } : undefined,
-    };
-  });
+      return {
+        role: m.role as 'user' | 'assistant',
+        content: contentParts,
+        id: m.id,
+        metadata: Object.keys(custom).length > 0 ? { custom } : undefined,
+      };
+    });
 }
