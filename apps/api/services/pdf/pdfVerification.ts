@@ -9,7 +9,7 @@
  * is told to relay problems instead of claiming success.
  */
 
-import { PDFDict, PDFDocument, PDFName, PDFNumber } from 'pdf-lib';
+import { PDFDict, PDFDocument, PDFName, PDFNumber, PDFRawStream } from 'pdf-lib';
 
 import { createLogger } from '../../utils/logger.js';
 
@@ -24,6 +24,8 @@ export interface PdfVerification {
   hasLanguage: boolean;
   hasTitle: boolean;
   showsTitleInViewer: boolean;
+  /** XMP stream declaring PDF/UA-1 — what validators and readers look for. */
+  hasUaIdentifier: boolean;
   formFields: string[];
   /** Fields lacking /TU — a screen reader would announce the raw field name. */
   fieldsWithoutLabel: string[];
@@ -76,6 +78,15 @@ export async function verifyPdf(bytes: Buffer): Promise<PdfVerification> {
   const showsTitleInViewer =
     String(viewerPrefs?.get(PDFName.of('DisplayDocTitle')) ?? '') === 'true';
 
+  // The XMP stream is where the PDF/UA claim lives; the Info dictionary is not
+  // enough for a validator or a reader.
+  let hasUaIdentifier = false;
+  const metadataRef = catalog.get(PDFName.of('Metadata'));
+  const metadata = metadataRef ? doc.context.lookup(metadataRef) : null;
+  if (metadata instanceof PDFRawStream) {
+    hasUaIdentifier = Buffer.from(metadata.contents).toString('utf8').includes('pdfuaid:part');
+  }
+
   const formFields: string[] = [];
   const fieldsWithoutLabel: string[] = [];
   try {
@@ -113,6 +124,9 @@ export async function verifyPdf(bytes: Buffer): Promise<PdfVerification> {
   if (!showsTitleInViewer) {
     problems.push('Der Titel wird im Reader nicht statt des Dateinamens angezeigt.');
   }
+  if (!hasUaIdentifier) {
+    problems.push('Die PDF/UA-Kennung fehlt — das Dokument weist sich nicht als barrierefrei aus.');
+  }
   if (pagesMissingStructParents > 0) {
     problems.push(`${pagesMissingStructParents} Seite(n) ohne Strukturzuordnung.`);
   }
@@ -130,6 +144,7 @@ export async function verifyPdf(bytes: Buffer): Promise<PdfVerification> {
     hasLanguage,
     hasTitle,
     showsTitleInViewer,
+    hasUaIdentifier,
     formFields,
     fieldsWithoutLabel,
     problems,
@@ -141,7 +156,9 @@ export function summarizeVerification(v: PdfVerification): string {
   const parts = [
     `${v.pages} Seite(n)`,
     v.extractedChars >= 0 ? `${v.extractedChars} Zeichen auslesbar` : 'Textprüfung nicht möglich',
-    v.hasStructureTree && v.isMarkedTagged ? 'getaggt (barrierefrei)' : 'NICHT getaggt',
+    v.hasStructureTree && v.isMarkedTagged && v.hasUaIdentifier
+      ? 'getaggt nach PDF/UA-1'
+      : 'NICHT getaggt',
   ];
   if (v.formFields.length) parts.push(`${v.formFields.length} Formularfeld(er)`);
   return parts.join(', ');

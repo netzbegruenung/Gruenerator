@@ -122,6 +122,11 @@ export async function createPdfDocument(
 
   const rendered = await renderPdf(effective, { locale: opts.locale, sender: opts.sender ?? null });
   const verification = await verifyPdf(rendered.bytes);
+  if (rendered.missingGlyphs.length) {
+    verification.problems.push(
+      `${rendered.missingGlyphs.length} Zeichen konnten mit den Schriften nicht dargestellt werden und wurden entfernt: ${rendered.missingGlyphs.join(' ')}`
+    );
+  }
   if (rendered.appearanceFallback) {
     verification.problems.push(
       'Die Formularfelder werden erst vom PDF-Reader gezeichnet — in manchen Vorschauen wirken sie leer.'
