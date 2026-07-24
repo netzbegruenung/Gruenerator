@@ -369,6 +369,11 @@ export interface ChatGraphInput {
    * pandas interpreter (`df`) instead of doing arithmetic in its head.
    */
   hasTabularAttachment?: boolean | undefined;
+  /** THIS turn's fillable-PDF attachments (name + base64), for the PDF form
+   *  tools. Needed separately from `threadAttachments`, which carries no bytes
+   *  and is only written after the turn completes — on the very first turn
+   *  ("here is my form, fill it in") the DB has nothing yet. */
+  pdfFormAttachments?: Array<{ name: string; data: string }> | undefined;
   /**
    * True when the requesting client declared the run_python client tool
    * (clientTools includes 'run_python') — i.e. it can execute the pandas code
@@ -459,6 +464,8 @@ export interface ChatGraphState {
   imageAttachments: ImageAttachment[];
   threadAttachments: ThreadAttachment[];
   hasTabularAttachment: boolean;
+  /** See the input-side field: this turn's fillable PDFs, name + base64. */
+  pdfFormAttachments: Array<{ name: string; data: string }>;
   clientCanRunPython: boolean;
 
   // Notebook scoping (from @notebook mentions)
@@ -682,6 +689,10 @@ export interface ChatGraphState {
    *  handler can regenerate with the failure in context. */
   pandasComputeRetries?: number | undefined;
   pandasLastCode?: string | undefined;
+  /** Which codegen prompt produced `pandasLastCode` — survives the Redis
+   *  round-trip so a correction round regenerates openpyxl fill code for a fill
+   *  request instead of silently falling back to pandas analysis code. */
+  pandasComputeMode?: 'analyze' | 'fill' | undefined;
   /** Successful result stashed before a verifier-triggered correction round —
    *  if the "corrected" code then fails, the turn falls back to this instead
    *  of ending with no computation at all. */

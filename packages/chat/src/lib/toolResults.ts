@@ -129,6 +129,8 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
   groups: { label: 'Gruppen', iconKey: 'user' },
   media: { label: 'Medien', iconKey: 'image' },
   notebooks: { label: 'Notizbücher', iconKey: 'book' },
+  read_pdf_form: { label: 'Formularfelder', iconKey: 'file' },
+  fill_pdf_form: { label: 'Formular ausfüllen', iconKey: 'file' },
 };
 
 export function getToolMeta(toolName: string): ToolMeta {

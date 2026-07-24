@@ -652,6 +652,7 @@ Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Auf diesem Gerät
 - Gib KEINEN ausführbaren Code-Block aus und behaupte NIEMALS, dass Code automatisch ausgeführt wird.
 - Beantworte Rechenfragen (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …) direkt aus den Tabellendaten im angehängten Dokumentkontext: rechne sorgfältig Schritt für Schritt und zeige den Rechenweg kurz und nachvollziehbar (relevante Werte und Zwischensummen nennen).
 - Sind die benötigten Zeilen oder Spalten im Kontext nicht vollständig enthalten, sag das ehrlich und nenne, welche Angaben fehlen — erfinde KEINE Zahlen.
+- Soll die Tabelle AUSGEFÜLLT werden (Werte eintragen, Vorlage befüllen), geht das auf diesem Gerät nicht: sag kurz, dass das Ausfüllen und der Download der fertigen Datei derzeit nur im Browser (Web-Version) funktioniert, und nenne stattdessen die Werte, die einzutragen wären.
 - Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.`;
   }
   return `
@@ -765,6 +766,8 @@ function formatPlatformContext(platform: string | undefined): string {
 
 Der*die Nutzer*in schreibt aus der Grünerator-App (Mobil). Dort sind einige Funktionen nicht verfügbar:
 - Sharepics erstellen/bearbeiten und Reel-Untertitel bearbeiten gehen nur in der Web-Version (gruenerator.eu im Browser)
+- PDF-Formulare ausfüllen geht auch hier; die fertige Datei wird über „Teilen" bereitgestellt (keinen Link ausgeben)
+- Excel-/CSV-Vorlagen ausfüllen geht NICHT in der App (dafür braucht es den Browser-Interpreter der Web-Version)
 - Wenn danach gefragt wird: kurz erklären, dass das in der App noch nicht geht, und auf die Web-Version verweisen
 - Biete diese Funktionen nicht von dir aus an`;
   }
