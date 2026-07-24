@@ -72,6 +72,7 @@
       "tsx>esbuild": "^0.28.1",
       "@blocknote/xl-ai>ai": "^6.0.224",
       "@types/node": "^26.1.1",
+      "@tanstack/react-query": "^5.101.4",
       "katex": "^0.18.1",
       "pyodide": "^314.0.2",
       "react-dropzone": "^19.1.1",
