@@ -82,7 +82,24 @@
       "@blocknote/xl-docx-exporter": "^0.52.1",
       "@blocknote/xl-odt-exporter": "^0.52.1",
       "@blocknote/xl-pdf-exporter": "^0.52.1",
-      "@assistant-ui/core": "^0.2.21"
+      "@assistant-ui/core": "^0.2.21",
+      "@tiptap/core": "3.28.0",
+      "@tiptap/extension-bold": "3.28.0",
+      "@tiptap/extension-code": "3.28.0",
+      "@tiptap/extension-collaboration": "3.28.0",
+      "@tiptap/extension-document": "3.28.0",
+      "@tiptap/extension-hard-break": "3.28.0",
+      "@tiptap/extension-heading": "3.28.0",
+      "@tiptap/extension-italic": "3.28.0",
+      "@tiptap/extension-list": "3.28.0",
+      "@tiptap/extension-paragraph": "3.28.0",
+      "@tiptap/extension-strike": "3.28.0",
+      "@tiptap/extension-text": "3.28.0",
+      "@tiptap/extension-underline": "3.28.0",
+      "@tiptap/extensions": "3.28.0",
+      "@tiptap/pm": "3.28.0",
+      "@tiptap/react": "3.28.0",
+      "@tiptap/static-renderer": "3.28.0"
     },
     "auditConfig": {
       "ignoreGhsas": [
