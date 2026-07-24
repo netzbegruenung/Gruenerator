@@ -5,6 +5,10 @@ on:
     branches: [master, main]
   pull_request:
     branches: [master, main]
+  # Required for the merge queue: GitHub builds each queued PR on a temporary
+  # `gh-readonly-queue/*` branch and fires `merge_group`. Without this trigger
+  # the required checks never report on the queue and it hangs forever.
+  merge_group:
 
 permissions:
   contents: read
@@ -47,6 +51,18 @@ jobs:
 
       - name: Prettier format check
         run: pnpm format:check
+
+      # Generated artifacts that drift silently when their source changes on a
+      # DIFFERENT branch. docs-build.yml already checks these, but it is
+      # path-filtered — so a PR that does not touch documentation/ skips it and
+      # can still merge stale. As an always-on required check these catch the
+      # cross-branch drift that broke master repeatedly (docs index, UiLabel
+      # manifest, settings catalog).
+      - name: Generated artifacts in sync
+        run: |
+          pnpm --filter @gruenerator/documentation labels:check
+          pnpm --filter @gruenerator/documentation settings:check
+          pnpm --filter @gruenerator/documentation docs:index:check
 
   pdf-accessibility:
     name: PDF-Barrierefreiheit
