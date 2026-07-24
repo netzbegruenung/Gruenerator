@@ -7,6 +7,12 @@
     "docusaurus": "docusaurus",
     "labels:generate": "node scripts/generate-ui-labels.mjs",
     "labels:check": "node scripts/generate-ui-labels.mjs --check",
+    "capabilities:generate": "node scripts/generate-chat-capabilities.mjs",
+    "capabilities:check": "node scripts/generate-chat-capabilities.mjs --check",
+    "capabilities:audit": "node scripts/generate-chat-capabilities.mjs --audit",
+    "settings:generate": "node scripts/generate-settings.mjs",
+    "settings:check": "node scripts/generate-settings.mjs --check",
+    "settings:audit": "node scripts/generate-settings.mjs --audit",
     "dev": "docusaurus start",
     "start": "docusaurus start",
     "build": "docusaurus build",
@@ -16,7 +22,9 @@
     "serve": "docusaurus serve",
     "write-translations": "docusaurus write-translations",
     "write-heading-ids": "docusaurus write-heading-ids",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "docs:index": "node scripts/generate-docs-index.mjs",
+    "docs:index:check": "node scripts/generate-docs-index.mjs --check"
   },
   "dependencies": {
     "@docusaurus/core": "^3.10.2",

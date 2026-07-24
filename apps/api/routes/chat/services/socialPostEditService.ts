@@ -71,8 +71,7 @@ export async function findSocialPost(
     // A text-edit turn re-targets its post explicitly (one-level recursion).
     const editedPostId = (
       meta?.toolCalls?.find((tc) => tc?.toolName === 'social_post_edit')?.result as
-        | { postId?: string }
-        | undefined
+        { postId?: string } | undefined
     )?.postId;
     if (editedPostId) return findSocialPost(threadId, editedPostId);
     // Newer sharepic-only artifact shadows older posts (see doc comment).

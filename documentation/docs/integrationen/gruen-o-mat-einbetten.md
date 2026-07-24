@@ -55,7 +55,7 @@ Im `modal`-Modus öffnet sich ein zentrierter Dialog statt des Widget-Fensters. 
 ></script>
 ```
 
-:::tip Stil-Isolation
+:::tip[Stil-Isolation]
 Das Widget nutzt Shadow DOM — die CSS-Stile deiner Website beeinflussen das Widget nicht und umgekehrt.
 :::
 
@@ -65,7 +65,7 @@ Aus Sicherheitsgründen muss die Domain, auf der das Widget eingebettet wird, fr
 
 Um deine Domain freischalten zu lassen, schreib eine E-Mail an das Grünerator-Team mit der Domain (z.B. `https://mein-kreisverband.de`).
 
-:::info Lokale Entwicklung
+:::info[Lokale Entwicklung]
 Für lokale Tests (`localhost`) ist keine Freischaltung nötig — `'self'` ist immer erlaubt.
 :::
 

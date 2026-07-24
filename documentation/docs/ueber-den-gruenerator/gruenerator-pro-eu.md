@@ -19,7 +19,7 @@ Der Grünerator ist die souveräne Alternative: **100% europäische Infrastruktu
 - **SearXNG** (selbstgehostet, Deutschland) — Suche
 - **Hetzner** (Deutschland) — Hosting
 
-:::info Digitale Souveränität ist kein Luxus
+:::info[Digitale Souveränität ist kein Luxus]
 Wer europäische Werte vertritt, sollte europäische Werkzeuge nutzen. Der Grünerator zeigt, dass das ohne Qualitätsverlust möglich ist.
 :::
 

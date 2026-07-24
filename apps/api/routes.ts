@@ -132,6 +132,7 @@ import {
 import { mountTransferContractRouter } from './routes/transfer/transferContractRouter.js';
 import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractRouter.js';
 import { mountItemUsageContractRouter } from './routes/usage/itemUsageContractRouter.js';
+import { mountUserUsageContractRouter } from './routes/usage/userUsageContractRouter.js';
 import { recentValuesRouter } from './routes/user/index.js';
 import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
 import { mountUserWebsitesContractRouter } from './routes/user/userWebsitesContractRouter.js';
@@ -150,6 +151,7 @@ import * as sharepicGenerationService from './services/chat/sharepicGenerationSe
 import * as tusServiceModule from './services/subtitler/tusService.js';
 import { createLogger } from './utils/logger.js';
 import { RouteStatsTracker } from './utils/routeStats.js';
+import { featureFromPath, runWithUsageContext } from './utils/usageContext.js';
 
 import type { Application, Request, Response, NextFunction, Router } from 'express';
 
@@ -277,6 +279,16 @@ export async function setupRoutes(app: Application): Promise<void> {
     setImmediate(() => {
       routeTracker.track(req.method, req.path);
     });
+  });
+
+  // Per-user consumption tracking context. Must run before every auth mount:
+  // the store keeps a reference to `req` and reads `req.user` lazily, once
+  // requireAuth has resolved it.
+  // originalUrl, not req.path: inside an `app.use('/api/*splat')` mount Express
+  // strips the mount prefix, so req.path would arrive without its `/api/...`.
+  app.use('/api/*splat', (req: Request, _res: Response, next: NextFunction) => {
+    const path = req.originalUrl.split('?')[0] ?? req.originalUrl;
+    runWithUsageContext({ req, feature: featureFromPath(path) }, next);
   });
 
   // Dynamic imports for ES modules
@@ -427,6 +439,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   // ordering). requireAuth at the prefix — returns user-specific data.
   app.use('/api/item-usage', requireAuth, publicReadLimiter);
   mountItemUsageContractRouter(app);
+  // ts-rest contract router for /api/usage (personal consumption statistics).
+  // requireAuth at the prefix — strictly the caller's own data.
+  app.use('/api/usage', requireAuth, publicReadLimiter);
+  mountUserUsageContractRouter(app);
   app.use('/api/antraege', requireAuth, standardMutationLimiter, antraegeRouter);
   app.use('/api/scanner', publicReadLimiter, scannerRouter);
   app.use('/api/protokoll', publicReadLimiter, protokollRouter);

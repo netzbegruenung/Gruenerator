@@ -60,7 +60,7 @@ jobs:
           WRAP_FLAGS="--id social-media --http-code $HTTP_CODE"
           if [ "$DRY_RUN" = "true" ]; then WRAP_FLAGS="$WRAP_FLAGS --dry-run"; fi
           if [ "$FORCE" = "true" ]; then WRAP_FLAGS="$WRAP_FLAGS --force"; fi
-          echo "$RESPONSE_BODY" | pnpm --filter @gruenerator/api run sync:wrap-result -- $WRAP_FLAGS \
+          echo "$RESPONSE_BODY" | pnpm --silent --filter @gruenerator/api run sync:wrap-result -- $WRAP_FLAGS \
             > "$GITHUB_WORKSPACE/sync-summary.json"
 
           if [ "$HTTP_CODE" != "200" ]; then
@@ -84,10 +84,25 @@ jobs:
             exit 0
           fi
 
+          # A summary that isn't valid JSON (pnpm banner leaking into the file,
+          # truncated write) must not fail an otherwise successful sync.
+          if ! jq -e . "$SUMMARY_FILE" > /dev/null 2>&1; then
+            {
+              echo "## Social Media Sync — Unreadable Summary"
+              echo ""
+              echo "\`sync-summary.json\` is not valid JSON. Check the [workflow logs]($RUN_URL)."
+              echo ""
+              echo '```'
+              head -c 500 "$SUMMARY_FILE"
+              echo '```'
+            } >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
           TIMESTAMP=$(jq -r '.timestamp' "$SUMMARY_FILE")
           STORED=$(jq -r '.totals.stored' "$SUMMARY_FILE")
-          ERRORS=$(jq -r '.totals.errors' "$SUMMARY_FILE")
-          DURATION=$(jq -r '.totalDuration' "$SUMMARY_FILE")
+          ERRORS=$(jq -r '.totals.errors // 0' "$SUMMARY_FILE")
+          DURATION=$(jq -r '.totalDuration // 0' "$SUMMARY_FILE")
 
           if [ "$ERRORS" -gt 0 ]; then STATUS_ICON="⚠️"; else STATUS_ICON="✅"; fi
 
