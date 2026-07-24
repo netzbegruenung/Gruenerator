@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   runAgenticLoop,
   buildPrepareStep,
+  createSentenceChunker,
   FORCE_FINISH_SYSTEM_SUFFIX,
   FORCE_FINISH_GATHER_SUFFIX,
   type LoopDeps,
@@ -37,15 +38,17 @@ const plannerModel = { id: 'planner' } as unknown as LoopEngineParams['plannerMo
 const synthModel = { id: 'synth' } as unknown as LoopEngineParams['synthModel'];
 
 type Part = { type: string; text?: string; error?: unknown };
-type StreamOpts = { model: { id: string }; tools?: Record<string, unknown>; system?: string };
-type GenOpts = {
+type StreamOpts = {
   model: { id: string };
   tools?: Record<string, { execute?: (i: unknown, o: { toolCallId: string }) => Promise<unknown> }>;
+  system?: string;
 };
-
-function streamOf(parts: Part[]): ReturnType<LoopDeps['streamText']> {
+// `before` simulates the real SDK's tool loop: the tool call happens WHILE the
+// stream is being drained (gather consumes result.stream), not before.
+function streamOf(parts: Part[], before?: () => Promise<void>): ReturnType<LoopDeps['streamText']> {
   return {
     stream: (async function* () {
+      if (before) await before();
       yield* parts;
     })(),
   } as unknown as ReturnType<LoopDeps['streamText']>;
@@ -110,43 +113,50 @@ describe('runAgenticLoop — unified mode', () => {
 });
 
 describe('runAgenticLoop — split (planner/executor)', () => {
-  it('planner gathers (generateText+tools) then the SELECTED model synthesizes (streamText, no tools)', async () => {
+  it('planner gathers (streamText+tools) then the SELECTED model synthesizes (streamText, no tools)', async () => {
     const order: string[] = [];
     const onText = vi.fn();
     let synthSystem = '';
     const deps: LoopDeps = {
-      generateText: ((o: GenOpts) => {
-        order.push(`gather:${o.model.id}:tools=${!!o.tools}`);
-        return Promise.resolve({ text: 'PLANNER_DRAFT_DISCARDED' });
-      }) as unknown as LoopDeps['generateText'],
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
       streamText: ((o: StreamOpts) => {
-        order.push(`synth:${o.model.id}:tools=${!!o.tools}`);
-        synthSystem = o.system ?? '';
-        return streamOf([{ type: 'text-delta', text: 'SYNTH_ANSWER' }]);
+        const phase = o.model.id === 'planner' ? 'gather' : 'synth';
+        order.push(`${phase}:${o.model.id}:tools=${!!o.tools}`);
+        if (phase === 'synth') synthSystem = o.system ?? '';
+        return streamOf([
+          {
+            type: 'text-delta',
+            text: phase === 'gather' ? 'PLANNER_DRAFT_DISCARDED' : 'SYNTH_ANSWER',
+          },
+        ]);
       }) as unknown as LoopDeps['streamText'],
     };
 
     const out = await runAgenticLoop(baseParams({ mode: 'split', onText }), deps);
 
-    // The user-facing answer comes from the synth model; the planner's draft is discarded.
+    // The user-facing answer comes from the synth model; the planner's draft is
+    // never routed to onText (with no onNarration it is drained silently).
     expect(out.text).toBe('SYNTH_ANSWER');
     expect(onText).toHaveBeenCalledWith('SYNTH_ANSWER');
     expect(onText).not.toHaveBeenCalledWith('PLANNER_DRAFT_DISCARDED');
-    // Order + which model + tools-per-phase.
+    // Order + which model + tools-per-phase (gather has tools, synth does not).
     expect(order).toEqual(['gather:planner:tools=true', 'synth:synth:tools=false']);
     // Gathered sources are injected into the (tool-less) synth context.
     expect(synthSystem).toContain('[1] Quelle');
   });
 
-  it('runs the tool loop on the planner (gather executes tools)', async () => {
+  it('runs the tool loop on the planner (gather drains its stream, executing tools)', async () => {
     const probe = vi.fn().mockResolvedValue({ ok: true });
     const deps: LoopDeps = {
-      generateText: (async (o: GenOpts) => {
-        await o.tools?.probe?.execute?.({}, { toolCallId: 'c1' });
-        return { text: '' };
-      }) as unknown as LoopDeps['generateText'],
-      streamText: (() =>
-        streamOf([{ type: 'text-delta', text: 'A' }])) as unknown as LoopDeps['streamText'],
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) => {
+        if (o.model.id === 'planner') {
+          return streamOf([{ type: 'text-delta', text: '' }], async () => {
+            await o.tools?.probe?.execute?.({}, { toolCallId: 'c1' });
+          });
+        }
+        return streamOf([{ type: 'text-delta', text: 'A' }]);
+      }) as unknown as LoopDeps['streamText'],
     };
 
     await runAgenticLoop(
@@ -160,12 +170,43 @@ describe('runAgenticLoop — split (planner/executor)', () => {
     expect(probe).toHaveBeenCalledOnce();
   });
 
+  it('drains the whole planner stream even without onNarration (so the tool loop runs)', async () => {
+    let consumed = 0;
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) => {
+        if (o.model.id === 'planner') {
+          return {
+            stream: (async function* () {
+              for (const part of [
+                { type: 'text-delta', text: 'a. ' },
+                { type: 'reasoning-delta', text: 'r' },
+                { type: 'text-delta', text: 'b.' },
+              ]) {
+                consumed += 1;
+                yield part;
+              }
+            })(),
+          } as unknown as ReturnType<LoopDeps['streamText']>;
+        }
+        return streamOf([{ type: 'text-delta', text: 'X' }]);
+      }) as unknown as LoopDeps['streamText'],
+    };
+
+    await runAgenticLoop(baseParams({ mode: 'split' }), deps); // no onNarration
+
+    expect(consumed).toBe(3);
+  });
+
   it('degrades to synthesis when the gather phase errors (partial evidence still answers)', async () => {
     const deps: LoopDeps = {
-      generateText: (() =>
-        Promise.reject(new Error('planner boom'))) as unknown as LoopDeps['generateText'],
-      streamText: (() =>
-        streamOf([{ type: 'text-delta', text: 'RECOVERED' }])) as unknown as LoopDeps['streamText'],
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) => {
+        if (o.model.id === 'planner') {
+          return streamOf([{ type: 'error', error: new Error('planner boom') }]);
+        }
+        return streamOf([{ type: 'text-delta', text: 'RECOVERED' }]);
+      }) as unknown as LoopDeps['streamText'],
     };
 
     const out = await runAgenticLoop(baseParams({ mode: 'split' }), deps);
@@ -174,24 +215,89 @@ describe('runAgenticLoop — split (planner/executor)', () => {
   });
 });
 
+describe('runAgenticLoop — split gather narration', () => {
+  it('streams planner prose to onNarration sentence-wise, NOT to onText', async () => {
+    const onNarration = vi.fn();
+    const onText = vi.fn();
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) => {
+        if (o.model.id === 'planner') {
+          return streamOf([
+            { type: 'text-delta', text: 'Ich suche ' },
+            { type: 'text-delta', text: 'im Wahlprogramm. ' },
+            { type: 'text-delta', text: 'Jetzt prüfe ich die Quelle.' },
+          ]);
+        }
+        return streamOf([{ type: 'text-delta', text: 'FINAL' }]);
+      }) as unknown as LoopDeps['streamText'],
+    };
+
+    await runAgenticLoop(baseParams({ mode: 'split', onNarration, onText }), deps);
+
+    expect(onNarration).toHaveBeenCalledWith('Ich suche im Wahlprogramm.');
+    expect(onNarration).toHaveBeenCalledWith('Jetzt prüfe ich die Quelle.');
+    // Narration must never leak into the answer channel.
+    expect(onText).not.toHaveBeenCalledWith('Ich suche im Wahlprogramm.');
+    expect(onText).toHaveBeenCalledWith('FINAL');
+  });
+
+  it('flushes the narration buffered up to a stream error, then degrades without throwing', async () => {
+    const onNarration = vi.fn();
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) => {
+        if (o.model.id === 'planner') {
+          return streamOf([
+            { type: 'text-delta', text: 'Erster Schritt. ' },
+            { type: 'error', error: new Error('boom') },
+            { type: 'text-delta', text: 'nie erreicht' },
+          ]);
+        }
+        return streamOf([{ type: 'text-delta', text: 'SYNTH' }]);
+      }) as unknown as LoopDeps['streamText'],
+    };
+
+    const out = await runAgenticLoop(baseParams({ mode: 'split', onNarration }), deps);
+
+    expect(out.text).toBe('SYNTH');
+    expect(onNarration).toHaveBeenCalledWith('Erster Schritt.');
+    expect(onNarration).not.toHaveBeenCalledWith('nie erreicht');
+  });
+
+  it('flushes a trailing partial (punctuation-free) sentence at phase end', async () => {
+    const onNarration = vi.fn();
+    const deps: LoopDeps = {
+      generateText: (() => Promise.resolve({})) as unknown as LoopDeps['generateText'],
+      streamText: ((o: StreamOpts) =>
+        o.model.id === 'planner'
+          ? streamOf([{ type: 'text-delta', text: 'Kein Satzende hier' }])
+          : streamOf([{ type: 'text-delta', text: 'S' }])) as unknown as LoopDeps['streamText'],
+    };
+
+    await runAgenticLoop(baseParams({ mode: 'split', onNarration }), deps);
+
+    expect(onNarration).toHaveBeenCalledWith('Kein Satzende hier');
+  });
+});
+
 describe('runAgenticLoop — force-finish (prepareStep)', () => {
   type PrepareStep = (a: { stepNumber: number }) => { toolChoice?: string; system?: string };
 
   function capturePrepareStep(mode: 'unified' | 'split', params: Partial<LoopEngineParams>) {
+    // Both modes drive tools via streamText now (unified: the one pass; split:
+    // the gather pass). Synthesis streamText carries no prepareStep, so capture
+    // the call that actually has one.
     let streamPrepare: PrepareStep | undefined;
-    let genPrepare: PrepareStep | undefined;
     const deps: LoopDeps = {
       streamText: ((o: StreamOpts & { prepareStep?: PrepareStep }) => {
-        streamPrepare ??= o.prepareStep;
+        if (o.prepareStep) streamPrepare = o.prepareStep;
         return streamOf([{ type: 'text-delta', text: 'A' }]);
       }) as unknown as LoopDeps['streamText'],
-      generateText: ((o: GenOpts & { prepareStep?: PrepareStep }) => {
-        genPrepare = o.prepareStep;
-        return Promise.resolve({ text: '' });
-      }) as unknown as LoopDeps['generateText'],
+      generateText: (() => Promise.resolve({ text: '' })) as unknown as LoopDeps['generateText'],
     };
     const run = runAgenticLoop(baseParams({ mode, ...params }), deps);
-    return { run, prepare: () => (mode === 'unified' ? streamPrepare : genPrepare) };
+    return { run, prepare: () => streamPrepare };
   }
 
   it('unified: last step strips tools AND injects the finish instruction', async () => {
@@ -273,5 +379,87 @@ describe('runAgenticLoop — stream draining', () => {
       runAgenticLoop(baseParams({ mode: 'unified', onReasoning }), deps)
     ).rejects.toThrow('stream fail');
     expect(onReasoning).toHaveBeenCalledWith('denke nach');
+  });
+});
+
+describe('createSentenceChunker', () => {
+  function collect(): { c: ReturnType<typeof createSentenceChunker>; out: string[] } {
+    const out: string[] = [];
+    return { c: createSentenceChunker((s) => out.push(s)), out };
+  }
+
+  it('flushes on a sentence-end char followed by whitespace', () => {
+    const { c, out } = collect();
+    c.push('Hallo Welt. ');
+    expect(out).toEqual(['Hallo Welt.']);
+  });
+
+  it('treats . ! ? … : as sentence ends', () => {
+    for (const [text, expected] of [
+      ['Punkt. ', 'Punkt.'],
+      ['Ruf! ', 'Ruf!'],
+      ['Frage? ', 'Frage?'],
+      ['Ellipse… ', 'Ellipse…'],
+      ['Doppelpunkt: ', 'Doppelpunkt:'],
+    ] as const) {
+      const { c, out } = collect();
+      c.push(text);
+      expect(out).toEqual([expected]);
+    }
+  });
+
+  it('flushes on a sentence end at the very end of the buffer (no trailing space)', () => {
+    const { c, out } = collect();
+    c.push('Satz zu Ende.');
+    expect(out).toEqual(['Satz zu Ende.']);
+  });
+
+  it('flushes on a newline and buffers the remainder', () => {
+    const { c, out } = collect();
+    c.push('Zeile eins\nZeile zwei');
+    expect(out).toEqual(['Zeile eins']);
+    c.flush();
+    expect(out).toEqual(['Zeile eins', 'Zeile zwei']);
+  });
+
+  it('flushes when the buffer grows past 160 chars without a boundary', () => {
+    const { c, out } = collect();
+    const long = 'a'.repeat(200);
+    c.push(long);
+    expect(out).toEqual([long]);
+  });
+
+  it('trims each emitted sentence and drops empty/whitespace-only deltas', () => {
+    const { c, out } = collect();
+    c.push('   ');
+    c.push('');
+    expect(out).toEqual([]);
+    c.push('   Wort.   ');
+    expect(out).toEqual(['Wort.']);
+  });
+
+  it('emits only up to a mid-buffer sentence end and keeps the rest', () => {
+    const { c, out } = collect();
+    c.push('Erster Satz. Zweiter');
+    expect(out).toEqual(['Erster Satz.']);
+    c.flush();
+    expect(out).toEqual(['Erster Satz.', 'Zweiter']);
+  });
+
+  it('reassembles a sentence split across multiple deltas', () => {
+    const { c, out } = collect();
+    c.push('Ich suche ');
+    c.push('im Wahlprogramm. ');
+    expect(out).toEqual(['Ich suche im Wahlprogramm.']);
+  });
+
+  it('flush() emits the trailing buffer; flush() on an empty buffer emits nothing', () => {
+    const { c, out } = collect();
+    c.push('Ohne Ende');
+    expect(out).toEqual([]);
+    c.flush();
+    expect(out).toEqual(['Ohne Ende']);
+    c.flush();
+    expect(out).toEqual(['Ohne Ende']);
   });
 });

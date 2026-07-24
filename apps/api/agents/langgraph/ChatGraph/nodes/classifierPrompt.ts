@@ -36,11 +36,13 @@ VERFÜGBARE TOOLS:
 - save_as_doc: Antwort als Dokument speichern - "speichere als Dokument", "mach ein Dokument daraus", "als Protokoll speichern"
 - create_sheet: Eigenständige, rechnende Tabelle (Spreadsheet) erstellen - "erstelle eine Tabelle", "mach ein Spreadsheet", "Budgetplan als Tabelle", "Kalkulation", "Datenliste mit Formeln". ABGRENZUNG: Eine einfache Tabelle IN einem Textdokument ("füge eine Tabelle ins Dokument ein", "als Dokument mit Tabelle") → save_as_doc mit documentSubtype "tabelle". Eine eigenständige Tabelle mit Daten/Formeln/Berechnungen → create_sheet. Eine HTML-Tabelle zum Anschauen → artifact.
 - create_presentation: Präsentation / Foliensatz / Slides / Pitch-Deck erstellen - "erstelle eine Präsentation", "mach Folien", "ein Foliensatz über X", "Präsentation für den Vortrag", "Slides zu Y". ABGRENZUNG: Eine Rede oder ein Vortrag ALS FLIESSTEXT ("schreibe eine Rede", "einen Vortrag als Text") → save_as_doc. Ein strukturierter Foliensatz zum Präsentieren → create_presentation.
+- create_pdf: Fertiges, barrierefreies PDF zum Herunterladen/Ausdrucken erstellen - "erstelle ein PDF", "als PDF", "mach ein PDF daraus", "zum Ausdrucken", "offizieller Brief mit Briefkopf", "Anschreiben als PDF" - ODER ein AUSFÜLLBARES Formular erzeugen ("erstelle ein Anmeldeformular", "ein ausfüllbares Formular für Mitgliedsanträge", "einen Fragebogen zum Ausfüllen"). ABGRENZUNG: Ein bearbeitbares Dokument ("speichere als Dokument", "mach ein Dokument") → save_as_doc. Ein angehängtes/erwähntes PDF LESEN oder zusammenfassen ("fasse das PDF zusammen", "was steht im PDF") → summary. Ein ANGEHÄNGTES Formular AUSFÜLLEN ("füll das Formular aus") → NICHT create_pdf. Ein Foliensatz "als PDF" → create_presentation.
 - create_recurring_task: WIEDERKEHRENDE Aufgabe einrichten, die REGELMÄSSIG automatisch läuft - "jeden Montag um 9 Uhr...", "täglich eine Zusammenfassung", "erinnere mich wöchentlich", "richte eine wiederkehrende Aufgabe ein", "jeden Tag automatisch". MUSS einen Wiederholungs-Rhythmus (täglich/wöchentlich/monatlich + Uhrzeit) enthalten. ABGRENZUNG: Eine EINMALIGE Aufgabe jetzt ("fasse X zusammen", "erstelle jetzt ein Dokument") → das passende Sofort-Intent (save_as_doc / summary / …), NICHT create_recurring_task.
 - modify_doc: Erwähntes Dokument bearbeiten (NUR wenn ein @Dokument erwähnt wurde UND Bearbeitungsabsicht) - "ändere", "ergänze", "aktualisiere", "füge hinzu", "überarbeite"
 - modify_board: Erwähntes Board bearbeiten (NUR wenn ein @Board erwähnt wurde UND Änderungsabsicht) - "füge Aufgabe hinzu", "neue Karte", "aktualisiere Board", "erstelle Aufgaben"
 - share_doc: Dokument mit Gruppe teilen - "teile mit Gruppe", "teile das mit", "share mit AG", "an Gruppe senden", "Gruppe X freigeben"
 - chat_history: Frühere INHALTE DIESES Nutzers durchsuchen oder wieder aufgreifen — sowohl vergangene Chats ("was haben wir letztes Mal besprochen", "finde unseren Chat über X", "mach da weiter wo wir aufgehört haben") ALS AUCH eigene Dokumente/Präsentationen/Tabellen/Boards ("finde meine Präsentation zu X", "mein Dokument über Y", "die Tabelle die ich erstellt habe", "mein Board/Kanban zu Z", "meine Notizen von letzter Woche"). NICHT für Grüne Positionen/Programme (→ search) und NICHT für Web-Inhalte (→ web).
+- hilfe: BEDIENUNG DES GRÜNERATORS - Anleitungen und Erklärungen zu Funktionen des Grünerators aus der offiziellen Dokumentation ("wie erstelle ich ein Sharepic", "wie lege ich ein Notebook an", "wie binde ich die Grüne Wolke ein", "wo finde ich die Konnektoren", "welche KI-Modelle gibt es im Grünerator", "Anleitung für den Reel-Grünerator", "was ist die Agentura"). NUR für die NUTZUNG des Produkts. NICHT für inhaltliche/politische Fragen (→ search), NICHT für allgemeine KI-/Technikfragen ohne Grünerator-Bezug (→ direct/web), NICHT für eigene Inhalte des Nutzers wie Dokumente oder Boards (→ chat_history).
 - mcp: (EXPERIMENTELL) Aktion über einen vom Nutzer verbundenen externen Dienst/Tool (MCP-Server) - NUR wenn der Nutzer explizit einen verbundenen Dienst oder ein Tool nennt (z.B. "@mcp", "über meinen verbundenen Server", "mit dem Linear-Tool") oder eine Aktion verlangt, die eindeutig ein solches externes Tool ausführt. Bei Unsicherheit NICHT wählen (→ direct).
 - direct: STANDARD-INTENT. Begrüßungen, Dank, kreative Aufgaben, Textbearbeitung, Umformulierungen
 
@@ -85,7 +87,8 @@ SCHRITT 3 - TOOL WÄHLEN:
 4. Als Dokument speichern? → save_as_doc
 4b. Eigenständige rechnende Tabelle/Spreadsheet erstellen? → create_sheet
 4c. Präsentation / Foliensatz / Slides erstellen? → create_presentation
-4d. Wiederkehrende, regelmäßig automatisch laufende Aufgabe (mit Rhythmus + Uhrzeit)? → create_recurring_task
+4d. Fertiges PDF zum Herunterladen/Ausdrucken, offizieller Brief mit Briefkopf oder ein ausfüllbares Formular? → create_pdf
+4e. Wiederkehrende, regelmäßig automatisch laufende Aufgabe (mit Rhythmus + Uhrzeit)? → create_recurring_task
 5. Dokument mit Gruppe teilen? → share_doc
 5b. Bezug auf ein FRÜHERES GESPRÄCH oder einen EIGENEN INHALT des Nutzers — Dokument/Präsentation/Tabelle/Board ("letztes Mal", "unser Chat über", "mach da weiter", "meine Präsentation zu", "mein Dokument über", "die Tabelle die ich erstellt habe", "mein Board/Kanban zu")? → chat_history
 6. Social-Media-Post ERSTELLEN (Insta/Facebook/Tweet/LinkedIn oder generisch)? → social_post (auch "Post MIT Sharepic" → social_post; bei "nur Text"/"ohne Sharepic" → examples; bei "nur Sharepic"/"ohne Text" → sharepic)
@@ -97,6 +100,7 @@ SCHRITT 3 - TOOL WÄHLEN:
 6f. Konkrete Wettervorhersage/aktuelles Wetter für einen Ort? → wetter (Klimapolitik → search)
 6g. Aktuelle Nachrichtenlage/Schlagzeilen/tagesschau-Meldungen zu einem Thema? → news
 6h. Wahlumfragen/Sonntagsfrage/Umfragewerte (bundesweit oder Bundesland)? → umfragen
+6i. Frage zur BEDIENUNG des Grünerators (Anleitung, "wie mache ich X im Grünerator", Funktion erklärt haben)? → hilfe (inhaltliche Fragen → search)
 7. EXPLIZITE Recherche ("recherchiere", "finde Fakten")? → research
 8. EXPLIZITE FRAGE zu Grüner Politik/Programm/Position? → search
 9. Aktuelle News/Ereignisse? → web
@@ -186,7 +190,7 @@ Antworte NUR mit JSON:
   "typoAnalysis": {"original": "...", "corrected": "..."} | null,
   "contentType": "pressemitteilung" | "artikel" | "rede" | "argumentation" | "tweet" | "slogan" | null,
   "needsResearch": true | false,
-  "intent": "sharepic" | "social_post" | "image" | "image_edit" | "research" | "search" | "web" | "examples" | "abgeordnetenwatch" | "bundestag" | "bahn" | "reise" | "hotel" | "umfragen" | "wetter" | "news" | "summary" | "chart" | "artifact" | "compute" | "save_as_doc" | "create_sheet" | "create_presentation" | "create_recurring_task" | "modify_doc" | "modify_board" | "share_doc" | "chat_history" | "mcp" | "direct",
+  "intent": "sharepic" | "social_post" | "image" | "image_edit" | "research" | "search" | "web" | "examples" | "abgeordnetenwatch" | "bundestag" | "bahn" | "reise" | "hotel" | "umfragen" | "wetter" | "news" | "summary" | "chart" | "artifact" | "compute" | "save_as_doc" | "create_sheet" | "create_presentation" | "create_pdf" | "create_recurring_task" | "modify_doc" | "modify_board" | "share_doc" | "chat_history" | "mcp" | "direct",
   "secondaryIntent": "image" | "examples" | "chart" | "save_as_doc" | null,
   "documentSubtype": "antrag" | "pressemitteilung" | "protokoll" | "notizen" | "redaktionsplan" | "checkliste" | "einladung" | "tabelle" | null,
   "searchQuery": "ORIGINALTEXT des Benutzers (KEINE Korrekturen an Eigennamen!)" | null,
@@ -236,6 +240,7 @@ export const NON_SEARCH_INTENTS = new Set([
   'save_as_doc',
   'create_sheet',
   'create_presentation',
+  'create_pdf',
   'create_recurring_task',
   'modify_doc',
   'modify_board',

@@ -9,6 +9,7 @@ export const INTENT_TO_TOOL: Record<string, string> = {
   examples: 'gruenerator_examples_search',
   pressemitteilung_examples: 'gruenerator_pressemitteilung_examples',
   chat_history: 'search_chat_history',
+  hilfe: 'gruenerator_docs_search',
 };
 
 /** System MCP source prefixes → display names (mirrors apps/api systemMcpServers). */
@@ -34,6 +35,36 @@ export function formatNamespacedToolLabel(toolName: string, serverName?: string)
   const systemName = system?.[1] ? SYSTEM_TOOL_PREFIXES[system[1]] : undefined;
   if (system && systemName) return `${serverName ?? systemName} · ${system[2]}`;
   return serverName ? `${serverName} · ${toolName}` : toolName;
+}
+
+/** Singular/plural German label per tool for the collapsed tool-run summary row. */
+const TOOL_COUNT_LABELS: Record<string, readonly [singular: string, plural: string]> = {
+  gruenerator_search: ['Suche', 'Suchen'],
+  web_search: ['Suche', 'Suchen'],
+  research: ['Suche', 'Suchen'],
+  scrape_url: ['Webseite gelesen', 'Webseiten gelesen'],
+  sharepic: ['Sharepic', 'Sharepics'],
+  generate_image: ['Bild', 'Bilder'],
+  create_presentation: ['Präsentation', 'Präsentationen'],
+  create_sheet: ['Tabelle', 'Tabellen'],
+  create_document: ['Dokument', 'Dokumente'],
+  save_as_doc: ['Dokument', 'Dokumente'],
+};
+
+/**
+ * Summary label for N calls of one tool in a collapsed tool-run row, e.g.
+ * "4 Suchen" or "1 Sharepic". MCP/namespaced tools route through
+ * `formatNamespacedToolLabel` for their display name; anything unregistered
+ * falls back to the raw tool name with a `×N` counter.
+ */
+export function toolCountLabel(toolName: string, count: number): string {
+  const pair = TOOL_COUNT_LABELS[toolName];
+  if (pair) return `${count} ${count === 1 ? pair[0] : pair[1]}`;
+
+  const namespaced = formatNamespacedToolLabel(toolName);
+  if (namespaced !== toolName) return `${namespaced} ×${count}`;
+
+  return `${toolName} ×${count}`;
 }
 
 /**

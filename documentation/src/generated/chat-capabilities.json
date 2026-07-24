@@ -1,0 +1,237 @@
+{
+  "intents": [
+    "abgeordnetenwatch",
+    "agentic",
+    "artifact",
+    "bahn",
+    "bundestag",
+    "chart",
+    "chat_history",
+    "compare",
+    "compute",
+    "create_presentation",
+    "create_recurring_task",
+    "create_sheet",
+    "direct",
+    "edit_current_board",
+    "edit_current_doc",
+    "examples",
+    "hotel",
+    "image",
+    "image_edit",
+    "mcp",
+    "modify_board",
+    "modify_doc",
+    "news",
+    "pressemitteilung_examples",
+    "reise",
+    "research",
+    "save_as_doc",
+    "scrape_url",
+    "search",
+    "share_doc",
+    "sharepic",
+    "social_post",
+    "summary",
+    "umfragen",
+    "web",
+    "wetter"
+  ],
+  "experimentalIntents": [
+    "bahn",
+    "create_recurring_task",
+    "hotel",
+    "mcp",
+    "news",
+    "reise",
+    "social_post",
+    "umfragen",
+    "wetter"
+  ],
+  "mentionables": {
+    "abgeordnetenwatch": {
+      "title": "Abgeordnetenwatch",
+      "description": "Abstimmungen & Nebentätigkeiten von Abgeordneten",
+      "mention": "@abgeordnetenwatch",
+      "audience": "de-DE"
+    },
+    "board-erstellen": {
+      "title": "Board erstellen",
+      "description": "Erstellt ein Board aus dem Chatverlauf",
+      "mention": "@board-erstellen"
+    },
+    "bundestag": {
+      "title": "Bundestag",
+      "description": "Drucksachen, Reden & Gesetzgebung aus dem Bundestag",
+      "mention": "@bundestag",
+      "audience": "de-DE"
+    },
+    "canva-trigger": {
+      "title": "Canva",
+      "description": "Eigene Canva-Designs einfügen",
+      "mention": "@canva"
+    },
+    "connect-trigger": {
+      "title": "Verbundene Accounts",
+      "description": "Dateien aus verbundenen Diensten einfügen",
+      "mention": "@connect"
+    },
+    "docs-picker-trigger": {
+      "title": "Dokument einfügen",
+      "description": "Dokumente, Dateien & Notizbuch-Inhalte als Kontext hinzufügen",
+      "mention": "@docs"
+    },
+    "dokument-erstellen": {
+      "title": "Dokument erstellen",
+      "description": "Erstellt ein Dokument aus dem Chatverlauf",
+      "mention": "@dokument-erstellen"
+    },
+    "image": {
+      "title": "Bildgenerierung",
+      "description": "Bild mit KI generieren (Flux)",
+      "mention": "@bildgenerieren"
+    },
+    "image_edit": {
+      "title": "Stadt begrünen",
+      "description": "Stadtbild mit Grün transformieren",
+      "mention": "@stadtbegruenen"
+    },
+    "image_edit_universal": {
+      "title": "Bild bearbeiten",
+      "description": "Angehängtes Bild frei bearbeiten (z.B. \"jünger machen\", \"mehr Grün\")",
+      "mention": "@bildbearbeiten"
+    },
+    "praesentation-erstellen": {
+      "title": "Präsentation erstellen",
+      "description": "Erstellt eine Präsentation (Foliensatz) aus dem Chatverlauf",
+      "mention": "@praesentation-erstellen"
+    },
+    "research": {
+      "title": "Recherche",
+      "description": "Web & Quellen – automatische Suchtiefe",
+      "mention": "@recherche"
+    },
+    "search": {
+      "title": "Dokumente",
+      "description": "Parteiprogramme & Beschlüsse durchsuchen",
+      "mention": "@dokumente"
+    },
+    "sharepic": {
+      "title": "Sharepic",
+      "description": "Sharepic-Varianten erstellen und per Chat bearbeiten (Text, Bild, Farben, Position)"
+    },
+    "sheet-erstellen": {
+      "title": "Tabelle erstellen",
+      "description": "Erstellt eine Tabelle (Spreadsheet) aus dem Chatverlauf",
+      "mention": "@tabelle-erstellen"
+    },
+    "summary": {
+      "title": "Zusammenfassung",
+      "description": "Dokument(e) zusammenfassen",
+      "mention": "@zusammenfassung"
+    },
+    "umfragen": {
+      "title": "Umfragen",
+      "description": "Meinungsumfragen & Sonntagsfrage durchsuchen",
+      "mention": "@umfragen"
+    },
+    "vorlagen-trigger": {
+      "title": "Vorlagen",
+      "description": "Passende Vorlagen per Vektorsuche einfügen",
+      "mention": "@vorlagen"
+    },
+    "webpage-trigger": {
+      "title": "Webseite",
+      "description": "Inhalt einer Webseite per URL anhängen",
+      "mention": "@web"
+    },
+    "wolke-trigger": {
+      "title": "Wolke",
+      "description": "Eigene Wolke-Dateien einfügen",
+      "mention": "@wolke"
+    }
+  },
+  "userTools": {
+    "examples": {
+      "label": "Social-Media-Beispiele",
+      "description": "Findet passende Beispiel-Posts aus dem Grünerator-Fundus."
+    },
+    "image": {
+      "label": "Bildgenerierung",
+      "description": "Erstellt Bilder aus einer Beschreibung."
+    },
+    "image_edit": {
+      "label": "Bildbearbeitung",
+      "description": "Bearbeitet ein vorhandenes Bild nach Anweisung."
+    },
+    "meinungsbild": {
+      "label": "Umfragen",
+      "description": "Ruft aktuelle Umfragewerte ab."
+    },
+    "scrape": {
+      "label": "Webseiten lesen",
+      "description": "Liest den Inhalt einer angegebenen URL aus."
+    },
+    "search": {
+      "label": "Grünerator-Wissen",
+      "description": "Durchsucht die Grünerator-Wissensdatenbank (Programme, Beschlüsse, Kommunalwiki)."
+    },
+    "search_threads": {
+      "label": "Frühere Chats",
+      "description": "Durchsucht frühere Unterhaltungen — im aktuellen Projekt oder über alle Chats hinweg."
+    },
+    "user_content": {
+      "label": "Eigene Inhalte",
+      "description": "Durchsucht die eigenen gespeicherten Texte und Dokumente."
+    },
+    "vision": {
+      "label": "Bildanalyse",
+      "description": "Beschreibt und analysiert hochgeladene Bilder."
+    },
+    "web": {
+      "label": "Recherche",
+      "description": "Sucht im Web und führt bei Bedarf eine tiefere Mehrquellen-Recherche mit Quellenangaben durch. Die Suchtiefe wird automatisch gewählt."
+    }
+  },
+  "systemSources": {
+    "bahn": {
+      "name": "Deutsche Bahn",
+      "capability": "Deutsche Bahn: Bahnhöfe suchen, Abfahrts-/Ankunftspläne (Soll + Störungen) und Bahnhofsausstattung abfragen.",
+      "env": "SYSTEM_MCP_DB_URL"
+    },
+    "hotel": {
+      "name": "trivago",
+      "capability": "Hotels: Unterkünfte per trivago suchen und Preise vergleichen.",
+      "env": "SYSTEM_MCP_TRIVAGO_URL"
+    },
+    "news": {
+      "name": "tagesschau",
+      "capability": "Nachrichten: aktuelle tagesschau-Meldungen (gesamt, nach Ressort oder Bundesland) und Artikelsuche.",
+      "env": "SYSTEM_MCP_ARD_URL"
+    },
+    "wetter": {
+      "name": "Wetter (DWD)",
+      "capability": "Wetter: Vorhersagen (Open-Meteo/DWD ICON), aktuelles Wetter, Luftqualität und historische Wetterdaten — Orte zuerst per geocoding auflösen.",
+      "env": "SYSTEM_MCP_WEATHER_URL"
+    }
+  },
+  "systemIntentSources": {
+    "bahn": [
+      "bahn"
+    ],
+    "hotel": [
+      "hotel"
+    ],
+    "news": [
+      "news"
+    ],
+    "reise": [
+      "bahn",
+      "hotel",
+      "wetter"
+    ],
+    "wetter": [
+      "wetter"
+    ]
+  }
+}

@@ -80,6 +80,11 @@ export interface ToolCallPart {
    *  `ui://` resourceUri, assistant-ui's `mcpApp` renderer mounts the widget
    *  iframe instead of the normal tool card (see GrueneratorChatRuntime). */
   mcp?: { app?: { resourceUri: string; mimeType?: string } };
+  /** Run grouping for the collapsed tool summary row: the `toolCallId` of the
+   *  first card in a contiguous card run (cards separated by text segments
+   *  form separate runs). Consumed by assistant-ui's PartsGrouped rendering;
+   *  absent on messages predating the interleaving rollout. */
+  parentId?: string;
 }
 
 export interface SourcePart {

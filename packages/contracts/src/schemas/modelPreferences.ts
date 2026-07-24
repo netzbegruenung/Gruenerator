@@ -6,7 +6,7 @@
  */
 import { z } from 'zod';
 
-export const modelIdSchema = z.enum(['mistral-medium-3.5', 'litellm', 'gemma-litellm']);
+export const modelIdSchema = z.enum(['mistral-medium-3.5', 'litellm', 'gemma-litellm', 'greenpt']);
 
 export const modelPreferenceSchema = z.object({
   enabled: z.boolean(),

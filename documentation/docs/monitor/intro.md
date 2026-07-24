@@ -31,6 +31,6 @@ Der Monitor besteht aus vier Seiten, die du oben über die Navigation wechselst:
 
 Auf den Seiten **Watcher** und **Feed** findest du oben einen Umschalter zwischen **Deutschland** und **Österreich** — die Zahl in Klammern zeigt, wie viele Artikel aus dem jeweiligen Land vorliegen. Die **Umfragen**-Seite richtet sich automatisch nach dem Land in deinem Profil.
 
-:::info Quellen
+:::info[Quellen]
 Die deutschen Quellen umfassen überregionale Tageszeitungen, Nachrichtenmagazine und öffentlich-rechtliche Medien. Die österreichischen Quellen beinhalten ORF, Der Standard, Die Presse, Kleine Zeitung, Kurier und weitere.
 :::
