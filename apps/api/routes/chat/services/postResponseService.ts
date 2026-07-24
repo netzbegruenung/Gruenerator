@@ -602,8 +602,21 @@ export async function persistResumedResponse(params: {
   sharepicVariants?: SharepicVariant[];
   /** Text half of a resumed social_post turn. */
   socialPost?: SocialPostPayload | null;
+  /** Placeholder assistant row minted before the resumed stream (WP-B). When
+   *  present the final content+metadata flip THIS row to 'complete' instead of
+   *  inserting a new one; a vanished row is NOT re-inserted (the turn was
+   *  discarded), matching persistAssistantResponse. Null/omitted → insert. */
+  pendingMessageId?: string | null;
 }): Promise<void> {
-  const { threadId, fullText, finalState, classifiedState, userId, processedMeta } = params;
+  const {
+    threadId,
+    fullText,
+    finalState,
+    classifiedState,
+    userId,
+    processedMeta,
+    pendingMessageId,
+  } = params;
 
   if (!threadId || !fullText) return;
 
@@ -615,7 +628,7 @@ export async function persistResumedResponse(params: {
       params.sharepicVariants ?? [],
       params.socialPost ?? null
     );
-    await createMessage(threadId, 'assistant', fullText, {
+    const metadata: Record<string, unknown> = {
       intent: finalState.intent,
       searchCount: finalState.searchCount,
       citations: finalState.citations,
@@ -627,7 +640,22 @@ export async function persistResumedResponse(params: {
       ...(finalState.computedResult != null &&
         finalState.computedResultFresh && { computeData: finalState.computedResult }),
       toolCalls,
-    });
+    };
+
+    if (pendingMessageId) {
+      // Finalize the placeholder minted before streaming. A miss means the row
+      // is gone (e.g. a regenerate from another tab deleted it) — do NOT
+      // re-insert; just warn and skip the post-persist side effects.
+      const matched = await finalizeAssistantMessage(pendingMessageId, fullText, metadata);
+      if (!matched) {
+        log.warn(
+          `[ChatGraph:Resume] Pending assistant row ${pendingMessageId} vanished before finalize — response discarded (thread ${threadId})`
+        );
+        return;
+      }
+    } else {
+      await createMessage(threadId, 'assistant', fullText, metadata);
+    }
     await touchThread(threadId);
     if (userId && processedMeta?.length) {
       await saveThreadAttachmentsFromMeta(threadId, userId, processedMeta);
