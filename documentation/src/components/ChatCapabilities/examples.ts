@@ -5,10 +5,10 @@
  *
  * The other half — which intents exist, what they are called and what they do —
  * comes from src/generated/chat-capabilities.json, generated from the app's own
- * registries. index.tsx joins the two and throws at build time when they drift:
- * an intent in the manifest without an entry here (or in INTERNAL_INTENTS) fails
- * `docusaurus build`, and so does an entry here for an intent that no longer
- * exists. So a new chat capability cannot ship without example questions.
+ * registries. index.tsx joins the two; a capability missing here simply doesn't
+ * appear on the page, and `capabilities:audit` files a GitHub issue naming it.
+ * So a new chat capability doesn't break any build, but it doesn't stay
+ * undocumented in silence either.
  *
  * Adding a new intent? Give it 2–3 questions a real user would actually type.
  */

@@ -6,12 +6,12 @@ name: Docs Build
 #      regenerated).
 #   2. docusaurus build fails if any <UiLabel id="…"> references an id that no
 #      longer exists in the manifest (a renamed/removed catalog entry).
-#   3. capabilities:check fails if src/generated/chat-capabilities.json is stale
-#      vs. the chat's intent enum / mentionables / tool picker, and the build
-#      fails if a chat capability has no example questions in the
-#      "Was kann ich fragen?" article (or documents one that no longer exists).
-# Triggers on doc changes and on the source files the manifests derive from.
-# Blocking on purpose — all of these are real drift the author must fix.
+# Triggers on doc changes and on the catalog source files the manifest derives
+# from. Blocking on purpose — both failures are real drift the author must fix.
+#
+# The chat-capabilities manifest is deliberately NOT checked here: an
+# undocumented chat capability is reported as a GitHub issue by
+# docs-capabilities.yml instead, so a backend change never breaks the docs build.
 
 on:
   pull_request:
@@ -21,10 +21,6 @@ on:
       - 'apps/web/src/config/workplaceToolsConfig.ts'
       - 'apps/web/src/components/layout/Header/menuData.tsx'
       - 'packages/shared/src/agents/landesverbaende.ts'
-      - 'packages/contracts/src/schemas/chatStreamEvents.ts'
-      - 'packages/chat/src/lib/mentionables.ts'
-      - 'packages/shared/src/agents/userTools.ts'
-      - 'apps/api/services/mcp/systemMcpServers.ts'
 
 permissions:
   contents: read
@@ -50,8 +46,5 @@ jobs:
       - name: Check ui-labels.json is in sync with the app source
         run: pnpm --filter @gruenerator/documentation labels:check
 
-      - name: Check chat-capabilities.json is in sync with the chat registries
-        run: pnpm --filter @gruenerator/documentation capabilities:check
-
-      - name: Build docs (fails on unknown UiLabel ids / undocumented capabilities)
+      - name: Build docs (fails on unknown UiLabel ids)
         run: pnpm --filter @gruenerator/documentation build
