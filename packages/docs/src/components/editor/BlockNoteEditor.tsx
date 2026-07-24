@@ -27,7 +27,8 @@ import {
   getFormattingToolbarItems,
   ThreadsSidebar,
 } from '@blocknote/react';
-import { filterSuggestionItems, ForkYDocExtension } from '@blocknote/core/extensions';
+import { filterSuggestionItems } from '@blocknote/core/extensions';
+import { ForkYDocExtension, withCollaboration } from '@blocknote/core/yjs';
 import { BlockNoteView, ShadCNDefaultComponents } from '@blocknote/shadcn';
 import {
   AIExtension,
@@ -365,24 +366,31 @@ const BlockNoteEditorInner = ({
     provider,
   ]);
 
-  const editor = useCreateBlockNote(
-    {
-      schema,
-      tables: {
-        splitCells: true,
-        cellBackgroundColor: true,
-        cellTextColor: true,
-        headers: true,
-      },
-      dictionary: {
-        ...de,
-        ai: aiDe,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any,
-      extensions,
-      collaboration: collaborationOptions,
-      domAttributes: EDITOR_DOM_ATTRIBUTES,
+  const baseEditorOptions = {
+    schema,
+    tables: {
+      splitCells: true,
+      cellBackgroundColor: true,
+      cellTextColor: true,
+      headers: true,
     },
+    dictionary: {
+      ...de,
+      ai: aiDe,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any,
+    extensions,
+    domAttributes: EDITOR_DOM_ATTRIBUTES,
+  };
+
+  const editor = useCreateBlockNote(
+    // BlockNote 0.52 decoupled Yjs from the core editor options: collaboration is
+    // no longer a plain option but has to be folded in via `withCollaboration`,
+    // which registers the Yjs extensions. Surfaces without a provider (read-only
+    // renders) create the editor without it.
+    collaborationOptions
+      ? withCollaboration({ ...baseEditorOptions, collaboration: collaborationOptions })
+      : baseEditorOptions,
     // `extensions` is frozen into the editor at creation — anything inside it
     // that can change identity at runtime must appear here, or the live editor
     // keeps the stale instance. threadStore carries the comments auth role
