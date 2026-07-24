@@ -241,7 +241,10 @@ describe.skipIf(!ENABLED)('runPythonCore against the real Pyodide runtime', () =
       py,
       [
         'z = sheets["Zeiterfassung"]',
-        'if str(z["Datum"].dtype) != "datetime64[ns]":',
+        // Resolution-agnostic: pandas 3 reads Excel dates as datetime64[us], so a
+        // literal "datetime64[ns]" compare would re-run the serial conversion on
+        // an already-parsed column and raise.
+        'if not pd.api.types.is_datetime64_any_dtype(z["Datum"]):',
         '    z["Datum"] = pd.to_datetime(z["Datum"], unit="D", origin="1899-12-30")',
         'print("Zeilen:", len(z))',
         'print("Wochenende:", int((z["Datum"].dt.weekday >= 5).sum()))',
@@ -266,7 +269,7 @@ describe.skipIf(!ENABLED)('runPythonCore against the real Pyodide runtime', () =
       py,
       [
         'z = pd.read_excel("excel_test_tabelle.xlsx", sheet_name="Zeiterfassung")',
-        'if str(z["Datum"].dtype) != "datetime64[ns]":',
+        'if not pd.api.types.is_datetime64_any_dtype(z["Datum"]):',
         '    z["Datum"] = pd.to_datetime(z["Datum"], unit="D", origin="1899-12-30")',
         'print("Zeilen:", len(z))',
         'print("Wochenende:", int((z["Datum"].dt.weekday >= 5).sum()))',
