@@ -5,6 +5,7 @@ import { promisify } from 'util';
 import axios, { type AxiosResponse, type AxiosRequestConfig } from 'axios';
 
 import { env } from '../../config/env.js';
+import { recordOperation } from '../usage/UsageTrackingService.js';
 
 import type { Readable } from 'stream';
 
@@ -195,6 +196,19 @@ class FluxImageService {
     }
   }
 
+  /**
+   * Count one generated image against the requesting user. Called at submit
+   * time (not after polling) so retries inside executeWithRetry don't inflate
+   * the number — BFL bills per submitted request.
+   */
+  private recordImageOperation(modelPath: string): void {
+    recordOperation({
+      unit: 'images',
+      provider: 'bfl',
+      model: modelPath.replace(/^\/v1\//, ''),
+    });
+  }
+
   async submit(prompt: string, options: SubmitOptions = {}): Promise<SubmitResponse> {
     const modelPath = options.modelPathOverride || this.modelPath;
     const url = `${this.baseUrl}${modelPath}`;
@@ -214,6 +228,7 @@ class FluxImageService {
     };
 
     console.log(`[FluxImageService] Submitting text-to-image request to ${url}`);
+    this.recordImageOperation(modelPath);
 
     return await this.executeWithRetry(async (family?: number) => {
       const axiosConfig: AxiosConfigWithFamily = {
@@ -515,6 +530,7 @@ class FluxImageService {
     console.log(
       `[FluxImageService] Submitting image-to-image request to ${url}, ${images.length} reference image(s), total size: ${totalKb}KB`
     );
+    this.recordImageOperation(modelPath);
 
     const request = await this.executeWithRetry(async (family?: number) => {
       const axiosConfig: AxiosConfigWithFamily = {
@@ -575,6 +591,7 @@ class FluxImageService {
     console.log(
       `[FluxImageService] Submitting outpainting request to ${url}, target ${options.width}x${options.height}, source size: ${Math.round(imageBuffer.length / 1024)}KB`
     );
+    this.recordImageOperation('/v1/flux-tools/outpainting-v1');
 
     const request = await this.executeWithRetry(async (family?: number) => {
       const axiosConfig: AxiosConfigWithFamily = {

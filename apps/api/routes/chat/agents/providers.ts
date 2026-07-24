@@ -14,6 +14,7 @@ import {
   tryAcquireVerdigadoSlot,
   releaseVerdigadoSlot,
 } from '../../../services/providers/verdigadoSlot.js';
+import { withUsageTracking } from '../../../services/usage/usageModelMiddleware.js';
 
 import {
   AVOID_AS_SYNTH,
@@ -325,6 +326,10 @@ export function isProviderConfigured(provider: string): boolean {
 }
 
 export function getModel(provider: string, modelId: string): LanguageModel {
+  return withUsageTracking(resolveModel(provider, modelId), provider);
+}
+
+function resolveModel(provider: string, modelId: string): LanguageModel {
   console.log(`[providers] getModel called: provider=${provider}, modelId=${modelId}`);
   switch (provider) {
     case 'mistral': {
