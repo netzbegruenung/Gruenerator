@@ -235,9 +235,9 @@ export const EXAMPLES: CapabilityExample[] = [
     intent: 'image_edit',
     group: 'erstellen',
     label: 'Bild bearbeiten',
-    mentionable: 'image_edit',
+    mentionable: 'image_edit_universal',
     userTool: 'image_edit',
-    hint: 'Hänge ein Bild an und beschreibe die Änderung.',
+    hint: 'Hänge ein Bild an und beschreibe die Änderung. Für den Sonderfall „mehr Grün in die Stadt" gibt es zusätzlich `@stadtbegruenen`.',
     questions: ['Mach den Hintergrund auf diesem Bild heller.', 'Entferne das Auto links im Bild.'],
   },
   {
