@@ -10,6 +10,7 @@ export type SettingsTab =
   | 'wolke'
   | 'websites'
   | 'konnektoren'
+  | 'nutzung'
   | 'support';
 
 interface SettingsDialogState {

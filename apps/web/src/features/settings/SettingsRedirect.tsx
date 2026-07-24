@@ -17,6 +17,7 @@ const TAB_MAP: Record<string, SettingsTab> = {
   wolke: 'wolke',
   konnektoren: 'konnektoren',
   mcp: 'konnektoren',
+  nutzung: 'nutzung',
   support: 'support',
 };
 
