@@ -75,13 +75,13 @@
       "katex": "^0.18.1",
       "pyodide": "^0.29.4",
       "react-dropzone": "^19.1.1",
-      "@blocknote/core": "^0.51.4",
-      "@blocknote/react": "^0.51.4",
-      "@blocknote/shadcn": "^0.51.4",
-      "@blocknote/xl-ai": "^0.51.4",
-      "@blocknote/xl-docx-exporter": "^0.51.4",
-      "@blocknote/xl-odt-exporter": "^0.51.4",
-      "@blocknote/xl-pdf-exporter": "^0.51.4"
+      "@blocknote/core": "^0.52.1",
+      "@blocknote/react": "^0.52.1",
+      "@blocknote/shadcn": "^0.52.1",
+      "@blocknote/xl-ai": "^0.52.1",
+      "@blocknote/xl-docx-exporter": "^0.52.1",
+      "@blocknote/xl-odt-exporter": "^0.52.1",
+      "@blocknote/xl-pdf-exporter": "^0.52.1"
     },
     "auditConfig": {
       "ignoreGhsas": [
