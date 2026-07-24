@@ -449,6 +449,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   // unauthenticated requests get a 401 instead of crashing the handlers
   // with `Cannot read properties of undefined (reading 'id')`.
   app.use('/api/chat-service/threads', requireAuth);
+  // compute-assets serves session-scoped files (generated PDFs, run_python
+  // figures/exports) and derives the path from req.user.id — but the
+  // /api/chat-service prefix below carries no auth middleware, so req.user was
+  // never populated and every download 401'd. Gate the prefix like /threads.
+  app.use('/api/chat-service/compute-assets', requireAuth);
   app.use('/api/chat-graph', requireAuth);
   // /api/chat-graph/stream is in CUSTOM_BODY_PARSER_PATHS (bodyParserConfig.ts)
   // so the global 10mb body parser is skipped. Install a 50mb parser scoped
