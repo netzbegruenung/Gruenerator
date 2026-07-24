@@ -1,5 +1,6 @@
 import { normalizeProviderName } from '../../services/ai/providers.js';
 
+import * as greenpt from './greenptAdapter.js';
 import * as litellm from './litellmAdapter.js';
 import * as mistral from './mistralAdapter.js';
 import * as regolo from './regoloAdapter.js';
@@ -11,7 +12,7 @@ interface ProviderModule {
   execute(requestId: string, data: AIRequestData): Promise<AIWorkerResult>;
 }
 
-const adapters: Record<string, ProviderModule> = { mistral, litellm, regolo };
+const adapters: Record<string, ProviderModule> = { mistral, litellm, regolo, greenpt };
 
 async function executeProvider(
   providerName: ProviderName | string,
@@ -35,4 +36,4 @@ async function executeProvider(
   return adapter.execute(requestId, data);
 }
 
-export { mistral, litellm, regolo, adapters, executeProvider };
+export { mistral, litellm, regolo, greenpt, adapters, executeProvider };

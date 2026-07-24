@@ -72,6 +72,7 @@ export type SSEEventType =
   | 'progress_step'
   | 'text_delta'
   | 'reasoning_delta'
+  | 'gather_narration'
   | 'fallback'
   | 'interrupt'
   | 'document_indexed'
@@ -239,6 +240,7 @@ export interface SSEEventPayloads {
   progress_step: ProgressStepPayload;
   text_delta: { text: string };
   reasoning_delta: { text: string };
+  gather_narration: { text: string };
   fallback: {
     from: { id: string; name: string };
     to: { id: string; name: string };
@@ -354,6 +356,7 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   reise: ['Plane die Reise...', 'Suche Zug und Unterkunft...', 'Stelle Reiseoptionen zusammen...'],
   hotel: ['Suche Unterkünfte...', 'Vergleiche Hotels...', 'Prüfe Verfügbarkeiten...'],
   umfragen: ['Frage Umfragewerte ab...', 'Lese die Sonntagsfrage...', 'Hole PolitPro-Daten...'],
+  hilfe: ['Blättere in der Doku...', 'Schlage die Anleitung nach...', 'Suche die Hilfeseite...'],
   wetter: ['Rufe Wettervorhersage ab...', 'Schaue in die Wolken...', 'Frage den DWD...'],
   news: ['Durchsuche Nachrichten...', 'Lese tagesschau...', 'Hole Schlagzeilen...'],
   image: ['Generiere...', 'Male...', 'Zeichne...'],
@@ -366,6 +369,7 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   compute: ['Rechne...', 'Zähle...', 'Berechne...'],
   save_as_doc: ['Speichere...', 'Sichere...', 'Archiviere...'],
   create_sheet: ['Erstelle Tabelle...', 'Baue Spreadsheet...', 'Fülle Zellen...'],
+  create_pdf: ['Baue das PDF...', 'Setze das Dokument...', 'Gestalte die Seiten...'],
   create_presentation: ['Erstelle Präsentation...', 'Baue Folien...', 'Gestalte Slides...'],
   create_recurring_task: [
     'Richte wiederkehrende Aufgabe ein...',
@@ -429,9 +433,18 @@ export const PROGRESS_MESSAGES = {
 export class SSEWriter {
   private res: Response;
   private ended = false;
+  // Turn-persistence tap (WP-B): accumulates streamed reply text so a
+  // placeholder DB row can be filled as the answer streams. Registered by the
+  // chat-graph handler when a pending row exists; unset otherwise.
+  private textListener: ((kind: 'delta' | 'completion', text: string) => void) | undefined;
 
   constructor(res: Response) {
     this.res = res;
+  }
+
+  /** Register (or clear) the turn-persistence text tap. */
+  setTextListener(fn?: (kind: 'delta' | 'completion', text: string) => void): void {
+    this.textListener = fn;
   }
 
   /**
@@ -449,6 +462,21 @@ export class SSEWriter {
    * Send a typed SSE event.
    */
   send<T extends SSEEventType>(event: T, data: SSEEventPayloads[T]): void {
+    // Tap text events BEFORE the writable guard: after a client disconnect the
+    // server keeps streaming to completion, and the placeholder row must keep
+    // accumulating so an aborted-on-the-client turn still persists in full.
+    // `completion` carries the citation-clamped full text under `text` (the
+    // chat-graph/agentic emitters use `text`; `answer` is the notebook flow,
+    // which never registers a listener) — replace the buffer with it.
+    if (this.textListener) {
+      if (event === 'text_delta') {
+        const t = (data as SSEEventPayloads['text_delta']).text;
+        if (typeof t === 'string') this.textListener('delta', t);
+      } else if (event === 'completion') {
+        const t = (data as SSEEventPayloads['completion']).text;
+        if (typeof t === 'string') this.textListener('completion', t);
+      }
+    }
     if (this.ended || this.res.writableEnded || this.res.destroyed) return;
     // Mirror every in-band `error` event to Sentry/GlitchTip. These are written
     // onto an already-200 stream, so they never throw and are otherwise

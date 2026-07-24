@@ -1085,6 +1085,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     content TEXT,
     tool_calls JSONB,
     tool_results JSONB,
+    status VARCHAR(20) NOT NULL DEFAULT 'complete',
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 

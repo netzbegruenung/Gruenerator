@@ -22,7 +22,7 @@ import {
   injectDocumentStateMessages,
   toolDefinitionsToToolSet,
 } from '@blocknote/xl-ai/server';
-import { streamText, convertToModelMessages } from 'ai';
+import { streamText, convertToModelMessages, type ToolSet } from 'ai';
 import { type Response } from 'express';
 import { z } from 'zod';
 
@@ -101,6 +101,7 @@ const DOCS_AI_MODELS: Record<AgentConfig['provider'], string> = {
   regolo: 'mistral-small-4-119b',
   mistral: 'mistral-medium-2604',
   anthropic: 'mistral-medium-2604',
+  greenpt: 'mistral-medium-3.5-128b',
 };
 
 /**
@@ -151,9 +152,12 @@ export async function handleAiRequest(req: TypedRequest<AiRequestBody>, res: Res
       `[DocsAI] Messages after doc state injection: ${messagesWithDocState.length} messages`
     );
 
+    // @blocknote/xl-ai pins ai@6 (its dep range is ^6); our streamText is ai@7.
+    // The runtime tool shape (name/inputSchema/execute) is wire-compatible across
+    // both versions — only the TS ToolSet identity differs. Cross-version boundary cast.
     const tools = toolDefinitionsToToolSet(
       toolDefinitions as Parameters<typeof toolDefinitionsToToolSet>[0]
-    );
+    ) as unknown as ToolSet;
 
     log.info(`[DocsAI] Streaming response with ${Object.keys(tools).length} tools`);
 
@@ -196,7 +200,7 @@ ${referenceContent.trim()}
       maxOutputTokens: 32768,
       maxRetries: 1,
       temperature: 0.3,
-      onFinish: ({ toolCalls, text, finishReason, usage }) => {
+      onEnd: ({ toolCalls, text, finishReason, usage }) => {
         log.info(
           `[DocsAI] Stream finished for doc ${documentId} — reason: ${finishReason}, toolCalls: ${toolCalls?.length || 0}, text length: ${text?.length || 0}`
         );
@@ -252,7 +256,12 @@ router.post(
  *  - Gives a single grep target if we ever need to swap the underlying writer.
  */
 function pipeUiStreamToExpress(result: ReturnType<typeof streamText>, res: Response): void {
-  result.pipeUIMessageStreamToResponse(res as unknown as ServerResponse);
+  // v7: this (deprecated) result method now returns a Promise that resolves when
+  // the stream finishes. We pipe fire-and-forget — Express owns the response
+  // lifecycle — so the settle is intentionally not awaited. Kept over the
+  // standalone helper to preserve the exact SSE wire format the frontend's
+  // DefaultChatTransport parses (see wire-contract note above).
+  void result.pipeUIMessageStreamToResponse(res as unknown as ServerResponse);
 }
 
 export default router;

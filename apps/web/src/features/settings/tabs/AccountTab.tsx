@@ -126,17 +126,17 @@ const AccountTab = () => {
         </div>
       ) : (
         <div className="-my-4 divide-y divide-grey-200 dark:divide-grey-800">
-          <SettingsRow title="Anzeigename">
+          <SettingsRow id="konto.anzeigename">
             <span className="text-sm text-grey-500 dark:text-grey-400">
               {fields.displayName || '—'}
             </span>
           </SettingsRow>
-          <SettingsRow title="Benutzername">
+          <SettingsRow id="konto.benutzername">
             <span className="text-sm text-grey-500 dark:text-grey-400">
               {fields.username || '—'}
             </span>
           </SettingsRow>
-          <SettingsRow title="E-Mail">
+          <SettingsRow id="konto.email">
             <span className="text-sm text-grey-500 dark:text-grey-400">{fields.email || '—'}</span>
           </SettingsRow>
         </div>

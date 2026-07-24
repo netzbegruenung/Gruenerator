@@ -328,7 +328,7 @@ export async function processGraphRequestStreaming(
     }, 8000);
 
     try {
-      for await (const part of result.fullStream) {
+      for await (const part of result.stream) {
         if (abortController.signal.aborted) break;
 
         switch (part.type) {

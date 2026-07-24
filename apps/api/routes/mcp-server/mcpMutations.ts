@@ -28,9 +28,7 @@ async function findLiveDocument(id: string): Promise<{ title: string; created_by
 }
 
 type ToolResult =
-  | { ok: true; note: string }
-  | { needsConfirmation: true; note: string }
-  | { error: string };
+  { ok: true; note: string } | { needsConfirmation: true; note: string } | { error: string };
 
 export async function addCardDirect(
   userId: string,

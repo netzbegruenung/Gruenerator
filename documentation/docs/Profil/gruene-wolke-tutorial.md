@@ -46,7 +46,7 @@ Die Berechtigung „Kann bearbeiten" ist zwingend erforderlich. Ein eigener Ordn
 
 Falls der Grünerator Probleme beim Hochladen hat, überprüfe zunächst die Berechtigungen deines Links. Die häufigste Ursache ist eine fehlende „Kann bearbeiten"-Berechtigung.
 
-:::tip Bereit für die Einrichtung?
+:::tip[Bereit für die Einrichtung?]
 Öffne die [Grüne Wolke](https://wolke.netzbegruenung.de/) und folge der Anleitung Schritt für Schritt.
 :::
 

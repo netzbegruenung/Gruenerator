@@ -90,14 +90,12 @@ function ground(
 ): void {
   if (items.length === 0) return;
   reg.register(
-    items.map(
-      (i): SearchResult => ({
-        source: 'eigene-inhalte',
-        title: i.title,
-        content: i.content,
-        ...(i.url ? { url: i.url } : {}),
-      })
-    )
+    items.map((i): SearchResult => ({
+      source: 'eigene-inhalte',
+      title: i.title,
+      content: i.content,
+      ...(i.url ? { url: i.url } : {}),
+    }))
   );
 }
 

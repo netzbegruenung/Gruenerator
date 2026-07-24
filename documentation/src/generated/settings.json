@@ -1,0 +1,373 @@
+{
+  "tabs": [
+    {
+      "value": "allgemein",
+      "label": "Allgemein"
+    },
+    {
+      "value": "konto",
+      "label": "Konto"
+    },
+    {
+      "value": "friends",
+      "label": "Grünerator Friends"
+    },
+    {
+      "value": "personalisierung",
+      "label": "Personalisierung"
+    },
+    {
+      "value": "texte-anlernen",
+      "label": "Texte anlernen"
+    },
+    {
+      "value": "erinnerungen",
+      "label": "Erinnerungen"
+    },
+    {
+      "value": "benachrichtigungen",
+      "label": "Benachrichtigungen"
+    },
+    {
+      "value": "wolke",
+      "label": "Wolke"
+    },
+    {
+      "value": "websites",
+      "label": "Meine Websites"
+    },
+    {
+      "value": "konnektoren",
+      "label": "Konnektoren"
+    },
+    {
+      "value": "nutzung",
+      "label": "Nutzung"
+    },
+    {
+      "value": "support",
+      "label": "Support"
+    }
+  ],
+  "rows": {
+    "allgemein.aussehen": {
+      "tab": "allgemein",
+      "title": "Aussehen",
+      "description": "Farbschema der Oberfläche"
+    },
+    "allgemein.chatHintergrund": {
+      "tab": "allgemein",
+      "title": "Chat-Hintergrund",
+      "description": "Färbt den Schimmer hinter dem Chat-Start und den Senden-Button"
+    },
+    "allgemein.sprache": {
+      "tab": "allgemein",
+      "title": "Sprache & Region",
+      "description": "Wortwahl und Inhalte für Deutschland oder Österreich"
+    },
+    "allgemein.startseite": {
+      "tab": "allgemein",
+      "title": "Startseite",
+      "description": "Was das Start-Symbol in der Seitenleiste öffnet"
+    },
+    "allgemein.touren": {
+      "tab": "allgemein",
+      "title": "Einführungs-Touren zurücksetzen",
+      "description": "Zeigt die Touren durch Workplace, Dokumente, Tabellen, Präsentationen und das Sharepic-Studio beim nächsten Öffnen wieder an."
+    },
+    "konto.anzeigename": {
+      "tab": "konto",
+      "title": "Anzeigename"
+    },
+    "konto.benutzername": {
+      "tab": "konto",
+      "title": "Benutzername"
+    },
+    "konto.email": {
+      "tab": "konto",
+      "title": "E-Mail"
+    },
+    "benachrichtigungen.testmail": {
+      "tab": "benachrichtigungen",
+      "title": "E-Mail-Zustellung testen",
+      "description": "Sendet dir sofort eine Test-E-Mail an deine Profil-Adresse, um die Zustellung zu prüfen."
+    }
+  },
+  "choices": {
+    "theme": [
+      {
+        "value": "light",
+        "label": "Hell"
+      },
+      {
+        "value": "dark",
+        "label": "Dunkel"
+      },
+      {
+        "value": "system",
+        "label": "System"
+      }
+    ],
+    "locale": [
+      {
+        "value": "de-DE",
+        "label": "Deutsch (Deutschland)"
+      },
+      {
+        "value": "de-AT",
+        "label": "Deutsch (Österreich)"
+      }
+    ],
+    "startPage": [
+      {
+        "value": "chat",
+        "label": "Chat"
+      },
+      {
+        "value": "arbeiten",
+        "label": "Arbeiten"
+      }
+    ]
+  },
+  "textFormPresets": [
+    {
+      "textType": "instagram",
+      "label": "Instagram",
+      "hint": "Instagram-Posts"
+    },
+    {
+      "textType": "facebook",
+      "label": "Facebook",
+      "hint": "Facebook-Posts"
+    },
+    {
+      "textType": "presse",
+      "label": "Pressemitteilungen",
+      "hint": "Pressetexte"
+    },
+    {
+      "textType": "antrag",
+      "label": "Anträge",
+      "hint": "Anträge"
+    }
+  ],
+  "notifications": {
+    "groups": [
+      {
+        "key": "documents",
+        "label": "Dokumente"
+      },
+      {
+        "key": "board",
+        "label": "Board"
+      },
+      {
+        "key": "groups",
+        "label": "Gruppen"
+      },
+      {
+        "key": "system",
+        "label": "System"
+      }
+    ],
+    "types": [
+      {
+        "key": "document_shared",
+        "label": "Dokument geteilt",
+        "description": "Wenn ein Dokument mit dir geteilt wird",
+        "group": "documents"
+      },
+      {
+        "key": "document_permission_changed",
+        "label": "Berechtigung geändert",
+        "description": "Wenn deine Berechtigung an einem Dokument geändert wird",
+        "group": "documents"
+      },
+      {
+        "key": "document_access_revoked",
+        "label": "Zugriff entzogen",
+        "description": "Wenn dein Zugriff auf ein Dokument entzogen wird",
+        "group": "documents"
+      },
+      {
+        "key": "board_updates",
+        "label": "Aufgaben-Updates",
+        "description": "Updates zu deinen Board-Aufgaben",
+        "group": "board"
+      },
+      {
+        "key": "board_comment_added",
+        "label": "Neue Kommentare",
+        "description": "Neue Kommentare auf Karten",
+        "group": "board"
+      },
+      {
+        "key": "board_comment_reply",
+        "label": "Antworten",
+        "description": "Antworten auf deine Kommentare",
+        "group": "board"
+      },
+      {
+        "key": "board_user_mentioned",
+        "label": "Erwähnungen",
+        "description": "Wenn du in einem Kommentar erwähnt wirst",
+        "group": "board"
+      },
+      {
+        "key": "board_card_assigned",
+        "label": "Zuweisungen",
+        "description": "Wenn dir eine Karte zugewiesen wird",
+        "group": "board"
+      },
+      {
+        "key": "board_card_status_changed",
+        "label": "Statusänderungen",
+        "description": "Wenn sich der Status einer beobachteten Karte ändert",
+        "group": "board"
+      },
+      {
+        "key": "board_attachment_added",
+        "label": "Neue Anhänge",
+        "description": "Wenn eine Datei an eine beobachtete Karte angehängt wird",
+        "group": "board"
+      },
+      {
+        "key": "board_due_date_reminder",
+        "label": "Fälligkeits-Erinnerung",
+        "description": "Erinnerung, wenn eine Karte demnächst fällig ist",
+        "group": "board"
+      },
+      {
+        "key": "board_card_watching",
+        "label": "Beobachtete Karten",
+        "description": "Aktivität auf Karten, die du beobachtest",
+        "group": "board"
+      },
+      {
+        "key": "agent_task_completed",
+        "label": "Agent-Aufgabe fertig",
+        "description": "Wenn der Grünerator eine an ihn delegierte Aufgabe erledigt hat",
+        "group": "board"
+      },
+      {
+        "key": "agent_task_failed",
+        "label": "Agent-Aufgabe fehlgeschlagen",
+        "description": "Wenn der Grünerator eine delegierte Aufgabe nicht erledigen konnte",
+        "group": "board"
+      },
+      {
+        "key": "agent_task_awaiting_review",
+        "label": "Agent-Aufgabe zur Prüfung",
+        "description": "Wenn ein geplanter Lauf auf deine Freigabe wartet",
+        "group": "board"
+      },
+      {
+        "key": "group_member_joined",
+        "label": "Mitglied tritt bei",
+        "description": "Wenn ein Mitglied einer deiner Gruppen beitritt",
+        "group": "groups"
+      },
+      {
+        "key": "group_member_left",
+        "label": "Mitglied tritt aus",
+        "description": "Wenn ein Mitglied eine deiner Gruppen verlässt",
+        "group": "groups"
+      },
+      {
+        "key": "group_role_changed",
+        "label": "Rollenänderung",
+        "description": "Wenn sich eine Rolle in der Gruppe ändert",
+        "group": "groups"
+      },
+      {
+        "key": "group_content_shared",
+        "label": "Geteilte Inhalte",
+        "description": "Wenn Inhalte in einer deiner Gruppen geteilt werden",
+        "group": "groups"
+      },
+      {
+        "key": "group_deleted",
+        "label": "Gruppe aufgelöst",
+        "description": "Wenn eine deiner Gruppen aufgelöst wird",
+        "group": "groups"
+      },
+      {
+        "key": "group_join_requested",
+        "label": "Beitrittsanfragen",
+        "description": "Wenn jemand deiner öffentlichen Gruppe beitreten möchte",
+        "group": "groups"
+      },
+      {
+        "key": "group_join_approved",
+        "label": "Beitritt angenommen",
+        "description": "Wenn deine Beitrittsanfrage angenommen wird",
+        "group": "groups"
+      },
+      {
+        "key": "group_join_denied",
+        "label": "Beitritt abgelehnt",
+        "description": "Wenn deine Beitrittsanfrage abgelehnt wird",
+        "group": "groups"
+      },
+      {
+        "key": "transfer_downloaded",
+        "label": "Transfer-Download",
+        "description": "Wenn jemand deine geteilte Datei herunterlädt",
+        "group": "system"
+      },
+      {
+        "key": "notebook_liked",
+        "label": "Notizbuch-Likes",
+        "description": "Wenn jemand dein öffentliches Notizbuch mag",
+        "group": "system"
+      },
+      {
+        "key": "template_liked",
+        "label": "Vorlagen-Likes",
+        "description": "Wenn jemand deine veröffentlichte Vorlage mag",
+        "group": "system"
+      },
+      {
+        "key": "template_approved",
+        "label": "Vorlage freigegeben",
+        "description": "Wenn deine eingereichte Vorlage freigegeben wird",
+        "group": "system"
+      },
+      {
+        "key": "template_rejected",
+        "label": "Vorlage abgelehnt",
+        "description": "Wenn deine eingereichte Vorlage abgelehnt wird",
+        "group": "system"
+      },
+      {
+        "key": "wolke_new_files",
+        "label": "Neue Wolke-Dateien",
+        "description": "Neue Dateien in den Wolke-Ordnern deiner Notizbücher",
+        "group": "system"
+      },
+      {
+        "key": "new_avatars",
+        "label": "Neue Avatare",
+        "description": "Wenn neue Profil-Avatare verfügbar sind",
+        "group": "system"
+      }
+    ],
+    "levels": [
+      {
+        "value": "low",
+        "label": "Wenig",
+        "description": "Nur kritische & persönliche Benachrichtigungen"
+      },
+      {
+        "value": "medium",
+        "label": "Mittel",
+        "description": "Empfohlen – wichtige Ereignisse"
+      },
+      {
+        "value": "high",
+        "label": "Viele",
+        "description": "Alle Benachrichtigungen"
+      }
+    ]
+  }
+}
