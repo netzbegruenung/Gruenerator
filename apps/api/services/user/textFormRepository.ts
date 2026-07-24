@@ -110,7 +110,7 @@ export async function listTextForms(userId: string): Promise<TextForm[]> {
 
   const pg = getPostgresInstance();
   const sharedRows = (await pg.query(
-    `SELECT tf.*, g.name AS group_name, p.name AS owner_name
+    `SELECT tf.*, g.name AS group_name, COALESCE(p.first_name, p.display_name) AS owner_name
        FROM user_text_forms tf
        INNER JOIN group_content_shares gcs
                ON gcs.content_type = $1 AND gcs.content_id = tf.id::text
