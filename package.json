@@ -87,7 +87,24 @@
       "@assistant-ui/react": "^0.14.27",
       "@assistant-ui/tap": "^0.9.4",
       "@assistant-ui/react-markdown": "^0.14.6",
-      "@assistant-ui/react-native": "^0.1.30"
+      "@assistant-ui/react-native": "^0.1.30",
+      "@tiptap/core": "3.28.0",
+      "@tiptap/extension-bold": "3.28.0",
+      "@tiptap/extension-code": "3.28.0",
+      "@tiptap/extension-collaboration": "3.28.0",
+      "@tiptap/extension-document": "3.28.0",
+      "@tiptap/extension-hard-break": "3.28.0",
+      "@tiptap/extension-heading": "3.28.0",
+      "@tiptap/extension-italic": "3.28.0",
+      "@tiptap/extension-list": "3.28.0",
+      "@tiptap/extension-paragraph": "3.28.0",
+      "@tiptap/extension-strike": "3.28.0",
+      "@tiptap/extension-text": "3.28.0",
+      "@tiptap/extension-underline": "3.28.0",
+      "@tiptap/extensions": "3.28.0",
+      "@tiptap/pm": "3.28.0",
+      "@tiptap/react": "3.28.0",
+      "@tiptap/static-renderer": "3.28.0"
     },
     "auditConfig": {
       "ignoreGhsas": [
