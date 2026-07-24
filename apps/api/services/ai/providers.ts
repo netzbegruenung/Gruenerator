@@ -12,6 +12,7 @@ import { createMistral } from '@ai-sdk/mistral';
 import { createOpenAI } from '@ai-sdk/openai';
 
 import { env } from '../../config/env.js';
+import { withUsageTracking } from '../usage/usageModelMiddleware.js';
 
 import { regoloFetchWithThinkingDisabled } from './regoloThinkingFetch.js';
 
@@ -158,9 +159,15 @@ export function getPreferredMonitorProvider(): ProviderName {
 }
 
 /**
- * Get a language model instance for the specified provider and model
+ * Get a language model instance for the specified provider and model.
+ * The returned model is wrapped so its token usage is attributed to the
+ * current request's user (no-op outside an authenticated request).
  */
 export function getModel(provider: ProviderName | string, modelId?: string): LanguageModel {
+  return withUsageTracking(resolveModel(provider, modelId), provider);
+}
+
+function resolveModel(provider: ProviderName | string, modelId?: string): LanguageModel {
   switch (provider) {
     case 'mistral': {
       const mistral = getMistralProvider();
