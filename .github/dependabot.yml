@@ -373,6 +373,9 @@ updates:
       - dependency-name: 'react-native-safe-area-context'
       - dependency-name: 'react-native-svg'
       - dependency-name: 'react-native-pager-view'
+      # 0.x package: a MINOR is breaking, so the semver-major rule above misses
+      # it. Expo SDK 57 pins it too.
+      - dependency-name: 'react-native-worklets'
       # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
       # change the manifest while v3 stays installed — a lie, not an update.
       # Drop this ignore as part of the dedicated zod-4 migration (which also
@@ -768,6 +771,12 @@ updates:
       # Drop this ignore as part of the dedicated zod-4 migration (which also
       # removes the better-auth>zod / knip>zod scoped overrides).
       - dependency-name: 'zod'
+        update-types: ['version-update:semver-major']
+      # @wordpress/scripts majors shift the WHOLE monorepo's typescript-eslint
+      # resolution and then eslint dies in packages/contracts with
+      # 'tsutils.unionConstituents is not a function' (verified: master lint
+      # green, with the bump red). Drop this once that interaction is fixed.
+      - dependency-name: '@wordpress/scripts'
         update-types: ['version-update:semver-major']
 
   # =============================================================================
