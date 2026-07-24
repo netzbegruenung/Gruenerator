@@ -187,7 +187,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     model: 'mistral-large-latest',
     defaultModel: 'mistral-large-latest',
     provider: 'mistral',
-    params: { max_tokens: 3000, temperature: 0.6 },
+    params: { max_tokens: 8000, temperature: 0.6 },
     openingMessage:
       'Hallo! Ich bin dein*e Kommunikationsmanager*in für {{partyName}}.\n\nIch erstelle:\n- **Pressemitteilungen** (journalistisch, sachlich)\n- **Social-Media-Posts** (Facebook, Instagram, Twitter, LinkedIn)\n- **Reels/TikTok-Skripte**\n\nWas brauchst du? Beschreibe das Thema und für welche Kanäle.',
     welcomeQuestion: 'Was soll heute rausgehen?',
@@ -627,7 +627,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     model: 'mistral-large-latest',
     defaultModel: 'mistral-large-latest',
     provider: 'mistral',
-    params: { max_tokens: 3000, temperature: 0.6 },
+    params: { max_tokens: 8000, temperature: 0.6 },
     openingMessage:
       'Hallo! Ich schreibe Aussendungen und Social-Media-Posts im Stil der **Grünen Österreich** — mit Nationalrats-Bezug, Bundesländer-Anker und gruene.at-Tonalität.\n\nNenne mir Thema und Kanal (Aussendung / Instagram / Facebook / X / LinkedIn / Reel).',
     welcomeQuestion: 'Was soll Österreich sagen?',
