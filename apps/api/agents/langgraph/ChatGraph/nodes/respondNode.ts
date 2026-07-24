@@ -15,6 +15,7 @@ import {
   buildProductKnowledgeBlock,
   isProductMetaQuestion,
 } from '../../../../services/chat/productKnowledge.js';
+import { buildDocsPageMap } from '../../../../services/docs/docsIndex.js';
 import { localizePlaceholders } from '../../../../services/localization/index.js';
 import { type Locale } from '../../../../services/localization/types.js';
 import { getTextFormForInjection } from '../../../../services/user/textFormRepository.js';
@@ -26,6 +27,7 @@ import { isSourceAvailabilityError } from '../types.js';
 import { type AnchorDescriptor, getActiveAnchors } from './anchorContext.js';
 import { buildCitableSources, type CitableSource } from './citableSources.js';
 import { lastUserText } from './classifierHeuristics.js';
+import { looksLikeDocsHelpQuestion } from './classifierParsing.js';
 import { deriveTextFormMention } from './textFormMention.js';
 
 import type {
@@ -1096,6 +1098,18 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
     log.debug('[Respond] product-knowledge block attached');
   }
 
+  // Documentation page map: every doc page with URL + lead paragraph (~2.5k
+  // tokens for the whole corpus). Attached on operating questions so the model
+  // can name AND link the right page even on turns that never reach the agentic
+  // loop — CHITCHAT_RE pins "hilfe"/"was kannst du" to the single-pass path,
+  // where `gruenerator_docs_search` does not exist. Complementary to that tool,
+  // not redundant: the map lists the pages, the tool retrieves section text.
+  const docsPageMap =
+    !isNeutralTurn && (intent === 'hilfe' || looksLikeDocsHelpQuestion(userQuestion))
+      ? buildDocsPageMap()
+      : '';
+  if (docsPageMap) log.debug('[Respond] docs page map attached');
+
   // Custom system prompt: replaces the entire agent prompt when set
   if (state.customSystemPrompt) {
     return `${state.customSystemPrompt}
@@ -1150,7 +1164,7 @@ Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsForm
     : await getPrAgentInsightFragment(agentConfig.identifier);
 
   return `${systemRole}${skillFragment}${insightsFragment}
-Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${productKnowledge}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
+Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${productKnowledge}${docsPageMap}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo
