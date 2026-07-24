@@ -21,10 +21,13 @@ import { z } from 'zod';
 import { imageNode } from '../../../agents/langgraph/ChatGraph/nodes/imageNode.js';
 import { searchNode } from '../../../agents/langgraph/ChatGraph/nodes/searchNode.js';
 import { summarizeNode } from '../../../agents/langgraph/ChatGraph/nodes/summarizeNode.js';
+import { relatedDocsPages, searchDocs } from '../../../services/docs/docsIndex.js';
 import { lookupUmfragen } from '../../../services/monitor/UmfragenService.js';
 import {
+  pdfKindFromText,
   runBoardGeneration,
   runDocGeneration,
+  runPdfGeneration,
   runSharepicGeneration,
 } from '../services/intentExecutionService.js';
 import { PROGRESS_MESSAGES, type SSEWriter } from '../services/sseHelpers.js';
@@ -182,6 +185,70 @@ NUTZE WENN nach Umfragewerten, der Sonntagsfrage oder der Zustimmung zu einem Th
         },
       ]);
       return { resultCount: 1, sources: sources ?? '', umfragen: text };
+    },
+  });
+}
+
+/**
+ * `gruenerator_docs_search`: BM25 over the Grünerator user documentation
+ * (doku.gruenerator.eu), the retrieval half of the `hilfe` intent.
+ *
+ * The prompt half is the page MAP (`buildDocsPageMap`, injected by respondNode)
+ * — the two are complementary, not redundant: the map lists every page so the
+ * model can point at the right one, this tool pulls the actual section text so
+ * it can answer the question. Hits go through the source registry like any
+ * search tool, so the sections become numbered `[N]` citations that deep-link
+ * to `…/docs/page#section`.
+ *
+ * Purely in-process (a generated index, no network, no embeddings), so it is
+ * cheap enough to call speculatively and works in tests without fixtures.
+ */
+export function makeDocsSearchTool(ctx: { sourceRegistry: SourceRegistry }): Tool {
+  const { sourceRegistry } = ctx;
+  return tool({
+    description: `Durchsucht die offizielle Grünerator-Dokumentation (Anleitungen, Hilfeseiten, Funktionsbeschreibungen) und liefert Abschnitte mit direkt verlinkbaren Fundstellen.
+
+NUTZE WENN es um die BEDIENUNG des Grünerators geht: "wie erstelle ich ein Sharepic", "wie lege ich ein Notebook an", "wie binde ich die Grüne Wolke ein", "was ist die Agentura", "wo finde ich die Konnektoren".
+
+NICHT für politische Inhalte oder Parteiprogramme (nutze gruenerator_search), nicht für allgemeine Web-Recherche (nutze web_search), nicht für die eigenen Dokumente der Nutzer*innen.
+
+Verlinke die gefundenen Seiten in der Antwort mit ihrer vollständigen URL.`,
+    inputSchema: z.object({
+      query: z
+        .string()
+        .min(1)
+        .describe('Suchbegriff oder Frage zur Grünerator-Bedienung, auf Deutsch'),
+    }),
+    execute: async ({ query }) => {
+      const hits = searchDocs(query, 5);
+      if (hits.length === 0) {
+        return {
+          resultCount: 0,
+          sources: '',
+          note: 'Zu dieser Frage steht nichts in der Grünerator-Dokumentation. Sage das ehrlich, statt eine Anleitung zu erfinden.',
+        };
+      }
+      const results: SearchResult[] = hits.map((hit) => ({
+        source: 'gruenerator-docs',
+        url: hit.url,
+        title: hit.title,
+        content: hit.snippet,
+      }));
+      const sources = sourceRegistry.register(results);
+      return {
+        resultCount: results.length,
+        sources: sources ?? '',
+        // Unlike the other search tools, this one KEEPS a (lean) results array.
+        // The registry's `sources` block is `[N] title — snippet` with no URL,
+        // and linking the right doc page is the entire point of this tool — the
+        // model cannot write a link it was never given. Title+URL only, so the
+        // token cost stays ~15 per hit. It also gives the tool card something to
+        // render (parseSearchCitations reads `results`).
+        results: hits.map((hit) => ({ title: hit.title, url: hit.url })),
+        // Page-level neighbours so the model can offer "mehr dazu" without a
+        // second call.
+        verwandteSeiten: relatedDocsPages(query),
+      };
     },
   });
 }
@@ -375,6 +442,112 @@ NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/F
       return {
         document: created,
         note: `${label} erstellt und dem*der Nutzer*in angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.`,
+      };
+    },
+  });
+}
+
+/**
+ * Compound PDF fat tool. Same contract as makeCreateDocTool (idempotent via
+ * `state.createdDocument`, `document_created` SSE, router lifts the metadata) —
+ * but the result is a finished, downloadable CI-styled PDF (subtype 'pdf',
+ * url = authenticated compute-asset download), not an editable document. Kept
+ * as a sibling factory because of the extra letterhead/sender input fields.
+ */
+export function makeCreatePdfTool(ctx: {
+  sse: SSEWriter;
+  state: ChatGraphState;
+  req: Request;
+}): Tool {
+  const { sse, state, req } = ctx;
+  return tool({
+    description: `Erstellt ein fertig gestaltetes PDF nach dem Barrierefreiheits-Standard PDF/UA-1 zum Herunterladen. Der*die Nutzer*in beschreibt frei, was drin stehen soll — Aufbau (Überschriften, Listen, Tabellen, Hinweiskästen, Datenblätter, Unterschriftszeilen) wählt das System passend zum Auftrag.
+
+DREI ARTEN:
+- "document": Merkblatt, Konzept, Übersicht, Protokoll, Handout — alles zum Lesen/Ausdrucken
+- "letter": offizieller Brief / Anschreiben mit Grünen-Briefkopf (DIN 5008)
+- "form": AUSFÜLLBARES Formular mit echten Feldern (Text, Datum, Auswahl, Ankreuzfelder) — für Anträge, Anmeldungen, Fragebögen
+
+NUTZE WENN ein fertiges PDF, ein Schreiben mit Briefkopf oder ein ausfüllbares Formular gewünscht ist. Recherchiere ZUERST die Fakten (gruenerator_search), dann übergib in "prompt" einen konkreten, mit den recherchierten Fakten angereicherten Auftrag — kein Platzhaltertext.
+
+WICHTIG — PRÜFEN STATT BEHAUPTEN: Das Tool öffnet das erzeugte PDF erneut und prüft, ob Text wirklich auslesbar ist, die Struktur getaggt wurde, die PDF/UA-Kennung gesetzt ist und alle Formularfelder beschriftet sind. Häufiger Fehler bei PDFs: Sie sehen richtig aus, enthalten aber KEINE auslesbare Textebene oder keine Tags — dann kann sie kein Screenreader lesen. Lies deshalb IMMER das Feld "geprueft" und vor allem "probleme" im Ergebnis und nenne gefundene Probleme offen; behaupte NIE, das PDF sei barrierefrei, wenn "probleme" nicht leer ist.`,
+    inputSchema: z.object({
+      prompt: z
+        .string()
+        .min(1)
+        .describe(
+          'Konkreter Auftrag für das PDF — Thema, gewünschter Aufbau und die recherchierten Fakten/Inhalte, die vorkommen sollen. Bei einem Formular: welche Angaben abgefragt werden sollen.'
+        ),
+      art: z
+        .enum(['dokument', 'brief', 'formular'])
+        .optional()
+        .describe(
+          'Art des PDFs. "formular" nur bei einem AUSFÜLLBAREN Formular, "brief" bei einem Schreiben mit Briefkopf.'
+        ),
+      sender: z
+        .object({
+          name: z.string().optional().describe('Name der absendenden Person'),
+          organization: z.string().optional().describe('Gliederung, z.B. "KV Musterstadt"'),
+          address: z.string().optional().describe('Absender-Adresse (mehrzeilig)'),
+        })
+        .optional()
+        .describe(
+          'Absenderblock für den Briefkopf — nur wenn der*die Nutzer*in Angaben gemacht hat'
+        ),
+      recipient: z
+        .string()
+        .optional()
+        .describe('Empfänger-Adressblock (mehrzeilig) — nur bei einem Brief'),
+    }),
+    execute: async ({ prompt, art, sender, recipient }) => {
+      // Idempotent per turn (mirror of makeCreateDocTool).
+      if (state.createdDocument) {
+        return {
+          ok: true,
+          note: 'Es wurde in diesem Turn bereits ein PDF erstellt und angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.',
+        };
+      }
+      const userId = state.agentConfig?.userId;
+      if (!userId) {
+        return { error: 'PDF-Erstellung nicht möglich (keine Nutzer-Sitzung).' };
+      }
+      const userContent = recipient
+        ? `${prompt}\n\nEmpfänger des Schreibens:\n${recipient}`
+        : prompt;
+      const documentKind =
+        art === 'formular' ? 'form' : art === 'brief' ? 'letter' : pdfKindFromText(userContent);
+      const result = await runPdfGeneration({
+        userContent,
+        aiWorkerPool: state.aiWorkerPool,
+        req,
+        userId,
+        pdfOptions: {
+          documentKind,
+          sender: sender
+            ? {
+                name: sender.name ?? null,
+                organization: sender.organization ?? null,
+                address: sender.address ?? null,
+              }
+            : null,
+          userLocale: state.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
+        },
+      });
+      if (!result) {
+        return { error: 'PDF-Erstellung fehlgeschlagen.' };
+      }
+      // Live card (same event the single-pass handler emits). Shared-ref merge →
+      // forceFinish trips and the router lifts it for message-level persistence.
+      sse.send('document_created', result.document);
+      state.createdDocument = result.document;
+      return {
+        document: result.document,
+        geprueft: result.summary,
+        felder: result.verification.formFields,
+        probleme: result.verification.problems,
+        note: result.verification.problems.length
+          ? 'PDF erstellt und als Download angezeigt. Die Selbstprüfung hat Probleme gefunden — nenne sie der*dem Nutzer*in offen. Rufe das Tool NICHT erneut auf.'
+          : 'PDF erstellt, selbst geprüft und als Download angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.',
       };
     },
   });

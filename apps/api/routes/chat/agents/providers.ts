@@ -14,6 +14,7 @@ import {
   tryAcquireVerdigadoSlot,
   releaseVerdigadoSlot,
 } from '../../../services/providers/verdigadoSlot.js';
+import { withUsageTracking } from '../../../services/usage/usageModelMiddleware.js';
 
 import {
   AVOID_AS_SYNTH,
@@ -49,7 +50,9 @@ export { isVisionCapable };
  * sees an explicit warning before selecting them; auto-routing in or out
  * would break that informed-consent boundary.
  */
-export type Provider = 'mistral' | 'litellm' | 'regolo';
+export type Provider = 'mistral' | 'litellm' | 'regolo' | 'greenpt';
+
+const GREENPT_DEFAULT_MODEL = 'mistral-medium-3.5-128b';
 
 export interface ModelConfigSingle {
   kind: 'single';
@@ -134,6 +137,14 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
     model: 'mistral-small-4-119b',
     contextWindow: 32768,
     fallback: 'gpt-oss',
+  },
+  // Registered but not wired into any default or auto-routing yet — the catalog
+  // entry is offByDefault, so nothing selects this lane unless asked for by id.
+  greenpt: {
+    kind: 'single',
+    provider: 'greenpt',
+    model: env.GREENPT_DEFAULT_MODEL || GREENPT_DEFAULT_MODEL,
+    contextWindow: 32768,
   },
 
   // Overflow lanes — Verdigado primary, Regolo on overflow when slot is busy.
@@ -236,7 +247,7 @@ const DEFAULT_CONTEXT_WINDOW = 32768;
  */
 export function getContextWindow(
   modelId: string | null | undefined,
-  provider?: 'mistral' | 'litellm' | 'regolo' | 'anthropic'
+  provider?: 'mistral' | 'litellm' | 'regolo' | 'greenpt' | 'anthropic'
 ): number {
   if (modelId && AVAILABLE_MODELS[modelId]) {
     return AVAILABLE_MODELS[modelId].contextWindow;
@@ -246,6 +257,7 @@ export function getContextWindow(
   if (provider === 'mistral') return 128000;
   if (provider === 'litellm') return 16384;
   if (provider === 'regolo') return 32768;
+  if (provider === 'greenpt') return 32768;
 
   return DEFAULT_CONTEXT_WINDOW;
 }
@@ -253,6 +265,7 @@ export function getContextWindow(
 let mistralInstance: ReturnType<typeof createMistral> | null = null;
 let litellmInstance: ReturnType<typeof createOpenAI> | null = null;
 let regoloInstance: ReturnType<typeof createOpenAI> | null = null;
+let greenptInstance: ReturnType<typeof createOpenAI> | null = null;
 
 function getMistralProvider() {
   if (!mistralInstance) {
@@ -295,6 +308,21 @@ function getRegoloProvider() {
   return regoloInstance;
 }
 
+function getGreenPTProvider() {
+  if (!greenptInstance) {
+    const apiKey = env.GREENPT_API_KEY;
+    if (!apiKey) {
+      throw new Error('GREENPT_API_KEY is not configured');
+    }
+    greenptInstance = createOpenAI({
+      baseURL: 'https://api.greenpt.ai/v1',
+      apiKey,
+      name: 'greenpt',
+    });
+  }
+  return greenptInstance;
+}
+
 export function isProviderConfigured(provider: string): boolean {
   let configured = false;
   switch (provider) {
@@ -317,6 +345,12 @@ export function isProviderConfigured(provider: string): boolean {
       configured = !!env.REGOLO_API_KEY;
       console.log(`[providers] Checking regolo: REGOLO_API_KEY=${configured ? 'set' : 'NOT SET'}`);
       return configured;
+    case 'greenpt':
+      configured = !!env.GREENPT_API_KEY;
+      console.log(
+        `[providers] Checking greenpt: GREENPT_API_KEY=${configured ? 'set' : 'NOT SET'}`
+      );
+      return configured;
     case 'anthropic':
       return false;
     default:
@@ -325,6 +359,10 @@ export function isProviderConfigured(provider: string): boolean {
 }
 
 export function getModel(provider: string, modelId: string): LanguageModel {
+  return withUsageTracking(resolveModel(provider, modelId), provider);
+}
+
+function resolveModel(provider: string, modelId: string): LanguageModel {
   console.log(`[providers] getModel called: provider=${provider}, modelId=${modelId}`);
   switch (provider) {
     case 'mistral': {
@@ -354,6 +392,11 @@ export function getModel(provider: string, modelId: string): LanguageModel {
       const model = regolo.chat(modelId || regoloDefault);
       console.log(`[providers] Regolo model created successfully`);
       return model;
+    }
+    case 'greenpt': {
+      const resolvedModel = modelId || env.GREENPT_DEFAULT_MODEL || GREENPT_DEFAULT_MODEL;
+      console.log(`[providers] Creating GreenPT model: ${resolvedModel}`);
+      return getGreenPTProvider().chat(resolvedModel);
     }
     case 'anthropic':
       throw new Error('Anthropic provider is not yet implemented');
@@ -476,7 +519,7 @@ export function selectionIsToolCapable(agentProvider: string, modelId?: string):
   return isAgenticToolCapable(agentProvider, '');
 }
 
-export function getProviderName(provider: AgentConfig['provider']): string {
+export function getProviderName(provider: AgentConfig['provider'] | Provider): string {
   switch (provider) {
     case 'mistral':
       return 'Mistral AI';
@@ -484,6 +527,8 @@ export function getProviderName(provider: AgentConfig['provider']): string {
       return 'Verdigado';
     case 'regolo':
       return 'Regolo AI';
+    case 'greenpt':
+      return 'GreenPT';
     case 'anthropic':
       return 'Anthropic Claude';
     default:

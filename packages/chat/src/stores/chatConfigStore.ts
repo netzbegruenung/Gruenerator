@@ -344,11 +344,13 @@ function resolveDocsUrl(configured?: string): string {
     return `${window.location.protocol}//localhost:3002`;
   }
   // Desktop (Tauri) webview: hostname is `localhost` under origin
-  // `tauri://localhost`, so `docs.${hostname}` is wrong — use the public docs host.
+  // `tauri://localhost`, so `doku.${hostname}` is wrong — use the public docs host.
   if ('__TAURI__' in window) {
-    return 'https://docs.gruenerator.eu';
+    return 'https://doku.gruenerator.eu';
   }
-  return `${window.location.protocol}//docs.${hostname}`;
+  // `doku.`, not `docs.`: the `docs.` host 301s to the main app, which serves
+  // the SPA shell for `/docs/*` — deep links render the app, not the page.
+  return `${window.location.protocol}//doku.${hostname}`;
 }
 
 function defaultFetch(url: string, options?: RequestInit): Promise<Response> {

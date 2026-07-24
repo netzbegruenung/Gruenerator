@@ -262,6 +262,49 @@ describe('heuristicClassify', () => {
     expect(result.intent).not.toBe('create_presentation');
   });
 
+  it('fast-paths explicit PDF/letterhead requests to create_pdf', () => {
+    for (const q of [
+      'Erstelle mir einen offiziellen Brief an den Stadtrat als PDF mit Briefkopf',
+      'Mach ein PDF daraus',
+      'Erstelle ein PDF-Dokument über unsere Forderungen',
+      'Schreib ein Anschreiben als PDF an den Kreisvorstand',
+    ]) {
+      const result = heuristicClassify(q);
+      expect(result.intent).toBe('create_pdf');
+      expect(result.confidence).toBeGreaterThanOrEqual(0.9);
+    }
+  });
+
+  it('fast-paths fillable-form requests to create_pdf', () => {
+    for (const q of [
+      'Erstelle ein Anmeldeformular für die Mitgliederversammlung',
+      'Bau mir ein ausfüllbares Formular für Mitgliedsanträge',
+      'Mach einen Fragebogen für die Mitgliederbefragung',
+      'Erstelle ein Antragsformular für Zuschüsse',
+    ]) {
+      const result = heuristicClassify(q);
+      expect(result.intent).toBe('create_pdf');
+    }
+  });
+
+  it('does NOT treat filling an ATTACHED form as a create_pdf request', () => {
+    // The fill path (pdf_form / compute) owns these — there is no creation verb.
+    expect(heuristicClassify('Füll das Formular für mich aus').intent).not.toBe('create_pdf');
+    expect(heuristicClassify('Kannst du das Antragsformular ausfüllen?').intent).not.toBe(
+      'create_pdf'
+    );
+  });
+
+  it('does NOT route PDF attachment reads or deck-as-PDF asks to create_pdf', () => {
+    // Attachment read: no creation verb targeting a PDF.
+    expect(heuristicClassify('Fass das PDF zusammen').intent).not.toBe('create_pdf');
+    expect(heuristicClassify('Was steht im PDF auf Seite 3?').intent).not.toBe('create_pdf');
+    // Deck noun wins: a Präsentation "als PDF" still builds a deck.
+    expect(heuristicClassify('Erstelle eine Präsentation zu Windkraft als PDF').intent).toBe(
+      'create_presentation'
+    );
+  });
+
   it('routes tabular aggregation questions to compute when a spreadsheet is attached', () => {
     const result = heuristicClassify('produkt mit höchstem gesamtgewinn?', {
       hasTabularAttachment: true,
