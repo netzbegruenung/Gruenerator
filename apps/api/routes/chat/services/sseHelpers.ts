@@ -356,6 +356,7 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   reise: ['Plane die Reise...', 'Suche Zug und Unterkunft...', 'Stelle Reiseoptionen zusammen...'],
   hotel: ['Suche Unterkünfte...', 'Vergleiche Hotels...', 'Prüfe Verfügbarkeiten...'],
   umfragen: ['Frage Umfragewerte ab...', 'Lese die Sonntagsfrage...', 'Hole PolitPro-Daten...'],
+  hilfe: ['Blättere in der Doku...', 'Schlage die Anleitung nach...', 'Suche die Hilfeseite...'],
   wetter: ['Rufe Wettervorhersage ab...', 'Schaue in die Wolken...', 'Frage den DWD...'],
   news: ['Durchsuche Nachrichten...', 'Lese tagesschau...', 'Hole Schlagzeilen...'],
   image: ['Generiere...', 'Male...', 'Zeichne...'],

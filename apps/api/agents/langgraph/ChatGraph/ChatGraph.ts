@@ -573,6 +573,10 @@ function routeAfterClassification(
     wetter: 'direct',
     news: 'direct',
     umfragen: 'direct',
+    // Same as the loop-only intents above: `hilfe` routes into the agentic loop
+    // before this map matters. Its tool is gated by enabledTools.hilfe in the
+    // catalog instead.
+    hilfe: 'direct',
     image: 'image',
     image_edit: 'image_edit',
     sharepic: 'sharepic',

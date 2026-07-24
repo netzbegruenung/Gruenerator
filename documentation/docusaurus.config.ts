@@ -14,8 +14,9 @@ const config: Config = {
     v4: true, // Improve compatibility with the upcoming Docusaurus v4
   },
 
-  // Set the production url of your site here
-  url: 'https://xgwok08o0ccgo4g4cgcoksc8.services.moritz-waechter.de',
+  // Production URL. Was a dead Coolify placeholder hostname, which put that
+  // hostname into every <loc> of sitemap.xml and into the canonical tags.
+  url: 'https://doku.gruenerator.eu',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/',

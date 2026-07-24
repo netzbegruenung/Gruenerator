@@ -61,6 +61,7 @@ import {
   detectSearchSources,
   CHAT_HISTORY_KEYWORDS,
   SYSTEM_MCP_PHRASING,
+  looksLikeDocsHelpQuestion,
 } from './classifierParsing.js';
 import { CLASSIFIER_PROMPT, NON_SEARCH_INTENTS } from './classifierPrompt.js';
 import { classifyDocsIntentTiebreak } from './docsIntentTiebreak.js';
@@ -979,6 +980,29 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
           classificationTimeMs: Date.now() - startTime,
         };
       }
+    }
+
+    // ── TIER 2.9: Grünerator help question ("wie erstelle ich ein Sharepic?") ──
+    // MUST run before Tier 3: the heuristics see "erstelle … sharepic" and
+    // classify the turn as a GENERATION intent, so the assistant would build a
+    // sharepic for a user who only asked how sharepics work.
+    // `looksLikeDocsHelpQuestion` is deliberately high-precision (see
+    // classifierParsing) — what it misses still reaches the LLM tier, which
+    // knows the `hilfe` intent too.
+    if (looksLikeDocsHelpQuestion(userContent)) {
+      log.info(`[Classifier] Docs help question → hilfe: "${userContent.slice(0, 60)}"`);
+      return {
+        intent: 'hilfe',
+        searchSources: [],
+        // The docs tool runs BM25 over the question itself, so the raw text is
+        // the query — no separate extraction step like the search intents have.
+        searchQuery: userContent.slice(0, 500),
+        detectedFilters: null,
+        reasoning: 'Grünerator help question (docs)',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
     }
 
     // ── TIER 3: Heuristic pre-check ──
