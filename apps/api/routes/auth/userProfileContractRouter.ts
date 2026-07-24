@@ -358,7 +358,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
         status: 500 as const,
         body: {
           success: false as const,
-          message: err.message || 'Fehler beim Aktualisieren des Hintergrunds.',
+          message: toUserFacingMessage(err, 'Fehler beim Aktualisieren des Hintergrunds.'),
         },
       };
     }

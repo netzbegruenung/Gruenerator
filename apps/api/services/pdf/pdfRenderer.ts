@@ -74,6 +74,8 @@ export interface RenderPdfResult {
   appearanceFallback: boolean;
   /** Characters dropped because no embedded font could render them. */
   missingGlyphs: string[];
+  /** Total number of dropped characters, not just how many distinct ones. */
+  droppedGlyphCount: number;
 }
 
 interface Theme {
@@ -154,6 +156,8 @@ interface RendererFonts {
   supports: (font: PDFFont, codePoint: number) => boolean;
   /** Characters no embedded font could render; reported with the result. */
   missing: Set<string>;
+  /** How OFTEN that happened — the set alone hides the scale of the loss. */
+  droppedCount: { value: number };
 }
 
 /**
@@ -193,7 +197,12 @@ function splitIntoFontRuns(text: string, textFont: PDFFont, fonts: RendererFonts
     else runs.push({ text: chunk, font });
   };
 
-  for (const char of text) {
+  // NFC zuerst: in zerlegter Form (NFD — der Normalfall bei macOS-Dateinamen
+  // und vielen Copy-Paste-Wegen) ist "ä" ein "a" plus ein kombinierendes
+  // Trema. Für das Trema hat keine unserer Schriften eine Glyphe, es fiel
+  // heraus, und aus "Wärmeplanung für Österreich" wurde "Warmeplanung fur
+  // Osterreich" — falsches Deutsch, ohne jede Meldung.
+  for (const char of text.normalize('NFC')) {
     const cp = char.codePointAt(0);
     if (cp === undefined) continue;
     if (fonts.supports(textFont, cp)) {
@@ -212,6 +221,7 @@ function splitIntoFontRuns(text: string, textFont: PDFFont, fonts: RendererFonts
     // No glyph and no stand-in: dropping is the only PDF/UA-legal option, but
     // it IS a loss, so it gets reported rather than swallowed.
     fonts.missing.add(char);
+    fonts.droppedCount.value += 1;
   }
 
   return runs.length ? runs : [{ text: '', font: textFont }];
@@ -306,17 +316,37 @@ function wrapSegments(
     lineBreak?: boolean;
   }
   const words: Word[] = [];
+  // A word ends at whitespace — NOT at a segment boundary. Segments split
+  // wherever formatting changes, so treating each one as its own word put a
+  // space inside every word that changes style mid-way: "Maß**nahme**" came
+  // out as "Maß nahme", "A**B**C" as "A B C".
+  let current: Word | null = null;
+  const closeWord = () => {
+    if (current) words.push(current);
+    current = null;
+  };
   for (const seg of segments) {
     const font = seg.bold ? fonts.bodyBold : fonts.body;
-    const parts = seg.text.split('\n');
-    parts.forEach((part, i) => {
-      for (const word of part.split(/\s+/).filter(Boolean)) {
-        const runs = splitIntoFontRuns(word, font, fonts);
-        words.push({ runs, width: measureRuns(runs, fontSize) });
+    for (const token of seg.text.split(/(\s+)/)) {
+      if (!token) continue;
+      if (/^\s+$/.test(token)) {
+        closeWord();
+        for (const ch of token) {
+          if (ch === '\n') words.push({ runs: [], width: 0, lineBreak: true });
+        }
+        continue;
       }
-      if (i < parts.length - 1) words.push({ runs: [], width: 0, lineBreak: true });
-    });
+      const runs = splitIntoFontRuns(token, font, fonts);
+      const width = measureRuns(runs, fontSize);
+      if (current) {
+        current.runs.push(...runs);
+        current.width += width;
+      } else {
+        current = { runs, width };
+      }
+    }
   }
+  closeWord();
 
   const spaceWidth = safeWidth(fonts.body, ' ', fontSize);
   const lines: FontRun[][] = [];
@@ -423,8 +453,11 @@ class PdfRenderer {
   private readonly takenNames = new Set<string>();
   private readonly fieldNames: string[] = [];
   private fieldAppearanceFailed = false;
-  /** The title is already an H1, so block headings continue from level 1. */
-  private lastHeadingLevel = 1;
+  /**
+   * Quellebenen der offenen Abschnitte. Der Dokumenttitel ist bereits eine H1,
+   * deshalb beginnt der Inhalt eine Ebene darunter.
+   */
+  private readonly outline: number[] = [];
 
   constructor(
     private readonly doc: PDFDocument,
@@ -594,14 +627,29 @@ class PdfRenderer {
     }
   }
 
+  /**
+   * Quellebene → Ausgabeebene, so dass Geschwister Geschwister bleiben.
+   *
+   * Eine reine Klemmung auf "höchstens eine Ebene tiefer als die vorige"
+   * erzeugt aus drei gleichrangigen `###` eine H2 mit zwei untergeordneten H3:
+   * die erste rutscht hoch, die folgenden nicht. Der Screenreader kündigt
+   * damit eine Gliederung an, die es im Dokument nicht gibt. Deshalb wird die
+   * Verschachtelung aus den Quellebenen abgeleitet statt aus der Vorgängerin.
+   */
+  private outlineLevel(sourceLevel: number): 1 | 2 | 3 {
+    while (this.outline.length && this.outline[this.outline.length - 1]! >= sourceLevel) {
+      this.outline.pop();
+    }
+    this.outline.push(sourceLevel);
+    // +1, weil der Dokumenttitel die H1 belegt; tiefer als H3 kann das
+    // Blockmodell nicht, dort laufen weitere Ebenen zusammen.
+    return Math.min(this.outline.length + 1, 3) as 1 | 2 | 3;
+  }
+
   private renderBlock(block: PdfBlock): void {
     switch (block.type) {
       case 'heading': {
-        // Skipping a level (H1 straight to H3) breaks the outline a screen
-        // reader navigates by, and fails PDF/UA 7.4.2. The model does not
-        // always count correctly, so the level is clamped here.
-        const level = Math.min(block.level, this.lastHeadingLevel + 1) as 1 | 2 | 3;
-        this.lastHeadingLevel = level;
+        const level = this.outlineLevel(block.level);
         const size = level === 1 ? 16 : level === 2 ? 13.5 : 12;
         this.ensureSpace(size * 2.6);
         this.y -= 8;
@@ -665,30 +713,65 @@ class PdfRenderer {
   }
 
   private renderList(block: Extract<PdfBlock, { type: 'list' }>): void {
-    const fontSize = 11;
-    const indent = 16;
-    this.tagger.open('L');
-    let index = 1;
-    for (const item of block.items) {
-      this.tagger.open('LI');
-      const marker = block.ordered ? `${index}.` : '•';
-      this.ensureSpace(fontSize * 1.45);
-      this.writeLineAt(
-        'Lbl',
-        marker,
-        MARGIN_L + indent - 12,
-        this.y,
-        fontSize,
-        block.ordered ? this.fonts.body : this.fonts.bodyBold,
-        this.theme.accent
-      );
-      this.tagger.tag('LBody', () =>
-        this.writeText(inlineSegments(item), { fontSize, indent, spacingAfter: 3 })
-      );
-      this.tagger.close();
-      index += 1;
+    interface ListNode {
+      text: string;
+      ordered: boolean;
+      children: ListNode[];
     }
-    this.tagger.close();
+
+    // Die flache Eintragsliste trägt ihre Tiefe mit; daraus wird wieder ein
+    // Baum, damit jede Ebene eigenständig zählt und als eigenes L-Element
+    // getaggt wird (ein Screenreader kündigt die Unterliste dann als solche an).
+    const roots: ListNode[] = [];
+    const path: ListNode[] = [];
+    for (const raw of block.items) {
+      const entry =
+        typeof raw === 'string'
+          ? { text: raw, level: 0, ordered: block.ordered ?? false }
+          : { text: raw.text, level: raw.level, ordered: raw.ordered ?? block.ordered ?? false };
+      const node: ListNode = { text: entry.text, ordered: entry.ordered, children: [] };
+      // Eine Ebene, die ohne Elternteil auftaucht (fehlerhafte Quelle), rutscht
+      // nach oben statt verlorenzugehen.
+      const depth = Math.min(entry.level, path.length);
+      path.length = depth;
+      if (depth === 0) roots.push(node);
+      else path[depth - 1]!.children.push(node);
+      path.push(node);
+    }
+
+    const fontSize = 11;
+    const step = 16;
+
+    const renderLevel = (nodes: ListNode[], depth: number): void => {
+      const indent = step * (depth + 1);
+      this.tagger.open('L');
+      let index = 1;
+      for (const node of nodes) {
+        this.tagger.open('LI');
+        const marker = node.ordered ? `${index}.` : depth > 0 ? '–' : '•';
+        this.ensureSpace(fontSize * 1.45);
+        this.writeLineAt(
+          'Lbl',
+          marker,
+          MARGIN_L + indent - 12,
+          this.y,
+          fontSize,
+          node.ordered ? this.fonts.body : this.fonts.bodyBold,
+          this.theme.accent
+        );
+        // Die Unterliste gehört IN den LBody: ein LI darf laut PDF/UA (7.2-20)
+        // nur Lbl und LBody enthalten, kein L als drittes Geschwister.
+        this.tagger.open('LBody');
+        this.writeText(inlineSegments(node.text), { fontSize, indent, spacingAfter: 3 });
+        if (node.children.length) renderLevel(node.children, depth + 1);
+        this.tagger.close();
+        this.tagger.close();
+        index += 1;
+      }
+      this.tagger.close();
+    };
+
+    renderLevel(roots, 0);
     this.y -= 5;
   }
 
@@ -1460,6 +1543,7 @@ class PdfRenderer {
       checks,
       appearanceFallback: this.fieldAppearanceFailed,
       missingGlyphs: [...this.fonts.missing],
+      droppedGlyphCount: this.fonts.droppedCount.value,
     };
   }
 }
@@ -1531,6 +1615,7 @@ export async function renderPdf(
       return has;
     },
     missing: new Set<string>(),
+    droppedCount: { value: 0 },
   };
   const logo = await doc.embedPng(logoBytes);
 

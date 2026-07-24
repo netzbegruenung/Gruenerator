@@ -1,0 +1,7 @@
+# Sehr langes Wort
+
+Ein einzelnes Wort ohne Trennmoeglichkeit:
+
+Donaudampfschifffahrtsgesellschaftskapitaenswitwedampfschifffahrtsgesellschaftskapitaenswitwedampfschifffahrtsgesellschaftskapitaenswitwedampfschifffahrtsgesellschaftskapitaenswitwedampfschifffahrtsgesellschaftskapitaenswitwedampfschifffahrtsgesellschaftskapitaenswitwenversammlung
+
+Danach folgt normaler Text, der weiter umbrochen wird.
