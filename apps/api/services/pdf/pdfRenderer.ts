@@ -164,13 +164,15 @@ function measureRuns(runs: FontRun[], fontSize: number): number {
   return runs.reduce((w, r) => w + safeWidth(r.font, r.text, fontSize), 0);
 }
 
+// Decode &amp; LAST to prevent double-decoding (&amp;lt; would otherwise become
+// "<" instead of "&lt;") — same order as contentParser.ts.
 function decodeEntities(text: string): string {
   return text
-    .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&');
 }
 
 /** Flatten marked inline tokens into bold-aware segments (links keep their text). */
