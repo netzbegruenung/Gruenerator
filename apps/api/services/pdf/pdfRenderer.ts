@@ -27,6 +27,7 @@ import {
   PDFName,
   PDFRef,
   rgb,
+  type PDFDict,
   type PDFFont,
   type PDFForm,
   type PDFImage,
@@ -45,6 +46,11 @@ const __dirname = dirname(__filename);
 const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
 
 const log = createLogger('pdfRenderer');
+
+/** The slice of fontkit's Font we use; @pdf-lib/fontkit ships no public types. */
+interface FontkitFont {
+  hasGlyphForCodePoint(codePoint: number): boolean;
+}
 
 export type PdfLocale = 'de-DE' | 'de-AT';
 
@@ -66,6 +72,8 @@ export interface RenderPdfResult {
   checks: TaggingChecks;
   /** True when the viewer has to build the field appearances itself. */
   appearanceFallback: boolean;
+  /** Characters dropped because no embedded font could render them. */
+  missingGlyphs: string[];
 }
 
 interface Theme {
@@ -136,19 +144,71 @@ interface RendererFonts {
   body: PDFFont;
   bodyBold: PDFFont;
   emoji: PDFFont;
+  /** Whether a font actually has a glyph for a code point. */
+  supports: (font: PDFFont, codePoint: number) => boolean;
+  /** Characters no embedded font could render; reported with the result. */
+  missing: Set<string>;
 }
 
-function splitIntoFontRuns(text: string, textFont: PDFFont, emojiFont: PDFFont): FontRun[] {
+/**
+ * ASCII stand-ins for characters our CI fonts do not carry. Drawing them anyway
+ * would emit a .notdef glyph, which PDF/UA 7.21.8 forbids outright and which
+ * shows up as an empty box in the reader.
+ */
+const GLYPH_FALLBACKS: Record<string, string> = {
+  '→': '->',
+  '⇒': '=>',
+  '➔': '->',
+  '➜': '->',
+  '⟶': '->',
+  '←': '<-',
+  '⇐': '<=',
+  '↔': '<->',
+  '✓': 'x',
+  '✔': 'x',
+  '✗': '-',
+  '✘': '-',
+  '☑': '[x]',
+  '☐': '[ ]',
+  '−': '-',
+  '⋅': '·',
+};
+
+/**
+ * Split text into runs by which embedded font can actually render each
+ * character: body font first, emoji font second, ASCII stand-in third. A
+ * character with no glyph anywhere is dropped and recorded.
+ */
+function splitIntoFontRuns(text: string, textFont: PDFFont, fonts: RendererFonts): FontRun[] {
   const runs: FontRun[] = [];
-  let lastIndex = 0;
-  for (const match of text.matchAll(EMOJI_REGEX)) {
-    const idx = match.index!;
-    if (idx > lastIndex) runs.push({ text: text.slice(lastIndex, idx), font: textFont });
-    runs.push({ text: match[0], font: emojiFont });
-    lastIndex = idx + match[0].length;
+  const push = (chunk: string, font: PDFFont) => {
+    const last = runs[runs.length - 1];
+    if (last && last.font === font) last.text += chunk;
+    else runs.push({ text: chunk, font });
+  };
+
+  for (const char of text) {
+    const cp = char.codePointAt(0);
+    if (cp === undefined) continue;
+    if (fonts.supports(textFont, cp)) {
+      push(char, textFont);
+      continue;
+    }
+    if (fonts.supports(fonts.emoji, cp)) {
+      push(char, fonts.emoji);
+      continue;
+    }
+    const fallback = GLYPH_FALLBACKS[char];
+    if (fallback) {
+      push(fallback, textFont);
+      continue;
+    }
+    // No glyph and no stand-in: dropping is the only PDF/UA-legal option, but
+    // it IS a loss, so it gets reported rather than swallowed.
+    fonts.missing.add(char);
   }
-  if (lastIndex < text.length) runs.push({ text: text.slice(lastIndex), font: textFont });
-  return runs.length ? runs : [{ text, font: textFont }];
+
+  return runs.length ? runs : [{ text: '', font: textFont }];
 }
 
 /** widthOfTextAtSize throws on glyphs missing from the font; treat them as spaces. */
@@ -243,7 +303,7 @@ function wrapSegments(
     const parts = seg.text.split('\n');
     parts.forEach((part, i) => {
       for (const word of part.split(/\s+/).filter(Boolean)) {
-        const runs = splitIntoFontRuns(word, font, fonts.emoji);
+        const runs = splitIntoFontRuns(word, font, fonts);
         words.push({ runs, width: measureRuns(runs, fontSize) });
       }
       if (i < parts.length - 1) words.push({ runs: [], width: 0, lineBreak: true });
@@ -355,6 +415,8 @@ class PdfRenderer {
   private readonly takenNames = new Set<string>();
   private readonly fieldNames: string[] = [];
   private fieldAppearanceFailed = false;
+  /** The title is already an H1, so block headings continue from level 1. */
+  private lastHeadingLevel = 1;
 
   constructor(
     private readonly doc: PDFDocument,
@@ -493,16 +555,21 @@ class PdfRenderer {
   private renderBlock(block: PdfBlock): void {
     switch (block.type) {
       case 'heading': {
-        const size = block.level === 1 ? 16 : block.level === 2 ? 13.5 : 12;
+        // Skipping a level (H1 straight to H3) breaks the outline a screen
+        // reader navigates by, and fails PDF/UA 7.4.2. The model does not
+        // always count correctly, so the level is clamped here.
+        const level = Math.min(block.level, this.lastHeadingLevel + 1) as 1 | 2 | 3;
+        this.lastHeadingLevel = level;
+        const size = level === 1 ? 16 : level === 2 ? 13.5 : 12;
         this.ensureSpace(size * 2.6);
         this.y -= 8;
-        this.tagger.tag(block.level === 1 ? 'H1' : block.level === 2 ? 'H2' : 'H3', () =>
+        this.tagger.tag(level === 1 ? 'H1' : level === 2 ? 'H2' : 'H3', () =>
           this.writeText(inlineSegments(block.text), {
             fontSize: size,
             lineHeight: size * 1.3,
             color: this.theme.primary,
             spacingAfter: 6,
-            font: block.level <= 2 ? this.fonts.heading : this.fonts.bodyBold,
+            font: level <= 2 ? this.fonts.heading : this.fonts.bodyBold,
           })
         );
         break;
@@ -686,8 +753,20 @@ class PdfRenderer {
   private renderTable(block: Extract<PdfBlock, { type: 'table' }>): void {
     const columnCount = block.columns.length;
     const rows = block.rows.map((row) => {
-      const cells = row.slice(0, columnCount);
-      while (cells.length < columnCount) cells.push('');
+      if (row.length <= columnCount) {
+        const cells = [...row];
+        while (cells.length < columnCount) cells.push('');
+        return cells;
+      }
+      // More cells than columns: fold the surplus into the last column rather
+      // than dropping it. Silently losing a cell is worse than a crowded one.
+      const cells = row.slice(0, columnCount - 1);
+      cells.push(
+        row
+          .slice(columnCount - 1)
+          .filter(Boolean)
+          .join(' · ')
+      );
       return cells;
     });
     // Column widths follow the widest cell so a "Nr."-column stays narrow.
@@ -867,7 +946,10 @@ class PdfRenderer {
       .join(' — ');
     const page = this.page;
 
-    this.tagger.open('Form');
+    // A `Form` element without a Role attribute must have exactly ONE child --
+    // the object reference to its widget (PDF/UA-1, 7.18.4). So the label and
+    // the hint are SIBLINGS of it inside a section, not children.
+    this.tagger.open('Sect', { title: field.label });
     // The checkbox/radio label sits NEXT to the control, everything else above.
     if (field.kind !== 'checkbox') {
       this.writeLineAt('Lbl', label, x, this.y, 9, this.fonts.bodyBold, this.theme.primary);
@@ -896,7 +978,8 @@ class PdfRenderer {
               font: this.fonts.body,
             }),
           page,
-          field.kind === 'date' ? `${accessibleName} — Datum TT.MM.JJJJ` : accessibleName
+          field.kind === 'date' ? `${accessibleName} — Datum TT.MM.JJJJ` : accessibleName,
+          text.acroField.dict
         );
         // Only valid once addToPage created the widget's /DA entry.
         text.setFontSize(10);
@@ -920,7 +1003,8 @@ class PdfRenderer {
               borderWidth: 0.75,
             }),
           page,
-          accessibleName
+          accessibleName,
+          checkbox.acroField.dict
         );
         this.writeLineAt('Lbl', label, x + box + 7, top - box + 2, 10, this.fonts.body, BODY_COLOR);
         this.y = top - box - 6;
@@ -945,7 +1029,8 @@ class PdfRenderer {
                 borderWidth: 0.75,
               }),
             page,
-            `${accessibleName}: ${option}`
+            `${accessibleName}: ${option}`,
+            group.acroField.dict
           );
           this.writeLineAt(
             'Lbl',
@@ -980,7 +1065,8 @@ class PdfRenderer {
               font: this.fonts.body,
             }),
           page,
-          `${accessibleName} — Auswahl: ${options.join(', ')}`
+          `${accessibleName} — Auswahl: ${options.join(', ')}`,
+          dropdown.acroField.dict
         );
         dropdown.setFontSize(10);
         this.y = top - boxHeight - 12;
@@ -999,14 +1085,25 @@ class PdfRenderer {
 
   /**
    * pdf-lib appends the widget annotation to the page; grab the ref it just
-   * pushed so the tagger can link it into the structure tree and name it.
+   * pushed, wrap it in its own `Form` element (exactly one child) and name it.
    */
-  private addWidget(add: () => void, page: PDFPage, accessibleName: string): void {
+  private addWidget(
+    add: () => void,
+    page: PDFPage,
+    accessibleName: string,
+    fieldDict: PDFDict
+  ): void {
     add();
     const annots = page.node.get(PDFName.of('Annots'));
     if (annots instanceof PDFArray && annots.size() > 0) {
       const ref = annots.get(annots.size() - 1);
-      if (ref instanceof PDFRef) this.tagger.attachWidget(page, ref, accessibleName);
+      if (ref instanceof PDFRef) {
+        this.tagger.tag(
+          'Form',
+          () => this.tagger.attachWidget(page, ref, accessibleName, fieldDict),
+          { alt: accessibleName }
+        );
+      }
     }
   }
 
@@ -1209,6 +1306,7 @@ class PdfRenderer {
       fields: this.fieldNames,
       checks,
       appearanceFallback: this.fieldAppearanceFailed,
+      missingGlyphs: [...this.fonts.missing],
     };
   }
 }
@@ -1236,12 +1334,50 @@ export async function renderPdf(
     fs.readFile(path.join(PUBLIC_DIR, theme.logo)),
   ]);
 
-  const body = await doc.embedFont(bodyBytes);
+  // Ligatures off: fontkit would substitute "ff" with a single ligature glyph
+  // that pdf-lib maps neither to a correct width nor back to Unicode — the
+  // document then fails PDF/UA 7.21.5 and 7.21.7 on words like
+  // "Öffentlichkeitsarbeit", and the text no longer extracts cleanly.
+  const embed = (bytes: Buffer) => doc.embedFont(bytes, { features: { liga: false } });
+
+  const body = await embed(bodyBytes);
+  const heading = await embed(headingBytes);
+  const bodyBold = await embed(boldBytes);
+  const emoji = emojiBytes ? await embed(emojiBytes) : body;
+
+  // Coverage is read from the font programs themselves; results are memoised
+  // because every character of the document passes through this check.
+  const coverage = new Map<PDFFont, { probe: FontkitFont; cache: Map<number, boolean> }>();
+  const register = (font: PDFFont, bytes: Buffer) => {
+    if (!coverage.has(font)) {
+      coverage.set(font, { probe: fontkit.create(bytes) as FontkitFont, cache: new Map() });
+    }
+  };
+  register(body, bodyBytes);
+  register(heading, headingBytes);
+  register(bodyBold, boldBytes);
+  if (emojiBytes) register(emoji, emojiBytes);
+
   const fonts: RendererFonts = {
-    heading: await doc.embedFont(headingBytes),
+    heading,
     body,
-    bodyBold: await doc.embedFont(boldBytes),
-    emoji: emojiBytes ? await doc.embedFont(emojiBytes) : body,
+    bodyBold,
+    emoji,
+    supports: (font, codePoint) => {
+      const entry = coverage.get(font);
+      if (!entry) return true;
+      const cached = entry.cache.get(codePoint);
+      if (cached !== undefined) return cached;
+      let has = false;
+      try {
+        has = entry.probe.hasGlyphForCodePoint(codePoint);
+      } catch {
+        has = false;
+      }
+      entry.cache.set(codePoint, has);
+      return has;
+    },
+    missing: new Set<string>(),
   };
   const logo = await doc.embedPng(logoBytes);
 
