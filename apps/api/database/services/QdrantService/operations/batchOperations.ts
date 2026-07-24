@@ -161,9 +161,7 @@ export async function getCollectionStats(
     const infoData = info as Record<string, unknown>;
 
     const vectorsCount = (infoData.vectors_count ?? infoData.points_count) as
-      | number
-      | null
-      | undefined;
+      number | null | undefined;
     const indexedVectorsCount = info.indexed_vectors_count as number | null | undefined;
     const pointsCount = info.points_count as number | null | undefined;
     return {

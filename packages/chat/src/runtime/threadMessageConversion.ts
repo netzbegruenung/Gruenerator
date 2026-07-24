@@ -174,8 +174,7 @@ function buildCustomMetadata(metadata: LoadedMessage['metadata']): Record<string
   if (reelProcessingCall?.result) custom.reelProcessing = reelProcessingCall.result;
   const reelPickerProjects = (
     metadata.toolCalls?.find((tc) => tc.toolName === 'reel_picker')?.result as
-      | { projects?: unknown }
-      | undefined
+      { projects?: unknown } | undefined
   )?.projects;
   if (Array.isArray(reelPickerProjects) && reelPickerProjects.length > 0) {
     custom.reelPicker = { projects: reelPickerProjects };

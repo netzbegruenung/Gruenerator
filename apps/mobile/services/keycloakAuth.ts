@@ -14,10 +14,7 @@ import { secureStorage } from './storage';
 import type { User } from '@gruenerator/shared';
 
 export type AuthSource =
-  | 'gruenerator-login'
-  | 'gruenes-netz-login'
-  | 'netzbegruenung-login'
-  | 'gruene-oesterreich-login';
+  'gruenerator-login' | 'gruenes-netz-login' | 'netzbegruenung-login' | 'gruene-oesterreich-login';
 
 const KC_ISSUER = 'https://user.netzbegruenung.de/realms/gruenerator';
 const CLIENT_ID = 'Gruenerator-Mobile';
