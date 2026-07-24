@@ -41,3 +41,8 @@ documentation/src/generated/
 # Misc
 *.lock
 *.log
+
+# Generated docs index — emitted by documentation/scripts/generate-docs-index.mjs
+# and byte-compared by `docs:index --check`. Reformatting it would make that
+# check fail until the next regenerate, so the two must not fight.
+apps/api/services/docs/docsIndex.generated.ts
