@@ -47,6 +47,15 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+      # Needed only for the lockfile-conflict path below (pnpm regenerates it).
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
       - name: Merge master into test-branch
         id: merge
         run: |
@@ -59,12 +68,28 @@ jobs:
           if git merge origin/master --no-verify --no-edit \
               -m "chore: sync test-branch with master"; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
-          else
+            exit 0
+          fi
+
+          # pnpm-lock.yaml conflicts on essentially every sync: both branches
+          # take dependency updates, and the lockfile is a GENERATED artifact —
+          # merging it line by line is meaningless. Take master's and regenerate
+          # against the merged manifests. Any other conflicted path is a real
+          # code conflict and still needs a human.
+          conflicts=$(git diff --name-only --diff-filter=U)
+          if [ "$conflicts" != "pnpm-lock.yaml" ]; then
             git merge --abort || true
             echo "conflict=true" >> "$GITHUB_OUTPUT"
-            echo "::error::Merge conflict merging master into test-branch — manual resolution required."
+            echo "::error::Merge conflict merging master into test-branch — manual resolution required. Conflicts: $(echo "$conflicts" | tr '\n' ' ')"
             exit 1
           fi
+
+          echo "Only pnpm-lock.yaml conflicted — regenerating it."
+          git checkout origin/master -- pnpm-lock.yaml
+          pnpm install --lockfile-only --no-frozen-lockfile
+          git add pnpm-lock.yaml
+          git commit --no-verify -m "chore: sync test-branch with master"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
 
       - name: Push test-branch
         if: steps.merge.outputs.changed == 'true'
