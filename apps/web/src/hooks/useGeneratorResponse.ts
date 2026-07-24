@@ -50,7 +50,7 @@ export interface ResponseParserReturn {
    *
    * @example
    * ```typescript
-   * const result = parseResponse(apiResponse, '/claude_social');
+   * const result = parseResponse(apiResponse, '/texte/social');
    * if (result.success) {
    *   console.log(result.content); // string
    *   console.log(result.metadata); // Record<string, unknown> | undefined

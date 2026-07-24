@@ -4,7 +4,7 @@ import { visionService } from '../../services/vision/index.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
-const log = createLogger('claude_alttext');
+const log = createLogger('texte/alttext');
 const router: Router = createAuthenticatedRouter();
 
 interface AlttextRequestBody {
@@ -15,7 +15,7 @@ interface AlttextRequestBody {
 router.post('/', async (req: Request, res: Response): Promise<void> => {
   const { imageBase64, imageDescription } = req.body as AlttextRequestBody;
 
-  log.debug('[claude_alttext] Request received:', {
+  log.debug('[texte/alttext] Request received:', {
     hasImageBase64: !!imageBase64,
     imageBase64Length: imageBase64?.length || 0,
     hasImageDescription: !!imageDescription,
@@ -34,7 +34,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
 
     res.json({ altText });
   } catch (error) {
-    log.error('[claude_alttext] Error creating alt text:', error);
+    log.error('[texte/alttext] Error creating alt text:', error);
     res.status(500).json({
       error: 'Fehler bei der Erstellung des Alt-Texts',
       details: (error as Error).message,
