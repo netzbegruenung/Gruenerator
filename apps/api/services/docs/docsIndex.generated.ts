@@ -209,6 +209,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Ein Notebook bündelt Dokumente zu einem Thema und macht ihren Inhalt im Grünerator durchsuchbar — etwa für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Diese Anleitung führt dich Schritt f…"
   },
   {
+    "url": "/docs/Profil/einstellungen",
+    "title": "Einstellungen",
+    "category": "Profil",
+    "lead": "Alles, was du am Grünerator für dich einstellen kannst, liegt in einem Fenster: Einstellungen. Du öffnest es über dein Profilbild unten in der Seitenleiste oder direkt über die Adresse /settings. Es…"
+  },
+  {
     "url": "/docs/Profil/gruene-wolke-tutorial",
     "title": "Wolke einbinden",
     "category": "Profil",
@@ -1994,6 +2000,22 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#was-du-benötigst",
     "category": "Notebooks",
     "text": "Ein angemeldetes Grünerator-Konto und ein paar Dokumente, die du zusammenfassen, durchsuchen oder als Wissensbasis nutzen möchtest. Unterstützt werden PDF, DOCX, DOC, TXT, MD, ODT und RTF — bis zu 100 Dokumente pro Notebook und maximal 50 MB pro Datei."
+  },
+  {
+    "url": "/docs/Profil/einstellungen",
+    "pageTitle": "Einstellungen",
+    "heading": "Einstellungen",
+    "anchor": "",
+    "category": "Profil",
+    "text": "Alles, was du am Grünerator für dich einstellen kannst, liegt in einem Fenster: Einstellungen. Du öffnest es über dein Profilbild unten in der Seitenleiste oder direkt über die Adresse /settings. Es legt sich über die Seite, auf der du gerade bist — du verlierst also nichts, was du angefangen hast. Was du hier änderst, gilt für dein Konto und damit auf allen Geräten, an denen du angemeldet bist. Gespeichert wird sofort; nur bei längeren Texten wie den Anweisungen gibt es einen Speichern-Knopf. Zwei Dinge werden häufig hier gesucht und sind woanders: Was der Chat kann — steht unter KI-Chat Einstellungen einzelner Grüneratoren (Region, Modell, Werkzeuge) — die gehören zum jeweiligen Grünerator, nicht zu deinem Konto, siehe Eigene Grüneratoren erstellen"
+  },
+  {
+    "url": "/docs/Profil/einstellungen",
+    "pageTitle": "Einstellungen",
+    "heading": "Wenn etwas fehlt",
+    "anchor": "#wenn-etwas-fehlt",
+    "category": "Profil",
+    "text": "Manche Bereiche brauchen eine Verbindung. Wolke, Websites und Konnektoren zeigen erst etwas, wenn du dort einen Dienst verbunden hast — vorher stehen sie leer da, das ist kein Fehler. Name und E-Mail lassen sich hier nicht ändern. Sie stammen aus deinem Grünen Login. Änderst du sie dort, sind sie nach der nächsten Anmeldung auch hier aktuell. Nicht jede Umgebung zeigt alle Bereiche. Einzelne Funktionen werden schrittweise freigegeben; fehlt ein Bereich bei dir, ist er für deinen Zugang noch nicht aktiv. --- Die Bereiche, Beschriftungen und Auswahlmöglichkeiten auf dieser Seite stammen direkt aus dem Programmcode des Grünerators. Kommt eine Einstellung dazu oder ändert sich ihre Bezeichnung, meldet sich die Doku-Prüfung von selbst — die Seite kann also nicht stillschweigend veralten."
   },
   {
     "url": "/docs/Profil/gruene-wolke-tutorial",
