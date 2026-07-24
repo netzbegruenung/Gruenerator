@@ -278,6 +278,10 @@ const BlockNoteEditorInner = ({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const exts: any[] = [
       AIExtension({
+        // @blocknote/xl-ai pins ai@6 (its dep range is ^6); this package is on
+        // ai@7. The transport wire protocol is identical across both — only the
+        // TS ChatTransport identity differs. Cross-version boundary cast (`as any`
+        // below) because the two ai versions' ChatTransport types are unrelated.
         transport: new DefaultChatTransport({
           api: aiApiUrl,
           credentials: 'include',
@@ -288,7 +292,8 @@ const BlockNoteEditorInner = ({
           // the API via the native proxy (CORS/auth). On web this is platformFetch
           // — identical to the default — so web behavior is unchanged.
           fetch: (input, init) => adapter.fetch(String(input), init),
-        }),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        }) as any,
         // Markdown format avoids xl-ai's HTML rebase-tool throw on docs that
         // contain inline color/background spans — those don't round-trip
         // through blocksToHTMLLossy/tryParseHTMLToBlocks but they DO round-trip
