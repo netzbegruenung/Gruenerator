@@ -1,5 +1,5 @@
 import { useCallback, useSyncExternalStore } from 'react';
-import { ForkYDocExtension } from '@blocknote/core/extensions';
+import { ForkYDocExtension } from '@blocknote/core/yjs';
 
 /**
  * Reactive view of whether AI suggestions are pending review for an editor.
