@@ -37,6 +37,7 @@ const PASSTHROUGH_SAMPLES: Record<(typeof PASSTHROUGH_METADATA_FIELDS)[number], 
   },
   agentId: 'gruenerator-pressemitteilung',
   roleName: 'Sprecher:in',
+  interrupted: true,
 };
 
 describe('convertToThreadMessageLike — reload reconstruction', () => {
@@ -52,6 +53,21 @@ describe('convertToThreadMessageLike — reload reconstruction', () => {
     for (const field of PASSTHROUGH_METADATA_FIELDS) {
       expect(PASSTHROUGH_SAMPLES[field]).toBeDefined();
     }
+  });
+
+  it('drops an interrupted assistant row that has neither text nor tool cards', () => {
+    const result = convertToThreadMessageLike([
+      { id: 'm1', role: 'assistant', content: '', metadata: { interrupted: true } },
+    ]);
+    expect(result).toHaveLength(0);
+  });
+
+  it('keeps an interrupted row with partial text and rehydrates the marker', () => {
+    const [msg] = convertToThreadMessageLike([
+      { id: 'm1', role: 'assistant', content: 'Teilantw', metadata: { interrupted: true } },
+    ]);
+    expect(msg).toBeDefined();
+    expect((msg?.metadata?.custom as Record<string, unknown>)?.interrupted).toBe(true);
   });
 
   it('rehydrates the sharepic variant stack from the persisted tool call', () => {

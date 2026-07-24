@@ -80,6 +80,9 @@ export type ChatMessageMetadata = {
   createdDocument?: DocumentCreatedData;
   reelProcessing?: ReelProcessingData;
   reelPicker?: ReelPickerData;
+  /** Turn was interrupted mid-stream (row still status='streaming' on reload);
+   *  the partial text renders normally plus a subtle marker. */
+  interrupted?: boolean;
   // Notebook specific
   rawCitations?: RawCitation[];
   sources?: Source[];
