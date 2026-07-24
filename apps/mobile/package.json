@@ -38,7 +38,7 @@
     "@gruenerator/contracts": "workspace:*",
     "@gruenerator/docs": "workspace:^",
     "@gruenerator/shared": "workspace:*",
-    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-async-storage/async-storage": "3.1.1",
     "@react-native-community/slider": "5.2.0",
     "@react-native-masked-view/masked-view": "0.3.2",
     "@react-native-vector-icons/ionicons": "^13.1.1",
