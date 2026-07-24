@@ -3,11 +3,11 @@
  * slider stack without an HTTP round-trip: AI-determined slide count
  * (`analyzeSlideCount`) → unified multi-slide prompt (`generateUnifiedTexts`).
  */
-import { analyzeSlideCount } from '../../routes/sharepic/sharepic_claude/sliderSmartHandler.js';
-import { generateUnifiedTexts } from '../../routes/sharepic/sharepic_claude/unifiedHandler.js';
+import { analyzeSlideCount } from '../../routes/sharepic/sharepic_text/sliderSmartHandler.js';
+import { generateUnifiedTexts } from '../../routes/sharepic/sharepic_text/unifiedHandler.js';
 import { createLogger } from '../../utils/logger.js';
 
-import type { SharepicRequest } from '../../routes/sharepic/sharepic_claude/types.js';
+import type { SharepicRequest } from '../../routes/sharepic/sharepic_text/types.js';
 import type { Request } from 'express';
 
 const log = createLogger('SliderGeneration');

@@ -21,7 +21,7 @@ export const infoTypeConfig: TemplateTypeConfig = {
   usesFluxApi: false,
   hasRateLimit: false,
   endpoints: {
-    text: '/info_claude',
+    text: '/sharepic/text/info',
     canvas: '/info_canvas',
   },
   formComponent: 'InfoForm',

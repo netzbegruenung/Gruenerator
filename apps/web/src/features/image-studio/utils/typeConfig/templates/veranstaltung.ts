@@ -21,7 +21,7 @@ export const veranstaltungTypeConfig: TemplateTypeConfig = {
   usesFluxApi: false,
   hasRateLimit: false,
   endpoints: {
-    text: '/veranstaltung_claude',
+    text: '/sharepic/text/veranstaltung',
     canvas: '/veranstaltung_canvas',
   },
   steps: [FORM_STEPS.INPUT, FORM_STEPS.IMAGE_UPLOAD, FORM_STEPS.CANVAS_EDIT, FORM_STEPS.RESULT],
