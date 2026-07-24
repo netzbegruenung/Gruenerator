@@ -7,12 +7,7 @@
  * Agent types for context-specific knowledge extraction
  */
 export type AgentType =
-  | 'social_media'
-  | 'pressemitteilung'
-  | 'antrag'
-  | 'zitat'
-  | 'leichte_sprache'
-  | 'universal';
+  'social_media' | 'pressemitteilung' | 'antrag' | 'zitat' | 'leichte_sprache' | 'universal';
 
 /**
  * Intent object with agent type

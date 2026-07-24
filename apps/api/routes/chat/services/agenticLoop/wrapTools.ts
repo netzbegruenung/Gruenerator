@@ -40,6 +40,12 @@ export interface WrapToolsContext {
   titleFor?: (toolName: string) => string | undefined;
   /** Optional MCP/connector server label for the tool card. */
   serverNameFor?: (toolName: string) => string | undefined;
+  /** Character index into the final answer text at the moment a tool call
+   *  STARTS — persisted as `PersistedStep.textOffset` so thread reload can
+   *  interleave text segments and tool cards in the live order. Returns `null`
+   *  when offsets must NOT be recorded (split mode: text stays empty during
+   *  gather, so every offset would be a meaningless 0). */
+  getTextOffset?: () => number | null;
   /** Safety-net cap on the serialized model-facing result. Default 6000. */
   maxResultChars?: number;
 }
@@ -144,6 +150,8 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
     const wrappedExecute: ExecuteFn = async (input, options) => {
       const stepId = options.toolCallId;
       const args = asRecord(input);
+      // Captured at tool START (before execution) — the semantics of textOffset.
+      const textOffset = ctx.getTextOffset?.();
       // MCP connector server title (undefined for internal tools) — persisted so
       // a later turn can identify + replay which server this call hit.
       const server = ctx.serverNameFor?.(toolName);
@@ -166,7 +174,14 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         const result = { error: guardError };
         sendStart(stepId, args);
         sendResult(stepId, false, result);
-        ctx.recordStep({ toolCallId: stepId, toolName, args, result, ...serverMeta });
+        ctx.recordStep({
+          toolCallId: stepId,
+          toolName,
+          args,
+          result,
+          ...serverMeta,
+          ...(textOffset != null && { textOffset }),
+        });
         return result;
       }
 
@@ -215,6 +230,7 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         args,
         result: asRecord(output),
         ...serverMeta,
+        ...(textOffset != null && { textOffset }),
       });
       sendResult(stepId, ok, output);
 

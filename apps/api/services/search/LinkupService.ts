@@ -12,6 +12,7 @@
 
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
+import { recordOperation } from '../usage/UsageTrackingService.js';
 
 import { withRetry } from './searchRetryStrategy.js';
 
@@ -78,6 +79,13 @@ export class LinkupService {
 
   private async call<T>(path: string, body: Record<string, unknown>): Promise<T> {
     const url = `${LINKUP_API_BASE}${path}`;
+    // One logical search per call — withRetry retries inside, so this counts
+    // user-visible researches rather than HTTP attempts.
+    recordOperation({
+      unit: 'searches',
+      provider: 'linkup',
+      model: typeof body.depth === 'string' ? body.depth : 'standard',
+    });
     return withRetry(
       async () => {
         const controller = new AbortController();

@@ -6,11 +6,11 @@ sidebar_position: 3
 
 Mit **Konnektoren** verbindest du externe Dienste — etwa Notion, Tally oder Brevo — direkt mit dem Grünerator-Chat. Die KI kann dann in deinen Formularen, Dokumenten oder Kontakten arbeiten: _„Erstelle ein Anmeldeformular mit @tally"_ legt das Formular wirklich in deinem Tally-Konto an.
 
-:::warning Experimentelles Feature
+:::warning[Experimentelles Feature]
 Konnektoren sind aktuell **experimentell**. Die Auswahl der Dienste und das Verhalten können sich noch ändern.
 :::
 
-:::info Was ist MCP?
+:::info[Was ist MCP?]
 Konnektoren basieren auf dem **Model Context Protocol (MCP)** — einem offenen Standard, über den KI-Assistenten sicher auf externe Dienste zugreifen. Das ist dieselbe Technik, mit der du auch den [Grünerator in ChatGPT & Co nutzen](./ki-chat-einrichten) kannst — nur in die andere Richtung.
 :::
 
@@ -35,7 +35,7 @@ Klicke beim gewünschten Dienst auf **Verbinden**. Je nach Dienst passiert eines
 - **API-Token:** Manche Dienste (z. B. Brevo, HubSpot) arbeiten mit einem API-Token. Der Dialog verlinkt dir die richtige Stelle beim Anbieter; füge den Token ein — er wird **verschlüsselt gespeichert** und nur für deine Anfragen verwendet.
 - **Keine Anmeldung:** Einige Dienste (z. B. Yahoo Finance) brauchen gar keine Autorisierung und sind sofort einsatzbereit.
 
-:::tip Status hängt nach dem Login?
+:::tip[Status hängt nach dem Login?]
 Steht ein Dienst nach erfolgreichem Login noch unter **„Autorisierung erforderlich"**, klicke oben auf **Aktualisieren** — die Anzeige holt den aktuellen Stand vom Server. Falls dein Browser das Login-Popup blockiert, erlaube Popups für gruenerator.eu und versuche es erneut.
 :::
 
@@ -69,7 +69,7 @@ Das Verzeichnis wird laufend gepflegt — aktuell enthält es unter anderem:
 | **Automatisierung**            | Zapier (über 7.000 Apps)                       | API-Token        |
 | **Karten / Finanzen / Reisen** | Google Maps (Token), Yahoo Finance, trivago    | Token bzw. keine |
 
-:::info Ein Dienst fehlt?
+:::info[Ein Dienst fehlt?]
 Einige bekannte Anbieter (z. B. Typeform, Zoom, DocuSign) verlangen aktuell eine eigene App-Registrierung pro Organisation und sind deshalb vorerst nicht im Verzeichnis. Über die Suche und den offenen MCP-Katalog findest du trotzdem viele weitere Server — oder du fügst einen eigenen hinzu.
 :::
 
@@ -85,6 +85,6 @@ In der Sektion **Verbunden** siehst du alle deine Dienste mit Status (_Verbunden
 - **testen** (zeigt die verfügbaren Werkzeuge des Servers),
 - oder **löschen** — gespeicherte Zugangsdaten werden dabei entfernt.
 
-:::info Datenschutz
+:::info[Datenschutz]
 Zugangsdaten (Tokens) werden verschlüsselt auf EU-Servern gespeichert und ausschließlich für deine eigenen Chat-Anfragen verwendet. Der Zugriff auf einen Dienst erfolgt immer mit **deinem** Konto und dessen Berechtigungen — andere Nutzer\*innen sehen deine Verbindungen nicht.
 :::

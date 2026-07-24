@@ -42,7 +42,7 @@ Das ist nützlich, um schnell zu prüfen:
 - Wie oft taucht ein Name oder Begriff auf?
 - Welche Quellen berichten über ein Thema?
 
-:::tip Täglicher Workflow für Presseteams
+:::tip[Täglicher Workflow für Presseteams]
 
 1. Starte morgens mit dem **Watcher** — lies die Grünerator-Zusammenfassung und den Risiko-Monitor
 2. Schau ins **Themen**-Ranking für den breiteren Kontext

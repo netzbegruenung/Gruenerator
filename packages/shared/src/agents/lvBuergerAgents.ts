@@ -90,7 +90,7 @@ export const LV_BUERGER_AGENTS: Agent[] = LV_BUERGER_SPECS.map((spec) => {
     model: 'mistral-large-latest',
     defaultModel: 'mistral-large-latest',
     provider: 'mistral',
-    params: { max_tokens: 3000, temperature: 0.4 },
+    params: { max_tokens: 8000, temperature: 0.4 },
     openingMessage: `Hallo! Ich beantworte Bürger*innenanfragen für die Grünen ${spec.title}.\n\nFüge die eingegangene E-Mail oder das Anliegen ein — ich recherchiere die Positionen des Landesverbands und formuliere eine versandfertige Antwort-E-Mail mit weiterführenden Links.`,
     welcomeQuestion: `Welche Anfrage soll ${spec.title} beantworten?`,
     openingQuestions: buildLvBuergerOpeningQuestions(spec),
