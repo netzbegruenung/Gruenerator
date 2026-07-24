@@ -49,6 +49,21 @@ async function extractText(bytes: Buffer): Promise<string> {
   return text;
 }
 
+/** Anzahl verschiedener Grundlinien auf Seite 1 — misst gesetzte Zeilen. */
+async function baselineCount(bytes: Buffer): Promise<number> {
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const task = pdfjs.getDocument({ data: new Uint8Array(bytes) });
+  const doc = await task.promise;
+  const content = await (await doc.getPage(1)).getTextContent();
+  const baselines = new Set<number>();
+  for (const item of content.items) {
+    if ('str' in item && item.str.trim())
+      baselines.add(Math.round((item.transform as number[])[5]!));
+  }
+  await task.destroy();
+  return baselines.size;
+}
+
 /** Structure roles of page 1, in reading order. */
 async function structRoles(bytes: Buffer): Promise<string[]> {
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
@@ -556,5 +571,142 @@ describe('renderPdf', () => {
     const verification = await verifyPdf(result.bytes);
     expect(verification.problems).toEqual([]);
     expect(verification.extractedChars).toBeGreaterThan(50);
+  });
+
+  describe('Gliederung der Überschriften', () => {
+    const headingRoles = async (levels: (1 | 2 | 3)[]): Promise<string[]> => {
+      const result = await renderPdf(
+        spec({
+          blocks: levels.map((level, i) => ({
+            type: 'heading' as const,
+            level,
+            text: `Abschnitt ${i + 1}`,
+          })),
+        }),
+        { locale: 'de-DE' }
+      );
+      const counts = await countRoles(result.bytes);
+      return Object.entries(counts)
+        .filter(([role]) => /^\/H[1-6]$/.test(role))
+        .flatMap(([role, n]) => Array.from({ length: n }, () => role.slice(1)))
+        .sort();
+    };
+
+    it('lässt gleichrangige Überschriften Geschwister bleiben', async () => {
+      // Drei gleichrangige Abschnitte ergaben vorher H2 + zwei untergeordnete
+      // H3: der Screenreader kündigte eine Gliederung an, die es nicht gibt.
+      expect(await headingRoles([3, 3, 3])).toEqual(['H1', 'H2', 'H2', 'H2']);
+    });
+
+    it('bildet echte Verschachtelung weiterhin ab', async () => {
+      expect(await headingRoles([1, 2, 1])).toEqual(['H1', 'H2', 'H2', 'H3']);
+    });
+  });
+
+  describe('Zeichen ohne Glyphe', () => {
+    it('setzt zerlegte Umlaute (NFD) korrekt', async () => {
+      // In zerlegter Form fiel das kombinierende Trema heraus und aus
+      // "Wärmeplanung für Österreich" wurde "Warmeplanung fur Osterreich".
+      const result = await renderPdf(
+        spec({
+          blocks: [{ type: 'paragraph', text: 'Wärmeplanung für Österreich'.normalize('NFD') }],
+        }),
+        { locale: 'de-DE' }
+      );
+      expect(await extractText(result.bytes)).toContain('Wärmeplanung für Österreich');
+      expect(result.missingGlyphs).toEqual([]);
+    });
+
+    it('meldet, wie viele Zeichen es verworfen hat', async () => {
+      const result = await renderPdf(
+        spec({ blocks: [{ type: 'paragraph', text: '绿色政策 绿色' }] }),
+        { locale: 'de-DE' }
+      );
+      // Die Menge allein verschweigt das Ausmaß: vier verschiedene Zeichen,
+      // aber sechs verworfene Vorkommen.
+      expect(result.missingGlyphs.sort()).toEqual(['政', '策', '绿', '色']);
+      expect(result.droppedGlyphCount).toBeGreaterThanOrEqual(6);
+    });
+  });
+
+  describe('Verschachtelte Listen', () => {
+    const nested = () =>
+      renderPdf(
+        spec({
+          blocks: [
+            {
+              type: 'list',
+              ordered: true,
+              items: [
+                { text: 'Beschluss', level: 0, ordered: true },
+                { text: 'Ausschreibung', level: 0, ordered: true },
+                { text: 'Unterlagen', level: 1, ordered: true },
+                { text: 'Veröffentlichung', level: 1, ordered: true },
+                { text: 'Vergabe', level: 0, ordered: true },
+              ],
+            },
+          ],
+        }),
+        { locale: 'de-DE' }
+      );
+
+    it('zählt jede Ebene eigenständig', async () => {
+      const text = await extractText((await nested()).bytes);
+      // Zählte die Unterebene mit, stünde hier "3." vor Unterlagen und
+      // "5." vor Vergabe — eine falsche Gliederung, kein Schönheitsfehler.
+      expect(text).toContain('1. Unterlagen');
+      expect(text).toContain('2. Veröffentlichung');
+      expect(text).toContain('3. Vergabe');
+    });
+
+    it('hängt die Unterliste in den LBody, nicht neben ihn', async () => {
+      // PDF/UA 7.2-20: ein LI darf nur Lbl und LBody enthalten. Ein L als
+      // drittes Geschwister macht das Dokument nicht konform.
+      const roles = await structRoles((await nested()).bytes);
+      const li = roles.indexOf('LI');
+      expect(li).toBeGreaterThanOrEqual(0);
+      expect(roles.filter((r) => r === 'L').length).toBeGreaterThan(1);
+      expect(roles.slice(li + 1, li + 3)).toEqual(['Lbl', 'LBody']);
+    });
+  });
+
+  describe('Wortgrenzen', () => {
+    // Segmente entstehen bei jedem Formatwechsel und bei maskierten Zeichen.
+    // Wurde jedes Segment als eigenes Wort behandelt, setzte der Umbruch ein
+    // Leerzeichen mitten ins Wort — im Satzbild sichtbar als "Datei _ name".
+    it('zerlegt ein Wort nicht an maskierten Zeichen', async () => {
+      const result = await renderPdf(
+        spec({ blocks: [{ type: 'paragraph', text: 'Die Datei\\_name\\_hier ist gemeint.' }] }),
+        { locale: 'de-DE' }
+      );
+      expect(await extractText(result.bytes)).toContain('Datei_name_hier');
+    });
+
+    it('trennt weiterhin an echtem Leerzeichen', async () => {
+      const result = await renderPdf(
+        spec({ blocks: [{ type: 'paragraph', text: 'erstes zweites drittes' }] }),
+        { locale: 'de-DE' }
+      );
+      const text = await extractText(result.bytes);
+      expect(text).toContain('erstes zweites drittes');
+    });
+
+    it('behält den Zeilenumbruch aus \\n', async () => {
+      const broken = await renderPdf(
+        spec({ blocks: [{ type: 'paragraph', text: 'oben\nunten' }] }),
+        {
+          locale: 'de-DE',
+        }
+      );
+      const joined = await renderPdf(
+        spec({ blocks: [{ type: 'paragraph', text: 'oben unten' }] }),
+        {
+          locale: 'de-DE',
+        }
+      );
+      // Gemessen an der Grundlinie, nicht am Text: extractText verkettet ohne
+      // Trennzeichen und könnte einen fehlenden Umbruch nicht sichtbar machen.
+      expect(await baselineCount(broken.bytes)).toBe((await baselineCount(joined.bytes)) + 1);
+    });
   });
 });

@@ -25,7 +25,25 @@ export const pdfBlockSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('list'),
     ordered: z.boolean().optional(),
-    items: z.array(inlineText).min(1).max(200),
+    /**
+     * Ein Eintrag ist entweder nur Text (oberste Ebene) oder trägt seine
+     * Verschachtelungstiefe mit. Ohne `level` zählte eine Unterliste in der
+     * Nummerierung der Hauptliste mit — aus "2. / 2.1 / 3." wurde "2. / 3. / 4."
+     * und damit eine falsche Gliederung.
+     */
+    items: z
+      .array(
+        z.union([
+          inlineText,
+          z.object({
+            text: inlineText,
+            level: z.number().int().min(0).max(3).default(0),
+            ordered: z.boolean().optional(),
+          }),
+        ])
+      )
+      .min(1)
+      .max(200),
   }),
   z.object({
     type: z.literal('table'),

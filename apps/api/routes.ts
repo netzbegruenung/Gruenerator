@@ -817,9 +817,13 @@ export async function setupRoutes(app: Application): Promise<void> {
     next();
   });
   app.use('/api/releases', publicReadLimiter, releasesRouter);
-  // ts-rest contract router — mount before legacy exports router
+  // Auth + rate limiting go on the prefix BEFORE the ts-rest router, because
+  // createExpressEndpoints registers directly on `app`: mounted first, it
+  // matched /api/exports/pdf and /api/exports/docx before the requireAuth
+  // below ever ran, leaving both generators open to unauthenticated callers.
+  app.use('/api/exports', requireAuth, authenticatedReadLimiter);
   mountExportsContractRouter(app);
-  app.use('/api/exports', requireAuth, authenticatedReadLimiter, exportDocumentsRouter);
+  app.use('/api/exports', exportDocumentsRouter);
   app.use('/api/markdown', publicReadLimiter, markdownRouter);
   app.use('/api/database', publicReadLimiter, databaseTestRouter);
 
