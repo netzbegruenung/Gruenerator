@@ -21,6 +21,7 @@ import { setUserLocale } from '../../services/localization/localeCache.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
 import { forwardBetterAuthCookies } from '../../utils/betterAuthBridge.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { KeycloakApiClient } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -91,7 +92,10 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       log.error('[Profile Contract GET /profile] Error:', err);
       return {
         status: 500 as const,
-        body: { success: false as const, message: err.message || 'Fehler beim Laden des Profils.' },
+        body: {
+          success: false as const,
+          message: toUserFacingMessage(err) || 'Fehler beim Laden des Profils.',
+        },
       };
     }
   },
@@ -149,7 +153,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
         status: 500 as const,
         body: {
           success: false as const,
-          message: err.message || 'Fehler beim Aktualisieren des Profils.',
+          message: toUserFacingMessage(err) || 'Fehler beim Aktualisieren des Profils.',
         },
       };
     }
@@ -184,7 +188,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
         status: statusCode as 400 | 500,
         body: {
           success: false as const,
-          message: err.message || 'Fehler beim Aktualisieren des Avatars.',
+          message: toUserFacingMessage(err) || 'Fehler beim Aktualisieren des Avatars.',
         },
       };
     }
@@ -214,7 +218,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
         status: 500 as const,
         body: {
           success: false as const,
-          message: err.message || 'Fehler beim Laden der Beta Features.',
+          message: toUserFacingMessage(err) || 'Fehler beim Laden der Beta Features.',
         },
       };
     }
@@ -288,7 +292,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
         status: 500 as const,
         body: {
           success: false as const,
-          message: err.message || 'Fehler beim Aktualisieren der Beta Features.',
+          message: toUserFacingMessage(err) || 'Fehler beim Aktualisieren der Beta Features.',
         },
       };
     }
@@ -317,7 +321,44 @@ export const userProfileContractRouter = s.router(userProfileContract, {
         status: 500 as const,
         body: {
           success: false as const,
-          message: err.message || 'Fehler beim Aktualisieren der Nachrichtenfarbe.',
+          message: toUserFacingMessage(err) || 'Fehler beim Aktualisieren der Nachrichtenfarbe.',
+        },
+      };
+    }
+  },
+
+  updateChatBackground: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const profileService = getProfileService();
+      const { background } = args.body;
+
+      await profileService.updateChatBackground(userId, background);
+
+      // The Drizzle write bypasses Better Auth, so without this the cached
+      // session keeps the old preset for up to 300s and the background visibly
+      // reverts on the next reload.
+      await refreshSessionCookieCache(args.req, args.res);
+
+      const sessionUser = args.req.user as UserProfile | undefined;
+      if (sessionUser) sessionUser.chat_background = background;
+
+      return {
+        status: 200 as const,
+        body: {
+          success: true as const,
+          chatBackground: background,
+          message: 'Hintergrund erfolgreich aktualisiert!',
+        },
+      };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[Profile Contract PATCH /profile/chat-background] Error:', err);
+      return {
+        status: 500 as const,
+        body: {
+          success: false as const,
+          message: toUserFacingMessage(err, 'Fehler beim Aktualisieren des Hintergrunds.'),
         },
       };
     }
@@ -360,7 +401,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
         status: 500 as const,
         body: {
           success: false as const,
-          message: err.message || 'Fehler beim Aktualisieren der Sprache.',
+          message: toUserFacingMessage(err) || 'Fehler beim Aktualisieren der Sprache.',
         },
       };
     }
@@ -396,7 +437,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
         status: 500 as const,
         body: {
           success: false as const,
-          message: err.message || 'Fehler beim Laden der User Defaults.',
+          message: toUserFacingMessage(err) || 'Fehler beim Laden der User Defaults.',
         },
       };
     }
@@ -426,7 +467,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
         status: 500 as const,
         body: {
           success: false as const,
-          message: err.message || 'Fehler beim Speichern der Einstellung.',
+          message: toUserFacingMessage(err) || 'Fehler beim Speichern der Einstellung.',
         },
       };
     }

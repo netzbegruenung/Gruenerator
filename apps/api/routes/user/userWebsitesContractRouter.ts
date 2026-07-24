@@ -16,6 +16,7 @@ import {
   WpSourceError,
 } from '../../services/user/userWebsiteService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { UserProfile } from '../../services/user/types.js';
@@ -69,7 +70,7 @@ export const userWebsitesContractRouter = s.router(userWebsitesContract, {
       if (error instanceof DuplicateWebsiteError) {
         return {
           status: 409 as const,
-          body: { error: error.message, code: 'duplicate' as const },
+          body: { error: toUserFacingMessage(error), code: 'duplicate' as const },
         };
       }
       if (!(error instanceof WpSourceError)) log.error('[addWebsite] Error:', error);

@@ -15,6 +15,13 @@ import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('pdfVerification');
 
+export interface TypeAreaBounds {
+  left: number;
+  right: number;
+  /** Baselines below this are inside the footer strip. */
+  bottom: number;
+}
+
 export interface PdfVerification {
   pages: number;
   /** Characters recovered from the text layer — 0 means nothing is readable. */
@@ -29,6 +36,8 @@ export interface PdfVerification {
   formFields: string[];
   /** Fields lacking /TU — a screen reader would announce the raw field name. */
   fieldsWithoutLabel: string[];
+  /** Text that leaves the type area: cut off at the edge or over the footer. */
+  overflowingText: string[];
   problems: string[];
 }
 
@@ -37,7 +46,10 @@ export interface PdfVerification {
  * dependency here that actually interprets the content stream, so it is the
  * honest check — pdf-lib would only confirm that we wrote what we wrote.
  */
-async function extractedTextLength(bytes: Buffer): Promise<number> {
+async function scanTextLayer(
+  bytes: Buffer,
+  bounds?: TypeAreaBounds
+): Promise<{ chars: number; overflowing: string[] }> {
   try {
     const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
     const task = pdfjs.getDocument({
@@ -45,25 +57,51 @@ async function extractedTextLength(bytes: Buffer): Promise<number> {
       useSystemFonts: false,
     });
     const doc = await task.promise;
-    let total = 0;
+    let chars = 0;
+    const overflowing: string[] = [];
     for (let i = 1; i <= doc.numPages; i++) {
       const page = await doc.getPage(i);
-      const content = await page.getTextContent();
+      // includeMarkedContent lets us tell decoration from content: the footer
+      // legitimately sits below the type area, but it is an /Artifact.
+      const content = await page.getTextContent({ includeMarkedContent: true });
+      let artifactDepth = 0;
       for (const item of content.items) {
-        if ('str' in item) total += item.str.trim().length;
+        if ('type' in item) {
+          const marked = item as { type: string; tag?: string | null };
+          if (marked.type.startsWith('beginMarkedContent')) {
+            if (marked.tag === 'Artifact' || artifactDepth > 0) artifactDepth += 1;
+          } else if (marked.type === 'endMarkedContent' && artifactDepth > 0) {
+            artifactDepth -= 1;
+          }
+          continue;
+        }
+        if (!('str' in item)) continue;
+        chars += item.str.trim().length;
+        if (!bounds || !item.str.trim() || artifactDepth > 0 || overflowing.length >= 5) continue;
+        // transform[4]/[5] are the baseline origin of the text run; pdfjs types
+        // the matrix as any[].
+        const transform = item.transform as number[];
+        const x = transform[4];
+        const y = transform[5];
+        const right = x + (item.width ?? 0);
+        // 1pt of slack: glyph advance widths and pdfjs measurement differ
+        // slightly, and a hairline is not a layout defect.
+        if (right > bounds.right + 1 || x < bounds.left - 1 || y < bounds.bottom - 1) {
+          overflowing.push(`Seite ${i}: "${item.str.trim().slice(0, 40)}"`);
+        }
       }
     }
     await task.destroy();
-    return total;
+    return { chars, overflowing };
   } catch (err) {
     log.warn(
       `[pdfVerification] text extraction failed: ${err instanceof Error ? err.message : String(err)}`
     );
-    return -1;
+    return { chars: -1, overflowing: [] };
   }
 }
 
-export async function verifyPdf(bytes: Buffer): Promise<PdfVerification> {
+export async function verifyPdf(bytes: Buffer, bounds?: TypeAreaBounds): Promise<PdfVerification> {
   const doc = await PDFDocument.load(bytes, { updateMetadata: false });
   const catalog = doc.catalog;
 
@@ -108,7 +146,10 @@ export async function verifyPdf(bytes: Buffer): Promise<PdfVerification> {
     .getPages()
     .filter((page) => !(page.node.get(PDFName.of('StructParents')) instanceof PDFNumber)).length;
 
-  const extractedChars = await extractedTextLength(bytes);
+  const { chars: extractedChars, overflowing: overflowingText } = await scanTextLayer(
+    bytes,
+    bounds
+  );
 
   const problems: string[] = [];
   if (extractedChars === 0) {
@@ -135,6 +176,11 @@ export async function verifyPdf(bytes: Buffer): Promise<PdfVerification> {
       `${fieldsWithoutLabel.length} Formularfeld(er) ohne Beschriftung für Screenreader.`
     );
   }
+  if (overflowingText.length) {
+    problems.push(
+      `Text verlässt den Satzspiegel (abgeschnitten oder über der Fußzeile): ${overflowingText.join('; ')}`
+    );
+  }
 
   return {
     pages: doc.getPageCount(),
@@ -147,6 +193,7 @@ export async function verifyPdf(bytes: Buffer): Promise<PdfVerification> {
     hasUaIdentifier,
     formFields,
     fieldsWithoutLabel,
+    overflowingText,
     problems,
   };
 }

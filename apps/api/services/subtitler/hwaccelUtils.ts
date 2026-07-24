@@ -65,6 +65,16 @@ export function getX264QualityParams(): string[] {
 }
 
 /**
+ * x264/x265 inherit the source pixel format. A 10-bit source (HDR/HLG phone
+ * footage) then collides with the 8-bit `high`/`main` profiles we request and
+ * ffmpeg aborts with "high profile doesn't support a bit depth of 10". Force
+ * 8-bit 4:2:0 — also what browsers and social platforms expect.
+ */
+export function getCpuPixelFormatOptions(): string[] {
+  return ['-pix_fmt', 'yuv420p'];
+}
+
+/**
  * Build a `subtitles=` video filter with paths escaped for ffmpeg filter
  * syntax (`:` is the option separator, `'` the quote char). Unescaped
  * paths containing either character break the filter graph.

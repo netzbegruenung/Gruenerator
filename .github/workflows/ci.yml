@@ -5,6 +5,10 @@ on:
     branches: [master, main]
   pull_request:
     branches: [master, main]
+  # Required for the merge queue: GitHub builds each queued PR on a temporary
+  # `gh-readonly-queue/*` branch and fires `merge_group`. Without this trigger
+  # the required checks never report on the queue and it hangs forever.
+  merge_group:
 
 permissions:
   contents: read
@@ -51,12 +55,26 @@ jobs:
       - name: Prettier format check
         run: pnpm format:check
 
+      # Generated artifacts that drift silently when their source changes on a
+      # DIFFERENT branch. docs-build.yml already checks these, but it is
+      # path-filtered — so a PR that does not touch documentation/ skips it and
+      # can still merge stale. As an always-on required check these catch the
+      # cross-branch drift that broke master repeatedly (docs index, UiLabel
+      # manifest, settings catalog).
+      - name: Generated artifacts in sync
+        run: |
+          pnpm --filter @gruenerator/documentation labels:check
+          pnpm --filter @gruenerator/documentation settings:check
+          pnpm --filter @gruenerator/documentation docs:index:check
+
   pdf-accessibility:
     name: PDF-Barrierefreiheit
     runs-on: ubuntu-latest
     env:
       VERAPDF_IMAGE: verapdf/cli:v1.30.2
       FIXTURE_DIR: ${{ github.workspace }}/pdf-fixtures
+      # 5 handgeschriebene Spezifikationen + 10 aus dem Dokument-Export-Korpus.
+      EXPECTED_FIXTURES: '15'
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -95,6 +113,15 @@ jobs:
           jobs = list(tree.iter('job'))
           if not jobs:
               print('::error::veraPDF hat keine PDFs geprueft — Fixtures fehlen?')
+              sys.exit(1)
+
+          # Ein Gate, das weniger prueft als gedacht, ist gruen ohne Aussage:
+          # faellt das Rendern eines Teilkorpus stillschweigend aus, meldet
+          # veraPDF nur die verbliebenen Dateien als konform. Deshalb Soll
+          # gegen Ist — die Zahl steigt bewusst mit jedem neuen Fixture.
+          expected = int(os.environ['EXPECTED_FIXTURES'])
+          if len(jobs) != expected:
+              print(f'::error::{len(jobs)} PDFs geprueft, erwartet waren {expected}.')
               sys.exit(1)
 
           failed = 0

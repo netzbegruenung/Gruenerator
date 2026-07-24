@@ -12,6 +12,7 @@ import express, { type Router, type Response } from 'express';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import { getPromptVectorService } from '../../services/prompts/index.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { AuthRequest } from './types.js';
@@ -58,7 +59,7 @@ router.post(
       log.error('[User Custom Prompts /custom_prompts/search POST] Error:', err);
       res.status(500).json({
         success: false,
-        message: err.message || 'Fehler bei der Suche.',
+        message: toUserFacingMessage(err) || 'Fehler bei der Suche.',
       });
     }
   }
@@ -130,7 +131,7 @@ router.get(
       log.error('[User Custom Prompts /public_prompts GET] Error:', err);
       res.status(500).json({
         success: false,
-        message: err.message || 'Fehler beim Laden der öffentlichen Prompts.',
+        message: toUserFacingMessage(err) || 'Fehler beim Laden der öffentlichen Prompts.',
       });
     }
   }
@@ -172,7 +173,7 @@ router.post(
       log.error('[User Custom Prompts /public_prompts/search POST] Error:', err);
       res.status(500).json({
         success: false,
-        message: err.message || 'Fehler bei der Suche.',
+        message: toUserFacingMessage(err) || 'Fehler bei der Suche.',
       });
     }
   }

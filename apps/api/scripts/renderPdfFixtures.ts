@@ -1,7 +1,9 @@
 /* Renders the PDF fixtures that the accessibility validator checks. */
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { EXPORT_FIXTURES } from '../services/pdf/__fixtures__/contentInvariance.js';
+import { contentToBlocks } from '../services/pdf/contentToBlocks.js';
 import { renderPdf } from '../services/pdf/pdfRenderer.js';
 
 import type { PdfDocumentSpec } from '../services/pdf/pdfDocument.js';
@@ -110,4 +112,24 @@ for (const [name, spec] of Object.entries({ document, form, letter, long, hostil
   });
   await writeFile(path.join(outDir, `${name}.pdf`), result.bytes);
 }
+
+// The document-export corpus goes through the same validator: since the export
+// shares this renderer, real stored content (markdown and editor HTML, both
+// deliberately hostile) has to hold up to PDF/UA too — not just hand-written
+// specs. Locale alternates so the AT theme's fonts are covered as well.
+const exportFixtureDir = new URL('../services/pdf/__fixtures__/export-content/', import.meta.url);
+for (const [i, fixture] of EXPORT_FIXTURES.entries()) {
+  const source = await readFile(new URL(fixture.file, exportFixtureDir), 'utf8');
+  const result = await renderPdf(
+    {
+      title: fixture.name,
+      kind: 'document',
+      language: i % 2 === 0 ? 'de-DE' : 'de-AT',
+      blocks: contentToBlocks(source),
+    },
+    { locale: i % 2 === 0 ? 'de-DE' : 'de-AT' }
+  );
+  await writeFile(path.join(outDir, `export-${fixture.name}.pdf`), result.bytes);
+}
+
 console.log(`Fixtures in ${outDir}`);
