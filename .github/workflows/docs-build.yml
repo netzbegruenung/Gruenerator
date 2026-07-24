@@ -12,6 +12,10 @@ name: Docs Build
 #      miss the page entirely.
 # Triggers on doc changes and on the catalog source files the manifest derives
 # from. Blocking on purpose — all three are real drift the author must fix.
+#
+# The chat-capabilities manifest is deliberately NOT checked here: an
+# undocumented chat capability is reported as a GitHub issue by
+# docs-capabilities.yml instead, so a backend change never breaks the docs build.
 
 on:
   pull_request:

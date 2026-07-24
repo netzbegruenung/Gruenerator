@@ -107,13 +107,7 @@ export interface QuoteData {
 }
 
 export type SharepicType =
-  | 'default'
-  | 'dreizeilen'
-  | 'zitat'
-  | 'zitat_pure'
-  | 'headline'
-  | 'info'
-  | 'veranstaltung';
+  'default' | 'dreizeilen' | 'zitat' | 'zitat_pure' | 'headline' | 'info' | 'veranstaltung';
 
 export interface CampaignConfig {
   systemRole: string;

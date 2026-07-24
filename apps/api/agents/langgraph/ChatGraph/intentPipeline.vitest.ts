@@ -67,6 +67,7 @@ const ALL_INTENTS: SearchIntent[] = [
   'save_as_doc',
   'create_sheet',
   'create_presentation',
+  'create_pdf',
   'create_recurring_task',
   'modify_doc',
   'edit_current_doc',
@@ -348,6 +349,8 @@ describe('every SearchIntent has a handler path', () => {
       'handled via handleSheetCreation — generates a spreadsheet, seeds the Y.Doc, emits document_created SSE (subtype sheets)',
     create_presentation:
       'handled via handlePresentationCreation — generates a reveal.js deck, seeds the Y.Doc, emits document_created SSE (subtype presentations)',
+    create_pdf:
+      'handled via handlePdfCreation — generates a tagged, CI-styled PDF (document/letter/form), verifies the finished bytes, stores it as a compute asset and emits document_created SSE (subtype pdf)',
     create_recurring_task:
       'handled via handleRecurringTaskCreation — parses the schedule, persists a recurring_tasks row, emits confirm SSE (flag-gated EXPERIMENTAL)',
     modify_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',

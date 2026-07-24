@@ -124,7 +124,7 @@ export const LV_PR_AGENTS: Agent[] = LV_PR_SPECS.map((spec) => ({
   model: 'mistral-large-latest',
   defaultModel: 'mistral-large-latest',
   provider: 'mistral',
-  params: { max_tokens: 3000, temperature: 0.6 },
+  params: { max_tokens: 8000, temperature: 0.6 },
   openingMessage: `Hallo! Ich bin dein*e Kommunikationsmanager*in für die Grünen ${spec.title}.\n\nIch erstelle:\n- **Pressemitteilungen** (im Stil der ${spec.title}er LV-PMs)\n- **Social-Media-Posts** (Instagram, Facebook, Twitter, LinkedIn)\n- **Reels/TikTok-Skripte**\n\nWorum geht's? Beschreib das Thema und die Plattform.`,
   welcomeQuestion: `Was soll ${spec.title} sagen?`,
   openingQuestions: buildLvPrOpeningQuestions(spec),

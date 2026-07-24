@@ -244,6 +244,48 @@ describe('wrapToolsForLoop', () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
+  it('stamps textOffset on the recorded step when getTextOffset is set', async () => {
+    const { ctx, steps } = makeCtx({ getTextOffset: () => 42 });
+    const tools = wrapToolsForLoop(
+      { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'search', { query: 'x' });
+    expect(steps[0].textOffset).toBe(42);
+  });
+
+  it('omits textOffset when getTextOffset is absent', async () => {
+    const { ctx, steps } = makeCtx();
+    const tools = wrapToolsForLoop(
+      { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'search', { query: 'x' });
+    expect('textOffset' in steps[0]).toBe(false);
+  });
+
+  it('omits textOffset when getTextOffset returns null (split mode)', async () => {
+    const { ctx, steps } = makeCtx({ getTextOffset: () => null });
+    const tools = wrapToolsForLoop(
+      { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'search', { query: 'x' });
+    expect('textOffset' in steps[0]).toBe(false);
+  });
+
+  it('stamps textOffset=0 (falsy but valid) on a guard-blocked step', async () => {
+    const { ctx, steps } = makeCtx({ getTextOffset: () => 0 });
+    ctx.guards.noteFailure('search');
+    ctx.guards.noteFailure('search'); // at cap
+    const tools = wrapToolsForLoop(
+      { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'search', { query: 'x' });
+    expect(steps[0].textOffset).toBe(0);
+  });
+
   it('passes title/serverName onto the start card', async () => {
     const { ctx, events } = makeCtx({
       titleFor: () => 'Suche Notion…',

@@ -15,10 +15,7 @@ WebBrowser.maybeCompleteAuthSession();
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
 
 export type AuthSource =
-  | 'gruenerator-login'
-  | 'gruenes-netz-login'
-  | 'netzbegruenung-login'
-  | 'gruene-oesterreich-login';
+  'gruenerator-login' | 'gruenes-netz-login' | 'netzbegruenung-login' | 'gruene-oesterreich-login';
 
 export const REDIRECT_URI = makeRedirectUri({
   scheme: 'gruenerator',

@@ -21,6 +21,12 @@ export interface PersistedStep {
    *  steps; lets a later turn identify + replay which server was used, since
    *  the `m<serverKey>__` tool name alone isn't human-readable. */
   serverName?: string;
+  /** Character index into the FINAL answer text at the moment this tool call
+   *  started — lets thread reload interleave text segments and tool cards in
+   *  the live order. Monotonically non-decreasing across a turn's steps. Only
+   *  set in unified mode; absent on legacy messages, split-mode turns, and
+   *  after a citation clamp rewrote the text (offset drift protection). */
+  textOffset?: number;
 }
 
 /**

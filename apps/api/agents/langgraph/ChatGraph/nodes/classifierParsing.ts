@@ -126,6 +126,7 @@ export function parseClassifierResponse(
     'artifact',
     'compute',
     'save_as_doc',
+    'create_pdf',
     'modify_doc',
     'modify_board',
     'chat_history',
@@ -335,6 +336,12 @@ export function parseClassifierResponse(
       intent: 'save_as_doc',
       searchQuery: null,
       reasoning: 'Fallback: save_as_doc detected in response',
+    };
+  if (intentFieldPattern('create_pdf').test(content))
+    return {
+      intent: 'create_pdf',
+      searchQuery: null,
+      reasoning: 'Fallback: create_pdf detected in response',
     };
   if (intentFieldPattern('share_doc').test(content))
     return {

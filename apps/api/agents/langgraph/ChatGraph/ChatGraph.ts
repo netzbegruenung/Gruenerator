@@ -538,6 +538,7 @@ function routeAfterClassification(
     intent === 'save_as_doc' ||
     intent === 'create_sheet' ||
     intent === 'create_presentation' ||
+    intent === 'create_pdf' ||
     intent === 'create_recurring_task' ||
     intent === 'modify_doc' ||
     intent === 'modify_board' ||
@@ -591,6 +592,7 @@ function routeAfterClassification(
     share_doc: 'share_doc',
     create_sheet: 'create_sheet',
     create_presentation: 'create_presentation',
+    create_pdf: 'create_pdf',
     create_recurring_task: 'create_recurring_task',
     chat_history: 'chat_history',
     mcp: 'mcp',

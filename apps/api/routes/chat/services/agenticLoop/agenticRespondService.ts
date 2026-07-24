@@ -108,6 +108,7 @@ const COMPOUND_TOOL_FOR: Record<string, string> = {
   sheet: 'create_sheet',
   document: 'create_document',
   board: 'create_board',
+  pdf: 'create_pdf',
 };
 
 /** Tools counted against the per-turn search budget (loopGuards). */
@@ -133,6 +134,7 @@ const NON_REPLAYABLE_ACTION_TOOLS: ReadonlySet<string> = new Set([
   'create_board',
   'create_sheet',
   'create_presentation',
+  'create_pdf',
   'generate_image',
   'sharepic',
 ]);
@@ -425,6 +427,12 @@ export async function streamAgenticResponse(params: {
       guards,
       recordStep: (s) => steps.push(s),
       perCallTimeoutMs: budget.perCallTimeoutMs,
+      // Only unified mode streams answer text WHILE tools run, so its `text`
+      // length is a meaningful per-tool offset. In split mode `text` stays empty
+      // through the whole gather phase → return null so no (all-0) offsets are
+      // recorded, and reload falls back to the legacy cards-first layout.
+      // Reads `mode` lazily: it's finalized (line below) before the loop runs.
+      getTextOffset: () => (mode === 'unified' ? text.length : null),
       ...(toolLabels.size > 0
         ? {
             titleFor: (name: string) => {
@@ -745,6 +753,10 @@ export async function streamAgenticResponse(params: {
         sse.send('text_delta', { text: delta });
       },
       onReasoning: (delta) => sse.send('reasoning_delta', { text: delta }),
+      // Split-gather narration: the planner's inter-tool prose, sentence-wise.
+      // NOT routed through onText — that starts the response + persists it as
+      // answer text; narration is ephemeral progress, its own SSE channel.
+      onNarration: (s) => sse.send('gather_narration', { text: s }),
     });
 
     // Edit + compound-generation guarantees now run inside afterGather in BOTH
@@ -759,6 +771,9 @@ export async function streamAgenticResponse(params: {
       text = finalState.editorEditsSummary
         ? `Erledigt — ${finalState.editorEditsSummary}.`
         : 'Ich konnte dazu leider keine passende Antwort finden. Magst du deine Frage anders formulieren?';
+      // Replacement text invalidates offsets recorded against the streamed
+      // (whitespace-only) text — drop them so reload keeps cards-first.
+      for (const s of steps) delete s.textOffset;
       startResponse();
       sse.send('text_delta', { text });
     }
@@ -771,6 +786,7 @@ export async function streamAgenticResponse(params: {
       text = aborted
         ? 'Das hat leider zu lange gedauert. Magst du es noch einmal versuchen oder die Frage eingrenzen?'
         : 'Bei der Antwort ist etwas schiefgelaufen. Versuch es bitte gleich noch einmal.';
+      for (const s of steps) delete s.textOffset;
       startResponse();
       sse.send('text_delta', { text });
     }
@@ -787,6 +803,10 @@ export async function streamAgenticResponse(params: {
   const clamp = stripOutOfRangeCitations(text, sourceRegistry.size);
   if (clamp.changed) {
     text = clamp.text;
+    // Offset-drift protection: the clamp rewrote the answer text, so every
+    // recorded textOffset now points into a stale position. Drop them — reload
+    // then falls back to the cards-first layout instead of mis-interleaving.
+    for (const s of steps) delete s.textOffset;
     sse.send('completion', { text, citations: sourceRegistry.getCitations() });
   }
 
