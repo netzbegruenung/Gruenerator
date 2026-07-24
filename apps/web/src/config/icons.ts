@@ -86,13 +86,7 @@ export type IconType = ComponentType<IconBaseProps>;
  * Icon category types
  */
 export type IconCategory =
-  | 'platforms'
-  | 'textTypes'
-  | 'navigation'
-  | 'actions'
-  | 'ui'
-  | 'accessibility'
-  | 'campaigns';
+  'platforms' | 'textTypes' | 'navigation' | 'actions' | 'ui' | 'accessibility' | 'campaigns';
 
 /**
  * Platform icon names

@@ -144,8 +144,7 @@ export class DocumentSearchService extends BaseSearchService {
     if (p && (p.userId || pFilters || pOptions)) {
       const query = InputValidator.validateSearchQuery(p.query);
       const searchCollection = (pFilters?.searchCollection || pOptions?.searchCollection) as
-        | string
-        | undefined;
+        string | undefined;
       const isSystemSearch =
         typeof searchCollection === 'string' && isSystemQdrantCollection(searchCollection);
       const userId =
@@ -161,8 +160,7 @@ export class DocumentSearchService extends BaseSearchService {
       const group_id = pFilters?.group_id as string | undefined;
       const titleFilter = (pFilters?.titleFilter || pOptions?.titleFilter) as string | undefined;
       const additionalFilter = (pFilters?.additionalFilter || pOptions?.additionalFilter) as
-        | QdrantFilter
-        | undefined;
+        QdrantFilter | undefined;
 
       const limit = InputValidator.validateNumber(pOptions?.limit || this.defaultLimit, 'limit', {
         min: 1,

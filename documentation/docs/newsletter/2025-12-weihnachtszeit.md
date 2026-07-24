@@ -17,7 +17,7 @@ Mit dem neuen **Weihnachts-Grünerator** gibt es eine einfache Möglichkeit, sic
 
 Der Grünerator erstellt ein 5-zeiliges Weihnachtsgedicht passend zu deinem Heimatort. Du kannst zwischen 6 Hintergründen wählen, bei Bedarf einen Instagram-Beitragstext erstellen und entweder das Bild herunterladen oder eine Canva-Vorlage aufrufen. Die Erstellung dauert nur wenige Sekunden. Die Grünerierung der Bilder nutzt einen speziellen Grünerator-Algorithmus, der klimaschonend auf unseren Servern arbeitet. Der Gruß-Text ist religionsneutral und kann bei Bedarf angepasst werden.
 
-:::tip Kampagnen-Grünerator
+:::tip[Kampagnen-Grünerator]
 Der Kampagnen-Grünerator kann jede beliebige Kampagne dieser Art umsetzen, auch für Landtags-, Kommunalwahlen & Co. Interesse, dies in deinem Landesverband zu verwenden? Schreib einfach eine E-Mail!
 :::
 

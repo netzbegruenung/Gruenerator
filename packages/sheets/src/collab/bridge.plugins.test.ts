@@ -19,8 +19,7 @@ function makeApi() {
   const created: Partial<IWorkbookData>[] = [];
   const executed: { id: string; params: unknown; options: unknown }[] = [];
   let cmdCb:
-    | ((info: { type: number; id: string; params?: unknown }, opts?: unknown) => void)
-    | null = null;
+    ((info: { type: number; id: string; params?: unknown }, opts?: unknown) => void) | null = null;
 
   const api = {
     createWorkbook: (data: Partial<IWorkbookData>) => {

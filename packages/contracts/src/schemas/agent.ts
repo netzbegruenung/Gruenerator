@@ -62,7 +62,7 @@ export const agentFrontmatterSchema = z.object({
   tags: z.array(z.string()),
   model: z.string().min(1),
   defaultModel: z.string().min(1).optional(),
-  provider: z.enum(['mistral', 'anthropic', 'litellm', 'regolo']),
+  provider: z.enum(['mistral', 'anthropic', 'litellm', 'regolo', 'greenpt']),
   params: agentParamsSchema,
   openingMessage: z.string(),
   welcomeQuestion: z.string().optional(),

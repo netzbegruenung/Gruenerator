@@ -16,7 +16,7 @@ model: mistral-large-latest
 defaultModel: mistral-large-latest
 provider: mistral
 params:
-  max_tokens: 3000
+  max_tokens: 8000
   temperature: 0.6
 openingMessage: |-
   Hallo! Ich schreibe Pressemitteilungen und Social-Media-Posts im Stil der **Grünen Sachsen-Anhalt** — mit Blick auf die Landtagswahl 2026, Spitzenkandidatin Suse Sziborra-Seidlitz und Frames wie Strukturwandel/Wasserstoff und Demokratie gegen rechts.

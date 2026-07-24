@@ -493,6 +493,10 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
     .passthrough(),
   text_delta: z.object({ text: z.string() }).passthrough(),
   reasoning_delta: z.object({ text: z.string() }).passthrough(),
+  // Split-gather narration: one trimmed sentence per event (backend chunker),
+  // only between tool steps of the gather phase, never after response_start.
+  // Rendered as the live status line (custom.progress), never as a message part.
+  gather_narration: z.object({ text: z.string() }).passthrough(),
   fallback: z
     .object({
       from: z.object({ id: z.string(), name: z.string() }).passthrough(),

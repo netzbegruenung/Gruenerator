@@ -97,8 +97,7 @@ export function UserMessage() {
   const isCompact = density === 'compact';
   const [editing, setEditing] = useState(false);
   const custom = message.metadata?.custom as
-    | { senderId?: string; senderName?: string; roleName?: string }
-    | undefined;
+    { senderId?: string; senderName?: string; roleName?: string } | undefined;
   const senderId = custom?.senderId;
   const storeRoleName = useAgentStore((s) =>
     s.threadMode === 'eigener' ? s.customRoleName : null
