@@ -29,12 +29,7 @@ export interface AspectRatioConfig {
 }
 
 export type AspectRatioKey =
-  | 'square'
-  | 'portrait'
-  | 'landscape'
-  | 'classic'
-  | 'ultrawide'
-  | 'instagram';
+  'square' | 'portrait' | 'landscape' | 'classic' | 'ultrawide' | 'instagram';
 
 /**
  * Aspect Ratios with recommended dimensions

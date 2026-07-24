@@ -38,8 +38,7 @@ export function extractBearer(req: Request): string | null {
 }
 
 export type VerifyApiKeyResult =
-  | { ok: true; ctx: ApiKeyContext }
-  | { ok: false; reason: 'invalid' | 'revoked' | 'expired' };
+  { ok: true; ctx: ApiKeyContext } | { ok: false; reason: 'invalid' | 'revoked' | 'expired' };
 
 /** Throws on DB failure. Shared by `requireApiKey` and routes/mcp-server. */
 export async function verifyApiKey(plaintext: string): Promise<VerifyApiKeyResult> {

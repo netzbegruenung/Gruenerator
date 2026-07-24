@@ -176,11 +176,7 @@ const MODELS: ModelConfig[] = [
 
 interface FormatViolation {
   kind:
-    | 'over-wrapped-li'
-    | 'multi-item-ul'
-    | 'no-tool-call'
-    | 'invalid-op-type'
-    | 'missing-id-suffix';
+    'over-wrapped-li' | 'multi-item-ul' | 'no-tool-call' | 'invalid-op-type' | 'missing-id-suffix';
   detail: string;
 }
 

@@ -28,6 +28,7 @@ export * from './mcpServers.js';
 export * from './userAgents.js';
 export * from './textForms.js';
 export * from './userItemUsage.js';
+export * from './userUsage.js';
 export * from './groups.js';
 export * from './monitor.js';
 export * from './contentSync.js';
