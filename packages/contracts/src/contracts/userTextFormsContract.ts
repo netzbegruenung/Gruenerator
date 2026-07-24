@@ -13,6 +13,8 @@ import {
   analyzeTextFormResponseSchema,
   saveTextFormBodySchema,
   textFormDeleteResponseSchema,
+  textFormShareBodySchema,
+  textFormShareResponseSchema,
   textFormErrorResponseSchema,
   textFormItemResponseSchema,
   textFormsListResponseSchema,
@@ -76,6 +78,41 @@ export const userTextFormsContract = c.router(
         500: textFormErrorResponseSchema,
       },
       summary: 'Delete a user text form',
+    },
+
+    /**
+     * PUT /api/text-forms/:mention/share — share the recipe with a group.
+     * Members can use it immediately; the listing marks it as coming from
+     * that group rather than blending it into their own.
+     */
+    share: {
+      method: 'PUT',
+      path: '/api/text-forms/:mention/share',
+      pathParams: z.object({ mention: z.string() }),
+      body: textFormShareBodySchema,
+      responses: {
+        200: textFormShareResponseSchema,
+        401: textFormErrorResponseSchema,
+        403: textFormErrorResponseSchema,
+        404: textFormErrorResponseSchema,
+        500: textFormErrorResponseSchema,
+      },
+      summary: 'Share a recipe with a group',
+    },
+
+    /** DELETE /api/text-forms/:mention/share — revoke a group share. */
+    unshare: {
+      method: 'DELETE',
+      path: '/api/text-forms/:mention/share',
+      pathParams: z.object({ mention: z.string() }),
+      body: textFormShareBodySchema,
+      responses: {
+        200: textFormShareResponseSchema,
+        401: textFormErrorResponseSchema,
+        404: textFormErrorResponseSchema,
+        500: textFormErrorResponseSchema,
+      },
+      summary: 'Revoke a recipe’s group share',
     },
   },
   { pathPrefix: '' }
