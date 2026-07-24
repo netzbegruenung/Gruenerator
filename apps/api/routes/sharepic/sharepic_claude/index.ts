@@ -12,7 +12,6 @@ type SharepicType =
   | 'dreizeilen'
   | 'zitat'
   | 'zitat_pure'
-  | 'headline'
   | 'info'
   | 'veranstaltung'
   | 'simple'
@@ -22,7 +21,6 @@ const UNIFIED_TYPES = [
   'dreizeilen',
   'zitat',
   'zitat_pure',
-  'headline',
   'info',
   'veranstaltung',
   'simple',
