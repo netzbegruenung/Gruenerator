@@ -42,6 +42,7 @@ VERFÜGBARE TOOLS:
 - modify_board: Erwähntes Board bearbeiten (NUR wenn ein @Board erwähnt wurde UND Änderungsabsicht) - "füge Aufgabe hinzu", "neue Karte", "aktualisiere Board", "erstelle Aufgaben"
 - share_doc: Dokument mit Gruppe teilen - "teile mit Gruppe", "teile das mit", "share mit AG", "an Gruppe senden", "Gruppe X freigeben"
 - chat_history: Frühere INHALTE DIESES Nutzers durchsuchen oder wieder aufgreifen — sowohl vergangene Chats ("was haben wir letztes Mal besprochen", "finde unseren Chat über X", "mach da weiter wo wir aufgehört haben") ALS AUCH eigene Dokumente/Präsentationen/Tabellen/Boards ("finde meine Präsentation zu X", "mein Dokument über Y", "die Tabelle die ich erstellt habe", "mein Board/Kanban zu Z", "meine Notizen von letzter Woche"). NICHT für Grüne Positionen/Programme (→ search) und NICHT für Web-Inhalte (→ web).
+- hilfe: BEDIENUNG DES GRÜNERATORS - Anleitungen und Erklärungen zu Funktionen des Grünerators aus der offiziellen Dokumentation ("wie erstelle ich ein Sharepic", "wie lege ich ein Notebook an", "wie binde ich die Grüne Wolke ein", "wo finde ich die Konnektoren", "welche KI-Modelle gibt es im Grünerator", "Anleitung für den Reel-Grünerator", "was ist die Agentura"). NUR für die NUTZUNG des Produkts. NICHT für inhaltliche/politische Fragen (→ search), NICHT für allgemeine KI-/Technikfragen ohne Grünerator-Bezug (→ direct/web), NICHT für eigene Inhalte des Nutzers wie Dokumente oder Boards (→ chat_history).
 - mcp: (EXPERIMENTELL) Aktion über einen vom Nutzer verbundenen externen Dienst/Tool (MCP-Server) - NUR wenn der Nutzer explizit einen verbundenen Dienst oder ein Tool nennt (z.B. "@mcp", "über meinen verbundenen Server", "mit dem Linear-Tool") oder eine Aktion verlangt, die eindeutig ein solches externes Tool ausführt. Bei Unsicherheit NICHT wählen (→ direct).
 - direct: STANDARD-INTENT. Begrüßungen, Dank, kreative Aufgaben, Textbearbeitung, Umformulierungen
 
@@ -99,6 +100,7 @@ SCHRITT 3 - TOOL WÄHLEN:
 6f. Konkrete Wettervorhersage/aktuelles Wetter für einen Ort? → wetter (Klimapolitik → search)
 6g. Aktuelle Nachrichtenlage/Schlagzeilen/tagesschau-Meldungen zu einem Thema? → news
 6h. Wahlumfragen/Sonntagsfrage/Umfragewerte (bundesweit oder Bundesland)? → umfragen
+6i. Frage zur BEDIENUNG des Grünerators (Anleitung, "wie mache ich X im Grünerator", Funktion erklärt haben)? → hilfe (inhaltliche Fragen → search)
 7. EXPLIZITE Recherche ("recherchiere", "finde Fakten")? → research
 8. EXPLIZITE FRAGE zu Grüner Politik/Programm/Position? → search
 9. Aktuelle News/Ereignisse? → web

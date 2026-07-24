@@ -19,6 +19,7 @@ import {
   PiNotePencil,
   PiPlugsConnected,
   PiChartBar,
+  PiBooks,
 } from '@gruenerator/shared/icons';
 import { agentsList, type AgentListItem } from './agents';
 
@@ -255,6 +256,24 @@ export const toolMentionables: Mentionable[] = [
     icon: PiFiles,
     backgroundColor: '#316049',
     mention: 'dokumente',
+  },
+  {
+    // Grünerator user documentation (doku.gruenerator.eu). `audience: 'all'` —
+    // unlike bundestag/abgeordnetenwatch this describes the PRODUCT, so it is
+    // equally valid for AT users. `hilfe`/`anleitung` resolve as aliases so the
+    // picker finds it however the user phrases it.
+    type: 'tool',
+    category: 'function',
+    trigger: '@',
+    identifier: 'hilfe',
+    title: 'Hilfe & Anleitungen',
+    description: 'Anleitungen zum Grünerator aus der Doku',
+    avatar: '📖',
+    icon: PiBooks,
+    backgroundColor: '#0891B2',
+    mention: 'doku',
+    aliases: ['hilfe', 'anleitung'],
+    audience: 'all',
   },
   {
     type: 'tool',
