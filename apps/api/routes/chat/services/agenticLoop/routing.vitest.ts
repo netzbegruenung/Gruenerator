@@ -92,6 +92,7 @@ describe('decideRunAgentic', () => {
     secondaryIntent: null as string | null,
     compoundGeneration: false,
     hasImageAttachments: false,
+    isPdfFillRequest: false,
   };
   const decide = (o: Partial<typeof base>) => decideRunAgentic({ ...base, ...o });
 
@@ -129,6 +130,17 @@ describe('decideRunAgentic', () => {
 
   it('respects the flag', () => {
     expect(decide({ loopEnabled: false })).toBe(false);
+  });
+
+  it('lets a PDF fill ask into the loop, though it is no "toolable question"', () => {
+    const fill = { intent: 'direct', lastUserText: 'Füll mir bitte das Formular aus' };
+    // Without the PDF signal the imperative stays on the fast path by design.
+    expect(decide(fill)).toBe(false);
+    expect(decide({ ...fill, isPdfFillRequest: true })).toBe(true);
+    // Kill-switches still win — the PDF tools are not worth a broken contract.
+    expect(decide({ ...fill, isPdfFillRequest: true, loopEnabled: false })).toBe(false);
+    expect(decide({ ...fill, isPdfFillRequest: true, forcedTool: true })).toBe(false);
+    expect(decide({ ...fill, isPdfFillRequest: true, hasImageAttachments: true })).toBe(false);
   });
 
   it('enters the loop regardless of the selected model (planner does the tools)', () => {

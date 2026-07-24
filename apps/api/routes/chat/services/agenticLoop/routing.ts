@@ -267,6 +267,9 @@ export interface AgenticDecisionInput {
   compoundGeneration: boolean;
   /** image_edit / vision turns stay single-pass. */
   hasImageAttachments: boolean;
+  /** A fill ask ("füll das aus") on a thread that has a PDF. Precomputed by the
+   *  caller (isSheetFillRequest) so this module stays import-free. */
+  isPdfFillRequest: boolean;
 }
 
 /**
@@ -277,9 +280,14 @@ export interface AgenticDecisionInput {
  */
 export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   const compoundGen = COMPOUND_GENERATION_INTENTS.has(p.intent) && p.compoundGeneration;
+  // "Füll mir das Formular aus" is an imperative with no question word, so
+  // looksLikeToolableQuestion rejects it by design (content imperatives are
+  // creative generation). With a PDF attached it is exactly a tool turn — and
+  // the PDF form tools only exist inside the loop.
   const inLoopSet =
     p.agenticIntents.has(p.intent) ||
     (p.intent === 'direct' && looksLikeToolableQuestion(p.lastUserText)) ||
+    p.isPdfFillRequest ||
     compoundGen;
   const secondaryAllowed =
     p.secondaryIntent == null || (compoundGen && p.secondaryIntent === 'scrape_url');

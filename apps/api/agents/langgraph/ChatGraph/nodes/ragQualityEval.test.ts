@@ -223,6 +223,7 @@ async function evaluateBudgetAllocation() {
     imageAttachments: [],
     threadAttachments: [],
     hasTabularAttachment: false,
+    pdfFormAttachments: [],
     clientCanRunPython: false,
     customSystemPrompt: null,
     activeSkillMention: null,
