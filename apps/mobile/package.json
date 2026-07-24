@@ -29,7 +29,7 @@
   "dependencies": {
     "@assistant-ui/react-native": "^0.1.29",
     "@expo-google-fonts/raleway": "^0.4.2",
-    "@expo/dom-webview": "~56.0.5",
+    "@expo/dom-webview": "~57.0.1",
     "@expo/metro-runtime": "~57.0.7",
     "@expo/react-native-action-sheet": "^4.1.1",
     "@expo/ui": "~57.0.7",
