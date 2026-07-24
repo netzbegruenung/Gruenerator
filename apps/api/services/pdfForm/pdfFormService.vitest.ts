@@ -35,6 +35,33 @@ async function buildFormPdf(): Promise<Buffer> {
   return Buffer.from(await pdfDoc.save());
 }
 
+/**
+ * A form whose widgets have a zero-size rectangle. This is not a synthetic
+ * edge case: the Detmold "Erklärung zur Zweitwohnungssteuer" (MACH
+ * formsolutions, a generator used across German municipal administration) ships
+ * 53 fields that ALL look like this. Writing to them succeeds and reads back
+ * correctly, and the resulting document is completely blank.
+ */
+async function buildZeroRectPdf(): Promise<Buffer> {
+  const { PDFDocument, PDFName, PDFNumber, PDFArray } = await import('pdf-lib');
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([600, 400]);
+  const form = pdfDoc.getForm();
+  const field = form.createTextField('unsichtbar');
+  field.addToPage(page, { x: 50, y: 300, width: 200, height: 20 });
+
+  const zero = PDFArray.withContext(pdfDoc.context);
+  for (let i = 0; i < 4; i++) zero.push(PDFNumber.of(0));
+  for (const widget of (
+    field as unknown as {
+      acroField: { getWidgets(): Array<{ dict: { set(k: unknown, v: unknown): void } }> };
+    }
+  ).acroField.getWidgets()) {
+    widget.dict.set(PDFName.of('Rect'), zero);
+  }
+  return Buffer.from(await pdfDoc.save());
+}
+
 async function buildFlatPdf(): Promise<Buffer> {
   const { PDFDocument } = await import('pdf-lib');
   const pdfDoc = await PDFDocument.create();
@@ -131,6 +158,36 @@ describe('pdfFormService', () => {
     );
     const after = await readFormFields(unticked.bytes);
     expect(after.find((f) => f.name === 'einverstanden')?.value).toBe('false');
+  });
+
+  it('marks zero-size widgets as not renderable and refuses to fill them', async () => {
+    const pdf = await buildZeroRectPdf();
+
+    const fields = await readFormFields(pdf);
+    expect(fields).toHaveLength(1);
+    expect(fields[0].renderable).toBe(false);
+
+    const { filled, skipped } = await fillFormFields(pdf, { unsichtbar: 'wird nie sichtbar' });
+    expect(filled).toEqual([]);
+    expect(skipped['unsichtbar']).toMatch(/keine sichtbare Position/);
+  });
+
+  it('verifies the finished document really shows the values', async () => {
+    // Second line of defence, independent of the renderability check: read the
+    // saved PDF back and confirm the text is on the page. Against the real
+    // Detmold form this reports the written value as missing, which is exactly
+    // how the blank-output bug was caught.
+    const { verification } = await fillFormFields(formPdf, {
+      'antragsteller.name': 'SICHTBARKEITSPRUEFUNG',
+    });
+    expect(verification).toBeDefined();
+    expect(verification?.visible).toBe(1);
+    expect(verification?.missing).toEqual([]);
+  });
+
+  it('reports renderable for ordinary visible fields', async () => {
+    const fields = await readFormFields(formPdf);
+    expect(fields.filter((f) => f.renderable).length).toBeGreaterThan(0);
   });
 
   it('flattens by default so the result is a finished document', async () => {
