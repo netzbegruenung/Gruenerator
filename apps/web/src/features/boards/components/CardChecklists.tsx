@@ -85,19 +85,18 @@ export const CardChecklists = memo(function CardChecklists({
             ? g
             : {
                 ...g,
-                items: g.items.map(
-                  (it): ChecklistItem =>
-                    it.id !== itemId
-                      ? it
-                      : it.done
-                        ? { id: it.id, text: it.text, done: false }
-                        : {
-                            id: it.id,
-                            text: it.text,
-                            done: true,
-                            doneBy: currentUserId,
-                            doneAt: new Date().toISOString(),
-                          }
+                items: g.items.map((it): ChecklistItem =>
+                  it.id !== itemId
+                    ? it
+                    : it.done
+                      ? { id: it.id, text: it.text, done: false }
+                      : {
+                          id: it.id,
+                          text: it.text,
+                          done: true,
+                          doneBy: currentUserId,
+                          doneAt: new Date().toISOString(),
+                        }
                 ),
               }
         )

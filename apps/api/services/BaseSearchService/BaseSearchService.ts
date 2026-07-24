@@ -87,10 +87,7 @@ export class BaseSearchService {
 
     // Initialize error handler
     const logLevel = (options.logLevel || loggingConfig.level || 'error') as
-      | 'error'
-      | 'warn'
-      | 'info'
-      | 'debug';
+      'error' | 'warn' | 'info' | 'debug';
     this.errorHandler = createErrorHandler(this.serviceName, {
       enableTelemetry: options.enableTelemetry !== false && loggingConfig.enableTelemetry,
       logLevel,

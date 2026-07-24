@@ -19,6 +19,6 @@ Im **Expertenmodus** kannst du den Feed eingrenzen:
 
 Oben auf der Seite wechselst du außerdem zwischen **Deutschland** und **Österreich**.
 
-:::tip Für die Landes- und Kommunalebene
+:::tip[Für die Landes- und Kommunalebene]
 Der Feed ist der schnellste Weg zu sehen, was dein Landesverband und andere Gliederungen gerade veröffentlichen — praktisch als Inspiration für eigene Beiträge oder um bei Themen anzudocken, die gerade laufen.
 :::

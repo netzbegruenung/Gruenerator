@@ -45,13 +45,13 @@ jobs:
         lane: [mistral, gemma-4]
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -61,10 +61,21 @@ jobs:
 
       - name: Probe test-env reachability
         run: |
+          # Missing secrets otherwise surface as ~100 identical case failures
+          # ("Failed to parse URL from /api/chat-graph/stream") — fail loud here.
+          if [ -z "$EVAL_BASE_URL" ]; then
+            echo "::error::Repo secret EVAL_BASE_URL is not set — the eval has no backend to run against."
+            exit 1
+          fi
+          if [ -z "$EVAL_BYPASS_TOKEN" ]; then
+            echo "::error::Repo secret EVAL_BYPASS_TOKEN is not set — every request would be rejected as unauthenticated."
+            exit 1
+          fi
           echo "Backend git SHA (env drift check):"
           curl -sf --max-time 15 "$EVAL_BASE_URL/health" || echo "(no /health — continuing)"
         env:
           EVAL_BASE_URL: ${{ secrets.EVAL_BASE_URL }}
+          EVAL_BYPASS_TOKEN: ${{ secrets.EVAL_BYPASS_TOKEN }}
 
       - name: Run chat eval (${{ matrix.lane }})
         run: pnpm --filter @gruenerator/api eval:chat
@@ -87,7 +98,7 @@ jobs:
 
       - name: Upload traces
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: eval-traces-${{ matrix.lane }}
           path: |
@@ -97,7 +108,7 @@ jobs:
 
       - name: Open baseline PR
         if: inputs.update_baseline
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           branch: chore/eval-baseline-${{ matrix.lane }}
           title: 'chore(evals): update ${{ matrix.lane }} eval baseline'
