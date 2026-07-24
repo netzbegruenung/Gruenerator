@@ -32,6 +32,7 @@ import type { KeyValueEntry, ToolResultVM, ToolViewKind } from './toolViewModels
 
 export const UI_TOOL_NAMES = z.enum([
   'gruenerator_search',
+  'gruenerator_docs_search',
   'search_sources',
   'search_user_content',
   'web_search',
@@ -233,6 +234,10 @@ function entry(name: UiToolName, kind: ToolViewKind, parse: ToolRegistryEntry['p
 
 export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   gruenerator_search: entry('gruenerator_search', 'citations', (_a, r) => ({
+    kind: 'citations',
+    citations: parseSearchCitations(r),
+  })),
+  gruenerator_docs_search: entry('gruenerator_docs_search', 'citations', (_a, r) => ({
     kind: 'citations',
     citations: parseSearchCitations(r),
   })),

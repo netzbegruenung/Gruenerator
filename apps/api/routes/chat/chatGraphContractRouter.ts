@@ -324,6 +324,25 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         log.info('[ChatGraph] Intent forced to "bundestag" via @bundestag mention');
       }
 
+      // @doku hard-pins the documentation intent. Not in TOOL_PRIORITY (that
+      // list is the search/image/sharepic family), so it is resolved here. Not
+      // locale-gated: the docs describe the product itself and apply to DE and
+      // AT alike. The searchQuery backfill matters more here than for the
+      // sources above — the docs tool searches the user's text verbatim, so an
+      // empty query would search nothing at all.
+      if (forcedTools?.includes('hilfe')) {
+        classifiedState.intent = 'hilfe';
+        forcedTool = true;
+        if (
+          (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
+          lastUserMessage
+        ) {
+          const userText = lastUserTextNoMentions.trim();
+          if (userText) classifiedState.searchQuery = userText;
+        }
+        log.info('[ChatGraph] Intent forced to "hilfe" via @doku mention');
+      }
+
       // A per-server mention (@notion/@brevo) arrives as `mcp:<serverId>` and
       // scopes the tool-loop to that one server. Bare `mcp` (legacy @mcp tokens in
       // old threads; no mention emits it anymore) still runs unscoped over all
@@ -738,11 +757,16 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // so it may still enter the loop, which mounts that server's MCP tools.
       // System MCP intents (bahn/wetter/news) force the gate the same way: the
       // legacy pipeline has no executor for them, the loop mounts their tools.
-      // `umfragen` is a native domain tool (PolitPro service) — always
-      // available, so it forces the gate unconditionally.
+      // `umfragen` (PolitPro) and `hilfe` (in-process docs index) are native
+      // domain tools — always available, so they force the gate unconditionally.
+      // `hilfe` MUST be here: @doku sets forcedTool, and without this escape
+      // decideRunAgentic would keep the turn single-pass, where
+      // `gruenerator_docs_search` does not exist — the mention would silently
+      // do nothing.
       const isMcpTurn =
         classifiedState.intent === 'mcp' ||
         classifiedState.intent === 'umfragen' ||
+        classifiedState.intent === 'hilfe' ||
         (classifiedState.intent != null && isSystemIntentAvailable(classifiedState.intent));
       const isSystemToolIntent =
         classifiedState.intent != null && SYSTEM_TOOL_INTENTS.has(classifiedState.intent);
