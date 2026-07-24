@@ -338,6 +338,21 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
+      # RN/Expo ecosystem majors ride the Expo SDK upgrade, never a lone bump.
+      # `npx expo install --check` is the authority here: SDK 57 pins exact
+      # versions for reanimated, safe-area-context, svg and pager-view, and a
+      # Dependabot PR that moves past them makes the app 'may not work
+      # correctly'. Majors (gesture-handler 3, webview 14, async-storage 3,
+      # worklets 0.11) additionally need device testing. Take them all at once
+      # via `npx expo install --fix` during an SDK upgrade — see CLAUDE.md.
+      - dependency-name: 'react-native-*'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@react-native-*/*'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react-native-reanimated'
+      - dependency-name: 'react-native-safe-area-context'
+      - dependency-name: 'react-native-svg'
+      - dependency-name: 'react-native-pager-view'
 
   # =============================================================================
   # SHARED PACKAGE (packages/shared)
