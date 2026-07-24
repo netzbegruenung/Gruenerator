@@ -33,7 +33,7 @@ Anfordern musst du nichts davon — es genügt, die Frage zu stellen. Die Kennze
 
 - **`@kürzel`** — für diese Fähigkeit gibt es zusätzlich eine Erwähnung, mit der du sie im Eingabefeld vorwählen kannst. **Nur ein Teil der Fähigkeiten hat so ein Kürzel**, und das ist Absicht: Erwähnungen gibt es dort, wo die Vorauswahl wirklich etwas ändert — bei Quellen, die man gezielt ansteuert, und bei Formaten, die man bewusst wählt. Alles Übrige erkennt der Grünerator zuverlässig an der Formulierung allein („Wie wird das Wetter am Samstag?" braucht kein `@wetter`), deshalb gibt es dafür bewusst keine Abkürzung.
 - **Werkzeug: …** — diese Fähigkeit lässt sich in eigenen Grüneratoren gezielt an- und abschalten.
-- **Quelle: … (Freischaltung nötig)** — hier steckt eine zusätzliche Datenquelle dahinter, die nicht in jeder Umgebung aktiv ist.
+- **Zusatzquelle: …** — dahinter steckt ein externer Dienst (Bahn, Wetterdienst, tagesschau, trivago), der pro Umgebung angebunden wird. Fehlt die Anbindung gerade, bleibt die Frage nicht unbeantwortet: der Grünerator weicht auf die Websuche aus — bei Zugverbindungen dann ohne Live-Daten.
 
 <ChatCapabilities />
 
@@ -43,7 +43,7 @@ Anfordern musst du nichts davon — es genügt, die Frage zu stellen. Die Kennze
 
 **Einige Quellen decken nur Deutschland ab.** Bundestag, Abgeordnetenwatch, Bahn und tagesschau beziehen sich auf deutsche Daten. Bei österreichischen Fragen weicht der Grünerator auf die Websuche aus.
 
-**Einzelne Funktionen sind experimentell** oder müssen für deine Umgebung freigeschaltet sein — sie sind oben entsprechend gekennzeichnet. Fehlt eine, antwortet der Grünerator ohne sie, statt Ergebnisse zu erfinden.
+**Nicht jede Zusatzquelle ist überall angebunden.** Bahn, Wetterdienst, tagesschau und trivago werden pro Umgebung eingerichtet. Fehlt eine, greift der Grünerator auf die Websuche zurück und sagt dazu, worauf die Antwort beruht — erfundene Abfahrtszeiten gibt es nicht.
 
 **Erfindet der Grünerator nichts?** Bei Recherchen und Datenquellen nennt er die Belege. Prüfe Zahlen und Zitate trotzdem, bevor sie nach außen gehen — mehr dazu unter [Risiken und Gefahren von LLMs](../llm-basics/risiken-und-gefahren-von-llms.md).
 

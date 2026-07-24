@@ -65,7 +65,7 @@ export const GROUPS: CapabilityGroup[] = [
     id: 'alltag',
     title: 'Alltagshilfen',
     intro:
-      'Praktische Auskünfte rund um Termine und Reisen. Diese Quellen sind zusätzlich freigeschaltet und stehen nicht in jeder Umgebung zur Verfügung.',
+      'Praktische Auskünfte rund um Termine und Reisen. Dahinter stecken externe Dienste, die pro Umgebung eingerichtet werden — ist einer davon gerade nicht angebunden, beantwortet der Grünerator die Frage über die normale Websuche, bei Zugverbindungen dann allerdings ohne Live-Daten.',
   },
   {
     id: 'verbunden',
