@@ -1,7 +1,6 @@
 import { filterMentionables, type Mentionable } from './mentionables';
 
 export interface MentionDetectionResult {
-  mode: 'functions' | 'skills';
   query: string;
   mentionStart: number;
 }
@@ -9,51 +8,45 @@ export interface MentionDetectionResult {
 /**
  * Detect an active mention trigger from text + cursor position.
  * Platform-agnostic — works in both web and React Native.
+ *
+ * `@` is the only trigger. Recipes (formerly "skills") used to have their own
+ * `/` trigger, which meant knowing in advance which of the two lists a thing
+ * lived in; they are now one list behind one character.
  */
 export function detectMention(text: string, caretPosition: number): MentionDetectionResult | null {
   const textBeforeCaret = text.slice(0, caretPosition);
-
   const atIndex = textBeforeCaret.lastIndexOf('@');
-  const slashIndex = textBeforeCaret.lastIndexOf('/');
+  if (atIndex < 0) return null;
 
-  const candidates: { index: number; mode: 'functions' | 'skills' }[] = [];
+  const charBefore = atIndex > 0 ? text[atIndex - 1] : ' ';
+  const query = textBeforeCaret.slice(atIndex + 1);
+  const atWordStart = charBefore === ' ' || charBefore === '\n' || atIndex === 0;
+  if (!atWordStart || query.includes(' ')) return null;
 
-  if (atIndex >= 0) {
-    const charBefore = atIndex > 0 ? text[atIndex - 1] : ' ';
-    const queryStr = textBeforeCaret.slice(atIndex + 1);
-    if ((charBefore === ' ' || charBefore === '\n' || atIndex === 0) && !queryStr.includes(' ')) {
-      candidates.push({ index: atIndex, mode: 'functions' });
-    }
-  }
-
-  if (slashIndex >= 0) {
-    const charBefore = slashIndex > 0 ? text[slashIndex - 1] : ' ';
-    const queryStr = textBeforeCaret.slice(slashIndex + 1);
-    if (
-      (charBefore === ' ' || charBefore === '\n' || slashIndex === 0) &&
-      !queryStr.includes(' ')
-    ) {
-      const textBeforeSlash = text.slice(0, slashIndex);
-      if (!textBeforeSlash.endsWith(':') && !textBeforeSlash.endsWith(':/')) {
-        candidates.push({ index: slashIndex, mode: 'skills' });
-      }
-    }
-  }
-
-  if (candidates.length === 0) return null;
-
-  const best = candidates.reduce((a, b) => (a.index > b.index ? a : b));
-  return {
-    mode: best.mode,
-    query: textBeforeCaret.slice(best.index + 1),
-    mentionStart: best.index,
-  };
+  return { query, mentionStart: atIndex };
 }
 
-export function getFilteredFunctions(query: string): Mentionable[] {
-  const { notebooks, tools, boards, docs, documents, wolke, connect, canva, vorlagen } =
-    filterMentionables(query);
+/**
+ * Everything mentionable, recipes first: they are the most frequent pick and
+ * used to sit behind their own trigger.
+ */
+export function getFilteredMentionables(query: string): Mentionable[] {
+  const {
+    agents,
+    customAgents,
+    notebooks,
+    tools,
+    boards,
+    docs,
+    documents,
+    wolke,
+    connect,
+    canva,
+    vorlagen,
+  } = filterMentionables(query);
   return [
+    ...agents,
+    ...customAgents,
     ...tools,
     ...boards,
     ...docs,
@@ -64,13 +57,4 @@ export function getFilteredFunctions(query: string): Mentionable[] {
     ...vorlagen,
     ...notebooks,
   ];
-}
-
-export function getFilteredSkills(query: string): Mentionable[] {
-  const { agents, customAgents } = filterMentionables(query);
-  return [...agents, ...customAgents];
-}
-
-export function getFilteredForMode(mode: 'functions' | 'skills', query: string): Mentionable[] {
-  return mode === 'skills' ? getFilteredSkills(query) : getFilteredFunctions(query);
 }

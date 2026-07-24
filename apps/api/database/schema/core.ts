@@ -43,6 +43,7 @@ export const profiles = pgTable(
     sharepic: boolean('sharepic').notNull().default(false),
     anweisungen: boolean('anweisungen').notNull().default(false),
     chat_color: text('chat_color'),
+    chat_background: text('chat_background'),
     content_management: boolean('content_management').notNull().default(false),
     labor_enabled: boolean('labor_enabled').notNull().default(false),
     sites: boolean('sites').notNull().default(false),

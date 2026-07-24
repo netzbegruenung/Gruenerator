@@ -30,6 +30,12 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     description: 'Farbschema der Oberfläche',
   },
   {
+    id: 'allgemein.chatHintergrund',
+    tab: 'allgemein',
+    title: 'Chat-Hintergrund',
+    description: 'Färbt den Schimmer hinter dem Chat-Start und den Senden-Button',
+  },
+  {
     id: 'allgemein.sprache',
     tab: 'allgemein',
     title: 'Sprache & Region',

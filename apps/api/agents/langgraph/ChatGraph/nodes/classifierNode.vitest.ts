@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   extractUrls,
   isTabularComputeQuestion,
+  isSheetFillRequest,
   detectSocialPlatform,
   resolveSocialPostEscape,
   nounNearCreateVerb,
@@ -335,6 +336,59 @@ describe('heuristicClassify', () => {
     expect(isTabularComputeQuestion('wie hoch ist der gewinn')).toBe(true);
     expect(isTabularComputeQuestion('was ist das produkt mit dem höchsten wert?')).toBe(true);
     expect(isTabularComputeQuestion('worum geht es in dieser datei?')).toBe(false);
+  });
+
+  it('isSheetFillRequest matches fill asks in their common German phrasings', () => {
+    expect(isSheetFillRequest('füll mir bitte die vorlage aus')).toBe(true);
+    expect(isSheetFillRequest('kannst du das formular ausfüllen?')).toBe(true);
+    expect(isSheetFillRequest('trag die daten in die tabelle ein')).toBe(true);
+    expect(isSheetFillRequest('bitte die werte eintragen')).toBe(true);
+    expect(isSheetFillRequest('setz die zahlen ein')).toBe(true);
+    expect(isSheetFillRequest('ergänze die fehlenden angaben')).toBe(true);
+    expect(isSheetFillRequest('übertrage die werte aus dem angebot')).toBe(true);
+    expect(isSheetFillRequest('bitte die tabelle vervollständigen')).toBe(true);
+    expect(isSheetFillRequest('schreib die werte in die tabelle')).toBe(true);
+    expect(isSheetFillRequest('trag bitte meinen namen und meine adresse ein')).toBe(true);
+    expect(isSheetFillRequest('das muss noch ausgefüllt werden')).toBe(true);
+  });
+
+  it('isSheetFillRequest stays conservative — a miss is cheaper than a false fire', () => {
+    // Writing prose ABOUT a table is not filling it in.
+    expect(isSheetFillRequest('schreib einen text über die tabelle')).toBe(false);
+    expect(isSheetFillRequest('schreib mir eine zusammenfassung')).toBe(false);
+    // Accepted misses: too generic to claim without risking real false fires.
+    // They fall back to the normal answer path, which is harmless.
+    expect(isSheetFillRequest('mach die vorlage fertig')).toBe(false);
+  });
+
+  it('isSheetFillRequest ignores look-alikes that are not fill asks', () => {
+    // 'füll' inside a compound noun that means the opposite of filling a form.
+    expect(isSheetFillRequest('entferne die füllwörter aus dem text')).toBe(false);
+    // Word-start binding: erfüllen/auffüllen and the -trag nouns must not match.
+    expect(isSheetFillRequest('erfüllt die tabelle die anforderungen?')).toBe(false);
+    expect(isSheetFillRequest('wie hoch ist der betrag im vertrag?')).toBe(false);
+    expect(isSheetFillRequest('was steht im antrag?')).toBe(false);
+    expect(isSheetFillRequest('worum geht es in dieser datei?')).toBe(false);
+    // Visualization keeps its own intent even when phrased as "eintragen".
+    expect(isSheetFillRequest('trag die werte in ein diagramm ein')).toBe(false);
+  });
+
+  it('routes a fill ask with a spreadsheet to compute, ahead of the aggregation rule', () => {
+    // "trag die summe ein" matches BOTH heuristics — filling must win, so the
+    // router picks openpyxl codegen instead of a read-only aggregation.
+    expect(isSheetFillRequest('trag die summe unten ein')).toBe(true);
+    const result = heuristicClassify('trag die summe unten ein', {
+      hasTabularAttachment: true,
+    });
+    expect(result.intent).toBe('compute');
+    expect(result.reasoning).toBe('Fill request with attached spreadsheet');
+  });
+
+  it('does not route a fill ask to compute without a spreadsheet attached', () => {
+    const result = heuristicClassify('füll mir bitte die vorlage aus', {
+      hasTabularAttachment: false,
+    });
+    expect(result.intent).not.toBe('compute');
   });
 
   it('isTabularComputeQuestion binds verbs to word starts (erzähl must not match zähl)', () => {

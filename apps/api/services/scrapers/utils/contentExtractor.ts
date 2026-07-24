@@ -5,6 +5,8 @@
 
 import * as cheerio from 'cheerio';
 
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
+
 import { cleanText, removeUnwantedElements, extractTitle } from './htmlCleaner.js';
 
 import type { HtmlExtractionOptions, ExtractionResult } from '../types.js';
@@ -76,7 +78,7 @@ export function extractMainContent(
     return {
       content: '',
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: toUserFacingMessage(error, 'Unknown error'),
     };
   }
 }

@@ -24,7 +24,6 @@ import type { NativeSyntheticEvent, TextInputSelectionChangeEventData } from 're
 
 interface MentionState {
   visible: boolean;
-  mode: 'functions' | 'skills';
   query: string;
   mentionStart: number;
 }
@@ -93,7 +92,6 @@ export function AssistantComposer({
       if (detected) {
         setMention({
           visible: true,
-          mode: detected.mode,
           query: detected.query,
           mentionStart: detected.mentionStart,
         });
@@ -166,7 +164,6 @@ export function AssistantComposer({
     >
       {mention?.visible && (
         <MentionSuggestions
-          mode={mention.mode}
           query={mention.query}
           visible={mention.visible}
           theme={theme}

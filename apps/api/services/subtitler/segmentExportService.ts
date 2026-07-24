@@ -9,9 +9,11 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import { type SubtitleSegment } from '@gruenerator/contracts';
+import { toJobErrorStatus } from '@gruenerator/contracts';
 import { v4 as uuidv4 } from 'uuid';
 
 import { type VideoMetadata } from '../../routes/subtitler/types.js';
+import { toJobError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
@@ -274,6 +276,7 @@ export async function exportWithSegments(
           videoCodec === 'libx264' ? 'high' : 'main',
           '-level',
           videoCodec === 'libx264' ? '4.1' : '4.0',
+          ...hwaccel.getCpuPixelFormatOptions(),
           ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
           '-movflags',
           '+faststart',
@@ -345,15 +348,14 @@ export async function exportWithSegments(
       segmentCount: validSegments.length,
     };
   } catch (error: unknown) {
-    log.error(`Segment export failed: ${error instanceof Error ? error.message : String(error)}`);
+    const jobError = toJobError(error, {
+      scope: 'subtitler-segment-export',
+      meta: { exportToken, type: 'segment-cut' },
+    });
 
     await redisClient.set(
       `export:${exportToken}`,
-      JSON.stringify({
-        status: 'error',
-        error: error instanceof Error ? error.message : String(error),
-        type: 'segment-cut',
-      }),
+      JSON.stringify({ ...toJobErrorStatus(jobError), type: 'segment-cut' }),
       { EX: 60 * 60 }
     );
 
@@ -502,6 +504,7 @@ export async function exportWithSegmentsAndSubtitles(
           videoCodec === 'libx264' ? 'high' : 'main',
           '-level',
           videoCodec === 'libx264' ? '4.1' : '4.0',
+          ...hwaccel.getCpuPixelFormatOptions(),
           ...(hasAudio ? ['-c:a', 'aac', '-b:a', qualitySettings.audioBitrate] : ['-an']),
           '-movflags',
           '+faststart',
@@ -576,17 +579,14 @@ export async function exportWithSegmentsAndSubtitles(
       segmentCount: validSegments.length,
     };
   } catch (error: unknown) {
-    log.error(
-      `Segment+subtitle export failed: ${error instanceof Error ? error.message : String(error)}`
-    );
+    const jobError = toJobError(error, {
+      scope: 'subtitler-segment-export',
+      meta: { exportToken, type: 'segment-cut-subtitles' },
+    });
 
     await redisClient.set(
       `export:${exportToken}`,
-      JSON.stringify({
-        status: 'error',
-        error: error instanceof Error ? error.message : String(error),
-        type: 'segment-cut-subtitles',
-      }),
+      JSON.stringify({ ...toJobErrorStatus(jobError), type: 'segment-cut-subtitles' }),
       { EX: 60 * 60 }
     );
 

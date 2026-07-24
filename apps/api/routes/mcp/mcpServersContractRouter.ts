@@ -14,6 +14,7 @@ import { McpRegistryService } from '../../services/mcp/McpRegistryService.js';
 import { McpServerRegistry } from '../../services/mcp/McpServerRegistry.js';
 import { UserMCPClient } from '../../services/mcp/UserMCPClient.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
@@ -155,7 +156,7 @@ export const mcpServersContractRouter = s.router(mcpServersContract, {
             ok: false,
             toolCount: 0,
             toolNames: [],
-            error: err instanceof Error ? err.message : String(err),
+            error: toUserFacingMessage(err),
           },
         };
       } finally {

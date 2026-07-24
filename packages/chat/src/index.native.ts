@@ -127,9 +127,7 @@ export { useSkillFavoritesStore } from './stores/skillFavoritesStore';
 // Mention detection & insertion (shared logic for web + mobile)
 export {
   detectMention,
-  getFilteredFunctions,
-  getFilteredSkills,
-  getFilteredForMode,
+  getFilteredMentionables,
   type MentionDetectionResult,
 } from './lib/mentionDetection';
 export { computeMentionInsertion, type MentionInsertionResult } from './lib/mentionInsertion';

@@ -67,7 +67,7 @@ export const IMAGE_STUDIO_TYPE_CONFIGS: Record<ImageStudioTemplateType, ImageStu
     inputBeforeImage: true,
     parallelPreload: true,
     endpoints: {
-      text: '/dreizeilen_claude',
+      text: '/sharepic/text/dreizeilen',
       canvas: '/dreizeilen_canvas',
     },
     legacyType: 'Dreizeilen',
@@ -80,7 +80,7 @@ export const IMAGE_STUDIO_TYPE_CONFIGS: Record<ImageStudioTemplateType, ImageStu
     requiresImage: true,
     hasTextGeneration: true,
     endpoints: {
-      text: '/zitat_claude',
+      text: '/sharepic/text/zitat',
       canvas: '/zitat_canvas',
     },
     legacyType: 'Zitat',
@@ -93,7 +93,7 @@ export const IMAGE_STUDIO_TYPE_CONFIGS: Record<ImageStudioTemplateType, ImageStu
     requiresImage: false,
     hasTextGeneration: true,
     endpoints: {
-      text: '/zitat_pure_claude',
+      text: '/sharepic/text/zitat_pure',
       canvas: '/zitat_pure_canvas',
     },
     legacyType: 'Zitat_Pure',
@@ -106,7 +106,7 @@ export const IMAGE_STUDIO_TYPE_CONFIGS: Record<ImageStudioTemplateType, ImageStu
     requiresImage: false,
     hasTextGeneration: true,
     endpoints: {
-      text: '/info_claude',
+      text: '/sharepic/text/info',
       canvas: '/info_canvas',
     },
     legacyType: 'Info',
@@ -119,7 +119,7 @@ export const IMAGE_STUDIO_TYPE_CONFIGS: Record<ImageStudioTemplateType, ImageStu
     requiresImage: true,
     hasTextGeneration: true,
     endpoints: {
-      text: '/veranstaltung_claude',
+      text: '/sharepic/text/veranstaltung',
       canvas: '/veranstaltung_canvas',
     },
     legacyType: 'Veranstaltung',
@@ -144,7 +144,7 @@ export const IMAGE_STUDIO_TYPE_CONFIGS: Record<ImageStudioTemplateType, ImageStu
     requiresImage: true,
     hasTextGeneration: true,
     endpoints: {
-      text: '/simple_claude',
+      text: '/sharepic/text/simple',
       canvas: '/simple_canvas',
     },
     legacyType: 'Simple',
