@@ -70,7 +70,7 @@
       "@opentelemetry/core": "^2.8.0",
       "vite>esbuild": "^0.28.1",
       "tsx>esbuild": "^0.28.1",
-      "ai": "^6.0.224",
+      "@blocknote/xl-ai>ai": "^6.0.224",
       "@types/node": "^26.1.1",
       "katex": "^0.16.47",
       "pyodide": "^0.29.4",

@@ -46,7 +46,7 @@
     "@handlewithcare/prosemirror-suggest-changes": "^0.1.8",
     "@hocuspocus/provider": "^4.4.0",
     "@react-pdf/renderer": "^4.5.1",
-    "ai": "^6.0.224",
+    "ai": "^7.0.37",
     "lodash.throttle": "^4.1.1",
     "react-icons": "^5.7.0",
     "y-prosemirror": "^1.3.7",
