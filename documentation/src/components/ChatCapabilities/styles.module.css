@@ -61,6 +61,18 @@
   white-space: normal;
 }
 
+.experimental {
+  background: #fff4d6;
+  border-color: #e6c65c;
+  color: #6b4e00;
+}
+
+[data-theme='dark'] .experimental {
+  background: #3a2f10;
+  border-color: #7a6420;
+  color: #f0d98a;
+}
+
 .description {
   margin: 0;
   font-size: 0.9rem;

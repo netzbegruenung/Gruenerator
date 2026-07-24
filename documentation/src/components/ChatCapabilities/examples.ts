@@ -315,7 +315,7 @@ export const EXAMPLES: CapabilityExample[] = [
     intent: 'create_recurring_task',
     group: 'erstellen',
     label: 'Wiederkehrende Aufgabe',
-    hint: 'Ein Auftrag, den der Grünerator regelmäßig von selbst ausführt. Experimentell.',
+    hint: 'Ein Auftrag, den der Grünerator regelmäßig von selbst ausführt.',
     questions: [
       'Schick mir jeden Montag eine Zusammenfassung der Nachrichten zur Klimapolitik.',
       'Erinnere mich monatlich daran, die Umfragewerte zu prüfen.',
@@ -439,7 +439,7 @@ export const EXAMPLES: CapabilityExample[] = [
     intent: 'mcp',
     group: 'verbunden',
     label: 'Eigene verbundene Dienste',
-    hint: 'Hast du unter Integrationen einen Dienst verbunden, kannst du ihn im Chat ansprechen. Experimentell.',
+    hint: 'Hast du unter Integrationen einen Dienst verbunden, kannst du ihn im Chat ansprechen.',
     questions: [
       '@tally Wie viele Antworten hat mein Formular bisher?',
       'Leg in meinem Aufgabenwerkzeug eine Aufgabe für die Vorstandssitzung an.',

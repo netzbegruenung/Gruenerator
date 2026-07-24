@@ -48,6 +48,11 @@ const SRC = {
   mentionables: 'packages/chat/src/lib/mentionables.ts',
   userTools: 'packages/shared/src/agents/userTools.ts',
   systemMcp: 'apps/api/services/mcp/systemMcpServers.ts',
+  // CONTROLLER_HANDLED_INTENTS is a `Record<SearchIntent, string>` — TypeScript
+  // forces it to cover every intent, and each entry says how that intent is
+  // handled, flagging the young ones with EXPERIMENTAL. That makes it a better
+  // source for "is this experimental?" than the enum's free-floating comments.
+  intentNotes: 'apps/api/agents/langgraph/ChatGraph/intentPipeline.vitest.ts',
 };
 
 function parse(relFile) {
@@ -129,6 +134,30 @@ function extractIntents() {
     .map((e) => e.text);
   if (intents.length === 0) throw new Error(`${SRC.intents}: searchIntentSchema is empty.`);
   return intents;
+}
+
+/** Intents whose entry in CONTROLLER_HANDLED_INTENTS is marked EXPERIMENTAL. */
+function extractExperimentalIntents() {
+  const sf = parse(SRC.intentNotes);
+  const decl = unwrap(findDeclaration(sf, 'CONTROLLER_HANDLED_INTENTS'));
+  if (!decl || !ts.isObjectLiteralExpression(decl)) {
+    throw new Error(
+      `${SRC.intentNotes}: CONTROLLER_HANDLED_INTENTS not found as an object literal. ` +
+        `It is the source for the "experimentell" badge; update generate-chat-capabilities.mjs.`
+    );
+  }
+  const experimental = [];
+  for (const p of decl.properties) {
+    if (!ts.isPropertyAssignment(p) || !p.name) continue;
+    const key = ts.isIdentifier(p.name) || ts.isStringLiteral(p.name) ? p.name.text : null;
+    const init = p.initializer;
+    const note =
+      init && (ts.isStringLiteral(init) || ts.isNoSubstitutionTemplateLiteral(init))
+        ? init.text
+        : '';
+    if (key && note.toUpperCase().includes('EXPERIMENTAL')) experimental.push(key);
+  }
+  return experimental;
 }
 
 /**
@@ -233,8 +262,17 @@ function sortKeys(obj) {
 
 function generate() {
   const system = extractSystemSources();
+  const intents = extractIntents();
+  // Plus everything served by an env-gated first-party source: those ship per
+  // environment and can be absent entirely, which is the same caveat for readers.
+  const experimentalIntents = [
+    ...new Set([...extractExperimentalIntents(), ...Object.keys(system.intentSources)]),
+  ]
+    .filter((i) => intents.includes(i))
+    .sort();
   const manifest = {
-    intents: extractIntents().slice().sort(),
+    intents: intents.slice().sort(),
+    experimentalIntents,
     mentionables: sortKeys(extractMentionables()),
     userTools: sortKeys(extractUserTools()),
     systemSources: sortKeys(system.sources),
