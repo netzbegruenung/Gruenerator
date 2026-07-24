@@ -1,5 +1,5 @@
 import { AIExtension } from '@blocknote/xl-ai';
-import { ForkYDocExtension } from '@blocknote/core/extensions';
+import { ForkYDocExtension } from '@blocknote/core/yjs';
 
 import { useEditorStore } from '../stores/editorStore';
 
