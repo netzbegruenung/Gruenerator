@@ -7,6 +7,8 @@
     "docusaurus": "docusaurus",
     "labels:generate": "node scripts/generate-ui-labels.mjs",
     "labels:check": "node scripts/generate-ui-labels.mjs --check",
+    "capabilities:generate": "node scripts/generate-chat-capabilities.mjs",
+    "capabilities:check": "node scripts/generate-chat-capabilities.mjs --check",
     "dev": "docusaurus start",
     "start": "docusaurus start",
     "build": "docusaurus build",
