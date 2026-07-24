@@ -161,6 +161,120 @@ describe.skipIf(!ENABLED)('runPythonCore against the real Pyodide runtime', () =
     expect(result.stdout).toContain('Gesamtgewinn: 42');
   }, 180_000);
 
+  it('keeps a template’s formatting, formulas AND embedded logo through a fill', async () => {
+    // Fidelity is the whole reason the fill path uses openpyxl instead of
+    // pandas. Images are the fragile part: openpyxl silently drops them unless
+    // Pillow is loaded, which would strip the letterhead off every party
+    // template — so the round trip is asserted, not assumed.
+    const gen = await runPythonCore(
+      py,
+      [
+        'import openpyxl, base64, io',
+        'from openpyxl.drawing.image import Image as XLImage',
+        'from PIL import Image as PILImage',
+        'wb = openpyxl.Workbook()',
+        'ws = wb.active',
+        'ws["A1"] = "Feld"',
+        'ws["A1"].font = openpyxl.styles.Font(bold=True)',
+        'ws.column_dimensions["A"].width = 42',
+        'ws["C2"] = "=1+1"',
+        'PILImage.new("RGB", (8, 8), (0, 122, 51)).save("logo.png")',
+        'ws.add_image(XLImage("logo.png"), "E1")',
+        'wb.save("orig.xlsx")',
+        'print(base64.b64encode(open("orig.xlsx", "rb").read()).decode())',
+      ].join('\n'),
+      [],
+      opts
+    );
+    expect(gen.ok).toBe(true);
+
+    const raw = Uint8Array.from(atob(gen.stdout.trim()), (ch) => ch.charCodeAt(0));
+    const template: PythonFile = {
+      name: 'vorlage_mit_logo.xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      bytes: raw.buffer.slice(0, raw.byteLength),
+    };
+
+    const filled = await runPythonCore(
+      py,
+      [
+        'import openpyxl',
+        'wb = openpyxl.load_workbook("vorlage_mit_logo.xlsx")',
+        'ws = wb.active',
+        'ws["B1"] = "Wert"',
+        'wb.save("vorlage_mit_logo_ausgefuellt.xlsx")',
+        'w2 = openpyxl.load_workbook("vorlage_mit_logo_ausgefuellt.xlsx").active',
+        'print("FETT:", w2["A1"].font.bold)',
+        'print("BREITE:", w2.column_dimensions["A"].width)',
+        'print("FORMEL:", w2["C2"].value)',
+        'print("BILDER:", len(w2._images))',
+      ].join('\n'),
+      [template],
+      opts
+    );
+
+    expect(filled.ok).toBe(true);
+    expect(filled.stdout).toContain('FETT: True');
+    expect(filled.stdout).toContain('BREITE: 42.0');
+    expect(filled.stdout).toContain('FORMEL: =1+1');
+    expect(filled.stdout).toContain('BILDER: 1');
+  }, 240_000);
+
+  it('fills an attached .xlsx with openpyxl and offers the new file for download', async () => {
+    // The Stufe-1 form-fill contract end to end: the staged workbook is opened
+    // by name, a cell is written, and the result is SAVED UNDER A NEW NAME —
+    // the harness excludes input files from the output collection, so an
+    // in-place save would silently produce no download at all.
+    const bytes = readFileSync(path.join(__dirname, 'fixtures/mathe_test_tabelle.xlsx'));
+    const file: PythonFile = {
+      name: 'vorlage.xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      bytes: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+    };
+
+    const result = await runPythonCore(
+      py,
+      [
+        'import openpyxl',
+        'wb = openpyxl.load_workbook("vorlage.xlsx")',
+        'ws = wb.active',
+        'ws["A1"] = "Ausgefuellt"',
+        'wb.save("vorlage_ausgefuellt.xlsx")',
+        'print("Datei erstellt: vorlage_ausgefuellt.xlsx")',
+      ].join('\n'),
+      [file],
+      opts
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.stdout).toContain('Datei erstellt: vorlage_ausgefuellt.xlsx');
+    expect(result.files.map((f) => f.name)).toEqual(['vorlage_ausgefuellt.xlsx']);
+    // The original must not be handed back as a "created" file.
+    expect(result.files.map((f) => f.name)).not.toContain('vorlage.xlsx');
+  }, 180_000);
+
+  it('survives a workbook pandas cannot pre-load and still runs openpyxl code', async () => {
+    // The df pre-load is a convenience, not a precondition: a form layout that
+    // read_excel chokes on must not kill a fill run that never touches `df`.
+    const result = await runPythonCore(
+      py,
+      [
+        'import openpyxl',
+        'wb = openpyxl.Workbook()',
+        'wb.active["A1"] = "ok"',
+        'wb.save("neu.xlsx")',
+        'print("fertig")',
+      ].join('\n'),
+      // No input file at all — openpyxl must still get installed via the
+      // import-based engine trigger.
+      [],
+      opts
+    );
+    expect(result.ok).toBe(true);
+    expect(result.stdout).toContain('fertig');
+    expect(result.files.map((f) => f.name)).toContain('neu.xlsx');
+  }, 180_000);
+
   it('drops the trailing GESAMT row of a real user xlsx (doubled-sum regression)', async () => {
     // The actual file behind the beta ground-truth failure: 60 data rows, one
     // blank row, then a detached GESAMT row with SUM formulas ("GESAMT:" in
