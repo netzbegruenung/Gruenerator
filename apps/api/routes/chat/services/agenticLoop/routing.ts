@@ -123,12 +123,7 @@ export function isEditorSurface(enabledTools: Record<string, boolean> | undefine
 }
 
 export type CompoundGenerationKind =
-  | 'sharepic'
-  | 'presentation'
-  | 'sheet'
-  | 'document'
-  | 'board'
-  | 'pdf';
+  'sharepic' | 'presentation' | 'sheet' | 'document' | 'board' | 'pdf';
 
 // Per-artifact nouns, used to recover the generation KIND from the text when the
 // intent no longer names it (a demoted `agentic` turn, or a `direct` misroute).
