@@ -34,8 +34,7 @@ export interface RunSharepicEditArgs {
 }
 
 export type RunSharepicEditResult =
-  | { ok: true; edit: SharepicEditResponse }
-  | { ok: false; error: string };
+  { ok: true; edit: SharepicEditResponse } | { ok: false; error: string };
 
 /** Compact German description of the current sharepic content for prompts. */
 export function buildSnapshotLines(snapshot: CanvasAiSnapshot): string[] {

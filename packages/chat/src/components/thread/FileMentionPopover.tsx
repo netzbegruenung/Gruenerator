@@ -26,8 +26,7 @@ import type {
 type Level = 'root' | 'documents';
 
 export type FileMentionSelection =
-  | { kind: 'document'; doc: DocumentMention }
-  | { kind: 'collab'; doc: CollabDocSelection };
+  { kind: 'document'; doc: DocumentMention } | { kind: 'collab'; doc: CollabDocSelection };
 
 interface FileMentionPopoverProps {
   visible: boolean;

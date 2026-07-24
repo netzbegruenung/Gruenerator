@@ -287,8 +287,7 @@ async function persistJobStatus(job: ContentSyncJobStatus): Promise<boolean> {
 }
 
 type SyncOutcome =
-  | { status: 200; body: ContentSyncResult }
-  | { status: 500; body: ContentSyncFailure };
+  { status: 200; body: ContentSyncResult } | { status: 500; body: ContentSyncFailure };
 
 /**
  * The full sync run, shared by the synchronous and background paths. Owns

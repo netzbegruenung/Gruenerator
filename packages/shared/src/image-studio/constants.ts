@@ -48,11 +48,7 @@ interface VeranstaltungApiResponse {
 
 /** Union of all raw text generation API responses */
 type TextApiResponse =
-  | DreizeilenResponse
-  | QuoteResponse
-  | InfoResponse
-  | VeranstaltungApiResponse
-  | SimpleResponse;
+  DreizeilenResponse | QuoteResponse | InfoResponse | VeranstaltungApiResponse | SimpleResponse;
 
 // ============================================================================
 // TYPE CONFIGURATIONS
