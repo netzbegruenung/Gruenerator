@@ -42,7 +42,7 @@
     "@gruenerator/eslint-config": "workspace:*",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
-    "@types/node": "^25.9.5",
+    "@types/node": "^26.1.1",
     "eslint": "^9.39.5",
     "tsx": "^4.23.0",
     "typescript": "^6.0.3",
