@@ -21,6 +21,7 @@ import { Readable } from 'stream';
 import { exportsContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { setContentDisposition } from '../../utils/http/contentDisposition.js';
@@ -68,10 +69,16 @@ export const exportsContractRouter = s.router(exportsContract, {
     }
   },
 
-  generatePdf: async ({ body, res }) => {
+  generatePdf: async ({ body, req, res }) => {
     try {
       const { content, title } = body;
-      const buffer = await generatePdfBuffer(content, title);
+      // AT gets its own corporate design (fonts, colours, logo), so the
+      // locale has to reach the renderer. The auth middleware has already
+      // overlaid req.user.locale from the DB-backed cache.
+      const locale = extractLocaleFromRequest(
+        req as Parameters<typeof extractLocaleFromRequest>[0]
+      );
+      const buffer = await generatePdfBuffer(content, title, locale);
       const filename = `${sanitizePdfFilename(title || 'Dokument')}.pdf`;
 
       res.setHeader('Content-Type', 'application/pdf');
@@ -100,6 +107,10 @@ export const exportsContractRouter = s.router(exportsContract, {
  * Mount the ts-rest contract router onto an Express app instance.
  * Call this from routes.ts BEFORE the legacy `/api/exports` router so
  * ts-rest matches its own routes first; unmatched paths fall through.
+ *
+ * `createExpressEndpoints` registers directly on `app`, so any prefix
+ * middleware (`requireAuth`, rate limiting) must already be mounted on
+ * `/api/exports` when this runs — otherwise these routes bypass it.
  */
 export function mountExportsContractRouter(app: Application): void {
   createExpressEndpoints(exportsContract, exportsContractRouter, app, {

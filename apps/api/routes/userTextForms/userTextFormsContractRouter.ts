@@ -160,7 +160,7 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
     } catch (error) {
       const err = error as Error;
       log.error('[userTextFormsContract.share] Error:', err);
-      return { status: 500 as const, body: { success: false, message: err.message } };
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
     }
   },
 
@@ -182,7 +182,7 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
     } catch (error) {
       const err = error as Error;
       log.error('[userTextFormsContract.unshare] Error:', err);
-      return { status: 500 as const, body: { success: false, message: err.message } };
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
     }
   },
 });
