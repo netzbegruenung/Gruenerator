@@ -323,7 +323,7 @@ export const toolMentionables: Mentionable[] = [
     identifier: 'pdf-erstellen',
     title: 'PDF erstellen',
     description:
-      'Erstellt ein barrierefreies PDF zum Herunterladen — Dokument, Brief mit Briefkopf oder ausfüllbares Formular',
+      'Erstellt ein barrierefreies PDF (PDF/UA-1) — Dokument, Brief mit Briefkopf oder ausfüllbares Formular',
     avatar: '📄',
     icon: PiFilePdf,
     backgroundColor: '#316049',
