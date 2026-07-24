@@ -135,7 +135,7 @@ export async function processAutomatischPR(
     sendSuccessResponse(
       res,
       formattedResult,
-      '/claude_social',
+      '/social',
       requestData,
       enrichedState.enrichmentMetadata || {}
     );

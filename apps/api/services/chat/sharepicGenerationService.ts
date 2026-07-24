@@ -8,7 +8,7 @@ import dreizeilenCanvasRouter from '../../routes/sharepic/sharepic_canvas/dreize
 import infoCanvasRouter from '../../routes/sharepic/sharepic_canvas/info_canvas.js';
 import zitatCanvasRouter from '../../routes/sharepic/sharepic_canvas/zitat_canvas.js';
 import zitatPureCanvasRouter from '../../routes/sharepic/sharepic_canvas/zitat_pure_canvas.js';
-import { handleClaudeRequest as sharepicClaudeHandler } from '../../routes/sharepic/sharepic_claude/index.js';
+import { handleSharepicTextRequest as sharepicTextHandler } from '../../routes/sharepic/sharepic_text/index.js';
 import {
   getFirstImageAttachment,
   convertToBuffer,
@@ -313,7 +313,7 @@ const callSharepicClaude = async (
   type: string,
   body: RequestBody
 ): Promise<Record<string, unknown>> => {
-  if (typeof sharepicClaudeHandler !== 'function') {
+  if (typeof sharepicTextHandler !== 'function') {
     throw new Error('Sharepic Claude handler unavailable');
   }
 
@@ -331,7 +331,7 @@ const callSharepicClaude = async (
   return new Promise<CanvasResult>((resolve, reject) => {
     const res = createMockResponse(resolve, reject);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument -- bridge between mock request and typed handler params
-    const maybePromise = sharepicClaudeHandler(mockReq as any, res as any, type as any) as
+    const maybePromise = sharepicTextHandler(mockReq as any, res as any, type as any) as
       | Promise<unknown>
       | undefined;
 

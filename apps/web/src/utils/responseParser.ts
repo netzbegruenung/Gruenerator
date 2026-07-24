@@ -15,7 +15,7 @@ import type { ParsedResponse } from '../hooks/useGeneratorResponse';
  * Each category has its own parser strategy
  */
 export type EndpointCategory =
-  | 'claude-text' // Standard Claude text generation endpoints
+  | 'claude-text' // Standard text generation endpoints
   | 'claude-search' // Search query endpoints
   | 'claude-structured' // Endpoints returning structured data (dreizeilen, info, …)
   | 'docs' // Document management
@@ -358,52 +358,30 @@ const RESPONSE_PARSERS = {
  * Add new endpoints here to automatically get the right parser
  */
 const ENDPOINT_CATEGORIES: Record<string, EndpointCategory> = {
-  // Claude text generation
-  '/claude_social': 'claude-text',
-  claude_social: 'claude-text',
-  '/claude_social/agent': 'claude-text',
-  'claude_social/agent': 'claude-text',
-  '/claude_universal': 'claude-text',
-  claude_universal: 'claude-text',
-  '/claude_rede': 'claude-text',
-  claude_rede: 'claude-text',
-  '/claude_wahlprogramm': 'claude-text',
-  claude_wahlprogramm: 'claude-text',
-  '/claude_buergeranfragen': 'claude-text',
-  claude_buergeranfragen: 'claude-text',
-  '/claude_alttext': 'alt-text',
-  claude_alttext: 'alt-text',
-  '/leichte_sprache': 'claude-text',
-  leichte_sprache: 'claude-text',
-  '/claude_text_adjustment': 'text-adjustment',
+  // Text generation
+  '/texte/social': 'claude-text',
+  '/texte/social/agent': 'claude-text',
+  '/texte/universal': 'claude-text',
+  '/texte/alttext': 'alt-text',
+  '/texte/leichte-sprache': 'claude-text',
+  '/texte/adjustment': 'text-adjustment',
 
   // Antrag endpoints
-  'claude/antrag': 'claude-text',
-  'claude/antrag-simple': 'claude-text',
   'antraege/generate-simple': 'claude-text',
   '/antraege/generate-simple': 'claude-text',
 
-  // Campaign generation
-
   // Search
-  'claude/search-query': 'claude-search',
   search: 'claude-search',
 
-  // Structured responses
-  '/dreizeilen_claude': 'claude-structured',
-  dreizeilen_claude: 'claude-structured',
-  info_claude: 'claude-structured',
-  '/info_claude': 'claude-structured',
-  simple_claude: 'claude-structured',
-  '/simple_claude': 'claude-structured',
-  veranstaltung_claude: 'claude-structured',
-  '/veranstaltung_claude': 'claude-structured',
-  zitat_claude: 'claude-structured',
-  '/zitat_claude': 'claude-structured',
-  zitat_pure_claude: 'claude-structured',
-  '/zitat_pure_claude': 'claude-structured',
-  zitat_abyssale: 'claude-structured',
-  '/zitat_abyssale': 'claude-structured',
+  // Structured responses (Sharepic-Textgenerierung)
+  '/sharepic/text/dreizeilen': 'claude-structured',
+  '/sharepic/text/info': 'claude-structured',
+  '/sharepic/text/simple': 'claude-structured',
+  '/sharepic/text/veranstaltung': 'claude-structured',
+  '/sharepic/text/zitat': 'claude-structured',
+  '/sharepic/text/zitat_pure': 'claude-structured',
+  '/sharepic/text/slider': 'claude-structured',
+  '/sharepic/text/default': 'claude-structured',
 
   // Documents
   'docs/from-export': 'docs',
@@ -434,7 +412,7 @@ const ENDPOINT_CATEGORIES: Record<string, EndpointCategory> = {
  *
  * @example
  * ```typescript
- * const result = parseEndpointResponse(apiResponse, '/claude_social');
+ * const result = parseEndpointResponse(apiResponse, '/texte/social');
  * if (result.success) {
  *   console.log(result.content, result.metadata);
  * } else {
@@ -520,7 +498,7 @@ export function parseEndpointResponse(response: unknown, endpoint: string): Pars
  *
  * @example
  * ```typescript
- * const category = getEndpointCategory('/claude_social');
+ * const category = getEndpointCategory('/texte/social');
  * console.log(category); // 'claude-text'
  * ```
  */

@@ -7,11 +7,11 @@ import type { SocialPlatform, AntragRequestType, AccessibilityMode } from './typ
 
 // API Endpoints
 export const GENERATOR_ENDPOINTS = {
-  PRESSE_SOCIAL: '/claude_social',
+  PRESSE_SOCIAL: '/texte/social',
   ANTRAG: '/antraege/generate-simple',
-  UNIVERSAL: '/claude_universal',
-  ALT_TEXT: '/claude_alttext',
-  LEICHTE_SPRACHE: '/leichte_sprache',
+  UNIVERSAL: '/texte/universal',
+  ALT_TEXT: '/texte/alttext',
+  LEICHTE_SPRACHE: '/texte/leichte-sprache',
 } as const;
 
 // Platform option interface
