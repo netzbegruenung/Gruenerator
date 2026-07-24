@@ -1,22 +1,15 @@
-import {
-  Button,
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-  FileCard,
-  SectionHeader,
-  Separator,
-} from '@gruenerator/ui';
+import { Button, FileCard, SectionHeader, Separator } from '@gruenerator/ui';
 import { motion } from 'motion/react';
 import { HiOutlineDocument, HiUpload } from 'react-icons/hi';
 
 import NotebookEditorDocsSection from '../NotebookEditorDocsSection';
 import NotebookEditorWolkeSection from '../NotebookEditorWolkeSection';
+import NotebookEditorWordpressSection from '../NotebookEditorWordpressSection';
 
-import DocumentCard from './DocumentCard';
+import DocumentsPanel from './DocumentsPanel';
 import LabelsField from './LabelsField';
-import { ACCEPTED_EXTENSIONS, MAX_DOCUMENTS } from './shared';
+import { ACCEPTED_EXTENSIONS } from './shared';
+
 import type { NotebookEditorStateBundle } from './useNotebookEditorState';
 
 interface NotebookEditFormProps {
@@ -26,9 +19,10 @@ interface NotebookEditFormProps {
 export default function NotebookEditForm({ state }: NotebookEditFormProps) {
   const {
     uploadedDocuments,
+    documentCount,
+    remainingSlots,
     stagedFiles,
-    wolkeDocuments,
-    manualDocuments,
+    documentsWithSource,
     wolkeFolders,
     setWolkeFolders,
     isUploading,
@@ -44,14 +38,18 @@ export default function NotebookEditForm({ state }: NotebookEditFormProps) {
     handleDragOver,
     handleDragLeave,
     handleRemoveDocument,
+    handleRemoveDocuments,
     handleUnstageFile,
     handleCommitStagedUpload,
     handleWolkeDocsImported,
+    handleWordpressDocsImported,
     handleDocsImported,
     handleSubmit,
     onSubmit,
     linkedDocs,
     setLinkedDocs,
+    wordpressSites,
+    setWordpressSites,
   } = state;
 
   return (
@@ -62,7 +60,7 @@ export default function NotebookEditForm({ state }: NotebookEditFormProps) {
         <NotebookEditorWolkeSection
           folders={wolkeFolders}
           onFoldersChange={setWolkeFolders}
-          remainingSlots={MAX_DOCUMENTS - uploadedDocuments.length}
+          remainingSlots={remainingSlots}
           onDocsImported={handleWolkeDocsImported}
           disabled={loading || isUploading}
         />
@@ -70,70 +68,37 @@ export default function NotebookEditForm({ state }: NotebookEditFormProps) {
         <NotebookEditorDocsSection
           linkedDocs={linkedDocs}
           onLinkedDocsChange={setLinkedDocs}
-          remainingSlots={MAX_DOCUMENTS - uploadedDocuments.length}
+          remainingSlots={remainingSlots}
           onDocsImported={handleDocsImported}
           onUploadedDocumentRemoved={handleRemoveDocument}
           disabled={loading || isUploading}
         />
 
-        {wolkeDocuments.length > 0 && (
-          <section>
-            <SectionHeader
-              title="Wolke Dokumente"
-              actions={<span className="text-sm text-grey-500">{wolkeDocuments.length}</span>}
-            />
-            <div className="grid grid-cols-1 gap-md sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-              {wolkeDocuments.map((doc) => (
-                <DocumentCard
-                  key={doc.id}
-                  doc={doc}
-                  indexing={indexingDocIds.has(doc.id)}
-                  loading={loading}
-                  onRemove={handleRemoveDocument}
-                />
-              ))}
-            </div>
-          </section>
-        )}
+        <NotebookEditorWordpressSection
+          sites={wordpressSites}
+          onSitesChange={setWordpressSites}
+          remainingSlots={remainingSlots}
+          onDocsImported={handleWordpressDocsImported}
+          onUploadedDocumentRemoved={handleRemoveDocument}
+          disabled={loading || isUploading}
+        />
 
         <section
-          className="relative"
+          className="relative space-y-md"
           onDragEnter={handleDragEnter}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
-          <SectionHeader
-            title="Dokumente"
-            onCreate={() => fileInputRef.current?.click()}
-            createLabel="Dokumente hinzufügen"
-            actions={
-              <span className="text-sm text-grey-500">
-                {manualDocuments.length}/{MAX_DOCUMENTS}
-              </span>
-            }
+          <DocumentsPanel
+            documents={documentsWithSource}
+            documentCount={documentCount}
+            indexingDocIds={indexingDocIds}
+            loading={loading}
+            onRemove={handleRemoveDocument}
+            onRemoveMany={handleRemoveDocuments}
+            onAddClick={() => fileInputRef.current?.click()}
           />
-
-          {manualDocuments.length === 0 ? (
-            <Empty>
-              <EmptyHeader>
-                <EmptyTitle>Noch keine Dokumente</EmptyTitle>
-                <EmptyDescription>Ziehe Dateien hierher oder klicke auf +.</EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : (
-            <div className="grid grid-cols-1 gap-md sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-              {manualDocuments.map((doc) => (
-                <DocumentCard
-                  key={doc.id}
-                  doc={doc}
-                  indexing={indexingDocIds.has(doc.id)}
-                  loading={loading}
-                  onRemove={handleRemoveDocument}
-                />
-              ))}
-            </div>
-          )}
 
           <input
             ref={fileInputRef}

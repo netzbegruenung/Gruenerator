@@ -100,7 +100,8 @@ export const userProfileContractRouter = s.router(userProfileContract, {
     try {
       const user = getUser(args.req);
       const profileService = getProfileService();
-      const { display_name, username, avatar_robot_id, email, custom_prompt } = args.body;
+      const { display_name, username, avatar_robot_id, email, custom_prompt, default_startpage } =
+        args.body;
 
       const updateData: Record<string, string | number | null | undefined> = {};
       if (display_name !== undefined) updateData.display_name = display_name || null;
@@ -108,6 +109,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       if (avatar_robot_id !== undefined) updateData.avatar_robot_id = avatar_robot_id;
       if (email !== undefined) updateData.email = email || null;
       if (custom_prompt !== undefined) updateData.custom_prompt = custom_prompt || null;
+      if (default_startpage !== undefined) updateData.default_startpage = default_startpage;
 
       log.debug(
         `[Profile Contract PUT /profile] Updating profile for user ${user.id}:`,
@@ -122,6 +124,14 @@ export const userProfileContractRouter = s.router(userProfileContract, {
         if (preservedBetaFeatures) {
           sessionUser.beta_features = preservedBetaFeatures;
         }
+      }
+
+      // `default_startpage` is read from the Better Auth session at boot to pick
+      // the sidebar/root redirect target. The Drizzle write above bypasses BA,
+      // so refresh the cookie cache (as updateLocale does) — otherwise a reload
+      // within the cache window still routes to the previous start page.
+      if (default_startpage !== undefined) {
+        await refreshSessionCookieCache(args.req, args.res);
       }
 
       return {

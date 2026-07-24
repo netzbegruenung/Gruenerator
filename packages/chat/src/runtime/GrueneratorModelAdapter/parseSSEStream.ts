@@ -718,9 +718,30 @@ export async function* parseSSEStream(
             // not just an ok/summary status. ok/summary are folded in for the
             // generic status chip. Replace by identity so memoized consumers
             // re-render.
+            // A system MCP tool may ship an MCP-Apps widget: lift its `ui://`
+            // pointer onto `mcp.app` so assistant-ui's mcpApp renderer mounts
+            // the sandboxed widget iframe in place of the normal tool card.
+            const uiResource = (result as { uiResource?: { uri?: unknown; mimeType?: unknown } })
+              ?.uiResource;
+            const widgetUri =
+              uiResource && typeof uiResource.uri === 'string' && uiResource.uri.startsWith('ui://')
+                ? uiResource.uri
+                : null;
             const updated: ToolCallPart = {
               ...pending,
               result: { ...(result ?? {}), ok, ...(summary ? { summary } : {}) },
+              ...(widgetUri
+                ? {
+                    mcp: {
+                      app: {
+                        resourceUri: widgetUri,
+                        ...(typeof uiResource?.mimeType === 'string'
+                          ? { mimeType: uiResource.mimeType }
+                          : {}),
+                      },
+                    },
+                  }
+                : {}),
             };
             toolStepsById.set(stepId, updated);
             const idx = allToolCalls.indexOf(pending);

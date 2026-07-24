@@ -124,9 +124,9 @@ const SidebarAccount = memo(function SidebarAccount({
         </span>
       </DropdownMenuItem>
       <DropdownMenuSeparator />
-      <DropdownMenuItem onClick={() => onNavigate('/gruppen', 'Spaces')}>
+      <DropdownMenuItem onClick={() => onNavigate('/projekte', 'Projekte')}>
         <FaUsers className="size-4" />
-        <span>Spaces</span>
+        <span>Projekte</span>
       </DropdownMenuItem>
       {/* Deep links to specific settings tabs; deferred so the closing dropdown
           and the opening dialog don't fight over the Radix body/focus lock. */}

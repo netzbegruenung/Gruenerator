@@ -306,6 +306,19 @@ export type ComputePayload = z.infer<typeof computePayloadSchema>;
 
 const flexibleRecord = z.record(z.string(), z.unknown());
 
+/** MCP-Apps widget pointer carried on `tool_step_result.result.uiResource` for
+ *  SYSTEM MCP tools only. The HTML is fetched on demand via `/api/mcp-apps`
+ *  (not inlined here); the client mounts it in a sandboxed iframe. */
+export const uiResourceSchema = z
+  .object({
+    serverKey: z.string(),
+    toolName: z.string(),
+    uri: z.string(),
+    structuredContent: flexibleRecord.optional(),
+  })
+  .passthrough();
+export type UiResource = z.infer<typeof uiResourceSchema>;
+
 /** sharepic_updated wire payload — canvasType pinned to the canonical enum so
  *  a junk template type can never enter the live store / studio handoff. */
 export const sharepicUpdatedEventSchema = z

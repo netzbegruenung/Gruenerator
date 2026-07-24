@@ -22,7 +22,7 @@ import PublicGroupsSection from '../components/PublicGroupsSection';
 import { SpacesComposer } from '../components/SpacesComposer';
 import { SpaceTile } from '../components/SpaceTile';
 import { useGroupResolver } from '../hooks/useGroupResolver';
-import { useGroups, type GroupSummary } from '../hooks/useGroups';
+import { useGroups, useInviteToGroup, type GroupSummary } from '../hooks/useGroups';
 
 type SpaceType = 'personal' | 'standard';
 
@@ -49,6 +49,7 @@ const GruppenPage = () => {
 
   const { userGroups, createGroup, isCreatingGroup, isCreateGroupError, createGroupError } =
     useGroups({ isActive: true });
+  const inviteToGroup = useInviteToGroup();
 
   const showSuccess = useCallback((msg: string) => {
     if (successTimer.current) clearTimeout(successTimer.current);
@@ -70,24 +71,41 @@ const GruppenPage = () => {
   }, []);
 
   const handleCreateGroup = useCallback(
-    (groupName: string, groupType: SpaceType) => {
+    (groupName: string, groupType: SpaceType, inviteEmails: string[] = []) => {
       if (isCreatingGroup) return;
       const name = groupName.trim();
+      const noun = groupType === 'standard' ? 'Gruppe' : 'Projekt';
       setSuccessMessage('');
       setErrorMessage('');
       createGroup(name, {
         groupType,
         onSuccess: (newGroup: GroupSummary) => {
           setCreateDialogOpen(false);
-          showSuccess(`Space "${name}" erfolgreich erstellt!`);
+          // Navigate to the new group immediately; the target is the same
+          // GruppenPage (detail view), so the banner still updates once the
+          // invites resolve in the background.
+          showSuccess(`${noun} „${name}" erfolgreich erstellt!`);
           void navigate(buildGroupPath(newGroup));
+          if (inviteEmails.length > 0) {
+            inviteToGroup.mutate(
+              { groupId: newGroup.id, emails: inviteEmails },
+              {
+                onSuccess: (res) =>
+                  showSuccess(
+                    `${res.sent} Einladung${res.sent === 1 ? '' : 'en'} versendet.` +
+                      (res.failed.length ? ` ${res.failed.length} fehlgeschlagen.` : '')
+                  ),
+                onError: () => showError('Einladungen konnten nicht versendet werden.'),
+              }
+            );
+          }
         },
         onError: (error: Error | null) => {
-          showError(error?.message || 'Space konnte nicht erstellt werden.');
+          showError(error?.message || `${noun} konnte nicht erstellt werden.`);
         },
       });
     },
-    [isCreatingGroup, createGroup, navigate, showSuccess, showError]
+    [isCreatingGroup, createGroup, inviteToGroup, navigate, showSuccess, showError]
   );
 
   const banners = (successMessage || errorMessage) && (
@@ -123,11 +141,11 @@ const GruppenPage = () => {
           />
         ) : groupResolver.isLoading ? (
           <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
-            Space wird geladen…
+            Projekt wird geladen…
           </p>
         ) : (
           <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
-            Space „{idOrSlug}" nicht gefunden.
+            Projekt „{idOrSlug}" nicht gefunden.
           </p>
         )}
         {createDialog}
@@ -136,12 +154,12 @@ const GruppenPage = () => {
   }
 
   // Overview — Office/Studio landing recipe: tinted gradient shell, hero greeting,
-  // a create-or-search composer, the two create "tools", then the space grids.
+  // a create-or-search composer, the two create "tools", then the project grids.
   return (
     <PageContainer maxWidth="lg" noPadTop bgClassName={getToolGradient('spaces')}>
       {banners}
 
-      <WorkplaceHero title={firstName ? `Deine Spaces, ${firstName}` : 'Deine Spaces'}>
+      <WorkplaceHero title={firstName ? `Deine Projekte, ${firstName}` : 'Deine Projekte'}>
         <SpacesComposer
           spaces={userGroups}
           isCreating={isCreatingGroup}
@@ -155,7 +173,7 @@ const GruppenPage = () => {
             <OfficeActionTile
               styleKey="spaces"
               icon={HiUser}
-              title="Single Space erstellen"
+              title="Projekt erstellen"
               description="Nur für dich — organisiere deine Chats & Inhalte."
               onClick={() => openCreate('personal')}
             />
@@ -164,7 +182,7 @@ const GruppenPage = () => {
             <OfficeActionTile
               styleKey="spaces"
               icon={HiUserGroup}
-              title="Gruppenspace erstellen"
+              title="Gruppe erstellen"
               description="Mit Team — Mitglieder, geteilte Inhalte & Beitritt."
               onClick={() => openCreate('standard')}
             />
@@ -172,10 +190,10 @@ const GruppenPage = () => {
         </div>
       </section>
 
-      <SectionHeader title="Deine Spaces" />
+      <SectionHeader title="Deine Projekte" />
       {userGroups && userGroups.length === 0 ? (
         <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
-          Noch keine Spaces vorhanden. Erstelle deinen ersten Space über das Feld oben.
+          Noch keine Projekte vorhanden. Erstelle dein erstes Projekt über das Feld oben.
         </p>
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,200px))] gap-3 sm:gap-4">
@@ -191,4 +209,4 @@ const GruppenPage = () => {
   );
 };
 
-export default withAuthRequired(GruppenPage, { title: 'Spaces' });
+export default withAuthRequired(GruppenPage, { title: 'Projekte' });

@@ -26,7 +26,13 @@ import { createLogger } from '../../../utils/logger.js';
 import { type SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import { type SSEWriter } from '../services/sseHelpers.js';
 
-import { createSerializer, sanitizeToolName, type McpCatalog } from './mcpCatalog.js';
+import {
+  createSerializer,
+  requiredParams,
+  requiredParamsAnnotation,
+  sanitizeToolName,
+  type McpCatalog,
+} from './mcpCatalog.js';
 import { sanitizeMcpSchema } from './mcpSchemaSanitizer.js';
 
 const log = createLogger('systemMcpCatalog');
@@ -46,6 +52,44 @@ const ERROR_MAX_CHARS = 2_000;
 // the card renders (8 rows + "+N weitere").
 const CONDENSED_MAX_ENTRIES = 15;
 const NEWS_MAX_CITATIONS = 10;
+
+// ── MCP-Apps widget detection (system sources only) ──────────────────────────
+
+/** Lightweight widget pointer carried on the tool result → SSE → client. The
+ *  HTML itself is fetched on demand via the `/api/mcp-apps` route (not persisted
+ *  here), so the step result stays small and thread reloads re-fetch cleanly. */
+export interface SystemWidgetPointer {
+  serverKey: SystemMcpKey;
+  toolName: string;
+  uri: string;
+  /** The structured data the widget renders (seeds `window.openai.toolOutput`). */
+  structuredContent?: Record<string, unknown>;
+}
+
+/** Detect a `ui://…` widget pointer from a tool's `_meta`, the result `_meta`,
+ *  or an embedded/linked resource — covering both the OpenAI Apps SDK
+ *  (`openai/outputTemplate`) and MCP-Apps (`ui.resourceUri`) conventions. */
+export function resolveWidgetUri(
+  toolMeta: Record<string, unknown> | undefined,
+  resultMeta: Record<string, unknown> | undefined,
+  resources: { uri: string }[] | undefined
+): string | null {
+  const fromMeta = (m: Record<string, unknown> | undefined): string | null => {
+    if (!m) return null;
+    const tmpl = m['openai/outputTemplate'];
+    if (typeof tmpl === 'string' && tmpl.startsWith('ui://')) return tmpl;
+    const ui = m.ui as { resourceUri?: unknown } | undefined;
+    if (ui && typeof ui.resourceUri === 'string' && ui.resourceUri.startsWith('ui://'))
+      return ui.resourceUri;
+    return null;
+  };
+  return (
+    fromMeta(resultMeta) ??
+    fromMeta(toolMeta) ??
+    resources?.find((r) => r.uri.startsWith('ui://'))?.uri ??
+    null
+  );
+}
 
 // listTools is stable per deployment of a first-party server — cache it so hot
 // turns skip one round-trip (connect still happens per turn for the calls).
@@ -172,7 +216,9 @@ export function extractNewsResults(text: string): SearchResult[] {
 const EMPTY: McpCatalog = {
   tools: {},
   labels: new Map(),
+  catalogSummary: '',
   scopedServerMissing: false,
+  scopedServerUnreachable: false,
   close: async () => {},
 };
 
@@ -194,6 +240,8 @@ export async function loadSystemMcpCatalog(params: {
   const tools: ToolSet = {};
   const labels = new Map<string, { serverName: string; toolName: string }>();
   const mountedKeys = new Set<string>();
+  // Keyed by source.key for stable ordering (Promise.all resolves out of order).
+  const catalogByServer = new Map<string, string>();
 
   await Promise.all(
     sources.map(async (source) => {
@@ -208,13 +256,19 @@ export async function loadSystemMcpCatalog(params: {
           : listed;
         const callSerialized = createSerializer();
 
+        const toolEntries: string[] = [];
         for (const t of allowed) {
           const providerName = `${source.key}__${sanitizeToolName(t.name)}`.slice(0, 64);
           if (tools[providerName]) continue;
           labels.set(providerName, { serverName: source.name, toolName: t.name });
+          const sanitized = sanitizeMcpSchema(t.inputSchema);
+          const required = requiredParams(sanitized);
+          toolEntries.push(`${t.name} ${requiredParamsAnnotation(required)}`);
+          const requiredSuffix =
+            required.length > 0 ? ` — Pflichtfelder: ${required.join(', ')}` : '';
           tools[providerName] = dynamicTool({
-            description: `[${source.name}] ${t.description ?? ''}`.slice(0, 1024),
-            inputSchema: jsonSchema(sanitizeMcpSchema(t.inputSchema)),
+            description: `[${source.name}] ${t.description ?? ''}${requiredSuffix}`.slice(0, 1024),
+            inputSchema: jsonSchema(sanitized),
             execute: async (input) => {
               const result = await callSerialized(() =>
                 client.callTool(t.name, (input ?? {}) as Record<string, unknown>, {
@@ -228,9 +282,34 @@ export async function loadSystemMcpCatalog(params: {
                   error: result.content.slice(0, ERROR_MAX_CHARS) || 'Fehler beim Tool-Aufruf.',
                 };
               }
-              return postProcess(source, t.name, result.content, params);
+              const shaped = postProcess(source, t.name, result.content, params);
+              // System-only widget detection: attach a lightweight pointer when
+              // the tool ships an MCP-Apps / OpenAI-Apps-SDK `ui://` widget. This
+              // file is system MCPs only, so producing a pointer here IS the
+              // trust gate — user connectors (mcpCatalog) never get one.
+              const widgetUri = resolveWidgetUri(t.meta, result.meta, result.resources);
+              if (widgetUri) {
+                const uiResource: SystemWidgetPointer = {
+                  serverKey: source.key,
+                  toolName: t.name,
+                  uri: widgetUri,
+                  ...(result.structuredContent
+                    ? { structuredContent: result.structuredContent }
+                    : {}),
+                };
+                shaped.uiResource = uiResource;
+                log.info(
+                  `[systemMcpCatalog] widget ${source.key}__${t.name} → ${widgetUri}${
+                    result.structuredContent ? ' (+structuredContent)' : ''
+                  }`
+                );
+              }
+              return shaped;
             },
           });
+        }
+        if (toolEntries.length > 0) {
+          catalogByServer.set(source.key, `${source.name} · ${toolEntries.join(' · ')}`);
         }
       } catch (err) {
         log.warn(
@@ -241,10 +320,17 @@ export async function loadSystemMcpCatalog(params: {
     })
   );
 
+  const catalogSummary = sources
+    .map((s) => catalogByServer.get(s.key))
+    .filter((line): line is string => line != null)
+    .join('\n');
+
   return {
     tools,
     labels,
+    catalogSummary,
     scopedServerMissing: false,
+    scopedServerUnreachable: false,
     systemSourceKeys: mountedKeys,
     close: async () => {
       await Promise.all(clients.map((c) => c.close()));

@@ -65,8 +65,14 @@ export interface ToolLoopGuardOptions {
 }
 
 export interface ToolLoopGuards {
-  /** Rejects a repeated call — turn-wide normalized by default. */
-  checkDuplicate(toolName: string, input: unknown): string | null;
+  /** Rejects a repeated call — turn-wide normalized by default. Pass
+   *  `skipNearDuplicate` for structured-arg tools (MCP connectors) that must not
+   *  be blocked by the search-tuned Jaccard/subset heuristic. */
+  checkDuplicate(
+    toolName: string,
+    input: unknown,
+    opts?: { skipNearDuplicate?: boolean }
+  ): string | null;
   noteFailure(toolName: string): void;
   /** Non-null once a single tool has failed `maxFailuresPerTool` times. */
   checkFailureCap(toolName: string): string | null;
@@ -187,7 +193,8 @@ export function createToolLoopGuards(options: ToolLoopGuardOptions = {}): ToolLo
   let emptyCompletions = 0;
 
   return {
-    checkDuplicate(toolName, input) {
+    checkDuplicate(toolName, input, opts) {
+      const skipNearDuplicate = opts?.skipNearDuplicate ?? false;
       // 'consecutive' keeps the original exact-match semantics (sharepic edit
       // loop); 'turn' normalizes so re-phrasings of the same query collide.
       const key =
@@ -205,8 +212,16 @@ export function createToolLoopGuards(options: ToolLoopGuardOptions = {}): ToolLo
       // Near-duplicate (turn scope): a re-phrasing that shares ≥ threshold tokens
       // with a prior same-tool search. Catches "Atomkraft Position Grüne" vs
       // "Position Atomkraft" that the exact-key check above misses.
+      //
+      // SKIPPED for MCP connector tools (`skipNearDuplicate`): this Jaccard/subset
+      // heuristic is tuned for natural-language search queries. Connectors take
+      // STRUCTURED args (`{location, checkin}`, `{subject}`) where legitimately
+      // different calls share most tokens, and a corrective retry after a
+      // validation error (e.g. Sally "subject must be ≥3 chars" → retry with a
+      // real subject) reads as "too similar" and gets wrongly blocked. Connectors
+      // keep only the exact-normalized-duplicate guard above.
       const tokens = inputTokens(input);
-      if (nearDuplicateJaccard > 0 && tokens.size > 0) {
+      if (!skipNearDuplicate && nearDuplicateJaccard > 0 && tokens.size > 0) {
         const priorSets = priorTokens.get(toolName) ?? [];
         if (
           priorSets.some(

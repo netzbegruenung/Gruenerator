@@ -17,6 +17,7 @@ import {
 } from '../../../../services/chat/productKnowledge.js';
 import { localizePlaceholders } from '../../../../services/localization/index.js';
 import { type Locale } from '../../../../services/localization/types.js';
+import { getTextFormForInjection } from '../../../../services/user/textFormRepository.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { formatGermanDate } from '../../../../utils/stringUtils.js';
 import { INTERMEDIATE_MODEL } from '../llmConfig.js';
@@ -25,6 +26,7 @@ import { isSourceAvailabilityError } from '../types.js';
 import { type AnchorDescriptor, getActiveAnchors } from './anchorContext.js';
 import { buildCitableSources, type CitableSource } from './citableSources.js';
 import { lastUserText } from './classifierHeuristics.js';
+import { deriveTextFormMention } from './textFormMention.js';
 
 import type {
   ChatGraphState,
@@ -879,6 +881,23 @@ const SEARCH_GUIDANCE =
   '\nDu hast Recherche-Ergebnisse erhalten. Beantworte die Frage primär aus diesen Ergebnissen und zitiere sie inline.';
 
 /**
+ * The artefact-action intents (save_as_doc / modify_doc / share_doc /
+ * modify_board) are single-pass: the PLATFORM performs the action — Stage 4c in
+ * the router creates the document, the confirm flow applies modify/share — not
+ * the model. The model holds no tool here and gets no `capabilityNote` (that
+ * one lives in the agentic loop, which these intents never enter).
+ *
+ * Without this note it fills the gap by inventing a limitation: "Ich kann keine
+ * neuen Dateien erstellen", "keinen Zugriff auf dein Dateisystem", followed by
+ * a copy-paste workaround — while the document IS created moments later, so the
+ * narration contradicts the action. Observed live on all three lanes (Small 4,
+ * Gemma 4 and, less often, Mistral Medium), which is why it belongs in the
+ * prompt rather than in the model choice.
+ */
+const ARTEFACT_ACTION_GUIDANCE =
+  '\nWICHTIG: Der Grünerator legt Dokumente selbst an, ändert und teilt sie — das passiert automatisch, direkt nachdem du geantwortet hast. Behaupte deshalb NIEMALS, du könntest keine Dokumente oder Dateien erstellen, speichern oder teilen, und verweise NICHT auf Kopieren/Einfügen, ein Dateisystem oder einen Umweg über ein anderes Menü. Bestätige die Aktion knapp in einem Satz (z.B. „Ich lege das als Dokument an.") und schreibe den Inhalt NICHT noch einmal aus.';
+
+/**
  * Synthesis-mode guidance for multi-document chat.
  * Selected at classification time based on intent + doc count.
  *
@@ -926,7 +945,11 @@ export function getModeGuidance(state: ChatGraphState): string {
     case 'direct':
       return DIRECT_GUIDANCE + DIRECT_HONESTY_NOTE;
     case 'save_as_doc':
-      return DIRECT_GUIDANCE;
+      return DIRECT_GUIDANCE + ARTEFACT_ACTION_GUIDANCE;
+    case 'modify_doc':
+    case 'modify_board':
+    case 'share_doc':
+      return SEARCH_GUIDANCE + ARTEFACT_ACTION_GUIDANCE;
     case 'compare':
     case 'research':
     case 'search':
@@ -934,9 +957,6 @@ export function getModeGuidance(state: ChatGraphState): string {
     case 'examples':
     case 'pressemitteilung_examples':
     case 'sharepic':
-    case 'modify_doc':
-    case 'modify_board':
-    case 'share_doc':
       return SEARCH_GUIDANCE;
     default:
       return SEARCH_GUIDANCE;
@@ -1097,10 +1117,28 @@ Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsForm
   const activeSkill = state.activeSkillMention
     ? SKILLS.find((s) => s.mention === state.activeSkillMention)
     : undefined;
-  const skillFragment =
-    activeSkill && 'skillSystemPrompt' in activeSkill && activeSkill.skillSystemPrompt
-      ? `\n\n## AKTIVE PLATTFORM: ${activeSkill.title}\n${activeSkill.skillSystemPrompt}`
-      : '';
+
+  // Per-user learned writing style ("Texte anlernen") takes precedence over the
+  // standard skill prompt when the user has trained one for the active mention:
+  //   - preset (Presse/Instagram/…): the learned block REPLACES the system
+  //     skill's standard prompt (komplett ersetzen);
+  //   - custom mention (no system skill, e.g. /omveinladungen): injected as its
+  //     own "## AKTIVE TEXTFORM" block onto the base agent.
+  // See services/user/textFormRepository.ts (cached, no LLM on the hot path).
+  const textFormMention = deriveTextFormMention(state.activeSkillMention, activeSkill);
+  const userTextForm =
+    !isNeutralTurn && agentConfig.userId && textFormMention
+      ? await getTextFormForInjection(agentConfig.userId, textFormMention)
+      : null;
+
+  let skillFragment = '';
+  if (userTextForm) {
+    skillFragment = activeSkill
+      ? `\n\n## AKTIVE PLATTFORM: ${activeSkill.title}\n${userTextForm.styleBlock}`
+      : `\n\n## AKTIVE TEXTFORM: ${userTextForm.title}\n${userTextForm.styleBlock}`;
+  } else if (activeSkill && 'skillSystemPrompt' in activeSkill && activeSkill.skillSystemPrompt) {
+    skillFragment = `\n\n## AKTIVE PLATTFORM: ${activeSkill.title}\n${activeSkill.skillSystemPrompt}`;
+  }
 
   // Monthly corpus-insight overlay for the Öffentlichkeitsarbeit (PR) agents:
   // an additive, subordinate block (current themes / active speakers / style /

@@ -37,6 +37,7 @@ import { iconClass, menuLinkClass } from './sidebarStyles';
 import { SpacesSidebarSection } from './SpacesSidebarSection';
 
 import { cn } from '@/utils/cn';
+import { startPagePath } from '@/utils/startpage';
 import '../../../assets/styles/components/layout/sidebar.css';
 
 // The Sidebar renders on every route; keep cmdk and the feature index out of
@@ -80,13 +81,21 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
   const newMenuOpenRef = useRef(false);
   const accountMenuOpenRef = useRef(false);
+  const spacesMenuOpenRef = useRef(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
   const directMenuItems = useMemo(() => getDirectMenuItems({ isAustrian }), [isAustrian]);
   const mobileOnlyItems = useMemo(() => getMobileOnlyMenuItems(), []);
+  // The "start" icon opens the user's preferred Workplace surface (Chat or
+  // Arbeiten). Override its target here so the click, the mobile <Link to>, and
+  // active highlighting all resolve to the same path.
+  const startTarget = startPagePath(user?.default_startpage);
   const additionalItems = useMemo<MenuItemType[]>(
-    () => [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)],
-    [directMenuItems, mobileOnlyItems]
+    () =>
+      [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)].map((item) =>
+        item.id === 'startseite' ? { ...item, path: startTarget } : item
+      ),
+    [directMenuItems, mobileOnlyItems, startTarget]
   );
   const sidebarExpanded = isOpen || forceExpanded;
 
@@ -186,7 +195,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
       // outside the sidebar (main content, or the window).
       const rt = e.relatedTarget;
       if (rt instanceof Node && e.currentTarget.contains(rt)) return;
-      if (!newMenuOpenRef.current && !accountMenuOpenRef.current) {
+      if (!newMenuOpenRef.current && !accountMenuOpenRef.current && !spacesMenuOpenRef.current) {
         close();
       }
     },
@@ -321,6 +330,15 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           onClose={close}
         />
 
+        {/* Projekte quick-view popup */}
+        <SpacesSidebarSection
+          openRef={spacesMenuOpenRef}
+          titleClass={titleClass}
+          collapsed={!sidebarExpanded}
+          onNavigate={handleLinkClick}
+          onClose={close}
+        />
+
         {/* Favourites */}
         <SidebarFavourites
           isOpen={isOpen}
@@ -331,18 +349,13 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
         />
       </nav>
 
-      {/* Scroll region: spaces + chat threads */}
+      {/* Scroll region: chat threads */}
       <div
         className={cn(
           'flex-1 min-h-0 overflow-y-auto scrollbar-thin',
           !sidebarExpanded && 'hidden'
         )}
       >
-        <SpacesSidebarSection
-          sidebarExpanded={sidebarExpanded}
-          onLinkClick={handleLinkClick}
-          isActive={isActive}
-        />
         {/* Registers the slot node synchronously (ref callback fires during
             commit), so the global chat runtime's thread-list portal follows it
             atomically across per-route remounts — no flicker. */}

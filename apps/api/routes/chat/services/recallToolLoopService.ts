@@ -10,7 +10,7 @@
  * `stopWhen`, per-turn guards, compact tool results, SSE tool-step events. When
  * the flag is off the router uses the deterministic chat_history branch instead.
  */
-import { streamText, tool, stepCountIs, type ModelMessage } from 'ai';
+import { streamText, tool, isStepCount, type ModelMessage } from 'ai';
 import { z } from 'zod';
 
 import { extractKeyParagraphs } from '../../../agents/langgraph/WebSearchGraph/utilities/contentExtractor.js';
@@ -249,13 +249,13 @@ export async function handleRecallToolLoop(args: HandleRecallLoopArgs): Promise<
       system: buildSystemPrompt(),
       messages,
       tools,
-      stopWhen: stepCountIs(MAX_STEPS),
+      stopWhen: isStepCount(MAX_STEPS),
       temperature: 0.2,
       maxOutputTokens: 900,
       abortSignal: AbortSignal.timeout(TURN_TIMEOUT_MS),
     });
 
-    const iterator = result.fullStream[Symbol.asyncIterator]();
+    const iterator = result.stream[Symbol.asyncIterator]();
     while (true) {
       const next = await iterator.next();
       if (next.done) break;

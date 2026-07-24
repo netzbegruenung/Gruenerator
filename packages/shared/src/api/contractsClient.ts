@@ -39,10 +39,13 @@ import {
   notebookContract,
   notebookCollectionsContract,
   wolkePendingContract,
+  notebookWordpressContract,
+  userWebsitesContract,
   notebookSharingContract,
   transferContract,
   notificationsContract,
   emailContract,
+  feedbackContract,
   modelPreferencesContract,
   imageModelPreferenceContract,
   mcpServersContract,
@@ -52,6 +55,7 @@ import {
   templateInteractionsContract,
   userAgentsContract,
   userAgentsSharingContract,
+  userTextFormsContract,
   recurringTasksContract,
   docsContract,
   documentsContract,
@@ -198,10 +202,13 @@ const _publicBoardsClient = () => initClient(publicBoardsContract, CLIENT_OPTS);
 const _notebookClient = () => initClient(notebookContract, CLIENT_OPTS);
 const _notebookCollectionsClient = () => initClient(notebookCollectionsContract, CLIENT_OPTS);
 const _wolkePendingClient = () => initClient(wolkePendingContract, CLIENT_OPTS);
+const _notebookWordpressClient = () => initClient(notebookWordpressContract, CLIENT_OPTS);
+const _userWebsitesClient = () => initClient(userWebsitesContract, CLIENT_OPTS);
 const _notebookSharingClient = () => initClient(notebookSharingContract, CLIENT_OPTS);
 const _transferClient = () => initClient(transferContract, CLIENT_OPTS);
 const _notificationsClient = () => initClient(notificationsContract, CLIENT_OPTS);
 const _emailClient = () => initClient(emailContract, CLIENT_OPTS);
+const _feedbackClient = () => initClient(feedbackContract, CLIENT_OPTS);
 const _modelPreferencesClient = () => initClient(modelPreferencesContract, CLIENT_OPTS);
 const _imageModelPreferenceClient = () => initClient(imageModelPreferenceContract, CLIENT_OPTS);
 const _mcpServersClient = () => initClient(mcpServersContract, CLIENT_OPTS);
@@ -211,6 +218,7 @@ const _userTemplatesClient = () => initClient(userTemplatesContract, CLIENT_OPTS
 const _templateInteractionsClient = () => initClient(templateInteractionsContract, CLIENT_OPTS);
 const _userAgentsClient = () => initClient(userAgentsContract, CLIENT_OPTS);
 const _userAgentsSharingClient = () => initClient(userAgentsSharingContract, CLIENT_OPTS);
+const _userTextFormsClient = () => initClient(userTextFormsContract, CLIENT_OPTS);
 const _recurringTasksClient = () => initClient(recurringTasksContract, CLIENT_OPTS);
 const _docsClient = () => initClient(docsContract, CLIENT_OPTS);
 const _documentsClient = () => initClient(documentsContract, CLIENT_OPTS);
@@ -249,10 +257,13 @@ export interface ContractsClient {
   notebook: ReturnType<typeof _notebookClient>;
   notebookCollections: ReturnType<typeof _notebookCollectionsClient>;
   wolkePending: ReturnType<typeof _wolkePendingClient>;
+  notebookWordpress: ReturnType<typeof _notebookWordpressClient>;
+  userWebsites: ReturnType<typeof _userWebsitesClient>;
   notebookSharing: ReturnType<typeof _notebookSharingClient>;
   transfer: ReturnType<typeof _transferClient>;
   notifications: ReturnType<typeof _notificationsClient>;
   email: ReturnType<typeof _emailClient>;
+  feedback: ReturnType<typeof _feedbackClient>;
   modelPreferences: ReturnType<typeof _modelPreferencesClient>;
   imageModelPreference: ReturnType<typeof _imageModelPreferenceClient>;
   mcpServers: ReturnType<typeof _mcpServersClient>;
@@ -262,6 +273,7 @@ export interface ContractsClient {
   templateInteractions: ReturnType<typeof _templateInteractionsClient>;
   userAgents: ReturnType<typeof _userAgentsClient>;
   userAgentsSharing: ReturnType<typeof _userAgentsSharingClient>;
+  userTextForms: ReturnType<typeof _userTextFormsClient>;
   recurringTasks: ReturnType<typeof _recurringTasksClient>;
   docs: ReturnType<typeof _docsClient>;
   documents: ReturnType<typeof _documentsClient>;
@@ -317,10 +329,13 @@ export function getContractsClient(): ContractsClient {
     notebook: _notebookClient(),
     notebookCollections: _notebookCollectionsClient(),
     wolkePending: _wolkePendingClient(),
+    notebookWordpress: _notebookWordpressClient(),
+    userWebsites: _userWebsitesClient(),
     notebookSharing: _notebookSharingClient(),
     transfer: _transferClient(),
     notifications: _notificationsClient(),
     email: _emailClient(),
+    feedback: _feedbackClient(),
     modelPreferences: _modelPreferencesClient(),
     imageModelPreference: _imageModelPreferenceClient(),
     mcpServers: _mcpServersClient(),
@@ -330,6 +345,7 @@ export function getContractsClient(): ContractsClient {
     templateInteractions: _templateInteractionsClient(),
     userAgents: _userAgentsClient(),
     userAgentsSharing: _userAgentsSharingClient(),
+    userTextForms: _userTextFormsClient(),
     recurringTasks: _recurringTasksClient(),
     docs: _docsClient(),
     documents: _documentsClient(),

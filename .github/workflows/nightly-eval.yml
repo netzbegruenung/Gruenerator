@@ -45,13 +45,13 @@ jobs:
         lane: [mistral, gemma-4]
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -87,7 +87,7 @@ jobs:
 
       - name: Upload traces
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: eval-traces-${{ matrix.lane }}
           path: |
@@ -97,7 +97,7 @@ jobs:
 
       - name: Open baseline PR
         if: inputs.update_baseline
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           branch: chore/eval-baseline-${{ matrix.lane }}
           title: 'chore(evals): update ${{ matrix.lane }} eval baseline'

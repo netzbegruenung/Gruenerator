@@ -34,7 +34,8 @@ CREATE TABLE IF NOT EXISTS profiles (
     anweisungen BOOLEAN DEFAULT FALSE,
     chat_color TEXT,
     nextcloud_share_links JSONB DEFAULT '[]',
-    document_mode TEXT DEFAULT 'manual'
+    document_mode TEXT DEFAULT 'manual',
+    default_startpage TEXT NOT NULL DEFAULT 'chat' CHECK (default_startpage IN ('chat', 'arbeiten'))
 );
 
 -- Documents table with dual-mode support (vectors-only, no file storage)

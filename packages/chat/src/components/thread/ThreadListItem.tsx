@@ -177,7 +177,7 @@ export function GrueneratorThreadListItem() {
               className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground"
             >
               <Users className="h-3.5 w-3.5" />
-              Zu Space hinzufügen
+              Zu Projekt hinzufügen
             </ThreadListItemMorePrimitive.Item>
             <ThreadListItemMorePrimitive.Item
               onClick={() => setShareOpen(true)}
