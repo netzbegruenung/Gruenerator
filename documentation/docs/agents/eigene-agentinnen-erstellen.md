@@ -6,7 +6,7 @@ sidebar_position: 2
 
 Du kannst dir im Grünerator deine **eigenen Agent\*innen bauen** — ganz ohne technische Vorkenntnisse. Es gibt zwei Wege: per **Beschreibung** (die KI erstellt einen Entwurf) oder **manuell** über das Formular.
 
-:::caution Experimentelles Feature
+:::caution[Experimentelles Feature]
 Eigene Agent\*innen sind noch in der Erprobung. Verhalten und Funktionen können sich ändern, und nicht alles funktioniert schon zuverlässig. Beim Bauen siehst du oben einen entsprechenden Hinweis-Banner. Bitte melde Probleme dem Team.
 :::
 
@@ -20,7 +20,7 @@ Du landest auf der Seite **„Was für einen Agent möchtest du bauen?"**. Besch
 
 Drücke anschließend den Senden-Pfeil (oder `Enter`). Der Grünerator erstellt daraus einen Entwurf und öffnet direkt den Editor mit vorausgefüllten Feldern.
 
-:::tip Lieber selbst ausfüllen?
+:::tip[Lieber selbst ausfüllen?]
 Klicke auf **„Lieber manuell anlegen?"**, um den Editor mit leerem Formular zu öffnen (entspricht der Adresse `/agents/new/manual`).
 :::
 
@@ -60,11 +60,11 @@ Darunter im selben Tab:
 - **Begrüßung & Startfragen** — ein **Begrüßungstext** und **Beispielfragen** (eine pro Zeile), die beim Öffnen des Agenten angezeigt werden.
 - **Erweiterte Einstellungen** — **Region** (Deutschland `de-DE` / Österreich `de-AT`), **Tags** (kommagetrennt) und das **Modell**.
 
-:::tip Erst das Wissen, dann der Agent
+:::tip[Erst das Wissen, dann der Agent]
 Lege dir vorher unter [Notebooks](../notebooks/eigenes-notebook-erstellen) ein eigenes Notebook an und lade eure Dokumente hoch. Im Editor kannst du es dann unter **Wissen → Meine Notebooks** auswählen — und dein Agent antwortet ausschließlich aus euren Quellen, mit nachprüfbaren Quellenangaben.
 :::
 
-:::info Wiederkehrende Aufgaben
+:::info[Wiederkehrende Aufgaben]
 Du kannst einen Agenten auch als **wiederkehrende Aufgabe** anlegen — er läuft dann automatisch nach Zeitplan (z. B. „jeden Montag eine Presseschau"). Starte dazu die Erstellung aus dem Regal **Wiederkehrende Aufgaben** in der Agentura; im Editor erscheint ein zusätzlicher **Zeitplan**-Tab.
 :::
 
