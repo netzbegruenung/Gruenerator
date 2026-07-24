@@ -60,9 +60,12 @@ const GeneralTab = () => {
         </div>
       </SettingsRow>
 
-      <SettingsRow title="Chat-Hintergrund" description="Der Farbschimmer hinter dem Chat-Start">
+      <SettingsRow
+        title="Chat-Hintergrund"
+        description="Färbt den Schimmer hinter dem Chat-Start und den Senden-Button"
+      >
         <div className="flex gap-1.5">
-          {CHAT_BACKGROUND_PRESETS.map(({ key, label, swatch }) => (
+          {CHAT_BACKGROUND_PRESETS.map(({ key, label, swatch, accent }) => (
             <button
               key={key}
               type="button"
@@ -78,7 +81,14 @@ const GeneralTab = () => {
               )}
               style={{ backgroundImage: swatch }}
             >
-              {chatBackground === key && <Check className="size-3.5 text-primary-700" />}
+              {/* Der Haken trägt die Akzentfarbe — so zeigt das ausgewählte
+                  Plättchen gleich mit, welche Farbe der Senden-Button bekommt. */}
+              {chatBackground === key && (
+                <Check
+                  className="size-3.5 text-primary-700"
+                  style={accent ? { color: accent } : undefined}
+                />
+              )}
             </button>
           ))}
         </div>
