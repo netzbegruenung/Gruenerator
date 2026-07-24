@@ -37,6 +37,7 @@ const PASSTHROUGH_SAMPLES: Record<(typeof PASSTHROUGH_METADATA_FIELDS)[number], 
   },
   agentId: 'gruenerator-pressemitteilung',
   roleName: 'Sprecher:in',
+  interrupted: true,
 };
 
 describe('convertToThreadMessageLike — reload reconstruction', () => {
@@ -52,6 +53,21 @@ describe('convertToThreadMessageLike — reload reconstruction', () => {
     for (const field of PASSTHROUGH_METADATA_FIELDS) {
       expect(PASSTHROUGH_SAMPLES[field]).toBeDefined();
     }
+  });
+
+  it('drops an interrupted assistant row that has neither text nor tool cards', () => {
+    const result = convertToThreadMessageLike([
+      { id: 'm1', role: 'assistant', content: '', metadata: { interrupted: true } },
+    ]);
+    expect(result).toHaveLength(0);
+  });
+
+  it('keeps an interrupted row with partial text and rehydrates the marker', () => {
+    const [msg] = convertToThreadMessageLike([
+      { id: 'm1', role: 'assistant', content: 'Teilantw', metadata: { interrupted: true } },
+    ]);
+    expect(msg).toBeDefined();
+    expect((msg?.metadata?.custom as Record<string, unknown>)?.interrupted).toBe(true);
   });
 
   it('rehydrates the sharepic variant stack from the persisted tool call', () => {
@@ -294,5 +310,121 @@ describe('convertToThreadMessageLike — reload reconstruction', () => {
   it('emits no custom metadata for a bare message (nothing to rehydrate)', () => {
     const [msg] = convertToThreadMessageLike([{ id: 'm1', role: 'assistant', content: 'hi' }]);
     expect(msg?.metadata).toBeUndefined();
+  });
+});
+
+// Stufe 2 (Interleaving on reload): when persisted tool calls carry a numeric
+// textOffset, the answer text is sliced at each offset so cards render between
+// prose in the live order. Without offsets the layout stays cards-first.
+
+type ContentPart =
+  | { type: 'text'; text: string }
+  | {
+      type: 'tool-call';
+      toolCallId: string;
+      toolName: string;
+      parentId?: string;
+      result?: unknown;
+    };
+
+function contentOf(metadata: LoadedMessage['metadata'], text = 'ABCDEFGHIJ'): ContentPart[] {
+  const [msg] = convertToThreadMessageLike([
+    { id: 'm1', role: 'assistant', content: text, ...(metadata ? { metadata } : {}) },
+  ]);
+  return (msg?.content ?? []) as ContentPart[];
+}
+
+describe('convertToThreadMessageLike — interleaved reload', () => {
+  it('slices text at each offset, ordering cards between prose', () => {
+    // text "ABCDEFGHIJ": card1 at 3 → "ABC" | card1 | "DEFG" | card2 | "HIJ".
+    const content = contentOf({
+      toolCalls: [
+        { toolCallId: 't1', toolName: 'gruenerator_search', args: {}, result: {}, textOffset: 3 },
+        { toolCallId: 't2', toolName: 'web_search', args: {}, result: {}, textOffset: 7 },
+      ],
+    });
+    expect(content.map((p) => p.type)).toEqual(['text', 'tool-call', 'text', 'tool-call', 'text']);
+    expect((content[0] as { text: string }).text).toBe('ABC');
+    expect((content[2] as { text: string }).text).toBe('DEFG');
+    expect((content[4] as { text: string }).text).toBe('HIJ');
+    expect((content[1] as { toolCallId: string }).toolCallId).toBe('t1');
+    expect((content[3] as { toolCallId: string }).toolCallId).toBe('t2');
+  });
+
+  it('sorts tool calls by offset (stable) before slicing', () => {
+    const content = contentOf({
+      toolCalls: [
+        { toolCallId: 't2', toolName: 'web_search', args: {}, result: {}, textOffset: 7 },
+        { toolCallId: 't1', toolName: 'gruenerator_search', args: {}, result: {}, textOffset: 3 },
+      ],
+    });
+    const cards = content.filter(
+      (p): p is ContentPart & { toolCallId: string } => p.type === 'tool-call'
+    );
+    expect(cards.map((c) => c.toolCallId)).toEqual(['t1', 't2']);
+  });
+
+  it('groups contiguous cards (same offset, no text between) into one run via parentId', () => {
+    // Both cards at offset 0: no text before either → same run, share t1's id.
+    const content = contentOf({
+      toolCalls: [
+        { toolCallId: 't1', toolName: 'gruenerator_search', args: {}, result: {}, textOffset: 0 },
+        { toolCallId: 't2', toolName: 'web_search', args: {}, result: {}, textOffset: 0 },
+      ],
+    });
+    const cards = content.filter(
+      (p): p is ContentPart & { parentId?: string } => p.type === 'tool-call'
+    );
+    expect(cards[0].parentId).toBe('t1');
+    expect(cards[1].parentId).toBe('t1');
+  });
+
+  it('starts a new run for a card that follows a non-empty text slice', () => {
+    const content = contentOf({
+      toolCalls: [
+        { toolCallId: 't1', toolName: 'gruenerator_search', args: {}, result: {}, textOffset: 0 },
+        { toolCallId: 't2', toolName: 'web_search', args: {}, result: {}, textOffset: 5 },
+      ],
+    });
+    const cards = content.filter(
+      (p): p is ContentPart & { parentId?: string } => p.type === 'tool-call'
+    );
+    // t1 at 0 (own run), t2 after "ABCDE" text → own run.
+    expect(cards[0].parentId).toBe('t1');
+    expect(cards[1].parentId).toBe('t2');
+  });
+
+  it('textOffset=0 puts the card before all text (empty leading slice dropped)', () => {
+    const content = contentOf({
+      toolCalls: [
+        { toolCallId: 't1', toolName: 'gruenerator_search', args: {}, result: {}, textOffset: 0 },
+      ],
+    });
+    expect(content.map((p) => p.type)).toEqual(['tool-call', 'text']);
+    expect((content[1] as { text: string }).text).toBe('ABCDEFGHIJ');
+  });
+
+  it('always appends a trailing text part (even empty) matching live buildResult', () => {
+    // Offset at end of text → no trailing prose, but the tail text part stays.
+    const content = contentOf({
+      toolCalls: [
+        { toolCallId: 't1', toolName: 'gruenerator_search', args: {}, result: {}, textOffset: 10 },
+      ],
+    });
+    expect(content.map((p) => p.type)).toEqual(['text', 'tool-call', 'text']);
+    expect((content[2] as { text: string }).text).toBe('');
+  });
+
+  it('without offsets keeps the legacy cards-first layout unchanged', () => {
+    const content = contentOf({
+      toolCalls: [
+        { toolCallId: 't1', toolName: 'gruenerator_search', args: {}, result: { results: [] } },
+        { toolCallId: 't2', toolName: 'web_search', args: {}, result: { results: [] } },
+      ],
+    });
+    expect(content.map((p) => p.type)).toEqual(['tool-call', 'tool-call', 'text']);
+    expect((content[2] as { text: string }).text).toBe('ABCDEFGHIJ');
+    // Legacy cards carry no parentId.
+    expect((content[0] as { parentId?: string }).parentId).toBeUndefined();
   });
 });
