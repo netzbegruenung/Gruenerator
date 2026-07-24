@@ -91,6 +91,7 @@ export const AGENTIC_INTENTS: ReadonlySet<string> = new Set([
   'wetter',
   'news',
   'umfragen',
+  'hilfe',
   'image',
   // Loop demotion (classifier Tier 3.5): low-confidence toolable turns that
   // skipped the LLM classifier entirely.

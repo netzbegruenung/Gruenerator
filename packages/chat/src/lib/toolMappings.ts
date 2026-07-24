@@ -9,6 +9,7 @@ export const INTENT_TO_TOOL: Record<string, string> = {
   examples: 'gruenerator_examples_search',
   pressemitteilung_examples: 'gruenerator_pressemitteilung_examples',
   chat_history: 'search_chat_history',
+  hilfe: 'gruenerator_docs_search',
 };
 
 /** System MCP source prefixes → display names (mirrors apps/api systemMcpServers). */

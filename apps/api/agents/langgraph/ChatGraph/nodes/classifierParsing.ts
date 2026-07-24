@@ -48,6 +48,52 @@ export const SYSTEM_MCP_PHRASING =
   /\b(hotels?|unterkun(ft|ft?e)|unterk[üu]nfte|[üu]bernacht\w+|absteige|pension|herberge|dienstreise\w*|reiseplan\w*|bahn(?:en|h(?:o|ö)f\w*)?|z(?:ü|ue)ge|zugverbindung\w*|fahrplan\w*|abfahrtszeit\w*|zug\s+nach|verbindung\s+nach|wetter|wettervorhersage|wetterbericht|regnet\s+es|schneit\s+es|tagesschau|schlagzeile\w*)\b/i;
 
 /**
+ * "How do I …?" — an INSTRUCTIONAL question about operating the Grünerator,
+ * not a command to do the thing.
+ *
+ * The `ich` is what makes this safe: a user issuing a command writes "Erstelle
+ * ein Sharepic", never "Wie erstelle ich ein Sharepic". Without that distinction
+ * the generation heuristics win the turn and the assistant BUILDS a sharepic for
+ * someone who only asked how sharepics work.
+ *
+ * Matched as "wie … ich" within a two-word window rather than an explicit verb
+ * list — German separable verbs ("wie lege ich ein Notebook an") make an
+ * enumeration endless, and the feature-noun requirement in
+ * {@link looksLikeDocsHelpQuestion} is what actually keeps this precise.
+ */
+export const INSTRUCTIONAL_QUESTION =
+  /\bwie\s+(?:\w+\s+){0,2}?ich\b|\bwie\s+(geht\s+das|funktioniert)\b|\bwo\s+(finde|stelle)\s+ich\b/i;
+
+/**
+ * An explicit request for documentation, by name.
+ */
+export const HELP_ANCHOR =
+  /\b(anleitung\w*|tutorial\w*|handbuch|dokumentation|doku|hilfeseite\w*|faq|schritt[- ]f[üu]r[- ]schritt)\b/i;
+
+/**
+ * Grünerator-specific feature nouns. Required alongside a how-question so
+ * generic instructional asks ("wie kann ich die Energiewende erklären") stay
+ * out of the docs intent — that is a content question, not a product question.
+ */
+export const GRUENERATOR_FEATURE_NOUN =
+  /\b(gr[üu]nerator\w*|agentura|gr[üu]n[- ]?o[- ]?mat|sharepics?|reels?|untertitel|notebooks?|notizb[üu]ch\w*|wolke|nextcloud|konnektor\w*|mcp[- ]?server\w*|wissenssammlung\w*|monitor|sonntagsfrage|sharepic[- ]studio|composer|grüneratoren)\b/i;
+
+/**
+ * Gate for the `hilfe` intent (docs lookup). High precision, deliberately low
+ * recall: everything it misses still reaches the LLM tier, and a `hilfe` turn
+ * enters the agentic loop where the full tool catalog is mounted — so a false
+ * positive is cheap (the model just picks another tool) while a false negative
+ * on a generation-shaped question is not (it builds the artifact instead).
+ */
+export function looksLikeDocsHelpQuestion(text: string): boolean {
+  const t = (text ?? '').trim();
+  if (!t) return false;
+  const hasFeature = GRUENERATOR_FEATURE_NOUN.test(t);
+  if (HELP_ANCHOR.test(t) && (hasFeature || INSTRUCTIONAL_QUESTION.test(t))) return true;
+  return INSTRUCTIONAL_QUESTION.test(t) && hasFeature;
+}
+
+/**
  * Parse JSON response from classifier, with error handling.
  * Handles extended response format with typoAnalysis and contentType.
  */
@@ -71,6 +117,7 @@ export function parseClassifierResponse(
     'wetter',
     'news',
     'umfragen',
+    'hilfe',
     'sharepic',
     'image',
     'image_edit',
@@ -343,6 +390,14 @@ export function parseClassifierResponse(
       intent: 'umfragen',
       searchQuery: null,
       reasoning: 'Fallback: umfragen detected in response',
+    };
+  // Carries the user text: the docs tool searches it directly, so unlike the
+  // system-MCP intents above there is no separate query-extraction step.
+  if (intentFieldPattern('hilfe').test(content))
+    return {
+      intent: 'hilfe',
+      searchQuery: userContent,
+      reasoning: 'Fallback: hilfe detected in response',
     };
   if (intentFieldPattern('direct').test(content))
     return {

@@ -173,6 +173,10 @@ export const INTENT_KEYWORDS: Record<
     | 'wetter'
     | 'news'
     | 'umfragen'
+    // hilfe is detected by the dedicated instructional-question gate
+    // (looksLikeDocsHelpQuestion, classifier Tier 2.9). Bare keywords like
+    // "hilfe"/"anleitung" would hijack content queries ("hilf mir bei ...").
+    | 'hilfe'
   >,
   string[]
 > = {

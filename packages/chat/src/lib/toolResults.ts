@@ -105,6 +105,7 @@ export interface ToolMeta {
 const TOOL_METADATA: Record<string, ToolMeta> = {
   search_sources: { label: 'Quellen', iconKey: 'search' },
   gruenerator_search: { label: 'Dokumente', iconKey: 'search' },
+  gruenerator_docs_search: { label: 'Anleitungen', iconKey: 'book' },
   gruenerator_person_search: { label: 'Person', iconKey: 'user' },
   gruenerator_examples_search: { label: 'Beispiele', iconKey: 'image' },
   web_search: { label: 'Websuche', iconKey: 'globe' },
