@@ -3,25 +3,15 @@
  * Shared constants for text generators across web and mobile platforms.
  */
 
-import type {
-  SocialPlatform,
-  AntragRequestType,
-  UniversalTextType,
-  AccessibilityMode,
-  TextImproverAction,
-} from './types.js';
+import type { SocialPlatform, AntragRequestType, AccessibilityMode } from './types.js';
 
 // API Endpoints
 export const GENERATOR_ENDPOINTS = {
   PRESSE_SOCIAL: '/claude_social',
   ANTRAG: '/antraege/generate-simple',
   UNIVERSAL: '/claude_universal',
-  REDE: '/claude_rede',
-  WAHLPROGRAMM: '/claude_wahlprogramm',
-  BUERGERANFRAGEN: '/claude_buergeranfragen',
   ALT_TEXT: '/claude_alttext',
   LEICHTE_SPRACHE: '/leichte_sprache',
-  TEXT_IMPROVER: '/claude_text_improver',
 } as const;
 
 // Platform option interface
@@ -67,43 +57,6 @@ export const ANTRAG_TYPES: readonly AntragTypeOption[] = [
   { id: 'grosse_anfrage', label: 'Große Anfrage', shortLabel: 'Große' },
 ] as const;
 
-// Universal text type option interface
-export interface TextTypeOption {
-  id: UniversalTextType;
-  label: string;
-  shortLabel?: string;
-  endpoint: string;
-}
-
-// Universal text type options
-export const UNIVERSAL_TEXT_TYPES: readonly TextTypeOption[] = [
-  {
-    id: 'universal',
-    label: 'Universal',
-    shortLabel: 'Frei',
-    endpoint: GENERATOR_ENDPOINTS.UNIVERSAL,
-  },
-  { id: 'rede', label: 'Rede', endpoint: GENERATOR_ENDPOINTS.REDE },
-  {
-    id: 'wahlprogramm',
-    label: 'Wahlprogramm',
-    shortLabel: 'Programm',
-    endpoint: GENERATOR_ENDPOINTS.WAHLPROGRAMM,
-  },
-  {
-    id: 'buergeranfragen',
-    label: 'Bürger*innenanfragen',
-    shortLabel: 'Bürger',
-    endpoint: GENERATOR_ENDPOINTS.BUERGERANFRAGEN,
-  },
-  {
-    id: 'leichte_sprache',
-    label: 'Leichte Sprache',
-    shortLabel: 'L. Sprache',
-    endpoint: GENERATOR_ENDPOINTS.LEICHTE_SPRACHE,
-  },
-] as const;
-
 // Accessibility mode option interface
 export interface AccessibilityModeOption {
   id: AccessibilityMode;
@@ -114,22 +67,6 @@ export interface AccessibilityModeOption {
 export const ACCESSIBILITY_MODES: readonly AccessibilityModeOption[] = [
   { id: 'alt-text', label: 'Alt-Text' },
   { id: 'leichte-sprache', label: 'Leichte Sprache' },
-] as const;
-
-// Text improver action option interface
-export interface TextImproverActionOption {
-  id: TextImproverAction;
-  label: string;
-}
-
-// Text improver action options
-export const TEXT_IMPROVER_ACTIONS: readonly TextImproverActionOption[] = [
-  { id: 'improve', label: 'Verbessern' },
-  { id: 'rewrite', label: 'Umschreiben' },
-  { id: 'summarize', label: 'Zusammenfassen' },
-  { id: 'spellcheck', label: 'Rechtschreibung' },
-  { id: 'formalize', label: 'Formell machen' },
-  { id: 'simplify', label: 'Vereinfachen' },
 ] as const;
 
 // Generator titles (German)

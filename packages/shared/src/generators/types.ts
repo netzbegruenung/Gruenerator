@@ -28,15 +28,6 @@ export type UniversalTextType =
 // Accessibility mode type
 export type AccessibilityMode = 'alt-text' | 'leichte-sprache';
 
-// Text improver action type
-export type TextImproverAction =
-  | 'improve'
-  | 'rewrite'
-  | 'summarize'
-  | 'spellcheck'
-  | 'formalize'
-  | 'simplify';
-
 // Feature toggles shared across all generators
 export interface GeneratorFeatures {
   useWebSearchTool?: boolean;
@@ -143,10 +134,4 @@ export interface AltTextResponse {
 export interface LeichteSpracheRequest extends BaseGeneratorRequest {
   originalText: string;
   targetLanguage?: string;
-}
-
-// Text Improver generator request
-export interface TextImproverRequest extends BaseGeneratorRequest {
-  originalText: string;
-  action: TextImproverAction;
 }

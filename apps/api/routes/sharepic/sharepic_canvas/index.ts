@@ -1,8 +1,5 @@
-export { default as processTextRouter } from './processTextRouter.js';
-export { default as imageUploadRouter } from './imageUploadRouter.js';
 export { default as imagineLabelCanvas } from './imagine_label_canvas.js';
 export { default as zitatCanvas } from './zitat_canvas.js';
-export { default as aiImageModification } from './aiImageModification.js';
 export { default as zitatPureCanvas } from './zitat_pure_canvas.js';
 export { default as infoCanvas } from './info_canvas.js';
 export { default as veranstaltungCanvas } from './veranstaltung_canvas.js';
