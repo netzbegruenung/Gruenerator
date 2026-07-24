@@ -13,7 +13,7 @@ import { storeBinaryAsset } from '../../routes/chat/services/computeAssetStorage
 import { createLogger } from '../../utils/logger.js';
 
 import { pdfDocumentSchema, type PdfDocumentSpec } from './pdfDocument.js';
-import { renderPdf, type PdfLocale, type PdfSender } from './pdfRenderer.js';
+import { PDF_TYPE_AREA, renderPdf, type PdfLocale, type PdfSender } from './pdfRenderer.js';
 import { summarizeVerification, verifyPdf, type PdfVerification } from './pdfVerification.js';
 
 const log = createLogger('PdfGeneration');
@@ -121,7 +121,7 @@ export async function createPdfDocument(
   const effective: PdfDocumentSpec = isLetter ? { ...spec, kind: 'letter' } : spec;
 
   const rendered = await renderPdf(effective, { locale: opts.locale, sender: opts.sender ?? null });
-  const verification = await verifyPdf(rendered.bytes);
+  const verification = await verifyPdf(rendered.bytes, PDF_TYPE_AREA);
   if (rendered.missingGlyphs.length) {
     verification.problems.push(
       `${rendered.missingGlyphs.length} Zeichen konnten mit den Schriften nicht dargestellt werden und wurden entfernt: ${rendered.missingGlyphs.join(' ')}`

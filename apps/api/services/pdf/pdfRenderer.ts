@@ -129,6 +129,12 @@ const RULE_COLOR = rgb(0.85, 0.87, 0.85);
 
 const EMOJI_REGEX = /(\p{Emoji_Presentation}|\p{Extended_Pictographic})/gu;
 
+/**
+ * The area body text may occupy. Exported so the self-check measures against the
+ * real layout — the page box alone would not catch text printed over the footer.
+ */
+export const PDF_TYPE_AREA = { left: MARGIN_L, right: PAGE_W - MARGIN_R, bottom: 40 };
+
 interface FontRun {
   text: string;
   font: PDFFont;
@@ -466,23 +472,12 @@ class PdfRenderer {
       this.spec.title.length > 60 ? `${this.spec.title.slice(0, 57)}…` : this.spec.title;
     pages.forEach((page, i) => {
       this.tagger.artifact(page, () => {
-        page.drawText(shortTitle, {
-          x: MARGIN_L,
-          y: 28,
-          size: 8,
-          font: this.fonts.body,
-          color: MUTED_COLOR,
-        });
+        const titleRuns = splitIntoFontRuns(shortTitle, this.fonts.body, this.fonts);
+        drawRuns(page, titleRuns, MARGIN_L, 28, 8, MUTED_COLOR);
         if (pages.length > 1) {
           const label = `Seite ${i + 1} von ${pages.length}`;
-          const w = safeWidth(this.fonts.body, label, 8);
-          page.drawText(label, {
-            x: PAGE_W - MARGIN_R - w,
-            y: 28,
-            size: 8,
-            font: this.fonts.body,
-            color: MUTED_COLOR,
-          });
+          const runs = splitIntoFontRuns(label, this.fonts.body, this.fonts);
+          drawRuns(page, runs, PAGE_W - MARGIN_R - measureRuns(runs, 8), 28, 8, MUTED_COLOR);
         }
       });
     });
@@ -520,7 +515,41 @@ class PdfRenderer {
     this.writeText([{ text, bold: false }], style);
   }
 
-  /** Single tagged line at an absolute position (headers, labels, captions). */
+  /**
+   * Wrap `text` to `maxWidth`, keep at most `maxLines` and ellipsize the rest.
+   * Without a bound, long text used to run past the page edge and over the
+   * neighbouring column — visually broken and impossible to notice in a test
+   * that only checks that the PDF is valid.
+   */
+  private boundedLines(
+    text: string,
+    font: PDFFont,
+    size: number,
+    maxWidth: number,
+    maxLines: number
+  ): FontRun[][] {
+    const forced = { ...this.fonts, body: font, bodyBold: font };
+    const lines = wrapSegments([{ text, bold: false }], forced, size, maxWidth);
+    if (lines.length <= maxLines) return lines;
+
+    const kept = lines.slice(0, maxLines).map((line) => line.map((run) => ({ ...run })));
+    const ellipsis = splitIntoFontRuns('…', font, this.fonts);
+    const ellipsisWidth = measureRuns(ellipsis, size);
+    const last = kept[maxLines - 1];
+    while (last.length && measureRuns(last, size) + ellipsisWidth > maxWidth) {
+      const tail = last[last.length - 1];
+      if (tail.text.length > 1) tail.text = tail.text.slice(0, -1);
+      else last.pop();
+    }
+    kept[maxLines - 1] = [...last, ...ellipsis];
+    return kept;
+  }
+
+  /**
+   * Tagged text at an absolute position. Goes through the same font-run split as
+   * body text, so a character the CI fonts lack never reaches the page as a
+   * .notdef box here either. Returns the number of lines drawn.
+   */
   private writeLineAt(
     tag: Parameters<PdfTagger['tag']>[0],
     text: string,
@@ -528,12 +557,23 @@ class PdfRenderer {
     y: number,
     size: number,
     font: PDFFont,
-    color: RGB
-  ): void {
+    color: RGB,
+    bounds?: { maxWidth: number; maxLines?: number; lineHeight?: number }
+  ): number {
     const page = this.page;
-    this.tagger.tag(tag, () =>
-      this.tagger.content(page, () => page.drawText(text, { x, y, size, font, color }))
-    );
+    const lines = bounds
+      ? this.boundedLines(text, font, size, bounds.maxWidth, bounds.maxLines ?? 1)
+      : [splitIntoFontRuns(text, font, this.fonts)];
+    const lineHeight = bounds?.lineHeight ?? size * 1.25;
+
+    this.tagger.tag(tag, () => {
+      lines.forEach((line, i) => {
+        if (!line.length) return;
+        const lineY = y - i * lineHeight;
+        this.tagger.content(page, () => drawRuns(page, line, x, lineY, size, color));
+      });
+    });
+    return Math.max(lines.length, 1);
   }
 
   // ── blocks ─────────────────────────────────────────────────────────────────
@@ -692,53 +732,79 @@ class PdfRenderer {
     this.y -= 6;
   }
 
+  /**
+   * The box is drawn per page, not once: a long note used to paint a single
+   * rectangle whose lower edge ended up thousands of points below the page while
+   * the text kept flowing onto later pages without any box at all.
+   */
   private renderNote(block: Extract<PdfBlock, { type: 'note' }>): void {
     const padding = 10;
+    const lineHeight = 15;
+    const fontSize = 10.5;
     const innerWidth = CONTENT_W - padding * 2;
-    const lines = wrapSegments(inlineSegments(block.text), this.fonts, 10.5, innerWidth);
-    const boxHeight = lines.length * 15 + padding * 2 + (block.title ? 16 : 0);
-    this.ensureSpace(boxHeight + 10);
+    const titleHeight = block.title ? 16 : 0;
+    const lines = wrapSegments(inlineSegments(block.text), this.fonts, fontSize, innerWidth);
 
-    const page = this.page;
-    const boxTop = this.y + 4;
-    this.tagger.artifact(page, () =>
-      page.drawRectangle({
-        x: MARGIN_L,
-        y: boxTop - boxHeight,
-        width: CONTENT_W,
-        height: boxHeight,
-        color: FIELD_BG,
-        borderColor: this.theme.accent,
-        borderWidth: 0.5,
-      })
-    );
-
-    this.y -= padding;
     this.tagger.open('Sect');
-    if (block.title) {
-      const title = block.title;
-      this.tagger.tag('P', () =>
-        this.writePlain(title, {
-          fontSize: 10.5,
-          indent: padding,
-          width: CONTENT_W - padding,
-          color: this.theme.primary,
-          forceBold: true,
-          spacingAfter: 2,
+    let index = 0;
+    let first = true;
+    while (index < lines.length) {
+      const reserved = padding * 2 + (first ? titleHeight : 0);
+      let capacity = Math.floor((this.y + 4 - FOOTER_RESERVE - reserved) / lineHeight);
+      if (capacity < 1) {
+        this.newPage();
+        capacity = Math.floor((this.y + 4 - FOOTER_RESERVE - reserved) / lineHeight);
+        if (capacity < 1) break;
+      }
+      const slice = lines.slice(index, index + capacity);
+      const page = this.page;
+      const boxTop = this.y + 4;
+      const boxHeight = slice.length * lineHeight + reserved;
+      this.tagger.artifact(page, () =>
+        page.drawRectangle({
+          x: MARGIN_L,
+          y: boxTop - boxHeight,
+          width: CONTENT_W,
+          height: boxHeight,
+          color: FIELD_BG,
+          borderColor: this.theme.accent,
+          borderWidth: 0.5,
         })
       );
+
+      this.y -= padding;
+      if (first && block.title) {
+        this.writeLineAt(
+          'P',
+          block.title,
+          MARGIN_L + padding,
+          this.y,
+          fontSize,
+          this.fonts.bodyBold,
+          this.theme.primary,
+          { maxWidth: innerWidth }
+        );
+        this.y -= titleHeight;
+      }
+      this.tagger.open('P');
+      for (const line of slice) {
+        if (line.length) {
+          const lineY = this.y;
+          this.tagger.content(page, () =>
+            drawRuns(page, line, MARGIN_L + padding, lineY, fontSize, BODY_COLOR)
+          );
+        }
+        this.y -= lineHeight;
+      }
+      this.tagger.close();
+
+      this.y -= padding;
+      index += slice.length;
+      first = false;
+      if (index < lines.length) this.newPage();
     }
-    this.tagger.tag('P', () =>
-      this.writeText(inlineSegments(block.text), {
-        fontSize: 10.5,
-        lineHeight: 15,
-        indent: padding,
-        width: CONTENT_W - padding,
-        spacingAfter: 0,
-      })
-    );
     this.tagger.close();
-    this.y -= padding + 8;
+    this.y -= 8;
   }
 
   private renderKeyValue(block: Extract<PdfBlock, { type: 'keyvalue' }>): void {
@@ -808,8 +874,8 @@ class PdfRenderer {
       );
     }
 
-    const drawRow = (cells: string[], header: boolean): void => {
-      const wrapped = cells.map((cell, i) =>
+    const wrapCells = (cells: string[], header: boolean): FontRun[][][] =>
+      cells.map((cell, i) =>
         wrapSegments(
           header ? [{ text: cell, bold: true }] : inlineSegments(cell),
           this.fonts,
@@ -817,9 +883,16 @@ class PdfRenderer {
           (widths[i] ?? CONTENT_W) - padX * 2
         )
       );
-      const height = Math.max(...wrapped.map((w) => w.length), 1) * lineHeight + padY * 2;
-      this.ensureSpace(height);
 
+    /** Draw one slice of a row: `take` lines per cell, starting at `from`. */
+    const drawSlice = (
+      wrapped: FontRun[][][],
+      from: number,
+      take: number,
+      header: boolean,
+      tagged: boolean
+    ): void => {
+      const height = take * lineHeight + padY * 2;
       const page = this.page;
       const top = this.y + lineHeight - 2;
       this.tagger.artifact(page, () => {
@@ -840,37 +913,92 @@ class PdfRenderer {
         });
       });
 
-      this.tagger.open('TR');
-      let x = MARGIN_L;
-      wrapped.forEach((lines, i) => {
-        const isHeaderCell = header || rowHeaderColumn === i;
-        const cellX = x;
-        this.tagger.open(
-          isHeaderCell ? 'TH' : 'TD',
-          isHeaderCell ? { scope: header ? 'Column' : 'Row' } : {}
-        );
-        let cellY = this.y;
-        for (const line of lines) {
-          if (line.length) {
-            const lineY = cellY;
-            this.tagger.content(page, () =>
-              drawRuns(
-                page,
-                line,
-                cellX + padX,
-                lineY,
-                fontSize,
-                isHeaderCell ? this.theme.primary : BODY_COLOR
-              )
+      const drawCells = () => {
+        let x = MARGIN_L;
+        wrapped.forEach((lines, i) => {
+          const isHeaderCell = header || rowHeaderColumn === i;
+          const cellX = x;
+          const color = isHeaderCell ? this.theme.primary : BODY_COLOR;
+          const paint = (wrap: (draw: () => void) => void) => {
+            let cellY = this.y;
+            for (const line of lines.slice(from, from + take)) {
+              if (line.length) {
+                const lineY = cellY;
+                wrap(() => drawRuns(page, line, cellX + padX, lineY, fontSize, color));
+              }
+              cellY -= lineHeight;
+            }
+          };
+          if (tagged) {
+            this.tagger.open(
+              isHeaderCell ? 'TH' : 'TD',
+              isHeaderCell ? { scope: header ? 'Column' : 'Row' } : {}
             );
+            paint((draw) => this.tagger.content(page, draw));
+            this.tagger.close();
+          } else {
+            // A repeated header is a visual aid only; tagging it again would
+            // make a screen reader read the header row twice.
+            paint((draw) => this.tagger.artifact(page, draw));
           }
-          cellY -= lineHeight;
-        }
+          x += widths[i] ?? 0;
+        });
+      };
+
+      if (tagged) {
+        this.tagger.open('TR');
+        drawCells();
         this.tagger.close();
-        x += widths[i] ?? 0;
-      });
-      this.tagger.close();
+      } else {
+        drawCells();
+      }
       this.y -= height;
+    };
+
+    const headerWrapped = columns ? wrapCells(columns, true) : null;
+    const headerLines = headerWrapped ? Math.max(...headerWrapped.map((w) => w.length), 1) : 0;
+    const linesAvailable = (): number =>
+      Math.floor((this.y + lineHeight - 2 - FOOTER_RESERVE - padY * 2) / lineHeight);
+    const linesPerFreshPage = Math.floor(
+      (CONTINUATION_TOP + lineHeight - 2 - FOOTER_RESERVE - padY * 2) / lineHeight
+    );
+
+    /**
+     * Repeat the header after a page break — but never at the cost of data: an
+     * unbounded repeat used to fill whole pages and push every following row
+     * off the document.
+     */
+    const repeatHeader = (): void => {
+      if (!headerWrapped) return;
+      if (headerLines > linesAvailable() || headerLines * 2 > linesPerFreshPage) return;
+      drawSlice(headerWrapped, 0, headerLines, true, false);
+    };
+
+    /**
+     * A row taller than a whole page is split so it cannot print through the
+     * footer; a row that would simply fit on the next page moves as a unit
+     * instead of being torn apart mid-cell.
+     */
+    const drawRow = (cells: string[], header: boolean): void => {
+      const wrapped = wrapCells(cells, header);
+      const total = Math.max(...wrapped.map((w) => w.length), 1);
+      if (!header && total <= linesPerFreshPage && total > linesAvailable()) {
+        this.newPage();
+        repeatHeader();
+      }
+      let from = 0;
+      while (from < total) {
+        let capacity = linesAvailable();
+        if (capacity < 1) {
+          this.newPage();
+          if (!header) repeatHeader();
+          capacity = linesAvailable();
+          if (capacity < 1) break;
+        }
+        const take = Math.min(capacity, total - from);
+        drawSlice(wrapped, from, take, header, true);
+        from += take;
+      }
     };
 
     if (columns) drawRow(columns, true);
@@ -900,18 +1028,23 @@ class PdfRenderer {
     });
 
     this.y -= 12;
+    let labelLines = 1;
     for (let i = 0; i < count; i++) {
-      this.writeLineAt(
-        'P',
-        block.labels[i],
-        MARGIN_L + i * slot,
-        this.y,
-        8.5,
-        this.fonts.body,
-        MUTED_COLOR
+      labelLines = Math.max(
+        labelLines,
+        this.writeLineAt(
+          'P',
+          block.labels[i],
+          MARGIN_L + i * slot,
+          this.y,
+          8.5,
+          this.fonts.body,
+          MUTED_COLOR,
+          { maxWidth: slot - 12, maxLines: 2, lineHeight: 10.5 }
+        )
       );
     }
-    this.y -= 20;
+    this.y -= 10 + labelLines * 10.5;
   }
 
   // ── form fields ────────────────────────────────────────────────────────────
@@ -920,7 +1053,7 @@ class PdfRenderer {
     const columns = fields.length;
     const gap = columns > 1 ? 16 : 0;
     const width = (CONTENT_W - gap * (columns - 1)) / columns;
-    const height = Math.max(...fields.map((f) => this.fieldHeight(f)));
+    const height = Math.max(...fields.map((f) => this.fieldHeight(f, width)));
     this.ensureSpace(height + 8);
     const rowTop = this.y;
     fields.forEach((field, i) => {
@@ -930,11 +1063,17 @@ class PdfRenderer {
     this.y = rowTop - height - 8;
   }
 
-  private fieldHeight(field: FieldBlock): number {
-    const labelH = 16;
+  /** Height must include a label that wrapped, or the next row draws on top of it. */
+  private fieldHeight(field: FieldBlock, width: number): number {
+    const label = field.required ? `${field.label} *` : field.label;
+    const labelLines = this.boundedLines(label, this.fonts.bodyBold, 9, width, 2).length;
+    const labelH = 5 + labelLines * 11;
     const helpH = field.help ? 16 : 0;
     if (field.kind === 'multiline') return labelH + (field.rows ?? 4) * 14 + 14 + helpH;
-    if (field.kind === 'checkbox') return 24 + helpH;
+    if (field.kind === 'checkbox') {
+      const beside = this.boundedLines(label, this.fonts.body, 10, width - 19, 2).length;
+      return 24 + (beside - 1) * 11 + helpH;
+    }
     if (field.kind === 'radio') return labelH + (field.options?.length ?? 2) * 20 + helpH;
     return labelH + 34 + helpH;
   }
@@ -954,8 +1093,17 @@ class PdfRenderer {
     this.tagger.open('Sect', { title: field.label });
     // The checkbox/radio label sits NEXT to the control, everything else above.
     if (field.kind !== 'checkbox') {
-      this.writeLineAt('Lbl', label, x, this.y, 9, this.fonts.bodyBold, this.theme.primary);
-      this.y -= 16;
+      const labelLines = this.writeLineAt(
+        'Lbl',
+        label,
+        x,
+        this.y,
+        9,
+        this.fonts.bodyBold,
+        this.theme.primary,
+        { maxWidth: width, maxLines: 2, lineHeight: 11 }
+      );
+      this.y -= 5 + labelLines * 11;
     }
 
     switch (field.kind) {
@@ -1008,7 +1156,20 @@ class PdfRenderer {
           accessibleName,
           checkbox.acroField.dict
         );
-        this.writeLineAt('Lbl', label, x + box + 7, top - box + 2, 10, this.fonts.body, BODY_COLOR);
+        this.writeLineAt(
+          'Lbl',
+          label,
+          x + box + 7,
+          top - box + 2,
+          10,
+          this.fonts.body,
+          BODY_COLOR,
+          {
+            maxWidth: width - box - 7,
+            maxLines: 2,
+            lineHeight: 11,
+          }
+        );
         this.y = top - box - 6;
         break;
       }
@@ -1034,16 +1195,17 @@ class PdfRenderer {
             `${accessibleName}: ${option}`,
             group.acroField.dict
           );
-          this.writeLineAt(
+          const optionLines = this.writeLineAt(
             'Lbl',
             option,
             x + size + 7,
             top - size + 2,
             10,
             this.fonts.body,
-            BODY_COLOR
+            BODY_COLOR,
+            { maxWidth: width - size - 7, maxLines: 2, lineHeight: 11 }
           );
-          this.y = top - size - 16;
+          this.y = top - size - 16 - (optionLines - 1) * 11;
         }
         break;
       }
@@ -1077,7 +1239,9 @@ class PdfRenderer {
     }
 
     if (field.help) {
-      this.writeLineAt('P', field.help, x, this.y, 8, this.fonts.body, MUTED_COLOR);
+      this.writeLineAt('P', field.help, x, this.y, 8, this.fonts.body, MUTED_COLOR, {
+        maxWidth: width,
+      });
       this.y -= 12;
     }
 
@@ -1163,17 +1327,15 @@ class PdfRenderer {
     this.tagger.open('Sect', { title: 'Absender' });
     let senderY = PAGE_H - 52;
     sender.slice(0, 5).forEach((line, i) => {
-      const y = senderY;
-      this.tagger.tag('P', () =>
-        this.tagger.content(page, () =>
-          page.drawText(line, {
-            x: MARGIN_L,
-            y,
-            size: i === 0 ? 9.5 : 8.5,
-            font: i === 0 ? this.fonts.bodyBold : this.fonts.body,
-            color: i === 0 ? this.theme.primary : MUTED_COLOR,
-          })
-        )
+      this.writeLineAt(
+        'P',
+        line,
+        MARGIN_L,
+        senderY,
+        i === 0 ? 9.5 : 8.5,
+        i === 0 ? this.fonts.bodyBold : this.fonts.body,
+        i === 0 ? this.theme.primary : MUTED_COLOR,
+        { maxWidth: CONTENT_W / 2 }
       );
       senderY -= i === 0 ? 13 : 11;
     });
@@ -1183,13 +1345,8 @@ class PdfRenderer {
     const returnLine = sender.join(' · ');
     if (returnLine) {
       this.tagger.artifact(page, () => {
-        page.drawText(returnLine.length > 90 ? `${returnLine.slice(0, 87)}…` : returnLine, {
-          x: MARGIN_L,
-          y: PAGE_H - 127,
-          size: 6.5,
-          font: this.fonts.body,
-          color: MUTED_COLOR,
-        });
+        const [line] = this.boundedLines(returnLine, this.fonts.body, 6.5, 200, 1);
+        drawRuns(page, line ?? [], MARGIN_L, PAGE_H - 127, 6.5, MUTED_COLOR);
         page.drawLine({
           start: { x: MARGIN_L, y: PAGE_H - 131 },
           end: { x: MARGIN_L + 200, y: PAGE_H - 131 },
@@ -1206,18 +1363,11 @@ class PdfRenderer {
       .map((l) => l.trim())
       .filter(Boolean)
       .slice(0, 6)) {
-      const y = addrY;
-      this.tagger.tag('P', () =>
-        this.tagger.content(page, () =>
-          page.drawText(line, {
-            x: MARGIN_L,
-            y,
-            size: 11,
-            font: this.fonts.body,
-            color: BODY_COLOR,
-          })
-        )
-      );
+      // The DIN 5008 address window is narrow — an overlong line must be cut,
+      // not printed across the page.
+      this.writeLineAt('P', line, MARGIN_L, addrY, 11, this.fonts.body, BODY_COLOR, {
+        maxWidth: 250,
+      });
       addrY -= 15;
     }
     this.tagger.close();
@@ -1225,15 +1375,16 @@ class PdfRenderer {
     const dateLine = letter.place
       ? `${letter.place}, ${formatDate(this.opts.locale)}`
       : formatDate(this.opts.locale);
-    const dateWidth = safeWidth(this.fonts.body, dateLine, 10);
-    this.writeLineAt(
-      'P',
-      dateLine,
-      PAGE_W - MARGIN_R - dateWidth,
-      PAGE_H - 235,
-      10,
-      this.fonts.body,
-      BODY_COLOR
+    // Measure what is actually drawn: since labels go through the font-run
+    // split, the raw-text width can differ (stand-in glyphs, emoji font) and a
+    // right-aligned line would then start past the right margin.
+    const [dateRuns] = this.boundedLines(dateLine, this.fonts.body, 10, CONTENT_W / 2, 1);
+    const dateWidth = measureRuns(dateRuns ?? [], 10);
+    const dateY = PAGE_H - 235;
+    this.tagger.tag('P', () =>
+      this.tagger.content(page, () =>
+        drawRuns(page, dateRuns ?? [], PAGE_W - MARGIN_R - dateWidth, dateY, 10, BODY_COLOR)
+      )
     );
 
     this.y = PAGE_H - 270;
