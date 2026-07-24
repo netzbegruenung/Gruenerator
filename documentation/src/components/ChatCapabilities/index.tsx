@@ -66,7 +66,7 @@ function Capability({ example }: { example: CapabilityExample }): React.JSX.Elem
         {userTool && <Badge kind="tool">Werkzeug: {userTool.label}</Badge>}
         {mentionable?.audience === 'de-DE' && <Badge kind="note">nur Deutschland</Badge>}
         {sourceNames.length > 0 && (
-          <Badge kind="note">Quelle: {sourceNames.join(' + ')} (Freischaltung nötig)</Badge>
+          <Badge kind="note">Zusatzquelle: {sourceNames.join(' + ')}</Badge>
         )}
       </div>
 
