@@ -26,7 +26,12 @@ import {
 } from './attachmentPersistenceService.js';
 import { isTabularAttachment } from './attachmentProcessingService.js';
 import { extractTextContent } from './messageHelpers.js';
-import { createMessage, setThreadToolContext, touchThread } from './threadPersistenceService.js';
+import {
+  createMessage,
+  finalizeAssistantMessage,
+  setThreadToolContext,
+  touchThread,
+} from './threadPersistenceService.js';
 
 import type { PersistedStep } from './agenticLoop/types.js';
 import type { ProcessedAttachmentMeta } from './attachmentProcessingService.js';
@@ -283,6 +288,10 @@ export interface PersistParams {
    *  as-is (they already carry the per-tool result shapes the UI cards read),
    *  replacing the intent-fabricated tool calls. */
   agenticSteps?: PersistedStep[];
+  /** Placeholder assistant row minted before streaming (WP-B). When present the
+   *  final content+metadata are written by flipping THIS row to 'complete'
+   *  instead of inserting a new one. Null/omitted → insert as before. */
+  pendingMessageId?: string | null;
 }
 
 /**
@@ -347,6 +356,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
     memoryEnabled,
     agentId,
     agenticSteps,
+    pendingMessageId,
   } = params;
 
   if (
@@ -369,7 +379,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
             sharepicVariants,
             socialPost ?? null
           );
-    await createMessage(threadId, 'assistant', fullText || null, {
+    const metadata: Record<string, unknown> = {
       intent: finalState.intent,
       searchCount: finalState.searchCount,
       // Only stamp a real agent — the universal default carries no badge, so
@@ -397,7 +407,23 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
       ...(finalState.computedResult != null &&
         finalState.computedResultFresh && { computeData: finalState.computedResult }),
       toolCalls,
-    });
+    };
+
+    if (pendingMessageId) {
+      // Finalize the placeholder row minted before streaming. A miss means the
+      // row is gone (e.g. a regenerate from another tab deleted it) — do NOT
+      // re-insert (that would resurrect a turn the user discarded); just warn
+      // and skip all post-persist side effects for this turn.
+      const matched = await finalizeAssistantMessage(pendingMessageId, fullText || null, metadata);
+      if (!matched) {
+        log.warn(
+          `[ChatGraph] Pending assistant row ${pendingMessageId} vanished before finalize — response discarded (thread ${threadId})`
+        );
+        return;
+      }
+    } else {
+      await createMessage(threadId, 'assistant', fullText || null, metadata);
+    }
 
     if (toolCalls) {
       log.debug(

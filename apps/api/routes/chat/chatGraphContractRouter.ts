@@ -75,6 +75,7 @@ import {
   formatOfficeDocsBlock,
   getSpaceRecallScope,
 } from './services/pastChatRecallService.js';
+import { createPendingAssistantWriter } from './services/pendingAssistantWriter.js';
 import { pipelineStateStore } from './services/pipelineStateStore.js';
 import { APP_REDIRECT_TEXTS } from './services/platformGating.js';
 import { persistAssistantResponse } from './services/postResponseService.js';
@@ -118,6 +119,7 @@ import {
 import { buildStreamContext } from './services/streamContext.js';
 import {
   createMessage,
+  discardPendingAssistantIfEmpty,
   getLastGeneratedImageUrl,
   touchThread,
 } from './services/threadPersistenceService.js';
@@ -181,6 +183,22 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
     const requestId = `req_${Date.now()}`;
     log.info('[chatGraphContract] stream handler entered, request_id=%s', requestId);
 
+    // Turn persistence (WP-B): the placeholder assistant row + its streaming
+    // writer. Declared in the handler scope (not inside the try) so the outer
+    // catch can run cleanupPending too. Assigned once the context is built.
+    let pendingId: string | null = null;
+    let pendingWriter: ReturnType<typeof createPendingAssistantWriter> | null = null;
+    // Must run on EVERY return path after the placeholder is created:
+    //  - discard=false before the main persist (stop the writer so its last
+    //    throttle write can't race the finalize UPDATE);
+    //  - discard=true on aborts/handler-takeovers/catch (drops the row only if
+    //    it stayed empty; a row with partial text survives as an aborted turn).
+    const cleanupPending = async (discard: boolean): Promise<void> => {
+      sse.setTextListener(undefined);
+      await pendingWriter?.stop().catch(() => {});
+      if (discard && pendingId) await discardPendingAssistantIfEmpty(pendingId).catch(() => {});
+    };
+
     try {
       const ctxResult = await buildStreamContext({ req, body: args.body, sse, requestId });
       if (ctxResult.done) {
@@ -207,7 +225,17 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         contextWindowTokens,
         mentionTokenFields,
         lastUserTextRaw,
+        pendingAssistantMessageId,
       } = ctxResult.ctx;
+
+      // A placeholder assistant row was minted in buildStreamContext. Its writer
+      // accumulates the streamed reply so an aborted/crashed turn keeps whatever
+      // streamed. The SSE text listener is registered LATER — right before the
+      // main respond stage — so the many handler branches below (sharepic/reel/
+      // board/… which stream their own text_delta AND persist their own rows)
+      // never pollute the placeholder.
+      pendingId = pendingAssistantMessageId;
+      pendingWriter = pendingId ? createPendingAssistantWriter(pendingId) : null;
 
       const {
         agentId,
@@ -462,7 +490,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             classificationTimeMs: classifiedState.classificationTimeMs,
           }),
         });
-        if (handled) return { status: 200 as const, body: undefined };
+        if (handled) {
+          await cleanupPending(true);
+          return { status: 200 as const, body: undefined };
+        }
       }
 
       // === Reel edit: chat subtitle editing of subtitler projects ===
@@ -499,7 +530,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               classificationTimeMs: classifiedState.classificationTimeMs,
             }),
           });
-          if (handled) return { status: 200 as const, body: undefined };
+          if (handled) {
+            await cleanupPending(true);
+            return { status: 200 as const, body: undefined };
+          }
         }
       }
 
@@ -548,6 +582,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               log.error('[ChatGraph] Failed to persist app sharepic redirect:', err);
             }
           }
+          await cleanupPending(true);
           sse.end();
           return { status: 200 as const, body: undefined };
         }
@@ -611,7 +646,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               classificationTimeMs: classifiedState.classificationTimeMs,
             }),
           });
-          if (handled) return { status: 200 as const, body: undefined };
+          if (handled) {
+            await cleanupPending(true);
+            return { status: 200 as const, body: undefined };
+          }
         }
       }
 
@@ -667,7 +705,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               classificationTimeMs: classifiedState.classificationTimeMs,
             }),
           });
-          if (handled) return { status: 200 as const, body: undefined };
+          if (handled) {
+            await cleanupPending(true);
+            return { status: 200 as const, body: undefined };
+          }
         }
       }
 
@@ -899,7 +940,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             '',
           startTime: Date.now(),
         });
-        if (handled) return { status: 200 as const, body: undefined };
+        if (handled) {
+          await cleanupPending(true);
+          return { status: 200 as const, body: undefined };
+        }
       }
 
       // === Chat history context enrichment ===
@@ -1040,6 +1084,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             searchTimeMs: 0,
           },
         });
+        // Interrupt turn — nothing streamed; drop the empty placeholder (the
+        // resume path persists its own message).
+        await cleanupPending(true);
         sse.end();
         return { status: 200 as const, body: undefined };
       }
@@ -1150,6 +1197,8 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               searchTimeMs: 0,
             },
           });
+          // Interrupt turn — nothing streamed; drop the empty placeholder.
+          await cleanupPending(true);
           sse.end();
           return { status: 200 as const, body: undefined };
         }
@@ -1168,7 +1217,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           ...(actualThreadId != null && { actualThreadId }),
           userId,
         });
-        if (created) return { status: 200 as const, body: undefined };
+        if (created) {
+          await cleanupPending(true);
+          return { status: 200 as const, body: undefined };
+        }
       }
 
       // === Handle @dokument-erstellen tool ===
@@ -1184,7 +1236,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           userContent: lastUserText as string,
           intent: 'direct',
         });
-        if (created) return { status: 200 as const, body: undefined };
+        if (created) {
+          await cleanupPending(true);
+          return { status: 200 as const, body: undefined };
+        }
       }
 
       // === Handle @sheet-erstellen tool / create_sheet intent ===
@@ -1209,7 +1264,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             classifiedState.messages ?? []
           ).text,
         });
-        if (created) return { status: 200 as const, body: undefined };
+        if (created) {
+          await cleanupPending(true);
+          return { status: 200 as const, body: undefined };
+        }
       }
 
       // === Handle @praesentation-erstellen tool / create_presentation intent ===
@@ -1235,7 +1293,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             classifiedState.messages ?? []
           ).text,
         });
-        if (created) return { status: 200 as const, body: undefined };
+        if (created) {
+          await cleanupPending(true);
+          return { status: 200 as const, body: undefined };
+        }
       }
 
       // === EXPERIMENTAL: create_recurring_task intent ===
@@ -1253,7 +1314,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           agentId: agentId ?? null,
           userLocale: classifiedState.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
         });
-        if (created) return { status: 200 as const, body: undefined };
+        if (created) {
+          await cleanupPending(true);
+          return { status: 200 as const, body: undefined };
+        }
       }
 
       // === Handle share_doc intent ===
@@ -1267,7 +1331,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           ...(rawDocMentionIds != null && { rawDocMentionIds }),
           ...(rawDocumentChatIds != null && { rawDocumentChatIds }),
         });
-        if (handled) return { status: 200 as const, body: undefined };
+        if (handled) {
+          await cleanupPending(true);
+          return { status: 200 as const, body: undefined };
+        }
       }
 
       // === HITL: Sharepic without a topic → ask before generating ===
@@ -1328,6 +1395,8 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               searchTimeMs: 0,
             },
           });
+          // Interrupt turn — nothing streamed; drop the empty placeholder.
+          await cleanupPending(true);
           sse.end();
           return { status: 200 as const, body: undefined };
         }
@@ -1349,6 +1418,14 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // this is emitted in the `done` event (boardId + boardGeneratedStructure),
       // the way the single-pass @board-erstellen handler does.
       let createdBoard: ChatGraphState['createdBoard'] = null;
+
+      // From here on the reply streams into the placeholder row. Registering the
+      // listener only now keeps the earlier handler branches (which stream their
+      // own text and persist their own rows) out of the placeholder.
+      const activeWriter = pendingWriter;
+      if (activeWriter) {
+        sse.setTextListener((kind, text) => activeWriter.onText(kind, text));
+      }
 
       if (runAgentic) {
         // Agentic path: the model holds the search tools and loops until it can
@@ -1540,7 +1617,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             if (resolution.releaseSlot) await resolution.releaseSlot();
           }
 
-          if (fullText === null) return { status: 200 as const, body: undefined };
+          if (fullText === null) {
+            await cleanupPending(true);
+            return { status: 200 as const, body: undefined };
+          }
 
           // The single-pass synth model cites numbers the registry can't back —
           // out-of-range ("[5]" with 3 sources) or, worst, [N] placeholders when
@@ -1558,7 +1638,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
 
       // Narrow fullText for the extraction/persist stages: the agentic path
       // always yields text; the pipeline path already returned above on null.
-      if (fullText === null) return { status: 200 as const, body: undefined };
+      if (fullText === null) {
+        await cleanupPending(true);
+        return { status: 200 as const, body: undefined };
+      }
 
       // === Stage 3b: Extract chart data from response (if chart intent) ===
       if (finalState.intent === 'chart') {
@@ -1667,6 +1750,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       }
 
       // === Stage 4: Persist & complete ===
+      // Stop the placeholder writer BEFORE persist: its final throttle write
+      // must not race the finalize UPDATE (both write the same row).
+      await cleanupPending(false);
       // Kicked off here but awaited only after sse.end(): the client already
       // has the full response, so a slow Postgres write must not delay the
       // done event. persistAssistantResponse catches its own errors.
@@ -1688,6 +1774,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         memoryEnabled,
         ...(agentId != null && { agentId }),
         ...(agenticSteps != null && { agenticSteps }),
+        ...(pendingId != null && { pendingMessageId: pendingId }),
       });
 
       // === Stage 4b: Emit confirm_action for intents that need user approval ===
@@ -1758,6 +1845,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       log.info(`[ChatGraph] Complete: ${fullText.length} chars in ${totalTimeMs}ms`);
       sse.end();
       await persistPromise;
+      // Safety net: if persist finalized (or skipped) but the placeholder is
+      // still an empty streaming row (e.g. persist bailed on its own guard),
+      // drop it so it can't read as an interrupted turn.
+      if (pendingId) await discardPendingAssistantIfEmpty(pendingId).catch(() => {});
       return { status: 200 as const, body: undefined };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -1770,6 +1861,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (errorStack) log.error(`[ChatGraph] Stack: ${errorStack}`);
       if (!(error instanceof Error))
         log.error(`[ChatGraph] Raw error: ${JSON.stringify(error)?.slice(0, 500)}`);
+      // Best-effort: stop the writer and drop the placeholder only if empty. A
+      // row that already streamed partial text stays 'streaming' → renders as an
+      // aborted turn; discard clears just the empty one.
+      await cleanupPending(true).catch(() => {});
       sseInternalError(sse, error);
       return { status: 200 as const, body: undefined };
     }
