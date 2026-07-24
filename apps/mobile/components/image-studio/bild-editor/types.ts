@@ -9,11 +9,7 @@ import { type KiStyleVariant } from '@gruenerator/shared/image-studio';
  * version and are only offered once an image exists.
  */
 export type BevMode =
-  | 'erstellen'
-  | 'bearbeiten'
-  | 'gruen-verwandeln'
-  | 'vergroessern'
-  | 'hintergrund';
+  'erstellen' | 'bearbeiten' | 'gruen-verwandeln' | 'vergroessern' | 'hintergrund';
 
 export type BevVersionKind = 'create' | 'edit' | 'green' | 'outpaint' | 'nobg' | 'upload';
 

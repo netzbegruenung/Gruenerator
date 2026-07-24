@@ -162,10 +162,7 @@ export function applyModificationParams(
   request: CanvasGenerationRequest,
   type: string,
   params:
-    | DreizeilenModificationParams
-    | ZitatModificationParams
-    | VeranstaltungModificationParams
-    | null
+    DreizeilenModificationParams | ZitatModificationParams | VeranstaltungModificationParams | null
 ): CanvasGenerationRequest {
   if (!params) return request;
 
