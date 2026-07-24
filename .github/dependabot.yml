@@ -56,6 +56,13 @@ updates:
         patterns:
           - '@commitlint/*'
           - 'husky'
+      # The Gutenberg toolchain (apps/wordpress) is one coherent unit driven by
+      # wp-scripts' webpack config — never bump a part of it on its own.
+      wordpress-gutenberg:
+        patterns:
+          - '@wordpress/*'
+          - 'sass'
+          - 'sass-loader'
       # React Native / Expo move together with the SDK, never piecemeal.
       react-native:
         patterns:
@@ -81,6 +88,9 @@ updates:
           - 'prettier-*'
           - '@commitlint/*'
           - 'husky'
+          - '@wordpress/*'
+          - 'sass'
+          - 'sass-loader'
           - 'expo'
           - 'expo-*'
           - '@expo/*'
@@ -114,7 +124,15 @@ updates:
       # @wordpress/scripts 33 pulls a typescript-eslint/ts-api-utils combination
       # that breaks linting monorepo-wide. Drop once the ts-api-utils override
       # in pnpm.overrides can go (i.e. after the eslint-10 bump above).
-      - dependency-name: '@wordpress/scripts'
+      #
+      # The rest of the Gutenberg stack is gated on the SAME unblock: wp-scripts
+      # owns the webpack/babel/sass pipeline, so @wordpress/components 37,
+      # block-editor 16, base-styles 11 and sass-loader 17 cannot land while
+      # scripts stays on 31 — they would desync the build. Drop ALL of these
+      # together and do the Gutenberg upgrade in ONE deliberate PR.
+      - dependency-name: '@wordpress/*'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'sass-loader'
         update-types: ['version-update:semver-major']
 
       # --- Neutralised by pnpm.overrides -----------------------------------
