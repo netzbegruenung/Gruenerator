@@ -47,9 +47,36 @@ Regeln für den Code:
 - Nur gerade ASCII-Anführungszeichen (") im Code, keine typografischen.
 - Wenn die Frage NICHTS mit den Tabellendaten zu tun hat (z.B. Allgemeinwissen, Textaufgaben ohne Bezug zu \`df\`), antworte mit {"related": false, "code": ""}`;
 
+// Filling writes the ORIGINAL workbook with openpyxl instead of aggregating the
+// pre-loaded `df`. pandas would round-trip the file through a DataFrame and drop
+// formatting, formulas, merged cells and column widths — everything that makes a
+// form a form. The file is already staged in the Pyodide FS under its exact
+// upload name (runCore stages every attached file before running), so the code
+// can just open it by name.
+const FILL_PROMPT = `Du bist ein Python-Codegenerator. Im Browser läuft ein Python-Interpreter, in dem die hochgeladene Datei der*des Nutzer*in unter ihrem Originalnamen im Arbeitsverzeichnis liegt. Du sollst sie AUSFÜLLEN.
+
+Antworte AUSSCHLIESSLICH mit einem JSON-Objekt dieser Form:
+{"related": true, "code": "<python-code>"}
+
+Regeln für den Code:
+- .xlsx-Dateien: IMMER mit openpyxl bearbeiten, NIEMALS mit pandas. Nur openpyxl erhält Formatierung, Formeln, verbundene Zellen und Spaltenbreiten der Vorlage.
+  \`import openpyxl\`, \`wb = openpyxl.load_workbook("<Originalname>")\`, \`ws = wb.active\` (oder \`wb["Blattname"]\`), Zellen per \`ws["B4"] = "Wert"\` bzw. \`ws.cell(row=4, column=2, value="Wert")\` setzen.
+- .csv-Dateien: mit pandas bearbeiten und über \`to_csv(..., index=False)\` schreiben.
+- .xls-Dateien (altes Format) können NICHT geschrieben werden: mit \`pd.read_excel\` lesen und das Ergebnis als .xlsx speichern (\`to_excel(..., index=False)\`). Weise in der Ausgabe per print darauf hin, dass das Format auf .xlsx gewechselt ist.
+- Speichere IMMER unter einem NEUEN Dateinamen: Originalname ohne Endung + "_ausgefuellt" + Endung (z.B. \`wb.save("Vorlage_ausgefuellt.xlsx")\`). Überschreibe die Originaldatei NIEMALS — nur neu geschriebene Dateien werden zum Download angeboten.
+- Verwende die ECHTEN Blatt- und Spaltennamen bzw. Zellbezüge aus dem Datei-Kontext. Rate keine Zellen: leite die Zielzelle aus der Beschriftung in der Nachbarzelle ab (Beschriftung in Spalte A → Wert in Spalte B derselben Zeile).
+- Trage NUR Werte ein, die die*der Nutzer*in genannt hat oder die sich eindeutig aus der Datei berechnen lassen. Erfinde nichts; lass unklare Felder leer.
+- Formelzellen NICHT überschreiben — sie rechnen sich selbst.
+- Printe nach dem Speichern eine Zeile pro befülltem Feld im Format \`print("B4 = Wert")\` und zum Schluss \`print("Datei erstellt: <Dateiname>")\`.
+- Keine Netzwerkzugriffe. Nur gerade ASCII-Anführungszeichen (") im Code, keine typografischen.
+- Wenn die Anfrage nichts mit dem Ausfüllen dieser Datei zu tun hat, antworte mit {"related": false, "code": ""}`;
+
 const MAX_TABLE_CONTEXT_CHARS = 8000;
 const TABLE_TAIL_CHARS = 2000;
 const MAX_CODE_CHARS = 2000;
+// A form fill touches many cells and prints a line per field — the analyze
+// budget (one aggregation + one print) is far too tight.
+const MAX_FILL_CODE_CHARS = 6000;
 
 /** Strip accidental markdown fences — the prompt forbids them, but models slip. */
 function stripCodeFences(raw: string): string {
@@ -111,13 +138,32 @@ function buildTableContext(state: ChatGraphState): string {
   return truncateTableContext(combined);
 }
 
+/**
+ * Exact upload names of the tabular attachments. Fill mode needs them verbatim
+ * for `load_workbook(...)` — `buildTableContext` only carries them as a `###`
+ * heading inside a possibly truncated blob, which is not a reliable source for
+ * a file path. Falls back to parsing those headings when the thread-attachment
+ * rows are not loaded yet (first turn).
+ */
+function tabularFileNames(state: ChatGraphState): string[] {
+  const fromAttachments = (state.threadAttachments ?? [])
+    .filter((a) => !a.isImage && isTabularAttachment(a.name, a.mimeType))
+    .map((a) => a.name);
+  if (fromAttachments.length > 0) return fromAttachments;
+
+  return [...(state.attachmentContext ?? '').matchAll(/^### (.+)$/gm)]
+    .map((m) => m[1].trim())
+    .filter((name) => isTabularAttachment(name, ''));
+}
+
 export { lastUserText } from './classifierHeuristics.js';
 
 export async function pandasComputeNode(
   state: ChatGraphState,
-  opts?: { previousCode?: string; previousError?: string }
+  opts?: { previousCode?: string; previousError?: string; mode?: 'analyze' | 'fill' }
 ): Promise<{ pythonCode: string | null }> {
   const startTime = Date.now();
+  const isFill = opts?.mode === 'fill';
   const question = lastUserText(state) || state.searchQuery || '';
   const tableContext = buildTableContext(state);
 
@@ -140,10 +186,17 @@ Fehlermeldung: ${opts.previousError}
 Analysiere den Fehler (z.B. falscher Spaltenname, falscher Typ) und schreibe korrigierten, lauffähigen Code.`
       : '';
 
-    const userMessage = `Tabellen-Kontext (Spaltennamen + Beispielzeilen):
+    // Fill mode opens the file by path, so the exact upload name must be stated
+    // outside the (truncatable) table blob.
+    const fileNames = isFill ? tabularFileNames(state) : [];
+    const fileBlock = fileNames.length
+      ? `Dateiname(n) im Arbeitsverzeichnis (exakt so verwenden): ${fileNames.join(', ')}\n\n`
+      : '';
+
+    const userMessage = `${fileBlock}${isFill ? 'Datei-Kontext' : 'Tabellen-Kontext'} (Spaltennamen + Beispielzeilen):
 ${tableContext}
 
-Frage der*des Nutzer*in: ${question}${correctionBlock}
+${isFill ? 'Auftrag' : 'Frage'} der*des Nutzer*in: ${question}${correctionBlock}
 
 Schreibe den Python-Code.`;
 
@@ -151,11 +204,11 @@ Schreibe den Python-Code.`;
       {
         type: 'chat_pandas_codegen',
         provider: CODEGEN_MODEL.provider,
-        systemPrompt: CODEGEN_PROMPT,
+        systemPrompt: isFill ? FILL_PROMPT : CODEGEN_PROMPT,
         messages: [{ role: 'user', content: userMessage }],
         options: {
           model: CODEGEN_MODEL.model,
-          max_tokens: 500,
+          max_tokens: isFill ? 1500 : 500,
           temperature: 0.1,
           response_format: { type: 'json_object' },
         },
@@ -164,7 +217,7 @@ Schreibe den Python-Code.`;
     );
 
     const parsed = parseCodegenResponse(response.content || '');
-    const code = parsed.code.slice(0, MAX_CODE_CHARS);
+    const code = parsed.code.slice(0, isFill ? MAX_FILL_CODE_CHARS : MAX_CODE_CHARS);
     // Escape valve: the model judged the question unrelated to the table —
     // fall through to the normal pipeline instead of running pointless code.
     if (!parsed.related) {

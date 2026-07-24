@@ -21,6 +21,7 @@ const CONTENT_TYPE_BY_EXT: Record<string, string> = {
   md: 'text/markdown',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   xls: 'application/vnd.ms-excel',
+  pdf: 'application/pdf',
 };
 
 router.get('/:fileName', (req: Request, res: Response): void => {

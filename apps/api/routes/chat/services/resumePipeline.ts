@@ -104,6 +104,13 @@ export async function runChatGraphResume({
       return sseFail(sse, PROGRESS_MESSAGES.unauthorized, { code: 'unauthorized' });
     }
 
+    // pipelineStateStore strips the PDF bytes before writing to Redis (they are
+    // already in processedMeta — storing both would double the payload). Rebuild
+    // the field here so the PDF form tools still work on a resumed turn.
+    classifiedState.pdfFormAttachments = requestContext.processedMeta
+      .filter((m) => m.mimeType === 'application/pdf' && m.fileData != null)
+      .map((m) => ({ name: m.name, data: m.fileData as string }));
+
     const aiWorkerPool = getAIWorkerPool(req);
     if (!aiWorkerPool) {
       return sseFail(sse, PROGRESS_MESSAGES.aiUnavailable, {
@@ -160,6 +167,9 @@ export async function runChatGraphResume({
           ...(classifiedState.pandasLastCode != null && {
             previousCode: classifiedState.pandasLastCode,
           }),
+          ...(classifiedState.pandasComputeMode != null && {
+            mode: classifiedState.pandasComputeMode,
+          }),
           previousError: errorText,
         });
         if (!pythonCode) return false;
@@ -202,8 +212,14 @@ export async function runChatGraphResume({
       if (payload && !hasNanValues) {
         // Plausibility check (fail-open, once per turn, shares the correction
         // budget): catches code that RAN fine but answered the wrong question
-        // — beta: doubled totals, wrong column for "höchster Gewinn".
-        if ((classifiedState.pandasComputeRetries ?? 0) < 1 && classifiedState.pandasLastCode) {
+        // — beta: doubled totals, wrong column for "höchster Gewinn". Skipped
+        // for fill runs: they answer no question, they produce a file, and the
+        // verifier's "does this number fit?" framing has nothing to judge.
+        if (
+          classifiedState.pandasComputeMode !== 'fill' &&
+          (classifiedState.pandasComputeRetries ?? 0) < 1 &&
+          classifiedState.pandasLastCode
+        ) {
           classifiedState.aiWorkerPool = aiWorkerPool;
           const verdict = await computeVerifierNode(classifiedState, payload);
           if (!verdict.plausible) {

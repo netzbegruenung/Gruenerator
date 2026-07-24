@@ -140,8 +140,21 @@ if not getattr(builtins, '_gruen_import_guarded', False):
     builtins.__import__ = _gruen_guarded_import
     builtins._gruen_import_guarded = True
 
+# The pandas pre-load is a precondition only for code that USES it. Form-fill
+# code opens the workbook itself with openpyxl and never touches df or sheets,
+# so a read_excel that chokes on a form layout must not kill that run. Code that
+# does reference them still gets the original error raised — swallowing it there
+# would replace a precise "Unsupported format" with a baffling NameError.
 if __setup_code:
-    exec(__setup_code, _ns)
+    try:
+        exec(__setup_code, _ns)
+    except Exception as _gruen_setup_err:
+        import re as _gruen_re
+        # Doubled backslashes: this harness lives in a JS template literal, where
+        # a lone \\b is the backspace escape and would never reach Python.
+        if _gruen_re.search(r'\\b(df|sheets)\\b', __user_code):
+            raise
+        print("Hinweis: Die Tabelle konnte nicht als DataFrame vorgeladen werden: " + str(_gruen_setup_err))
 
 # Jupyter semantics for the last statement: a bare trailing expression
 # (df.describe(), 1 + 1) prints its repr instead of vanishing — models on the
@@ -222,6 +235,12 @@ export async function runPythonCore(
     // pandas in the setup harness even if the user code doesn't import it.
     const packages = detectPyodidePackages(code);
     if (files.length && !packages.includes('pandas')) packages.push('pandas');
+    // openpyxl needs Pillow to carry a workbook's IMAGES through a
+    // load→save round trip. Without it every embedded logo — which is to say
+    // the letterhead of essentially every party template — is silently dropped
+    // from the filled file. Only loaded when the code really uses openpyxl, so
+    // the far more common read-a-sheet-with-pandas path keeps its start-up time.
+    if (/\bopenpyxl\b/.test(code) && !packages.includes('pillow')) packages.push('pillow');
     if (packages.length) {
       opts.onProgress?.('Pakete werden geladen …');
       await py.loadPackage(packages);
@@ -229,7 +248,11 @@ export async function runPythonCore(
 
     // Spreadsheet engines are loadPackage-incompatible → install via micropip
     // only for the formats actually present, before the harness runs read_excel.
-    if (files.some((f) => isXlsx(f.name, f.mimeType))) {
+    // The import check covers code that WRITES an .xlsx without one being
+    // attached (form fills save under a new name; "bau mir eine Tabelle" has no
+    // input file at all) — the file-based check alone would leave openpyxl
+    // uninstalled and the run would die on `import openpyxl`.
+    if (files.some((f) => isXlsx(f.name, f.mimeType)) || /\bopenpyxl\b/.test(code)) {
       await ensureSpreadsheetEngine(py, 'xlsx', opts);
     }
     if (files.some((f) => isXls(f.name, f.mimeType))) {
