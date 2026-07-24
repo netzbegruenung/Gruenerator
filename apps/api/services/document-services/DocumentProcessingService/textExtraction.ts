@@ -12,6 +12,19 @@ import { ocrService } from '../../OcrService/index.js';
 import type { UploadedFile } from './types.js';
 
 /**
+ * Upper bound for the full text kept on the document row. Web articles and
+ * ordinary PDFs stay far below it; only outliers like plenary protocols get
+ * truncated, and those are served by the Qdrant chunks anyway.
+ */
+export const MAX_STORED_TEXT_CHARS = 500_000;
+
+/** Full extracted text as persisted alongside the document, size-capped. */
+export function capStoredText(text: string): string | null {
+  if (!text || typeof text !== 'string') return null;
+  return text.length > MAX_STORED_TEXT_CHARS ? text.slice(0, MAX_STORED_TEXT_CHARS) : text;
+}
+
+/**
  * Generate a short, sentence-aware content preview
  */
 export function generateContentPreview(text: string, limit: number = 600): string {

@@ -2,6 +2,7 @@ import { Navigate } from 'react-router-dom';
 
 import { useAuthBootstrap } from '../../hooks/useAuthBootstrapped';
 import { useAuthStore } from '../../stores/authStore';
+import { startPagePath } from '../../utils/startpage';
 
 import AuthSplash from './AuthSplash';
 
@@ -21,11 +22,12 @@ interface HomeRedirectProps {
  */
 const HomeRedirect = ({ children }: HomeRedirectProps) => {
   const isLoggingOut = useAuthStore((s) => s.isLoggingOut);
+  const startPage = useAuthStore((s) => s.user?.default_startpage);
   const { isBootstrapped, isAuthenticated } = useAuthBootstrap();
 
   if (isLoggingOut) return <>{children}</>;
   if (!isBootstrapped) return <AuthSplash />;
-  if (isAuthenticated) return <Navigate to="/workplace" replace />;
+  if (isAuthenticated) return <Navigate to={startPagePath(startPage)} replace />;
   return <>{children}</>;
 };
 

@@ -6,7 +6,7 @@
  * system prompt → generate with live search/research tools. This module owns that
  * core so neither caller duplicates it.
  */
-import { generateText, stepCountIs, type ModelMessage } from 'ai';
+import { generateText, isStepCount, type ModelMessage } from 'ai';
 
 import {
   buildSystemMessage,
@@ -175,7 +175,7 @@ export async function generateFromState(
           ? { enabledToolKeys: agentConfig.enabledTools }
           : {}
       ),
-      stopWhen: stepCountIs(MAX_TOOL_STEPS),
+      stopWhen: isStepCount(MAX_TOOL_STEPS),
       maxOutputTokens: opts.longForm
         ? Math.max(agentConfig.params.max_tokens, MIN_DOCUMENT_TOKENS)
         : agentConfig.params.max_tokens,

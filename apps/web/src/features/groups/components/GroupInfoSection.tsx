@@ -25,6 +25,7 @@ import {
   HiOutlineBell,
   HiOutlineDocumentText,
   HiOutlineLink,
+  HiOutlineMail,
   HiOutlinePhotograph,
   HiOutlineTrash,
   HiOutlineUserGroup,
@@ -44,6 +45,7 @@ import { type GroupAudience } from '../hooks/useGroupRequests';
 import {
   useCloneCanvasTemplate,
   useGroupMembers,
+  useInviteToGroup,
   useSetGroupMute,
   getGroupInitials,
   type GroupLink,
@@ -143,6 +145,8 @@ interface GroupInfoSectionProps {
   onErrorMessage?: (msg: string) => void;
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const GroupInfoSection = memo(
   ({
     data,
@@ -189,6 +193,54 @@ const GroupInfoSection = memo(
     const [showVisibilityDialog, setShowVisibilityDialog] = useState(false);
     const cloneTemplate = useCloneCanvasTemplate();
 
+    // Invite-by-email dialog (team Gruppen only).
+    const inviteToGroup = useInviteToGroup();
+    const [showInviteDialog, setShowInviteDialog] = useState(false);
+    const [inviteEmails, setInviteEmails] = useState<string[]>([]);
+    const [inviteDraft, setInviteDraft] = useState('');
+    const [inviteError, setInviteError] = useState('');
+    const addInviteEmail = useCallback(() => {
+      const value = inviteDraft.trim().toLowerCase();
+      if (!value) return;
+      if (!EMAIL_RE.test(value)) {
+        setInviteError('Ungültige E-Mail-Adresse.');
+        return;
+      }
+      setInviteEmails((prev) => (prev.includes(value) ? prev : [...prev, value]));
+      setInviteDraft('');
+      setInviteError('');
+    }, [inviteDraft]);
+    const openInviteDialog = useCallback(() => {
+      setInviteEmails([]);
+      setInviteDraft('');
+      setInviteError('');
+      setShowInviteDialog(true);
+    }, []);
+    const submitInvites = useCallback(() => {
+      const pending = inviteDraft.trim().toLowerCase();
+      const emails =
+        pending && EMAIL_RE.test(pending) && !inviteEmails.includes(pending)
+          ? [...inviteEmails, pending]
+          : inviteEmails;
+      if (emails.length === 0) return;
+      inviteToGroup.mutate(
+        { groupId, emails },
+        {
+          onSuccess: (res) => {
+            setShowInviteDialog(false);
+            onSuccessMessage?.(
+              `${res.sent} Einladung${res.sent === 1 ? '' : 'en'} versendet.` +
+                (res.failed.length ? ` ${res.failed.length} fehlgeschlagen.` : '')
+            );
+          },
+          onError: (err) =>
+            onErrorMessage?.(
+              (err as Error)?.message || 'Einladungen konnten nicht versendet werden.'
+            ),
+        }
+      );
+    }, [inviteDraft, inviteEmails, inviteToGroup, groupId, onSuccessMessage, onErrorMessage]);
+
     const isMuted = data?.membership?.notifications_muted ?? false;
     const setGroupMute = useSetGroupMute(groupId);
     const handleToggleMute = useCallback(() => {
@@ -197,7 +249,7 @@ const GroupInfoSection = memo(
       setGroupMute.mutate(next, {
         onSuccess: () =>
           onSuccessMessage?.(
-            next ? 'Space stummgeschaltet.' : 'Benachrichtigungen wieder aktiviert.'
+            next ? 'Benachrichtigungen stummgeschaltet.' : 'Benachrichtigungen wieder aktiviert.'
           ),
         onError: (err: Error) =>
           onErrorMessage?.('Fehler beim Aktualisieren der Benachrichtigungen: ' + err.message),
@@ -331,7 +383,7 @@ const GroupInfoSection = memo(
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon-xs" aria-label="Space-Aktionen">
+                <Button variant="ghost" size="icon-xs" aria-label="Aktionen">
                   <HiDotsVertical />
                 </Button>
               </DropdownMenuTrigger>
@@ -373,12 +425,18 @@ const GroupInfoSection = memo(
                       disabled={isUploadingAvatar}
                     >
                       <HiOutlinePhotograph className="size-4 mr-xs" />
-                      Space-Bild ändern
+                      Bild ändern
                     </DropdownMenuItem>
                     {data?.groupInfo?.avatar_url && onDeleteAvatar && (
                       <DropdownMenuItem onClick={onDeleteAvatar} disabled={isUploadingAvatar}>
                         <HiOutlineTrash className="size-4 mr-xs" />
-                        Space-Bild entfernen
+                        Bild entfernen
+                      </DropdownMenuItem>
+                    )}
+                    {!isPersonal && (
+                      <DropdownMenuItem onClick={openInviteDialog}>
+                        <HiOutlineMail className="size-4 mr-xs" />
+                        Per E-Mail einladen
                       </DropdownMenuItem>
                     )}
                     {!isPersonal && data?.joinToken && (
@@ -402,7 +460,7 @@ const GroupInfoSection = memo(
                       className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
                     >
                       <HiOutlineTrash className="size-4 mr-xs" />
-                      Space löschen
+                      {isPersonal ? 'Projekt löschen' : 'Gruppe löschen'}
                     </DropdownMenuItem>
                   </>
                 )}
@@ -417,7 +475,7 @@ const GroupInfoSection = memo(
                   src={resolveApiAssetUrl(
                     `/api/auth/groups/${groupId}/avatar?t=${avatarTimestamp}`
                   )}
-                  alt={data?.groupInfo?.name || 'Space'}
+                  alt={data?.groupInfo?.name || 'Projekt'}
                   className="size-16 rounded-full object-cover ring-2 ring-grey-200 dark:ring-grey-700"
                 />
               ) : (
@@ -433,7 +491,7 @@ const GroupInfoSection = memo(
                   className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 group-hover/avatar:bg-black/40 transition-colors cursor-pointer border-none"
                   onClick={() => avatarInputRef.current?.click()}
                   disabled={isUploadingAvatar}
-                  aria-label="Space-Bild ändern"
+                  aria-label="Bild ändern"
                 >
                   <HiOutlinePhotograph className="size-5 text-white opacity-0 group-hover/avatar:opacity-100 transition-opacity" />
                 </button>
@@ -459,16 +517,16 @@ const GroupInfoSection = memo(
                   value={editedGroupName}
                   onChange={handleGroupNameChange}
                   className="w-full rounded-md border-2 border-primary-500 bg-background px-sm py-xs text-2xl font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-                  placeholder="Space-Name"
+                  placeholder="Name"
                   maxLength={100}
                   autoFocus
-                  aria-label="Space-Name bearbeiten"
+                  aria-label="Name bearbeiten"
                 />
                 <textarea
                   value={editedGroupDescription}
                   onChange={handleGroupDescriptionChange}
                   className="w-full rounded-md border border-grey-300 dark:border-grey-600 bg-background px-sm py-xs text-sm resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
-                  placeholder="Beschreibung der Space (optional)..."
+                  placeholder="Beschreibung (optional)..."
                   maxLength={500}
                   disabled={isUpdatingGroupName}
                   style={{ minHeight: 'auto' }}
@@ -512,7 +570,7 @@ const GroupInfoSection = memo(
                   {data?.groupInfo?.description ||
                     (data?.isAdmin
                       ? 'Verwalte Mitglieder und geteilte Inhalte.'
-                      : 'Du bist Mitglied dieser Space.')}
+                      : 'Du bist Mitglied dieser Gruppe.')}
                 </p>
               </div>
             )}
@@ -626,7 +684,7 @@ const GroupInfoSection = memo(
               return (
                 <div className="flex items-center justify-center py-2xl text-center">
                   <p className="text-sm text-grey-500">
-                    Noch keine geteilten Inhalte in dieser Space.
+                    Noch keine geteilten Inhalte in dieser Gruppe.
                   </p>
                 </div>
               );
@@ -729,7 +787,7 @@ const GroupInfoSection = memo(
                                       )
                                     }
                                     className="absolute top-1 right-1 p-1 text-grey-400 hover:text-red-500 bg-background/80 dark:bg-background/80 backdrop-blur-sm transition-colors border-none cursor-pointer rounded opacity-0 group-hover:opacity-100"
-                                    aria-label="Aus Space entfernen"
+                                    aria-label="Aus Gruppe entfernen"
                                   >
                                     <HiOutlineTrash size={16} />
                                   </button>
@@ -780,7 +838,7 @@ const GroupInfoSection = memo(
                                     )
                                   }
                                   className="shrink-0 p-1 text-grey-400 hover:text-red-500 transition-colors bg-transparent border-none cursor-pointer rounded opacity-0 group-hover:opacity-100"
-                                  aria-label="Aus Space entfernen"
+                                  aria-label="Aus Gruppe entfernen"
                                 >
                                   <HiOutlineTrash size={16} />
                                 </button>
@@ -824,13 +882,82 @@ const GroupInfoSection = memo(
           />
         )}
 
+        {!isPersonal && (
+          <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
+            <DialogContent className="sm:max-w-[28rem]">
+              <DialogHeader>
+                <DialogTitle>Per E-Mail einladen</DialogTitle>
+                <DialogDescription>
+                  Eingeladene erhalten eine E-Mail mit einem Beitrittslink zu dieser Gruppe.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col gap-xs">
+                <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-grey-300 dark:border-grey-600 bg-background px-sm py-xs focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-primary-500">
+                  {inviteEmails.map((email) => (
+                    <span
+                      key={email}
+                      className="inline-flex items-center gap-1 rounded-full bg-primary-100 px-2 py-0.5 text-xs text-primary-800 dark:bg-primary-900/40 dark:text-primary-200"
+                    >
+                      {email}
+                      <button
+                        type="button"
+                        onClick={() => setInviteEmails((prev) => prev.filter((e) => e !== email))}
+                        aria-label={`${email} entfernen`}
+                        className="rounded-full p-0.5 hover:bg-primary-500/20"
+                      >
+                        <HiX className="size-3" />
+                      </button>
+                    </span>
+                  ))}
+                  <input
+                    type="email"
+                    value={inviteDraft}
+                    onChange={(e) => {
+                      setInviteDraft(e.target.value);
+                      if (inviteError) setInviteError('');
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ',') {
+                        e.preventDefault();
+                        addInviteEmail();
+                      }
+                    }}
+                    onBlur={addInviteEmail}
+                    className="min-w-[8rem] flex-1 bg-transparent py-0.5 text-sm focus:outline-none"
+                    placeholder={inviteEmails.length === 0 ? 'name@beispiel.de' : ''}
+                  />
+                </div>
+                {inviteError ? (
+                  <span className="text-xs text-red-600 dark:text-red-400">{inviteError}</span>
+                ) : (
+                  <span className="text-xs text-grey-500">Mit Enter oder Komma hinzufügen.</span>
+                )}
+              </div>
+              <DialogFooter className="gap-xs">
+                <Button variant="outline" onClick={() => setShowInviteDialog(false)}>
+                  Abbrechen
+                </Button>
+                <Button
+                  onClick={submitInvites}
+                  disabled={
+                    inviteToGroup.isPending || (inviteEmails.length === 0 && !inviteDraft.trim())
+                  }
+                >
+                  {inviteToGroup.isPending ? 'Wird gesendet...' : 'Einladen'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+
         <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
           <DialogContent className="sm:max-w-[24rem]">
             <DialogHeader>
-              <DialogTitle>Space löschen</DialogTitle>
+              <DialogTitle>{isPersonal ? 'Projekt löschen' : 'Gruppe löschen'}</DialogTitle>
               <DialogDescription>
-                Die gesamte Space wird für alle Mitglieder unwiderruflich gelöscht. Alle
-                Gruppeninhalte und -mitgliedschaften werden permanent entfernt.
+                {isPersonal
+                  ? 'Dieses Projekt wird unwiderruflich gelöscht. Alle Inhalte werden permanent entfernt.'
+                  : 'Diese Gruppe wird für alle Mitglieder unwiderruflich gelöscht. Alle Inhalte und Mitgliedschaften werden permanent entfernt.'}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="gap-xs">

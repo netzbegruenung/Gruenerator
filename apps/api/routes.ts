@@ -41,6 +41,7 @@ import { mountEmailContractRouter } from './routes/email/emailContractRouter.js'
 import etherpadRoute from './routes/etherpad/etherpadController.js';
 import { mountExportsContractRouter } from './routes/exports/exportsContractRouter.js';
 import exportDocumentsRouter from './routes/exports/index.js';
+import { mountFeedbackContractRouter } from './routes/feedback/feedbackContractRouter.js';
 import imagineCreateRoute from './routes/flux/imagineCreate.js';
 import imaginePureRoute from './routes/flux/imaginePure.js';
 import outpaintRoute from './routes/flux/outpaint.js';
@@ -60,11 +61,13 @@ import {
 import { markdownController as markdownRouter } from './routes/markdown/index.js';
 import { mountMcpOAuthCallbackRouter } from './routes/mcp/mcpOAuthCallbackRouter.js';
 import { mountMcpServersContractRouter } from './routes/mcp/mcpServersContractRouter.js';
+import { createMcpAppsRouter } from './routes/mcp-apps/mcpAppsRouter.js';
 import mcpServerRouter from './routes/mcp-server/index.js';
 import { mountMonitorContractRouter } from './routes/monitor/monitorContractRouter.js';
 import { mountNotebookCollectionsContractRouter } from './routes/notebook/notebookCollectionsContractRouter.js';
 import { mountNotebookContractRouter } from './routes/notebook/notebookContractRouter.js';
 import { mountNotebookSharingContractRouter } from './routes/notebook/notebookSharingContractRouter.js';
+import { mountNotebookWordpressContractRouter } from './routes/notebook/notebookWordpressContractRouter.js';
 import { mountWolkePendingContractRouter } from './routes/notebook/wolkePendingContractRouter.js';
 import notificationsRouter from './routes/notifications/index.js';
 import { mountNotificationsContractRouter } from './routes/notifications/notificationsContractRouter.js';
@@ -131,8 +134,10 @@ import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractR
 import { mountItemUsageContractRouter } from './routes/usage/itemUsageContractRouter.js';
 import { recentValuesRouter } from './routes/user/index.js';
 import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
+import { mountUserWebsitesContractRouter } from './routes/user/userWebsitesContractRouter.js';
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
 import { mountUserAgentsSharingContractRouter } from './routes/userAgents/userAgentsSharingContractRouter.js';
+import { mountUserTextFormsContractRouter } from './routes/userTextForms/userTextFormsContractRouter.js';
 import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
 import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
 import { mountVideoContractRouter } from './routes/video/videoContractRouter.js';
@@ -187,6 +192,19 @@ const standardMutationLimiter = isRateLimitDisabled
       // limiter's purpose is abuse-prevention on writes; reads are covered by
       // authenticatedReadLimiter where it matters.
       skip: (req) => req.method === 'GET',
+      message: { error: 'Too many requests, please try again later.' },
+    });
+
+// Tight limiter for the in-app feedback widget — feedback is rare, and each
+// submit can carry a screenshot, so cap it well below the general write budget.
+const feedbackLimiter = isRateLimitDisabled
+  ? (_req: Request, _res: Response, next: NextFunction) => next()
+  : rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 30,
+      standardHeaders: true,
+      legacyHeaders: false,
+      keyGenerator: perUserOrIpKey,
       message: { error: 'Too many requests, please try again later.' },
     });
 
@@ -353,6 +371,12 @@ export async function setupRoutes(app: Application): Promise<void> {
   // ts-rest contract router for notebook collections. requireAuth is
   // applied at the prefix because all routes require authentication.
   app.use('/api/auth/notebook-collections', requireAuth);
+  // WordPress-source endpoints (discover/import) — own prefix, user-scoped.
+  app.use('/api/auth/notebook-wordpress', requireAuth);
+  mountNotebookWordpressContractRouter(app);
+
+  app.use('/api/auth/user-websites', requireAuth);
+  mountUserWebsitesContractRouter(app);
   // Neutral "my groups" endpoint used by share dialogs across features. Must
   // be `.use`'d before the contract router mounts the GET /api/auth/groups/me
   // handler so the middleware actually runs.
@@ -608,6 +632,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // before the CRUD `/api/user-agents/:identifier` param route.
   mountUserAgentsSharingContractRouter(app);
   mountUserAgentsContractRouter(app);
+  // Per-user learned writing styles ("Texte anlernen"). requireAuth at the prefix.
+  app.use('/api/text-forms', requireAuth);
+  mountUserTextFormsContractRouter(app);
   // EXPERIMENTAL: recurring agent tasks. Scheduler worker lives in server.ts.
   app.use('/api/recurring-tasks', requireAuth, authenticatedReadLimiter);
   mountRecurringTasksContractRouter(app);
@@ -654,6 +681,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/email', requireAuth);
   mountEmailContractRouter(app);
   app.use('/api/email', standardMutationLimiter, emailRouter);
+  // In-app feedback widget → emails the operator. requireAuth at prefix so the
+  // handler can attribute feedback to the signed-in user; tight dedicated limiter.
+  app.use('/api/feedback', requireAuth, feedbackLimiter);
+  mountFeedbackContractRouter(app);
   app.use('/api/auth/init', publicReadLimiter, authInitRouter);
   // ts-rest contract router for /api/recent-activity — mounts BEFORE the legacy
   // router so the typed GET matches first; requireAuth at the prefix guarantees
@@ -680,6 +711,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   if (env.MCP_SERVER_ENABLED) {
     app.use('/api/mcp-server', mcpServerRouter);
   }
+  // MCP-Apps widget bridge — SYSTEM sources only (the router 403s any
+  // non-system serverKey). requireAuth at the prefix; the sandboxed widget
+  // iframe drives its interactive window.openai bridge through here.
+  app.use('/api/mcp-apps', requireAuth, authenticatedReadLimiter, createMcpAppsRouter());
   app.use('/api/notifications', requireAuth, publicReadLimiter, notificationsRouter);
   app.use('/api/media', requireAuth, authenticatedReadLimiter, mediaRouter);
   app.use('/api/og/docs', publicReadLimiter, ogDocsRouter);

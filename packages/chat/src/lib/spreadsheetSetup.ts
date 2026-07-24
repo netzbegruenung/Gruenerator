@@ -92,9 +92,9 @@ def _gruen_clean(_df):
  * CSVs vary wildly — German Excel exports in particular: `;`-separated,
  * cp1252-encoded (umlauts!) and with decimal commas ("1.234,56"). The loader
  * sniffs the separator, falls back through encodings, and converts columns
- * that consistently look like German-formatted numbers to floats (only
- * object-dtype columns with at least one comma qualify, so English decimals —
- * already parsed as float64 — are never touched).
+ * that consistently look like German-formatted numbers to floats (only text
+ * columns with at least one comma qualify, so English decimals — already parsed
+ * as float64 — are never touched).
  * .xlsx→openpyxl, .xls→xlrd (engines installed on demand by the worker);
  * Excel stores real numbers, so only CSV needs the number normalization.
  * Both paths finish with the trailing-aggregate-row guard (CLEAN_HELPER).
@@ -133,7 +133,11 @@ def _gruen_load_csv(_path):
         _df = pd.read_csv(_path, sep=None, engine='python', encoding='utf-8', encoding_errors='replace')
     _german = _re.compile(r'^\\s*-?(?:\\d{1,3}(?:\\.\\d{3})+|\\d+)(?:,\\d+)?\\s*$')
     for _col in _df.columns:
-        if _df[_col].dtype != object:
+        # pandas <3 gives text columns dtype object; pandas 3 gives them the new
+        # str dtype (PDEP-14). Testing for object alone silently skips every text
+        # column on pandas 3, so "1.234,56" stays a string and .sum() concatenates
+        # instead of adding. Accept both.
+        if not (_df[_col].dtype == object or pd.api.types.is_string_dtype(_df[_col])):
             continue
         _vals = _df[_col].dropna().astype(str)
         if len(_vals) and _vals.str.contains(',').any() and _vals.str.match(_german).all():

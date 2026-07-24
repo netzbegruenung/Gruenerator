@@ -29,6 +29,7 @@ const DEV_BYPASS_USER: Express.User = {
   avatar_robot_id: 1,
   beta_features: {},
   user_defaults: {},
+  default_startpage: 'chat',
   groups_enabled: false,
   custom_generators: false,
   database_access: false,

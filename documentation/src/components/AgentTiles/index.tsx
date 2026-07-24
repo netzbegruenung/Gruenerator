@@ -11,113 +11,108 @@ import {
 } from 'react-icons/pi';
 import type { IconType } from 'react-icons';
 
+import labelsJson from '@site/src/generated/ui-labels.json';
+
 import styles from './styles.module.css';
 
 const APP = 'https://gruenerator.eu';
 
-type Landesverband = {
-  name: string;
+interface LvLabel {
+  title: string;
+  notebook?: string;
+  agentSlug?: string;
+}
+const labels = labelsJson as Record<string, LvLabel>;
+
+/**
+ * Presentation only: which Landesverbände to show and their icon + @-mention +
+ * optional Presse/Insta shortcodes (none of which live in the app source). The
+ * drift-prone bits — display name, hub slug, notebook slug — are pulled from the
+ * generated manifest (derived from packages/shared LANDESVERBAENDE) by `id`, so
+ * a rename in code flows in here and a removed LV fails the docs build.
+ */
+interface LvTile {
+  id: string;
   Icon: IconType;
-  agentSlug: string;
-  notebookSlug: string;
   mention: string;
   presse?: string;
   insta?: string;
-};
+}
 
-const LANDESVERBAENDE: Landesverband[] = [
+const TILES: LvTile[] = [
   {
-    name: 'Berlin',
+    id: 'berlin',
     Icon: PiBuildings,
-    agentSlug: 'gruene-berlin',
-    notebookSlug: 'berlin',
     mention: '@berlin',
     presse: '/presse-berlin',
     insta: '/insta-berlin',
   },
   {
-    name: 'Mecklenburg-Vorpommern',
+    id: 'mecklenburg-vorpommern',
     Icon: PiWaves,
-    agentSlug: 'gruene-mv',
-    notebookSlug: 'mecklenburg-vorpommern',
     mention: '@mv',
     presse: '/presse-mv',
     insta: '/insta-mv',
   },
   {
-    name: 'Thüringen',
+    id: 'thueringen',
     Icon: PiTree,
-    agentSlug: 'gruene-thueringen',
-    notebookSlug: 'thueringen',
     mention: '@thüringen',
     presse: '/presse-thueringen',
     insta: '/insta-thueringen',
   },
   {
-    name: 'Brandenburg',
+    id: 'brandenburg',
     Icon: PiFlowerLight,
-    agentSlug: 'gruene-brandenburg',
-    notebookSlug: 'brandenburg',
     mention: '@brandenburg',
     presse: '/presse-brandenburg',
     insta: '/insta-brandenburg',
   },
   {
-    name: 'Bayern',
+    id: 'bayern',
     Icon: PiMountains,
-    agentSlug: 'gruene-bayern',
-    notebookSlug: 'bayern',
     mention: '@bayern',
     presse: '/presse-bayern',
     insta: '/insta-bayern',
   },
-  {
-    name: 'Sachsen-Anhalt',
-    Icon: PiCastleTurret,
-    agentSlug: 'gruene-sachsen-anhalt',
-    notebookSlug: 'sachsen-anhalt',
-    mention: '@sachsen-anhalt',
-  },
-  {
-    name: 'Hessen',
-    Icon: PiLeaf,
-    agentSlug: 'gruene-hessen',
-    notebookSlug: 'hessen',
-    mention: '@hessen',
-  },
-  {
-    name: 'Saarland',
-    Icon: PiPlant,
-    agentSlug: 'gruene-saarland',
-    notebookSlug: 'saarland',
-    mention: '@saar',
-  },
+  { id: 'sachsen-anhalt', Icon: PiCastleTurret, mention: '@sachsen-anhalt' },
+  { id: 'hessen', Icon: PiLeaf, mention: '@hessen' },
+  { id: 'saarland', Icon: PiPlant, mention: '@saar' },
 ];
 
 export default function AgentTiles(): React.JSX.Element {
   return (
     <div className={styles.grid}>
-      {LANDESVERBAENDE.map((lv) => {
-        const Icon = lv.Icon;
+      {TILES.map((tile) => {
+        const label = labels[`lv.${tile.id}`];
+        if (!label?.agentSlug || !label.notebook) {
+          throw new Error(
+            `AgentTiles: Landesverband "${tile.id}" is missing from ui-labels.json ` +
+              `(or has no hub/notebook). Regenerate with ` +
+              `\`pnpm --filter @gruenerator/documentation labels:generate\`; if the LV was ` +
+              `removed or lost its hub in packages/shared/src/agents/landesverbaende.ts, drop its tile here.`
+          );
+        }
+        const Icon = tile.Icon;
         return (
-          <div key={lv.agentSlug} className={styles.tile}>
+          <div key={tile.id} className={styles.tile}>
             <div className={styles.head}>
               <span className={styles.icon} aria-hidden="true">
                 <Icon />
               </span>
-              <a className={styles.name} href={`${APP}/agents/${lv.agentSlug}`}>
-                {lv.name}
+              <a className={styles.name} href={`${APP}/agents/${label.agentSlug}`}>
+                {label.title}
               </a>
             </div>
             <p className={styles.kinds}>Öffentlichkeitsarbeit · Bürger*innenanfragen</p>
-            {lv.presse && lv.insta && (
+            {tile.presse && tile.insta && (
               <div className={styles.chips}>
-                <span className={styles.chip}>{lv.presse}</span>
-                <span className={styles.chip}>{lv.insta}</span>
+                <span className={styles.chip}>{tile.presse}</span>
+                <span className={styles.chip}>{tile.insta}</span>
               </div>
             )}
-            <a className={styles.notebook} href={`${APP}/notebooks/${lv.notebookSlug}`}>
-              Notebook {lv.mention}
+            <a className={styles.notebook} href={`${APP}/notebooks/${label.notebook}`}>
+              Notebook {tile.mention}
             </a>
           </div>
         );

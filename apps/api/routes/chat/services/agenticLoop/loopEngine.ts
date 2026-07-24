@@ -21,7 +21,7 @@
 import {
   streamText as streamTextReal,
   generateText as generateTextReal,
-  stepCountIs,
+  isStepCount,
   InvalidToolInputError,
 } from 'ai';
 
@@ -82,16 +82,30 @@ function tryLenientJsonParse(raw: string): unknown {
 
 /** prepareStep shared by both modes: on the last step (or when forceFinish
  *  trips) strip tools AND explain why via a per-step system override. */
-function buildPrepareStep(
+export function buildPrepareStep(
   baseSystem: string,
   finishSuffix: string,
   maxSteps: number,
-  forceFinish: () => boolean
-): ({ stepNumber }: { stepNumber: number }) => { toolChoice?: 'none'; system?: string } {
-  return ({ stepNumber }) =>
-    stepNumber >= maxSteps - 1 || forceFinish()
-      ? { toolChoice: 'none' as const, system: `${baseSystem}${finishSuffix}` }
-      : {};
+  forceFinish: () => boolean,
+  forceFirstToolCall: boolean
+): ({ stepNumber }: { stepNumber: number }) => {
+  toolChoice?: 'none' | 'required';
+  system?: string;
+} {
+  return ({ stepNumber }) => {
+    if (stepNumber >= maxSteps - 1 || forceFinish()) {
+      return { toolChoice: 'none' as const, system: `${baseSystem}${finishSuffix}` };
+    }
+    // Explicit-scope MCP FOLLOW-UP: the small planner otherwise answers from
+    // prose without ever calling the connector (observed: intent=mcp steps=0,
+    // "Tally gibt nur die interne ID zurück" fabricated). Require a tool call on
+    // the first step so it actually hits the server. Gated off for the first
+    // scope turn (clarification allowed) and meta questions by the caller.
+    if (forceFirstToolCall && stepNumber === 0) {
+      return { toolChoice: 'required' as const };
+    }
+    return {};
+  };
 }
 
 /** Lenient one-shot arg repair; else the invalid-args error is surfaced to the
@@ -125,6 +139,8 @@ export interface LoopEngineParams {
   abortSignal: AbortSignal;
   /** Extra force-finish trigger (e.g. an image was generated). */
   forceFinish: () => boolean;
+  /** Force a tool call on the first step (explicit-scope MCP follow-ups). */
+  forceFirstToolCall?: boolean;
   onText: (delta: string) => void;
   onReasoning: (delta: string) => void;
   /** Split mode only: runs AFTER the gather phase and BEFORE synthesis. Used to
@@ -164,7 +180,7 @@ async function streamWithTools(
     system: p.toolSystem,
     messages: p.messages,
     tools: p.tools,
-    stopWhen: stepCountIs(p.maxSteps),
+    stopWhen: isStepCount(p.maxSteps),
     temperature: p.temperature,
     maxOutputTokens: p.maxOutputTokens,
     abortSignal: p.abortSignal,
@@ -172,7 +188,8 @@ async function streamWithTools(
       p.toolSystem,
       FORCE_FINISH_SYSTEM_SUFFIX,
       p.maxSteps,
-      p.forceFinish
+      p.forceFinish,
+      p.forceFirstToolCall ?? false
     ),
     experimental_repairToolCall: repairToolCall,
   });
@@ -189,7 +206,7 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
       system: gatherSystem,
       messages: p.messages,
       tools: p.tools,
-      stopWhen: stepCountIs(p.maxSteps),
+      stopWhen: isStepCount(p.maxSteps),
       temperature: p.temperature,
       maxOutputTokens: p.maxOutputTokens,
       abortSignal: p.abortSignal,
@@ -197,7 +214,8 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
         gatherSystem,
         FORCE_FINISH_GATHER_SUFFIX,
         p.maxSteps,
-        p.forceFinish
+        p.forceFinish,
+        p.forceFirstToolCall ?? false
       ),
       experimental_repairToolCall: repairToolCall,
     });
@@ -224,7 +242,7 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: 
 }
 
 interface Drainable {
-  fullStream: AsyncIterable<{ type: string; text?: string; error?: unknown }>;
+  stream: AsyncIterable<{ type: string; text?: string; error?: unknown }>;
 }
 
 async function drain(
@@ -233,7 +251,7 @@ async function drain(
   onReasoning: (d: string) => void
 ): Promise<{ text: string }> {
   let text = '';
-  const iterator = result.fullStream[Symbol.asyncIterator]();
+  const iterator = result.stream[Symbol.asyncIterator]();
   while (true) {
     const next = await iterator.next();
     if (next.done) break;

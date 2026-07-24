@@ -28,7 +28,7 @@ vi.mock('./compactionService.js', () => ({
 
 vi.mock('./messageHelpers.js', () => ({
   toTokenCounterMessage: (m: any) => m,
-  CONTEXT_CONFIG: { MAX_CONTEXT_TOKENS: 4000 },
+  getPruningBudget: () => 4000,
 }));
 
 vi.mock('../../../utils/logger.js', () => ({
@@ -177,29 +177,46 @@ describe('applyCompaction – concurrency guard & cooldown', () => {
 
     const result = await applyCompaction(id, [], 'my system prompt');
 
-    expect(result).toBe('my system prompt');
+    expect(result.systemMessage).toBe('my system prompt');
   });
 
-  it('returns compacted systemMessage when summary exists', async () => {
+  it('returns compacted systemMessage AND the shortened message list when summary exists', async () => {
     setupMocks({ needsCompaction: false, summary: 'Previous conversation summary...' });
+    const recent = [{ role: 'user', content: 'recent turn' }];
     mockPrepareMessagesWithCompaction.mockReturnValue({
       systemMessage: 'augmented system prompt with summary',
+      messages: recent,
     });
     const id = tid();
+    const full = [
+      { role: 'user', content: 'old turn' },
+      { role: 'assistant', content: 'old reply' },
+      ...recent,
+    ];
 
-    const result = await applyCompaction(id, [], 'my system prompt');
+    const result = await applyCompaction(id, full, 'my system prompt');
 
-    expect(result).toBe('augmented system prompt with summary');
-    expect(mockPrepareMessagesWithCompaction).toHaveBeenCalled();
+    expect(result.systemMessage).toBe('augmented system prompt with summary');
+    // The summary REPLACES the turns it covers — sending both would only add tokens.
+    expect(result.messages).toEqual(recent);
+    // Originals, not TokenCounter-flattened copies (those drop images/tool parts).
+    expect(mockPrepareMessagesWithCompaction).toHaveBeenCalledWith(
+      full,
+      expect.anything(),
+      'my system prompt',
+      undefined
+    );
   });
 
-  it('handles compaction error gracefully and returns original systemMessage', async () => {
+  it('handles compaction error gracefully and returns original systemMessage + messages', async () => {
     mockGetMessageCount.mockRejectedValue(new Error('DB connection failed'));
     const id = tid();
+    const msgs = [{ role: 'user', content: 'unchanged' }];
 
-    const result = await applyCompaction(id, [], 'my system prompt');
+    const result = await applyCompaction(id, msgs, 'my system prompt');
 
-    expect(result).toBe('my system prompt');
+    expect(result.systemMessage).toBe('my system prompt');
+    expect(result.messages).toEqual(msgs);
   });
 
   it('cleans up in-progress guard even when compaction fails', async () => {
