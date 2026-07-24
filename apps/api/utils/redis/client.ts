@@ -7,6 +7,7 @@ import * as dotenv from 'dotenv';
 import { createClient } from 'redis';
 
 import { env } from '../../config/env.js';
+import { toUserFacingMessage } from '../errors/index.js';
 
 import type { RedisClient } from './types.js';
 
@@ -96,7 +97,7 @@ export async function checkRedisHealth(): Promise<{ connected: boolean; error?: 
   } catch (error) {
     return {
       connected: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: toUserFacingMessage(error),
     };
   }
 }

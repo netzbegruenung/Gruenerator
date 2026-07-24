@@ -19,6 +19,7 @@ import {
   UnsplashApiError,
   UnsplashRateLimitError,
 } from '../../services/unsplash/UnsplashApiService.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 
 const router = express.Router();
 
@@ -92,7 +93,7 @@ router.get('/search', async (req: Request, res: Response) => {
     if (error instanceof UnsplashApiError) {
       return res.status(error.statusCode || 500).json({
         error: 'Unsplash API error',
-        message: error.message,
+        message: toUserFacingMessage(error),
       });
     }
 

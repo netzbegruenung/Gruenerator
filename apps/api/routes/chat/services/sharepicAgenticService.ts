@@ -33,6 +33,7 @@ import {
   insertCanvasVersion,
   listCanvasVersions,
 } from '../../../services/canvas/canvasVersionRepository.js';
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { getModel } from '../agents/providers.js';
 
@@ -576,7 +577,7 @@ export async function handleSharepicAgenticEdit(args: HandleSharepicEditArgs): P
     log.error('[Agentic] Turn failed:', error);
     if (!sse.isEnded()) {
       sse.send('sharepic_edit_error', {
-        error: error instanceof Error ? error.message : 'Unbekannter Fehler',
+        error: toUserFacingMessage(error, 'Unbekannter Fehler'),
       });
       await endTurn(
         args,

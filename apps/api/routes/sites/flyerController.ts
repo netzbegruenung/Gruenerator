@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { runFlyerToSiteGraph } from '../../agents/langgraph/FlyerToSiteGraph/FlyerToSiteGraph.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('sites:flyer');
@@ -90,7 +91,7 @@ router.use((err: Error, _req: Request, res: Response, next: NextFunction): void 
     return;
   }
   if (err?.message?.includes('Nur PDF')) {
-    res.status(400).json({ error: err.message });
+    res.status(400).json({ error: toUserFacingMessage(err) });
     return;
   }
   next(err);
