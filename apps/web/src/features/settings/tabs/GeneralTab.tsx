@@ -39,7 +39,7 @@ const GeneralTab = () => {
 
   return (
     <div className="-my-4 divide-y divide-grey-200 dark:divide-grey-800">
-      <SettingsRow title="Aussehen" description="Farbschema der Oberfläche">
+      <SettingsRow id="allgemein.aussehen">
         <div className="flex rounded-lg border border-grey-200 p-0.5 dark:border-grey-700">
           {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
             <button
@@ -60,10 +60,7 @@ const GeneralTab = () => {
         </div>
       </SettingsRow>
 
-      <SettingsRow
-        title="Chat-Hintergrund"
-        description="Färbt den Schimmer hinter dem Chat-Start und den Senden-Button"
-      >
+      <SettingsRow id="allgemein.chatHintergrund">
         <div className="flex gap-1.5">
           {CHAT_BACKGROUND_PRESETS.map(({ key, label, swatch, accent }) => (
             <button
@@ -94,10 +91,7 @@ const GeneralTab = () => {
         </div>
       </SettingsRow>
 
-      <SettingsRow
-        title="Sprache & Region"
-        description="Wortwahl und Inhalte für Deutschland oder Österreich"
-      >
+      <SettingsRow id="allgemein.sprache">
         <div className="flex gap-xxs">
           {LOCALE_OPTIONS.map(({ value, flag, label }) => (
             <button
@@ -117,7 +111,7 @@ const GeneralTab = () => {
         </div>
       </SettingsRow>
 
-      <SettingsRow title="Startseite" description="Was das Start-Symbol in der Seitenleiste öffnet">
+      <SettingsRow id="allgemein.startseite">
         <div className="flex rounded-lg border border-grey-200 p-0.5 dark:border-grey-700">
           {START_PAGE_OPTIONS.map(({ value, label, icon: Icon }) => (
             <button
@@ -138,10 +132,7 @@ const GeneralTab = () => {
         </div>
       </SettingsRow>
 
-      <SettingsRow
-        title="Einführungs-Touren zurücksetzen"
-        description="Zeigt die Touren durch Workplace, Dokumente, Tabellen, Präsentationen und das Sharepic-Studio beim nächsten Öffnen wieder an."
-      >
+      <SettingsRow id="allgemein.touren">
         <Button
           type="button"
           variant="outline"

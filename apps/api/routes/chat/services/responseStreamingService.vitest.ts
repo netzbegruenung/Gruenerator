@@ -67,19 +67,19 @@ function makeSse() {
 
 type SseWriterArg = ReturnType<typeof makeSse>;
 
-/** fullStream that emits the given parts, then completes. */
+/** stream that emits the given parts, then completes. */
 function streamOf(parts: Array<Record<string, unknown>>) {
   return {
-    fullStream: (async function* () {
+    stream: (async function* () {
       for (const part of parts) yield part;
     })(),
   };
 }
 
-/** fullStream whose first part never arrives (hung upstream). */
+/** stream whose first part never arrives (hung upstream). */
 function hungStream() {
   return {
-    fullStream: (async function* () {
+    stream: (async function* () {
       await new Promise(() => {});
       yield { type: 'text-delta', text: 'unreachable' };
     })(),
@@ -89,7 +89,7 @@ function hungStream() {
 /** Emits a first token (clears the first-token deadline) then hangs in Phase 2. */
 function firstTokenThenHang() {
   return {
-    fullStream: (async function* () {
+    stream: (async function* () {
       yield { type: 'text-delta', text: 'Anfang ' };
       await new Promise(() => {});
       yield { type: 'text-delta', text: 'unreachable' };

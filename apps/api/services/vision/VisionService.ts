@@ -235,8 +235,8 @@ export class VisionService {
 
     const result = await generateText({
       model,
+      system: DBSV_ALT_TEXT_PROMPT,
       messages: [
-        { role: 'system', content: DBSV_ALT_TEXT_PROMPT },
         {
           role: 'user',
           content: [imageContent, { type: 'text', text: userPrompt }],
