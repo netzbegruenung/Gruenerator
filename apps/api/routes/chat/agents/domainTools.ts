@@ -23,8 +23,10 @@ import { searchNode } from '../../../agents/langgraph/ChatGraph/nodes/searchNode
 import { summarizeNode } from '../../../agents/langgraph/ChatGraph/nodes/summarizeNode.js';
 import { lookupUmfragen } from '../../../services/monitor/UmfragenService.js';
 import {
+  pdfKindFromText,
   runBoardGeneration,
   runDocGeneration,
+  runPdfGeneration,
   runSharepicGeneration,
 } from '../services/intentExecutionService.js';
 import { PROGRESS_MESSAGES, type SSEWriter } from '../services/sseHelpers.js';
@@ -375,6 +377,112 @@ NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/F
       return {
         document: created,
         note: `${label} erstellt und dem*der Nutzer*in angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.`,
+      };
+    },
+  });
+}
+
+/**
+ * Compound PDF fat tool. Same contract as makeCreateDocTool (idempotent via
+ * `state.createdDocument`, `document_created` SSE, router lifts the metadata) —
+ * but the result is a finished, downloadable CI-styled PDF (subtype 'pdf',
+ * url = authenticated compute-asset download), not an editable document. Kept
+ * as a sibling factory because of the extra letterhead/sender input fields.
+ */
+export function makeCreatePdfTool(ctx: {
+  sse: SSEWriter;
+  state: ChatGraphState;
+  req: Request;
+}): Tool {
+  const { sse, state, req } = ctx;
+  return tool({
+    description: `Erstellt ein fertig gestaltetes, BARRIEREFREIES PDF zum Herunterladen. Der*die Nutzer*in beschreibt frei, was drin stehen soll — Aufbau (Überschriften, Listen, Tabellen, Hinweiskästen, Datenblätter, Unterschriftszeilen) wählt das System passend zum Auftrag.
+
+DREI ARTEN:
+- "document": Merkblatt, Konzept, Übersicht, Protokoll, Handout — alles zum Lesen/Ausdrucken
+- "letter": offizieller Brief / Anschreiben mit Grünen-Briefkopf (DIN 5008)
+- "form": AUSFÜLLBARES Formular mit echten Feldern (Text, Datum, Auswahl, Ankreuzfelder) — für Anträge, Anmeldungen, Fragebögen
+
+NUTZE WENN ein fertiges PDF, ein Schreiben mit Briefkopf oder ein ausfüllbares Formular gewünscht ist. Recherchiere ZUERST die Fakten (gruenerator_search), dann übergib in "prompt" einen konkreten, mit den recherchierten Fakten angereicherten Auftrag — kein Platzhaltertext.
+
+WICHTIG — PRÜFEN STATT BEHAUPTEN: Das Tool öffnet das erzeugte PDF erneut und prüft, ob Text wirklich auslesbar ist, die Struktur getaggt wurde und alle Formularfelder beschriftet sind. Häufiger Fehler bei PDFs: Sie sehen richtig aus, enthalten aber KEINE auslesbare Textebene oder keine Tags — dann kann sie kein Screenreader lesen. Lies deshalb IMMER das Feld "geprueft" und vor allem "probleme" im Ergebnis und nenne gefundene Probleme offen; behaupte NIE, das PDF sei barrierefrei, wenn "probleme" nicht leer ist.`,
+    inputSchema: z.object({
+      prompt: z
+        .string()
+        .min(1)
+        .describe(
+          'Konkreter Auftrag für das PDF — Thema, gewünschter Aufbau und die recherchierten Fakten/Inhalte, die vorkommen sollen. Bei einem Formular: welche Angaben abgefragt werden sollen.'
+        ),
+      art: z
+        .enum(['dokument', 'brief', 'formular'])
+        .optional()
+        .describe(
+          'Art des PDFs. "formular" nur bei einem AUSFÜLLBAREN Formular, "brief" bei einem Schreiben mit Briefkopf.'
+        ),
+      sender: z
+        .object({
+          name: z.string().optional().describe('Name der absendenden Person'),
+          organization: z.string().optional().describe('Gliederung, z.B. "KV Musterstadt"'),
+          address: z.string().optional().describe('Absender-Adresse (mehrzeilig)'),
+        })
+        .optional()
+        .describe(
+          'Absenderblock für den Briefkopf — nur wenn der*die Nutzer*in Angaben gemacht hat'
+        ),
+      recipient: z
+        .string()
+        .optional()
+        .describe('Empfänger-Adressblock (mehrzeilig) — nur bei einem Brief'),
+    }),
+    execute: async ({ prompt, art, sender, recipient }) => {
+      // Idempotent per turn (mirror of makeCreateDocTool).
+      if (state.createdDocument) {
+        return {
+          ok: true,
+          note: 'Es wurde in diesem Turn bereits ein PDF erstellt und angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.',
+        };
+      }
+      const userId = state.agentConfig?.userId;
+      if (!userId) {
+        return { error: 'PDF-Erstellung nicht möglich (keine Nutzer-Sitzung).' };
+      }
+      const userContent = recipient
+        ? `${prompt}\n\nEmpfänger des Schreibens:\n${recipient}`
+        : prompt;
+      const documentKind =
+        art === 'formular' ? 'form' : art === 'brief' ? 'letter' : pdfKindFromText(userContent);
+      const result = await runPdfGeneration({
+        userContent,
+        aiWorkerPool: state.aiWorkerPool,
+        req,
+        userId,
+        pdfOptions: {
+          documentKind,
+          sender: sender
+            ? {
+                name: sender.name ?? null,
+                organization: sender.organization ?? null,
+                address: sender.address ?? null,
+              }
+            : null,
+          userLocale: state.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
+        },
+      });
+      if (!result) {
+        return { error: 'PDF-Erstellung fehlgeschlagen.' };
+      }
+      // Live card (same event the single-pass handler emits). Shared-ref merge →
+      // forceFinish trips and the router lifts it for message-level persistence.
+      sse.send('document_created', result.document);
+      state.createdDocument = result.document;
+      return {
+        document: result.document,
+        geprueft: result.summary,
+        felder: result.verification.formFields,
+        probleme: result.verification.problems,
+        note: result.verification.problems.length
+          ? 'PDF erstellt und als Download angezeigt. Die Selbstprüfung hat Probleme gefunden — nenne sie der*dem Nutzer*in offen. Rufe das Tool NICHT erneut auf.'
+          : 'PDF erstellt, selbst geprüft und als Download angezeigt. Rufe das Tool NICHT erneut auf; kündige es kurz an.',
       };
     },
   });

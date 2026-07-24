@@ -61,6 +61,7 @@ import {
   handleBoardCreation,
   handleSheetCreation,
   handlePresentationCreation,
+  handlePdfCreation,
   handleRecurringTaskCreation,
   generateAndCreateDocument,
   handleShareDoc,
@@ -1234,6 +1235,27 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             lastUserText as string,
             classifiedState.messages ?? []
           ).text,
+        });
+        if (created) return { status: 200 as const, body: undefined };
+      }
+
+      // === Handle @pdf-erstellen tool / create_pdf intent ===
+      // Skipped on a compound turn (runAgentic): the loop researches first and
+      // calls the create_pdf fat tool itself.
+      if (
+        !runAgentic &&
+        (forcedTools?.includes('pdf-erstellen') || classifiedState.intent === 'create_pdf')
+      ) {
+        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+        const created = await handlePdfCreation({
+          sse,
+          classifiedState,
+          aiWorkerPool,
+          req,
+          ...(actualThreadId != null && { actualThreadId }),
+          userId,
+          userContent: lastUserText as string,
+          userLocale: classifiedState.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
         });
         if (created) return { status: 200 as const, body: undefined };
       }
