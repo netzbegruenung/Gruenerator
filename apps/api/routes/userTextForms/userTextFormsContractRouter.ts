@@ -1,11 +1,8 @@
 /**
  * ts-rest contract router for per-user learned writing styles ("Texte anlernen").
  *
- * Covers:
- *   - GET    /api/text-forms
- *   - POST   /api/text-forms/analyze
- *   - PUT    /api/text-forms/:mention
- *   - DELETE /api/text-forms/:mention
+ * Covers list / analyze / save / remove plus the group share endpoints
+ * (PUT and DELETE /api/text-forms/:mention/share).
  *
  * requireAuth is applied at the /api/text-forms prefix in routes.ts.
  */
@@ -21,10 +18,13 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import { analyzeTextForm, textTypeLabel } from '../../services/user/textFormAnalysisService.js';
 import {
   deleteTextForm,
+  shareTextFormWithGroup,
+  unshareTextFormFromGroup,
   listTextForms,
   upsertTextForm,
 } from '../../services/user/textFormRepository.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -46,7 +46,7 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
     } catch (error) {
       const err = error as Error;
       log.error('[userTextFormsContract.list] Error:', err);
-      return { status: 500 as const, body: { success: false, message: err.message } };
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
     }
   },
 
@@ -66,7 +66,7 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
     } catch (error) {
       const err = error as Error;
       log.error('[userTextFormsContract.analyze] Error:', err);
-      return { status: 500 as const, body: { success: false, message: err.message } };
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
     }
   },
 
@@ -106,7 +106,7 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
             status: 409 as const,
             body: {
               success: false,
-              message: `„/${mention}" ist bereits vergeben. Bitte einen anderen Namen wählen.`,
+              message: `„@${mention}" ist bereits vergeben. Bitte einen anderen Namen wählen.`,
             },
           };
         }
@@ -124,7 +124,7 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
     } catch (error) {
       const err = error as Error;
       log.error('[userTextFormsContract.save] Error:', err);
-      return { status: 500 as const, body: { success: false, message: err.message } };
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
     }
   },
 
@@ -142,6 +142,46 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
     } catch (error) {
       const err = error as Error;
       log.error('[userTextFormsContract.remove] Error:', err);
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
+    }
+  },
+
+  share: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const shares = await shareTextFormWithGroup(userId, args.params.mention, args.body.group_id);
+      if (shares === null) {
+        return {
+          status: 404 as const,
+          body: { success: false, message: 'Rezept nicht gefunden.' },
+        };
+      }
+      return { status: 200 as const, body: { success: true, sharedWithGroups: shares } };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[userTextFormsContract.share] Error:', err);
+      return { status: 500 as const, body: { success: false, message: err.message } };
+    }
+  },
+
+  unshare: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const shares = await unshareTextFormFromGroup(
+        userId,
+        args.params.mention,
+        args.body.group_id
+      );
+      if (shares === null) {
+        return {
+          status: 404 as const,
+          body: { success: false, message: 'Rezept nicht gefunden.' },
+        };
+      }
+      return { status: 200 as const, body: { success: true, sharedWithGroups: shares } };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[userTextFormsContract.unshare] Error:', err);
       return { status: 500 as const, body: { success: false, message: err.message } };
     }
   },

@@ -1,6 +1,6 @@
 import { type StartPage } from '@gruenerator/contracts';
 import { Button, toast } from '@gruenerator/ui';
-import { RotateCcw } from 'lucide-react';
+import { Check, RotateCcw } from 'lucide-react';
 import { type IconType } from 'react-icons';
 import { PiBriefcase, PiChatCircle, PiDesktop, PiMoon, PiSun } from 'react-icons/pi';
 
@@ -8,6 +8,7 @@ import SettingsRow from '../components/SettingsRow';
 
 import useDarkMode, { type ThemePreference } from '@/components/hooks/useDarkMode';
 import { resetAllTours } from '@/features/tours/tourState';
+import { CHAT_BACKGROUND_PRESETS } from '@/features/workplace/chatBackgrounds';
 import { useAuthStore, type SupportedLocale } from '@/stores/authStore';
 import { cn } from '@/utils/cn';
 
@@ -31,12 +32,14 @@ const GeneralTab = () => {
   const [, , themePreference, , setThemePreference] = useDarkMode();
   const locale = useAuthStore((s) => s.locale);
   const updateLocale = useAuthStore((s) => s.updateLocale);
+  const chatBackground = useAuthStore((s) => s.user?.chat_background ?? 'sunrise');
+  const updateChatBackground = useAuthStore((s) => s.updateChatBackground);
   const startPage = useAuthStore((s) => s.user?.default_startpage ?? 'chat');
   const updateStartPage = useAuthStore((s) => s.updateStartPage);
 
   return (
     <div className="-my-4 divide-y divide-grey-200 dark:divide-grey-800">
-      <SettingsRow title="Aussehen" description="Farbschema der Oberfläche">
+      <SettingsRow id="allgemein.aussehen">
         <div className="flex rounded-lg border border-grey-200 p-0.5 dark:border-grey-700">
           {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
             <button
@@ -57,10 +60,38 @@ const GeneralTab = () => {
         </div>
       </SettingsRow>
 
-      <SettingsRow
-        title="Sprache & Region"
-        description="Wortwahl und Inhalte für Deutschland oder Österreich"
-      >
+      <SettingsRow id="allgemein.chatHintergrund">
+        <div className="flex gap-1.5">
+          {CHAT_BACKGROUND_PRESETS.map(({ key, label, swatch, accent }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => void updateChatBackground(key)}
+              aria-label={label}
+              aria-pressed={chatBackground === key}
+              title={label}
+              className={cn(
+                'flex size-7 items-center justify-center rounded-full border transition-all',
+                chatBackground === key
+                  ? 'border-primary-500 ring-2 ring-primary-500/25'
+                  : 'border-grey-300 hover:scale-110 dark:border-grey-600'
+              )}
+              style={{ backgroundImage: swatch }}
+            >
+              {/* Der Haken trägt die Akzentfarbe — so zeigt das ausgewählte
+                  Plättchen gleich mit, welche Farbe der Senden-Button bekommt. */}
+              {chatBackground === key && (
+                <Check
+                  className="size-3.5 text-primary-700"
+                  style={accent ? { color: accent } : undefined}
+                />
+              )}
+            </button>
+          ))}
+        </div>
+      </SettingsRow>
+
+      <SettingsRow id="allgemein.sprache">
         <div className="flex gap-xxs">
           {LOCALE_OPTIONS.map(({ value, flag, label }) => (
             <button
@@ -80,7 +111,7 @@ const GeneralTab = () => {
         </div>
       </SettingsRow>
 
-      <SettingsRow title="Startseite" description="Was das Start-Symbol in der Seitenleiste öffnet">
+      <SettingsRow id="allgemein.startseite">
         <div className="flex rounded-lg border border-grey-200 p-0.5 dark:border-grey-700">
           {START_PAGE_OPTIONS.map(({ value, label, icon: Icon }) => (
             <button
@@ -101,10 +132,7 @@ const GeneralTab = () => {
         </div>
       </SettingsRow>
 
-      <SettingsRow
-        title="Einführungs-Touren zurücksetzen"
-        description="Zeigt die Touren durch Workplace, Dokumente, Tabellen, Präsentationen und das Sharepic-Studio beim nächsten Öffnen wieder an."
-      >
+      <SettingsRow id="allgemein.touren">
         <Button
           type="button"
           variant="outline"

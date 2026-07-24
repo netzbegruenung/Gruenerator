@@ -9,9 +9,15 @@ on:
 permissions:
   contents: read
 
+# On PR branches, superseding a run is what you want — only the tip matters.
+# On master it is not: every push there is the post-merge verification of one
+# merge, and cancelling it means that merge is never verified. Merging several
+# PRs in a row used to cancel all but the last run, so a break could land
+# unnoticed (it did — see #1988, where 6 of 7 master runs were cancelled and
+# only the last one caught a red format:check).
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 jobs:
   quality:

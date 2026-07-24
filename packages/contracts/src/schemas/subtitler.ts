@@ -14,6 +14,8 @@
  */
 import { z } from 'zod';
 
+import { jobErrorCodeSchema } from './jobErrors.js';
+
 // ── Canonical SubtitleSegment ───────────────────────────────────────────────
 
 /**
@@ -265,6 +267,12 @@ export const exportProgressSchema = z.object({
   /** Video duration in seconds */
   duration: z.number().nullish(),
   error: z.string().nullish(),
+  /** Machine-readable failure cause — see jobErrorCodeSchema. */
+  errorCode: jobErrorCodeSchema.nullish(),
+  /** Whether retrying the identical job could plausibly succeed. */
+  retryable: z.boolean().nullish(),
+  /** Correlates this message with the backend log line, for support. */
+  errorId: z.string().nullish(),
 });
 
 export type ExportProgress = z.infer<typeof exportProgressSchema>;
@@ -317,6 +325,12 @@ export const autoProgressSchema = z.object({
   segments: z.array(subtitleSegmentSchema).nullish(),
   subtitles: z.string().nullish(),
   error: z.string().nullish(),
+  /** Machine-readable failure cause — see jobErrorCodeSchema. */
+  errorCode: jobErrorCodeSchema.nullish(),
+  /** Whether retrying the identical job could plausibly succeed. */
+  retryable: z.boolean().nullish(),
+  /** Correlates this message with the backend log line, for support. */
+  errorId: z.string().nullish(),
 });
 
 export type AutoProgress = z.infer<typeof autoProgressSchema>;
@@ -332,6 +346,10 @@ export type AutoProgress = z.infer<typeof autoProgressSchema>;
 export const redisJobResultSchema = z.object({
   status: z.enum(['processing', 'complete', 'error']),
   data: z.unknown().nullish(),
+  /** Machine-readable failure cause — see jobErrorCodeSchema. */
+  errorCode: jobErrorCodeSchema.nullish(),
+  retryable: z.boolean().nullish(),
+  errorId: z.string().nullish(),
 });
 
 export type RedisJobResult = z.infer<typeof redisJobResultSchema>;

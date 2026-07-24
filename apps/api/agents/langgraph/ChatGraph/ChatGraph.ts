@@ -25,6 +25,7 @@ import {
   getAgentForUser,
   getDefaultAgentId,
 } from '../../../routes/chat/agents/agentLoader.js';
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { briefGeneratorNode } from './nodes/briefGeneratorNode.js';
@@ -118,6 +119,9 @@ const ChatStateAnnotation = Annotation.Root({
   }),
   hasTabularAttachment: Annotation<boolean>({
     reducer: (x, y) => y ?? x ?? false,
+  }),
+  pdfFormAttachments: Annotation<Array<{ name: string; data: string }>>({
+    reducer: (x, y) => y ?? x ?? [],
   }),
   clientCanRunPython: Annotation<boolean>({
     reducer: (x, y) => y ?? x ?? false,
@@ -573,6 +577,10 @@ function routeAfterClassification(
     wetter: 'direct',
     news: 'direct',
     umfragen: 'direct',
+    // Same as the loop-only intents above: `hilfe` routes into the agentic loop
+    // before this map matters. Its tool is gated by enabledTools.hilfe in the
+    // catalog instead.
+    hilfe: 'direct',
     image: 'image',
     image_edit: 'image_edit',
     sharepic: 'sharepic',
@@ -830,6 +838,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     imageAttachments: input.imageAttachments || [],
     threadAttachments: input.threadAttachments || [],
     hasTabularAttachment: input.hasTabularAttachment ?? false,
+    pdfFormAttachments: input.pdfFormAttachments || [],
     clientCanRunPython: input.clientCanRunPython ?? false,
 
     // Notebook scoping
@@ -1060,7 +1069,7 @@ export async function runChatGraph(input: ChatGraphInput): Promise<ChatGraphOutp
         searchTimeMs: 0,
         responseTimeMs: 0,
       },
-      error: error instanceof Error ? error.message : String(error),
+      error: toUserFacingMessage(error),
     };
   }
 }

@@ -23,6 +23,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { extractLocaleFromRequest } from '../../services/localization/index.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -62,7 +63,7 @@ export const exportsContractRouter = s.router(exportsContract, {
         body: {
           success: false as const,
           message: 'DOCX export failed',
-          error: error.message,
+          error: toUserFacingMessage(error),
         },
       };
     }
@@ -95,7 +96,7 @@ export const exportsContractRouter = s.router(exportsContract, {
         body: {
           success: false as const,
           message: 'PDF export failed',
-          error: error.message,
+          error: toUserFacingMessage(error),
         },
       };
     }

@@ -50,11 +50,13 @@ import {
   makeCreateDocTool,
   makeCreatePdfTool,
   makeCreateSharepicTool,
+  makeDocsSearchTool,
   makeImageTool,
   makeSummaryTool,
   makeUmfragenTool,
 } from './domainTools.js';
 import { makeEditArtifactTool } from './editorTools.js';
+import { makeReadPdfFormTool, makeFillPdfFormTool } from './pdfFormTools.js';
 import {
   makeBoardsTasksTool,
   makeDocumentsTool,
@@ -230,6 +232,13 @@ NUTZE WENN:
     tools.bundestag = makeBundestagTool({ sse, state, sourceRegistry });
     tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
     tools.umfragen = makeUmfragenTool({ sourceRegistry });
+    // Documentation search (`hilfe`). Mounted broadly like the other domain
+    // tools — the classifier routinely labels an operating question `direct` or
+    // `search`, and gating on intent would hide the tool exactly then. In-process
+    // BM25, so an unnecessary mount costs nothing but a description.
+    if (state.enabledTools?.['hilfe'] !== false) {
+      tools.gruenerator_docs_search = makeDocsSearchTool({ sourceRegistry });
+    }
     // Product self-knowledge: what Grünerator itself offers (Grüneratoren,
     // Werkzeuge, MCP-Server, Wissenssammlungen). Same builder respondNode
     // injects when the meta regex matches — the loop inherits that system
@@ -306,6 +315,19 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     }
     if (state.enabledTools?.['notebooks'] !== false) {
       tools.notebooks = makeNotebooksTool(personalCtx);
+    }
+
+    // PDF form tools, mounted only when a PDF is actually in play: this turn's
+    // attachments, or one from an earlier turn (threadAttachments carries no
+    // bytes, but tells us a PDF exists — the tool resolves the bytes and reports
+    // honestly if the stored form turned out not to be fillable).
+    const hasPdfInThread =
+      (state.pdfFormAttachments?.length ?? 0) > 0 ||
+      (state.threadAttachments ?? []).some((a) => a.mimeType === 'application/pdf');
+    if (hasPdfInThread && state.enabledTools?.['pdf_form'] !== false) {
+      const pdfCtx = { state, sse, threadId: loop.threadId ?? null };
+      tools.read_pdf_form = makeReadPdfFormTool(pdfCtx);
+      tools.fill_pdf_form = makeFillPdfFormTool(pdfCtx);
     }
     // Image is expensive + rate-limited and the classifier routes it reliably,
     // so it stays intent-scoped (and gated). image_edit stays single-pass.

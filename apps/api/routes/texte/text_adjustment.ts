@@ -3,7 +3,7 @@ import express, { type Router, type Request, type Response } from 'express';
 import { createLogger } from '../../utils/logger.js';
 import { type AIWorkerPool } from '../../workers/types.js';
 
-const log = createLogger('claude_text_adj');
+const log = createLogger('texte/adjustment');
 const router: Router = express.Router();
 
 interface TextAdjustmentRequestBody {

@@ -15,6 +15,7 @@ import {
   OUTPUT_WIDTH,
   OUTPUT_HEIGHT,
 } from '../../services/image/ImagineCanvasRenderer.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
@@ -148,7 +149,7 @@ async function generateImagineForChat(
         text: `Fehler bei der Bilderzeugung: ${err.message || 'Unbekannter Fehler'}`,
         type: 'error',
       },
-      error: err.message,
+      error: toUserFacingMessage(err),
     };
   }
 }

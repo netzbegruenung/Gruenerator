@@ -38,6 +38,26 @@ export const messageColorUpdateBodySchema = z.object({
   color: z.string().min(1),
 });
 
+/**
+ * Closed set of chat-start backgrounds. The values are preset *keys*, not raw
+ * colours — the actual gradients live in the frontend CSS
+ * (`apps/web/src/features/workplace/workplace-sunrise.css`), so a redesign
+ * never needs a data migration. `sunrise` is the historical default.
+ */
+export const chatBackgroundSchema = z.enum([
+  'sunrise',
+  'tanne',
+  'himmel',
+  'sand',
+  'magenta',
+  'neutral',
+]);
+export type ChatBackground = z.infer<typeof chatBackgroundSchema>;
+
+export const chatBackgroundUpdateBodySchema = z.object({
+  background: chatBackgroundSchema,
+});
+
 /** Closed set of supported locales — the single vocabulary for DE/AT audience. */
 export const localeSchema = z.enum(['de-DE', 'de-AT']);
 export type SupportedLocale = z.infer<typeof localeSchema>;
@@ -96,6 +116,8 @@ export const userProfileSchema = z.object({
   // session object without inline fallbacks.
   avatar_robot_id: z.number().default(1),
   chat_color: z.string().optional(),
+  // Absent means "never chosen" — consumers fall back to the `sunrise` preset.
+  chat_background: chatBackgroundSchema.optional(),
   beta_features: z.record(z.boolean()).default({}),
   user_defaults: z.record(z.record(z.unknown())).default({}),
   locale: localeSchema.optional(),
@@ -169,6 +191,12 @@ export const updateBetaFeaturesResponseSchema = z.object({
 export const updateMessageColorResponseSchema = z.object({
   success: z.literal(true),
   messageColor: z.string(),
+  message: z.string(),
+});
+
+export const updateChatBackgroundResponseSchema = z.object({
+  success: z.literal(true),
+  chatBackground: chatBackgroundSchema,
   message: z.string(),
 });
 

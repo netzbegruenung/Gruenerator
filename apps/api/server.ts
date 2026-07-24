@@ -716,6 +716,8 @@ async function startWorker(): Promise<void> {
     res.status(statusCode).json({
       success: false,
       error: 'Ein Serverfehler ist aufgetreten',
+
+      // eslint-disable-next-line gruenerator/no-raw-error-to-client -- dev-only branch; prod gets `errorMessage`
       message: isDev ? err.message : errorMessage,
       stack: isDev ? err.stack : undefined,
       errorId: `${Date.now()}-${Math.floor(Math.random() * 1000)}`,

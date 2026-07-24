@@ -11,7 +11,6 @@ export {
   validateUniversalRequest,
   validateAltTextRequest,
   validateLeichteSpracheRequest,
-  validateTextImproverRequest,
   isNonEmpty,
   getFirstError,
 } from './validation.js';
