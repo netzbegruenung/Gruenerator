@@ -12,6 +12,7 @@ import {
 import { Suspense, lazy, type ComponentType, type LazyExoticComponent } from 'react';
 import { type IconType } from 'react-icons';
 import {
+  FiBarChart2,
   FiBell,
   FiCloud,
   FiGlobe,
@@ -38,6 +39,7 @@ const NAV: { value: SettingsTab; label: string; icon: IconType; hideHeading?: bo
   { value: 'wolke', label: 'Wolke', icon: FiCloud },
   { value: 'websites', label: 'Meine Websites', icon: FiGlobe },
   { value: 'konnektoren', label: 'Konnektoren', icon: FiServer, hideHeading: true },
+  { value: 'nutzung', label: 'Nutzung', icon: FiBarChart2 },
   { value: 'support', label: 'Support', icon: FiHelpCircle },
 ];
 
@@ -51,6 +53,7 @@ const TAB_COMPONENTS: Record<SettingsTab, LazyExoticComponent<ComponentType>> = 
   wolke: lazy(() => import('./tabs/WolkeTab')),
   websites: lazy(() => import('./tabs/WebsitesTab')),
   konnektoren: lazy(() => import('./tabs/ConnectorsTab')),
+  nutzung: lazy(() => import('./tabs/UsageTab')),
   support: lazy(() => import('./tabs/SupportTab')),
 };
 

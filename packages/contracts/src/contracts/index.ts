@@ -7,6 +7,7 @@ export { exportsContract } from './exportsContract.js';
 export { recentValuesContract } from './recentValuesContract.js';
 export { recentActivityContract } from './recentActivityContract.js';
 export { itemUsageContract } from './itemUsageContract.js';
+export { userUsageContract } from './userUsageContract.js';
 export { searchContract } from './searchContract.js';
 export { globalSearchContract } from './globalSearchContract.js';
 export { researchContract } from './researchContract.js';
