@@ -632,15 +632,33 @@ export async function streamAgenticResponse(params: {
       const brief = sourcesBlock
         ? `${userAsk}\n\nNutze diese recherchierten Quellen für die Inhalte:\n${sourcesBlock}`
         : userAsk;
+      // Both arg shapes: doc/board tools read `prompt`, sharepic reads `text`.
+      const args = { prompt: brief, text: brief };
+      const stepId = 'forced-generation';
       log.info(`[Agentic] ${toolName} not called — forcing compound generation`);
+      // Emit the same tool_step_start/result SSE + persisted step a planner-issued
+      // call would, so a forced generation is a first-class tool step in the
+      // trace, the UI tool-card, and the persisted history — NOT an invisible
+      // out-of-band side effect. It bypasses the loop GUARDS on purpose: the
+      // fallback is intentional and must fire even when the loop already spent its
+      // failure/search budget (exactly the turns where the planner never reached
+      // the generation tool). The `already` check above keeps it idempotent.
+      sse.send('tool_step_start', { stepId, toolName, args });
+      let result: unknown;
       try {
-        // Both arg shapes: doc/board tools read `prompt`, sharepic reads `text`.
-        await genTool.execute({ prompt: brief, text: brief }, { toolCallId: 'forced-generation' });
+        result = await genTool.execute(args, { toolCallId: stepId });
       } catch (err) {
-        log.warn(
-          `[Agentic] forced ${toolName} failed: ${err instanceof Error ? err.message : String(err)}`
-        );
+        const message = err instanceof Error ? err.message : String(err);
+        log.warn(`[Agentic] forced ${toolName} failed: ${message}`);
+        result = { error: message };
       }
+      const resultRecord =
+        result && typeof result === 'object' && !Array.isArray(result)
+          ? (result as Record<string, unknown>)
+          : { value: result };
+      const ok = resultRecord.error == null;
+      sse.send('tool_step_result', { stepId, toolName, ok, result: resultRecord });
+      steps.push({ toolCallId: stepId, toolName, args, result: resultRecord });
     };
 
     const afterGather = async (): Promise<void> => {
