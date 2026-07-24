@@ -45,7 +45,7 @@ type GenOpts = {
 
 function streamOf(parts: Part[]): ReturnType<LoopDeps['streamText']> {
   return {
-    fullStream: (async function* () {
+    stream: (async function* () {
       yield* parts;
     })(),
   } as unknown as ReturnType<LoopDeps['streamText']>;

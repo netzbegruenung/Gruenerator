@@ -17,7 +17,7 @@ import {
   buildSliderDeckSnapshotLines,
   getSharepicTemplateDescriptor,
 } from '@gruenerator/contracts';
-import { streamText, tool, stepCountIs, type ModelMessage } from 'ai';
+import { streamText, tool, isStepCount, type ModelMessage } from 'ai';
 import { z } from 'zod';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
@@ -512,7 +512,7 @@ export async function handleSharepicAgenticEdit(args: HandleSharepicEditArgs): P
       system,
       messages,
       tools,
-      stopWhen: stepCountIs(MAX_STEPS),
+      stopWhen: isStepCount(MAX_STEPS),
       temperature: 0.2,
       maxOutputTokens: 800,
       abortSignal: AbortSignal.timeout(TURN_TIMEOUT_MS),
@@ -521,7 +521,7 @@ export async function handleSharepicAgenticEdit(args: HandleSharepicEditArgs): P
     // Manual iteration — fullStream is a ReadableStream whose async-iterator
     // protocol the lint type info doesn't see (same pattern as
     // responseStreamingService).
-    const iterator = result.fullStream[Symbol.asyncIterator]();
+    const iterator = result.stream[Symbol.asyncIterator]();
     while (true) {
       const next = await iterator.next();
       if (next.done) break;
