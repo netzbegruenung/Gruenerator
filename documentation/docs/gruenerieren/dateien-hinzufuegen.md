@@ -1,5 +1,5 @@
 ---
-sidebar_position: 5
+sidebar_position: 6
 ---
 
 # Dateien hinzufügen
@@ -50,7 +50,7 @@ Im Chat findest du den Datei-Upload im **„+"-Menü** links im Eingabefeld unte
 
 **Verarbeitung dauert lange**: Große Dateien benötigen mehr Zeit für die Analyse
 
-:::info Intelligente Verarbeitung
+:::info[Intelligente Verarbeitung]
 Der Grünerator extrahiert automatisch die relevanten Informationen aus deinen Dateien und integriert sie sinnvoll in die Textgenerierung.
 :::
 

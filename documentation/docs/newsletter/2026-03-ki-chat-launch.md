@@ -37,7 +37,7 @@ Alles in einer Oberfläche, die du von ChatGPT kennst — nur grüner. Aber Acht
 
 Ich habe mich dazu entschieden, den Launch vorzuziehen, um ihn anhand deines Feedbacks zu verbessern. Bitte gib Feedback und berichte Fehler, die du findest. Ich will den Chat schnellstmöglich zu einer echten Alternative ausbauen.
 
-:::tip Im Chat besprechen
+:::tip[Im Chat besprechen]
 Eines meiner Lieblings-Features ist etwas versteckt: Grünerierst du dir einen neuen Text mit den bekannten Grüneratoren, kannst du auf die drei Punkte klicken und dann „Im Chat besprechen" auswählen. Dann gibt dir der Grünerator Chat direkt Feedback zu deinem Text und ihr könnt ihn gemeinsam bearbeiten.
 :::
 
