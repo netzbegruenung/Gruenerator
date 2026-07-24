@@ -2,7 +2,7 @@ import { PDFArray, PDFDict, PDFDocument, PDFName, PDFRawStream, PDFRef } from 'p
 import { describe, expect, it } from 'vitest';
 
 import { type PdfDocumentSpec } from './pdfDocument.js';
-import { renderPdf } from './pdfRenderer.js';
+import { PDF_TYPE_AREA, renderPdf } from './pdfRenderer.js';
 import { verifyPdf } from './pdfVerification.js';
 
 function spec(overrides: Partial<PdfDocumentSpec> = {}): PdfDocumentSpec {
@@ -66,6 +66,32 @@ async function structRoles(bytes: Buffer): Promise<string[]> {
   walk(tree as { role?: string; children?: unknown[] } | null);
   await task.destroy();
   return roles;
+}
+
+/** Count structure elements once over the whole document (not per page). */
+async function countRoles(bytes: Buffer): Promise<Record<string, number>> {
+  const doc = await PDFDocument.load(bytes);
+  const counts: Record<string, number> = {};
+  const seen = new Set<string>();
+  const visit = (node: unknown): void => {
+    const resolved = node instanceof PDFRef ? doc.context.lookup(node) : node;
+    if (resolved instanceof PDFArray) {
+      resolved.asArray().forEach(visit);
+      return;
+    }
+    if (!(resolved instanceof PDFDict)) return;
+    if (node instanceof PDFRef) {
+      if (seen.has(node.toString())) return;
+      seen.add(node.toString());
+    }
+    const role = String(resolved.get(PDFName.of('S')) ?? '');
+    if (role) counts[role] = (counts[role] ?? 0) + 1;
+    const kids = resolved.get(PDFName.of('K'));
+    if (kids) visit(kids);
+  };
+  const root = doc.catalog.lookupMaybe(PDFName.of('StructTreeRoot'), PDFDict);
+  visit(root?.get(PDFName.of('K')));
+  return counts;
 }
 
 describe('renderPdf', () => {
@@ -238,6 +264,201 @@ describe('renderPdf', () => {
     const text = await extractText(result.bytes);
     expect(text).toContain('behalten');
     expect(text).toContain('ueberhang');
+  });
+
+  describe('Layout-Robustheit', () => {
+    // Every case here used to produce a visibly broken page while passing
+    // PDF/UA — the validator sees structure, not geometry.
+    const cases: Array<[string, PdfDocumentSpec]> = [
+      [
+        'überlanges Feld-Label neben einem zweiten Feld',
+        spec({
+          kind: 'form',
+          blocks: [
+            { type: 'field', kind: 'text', label: 'A'.repeat(150), width: 'half' },
+            { type: 'field', kind: 'text', label: 'Zweites Feld', width: 'half' },
+          ],
+        }),
+      ],
+      [
+        'überlange Signatur-Beschriftungen',
+        spec({
+          blocks: [
+            {
+              type: 'signature',
+              labels: [
+                'Ort, Datum und Unterschrift der antragstellenden Person',
+                'Unterschrift Zeuge',
+                'Stempel',
+              ],
+            },
+          ],
+        }),
+      ],
+      [
+        'Hinweiskasten über mehrere Seiten',
+        spec({ blocks: [{ type: 'note', title: 'Hinweis', text: 'Satz. '.repeat(1000) }] }),
+      ],
+      [
+        'Tabellenzeile höher als eine Seite',
+        spec({
+          blocks: [
+            {
+              type: 'table',
+              columns: ['A', 'B'],
+              rows: [['x', 'Zellinhalt der sehr lang ist. '.repeat(400)]],
+            },
+          ],
+        }),
+      ],
+      [
+        'überlange Radio-Option',
+        spec({
+          kind: 'form',
+          blocks: [
+            {
+              type: 'field',
+              kind: 'radio',
+              label: 'Einwilligung',
+              options: [
+                `Ja, ich moechte informiert werden ${'und zwar ausfuehrlich '.repeat(6)}`,
+                'Nein',
+              ],
+            },
+            { type: 'field', kind: 'text', label: 'Danach' },
+          ],
+        }),
+      ],
+      [
+        'überlange Empfängerzeile im Brief',
+        spec({
+          kind: 'letter',
+          letter: { recipient: `${'Sehr lange Empfängerzeile '.repeat(10)}\n12345 Ort` },
+          blocks: [{ type: 'paragraph', text: 'Brieftext.' }],
+        }),
+      ],
+    ];
+
+    it.each(cases)('hält den Satzspiegel ein: %s', async (_name, input) => {
+      const result = await renderPdf(input, { locale: 'de-DE' });
+      const verification = await verifyPdf(result.bytes, PDF_TYPE_AREA);
+      expect(verification.overflowingText).toEqual([]);
+      expect(verification.problems).toEqual([]);
+    });
+
+    it('meldet Überlauf, wenn es welchen gibt (Kalibrierung)', async () => {
+      // Guards the guard: with an artificially narrow type area the check MUST
+      // fire, otherwise the assertions above would pass vacuously.
+      const result = await renderPdf(
+        spec({
+          blocks: [
+            { type: 'paragraph', text: 'Ein ganz normaler Absatz mit ausreichend Text darin.' },
+          ],
+        }),
+        { locale: 'de-DE' }
+      );
+      const tight = await verifyPdf(result.bytes, { left: 70, right: 200, bottom: 40 });
+      expect(tight.overflowingText.length).toBeGreaterThan(0);
+    });
+
+    it('opfert keine Datenzeile für die wiederholte Kopfzeile', async () => {
+      // Eine Kopfzeile, die selbst fast eine Seite füllt, hat die Wiederholung
+      // jede Folgeseite belegen lassen — die Datenzeilen fielen still weg.
+      const columns = ['A', 'B', 'Kopfzelle '.repeat(77), 'D', 'E', 'F', 'G', 'H'];
+      const cell = 'Inhalt der Zelle ist ziemlich lang und umbricht mehrfach. ';
+      const rows = Array.from({ length: 10 }, (_, i) => [
+        `Marke${i + 1}`,
+        cell,
+        cell,
+        cell,
+        cell,
+        cell,
+        cell,
+        cell,
+      ]);
+      const result = await renderPdf(spec({ blocks: [{ type: 'table', columns, rows }] }), {
+        locale: 'de-DE',
+      });
+      const counts = await countRoles(result.bytes);
+      // Ohne Verlust: eine TR je Datenzeile plus Kopfzeile (Zeilen dürfen sich
+      // über Seiten teilen, aber keine darf verschwinden).
+      expect(counts['/TR'] ?? 0).toBeGreaterThanOrEqual(rows.length + 1);
+    });
+
+    it('zerreißt eine Zeile nicht, die auf die nächste Seite passen würde', async () => {
+      const rows = Array.from({ length: 40 }, (_, i) => [
+        `Nr ${i + 1}`,
+        `Massnahme ${i + 1}: eine Beschreibung die ueber zwei Zeilen laeuft und lang genug ist`,
+        '1000 EUR',
+      ]);
+      const result = await renderPdf(
+        spec({ blocks: [{ type: 'table', columns: ['Nr', 'Massnahme', 'Kosten'], rows }] }),
+        { locale: 'de-DE' }
+      );
+      const counts = await countRoles(result.bytes);
+      expect(counts['/TR']).toBe(rows.length + 1);
+      expect(counts['/TD']).toBe(rows.length * 3);
+    });
+
+    it('richtet die Datumszeile nach der wirklich gezeichneten Breite aus', async () => {
+      // Der Ort geht durch die Glyphen-Ersetzung; nach dem Rohtext gemessen
+      // stünde die rechtsbündige Zeile über dem rechten Rand.
+      for (const place of ['Berlin → Mitte', 'Berlin 🌻 Mitte', 'Ort'.repeat(60)]) {
+        const result = await renderPdf(
+          spec({
+            kind: 'letter',
+            letter: { place, recipient: 'Test\n12345 Ort' },
+            blocks: [{ type: 'paragraph', text: 'Brieftext.' }],
+          }),
+          { locale: 'de-DE' }
+        );
+        const verification = await verifyPdf(result.bytes, PDF_TYPE_AREA);
+        expect(verification.problems).toEqual([]);
+      }
+    });
+
+    it('wiederholt die Tabellen-Kopfzeile nach einem Seitenumbruch', async () => {
+      const result = await renderPdf(
+        spec({
+          blocks: [
+            {
+              type: 'table',
+              columns: ['Nr', 'Massnahme', 'Kosten'],
+              rows: Array.from({ length: 60 }, (_, i) => [
+                String(i + 1),
+                `Zeile ${i + 1}`,
+                '1 EUR',
+              ]),
+            },
+          ],
+        }),
+        { locale: 'de-DE' }
+      );
+      const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+      const task = pdfjs.getDocument({ data: new Uint8Array(result.bytes) });
+      const doc = await task.promise;
+      expect(doc.numPages).toBeGreaterThan(1);
+      const second = await (await doc.getPage(2)).getTextContent();
+      const text = second.items.map((i) => ('str' in i ? i.str : '')).join(' ');
+      await task.destroy();
+      expect(text).toContain('Massnahme');
+    });
+
+    it('prüft Glyphen auch in Beschriftungen, nicht nur im Fließtext', async () => {
+      const result = await renderPdf(
+        spec({
+          kind: 'form',
+          blocks: [
+            { type: 'field', kind: 'text', label: 'Weg → Ziel', help: 'Häkchen ✓ hier' },
+            { type: 'signature', labels: ['Unterschrift → hier'] },
+          ],
+        }),
+        { locale: 'de-DE' }
+      );
+      const text = await extractText(result.bytes);
+      expect(text).toContain('Weg -> Ziel');
+      expect(text).toContain('Häkchen x hier');
+    });
   });
 
   it('exposes semantic roles a reader can navigate', async () => {
