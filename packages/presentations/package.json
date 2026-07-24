@@ -31,7 +31,7 @@
     "@tiptap/extension-collaboration": "3.26.1",
     "@tiptap/pm": "3.26.1",
     "@tiptap/react": "3.26.1",
-    "katex": "^0.16.47",
+    "katex": "^0.18.1",
     "react-markdown": "^10.1.0",
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
