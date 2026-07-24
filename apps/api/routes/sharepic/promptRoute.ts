@@ -13,9 +13,9 @@ import ImageSelectionService from '../../services/image/ImageSelectionService.js
 import { getProfileService } from '../../services/user/ProfileService.js';
 import { createLogger } from '../../utils/logger.js';
 
-import { handleUnifiedRequest } from './sharepic_claude/unifiedHandler.js';
+import { handleUnifiedRequest } from './sharepic_text/unifiedHandler.js';
 
-import type { SharepicRequest } from './sharepic_claude/types.js';
+import type { SharepicRequest } from './sharepic_text/types.js';
 
 const log = createLogger('promptRoute');
 const router = Router();

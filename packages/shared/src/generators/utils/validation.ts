@@ -11,7 +11,6 @@ import type {
   UniversalRequest,
   AltTextRequest,
   LeichteSpracheRequest,
-  TextImproverRequest,
   ValidationResult,
 } from '../types.js';
 
@@ -144,33 +143,6 @@ export function validateLeichteSpracheRequest(
 
   if (!data.originalText?.trim()) {
     errors.originalText = VALIDATION_MESSAGES.TEXT_REQUIRED;
-  }
-
-  return {
-    valid: Object.keys(errors).length === 0,
-    errors,
-  };
-}
-
-/**
- * Validates a Text Improver generator request.
- *
- * Required:
- * - originalText: Non-empty text to improve
- * - action: A valid text improvement action
- *
- * @param data - Partial TextImproverRequest to validate
- * @returns ValidationResult with errors object
- */
-export function validateTextImproverRequest(data: Partial<TextImproverRequest>): ValidationResult {
-  const errors: Record<string, string> = {};
-
-  if (!data.originalText?.trim()) {
-    errors.originalText = VALIDATION_MESSAGES.TEXT_REQUIRED;
-  }
-
-  if (!data.action) {
-    errors.action = VALIDATION_MESSAGES.ACTION_REQUIRED;
   }
 
   return {
