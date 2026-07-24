@@ -23,6 +23,11 @@
   --wp-bg-base: #fefcf5;
   --wp-bg-tint: 233 214 150;
   --wp-bg-base-dark: transparent;
+  /* Composer accent: same hue family as the wash, but deep enough to carry
+     white text. The wash itself never can — at 1.5:1–2.5:1 against white it
+     is a background tone, not a surface for a label. See --wp-accent below. */
+  --wp-accent: #8a6d0b;
+  --wp-accent-hover: #765d09;
 
   background-color: var(--wp-bg-base);
   background-image: radial-gradient(
@@ -41,28 +46,52 @@
 .workplace-chat-bg--tanne {
   --wp-bg-base: #f5faf7;
   --wp-bg-tint: 122 176 143;
+  --wp-accent: #2f7d4f;
+  --wp-accent-hover: #286b43;
 }
 
 .workplace-chat-bg--himmel {
   --wp-bg-base: #f5f9fd;
   --wp-bg-tint: 137 186 231;
+  --wp-accent: #1667b8;
+  --wp-accent-hover: #12589e;
 }
 
 .workplace-chat-bg--sand {
   --wp-bg-base: #fbf8f3;
   --wp-bg-tint: 214 190 158;
+  --wp-accent: #8f6534;
+  --wp-accent-hover: #7a562c;
 }
 
 .workplace-chat-bg--magenta {
   --wp-bg-base: #fdf5f9;
   --wp-bg-tint: 228 152 190;
+  --wp-accent: #c2185b;
+  --wp-accent-hover: #a6144e;
 }
 
-/* Neutral opts out entirely so the page falls through to the theme background. */
+/* Neutral opts out entirely so the page falls through to the theme background.
+   With no hue there is nothing to derive an accent from, so it keeps the brand
+   green — the `--wp-accent` fallback in .workplace-chat-accent handles that. */
 .workplace-chat-bg--neutral {
   background-color: transparent;
   background-image: none;
   animation: none;
+  --wp-accent: initial;
+  --wp-accent-hover: initial;
+}
+
+/* Re-point the primary token inside the composer instead of overriding the
+   `bg-primary` utility by name: Tailwind's generated class names are not a
+   contract, the token is. Every primary accent in the composer (send button,
+   its hover, the active voice button, the quote block) follows the preset.
+   Scoped to the workplace hero — the same composer at /suche, im Notebook und
+   in der Chat-Runtime stays brand green. Falls back to the brand tokens when a
+   preset defines no accent (neutral). */
+.workplace-chat-accent {
+  --color-primary: var(--wp-accent, var(--primary-500));
+  --color-primary-600: var(--wp-accent-hover, var(--primary-600));
 }
 
 @keyframes workplace-sunrise {
