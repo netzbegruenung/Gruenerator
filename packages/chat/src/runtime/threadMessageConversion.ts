@@ -261,7 +261,7 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
             prevWasCard = false;
           }
           const toolCallId = tc.toolCallId || `tc_${m.id}`;
-          const parentId = prevWasCard && runParentId ? runParentId : toolCallId;
+          const parentId: string = prevWasCard && runParentId ? runParentId : toolCallId;
           runParentId = parentId;
           contentParts.push(cardFor(tc, parentId));
           prevWasCard = true;

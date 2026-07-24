@@ -72,6 +72,7 @@ export type SSEEventType =
   | 'progress_step'
   | 'text_delta'
   | 'reasoning_delta'
+  | 'gather_narration'
   | 'fallback'
   | 'interrupt'
   | 'document_indexed'
@@ -239,6 +240,7 @@ export interface SSEEventPayloads {
   progress_step: ProgressStepPayload;
   text_delta: { text: string };
   reasoning_delta: { text: string };
+  gather_narration: { text: string };
   fallback: {
     from: { id: string; name: string };
     to: { id: string; name: string };
@@ -432,7 +434,7 @@ export class SSEWriter {
   // Turn-persistence tap (WP-B): accumulates streamed reply text so a
   // placeholder DB row can be filled as the answer streams. Registered by the
   // chat-graph handler when a pending row exists; unset otherwise.
-  private textListener?: (kind: 'delta' | 'completion', text: string) => void;
+  private textListener: ((kind: 'delta' | 'completion', text: string) => void) | undefined;
 
   constructor(res: Response) {
     this.res = res;
