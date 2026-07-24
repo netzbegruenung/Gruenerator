@@ -63,13 +63,7 @@ interface ContentCategory {
 }
 
 type CategoryId =
-  | 'collabDocs'
-  | 'sheets'
-  | 'presentations'
-  | 'boards'
-  | 'documents'
-  | 'notebooks'
-  | 'links';
+  'collabDocs' | 'sheets' | 'presentations' | 'boards' | 'documents' | 'notebooks' | 'links';
 
 interface ContentState {
   collabDocs: ContentItem[];

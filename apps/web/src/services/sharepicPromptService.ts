@@ -29,12 +29,7 @@ interface SharepicGeneratedData {
 }
 
 export type SharepicType =
-  | 'dreizeilen'
-  | 'zitat-pure'
-  | 'info'
-  | 'veranstaltung'
-  | 'simple'
-  | 'pure-create';
+  'dreizeilen' | 'zitat-pure' | 'info' | 'veranstaltung' | 'simple' | 'pure-create';
 
 export interface SelectedImage {
   filename: string;

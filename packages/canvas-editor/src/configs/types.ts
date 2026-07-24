@@ -12,13 +12,11 @@ export type CanvasElementType = 'text' | 'image' | 'rect' | 'circle' | 'group' |
 
 /** Position that can be static or derived from state - now type-safe! */
 export type PositionValue<TState = Record<string, unknown>> =
-  | number
-  | ((state: TState, layout: LayoutResult) => number);
+  number | ((state: TState, layout: LayoutResult) => number);
 
 /** Fill color that can be static or derived from state */
 export type FillValue<TState = Record<string, unknown>> =
-  | string
-  | ((state: TState, layout: LayoutResult) => string);
+  string | ((state: TState, layout: LayoutResult) => string);
 
 /** Source value that can be static or derived from state */
 export type SourceValue<TState = Record<string, unknown>> = string | ((state: TState) => string);

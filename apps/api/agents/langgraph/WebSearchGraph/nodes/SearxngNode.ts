@@ -24,16 +24,14 @@ function normalizeMistralResults(mistralResult: MistralSearchResults): SearchRes
   if (!mistralResult.sources || mistralResult.sources.length === 0) {
     return [];
   }
-  return mistralResult.sources.map(
-    (source): SearchResult => ({
-      url: source.url,
-      title: source.title,
-      content: source.snippet || mistralResult.textContent || '',
-      snippet: source.snippet || '',
-      domain: source.domain,
-      score: source.relevance ?? 1.0,
-    })
-  );
+  return mistralResult.sources.map((source): SearchResult => ({
+    url: source.url,
+    title: source.title,
+    content: source.snippet || mistralResult.textContent || '',
+    snippet: source.snippet || '',
+    domain: source.domain,
+    score: source.relevance ?? 1.0,
+  }));
 }
 
 /**

@@ -287,22 +287,20 @@ class KnowledgeService {
         }
       }
 
-      const points = embeddings.map(
-        (chunk, index): QdrantPoint => ({
-          id: generatePointId('knowledge', knowledgeId!, index).toString(),
-          vector: chunk.embedding,
-          payload: {
-            knowledge_id: knowledgeId!,
-            user_id: userId!,
-            title: title,
-            content: chunk.text,
-            chunk_index: index,
-            chunk_tokens: chunk.tokens,
-            knowledge_type: knowledgeEntry.knowledge_type || 'general',
-            created_at: new Date().toISOString(),
-          },
-        })
-      );
+      const points = embeddings.map((chunk, index): QdrantPoint => ({
+        id: generatePointId('knowledge', knowledgeId!, index).toString(),
+        vector: chunk.embedding,
+        payload: {
+          knowledge_id: knowledgeId!,
+          user_id: userId!,
+          title: title,
+          content: chunk.text,
+          chunk_index: index,
+          chunk_tokens: chunk.tokens,
+          knowledge_type: knowledgeEntry.knowledge_type || 'general',
+          created_at: new Date().toISOString(),
+        },
+      }));
 
       await this.qdrant!.client!.upsert(this.qdrant!.collections.user_knowledge, {
         points: points,

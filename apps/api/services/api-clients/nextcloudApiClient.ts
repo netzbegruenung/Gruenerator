@@ -14,12 +14,7 @@ export interface ParsedShareLink {
 }
 
 export type ConnectionErrorCode =
-  | 'invalid_link'
-  | 'not_found'
-  | 'forbidden'
-  | 'read_only'
-  | 'storage_full'
-  | 'unknown';
+  'invalid_link' | 'not_found' | 'forbidden' | 'read_only' | 'storage_full' | 'unknown';
 
 export interface ConnectionTestResult {
   success: boolean;
