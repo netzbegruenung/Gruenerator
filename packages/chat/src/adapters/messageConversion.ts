@@ -28,6 +28,8 @@ export interface LoadedMessage {
     senderId?: string;
     senderName?: string | null;
     roleName?: string;
+    /** Row was still status='streaming' after request end — interrupted turn. */
+    interrupted?: boolean;
   };
 }
 
@@ -72,55 +74,67 @@ export function extractContent(content: unknown): string {
 }
 
 export function convertToThreadMessageLike(messages: LoadedMessage[]): ConvertedMessage[] {
-  return messages.map((m) => {
-    const textContent = extractContent(m.content);
+  return messages
+    .filter(
+      // Interrupted turn with no delta ever received: nothing to render.
+      (m) =>
+        !(
+          m.role === 'assistant' &&
+          m.metadata?.interrupted &&
+          !extractContent(m.content) &&
+          !m.metadata?.toolCalls?.length
+        )
+    )
+    .map((m) => {
+      const textContent = extractContent(m.content);
 
-    const contentParts: Array<TextPart | ToolCallPart> = [];
+      const contentParts: Array<TextPart | ToolCallPart> = [];
 
-    if (m.metadata?.toolCalls) {
-      for (const tc of m.metadata.toolCalls) {
-        contentParts.push({
-          type: 'tool-call' as const,
-          toolCallId: tc.toolCallId || `tc_${m.id}`,
-          toolName: tc.toolName,
-          args: { query: String((tc.args as Record<string, unknown>)?.query ?? '') },
-          result: tc.result,
-        });
+      if (m.metadata?.toolCalls) {
+        for (const tc of m.metadata.toolCalls) {
+          contentParts.push({
+            type: 'tool-call' as const,
+            toolCallId: tc.toolCallId || `tc_${m.id}`,
+            toolName: tc.toolName,
+            args: { query: String((tc.args as Record<string, unknown>)?.query ?? '') },
+            result: tc.result,
+          });
+        }
+      } else if (m.role === 'assistant' && m.metadata?.intent && m.metadata.searchResults?.length) {
+        const toolName = INTENT_TO_TOOL[m.metadata.intent];
+        if (toolName) {
+          contentParts.push({
+            type: 'tool-call' as const,
+            toolCallId: `tc_legacy_${m.id}`,
+            toolName,
+            args: { query: '' },
+            result: { results: m.metadata.searchResults },
+          });
+        }
       }
-    } else if (m.role === 'assistant' && m.metadata?.intent && m.metadata.searchResults?.length) {
-      const toolName = INTENT_TO_TOOL[m.metadata.intent];
-      if (toolName) {
-        contentParts.push({
-          type: 'tool-call' as const,
-          toolCallId: `tc_legacy_${m.id}`,
-          toolName,
-          args: { query: '' },
-          result: { results: m.metadata.searchResults },
-        });
+
+      contentParts.push({ type: 'text' as const, text: textContent });
+
+      const custom: Record<string, unknown> = {};
+      if (m.metadata?.senderId) {
+        custom.senderId = m.metadata.senderId;
+        custom.senderName = m.metadata.senderName ?? null;
       }
-    }
+      if (m.metadata?.roleName) custom.roleName = m.metadata.roleName;
+      if (m.metadata?.interrupted) custom.interrupted = true;
+      if (m.metadata?.citations) custom.citations = m.metadata.citations;
+      if (m.metadata?.generatedImage) custom.generatedImage = m.metadata.generatedImage;
+      if (m.metadata?.intent)
+        custom.streamMetadata = {
+          intent: m.metadata.intent,
+          searchCount: m.metadata.searchCount ?? 0,
+        };
 
-    contentParts.push({ type: 'text' as const, text: textContent });
-
-    const custom: Record<string, unknown> = {};
-    if (m.metadata?.senderId) {
-      custom.senderId = m.metadata.senderId;
-      custom.senderName = m.metadata.senderName ?? null;
-    }
-    if (m.metadata?.roleName) custom.roleName = m.metadata.roleName;
-    if (m.metadata?.citations) custom.citations = m.metadata.citations;
-    if (m.metadata?.generatedImage) custom.generatedImage = m.metadata.generatedImage;
-    if (m.metadata?.intent)
-      custom.streamMetadata = {
-        intent: m.metadata.intent,
-        searchCount: m.metadata.searchCount ?? 0,
+      return {
+        role: m.role as 'user' | 'assistant',
+        content: contentParts,
+        id: m.id,
+        metadata: Object.keys(custom).length > 0 ? { custom } : undefined,
       };
-
-    return {
-      role: m.role as 'user' | 'assistant',
-      content: contentParts,
-      id: m.id,
-      metadata: Object.keys(custom).length > 0 ? { custom } : undefined,
-    };
-  });
+    });
 }
