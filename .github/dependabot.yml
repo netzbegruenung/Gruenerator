@@ -56,6 +56,12 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # FRONTEND - React web application (apps/web)
@@ -135,6 +141,12 @@ updates:
       - dependency-name: '@eslint/js'
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
         update-types: ['version-update:semver-major']
 
   # =============================================================================
@@ -246,6 +258,12 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # GRUEN-O-MAT (apps/gruen-o-mat)
@@ -276,6 +294,12 @@ updates:
       - dependency-name: '@eslint/js'
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
         update-types: ['version-update:semver-major']
 
   # =============================================================================
@@ -338,6 +362,30 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
+      # RN/Expo ecosystem majors ride the Expo SDK upgrade, never a lone bump.
+      # `npx expo install --check` is the authority here: SDK 57 pins exact
+      # versions for reanimated, safe-area-context, svg and pager-view, and a
+      # Dependabot PR that moves past them makes the app 'may not work
+      # correctly'. Majors (gesture-handler 3, webview 14, async-storage 3,
+      # worklets 0.11) additionally need device testing. Take them all at once
+      # via `npx expo install --fix` during an SDK upgrade — see CLAUDE.md.
+      - dependency-name: 'react-native-*'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@react-native-*/*'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react-native-reanimated'
+      - dependency-name: 'react-native-safe-area-context'
+      - dependency-name: 'react-native-svg'
+      - dependency-name: 'react-native-pager-view'
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
+        update-types: ['version-update:semver-major']
+      # @expo/dom-webview is pinned in pnpm.overrides (~56.0.5) AND listed in
+      # expo.install.exclude — a bump cannot take effect, only mislead.
+      - dependency-name: '@expo/dom-webview'
 
   # =============================================================================
   # SHARED PACKAGE (packages/shared)
@@ -370,6 +418,12 @@ updates:
       - dependency-name: '@eslint/js'
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
         update-types: ['version-update:semver-major']
 
   # =============================================================================
@@ -410,6 +464,12 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # DOCS PACKAGE (packages/docs)
@@ -449,6 +509,12 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # ESLINT CONFIG (packages/eslint-config)
@@ -479,6 +545,12 @@ updates:
       - dependency-name: '@eslint/js'
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
         update-types: ['version-update:semver-major']
 
   # =============================================================================
@@ -511,6 +583,12 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # HOCUSPOCUS SERVER (services/hocuspocus)
@@ -541,6 +619,12 @@ updates:
       - dependency-name: '@eslint/js'
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
         update-types: ['version-update:semver-major']
 
   # =============================================================================
@@ -579,6 +663,12 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # DESKTOP - Tauri desktop app npm deps (apps/desktop)
@@ -609,6 +699,12 @@ updates:
       - dependency-name: '@eslint/js'
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
         update-types: ['version-update:semver-major']
 
   # =============================================================================
@@ -671,6 +767,12 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # CANVAS EDITOR PACKAGE (packages/canvas-editor)
@@ -703,6 +805,12 @@ updates:
       - dependency-name: '@eslint/js'
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
         update-types: ['version-update:semver-major']
 
   # =============================================================================
@@ -737,6 +845,12 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # UI PACKAGE (packages/ui)
@@ -769,6 +883,12 @@ updates:
       - dependency-name: '@eslint/js'
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
         update-types: ['version-update:semver-major']
 
   # =============================================================================
@@ -803,6 +923,12 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # WOLKE PACKAGE (packages/wolke)
@@ -836,6 +962,12 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # SITES DESIGN PACKAGE (packages/sites-design)
@@ -866,6 +998,12 @@ updates:
       - dependency-name: '@eslint/js'
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
         update-types: ['version-update:semver-major']
 
   # =============================================================================
@@ -898,6 +1036,12 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # CORE PACKAGE (packages/core)
@@ -928,6 +1072,12 @@ updates:
       - dependency-name: '@eslint/js'
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
         update-types: ['version-update:semver-major']
 
   # =============================================================================
@@ -962,6 +1112,12 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # PRESENTATIONS PACKAGE (packages/presentations)
@@ -994,6 +1150,12 @@ updates:
       - dependency-name: '@eslint/js'
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
         update-types: ['version-update:semver-major']
 
   # =============================================================================
@@ -1028,6 +1190,12 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
+        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # QUERY PACKAGE (packages/query)
@@ -1060,6 +1228,12 @@ updates:
       - dependency-name: '@eslint/js'
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
+      # change the manifest while v3 stays installed — a lie, not an update.
+      # Drop this ignore as part of the dedicated zod-4 migration (which also
+      # removes the better-auth>zod / knip>zod scoped overrides).
+      - dependency-name: 'zod'
         update-types: ['version-update:semver-major']
 
   # =============================================================================

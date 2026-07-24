@@ -27,7 +27,7 @@
     "build:android:preview": "EAS_NO_VCS=1 eas build -p android --profile preview"
   },
   "dependencies": {
-    "@assistant-ui/react-native": "^0.1.29",
+    "@assistant-ui/react-native": "^0.1.30",
     "@expo-google-fonts/raleway": "^0.4.2",
     "@expo/dom-webview": "~56.0.5",
     "@expo/metro-runtime": "~57.0.7",
@@ -69,7 +69,7 @@
     "expo-router": "~57.0.8",
     "expo-secure-store": "~57.0.1",
     "expo-sharing": "~57.0.7",
-    "expo-speech-recognition": "~56.0.0",
+    "expo-speech-recognition": "~56.0.1",
     "expo-splash-screen": "^57.0.5",
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.1",
