@@ -11,6 +11,7 @@ import {
   PiImagesSquare,
   PiClipboardText,
   PiBank,
+  PiFilePdf,
   PiFileText,
   PiSparkle,
   PiCloud,
@@ -312,6 +313,22 @@ export const toolMentionables: Mentionable[] = [
     icon: PiNote,
     backgroundColor: '#0891B2',
     mention: 'zusammenfassung',
+  },
+  {
+    // Forced-tool pseudo-mention: routes into forcedTools ('pdf-erstellen') like
+    // the create-* entries; the backend maps it to the create_pdf intent.
+    type: 'tool',
+    category: 'function',
+    trigger: '@',
+    identifier: 'pdf-erstellen',
+    title: 'PDF erstellen',
+    description:
+      'Erstellt ein barrierefreies PDF zum Herunterladen — Dokument, Brief mit Briefkopf oder ausfüllbares Formular',
+    avatar: '📄',
+    icon: PiFilePdf,
+    backgroundColor: '#316049',
+    mention: 'pdf-erstellen',
+    aliases: ['pdf', 'formular', 'briefkopf'],
   },
   {
     type: 'tool',

@@ -48,6 +48,7 @@ import {
   makeBundestagTool,
   makeCreateBoardTool,
   makeCreateDocTool,
+  makeCreatePdfTool,
   makeCreateSharepicTool,
   makeImageTool,
   makeSummaryTool,
@@ -365,6 +366,8 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
         tools.create_document = makeCreateDocTool({ kind: 'document', sse, state, req: loop.req });
       } else if (kind === 'board' && enabled('create_board')) {
         tools.create_board = makeCreateBoardTool({ state, req: loop.req });
+      } else if (kind === 'pdf' && enabled('create_pdf')) {
+        tools.create_pdf = makeCreatePdfTool({ sse, state, req: loop.req });
       }
     }
   }

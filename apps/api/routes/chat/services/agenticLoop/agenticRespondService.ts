@@ -107,6 +107,7 @@ const COMPOUND_TOOL_FOR: Record<string, string> = {
   sheet: 'create_sheet',
   document: 'create_document',
   board: 'create_board',
+  pdf: 'create_pdf',
 };
 
 /** Tools counted against the per-turn search budget (loopGuards). */
@@ -132,6 +133,7 @@ const NON_REPLAYABLE_ACTION_TOOLS: ReadonlySet<string> = new Set([
   'create_board',
   'create_sheet',
   'create_presentation',
+  'create_pdf',
   'generate_image',
   'sharepic',
 ]);

@@ -47,6 +47,7 @@ import { generateSliderDeckVariant } from './sliderDeckService.js';
 import { PROGRESS_MESSAGES, sendSearchDegradedWarning } from './sseHelpers.js';
 import { createMessage, setThreadToolContext, touchThread } from './threadPersistenceService.js';
 
+import type { CreatePdfResult } from '../../../services/pdf/PdfGenerationService.js';
 import type { SSEWriter, SearchResultPayload } from './sseHelpers.js';
 import type {
   ChatGraphState,
@@ -172,6 +173,88 @@ export async function handleBoardCreation(opts: {
  * model produced no parseable structure — the caller decides whether to fall
  * through or report an error.
  */
+export interface PdfGenerationOptions {
+  /** Steers the layout; the generation model may still upgrade to a letter. */
+  documentKind?: 'document' | 'letter' | 'form';
+  sender?: { name?: string | null; organization?: string | null; address?: string | null } | null;
+  userLocale?: 'de-DE' | 'de-AT';
+}
+
+const PDF_LETTER_RE =
+  /\b(briefkopf|anschreiben|brief(e|es|s)?|einladungsschreiben|offiziell\w*\s+schreiben)\b/i;
+const PDF_FORM_RE =
+  /\b(formular\w*|antragsformular|anmeldeformular|fragebogen|ausf(ü|ue)llbar\w*|zum\s+ausf(ü|ue)llen|eintragungsliste|anmeldebogen|beitrittserkl(ä|ae)rung)\b/i;
+
+/**
+ * Which layout the user asked for. Deliberately narrow — bare "schreiben" is
+ * almost always the verb, and the generation model still upgrades a document to
+ * a letter when it fills in recipient/salutation.
+ */
+export function pdfKindFromText(text: string): 'document' | 'letter' | 'form' {
+  if (PDF_FORM_RE.test(text)) return 'form';
+  if (PDF_LETTER_RE.test(text)) return 'letter';
+  return 'document';
+}
+
+/**
+ * PDF generation has its own entry point rather than a `runDocGeneration`
+ * branch: it produces a finished file plus a verification report, not a
+ * collaborative document, so the return shape genuinely differs.
+ */
+export async function runPdfGeneration(opts: {
+  userContent: string;
+  aiWorkerPool: ChatGraphState['aiWorkerPool'];
+  req: Express.Request;
+  userId: string;
+  pdfOptions?: PdfGenerationOptions;
+  onCommit?: () => void;
+}): Promise<CreatePdfResult | null> {
+  const { userContent, aiWorkerPool, req, userId, onCommit } = opts;
+  const reqWithUser = req as Express.Request & { user?: { id?: string }; sessionID?: string };
+  const { PDF_GENERATION_PROMPT, parsePdfStructure, createPdfDocument } =
+    await import('../../../services/pdf/PdfGenerationService.js');
+
+  const pdfOptions = opts.pdfOptions ?? {};
+  const directive =
+    pdfOptions.documentKind === 'letter'
+      ? 'Der Nutzer möchte ein offizielles Schreiben mit Briefkopf. Setze "kind":"letter" und fülle das "letter"-Objekt aus.\n\n'
+      : pdfOptions.documentKind === 'form'
+        ? 'Der Nutzer möchte ein ausfüllbares Formular. Setze "kind":"form" und baue passende field-Blöcke.\n\n'
+        : '';
+
+  const genResult = await aiWorkerPool.processRequest(
+    {
+      type: 'doc_generation',
+      systemPrompt: PDF_GENERATION_PROMPT,
+      messages: [{ role: 'user', content: `${directive}${userContent}` }],
+      options: { temperature: 0.5, max_tokens: 6000 },
+    },
+    reqWithUser
+  );
+  const structure =
+    genResult.success && genResult.content ? parsePdfStructure(genResult.content) : null;
+  if (!structure) {
+    log.warn('[ChatGraph] PDF generation returned no parseable structure');
+    return null;
+  }
+  onCommit?.();
+
+  // Sender defaults to the profile display name so a letterhead never renders
+  // an empty Absender block.
+  let sender = pdfOptions.sender ?? null;
+  const isLetter = structure.kind === 'letter' || pdfOptions.documentKind === 'letter';
+  if (isLetter && !sender?.name && !sender?.organization) {
+    const profileName = await resolveSharepicAuthorName(userId);
+    if (profileName) sender = { ...sender, name: profileName };
+  }
+
+  return createPdfDocument(structure, {
+    userId,
+    locale: pdfOptions.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
+    sender,
+  });
+}
+
 export async function runDocGeneration(opts: {
   kind: 'presentation' | 'sheet' | 'document';
   userContent: string;
@@ -500,6 +583,105 @@ export async function handlePresentationCreation(opts: {
         threadId: actualThreadId,
         citations: [],
         metadata: { intent: 'create_presentation' },
+      });
+      sse.end();
+      return true;
+    }
+    return false;
+  }
+}
+
+/**
+ * Handle the create_pdf intent / @pdf-erstellen forced tool: generate a
+ * CI-styled, downloadable PDF (optionally with Grünen letterhead), store it as
+ * a user-scoped binary asset and stream the same `document_created` SSE event
+ * as the other create_* handlers (subtype 'pdf', url = authenticated download).
+ * Returns true if the PDF was created (caller should return early).
+ */
+export async function handlePdfCreation(opts: {
+  sse: SSEWriter;
+  classifiedState: ChatGraphState;
+  aiWorkerPool: ChatGraphState['aiWorkerPool'];
+  req: Express.Request;
+  actualThreadId?: string;
+  userId: string;
+  userContent: string;
+  userLocale: 'de-DE' | 'de-AT';
+}): Promise<boolean> {
+  const { sse, classifiedState, aiWorkerPool, req, actualThreadId, userId, userContent } = opts;
+
+  let streamOpened = false;
+  try {
+    const result = await runPdfGeneration({
+      userContent,
+      aiWorkerPool,
+      req,
+      userId,
+      pdfOptions: { documentKind: pdfKindFromText(userContent), userLocale: opts.userLocale },
+      // Open the stream at the original commit point (after a parseable
+      // structure, before the render/store) so a create failure surfaces the
+      // in-stream error via the catch instead of falling through.
+      onCommit: () => {
+        sse.send('response_start', { message: 'Erstelle PDF...' });
+        streamOpened = true;
+      },
+    });
+    if (!result) {
+      // Nothing streamed yet — return false so the caller falls through to the
+      // normal respond pipeline cleanly (no dangling response_start).
+      return false;
+    }
+    const created = result.document;
+
+    // Report what the self-check found instead of a blanket success claim.
+    const responseText = result.verification.problems.length
+      ? `PDF **"${created.title}"** wurde erstellt (${result.summary}).\n\nBitte prüfen: ${result.verification.problems.join(' ')}`
+      : `PDF **"${created.title}"** wurde erstellt — ${result.summary}.`;
+    for (let i = 0; i < responseText.length; i += 20) {
+      sse.send('text_delta', { text: responseText.slice(i, i + 20) });
+    }
+
+    sse.send('document_created', created);
+
+    log.info(`[ChatGraph] PDF created: "${created.title}" (${created.documentId})`);
+
+    const totalTimeMs = Date.now() - classifiedState.startTime;
+    sse.sendRaw('done', {
+      threadId: actualThreadId,
+      citations: [],
+      documentId: created.documentId,
+      metadata: {
+        intent: 'create_pdf',
+        searchCount: 0,
+        totalTimeMs,
+        classificationTimeMs: classifiedState.classificationTimeMs,
+        searchTimeMs: 0,
+      },
+    });
+
+    if (actualThreadId) {
+      await createMessage(actualThreadId, 'assistant', responseText, {
+        intent: 'create_pdf',
+        createdDocument: created,
+      });
+      await touchThread(actualThreadId);
+    }
+
+    sse.end();
+    return true;
+  } catch (pdfErr) {
+    log.error(
+      `[ChatGraph] PDF creation failed: ${pdfErr instanceof Error ? pdfErr.message : String(pdfErr)}`
+    );
+    if (streamOpened) {
+      // The stream is already open; don't fall through (that would double the
+      // response). Close it with a short error message instead.
+      const msg = 'Das PDF konnte nicht erstellt werden.';
+      sse.send('text_delta', { text: msg });
+      sse.sendRaw('done', {
+        threadId: actualThreadId,
+        citations: [],
+        metadata: { intent: 'create_pdf' },
       });
       sse.end();
       return true;
