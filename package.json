@@ -82,7 +82,12 @@
       "@blocknote/xl-docx-exporter": "^0.52.1",
       "@blocknote/xl-odt-exporter": "^0.52.1",
       "@blocknote/xl-pdf-exporter": "^0.52.1",
-      "@assistant-ui/core": "^0.2.21"
+      "@assistant-ui/core": "^0.2.21",
+      "@assistant-ui/store": "^0.2.20",
+      "@assistant-ui/react": "^0.14.27",
+      "@assistant-ui/tap": "^0.9.4",
+      "@assistant-ui/react-markdown": "^0.14.6",
+      "@assistant-ui/react-native": "^0.1.30"
     },
     "auditConfig": {
       "ignoreGhsas": [
