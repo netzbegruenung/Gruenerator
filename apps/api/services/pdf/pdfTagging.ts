@@ -209,8 +209,12 @@ export class PdfTagger {
    * Link a form widget to the current structure element and give it an
    * accessible name. Without /TU a screen reader announces the raw field name
    * ("feld_3") instead of the label the sighted user sees.
+   *
+   * `fieldDict` matters: PDF/UA (7.18.1) wants /TU on the FIELD, and for a radio
+   * group the field and its option widgets are different dictionaries — setting
+   * it on the widget alone leaves the group unnamed.
    */
-  attachWidget(page: PDFPage, annotRef: PDFRef, accessibleName: string): void {
+  attachWidget(page: PDFPage, annotRef: PDFRef, accessibleName: string, fieldDict?: PDFDict): void {
     const node = this.current;
     node.kids.push({ kind: 'obj', page, ref: annotRef });
     if (!node.page) node.page = page;
@@ -220,13 +224,56 @@ export class PdfTagger {
     this.annotEntries.push({ key, ref: node.ref });
 
     const annot = this.doc.context.lookup(annotRef, PDFDict);
-    if (annot) {
+    if (annot && accessibleName) {
       annot.set(PDFName.of('StructParent'), PDFNumber.of(key));
-      if (accessibleName) annot.set(PDFName.of('TU'), PDFHexString.fromText(accessibleName));
-      else this.fieldsWithoutLabel += 1;
+      annot.set(PDFName.of('TU'), PDFHexString.fromText(accessibleName));
+      if (fieldDict) fieldDict.set(PDFName.of('TU'), PDFHexString.fromText(accessibleName));
     } else {
+      if (annot) annot.set(PDFName.of('StructParent'), PDFNumber.of(key));
       this.fieldsWithoutLabel += 1;
     }
+  }
+
+  /**
+   * XMP metadata stream carrying the PDF/UA identifier. Assistive tech and
+   * validators read the claim from here, not from the Info dictionary — without
+   * it a document is technically tagged but does not identify itself as
+   * conforming (veraPDF clause 7.1, test 8).
+   *
+   * Deliberately `context.stream` and not `flateStream`: the metadata stream
+   * must stay readable without decompression.
+   */
+  private writeXmpMetadata(): void {
+    const esc = (value: string): string =>
+      value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+    // \uFEFF: the XMP spec requires a BOM here; written as an escape so it does
+    // not sit in the source as an invisible character.
+    const xmp = `<?xpacket begin="\uFEFF" id="W5M0MpCehiHzreSzNTczkc9d"?>
+<x:xmpmeta xmlns:x="adobe:ns:meta/">
+  <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+    <rdf:Description rdf:about=""
+        xmlns:dc="http://purl.org/dc/elements/1.1/"
+        xmlns:xmp="http://ns.adobe.com/xap/1.0/"
+        xmlns:pdfuaid="http://www.aiim.org/pdfua/ns/id/">
+      <dc:title><rdf:Alt><rdf:li xml:lang="x-default">${esc(this.opts.title)}</rdf:li></rdf:Alt></dc:title>
+      <dc:language><rdf:Bag><rdf:li>${esc(this.opts.language)}</rdf:li></rdf:Bag></dc:language>
+      <xmp:CreatorTool>Grünerator</xmp:CreatorTool>
+      <pdfuaid:part>1</pdfuaid:part>
+    </rdf:Description>
+  </rdf:RDF>
+</x:xmpmeta>
+<?xpacket end="w"?>`;
+
+    const stream = this.doc.context.stream(xmp, {
+      Type: PDFName.of('Metadata'),
+      Subtype: PDFName.of('XML'),
+    });
+    this.doc.catalog.set(PDFName.of('Metadata'), this.doc.context.register(stream));
   }
 
   /** Write the structure tree, parent tree and document metadata. Call once. */
@@ -299,6 +346,7 @@ export class PdfTagger {
     // readers announce the file name instead of the document title.
     this.doc.setTitle(this.opts.title, { showInWindowTitleBar: true });
     this.doc.setLanguage(this.opts.language);
+    this.writeXmpMetadata();
 
     return {
       taggedContent: this.markedAnyContent,
