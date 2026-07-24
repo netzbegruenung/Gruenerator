@@ -1,5 +1,5 @@
 import { AIExtension } from '@blocknote/xl-ai';
-import { ForkYDocExtension } from '@blocknote/core/extensions';
+import { ForkYDocExtension } from '@blocknote/core/yjs';
 
 import { useEditorStore } from '../stores/editorStore';
 
@@ -68,7 +68,6 @@ export type DocAIMenuStore = {
 export function getDocAIMenuStore(editor: unknown): DocAIMenuStore | null {
   if (!editor) return null;
   const ext = (editor as EditorWithExtensions).getExtension?.(AIExtension) as
-    | { store?: DocAIMenuStore }
-    | undefined;
+    { store?: DocAIMenuStore } | undefined;
   return ext?.store ?? null;
 }

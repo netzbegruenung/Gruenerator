@@ -135,8 +135,7 @@ export async function startTranscriptionJob(
 }
 
 export type StartExportResult =
-  | { ok: true; exportToken: string }
-  | { ok: false; code: 400 | 404 | 500; error: string };
+  { ok: true; exportToken: string } | { ok: false; code: 400 | 404 | 500; error: string };
 
 /**
  * Start a subtitled-video export render. Resolves the input video (project

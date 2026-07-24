@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { YjsThreadStore, DefaultThreadStoreAuth } from '@blocknote/core/comments';
+import { DefaultThreadStoreAuth } from '@blocknote/core/comments';
+import { YjsThreadStore } from '@blocknote/core/yjs';
 import type * as Y from 'yjs';
 
 interface CommentsUser {

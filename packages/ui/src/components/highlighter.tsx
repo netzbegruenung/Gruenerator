@@ -5,13 +5,7 @@ import { annotate } from 'rough-notation';
 import { type RoughAnnotation } from 'rough-notation/lib/model';
 
 type AnnotationAction =
-  | 'highlight'
-  | 'underline'
-  | 'box'
-  | 'circle'
-  | 'strike-through'
-  | 'crossed-off'
-  | 'bracket';
+  'highlight' | 'underline' | 'box' | 'circle' | 'strike-through' | 'crossed-off' | 'bracket';
 
 interface HighlighterProps {
   children: React.ReactNode;

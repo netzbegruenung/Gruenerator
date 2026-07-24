@@ -1,0 +1,75 @@
+name: Docs Settings
+
+# Keeps documentation/docs/Profil/einstellungen.mdx honest about the settings
+# dialog. The article's structure — areas, row labels, choices, notification
+# types — is generated from the app's own configs; the explanations per area are
+# hand-written.
+#
+# When a new settings area appears without an explanation — or a documented one
+# disappears — this reports it as ONE deduplicated GitHub issue and closes it
+# again once the gap is filled. Deliberately not a blocking PR check: adding a
+# setting should never break someone else's docs build.
+#
+# On PRs touching the settings sources it additionally leaves one sticky
+# comment, so the author sees the gap while the change is still fresh.
+
+on:
+  push:
+    branches: [master]
+    # Kept in sync with the pull_request paths below by hand — GitHub Actions
+    # does not support YAML anchors.
+    paths:
+      - 'apps/web/src/features/settings/**'
+      - 'apps/web/src/features/notifications/notificationPreferenceMeta.ts'
+      - 'apps/web/src/features/notifications/types/index.ts'
+      - 'documentation/src/components/SettingsOverview/**'
+      - 'documentation/src/generated/settings.json'
+  pull_request:
+    paths:
+      - 'apps/web/src/features/settings/**'
+      - 'apps/web/src/features/notifications/notificationPreferenceMeta.ts'
+      - 'apps/web/src/features/notifications/types/index.ts'
+      - 'documentation/src/components/SettingsOverview/**'
+      - 'documentation/src/generated/settings.json'
+  schedule:
+    - cron: '45 5 * * 5' # Friday 05:45 UTC, after the other docs audits
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: docs-settings-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: Audit documented settings
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile --filter @gruenerator/documentation...
+
+      # On master and on the weekly run: file / update / close the issue.
+      - name: Audit and sync issue
+        if: github.event_name != 'pull_request'
+        run: pnpm --filter @gruenerator/documentation settings:audit -- --apply
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # On PRs: one sticky comment, never a failure.
+      - name: Audit and comment on PR
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: pnpm --filter @gruenerator/documentation settings:audit -- --pr-comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}

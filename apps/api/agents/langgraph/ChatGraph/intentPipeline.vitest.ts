@@ -55,6 +55,7 @@ const ALL_INTENTS: SearchIntent[] = [
   'wetter',
   'news',
   'umfragen',
+  'hilfe',
   'image',
   'image_edit',
   'sharepic',
@@ -66,6 +67,7 @@ const ALL_INTENTS: SearchIntent[] = [
   'save_as_doc',
   'create_sheet',
   'create_presentation',
+  'create_pdf',
   'create_recurring_task',
   'modify_doc',
   'edit_current_doc',
@@ -331,6 +333,8 @@ describe('every SearchIntent has a handler path', () => {
       'EXPERIMENTAL system MCP source — forces the agentic loop; systemMcpCatalog mounts the trivago hotel-search tools; router degrades a killed loop turn to web',
     umfragen:
       'EXPERIMENTAL native domain tool — forces the agentic loop; toolCatalog mounts makeUmfragenTool (PolitPro Sonntagsfrage + Meinungsbild); router degrades a killed loop turn to web',
+    hilfe:
+      'native domain tool — forces the agentic loop (isMcpTurn in router, so an @doku-forced turn still enters it); toolCatalog mounts makeDocsSearchTool (in-process BM25 over the generated docs index) and respondNode injects the docs page map; router degrades a killed loop turn to web',
     wetter:
       'EXPERIMENTAL system MCP source — forces the agentic loop; systemMcpCatalog mounts the Open-Meteo/DWD tools; router degrades a killed loop turn to web',
     news: 'EXPERIMENTAL system MCP source — forces the agentic loop; systemMcpCatalog mounts the ARD/tagesschau tools (citations via sourceRegistry); router degrades a killed loop turn to web',
@@ -345,6 +349,8 @@ describe('every SearchIntent has a handler path', () => {
       'handled via handleSheetCreation — generates a spreadsheet, seeds the Y.Doc, emits document_created SSE (subtype sheets)',
     create_presentation:
       'handled via handlePresentationCreation — generates a reveal.js deck, seeds the Y.Doc, emits document_created SSE (subtype presentations)',
+    create_pdf:
+      'handled via handlePdfCreation — generates a tagged, CI-styled PDF (document/letter/form), verifies the finished bytes, stores it as a compute asset and emits document_created SSE (subtype pdf)',
     create_recurring_task:
       'handled via handleRecurringTaskCreation — parses the schedule, persists a recurring_tasks row, emits confirm SSE (flag-gated EXPERIMENTAL)',
     modify_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',

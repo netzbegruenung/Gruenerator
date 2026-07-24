@@ -38,12 +38,7 @@ export const SKILL_CATEGORY_ICONS: Record<SkillCategory, IconType> = {
 /** Every category key the market can show. Skills + Landesverbände no longer have
  *  their own aisles — they live as sub-sections inside `gruenerator`. */
 export type AgenturaCategoryKey =
-  | 'empfohlen'
-  | 'meine'
-  | 'gruppen'
-  | 'community'
-  | 'gruenerator'
-  | 'favoriten';
+  'empfohlen' | 'meine' | 'gruppen' | 'community' | 'gruenerator' | 'favoriten';
 
 export interface AgenturaCategory {
   key: AgenturaCategoryKey;

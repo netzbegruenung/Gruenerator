@@ -11,6 +11,7 @@ import { fileURLToPath } from 'url';
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 import { type AIWorkerPool } from '../../workers/types.js';
+import { recordOperation } from '../usage/UsageTrackingService.js';
 
 import { startBackgroundCompression } from './backgroundCompressionService.js';
 import { generateManualSubtitles } from './manualSubtitleGeneratorService.js';
@@ -42,7 +43,9 @@ async function transcribeWithProvider(
   if (provider === 'regolo' && env.REGOLO_API_KEY) {
     log.debug('Using Regolo (faster-whisper) for transcription');
     try {
-      return await transcribeWithRegolo(audioPath, requestWordTimestamps, uploadId);
+      const result = await transcribeWithRegolo(audioPath, requestWordTimestamps, uploadId);
+      recordOperation({ unit: 'transcriptions', provider: 'regolo', model: 'faster-whisper' });
+      return result;
     } catch (error: unknown) {
       log.warn(
         `Regolo transcription failed: ${error instanceof Error ? error.message : String(error)}`
@@ -53,7 +56,9 @@ async function transcribeWithProvider(
   if ((provider === 'voxtral' || provider === 'regolo') && env.MISTRAL_API_KEY) {
     log.debug('Using Voxtral for transcription');
     try {
-      return await transcribeWithVoxtral(audioPath, requestWordTimestamps, uploadId);
+      const result = await transcribeWithVoxtral(audioPath, requestWordTimestamps, uploadId);
+      recordOperation({ unit: 'transcriptions', provider: 'mistral', model: 'voxtral' });
+      return result;
     } catch (error: unknown) {
       log.warn(
         `Voxtral transcription failed: ${error instanceof Error ? error.message : String(error)}`

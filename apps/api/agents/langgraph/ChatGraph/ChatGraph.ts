@@ -538,6 +538,7 @@ function routeAfterClassification(
     intent === 'save_as_doc' ||
     intent === 'create_sheet' ||
     intent === 'create_presentation' ||
+    intent === 'create_pdf' ||
     intent === 'create_recurring_task' ||
     intent === 'modify_doc' ||
     intent === 'modify_board' ||
@@ -572,6 +573,10 @@ function routeAfterClassification(
     wetter: 'direct',
     news: 'direct',
     umfragen: 'direct',
+    // Same as the loop-only intents above: `hilfe` routes into the agentic loop
+    // before this map matters. Its tool is gated by enabledTools.hilfe in the
+    // catalog instead.
+    hilfe: 'direct',
     image: 'image',
     image_edit: 'image_edit',
     sharepic: 'sharepic',
@@ -587,6 +592,7 @@ function routeAfterClassification(
     share_doc: 'share_doc',
     create_sheet: 'create_sheet',
     create_presentation: 'create_presentation',
+    create_pdf: 'create_pdf',
     create_recurring_task: 'create_recurring_task',
     chat_history: 'chat_history',
     mcp: 'mcp',
