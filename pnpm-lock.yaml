@@ -138,7 +138,7 @@ importers:
         specifier: ^17.2.0
         version: 17.2.0
       prettier:
-        specifier: ^3.9.6
+        specifier: 3.9.6
         version: 3.9.6
       turbo:
         specifier: ^2.10.6
