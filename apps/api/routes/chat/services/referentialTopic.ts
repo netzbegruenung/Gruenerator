@@ -1,7 +1,8 @@
 /**
  * Resolve the SUBJECT of a referential creation follow-up.
  *
- * Single-pass generation handlers (sharepic, image, board, sheet/presentation)
+ * Single-pass generation handlers (sharepic, image, board, sheet/presentation,
+ * pdf, document)
  * read ONLY the last user message for their topic. So a referential follow-up
  * like "visualisiere in einem sharepic" or "mach eine Präsentation dazu" — which
  * names no subject of its own — produced a generic artifact about the literal
@@ -22,7 +23,7 @@ import type { ModelMessage } from 'ai';
 const CREATE_VERB =
   /\b(visualisier\w*|erstell\w*|mach\w*|generier\w*|bau\w*|entwirf|entwerfe|gestalt\w*|zeichne|produzier\w*|leg\w*\s+an)\b/giu;
 const ARTIFACT_FILLER =
-  /\b(ein|eine|einen|einem|einer|das|es|dazu|davon|dies\w*|hierzu|daf(?:ü|ue)r|daraus|bitte|mir|mal|noch|jetzt|in|als|zu|von|dem|der|die|und|einfach|kurz|schnell|sharepic|share-pic|bild|bilder|grafik|foto|pr(?:ä|ae)sentation|presentation|folien|slides?|tabelle|spreadsheet|kalkulation|dokument|board|reel|video|post|newsletter)\b/giu;
+  /\b(ein|eine|einen|einem|einer|das|es|dazu|davon|dies\w*|hierzu|daf(?:ü|ue)r|daraus|bitte|mir|mal|noch|jetzt|in|als|zu|von|dem|der|die|und|einfach|kurz|schnell|also|aus|hier|sch(?:ö|oe)n\w*|sharepic|share-pic|bild|bilder|grafik|foto|pr(?:ä|ae)sentation|presentation|folien|slides?|tabelle|spreadsheet|kalkulation|dokument|pdf|datei\w*|board|reel|video|post|newsletter)\b/giu;
 
 /** The message with create verbs + artifact/filler words removed. */
 function residualSubject(text: string): string {
@@ -39,6 +40,11 @@ export function isReferentialCreation(text: string): boolean {
   return text.trim().length > 0 && residualSubject(text).length < 3;
 }
 
+// Our own create_* handlers persist templated confirmations ("PDF **"…"**
+// wurde erstellt …"). They carry no subject — a retry like "also aus der
+// tabelle" must inherit the content turn BEFORE them, not the confirmation.
+const CREATION_CONFIRMATION_RE = /\bwurde erstellt\b|\beingerichtet —/;
+
 /** Most recent substantive prior turn (the subject a referential follow-up
  *  refers back to). Skips the current (last) message; prefers the newest turn
  *  with real content, which for a "create X, then visualise it" flow is the
@@ -46,7 +52,7 @@ export function isReferentialCreation(text: string): boolean {
 function findPriorSubject(messages: ModelMessage[]): string | null {
   for (let i = messages.length - 2; i >= 0; i--) {
     const text = extractTextContent(messages[i]?.content ?? '').trim();
-    if (text.length >= 40) return text.slice(0, 2000);
+    if (text.length >= 40 && !CREATION_CONFIRMATION_RE.test(text)) return text.slice(0, 2000);
   }
   return null;
 }
