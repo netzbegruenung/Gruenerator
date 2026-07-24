@@ -24,6 +24,7 @@ import {
   upsertTextForm,
 } from '../../services/user/textFormRepository.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -45,7 +46,7 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
     } catch (error) {
       const err = error as Error;
       log.error('[userTextFormsContract.list] Error:', err);
-      return { status: 500 as const, body: { success: false, message: err.message } };
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
     }
   },
 
@@ -65,7 +66,7 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
     } catch (error) {
       const err = error as Error;
       log.error('[userTextFormsContract.analyze] Error:', err);
-      return { status: 500 as const, body: { success: false, message: err.message } };
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
     }
   },
 
@@ -123,7 +124,7 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
     } catch (error) {
       const err = error as Error;
       log.error('[userTextFormsContract.save] Error:', err);
-      return { status: 500 as const, body: { success: false, message: err.message } };
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
     }
   },
 
@@ -141,7 +142,7 @@ export const userTextFormsContractRouter = s.router(userTextFormsContract, {
     } catch (error) {
       const err = error as Error;
       log.error('[userTextFormsContract.remove] Error:', err);
-      return { status: 500 as const, body: { success: false, message: err.message } };
+      return { status: 500 as const, body: { success: false, message: toUserFacingMessage(err) } };
     }
   },
 

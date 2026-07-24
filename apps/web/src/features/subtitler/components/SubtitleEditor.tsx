@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FaSave, FaCheck, FaDownload, FaPlay, FaPause } from 'react-icons/fa';
 import { HiCog } from 'react-icons/hi';
 
+import JobErrorNotice from '../../../components/common/JobErrorNotice';
 import Spinner from '../../../components/common/Spinner';
 import FloatingActionButton from '../../../components/common/UI/FloatingActionButton';
 import { useAuthStore } from '../../../stores/authStore';
@@ -208,6 +209,9 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     status: exportStatus,
     progress: exportProgress,
     error: exportError,
+    errorCode: exportErrorCode,
+    retryable: exportRetryable,
+    errorId: exportErrorId,
     exportToken,
     startExport,
     retryExport,
@@ -526,25 +530,22 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
       )}
 
       {error && (
-        <div className="mb-md flex items-center justify-between gap-md rounded-lg border border-red-600 bg-red-50 p-md text-red-600 dark:bg-grey-800">
-          <span>{error}</span>
-          <div className="flex shrink-0 gap-xs">
-            {exportStatus === 'error' && (
-              <Button
-                size="sm"
-                onClick={() => {
+        <JobErrorNotice
+          className="mb-md"
+          message={error}
+          code={exportErrorCode}
+          retryable={exportRetryable}
+          errorId={exportErrorId}
+          onRetry={
+            exportStatus === 'error'
+              ? () => {
                   setError(null);
                   void retryExport();
-                }}
-              >
-                Erneut versuchen
-              </Button>
-            )}
-            <Button variant="outline" size="sm" onClick={() => setError(null)}>
-              Schließen
-            </Button>
-          </div>
-        </div>
+                }
+              : null
+          }
+          onDismiss={() => setError(null)}
+        />
       )}
 
       {showFallbackButton && (

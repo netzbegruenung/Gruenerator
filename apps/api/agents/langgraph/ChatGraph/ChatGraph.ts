@@ -25,6 +25,7 @@ import {
   getAgentForUser,
   getDefaultAgentId,
 } from '../../../routes/chat/agents/agentLoader.js';
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { briefGeneratorNode } from './nodes/briefGeneratorNode.js';
@@ -1068,7 +1069,7 @@ export async function runChatGraph(input: ChatGraphInput): Promise<ChatGraphOutp
         searchTimeMs: 0,
         responseTimeMs: 0,
       },
-      error: error instanceof Error ? error.message : String(error),
+      error: toUserFacingMessage(error),
     };
   }
 }
