@@ -40,8 +40,7 @@ export interface RunCanvasSuggestArgs {
 }
 
 export type RunCanvasSuggestResult =
-  | { ok: true; suggestions: CanvasAiSuggestion[] }
-  | { ok: false; error: string };
+  { ok: true; suggestions: CanvasAiSuggestion[] } | { ok: false; error: string };
 
 const MAX_ATTEMPTS = 2;
 

@@ -19,7 +19,7 @@ Es gibt zwei Sorten von Landesverband-Agents:
 
 Jede Kachel verlinkt auf die **Landesverband-Seite** — sie bietet beide Agents des Landesverbands zur Auswahl an: **Öffentlichkeitsarbeit** (siehe unten) und **Bürger\*innenanfragen** (siehe unten). Darunter stehen die Skill-Abkürzungen und ein Link zur Wissensdatenbank (Notebook).
 
-:::note Österreich
+:::note[Österreich]
 Die Grünen Österreich sind kein Landesverband, sondern die Bundespartei — sie haben aber dieselben beiden Agent-Typen (Agent `/agents/gruene-oesterreich`, Wissensdatenbank `/notebooks/oesterreich` · `@at`). Diese Agents verwenden österreichisches Vokabular (Nationalrat, Klubobfrau\*Klubobmann, Klimaticket) und erscheinen nur für Nutzer\*innen mit österreichischer Einstellung.
 :::
 
@@ -45,7 +45,7 @@ Für diese Landesverbände gibt es eigene Skill-Abkürzungen für **Pressemittei
 
 Sachsen-Anhalt, Hessen und das Saarland haben (noch) keine eigenen Skill-Abkürzungen — ihre Agents erreichst du über die jeweilige Landesverband-Seite.
 
-:::tip Allgemeine Skills für alle Kanäle
+:::tip[Allgemeine Skills für alle Kanäle]
 Unabhängig vom Landesverband gibt es allgemeine Skills für jede Plattform: `/presse`, `/instagram`, `/facebook`, `/twitter`, `/linkedin` und `/reel`. Sie greifen auf Beispiele aus allen Landesverbänden zurück. Die LV-Skills oben sind die Spezialversion mit eingebautem Regional-Stil.
 :::
 

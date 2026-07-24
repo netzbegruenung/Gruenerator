@@ -27,7 +27,7 @@ Fangen wir mit dem an, was am meisten Spaß macht: Sharepics erstellst du jetzt 
 
 Am meisten freut mich der durchgängige Ablauf vom Chat ins Studio: Du lässt dir im Chat ein Sharepic **grünerieren** und öffnest es dann mit einem Klick im Studio zum Feinschliff. Fertige Sharepics kannst du außerdem als **Grünerator-Vorlage** veröffentlichen, damit andere aus der Basis sie nutzen können.
 
-:::tip Text und Bild in einem
+:::tip[Text und Bild in einem]
 Neu ist auch ein kombiniertes Werkzeug, das dir in einem Rutsch einen Social-Media-Text **und** das passende Sharepic erstellt. Ideal für den schnellen Post zwischendurch.
 :::
 
@@ -45,7 +45,7 @@ Der Agenten-Baukasten ist jetzt für **alle** freigeschaltet. Du kannst dir dein
 
 Richtig spannend wird es in den **Boards**: Dort kannst du Aufgaben an Agenten **delegieren**. Schreib `@Grünerator` in einen Kartenkommentar (oder wähle einen bestimmten Agenten aus), und die Aufgabe wird im Hintergrund erledigt – das Ergebnis landet als Dokument direkt an der Karte. Mit den neuen **Grünerator-Spalten** baust du dir sogar kleine Abläufe: Quelle → KI-Schritt → Ergebnis, die sich auf Wunsch **zeitgesteuert** wiederholen. So arbeitet der Grünerator mit, während du an etwas anderem sitzt.
 
-:::note Erst den Expert\*innenmodus einschalten
+:::note[Erst den Expert\*innenmodus einschalten]
 Die KI-Funktionen der Boards (Assistent, Delegation, Grünerator-Spalten) sind bewusst im **Expert\*innenmodus** versteckt, damit Boards für alle anderen schlicht bleiben. Schalte ihn in deinem Profil an – dann tauchen sie auf.
 :::
 
@@ -55,7 +55,7 @@ Der Grünerator zieht aus dem Browser aufs Gerät. Ganz neu ist eine echte **Mac
 
 Und die **mobilen Apps für Android und iOS** haben einen großen Sprung gemacht: Die Notebook-Ansicht ist nun auf Augenhöhe mit der Web-Version – mit Landesverbands-Agenten, Statistiken und nachprüfbaren Quellenangaben direkt im mobilen Chat.
 
-:::tip Werde Teil des Testsommers
+:::tip[Werde Teil des Testsommers]
 Wenn du bei einer oder mehreren Teststrecken mitmachen willst, antworte einfach auf diese E-Mail. Ich sammle Rückmeldungen gebündelt und melde mich, wenn es etwas Neues zum Testen gibt.
 :::
 

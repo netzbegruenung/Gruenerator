@@ -1,9 +1,9 @@
-export type TextProvider = 'mistral' | 'litellm' | 'regolo';
+export type TextProvider = 'mistral' | 'litellm' | 'regolo' | 'greenpt';
 export type ImageBackend = 'hosted' | 'regolo';
 
 export type Provider = TextProvider;
 
-export type TextModelId = 'mistral-medium-3.5' | 'litellm' | 'gemma-litellm';
+export type TextModelId = 'mistral-medium-3.5' | 'litellm' | 'gemma-litellm' | 'greenpt';
 
 export type ImageModelId = 'flux-klein' | 'flux-pro' | 'flux-max' | 'regolo-image';
 
@@ -91,6 +91,19 @@ export const MODEL_OPTIONS: ModelOption[] = [
     provider: 'litellm',
     icon: 'server',
     region: 'self-hosted',
+  },
+  {
+    modality: 'text',
+    id: 'greenpt',
+    name: '🌳 GreenPT',
+    shortName: 'GreenPT',
+    description: 'Klimaneutral, EU-gehostet',
+    model: 'mistral-medium-3.5-128b',
+    provider: 'greenpt',
+    icon: 'server',
+    region: 'eu',
+    // Lane is wired up end-to-end but not switched on for users yet.
+    offByDefault: true,
   },
   {
     modality: 'image',

@@ -17,13 +17,7 @@ import { type CanvasTemplateType } from '@gruenerator/contracts';
  * value the canvas pipeline can't mint.
  */
 export type ImageStudioTemplateType =
-  | 'dreizeilen'
-  | 'zitat'
-  | 'zitat-pure'
-  | 'info'
-  | 'veranstaltung'
-  | 'profilbild'
-  | 'simple';
+  'dreizeilen' | 'zitat' | 'zitat-pure' | 'info' | 'veranstaltung' | 'profilbild' | 'simple';
 
 // Compile-time guard: every template type here must be a canonical canvas type.
 type _AssertTemplateSubset = ImageStudioTemplateType extends CanvasTemplateType ? true : never;
@@ -262,11 +256,7 @@ export interface SimpleResponse {
  * Union type for all text generation responses
  */
 export type TextGenerationResponse =
-  | DreizeilenResponse
-  | QuoteResponse
-  | InfoResponse
-  | VeranstaltungResponse
-  | SimpleResponse;
+  DreizeilenResponse | QuoteResponse | InfoResponse | VeranstaltungResponse | SimpleResponse;
 
 /**
  * Normalized text generation result
@@ -348,22 +338,13 @@ export interface CanvasGenerationResult {
  * Style variants for pure-create
  */
 export type KiStyleVariant =
-  | 'illustration-pure'
-  | 'realistic-pure'
-  | 'pixel-pure'
-  | 'editorial-pure';
+  'illustration-pure' | 'realistic-pure' | 'pixel-pure' | 'editorial-pure';
 
 /**
  * Infrastructure options for green-edit
  */
 export type GreenEditInfrastructure =
-  | 'trees'
-  | 'flowers'
-  | 'bike-lanes'
-  | 'benches'
-  | 'sidewalks'
-  | 'tram'
-  | 'bus-stop';
+  'trees' | 'flowers' | 'bike-lanes' | 'benches' | 'sidewalks' | 'tram' | 'bus-stop';
 
 /**
  * Pure Create request (text-to-image generation)
