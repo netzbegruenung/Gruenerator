@@ -34,31 +34,56 @@ export interface PdfFormToolCtx {
 const NO_PDF =
   'Es ist kein PDF-Formular angehängt. Bitte die*den Nutzer*in bitten, das Formular als PDF anzuhängen.';
 
+type ResolvedPdf =
+  | { ok: true; name: string; bytes: Buffer }
+  | { ok: false; reason: 'none' }
+  /** More than one candidate and no usable hint — the model must ask rather
+   *  than silently pick one and fill the wrong form. */
+  | { ok: false; reason: 'ambiguous'; names: string[] };
+
 /**
- * Resolve the PDF to work on. This turn's attachments win over stored ones (a
- * freshly uploaded form should beat an older one of the same name), and a
- * `fileName` hint is matched case-insensitively on a substring so the model can
- * pass "Reisekosten" for "Reisekosten_2026_final.pdf".
+ * Resolve the PDF to work on. A `fileName` hint is matched case-insensitively
+ * on a substring, so the model can pass "Reisekosten" for
+ * "Reisekosten_2026_final.pdf". With several candidates and no unique match the
+ * answer is a QUESTION, not a guess — filling the wrong form is worse than
+ * asking.
  */
-async function resolvePdf(
-  ctx: PdfFormToolCtx,
-  fileName?: string
-): Promise<{ name: string; bytes: Buffer } | null> {
+async function resolvePdf(ctx: PdfFormToolCtx, fileName?: string): Promise<ResolvedPdf> {
   const current = ctx.state.pdfFormAttachments ?? [];
   const userId = ctx.state.agentConfig?.userId ?? null;
   const stored =
     ctx.threadId && userId ? await getThreadPdfFiles(ctx.threadId, userId).catch(() => []) : [];
 
-  const candidates = [...current, ...stored];
-  if (candidates.length === 0) return null;
+  // De-duplicate by name: a form attached this turn AND persisted earlier would
+  // otherwise look like two candidates and trigger a pointless question.
+  const candidates = [...current, ...stored].filter(
+    (c, i, all) => all.findIndex((o) => o.name === c.name) === i
+  );
+  if (candidates.length === 0) return { ok: false, reason: 'none' };
 
   const needle = fileName?.trim().toLowerCase();
-  const match = needle
-    ? candidates.find((c) => c.name.toLowerCase().includes(needle))
-    : candidates[0];
-  if (!match) return null;
+  const matches = needle
+    ? candidates.filter((c) => c.name.toLowerCase().includes(needle))
+    : candidates;
 
-  return { name: match.name, bytes: Buffer.from(match.data, 'base64') };
+  if (matches.length === 0) return { ok: false, reason: 'none' };
+  if (matches.length > 1) {
+    return { ok: false, reason: 'ambiguous', names: matches.map((m) => m.name) };
+  }
+
+  const match = matches[0];
+  return { ok: true, name: match.name, bytes: Buffer.from(match.data, 'base64') };
+}
+
+/** Turns a failed resolve into the model-facing error, so both tools answer
+ *  identically. */
+function resolveError(resolved: Exclude<ResolvedPdf, { ok: true }>) {
+  if (resolved.reason === 'none') return { error: NO_PDF };
+  return {
+    error: 'Es sind mehrere PDFs im Chat — bitte nachfragen, welches gemeint ist.',
+    pdfs: resolved.names,
+    hint: 'Rufe das Tool erneut mit fileName auf, sobald die*der Nutzer*in geantwortet hat.',
+  };
 }
 
 /** Fields per read_pdf_form page. ~50 entries serialize to ~3 kB — comfortably
@@ -93,8 +118,9 @@ export function makeReadPdfFormTool(ctx: PdfFormToolCtx): Tool {
         ),
     }),
     execute: async ({ fileName, offset }) => {
-      const pdf = await resolvePdf(ctx, fileName);
-      if (!pdf) return { error: NO_PDF };
+      const resolved = await resolvePdf(ctx, fileName);
+      if (!resolved.ok) return resolveError(resolved);
+      const pdf = resolved;
 
       let fields;
       try {
@@ -172,8 +198,9 @@ export function makeFillPdfFormTool(ctx: PdfFormToolCtx): Tool {
       const userId = ctx.state.agentConfig?.userId ?? null;
       if (!userId) return { error: 'Keine Sitzung — das Formular kann nicht gespeichert werden.' };
 
-      const pdf = await resolvePdf(ctx, fileName);
-      if (!pdf) return { error: NO_PDF };
+      const resolved = await resolvePdf(ctx, fileName);
+      if (!resolved.ok) return resolveError(resolved);
+      const pdf = resolved;
       if (Object.keys(values).length === 0) {
         return { error: 'Keine Werte übergeben — es gibt nichts einzutragen.' };
       }

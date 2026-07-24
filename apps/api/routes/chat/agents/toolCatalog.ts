@@ -315,12 +315,7 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     const hasPdfInThread =
       (state.pdfFormAttachments?.length ?? 0) > 0 ||
       (state.threadAttachments ?? []).some((a) => a.mimeType === 'application/pdf');
-    // The app's ComputeCard deliberately does not render file downloads, so on
-    // mobile the filled PDF would be produced and then unreachable — the model
-    // would promise a download that never appears. Not offering the capability
-    // is honest; respondNode's PLATTFORMKONTEXT explains why.
-    const canDeliverFiles = state.clientPlatform !== 'app';
-    if (hasPdfInThread && canDeliverFiles && state.enabledTools?.['pdf_form'] !== false) {
+    if (hasPdfInThread && state.enabledTools?.['pdf_form'] !== false) {
       const pdfCtx = { state, sse, threadId: loop.threadId ?? null };
       tools.read_pdf_form = makeReadPdfFormTool(pdfCtx);
       tools.fill_pdf_form = makeFillPdfFormTool(pdfCtx);
