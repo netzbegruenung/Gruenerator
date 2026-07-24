@@ -6,7 +6,7 @@ import useApiSubmit from './useApiSubmit';
  */
 const useAltTextGeneration = () => {
   const { loading, success, error, submitForm, resetState, resetSuccess } =
-    useApiSubmit('/claude_alttext');
+    useApiSubmit('/texte/alttext');
 
   const generateAltTextForImage = async (
     imageBase64: string,
