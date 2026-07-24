@@ -15,6 +15,7 @@ import {
   buildProductKnowledgeBlock,
   isProductMetaQuestion,
 } from '../../../../services/chat/productKnowledge.js';
+import { buildDocsPageMap } from '../../../../services/docs/docsIndex.js';
 import { localizePlaceholders } from '../../../../services/localization/index.js';
 import { type Locale } from '../../../../services/localization/types.js';
 import { getTextFormForInjection } from '../../../../services/user/textFormRepository.js';
@@ -26,6 +27,7 @@ import { isSourceAvailabilityError } from '../types.js';
 import { type AnchorDescriptor, getActiveAnchors } from './anchorContext.js';
 import { buildCitableSources, type CitableSource } from './citableSources.js';
 import { lastUserText } from './classifierHeuristics.js';
+import { looksLikeDocsHelpQuestion } from './classifierParsing.js';
 import { deriveTextFormMention } from './textFormMention.js';
 
 import type {
@@ -650,6 +652,7 @@ Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Auf diesem Gerät
 - Gib KEINEN ausführbaren Code-Block aus und behaupte NIEMALS, dass Code automatisch ausgeführt wird.
 - Beantworte Rechenfragen (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …) direkt aus den Tabellendaten im angehängten Dokumentkontext: rechne sorgfältig Schritt für Schritt und zeige den Rechenweg kurz und nachvollziehbar (relevante Werte und Zwischensummen nennen).
 - Sind die benötigten Zeilen oder Spalten im Kontext nicht vollständig enthalten, sag das ehrlich und nenne, welche Angaben fehlen — erfinde KEINE Zahlen.
+- Soll die Tabelle AUSGEFÜLLT werden (Werte eintragen, Vorlage befüllen), geht das auf diesem Gerät nicht: sag kurz, dass das Ausfüllen und der Download der fertigen Datei derzeit nur im Browser (Web-Version) funktioniert, und nenne stattdessen die Werte, die einzutragen wären.
 - Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.`;
   }
   return `
@@ -763,6 +766,8 @@ function formatPlatformContext(platform: string | undefined): string {
 
 Der*die Nutzer*in schreibt aus der Grünerator-App (Mobil). Dort sind einige Funktionen nicht verfügbar:
 - Sharepics erstellen/bearbeiten und Reel-Untertitel bearbeiten gehen nur in der Web-Version (gruenerator.eu im Browser)
+- PDF-Formulare ausfüllen geht auch hier; die fertige Datei wird über „Teilen" bereitgestellt (keinen Link ausgeben)
+- Excel-/CSV-Vorlagen ausfüllen geht NICHT in der App (dafür braucht es den Browser-Interpreter der Web-Version)
 - Wenn danach gefragt wird: kurz erklären, dass das in der App noch nicht geht, und auf die Web-Version verweisen
 - Biete diese Funktionen nicht von dir aus an`;
   }
@@ -1096,6 +1101,18 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
     log.debug('[Respond] product-knowledge block attached');
   }
 
+  // Documentation page map: every doc page with URL + lead paragraph (~2.5k
+  // tokens for the whole corpus). Attached on operating questions so the model
+  // can name AND link the right page even on turns that never reach the agentic
+  // loop — CHITCHAT_RE pins "hilfe"/"was kannst du" to the single-pass path,
+  // where `gruenerator_docs_search` does not exist. Complementary to that tool,
+  // not redundant: the map lists the pages, the tool retrieves section text.
+  const docsPageMap =
+    !isNeutralTurn && (intent === 'hilfe' || looksLikeDocsHelpQuestion(userQuestion))
+      ? buildDocsPageMap()
+      : '';
+  if (docsPageMap) log.debug('[Respond] docs page map attached');
+
   // Custom system prompt: replaces the entire agent prompt when set
   if (state.customSystemPrompt) {
     return `${state.customSystemPrompt}
@@ -1150,7 +1167,7 @@ Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsForm
     : await getPrAgentInsightFragment(agentConfig.identifier);
 
   return `${systemRole}${skillFragment}${insightsFragment}
-Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${productKnowledge}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
+Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${productKnowledge}${docsPageMap}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo

@@ -13,6 +13,7 @@ import express, { type Request, type Response } from 'express';
 
 import { contentToBlocks } from '../../services/pdf/contentToBlocks.js';
 import { renderPdf, type PdfLocale } from '../../services/pdf/pdfRenderer.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 import { sanitizeFilename as sanitizeFilenameCentral } from '../../utils/validation/index.js';
@@ -108,7 +109,7 @@ router.post(
       return res.status(500).json({
         success: false,
         message: 'PDF export failed',
-        error: error.message,
+        error: toUserFacingMessage(error),
       });
     }
   }

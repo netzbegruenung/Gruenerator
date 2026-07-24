@@ -39,6 +39,7 @@ import {
   getFilePathFromUploadId,
   getOriginalFilename,
 } from '../../../services/subtitler/tusService.js';
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { APP_REDIRECT_TEXTS } from './platformGating.js';
@@ -475,7 +476,7 @@ export async function handleReelEdit(args: HandleReelEditArgs): Promise<boolean>
     log.error('[ReelEdit] Turn failed:', error);
     if (!sse.isEnded()) {
       sse.send('reel_edit_error', {
-        error: error instanceof Error ? error.message : 'Unbekannter Fehler',
+        error: toUserFacingMessage(error, 'Unbekannter Fehler'),
       });
       await finishWithText(
         args,

@@ -343,7 +343,6 @@ Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Inform
           summary: {
             text: aiResponse.content.trim(),
             generated: true,
-            model: 'claude-3-haiku',
             timestamp: new Date().toISOString(),
             wordCount: aiResponse.content.trim().split(/\s+/).length,
             basedOnResults: searchResults.results.length,

@@ -23,7 +23,7 @@ export const simpleTypeConfig: TemplateTypeConfig = {
   usesFluxApi: false,
   hasRateLimit: false,
   endpoints: {
-    text: '/simple_claude',
+    text: '/sharepic/text/simple',
     canvas: '/simple_canvas',
   },
   formComponent: 'SimpleForm',

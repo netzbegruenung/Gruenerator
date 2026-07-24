@@ -54,7 +54,6 @@ export {
   voiceContract,
   imagePickerContract,
   videoContract,
-  textGenerationContract,
   sharepicContract,
   transferContract,
   unsplashContract,
@@ -95,6 +94,7 @@ export * from './schemas/globalSearch.js';
 export * from './schemas/research.js';
 export * from './schemas/chatGraph.js';
 export * from './schemas/chatStreamEvents.js';
+export * from './schemas/jobErrors.js';
 export * from './schemas/socialPost.js';
 export * from './schemas/bundestag.js';
 export * from './schemas/bahn.js';
@@ -122,7 +122,6 @@ export * from './schemas/subtitler.js';
 export * from './schemas/voice.js';
 export * from './schemas/imagePicker.js';
 export * from './schemas/video.js';
-export * from './schemas/textGeneration.js';
 export * from './schemas/sharepic.js';
 export * from './schemas/transfer.js';
 export * from './schemas/unsplash.js';

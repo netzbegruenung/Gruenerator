@@ -27,7 +27,10 @@ import {
   pandasComputeNode,
   buildSystemMessage,
 } from '../../agents/langgraph/ChatGraph/index.js';
-import { isTabularComputeQuestion } from '../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
+import {
+  isSheetFillRequest,
+  isTabularComputeQuestion,
+} from '../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import { isReasoningStreamModel } from '../../services/ai/regoloReasoningStream.js';
 import {
   SYSTEM_TOOL_INTENTS,
@@ -347,6 +350,25 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           if (userText) classifiedState.searchQuery = userText;
         }
         log.info('[ChatGraph] Intent forced to "bundestag" via @bundestag mention');
+      }
+
+      // @doku hard-pins the documentation intent. Not in TOOL_PRIORITY (that
+      // list is the search/image/sharepic family), so it is resolved here. Not
+      // locale-gated: the docs describe the product itself and apply to DE and
+      // AT alike. The searchQuery backfill matters more here than for the
+      // sources above — the docs tool searches the user's text verbatim, so an
+      // empty query would search nothing at all.
+      if (forcedTools?.includes('hilfe')) {
+        classifiedState.intent = 'hilfe';
+        forcedTool = true;
+        if (
+          (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
+          lastUserMessage
+        ) {
+          const userText = lastUserTextNoMentions.trim();
+          if (userText) classifiedState.searchQuery = userText;
+        }
+        log.info('[ChatGraph] Intent forced to "hilfe" via @doku mention');
       }
 
       // A per-server mention (@notion/@brevo) arrives as `mcp:<serverId>` and
@@ -763,11 +785,16 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // so it may still enter the loop, which mounts that server's MCP tools.
       // System MCP intents (bahn/wetter/news) force the gate the same way: the
       // legacy pipeline has no executor for them, the loop mounts their tools.
-      // `umfragen` is a native domain tool (PolitPro service) — always
-      // available, so it forces the gate unconditionally.
+      // `umfragen` (PolitPro) and `hilfe` (in-process docs index) are native
+      // domain tools — always available, so they force the gate unconditionally.
+      // `hilfe` MUST be here: @doku sets forcedTool, and without this escape
+      // decideRunAgentic would keep the turn single-pass, where
+      // `gruenerator_docs_search` does not exist — the mention would silently
+      // do nothing.
       const isMcpTurn =
         classifiedState.intent === 'mcp' ||
         classifiedState.intent === 'umfragen' ||
+        classifiedState.intent === 'hilfe' ||
         (classifiedState.intent != null && isSystemIntentAvailable(classifiedState.intent));
       const isSystemToolIntent =
         classifiedState.intent != null && SYSTEM_TOOL_INTENTS.has(classifiedState.intent);
@@ -884,6 +911,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           secondaryIntent: classifiedState.secondaryIntent ?? null,
           compoundGeneration,
           hasImageAttachments: imageAttachments.length > 0,
+          isPdfFillRequest:
+            ((classifiedState.pdfFormAttachments?.length ?? 0) > 0 ||
+              (classifiedState.threadAttachments ?? []).some(
+                (a) => a.mimeType === 'application/pdf'
+              )) &&
+            isSheetFillRequest(lastUserText),
         });
 
       // A demoted turn that a kill-switch (compound, forced tool, ...) kept out
@@ -1116,7 +1149,14 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         'summary',
         'compare',
       ]);
+      // "Fill this in" takes precedence over the aggregation match: "trag die
+      // Summe ein" is both, and writing the value into the sheet is the
+      // stronger ask. Same interrupt, but codegen switches to openpyxl so the
+      // template's formatting and formulas survive.
+      const isSheetFill =
+        computeOverridableIntents.has(classifiedState.intent) && isSheetFillRequest(lastUserText);
       const isTabularCompute =
+        !isSheetFill &&
         computeOverridableIntents.has(classifiedState.intent) &&
         isTabularComputeQuestion(lastUserText);
       // Chart requests over an attached table compute their values FIRST —
@@ -1125,15 +1165,20 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // resumed respond step builds the chart JSON from BERECHNUNGSERGEBNIS.
       const isTabularChart = classifiedState.intent === 'chart';
       if (
-        (isTabularCompute || isTabularChart) &&
+        (isSheetFill || isTabularCompute || isTabularChart) &&
         classifiedState.hasTabularAttachment &&
         !forcedTools?.length &&
         args.body.clientTools?.includes('run_python') &&
         actualThreadId != null
       ) {
-        const { pythonCode } = await pandasComputeNode(classifiedState);
+        const { pythonCode } = await pandasComputeNode(
+          classifiedState,
+          isSheetFill ? { mode: 'fill' } : {}
+        );
         if (pythonCode) {
-          log.info(`[ChatGraph] run_python interrupt (${pythonCode.length} chars pandas code)`);
+          log.info(
+            `[ChatGraph] run_python interrupt (${pythonCode.length} chars ${isSheetFill ? 'openpyxl fill' : 'pandas'} code)`
+          );
           if (!isTabularChart) {
             // The resumed respond step should use the compute-mode guidance
             // even when the classifier had picked a different intent — and the
@@ -1143,19 +1188,20 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             sse.send('intent', {
               intent: 'compute',
               message: getIntentMessage('compute'),
-              reasoning: 'Tabellen-Berechnung erkannt',
+              reasoning: isSheetFill ? 'Formular-Ausfüllen erkannt' : 'Tabellen-Berechnung erkannt',
             });
           }
           // Stashed for the error-correction round: if the client reports a
           // failed execution, the resume handler regenerates with this code +
           // the error message in context.
           classifiedState.pandasLastCode = pythonCode;
+          classifiedState.pandasComputeMode = isSheetFill ? 'fill' : 'analyze';
 
           const stepId = `run_python_${Date.now()}`;
           sse.sendRaw('thinking_step', {
             stepId,
             toolName: 'run_python',
-            title: 'Berechne mit pandas…',
+            title: isSheetFill ? 'Fülle Vorlage aus…' : 'Berechne mit pandas…',
             status: 'in_progress',
             args: { code: pythonCode },
           });

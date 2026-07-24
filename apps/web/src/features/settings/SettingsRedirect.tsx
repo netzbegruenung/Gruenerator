@@ -9,6 +9,7 @@ const TAB_MAP: Record<string, SettingsTab> = {
   allgemein: 'allgemein',
   profil: 'konto',
   konto: 'konto',
+  friends: 'friends',
   personalisierung: 'personalisierung',
   'texte-anlernen': 'texte-anlernen',
   erinnerungen: 'erinnerungen',

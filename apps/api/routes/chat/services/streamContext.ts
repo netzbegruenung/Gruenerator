@@ -484,6 +484,13 @@ export async function buildStreamContext({
     docAttachments.some((a) => isTabularAttachment(a.name, a.type)) ||
     previousAttachments.some((a) => isTabularAttachment(a.name, a.mimeType));
 
+  // Raw bytes of this turn's PDFs, for the PDF form tools. Kept unfiltered here
+  // (the AcroForm probe happens in the tool, which reports "no fillable fields"
+  // to the model) — attachmentProcessing already decided what gets PERSISTED.
+  const pdfFormAttachments = docAttachments
+    .filter((a) => a.type === 'application/pdf')
+    .map((a) => ({ name: a.name, data: a.data }));
+
   // Large prose attachments from earlier turns were embedded into Qdrant — route
   // their document ids through the existing document-chat retrieval fan-out so
   // follow-up questions pull the relevant chunks per query (RAG), instead of the
@@ -572,6 +579,7 @@ export async function buildStreamContext({
     imageAttachments: imageAttachments.length > 0 ? imageAttachments : undefined,
     threadAttachments: previousAttachments.length > 0 ? previousAttachments : undefined,
     hasTabularAttachment,
+    ...(pdfFormAttachments.length > 0 && { pdfFormAttachments }),
     clientCanRunPython: clientTools?.includes('run_python') ?? false,
     computedResult: rawComputedResult ?? undefined,
     notebookIds: notebookIds.length > 0 ? notebookIds : undefined,

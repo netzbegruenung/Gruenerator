@@ -1,30 +1,20 @@
 import { Button, toast } from '@gruenerator/ui';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Suspense,
-  lazy,
-  useState,
-  type ChangeEvent,
-  type FormEvent,
-  type KeyboardEvent,
-} from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useState, type ChangeEvent, type FormEvent, type KeyboardEvent } from 'react';
 
 import SettingsRow from '../components/SettingsRow';
+import { useSettingsDialogStore } from '../settingsDialogStore';
 
 import TextInput from '@/components/common/Form/Input/TextInput';
 import { RobotAvatar } from '@/components/common/RobotAvatar';
 import Spinner from '@/components/common/Spinner';
 import { useProfile } from '@/features/auth/hooks/useProfileData';
 import {
-  profileApiService,
   initializeProfileFormFields,
   type Profile,
 } from '@/features/auth/services/profileApiService';
 import { useOptimizedAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/authStore';
-import { useProfileStore } from '@/stores/profileStore';
-
-const AvatarSelectionModal = lazy(() => import('../components/AvatarSelectionModal'));
 
 const AccountTab = () => {
   const authUser = useAuthStore((s) => s.user);
@@ -32,6 +22,7 @@ const AccountTab = () => {
   const user = optimizedUser || authUser;
 
   const queryClient = useQueryClient();
+  const setTab = useSettingsDialogStore((s) => s.setTab);
   const {
     data: profileData,
     isLoading: isLoadingProfile,
@@ -39,67 +30,11 @@ const AccountTab = () => {
     error: errorProfileQuery,
   } = useProfile(user?.id);
   const profile = profileData as Profile | undefined;
-  const updateAvatarOptimistic = useProfileStore((s) => s.updateAvatarOptimistic);
 
-  const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [showDeleteAccountForm, setShowDeleteAccountForm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deleteAccountError, setDeleteAccountError] = useState('');
-
-  const updateAvatarMutation = useMutation({
-    mutationFn: async (avatarRobotId: string | number) => {
-      if (!user) throw new Error('Nicht angemeldet');
-      return await profileApiService.updateAvatar(avatarRobotId);
-    },
-    onMutate: async (avatarRobotId: string | number) => {
-      await queryClient.cancelQueries({ queryKey: ['profileData', user?.id] });
-      const previousProfile = queryClient.getQueryData<Profile>(['profileData', user?.id]);
-      queryClient.setQueryData<Profile>(['profileData', user?.id], (oldData) =>
-        oldData
-          ? { ...oldData, avatar_robot_id: avatarRobotId }
-          : { avatar_robot_id: avatarRobotId }
-      );
-      return { previousProfile, avatarRobotId };
-    },
-    onSuccess: (updatedProfile: Profile, avatarRobotId: string | number) => {
-      if (user?.id) {
-        queryClient.setQueryData<Profile>(['profileData', user.id], (oldData) => ({
-          ...(oldData || {}),
-          ...updatedProfile,
-          avatar_robot_id: avatarRobotId,
-        }));
-        queryClient.setQueryDefaults(['profileData', user.id], {
-          staleTime: 60 * 60 * 1000,
-          gcTime: 60 * 60 * 1000,
-        });
-      }
-    },
-    onError: (_error, _avatarRobotId, context) => {
-      if (context?.previousProfile) {
-        queryClient.setQueryData(['profileData', user?.id], context.previousProfile);
-      }
-    },
-  });
-
-  const updateAvatar = updateAvatarMutation.mutateAsync;
-
-  const handleAvatarSelect = async (robotId: string | number) => {
-    try {
-      await updateAvatar(robotId);
-      toast.success('Avatar aktualisiert');
-      setTimeout(() => {
-        updateAvatarOptimistic(String(robotId)).catch(() => {});
-        window.dispatchEvent(
-          new CustomEvent('avatarUpdated', { detail: { avatarRobotId: robotId } })
-        );
-      }, 100);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : 'Fehler beim Aktualisieren des Avatars.'
-      );
-    }
-  };
 
   const handleDeleteAccountSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -152,16 +87,16 @@ const AccountTab = () => {
       <div className="flex items-center gap-lg">
         <div
           className="flex size-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-primary-500 bg-background-alt"
-          onClick={() => setShowAvatarModal(true)}
+          onClick={() => setTab('friends')}
           role="button"
           tabIndex={0}
           onKeyDown={(e: KeyboardEvent) => {
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
-              setShowAvatarModal(true);
+              setTab('friends');
             }
           }}
-          aria-label="Avatar ändern"
+          aria-label="Grünerator Friend wechseln"
         >
           <RobotAvatar
             robotId={typeof avatarRobotId === 'number' ? avatarRobotId : Number(avatarRobotId)}
@@ -174,7 +109,14 @@ const AccountTab = () => {
           />
         </div>
         <div className="min-w-0 text-sm text-grey-500">
-          Klicke auf den Avatar, um ihn zu ändern.
+          Dein Grünerator Friend.{' '}
+          <button
+            type="button"
+            onClick={() => setTab('friends')}
+            className="text-primary-600 hover:underline dark:text-primary-400"
+          >
+            Anderen auswählen
+          </button>
         </div>
       </div>
 
@@ -184,17 +126,17 @@ const AccountTab = () => {
         </div>
       ) : (
         <div className="-my-4 divide-y divide-grey-200 dark:divide-grey-800">
-          <SettingsRow title="Anzeigename">
+          <SettingsRow id="konto.anzeigename">
             <span className="text-sm text-grey-500 dark:text-grey-400">
               {fields.displayName || '—'}
             </span>
           </SettingsRow>
-          <SettingsRow title="Benutzername">
+          <SettingsRow id="konto.benutzername">
             <span className="text-sm text-grey-500 dark:text-grey-400">
               {fields.username || '—'}
             </span>
           </SettingsRow>
-          <SettingsRow title="E-Mail">
+          <SettingsRow id="konto.email">
             <span className="text-sm text-grey-500 dark:text-grey-400">{fields.email || '—'}</span>
           </SettingsRow>
         </div>
@@ -263,19 +205,6 @@ const AccountTab = () => {
             Konto löschen
           </Button>
         )
-      )}
-
-      {showAvatarModal && (
-        <Suspense fallback={null}>
-          <AvatarSelectionModal
-            isOpen={showAvatarModal}
-            currentAvatarId={
-              typeof avatarRobotId === 'number' ? avatarRobotId : Number(avatarRobotId)
-            }
-            onSelect={handleAvatarSelect}
-            onClose={() => setShowAvatarModal(false)}
-          />
-        </Suspense>
       )}
     </div>
   );

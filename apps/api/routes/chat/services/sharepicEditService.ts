@@ -37,6 +37,7 @@ import {
   listCanvasVersions,
 } from '../../../services/canvas/canvasVersionRepository.js';
 import imagePickerService from '../../../services/image/ImageSelectionService.js';
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { runSharepicEdit } from './sharepicEditLlm.js';
@@ -704,7 +705,7 @@ export async function handleSharepicEdit(args: HandleSharepicEditArgs): Promise<
     log.error('[SharepicEdit] Edit turn failed:', error);
     if (!sse.isEnded()) {
       sse.send('sharepic_edit_error', {
-        error: error instanceof Error ? error.message : 'Unbekannter Fehler',
+        error: toUserFacingMessage(error, 'Unbekannter Fehler'),
       });
       await finishWithText(
         args,

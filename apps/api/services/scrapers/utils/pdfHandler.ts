@@ -3,6 +3,8 @@
  * Handles PDF download and text extraction via Mistral OCR
  */
 
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
+
 import type { PdfProcessingOptions } from '../types.js';
 
 /**
@@ -45,7 +47,7 @@ export async function extractPdfText(
     return {
       text: '',
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: toUserFacingMessage(error, 'Unknown error'),
     };
   }
 }

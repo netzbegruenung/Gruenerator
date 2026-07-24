@@ -92,13 +92,14 @@ export const AGENTURA_CATEGORIES: AgenturaCategory[] = [
     key: 'gruenerator',
     label: 'Offizielle Grüneratoren',
     icon: PiStorefront,
-    description: 'Fertige Grüneratoren, Presse- & Social-Skills und Landesverbände von Grünerator.',
+    description:
+      'Fertige Grüneratoren, Presse- & Social-Rezepte und Landesverbände von Grünerator.',
   },
   {
     key: 'favoriten',
     label: 'Favoriten',
     icon: PiStarFill,
-    description: 'Deine gemerkten Grüneratoren und Skills.',
+    description: 'Deine gemerkten Grüneratoren und Rezepte.',
   },
 ];
 
