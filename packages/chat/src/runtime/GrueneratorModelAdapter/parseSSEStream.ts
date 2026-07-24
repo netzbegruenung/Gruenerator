@@ -72,7 +72,14 @@ export async function* parseSSEStream(
   const decoder = new TextDecoder();
   let buffer = '';
   const currentEvent = { type: '' };
-  let accumulatedText = '';
+  // Stufe 2 (Interleaving): text and tool cards live in ONE ordered list so
+  // prose and cards render in true event order — text→card→text — instead of
+  // "all cards, then one text block". `allToolCalls`/`activeToolCall`/
+  // `toolStepsById` below are kept as bookkeeping for the legacy result-stamping
+  // paths and mirrored into `orderedContent` via orderPushCard/orderReplaceCard.
+  type TextSegment = { type: 'text'; text: string };
+  const orderedContent: Array<TextSegment | ToolCallPart> = [];
+  let currentTextSegment: TextSegment | null = null;
   let accumulatedReasoning = '';
   // Themed progress labels — picked once per turn, stable for the whole stream.
   const stageLabels = pickStageLabels();
@@ -153,6 +160,41 @@ export async function* parseSSEStream(
   let lastYieldTime = 0;
   const YIELD_INTERVAL = 50; // ms — max 20 yields/sec, matches NotebookModelAdapter
 
+  // Push a NEW card into orderedContent (event order) and break the text run.
+  // parentId run-grouping (for Stufe 3's collapsed summary row): a card that
+  // directly follows another card shares its parentId (same contiguous run); a
+  // card at the start or right after a text segment begins a new run whose
+  // parentId is its own toolCallId.
+  function orderPushCard(card: ToolCallPart): void {
+    const prev = orderedContent[orderedContent.length - 1];
+    card.parentId = prev && prev.type === 'tool-call' ? prev.parentId : card.toolCallId;
+    orderedContent.push(card);
+    currentTextSegment = null;
+  }
+
+  // Replace a card in place (matched by toolCallId) so a result-stamped rebuild
+  // lands at its original position; the spread at each call site carries parentId
+  // forward. No-op if the card was never ordered (defensive).
+  function orderReplaceCard(card: ToolCallPart): void {
+    const idx = orderedContent.findIndex(
+      (el) => el.type === 'tool-call' && el.toolCallId === card.toolCallId
+    );
+    if (idx >= 0) orderedContent[idx] = card;
+  }
+
+  function appendText(delta: string): void {
+    if (currentTextSegment) {
+      currentTextSegment.text += delta;
+    } else {
+      currentTextSegment = { type: 'text', text: delta };
+      orderedContent.push(currentTextSegment);
+    }
+  }
+
+  // Legacy carryOver cards (client-tool resume) never interleave with text_delta
+  // — seed them up front so they precede any streamed prose (cards-first, as before).
+  for (const tc of allToolCalls) orderPushCard(tc);
+
   function buildResult(): ChatModelRunResult {
     const content: Array<
       | { type: 'text'; text: string }
@@ -161,19 +203,25 @@ export async function* parseSSEStream(
       | SourcePart
     > = [];
 
-    const groupId = activeToolCall ? activeToolCall.toolCallId : allToolCalls[0]?.toolCallId;
-
     if (accumulatedReasoning) {
       content.push({ type: 'reasoning' as const, text: accumulatedReasoning });
     }
 
-    for (const tc of allToolCalls) {
-      content.push(tc);
-    }
-    if (activeToolCall && !allToolCalls.includes(activeToolCall)) {
-      content.push(activeToolCall);
+    // Ordered text segments + tool cards in true event order. Normalize
+    // [cite:N] → [N] PER text segment before emitting, so CitationMarkdownText's
+    // placeholder-badge layer (citationProcessing.ts:25) renders inline-reserved
+    // boxes during streaming and the SearchGraph "[cite:N]" markers never appear
+    // as plain text.
+    for (const el of orderedContent) {
+      if (el.type === 'text') {
+        content.push({ type: 'text' as const, text: el.text.replace(/\[cite:(\d+)\]/g, '[$1]') });
+      } else {
+        content.push(el);
+      }
     }
 
+    const firstCard = orderedContent.find((el): el is ToolCallPart => el.type === 'tool-call');
+    const groupId = activeToolCall ? activeToolCall.toolCallId : firstCard?.toolCallId;
     for (const citation of receivedCitations) {
       if (citation.url) {
         content.push({
@@ -187,14 +235,14 @@ export async function* parseSSEStream(
       }
     }
 
-    // Normalize [cite:N] → [N] before emitting, so CitationMarkdownText's
-    // placeholder-badge layer (citationProcessing.ts:25) renders inline-reserved
-    // boxes during streaming. Mirrors NotebookModelAdapter's buildResult and
-    // prevents the SearchGraph "[cite:N]" markers from appearing as plain text.
-    content.push({
-      type: 'text' as const,
-      text: accumulatedText.replace(/\[cite:(\d+)\]/g, '[$1]'),
-    });
+    // assistant-ui expects a trailing text part. When the last ordered element
+    // is a card (or nothing has streamed yet), append an empty text tail so the
+    // message always ends on text — matching the pre-interleaving behaviour,
+    // which emitted exactly one (possibly empty) text part at the end.
+    const last = orderedContent[orderedContent.length - 1];
+    if (!last || last.type !== 'text') {
+      content.push({ type: 'text' as const, text: '' });
+    }
 
     const custom: GrueneratorMessageMetadata = {
       progress: { ...currentProgress, steps: [...progressSteps] },
@@ -329,13 +377,15 @@ export async function* parseSSEStream(
                       : src === 'documents'
                         ? 'gruenerator_search'
                         : toolName;
-                  allToolCalls.push({
+                  const card: ToolCallPart = {
                     type: 'tool-call',
                     toolCallId: `tc_${Date.now()}_${i}_${src || 'default'}`,
                     toolName: effToolName,
                     args: { query: queries[i] },
                     argsText: JSON.stringify({ query: queries[i] }),
-                  });
+                  };
+                  allToolCalls.push(card);
+                  orderPushCard(card);
                 }
               }
               activeToolCall = null;
@@ -351,6 +401,7 @@ export async function* parseSSEStream(
                 args: toolArgs,
                 argsText: JSON.stringify(toolArgs),
               };
+              orderPushCard(activeToolCall);
             }
           }
           yield buildResult();
@@ -413,12 +464,14 @@ export async function* parseSSEStream(
                 ...allToolCalls[i],
                 result: resultForTool(allToolCalls[i].toolName),
               };
+              orderReplaceCard(allToolCalls[i]);
             }
           }
           if (activeToolCall) {
             activeToolCall = Object.assign({}, activeToolCall, {
               result: resultForTool(activeToolCall.toolName),
             });
+            orderReplaceCard(activeToolCall);
           }
           yield buildResult();
           break;
@@ -694,9 +747,11 @@ export async function* parseSSEStream(
               argsText: JSON.stringify(toolArgs),
             };
             // Push immediately so a parallel sibling's start doesn't orphan this
-            // card; the result updates it in place.
+            // card; the result updates it in place. orderPushCard breaks the
+            // current text run so a preceding text_delta stays a separate segment.
             toolStepsById.set(stepId, toolCall);
             allToolCalls.push(toolCall);
+            orderPushCard(toolCall);
           }
           currentProgress = { stage: 'searching', message: title };
           yield buildResult();
@@ -746,6 +801,10 @@ export async function* parseSSEStream(
             toolStepsById.set(stepId, updated);
             const idx = allToolCalls.indexOf(pending);
             if (idx >= 0) allToolCalls[idx] = updated;
+            // The step object is REPLACED (not mutated) here, so mirror the swap
+            // into orderedContent by toolCallId — otherwise the card would keep
+            // its pre-result state on screen.
+            orderReplaceCard(updated);
           }
           currentProgress = {
             stage: 'generating',
@@ -808,11 +867,13 @@ export async function* parseSSEStream(
                 args: toolArgs as Record<string, string | number | boolean | null>,
                 argsText: JSON.stringify(toolArgs),
               };
+              orderPushCard(activeToolCall);
             }
             currentProgress = { stage: 'searching', message: title };
           } else if (status === 'completed') {
             if (activeToolCall?.toolCallId === stepId) {
               activeToolCall = { ...activeToolCall, result: result || {} };
+              orderReplaceCard(activeToolCall);
               allToolCalls.push(activeToolCall);
               activeToolCall = null;
             }
@@ -868,7 +929,7 @@ export async function* parseSSEStream(
 
         case 'text_delta': {
           const delta = (data as { text: string }).text;
-          accumulatedText += delta;
+          appendText(delta);
           const now = performance.now();
           if (now - lastYieldTime >= YIELD_INTERVAL) {
             lastYieldTime = now;
@@ -1086,6 +1147,7 @@ export async function* parseSSEStream(
               },
             };
             allToolCalls.push(sourcesToolCall);
+            orderPushCard(sourcesToolCall);
           }
           transitionStep('generating', 'Generierung');
           break;
@@ -1123,8 +1185,17 @@ export async function* parseSSEStream(
             }>;
           };
           if (completionData.text) {
-            // Normalize [cite:N] markers to [N]
-            accumulatedText = completionData.text.replace(/\[cite:(\d+)\]/g, '[$1]');
+            // Flatten fallback: `completion` replaces the whole answer (e.g.
+            // after a citation clamp), so we have ONE final text with no per-tool
+            // offsets. Drop every streamed text segment and append a single
+            // trailing one; cards keep their positions in orderedContent.
+            // buildResult re-normalizes [cite:N] → [N] on emit.
+            for (let i = orderedContent.length - 1; i >= 0; i--) {
+              if (orderedContent[i].type === 'text') orderedContent.splice(i, 1);
+            }
+            const finalSeg: TextSegment = { type: 'text', text: completionData.text };
+            orderedContent.push(finalSeg);
+            currentTextSegment = finalSeg;
           }
           if (completionData.citations) {
             receivedCitations = completionData.citations.map((c) => ({
