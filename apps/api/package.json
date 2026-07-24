@@ -74,7 +74,7 @@
     "@napi-rs/canvas": "^1.0.2",
     "@pdf-lib/fontkit": "^1.1.1",
     "@qdrant/js-client-rest": "^1.18.0",
-    "@sentry/node": "^10.67.0",
+    "@sentry/node": "^10.68.0",
     "@ts-rest/core": "^3.52.1",
     "@ts-rest/express": "^3.52.1",
     "@tus/file-store": "^2.1.0",
