@@ -293,6 +293,7 @@ export function SubtitleEditorScreen({
             progress={exportHook.progress}
             videoUri={exportHook.videoUri}
             error={exportHook.error}
+            errorId={exportHook.errorId}
             onBackToEditor={handleBackToEditor}
             onGoHome={handleGoHome}
           />

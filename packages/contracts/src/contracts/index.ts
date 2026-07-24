@@ -37,7 +37,6 @@ export { subtitlerContract } from './subtitlerContract.js';
 export { voiceContract } from './voiceContract.js';
 export { imagePickerContract } from './imagePickerContract.js';
 export { videoContract } from './videoContract.js';
-export { textGenerationContract } from './textGenerationContract.js';
 export { sharepicContract } from './sharepicContract.js';
 export { transferContract } from './transferContract.js';
 export { unsplashContract } from './unsplashContract.js';

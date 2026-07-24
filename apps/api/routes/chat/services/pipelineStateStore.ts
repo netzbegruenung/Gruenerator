@@ -35,7 +35,16 @@ interface StoredPipelineState {
 
 export const pipelineStateStore = {
   async store(threadId: string, data: Omit<StoredPipelineState, 'createdAt'>): Promise<void> {
-    const entry: StoredPipelineState = { ...data, createdAt: Date.now() };
+    // The PDF form attachments carry multi-MB base64 that `requestContext.
+    // processedMeta` ALREADY holds — serializing both would double the Redis
+    // payload of every interrupted PDF turn. The resume path rebuilds the field
+    // from processedMeta (see rehydratePdfFormAttachments).
+    const { pdfFormAttachments: _pdfBytes, ...classifiedState } = data.classifiedState;
+    const entry: StoredPipelineState = {
+      ...data,
+      classifiedState: classifiedState as ChatGraphState,
+      createdAt: Date.now(),
+    };
     try {
       await redisClient.setEx(REDIS_PREFIX + threadId, TTL_SECONDS, JSON.stringify(entry));
       log.info(`Stored pipeline state for thread ${threadId}`);

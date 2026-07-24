@@ -4,7 +4,7 @@ import useApiSubmit from './useApiSubmit';
 
 export const useGenerateSocialPost = () => {
   const [generatedPosts, setGeneratedPosts] = useState<Record<string, unknown>>({});
-  const { submitForm, loading, error } = useApiSubmit('/claude_social');
+  const { submitForm, loading, error } = useApiSubmit('/texte/social');
 
   const generatePost = useCallback(
     async (

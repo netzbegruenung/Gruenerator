@@ -12,6 +12,7 @@ import { getQdrantInstance } from '../../../database/services/QdrantService.js';
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { smartChunkDocument } from '../../../services/document-services/TextChunker/index.js';
 import { mistralEmbeddingService } from '../../../services/mistral/index.js';
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import type {
@@ -547,7 +548,7 @@ router.post(
       log.error(`[User Content /saved-texts/${req.params.id}/metadata POST] Error:`, err.message);
       res.status(500).json({
         success: false,
-        message: err.message || 'Failed to update document metadata',
+        message: toUserFacingMessage(err) || 'Failed to update document metadata',
       });
     }
   }
@@ -797,7 +798,7 @@ router.delete(
       log.error('[User Content /saved-texts/bulk DELETE] Error:', err.message);
       res.status(500).json({
         success: false,
-        message: err.message || 'Failed to perform bulk delete of texts',
+        message: toUserFacingMessage(err) || 'Failed to perform bulk delete of texts',
         details: err.message,
       });
     }

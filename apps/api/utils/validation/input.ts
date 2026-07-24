@@ -3,7 +3,7 @@
  * Prevents SQL injection and validates data types throughout the vector backend
  */
 
-import { ValidationError } from '../errors/index.js';
+import { ValidationError, toUserFacingMessage } from '../errors/index.js';
 
 import type {
   ValidationErrorResponse,
@@ -264,7 +264,7 @@ export class InputValidator {
       return {
         success: false,
         error: 'Validation error',
-        message: error.message,
+        message: toUserFacingMessage(error),
         field: (error as ValidationError).field,
         code: 'VALIDATION_ERROR',
       };

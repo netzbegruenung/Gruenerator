@@ -21,7 +21,7 @@ export const zitatPureTypeConfig: TemplateTypeConfig = {
   usesFluxApi: false,
   hasRateLimit: false,
   endpoints: {
-    text: '/zitat_pure_claude',
+    text: '/sharepic/text/zitat_pure',
     canvas: '/zitat_pure_canvas',
   },
   formComponent: 'ZitatPureForm',

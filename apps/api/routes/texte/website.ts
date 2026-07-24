@@ -12,7 +12,7 @@ import { createLogger } from '../../utils/logger.js';
 import { type AIWorkerPool } from '../../workers/types.js';
 
 import type { WebsiteContent } from '../../types/routes.js';
-const log = createLogger('claude_website');
+const log = createLogger('texte/website');
 const router: Router = createAuthenticatedRouter();
 
 const websiteSchema = z.object({
@@ -27,7 +27,7 @@ router.post(
   async (req: TypedRequest<WebsiteBody>, res: Response): Promise<void> => {
     const { description, email } = req.body;
 
-    log.debug('[claude_website] Request received:', {
+    log.debug('[texte/website] Request received:', {
       hasDescription: !!description,
       descriptionLength: description.length,
       hasEmail: !!email,
@@ -35,7 +35,7 @@ router.post(
     });
 
     try {
-      log.debug('[claude_website] Starting AI Worker request');
+      log.debug('[texte/website] Starting AI Worker request');
 
       const locale = extractLocaleFromRequest(req);
       const systemPrompt = localizePlaceholders(
@@ -125,7 +125,7 @@ ${description}`;
         },
       };
 
-      log.debug('[claude_website] Payload overview:', {
+      log.debug('[texte/website] Payload overview:', {
         systemPromptLength: systemPrompt.length,
         userPromptLength: userPrompt.length,
         provider: payload.provider,
@@ -141,7 +141,7 @@ ${description}`;
         req
       );
 
-      log.debug('[claude_website] AI Worker response received:', {
+      log.debug('[texte/website] AI Worker response received:', {
         success: result.success,
         contentLength: result.content?.length,
         error: result.error,
@@ -149,7 +149,7 @@ ${description}`;
       });
 
       if (!result.success) {
-        log.error('[claude_website] AI Worker error:', result.error);
+        log.error('[texte/website] AI Worker error:', result.error);
         throw new Error(result.error);
       }
 
@@ -166,8 +166,8 @@ ${description}`;
       try {
         parsedJson = JSON.parse(jsonContent) as WebsiteContent;
       } catch (parseError) {
-        log.error('[claude_website] JSON parse error:', (parseError as Error).message);
-        log.debug('[claude_website] Raw content:', jsonContent.substring(0, 500));
+        log.error('[texte/website] JSON parse error:', (parseError as Error).message);
+        log.debug('[texte/website] Raw content:', jsonContent.substring(0, 500));
         throw new Error('Die KI hat kein valides JSON generiert. Bitte versuche es erneut.');
       }
 
@@ -201,7 +201,7 @@ ${description}`;
         parsedJson.actions = parsedJson.actions.slice(0, 3);
       }
 
-      log.debug('[claude_website] Starting image selection...');
+      log.debug('[texte/website] Starting image selection...');
 
       const pickImage = async (text: string): Promise<string> => {
         try {
@@ -213,7 +213,7 @@ ${description}`;
           );
           return `/api/image-picker/stock-image/${result.selectedImage.filename}`;
         } catch (err) {
-          log.warn('[claude_website] Image picker failed:', (err as Error).message);
+          log.warn('[texte/website] Image picker failed:', (err as Error).message);
           return '';
         }
       };
@@ -243,7 +243,7 @@ ${description}`;
       }));
       parsedJson.contact.backgroundImageUrl = contactImageUrl;
 
-      log.debug('[claude_website] Image selection complete:', {
+      log.debug('[texte/website] Image selection complete:', {
         heroImage: !!heroImageUrl,
         themeImages: themeImageUrls.filter(Boolean).length,
         actionImages: actionImageUrls.filter(Boolean).length,
@@ -255,7 +255,7 @@ ${description}`;
         metadata: result.metadata,
       };
 
-      log.debug('[claude_website] Sending successful response:', {
+      log.debug('[texte/website] Sending successful response:', {
         hasJson: !!response.json,
         hasMetadata: !!response.metadata,
         userId: req.user?.id,
@@ -263,7 +263,7 @@ ${description}`;
 
       res.json(response);
     } catch (error) {
-      log.error('[claude_website] Error creating website content:', error);
+      log.error('[texte/website] Error creating website content:', error);
       res.status(500).json({
         error: 'Fehler bei der Erstellung der Website-Inhalte',
         details: (error as Error).message,

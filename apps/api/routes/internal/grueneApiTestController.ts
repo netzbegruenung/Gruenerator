@@ -7,6 +7,7 @@ import axios from 'axios';
 import { Router, type Request, type Response } from 'express';
 
 import { env } from '../../config/env.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('GrueneApiTest');
@@ -36,7 +37,7 @@ async function proxyGet(path: string, params?: Record<string, string>) {
     return {
       status: axiosErr?.response?.status || 500,
       data: axiosErr?.response?.data || {
-        error: error instanceof Error ? error.message : String(error),
+        error: toUserFacingMessage(error),
       },
     };
   }

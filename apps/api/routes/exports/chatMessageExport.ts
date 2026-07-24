@@ -8,6 +8,7 @@ import { z } from 'zod';
 
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { PRIMARY_DOMAIN } from '../../utils/domainUtils.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 import { sanitizeFilename as sanitizeFilenameCentral } from '../../utils/validation/index.js';
@@ -309,7 +310,7 @@ router.post(
       log.error('[chatMessageExport] DOCX export error:', error);
       return res.status(500).json({
         success: false,
-        error: error.message,
+        error: toUserFacingMessage(error),
       });
     }
   }

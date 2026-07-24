@@ -45,6 +45,7 @@ import {
   scheduleImmediateCleanup,
 } from '../../services/subtitler/tusService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
@@ -89,7 +90,7 @@ async function cleanupUpload(uploadId: string | undefined) {
     void scheduleImmediateCleanup(uploadId, 'manual cleanup');
     return { status: 200 as const, body: { success: true } };
   } catch (e: unknown) {
-    return { status: 500 as const, body: { error: e instanceof Error ? e.message : String(e) } };
+    return { status: 500 as const, body: { error: toUserFacingMessage(e) } };
   }
 }
 
@@ -117,7 +118,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
     } catch (e: unknown) {
       return {
         status: 400 as const,
-        body: { error: e instanceof Error ? e.message : String(e) },
+        body: { error: toUserFacingMessage(e) },
       };
     }
   },
@@ -164,7 +165,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
     } catch (e: unknown) {
       return {
         status: 500 as const,
-        body: { error: e instanceof Error ? e.message : String(e) },
+        body: { error: toUserFacingMessage(e) },
       };
     }
   },
@@ -175,7 +176,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
     } catch (e: unknown) {
       return {
         status: 500 as const,
-        body: { error: e instanceof Error ? e.message : String(e) },
+        body: { error: toUserFacingMessage(e) },
       };
     }
   },
@@ -231,7 +232,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
     } catch (e: unknown) {
       return {
         status: 500 as const,
-        body: { error: e instanceof Error ? e.message : String(e) },
+        body: { error: toUserFacingMessage(e) },
       };
     }
   },
@@ -254,7 +255,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
     } catch (e: unknown) {
       return {
         status: 500 as const,
-        body: { error: e instanceof Error ? e.message : String(e) },
+        body: { error: toUserFacingMessage(e) },
       };
     }
   },
@@ -291,7 +292,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
     } catch (e: unknown) {
       return {
         status: 500 as const,
-        body: { error: e instanceof Error ? e.message : String(e) },
+        body: { error: toUserFacingMessage(e) },
       };
     }
   },
@@ -311,7 +312,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
     } catch (e: unknown) {
       return {
         status: 500 as const,
-        body: { error: e instanceof Error ? e.message : String(e) },
+        body: { error: toUserFacingMessage(e) },
       };
     }
   },
