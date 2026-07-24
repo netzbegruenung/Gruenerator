@@ -57,7 +57,7 @@
   "dependencies": {
     "@ai-sdk/mistral": "^4.0.14",
     "@ai-sdk/openai": "^4.0.19",
-    "@anthropic-ai/sdk": "^0.114.0",
+    "@anthropic-ai/sdk": "^0.115.0",
     "@better-auth/drizzle-adapter": "^1.6.25",
     "@blocknote/xl-ai": "^0.52.1",
     "@ffprobe-installer/ffprobe": "^2.1.2",
