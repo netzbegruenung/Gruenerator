@@ -744,6 +744,10 @@ export async function streamAgenticResponse(params: {
         sse.send('text_delta', { text: delta });
       },
       onReasoning: (delta) => sse.send('reasoning_delta', { text: delta }),
+      // Split-gather narration: the planner's inter-tool prose, sentence-wise.
+      // NOT routed through onText — that starts the response + persists it as
+      // answer text; narration is ephemeral progress, its own SSE channel.
+      onNarration: (s) => sse.send('gather_narration', { text: s }),
     });
 
     // Edit + compound-generation guarantees now run inside afterGather in BOTH

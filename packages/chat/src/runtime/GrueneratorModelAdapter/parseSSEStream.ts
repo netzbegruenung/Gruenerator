@@ -844,6 +844,28 @@ export async function* parseSSEStream(
           break;
         }
 
+        case 'gather_narration': {
+          // Live status line during the tool phase — updates message (Mobile
+          // reads this field directly) and, if a step is currently
+          // in-progress, its label (Desktop's ProgressTracker renders step
+          // labels and ignores message once steps exist). Last writer wins:
+          // a later tool_step_start/thinking_step overwrites this freely.
+          const narration = (data as { text: string }).text;
+          currentProgress = { ...currentProgress, message: narration };
+          for (let i = progressSteps.length - 1; i >= 0; i--) {
+            if (progressSteps[i].status === 'in-progress') {
+              progressSteps[i] = { ...progressSteps[i], label: narration };
+              break;
+            }
+          }
+          const now = performance.now();
+          if (now - lastYieldTime >= YIELD_INTERVAL) {
+            lastYieldTime = now;
+            yield buildResult();
+          }
+          break;
+        }
+
         case 'text_delta': {
           const delta = (data as { text: string }).text;
           accumulatedText += delta;
