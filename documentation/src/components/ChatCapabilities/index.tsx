@@ -13,6 +13,7 @@ interface Mentionable {
 }
 interface Manifest {
   intents: string[];
+  experimentalIntents: string[];
   mentionables: Record<string, Mentionable>;
   userTools: Record<string, { label: string; description: string }>;
   systemSources: Record<string, { name: string; capability: string; env?: string }>;
@@ -62,6 +63,9 @@ function Capability({ example }: { example: CapabilityExample }): React.JSX.Elem
       <h4 className={styles.capabilityTitle}>{mentionable?.title ?? example.label}</h4>
 
       <div className={styles.badges}>
+        {manifest.experimentalIntents.includes(example.intent) && (
+          <Badge kind="experimental">experimentell</Badge>
+        )}
         {mentionable?.mention && <Badge kind="mention">{mentionable.mention}</Badge>}
         {userTool && <Badge kind="tool">Werkzeug: {userTool.label}</Badge>}
         {mentionable?.audience === 'de-DE' && <Badge kind="note">nur Deutschland</Badge>}

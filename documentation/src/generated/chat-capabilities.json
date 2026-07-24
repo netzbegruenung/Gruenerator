@@ -37,6 +37,17 @@
     "web",
     "wetter"
   ],
+  "experimentalIntents": [
+    "bahn",
+    "create_recurring_task",
+    "hotel",
+    "mcp",
+    "news",
+    "reise",
+    "social_post",
+    "umfragen",
+    "wetter"
+  ],
   "mentionables": {
     "abgeordnetenwatch": {
       "title": "Abgeordnetenwatch",
