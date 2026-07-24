@@ -63,16 +63,6 @@ updates:
           - '@wordpress/*'
           - 'sass'
           - 'sass-loader'
-      # React Native / Expo move together with the SDK, never piecemeal.
-      react-native:
-        patterns:
-          - 'expo'
-          - 'expo-*'
-          - '@expo/*'
-          - 'react-native'
-          - 'react-native-*'
-          - '@react-native/*'
-          - '@react-native-*/*'
       minor-patch:
         update-types:
           - 'minor'
@@ -91,13 +81,6 @@ updates:
           - '@wordpress/*'
           - 'sass'
           - 'sass-loader'
-          - 'expo'
-          - 'expo-*'
-          - '@expo/*'
-          - 'react-native'
-          - 'react-native-*'
-          - '@react-native/*'
-          - '@react-native-*/*'
     ignore:
       # --- React: deliberately NOT auto-updated at all ---------------------
       # react/react-dom are decoupled between web and mobile on purpose (see
@@ -143,28 +126,36 @@ updates:
       - dependency-name: 'zod'
         update-types: ['version-update:semver-major']
 
-      # --- Expo SDK owns these versions ------------------------------------
-      # `npx expo install --check` is the authority for apps/mobile. Majors
-      # (gesture-handler 3, webview 14, async-storage 3) ride the next SDK
-      # upgrade and need device testing.
+      # --- Expo SDK owns these versions — ALL update types ------------------
+      # `expo/bundledNativeModules.json` pins 46 of apps/mobile's 74 direct
+      # dependencies, and `npx expo install --check` is the only authority on
+      # what is compatible. Semver does not describe that relationship: MINOR
+      # bumps of SDK-managed packages are rejected just like majors, e.g.
+      #   react-native-webview 13.16.1 -> 13.17.0   (#1978, minor, rejected)
+      #   react-native-keyboard-controller 1.21.9 -> 1.22.2 (minor, rejected)
+      #   react-native-worklets 0.10.0 -> 0.11.2    (minor, rejected)
+      # so an `update-types: [semver-major]` ignore cannot express it. Earlier
+      # attempts enumerated the pinned packages one by one and kept missing
+      # some — this ignores the SDK-owned namespaces outright instead.
+      #
+      # apps/mobile therefore updates exactly once per SDK upgrade, via
+      # `npx expo install --fix`, which is already the documented workflow
+      # (CLAUDE.md > Expo Apps: "Use `npx expo install` (not `pnpm add`)").
+      #
+      # Known cost: these direct deps are NOT SDK-managed but match the
+      # patterns, so they now need manual bumps —
+      #   react-native-drawer-layout, react-native-markdown-display,
+      #   react-native-qrcode-svg, @react-native-vector-icons/ionicons,
+      #   expo-atlas, expo-speech-recognition,
+      #   expo-image-and-video-compressor, @expo/ngrok,
+      #   @expo/react-native-action-sheet
       - dependency-name: 'expo'
-        update-types: ['version-update:semver-major']
+      - dependency-name: 'expo-*'
+      - dependency-name: '@expo/*'
       - dependency-name: 'react-native'
-        update-types: ['version-update:semver-major']
       - dependency-name: 'react-native-*'
-        update-types: ['version-update:semver-major']
+      - dependency-name: '@react-native/*'
       - dependency-name: '@react-native-*/*'
-        update-types: ['version-update:semver-major']
-      # These four are SDK-pinned outright: `expo install --check` flags every
-      # bump, including minors, as "may not work correctly".
-      - dependency-name: 'react-native-reanimated'
-      - dependency-name: 'react-native-safe-area-context'
-      - dependency-name: 'react-native-svg'
-      - dependency-name: 'react-native-pager-view'
-      # 0.10 -> 0.11 is semver-MINOR, so the major ignore above misses it.
-      - dependency-name: 'react-native-worklets'
-      # Tracks the Expo SDK major (56 -> 57 belongs to the SDK 57 upgrade).
-      - dependency-name: '@expo/dom-webview'
 
   # =============================================================================
   # CARGO - Tauri desktop shell (separate workspace, own lockfile)
