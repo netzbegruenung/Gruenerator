@@ -36,6 +36,7 @@ import {
 import { getNotebookStats } from '../../services/notebook/notebookStatsService.js';
 import { recordItemUsageSafe } from '../../services/usage/ItemUsageService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import { fromParam, type NotebookId } from '../../utils/types/branded.js';
@@ -225,7 +226,7 @@ export const notebookContractRouter = s.router(notebookContract, {
       const err = error as Error;
       return {
         status: 500 as const,
-        body: { error: err.message || 'Internal server error' },
+        body: { error: toUserFacingMessage(err) || 'Internal server error' },
       };
     }
   },
@@ -285,7 +286,7 @@ export const notebookContractRouter = s.router(notebookContract, {
       const err = error as Error;
       return {
         status: 500 as const,
-        body: { error: err.message || 'Internal server error' },
+        body: { error: toUserFacingMessage(err) || 'Internal server error' },
       };
     }
   },
@@ -610,7 +611,7 @@ export const notebookContractRouter = s.router(notebookContract, {
       const err = error as Error;
       return {
         status: 500 as const,
-        body: { error: err.message || 'Internal server error' },
+        body: { error: toUserFacingMessage(err) || 'Internal server error' },
       };
     }
   },

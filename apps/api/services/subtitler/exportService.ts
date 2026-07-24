@@ -9,9 +9,11 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import { type SubtitleSegment } from '@gruenerator/contracts';
+import { toJobErrorStatus } from '@gruenerator/contracts';
 import { v4 as uuidv4 } from 'uuid';
 
 import { type VideoMetadata } from '../../routes/subtitler/types.js';
+import { toJobError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
@@ -355,16 +357,14 @@ async function processProjectExport(
       duration: (metadata.duration as number | undefined) ?? 0,
     };
   } catch (error: unknown) {
-    log.error(`Project export failed: ${error instanceof Error ? error.message : String(error)}`);
+    const jobError = toJobError(error, {
+      scope: 'subtitler-export',
+      meta: { exportToken },
+    });
 
-    await redisClient.set(
-      `export:${exportToken}`,
-      JSON.stringify({
-        status: 'error',
-        error: error instanceof Error ? error.message : String(error),
-      }),
-      { EX: 60 * 60 }
-    );
+    await redisClient.set(`export:${exportToken}`, JSON.stringify(toJobErrorStatus(jobError)), {
+      EX: 60 * 60,
+    });
 
     throw error;
   }

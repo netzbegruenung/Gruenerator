@@ -9,6 +9,10 @@
       "label": "Konto"
     },
     {
+      "value": "friends",
+      "label": "Grünerator Friends"
+    },
+    {
       "value": "personalisierung",
       "label": "Personalisierung"
     },
@@ -37,6 +41,10 @@
       "label": "Konnektoren"
     },
     {
+      "value": "nutzung",
+      "label": "Nutzung"
+    },
+    {
       "value": "support",
       "label": "Support"
     }
@@ -46,6 +54,11 @@
       "tab": "allgemein",
       "title": "Aussehen",
       "description": "Farbschema der Oberfläche"
+    },
+    "allgemein.chatHintergrund": {
+      "tab": "allgemein",
+      "title": "Chat-Hintergrund",
+      "description": "Färbt den Schimmer hinter dem Chat-Start und den Senden-Button"
     },
     "allgemein.sprache": {
       "tab": "allgemein",

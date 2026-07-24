@@ -1,5 +1,6 @@
 import { StateGraph, Annotation } from '@langchain/langgraph';
 
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { formatNode } from './nodes/formatNode.js';
@@ -193,7 +194,7 @@ export async function runSocialAgentGraph(input: SocialAgentInput): Promise<Soci
         totalTimeMs: 0,
         argumentsFound: 0,
       },
-      error: error instanceof Error ? error.message : String(error),
+      error: toUserFacingMessage(error),
     };
   }
 }

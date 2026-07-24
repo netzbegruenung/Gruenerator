@@ -23,6 +23,7 @@ import {
   groupSourcesByCollection,
 } from '../../services/search/index.js';
 import { buildAiTelemetry, withLangfuseTrace } from '../../services/telemetry/langfuseTelemetry.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { containsPromptLeakage } from '../gruenomat/topicGuard.js';
 
@@ -168,7 +169,7 @@ export async function handleNotebookStream(
       log.error('Search context error:', error);
       log.debug(`⏱ Search context failed: ${Date.now() - t0}ms`);
       sse.send('error', {
-        error: error instanceof Error ? error.message : PROGRESS_MESSAGES.searchDegraded,
+        error: toUserFacingMessage(error, PROGRESS_MESSAGES.searchDegraded),
         code: 'search_degraded',
         retryable: true,
       });

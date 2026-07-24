@@ -367,7 +367,6 @@ PlayResX: ${videoMetadata.width}
 PlayResY: ${videoMetadata.height}
 !: UTF-8 encoding for German umlauts
 Collisions: Normal
-ScriptType: v4.00+
 
 [Aegisub Project]
 Last Style Storage: Default
