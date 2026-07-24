@@ -1,11 +1,33 @@
 # Dependabot configuration for Gruenerator monorepo
 # Documentation: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# ONE npm entry for the WHOLE pnpm workspace — do not add per-directory npm
+# entries back.
+#
+# Dependabot's npm ecosystem reads /package.json and follows the workspace
+# definition (pnpm-workspace.yaml: apps/*, packages/*, services/hocuspocus,
+# services/mcp, documentation). A `directory: '/'` entry therefore already
+# covers every workspace member. The 24 per-directory entries this file used to
+# carry were not additional coverage, they were DUPLICATE coverage:
+#
+#   - the same bump opened twice (once from '/', once from '/apps/mobile'),
+#     both regenerating the single root pnpm-lock.yaml and conflicting;
+#   - the per-directory `ignore:` rules looked authoritative but did not apply
+#     to the PRs the root entry raised, so bumps we had explicitly ignored for
+#     apps/mobile and apps/wordpress kept reappearing (e.g. #1966-#1969).
+#
+# There is exactly ONE pnpm-lock.yaml, at the repo root, so every npm update in
+# this repo is a root-level change no matter which manifest it edits. The
+# config now matches that reality: one entry, one ignore list, grouped PRs.
+#
+# The cargo entry stays separate — apps/desktop/src-tauri is a Cargo workspace,
+# not part of the pnpm one.
 
 version: 2
 
 updates:
   # =============================================================================
-  # ROOT WORKSPACE - Monorepo tooling and shared dev dependencies
+  # NPM — entire pnpm workspace (root + apps/* + packages/* + services + docs)
   # =============================================================================
   - package-ecosystem: 'npm'
     directory: '/'
@@ -17,697 +39,126 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - 'dependencies'
-      - 'root'
     groups:
+      # Toolchain packages must move monorepo-wide in ONE PR — a partial bump
+      # desyncs the shared lint/type config across workspaces.
+      typescript-toolchain:
+        patterns:
+          - 'typescript'
+          - '@types/*'
+          - 'eslint'
+          - '@eslint/*'
+          - 'eslint-*'
+          - '@typescript-eslint/*'
+          - 'prettier'
+          - 'prettier-*'
       commit-tooling:
         patterns:
           - '@commitlint/*'
           - 'husky'
-      typescript:
+      # The Gutenberg toolchain (apps/wordpress) is one coherent unit driven by
+      # wp-scripts' webpack config — never bump a part of it on its own.
+      wordpress-gutenberg:
         patterns:
-          - 'typescript'
-          - '@types/*'
+          - '@wordpress/*'
+          - 'sass'
+          - 'sass-loader'
       minor-patch:
         update-types:
           - 'minor'
           - 'patch'
         exclude-patterns:
-          - '@commitlint/*'
-          - 'husky'
           - 'typescript'
           - '@types/*'
+          - 'eslint'
+          - '@eslint/*'
+          - 'eslint-*'
+          - '@typescript-eslint/*'
+          - 'prettier'
+          - 'prettier-*'
+          - '@commitlint/*'
+          - 'husky'
+          - '@wordpress/*'
+          - 'sass'
+          - 'sass-loader'
     ignore:
+      # --- React: deliberately NOT auto-updated at all ---------------------
+      # react/react-dom are decoupled between web and mobile on purpose (see
+      # CLAUDE.md > Expo Apps): apps/mobile pins the EXACT version its Expo SDK
+      # ships, because react-native-renderer rejects any mismatch, while web
+      # tracks '^'. A single workspace-wide entry cannot bump one without
+      # touching the other's manifest, so react moves by hand only:
+      #   mobile -> `npx expo install react react-dom` during an SDK upgrade
+      #   web    -> a deliberate PR
       - dependency-name: 'react'
-        update-types: ['version-update:semver-major']
       - dependency-name: 'react-dom'
-        update-types: ['version-update:semver-major']
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
+
+      # --- Blocked upstream, not by us -------------------------------------
+      # eslint 10 / TypeScript 7:
       #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
       #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
+      # Drop these once both ship support, then bump in ONE PR.
       - dependency-name: 'eslint'
         update-types: ['version-update:semver-major']
       - dependency-name: '@eslint/js'
         update-types: ['version-update:semver-major']
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
+      # @wordpress/scripts 33 pulls a typescript-eslint/ts-api-utils combination
+      # that breaks linting monorepo-wide. Drop once the ts-api-utils override
+      # in pnpm.overrides can go (i.e. after the eslint-10 bump above).
+      #
+      # The rest of the Gutenberg stack is gated on the SAME unblock: wp-scripts
+      # owns the webpack/babel/sass pipeline, so @wordpress/components 37,
+      # block-editor 16, base-styles 11 and sass-loader 17 cannot land while
+      # scripts stays on 31 — they would desync the build. Drop ALL of these
+      # together and do the Gutenberg upgrade in ONE deliberate PR.
+      - dependency-name: '@wordpress/*'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'sass-loader'
+        update-types: ['version-update:semver-major']
+
+      # --- Neutralised by pnpm.overrides -----------------------------------
       # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
+      # change manifests while v3 stays installed — a lie, not an update.
       # Drop this ignore as part of the dedicated zod-4 migration (which also
       # removes the better-auth>zod / knip>zod scoped overrides).
       - dependency-name: 'zod'
         update-types: ['version-update:semver-major']
 
-  # =============================================================================
-  # FRONTEND - React web application (apps/web)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/apps/web'
-    schedule:
-      interval: 'weekly'
-      day: 'tuesday'
-      time: '05:00'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 15
-    labels:
-      - 'dependencies'
-      - 'frontend'
-    groups:
-      react-ecosystem:
-        patterns:
-          - 'react'
-          - 'react-dom'
-          - 'react-router*'
-          - '@types/react*'
-      radix-ui:
-        patterns:
-          - '@radix-ui/*'
-          - 'radix-ui'
-      remotion:
-        patterns:
-          - 'remotion'
-          - '@remotion/*'
-      tanstack:
-        patterns:
-          - '@tanstack/*'
-      tauri:
-        patterns:
-          - '@tauri-apps/*'
-      build-tools:
-        dependency-type: 'development'
-        patterns:
-          - 'vite*'
-          - '@vitejs/*'
-          - 'eslint*'
-          - 'terser'
-          - 'tailwindcss'
-          - '@tailwindcss/*'
-      testing:
-        dependency-type: 'development'
-        patterns:
-          - '@testing-library/*'
-      production-minor-patch:
-        dependency-type: 'production'
-        update-types:
-          - 'minor'
-          - 'patch'
-        exclude-patterns:
-          - 'react'
-          - 'react-dom'
-          - 'react-router*'
-          - '@radix-ui/*'
-          - 'radix-ui'
-          - 'remotion'
-          - '@remotion/*'
-          - '@tanstack/*'
-          - '@tauri-apps/*'
-    ignore:
-      - dependency-name: 'react'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'react-dom'
-        update-types: ['version-update:semver-major']
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
-      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
-      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
-      - dependency-name: 'eslint'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
-  # BACKEND - Node.js Express API server (apps/api)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/apps/api'
-    schedule:
-      interval: 'weekly'
-      day: 'wednesday'
-      time: '05:00'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 15
-    labels:
-      - 'dependencies'
-      - 'backend'
-    groups:
-      ai-sdks:
-        patterns:
-          - '@ai-sdk/*'
-          - '@anthropic-ai/*'
-          - '@mistralai/*'
-          - 'openai'
-          - 'ai'
-      langchain:
-        patterns:
-          - 'langchain'
-          - '@langchain/*'
-      express-middleware:
-        patterns:
-          - 'express'
-          - 'express-*'
-          - 'cors'
-          - 'helmet'
-          - 'morgan'
-          - 'compression'
-          - 'multer'
-      auth:
-        patterns:
-          - 'passport*'
-          - 'openid-client'
-          - 'jose'
-      database:
-        patterns:
-          - 'pg'
-          - 'redis'
-          - 'ioredis'
-          - '@qdrant/*'
-      document-processing:
-        patterns:
-          - 'pdf-lib'
-          - 'pdfjs-dist'
-          - 'docx'
-          - 'cheerio'
-          - 'turndown'
-      sentry:
-        patterns:
-          - '@sentry/*'
-      tus:
-        patterns:
-          - '@tus/*'
-      dev-tools:
-        dependency-type: 'development'
-        patterns:
-          - 'vitest*'
-          - 'tsx'
-      production-minor-patch:
-        dependency-type: 'production'
-        update-types:
-          - 'minor'
-          - 'patch'
-        exclude-patterns:
-          - '@ai-sdk/*'
-          - '@anthropic-ai/*'
-          - '@mistralai/*'
-          - 'openai'
-          - 'ai'
-          - 'langchain'
-          - '@langchain/*'
-          - 'express*'
-          - 'cors'
-          - 'helmet'
-          - 'morgan'
-          - 'compression'
-          - 'multer'
-          - 'passport*'
-          - 'openid-client'
-          - 'jose'
-          - 'pg'
-          - 'redis'
-          - 'ioredis'
-          - '@qdrant/*'
-          - 'pdf-lib'
-          - 'pdfjs-dist'
-          - 'docx'
-          - 'cheerio'
-          - 'turndown'
-          - '@sentry/*'
-          - '@tus/*'
-    ignore:
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
-      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
-      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
-      - dependency-name: 'eslint'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
-  # GRUEN-O-MAT (apps/gruen-o-mat)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/apps/gruen-o-mat'
-    schedule:
-      interval: 'weekly'
-      day: 'tuesday'
-      time: '08:00'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'gruen-o-mat'
-    groups:
-      all-dependencies:
-        patterns:
-          - '*'
-    ignore:
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
-      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
-      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
-      - dependency-name: 'eslint'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
-  # MOBILE - Expo React Native app (apps/mobile)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/apps/mobile'
-    schedule:
-      interval: 'weekly'
-      day: 'thursday'
-      time: '05:00'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 10
-    labels:
-      - 'dependencies'
-      - 'mobile'
-    groups:
-      expo:
-        patterns:
-          - 'expo'
-          - 'expo-*'
-      react-navigation:
-        patterns:
-          - '@react-navigation/*'
-      react-native-core:
-        patterns:
-          - 'react-native'
-          - 'react-native-gesture-handler'
-          - 'react-native-reanimated'
-          - 'react-native-screens'
-          - 'react-native-safe-area-context'
-      react-native-ui:
-        patterns:
-          - 'react-native-*'
-          - '@gorhom/*'
-        exclude-patterns:
-          - 'react-native'
-          - 'react-native-gesture-handler'
-          - 'react-native-reanimated'
-          - 'react-native-screens'
-          - 'react-native-safe-area-context'
-    ignore:
+      # --- Expo SDK owns these versions — ALL update types ------------------
+      # `expo/bundledNativeModules.json` pins 46 of apps/mobile's 74 direct
+      # dependencies, and `npx expo install --check` is the only authority on
+      # what is compatible. Semver does not describe that relationship: MINOR
+      # bumps of SDK-managed packages are rejected just like majors, e.g.
+      #   react-native-webview 13.16.1 -> 13.17.0   (#1978, minor, rejected)
+      #   react-native-keyboard-controller 1.21.9 -> 1.22.2 (minor, rejected)
+      #   react-native-worklets 0.10.0 -> 0.11.2    (minor, rejected)
+      # so an `update-types: [semver-major]` ignore cannot express it. Earlier
+      # attempts enumerated the pinned packages one by one and kept missing
+      # some — this ignores the SDK-owned namespaces outright instead.
+      #
+      # apps/mobile therefore updates exactly once per SDK upgrade, via
+      # `npx expo install --fix`, which is already the documented workflow
+      # (CLAUDE.md > Expo Apps: "Use `npx expo install` (not `pnpm add`)").
+      #
+      # Known cost: these direct deps are NOT SDK-managed but match the
+      # patterns, so they now need manual bumps —
+      #   react-native-drawer-layout, react-native-markdown-display,
+      #   react-native-qrcode-svg, @react-native-vector-icons/ionicons,
+      #   expo-atlas, expo-speech-recognition,
+      #   expo-image-and-video-compressor, @expo/ngrok,
+      #   @expo/react-native-action-sheet
       - dependency-name: 'expo'
-        update-types: ['version-update:semver-major']
+      - dependency-name: 'expo-*'
+      - dependency-name: '@expo/*'
       - dependency-name: 'react-native'
-        update-types: ['version-update:semver-major']
-      # react/react-dom are pinned to the EXACT version the Expo SDK ships
-      # (RN's bundled renderer requires an exact match). Never let Dependabot
-      # drift them — they move only via `npx expo install` on an SDK upgrade.
-      - dependency-name: 'react'
-      - dependency-name: 'react-dom'
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
-      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
-      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
-      - dependency-name: 'eslint'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # RN/Expo ecosystem majors ride the Expo SDK upgrade, never a lone bump.
-      # `npx expo install --check` is the authority here: SDK 57 pins exact
-      # versions for reanimated, safe-area-context, svg and pager-view, and a
-      # Dependabot PR that moves past them makes the app 'may not work
-      # correctly'. Majors (gesture-handler 3, webview 14, async-storage 3,
-      # worklets 0.11) additionally need device testing. Take them all at once
-      # via `npx expo install --fix` during an SDK upgrade — see CLAUDE.md.
       - dependency-name: 'react-native-*'
-        update-types: ['version-update:semver-major']
+      - dependency-name: '@react-native/*'
       - dependency-name: '@react-native-*/*'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'react-native-reanimated'
-      - dependency-name: 'react-native-safe-area-context'
-      - dependency-name: 'react-native-svg'
-      - dependency-name: 'react-native-pager-view'
-      # 0.x package: a MINOR is breaking, so the semver-major rule above misses
-      # it. Expo SDK 57 pins it too.
-      - dependency-name: 'react-native-worklets'
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-      # @expo/dom-webview is pinned in pnpm.overrides (~56.0.5) AND listed in
-      # expo.install.exclude — a bump cannot take effect, only mislead.
-      - dependency-name: '@expo/dom-webview'
 
   # =============================================================================
-  # SHARED PACKAGE (packages/shared)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/packages/shared'
-    schedule:
-      interval: 'weekly'
-      day: 'friday'
-      time: '06:00'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'shared'
-    groups:
-      all-dependencies:
-        patterns:
-          - '*'
-    ignore:
-      - dependency-name: 'react'
-        update-types: ['version-update:semver-major']
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
-      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
-      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
-      - dependency-name: 'eslint'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
-  # CHAT PACKAGE (packages/chat)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/packages/chat'
-    schedule:
-      interval: 'weekly'
-      day: 'friday'
-      time: '07:00'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'chat'
-    groups:
-      assistant-ui:
-        patterns:
-          - '@assistant-ui/*'
-      all-minor-patch:
-        update-types:
-          - 'minor'
-          - 'patch'
-        exclude-patterns:
-          - '@assistant-ui/*'
-    ignore:
-      - dependency-name: 'react'
-        update-types: ['version-update:semver-major']
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
-      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
-      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
-      - dependency-name: 'eslint'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
-  # DOCS PACKAGE (packages/docs)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/packages/docs'
-    schedule:
-      interval: 'weekly'
-      day: 'friday'
-      time: '08:00'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'docs-package'
-    groups:
-      blocknote:
-        patterns:
-          - '@blocknote/*'
-      all-minor-patch:
-        update-types:
-          - 'minor'
-          - 'patch'
-        exclude-patterns:
-          - '@blocknote/*'
-    ignore:
-      - dependency-name: 'react'
-        update-types: ['version-update:semver-major']
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
-      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
-      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
-      - dependency-name: 'eslint'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
-  # ESLINT CONFIG (packages/eslint-config)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/packages/eslint-config'
-    schedule:
-      interval: 'weekly'
-      day: 'friday'
-      time: '09:00'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'eslint-config'
-    groups:
-      all-dependencies:
-        patterns:
-          - '*'
-    ignore:
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
-      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
-      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
-      - dependency-name: 'eslint'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
-  # MCP SERVER (services/mcp)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/services/mcp'
-    schedule:
-      interval: 'weekly'
-      day: 'wednesday'
-      time: '06:00'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'mcp'
-    groups:
-      all-dependencies:
-        patterns:
-          - '*'
-    ignore:
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
-      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
-      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
-      - dependency-name: 'eslint'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
-  # HOCUSPOCUS SERVER (services/hocuspocus)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/services/hocuspocus'
-    schedule:
-      interval: 'weekly'
-      day: 'wednesday'
-      time: '07:00'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'hocuspocus'
-    groups:
-      all-dependencies:
-        patterns:
-          - '*'
-    ignore:
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
-      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
-      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
-      - dependency-name: 'eslint'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
-  # DOCUMENTATION - Docusaurus site (documentation/)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/documentation'
-    schedule:
-      interval: 'weekly'
-      day: 'friday'
-      time: '10:00'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'documentation'
-    groups:
-      docusaurus:
-        patterns:
-          - '@docusaurus/*'
-      all-minor-patch:
-        update-types:
-          - 'minor'
-          - 'patch'
-        exclude-patterns:
-          - '@docusaurus/*'
-    ignore:
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
-      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
-      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
-      - dependency-name: 'eslint'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
-  # DESKTOP - Tauri desktop app npm deps (apps/desktop)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/apps/desktop'
-    schedule:
-      interval: 'weekly'
-      day: 'friday'
-      time: '11:00'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'desktop'
-    groups:
-      tauri:
-        patterns:
-          - '@tauri-apps/*'
-    ignore:
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
-      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
-      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
-      - dependency-name: 'eslint'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
-  # DESKTOP - Tauri Rust dependencies (Cargo)
+  # CARGO - Tauri desktop shell (separate workspace, own lockfile)
   # =============================================================================
   - package-ecosystem: 'cargo'
     directory: '/apps/desktop/src-tauri'
@@ -735,511 +186,6 @@ updates:
         exclude-patterns:
           - 'tauri*'
           - 'serde*'
-
-  # =============================================================================
-  # WORDPRESS (apps/wordpress)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/apps/wordpress'
-    schedule:
-      interval: 'weekly'
-      day: 'friday'
-      time: '15:00'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'wordpress'
-    groups:
-      all-dependencies:
-        patterns:
-          - '*'
-    ignore:
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
-      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
-      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
-      - dependency-name: 'eslint'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-      # @wordpress/scripts majors shift the WHOLE monorepo's typescript-eslint
-      # resolution and then eslint dies in packages/contracts with
-      # 'tsutils.unionConstituents is not a function' (verified: master lint
-      # green, with the bump red). Drop this once that interaction is fixed.
-      - dependency-name: '@wordpress/scripts'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
-  # CANVAS EDITOR PACKAGE (packages/canvas-editor)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/packages/canvas-editor'
-    schedule:
-      interval: 'weekly'
-      day: 'friday'
-      time: '15:30'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'canvas-editor'
-    groups:
-      all-dependencies:
-        patterns:
-          - '*'
-    ignore:
-      - dependency-name: 'react'
-        update-types: ['version-update:semver-major']
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
-      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
-      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
-      - dependency-name: 'eslint'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
-  # COLLAB PACKAGE (packages/collab)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/packages/collab'
-    schedule:
-      interval: 'weekly'
-      day: 'friday'
-      time: '16:00'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'collab'
-    groups:
-      all-dependencies:
-        patterns:
-          - '*'
-    ignore:
-      - dependency-name: 'react'
-        update-types: ['version-update:semver-major']
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
-      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
-      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
-      - dependency-name: 'eslint'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
-  # UI PACKAGE (packages/ui)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/packages/ui'
-    schedule:
-      interval: 'weekly'
-      day: 'friday'
-      time: '16:30'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'ui'
-    groups:
-      all-dependencies:
-        patterns:
-          - '*'
-    ignore:
-      - dependency-name: 'react'
-        update-types: ['version-update:semver-major']
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
-      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
-      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
-      - dependency-name: 'eslint'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
-  # VOICE PACKAGE (packages/voice)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/packages/voice'
-    schedule:
-      interval: 'weekly'
-      day: 'friday'
-      time: '17:00'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'voice'
-    groups:
-      all-dependencies:
-        patterns:
-          - '*'
-    ignore:
-      - dependency-name: 'react'
-        update-types: ['version-update:semver-major']
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
-      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
-      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
-      - dependency-name: 'eslint'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
-  # WOLKE PACKAGE (packages/wolke)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/packages/wolke'
-    schedule:
-      interval: 'weekly'
-      day: 'friday'
-      time: '17:30'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'wolke'
-    groups:
-      all-dependencies:
-        patterns:
-          - '*'
-    ignore:
-      - dependency-name: 'react'
-        update-types: ['version-update:semver-major']
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
-      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
-      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
-      - dependency-name: 'eslint'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
-  # SITES DESIGN PACKAGE (packages/sites-design)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/packages/sites-design'
-    schedule:
-      interval: 'weekly'
-      day: 'friday'
-      time: '18:00'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'sites-design'
-    groups:
-      all-dependencies:
-        patterns:
-          - '*'
-    ignore:
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
-      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
-      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
-      - dependency-name: 'eslint'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
-  # CONTRACTS PACKAGE (packages/contracts)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/packages/contracts'
-    schedule:
-      interval: 'weekly'
-      day: 'friday'
-      time: '18:30'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'contracts'
-    groups:
-      all-dependencies:
-        patterns:
-          - '*'
-    ignore:
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
-      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
-      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
-      - dependency-name: 'eslint'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
-  # CORE PACKAGE (packages/core)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/packages/core'
-    schedule:
-      interval: 'weekly'
-      day: 'friday'
-      time: '19:00'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'core'
-    groups:
-      all-dependencies:
-        patterns:
-          - '*'
-    ignore:
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
-      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
-      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
-      - dependency-name: 'eslint'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
-  # SITES PACKAGE (packages/sites)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/packages/sites'
-    schedule:
-      interval: 'weekly'
-      day: 'friday'
-      time: '19:30'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'sites'
-    groups:
-      all-dependencies:
-        patterns:
-          - '*'
-    ignore:
-      - dependency-name: 'react'
-        update-types: ['version-update:semver-major']
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
-      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
-      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
-      - dependency-name: 'eslint'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
-  # PRESENTATIONS PACKAGE (packages/presentations)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/packages/presentations'
-    schedule:
-      interval: 'weekly'
-      day: 'friday'
-      time: '20:00'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'presentations'
-    groups:
-      all-dependencies:
-        patterns:
-          - '*'
-    ignore:
-      - dependency-name: 'react'
-        update-types: ['version-update:semver-major']
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
-      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
-      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
-      - dependency-name: 'eslint'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
-  # SHEETS PACKAGE (packages/sheets)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/packages/sheets'
-    schedule:
-      interval: 'weekly'
-      day: 'friday'
-      time: '20:15'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'sheets'
-    groups:
-      all-dependencies:
-        patterns:
-          - '*'
-    ignore:
-      - dependency-name: 'react'
-        update-types: ['version-update:semver-major']
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
-      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
-      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
-      - dependency-name: 'eslint'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
-  # QUERY PACKAGE (packages/query)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/packages/query'
-    schedule:
-      interval: 'weekly'
-      day: 'friday'
-      time: '20:30'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'query'
-    groups:
-      all-dependencies:
-        patterns:
-          - '*'
-    ignore:
-      - dependency-name: 'react'
-        update-types: ['version-update:semver-major']
-      # eslint 10 / TypeScript 7 are blocked upstream, not by us:
-      #   eslint-plugin-react@7.37.5 (latest) peers eslint '<=^9.7'
-      #   typescript-eslint@8.x peers typescript '>=4.8.4 <6.1.0'
-      # Drop these once both ship support, then bump monorepo-wide in ONE
-      # PR — per-package bumps desync the shared toolchain.
-      - dependency-name: 'eslint'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@eslint/js'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'typescript'
-        update-types: ['version-update:semver-major']
-      # zod is pinned to ^3.24.1 in pnpm.overrides, so a v4 bump would only
-      # change the manifest while v3 stays installed — a lie, not an update.
-      # Drop this ignore as part of the dedicated zod-4 migration (which also
-      # removes the better-auth>zod / knip>zod scoped overrides).
-      - dependency-name: 'zod'
-        update-types: ['version-update:semver-major']
 
   # =============================================================================
   # GITHUB ACTIONS - CI/CD workflows (DAILY for security)
