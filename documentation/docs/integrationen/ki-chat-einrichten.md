@@ -6,7 +6,7 @@ sidebar_position: 1
 
 Du kannst den Grünerator direkt in **ChatGPT**, **Claude**, **Mistral Le Chat** oder **OpenWebUI** verwenden — ohne gruenerator.eu öffnen zu müssen. Dein KI-Assistent kann dann grüne Parteiprogramme durchsuchen, Positionen zu Themen finden und dir beim Schreiben politischer Texte helfen.
 
-:::info Was ist MCP?
+:::info[Was ist MCP?]
 MCP (Model Context Protocol) ist ein offener Standard, über den KI-Chatbots auf externe Datenquellen zugreifen können — hier sorgt es dafür, dass dein Chat-Assistent den Grünerator nutzen kann.
 :::
 

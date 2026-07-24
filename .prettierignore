@@ -33,6 +33,11 @@ ios/
 # Vendored pyodide runtime assets
 apps/web/public/pyodide/
 
+# Generated docs manifests — owned by documentation/scripts/generate-*.mjs, whose
+# --check compares byte-for-byte. Prettier collapses short arrays and would make
+# the sync check fail against its own generator.
+documentation/src/generated/
+
 # Misc
 *.lock
 *.log

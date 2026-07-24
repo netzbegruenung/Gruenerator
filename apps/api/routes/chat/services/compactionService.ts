@@ -223,7 +223,7 @@ export async function getMessageCount(threadId: string): Promise<number> {
   const postgres = getPostgresInstance();
 
   const result = await postgres.query(
-    `SELECT COUNT(*) as count FROM chat_messages WHERE thread_id = $1`,
+    `SELECT COUNT(*) as count FROM chat_messages WHERE thread_id = $1 AND status = 'complete'`,
     [threadId]
   );
 
@@ -231,7 +231,9 @@ export async function getMessageCount(threadId: string): Promise<number> {
 }
 
 /**
- * Get all messages for a thread (for compaction)
+ * Get all messages for a thread (for compaction).
+ * Only completed rows: the in-flight streaming placeholder and interrupted
+ * partial turns must not leak into compaction summaries.
  */
 export async function getThreadMessages(threadId: string): Promise<Message[]> {
   const postgres = getPostgresInstance();
@@ -239,7 +241,7 @@ export async function getThreadMessages(threadId: string): Promise<Message[]> {
   const result = await postgres.query(
     `SELECT id, role, content, created_at
      FROM chat_messages
-     WHERE thread_id = $1
+     WHERE thread_id = $1 AND status = 'complete'
      ORDER BY created_at ASC`,
     [threadId]
   );

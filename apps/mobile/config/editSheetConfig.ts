@@ -104,13 +104,7 @@ export function supportsEditing(type: ImageStudioTemplateType | null): boolean {
  * Used for the two-tier editing UI (bar + modal)
  */
 export type EditCategory =
-  | 'text'
-  | 'fontSize'
-  | 'colorScheme'
-  | 'balkenOffset'
-  | 'balkenGruppe'
-  | 'sonnenblume'
-  | 'credit';
+  'text' | 'fontSize' | 'colorScheme' | 'balkenOffset' | 'balkenGruppe' | 'sonnenblume' | 'credit';
 
 export interface CategoryConfig {
   id: EditCategory;

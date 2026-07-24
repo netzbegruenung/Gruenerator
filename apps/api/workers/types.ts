@@ -37,16 +37,11 @@ export interface WorkerProgressMessage {
 }
 
 export type WorkerMessage =
-  | WorkerRequestMessage
-  | WorkerResponseMessage
-  | WorkerErrorMessage
-  | WorkerProgressMessage;
+  WorkerRequestMessage | WorkerResponseMessage | WorkerErrorMessage | WorkerProgressMessage;
 
 export type WorkerIncomingMessage = WorkerRequestMessage;
 export type WorkerOutgoingMessage =
-  | WorkerResponseMessage
-  | WorkerErrorMessage
-  | WorkerProgressMessage;
+  WorkerResponseMessage | WorkerErrorMessage | WorkerProgressMessage;
 
 // ========================================
 // AI Request/Response Types

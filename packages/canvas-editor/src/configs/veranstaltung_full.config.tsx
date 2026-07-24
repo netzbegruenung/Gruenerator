@@ -453,14 +453,12 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       type: 'text',
       x: (s: VeranstaltungFullState, l: LayoutResult) => {
         const eventTitle = l['event-title'] as
-          | { x?: number; y?: number; fontSize?: number }
-          | undefined;
+          { x?: number; y?: number; fontSize?: number } | undefined;
         return eventTitle?.x ?? VERANSTALTUNG_CONFIG.text.leftMargin;
       },
       y: (s: VeranstaltungFullState, l: LayoutResult) => {
         const eventTitle = l['event-title'] as
-          | { x?: number; y?: number; fontSize?: number }
-          | undefined;
+          { x?: number; y?: number; fontSize?: number } | undefined;
         return eventTitle?.y ?? VERANSTALTUNG_CONFIG.eventTitle.startY;
       },
       order: 3,
@@ -468,8 +466,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       width: VERANSTALTUNG_CONFIG.text.maxWidth,
       fontSize: (s: VeranstaltungFullState, l: LayoutResult) => {
         const eventTitle = l['event-title'] as
-          | { x?: number; y?: number; fontSize?: number }
-          | undefined;
+          { x?: number; y?: number; fontSize?: number } | undefined;
         return eventTitle?.fontSize ?? VERANSTALTUNG_CONFIG.eventTitle.fontSize;
       },
       fontFamily: `${VERANSTALTUNG_CONFIG.eventTitle.fontFamily}, Arial, sans-serif`,
@@ -491,14 +488,12 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       type: 'text',
       x: (s: VeranstaltungFullState, l: LayoutResult) => {
         const beschreibung = l['beschreibung'] as
-          | { x?: number; y?: number; fontSize?: number }
-          | undefined;
+          { x?: number; y?: number; fontSize?: number } | undefined;
         return beschreibung?.x ?? VERANSTALTUNG_CONFIG.text.leftMargin;
       },
       y: (s: VeranstaltungFullState, l: LayoutResult) => {
         const beschreibung = l['beschreibung'] as
-          | { x?: number; y?: number; fontSize?: number }
-          | undefined;
+          { x?: number; y?: number; fontSize?: number } | undefined;
         return beschreibung?.y ?? 750;
       },
       order: 4,
@@ -506,8 +501,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       width: VERANSTALTUNG_CONFIG.text.maxWidth,
       fontSize: (s: VeranstaltungFullState, l: LayoutResult) => {
         const beschreibung = l['beschreibung'] as
-          | { x?: number; y?: number; fontSize?: number }
-          | undefined;
+          { x?: number; y?: number; fontSize?: number } | undefined;
         return beschreibung?.fontSize ?? VERANSTALTUNG_CONFIG.description.fontSize;
       },
       fontFamily: `${VERANSTALTUNG_CONFIG.description.fontFamily}, Arial, sans-serif`,

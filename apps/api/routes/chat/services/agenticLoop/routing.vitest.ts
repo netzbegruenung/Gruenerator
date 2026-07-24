@@ -383,6 +383,9 @@ describe('compoundGenerationKind', () => {
     expect(compoundGenerationKind('create_sheet', 'Such Zahlen und mach eine Tabelle')).toBe(
       'sheet'
     );
+    expect(compoundGenerationKind('create_pdf', 'Recherchiere X und mach ein PDF daraus')).toBe(
+      'pdf'
+    );
   });
 
   it('recovers the kind from the text noun on a DEMOTED `agentic` turn (the sheet bug)', () => {
@@ -402,6 +405,19 @@ describe('compoundGenerationKind', () => {
       'presentation'
     );
     expect(compoundGenerationKind('direct', 'Such Fakten und mach ein Sharepic')).toBe('sharepic');
+    // pdf wins over the generic document noun: "PDF-Dokument" names both.
+    expect(
+      compoundGenerationKind('agentic', 'Recherchiere X und erstelle ein PDF-Dokument dazu')
+    ).toBe('pdf');
+    expect(
+      compoundGenerationKind(
+        'agentic',
+        'Such die Fakten und mach einen Brief mit Briefkopf als PDF'
+      )
+    ).toBe('pdf');
+    expect(
+      compoundGenerationKind('agentic', 'Recherchiere die Regeln und bau ein Anmeldeformular')
+    ).toBe('pdf');
   });
 
   it('returns null without a research signal (pure generation stays single-pass)', () => {
