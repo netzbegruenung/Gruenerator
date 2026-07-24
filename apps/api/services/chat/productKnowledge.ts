@@ -61,7 +61,7 @@ export function buildCompactProductIdentity(locale: Locale): string {
     `
 
 ## PRODUKT-KONTEXT: GRÜNERATOR
-Du bist Teil des Grünerator (gruenerator.eu), des KI-Werkzeugkastens für Aktive {{partyNameGenitive}}: spezialisierte Grüneratoren (Agentura), Office (Dokumente, Boards, Tabellen, Präsentationen), KI-Bilder & Sharepics, Reels-Untertitel, Notebooks & Recherche in grünen Wissenssammlungen sowie MCP-Anbindungen (Live-Daten im Chat, eigene Server verbinden, Grünerator-Wissen in ChatGPT/Claude). Fragen zum Grünerator selbst beantwortest du kompetent (Details & Anleitungen: docs.gruenerator.eu); allgemeiner Technik-Support außerhalb des Grünerators bleibt nicht dein Feld.`,
+Du bist Teil des Grünerator (gruenerator.eu), des KI-Werkzeugkastens für Aktive {{partyNameGenitive}}: spezialisierte Grüneratoren (Agentura), Office (Dokumente, Boards, Tabellen, Präsentationen), KI-Bilder & Sharepics, Reels-Untertitel, Notebooks & Recherche in grünen Wissenssammlungen sowie MCP-Anbindungen (Live-Daten im Chat, eigene Server verbinden, Grünerator-Wissen in ChatGPT/Claude). Fragen zum Grünerator selbst beantwortest du kompetent (Details & Anleitungen: doku.gruenerator.eu); allgemeiner Technik-Support außerhalb des Grünerators bleibt nicht dein Feld.`,
     locale
   );
 }
@@ -166,7 +166,7 @@ ${formatCollectionLine()}
 ${formatSystemMcpLines(locale)}${mcpSection}
 
 ### Grünerator als MCP-Server für externe KI-Chats
-Über mcp.gruenerator.eu lassen sich die grünen Wissenssammlungen in ChatGPT, Claude und anderen MCP-fähigen Chats nutzen. Eigene MCP-Server können unter gruenerator.eu/apps verbunden und im Chat per @-Erwähnung genutzt werden. Anleitung: docs.gruenerator.eu.
+Über mcp.gruenerator.eu lassen sich die grünen Wissenssammlungen in ChatGPT, Claude und anderen MCP-fähigen Chats nutzen. Eigene MCP-Server können unter gruenerator.eu/apps verbunden und im Chat per @-Erwähnung genutzt werden. Anleitung: doku.gruenerator.eu.
 
-Beantworte Produktfragen aus diesem Block. Erfinde keine Funktionen, die hier nicht stehen; für Schritt-für-Schritt-Anleitungen verweise auf docs.gruenerator.eu.`;
+Beantworte Produktfragen aus diesem Block. Erfinde keine Funktionen, die hier nicht stehen; für Schritt-für-Schritt-Anleitungen verweise auf doku.gruenerator.eu.`;
 }

@@ -1,13 +1,17 @@
 name: Docs Build
 
-# Builds the Docusaurus site on PRs so two guarantees have teeth:
+# Builds the Docusaurus site on PRs so three guarantees have teeth:
 #   1. labels:check fails if src/generated/ui-labels.json is stale vs. the app's
 #      UI catalog configs (a title changed in code but the manifest wasn't
 #      regenerated).
 #   2. docusaurus build fails if any <UiLabel id="…"> references an id that no
 #      longer exists in the manifest (a renamed/removed catalog entry).
+#   3. docs:index --check fails if the chat's committed documentation index is
+#      stale vs. documentation/docs (a page added, renamed or restructured
+#      without regenerating), which would make the chat cite dead deep links or
+#      miss the page entirely.
 # Triggers on doc changes and on the catalog source files the manifest derives
-# from. Blocking on purpose — both failures are real drift the author must fix.
+# from. Blocking on purpose — all three are real drift the author must fix.
 #
 # The chat-capabilities manifest is deliberately NOT checked here: an
 # undocumented chat capability is reported as a GitHub issue by
@@ -48,3 +52,8 @@ jobs:
 
       - name: Build docs (fails on unknown UiLabel ids)
         run: pnpm --filter @gruenerator/documentation build
+
+      # Dependency-free (plain node, reads documentation/docs + the committed
+      # module), so it needs no extra install beyond the docs filter above.
+      - name: Check the chat's docs index is in sync
+        run: pnpm --filter @gruenerator/documentation docs:index:check
