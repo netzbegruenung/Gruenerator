@@ -1145,7 +1145,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         ],
         options: {
           model: INTERMEDIATE_MODEL.model,
-          max_tokens: 250,
+          max_tokens: 1000,
           temperature: 0.1,
           response_format: { type: 'json_object' },
         },
@@ -1347,7 +1347,7 @@ async function classifyWithForcedSearch(opts: {
         ],
         options: {
           model: INTERMEDIATE_MODEL.model,
-          max_tokens: 250,
+          max_tokens: 1000,
           temperature: 0.1,
           response_format: { type: 'json_object' },
         },

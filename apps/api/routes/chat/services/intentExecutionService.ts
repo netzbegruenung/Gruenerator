@@ -48,7 +48,6 @@ import { generateSliderDeckVariant } from './sliderDeckService.js';
 import { PROGRESS_MESSAGES, sendSearchDegradedWarning } from './sseHelpers.js';
 import { createMessage, setThreadToolContext, touchThread } from './threadPersistenceService.js';
 
-import type { CreatePdfResult } from '../../../services/pdf/PdfGenerationService.js';
 import type { SSEWriter, SearchResultPayload } from './sseHelpers.js';
 import type {
   ChatGraphState,
@@ -60,6 +59,7 @@ import type {
   SearchResult,
   SocialPostPayload,
 } from '../../../agents/langgraph/ChatGraph/types.js';
+import type { CreatePdfResult } from '../../../services/pdf/PdfGenerationService.js';
 import type { ModelMessage } from 'ai';
 import type { Request } from 'express';
 
@@ -100,7 +100,7 @@ export async function handleBoardCreation(opts: {
         type: 'board_generation',
         systemPrompt: BOARD_GENERATION_PROMPT,
         messages: [{ role: 'user', content: boardTopic }],
-        options: { temperature: 0.7, max_tokens: 2000 },
+        options: { temperature: 0.7 },
       },
       req as Express.Request & { user?: { id?: string }; sessionID?: string }
     );
@@ -228,7 +228,7 @@ export async function runPdfGeneration(opts: {
       type: 'doc_generation',
       systemPrompt: PDF_GENERATION_PROMPT,
       messages: [{ role: 'user', content: `${directive}${userContent}` }],
-      options: { temperature: 0.5, max_tokens: 6000 },
+      options: { temperature: 0.5 },
     },
     reqWithUser
   );
@@ -283,7 +283,7 @@ export async function runDocGeneration(opts: {
         type: 'doc_generation',
         systemPrompt: PRESENTATION_GENERATION_PROMPT,
         messages: [{ role: 'user', content: userContent }],
-        options: { temperature: 0.4, max_tokens: 4000 },
+        options: { temperature: 0.4 },
       },
       reqWithUser
     );
@@ -311,7 +311,7 @@ export async function runDocGeneration(opts: {
         type: 'doc_generation',
         systemPrompt: SHEET_GENERATION_PROMPT,
         messages: [{ role: 'user', content: userContent }],
-        options: { temperature: 0.4, max_tokens: 4000 },
+        options: { temperature: 0.4 },
       },
       reqWithUser
     );
@@ -338,7 +338,7 @@ export async function runDocGeneration(opts: {
       type: 'doc_generation',
       systemPrompt: DOCUMENT_GENERATION_PROMPT,
       messages: [{ role: 'user', content: userContent }],
-      options: { temperature: 0.7, max_tokens: 4000 },
+      options: { temperature: 0.7 },
     },
     reqWithUser
   );
@@ -391,7 +391,7 @@ export async function runBoardGeneration(opts: {
       type: 'board_generation',
       systemPrompt: BOARD_GENERATION_PROMPT,
       messages: [{ role: 'user', content: userContent }],
-      options: { temperature: 0.7, max_tokens: 2000 },
+      options: { temperature: 0.7 },
     },
     req as Express.Request & { user?: { id?: string }; sessionID?: string }
   );
@@ -774,7 +774,7 @@ export async function handleRecurringTaskCreation(opts: {
         type: 'doc_generation',
         systemPrompt: RECURRING_EXTRACTION_PROMPT,
         messages: [{ role: 'user', content: userContent }],
-        options: { temperature: 0.2, max_tokens: 800 },
+        options: { temperature: 0.2 },
       },
       req as Express.Request & { user?: { id?: string }; sessionID?: string }
     );
@@ -893,7 +893,7 @@ export async function generateAndCreateDocument(opts: {
         type: 'doc_generation',
         systemPrompt: DOCUMENT_GENERATION_PROMPT + subtypeHint,
         messages: [{ role: 'user', content: userMessage }],
-        options: { temperature: 0.7, max_tokens: 4000 },
+        options: { temperature: 0.7 },
       },
       req as Express.Request & { user?: { id?: string }; sessionID?: string }
     );

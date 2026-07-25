@@ -207,7 +207,7 @@ Ziel: ~${info.recommendedChars} Zeichen. Hartes Maximum: ${info.maxChars} Zeiche
         type: 'social_post_edit',
         systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
-        options: { temperature: 0.5, max_tokens: 1200 },
+        options: { temperature: 0.5 },
       },
       req as (Request & { user?: { id?: string }; sessionID?: string }) | null
     );
