@@ -8,7 +8,8 @@
     "paths": {
       "@/*": ["src/*"],
       "@gruenerator/chat": ["../../packages/chat/src"],
-      "@gruenerator/chat/*": ["../../packages/chat/src/*"]
+      "@gruenerator/chat/*": ["../../packages/chat/src/*"],
+      "katex/contrib/mhchem": ["src/types/katex-mhchem.d.ts"]
     },
     "types": ["vite/client"],
     "noUncheckedIndexedAccess": false,
