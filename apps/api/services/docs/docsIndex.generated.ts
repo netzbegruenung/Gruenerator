@@ -236,7 +236,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/ueber-den-gruenerator/inhaltsdatenbank",
     "title": "Inhaltsdatenbank",
     "category": "Über den Grünerator",
-    "lead": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 61.280 Vektoren in der Datenbank gespeichert."
+    "lead": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 0 Vektoren in der Datenbank gespeichert."
   },
   {
     "url": "/docs/ueber-den-gruenerator/intro",
@@ -2135,7 +2135,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Landesverbände",
     "anchor": "#landesverbände",
     "category": "Über den Grünerator",
-    "text": "Die Landesverbände-Sammlung enthält 28.788 Vektoren aus 12 Quellen. Landesverband | Kürzel | Vektoren | ------------------------------- | ------ | ---------: | Thüringen Fraktion | TH-F | 6.015 | Hamburg | HH | 4.779 | Thüringen | TH | 2.800 | Mecklenburg-Vorpommern Fraktion | MV-F | 2.581 | Brandenburg | BB | 2.288 | Berlin Fraktion | BE-F | 2.270 | Mecklenburg-Vorpommern | MV | 2.196 | Berlin | BE | 1.857 | Sachsen-Anhalt Fraktion | LSA-F | 1.501 | Sachsen-Anhalt | LSA | 1.085 | Bayern | BY | 957 | Schleswig-Holstein | SH | 459 | Gesamt | | 28.788 |"
+    "text": "Die Landesverbände-Sammlung enthält 0 Vektoren aus 0 Quellen. Landesverband | Kürzel | Vektoren | ------------- | ------ | -------: | Gesamt | | 0 |"
   },
   {
     "url": "/docs/ueber-den-gruenerator/inhaltsdatenbank",
@@ -2143,7 +2143,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Sammlungen",
     "anchor": "#sammlungen",
     "category": "Über den Grünerator",
-    "text": "Sammlung | Vektoren | ---------------------- | ---------: | Landesverbände | 38.083 | KommunalWiki | 7.482 | Bundestag | 4.793 | Böll-Stiftung | 3.672 | Social-Media-Beispiele | 2.489 | gruene.at | 1.014 | gruene.de | 884 | Grundsatzprogramm | 838 | Grüne Österreich | 776 | Satzungen | 712 | Grünblog | 537 | Gesamt | 61.280 |"
+    "text": "Sammlung | Vektoren | -------- | -------: | Gesamt | 0 |"
   },
   {
     "url": "/docs/ueber-den-gruenerator/inhaltsdatenbank",
@@ -2151,7 +2151,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Übersicht",
     "anchor": "#übersicht",
     "category": "Über den Grünerator",
-    "text": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 61.280 Vektoren in der Datenbank gespeichert."
+    "text": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 0 Vektoren in der Datenbank gespeichert."
   },
   {
     "url": "/docs/ueber-den-gruenerator/intro",
