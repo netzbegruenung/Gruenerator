@@ -44,6 +44,7 @@ beforeEach(() => {
   createMessage.mockReset().mockResolvedValue(undefined);
   finalizeAssistantMessage.mockReset().mockResolvedValue(true);
   touchThread.mockReset().mockResolvedValue(undefined);
+  setThreadToolContext.mockReset().mockResolvedValue(undefined);
 });
 
 describe('persistResumedResponse turn persistence', () => {
@@ -86,5 +87,42 @@ describe('persistResumedResponse turn persistence', () => {
     expect(finalizeAssistantMessage).toHaveBeenCalledTimes(1);
     expect(createMessage).not.toHaveBeenCalled();
     expect(touchThread).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The resume path used to drop createdDocument while the normal path persisted
+ * it, so an artifact created on a resumed turn lost its card on reload AND left
+ * the thread's sticky pointer on the previous turn's artifact.
+ */
+describe('persistResumedResponse keeps a created artifact', () => {
+  const createdDocument = {
+    documentId: 'b3b6f307-90b7-465a-a5fe-d76ae8a0d69c.pdf',
+    title: 'Fact Sheet',
+    subtype: 'pdf',
+    url: '/api/chat-service/compute-assets/b3b6f307-90b7-465a-a5fe-d76ae8a0d69c.pdf',
+  };
+
+  it('persists createdDocument so the card rehydrates on reload', async () => {
+    await persistResumedResponse({ ...base, createdDocument });
+
+    const [, , , metadata] = createMessage.mock.calls[0];
+    expect((metadata as { createdDocument?: unknown }).createdDocument).toEqual(createdDocument);
+  });
+
+  it('writes the sticky tool context the next turn classifies against', async () => {
+    await persistResumedResponse({ ...base, createdDocument });
+
+    expect(setThreadToolContext).toHaveBeenCalledWith('thread-1', {
+      kind: 'pdf',
+      ref: createdDocument.documentId,
+      label: 'Fact Sheet',
+    });
+  });
+
+  it('leaves the pointer untouched on a plain turn', async () => {
+    await persistResumedResponse(base);
+
+    expect(setThreadToolContext).not.toHaveBeenCalled();
   });
 });
