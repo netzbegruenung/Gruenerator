@@ -5,7 +5,13 @@ import {
   BranchPickerPrimitive,
   useAuiState,
 } from '@assistant-ui/react-native';
-import { parseGenericFallback, resolveToolEntry, useFetchFullText } from '@gruenerator/chat';
+import {
+  parseGenericFallback,
+  resolveToolEntry,
+  selectNarration,
+  useFetchFullText,
+  type PartLike,
+} from '@gruenerator/chat';
 import { parseMentionTokens } from '@gruenerator/shared/utils';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import {
@@ -290,6 +296,39 @@ function AssistantTextPart(props: { text: string }) {
   );
 }
 
+// Persistent planner narration above the tool row (split-gather mode). Reads
+// the raw part via useAuiState — assistant-ui's typed tool props don't carry the
+// custom `narration` field, but it survives on message.parts. Mirrors web's
+// ToolNarration; the selection rule is unit-tested in narrationView.vitest.ts.
+function ToolNarrationNative({ toolCallId }: { toolCallId: string }) {
+  const theme = useTheme();
+  const narration = useAuiState((s) =>
+    selectNarration((s.message?.parts ?? []) as ReadonlyArray<PartLike>, toolCallId)
+  );
+  if (!narration) return null;
+  return (
+    <Text numberOfLines={2} style={[styles.toolNarration, { color: theme.textSecondary }]}>
+      {narration}
+    </Text>
+  );
+}
+
+// Wraps every tool card with its narration line above (all tool families).
+function AssistantToolCallPartWithNarration(props: {
+  toolCallId: string;
+  toolName: string;
+  args: Record<string, unknown>;
+  result?: unknown;
+  addResult: (result: string) => void;
+}) {
+  return (
+    <>
+      <ToolNarrationNative toolCallId={props.toolCallId} />
+      <AssistantToolCallPart {...props} />
+    </>
+  );
+}
+
 function AssistantToolCallPart(props: {
   toolCallId: string;
   toolName: string;
@@ -412,7 +451,7 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
   const partsComponents = useMemo(
     () => ({
       Text: AssistantTextPart,
-      tools: { Fallback: AssistantToolCallPart },
+      tools: { Fallback: AssistantToolCallPartWithNarration },
       Reasoning: AssistantReasoningPart,
       Empty: TypingIndicator,
     }),
@@ -591,6 +630,12 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     paddingHorizontal: spacing.small,
     paddingBottom: spacing.small,
+  },
+  toolNarration: {
+    fontSize: 13,
+    lineHeight: 18,
+    paddingHorizontal: spacing.small,
+    marginTop: spacing.xxsmall,
   },
   followUpContainer: {
     paddingHorizontal: spacing.medium,

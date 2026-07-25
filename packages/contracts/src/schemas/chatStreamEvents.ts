@@ -464,6 +464,10 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
       // serverName labels a connector/MCP tool. Both optional + additive.
       title: z.string().optional(),
       serverName: z.string().optional(),
+      // Planner announcement sentence(s) streamed before this tool call started
+      // (split-gather mode only). Persisted on the tool-call part and rendered
+      // as muted text above the card — the durable form of gather_narration.
+      narration: z.string().optional(),
     })
     .passthrough(),
   tool_step_result: z
