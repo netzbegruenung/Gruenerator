@@ -171,7 +171,8 @@ export function ShareAgentModal({ identifier, open, onOpenChange }: ShareAgentMo
                   </Select>
                 ) : myGroupsQuery.data && myGroupsQuery.data.length === 0 ? (
                   <p className="text-xs text-grey-500">
-                    Du bist noch in keiner Gruppe. Tritt einer Gruppe bei, um Agent*innen zu teilen.
+                    Du bist noch in keiner Gruppe. Tritt einer Gruppe bei, um Grüneratoren zu
+                    teilen.
                   </p>
                 ) : null}
               </div>
@@ -193,7 +194,7 @@ export function ShareAgentModal({ identifier, open, onOpenChange }: ShareAgentMo
                   Auf „Von der Basis“ listen
                 </Label>
                 <p className="text-xs text-grey-500 dark:text-grey-400">
-                  Dein*e Agent*in erscheint dann in der Agentura unter „Von der Basis“ zum
+                  Dein Grünerator-Agent erscheint dann in der Agentura unter „Von der Basis“ zum
                   Entdecken.
                 </p>
                 {!isPublic && shareMode !== 'authenticated' ? (
