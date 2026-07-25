@@ -131,7 +131,7 @@ export const ColumnHeader = memo(function ColumnHeader({
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="p-1.5 sm:p-0.5 rounded hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer text-grey-400 hover:text-foreground">
+          <button className="max-sm:size-11 max-sm:inline-flex max-sm:items-center max-sm:justify-center sm:p-0.5 rounded hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer text-grey-400 hover:text-foreground">
             <FiMoreVertical size={14} />
           </button>
         </DropdownMenuTrigger>
@@ -147,7 +147,7 @@ export const ColumnHeader = memo(function ColumnHeader({
                 <button
                   key={color}
                   onClick={() => onColorChange(color)}
-                  className="w-6 h-6 sm:w-4 sm:h-4 rounded-full border-none cursor-pointer"
+                  className="max-sm:w-11 max-sm:h-11 sm:w-4 sm:h-4 rounded-full border-none cursor-pointer"
                   style={{
                     backgroundColor: color,
                     outline: column.color === color ? '2px solid currentColor' : 'none',
@@ -171,7 +171,7 @@ export const ColumnHeader = memo(function ColumnHeader({
                   const n = v === '' ? null : Math.max(1, Math.floor(Number(v)));
                   onSetLimit(n != null && Number.isFinite(n) ? n : null);
                 }}
-                className="mt-1 w-full rounded border border-grey-200 dark:border-grey-700 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500"
+                className="mt-1 w-full rounded border border-grey-200 dark:border-grey-700 bg-transparent px-2 py-1 text-xs max-sm:text-base outline-none focus:border-primary-500"
               />
             </div>
           )}
@@ -180,7 +180,7 @@ export const ColumnHeader = memo(function ColumnHeader({
               <button
                 onClick={onMoveLeft}
                 disabled={!onMoveLeft}
-                className="flex flex-1 items-center justify-center gap-1 rounded px-2 py-1 text-xs text-grey-500 hover:bg-grey-100 dark:hover:bg-grey-800 disabled:opacity-30 disabled:cursor-default bg-transparent border-none cursor-pointer"
+                className="flex flex-1 items-center justify-center gap-1 rounded px-2 py-1 max-sm:min-h-11 text-xs text-grey-500 hover:bg-grey-100 dark:hover:bg-grey-800 disabled:opacity-30 disabled:cursor-default bg-transparent border-none cursor-pointer"
                 title="Nach links"
               >
                 <FiChevronLeft size={14} /> Links
@@ -188,7 +188,7 @@ export const ColumnHeader = memo(function ColumnHeader({
               <button
                 onClick={onMoveRight}
                 disabled={!onMoveRight}
-                className="flex flex-1 items-center justify-center gap-1 rounded px-2 py-1 text-xs text-grey-500 hover:bg-grey-100 dark:hover:bg-grey-800 disabled:opacity-30 disabled:cursor-default bg-transparent border-none cursor-pointer"
+                className="flex flex-1 items-center justify-center gap-1 rounded px-2 py-1 max-sm:min-h-11 text-xs text-grey-500 hover:bg-grey-100 dark:hover:bg-grey-800 disabled:opacity-30 disabled:cursor-default bg-transparent border-none cursor-pointer"
                 title="Nach rechts"
               >
                 Rechts <FiChevronRight size={14} />
