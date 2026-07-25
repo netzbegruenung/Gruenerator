@@ -200,7 +200,10 @@ export interface LoopEngineParams {
   messages: ModelMessage[];
   maxSteps: number;
   temperature: number;
-  maxOutputTokens: number;
+  /** Optional output cap. Omitted on answer paths (OpenWebUI-style: the
+   *  provider/context window is the backstop) — explicit caps truncated
+   *  think-lane answers mid-sentence because reasoning tokens count too. */
+  maxOutputTokens?: number;
   abortSignal: AbortSignal;
   /** Extra force-finish trigger (e.g. an image was generated). */
   forceFinish: () => boolean;
@@ -251,7 +254,7 @@ async function streamWithTools(
     tools: p.tools,
     stopWhen: isStepCount(p.maxSteps),
     temperature: p.temperature,
-    maxOutputTokens: p.maxOutputTokens,
+    ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
     abortSignal: p.abortSignal,
     prepareStep: buildPrepareStep(
       p.toolSystem,
@@ -280,7 +283,7 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
       tools: p.tools,
       stopWhen: isStepCount(p.maxSteps),
       temperature: p.temperature,
-      maxOutputTokens: p.maxOutputTokens,
+      ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
       abortSignal: p.abortSignal,
       prepareStep: buildPrepareStep(
         gatherSystem,
@@ -324,14 +327,14 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: 
     system: p.buildSynthSystem(p.getSourcesBlock()),
     messages: p.messages,
     temperature: p.temperature,
-    maxOutputTokens: p.maxOutputTokens,
+    ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
     abortSignal: p.abortSignal,
   });
   return drain(result, p.onText, p.onReasoning);
 }
 
 interface Drainable {
-  stream: AsyncIterable<{ type: string; text?: string; error?: unknown }>;
+  stream: AsyncIterable<{ type: string; text?: string; error?: unknown; finishReason?: string }>;
 }
 
 async function drain(
@@ -351,6 +354,13 @@ async function drain(
     } else if (part.type === 'text-delta' && part.text != null && part.text.length > 0) {
       text += part.text;
       onText(part.text);
+    } else if (part.type === 'finish' && part.finishReason === 'length') {
+      // Only reachable when a caller sets maxOutputTokens (answer paths omit
+      // it) or the provider enforces its own cap — surface it instead of
+      // persisting a silently truncated answer.
+      log.warn(
+        `[Engine] output budget exhausted (finishReason=length) after ${text.length} chars — answer is truncated`
+      );
     }
   }
   return { text };

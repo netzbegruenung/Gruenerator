@@ -739,7 +739,8 @@ export async function streamAgenticResponse(params: {
           : messages,
       maxSteps: budget.maxSteps,
       temperature: agentConfig.params.temperature ?? 0.3,
-      maxOutputTokens: Math.max(agentConfig.params.max_tokens ?? 2000, 4000),
+      // No output cap (OpenWebUI-style): the model window is the backstop.
+      // The old 4000-token floor truncated think-lane answers mid-sentence.
       abortSignal,
       afterGather,
       forceFinish: () =>
