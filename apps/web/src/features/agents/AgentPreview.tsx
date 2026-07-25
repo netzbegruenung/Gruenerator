@@ -76,7 +76,7 @@ export function AgentPreview({
         </div>
       ) : (
         <div className="flex flex-1 items-center justify-center p-lg text-center text-sm text-foreground-muted">
-          Um eine Vorschau anzuzeigen, gib deinem Agenten erst einen Namen.
+          Um eine Vorschau anzuzeigen, gib deinem Grünerator-Agenten erst einen Namen.
         </div>
       )}
 

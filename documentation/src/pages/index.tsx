@@ -54,8 +54,8 @@ const categories: CategoryCard[] = [
     description: 'Erstelle grüne Inhalte: Texte, Sharepics, Untertitel und mehr.',
     link: '/docs/gruenerieren/ki-modelle',
     topPages: [
+      { title: 'Was kann ich fragen?', link: '/docs/gruenerieren/was-kann-ich-fragen' },
       { title: 'KI-Modelle', link: '/docs/gruenerieren/ki-modelle' },
-      { title: 'Websuche', link: '/docs/gruenerieren/websuche' },
       { title: 'Dateien hinzufügen', link: '/docs/gruenerieren/dateien-hinzufuegen' },
     ],
   },

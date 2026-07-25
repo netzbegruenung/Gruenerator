@@ -1,7 +1,16 @@
 /* eslint-disable */
 'use client';
 
-import { DndContext, MouseSensor, useDraggable, useSensor } from '@dnd-kit/core';
+import {
+  DndContext,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  useDraggable,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import type { Announcements, DragMoveEvent, DragStartEvent } from '@dnd-kit/core';
 import { restrictToHorizontalAxis } from '@dnd-kit/modifiers';
 import { useMouse, useThrottle, useWindowScroll } from '@uidotdev/usehooks';
 import {
@@ -163,6 +172,23 @@ const getAddRange = (range: Range) => {
   }
 
   return fn;
+};
+
+// Pointer x at drag start. getDateByMousePosition maps x non-linearly onto dates
+// (month columns hold 28-31 days at a constant column width), so dnd-kit's delta
+// needs an anchor to be converted into days.
+const getActivatorX = (event: DragStartEvent) => {
+  const activator = event.activatorEvent;
+
+  if (activator instanceof MouseEvent) {
+    return activator.clientX;
+  }
+
+  if (typeof TouchEvent !== 'undefined' && activator instanceof TouchEvent) {
+    return activator.touches[0]?.clientX ?? activator.changedTouches[0]?.clientX ?? 0;
+  }
+
+  return event.active.rect.current.initial?.left ?? 0;
 };
 
 const getDateByMousePosition = (context: GanttContextProps, mouseX: number) => {
@@ -710,8 +736,10 @@ export const GanttFeatureDragHelper: FC<GanttFeatureDragHelperProps> = ({
         direction === 'left' ? '-left-2.5' : '-right-2.5'
       )}
       ref={setNodeRef}
+      style={{ touchAction: 'manipulation' }}
       {...attributes}
       {...listeners}
+      aria-label={direction === 'left' ? 'Startdatum anpassen' : 'Enddatum anpassen'}
     >
       <div
         className={cn(
@@ -755,6 +783,7 @@ export const GanttFeatureItemCard: FC<GanttFeatureItemCardProps> = ({ id, childr
           'flex h-full w-full items-center justify-between gap-2 text-left',
           isPressed && 'cursor-grabbing'
         )}
+        style={{ touchAction: 'manipulation' }}
         {...attributes}
         {...listeners}
         ref={setNodeRef}
@@ -794,58 +823,89 @@ export const GanttFeatureItem: FC<GanttFeatureItemProps> = ({
   );
 
   const addRange = useMemo(() => getAddRange(gantt.range), [gantt.range]);
-  const [mousePosition] = useMouse<HTMLDivElement>();
 
-  const [previousMouseX, setPreviousMouseX] = useState(0);
+  // Anchor for dnd-kit's delta. Only one of the three drags can be active at a
+  // time, so a single value covers move as well as both resize handles.
+  const [dragStartX, setDragStartX] = useState(0);
   const [previousStartAt, setPreviousStartAt] = useState(startAt);
   const [previousEndAt, setPreviousEndAt] = useState(endAt);
 
-  const mouseSensor = useSensor(MouseSensor, {
-    activationConstraint: {
-      distance: 10,
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+    useSensor(KeyboardSensor)
+  );
+
+  const handleResizeDragStart = useCallback((event: DragStartEvent) => {
+    setDragStartX(getActivatorX(event));
+  }, []);
+
+  const handleItemDragStart = useCallback(
+    (event: DragStartEvent) => {
+      setDragStartX(getActivatorX(event));
+      setPreviousStartAt(startAt);
+      setPreviousEndAt(endAt);
     },
-  });
+    [startAt, endAt]
+  );
 
-  const handleItemDragStart = useCallback(() => {
-    setPreviousMouseX(mousePosition.x);
-    setPreviousStartAt(startAt);
-    setPreviousEndAt(endAt);
-  }, [mousePosition.x, startAt, endAt]);
+  const handleItemDragMove = useCallback(
+    (event: DragMoveEvent) => {
+      const currentDate = getDateByMousePosition(gantt, dragStartX + event.delta.x);
+      const originalDate = getDateByMousePosition(gantt, dragStartX);
+      const delta =
+        gantt.range === 'daily'
+          ? getDifferenceIn(gantt.range)(currentDate, originalDate)
+          : getInnerDifferenceIn(gantt.range)(currentDate, originalDate);
+      const newStartDate = addDays(previousStartAt, delta);
+      const newEndDate = previousEndAt ? addDays(previousEndAt, delta) : null;
 
-  const handleItemDragMove = useCallback(() => {
-    const currentDate = getDateByMousePosition(gantt, mousePosition.x);
-    const originalDate = getDateByMousePosition(gantt, previousMouseX);
-    const delta =
-      gantt.range === 'daily'
-        ? getDifferenceIn(gantt.range)(currentDate, originalDate)
-        : getInnerDifferenceIn(gantt.range)(currentDate, originalDate);
-    const newStartDate = addDays(previousStartAt, delta);
-    const newEndDate = previousEndAt ? addDays(previousEndAt, delta) : null;
-
-    setStartAt(newStartDate);
-    setEndAt(newEndDate);
-  }, [gantt, mousePosition.x, previousMouseX, previousStartAt, previousEndAt]);
+      setStartAt(newStartDate);
+      setEndAt(newEndDate);
+    },
+    [gantt, dragStartX, previousStartAt, previousEndAt]
+  );
 
   const onDragEnd = useCallback(
     () => onMove?.(feature.id, startAt, endAt),
     [onMove, feature.id, startAt, endAt]
   );
 
-  const handleLeftDragMove = useCallback(() => {
-    const ganttRect = gantt.ref?.current?.getBoundingClientRect();
-    const x = mousePosition.x - (ganttRect?.left ?? 0) + scrollX - gantt.sidebarWidth;
-    const newStartAt = getDateByMousePosition(gantt, x);
+  const handleLeftDragMove = useCallback(
+    (event: DragMoveEvent) => {
+      const ganttRect = gantt.ref?.current?.getBoundingClientRect();
+      const x = dragStartX + event.delta.x - (ganttRect?.left ?? 0) + scrollX - gantt.sidebarWidth;
+      const newStartAt = getDateByMousePosition(gantt, x);
 
-    setStartAt(newStartAt);
-  }, [gantt, mousePosition.x, scrollX]);
+      setStartAt(newStartAt);
+    },
+    [gantt, dragStartX, scrollX]
+  );
 
-  const handleRightDragMove = useCallback(() => {
-    const ganttRect = gantt.ref?.current?.getBoundingClientRect();
-    const x = mousePosition.x - (ganttRect?.left ?? 0) + scrollX - gantt.sidebarWidth;
-    const newEndAt = getDateByMousePosition(gantt, x);
+  const handleRightDragMove = useCallback(
+    (event: DragMoveEvent) => {
+      const ganttRect = gantt.ref?.current?.getBoundingClientRect();
+      const x = dragStartX + event.delta.x - (ganttRect?.left ?? 0) + scrollX - gantt.sidebarWidth;
+      const newEndAt = getDateByMousePosition(gantt, x);
 
-    setEndAt(newEndAt);
-  }, [gantt, mousePosition.x, scrollX]);
+      setEndAt(newEndAt);
+    },
+    [gantt, dragStartX, scrollX]
+  );
+
+  const announcements = useMemo<Announcements>(
+    () => ({
+      onDragStart: () => `Balken „${feature.name}“ aufgenommen.`,
+      onDragMove: () => `Balken „${feature.name}“ auf ${format(startAt, 'dd.MM.yyyy')} verschoben.`,
+      onDragOver: () => `Balken „${feature.name}“ auf ${format(startAt, 'dd.MM.yyyy')} verschoben.`,
+      onDragEnd: () =>
+        `Balken „${feature.name}“ abgelegt: ${format(startAt, 'dd.MM.yyyy')}${
+          endAt ? ` bis ${format(endAt, 'dd.MM.yyyy')}` : ''
+        }.`,
+      onDragCancel: () => `Verschieben von „${feature.name}“ abgebrochen.`,
+    }),
+    [feature.name, startAt, endAt]
+  );
 
   return (
     <div
@@ -862,20 +922,23 @@ export const GanttFeatureItem: FC<GanttFeatureItemProps> = ({
       >
         {onMove && (
           <DndContext
+            accessibility={{ announcements }}
             modifiers={[restrictToHorizontalAxis]}
             onDragEnd={onDragEnd}
             onDragMove={handleLeftDragMove}
-            sensors={[mouseSensor]}
+            onDragStart={handleResizeDragStart}
+            sensors={sensors}
           >
             <GanttFeatureDragHelper date={startAt} direction="left" featureId={feature.id} />
           </DndContext>
         )}
         <DndContext
+          accessibility={{ announcements }}
           modifiers={[restrictToHorizontalAxis]}
           onDragEnd={onDragEnd}
           onDragMove={handleItemDragMove}
           onDragStart={handleItemDragStart}
-          sensors={[mouseSensor]}
+          sensors={sensors}
         >
           <GanttFeatureItemCard id={feature.id}>
             {children ?? <p className="flex-1 truncate text-xs">{feature.name}</p>}
@@ -883,10 +946,12 @@ export const GanttFeatureItem: FC<GanttFeatureItemProps> = ({
         </DndContext>
         {onMove && (
           <DndContext
+            accessibility={{ announcements }}
             modifiers={[restrictToHorizontalAxis]}
             onDragEnd={onDragEnd}
             onDragMove={handleRightDragMove}
-            sensors={[mouseSensor]}
+            onDragStart={handleResizeDragStart}
+            sensors={sensors}
           >
             <GanttFeatureDragHelper
               date={endAt ?? addRange(startAt, 2)}

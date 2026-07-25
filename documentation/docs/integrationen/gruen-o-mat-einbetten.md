@@ -4,6 +4,15 @@ title: GrünOMat einbetten
 draft: true
 ---
 
+:::danger[Stillgelegt — nicht veröffentlichen]
+Dieser Artikel ist über `draft: true` aus dem Build genommen und **nicht aktuell**. Zwei Dinge müssen geprüft werden, bevor er wieder freigegeben wird:
+
+1. **Die Sammlungstabelle ist unvollständig.** Sie listet fünf Sammlungen; tatsächlich akzeptiert das Widget jede Sammlung aus `SYSTEM_COLLECTIONS` (`apps/api/config/systemCollectionsConfig.ts`) — die Validierung läuft über `isSystemCollectionId()`, nicht über eine kurze Auswahlliste. Beim Reaktivieren gehört die Tabelle an `reference.json` gehängt, nicht neu abgetippt.
+2. **Die Aussage zu `localhost` ist vermutlich falsch.** Der Artikel behauptet, für lokale Tests brauche es keine Freischaltung, weil `'self'` immer erlaubt sei. `'self'` in `frame-ancestors` meint aber die Herkunft der eingebetteten Ressource (`gruen-o-mat.eu`), nicht die Seite der Entwickler\*in. Wer die Schnellstart-Zeile in eine lokale HTML-Datei kopiert, dürfte vom Browser blockiert werden. Das ist nicht verifiziert — es gehört ausprobiert, bevor es jemand befolgt.
+
+Der übrige Inhalt wurde gegen `apps/gruen-o-mat/public/embed.js` geprüft und stimmt (Attribute, Vorgabewerte, `window.GruenOMat`-API, Shadow-DOM, Lazy-Load, Mobil-Vollbild).
+:::
+
 # GrünOMat auf deiner Website einbetten
 
 Der GrünOMat lässt sich als Chat-Widget auf externen Websites einbinden. Besucher\*innen sehen einen schwebenden Chat-Button, der beim Klicken ein Chat-Fenster mit dem GrünOMat öffnet.
