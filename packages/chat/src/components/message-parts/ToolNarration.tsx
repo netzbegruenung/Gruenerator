@@ -14,7 +14,9 @@ import { selectNarration, type PartLike } from '../../lib/narrationView';
  */
 export function ToolNarration({ toolCallId }: { toolCallId: string }) {
   const narration = useAuiState(
-    useShallow((s) => selectNarration((s.message?.parts ?? []) as ReadonlyArray<PartLike>, toolCallId))
+    useShallow((s) =>
+      selectNarration((s.message?.parts ?? []) as ReadonlyArray<PartLike>, toolCallId)
+    )
   );
 
   if (!narration) return null;

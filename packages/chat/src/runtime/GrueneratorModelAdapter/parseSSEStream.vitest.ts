@@ -154,7 +154,11 @@ describe('parseSSEStream interleaving', () => {
       { event: 'gather_narration', data: { text: 'Ich suche gleich.' } },
       {
         event: 'tool_step_start',
-        data: { stepId: 's1', toolName: 'gruenerator_search', narration: 'Ich suche jetzt danach.' },
+        data: {
+          stepId: 's1',
+          toolName: 'gruenerator_search',
+          narration: 'Ich suche jetzt danach.',
+        },
       },
     ]);
     const card = content.find(isCard);

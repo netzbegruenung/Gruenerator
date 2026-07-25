@@ -34,8 +34,7 @@ export function StreamingStatusLine({
 }: StreamingStatusLineProps): ReactNode {
   const stage = custom?.progress?.stage;
   const progress = custom?.progress;
-  const concrete =
-    stage === 'searching' || stage === 'generating' || stage === 'generating_image';
+  const concrete = stage === 'searching' || stage === 'generating' || stage === 'generating_image';
 
   const progressEl =
     progress &&

@@ -15,10 +15,7 @@ export interface PartLike {
 }
 
 /** Narration persisted on the tool-call part with this id, or null. */
-export function selectNarration(
-  parts: ReadonlyArray<PartLike>,
-  toolCallId: string
-): string | null {
+export function selectNarration(parts: ReadonlyArray<PartLike>, toolCallId: string): string | null {
   const part = parts.find((p) => p.type === 'tool-call' && p.toolCallId === toolCallId);
   const narration = part?.narration;
   return typeof narration === 'string' && narration.length > 0 ? narration : null;

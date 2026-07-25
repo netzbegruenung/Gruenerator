@@ -22,7 +22,9 @@ describe('selectNarration', () => {
   });
 
   it('returns null for an empty narration string', () => {
-    expect(selectNarration([{ type: 'tool-call', toolCallId: 't3', narration: '' }], 't3')).toBeNull();
+    expect(
+      selectNarration([{ type: 'tool-call', toolCallId: 't3', narration: '' }], 't3')
+    ).toBeNull();
   });
 });
 
