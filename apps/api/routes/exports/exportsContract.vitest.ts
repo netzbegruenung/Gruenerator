@@ -97,3 +97,55 @@ describe('POST /api/exports/pdf — Vertrag', () => {
     expect(res.headers.get('content-type')).toContain('text/html');
   }, 60_000);
 });
+
+/**
+ * The layout option is additive: the existing contract above must keep passing
+ * byte-for-byte, and a body without `layout` must behave exactly as before.
+ *
+ * This harness mounts the router WITHOUT auth, so `req.user` is undefined and
+ * the sender always resolves to null — which makes it the natural place to pin
+ * the "asked for a letterhead but nothing is on file" path.
+ */
+describe('POST /api/exports/pdf — Layout-Option', () => {
+  it('verhält sich ohne layout wie bisher', async () => {
+    const res = await postPdf({ content: 'Ein Absatz.', title: 'Dokument' });
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('application/pdf');
+  }, 60_000);
+
+  it('akzeptiert layout: document explizit', async () => {
+    const res = await postPdf({ content: 'Ein Absatz.', title: 'Dokument', layout: 'document' });
+
+    expect(res.status).toBe(200);
+  }, 60_000);
+
+  it('antwortet 400 statt 500, wenn ein Briefkopf ohne Absenderangaben verlangt wird', async () => {
+    const res = await postPdf({ content: 'Ein Absatz.', title: 'Dokument', layout: 'letterhead' });
+
+    // Ein stiller Fallback wäre byte-gleich mit dem einfachen Export — die
+    // Nutzer*in könnte „aus" nicht von „nicht eingerichtet" unterscheiden.
+    expect(res.status).toBe(400);
+    expect(res.headers.get('content-type')).not.toContain('application/pdf');
+    const body = (await res.json()) as { message: string };
+    expect(body.message).toMatch(/Absenderangaben/);
+  }, 60_000);
+
+  it('antwortet auch für den Brief 400, wenn kein Absender hinterlegt ist', async () => {
+    const res = await postPdf({
+      content: 'Brieftext.',
+      title: 'Brief',
+      layout: 'letter',
+      letter: { recipient: 'Testperson\nTeststraße 1\n12345 Teststadt' },
+    });
+
+    expect(res.status).toBe(400);
+  }, 60_000);
+
+  it('weist ein unbekanntes layout ab', async () => {
+    const res = await postPdf({ content: 'Ein Absatz.', layout: 'briefkopf' });
+
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(res.headers.get('content-type')).not.toContain('application/pdf');
+  }, 60_000);
+});

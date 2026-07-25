@@ -48,6 +48,10 @@ export const exportsContract = c.router(
       body: pdfExportBodySchema,
       responses: {
         200: binaryFileResponseSchema,
+        // Asked for a letterhead/letter with no Absender on file. Falling back
+        // silently would produce a PDF byte-identical to the plain document, so
+        // the user could never tell "off" from "not configured".
+        400: exportErrorResponseSchema,
         500: exportErrorResponseSchema,
       },
       summary: 'Generate PDF from content',

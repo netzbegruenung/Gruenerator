@@ -113,6 +113,43 @@ for (const [name, spec] of Object.entries({ document, form, letter, long, hostil
   await writeFile(path.join(outDir, `${name}.pdf`), result.bytes);
 }
 
+// Letterhead variants. The sender above reaches only the letter fixture, since
+// the document layout ignores it without the explicit flag — these cover the
+// band the flag adds, in both themes and on a form (which shares the document
+// header but adds AcroForm widgets on page 1).
+const LETTERHEAD_SENDER = {
+  name: 'Maxi Mustermensch',
+  organization: 'KV Musterstadt',
+  address: 'Musterweg 1\n12345 Musterstadt',
+};
+const letterheadCases: Array<[string, PdfDocumentSpec, 'de-DE' | 'de-AT']> = [
+  ['document-briefkopf', document, 'de-DE'],
+  ['document-briefkopf-at', { ...document, language: 'de-AT' }, 'de-AT'],
+  ['form-briefkopf', form, 'de-DE'],
+];
+for (const [name, spec, locale] of letterheadCases) {
+  const result = await renderPdf(spec, { locale, sender: LETTERHEAD_SENDER, letterhead: true });
+  await writeFile(path.join(outDir, `${name}.pdf`), result.bytes);
+}
+
+// Overlong Absender: proves the 5-line clamp and the ellipsis keep the block
+// inside the type area instead of colliding with the title.
+const longSenderResult = await renderPdf(document, {
+  locale: 'de-DE',
+  letterhead: true,
+  sender: {
+    organization: 'Kreisverband '.repeat(20),
+    name: 'Maxi Mustermensch',
+    address: 'Zeile eins\nZeile zwei\nZeile drei\nZeile vier\nZeile fünf',
+  },
+});
+await writeFile(path.join(outDir, 'document-briefkopf-lang.pdf'), longSenderResult.bytes);
+
+// A letter WITHOUT a sender — the case that used to emit a childless
+// Sect{Absender}. No existing fixture covered it, because they all pass one.
+const letterNoSender = await renderPdf(letter, { locale: 'de-DE' });
+await writeFile(path.join(outDir, 'letter-ohne-absender.pdf'), letterNoSender.bytes);
+
 // The document-export corpus goes through the same validator: since the export
 // shares this renderer, real stored content (markdown and editor HTML, both
 // deliberately hostile) has to hold up to PDF/UA too — not just hand-written

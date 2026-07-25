@@ -63,6 +63,19 @@ export interface PdfSender {
 export interface RenderPdfOptions {
   locale: PdfLocale;
   sender?: PdfSender | null;
+  /**
+   * Draw the Absender block in the `document`/`form` layouts too.
+   *
+   * A letterhead is an additive band, NOT a layout: it must not drag in the
+   * DIN-5008 furniture (recipient, place/date, subject, salutation, signature)
+   * that `kind: 'letter'` implies. Letters always draw the block and ignore
+   * this flag.
+   *
+   * Deliberately explicit rather than derived from `sender != null`:
+   * renderPdfFixtures.ts passes a sender to the document and form fixtures too,
+   * so a derived rule would silently give them a letterhead.
+   */
+  letterhead?: boolean;
 }
 
 export interface RenderPdfResult {
@@ -1360,6 +1373,10 @@ class PdfRenderer {
 
   private renderDocumentHeader(): void {
     this.drawLogo();
+    // Letterhead band above the title. Absolutely positioned, so the title
+    // stays at PAGE_H-130 whether it is drawn or not; with the option off, not
+    // a single tagger call happens and the output is byte-for-byte the old one.
+    if (this.opts.letterhead) this.drawSenderBlock(senderLines(this.opts.sender));
     this.y = PAGE_H - 130;
 
     const page = this.page;
@@ -1401,12 +1418,22 @@ class PdfRenderer {
     );
   }
 
-  private renderLetterHeader(): void {
-    this.drawLogo();
-    const letter = this.spec.letter ?? {};
-    const sender = senderLines(this.opts.sender);
-    const page = this.page;
-
+  /**
+   * Absender block, top-left above the type area.
+   *
+   * Absolutely positioned and never touches `this.y`, so it cannot disturb the
+   * caller's text flow — that is what lets the document layout draw it in the
+   * band above the title (PAGE_H-52 … PAGE_H-130) without moving anything.
+   *
+   * The `Sect` is opened ONLY for a non-empty sender: opening it
+   * unconditionally left sender-less letters with a childless structure
+   * element, which is a PDF/UA smell no fixture covered.
+   *
+   * Content, not decoration — deliberately tagged rather than marked as an
+   * artifact, so a screen reader can reach the sender's identity.
+   */
+  private drawSenderBlock(sender: string[]): void {
+    if (!sender.length) return;
     this.tagger.open('Sect', { title: 'Absender' });
     let senderY = PAGE_H - 52;
     sender.slice(0, 5).forEach((line, i) => {
@@ -1423,6 +1450,15 @@ class PdfRenderer {
       senderY -= i === 0 ? 13 : 11;
     });
     this.tagger.close();
+  }
+
+  private renderLetterHeader(): void {
+    this.drawLogo();
+    const letter = this.spec.letter ?? {};
+    const sender = senderLines(this.opts.sender);
+    const page = this.page;
+
+    this.drawSenderBlock(sender);
 
     // Rücksendeangabe über dem Adressfeld — DIN-5008-Lage, rein visuell.
     const returnLine = sender.join(' · ');

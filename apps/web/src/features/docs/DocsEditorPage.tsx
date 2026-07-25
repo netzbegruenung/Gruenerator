@@ -64,17 +64,24 @@ import useDarkMode from '../../components/hooks/useDarkMode';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
+import { useExportStore, type PdfExportOptions } from '../../stores/core/exportStore';
 import { isDesktopApp } from '../../utils/platform';
 import { platformFetch } from '../../utils/platformFetch';
+import { useProfile } from '../auth/hooks/useProfileData';
+import { letterheadApi, LETTERHEADS_QUERY_KEY } from '../settings/letterheadApi';
 import { useTourAutostart } from '../tours/useTourAutostart';
 
 import { DocAiReviewBar } from './DocAiReviewBar';
 import { webAppDocsAdapter } from './docsAdapter';
 import { GuestBadge, GUEST_ANIMALS } from './GuestBadge';
 import { getOrCreateGuestIdentity } from './guestIdentity';
+import { blockLines, detectLetterParts, stripDetectedBlocks } from './letterDetection';
+import { LetterExportDialog, type LetterExportSubmit } from './LetterExportDialog';
+import { LetterheadExportDialog } from './LetterheadExportDialog';
 import { useDocsLiveWolkeSync } from './useDocsLiveWolkeSync';
 
-import type { BlockNoteEditor } from '@blocknote/core';
+import type { LetterheadChoice } from './LetterheadChooser';
+import type { Block, BlockNoteEditor } from '@blocknote/core';
 
 const MemoizedBlockNoteEditor = memo(BlockNoteEditorComponent);
 
@@ -129,6 +136,14 @@ function EditorContent() {
   const adapter = useDocsAdapter();
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
   const { user, isAuthResolved } = useAuth({ lazy: true });
+  const { data: profile } = useProfile();
+  // Drives both the menu's availability hint and the chooser's options.
+  const { data: letterheads = [] } = useQuery({
+    queryKey: LETTERHEADS_QUERY_KEY,
+    queryFn: letterheadApi.list,
+    enabled: Boolean(user),
+    staleTime: 5 * 60 * 1000,
+  });
   const isGuest = Boolean(isAuthResolved) && !user;
   const [, , themePreference, cycleTheme] = useDarkMode();
 
@@ -208,6 +223,11 @@ function EditorContent() {
   const [showWolkeModal, setShowWolkeModal] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showExportSubmenu, setShowExportSubmenu] = useState(false);
+  // The old export was local and instant; the server round-trip takes seconds,
+  // so a second click has to be blocked rather than queueing another render.
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [showLetterDialog, setShowLetterDialog] = useState(false);
+  const [showLetterheadDialog, setShowLetterheadDialog] = useState(false);
   const [activeSidebar, setActiveSidebar] = useState<SidebarPanel | null>(null);
   // Sticky: once the chat panel is opened, DocsChatPanel stays mounted to
   // preserve its runtime + Hocuspocus connection across close/reopen. Avoids
@@ -385,31 +405,112 @@ function EditorContent() {
     }
   }, [docData, editor, exportBlockedBySuggestions]);
 
-  // @blocknote/xl-pdf-exporter and xl-odt-exporter ship no .d.ts in this install,
-  // so dynamic-import members are typed as `any`. Scoped disable until upstream types arrive.
-  const handleExportPDF = useCallback(async () => {
-    if (!docData || !editor) return;
-    if (exportBlockedBySuggestions()) return;
-    try {
-      const { PDFExporter, pdfDefaultSchemaMappings } = await import('@blocknote/xl-pdf-exporter');
-      const { pdf } = await import('@react-pdf/renderer');
-      const exporter = new PDFExporter(editor.schema, pdfDefaultSchemaMappings);
-      const pdfDocument: Parameters<typeof pdf>[0] = (await exporter.toReactPDFDocument(
-        editor.document
-      )) as Parameters<typeof pdf>[0];
-      const blob = await pdf(pdfDocument).toBlob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${docData.title || 'Dokument'}.pdf`;
-      link.click();
-      window.URL.revokeObjectURL(url);
+  /**
+   * PDF export goes through the SERVER renderer (POST /api/exports/pdf).
+   *
+   * The old client-side @blocknote/xl-pdf-exporter path produced an untagged
+   * PDF with no Grünen CI — a screen reader got nothing out of it — and a
+   * letterhead was impossible there. The HTML is serialised from the LIVE
+   * editor rather than fetched from /api/docs/:id/export/html, because that
+   * route reads a Yjs snapshot written only every 5 minutes: typing a sentence
+   * and exporting immediately would silently drop it.
+   */
+  const runPdfExport = useCallback(
+    async (options?: PdfExportOptions, selectBlocks?: (blocks: Block[]) => Block[]) => {
+      if (!docData || !editor) return;
+      if (exportBlockedBySuggestions()) return;
+      if (isExportingPdf) return;
+      const { toast } = await import('sonner');
+      setIsExportingPdf(true);
       setShowActionsMenu(false);
-    } catch (error) {
-      console.error('PDF export failed:', error);
-      void import('sonner').then(({ toast }) => toast.error('PDF-Export fehlgeschlagen'));
+      const pending = toast.loading('PDF wird erstellt …');
+      try {
+        const { blocksToHTML } = await import('@gruenerator/docs');
+        // Any block filtering happens BEFORE serialising: a line-based
+        // transform on HTML matches nothing, which is how the "remove
+        // recognised lines" option silently did nothing.
+        const blocks = selectBlocks ? selectBlocks(editor.document) : editor.document;
+        const html = await blocksToHTML(editor, blocks);
+        // blocksToHTML swallows its errors and returns '' — exporting that
+        // would download a PDF reading "enthält keinen Inhalt".
+        if (!html.trim()) throw new Error('Das Dokument konnte nicht gelesen werden.');
+        const content = html;
+        await useExportStore.getState().generatePDF(content, docData.title || 'Dokument', options);
+        toast.success('PDF erstellt', { id: pending });
+      } catch (error) {
+        console.error('PDF export failed:', error);
+        toast.error(error instanceof Error ? error.message : 'PDF-Export fehlgeschlagen', {
+          id: pending,
+        });
+      } finally {
+        setIsExportingPdf(false);
+      }
+    },
+    [docData, editor, exportBlockedBySuggestions, isExportingPdf]
+  );
+
+  const handleExportPDF = useCallback(() => void runPdfExport(), [runPdfExport]);
+
+  /**
+   * Run an export from a chooser result, saving the Absender first when the
+   * user ticked "für später speichern" — through the same create call the
+   * settings tab uses, so both paths produce the same thing.
+   */
+  const runWithChoice = useCallback(
+    async (
+      choice: LetterheadChoice,
+      layout: 'letterhead' | 'letter',
+      letter?: LetterExportSubmit['letter'],
+      selectBlocks?: (blocks: Block[]) => Block[]
+    ) => {
+      let letterheadId = choice.letterheadId;
+      if (choice.saveForLater) {
+        try {
+          const saved = await letterheadApi.create(choice.saveForLater);
+          letterheadId = saved.id;
+          await queryClient.invalidateQueries({ queryKey: LETTERHEADS_QUERY_KEY });
+        } catch (error) {
+          // Saving is a convenience — it must never block the export the user
+          // actually asked for.
+          const { toast } = await import('sonner');
+          toast.error(error instanceof Error ? error.message : 'Briefkopf nicht gespeichert');
+        }
+      }
+      await runPdfExport(
+        {
+          layout,
+          ...(letterheadId ? { letterheadId } : {}),
+          ...(!letterheadId && choice.inline ? { letterhead: choice.inline } : {}),
+          ...(letter ? { letter } : {}),
+        },
+        selectBlocks
+      );
+    },
+    [runPdfExport, queryClient]
+  );
+
+  const handleLetterSubmit = useCallback(
+    (result: LetterExportSubmit) => {
+      setShowLetterDialog(false);
+      void runWithChoice(result.letterhead, 'letter', result.letter, (blocks) =>
+        result.stripDetected
+          ? stripDetectedBlocks(blocks, detectLetterParts(blockLines(blocks).join('\n')))
+          : blocks
+      );
+    },
+    [runWithChoice]
+  );
+
+  // One saved letterhead means there is nothing to choose — export straight
+  // away. Zero or several open the chooser.
+  const handleExportLetterhead = useCallback(() => {
+    setShowActionsMenu(false);
+    if (letterheads.length === 1) {
+      void runWithChoice({ letterheadId: letterheads[0]!.id }, 'letterhead');
+      return;
     }
-  }, [docData, editor, exportBlockedBySuggestions]);
+    setShowLetterheadDialog(true);
+  }, [letterheads, runWithChoice]);
 
   const handleExportODT = useCallback(async () => {
     if (!docData || !editor) return;
@@ -846,10 +947,28 @@ function EditorContent() {
                           Als Word (.docx)
                         </button>
                         <button
-                          className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                          className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500 disabled:opacity-50"
                           onClick={handleExportPDF}
+                          disabled={isExportingPdf}
                         >
                           Als PDF (.pdf)
+                        </button>
+                        <button
+                          className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500 disabled:opacity-50 aria-disabled:opacity-50"
+                          onClick={handleExportLetterhead}
+                          disabled={isExportingPdf}
+                        >
+                          Als PDF mit Briefkopf
+                        </button>
+                        <button
+                          className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500 disabled:opacity-50 aria-disabled:opacity-50"
+                          onClick={() => {
+                            setShowActionsMenu(false);
+                            setShowLetterDialog(true);
+                          }}
+                          disabled={isExportingPdf}
+                        >
+                          Als Brief (.pdf)
                         </button>
                         <button
                           className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
@@ -1023,6 +1142,30 @@ function EditorContent() {
           onOpenChange={setShowWolkeModal}
           onSave={handleSaveToWolke}
           initialLiveSync={!!docData.wolke_live_sync}
+        />
+      )}
+
+      {showLetterheadDialog && (
+        <LetterheadExportDialog
+          letterheads={letterheads}
+          onCancel={() => setShowLetterheadDialog(false)}
+          onSubmit={(choice) => {
+            setShowLetterheadDialog(false);
+            void runWithChoice(choice, 'letterhead');
+          }}
+        />
+      )}
+
+      {showLetterDialog && editor && (
+        <LetterExportDialog
+          documentTitle={docData?.title || 'Dokument'}
+          // Plain text is enough for the prefill proposal — the detection works
+          // line-wise, and the export itself uses the full HTML.
+          documentText={blockLines(editor.document).join('\n')}
+          defaultSignature={profile?.display_name ?? ''}
+          letterheads={letterheads}
+          onCancel={() => setShowLetterDialog(false)}
+          onSubmit={handleLetterSubmit}
         />
       )}
     </div>
