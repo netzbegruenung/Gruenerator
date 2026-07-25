@@ -78,7 +78,13 @@
     border-bottom: none;
 }
 
-footer {
+/* Auf .page-container gescopt wie jede andere Regel in dieser Datei. Ohne den
+   Scope traf ein nacktes `footer` JEDES <footer> der App — u.a. das von Univer
+   in der Tabellen-Ansicht, das dadurch ein fast schwarzes 20px-Band bekam.
+   Unsere eigenen Footer waren nie betroffen: die stylen sich per Tailwind, und
+   `utilities` liegt in der Layer-Reihenfolge (index.css:12) über `legacy`.
+   Betroffen war also ausschliesslich Fremd-Markup. */
+.page-container footer {
     text-align: center;
     padding: 20px;
     background-color: var(--font-color-h);
@@ -86,11 +92,11 @@ footer {
     border-top: 1px solid #ddd;
 }
 
-footer a {
+.page-container footer a {
     color: var(--weiß);
     text-decoration: underline;
 }
 
-footer a:hover {
+.page-container footer a:hover {
     color: #ddd;
 }
