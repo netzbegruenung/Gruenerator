@@ -48,6 +48,9 @@ const WolkeFolderBrowser = ({
 
   useEffect(() => {
     if (!externalShareLinkId && !pickedShareLinkId && activeShareLinks.length === 1) {
+      // Auto-pick once the single share link loads; guarded on !pickedShareLinkId
+      // so it is a one-shot reaction to loaded data, not a render-derived value.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPickedShareLinkId(activeShareLinks[0].id);
     }
   }, [externalShareLinkId, pickedShareLinkId, activeShareLinks]);

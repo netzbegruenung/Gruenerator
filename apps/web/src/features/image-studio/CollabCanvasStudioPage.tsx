@@ -96,6 +96,9 @@ function CollabCanvasStudioContent() {
             avatar_robot_id: user.avatar_robot_id ? Number(user.avatar_robot_id) : null,
           }
         : null,
+    // Depend on the specific fields, not the user object identity, so collab
+    // isn't re-initialized when `user` gets a new reference with equal fields.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [user?.id, user?.display_name, user?.email, user?.avatar_robot_id]
   );
 

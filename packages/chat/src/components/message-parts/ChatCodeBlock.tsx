@@ -160,6 +160,7 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
     if (isStreaming || !canRun || !isTabularCompute) return;
     if (output || running || autoRunSeen.has(code)) return;
     autoRunSeen.add(code);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- guarded one-shot auto-run after streaming finishes; runCode's setState fires inside an async task, not synchronously
     void runCode();
   }, [isStreaming, canRun, isTabularCompute, code, output, running, runCode]);
 

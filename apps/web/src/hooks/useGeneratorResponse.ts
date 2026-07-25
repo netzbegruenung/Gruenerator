@@ -225,6 +225,7 @@ export function useGeneratorResponse(config: ResponseParserConfig): ResponsePars
         config.onSuccess(content, metadata);
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- depend on the specific config fields, not the (often inline/unstable) config object
     [config.componentName, config.onSuccess, setGeneratedText]
   );
 

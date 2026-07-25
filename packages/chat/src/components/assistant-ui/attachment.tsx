@@ -31,6 +31,7 @@ const useFileSrc = (file: File | undefined) => {
 
   useEffect(() => {
     if (!file) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- object URL is a side effect with a revoke cleanup; cannot be derived during render
       setSrc(undefined);
       return;
     }

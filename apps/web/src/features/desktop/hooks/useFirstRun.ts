@@ -24,6 +24,7 @@ export function useFirstRun(): UseFirstRunReturn {
     const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
 
     if (!isTauri) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-time init derived from localStorage/Tauri detection (not available during render)
       setIsFirstRun(false);
       return;
     }

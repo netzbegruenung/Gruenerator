@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { useChatConfigStore } from '../stores/chatConfigStore';
 
@@ -18,8 +18,8 @@ interface UserGroup {
 export function useThreadSharing(threadId: string | null) {
   const fetchFn = useChatConfigStore((s) => s.fetch);
   const queryClient = useQueryClient();
-  const sharesKey = ['thread-shares', threadId] as const;
-  const userGroupsKey = ['thread-user-groups'] as const;
+  const sharesKey = useMemo(() => ['thread-shares', threadId] as const, [threadId]);
+  const userGroupsKey = useMemo(() => ['thread-user-groups'] as const, []);
 
   const sharesQuery = useQuery<GroupShare[]>({
     queryKey: sharesKey,

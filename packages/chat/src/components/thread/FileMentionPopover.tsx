@@ -50,6 +50,7 @@ export function FileMentionPopover({ visible, onSelect, onDismiss }: FileMention
 
   useEffect(() => {
     if (visible) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets navigation state when the panel opens (visibility transition), not a render-derived value
       setLevel('root');
       setSelectedCollection(null);
       setSearchResults([]);
