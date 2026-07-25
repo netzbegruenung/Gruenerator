@@ -142,7 +142,7 @@ export type NavigationIconName =
   | 'boards'
   | 'sheets'
   | 'presentations'
-  | 'gruppen'
+  | 'projekte'
   | 'notebooks'
   | 'research'
   | 'desk'
@@ -262,7 +262,7 @@ export const ICONS: IconRegistry = {
     boards: PiSquaresFour,
     sheets: PiTable,
     presentations: PiPresentation,
-    gruppen: HiUserGroup,
+    projekte: HiUserGroup,
     notebooks: FaBook,
     research: PiBrain,
     desk: PiDesktop,

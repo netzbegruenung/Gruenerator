@@ -170,11 +170,11 @@ export const WORKPLACE_TOOLS: WorkplaceToolItem[] = [
     icon: RiSpyLine,
   },
   {
-    id: 'spaces',
+    id: 'projekte',
     title: 'Projekte',
     description: 'Chats & Inhalte bündeln',
     path: '/projekte',
-    icon: getIcon('navigation', 'gruppen')!,
+    icon: getIcon('navigation', 'projekte')!,
   },
 ];
 
