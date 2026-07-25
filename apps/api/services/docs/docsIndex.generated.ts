@@ -2183,7 +2183,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Auf dem Handy",
     "anchor": "#auf-dem-handy",
     "category": "Allgemein",
-    "text": "Die Grünerator-App hat einen eigenen Office-Tab. Dokumente lassen sich dort lesen — Tabellen, Folien und Boards siehst du als Ansicht, nicht als Editor. Zum Bearbeiten von Tabellen und Präsentationen brauchst du die Web- oder Desktop-Version."
+    "text": "Die Grünerator-App hat einen eigenen Office-Tab. Dokumente lassen sich dort lesen — Tabellen, Folien und Boards siehst du als Ansicht, nicht als Editor. Zum Bearbeiten öffnest du das Dokument im Browser. Der Präsentations-Editor ist inzwischen auch auf dem Handy bedienbar: Folienstreifen quer, Folien-Aktionen per Antippen statt per Mauszeiger, und der Text wird in einem eigenen Feld bearbeitet statt direkt auf der verkleinerten Folie. Für Tabellen bleibt der große Bildschirm die bessere Wahl."
   },
   {
     "url": "/docs/office/intro",
