@@ -235,7 +235,9 @@ function SheetsEditorContent() {
                 Lesezugriff
               </div>
             )}
-            <CollaboratorAvatars collaborators={collaborators} />
+            <span className="max-sm:hidden">
+              <CollaboratorAvatars collaborators={collaborators} />
+            </span>
             {!isGuest && (
               <button
                 className={`glass-btn ${chatOpen ? 'active' : ''}`}
