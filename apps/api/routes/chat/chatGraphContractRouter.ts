@@ -1252,126 +1252,85 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         // still steers the model toward an auto-run code block).
       }
 
-      // === Handle @board-erstellen tool ===
-      if (forcedTools?.includes('board-erstellen')) {
-        const created = await handleBoardCreation({
-          sse,
-          classifiedState,
-          lastUserMessage,
-          aiWorkerPool,
-          req,
-          ...(actualThreadId != null && { actualThreadId }),
-          userId,
-        });
-        if (created) {
-          await cleanupPending(true);
-          return { status: 200 as const, body: undefined };
-        }
-      }
+      // === Artifact-creating turns (@board/dokument/sheet/praesentation/pdf) ===
+      // Every branch had the same shape — gate on the forced tool or the
+      // classified intent, resolve the referential topic, call the handler,
+      // discard the placeholder row, return. Five copies of that is how the pdf
+      // branch ended up as the only one missing `await cleanupPending(true)`.
+      const createTurnBase = {
+        sse,
+        classifiedState,
+        aiWorkerPool,
+        req,
+        ...(actualThreadId != null && { actualThreadId }),
+        userId,
+      };
+      /** A referential follow-up ("mach eine Tabelle dazu") inherits the prior
+       *  turn's subject instead of building the artifact about the bare
+       *  instruction. */
+      const createTopic = (): string =>
+        resolveReferentialTopic(
+          lastUserMessage ? extractTextContent(lastUserMessage.content) : '',
+          classifiedState.messages ?? []
+        ).text;
 
-      // === Handle @dokument-erstellen tool ===
-      if (forcedTools?.includes('dokument-erstellen')) {
-        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
-        const created = await generateAndCreateDocument({
-          sse,
-          classifiedState,
-          aiWorkerPool,
-          req,
-          ...(actualThreadId != null && { actualThreadId }),
-          userId,
-          userContent: resolveReferentialTopic(
-            lastUserText as string,
-            classifiedState.messages ?? []
-          ).text,
-          intent: 'direct',
-        });
-        if (created) {
-          await cleanupPending(true);
-          return { status: 200 as const, body: undefined };
-        }
-      }
+      const createRoutes: Array<{
+        forcedTool: string;
+        /** Classifier intent that also triggers it (the @-tool-only branches
+         *  predate the create_* intents and have none). */
+        intent?: string;
+        /** Compound turns let the loop call the fat tool instead. */
+        skipOnAgentic: boolean;
+        run: () => Promise<boolean>;
+      }> = [
+        {
+          forcedTool: 'board-erstellen',
+          skipOnAgentic: false,
+          // Board still takes the raw message: it resolves the topic itself.
+          run: () => handleBoardCreation({ ...createTurnBase, lastUserMessage }),
+        },
+        {
+          forcedTool: 'dokument-erstellen',
+          skipOnAgentic: false,
+          run: () =>
+            generateAndCreateDocument({
+              ...createTurnBase,
+              userContent: createTopic(),
+              intent: 'direct',
+            }),
+        },
+        {
+          forcedTool: 'sheet-erstellen',
+          intent: 'create_sheet',
+          skipOnAgentic: true,
+          run: () => handleSheetCreation({ ...createTurnBase, userContent: createTopic() }),
+        },
+        {
+          forcedTool: 'praesentation-erstellen',
+          intent: 'create_presentation',
+          skipOnAgentic: true,
+          run: () => handlePresentationCreation({ ...createTurnBase, userContent: createTopic() }),
+        },
+        {
+          forcedTool: 'pdf-erstellen',
+          intent: 'create_pdf',
+          skipOnAgentic: true,
+          run: () =>
+            handlePdfCreation({
+              ...createTurnBase,
+              userContent: createTopic(),
+              userLocale: classifiedState.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
+            }),
+        },
+      ];
 
-      // === Handle @sheet-erstellen tool / create_sheet intent ===
-      // Skipped on a compound turn (runAgentic): there the loop researches first
-      // and calls the create_sheet fat tool itself.
-      if (
-        !runAgentic &&
-        (forcedTools?.includes('sheet-erstellen') || classifiedState.intent === 'create_sheet')
-      ) {
-        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
-        const created = await handleSheetCreation({
-          sse,
-          classifiedState,
-          aiWorkerPool,
-          req,
-          ...(actualThreadId != null && { actualThreadId }),
-          userId,
-          // A referential follow-up ("mach eine Tabelle dazu") inherits the prior
-          // turn's subject instead of building a sheet about the bare instruction.
-          userContent: resolveReferentialTopic(
-            lastUserText as string,
-            classifiedState.messages ?? []
-          ).text,
-        });
-        if (created) {
-          await cleanupPending(true);
-          return { status: 200 as const, body: undefined };
-        }
-      }
-
-      // === Handle @praesentation-erstellen tool / create_presentation intent ===
-      // Skipped on a compound turn (runAgentic): the loop researches first and
-      // calls the create_presentation fat tool itself.
-      if (
-        !runAgentic &&
-        (forcedTools?.includes('praesentation-erstellen') ||
-          classifiedState.intent === 'create_presentation')
-      ) {
-        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
-        const created = await handlePresentationCreation({
-          sse,
-          classifiedState,
-          aiWorkerPool,
-          req,
-          ...(actualThreadId != null && { actualThreadId }),
-          userId,
-          // A referential follow-up ("mach eine Präsentation dazu") inherits the
-          // prior turn's subject instead of the bare instruction.
-          userContent: resolveReferentialTopic(
-            lastUserText as string,
-            classifiedState.messages ?? []
-          ).text,
-        });
-        if (created) {
-          await cleanupPending(true);
-          return { status: 200 as const, body: undefined };
-        }
-      }
-
-      // === Handle @pdf-erstellen tool / create_pdf intent ===
-      // Skipped on a compound turn (runAgentic): the loop researches first and
-      // calls the create_pdf fat tool itself.
-      if (
-        !runAgentic &&
-        (forcedTools?.includes('pdf-erstellen') || classifiedState.intent === 'create_pdf')
-      ) {
-        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
-        const created = await handlePdfCreation({
-          sse,
-          classifiedState,
-          aiWorkerPool,
-          req,
-          ...(actualThreadId != null && { actualThreadId }),
-          userId,
-          // A referential follow-up ("also aus der tabelle") inherits the prior
-          // turn's subject instead of the bare instruction.
-          userContent: resolveReferentialTopic(
-            lastUserText as string,
-            classifiedState.messages ?? []
-          ).text,
-          userLocale: classifiedState.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
-        });
-        if (created) {
+      for (const route of createRoutes) {
+        if (route.skipOnAgentic && runAgentic) continue;
+        const triggered =
+          forcedTools?.includes(route.forcedTool) === true ||
+          (route.intent != null && classifiedState.intent === route.intent);
+        if (!triggered) continue;
+        if (await route.run()) {
           await cleanupPending(true);
           return { status: 200 as const, body: undefined };
         }
