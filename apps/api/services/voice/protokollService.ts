@@ -104,7 +104,6 @@ Regeln:
 - Keine bereits erledigten Aufgaben als checked markieren — alle sind offen`,
     prompt: `Extrahiere alle Aufgaben und Action Items aus folgendem Text:\n\n<text>\n${inputText.slice(0, 8000)}\n</text>\n\n${title ? `Titel: ${title}` : ''}`,
     temperature: 0.2,
-    maxOutputTokens: 4000,
   });
 
   log.debug('[Protokoll] Todo list extracted', result.usage?.totalTokens, 'tokens');
@@ -122,7 +121,6 @@ export async function generateProtokoll({
     system: SYSTEM_PROMPT,
     prompt: `Erstelle ein ${protokollTyp} aus folgender Transkription:\n\n<transkription>\n${inputText}\n</transkription>\n\nBitte erstelle ein professionelles, gut strukturiertes Protokoll.`,
     temperature: 0.3,
-    maxOutputTokens: 8000,
   });
 
   log.debug('[Protokoll] Generated', result.usage?.totalTokens, 'tokens');
