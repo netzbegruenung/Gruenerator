@@ -35,6 +35,7 @@ export function toUserProfile(row: ProfileSelectModel): UserProfile {
     feedback_button: row.feedback_button as 'text' | 'icon' | 'off',
     reduce_motion: row.reduce_motion,
     reduce_transparency: row.reduce_transparency,
+    show_skip_link: row.show_skip_link,
     ...(row.custom_prompt != null && { custom_prompt: row.custom_prompt }),
 
     // Feature flags — all have DB defaults so they are non-null
