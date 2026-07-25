@@ -180,6 +180,7 @@ export function VerpflegungUebernachtungStep({
             <label className="flex cursor-pointer items-center gap-sm text-sm font-semibold">
               <Switch
                 checked={u !== null}
+                ariaLabel="Übernachtung anfügen"
                 onChange={(on) =>
                   update((s) => ({
                     ...s,
