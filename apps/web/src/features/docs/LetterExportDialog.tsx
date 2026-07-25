@@ -10,7 +10,9 @@
 import { useMemo, useState } from 'react';
 
 import { detectLetterParts, hasDetectedParts } from './letterDetection';
+import { isChoiceUsable, LetterheadChooser, type LetterheadChoice } from './LetterheadChooser';
 
+import type { Letterhead } from '../settings/letterheadApi';
 import type { pdfExportLetterSchema } from '@gruenerator/contracts';
 import type { z } from 'zod';
 
@@ -18,6 +20,8 @@ export type LetterFields = z.infer<typeof pdfExportLetterSchema>;
 
 export interface LetterExportSubmit {
   letter: LetterFields;
+  /** Which Absender goes on the letterhead — saved, or typed here. */
+  letterhead: LetterheadChoice;
   /** Drop the recognised lines from the body so they do not appear twice. */
   stripDetected: boolean;
 }
@@ -33,10 +37,12 @@ export function LetterExportDialog({
   documentTitle,
   documentText,
   defaultSignature,
+  letterheads,
   onCancel,
   onSubmit,
 }: {
   documentTitle: string;
+  letterheads: Letterhead[];
   /** Plain text of the document — the source for the prefill proposal. */
   documentText: string;
   /** Profile name, used when the document has no signature of its own. */
@@ -54,8 +60,12 @@ export function LetterExportDialog({
   const [signature, setSignature] = useState(detected.signature ?? defaultSignature);
   const [place, setPlace] = useState('');
   const [stripDetected, setStripDetected] = useState(foundSomething);
+  const [letterhead, setLetterhead] = useState<LetterheadChoice>(() => {
+    const preselected = letterheads.find((l) => l.is_default) ?? letterheads[0];
+    return preselected ? { letterheadId: preselected.id } : { inline: {} };
+  });
 
-  const canSubmit = recipient.trim().length > 0;
+  const canSubmit = recipient.trim().length > 0 && isChoiceUsable(letterhead);
 
   return (
     <div
@@ -69,7 +79,8 @@ export function LetterExportDialog({
           Als Brief exportieren
         </h2>
         <p className="text-[0.8125rem] text-grey-500 mb-4">
-          Der Absender kommt aus deinem Profil. Diese Angaben ergänzen den Briefkopf nach DIN 5008.
+          Absender wählen oder neu eingeben; die übrigen Angaben ergänzen den Briefkopf nach DIN
+          5008. Dein Name wird automatisch ergänzt.
         </p>
 
         {foundSomething && (
@@ -90,6 +101,14 @@ export function LetterExportDialog({
             </label>
           </div>
         )}
+
+        <div className="mb-4 border-b border-black/10 pb-4 dark:border-white/10">
+          <LetterheadChooser
+            letterheads={letterheads}
+            value={letterhead}
+            onChange={setLetterhead}
+          />
+        </div>
 
         <div className="flex flex-col gap-3">
           <div>
@@ -187,6 +206,7 @@ export function LetterExportDialog({
             onClick={() =>
               onSubmit({
                 stripDetected,
+                letterhead,
                 letter: {
                   recipient: recipient.trim(),
                   ...(subject.trim() && { subject: subject.trim() }),

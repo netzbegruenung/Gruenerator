@@ -68,6 +68,7 @@ import { useExportStore, type PdfExportOptions } from '../../stores/core/exportS
 import { isDesktopApp } from '../../utils/platform';
 import { platformFetch } from '../../utils/platformFetch';
 import { useProfile } from '../auth/hooks/useProfileData';
+import { letterheadApi, LETTERHEADS_QUERY_KEY } from '../settings/letterheadApi';
 import { useTourAutostart } from '../tours/useTourAutostart';
 
 import { DocAiReviewBar } from './DocAiReviewBar';
@@ -76,8 +77,10 @@ import { GuestBadge, GUEST_ANIMALS } from './GuestBadge';
 import { getOrCreateGuestIdentity } from './guestIdentity';
 import { detectLetterParts, stripDetectedLines } from './letterDetection';
 import { LetterExportDialog, type LetterExportSubmit } from './LetterExportDialog';
+import { LetterheadExportDialog } from './LetterheadExportDialog';
 import { useDocsLiveWolkeSync } from './useDocsLiveWolkeSync';
 
+import type { LetterheadChoice } from './LetterheadChooser';
 import type { BlockNoteEditor } from '@blocknote/core';
 
 const MemoizedBlockNoteEditor = memo(BlockNoteEditorComponent);
@@ -134,6 +137,13 @@ function EditorContent() {
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
   const { user, isAuthResolved } = useAuth({ lazy: true });
   const { data: profile } = useProfile();
+  // Drives both the menu's availability hint and the chooser's options.
+  const { data: letterheads = [] } = useQuery({
+    queryKey: LETTERHEADS_QUERY_KEY,
+    queryFn: letterheadApi.list,
+    enabled: Boolean(user),
+    staleTime: 5 * 60 * 1000,
+  });
   const isGuest = Boolean(isAuthResolved) && !user;
   const [, , themePreference, cycleTheme] = useDarkMode();
 
@@ -217,6 +227,7 @@ function EditorContent() {
   // so a second click has to be blocked rather than queueing another render.
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [showLetterDialog, setShowLetterDialog] = useState(false);
+  const [showLetterheadDialog, setShowLetterheadDialog] = useState(false);
   const [activeSidebar, setActiveSidebar] = useState<SidebarPanel | null>(null);
   // Sticky: once the chat panel is opened, DocsChatPanel stays mounted to
   // preserve its runtime + Hocuspocus connection across close/reopen. Avoids
@@ -435,28 +446,65 @@ function EditorContent() {
   );
 
   const handleExportPDF = useCallback(() => void runPdfExport(), [runPdfExport]);
-  const handleExportPDFLetterhead = useCallback(
-    () => void runPdfExport({ layout: 'letterhead' }),
-    [runPdfExport]
-  );
 
-  // A letterhead needs something to print. Without it the server answers 400,
-  // so the menu says so up front instead of letting the user hit the error.
-  const senderConfigured = Boolean(
-    (profile?.display_name ?? '').trim() ||
-    (profile?.sender_organization ?? '').trim() ||
-    (profile?.sender_address ?? '').trim()
+  /**
+   * Run an export from a chooser result, saving the Absender first when the
+   * user ticked "für später speichern" — through the same create call the
+   * settings tab uses, so both paths produce the same thing.
+   */
+  const runWithChoice = useCallback(
+    async (
+      choice: LetterheadChoice,
+      layout: 'letterhead' | 'letter',
+      letter?: LetterExportSubmit['letter'],
+      transform?: (html: string) => string
+    ) => {
+      let letterheadId = choice.letterheadId;
+      if (choice.saveForLater) {
+        try {
+          const saved = await letterheadApi.create(choice.saveForLater);
+          letterheadId = saved.id;
+          await queryClient.invalidateQueries({ queryKey: LETTERHEADS_QUERY_KEY });
+        } catch (error) {
+          // Saving is a convenience — it must never block the export the user
+          // actually asked for.
+          const { toast } = await import('sonner');
+          toast.error(error instanceof Error ? error.message : 'Briefkopf nicht gespeichert');
+        }
+      }
+      await runPdfExport(
+        {
+          layout,
+          ...(letterheadId ? { letterheadId } : {}),
+          ...(!letterheadId && choice.inline ? { letterhead: choice.inline } : {}),
+          ...(letter ? { letter } : {}),
+        },
+        transform
+      );
+    },
+    [runPdfExport, queryClient]
   );
 
   const handleLetterSubmit = useCallback(
     (result: LetterExportSubmit) => {
       setShowLetterDialog(false);
-      void runPdfExport({ layout: 'letter', letter: result.letter }, (html) =>
+      void runWithChoice(result.letterhead, 'letter', result.letter, (html) =>
         result.stripDetected ? stripDetectedLines(html, detectLetterParts(html)) : html
       );
     },
-    [runPdfExport]
+    [runWithChoice]
   );
+
+  // One saved letterhead means there is nothing to choose — export straight
+  // away. Zero or several open the chooser.
+  const handleExportLetterhead = useCallback(() => {
+    setShowActionsMenu(false);
+    if (letterheads.length === 1) {
+      void runWithChoice({ letterheadId: letterheads[0]!.id }, 'letterhead');
+      return;
+    }
+    setShowLetterheadDialog(true);
+  }, [letterheads, runWithChoice]);
 
   const handleExportODT = useCallback(async () => {
     if (!docData || !editor) return;
@@ -901,43 +949,18 @@ function EditorContent() {
                         </button>
                         <button
                           className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500 disabled:opacity-50 aria-disabled:opacity-50"
-                          onClick={
-                            senderConfigured
-                              ? handleExportPDFLetterhead
-                              : () =>
-                                  void import('sonner').then(({ toast }) =>
-                                    toast.info(
-                                      'Hinterlege zuerst Organisation und Adresse in den Einstellungen unter Personalisierung.'
-                                    )
-                                  )
-                          }
+                          onClick={handleExportLetterhead}
                           disabled={isExportingPdf}
-                          aria-disabled={!senderConfigured}
-                          title={
-                            senderConfigured
-                              ? undefined
-                              : 'Absenderangaben fehlen — in den Einstellungen ergänzen'
-                          }
                         >
                           Als PDF mit Briefkopf
                         </button>
                         <button
                           className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500 disabled:opacity-50 aria-disabled:opacity-50"
-                          onClick={
-                            senderConfigured
-                              ? () => {
-                                  setShowActionsMenu(false);
-                                  setShowLetterDialog(true);
-                                }
-                              : () =>
-                                  void import('sonner').then(({ toast }) =>
-                                    toast.info(
-                                      'Hinterlege zuerst Organisation und Adresse in den Einstellungen unter Personalisierung.'
-                                    )
-                                  )
-                          }
+                          onClick={() => {
+                            setShowActionsMenu(false);
+                            setShowLetterDialog(true);
+                          }}
                           disabled={isExportingPdf}
-                          aria-disabled={!senderConfigured}
                         >
                           Als Brief (.pdf)
                         </button>
@@ -1116,6 +1139,17 @@ function EditorContent() {
         />
       )}
 
+      {showLetterheadDialog && (
+        <LetterheadExportDialog
+          letterheads={letterheads}
+          onCancel={() => setShowLetterheadDialog(false)}
+          onSubmit={(choice) => {
+            setShowLetterheadDialog(false);
+            void runWithChoice(choice, 'letterhead');
+          }}
+        />
+      )}
+
       {showLetterDialog && editor && (
         <LetterExportDialog
           documentTitle={docData?.title || 'Dokument'}
@@ -1131,6 +1165,7 @@ function EditorContent() {
             )
             .join('\n')}
           defaultSignature={profile?.display_name ?? ''}
+          letterheads={letterheads}
           onCancel={() => setShowLetterDialog(false)}
           onSubmit={handleLetterSubmit}
         />
