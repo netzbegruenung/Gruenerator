@@ -70,11 +70,6 @@
       "title": "Startseite",
       "description": "Was das Start-Symbol in der Seitenleiste öffnet"
     },
-    "allgemein.feedbackButton": {
-      "tab": "allgemein",
-      "title": "Feedback-Button",
-      "description": "Zeigt den schwebenden Feedback-Button auf allen Seiten — er lässt sich in jede Bildschirmecke ziehen"
-    },
     "allgemein.animationen": {
       "tab": "allgemein",
       "title": "Animationen reduzieren",
