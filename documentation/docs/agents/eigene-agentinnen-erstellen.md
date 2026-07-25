@@ -10,17 +10,17 @@ Du kannst dir im Grünerator deine **eigenen Grüneratoren bauen** — ganz ohne
 Eigene Grüneratoren sind noch in der Erprobung. Verhalten und Funktionen können sich ändern, und nicht alles funktioniert schon zuverlässig. Beim Bauen siehst du oben einen entsprechenden Hinweis-Banner. Bitte melde Probleme dem Team.
 :::
 
-:::note[Der Baukasten sagt noch „Agent"]
-In der Agentura und in der Seitenleiste heißen sie **Grüneratoren**. Die Knöpfe im Baukasten tragen aber noch die alten Beschriftungen — **Neuer Agent**, _„Was für einen Agent möchtest du bauen?"_. Gemeint ist dasselbe; unten stehen die Beschriftungen so, wie du sie auf dem Bildschirm findest.
+:::note[Einzahl und Mehrzahl]
+In der Mehrzahl heißen sie **Grüneratoren**. In der Einzahl sagen wir **Grünerator-Agent** — „der Grünerator" ohne Zusatz meint das Produkt als Ganzes.
 :::
 
 ## Schritt 1: Den Creator öffnen
 
-Öffne die [Agentura](./agentura), scrolle zum Abschnitt **Meine Grüneratoren** und klicke oben rechts auf **Neuer Agent**. Alternativ rufst du den Creator direkt unter `/agents/new` auf.
+Öffne die [Agentura](./agentura), scrolle zum Abschnitt **Meine Grüneratoren** und klicke oben rechts auf **Neuer Grünerator-Agent**. Alternativ rufst du den Creator direkt unter `/agents/new` auf.
 
 ## Schritt 2: Agent beschreiben (empfohlen)
 
-Du landest auf der Seite **„Was für einen Agent möchtest du bauen?"**. Beschreibe im Eingabefeld (Platzhalter _„Beschreibe deinen neuen Agent…"_) in eigenen Worten, was dein Agent können soll – Zweck, Ton und Fähigkeiten. Zum Einstieg kannst du auch eines der Beispiele anklicken: **📰 Pressestelle**, **🚲 Recherche-Bot** oder **📣 Social Media**.
+Du landest auf der Seite **„Was für einen Grünerator-Agenten möchtest du bauen?"**. Beschreibe im Eingabefeld (Platzhalter _„Beschreibe deinen neuen Grünerator-Agenten…"_) in eigenen Worten, was er können soll – Zweck, Ton und Fähigkeiten. Zum Einstieg kannst du auch eines der Beispiele anklicken: **📰 Pressestelle**, **🚲 Recherche-Bot** oder **📣 Social Media**.
 
 Drücke anschließend den Senden-Pfeil (oder `Enter`). Der Grünerator erstellt daraus einen Entwurf und öffnet direkt den Editor mit vorausgefüllten Feldern.
 

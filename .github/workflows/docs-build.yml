@@ -31,6 +31,9 @@ on:
       - 'apps/web/src/components/layout/Header/menuData.tsx'
       - 'packages/shared/src/agents/landesverbaende.ts'
       - 'apps/web/src/config/routes.ts'
+      # Agentura manifest sources
+      - 'apps/web/src/features/agentura/lib/categories.ts'
+      - 'packages/shared/src/agents/types.ts'
       # Office manifest sources — the contracts plus the two files that decide
       # what actually reaches the user (runtime skips, import limits).
       - 'packages/contracts/src/schemas/docs.ts'
@@ -70,6 +73,12 @@ jobs:
 
       - name: Check office.json is in sync with the contracts and the editor
         run: pnpm --filter @gruenerator/documentation office:check
+
+      # No audit counterpart: the market's category catalog carries its own
+      # German labels AND descriptions, so there is no hand-written half that
+      # could go missing — staleness is the only failure mode.
+      - name: Check agentura.json is in sync with the market's categories
+        run: pnpm --filter @gruenerator/documentation agentura:check
 
       - name: Build docs (fails on unknown UiLabel ids)
         run: pnpm --filter @gruenerator/documentation build
