@@ -1,5 +1,5 @@
-import { memo, useEffect, useState } from 'react';
 import { ImageOff, Loader2 } from 'lucide-react';
+import { memo, useEffect, useState } from 'react';
 
 import { sharepicLabel } from '../../hooks/useSharepicArtifact';
 import { useSharepicThumbnail } from '../../hooks/useSharepicThumbnail';

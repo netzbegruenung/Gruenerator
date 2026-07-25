@@ -1,6 +1,8 @@
-import { useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useMemo } from 'react';
+
 import { useChatConfigStore } from '../stores/chatConfigStore';
+
 import type {
   NotebookCollectionItem,
   DocumentSearchResult,

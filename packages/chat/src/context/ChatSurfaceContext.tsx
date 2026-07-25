@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { createStore, useStore, type StoreApi } from 'zustand';
+
 import type { SelectedModel } from '../lib/resolveAutoModel';
 import type { SearchMode, ThreadMode } from '../stores/chatStore';
 

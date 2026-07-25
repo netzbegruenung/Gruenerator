@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
+import { useCallback, useState } from 'react';
 
 /**
  * Clipboard button with transient "copied" feedback. Shared by the social

@@ -1,13 +1,14 @@
-import { describe, it, expect } from 'vitest';
-
 import {
   chatStreamEventSchemas,
   searchIntentSchema,
   sharepicVariantSchema,
 } from '@gruenerator/contracts';
+import { describe, it, expect } from 'vitest';
 
 import { coerceSharepicVariants } from '../../hooks/useChatGraphStream';
+
 import { parseSSEStream } from './parseSSEStream';
+
 import type { GrueneratorAdapterCallbacks } from './types';
 
 /**

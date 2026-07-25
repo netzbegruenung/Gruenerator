@@ -1,9 +1,3 @@
-import type {
-  AttachmentAdapter,
-  PendingAttachment,
-  CompleteAttachment,
-  Attachment,
-} from '@assistant-ui/core';
 import {
   validateFile,
   isImageMimeType,
@@ -14,6 +8,13 @@ import {
 import { isTabularFile } from '../lib/spreadsheetSetup';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { usePythonFileStore } from '../stores/pythonFileStore';
+
+import type {
+  AttachmentAdapter,
+  PendingAttachment,
+  CompleteAttachment,
+  Attachment,
+} from '@assistant-ui/core';
 
 // Synthetic content types used by @docs / @datei mention chips. These never
 // correspond to real File uploads — they flow through AUI's CreateAttachment

@@ -1,7 +1,7 @@
 'use client';
 
-import { memo } from 'react';
 import { Check, Loader2, Plug, X } from 'lucide-react';
+import { memo } from 'react';
 
 interface McpToolUIProps {
   args: Record<string, unknown>;

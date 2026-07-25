@@ -1,9 +1,12 @@
 'use client';
 
 import { Search, Image } from 'lucide-react';
+
 import { cn } from '../../lib/utils';
-import { ShimmerText } from './ShimmerText';
+
 import { type ProgressDisplay } from './progressDisplayContext';
+import { ShimmerText } from './ShimmerText';
+
 import type { ChatProgress } from '../../hooks/useChatGraphStream';
 
 interface ProgressIndicatorProps {

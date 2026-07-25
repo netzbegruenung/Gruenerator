@@ -1,8 +1,10 @@
 'use client';
 
-import { memo } from 'react';
 import { X } from 'lucide-react';
+import { memo } from 'react';
+
 import { ShimmerText } from '../../message-parts/ShimmerText';
+
 import type { ProgressStep } from '../../../hooks/useChatGraphStream';
 
 interface ProgressTrackerComponentProps {

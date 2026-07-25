@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { HocuspocusProvider } from '@hocuspocus/provider';
-import * as Y from 'yjs';
 import { generateUserColor, useAwarenessState } from '@gruenerator/collab';
+import { HocuspocusProvider } from '@hocuspocus/provider';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import * as Y from 'yjs';
+
 import { useChatConfigStore } from '../stores/chatConfigStore';
 
 interface ChatCollaborationUser {

@@ -1,9 +1,10 @@
 'use client';
 
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
-import { ChevronDown, Sparkles } from 'lucide-react';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger, cn } from '@gruenerator/ui';
 import { useAuiState } from '@assistant-ui/react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger, cn } from '@gruenerator/ui';
+import { ChevronDown, Sparkles } from 'lucide-react';
+import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+
 import type {
   ReasoningMessagePartComponent,
   ReasoningGroupComponent,

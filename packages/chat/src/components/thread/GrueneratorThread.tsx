@@ -1,26 +1,28 @@
 'use client';
 
-import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
   AuiIf,
   ThreadPrimitive,
   SelectionToolbarPrimitive,
   useVoiceControls,
 } from '@assistant-ui/react';
-import { VoiceOrb } from '../assistant-ui/voice';
 import { useAuiState } from '@assistant-ui/store';
-import { QuoteIcon } from 'lucide-react';
 import { useCollaborators, PresenceAvatars, TypingIndicator } from '@gruenerator/collab';
-import { WelcomeScreen } from './WelcomeScreen';
-import { CompactionIndicator } from './CompactionIndicator';
-import { UserMessage } from './UserMessage';
-import { AssistantMessage } from './AssistantMessage';
-import { GrueneratorComposer } from './GrueneratorComposer';
-import { AutoMessageSender } from './AutoMessageSender';
-import { InlineAttachmentNotice } from './InlineAttachmentNotice';
-import { ChatDensityContext, type ChatDensity } from './chatDensityContext';
+import { QuoteIcon } from 'lucide-react';
+import { useEffect, useMemo, useRef, type ReactNode } from 'react';
+
 import { useChatCollaborationContext } from '../../context/ChatCollaborationContext';
 import { useActiveAgentMeta } from '../../lib/useActiveAgentMeta';
+import { VoiceOrb } from '../assistant-ui/voice';
+
+import { AssistantMessage } from './AssistantMessage';
+import { AutoMessageSender } from './AutoMessageSender';
+import { ChatDensityContext, type ChatDensity } from './chatDensityContext';
+import { CompactionIndicator } from './CompactionIndicator';
+import { GrueneratorComposer } from './GrueneratorComposer';
+import { InlineAttachmentNotice } from './InlineAttachmentNotice';
+import { UserMessage } from './UserMessage';
+import { WelcomeScreen } from './WelcomeScreen';
 
 interface GrueneratorThreadProps {
   onNavigate?: (path: string) => void;

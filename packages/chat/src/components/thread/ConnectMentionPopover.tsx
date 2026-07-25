@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+
 import {
   useConnectProvidersQuery,
   useConnectBrowseQuery,
   type ChatConnectFile,
 } from '../../hooks/useMentionablesQuery';
 import { type ConnectFileToken } from '../../lib/mentionables';
+
 import { MentionFloatingPanel } from './MentionFloatingPanel';
 
 interface ConnectMentionPopoverProps {

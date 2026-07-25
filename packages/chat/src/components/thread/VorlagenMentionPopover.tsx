@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { useVorlagenSearchQuery, type ChatVorlageTemplate } from '../../hooks/useMentionablesQuery';
 import { type VorlageToken } from '../../lib/mentionables';
+
 import { MentionFloatingPanel } from './MentionFloatingPanel';
 
 interface VorlagenMentionPopoverProps {

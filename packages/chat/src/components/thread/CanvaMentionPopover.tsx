@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { useCanvaDesignsQuery, type ChatCanvaDesign } from '../../hooks/useMentionablesQuery';
 import { type CanvaDesignToken } from '../../lib/mentionables';
+
 import { MentionFloatingPanel } from './MentionFloatingPanel';
 
 interface CanvaMentionPopoverProps {

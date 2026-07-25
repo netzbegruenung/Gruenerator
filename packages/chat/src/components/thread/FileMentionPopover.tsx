@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
 import {
   Badge,
   Command,
@@ -12,10 +11,14 @@ import {
   ScrollArea,
   Skeleton,
 } from '@gruenerator/ui';
+import { useState, useEffect, useCallback } from 'react';
+
 import { useFileMentionData } from '../../hooks/useFileMentionData';
 import { useDocMentionables } from '../../hooks/useMentionablesQuery';
-import { MentionFloatingPanel } from './MentionFloatingPanel';
 import { documentToSlug } from '../../lib/documentMentionables';
+
+import { MentionFloatingPanel } from './MentionFloatingPanel';
+
 import type {
   CollabDocSelection,
   DocumentMention,
