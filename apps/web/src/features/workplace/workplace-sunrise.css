@@ -71,6 +71,42 @@
   --wp-accent-hover: #a6144e;
 }
 
+/* Regenbogen is the one preset that can't ride the single-tint gradient of the
+   base class: it fans five pastel glows across the x-axis instead. Each layer
+   reuses --wp-sunrise-y / --wp-sunrise-glow, so the shared entrance animation
+   lifts and fades them exactly like the one-tint presets. */
+.workplace-chat-bg--regenbogen {
+  --wp-bg-base: #fdfaf7;
+  --wp-accent: #8e44ad;
+  --wp-accent-hover: #7d3c98;
+  background-image:
+    radial-gradient(
+      44% 56% at 10% var(--wp-sunrise-y),
+      rgb(240 130 145 / calc(0.34 * var(--wp-sunrise-glow))) 0%,
+      rgb(240 130 145 / 0) 70%
+    ),
+    radial-gradient(
+      44% 56% at 30% var(--wp-sunrise-y),
+      rgb(243 195 110 / calc(0.34 * var(--wp-sunrise-glow))) 0%,
+      rgb(243 195 110 / 0) 70%
+    ),
+    radial-gradient(
+      44% 56% at 50% var(--wp-sunrise-y),
+      rgb(146 205 141 / calc(0.34 * var(--wp-sunrise-glow))) 0%,
+      rgb(146 205 141 / 0) 70%
+    ),
+    radial-gradient(
+      44% 56% at 70% var(--wp-sunrise-y),
+      rgb(126 176 230 / calc(0.34 * var(--wp-sunrise-glow))) 0%,
+      rgb(126 176 230 / 0) 70%
+    ),
+    radial-gradient(
+      44% 56% at 90% var(--wp-sunrise-y),
+      rgb(179 141 219 / calc(0.34 * var(--wp-sunrise-glow))) 0%,
+      rgb(179 141 219 / 0) 70%
+    );
+}
+
 /* Neutral opts out entirely so the page falls through to the theme background.
    With no hue there is nothing to derive an accent from, so it keeps the brand
    green — the `--wp-accent` fallback in .workplace-chat-accent handles that. */
@@ -122,6 +158,17 @@
 
 [data-theme='dark'] .workplace-chat-bg--neutral {
   background-image: none;
+}
+
+/* Same fan of glows, dimmed to the dark-mode level of the one-tint presets.
+   Must come after the generic dark rule above (equal specificity). */
+[data-theme='dark'] .workplace-chat-bg--regenbogen {
+  background-image:
+    radial-gradient(44% 56% at 10% 52%, rgb(240 130 145 / 0.09) 0%, rgb(240 130 145 / 0) 70%),
+    radial-gradient(44% 56% at 30% 52%, rgb(243 195 110 / 0.09) 0%, rgb(243 195 110 / 0) 70%),
+    radial-gradient(44% 56% at 50% 52%, rgb(146 205 141 / 0.09) 0%, rgb(146 205 141 / 0) 70%),
+    radial-gradient(44% 56% at 70% 52%, rgb(126 176 230 / 0.09) 0%, rgb(126 176 230 / 0) 70%),
+    radial-gradient(44% 56% at 90% 52%, rgb(179 141 219 / 0.09) 0%, rgb(179 141 219 / 0) 70%);
 }
 
 @media (prefers-reduced-motion: reduce) {
