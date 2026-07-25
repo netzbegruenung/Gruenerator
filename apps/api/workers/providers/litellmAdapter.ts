@@ -118,7 +118,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
       model: aiModel,
       ...(system != null && { system }),
       messages: modelMessages,
-      maxOutputTokens: options.max_tokens || 4096,
+      ...(options.max_tokens != null && { maxOutputTokens: options.max_tokens }),
       temperature: options.temperature || 0.7,
       topP: options.top_p || 1.0,
       ...(tools != null && { tools }),
