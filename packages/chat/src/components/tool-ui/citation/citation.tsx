@@ -1,12 +1,14 @@
 'use client';
 
-import * as React from 'react';
-import type { LucideIcon } from 'lucide-react';
 import { FileText, Globe, Code2, Newspaper, Database, File, ExternalLink } from 'lucide-react';
-import { cn, Popover, PopoverContent, PopoverTrigger } from './_adapter';
+import * as React from 'react';
 
 import { openSafeNavigationHref, sanitizeHref } from '../shared/media';
+
+import { cn, Popover, PopoverContent, PopoverTrigger } from './_adapter';
+
 import type { SerializableCitation, CitationType, CitationVariant } from './schema';
+import type { LucideIcon } from 'lucide-react';
 
 const FALLBACK_LOCALE = 'en-US';
 

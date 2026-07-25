@@ -71,6 +71,7 @@ export function useNotebookEditorState({
         name: editingCollection.name || '',
         description: editingCollection.description || '',
       });
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs local form/panel state from the editingCollection prop when it changes
       setLabels(editingCollection.labels || []);
       setWolkeFolders(editingCollection.wolke_folders ?? []);
       setLinkedDocs(editingCollection.linked_docs ?? []);
@@ -105,14 +106,17 @@ export function useNotebookEditorState({
   }, [editingCollection, reset]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-way latch: open the panel once its list becomes non-empty
     if (linkedDocs.length > 0) setDocsPanelOpen(true);
   }, [linkedDocs.length]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-way latch: open the panel once its list becomes non-empty
     if (wolkeFolders.length > 0) setWolkePanelOpen(true);
   }, [wolkeFolders.length]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-way latch: open the panel once its list becomes non-empty
     if (wordpressSites.length > 0) setWordpressPanelOpen(true);
   }, [wordpressSites.length]);
 

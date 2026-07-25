@@ -1,9 +1,11 @@
 'use client';
 
-import { type ReactNode, lazy, Suspense, useEffect, useRef } from 'react';
 import { type TextModelId } from '@gruenerator/shared/models';
-import { useChatConfigStore, type ChatConfig } from '../stores/chatConfigStore';
+import { type ReactNode, lazy, Suspense, useEffect, useRef } from 'react';
+
 import { ModelPreferencesProvider } from '../context/ModelPreferencesContext';
+import { useChatConfigStore, type ChatConfig } from '../stores/chatConfigStore';
+
 import { type ExternalThreadEntry } from './GrueneratorThreadListAdapter';
 
 // The assistant-ui runtime (AssistantRuntimeProvider + model/voice/attachment

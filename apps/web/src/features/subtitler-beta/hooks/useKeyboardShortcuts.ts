@@ -45,6 +45,8 @@ export function useKeyboardShortcuts(actions: KeyboardShortcutActions) {
             e.preventDefault();
             actionsRef.current.onSave?.();
             return;
+          default:
+            break;
         }
       }
 
@@ -79,6 +81,8 @@ export function useKeyboardShortcuts(actions: KeyboardShortcutActions) {
         case '?':
           e.preventDefault();
           actionsRef.current.onShowHelp?.();
+          break;
+        default:
           break;
       }
     },

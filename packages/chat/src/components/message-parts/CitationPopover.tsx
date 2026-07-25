@@ -1,12 +1,14 @@
 'use client';
 
-import { memo, useState } from 'react';
-import { Popover as PopoverPrimitive } from 'radix-ui';
 import { FileText } from 'lucide-react';
-import type { Citation } from '../../hooks/useChatGraphStream';
-import { cn } from '../../lib/utils';
-import { getCollectionStyle } from '../../lib/collectionStyles';
+import { Popover as PopoverPrimitive } from 'radix-ui';
+import { memo, useState } from 'react';
+
 import { useCitationPanel } from '../../context/CitationPanelContext';
+import { getCollectionStyle } from '../../lib/collectionStyles';
+import { cn } from '../../lib/utils';
+
+import type { Citation } from '../../hooks/useChatGraphStream';
 
 interface CitationBadgeProps {
   citationId: number;

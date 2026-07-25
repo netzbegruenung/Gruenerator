@@ -1,7 +1,8 @@
 'use client';
 
-import { memo } from 'react';
 import { Volume2, Square, Loader2 } from 'lucide-react';
+import { memo } from 'react';
+
 import { useMessageTTS, type TTSState } from '../../hooks/useMessageTTS';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 
@@ -18,7 +19,7 @@ export const MessageTTSButton = memo(function MessageTTSButton({ content }: Mess
 
   const handleClick = () => {
     if (state === 'idle') {
-      play(content);
+      void play(content);
     } else {
       stop();
     }

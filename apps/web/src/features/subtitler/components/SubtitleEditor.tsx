@@ -259,6 +259,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
       onExportComplete?.();
     } else if (exportStatus === 'error' && exportError) {
       console.error('[SubtitleEditor] Export failed:', exportError);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reacts to export status transition (post-mount), not render-time derivation
       setError(exportError);
       onExportComplete?.();
     }
@@ -287,6 +288,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   useEffect(() => {
     if (videoUrlProp || !videoFile) return;
     if (!(videoFile instanceof File || videoFile instanceof Blob)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- blob URL lifecycle effect (createObjectURL/revoke), setState guards invalid input; no render loop
       setError('Ungültiges Video-Format');
       return;
     }

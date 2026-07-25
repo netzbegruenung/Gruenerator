@@ -214,6 +214,9 @@ function EditorContent() {
   // paying the chat infra cost for users who never open the panel.
   const [hasOpenedChat, setHasOpenedChat] = useState(false);
   useEffect(() => {
+    // Sticky latch: flips once when chat first opens, then settles (guarded by
+    // !hasOpenedChat). Keeps DocsChatPanel mounted across close/reopen.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (activeSidebar === 'chat' && !hasOpenedChat) setHasOpenedChat(true);
   }, [activeSidebar, hasOpenedChat]);
   const [editor, setEditor] = useState<BlockNoteEditor | null>(null);
@@ -332,6 +335,9 @@ function EditorContent() {
 
   useEffect(() => {
     if (!showActionsMenu) {
+      // Collapse the submenu when its parent menu closes; this effect also owns
+      // the click-outside listener below, so the reset lives here.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowExportSubmenu(false);
       return;
     }

@@ -1,8 +1,10 @@
-import { memo, useEffect, useState } from 'react';
-import { Clapperboard, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { parseStoredSubtitles } from '@gruenerator/shared/subtitle-editor';
+import { Clapperboard, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { memo, useEffect, useState } from 'react';
+
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useReelLiveStore } from '../../stores/reelLiveStore';
+
 import type { ReelProcessingData } from '../../types/messageMetadata';
 
 type CardState =

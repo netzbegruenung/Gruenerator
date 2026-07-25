@@ -27,8 +27,8 @@ import {
   type ToolMeta,
 } from './toolResults';
 
-import type { SerializableCitation } from '../components/tool-ui/citation/schema';
 import type { KeyValueEntry, ToolResultVM, ToolViewKind } from './toolViewModels';
+import type { SerializableCitation } from '../components/tool-ui/citation/schema';
 
 export const UI_TOOL_NAMES = z.enum([
   'gruenerator_search',

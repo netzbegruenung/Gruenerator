@@ -9,9 +9,9 @@
  * Dependency-free (type-only imports) so the worker's module graph stays lean.
  */
 
+import { detectPyodidePackages } from '../lib/pyodidePackages';
 import { sanitizePythonCode } from '../lib/pythonCodeSanitizer';
 import { buildFileSetup, isXls, isXlsx } from '../lib/spreadsheetSetup';
-import { detectPyodidePackages } from '../lib/pyodidePackages';
 
 import type { CodeExecutionResult, PythonFile } from '../stores/chatConfigStore';
 

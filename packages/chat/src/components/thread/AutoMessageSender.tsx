@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
 import { useAssistantRuntime, useComposerRuntime } from '@assistant-ui/react';
+import { useEffect, useRef } from 'react';
+
 import { useAgentStore } from '../../stores/chatStore';
 
 export function AutoMessageSender() {

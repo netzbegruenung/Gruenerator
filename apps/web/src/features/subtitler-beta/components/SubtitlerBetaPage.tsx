@@ -210,6 +210,7 @@ function SubtitlerBetaPageInner() {
     const projectId = searchParams.get('project');
     if (projectId && user?.id) {
       setSearchParams({}, { replace: true });
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- kicks off project load (sets loading flag) in response to searchParams/user change; async results land in loadProject's .then
       loadProject(projectId);
       return;
     }

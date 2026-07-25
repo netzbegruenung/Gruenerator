@@ -1,9 +1,12 @@
 'use client';
 
 import { ThreadPrimitive, SuggestionPrimitive } from '@assistant-ui/react';
-import type { SkillIcon } from '@gruenerator/shared/agents';
+
 import { cn } from '../../lib/utils';
+
 import { useChatDensity } from './chatDensityContext';
+
+import type { SkillIcon } from '@gruenerator/shared/agents';
 
 interface WelcomeScreenProps {
   /** Deprecated — kept for back-compat; rendered as fallback only when no

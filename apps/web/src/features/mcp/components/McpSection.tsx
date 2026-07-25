@@ -220,6 +220,9 @@ const McpAddForm = memo(
     // A pick from the discover list fills the form so the user only confirms.
     useEffect(() => {
       if (prefill) {
+        // Fill the form as a reaction to a directory pick (prefill prop change),
+        // not a render-derived value.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setName(prefill.name);
         setUrl(prefill.url);
         setAuthType(prefill.authType);

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@gruenerator/ui';
 import { ChevronLeft, ChevronRight, Download, ExternalLink, History, Loader2 } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { useSharepicArtifact } from '../../hooks/useSharepicArtifact';
 import { cn } from '../../lib/utils';
@@ -25,6 +25,7 @@ export function SocialPostSharepicColumn({ data }: { data: SharepicData }) {
   // the hero slot so column and docked panel show the same artifact.
   const activeIsOwn = activeVariantId != null && variants.some((v) => v.id === activeVariantId);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs the hero slot to an external store (sharepicLiveStore), which updates post-mount
     if (activeIsOwn) setSelectedId(activeVariantId);
   }, [activeIsOwn, activeVariantId]);
 

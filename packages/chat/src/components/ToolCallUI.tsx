@@ -33,6 +33,7 @@ import {
   CONFIDENCE_LABELS,
   type ToolIconKey,
 } from '../lib/toolResults';
+
 import type {
   ExampleSnippet,
   ImageResultVM,

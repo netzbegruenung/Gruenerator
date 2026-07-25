@@ -4,12 +4,12 @@ import { type ComponentProps, type ComponentType, type ReactNode } from 'react';
 import type { Toolkit } from '@assistant-ui/react';
 import { ToolCallUI } from '../ToolCallUI';
 import { ToolNarration } from '../message-parts/ToolNarration';
+import { UI_TOOL_NAMES, type UiToolName } from '../../lib/toolRegistry';
 import { AskHumanToolUI } from './AskHumanToolUI';
 import { McpToolUI } from './McpToolUI';
-import { RunPythonToolUI } from './RunPythonToolUI';
 import { PressemitteilungExamplesToolRender } from './PressemitteilungExamplesToolRender';
 import { ResearchToolRender } from './ResearchToolRender';
-import { UI_TOOL_NAMES, type UiToolName } from '../../lib/toolRegistry';
+import { RunPythonToolUI } from './RunPythonToolUI';
 
 // The persistent planner narration (split-gather mode) renders above every tool
 // card, whatever its dedicated renderer, so the between-tool prose stays visible

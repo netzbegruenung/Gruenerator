@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { SOCIAL_PLATFORM_INFO } from '@gruenerator/contracts';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,7 +12,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@gruenerator/ui';
-import { SOCIAL_PLATFORM_INFO } from '@gruenerator/contracts';
 import {
   ChevronLeft,
   ChevronRight,
@@ -23,12 +22,14 @@ import {
   SquarePen,
   X,
 } from 'lucide-react';
+import { useMemo } from 'react';
 
-import { CopyTextButton } from './message-parts/CopyTextButton';
 import { useSharepicArtifact } from '../hooks/useSharepicArtifact';
 import { useSliderDeckArtifact } from '../hooks/useSliderDeckArtifact';
 import { useSharepicLiveStore, type ActiveSharepic } from '../stores/sharepicLiveStore';
 import { useSocialPostLiveStore } from '../stores/socialPostLiveStore';
+
+import { CopyTextButton } from './message-parts/CopyTextButton';
 
 import type { SharepicVariant } from '../hooks/useChatGraphStream';
 import type { SocialPostPayload } from '@gruenerator/contracts';

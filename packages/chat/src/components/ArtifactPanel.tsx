@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
 import { Code2, Download, X } from 'lucide-react';
+import { useMemo } from 'react';
 
 import { useArtifactLiveStore } from '../stores/artifactLiveStore';
 

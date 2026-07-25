@@ -1,15 +1,6 @@
 'use client';
 
 import {
-  type ReactNode,
-  useMemo,
-  useCallback,
-  useEffect,
-  useRef,
-  type PropsWithChildren,
-} from 'react';
-import { useShallow } from 'zustand/shallow';
-import {
   AssistantRuntimeProvider,
   useLocalRuntime,
   useAui,
@@ -23,32 +14,44 @@ import {
   McpAppRenderer,
   McpAppsRemoteHost,
 } from '@assistant-ui/react';
+import { GrueneratorRealtimeVoiceAdapter, VoxtralDictationAdapter } from '@gruenerator/voice';
+import {
+  type ReactNode,
+  useMemo,
+  useCallback,
+  useEffect,
+  useRef,
+  type PropsWithChildren,
+} from 'react';
+import { useShallow } from 'zustand/shallow';
+
+import { ChatThreadListPortal } from '../components/ChatThreadListPortal';
+import { grueneratorToolkit } from '../components/tool-ui/GrueneratorToolUIs';
+import { ChatCollaborationProvider } from '../context/ChatCollaborationContext';
 import { createChatApiClient } from '../context/ChatContext';
+import { ChatRuntimeReadyProvider } from '../context/ChatRuntimeReadyContext';
+import { ExternalThreadProvider } from '../context/ExternalThreadContext';
+import { useChatCollaboration } from '../hooks/useChatCollaboration';
+import { getDefaultAgent } from '../lib/agents';
+import { handleDictationError } from '../lib/dictationErrorHandler';
+import { chatSuggestions } from '../lib/suggestions';
+import { useChatConfigStore } from '../stores/chatConfigStore';
 import { useAgentStore } from '../stores/chatStore';
 import { usePythonFileStore } from '../stores/pythonFileStore';
-import { useChatConfigStore } from '../stores/chatConfigStore';
-import { getDefaultAgent } from '../lib/agents';
-import { useChatCollaboration } from '../hooks/useChatCollaboration';
-import { ChatCollaborationProvider } from '../context/ChatCollaborationContext';
-import { GrueneratorRealtimeVoiceAdapter, VoxtralDictationAdapter } from '@gruenerator/voice';
-import { handleDictationError } from '../lib/dictationErrorHandler';
+
+import { AgentSwitchListener } from './AgentSwitchListener';
+import { GrueneratorAttachmentAdapter } from './GrueneratorAttachmentAdapter';
 import {
   createGrueneratorModelAdapter,
   type GrueneratorAdapterConfig,
 } from './GrueneratorModelAdapter';
-import { GrueneratorAttachmentAdapter } from './GrueneratorAttachmentAdapter';
-import { AgentSwitchListener } from './AgentSwitchListener';
 import {
   createGrueneratorThreadListAdapter,
   type ExternalThreadEntry,
 } from './GrueneratorThreadListAdapter';
-import { ExternalThreadProvider } from '../context/ExternalThreadContext';
-import { ChatRuntimeReadyProvider } from '../context/ChatRuntimeReadyContext';
-import { grueneratorToolkit } from '../components/tool-ui/GrueneratorToolUIs';
-import { ChatThreadListPortal } from '../components/ChatThreadListPortal';
-import { chatSuggestions } from '../lib/suggestions';
-import type { StreamMetadata } from '../hooks/useChatGraphStream';
 import { convertToThreadMessageLike, type LoadedMessage } from './threadMessageConversion';
+
+import type { StreamMetadata } from '../hooks/useChatGraphStream';
 
 /** Decode raw base64 (no data-URL prefix) to an ArrayBuffer for the Pyodide worker. */
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
@@ -123,8 +126,8 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
               useAgentStore.getState().setPendingInitialAssistantMessage(null);
             }
 
-            loadCompactionState(remoteId, apiClient);
-            useAgentStore.getState().loadThreadSettings(remoteId, apiClient);
+            void loadCompactionState(remoteId, apiClient);
+            void useAgentStore.getState().loadThreadSettings(remoteId, apiClient);
 
             // Rehydrate the in-browser pandas interpreter: setCurrentThread()
             // cleared the tabular file store, so re-fetch this thread's persisted
@@ -255,7 +258,7 @@ function useGrueneratorThreadRuntime() {
     useAgentStore.getState().setCurrentThread(newThreadId);
     const state = useAgentStore.getState();
     if (state.threadMode === 'eigener' && state.customSystemPrompt) {
-      state.saveThreadSettings(newThreadId, runtimeApiClientRef.current);
+      void state.saveThreadSettings(newThreadId, runtimeApiClientRef.current);
     }
   }, []);
 
@@ -272,7 +275,7 @@ function useGrueneratorThreadRuntime() {
         incrementMessageCount();
 
         if (needsCompactionRef.current && !compactionSummaryRef.current) {
-          triggerCompaction(tid, runtimeApiClient);
+          void triggerCompaction(tid, runtimeApiClient);
         }
       }
     },
