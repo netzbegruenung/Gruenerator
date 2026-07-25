@@ -24,8 +24,7 @@
     },
     "apps/api": {
       "entry": [
-        "server.ts",
-        "instrument.ts",
+        "*.ts",
         "workers/aiWorker.ts",
         "tests/**/*.ts",
         "evals/**/*.ts",
