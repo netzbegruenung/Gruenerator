@@ -30,29 +30,42 @@ vi.mock('./threadPersistenceService.js', () => ({
 
 // Parsers return null = "model produced no usable structure", the exact
 // condition that used to trigger the fall-through.
+// The *_TOOL_SCHEMA exports must be present: without them the dynamic import
+// throws and the handler's catch would produce the same visible outcome for the
+// wrong reason, making these tests pass vacuously.
+const TOOL_SCHEMA = { type: 'object' };
+
 vi.mock('../../../services/sheets/SheetGenerationService.js', () => ({
   SHEET_GENERATION_PROMPT: 'sheet',
+  SHEET_TOOL_SCHEMA: TOOL_SCHEMA,
   parseSheetStructure: () => null,
   createSheetDocument: vi.fn(),
 }));
 vi.mock('../../../services/presentations/PresentationGenerationService.js', () => ({
   PRESENTATION_GENERATION_PROMPT: 'presentation',
+  PRESENTATION_TOOL_SCHEMA: TOOL_SCHEMA,
   parsePresentationStructure: () => null,
   createPresentationDocument: vi.fn(),
 }));
 vi.mock('../../../services/pdf/PdfGenerationService.js', () => ({
   PDF_GENERATION_PROMPT: 'pdf',
   parsePdfStructure: () => null,
+  validatePdfStructure: () => ({ ok: false, error: 'blocks: Required' }),
   createPdfDocument: vi.fn(),
+}));
+vi.mock('../../../services/pdf/pdfDocument.js', () => ({
+  PDF_DOCUMENT_TOOL_SCHEMA: TOOL_SCHEMA,
 }));
 vi.mock('../../../services/boards/BoardService.js', () => ({
   BOARD_GENERATION_PROMPT: 'board',
+  BOARD_TOOL_SCHEMA: TOOL_SCHEMA,
   parseBoardStructure: () => null,
   createBoardDocument: vi.fn(),
   postProcessBoardStructure: vi.fn(),
 }));
 vi.mock('../../../services/docs/DocGenerationService.js', () => ({
   DOCUMENT_GENERATION_PROMPT: 'document',
+  DOCUMENT_TOOL_SCHEMA: TOOL_SCHEMA,
   parseDocumentResponse: () => ({ title: 'Neues Dokument', subtype: 'blank', content: '' }),
   createDocumentWithContent: vi.fn(),
 }));
