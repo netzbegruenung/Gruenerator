@@ -26,7 +26,13 @@ import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { resolveSharepicAuthorName } from './artifactGeneration.js';
-import { BOARD_SPEC, PDF_SPEC, PRESENTATION_SPEC, SHEET_SPEC } from './artifactKinds.js';
+import {
+  BOARD_SPEC,
+  makeDocumentSpec,
+  PDF_SPEC,
+  PRESENTATION_SPEC,
+  SHEET_SPEC,
+} from './artifactKinds.js';
 import { CONFIRM_ACTION_CONFIG } from './confirmActionService.js';
 import { runCreateTurn, type CreateTurnOpts } from './createTurn.js';
 import { failCreation, rememberArtifact } from './createTurnHelpers.js';
@@ -273,8 +279,14 @@ export async function handleRecurringTaskCreation(opts: {
 }
 
 /**
- * Generate a document using AI and create it.
- * Returns true if the document was created successfully.
+ * Document creation, in two genuinely different modes.
+ *
+ * The default mode OWNS the turn and is an ordinary entry in the artifact
+ * table. `skipTerminate` (save_as_doc) does NOT: it writes the card and text
+ * into a stream its caller already opened and will close, so it deliberately
+ * emits no `done`, persists no message and returns false on failure to let the
+ * caller decide. Keeping the fork explicit at the top beats the previous
+ * version, where `if (!skipTerminate)` was threaded through 167 lines.
  */
 export async function generateAndCreateDocument(opts: {
   sse: SSEWriter;
@@ -289,158 +301,48 @@ export async function generateAndCreateDocument(opts: {
   intent: string;
   skipTerminate?: boolean;
 }): Promise<boolean> {
-  const {
-    sse,
-    classifiedState,
-    aiWorkerPool,
-    req,
-    actualThreadId,
-    userId,
-    userContent,
-    subtypeOverride,
-    conversationContext,
-    intent,
-    skipTerminate,
-  } = opts;
+  const spec = makeDocumentSpec({
+    intent: opts.intent,
+    subtypeOverride: opts.subtypeOverride ?? null,
+    ...(opts.conversationContext != null && { conversationContext: opts.conversationContext }),
+  });
+  if (!opts.skipTerminate) return runCreateTurn(spec, opts);
+  return contributeDocumentToOpenTurn(spec, opts);
+}
 
-  if (!skipTerminate) {
-    sse.send('response_start', { message: 'Erstelle Dokument...' });
-  }
-
+/**
+ * save_as_doc: contribute a document to a turn somebody else owns.
+ *
+ * Emits the same text + card as the owning path so the chat looks identical,
+ * remembers the artifact (this path never reaches persistAssistantResponse's
+ * deriveToolContext, so without it the follow-up edit gate has no target), and
+ * then stops — no `done`, no message, no `sse.end()`.
+ */
+async function contributeDocumentToOpenTurn(
+  spec: ReturnType<typeof makeDocumentSpec>,
+  opts: CreateTurnOpts
+): Promise<boolean> {
+  const { sse, aiWorkerPool, req, userId, userContent, actualThreadId } = opts;
   try {
-    const {
-      DOCUMENT_GENERATION_PROMPT,
-      DOCUMENT_TOOL_SCHEMA,
-      parseDocumentResponse,
-      createDocumentWithContent,
-    } = await import('../../../services/docs/DocGenerationService.js');
-    const { generateStructured, viaLaxParser, withContent } =
-      await import('../../../services/ai/generateStructured.js');
+    const doc = await spec.generate({ aiWorkerPool, req, userId, userContent }, () => {});
+    if (!doc) return false;
 
-    const subtypeHint = subtypeOverride ? `\nVerwende subtype: "${subtypeOverride}".` : '';
-
-    const userMessage = conversationContext
-      ? `Konversationskontext:\n${conversationContext}\n\nAktuelle Anfrage: ${userContent}`
-      : userContent;
-
-    const docResult = await generateStructured({
-      aiWorkerPool,
-      req: req as Express.Request & { user?: { id?: string }; sessionID?: string },
-      type: 'doc_generation',
-      systemPrompt: DOCUMENT_GENERATION_PROMPT + subtypeHint,
-      userContent: userMessage,
-      toolName: 'create_document',
-      toolDescription: 'Erzeugt das Dokument als HTML mit Titel und subtype.',
-      schema: DOCUMENT_TOOL_SCHEMA,
-      validate: viaLaxParser(withContent(parseDocumentResponse), 'content fehlt oder ist leer'),
-      parseText: withContent(parseDocumentResponse),
-      temperature: 0.7,
-      label: 'document',
-    });
-
-    const generated = docResult.ok ? docResult.data : null;
-    if (!generated || !generated.content) {
-      // Previously this substituted an empty {title:'Neues Dokument', content:''}
-      // document and reported success — a fake artifact is worse than an honest
-      // failure. save_as_doc (skipTerminate) does not own the stream, so it must
-      // still fall through to its caller.
-      log.warn(`[ChatGraph] Document generation returned no parseable content (${intent})`);
-      if (skipTerminate) return false;
-      return failCreation(
-        sse,
-        actualThreadId,
-        intent,
-        'Ich konnte das Dokument nicht erstellen. Sag mir kurz, was drinstehen soll, dann schreibe ich es direkt.'
-      );
-    }
-
-    const docSubtype = subtypeOverride || generated.subtype;
-    const newDoc = await createDocumentWithContent(
-      generated.title,
-      generated.content,
-      docSubtype,
-      userId
-    );
-
-    const newDocId = newDoc.id;
-    const docTitle = generated.title;
-
-    const responseText = `Dokument **"${docTitle}"** wurde erstellt.`;
-
+    const responseText = spec.successText(doc);
     for (let i = 0; i < responseText.length; i += 20) {
       sse.send('text_delta', { text: responseText.slice(i, i + 20) });
     }
+    sse.send('document_created', doc);
+    log.info(`[ChatGraph] Document created (${spec.intent}): "${doc.title}" (${doc.documentId})`);
 
-    sse.send('document_created', {
-      documentId: newDocId,
-      title: docTitle,
-      subtype: docSubtype,
-      url: `/office/${newDocId}`,
-    });
-
-    log.info(`[ChatGraph] Document created (${intent}): "${docTitle}" (${newDocId})`);
-
-    // Remember the created document so a vague follow-up ("Kürze die
-    // Begründung") routes to modify_doc on THIS doc (classifier Tier-2.7).
-    // Written for both the terminating (@dokument-erstellen) and skipTerminate
-    // (save_as_doc) paths — the latter never reaches persistAssistantResponse's
-    // deriveToolContext, so without this the edit gate has no target.
-    const contextKind = docSubtype.startsWith('presentation')
-      ? 'presentation'
-      : docSubtype.startsWith('sheet')
-        ? 'sheet'
-        : 'document';
-    await rememberArtifact(actualThreadId, contextKind, newDocId, docTitle);
-
-    if (!skipTerminate) {
-      const totalTimeMs = Date.now() - classifiedState.startTime;
-      sse.sendRaw('done', {
-        threadId: actualThreadId,
-        citations: [],
-        documentId: newDocId,
-        metadata: {
-          intent,
-          searchCount: 0,
-          totalTimeMs,
-          classificationTimeMs: classifiedState.classificationTimeMs,
-          searchTimeMs: 0,
-        },
-      });
-
-      if (actualThreadId) {
-        // Persist the created-document descriptor so the DocumentCreatedCard
-        // rehydrates on thread reload. Without this the card is streamed live
-        // via `document_created` but the reloaded message is bare text.
-        await createMessage(actualThreadId, 'assistant', responseText, {
-          intent,
-          createdDocument: {
-            documentId: newDocId,
-            title: docTitle,
-            subtype: docSubtype,
-            url: `/office/${newDocId}`,
-          },
-        });
-        await touchThread(actualThreadId);
-      }
-
-      sse.end();
-    }
-
+    const contextKind =
+      typeof spec.contextKind === 'function' ? spec.contextKind(doc) : spec.contextKind;
+    await rememberArtifact(actualThreadId, contextKind, doc.documentId, doc.title);
     return true;
-  } catch (docErr) {
+  } catch (err) {
     log.error(
-      `[ChatGraph] Document creation failed (${intent}): ${docErr instanceof Error ? docErr.message : String(docErr)}`
+      `[ChatGraph] Document creation failed (${spec.intent}): ${err instanceof Error ? err.message : String(err)}`
     );
-    // skipTerminate (save_as_doc) never opened the stream — its caller handles
-    // the failure. Every other path already sent `response_start`, so falling
-    // through would double the response on top of the hallucination risk.
-    if (skipTerminate) return false;
-    return failCreation(
-      sse,
-      actualThreadId,
-      intent,
-      'Das Dokument konnte nicht erstellt werden. Versuch es bitte noch einmal mit einer kurzen Beschreibung des Inhalts.'
-    );
+    return false;
   }
 }
 
