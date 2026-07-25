@@ -30,6 +30,7 @@ export { notebookCollectionsContract } from './notebookCollectionsContract.js';
 export { wolkePendingContract } from './wolkePendingContract.js';
 export { notebookWordpressContract } from './notebookWordpressContract.js';
 export { userWebsitesContract } from './userWebsitesContract.js';
+export { letterheadsContract } from './letterheadsContract.js';
 export { notebookSharingContract } from './notebookSharingContract.js';
 export { docsContract } from './docsContract.js';
 export { documentsContract } from './documentsContract.js';
