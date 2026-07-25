@@ -131,7 +131,7 @@ export const ColumnHeader = memo(function ColumnHeader({
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="max-sm:p-[15px] sm:p-0.5 rounded hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer text-grey-400 hover:text-foreground">
+          <button className="max-sm:size-11 max-sm:inline-flex max-sm:items-center max-sm:justify-center sm:p-0.5 rounded hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer text-grey-400 hover:text-foreground">
             <FiMoreVertical size={14} />
           </button>
         </DropdownMenuTrigger>
