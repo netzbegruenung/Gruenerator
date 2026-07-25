@@ -1,11 +1,31 @@
 'use client';
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ComponentProps } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { useAuiState } from '@assistant-ui/react';
+import { MessagePrimitive, useAuiState } from '@assistant-ui/react';
 import { useShallow } from 'zustand/shallow';
 import { ShimmerText } from './ShimmerText';
-import { computeToolGroupView, type PartLike } from '../../lib/narrationView';
+import { computeToolGroupView } from '../../lib/narrationView';
+
+/** Derived from the `MessagePrimitive.Parts` slot so the props can't drift. */
+type ToolGroupComponent = NonNullable<
+  NonNullable<ComponentProps<typeof MessagePrimitive.Parts>['components']>['ToolGroup']
+>;
+
+/**
+ * Boundary cast target for message parts: `parentId` is our own run-stamp
+ * (threadMessageConversion), not part of assistant-ui's part union.
+ */
+interface RunStampedPart {
+  readonly type: string;
+  readonly toolName?: string;
+  readonly parentId?: string;
+}
+
+const isToolCallPart = (p: RunStampedPart): boolean => p.type === 'tool-call';
+
+/** Separator for the joined tool-name snapshot key; never occurs in tool names. */
+const NAME_SEPARATOR = '';
 
 /**
  * Renders a contiguous run of tool-call cards. Post-narration-rollout the
@@ -21,36 +41,40 @@ import { computeToolGroupView, type PartLike } from '../../lib/narrationView';
  * Wired as `MessagePrimitive.Parts`' `components.ToolGroup`; `children` is the
  * already-rendered card stack (ToolCallUI + ToolNarration), untouched.
  */
-export function ToolCallGroup({
-  startIndex,
-  endIndex,
-  children,
-}: {
-  startIndex: number;
-  endIndex: number;
-  children?: ReactNode;
-}) {
+export const ToolCallGroup: ToolGroupComponent = ({ startIndex, endIndex, children }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const { toolNames, parentIds, isStreaming } = useAuiState(
+  // The selector must return only primitives: `useShallow` compares one level
+  // with Object.is, so a freshly built array per call would make every
+  // getSnapshot "new" and loop useSyncExternalStore into React #185
+  // (maximum update depth) as soon as a message with tool cards renders.
+  const { toolNamesKey, sameParentRun, isStreaming } = useAuiState(
     useShallow((s) => {
-      const parts = (s.message?.parts ?? []) as ReadonlyArray<PartLike>;
-      const slice = parts.slice(startIndex, endIndex + 1);
-      const toolParts = slice.filter((p) => p.type === 'tool-call');
+      const parts = (s.message?.parts ?? []) as ReadonlyArray<RunStampedPart>;
+      const toolParts = parts.slice(startIndex, endIndex + 1).filter(isToolCallPart);
       const lastIndex = parts.length - 1;
       const running =
         s.message?.status?.type === 'running' && lastIndex >= startIndex && lastIndex <= endIndex;
+      const firstParentId = toolParts[0]?.parentId;
       return {
-        toolNames: toolParts.map((p) => p.toolName ?? 'unknown'),
-        parentIds: toolParts.map((p) => p.parentId),
+        toolNamesKey: toolParts.map((p) => p.toolName ?? 'unknown').join(NAME_SEPARATOR),
+        sameParentRun:
+          toolParts.length >= 2 &&
+          firstParentId != null &&
+          toolParts.every((p) => p.parentId === firstParentId),
         isStreaming: running,
       };
     })
   );
 
+  const toolNames = useMemo(
+    () => (toolNamesKey ? toolNamesKey.split(NAME_SEPARATOR) : []),
+    [toolNamesKey]
+  );
+
   const view = useMemo(
-    () => computeToolGroupView({ toolNames, parentIds, isStreaming }),
-    [toolNames, parentIds, isStreaming]
+    () => computeToolGroupView({ toolNames, sameParentRun, isStreaming }),
+    [toolNames, sameParentRun, isStreaming]
   );
 
   if (view.mode === 'passthrough') return <>{children}</>;
@@ -88,4 +112,4 @@ export function ToolCallGroup({
       )}
     </div>
   );
-}
+};

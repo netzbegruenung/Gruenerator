@@ -1,5 +1,5 @@
 import { type StartPage } from '@gruenerator/contracts';
-import { Button, toast } from '@gruenerator/ui';
+import { Button, Switch, toast } from '@gruenerator/ui';
 import { Check, RotateCcw } from 'lucide-react';
 import { type IconType } from 'react-icons';
 import { PiBriefcase, PiChatCircle, PiDesktop, PiMoon, PiSun } from 'react-icons/pi';
@@ -36,6 +36,8 @@ const GeneralTab = () => {
   const updateChatBackground = useAuthStore((s) => s.updateChatBackground);
   const startPage = useAuthStore((s) => s.user?.default_startpage ?? 'chat');
   const updateStartPage = useAuthStore((s) => s.updateStartPage);
+  const feedbackEnabled = useAuthStore((s) => s.user?.feedback_enabled ?? true);
+  const updateFeedbackEnabled = useAuthStore((s) => s.updateFeedbackEnabled);
 
   return (
     <div className="-my-4 divide-y divide-grey-200 dark:divide-grey-800">
@@ -130,6 +132,14 @@ const GeneralTab = () => {
             </button>
           ))}
         </div>
+      </SettingsRow>
+
+      <SettingsRow id="allgemein.feedbackButton">
+        <Switch
+          checked={feedbackEnabled}
+          onCheckedChange={(checked) => void updateFeedbackEnabled(checked)}
+          aria-label="Feedback-Button anzeigen"
+        />
       </SettingsRow>
 
       <SettingsRow id="allgemein.touren">

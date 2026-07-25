@@ -413,7 +413,7 @@ function createAbortTimer(ms: number): { signal: AbortSignal; clear: () => void 
 async function streamAndAccumulateOrThrow(params: {
   model: LanguageModel;
   messages: Array<{ role: string; content: string | unknown[] }>;
-  maxTokens: number;
+  maxTokens?: number;
   temperature: number;
   sse: SSEWriter;
   signal?: AbortSignal;
@@ -453,7 +453,7 @@ async function streamAndAccumulateOrThrow(params: {
     model,
     ...(system != null && { system }),
     messages: messagesWithoutSystem,
-    maxOutputTokens: maxTokens,
+    ...(maxTokens != null && { maxOutputTokens: maxTokens }),
     temperature,
     abortSignal: composed,
     ...(providerOptions && { providerOptions }),
@@ -550,7 +550,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
   provider: string;
   modelName: string;
   messages: Array<{ role: string; content: string | unknown[] }>;
-  maxTokens: number;
+  maxTokens?: number;
   temperature: number;
   sse: SSEWriter;
   signal?: AbortSignal;
@@ -587,7 +587,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
     provider,
     model: modelName,
     messages: messages as ModelMessage[],
-    maxTokens,
+    ...(maxTokens != null && { maxTokens }),
     temperature,
     signal: composed,
     ...(effort && { effort }),
@@ -766,7 +766,8 @@ export async function streamWithFallback(params: {
 export async function streamForResolution(params: {
   resolution: ModelResolution;
   messages: Array<{ role: string; content: string | unknown[] }>;
-  maxTokens: number;
+  /** Optional output cap. Omit on answer paths — the provider decides. */
+  maxTokens?: number;
   temperature: number;
   sse: SSEWriter;
   signal?: AbortSignal;
@@ -790,7 +791,7 @@ export async function streamForResolution(params: {
       provider: resolution.provider,
       modelName: resolution.modelName,
       messages,
-      maxTokens,
+      ...(maxTokens != null && { maxTokens }),
       temperature,
       sse,
       firstTokenDeadlineMs,
@@ -805,7 +806,7 @@ export async function streamForResolution(params: {
   const args: Parameters<typeof streamAndAccumulateOrThrow>[0] = {
     model: resolution.model,
     messages,
-    maxTokens,
+    ...(maxTokens != null && { maxTokens }),
     temperature,
     sse,
     firstTokenDeadlineMs,

@@ -67,6 +67,15 @@ export const CHAT_BACKGROUND_PRESETS: readonly ChatBackgroundPreset[] = [
     accent: '#c2185b',
   },
   {
+    key: 'regenbogen',
+    label: 'Regenbogen',
+    description: 'Alle Farben auf einmal — sanft ineinander verlaufend.',
+    className: 'workplace-chat-bg--regenbogen',
+    swatch:
+      'linear-gradient(135deg, #f3b6be 0%, #f6d9a8 25%, #bfe3bb 50%, #a9cdee 75%, #cdb6e6 100%)',
+    accent: '#8e44ad',
+  },
+  {
     key: 'neutral',
     label: 'Neutral',
     description: 'Kein Verlauf — nur der Seitenhintergrund.',
