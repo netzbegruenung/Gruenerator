@@ -198,6 +198,13 @@ export interface LoopEngineParams {
   buildSynthSystem: (sourcesBlock: string) => string;
   getSourcesBlock: () => string;
   messages: ModelMessage[];
+  /** Split mode only: the message list the SYNTH phase writes over. Defaults to
+   *  `messages`. The caller passes the history WITHOUT the cross-turn tool
+   *  replay here — synthesis runs with no tools, and a history full of
+   *  tool-call/tool-result messages primes the model to imitate the pattern in
+   *  prose instead of answering (observed live: the whole answer was
+   *  "Let's perform web_search."). */
+  synthMessages?: ModelMessage[];
   maxSteps: number;
   temperature: number;
   /** Optional output cap. Omitted on answer paths (OpenWebUI-style: the
@@ -319,18 +326,128 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
   }
 }
 
+/** Answers at or below this length are candidates for the degeneracy check, and
+ *  the gate holds them back until the verdict is in. Above it the answer is real
+ *  prose by definition and streams through unbuffered. */
+const DEGENERATE_MAX_CHARS = 200;
+
+// Any of these means real German prose — umlauts or the closed-class words no
+// German sentence avoids. Their ABSENCE in a short answer is the signal.
+const GERMAN_MARKER_RE =
+  /[äöüßÄÖÜ]|\b(der|die|das|dass|und|oder|ich|du|dir|wir|hier|nicht|kein\w*|ist|sind|war\w*|wurde\w*|habe?n?|hat|eine?[nmrs]?|dem|den|mit|von|auf|aus|bei|zum|zur|es|sich)\b/i;
+
+export const SYNTH_RETRY_SYSTEM_SUFFIX =
+  '\n\nWICHTIG: Schreibe JETZT die vollständige, ausformulierte Antwort für die*den Nutzer*in — auf Deutsch. Du hast KEINE Tools und kannst keine aufrufen; kündige KEINE Tool-Aufrufe, Suchen oder Arbeitsschritte an, sondern nutze ausschließlich die oben gelieferten Quellen. Beginne direkt mit dem Inhalt.';
+
+/**
+ * Whether a synthesized answer is a degenerate non-answer rather than prose.
+ *
+ * The live failure this catches: with the cross-turn tool replay in its context
+ * but no tools mounted, the synth model imitated the tool-call pattern and the
+ * ENTIRE answer was "Let's perform web_search." Short + names a mounted tool, or
+ * short + not German at all. Long answers are never degenerate — a real answer
+ * that happens to be brief ("Erledigt — die Spalte wurde ergänzt.") carries
+ * German markers and passes.
+ */
+export function looksDegenerateSynth(text: string, toolNames: readonly string[]): boolean {
+  const trimmed = text.trim();
+  // Empty is the caller's existing fallback case, not this one's.
+  if (trimmed.length === 0 || trimmed.length > DEGENERATE_MAX_CHARS) return false;
+  // Needs to read as a SENTENCE before we judge its language — a bare token
+  // ("Erledigt", "Ja") is a legitimate answer, not a leaked plan.
+  if (trimmed.split(/\s+/).filter(Boolean).length < 3) return false;
+  if (toolNames.some((name) => name.length > 3 && trimmed.includes(name))) return true;
+  return !GERMAN_MARKER_RE.test(trimmed);
+}
+
+/**
+ * Holds the first {@link DEGENERATE_MAX_CHARS} of the answer back so a degenerate
+ * one can be discarded and retried before the client ever sees it. Once the
+ * answer grows past the threshold the gate opens and every delta passes straight
+ * through — so normal answers only pay a one-paragraph delay on first token, and
+ * long answers stream as before.
+ */
+function createGatedEmitter(
+  onText: (delta: string) => void,
+  holdChars: number
+): { push: (d: string) => void; flush: () => void; discard: () => void } {
+  let buffer = '';
+  let open = false;
+  return {
+    push(delta) {
+      if (open) {
+        onText(delta);
+        return;
+      }
+      buffer += delta;
+      if (buffer.length > holdChars) {
+        onText(buffer);
+        buffer = '';
+        open = true;
+      }
+    },
+    flush() {
+      if (buffer.length > 0) onText(buffer);
+      buffer = '';
+      open = true;
+    },
+    discard() {
+      buffer = '';
+    },
+  };
+}
+
 /** Split phase 2: the selected model writes the answer over the gathered
- *  sources — no tools. */
+ *  sources — no tools. One retry when the first pass degenerates. */
 async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: string }> {
-  const result = deps.streamText({
-    model: p.synthModel,
-    system: p.buildSynthSystem(p.getSourcesBlock()),
-    messages: p.messages,
-    temperature: p.temperature,
-    ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
-    abortSignal: p.abortSignal,
-  });
-  return drain(result, p.onText, p.onReasoning);
+  // Synthesis runs WITHOUT tools, so it must not see the tool-call/tool-result
+  // replay the gather phase needs — see `synthMessages`.
+  const messages = p.synthMessages ?? p.messages;
+  const baseSystem = p.buildSynthSystem(p.getSourcesBlock());
+  const toolNames = Object.keys(p.tools);
+
+  const runPass = async (system: string): Promise<{ text: string; flush: () => void }> => {
+    const gate = createGatedEmitter(p.onText, DEGENERATE_MAX_CHARS);
+    const result = deps.streamText({
+      model: p.synthModel,
+      system,
+      messages,
+      temperature: p.temperature,
+      ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
+      abortSignal: p.abortSignal,
+    });
+    try {
+      const { text } = await drain(result, gate.push, p.onReasoning);
+      return { text, flush: gate.flush };
+    } catch (err) {
+      // Nothing buffered may leak on the error path — the caller's catch writes
+      // its own user-facing message.
+      gate.discard();
+      throw err;
+    }
+  };
+
+  const first = await runPass(baseSystem);
+  if (!looksDegenerateSynth(first.text, toolNames)) {
+    first.flush();
+    return { text: first.text };
+  }
+
+  log.warn(
+    `[Engine] synth degenerated into a non-answer (${first.text.length} chars: ${JSON.stringify(
+      first.text.trim().slice(0, 80)
+    )}) — retrying once`
+  );
+  const retry = await runPass(`${baseSystem}${SYNTH_RETRY_SYSTEM_SUFFIX}`);
+  if (retry.text.trim().length === 0 || looksDegenerateSynth(retry.text, toolNames)) {
+    // Neither pass produced an answer — emit NEITHER (both are still buffered)
+    // and return empty, so the caller's honest no-answer fallback fires instead
+    // of a leaked tool-planning line.
+    log.warn('[Engine] synth retry did not recover — degrading to the no-answer fallback');
+    return { text: '' };
+  }
+  retry.flush();
+  return { text: retry.text };
 }
 
 interface Drainable {
