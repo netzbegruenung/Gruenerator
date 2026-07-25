@@ -1,1 +1,0 @@
-export { BalkenIcon } from './BalkenIcon';
