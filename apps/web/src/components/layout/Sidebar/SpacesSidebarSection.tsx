@@ -73,60 +73,65 @@ export const SpacesSidebarSection = memo(function SpacesSidebarSection({
   );
 
   return (
-    <DropdownMenu open={open} onOpenChange={handleOpenChange}>
-      <DropdownMenuTrigger asChild>
-        <button className={menuLinkClass(false, false, collapsed)} type="button">
-          <PiUsersThree aria-hidden="true" className={iconClass} />
-          <span className={titleClass}>Projekte</span>
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        side={isMobile ? 'bottom' : 'right'}
-        align="start"
-        sideOffset={8}
-        className="w-72 bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl"
-      >
-        <DropdownMenuLabel>Projekte</DropdownMenuLabel>
-        {spaces.length === 0 ? (
-          <div className="px-2 py-1.5 text-xs text-grey-500">Noch keine Projekte.</div>
-        ) : (
-          // Rows are plain buttons (not DropdownMenuItem) so the trailing "Neuer
-          // Chat" action can't also trigger a row-select — the two navigations
-          // stay independent.
-          spaces.map((g) => {
-            const path = buildGroupPath(g);
-            return (
-              <div
-                key={g.id}
-                className="group/space flex items-center gap-1 rounded-sm px-1 hover:bg-hover-alt"
-              >
-                <button
-                  type="button"
-                  onClick={() => openSpace(path, g.name)}
-                  className="flex min-w-0 flex-1 items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-foreground"
+    // The flex-col wrapper stretches the trigger button to full rail width —
+    // buttons don't stretch on their own, so without it the collapsed icon
+    // sits left-aligned instead of centered (unlike the other nav entries).
+    <div className="flex flex-col gap-0 p-0">
+      <DropdownMenu open={open} onOpenChange={handleOpenChange}>
+        <DropdownMenuTrigger asChild>
+          <button className={menuLinkClass(false, false, collapsed)} type="button">
+            <PiUsersThree aria-hidden="true" className={iconClass} />
+            <span className={titleClass}>Projekte</span>
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          side={isMobile ? 'bottom' : 'right'}
+          align="start"
+          sideOffset={8}
+          className="w-72 bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl"
+        >
+          <DropdownMenuLabel>Projekte</DropdownMenuLabel>
+          {spaces.length === 0 ? (
+            <div className="px-2 py-1.5 text-xs text-grey-500">Noch keine Projekte.</div>
+          ) : (
+            // Rows are plain buttons (not DropdownMenuItem) so the trailing "Neuer
+            // Chat" action can't also trigger a row-select — the two navigations
+            // stay independent.
+            spaces.map((g) => {
+              const path = buildGroupPath(g);
+              return (
+                <div
+                  key={g.id}
+                  className="group/space flex items-center gap-1 rounded-sm px-1 hover:bg-hover-alt"
                 >
-                  <PiUsersThree className="size-4 shrink-0 text-grey-500" />
-                  <span className="min-w-0 flex-1 truncate">{g.name}</span>
-                </button>
-                <button
-                  type="button"
-                  aria-label={`Neuer Chat in ${g.name}`}
-                  title="Neuer Chat in diesem Projekt"
-                  onClick={() => newChatInSpace(g.id)}
-                  className="shrink-0 rounded-md p-1 text-grey-400 opacity-0 transition-opacity hover:bg-hover-alt hover:text-foreground focus-visible:opacity-100 group-hover/space:opacity-100"
-                >
-                  <PiChatCircle className="size-4" />
-                </button>
-              </div>
-            );
-          })
-        )}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => openSpace('/projekte', 'Projekte')}>
-          <PiGearSix className="size-4" />
-          <span>Alle Projekte &amp; Einstellungen</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+                  <button
+                    type="button"
+                    onClick={() => openSpace(path, g.name)}
+                    className="flex min-w-0 flex-1 items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-foreground"
+                  >
+                    <PiUsersThree className="size-4 shrink-0 text-grey-500" />
+                    <span className="min-w-0 flex-1 truncate">{g.name}</span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Neuer Chat in ${g.name}`}
+                    title="Neuer Chat in diesem Projekt"
+                    onClick={() => newChatInSpace(g.id)}
+                    className="shrink-0 rounded-md p-1 text-grey-400 opacity-0 transition-opacity hover:bg-hover-alt hover:text-foreground focus-visible:opacity-100 group-hover/space:opacity-100"
+                  >
+                    <PiChatCircle className="size-4" />
+                  </button>
+                </div>
+              );
+            })
+          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => openSpace('/projekte', 'Projekte')}>
+            <PiGearSix className="size-4" />
+            <span>Alle Projekte &amp; Einstellungen</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 });
