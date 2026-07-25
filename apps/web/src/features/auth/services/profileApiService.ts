@@ -12,6 +12,9 @@ import apiClient from '../../../components/utils/apiClient';
 export interface Profile {
   avatar_robot_id?: string | number;
   display_name?: string;
+  /** Absender for the PDF letterhead; the address is multi-line. */
+  sender_organization?: string;
+  sender_address?: string;
   email?: string | null;
   username?: string;
   keycloak_id?: string | null;
