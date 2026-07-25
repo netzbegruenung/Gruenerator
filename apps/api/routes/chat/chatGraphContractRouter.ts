@@ -1279,7 +1279,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           req,
           ...(actualThreadId != null && { actualThreadId }),
           userId,
-          userContent: lastUserText as string,
+          userContent: resolveReferentialTopic(
+            lastUserText as string,
+            classifiedState.messages ?? []
+          ).text,
           intent: 'direct',
         });
         if (created) {
@@ -1360,7 +1363,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           req,
           ...(actualThreadId != null && { actualThreadId }),
           userId,
-          userContent: lastUserText as string,
+          // A referential follow-up ("also aus der tabelle") inherits the prior
+          // turn's subject instead of the bare instruction.
+          userContent: resolveReferentialTopic(
+            lastUserText as string,
+            classifiedState.messages ?? []
+          ).text,
           userLocale: classifiedState.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
         });
         if (created) return { status: 200 as const, body: undefined };
