@@ -28,6 +28,7 @@ import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { generateDocxBuffer, sanitizeDocxFilename } from './docxController.js';
+import { resolveLetterheadSender } from './letterheadSender.js';
 import { generatePdfBuffer, sanitizePdfFilename } from './pdfController.js';
 
 import type { Application } from 'express';
@@ -71,14 +72,41 @@ export const exportsContractRouter = s.router(exportsContract, {
 
   generatePdf: async ({ body, req, res }) => {
     try {
-      const { content, title } = body;
+      const { content, title, layout, letter } = body;
       // AT gets its own corporate design (fonts, colours, logo), so the
       // locale has to reach the renderer. The auth middleware has already
       // overlaid req.user.locale from the DB-backed cache.
       const locale = extractLocaleFromRequest(
         req as Parameters<typeof extractLocaleFromRequest>[0]
       );
-      const buffer = await generatePdfBuffer(content, title, locale);
+
+      // Resolved from the caller's OWN profile — the body carries no sender, so
+      // nobody can print a foreign organisation onto Grünen paper. `req.user`
+      // is undefined in the contract tests (they mount without auth); the
+      // resolver returns null there instead of throwing.
+      const wantsSender = layout === 'letterhead' || layout === 'letter';
+      const sender = wantsSender
+        ? await resolveLetterheadSender((req as { user?: { id?: string } }).user?.id)
+        : null;
+
+      if (wantsSender && !sender) {
+        // An honest error beats a file that is byte-identical to the plain
+        // export — the same reasoning as the dropped-glyph guard next door.
+        return {
+          status: 400 as const,
+          body: {
+            success: false as const,
+            message:
+              'Für den Briefkopf sind noch keine Absenderangaben hinterlegt. Ergänze sie in den Einstellungen unter Personalisierung.',
+          },
+        };
+      }
+
+      const buffer = await generatePdfBuffer(content, title, locale, {
+        ...(layout && { layout }),
+        sender,
+        ...(letter && { letter }),
+      });
       const filename = `${sanitizePdfFilename(title || 'Dokument')}.pdf`;
 
       res.setHeader('Content-Type', 'application/pdf');
