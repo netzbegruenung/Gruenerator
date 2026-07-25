@@ -81,102 +81,85 @@ export async function handleBoardCreation(opts: {
 }): Promise<boolean> {
   const { sse, classifiedState, lastUserMessage, aiWorkerPool, req, actualThreadId, userId } = opts;
 
-  sse.send('response_start', { message: 'Erstelle Board...' });
+  const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+  // A referential follow-up ("mach ein Board davon") inherits the prior turn's
+  // subject instead of generating a board about the bare instruction.
+  const boardTopic = resolveReferentialTopic(lastUserText, classifiedState.messages ?? []).text;
 
+  let streamOpened = false;
   try {
-    const {
-      BOARD_GENERATION_PROMPT,
-      BOARD_TOOL_SCHEMA,
-      createBoardDocument,
-      parseBoardStructure,
-      postProcessBoardStructure,
-    } = await import('../../../services/boards/BoardService.js');
-    const { generateStructured, viaLaxParser, withContent } =
-      await import('../../../services/ai/generateStructured.js');
-
-    const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
-    // A referential follow-up ("mach ein Board davon") inherits the prior turn's
-    // subject instead of generating a board about the bare instruction.
-    const boardTopic = resolveReferentialTopic(lastUserText, classifiedState.messages ?? []).text;
-
-    const generated = await generateStructured({
-      aiWorkerPool,
-      req: req as Express.Request & { user?: { id?: string }; sessionID?: string },
-      type: 'board_generation',
-      systemPrompt: BOARD_GENERATION_PROMPT,
+    const created = await runBoardGeneration({
       userContent: boardTopic,
-      toolName: 'create_board',
-      toolDescription: 'Erzeugt die Board-Struktur aus Spalten und Aufgabenkarten.',
-      schema: BOARD_TOOL_SCHEMA,
-      validate: viaLaxParser(parseBoardStructure, 'statusOptions oder rows fehlen'),
-      parseText: parseBoardStructure,
-      temperature: 0.7,
-      label: 'board',
+      aiWorkerPool,
+      req,
+      userId,
+      // Open the stream at the commit point like every other create handler,
+      // instead of eagerly before generation (which made a failure emit a
+      // second response_start on the fall-through).
+      onCommit: () => {
+        sse.send('response_start', { message: 'Erstelle Board...' });
+        streamOpened = true;
+      },
     });
-    const boardStructure = generated.ok ? generated.data : null;
-    if (!generated.ok) log.warn(`[ChatGraph] Board generation failed: ${generated.error}`);
-
-    if (boardStructure) {
-      const { id: newBoardId, title: boardTitle } = await createBoardDocument(
-        boardStructure.title || 'Neues Board',
-        userId
+    if (!created) {
+      sse.send('response_start', { message: 'Erstelle Board...' });
+      return failCreation(
+        sse,
+        actualThreadId,
+        'create_board',
+        'Ich konnte das Board nicht erstellen. Sag mir kurz, welche Spalten und Aufgaben es enthalten soll, dann baue ich es direkt.'
       );
-
-      const columnNames = boardStructure.statusOptions
-        .map((c: { name: string }) => c.name)
-        .join(', ');
-      const cardCount = boardStructure.rows.length;
-
-      const responseText =
-        `Board **"${boardTitle}"** wurde erstellt!\n\n` +
-        `**Spalten:** ${columnNames}\n` +
-        `**Karten:** ${cardCount} Aufgaben\n\n` +
-        `[Board öffnen](/boards/${newBoardId})`;
-
-      for (let i = 0; i < responseText.length; i += 20) {
-        sse.send('text_delta', { text: responseText.slice(i, i + 20) });
-      }
-
-      const totalTimeMs = Date.now() - classifiedState.startTime;
-      sse.sendRaw('done', {
-        threadId: actualThreadId,
-        citations: [],
-        boardId: newBoardId,
-        boardGeneratedStructure: postProcessBoardStructure(boardStructure, userId),
-        metadata: {
-          intent: 'direct',
-          searchCount: 0,
-          totalTimeMs,
-          classificationTimeMs: classifiedState.classificationTimeMs,
-          searchTimeMs: 0,
-        },
-      });
-
-      if (actualThreadId) {
-        await createMessage(actualThreadId, 'assistant', responseText);
-        await touchThread(actualThreadId);
-        await rememberArtifact(actualThreadId, 'board', newBoardId, boardTitle);
-      }
-
-      log.info(`[ChatGraph] Board created: "${boardTitle}" (${newBoardId})`);
-      sse.end();
-      return true;
     }
-    log.warn('[ChatGraph] Board generation returned no parseable structure');
+
+    const responseText =
+      `Board **"${created.title}"** wurde erstellt!\n\n` +
+      `**Spalten:** ${created.columnNames.join(', ')}\n` +
+      `**Karten:** ${created.cardCount} Aufgaben\n\n` +
+      `[Board öffnen](/boards/${created.boardId})`;
+
+    for (let i = 0; i < responseText.length; i += 20) {
+      sse.send('text_delta', { text: responseText.slice(i, i + 20) });
+    }
+
+    log.info(`[ChatGraph] Board created: "${created.title}" (${created.boardId})`);
+
+    const totalTimeMs = Date.now() - classifiedState.startTime;
+    sse.sendRaw('done', {
+      threadId: actualThreadId,
+      citations: [],
+      boardId: created.boardId,
+      boardGeneratedStructure: created.boardGeneratedStructure,
+      metadata: {
+        // Boards predate the create_* intents and report 'direct' here — kept
+        // as-is so this stays a pure refactor.
+        intent: 'direct',
+        searchCount: 0,
+        totalTimeMs,
+        classificationTimeMs: classifiedState.classificationTimeMs,
+        searchTimeMs: 0,
+      },
+    });
+
+    if (actualThreadId) {
+      await createMessage(actualThreadId, 'assistant', responseText);
+      await touchThread(actualThreadId);
+      await rememberArtifact(actualThreadId, 'board', created.boardId, created.title);
+    }
+
+    sse.end();
+    return true;
   } catch (boardErr) {
     log.error(
       `[ChatGraph] Board creation failed: ${boardErr instanceof Error ? boardErr.message : String(boardErr)}`
     );
+    if (!streamOpened) sse.send('response_start', { message: 'Erstelle Board...' });
+    return failCreation(
+      sse,
+      actualThreadId,
+      'create_board',
+      'Das Board konnte nicht erstellt werden. Versuch es bitte noch einmal mit einer kurzen Beschreibung der gewünschten Spalten.'
+    );
   }
-
-  // `response_start` already fired above, so falling through would double the
-  // response AND expose the responder's invented workarounds — report instead.
-  return failCreation(
-    sse,
-    actualThreadId,
-    'create_board',
-    'Ich konnte das Board nicht erstellen. Sag mir kurz, welche Spalten und Aufgaben es enthalten soll, dann baue ich es direkt.'
-  );
 }
 
 /**
@@ -406,6 +389,11 @@ export interface CreatedBoard {
   /** Post-processed board structure — carried in the loop's `done` event so the
    *  boards UI renders it live (boards have no `document_created`/card path). */
   boardGeneratedStructure: unknown;
+  /** Column names and card count for the confirmation text. Carried here so the
+   *  turn handler can delegate generation instead of re-running it inline just
+   *  to keep hold of the raw structure. */
+  columnNames: string[];
+  cardCount: number;
 }
 
 /**
@@ -419,8 +407,12 @@ export async function runBoardGeneration(opts: {
   aiWorkerPool: ChatGraphState['aiWorkerPool'];
   req: Express.Request;
   userId: string;
+  /** Invoked ONCE after a parseable structure but BEFORE the DB write — same
+   *  commit point as runDocGeneration/runPdfGeneration, so the turn handler can
+   *  open the stream there instead of eagerly. */
+  onCommit?: () => void;
 }): Promise<CreatedBoard | null> {
-  const { userContent, aiWorkerPool, req, userId } = opts;
+  const { userContent, aiWorkerPool, req, userId, onCommit } = opts;
   const {
     BOARD_GENERATION_PROMPT,
     BOARD_TOOL_SCHEMA,
@@ -450,11 +442,14 @@ export async function runBoardGeneration(opts: {
     return null;
   }
   const structure = generated.data;
+  onCommit?.();
   const { id, title } = await createBoardDocument(structure.title || 'Neues Board', userId);
   return {
     boardId: id,
     title,
     boardGeneratedStructure: postProcessBoardStructure(structure, userId),
+    columnNames: structure.statusOptions.map((c: { name: string }) => c.name),
+    cardCount: structure.rows.length,
   };
 }
 
