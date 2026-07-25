@@ -41,7 +41,6 @@ Bitte schlage eine verbesserte Version des Abschnitts vor, die die gewünschten 
           },
         ],
         options: {
-          max_tokens: 1024,
           temperature: 0.5,
         },
       },
