@@ -9,7 +9,7 @@ Ein Notebook bündelt Dokumente zu einem Thema und macht ihren Inhalt im Grüner
 
 ## Was du benötigst
 
-Ein angemeldetes Grünerator-Konto und ein paar Dokumente, die du zusammenfassen, durchsuchen oder als Wissensbasis nutzen möchtest. Unterstützt werden **PDF, DOCX, DOC, TXT, MD, ODT und RTF** — bis zu **100 Dokumente** pro Notebook und **maximal 50 MB** pro Datei.
+Ein angemeldetes Grünerator-Konto und ein paar Dokumente, die du zusammenfassen, durchsuchen oder als Wissensbasis nutzen möchtest. Unterstützt werden **PDF, DOCX, DOC, TXT, MD, ODT und RTF** — bis zu **1.000 Dokumente** pro Notebook und **maximal 50 MB** pro Datei.
 
 ## Schritt-für-Schritt
 
@@ -28,7 +28,15 @@ Im ersten Schritt des Editors („Quellen — Woher kommen deine Dokumente?") st
 - **Aus Docs importieren** — eigene Docs als Quelle einbinden (siehe Schritt 3).
 - **Von einer Website** — Beiträge und Seiten einer WordPress-Website importieren (siehe Schritt 3).
 
-Beim Hochladen werden die gewählten Dateien zunächst als Vorschau **„Bereit zum Hochladen"** gesammelt. Dort kannst du einzelne Dateien wieder entfernen und startest den Upload dann mit **„Hochladen"**. Dateien in nicht unterstützten Formaten werden übersprungen, und überschüssige Uploads (über 100 hinaus) werden mit einem Hinweis abgelehnt.
+Beim Hochladen werden die gewählten Dateien zunächst als Vorschau **„Bereit zum Hochladen"** gesammelt. Dort kannst du einzelne Dateien wieder entfernen und startest den Upload dann mit **„Hochladen"**. Überschüssige Uploads jenseits der 1.000 werden mit einem Hinweis abgelehnt.
+
+:::caution[Prüf die Dateitypen selbst, bevor du hochlädst]
+Der Assistent filtert **nicht** nach Format. Die Auswahlliste des Dateidialogs schlägt zwar die unterstützten Endungen vor, aber per Drag & Drop landet jede Datei im Upload — auch eine, die später nicht gelesen werden kann.
+
+Solche Dateien scheitern erst bei der Verarbeitung im Hintergrund, und **das siehst du in der Dokumentenliste derzeit nicht**: Der Ladehinweis verschwindet einfach, ohne Fehlermeldung. Wenn ein Dokument später in der Suche fehlt, ist das die wahrscheinlichste Ursache.
+
+Auch einige der oben genannten Endungen sind betroffen — `.doc`, `.odt` und `.rtf` gehen durch die Vorauswahl, werden bei der Textextraktion aber nicht in jedem Fall unterstützt. Bei wichtigen Dokumenten ist PDF oder DOCX der sichere Weg.
+:::
 
 Sobald die erste Datei hochgeladen ist, schlägt der Editor automatisch einen Notebook-Namen vor — abgeleitet vom Dateinamen der ersten Datei (gekürzt auf 60 Zeichen). Mit **„Weiter →"** gelangst du zu Schritt 2 (Details).
 

@@ -34,7 +34,7 @@ const OUT_FILE = path.join(REPO_ROOT, 'apps', 'api', 'services', 'docs', 'docsIn
  * documentation/docusaurus.config.ts). Indexing them would emit citation links
  * to pages that 404.
  */
-const EXCLUDED_TOP_FOLDERS = new Set(['intern', 'monitor']);
+const EXCLUDED_TOP_FOLDERS = new Set(['intern', 'experimente']);
 
 /** Human labels per top-level folder — becomes the page-map grouping. */
 const CATEGORY_LABELS = {

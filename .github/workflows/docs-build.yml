@@ -43,6 +43,10 @@ on:
       - 'packages/sheets/src/ai/applySheetOperations.ts'
       - 'apps/web/src/features/docs/docTypeMeta.tsx'
       - 'apps/web/src/features/sheets/SheetImportDialog.tsx'
+      # reference manifest sources
+      - 'packages/chat/src/lib/fileUtils.ts'
+      - 'apps/api/config/systemCollectionsConfig.ts'
+      - 'apps/api/services/mcp/McpRegistryService.ts'
 
 permissions:
   contents: read
@@ -79,6 +83,12 @@ jobs:
       # could go missing — staleness is the only failure mode.
       - name: Check agentura.json is in sync with the market's categories
         run: pnpm --filter @gruenerator/documentation agentura:check
+
+      # Upload limits, MCP collections and the connector directory — plain facts
+      # the articles used to restate in prose. No audit either: nothing to pair
+      # them with, so staleness is the only failure mode.
+      - name: Check reference.json is in sync with its sources
+        run: pnpm --filter @gruenerator/documentation reference:check
 
       - name: Build docs (fails on unknown UiLabel ids)
         run: pnpm --filter @gruenerator/documentation build

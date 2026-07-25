@@ -60,8 +60,8 @@ const config: Config = {
           sidebarPath: './sidebars.ts',
           // Hidden until ready — remove entries to re-enable in the sidebar.
           // intern: dev-only LV-Korpus analysis pages, internal.
-          // monitor: Themen-Monitor not online yet.
-          exclude: ['intern/**', 'monitor/**'],
+          // experimente: Themen-Monitor (now /experiments/monitor) not published yet.
+          exclude: ['intern/**', 'experimente/**'],
           // "Edit this page" points at the docs in the monorepo.
           editUrl: 'https://github.com/netzbegruenung/Gruenerator/tree/master/documentation/',
         },
@@ -151,7 +151,7 @@ const config: Config = {
             { to: '/docs/ueber-den-gruenerator/tools', label: 'Alle Werkzeuge' },
             { to: '/docs/category/grünerieren', label: 'Grünerieren' },
             { to: '/docs/category/office', label: 'Office' },
-            // { to: '/docs/monitor/intro', label: 'Themen-Monitor' }, // hidden — Themen-Monitor not online yet
+            // { to: '/docs/experimente/intro', label: 'Experimente' }, // hidden — Themen-Monitor not published yet
             { to: '/docs/category/notebooks', label: 'Notebooks' },
             { to: '/docs/projekte/intro', label: 'Projekte' },
             { to: '/docs/category/profil', label: 'Profil' },
@@ -228,7 +228,7 @@ const config: Config = {
             },
             // {
             //   label: 'Themen-Monitor',
-            //   to: '/docs/monitor/intro',
+            //   to: '/docs/experimente/intro',
             // }, // hidden — Themen-Monitor not online yet
           ],
         },
