@@ -17,6 +17,7 @@
 @import url('./common/typography.css') layer(legacy);
 @import url('./common/global.css') layer(legacy);
 @import url('./common/markdown-styles.css') layer(legacy);
+@import url('./accessibility.css') layer(legacy);
 
 @import url('./layout.css') layer(legacy);
 
