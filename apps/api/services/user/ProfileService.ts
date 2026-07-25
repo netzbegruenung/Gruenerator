@@ -165,7 +165,6 @@ class ProfileService {
         'boards',
         'bundestag_api_enabled',
         'memory_enabled',
-        'feedback_enabled',
         'deutschlandmodus',
         'is_admin',
         'content_management',
@@ -190,6 +189,7 @@ class ProfileService {
         'auth_source',
         'document_mode',
         'default_startpage',
+        'feedback_button',
       ] as const;
 
       for (const col of knownTextColumns) {

@@ -1,5 +1,10 @@
 import { useUserProfileStore } from '@gruenerator/chat/stores';
-import { type ChatBackground, type StartPage, type UserProfile } from '@gruenerator/contracts';
+import {
+  type ChatBackground,
+  type FeedbackButtonMode,
+  type StartPage,
+  type UserProfile,
+} from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { toast } from '@gruenerator/ui';
 import { create } from 'zustand';
@@ -81,7 +86,7 @@ export interface AuthStore {
   updateLocale: (newLocale: SupportedLocale) => Promise<boolean>;
   updateChatBackground: (background: ChatBackground) => Promise<boolean>;
   updateStartPage: (page: StartPage) => Promise<boolean>;
-  updateFeedbackEnabled: (enabled: boolean) => Promise<boolean>;
+  updateFeedbackButton: (mode: FeedbackButtonMode) => Promise<boolean>;
 }
 
 // Detect browser locale for unauthenticated default
@@ -690,12 +695,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
   },
 
-  // Sichtbarkeit des schwebenden Feedback-Buttons. Persisted via the profile
-  // update contract.
-  updateFeedbackEnabled: async (enabled: boolean): Promise<boolean> => {
+  // Darstellung des schwebenden Feedback-Buttons (Text/Icon/aus). Persisted
+  // via the profile update contract.
+  updateFeedbackButton: async (mode: FeedbackButtonMode): Promise<boolean> => {
     try {
       const result = await getContractsClient().userProfile.updateProfile({
-        body: { feedback_enabled: enabled },
+        body: { feedback_button: mode },
       });
       if (result.status !== 200) {
         console.error('[AuthStore] Error updating feedback visibility:', result.status);
