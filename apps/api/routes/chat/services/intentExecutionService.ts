@@ -66,6 +66,39 @@ import type { Request } from 'express';
 const log = createLogger('ChatGraphController');
 
 /**
+ * Close a create_* turn with an honest error instead of falling through to the
+ * generic respond pipeline.
+ *
+ * The fall-through was the bug: a create_pdf turn whose structure failed to
+ * parse handed the turn to the responder, which — having no artifact tools —
+ * invented a workaround ("copy the content into the Office app and use 'save as
+ * PDF'"). That prose was persisted, and the NEXT referential turn ("erstelle
+ * als pdf") inherited it as its subject, so the finished PDF contained the
+ * invented instructions.
+ *
+ * Two properties matter: the text is templated, so it can never carry a
+ * hallucinated URL or workflow; and it is deliberately NOT persisted (the SSE
+ * text listener is attached later than the create branches, so the placeholder
+ * row stays empty and `cleanupPending(true)` drops it) — a persisted failure
+ * message would itself become eligible as a referential subject.
+ */
+function failCreation(
+  sse: SSEWriter,
+  actualThreadId: string | undefined,
+  intent: string,
+  message: string
+): true {
+  sse.send('text_delta', { text: message });
+  sse.sendRaw('done', {
+    threadId: actualThreadId,
+    citations: [],
+    metadata: { intent },
+  });
+  sse.end();
+  return true;
+}
+
+/**
  * Handle @board-erstellen forced tool.
  * Returns true if the board was created (caller should return early).
  */
@@ -155,13 +188,21 @@ export async function handleBoardCreation(opts: {
       sse.end();
       return true;
     }
+    log.warn('[ChatGraph] Board generation returned no parseable structure');
   } catch (boardErr) {
     log.error(
       `[ChatGraph] Board creation failed: ${boardErr instanceof Error ? boardErr.message : String(boardErr)}`
     );
   }
 
-  return false;
+  // `response_start` already fired above, so falling through would double the
+  // response AND expose the responder's invented workarounds — report instead.
+  return failCreation(
+    sse,
+    actualThreadId,
+    'create_board',
+    'Ich konnte das Board nicht erstellen. Sag mir kurz, welche Spalten und Aufgaben es enthalten soll, dann baue ich es direkt.'
+  );
 }
 
 /**
@@ -171,8 +212,9 @@ export async function handleBoardCreation(opts: {
  * by the turn-owning handlers (which wrap it with
  * response_start/done/createMessage) AND the compound loop fat tools (which emit
  * `document_created` + hand the card back to the model). Returns null when the
- * model produced no parseable structure — the caller decides whether to fall
- * through or report an error.
+ * model produced no parseable structure; the turn-owning handlers then report a
+ * templated error via `failCreation` (never a fall-through to the responder),
+ * the loop surfaces it as a tool failure.
  */
 export interface PdfGenerationOptions {
   /** Steers the layout; the generation model may still upgrade to a letter. */
@@ -446,9 +488,15 @@ export async function handleSheetCreation(opts: {
       },
     });
     if (!created) {
-      // Nothing streamed yet — return false so the caller falls through to the
-      // normal respond pipeline cleanly (no dangling response_start).
-      return false;
+      // Nothing streamed yet — open the stream and report honestly. Never fall
+      // through: the responder has no artifact tools and invents workarounds.
+      sse.send('response_start', { message: 'Erstelle Tabelle...' });
+      return failCreation(
+        sse,
+        actualThreadId,
+        'create_sheet',
+        'Ich konnte die Tabelle nicht erstellen. Sag mir kurz, welche Spalten und Daten sie enthalten soll, dann baue ich sie direkt.'
+      );
     }
 
     const responseText = `Tabelle **"${created.title}"** wurde erstellt.`;
@@ -488,20 +536,13 @@ export async function handleSheetCreation(opts: {
     log.error(
       `[ChatGraph] Sheet creation failed: ${sheetErr instanceof Error ? sheetErr.message : String(sheetErr)}`
     );
-    if (streamOpened) {
-      // The stream is already open; don't fall through (that would double the
-      // response). Close it with a short error message instead.
-      const msg = 'Die Tabelle konnte nicht erstellt werden.';
-      sse.send('text_delta', { text: msg });
-      sse.sendRaw('done', {
-        threadId: actualThreadId,
-        citations: [],
-        metadata: { intent: 'create_sheet' },
-      });
-      sse.end();
-      return true;
-    }
-    return false;
+    if (!streamOpened) sse.send('response_start', { message: 'Erstelle Tabelle...' });
+    return failCreation(
+      sse,
+      actualThreadId,
+      'create_sheet',
+      'Die Tabelle konnte nicht erstellt werden. Versuch es bitte noch einmal mit einer kurzen Beschreibung der gewünschten Spalten.'
+    );
   }
 }
 
@@ -533,9 +574,15 @@ export async function handlePresentationCreation(opts: {
       },
     });
     if (!created) {
-      // Nothing streamed yet — return false so the caller falls through to the
-      // normal respond pipeline cleanly (no dangling response_start).
-      return false;
+      // Nothing streamed yet — open the stream and report honestly. Never fall
+      // through: the responder has no artifact tools and invents workarounds.
+      sse.send('response_start', { message: 'Erstelle Präsentation...' });
+      return failCreation(
+        sse,
+        actualThreadId,
+        'create_presentation',
+        'Ich konnte die Präsentation nicht erstellen. Sag mir kurz, welche Folien sie enthalten soll, dann baue ich sie direkt.'
+      );
     }
 
     const responseText = `Präsentation **"${created.title}"** wurde erstellt.`;
@@ -575,20 +622,13 @@ export async function handlePresentationCreation(opts: {
     log.error(
       `[ChatGraph] Presentation creation failed: ${presentationErr instanceof Error ? presentationErr.message : String(presentationErr)}`
     );
-    if (streamOpened) {
-      // The stream is already open; don't fall through (that would double the
-      // response). Close it with a short error message instead.
-      const msg = 'Die Präsentation konnte nicht erstellt werden.';
-      sse.send('text_delta', { text: msg });
-      sse.sendRaw('done', {
-        threadId: actualThreadId,
-        citations: [],
-        metadata: { intent: 'create_presentation' },
-      });
-      sse.end();
-      return true;
-    }
-    return false;
+    if (!streamOpened) sse.send('response_start', { message: 'Erstelle Präsentation...' });
+    return failCreation(
+      sse,
+      actualThreadId,
+      'create_presentation',
+      'Die Präsentation konnte nicht erstellt werden. Versuch es bitte noch einmal mit einer kurzen Beschreibung der gewünschten Folien.'
+    );
   }
 }
 
@@ -628,9 +668,16 @@ export async function handlePdfCreation(opts: {
       },
     });
     if (!result) {
-      // Nothing streamed yet — return false so the caller falls through to the
-      // normal respond pipeline cleanly (no dangling response_start).
-      return false;
+      // Nothing streamed yet — open the stream and report honestly. This is the
+      // exact path that produced the "copy it into the Office app" hallucination
+      // when it still fell through to the generic responder.
+      sse.send('response_start', { message: 'Erstelle PDF...' });
+      return failCreation(
+        sse,
+        actualThreadId,
+        'create_pdf',
+        'Ich konnte das PDF nicht erzeugen — die gelieferte Struktur war unvollständig. Sag mir kurz, was rein soll (Titel + Inhalte), dann baue ich es direkt.'
+      );
     }
     const created = result.document;
 
@@ -674,20 +721,13 @@ export async function handlePdfCreation(opts: {
     log.error(
       `[ChatGraph] PDF creation failed: ${pdfErr instanceof Error ? pdfErr.message : String(pdfErr)}`
     );
-    if (streamOpened) {
-      // The stream is already open; don't fall through (that would double the
-      // response). Close it with a short error message instead.
-      const msg = 'Das PDF konnte nicht erstellt werden.';
-      sse.send('text_delta', { text: msg });
-      sse.sendRaw('done', {
-        threadId: actualThreadId,
-        citations: [],
-        metadata: { intent: 'create_pdf' },
-      });
-      sse.end();
-      return true;
-    }
-    return false;
+    if (!streamOpened) sse.send('response_start', { message: 'Erstelle PDF...' });
+    return failCreation(
+      sse,
+      actualThreadId,
+      'create_pdf',
+      'Das PDF konnte nicht erstellt werden. Versuch es bitte noch einmal mit einer kurzen Beschreibung des gewünschten Inhalts.'
+    );
   }
 }
 
@@ -901,7 +941,21 @@ export async function generateAndCreateDocument(opts: {
     const generated =
       docGenResult.success && docGenResult.content
         ? parseDocumentResponse(docGenResult.content)
-        : { title: 'Neues Dokument', subtype: 'blank', content: '' };
+        : null;
+    if (!generated || !generated.content) {
+      // Previously this substituted an empty {title:'Neues Dokument', content:''}
+      // document and reported success — a fake artifact is worse than an honest
+      // failure. save_as_doc (skipTerminate) does not own the stream, so it must
+      // still fall through to its caller.
+      log.warn(`[ChatGraph] Document generation returned no parseable content (${intent})`);
+      if (skipTerminate) return false;
+      return failCreation(
+        sse,
+        actualThreadId,
+        intent,
+        'Ich konnte das Dokument nicht erstellen. Sag mir kurz, was drinstehen soll, dann schreibe ich es direkt.'
+      );
+    }
 
     const docSubtype = subtypeOverride || generated.subtype;
     const newDoc = await createDocumentWithContent(
@@ -992,7 +1046,16 @@ export async function generateAndCreateDocument(opts: {
     log.error(
       `[ChatGraph] Document creation failed (${intent}): ${docErr instanceof Error ? docErr.message : String(docErr)}`
     );
-    return false;
+    // skipTerminate (save_as_doc) never opened the stream — its caller handles
+    // the failure. Every other path already sent `response_start`, so falling
+    // through would double the response on top of the hallucination risk.
+    if (skipTerminate) return false;
+    return failCreation(
+      sse,
+      actualThreadId,
+      intent,
+      'Das Dokument konnte nicht erstellt werden. Versuch es bitte noch einmal mit einer kurzen Beschreibung des Inhalts.'
+    );
   }
 }
 

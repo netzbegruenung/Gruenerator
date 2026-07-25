@@ -346,11 +346,11 @@ describe('every SearchIntent has a handler path', () => {
     scrape_url: 'handled via search branch — crawls pasted URL(s) as additional context',
     save_as_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',
     create_sheet:
-      'handled via handleSheetCreation — generates a spreadsheet, seeds the Y.Doc, emits document_created SSE (subtype sheets)',
+      'handled via handleSheetCreation — generates a spreadsheet, seeds the Y.Doc, emits document_created SSE (subtype sheets); owns the turn on failure (templated error, never falls through)',
     create_presentation:
-      'handled via handlePresentationCreation — generates a reveal.js deck, seeds the Y.Doc, emits document_created SSE (subtype presentations)',
+      'handled via handlePresentationCreation — generates a reveal.js deck, seeds the Y.Doc, emits document_created SSE (subtype presentations); owns the turn on failure (templated error, never falls through)',
     create_pdf:
-      'handled via handlePdfCreation — generates a tagged, CI-styled PDF (document/letter/form), verifies the finished bytes, stores it as a compute asset and emits document_created SSE (subtype pdf)',
+      'handled via handlePdfCreation — generates a tagged, CI-styled PDF (document/letter/form), verifies the finished bytes, stores it as a compute asset and emits document_created SSE (subtype pdf); owns the turn on failure (templated error, never falls through)',
     create_recurring_task:
       'handled via handleRecurringTaskCreation — parses the schedule, persists a recurring_tasks row, emits confirm SSE (flag-gated EXPERIMENTAL)',
     modify_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',
@@ -375,6 +375,52 @@ describe('every SearchIntent has a handler path', () => {
       ).toBeDefined();
     });
   }
+});
+
+// ============================================================================
+// 7b. Create intents: failure policy (drift guard)
+// ============================================================================
+
+/**
+ * A create_* intent that degrades into the generic respond pipeline lets the
+ * responder invent workarounds ("copy it into the Office app and export as
+ * PDF") — that prose gets persisted and the next referential turn builds the
+ * artifact FROM it. So every create intent needs an EXPLICIT failure policy:
+ *
+ *  - 'typed'       → the handler owns the turn and reports a templated error
+ *  - 'fallthrough' → deliberately hands the turn back (documented reason)
+ *
+ * Behaviour is pinned in createIntentFailure.vitest.ts; this table exists so a
+ * NEW create intent cannot be added without choosing a policy.
+ */
+describe('every create intent declares a failure policy', () => {
+  const CREATE_INTENT_FAILURE_POLICY: Record<string, 'typed' | 'fallthrough'> = {
+    create_sheet: 'typed',
+    create_presentation: 'typed',
+    create_pdf: 'typed',
+    // EXPERIMENTAL + flag-gated: an unparseable schedule is a normal chat turn
+    // ("jeden zweiten Dienstag?"), not a failed artifact.
+    create_recurring_task: 'fallthrough',
+  };
+
+  const createIntents = ALL_INTENTS.filter((i) => i.startsWith('create_'));
+
+  it('covers every create_* intent in the SearchIntent union', () => {
+    for (const intent of createIntents) {
+      expect(
+        CREATE_INTENT_FAILURE_POLICY[intent],
+        `Create intent "${intent}" has no failure policy. Pick 'typed' (own the turn, report a templated error via failCreation) or 'fallthrough' (and document why the responder may take over).`
+      ).toBeDefined();
+    }
+  });
+
+  it('defaults to typed — fall-through must stay the rare, argued exception', () => {
+    const fallthrough = Object.entries(CREATE_INTENT_FAILURE_POLICY)
+      .filter(([, policy]) => policy === 'fallthrough')
+      .map(([intent]) => intent);
+
+    expect(fallthrough).toEqual(['create_recurring_task']);
+  });
 });
 
 // ============================================================================

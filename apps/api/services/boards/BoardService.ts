@@ -434,10 +434,25 @@ export async function buildCardEmailMetadata(
 export function parseBoardStructure(content: string): BoardGenerationResult | null {
   try {
     const jsonMatch = content.match(/\{[\s\S]*\}/);
-    const result: BoardGenerationResult = JSON.parse(
-      jsonMatch?.[0] || content
-    ) as BoardGenerationResult;
-    return result;
+    const result = JSON.parse(jsonMatch?.[0] || content) as Partial<BoardGenerationResult>;
+    // Validate the fields postProcessBoardStructure dereferences. Without this a
+    // model that omits `statusOptions` produced a TypeError deep in
+    // post-processing instead of a clean "no parseable structure" — the caller
+    // then treated a crash as a generation failure and fell through.
+    if (!result || typeof result !== 'object') return null;
+    if (!Array.isArray(result.statusOptions) || result.statusOptions.length === 0) return null;
+    if (!Array.isArray(result.rows)) return null;
+    if (
+      !result.statusOptions.every(
+        (o) => o && typeof o.id === 'string' && typeof o.name === 'string'
+      )
+    )
+      return null;
+    return {
+      title: typeof result.title === 'string' ? result.title : 'Neues Board',
+      statusOptions: result.statusOptions,
+      rows: result.rows.filter((r) => r && typeof r.id === 'string' && typeof r.title === 'string'),
+    };
   } catch {
     return null;
   }
