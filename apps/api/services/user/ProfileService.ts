@@ -167,6 +167,7 @@ class ProfileService {
         'memory_enabled',
         'reduce_motion',
         'reduce_transparency',
+        'show_skip_link',
         'deutschlandmodus',
         'is_admin',
         'content_management',

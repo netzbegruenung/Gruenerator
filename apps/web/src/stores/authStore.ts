@@ -88,7 +88,7 @@ export interface AuthStore {
   updateStartPage: (page: StartPage) => Promise<boolean>;
   updateFeedbackButton: (mode: FeedbackButtonMode) => Promise<boolean>;
   updateA11yPreference: (
-    field: 'reduce_motion' | 'reduce_transparency',
+    field: 'reduce_motion' | 'reduce_transparency' | 'show_skip_link',
     enabled: boolean
   ) => Promise<boolean>;
 }
@@ -728,7 +728,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   // Visual-accessibility preferences (Animationen/Transparenz reduzieren).
   // Optimistic so App.tsx flips the <html> data attribute on the same frame.
   updateA11yPreference: async (
-    field: 'reduce_motion' | 'reduce_transparency',
+    field: 'reduce_motion' | 'reduce_transparency' | 'show_skip_link',
     enabled: boolean
   ): Promise<boolean> => {
     const previous = get().user?.[field] ?? false;
