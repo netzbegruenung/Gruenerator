@@ -159,6 +159,10 @@ ESLint (flat config), Prettier, Husky pre-commit (lint-staged), Knip (unused cod
 
 **Typecheck only when finished.** During a multi-file implementation, do NOT run `pnpm typecheck`/build after each change — keep editing and run a single consolidated typecheck (and lint) pass at the very end, fixing all surfaced errors together.
 
+### Frontend component testing
+
+`apps/web` and `packages/chat` have a jsdom vitest lane (`*.vitest.tsx`) running **alongside** the fast node lane (`*.vitest.ts`) — never flip the whole config to jsdom. Pick the tool by component shape: **RTL** for render/branching/interaction, **MSW** for `getContractsClient()` data hooks (success/error/empty branches), **axe** (`axe` from `test-utils`) wherever `aria-*`/`role=` is hand-written. Full guide, reference tests, the component→tool matrix, the sweep plan, and the load-bearing gotchas (jsdom pinned to 26.1.0; react aliased + react-query inlined in the dom project) live in **`apps/web/CLAUDE-testing.md`** — read it before adding component tests.
+
 ### Newsletter
 
 See `CLAUDE-newsletter.md`. Landesverband notebooks: see `CLAUDE-landesverband.md`.
