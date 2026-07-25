@@ -53,6 +53,49 @@ export interface BoardGenerationResult {
   rows: Array<{ id: string; title: string; status: string; description: string }>;
 }
 
+/**
+ * Schema for the forced tool call. `statusOptions` and `rows` are required
+ * because postProcessBoardStructure dereferences both — omitting statusOptions
+ * used to produce a TypeError rather than a clean rejection.
+ */
+export const BOARD_TOOL_SCHEMA: Record<string, unknown> = {
+  type: 'object',
+  required: ['title', 'statusOptions', 'rows'],
+  additionalProperties: true,
+  properties: {
+    title: { type: 'string', description: 'Board-Titel' },
+    statusOptions: {
+      type: 'array',
+      minItems: 1,
+      description: 'Die Spalten des Boards (3-5)',
+      items: {
+        type: 'object',
+        required: ['id', 'name'],
+        additionalProperties: true,
+        properties: {
+          id: { type: 'string', description: 'status-1, status-2, …' },
+          name: { type: 'string' },
+        },
+      },
+    },
+    rows: {
+      type: 'array',
+      description: 'Die Aufgabenkarten (5-15)',
+      items: {
+        type: 'object',
+        required: ['id', 'title', 'status'],
+        additionalProperties: true,
+        properties: {
+          id: { type: 'string', description: 'row-1, row-2, …' },
+          title: { type: 'string' },
+          status: { type: 'string', description: 'id einer statusOption' },
+          description: { type: 'string' },
+        },
+      },
+    },
+  },
+};
+
 export interface FieldDef {
   id: string;
   name: string;

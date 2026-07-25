@@ -59,6 +59,7 @@ import type {
   SearchResult,
   SocialPostPayload,
 } from '../../../agents/langgraph/ChatGraph/types.js';
+import type { StructuredValidation } from '../../../services/ai/generateStructured.js';
 import type { CreatePdfResult } from '../../../services/pdf/PdfGenerationService.js';
 import type { ModelMessage } from 'ai';
 import type { Request } from 'express';
@@ -99,6 +100,36 @@ function failCreation(
 }
 
 /**
+ * Bridge the existing lax parsers into `generateStructured`'s validate slot.
+ *
+ * Those parsers take a JSON STRING and normalize rather than reject (casting,
+ * capping, dropping malformed entries). Round-tripping the tool call's object
+ * through JSON.stringify reuses that exact normalization for the tool path and
+ * the text-fallback path, so the two can never drift — and it keeps the forced
+ * tool call from making generation STRICTER than before, which would turn
+ * today's repairable output into new failures.
+ */
+function viaLaxParser<T>(
+  parse: (raw: string) => T | null,
+  missing: string
+): (input: unknown) => StructuredValidation<T> {
+  return (input: unknown) => {
+    const value = parse(JSON.stringify(input));
+    return value ? { ok: true, value } : { ok: false, error: missing };
+  };
+}
+
+/** parseDocumentResponse never returns null — empty content is its failure signal. */
+function withContent(
+  parse: (raw: string) => { title: string; subtype: string; content: string }
+): (raw: string) => { title: string; subtype: string; content: string } | null {
+  return (raw: string) => {
+    const parsed = parse(raw);
+    return parsed.content ? parsed : null;
+  };
+}
+
+/**
  * Handle @board-erstellen forced tool.
  * Returns true if the board was created (caller should return early).
  */
@@ -118,30 +149,34 @@ export async function handleBoardCreation(opts: {
   try {
     const {
       BOARD_GENERATION_PROMPT,
+      BOARD_TOOL_SCHEMA,
       createBoardDocument,
       parseBoardStructure,
       postProcessBoardStructure,
     } = await import('../../../services/boards/BoardService.js');
+    const { generateStructured } = await import('../../../services/ai/generateStructured.js');
 
     const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
     // A referential follow-up ("mach ein Board davon") inherits the prior turn's
     // subject instead of generating a board about the bare instruction.
     const boardTopic = resolveReferentialTopic(lastUserText, classifiedState.messages ?? []).text;
 
-    const boardGenResult = await aiWorkerPool.processRequest(
-      {
-        type: 'board_generation',
-        systemPrompt: BOARD_GENERATION_PROMPT,
-        messages: [{ role: 'user', content: boardTopic }],
-        options: { temperature: 0.7 },
-      },
-      req as Express.Request & { user?: { id?: string }; sessionID?: string }
-    );
-
-    const boardStructure =
-      boardGenResult.success && boardGenResult.content
-        ? parseBoardStructure(boardGenResult.content)
-        : null;
+    const generated = await generateStructured({
+      aiWorkerPool,
+      req: req as Express.Request & { user?: { id?: string }; sessionID?: string },
+      type: 'board_generation',
+      systemPrompt: BOARD_GENERATION_PROMPT,
+      userContent: boardTopic,
+      toolName: 'create_board',
+      toolDescription: 'Erzeugt die Board-Struktur aus Spalten und Aufgabenkarten.',
+      schema: BOARD_TOOL_SCHEMA,
+      validate: viaLaxParser(parseBoardStructure, 'statusOptions oder rows fehlen'),
+      parseText: parseBoardStructure,
+      temperature: 0.7,
+      label: 'board',
+    });
+    const boardStructure = generated.ok ? generated.data : null;
+    if (!generated.ok) log.warn(`[ChatGraph] Board generation failed: ${generated.error}`);
 
     if (boardStructure) {
       const { id: newBoardId, title: boardTitle } = await createBoardDocument(
@@ -254,8 +289,10 @@ export async function runPdfGeneration(opts: {
 }): Promise<CreatePdfResult | null> {
   const { userContent, aiWorkerPool, req, userId, onCommit } = opts;
   const reqWithUser = req as Express.Request & { user?: { id?: string }; sessionID?: string };
-  const { PDF_GENERATION_PROMPT, parsePdfStructure, createPdfDocument } =
+  const { PDF_GENERATION_PROMPT, parsePdfStructure, validatePdfStructure, createPdfDocument } =
     await import('../../../services/pdf/PdfGenerationService.js');
+  const { PDF_DOCUMENT_TOOL_SCHEMA } = await import('../../../services/pdf/pdfDocument.js');
+  const { generateStructured } = await import('../../../services/ai/generateStructured.js');
 
   const pdfOptions = opts.pdfOptions ?? {};
   const directive =
@@ -265,21 +302,27 @@ export async function runPdfGeneration(opts: {
         ? 'Der Nutzer möchte ein ausfüllbares Formular. Setze "kind":"form" und baue passende field-Blöcke.\n\n'
         : '';
 
-  const genResult = await aiWorkerPool.processRequest(
-    {
-      type: 'doc_generation',
-      systemPrompt: PDF_GENERATION_PROMPT,
-      messages: [{ role: 'user', content: `${directive}${userContent}` }],
-      options: { temperature: 0.5 },
-    },
-    reqWithUser
-  );
-  const structure =
-    genResult.success && genResult.content ? parsePdfStructure(genResult.content) : null;
-  if (!structure) {
-    log.warn('[ChatGraph] PDF generation returned no parseable structure');
+  const generated = await generateStructured({
+    aiWorkerPool,
+    req: reqWithUser,
+    type: 'doc_generation',
+    systemPrompt: PDF_GENERATION_PROMPT,
+    userContent: `${directive}${userContent}`,
+    toolName: 'create_pdf_document',
+    toolDescription: 'Erzeugt ein fertiges PDF-Dokument aus Titel und Inhaltsblöcken.',
+    schema: PDF_DOCUMENT_TOOL_SCHEMA,
+    validate: validatePdfStructure,
+    // Providers that ignore tools still answer with JSON text — this was the
+    // only path before, kept so none of them can regress.
+    parseText: parsePdfStructure,
+    temperature: 0.5,
+    label: 'pdf',
+  });
+  if (!generated.ok) {
+    log.warn(`[ChatGraph] PDF generation returned no usable structure: ${generated.error}`);
     return null;
   }
+  const structure = generated.data;
   onCommit?.();
 
   // Sender defaults to the profile display name so a letterhead never renders
@@ -313,30 +356,35 @@ export async function runDocGeneration(opts: {
 }): Promise<CreatedDocument | null> {
   const { kind, userContent, aiWorkerPool, req, userId, onCommit } = opts;
   const reqWithUser = req as Express.Request & { user?: { id?: string }; sessionID?: string };
+  const { generateStructured } = await import('../../../services/ai/generateStructured.js');
 
   if (kind === 'presentation') {
     const {
       PRESENTATION_GENERATION_PROMPT,
+      PRESENTATION_TOOL_SCHEMA,
       parsePresentationStructure,
       createPresentationDocument,
     } = await import('../../../services/presentations/PresentationGenerationService.js');
-    const genResult = await aiWorkerPool.processRequest(
-      {
-        type: 'doc_generation',
-        systemPrompt: PRESENTATION_GENERATION_PROMPT,
-        messages: [{ role: 'user', content: userContent }],
-        options: { temperature: 0.4 },
-      },
-      reqWithUser
-    );
-    const structure =
-      genResult.success && genResult.content ? parsePresentationStructure(genResult.content) : null;
-    if (!structure) {
-      log.warn('[ChatGraph] Presentation generation returned no parseable structure');
+    const generated = await generateStructured({
+      aiWorkerPool,
+      req: reqWithUser,
+      type: 'doc_generation',
+      systemPrompt: PRESENTATION_GENERATION_PROMPT,
+      userContent,
+      toolName: 'create_presentation',
+      toolDescription: 'Erzeugt die Folienstruktur der Präsentation.',
+      schema: PRESENTATION_TOOL_SCHEMA,
+      validate: viaLaxParser(parsePresentationStructure, 'title oder slides fehlen'),
+      parseText: parsePresentationStructure,
+      temperature: 0.4,
+      label: 'presentation',
+    });
+    if (!generated.ok) {
+      log.warn(`[ChatGraph] Presentation generation failed: ${generated.error}`);
       return null;
     }
     onCommit?.();
-    const doc = await createPresentationDocument(structure, userId);
+    const doc = await createPresentationDocument(generated.data, userId);
     return {
       documentId: doc.id,
       title: doc.title,
@@ -346,25 +394,28 @@ export async function runDocGeneration(opts: {
   }
 
   if (kind === 'sheet') {
-    const { SHEET_GENERATION_PROMPT, parseSheetStructure, createSheetDocument } =
+    const { SHEET_GENERATION_PROMPT, SHEET_TOOL_SCHEMA, parseSheetStructure, createSheetDocument } =
       await import('../../../services/sheets/SheetGenerationService.js');
-    const genResult = await aiWorkerPool.processRequest(
-      {
-        type: 'doc_generation',
-        systemPrompt: SHEET_GENERATION_PROMPT,
-        messages: [{ role: 'user', content: userContent }],
-        options: { temperature: 0.4 },
-      },
-      reqWithUser
-    );
-    const structure =
-      genResult.success && genResult.content ? parseSheetStructure(genResult.content) : null;
-    if (!structure) {
-      log.warn('[ChatGraph] Sheet generation returned no parseable structure');
+    const generated = await generateStructured({
+      aiWorkerPool,
+      req: reqWithUser,
+      type: 'doc_generation',
+      systemPrompt: SHEET_GENERATION_PROMPT,
+      userContent,
+      toolName: 'create_sheet',
+      toolDescription: 'Erzeugt die Tabellenstruktur (Blätter, Spalten, Zeilen).',
+      schema: SHEET_TOOL_SCHEMA,
+      validate: viaLaxParser(parseSheetStructure, 'title oder sheets fehlen'),
+      parseText: parseSheetStructure,
+      temperature: 0.4,
+      label: 'sheet',
+    });
+    if (!generated.ok) {
+      log.warn(`[ChatGraph] Sheet generation failed: ${generated.error}`);
       return null;
     }
     onCommit?.();
-    const doc = await createSheetDocument(structure, userId);
+    const doc = await createSheetDocument(generated.data, userId);
     return { documentId: doc.id, title: doc.title, subtype: 'sheets', url: `/office/${doc.id}` };
   }
 
@@ -373,23 +424,31 @@ export async function runDocGeneration(opts: {
   // core returns null on a generation failure instead of writing a blank doc:
   // an empty doc from a researched compound turn is worse than a tool error the
   // model can explain.
-  const { DOCUMENT_GENERATION_PROMPT, parseDocumentResponse, createDocumentWithContent } =
-    await import('../../../services/docs/DocGenerationService.js');
-  const genResult = await aiWorkerPool.processRequest(
-    {
-      type: 'doc_generation',
-      systemPrompt: DOCUMENT_GENERATION_PROMPT,
-      messages: [{ role: 'user', content: userContent }],
-      options: { temperature: 0.7 },
-    },
-    reqWithUser
-  );
-  const parsed =
-    genResult.success && genResult.content ? parseDocumentResponse(genResult.content) : null;
-  if (!parsed || !parsed.content) {
-    log.warn('[ChatGraph] Document generation returned no parseable content');
+  const {
+    DOCUMENT_GENERATION_PROMPT,
+    DOCUMENT_TOOL_SCHEMA,
+    parseDocumentResponse,
+    createDocumentWithContent,
+  } = await import('../../../services/docs/DocGenerationService.js');
+  const generated = await generateStructured({
+    aiWorkerPool,
+    req: reqWithUser,
+    type: 'doc_generation',
+    systemPrompt: DOCUMENT_GENERATION_PROMPT,
+    userContent,
+    toolName: 'create_document',
+    toolDescription: 'Erzeugt das Dokument als HTML mit Titel und subtype.',
+    schema: DOCUMENT_TOOL_SCHEMA,
+    validate: viaLaxParser(withContent(parseDocumentResponse), 'content fehlt oder ist leer'),
+    parseText: withContent(parseDocumentResponse),
+    temperature: 0.7,
+    label: 'document',
+  });
+  if (!generated.ok) {
+    log.warn(`[ChatGraph] Document generation failed: ${generated.error}`);
     return null;
   }
+  const parsed = generated.data;
   onCommit?.();
   const doc = await createDocumentWithContent(parsed.title, parsed.content, parsed.subtype, userId);
   return {
@@ -423,26 +482,32 @@ export async function runBoardGeneration(opts: {
   const { userContent, aiWorkerPool, req, userId } = opts;
   const {
     BOARD_GENERATION_PROMPT,
+    BOARD_TOOL_SCHEMA,
     createBoardDocument,
     parseBoardStructure,
     postProcessBoardStructure,
   } = await import('../../../services/boards/BoardService.js');
+  const { generateStructured } = await import('../../../services/ai/generateStructured.js');
 
-  const genResult = await aiWorkerPool.processRequest(
-    {
-      type: 'board_generation',
-      systemPrompt: BOARD_GENERATION_PROMPT,
-      messages: [{ role: 'user', content: userContent }],
-      options: { temperature: 0.7 },
-    },
-    req as Express.Request & { user?: { id?: string }; sessionID?: string }
-  );
-  const structure =
-    genResult.success && genResult.content ? parseBoardStructure(genResult.content) : null;
-  if (!structure) {
-    log.warn('[ChatGraph] Board generation returned no parseable structure');
+  const generated = await generateStructured({
+    aiWorkerPool,
+    req: req as Express.Request & { user?: { id?: string }; sessionID?: string },
+    type: 'board_generation',
+    systemPrompt: BOARD_GENERATION_PROMPT,
+    userContent,
+    toolName: 'create_board',
+    toolDescription: 'Erzeugt die Board-Struktur aus Spalten und Aufgabenkarten.',
+    schema: BOARD_TOOL_SCHEMA,
+    validate: viaLaxParser(parseBoardStructure, 'statusOptions oder rows fehlen'),
+    parseText: parseBoardStructure,
+    temperature: 0.7,
+    label: 'board',
+  });
+  if (!generated.ok) {
+    log.warn(`[ChatGraph] Board generation failed: ${generated.error}`);
     return null;
   }
+  const structure = generated.data;
   const { id, title } = await createBoardDocument(structure.title || 'Neues Board', userId);
   return {
     boardId: id,
@@ -919,8 +984,13 @@ export async function generateAndCreateDocument(opts: {
   }
 
   try {
-    const { DOCUMENT_GENERATION_PROMPT, parseDocumentResponse, createDocumentWithContent } =
-      await import('../../../services/docs/DocGenerationService.js');
+    const {
+      DOCUMENT_GENERATION_PROMPT,
+      DOCUMENT_TOOL_SCHEMA,
+      parseDocumentResponse,
+      createDocumentWithContent,
+    } = await import('../../../services/docs/DocGenerationService.js');
+    const { generateStructured } = await import('../../../services/ai/generateStructured.js');
 
     const subtypeHint = subtypeOverride ? `\nVerwende subtype: "${subtypeOverride}".` : '';
 
@@ -928,20 +998,22 @@ export async function generateAndCreateDocument(opts: {
       ? `Konversationskontext:\n${conversationContext}\n\nAktuelle Anfrage: ${userContent}`
       : userContent;
 
-    const docGenResult = await aiWorkerPool.processRequest(
-      {
-        type: 'doc_generation',
-        systemPrompt: DOCUMENT_GENERATION_PROMPT + subtypeHint,
-        messages: [{ role: 'user', content: userMessage }],
-        options: { temperature: 0.7 },
-      },
-      req as Express.Request & { user?: { id?: string }; sessionID?: string }
-    );
+    const docResult = await generateStructured({
+      aiWorkerPool,
+      req: req as Express.Request & { user?: { id?: string }; sessionID?: string },
+      type: 'doc_generation',
+      systemPrompt: DOCUMENT_GENERATION_PROMPT + subtypeHint,
+      userContent: userMessage,
+      toolName: 'create_document',
+      toolDescription: 'Erzeugt das Dokument als HTML mit Titel und subtype.',
+      schema: DOCUMENT_TOOL_SCHEMA,
+      validate: viaLaxParser(withContent(parseDocumentResponse), 'content fehlt oder ist leer'),
+      parseText: withContent(parseDocumentResponse),
+      temperature: 0.7,
+      label: 'document',
+    });
 
-    const generated =
-      docGenResult.success && docGenResult.content
-        ? parseDocumentResponse(docGenResult.content)
-        : null;
+    const generated = docResult.ok ? docResult.data : null;
     if (!generated || !generated.content) {
       // Previously this substituted an empty {title:'Neues Dokument', content:''}
       // document and reported success — a fake artifact is worse than an honest
