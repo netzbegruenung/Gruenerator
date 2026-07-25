@@ -55,6 +55,20 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
       'Darstellung des schwebenden Feedback-Buttons: mit Text, nur als Icon oder ganz ausgeblendet — er lässt sich in jede Bildschirmecke ziehen',
   },
   {
+    id: 'allgemein.animationen',
+    tab: 'allgemein',
+    title: 'Animationen reduzieren',
+    description:
+      'Schaltet dekorative Animationen und Übergänge ab — folgt sonst automatisch der Einstellung deines Betriebssystems',
+  },
+  {
+    id: 'allgemein.transparenz',
+    tab: 'allgemein',
+    title: 'Transparenz reduzieren',
+    description:
+      'Entfernt durchscheinende Flächen und Unschärfe-Effekte — folgt sonst automatisch der Einstellung deines Betriebssystems',
+  },
+  {
     id: 'allgemein.touren',
     tab: 'allgemein',
     title: 'Einführungs-Touren zurücksetzen',

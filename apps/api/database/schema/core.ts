@@ -71,6 +71,8 @@ export const profiles = pgTable(
     bundestag_api_enabled: boolean('bundestag_api_enabled').notNull().default(false),
     memory_enabled: boolean('memory_enabled').notNull().default(false),
     feedback_button: text('feedback_button').notNull().default('text'),
+    reduce_motion: boolean('reduce_motion').notNull().default(false),
+    reduce_transparency: boolean('reduce_transparency').notNull().default(false),
   },
   (table) => ({
     emailIdx: index('idx_profiles_email').on(table.email),
