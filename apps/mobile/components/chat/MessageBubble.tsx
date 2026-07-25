@@ -10,6 +10,8 @@ import {
   resolveToolEntry,
   selectNarration,
   useFetchFullText,
+  type ChatMessageMetadata,
+  type Citation,
   type PartLike,
 } from '@gruenerator/chat';
 import { parseMentionTokens } from '@gruenerator/shared/utils';
@@ -64,7 +66,6 @@ import { ToolResultCard } from './tool-ui/ToolResultCard';
 import { ToolCallProgress } from './ToolCallProgress';
 
 import type { Theme } from '../../theme/colors';
-import type { ChatMessageMetadata, Citation } from '@gruenerator/chat';
 
 /** Durable mention tokens (@[Label](type:id)) render as chips; plain text passes through. */
 function UserBubbleText({ text }: { text: string }) {
