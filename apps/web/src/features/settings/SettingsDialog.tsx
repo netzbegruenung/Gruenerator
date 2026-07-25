@@ -32,7 +32,7 @@ import { useSettingsDialogStore, type SettingsTab } from './settingsDialogStore'
 const NAV: { value: SettingsTab; label: string; icon: IconType; hideHeading?: boolean }[] = [
   { value: 'allgemein', label: 'Allgemein', icon: FiSettings },
   { value: 'konto', label: 'Konto', icon: FiUser },
-  { value: 'friends', label: 'Grünerator Friends', icon: PiRobot },
+  { value: 'friends', label: 'Friends', icon: PiRobot },
   { value: 'personalisierung', label: 'Personalisierung', icon: FiSliders },
   { value: 'texte-anlernen', label: 'Texte anlernen', icon: PiPencil },
   { value: 'erinnerungen', label: 'Erinnerungen', icon: PiBrain, hideHeading: true },
