@@ -192,6 +192,7 @@ export const auth = betterAuth({
       chat_background: { type: 'string', required: false },
       document_mode: { type: 'string', required: false, defaultValue: 'manual' },
       default_startpage: { type: 'string', required: false, defaultValue: 'chat' },
+      feedback_enabled: { type: 'boolean', required: false, defaultValue: true },
       avatar_robot_id: { type: 'number', required: false, defaultValue: 1 },
       profile_image: { type: 'number', required: false, defaultValue: 1 },
       is_admin: { type: 'boolean', required: false, defaultValue: false },
