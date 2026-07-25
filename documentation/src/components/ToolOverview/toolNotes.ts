@@ -88,12 +88,12 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
   agents: {
     note: 'Die Agentura: eigene Grüneratoren mit festem Auftrag und eigenen Quellen anlegen, dazu Rezepte für wiederkehrende Schreibaufgaben.',
     platform: ['web', 'desktop', 'mobile'],
-    readMore: { label: 'Agentura', href: '/docs/agents/agentura' },
+    readMore: { label: 'Agentura', href: '/docs/grueneratoren/agentura' },
   },
   spaces: {
     note: 'Projekte bündeln Chats, Dokumente und Mitglieder zu einem Arbeitszusammenhang — etwa für eine Kampagne oder einen Ortsverband.',
     platform: ['web', 'desktop'],
-    readMore: { label: 'Projekte', href: '/docs/projekte/intro' },
+    readMore: { label: 'Projekte', href: '/docs/konto/projekte' },
   },
 
   // ── Weitere ───────────────────────────────────────────────────────────────
