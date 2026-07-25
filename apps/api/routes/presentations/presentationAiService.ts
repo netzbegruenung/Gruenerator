@@ -101,7 +101,6 @@ export async function generatePresentationOperations(opts: {
       }),
     },
     toolChoice: 'required',
-    maxOutputTokens: 8000,
     maxRetries: 1,
     temperature: 0.2,
   });

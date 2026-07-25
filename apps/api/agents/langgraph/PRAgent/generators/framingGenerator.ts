@@ -58,7 +58,6 @@ Entwickle das strategische Framing für dieses Thema.`;
       systemPrompt: promptResult.system,
       messages: promptResult.messages,
       options: {
-        max_tokens: 600,
         temperature: 0.7,
         top_p: 0.9,
       },

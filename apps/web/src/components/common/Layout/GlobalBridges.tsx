@@ -6,6 +6,7 @@ import { useAuthStore } from '../../../stores/authStore';
 
 export function GlobalBridges() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const feedbackEnabled = useAuthStore((s) => s.user?.feedback_enabled ?? true);
 
   useNotificationSSE(
     useCallback((data: { title?: string; body?: string }) => {
@@ -17,7 +18,7 @@ export function GlobalBridges() {
     }, [])
   );
 
-  if (!isAuthenticated) return null;
+  if (!isAuthenticated || !feedbackEnabled) return null;
 
   return <FeedbackWidget />;
 }

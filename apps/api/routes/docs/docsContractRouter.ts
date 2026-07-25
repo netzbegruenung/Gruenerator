@@ -683,7 +683,7 @@ export const docsContractRouter = s.router(docsContract, {
           type: 'doc_generation',
           systemPrompt: DOCUMENT_GENERATION_PROMPT,
           messages: [{ role: 'user', content: description.trim() }],
-          options: { temperature: 0.7, max_tokens: 4000 },
+          options: { temperature: 0.7 },
         },
         args.req
       );
