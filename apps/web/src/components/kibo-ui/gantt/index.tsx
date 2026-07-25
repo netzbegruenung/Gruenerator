@@ -525,7 +525,10 @@ export type GanttSidebarProps = {
 export const GanttSidebar: FC<GanttSidebarProps> = ({ children, className }) => (
   <div
     className={cn(
-      'sticky left-0 z-30 h-max min-h-full overflow-clip border-grey-200/50 dark:border-grey-700/50 border-r bg-background/90 backdrop-blur-md',
+      // The 300px sidebar left ~40px of timeline on a 390px phone. Narrow it on
+      // small screens; GanttProvider measures the real width, so the grid and
+      // all pointer maths follow automatically.
+      'sticky left-0 z-30 h-max min-h-full w-[300px] max-sm:w-[9.5rem] overflow-clip border-grey-200/50 dark:border-grey-700/50 border-r bg-background/90 backdrop-blur-md',
       className
     )}
     data-roadmap-ui="gantt-sidebar"
@@ -1116,8 +1119,9 @@ export const GanttProvider: FC<GanttProviderProps> = ({
   useEffect(() => {
     const updateSidebarWidth = () => {
       const sidebarElement = scrollRef.current?.querySelector('[data-roadmap-ui="gantt-sidebar"]');
-      const newWidth = sidebarElement ? 300 : 0;
-      setSidebarWidth(newWidth);
+      // Measure instead of assuming 300: the sidebar is narrower on small
+      // screens, and every feature-position calculation subtracts this value.
+      setSidebarWidth(sidebarElement ? sidebarElement.getBoundingClientRect().width : 0);
     };
 
     // Update immediately
@@ -1132,8 +1136,15 @@ export const GanttProvider: FC<GanttProviderProps> = ({
       });
     }
 
+    // A breakpoint change resizes the sidebar without touching the DOM tree,
+    // so the MutationObserver alone would miss it.
+    const resizeObserver = new ResizeObserver(updateSidebarWidth);
+    const sidebar = scrollRef.current?.querySelector('[data-roadmap-ui="gantt-sidebar"]');
+    if (sidebar) resizeObserver.observe(sidebar);
+
     return () => {
       observer.disconnect();
+      resizeObserver.disconnect();
     };
   }, []);
 
