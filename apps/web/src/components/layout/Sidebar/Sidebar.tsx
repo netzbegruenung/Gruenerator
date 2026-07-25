@@ -30,6 +30,7 @@ import {
   type MenuItemType,
 } from '../Header/menuData';
 
+import { GrueneratorenSidebarSection } from './GrueneratorenSidebarSection';
 import NewItemDropdown from './NewItemDropdown';
 import SidebarAccount from './SidebarAccount';
 import { getAgentIcon } from './sidebarAgentConfig';
@@ -82,6 +83,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   const newMenuOpenRef = useRef(false);
   const accountMenuOpenRef = useRef(false);
   const spacesMenuOpenRef = useRef(false);
+  const grueneratorenMenuOpenRef = useRef(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
   const directMenuItems = useMemo(() => getDirectMenuItems({ isAustrian }), [isAustrian]);
@@ -92,9 +94,11 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   const startTarget = startPagePath(user?.default_startpage);
   const additionalItems = useMemo<MenuItemType[]>(
     () =>
-      [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)].map((item) =>
-        item.id === 'startseite' ? { ...item, path: startTarget } : item
-      ),
+      [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)]
+        // Grüneratoren renders as its own quick-view popup section below,
+        // mirroring the Projekte entry — not as a plain nav link.
+        .filter((item) => item.id !== 'grueneratoren')
+        .map((item) => (item.id === 'startseite' ? { ...item, path: startTarget } : item)),
     [directMenuItems, mobileOnlyItems, startTarget]
   );
   const sidebarExpanded = isOpen || forceExpanded;
@@ -195,7 +199,12 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
       // outside the sidebar (main content, or the window).
       const rt = e.relatedTarget;
       if (rt instanceof Node && e.currentTarget.contains(rt)) return;
-      if (!newMenuOpenRef.current && !accountMenuOpenRef.current && !spacesMenuOpenRef.current) {
+      if (
+        !newMenuOpenRef.current &&
+        !accountMenuOpenRef.current &&
+        !spacesMenuOpenRef.current &&
+        !grueneratorenMenuOpenRef.current
+      ) {
         close();
       }
     },
@@ -320,6 +329,24 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           </div>
         )}
 
+        {/* Grüneratoren quick-view popup */}
+        <GrueneratorenSidebarSection
+          openRef={grueneratorenMenuOpenRef}
+          titleClass={titleClass}
+          collapsed={!sidebarExpanded}
+          onNavigate={handleLinkClick}
+          onClose={close}
+        />
+
+        {/* Projekte quick-view popup — directly below Grüneratoren */}
+        <SpacesSidebarSection
+          openRef={spacesMenuOpenRef}
+          titleClass={titleClass}
+          collapsed={!sidebarExpanded}
+          onNavigate={handleLinkClick}
+          onClose={close}
+        />
+
         {/* New Item Dropdown */}
         <NewItemDropdown
           openRef={newMenuOpenRef}
@@ -327,15 +354,6 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           collapsed={!sidebarExpanded}
           onChatClick={handleChatClick}
           onLinkClick={handleLinkClick}
-          onClose={close}
-        />
-
-        {/* Projekte quick-view popup */}
-        <SpacesSidebarSection
-          openRef={spacesMenuOpenRef}
-          titleClass={titleClass}
-          collapsed={!sidebarExpanded}
-          onNavigate={handleLinkClick}
           onClose={close}
         />
 
