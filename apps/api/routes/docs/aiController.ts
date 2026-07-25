@@ -197,7 +197,6 @@ ${referenceContent.trim()}
       // applyDocumentOperations args, can run several thousand tokens). 32k
       // leaves comfortable headroom even for very long documents; you only
       // pay for tokens actually generated.
-      maxOutputTokens: 32768,
       maxRetries: 1,
       temperature: 0.3,
       onEnd: ({ toolCalls, text, finishReason, usage }) => {
