@@ -93,7 +93,9 @@ CREATE TABLE IF NOT EXISTS profiles (
     docs BOOLEAN DEFAULT FALSE,
     boards BOOLEAN DEFAULT FALSE,
     bundestag_api_enabled BOOLEAN DEFAULT FALSE,
-    memory_enabled BOOLEAN DEFAULT FALSE
+    memory_enabled BOOLEAN DEFAULT FALSE,
+    reduce_motion BOOLEAN NOT NULL DEFAULT FALSE,
+    reduce_transparency BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS sites_enabled BOOLEAN DEFAULT TRUE;
@@ -103,6 +105,8 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS docs BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS boards BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bundestag_api_enabled BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS memory_enabled BOOLEAN DEFAULT FALSE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS reduce_motion BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS reduce_transparency BOOLEAN NOT NULL DEFAULT FALSE;
 
 
 -- ════════════════════════════════════════════════════════════════════════════

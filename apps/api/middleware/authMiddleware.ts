@@ -30,6 +30,8 @@ const DEV_BYPASS_USER: Express.User = {
   beta_features: {},
   user_defaults: {},
   default_startpage: 'chat',
+  reduce_motion: false,
+  reduce_transparency: false,
   groups_enabled: false,
   custom_generators: false,
   database_access: false,
