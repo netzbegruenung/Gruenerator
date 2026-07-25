@@ -104,7 +104,6 @@ WICHTIG: Gib nur den finalen deutschen Text aus, keine Erklärungen oder Komment
         systemPrompt: promptResult.system,
         messages: promptResult.messages as unknown as Message[],
         options: {
-          max_tokens: 3000,
           temperature: 0.5,
           top_p: 0.9,
         },
