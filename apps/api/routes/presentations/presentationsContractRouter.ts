@@ -113,7 +113,7 @@ export const presentationsContractRouter = s.router(presentationsContract, {
           type: 'doc_generation',
           systemPrompt: PRESENTATION_GENERATION_PROMPT,
           messages: [{ role: 'user', content: description }],
-          options: { temperature: 0.4, max_tokens: 4000 },
+          options: { temperature: 0.4 },
         },
         args.req
       );

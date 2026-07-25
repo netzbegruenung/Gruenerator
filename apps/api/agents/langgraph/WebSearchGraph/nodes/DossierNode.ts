@@ -120,7 +120,6 @@ ${refsSummary}`;
         options: {
           provider: 'litellm',
           model: 'verdigado-pro',
-          max_tokens: 6000,
           temperature: 0.3,
         },
       },
