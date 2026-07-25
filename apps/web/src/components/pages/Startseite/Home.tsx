@@ -115,7 +115,7 @@ const FEATURES: FeatureData[] = [
     ),
   },
   {
-    icon: { category: 'navigation', name: 'notebook' },
+    icon: { category: 'navigation', name: 'notebooks' },
     title: 'Recherchiere in Grünen Quellen',
     description:
       'Stelle Fragen an Grundsatzprogramme, Bundestagsanträge und Kommunalwiki. Das Notebook liefert Antworten mit Quellenangaben.',
