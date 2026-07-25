@@ -87,6 +87,77 @@ const config: Config = {
     ],
   ],
 
+  // Every page that moved in the structure rebuild keeps its old address. The
+  // chat has already cited doc URLs to users, and the app deep-links into the
+  // docs — without these, those links would 404.
+  plugins: [
+    [
+      '@docusaurus/plugin-client-redirects',
+      {
+        redirects: [
+          // gruenerieren/* → chat/*
+          { from: '/docs/gruenerieren/ki-chat', to: '/docs/chat/ki-chat' },
+          { from: '/docs/gruenerieren/was-kann-ich-fragen', to: '/docs/chat/was-kann-ich-fragen' },
+          { from: '/docs/gruenerieren/dateien-hinzufuegen', to: '/docs/chat/dateien-hinzufuegen' },
+          { from: '/docs/gruenerieren/ki-modelle', to: '/docs/chat/ki-modelle' },
+          { from: '/docs/gruenerieren/social-media-post', to: '/docs/chat/social-media-post' },
+          // websuche.md was removed — its topic now lives in "Was kann ich fragen?".
+          { from: '/docs/gruenerieren/websuche', to: '/docs/chat/was-kann-ich-fragen' },
+          // agents/* → grueneratoren/*
+          { from: '/docs/agents/agentura', to: '/docs/grueneratoren/agentura' },
+          {
+            from: '/docs/agents/eigene-agentinnen-erstellen',
+            to: '/docs/grueneratoren/eigene-agentinnen-erstellen',
+          },
+          // notebooks + landesverbaende + inhaltsdatenbank → wissen/*
+          {
+            from: '/docs/notebooks/eigenes-notebook-erstellen',
+            to: '/docs/wissen/eigenes-notebook-erstellen',
+          },
+          { from: '/docs/landesverbaende', to: '/docs/wissen/landesverbaende' },
+          {
+            from: '/docs/ueber-den-gruenerator/inhaltsdatenbank',
+            to: '/docs/wissen/inhaltsdatenbank',
+          },
+          // projekte + Profil → konto/*
+          { from: '/docs/projekte/intro', to: '/docs/konto/projekte' },
+          { from: '/docs/Profil/einstellungen', to: '/docs/konto/einstellungen' },
+          { from: '/docs/Profil/gruene-wolke-tutorial', to: '/docs/konto/gruene-wolke' },
+          // llm-basics → grundlagen/*
+          //
+          // The two pages that merely changed case (/docs/Grundlagen/* →
+          // /docs/grundlagen/*) get NO redirect on purpose: macOS' filesystem
+          // can't hold both spellings, so the plugin would try to overwrite the
+          // real page and every local build would fail. Those two URLs are
+          // low-traffic concept pages; a build that only works on Linux costs
+          // more than the two dead links.
+          { from: '/docs/llm-basics/finetuning', to: '/docs/grundlagen/finetuning' },
+          {
+            from: '/docs/llm-basics/risiken-und-gefahren-von-llms',
+            to: '/docs/grundlagen/risiken-und-gefahren-von-llms',
+          },
+          {
+            from: '/docs/llm-basics/wie-llms-funktionieren',
+            to: '/docs/grundlagen/wie-llms-funktionieren',
+          },
+        ],
+        // The dated newsletter and Signal posts moved into archiv/ as a whole —
+        // one rule beats twelve hand-written entries.
+        createRedirects(existingPath) {
+          if (existingPath.startsWith('/docs/archiv/newsletter/')) {
+            return [existingPath.replace('/docs/archiv/newsletter/', '/docs/newsletter/')];
+          }
+          if (existingPath.startsWith('/docs/archiv/signal-nachrichten/')) {
+            return [
+              existingPath.replace('/docs/archiv/signal-nachrichten/', '/docs/signal-nachrichten/'),
+            ];
+          }
+          return undefined;
+        },
+      },
+    ],
+  ],
+
   themeConfig: {
     // Replace with your project's social card
     image: 'img/docusaurus-social-card.jpg',
@@ -133,30 +204,23 @@ const config: Config = {
         },
         {
           type: 'dropdown',
-          label: 'Wissen',
-          position: 'left',
-          items: [
-            { to: '/docs/category/grundlagen', label: 'Grundlagen' },
-            {
-              to: '/docs/category/wie-funktionieren-large-language-models-wie-chatgpt',
-              label: 'LLM Basics',
-            },
-          ],
-        },
-        {
-          type: 'dropdown',
           label: 'Anleitung',
           position: 'left',
           items: [
             { to: '/docs/ueber-den-gruenerator/tools', label: 'Alle Werkzeuge' },
-            { to: '/docs/category/grünerieren', label: 'Grünerieren' },
+            { to: '/docs/category/chat', label: 'Chat' },
             { to: '/docs/category/office', label: 'Office' },
-            // { to: '/docs/experimente/intro', label: 'Experimente' }, // hidden — Themen-Monitor not published yet
-            { to: '/docs/category/notebooks', label: 'Notebooks' },
-            { to: '/docs/projekte/intro', label: 'Projekte' },
-            { to: '/docs/category/profil', label: 'Profil' },
+            { to: '/docs/category/wissen', label: 'Wissen' },
+            { to: '/docs/category/grüneratoren', label: 'Grüneratoren' },
+            { to: '/docs/category/konto--projekte', label: 'Konto & Projekte' },
             { to: '/docs/category/integrationen', label: 'Integrationen' },
+            // { to: '/docs/experimente/intro', label: 'Experimente' }, // hidden — Themen-Monitor not published yet
           ],
+        },
+        {
+          to: '/docs/category/grundlagen',
+          label: 'Grundlagen',
+          position: 'left',
         },
         {
           to: '/docs/webinare',
@@ -164,7 +228,7 @@ const config: Config = {
           position: 'right',
         },
         {
-          to: '/docs/category/newsletter-archiv',
+          to: '/docs/category/archiv',
           label: 'Newsletter',
           position: 'right',
         },
@@ -195,15 +259,15 @@ const config: Config = {
           items: [
             {
               label: 'Kennzeichnungs-Guide',
-              to: '/docs/Grundlagen/Kennzeichnungs-Guide',
+              to: '/docs/grundlagen/Kennzeichnungs-Guide',
             },
             {
               label: 'Welches KI-Tool wofür?',
-              to: '/docs/Grundlagen/welches-ki-tool-wofuer',
+              to: '/docs/grundlagen/welches-ki-tool-wofuer',
             },
             {
               label: 'Wie LLMs funktionieren',
-              to: '/docs/llm-basics/wie-llms-funktionieren',
+              to: '/docs/grundlagen/wie-llms-funktionieren',
             },
           ],
         },
@@ -212,11 +276,11 @@ const config: Config = {
           items: [
             {
               label: 'KI-Modelle',
-              to: '/docs/gruenerieren/ki-modelle',
+              to: '/docs/chat/ki-modelle',
             },
             {
               label: 'Grüne Wolke Tutorial',
-              to: '/docs/Profil/gruene-wolke-tutorial',
+              to: '/docs/konto/gruene-wolke',
             },
             {
               label: 'KI-Chat einrichten',
@@ -237,7 +301,7 @@ const config: Config = {
           items: [
             {
               label: 'Newsletter-Archiv',
-              to: '/docs/category/newsletter-archiv',
+              to: '/docs/category/archiv',
             },
             {
               label: 'Newsletter abonnieren',

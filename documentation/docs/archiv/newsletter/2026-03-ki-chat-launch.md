@@ -41,7 +41,7 @@ Ich habe mich dazu entschieden, den Launch vorzuziehen, um ihn anhand deines Fee
 Eines meiner Lieblings-Features ist etwas versteckt: Grünerierst du dir einen neuen Text mit den bekannten Grüneratoren, kannst du auf die drei Punkte klicken und dann „Im Chat besprechen" auswählen. Dann gibt dir der Grünerator Chat direkt Feedback zu deinem Text und ihr könnt ihn gemeinsam bearbeiten.
 :::
 
-Eine ausführliche Anleitung mit allen Assistenten, Quellen und Werkzeugen findest du in der [Chat-Dokumentation](../gruenerieren/ki-chat).
+Eine ausführliche Anleitung mit allen Assistenten, Quellen und Werkzeugen findest du in der [Chat-Dokumentation](../../chat/ki-chat).
 
 ## Bug-Fixes und mehr
 

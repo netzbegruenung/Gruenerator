@@ -64,4 +64,4 @@ Du kannst dasselbe Notebook auch direkt nutzen:
 - **Aufrufen & durchstöbern:** über seine Adresse, z. B. `/notebooks/berlin`.
 - **Im Chat als Quelle einbinden:** tippe die `@`-Erwähnung, z. B. `@berlin`, `@mv`, `@thüringen`, `@brandenburg`, `@bayern`, `@sachsen-anhalt`, `@hessen` oder `@saar`. Der Chat zieht dann seine Antworten aus diesem Notebook.
 
-Mehr zu Notebooks allgemein findest du unter [Notebooks](/docs/notebooks/eigenes-notebook-erstellen).
+Mehr zu Notebooks allgemein findest du unter [Notebooks](/docs/wissen/eigenes-notebook-erstellen).
