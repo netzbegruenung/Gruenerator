@@ -379,13 +379,16 @@ async function auditDoc(docPath: string, model: string): Promise<DocResult> {
       durationS: Math.round((Date.now() - start) / 1000),
     };
   } catch (err) {
+    // Kept raw on purpose: this DocResult feeds the run summary and a
+    // maintainer-facing GitHub issue, never a user response. A smoothed-over
+    // message would make a failed audit undebuggable.
+    const rawMessage = err instanceof Error ? err.message : String(err);
     return {
       ...base,
       status: 'error',
       upToDate: true,
       findings: [],
-
-      error: err instanceof Error ? err.message : String(err),
+      error: rawMessage,
       durationS: Math.round((Date.now() - start) / 1000),
     };
   }

@@ -319,7 +319,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Agentura",
     "anchor": "",
     "category": "Grüneratoren",
-    "text": "Die Agentura ist der Marktplatz für alle Grüneratoren und Rezepte. Hier findest du an einem Ort alle verfügbaren Grüneratoren — vom Pressestellen-Profi bis zum Landesverbands-Assistenten — entdeckst neue Werkzeuge und baust dir mit wenigen Klicks deine eigenen. Du erreichst die Agentura über den Menüpunkt in der Seitenleiste oder direkt unter /agentura. Die alten Adressen /agents und /skills leiten automatisch dorthin weiter. Was früher Agent*innen hieß, heißt jetzt Grüneratoren; aus Skills sind Rezepte geworden. An einzelnen Stellen in der Oberfläche stehen die alten Begriffe noch — gemeint ist dasselbe."
+    "text": "RecipeCategories, ShelfCount, SortOptions, } from '@site/src/components/AgenturaShelves'; Die Agentura ist der Marktplatz für alle Grüneratoren und Rezepte. Hier findest du an einem Ort alle verfügbaren Grüneratoren — vom Pressestellen-Profi bis zum Landesverbands-Assistenten — entdeckst neue Werkzeuge und baust dir mit wenigen Klicks deine eigenen. Du erreichst die Agentura über den Menüpunkt in der Seitenleiste oder direkt unter /agentura. Die alten Adressen /agents und /skills leiten automatisch dorthin weiter. Was früher Agent*innen hieß, heißt jetzt Grüneratoren; aus Skills sind Rezepte geworden. Ältere Screenshots und Newsletter benutzen noch die alten Begriffe — gemeint ist dasselbe."
   },
   {
     "url": "/docs/agents/agentura",
@@ -327,7 +327,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Detailseiten",
     "anchor": "#detailseiten",
     "category": "Grüneratoren",
-    "text": "Jeder Grünerator und jedes Rezept hat eine eigene Detailseite — wie ein Produkt im Laden. Grüneratoren (/agentura/agent/...): Kopfbereich mit den Aktionen Im Chat öffnen, Favorit und Teilen. Übersicht — Beschreibung, Begrüßungsnachricht und eine Vorschau auf Beispiel-Antworten. Fähigkeiten — welche Werkzeuge der Grünerator nutzt, auf welches Wissen er zugreift und welches Sprachmodell dahintersteckt. Verwandte — ähnliche Grüneratoren, die zum Thema passen. Rezepte (/agentura/skill/...): Kopfbereich mit denselben Aktionen. Der vollständige Rezept-Text als Markdown — so siehst du genau, was das Rezept macht, bevor du es nutzt. Eine Vorlage und verwandte Rezepte."
+    "text": "Jeder Grünerator und jedes Rezept hat eine eigene Detailseite — wie ein Produkt im Laden. Grüneratoren (/agentura/agent/...): Kopfbereich mit den Aktionen Im Chat öffnen, Favorit und Teilen. Übersicht — Beschreibung, Begrüßungsnachricht und eine Vorschau auf Beispiel-Antworten. Fähigkeiten — welche Werkzeuge der Grünerator-Agent nutzt, auf welches Wissen er zugreift und welches Sprachmodell dahintersteckt. Verwandte — ähnliche Grüneratoren, die zum Thema passen. Rezepte (/agentura/skill/...): Kopfbereich mit denselben Aktionen. Der vollständige Rezept-Text als Markdown — so siehst du genau, was das Rezept macht, bevor du es nutzt. Eine Vorlage und verwandte Rezepte."
   },
   {
     "url": "/docs/agents/agentura",
@@ -343,7 +343,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Favoriten",
     "anchor": "#favoriten",
     "category": "Grüneratoren",
-    "text": "Mit dem Stern auf einer Karte oder Detailseite markierst du einen Grünerator oder ein Rezept als Favorit. System-, geteilte und Landesverbands-Grüneratoren werden dadurch an deine Seitenleiste angeheftet, sodass du sie mit einem Klick im Chat öffnen kannst."
+    "text": "Mit dem Stern auf einer Karte oder Detailseite markierst du einen Grünerator-Agenten oder ein Rezept als Favorit. System-, geteilte und Landesverbands-Grüneratoren werden dadurch an deine Seitenleiste angeheftet, sodass du sie mit einem Klick im Chat öffnen kannst."
   },
   {
     "url": "/docs/agents/agentura",
@@ -351,7 +351,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Grüneratoren und Rezepte",
     "anchor": "#grüneratoren-und-rezepte",
     "category": "Grüneratoren",
-    "text": "In der Agentura leben zwei Arten von Helfern: Grüneratoren sind spezialisierte KI-Persönlichkeiten mit eigenem Ton, eigenem Wissen und eigenen Werkzeugen. Du öffnest sie direkt im Chat und arbeitest dort mit ihnen. Rezepte sind kurze Schnellbefehle für eine konkrete Aufgabe (z. B. eine Pressemitteilung im Stil deines Landesverbands). Du rufst sie im Chat mit / auf. Eine Faustregel: Ein Grünerator ist eine eigenständige Gesprächspartnerin für ein ganzes Themenfeld. Ein Rezept ist eine einzelne Vorlage, die du auf jeden beliebigen Grünerator anwenden kannst."
+    "text": "In der Agentura leben zwei Arten von Helfern: Grüneratoren sind spezialisierte KI-Persönlichkeiten mit eigenem Ton, eigenem Wissen und eigenen Werkzeugen. Du öffnest sie direkt im Chat und arbeitest dort mit ihnen. Rezepte sind kurze Schnellbefehle für eine konkrete Aufgabe (z. B. eine Pressemitteilung im Stil deines Landesverbands). Du rufst sie im Chat mit / auf. Eine Faustregel: Ein Grünerator-Agent ist ein eigenständiges Gegenüber für ein ganzes Themenfeld. Ein Rezept ist eine einzelne Vorlage, die du auf jeden beliebigen Grünerator-Agenten anwenden kannst. In der Mehrzahl heißen sie Grüneratoren. In der Einzahl sagen wir Grünerator-Agent — „der Grünerator\" ohne Zusatz meint das Produkt als Ganzes."
   },
   {
     "url": "/docs/agents/agentura",
@@ -359,7 +359,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Im Marktplatz stöbern",
     "anchor": "#im-marktplatz-stöbern",
     "category": "Grüneratoren",
-    "text": "Die Startseite der Agentura ist wie ein Marktladen aufgebaut: Empfohlen — ein hervorgehobenes Regal mit ausgewählten Grüneratoren und Rezepten zum Einstieg. Gänge (Regal-Navigation) — die Inhalte sind in thematische Abschnitte sortiert, jeweils mit Anzahl (u. a. Meine Grüneratoren und Wiederkehrende Aufgaben). Am Desktop bleibt die Gang-Liste seitlich stehen, auf dem Handy scrollst du durch Pillen-Buttons. Suche — über das Suchfeld findest du Grüneratoren und Rezepte nach Name oder Beschreibung. Sortieren — Empfohlen oder A–Z. Auf den Karten der Grüneratoren siehst du außerdem Fähigkeits-Hinweise: welche Werkzeuge sie nutzen, ob sie auf ein Wissens-Notebook zugreifen und für welche Region sie gedacht sind. Suche, Sortierung und die gewählte Kategorie werden in der Adresse (URL) gespeichert. Du kannst eine bestimmte Ansicht also einfach als Link weitergeben oder mit dem Zurück-Knopf zur vorherigen Auswahl springen."
+    "text": "Die Agentura ist wie ein Marktladen aufgebaut. Es gibt Regale — am Desktop bleibt die Regal-Liste seitlich stehen, auf dem Handy scrollst du durch Pillen-Buttons. Regale ohne Inhalt werden ausgeblendet, du siehst also nur, was bei dir tatsächlich etwas enthält. Im offiziellen Regal sind die Rezepte zusätzlich nach Rubriken sortiert: . Über das Suchfeld findest du Grüneratoren und Rezepte nach Name oder Beschreibung; sortieren kannst du nach . Auf den Karten der Grüneratoren siehst du außerdem Fähigkeits-Hinweise: welche Werkzeuge sie nutzen, ob sie auf ein Wissens-Notebook zugreifen und für welche Region sie gedacht sind. Suche, Sortierung und die gewählte Kategorie werden in der Adresse (URL) gespeichert. Du kannst eine bestimmte Ansicht also einfach als Link weitergeben oder mit dem Zurück-Knopf zur vorherigen Auswahl springen."
   },
   {
     "url": "/docs/agents/agentura",
@@ -375,7 +375,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Tipps für die Nutzung",
     "anchor": "#tipps-für-die-nutzung",
     "category": "Grüneratoren",
-    "text": "Öffne einen Grünerator direkt aus der Agentura im Chat — die ganze Konfiguration ist dann schon aktiv. Markiere häufig genutzte Grüneratoren als Favorit, damit sie in der Seitenleiste auftauchen. Schau dir vor dem Bauen ähnliche Grüneratoren an — über die „Verwandte\"-Liste auf den Detailseiten findest du Vorbilder. Mehr zum Arbeiten mit Grüneratoren im Gespräch findest du unter KI-Chat."
+    "text": "Öffne einen Grünerator-Agenten direkt aus der Agentura im Chat — die ganze Konfiguration ist dann schon aktiv. Markiere häufig genutzte Grüneratoren als Favorit, damit sie in der Seitenleiste auftauchen. Schau dir vor dem Bauen ähnliche Grüneratoren an — über die „Verwandte\"-Liste auf den Detailseiten findest du Vorbilder. Mehr zum Arbeiten mit Grüneratoren im Gespräch findest du unter KI-Chat."
   },
   {
     "url": "/docs/agents/eigene-agentinnen-erstellen",
@@ -383,7 +383,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Eigene Grüneratoren erstellen",
     "anchor": "",
     "category": "Grüneratoren",
-    "text": "Du kannst dir im Grünerator deine eigenen Grüneratoren bauen — ganz ohne technische Vorkenntnisse. Es gibt zwei Wege: per Beschreibung (die KI erstellt einen Entwurf) oder manuell über das Formular. Eigene Grüneratoren sind noch in der Erprobung. Verhalten und Funktionen können sich ändern, und nicht alles funktioniert schon zuverlässig. Beim Bauen siehst du oben einen entsprechenden Hinweis-Banner. Bitte melde Probleme dem Team. In der Agentura und in der Seitenleiste heißen sie Grüneratoren. Die Knöpfe im Baukasten tragen aber noch die alten Beschriftungen — Neuer Agent, „Was für einen Agent möchtest du bauen?\". Gemeint ist dasselbe; unten stehen die Beschriftungen so, wie du sie auf dem Bildschirm findest."
+    "text": "Du kannst dir im Grünerator deine eigenen Grüneratoren bauen — ganz ohne technische Vorkenntnisse. Es gibt zwei Wege: per Beschreibung (die KI erstellt einen Entwurf) oder manuell über das Formular. Eigene Grüneratoren sind noch in der Erprobung. Verhalten und Funktionen können sich ändern, und nicht alles funktioniert schon zuverlässig. Beim Bauen siehst du oben einen entsprechenden Hinweis-Banner. Bitte melde Probleme dem Team. In der Mehrzahl heißen sie Grüneratoren. In der Einzahl sagen wir Grünerator-Agent — „der Grünerator\" ohne Zusatz meint das Produkt als Ganzes."
   },
   {
     "url": "/docs/agents/eigene-agentinnen-erstellen",
@@ -391,7 +391,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 1: Den Creator öffnen",
     "anchor": "#schritt-1-den-creator-öffnen",
     "category": "Grüneratoren",
-    "text": "Öffne die Agentura, scrolle zum Abschnitt Meine Grüneratoren und klicke oben rechts auf Neuer Agent. Alternativ rufst du den Creator direkt unter /agents/new auf."
+    "text": "Öffne die Agentura, scrolle zum Abschnitt Meine Grüneratoren und klicke oben rechts auf Neuer Grünerator-Agent. Alternativ rufst du den Creator direkt unter /agents/new auf."
   },
   {
     "url": "/docs/agents/eigene-agentinnen-erstellen",
@@ -399,7 +399,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 2: Agent beschreiben (empfohlen)",
     "anchor": "#schritt-2-agent-beschreiben-empfohlen",
     "category": "Grüneratoren",
-    "text": "Du landest auf der Seite „Was für einen Agent möchtest du bauen?\". Beschreibe im Eingabefeld (Platzhalter „Beschreibe deinen neuen Agent…\") in eigenen Worten, was dein Agent können soll – Zweck, Ton und Fähigkeiten. Zum Einstieg kannst du auch eines der Beispiele anklicken: 📰 Pressestelle, 🚲 Recherche-Bot oder 📣 Social Media. Drücke anschließend den Senden-Pfeil (oder Enter). Der Grünerator erstellt daraus einen Entwurf und öffnet direkt den Editor mit vorausgefüllten Feldern. Klicke auf „Lieber manuell anlegen?\", um den Editor mit leerem Formular zu öffnen (entspricht der Adresse /agents/new/manual)."
+    "text": "Du landest auf der Seite „Was für einen Grünerator-Agenten möchtest du bauen?\". Beschreibe im Eingabefeld (Platzhalter „Beschreibe deinen neuen Grünerator-Agenten…\") in eigenen Worten, was er können soll – Zweck, Ton und Fähigkeiten. Zum Einstieg kannst du auch eines der Beispiele anklicken: 📰 Pressestelle, 🚲 Recherche-Bot oder 📣 Social Media. Drücke anschließend den Senden-Pfeil (oder Enter). Der Grünerator erstellt daraus einen Entwurf und öffnet direkt den Editor mit vorausgefüllten Feldern. Klicke auf „Lieber manuell anlegen?\", um den Editor mit leerem Formular zu öffnen (entspricht der Adresse /agents/new/manual)."
   },
   {
     "url": "/docs/agents/eigene-agentinnen-erstellen",
@@ -2079,7 +2079,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Den Grünerator in einer Karte fragen",
     "anchor": "#den-grünerator-in-einer-karte-fragen",
     "category": "Allgemein",
-    "text": "Schreib in einem Kartenkommentar @Grünerator und dahinter deinen Auftrag. Die Antwort erscheint als Kommentar an derselben Karte — der Zusammenhang bleibt also dort, wo die Aufgabe steht. „@Grünerator recherchier den aktuellen Stand beim Radwegeausbau und fass das kurz zusammen.\" Standardmäßig antwortet er als Kommentar. Sagst du ausdrücklich, dass etwas anderes herauskommen soll, erzeugt er stattdessen ein eigenes Dokument und hängt es an die Karte: Was du schreibst | Was entsteht | --- | --- | „…und mach eine Tabelle daraus\" | eine Tabelle, verknüpft mit der Karte | „…als Präsentation\" | eine Foliensammlung, verknüpft mit der Karte | „…leg daraus Aufgaben an\" | neue Karten im selben Board | „…schreib ein Dokument dazu\" | ein Textdokument, verknüpft mit der Karte | Tabellen, Präsentationen und Aufgabenlisten entstehen nur, wenn du sie ausdrücklich nennst. Das ist Absicht: Wer nur eine Frage stellt, soll eine Antwort bekommen und nicht ungefragt ein neues Dokument. Erzeugte Dokumente erben die Freigabe des Boards. Wer das Board sehen darf, sieht auch das Ergebnis — du musst nichts zusätzlich freigeben."
+    "text": "Schreib in einem Kartenkommentar @Grünerator und dahinter deinen Auftrag. Die Antwort erscheint als Kommentar an derselben Karte — der Zusammenhang bleibt also dort, wo die Aufgabe steht. „@Grünerator recherchier den aktuellen Stand beim Radwegeausbau und fass das kurz zusammen.\" Standardmäßig antwortet er als Kommentar. Sagst du ausdrücklich, dass etwas anderes herauskommen soll, erzeugt er stattdessen ein eigenes Dokument und hängt es an die Karte: Was du schreibst | Was entsteht | ----------------------------------- | -------------------------------------------- | „…und mach eine Tabelle daraus\" | eine Tabelle, verknüpft mit der Karte | „…als Präsentation\" | eine Foliensammlung, verknüpft mit der Karte | „…leg daraus Aufgaben an\" | neue Karten im selben Board | „…schreib ein Dokument dazu\" | ein Textdokument, verknüpft mit der Karte | Tabellen, Präsentationen und Aufgabenlisten entstehen nur, wenn du sie ausdrücklich nennst. Das ist Absicht: Wer nur eine Frage stellt, soll eine Antwort bekommen und nicht ungefragt ein neues Dokument. Erzeugte Dokumente erben die Freigabe des Boards. Wer das Board sehen darf, sieht auch das Ergebnis — du musst nichts zusätzlich freigeben."
   },
   {
     "url": "/docs/office/boards",
@@ -2183,7 +2183,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Auf dem Handy",
     "anchor": "#auf-dem-handy",
     "category": "Allgemein",
-    "text": "Die Grünerator-App hat einen eigenen Office-Tab. Dokumente lassen sich dort lesen — Tabellen, Folien und Boards siehst du als Ansicht, nicht als Editor. Zum Bearbeiten von Tabellen und Präsentationen brauchst du die Web- oder Desktop-Version."
+    "text": "Die Grünerator-App hat einen eigenen Office-Tab. Dokumente lassen sich dort lesen — Tabellen, Folien und Boards siehst du als Ansicht, nicht als Editor. Zum Bearbeiten öffnest du das Dokument im Browser. Der Präsentations-Editor ist inzwischen auch auf dem Handy bedienbar: Folienstreifen quer, Folien-Aktionen per Antippen statt per Mauszeiger, und der Text wird in einem eigenen Feld bearbeitet statt direkt auf der verkleinerten Folie. Für Tabellen bleibt der große Bildschirm die bessere Wahl."
   },
   {
     "url": "/docs/office/intro",
@@ -2207,7 +2207,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Teilen",
     "anchor": "#teilen",
     "category": "Allgemein",
-    "text": "Ein Dokument kennt Stufen von Sichtbarkeit: Sichtbarkeit | Wer kommt hinein | --- | --- | privat | nur du und ausdrücklich eingeladene Personen | angemeldet | alle, die im Grünerator angemeldet sind und den Link haben | öffentlich | alle mit dem Link, auch ohne Anmeldung | Unabhängig davon legst du fest, ob Eingeladene lesen oder bearbeiten dürfen. Beides lässt sich jederzeit ändern und zurücknehmen. Ein öffentlich geteiltes Dokument kann jede Person mit dem Link aufrufen — auch ohne Grünerator-Konto. Prüf vor dem Umschalten, ob im Dokument Namen, Adressen oder interne Absprachen stehen."
+    "text": "Ein Dokument kennt Stufen von Sichtbarkeit: Sichtbarkeit | Wer kommt hinein | -------------- | ---------------------------------------------------------- | privat | nur du und ausdrücklich eingeladene Personen | angemeldet | alle, die im Grünerator angemeldet sind und den Link haben | öffentlich | alle mit dem Link, auch ohne Anmeldung | Unabhängig davon legst du fest, ob Eingeladene lesen oder bearbeiten dürfen. Beides lässt sich jederzeit ändern und zurücknehmen. Ein öffentlich geteiltes Dokument kann jede Person mit dem Link aufrufen — auch ohne Grünerator-Konto. Prüf vor dem Umschalten, ob im Dokument Namen, Adressen oder interne Absprachen stehen."
   },
   {
     "url": "/docs/office/ki-im-editor",
@@ -2463,7 +2463,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Mitglieder",
     "anchor": "#mitglieder",
     "category": "Allgemein",
-    "text": "In einem Gruppen-Projekt gibt es zwei Rollen: Rolle | Was sie darf | --- | --- | Mitglied | Inhalte des Projekts sehen und mitarbeiten | Admin | zusätzlich Mitglieder verwalten und die Einstellungen des Projekts ändern | Du kannst Menschen per E-Mail einladen. Wer noch kein Konto hat, wird durch die Anmeldung geführt und landet danach direkt im Projekt. Ein Projekt kann außerdem auffindbar geschaltet werden. Dann können andere es finden und um Aufnahme bitten; die Anfrage geht an die Admins, die sie annehmen oder ablehnen. Ohne diese Einstellung ist ein Projekt nur über eine Einladung erreichbar."
+    "text": "In einem Gruppen-Projekt gibt es zwei Rollen: Rolle | Was sie darf | ------------ | ------------------------------------------------------------------------- | Mitglied | Inhalte des Projekts sehen und mitarbeiten | Admin | zusätzlich Mitglieder verwalten und die Einstellungen des Projekts ändern | Du kannst Menschen per E-Mail einladen. Wer noch kein Konto hat, wird durch die Anmeldung geführt und landet danach direkt im Projekt. Ein Projekt kann außerdem auffindbar geschaltet werden. Dann können andere es finden und um Aufnahme bitten; die Anfrage geht an die Admins, die sie annehmen oder ablehnen. Ohne diese Einstellung ist ein Projekt nur über eine Einladung erreichbar."
   },
   {
     "url": "/docs/projekte/intro",

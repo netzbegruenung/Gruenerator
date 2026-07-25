@@ -3,6 +3,11 @@ sidebar_position: 1
 ---
 
 import UiLabel from '@site/src/components/UiLabel';
+import AgenturaShelves, {
+  RecipeCategories,
+  ShelfCount,
+  SortOptions,
+} from '@site/src/components/AgenturaShelves';
 
 # Agentura
 
@@ -11,7 +16,7 @@ Die Agentura ist der Marktplatz für alle Grüneratoren und Rezepte. Hier findes
 Du erreichst die Agentura über den Menüpunkt **<UiLabel id="menu.grueneratoren" />** in der Seitenleiste oder direkt unter `/agentura`. Die alten Adressen `/agents` und `/skills` leiten automatisch dorthin weiter.
 
 :::info[Die Namen haben sich geändert]
-Was früher **Agent\*innen** hieß, heißt jetzt **Grüneratoren**; aus **Skills** sind **Rezepte** geworden. An einzelnen Stellen in der Oberfläche stehen die alten Begriffe noch — gemeint ist dasselbe.
+Was früher **Agent\*innen** hieß, heißt jetzt **Grüneratoren**; aus **Skills** sind **Rezepte** geworden. Ältere Screenshots und Newsletter benutzen noch die alten Begriffe — gemeint ist dasselbe.
 :::
 
 ## Grüneratoren und Rezepte
@@ -21,8 +26,12 @@ In der Agentura leben zwei Arten von Helfern:
 - **Grüneratoren** sind spezialisierte KI-Persönlichkeiten mit eigenem Ton, eigenem Wissen und eigenen Werkzeugen. Du öffnest sie direkt im Chat und arbeitest dort mit ihnen.
 - **Rezepte** sind kurze Schnellbefehle für eine konkrete Aufgabe (z. B. eine Pressemitteilung im Stil deines Landesverbands). Du rufst sie im Chat mit `/` auf.
 
-:::info[Grünerator oder Rezept?]
-Eine Faustregel: Ein **Grünerator** ist eine eigenständige Gesprächspartnerin für ein ganzes Themenfeld. Ein **Rezept** ist eine einzelne Vorlage, die du auf jeden beliebigen Grünerator anwenden kannst.
+:::info[Grünerator-Agent oder Rezept?]
+Eine Faustregel: Ein **Grünerator-Agent** ist ein eigenständiges Gegenüber für ein ganzes Themenfeld. Ein **Rezept** ist eine einzelne Vorlage, die du auf jeden beliebigen Grünerator-Agenten anwenden kannst.
+:::
+
+:::note[Einzahl und Mehrzahl]
+In der Mehrzahl heißen sie **Grüneratoren**. In der Einzahl sagen wir **Grünerator-Agent** — „der Grünerator" ohne Zusatz meint das Produkt als Ganzes.
 :::
 
 ## Schnell hinkommen
@@ -31,12 +40,11 @@ In der Seitenleiste liegt **<UiLabel id="menu.grueneratoren" />** als eigener Ei
 
 ## Im Marktplatz stöbern
 
-Die Startseite der Agentura ist wie ein Marktladen aufgebaut:
+Die Agentura ist wie ein Marktladen aufgebaut. Es gibt <ShelfCount /> Regale — am Desktop bleibt die Regal-Liste seitlich stehen, auf dem Handy scrollst du durch Pillen-Buttons. Regale ohne Inhalt werden ausgeblendet, du siehst also nur, was bei dir tatsächlich etwas enthält.
 
-- **Empfohlen** — ein hervorgehobenes Regal mit ausgewählten Grüneratoren und Rezepten zum Einstieg.
-- **Gänge (Regal-Navigation)** — die Inhalte sind in thematische Abschnitte sortiert, jeweils mit Anzahl (u. a. **Meine Grüneratoren** und **Wiederkehrende Aufgaben**). Am Desktop bleibt die Gang-Liste seitlich stehen, auf dem Handy scrollst du durch Pillen-Buttons.
-- **Suche** — über das Suchfeld findest du Grüneratoren und Rezepte nach Name oder Beschreibung.
-- **Sortieren** — Empfohlen oder A–Z.
+<AgenturaShelves />
+
+Im offiziellen Regal sind die Rezepte zusätzlich nach Rubriken sortiert: <RecipeCategories />. Über das Suchfeld findest du Grüneratoren und Rezepte nach Name oder Beschreibung; sortieren kannst du nach <SortOptions />.
 
 Auf den Karten der Grüneratoren siehst du außerdem **Fähigkeits-Hinweise**: welche Werkzeuge sie nutzen, ob sie auf ein Wissens-Notebook zugreifen und für welche Region sie gedacht sind.
 
@@ -52,7 +60,7 @@ Jeder Grünerator und jedes Rezept hat eine eigene Detailseite — wie ein Produ
 
 - Kopfbereich mit den Aktionen **Im Chat öffnen**, **Favorit** und **Teilen**.
 - **Übersicht** — Beschreibung, Begrüßungsnachricht und eine Vorschau auf Beispiel-Antworten.
-- **Fähigkeiten** — welche Werkzeuge der Grünerator nutzt, auf welches Wissen er zugreift und welches Sprachmodell dahintersteckt.
+- **Fähigkeiten** — welche Werkzeuge der Grünerator-Agent nutzt, auf welches Wissen er zugreift und welches Sprachmodell dahintersteckt.
 - **Verwandte** — ähnliche Grüneratoren, die zum Thema passen.
 
 **Rezepte** (`/agentura/skill/...`):
@@ -63,7 +71,7 @@ Jeder Grünerator und jedes Rezept hat eine eigene Detailseite — wie ein Produ
 
 ## Favoriten
 
-Mit dem **Stern** auf einer Karte oder Detailseite markierst du einen Grünerator oder ein Rezept als Favorit. System-, geteilte und Landesverbands-Grüneratoren werden dadurch an deine Seitenleiste angeheftet, sodass du sie mit einem Klick im Chat öffnen kannst.
+Mit dem **Stern** auf einer Karte oder Detailseite markierst du einen Grünerator-Agenten oder ein Rezept als Favorit. System-, geteilte und Landesverbands-Grüneratoren werden dadurch an deine Seitenleiste angeheftet, sodass du sie mit einem Klick im Chat öffnen kannst.
 
 ## Eigene Grüneratoren bauen
 
@@ -71,7 +79,7 @@ Das Herzstück der Agentura: Du kannst deine **eigenen Grüneratoren bauen** —
 
 ## Tipps für die Nutzung
 
-- **Öffne einen Grünerator direkt aus der Agentura im Chat** — die ganze Konfiguration ist dann schon aktiv.
+- **Öffne einen Grünerator-Agenten direkt aus der Agentura im Chat** — die ganze Konfiguration ist dann schon aktiv.
 - **Markiere häufig genutzte Grüneratoren als Favorit**, damit sie in der Seitenleiste auftauchen.
 - **Schau dir vor dem Bauen ähnliche Grüneratoren an** — über die „Verwandte"-Liste auf den Detailseiten findest du Vorbilder.
 - **Mehr zum Arbeiten mit Grüneratoren im Gespräch** findest du unter [KI-Chat](../gruenerieren/ki-chat).
