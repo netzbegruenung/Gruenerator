@@ -68,7 +68,7 @@ export function DocAiReviewBar({
         <button
           onClick={handleReject}
           disabled={disabled}
-          className="px-3 py-1.5 text-sm font-medium rounded-lg border border-grey-300 dark:border-grey-600 text-grey-700 dark:text-grey-300 transition-colors hover:bg-grey-100 dark:hover:bg-grey-800 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-3 py-1.5 max-sm:min-h-11 max-sm:px-4 text-sm font-medium rounded-lg border border-grey-300 dark:border-grey-600 text-grey-700 dark:text-grey-300 transition-colors hover:bg-grey-100 dark:hover:bg-grey-800 disabled:opacity-50 disabled:cursor-not-allowed"
           aria-label="KI-Vorschlag verwerfen"
         >
           Verwerfen
@@ -76,7 +76,7 @@ export function DocAiReviewBar({
         <button
           onClick={handleAccept}
           disabled={disabled}
-          className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-primary-600 text-white transition-colors hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-3 py-1.5 max-sm:min-h-11 max-sm:px-4 text-sm font-semibold rounded-lg bg-primary-600 text-white transition-colors hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
           aria-label="KI-Vorschlag übernehmen"
         >
           Übernehmen
