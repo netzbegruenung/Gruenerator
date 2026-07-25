@@ -27,15 +27,19 @@ describe('selectNarration', () => {
 });
 
 describe('computeToolGroupView', () => {
-  it('passthrough for a single card', () => {
-    const v = computeToolGroupView({ toolNames: ['gruenerator_search'], parentIds: ['a'], isStreaming: false });
+  it('passthrough for a single card (not a run)', () => {
+    const v = computeToolGroupView({
+      toolNames: ['gruenerator_search'],
+      sameParentRun: false,
+      isStreaming: false,
+    });
     expect(v.mode).toBe('passthrough');
   });
 
-  it('passthrough when cards belong to different runs (mismatched parentId)', () => {
+  it('passthrough when cards do not form one run (sameParentRun false)', () => {
     const v = computeToolGroupView({
       toolNames: ['gruenerator_search', 'web_search'],
-      parentIds: ['a', 'b'],
+      sameParentRun: false,
       isStreaming: false,
     });
     expect(v.mode).toBe('passthrough');
@@ -44,7 +48,7 @@ describe('computeToolGroupView', () => {
   it('passthrough for a short finished run (below threshold)', () => {
     const v = computeToolGroupView({
       toolNames: ['gruenerator_search', 'web_search'],
-      parentIds: ['a', 'a'],
+      sameParentRun: true,
       isStreaming: false,
     });
     // 2 cards, same run, done, threshold 4 → stays inline (narration visible).
@@ -54,7 +58,7 @@ describe('computeToolGroupView', () => {
   it('live-header for a streaming run of >=2 cards, with an aggregated label', () => {
     const v = computeToolGroupView({
       toolNames: ['gruenerator_search', 'gruenerator_search', 'web_search'],
-      parentIds: ['a', 'a', 'a'],
+      sameParentRun: true,
       isStreaming: true,
     });
     expect(v.mode).toBe('live-header');
@@ -64,7 +68,7 @@ describe('computeToolGroupView', () => {
   it('collapsed for a finished long run at/over the threshold', () => {
     const v = computeToolGroupView({
       toolNames: ['gruenerator_search', 'gruenerator_search', 'web_search', 'scrape_url'],
-      parentIds: ['a', 'a', 'a', 'a'],
+      sameParentRun: true,
       isStreaming: false,
     });
     expect(v.mode).toBe('collapsed');
@@ -75,7 +79,7 @@ describe('computeToolGroupView', () => {
   it('respects a custom longRunThreshold', () => {
     const v = computeToolGroupView({
       toolNames: ['gruenerator_search', 'web_search'],
-      parentIds: ['a', 'a'],
+      sameParentRun: true,
       isStreaming: false,
       longRunThreshold: 2,
     });

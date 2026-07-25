@@ -31,7 +31,10 @@ export type ToolGroupMode =
 
 export interface ToolGroupInput {
   toolNames: ReadonlyArray<string>;
-  parentIds: ReadonlyArray<string | undefined>;
+  /** Whether these cards form one contiguous run (≥2, same parentId). Computed
+   *  by the caller's selector so the store snapshot stays primitives-only (the
+   *  React #185 guard in ToolCallGroup). */
+  sameParentRun: boolean;
   isStreaming: boolean;
   /** Minimum finished-run size that collapses to a summary row. Default 4. */
   longRunThreshold?: number;
@@ -62,15 +65,11 @@ function countLabel(toolNames: ReadonlyArray<string>): string {
  * summary row (expandable to the full transcript, nothing lost).
  */
 export function computeToolGroupView(input: ToolGroupInput): ToolGroupView {
-  const { toolNames, parentIds, isStreaming } = input;
+  const { toolNames, sameParentRun, isStreaming } = input;
   const threshold = input.longRunThreshold ?? 4;
   const count = toolNames.length;
 
-  const firstParentId = parentIds[0];
-  const sameRun =
-    count >= 2 && firstParentId != null && parentIds.every((id) => id === firstParentId);
-
-  if (!sameRun) return { mode: 'passthrough', summary: '', headerLabel: '' };
+  if (!sameParentRun) return { mode: 'passthrough', summary: '', headerLabel: '' };
 
   if (isStreaming) {
     return { mode: 'live-header', summary: '', headerLabel: countLabel(toolNames) };

@@ -345,7 +345,7 @@ Erstelle einen Instagram Reel Beitragstext, der:
         type: 'subtitler_social',
         systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
-        options: { max_tokens: 1000, temperature: 0.7 },
+        options: { temperature: 0.7 },
       });
 
       if (!result.success) {
