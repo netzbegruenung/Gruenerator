@@ -128,6 +128,7 @@ import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractR
 import { mountItemUsageContractRouter } from './routes/usage/itemUsageContractRouter.js';
 import { mountUserUsageContractRouter } from './routes/usage/userUsageContractRouter.js';
 import { recentValuesRouter } from './routes/user/index.js';
+import { mountLetterheadsContractRouter } from './routes/user/letterheadsContractRouter.js';
 import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
 import { mountUserWebsitesContractRouter } from './routes/user/userWebsitesContractRouter.js';
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
@@ -381,6 +382,12 @@ export async function setupRoutes(app: Application): Promise<void> {
 
   app.use('/api/auth/user-websites', requireAuth);
   mountUserWebsitesContractRouter(app);
+  // Letterheads (Absender for the PDF export). requireAuth at the prefix for
+  // the same reason as its siblings: a contract router does not inherit the
+  // later `app.use('/api/auth', ...)` middleware, and every route here reads or
+  // writes user-scoped data.
+  app.use('/api/auth/letterheads', requireAuth);
+  mountLetterheadsContractRouter(app);
   // Neutral "my groups" endpoint used by share dialogs across features. Must
   // be `.use`'d before the contract router mounts the GET /api/auth/groups/me
   // handler so the middleware actually runs.

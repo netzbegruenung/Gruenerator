@@ -72,7 +72,7 @@ export const exportsContractRouter = s.router(exportsContract, {
 
   generatePdf: async ({ body, req, res }) => {
     try {
-      const { content, title, layout, letter } = body;
+      const { content, title, layout, letter, letterheadId, letterhead } = body;
       // AT gets its own corporate design (fonts, colours, logo), so the
       // locale has to reach the renderer. The auth middleware has already
       // overlaid req.user.locale from the DB-backed cache.
@@ -86,7 +86,10 @@ export const exportsContractRouter = s.router(exportsContract, {
       // resolver returns null there instead of throwing.
       const wantsSender = layout === 'letterhead' || layout === 'letter';
       const sender = wantsSender
-        ? await resolveLetterheadSender((req as { user?: { id?: string } }).user?.id)
+        ? await resolveLetterheadSender((req as { user?: { id?: string } }).user?.id, {
+            letterheadId,
+            inline: letterhead,
+          })
         : null;
 
       if (wantsSender && !sender) {
@@ -97,7 +100,7 @@ export const exportsContractRouter = s.router(exportsContract, {
           body: {
             success: false as const,
             message:
-              'Für den Briefkopf sind noch keine Absenderangaben hinterlegt. Ergänze sie in den Einstellungen unter Personalisierung.',
+              'Für den Briefkopf sind keine Absenderangaben vorhanden. Lege einen Briefkopf in den Einstellungen an oder gib die Angaben beim Export ein.',
           },
         };
       }
