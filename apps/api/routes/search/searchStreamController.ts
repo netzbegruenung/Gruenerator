@@ -589,7 +589,6 @@ ${refsSummary}`;
       model,
       system: enhancedSystemPrompt,
       messages: [{ role: 'user', content: enhancedUserPrompt }],
-      maxOutputTokens: 6000,
       temperature: 0.3,
       abortSignal: abortController.signal,
     });

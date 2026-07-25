@@ -1,12 +1,10 @@
 import { Button, toast } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { useState, type ChangeEvent, type FormEvent, type KeyboardEvent } from 'react';
+import { useState, type ChangeEvent, type FormEvent } from 'react';
 
 import SettingsRow from '../components/SettingsRow';
-import { useSettingsDialogStore } from '../settingsDialogStore';
 
 import TextInput from '@/components/common/Form/Input/TextInput';
-import { RobotAvatar } from '@/components/common/RobotAvatar';
 import Spinner from '@/components/common/Spinner';
 import { useProfile } from '@/features/auth/hooks/useProfileData';
 import {
@@ -22,7 +20,6 @@ const AccountTab = () => {
   const user = optimizedUser || authUser;
 
   const queryClient = useQueryClient();
-  const setTab = useSettingsDialogStore((s) => s.setTab);
   const {
     data: profileData,
     isLoading: isLoadingProfile,
@@ -59,8 +56,6 @@ const AccountTab = () => {
     }
   };
 
-  const avatarRobotId = profile?.avatar_robot_id ?? 1;
-
   if (!user) return null;
 
   // Read-only profile fields — managed via the identity provider, not here.
@@ -83,42 +78,6 @@ const AccountTab = () => {
           </Button>
         </div>
       )}
-
-      <div className="flex items-center gap-lg">
-        <div
-          className="flex size-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-primary-500 bg-background-alt"
-          onClick={() => setTab('friends')}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e: KeyboardEvent) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              setTab('friends');
-            }
-          }}
-          aria-label="Grünerator Friend wechseln"
-        >
-          <RobotAvatar
-            robotId={typeof avatarRobotId === 'number' ? avatarRobotId : Number(avatarRobotId)}
-            displayName={fields.displayName}
-            email={fields.email}
-            sizePx={64}
-            className="size-full"
-            fallbackClassName="text-2xl"
-            priority
-          />
-        </div>
-        <div className="min-w-0 text-sm text-grey-500">
-          Dein Grünerator Friend.{' '}
-          <button
-            type="button"
-            onClick={() => setTab('friends')}
-            className="text-primary-600 hover:underline dark:text-primary-400"
-          >
-            Anderen auswählen
-          </button>
-        </div>
-      </div>
 
       {isLoadingProfile ? (
         <div className="flex justify-center py-lg">

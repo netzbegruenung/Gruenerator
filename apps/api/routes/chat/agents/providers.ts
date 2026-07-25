@@ -255,7 +255,8 @@ export function getContextWindow(
 
   // Provider-level defaults for agent configs that use 'auto' or unnamed models
   if (provider === 'mistral') return 128000;
-  if (provider === 'litellm') return 16384;
+  // Matches the declared 32768 of every named LiteLLM lane (verdigado-pro/-think).
+  if (provider === 'litellm') return 32768;
   if (provider === 'regolo') return 32768;
   if (provider === 'greenpt') return 32768;
 
