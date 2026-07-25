@@ -26,6 +26,7 @@ import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { CONFIRM_ACTION_CONFIG } from './confirmActionService.js';
+import { failCreation, rememberArtifact } from './createTurnHelpers.js';
 import { extractTextContent } from './messageHelpers.js';
 import {
   recallPastChats,
@@ -85,30 +86,35 @@ export async function handleBoardCreation(opts: {
   try {
     const {
       BOARD_GENERATION_PROMPT,
+      BOARD_TOOL_SCHEMA,
       createBoardDocument,
       parseBoardStructure,
       postProcessBoardStructure,
     } = await import('../../../services/boards/BoardService.js');
+    const { generateStructured, viaLaxParser, withContent } =
+      await import('../../../services/ai/generateStructured.js');
 
     const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
     // A referential follow-up ("mach ein Board davon") inherits the prior turn's
     // subject instead of generating a board about the bare instruction.
     const boardTopic = resolveReferentialTopic(lastUserText, classifiedState.messages ?? []).text;
 
-    const boardGenResult = await aiWorkerPool.processRequest(
-      {
-        type: 'board_generation',
-        systemPrompt: BOARD_GENERATION_PROMPT,
-        messages: [{ role: 'user', content: boardTopic }],
-        options: { temperature: 0.7 },
-      },
-      req as Express.Request & { user?: { id?: string }; sessionID?: string }
-    );
-
-    const boardStructure =
-      boardGenResult.success && boardGenResult.content
-        ? parseBoardStructure(boardGenResult.content)
-        : null;
+    const generated = await generateStructured({
+      aiWorkerPool,
+      req: req as Express.Request & { user?: { id?: string }; sessionID?: string },
+      type: 'board_generation',
+      systemPrompt: BOARD_GENERATION_PROMPT,
+      userContent: boardTopic,
+      toolName: 'create_board',
+      toolDescription: 'Erzeugt die Board-Struktur aus Spalten und Aufgabenkarten.',
+      schema: BOARD_TOOL_SCHEMA,
+      validate: viaLaxParser(parseBoardStructure, 'statusOptions oder rows fehlen'),
+      parseText: parseBoardStructure,
+      temperature: 0.7,
+      label: 'board',
+    });
+    const boardStructure = generated.ok ? generated.data : null;
+    if (!generated.ok) log.warn(`[ChatGraph] Board generation failed: ${generated.error}`);
 
     if (boardStructure) {
       const { id: newBoardId, title: boardTitle } = await createBoardDocument(
@@ -149,19 +155,28 @@ export async function handleBoardCreation(opts: {
       if (actualThreadId) {
         await createMessage(actualThreadId, 'assistant', responseText);
         await touchThread(actualThreadId);
+        await rememberArtifact(actualThreadId, 'board', newBoardId, boardTitle);
       }
 
       log.info(`[ChatGraph] Board created: "${boardTitle}" (${newBoardId})`);
       sse.end();
       return true;
     }
+    log.warn('[ChatGraph] Board generation returned no parseable structure');
   } catch (boardErr) {
     log.error(
       `[ChatGraph] Board creation failed: ${boardErr instanceof Error ? boardErr.message : String(boardErr)}`
     );
   }
 
-  return false;
+  // `response_start` already fired above, so falling through would double the
+  // response AND expose the responder's invented workarounds — report instead.
+  return failCreation(
+    sse,
+    actualThreadId,
+    'create_board',
+    'Ich konnte das Board nicht erstellen. Sag mir kurz, welche Spalten und Aufgaben es enthalten soll, dann baue ich es direkt.'
+  );
 }
 
 /**
@@ -171,8 +186,9 @@ export async function handleBoardCreation(opts: {
  * by the turn-owning handlers (which wrap it with
  * response_start/done/createMessage) AND the compound loop fat tools (which emit
  * `document_created` + hand the card back to the model). Returns null when the
- * model produced no parseable structure — the caller decides whether to fall
- * through or report an error.
+ * model produced no parseable structure; the turn-owning handlers then report a
+ * templated error via `failCreation` (never a fall-through to the responder),
+ * the loop surfaces it as a tool failure.
  */
 export interface PdfGenerationOptions {
   /** Steers the layout; the generation model may still upgrade to a letter. */
@@ -212,8 +228,11 @@ export async function runPdfGeneration(opts: {
 }): Promise<CreatePdfResult | null> {
   const { userContent, aiWorkerPool, req, userId, onCommit } = opts;
   const reqWithUser = req as Express.Request & { user?: { id?: string }; sessionID?: string };
-  const { PDF_GENERATION_PROMPT, parsePdfStructure, createPdfDocument } =
+  const { PDF_GENERATION_PROMPT, parsePdfStructure, validatePdfStructure, createPdfDocument } =
     await import('../../../services/pdf/PdfGenerationService.js');
+  const { PDF_DOCUMENT_TOOL_SCHEMA } = await import('../../../services/pdf/pdfDocument.js');
+  const { generateStructured, viaLaxParser, withContent } =
+    await import('../../../services/ai/generateStructured.js');
 
   const pdfOptions = opts.pdfOptions ?? {};
   const directive =
@@ -223,21 +242,27 @@ export async function runPdfGeneration(opts: {
         ? 'Der Nutzer möchte ein ausfüllbares Formular. Setze "kind":"form" und baue passende field-Blöcke.\n\n'
         : '';
 
-  const genResult = await aiWorkerPool.processRequest(
-    {
-      type: 'doc_generation',
-      systemPrompt: PDF_GENERATION_PROMPT,
-      messages: [{ role: 'user', content: `${directive}${userContent}` }],
-      options: { temperature: 0.5 },
-    },
-    reqWithUser
-  );
-  const structure =
-    genResult.success && genResult.content ? parsePdfStructure(genResult.content) : null;
-  if (!structure) {
-    log.warn('[ChatGraph] PDF generation returned no parseable structure');
+  const generated = await generateStructured({
+    aiWorkerPool,
+    req: reqWithUser,
+    type: 'doc_generation',
+    systemPrompt: PDF_GENERATION_PROMPT,
+    userContent: `${directive}${userContent}`,
+    toolName: 'create_pdf_document',
+    toolDescription: 'Erzeugt ein fertiges PDF-Dokument aus Titel und Inhaltsblöcken.',
+    schema: PDF_DOCUMENT_TOOL_SCHEMA,
+    validate: validatePdfStructure,
+    // Providers that ignore tools still answer with JSON text — this was the
+    // only path before, kept so none of them can regress.
+    parseText: parsePdfStructure,
+    temperature: 0.5,
+    label: 'pdf',
+  });
+  if (!generated.ok) {
+    log.warn(`[ChatGraph] PDF generation returned no usable structure: ${generated.error}`);
     return null;
   }
+  const structure = generated.data;
   onCommit?.();
 
   // Sender defaults to the profile display name so a letterhead never renders
@@ -271,30 +296,36 @@ export async function runDocGeneration(opts: {
 }): Promise<CreatedDocument | null> {
   const { kind, userContent, aiWorkerPool, req, userId, onCommit } = opts;
   const reqWithUser = req as Express.Request & { user?: { id?: string }; sessionID?: string };
+  const { generateStructured, viaLaxParser, withContent } =
+    await import('../../../services/ai/generateStructured.js');
 
   if (kind === 'presentation') {
     const {
       PRESENTATION_GENERATION_PROMPT,
+      PRESENTATION_TOOL_SCHEMA,
       parsePresentationStructure,
       createPresentationDocument,
     } = await import('../../../services/presentations/PresentationGenerationService.js');
-    const genResult = await aiWorkerPool.processRequest(
-      {
-        type: 'doc_generation',
-        systemPrompt: PRESENTATION_GENERATION_PROMPT,
-        messages: [{ role: 'user', content: userContent }],
-        options: { temperature: 0.4 },
-      },
-      reqWithUser
-    );
-    const structure =
-      genResult.success && genResult.content ? parsePresentationStructure(genResult.content) : null;
-    if (!structure) {
-      log.warn('[ChatGraph] Presentation generation returned no parseable structure');
+    const generated = await generateStructured({
+      aiWorkerPool,
+      req: reqWithUser,
+      type: 'doc_generation',
+      systemPrompt: PRESENTATION_GENERATION_PROMPT,
+      userContent,
+      toolName: 'create_presentation',
+      toolDescription: 'Erzeugt die Folienstruktur der Präsentation.',
+      schema: PRESENTATION_TOOL_SCHEMA,
+      validate: viaLaxParser(parsePresentationStructure, 'title oder slides fehlen'),
+      parseText: parsePresentationStructure,
+      temperature: 0.4,
+      label: 'presentation',
+    });
+    if (!generated.ok) {
+      log.warn(`[ChatGraph] Presentation generation failed: ${generated.error}`);
       return null;
     }
     onCommit?.();
-    const doc = await createPresentationDocument(structure, userId);
+    const doc = await createPresentationDocument(generated.data, userId);
     return {
       documentId: doc.id,
       title: doc.title,
@@ -304,25 +335,28 @@ export async function runDocGeneration(opts: {
   }
 
   if (kind === 'sheet') {
-    const { SHEET_GENERATION_PROMPT, parseSheetStructure, createSheetDocument } =
+    const { SHEET_GENERATION_PROMPT, SHEET_TOOL_SCHEMA, parseSheetStructure, createSheetDocument } =
       await import('../../../services/sheets/SheetGenerationService.js');
-    const genResult = await aiWorkerPool.processRequest(
-      {
-        type: 'doc_generation',
-        systemPrompt: SHEET_GENERATION_PROMPT,
-        messages: [{ role: 'user', content: userContent }],
-        options: { temperature: 0.4 },
-      },
-      reqWithUser
-    );
-    const structure =
-      genResult.success && genResult.content ? parseSheetStructure(genResult.content) : null;
-    if (!structure) {
-      log.warn('[ChatGraph] Sheet generation returned no parseable structure');
+    const generated = await generateStructured({
+      aiWorkerPool,
+      req: reqWithUser,
+      type: 'doc_generation',
+      systemPrompt: SHEET_GENERATION_PROMPT,
+      userContent,
+      toolName: 'create_sheet',
+      toolDescription: 'Erzeugt die Tabellenstruktur (Blätter, Spalten, Zeilen).',
+      schema: SHEET_TOOL_SCHEMA,
+      validate: viaLaxParser(parseSheetStructure, 'title oder sheets fehlen'),
+      parseText: parseSheetStructure,
+      temperature: 0.4,
+      label: 'sheet',
+    });
+    if (!generated.ok) {
+      log.warn(`[ChatGraph] Sheet generation failed: ${generated.error}`);
       return null;
     }
     onCommit?.();
-    const doc = await createSheetDocument(structure, userId);
+    const doc = await createSheetDocument(generated.data, userId);
     return { documentId: doc.id, title: doc.title, subtype: 'sheets', url: `/office/${doc.id}` };
   }
 
@@ -331,23 +365,31 @@ export async function runDocGeneration(opts: {
   // core returns null on a generation failure instead of writing a blank doc:
   // an empty doc from a researched compound turn is worse than a tool error the
   // model can explain.
-  const { DOCUMENT_GENERATION_PROMPT, parseDocumentResponse, createDocumentWithContent } =
-    await import('../../../services/docs/DocGenerationService.js');
-  const genResult = await aiWorkerPool.processRequest(
-    {
-      type: 'doc_generation',
-      systemPrompt: DOCUMENT_GENERATION_PROMPT,
-      messages: [{ role: 'user', content: userContent }],
-      options: { temperature: 0.7 },
-    },
-    reqWithUser
-  );
-  const parsed =
-    genResult.success && genResult.content ? parseDocumentResponse(genResult.content) : null;
-  if (!parsed || !parsed.content) {
-    log.warn('[ChatGraph] Document generation returned no parseable content');
+  const {
+    DOCUMENT_GENERATION_PROMPT,
+    DOCUMENT_TOOL_SCHEMA,
+    parseDocumentResponse,
+    createDocumentWithContent,
+  } = await import('../../../services/docs/DocGenerationService.js');
+  const generated = await generateStructured({
+    aiWorkerPool,
+    req: reqWithUser,
+    type: 'doc_generation',
+    systemPrompt: DOCUMENT_GENERATION_PROMPT,
+    userContent,
+    toolName: 'create_document',
+    toolDescription: 'Erzeugt das Dokument als HTML mit Titel und subtype.',
+    schema: DOCUMENT_TOOL_SCHEMA,
+    validate: viaLaxParser(withContent(parseDocumentResponse), 'content fehlt oder ist leer'),
+    parseText: withContent(parseDocumentResponse),
+    temperature: 0.7,
+    label: 'document',
+  });
+  if (!generated.ok) {
+    log.warn(`[ChatGraph] Document generation failed: ${generated.error}`);
     return null;
   }
+  const parsed = generated.data;
   onCommit?.();
   const doc = await createDocumentWithContent(parsed.title, parsed.content, parsed.subtype, userId);
   return {
@@ -381,26 +423,33 @@ export async function runBoardGeneration(opts: {
   const { userContent, aiWorkerPool, req, userId } = opts;
   const {
     BOARD_GENERATION_PROMPT,
+    BOARD_TOOL_SCHEMA,
     createBoardDocument,
     parseBoardStructure,
     postProcessBoardStructure,
   } = await import('../../../services/boards/BoardService.js');
+  const { generateStructured, viaLaxParser, withContent } =
+    await import('../../../services/ai/generateStructured.js');
 
-  const genResult = await aiWorkerPool.processRequest(
-    {
-      type: 'board_generation',
-      systemPrompt: BOARD_GENERATION_PROMPT,
-      messages: [{ role: 'user', content: userContent }],
-      options: { temperature: 0.7 },
-    },
-    req as Express.Request & { user?: { id?: string }; sessionID?: string }
-  );
-  const structure =
-    genResult.success && genResult.content ? parseBoardStructure(genResult.content) : null;
-  if (!structure) {
-    log.warn('[ChatGraph] Board generation returned no parseable structure');
+  const generated = await generateStructured({
+    aiWorkerPool,
+    req: req as Express.Request & { user?: { id?: string }; sessionID?: string },
+    type: 'board_generation',
+    systemPrompt: BOARD_GENERATION_PROMPT,
+    userContent,
+    toolName: 'create_board',
+    toolDescription: 'Erzeugt die Board-Struktur aus Spalten und Aufgabenkarten.',
+    schema: BOARD_TOOL_SCHEMA,
+    validate: viaLaxParser(parseBoardStructure, 'statusOptions oder rows fehlen'),
+    parseText: parseBoardStructure,
+    temperature: 0.7,
+    label: 'board',
+  });
+  if (!generated.ok) {
+    log.warn(`[ChatGraph] Board generation failed: ${generated.error}`);
     return null;
   }
+  const structure = generated.data;
   const { id, title } = await createBoardDocument(structure.title || 'Neues Board', userId);
   return {
     boardId: id,
@@ -446,9 +495,15 @@ export async function handleSheetCreation(opts: {
       },
     });
     if (!created) {
-      // Nothing streamed yet — return false so the caller falls through to the
-      // normal respond pipeline cleanly (no dangling response_start).
-      return false;
+      // Nothing streamed yet — open the stream and report honestly. Never fall
+      // through: the responder has no artifact tools and invents workarounds.
+      sse.send('response_start', { message: 'Erstelle Tabelle...' });
+      return failCreation(
+        sse,
+        actualThreadId,
+        'create_sheet',
+        'Ich konnte die Tabelle nicht erstellen. Sag mir kurz, welche Spalten und Daten sie enthalten soll, dann baue ich sie direkt.'
+      );
     }
 
     const responseText = `Tabelle **"${created.title}"** wurde erstellt.`;
@@ -480,6 +535,7 @@ export async function handleSheetCreation(opts: {
         createdDocument: created,
       });
       await touchThread(actualThreadId);
+      await rememberArtifact(actualThreadId, 'sheet', created.documentId, created.title);
     }
 
     sse.end();
@@ -488,20 +544,13 @@ export async function handleSheetCreation(opts: {
     log.error(
       `[ChatGraph] Sheet creation failed: ${sheetErr instanceof Error ? sheetErr.message : String(sheetErr)}`
     );
-    if (streamOpened) {
-      // The stream is already open; don't fall through (that would double the
-      // response). Close it with a short error message instead.
-      const msg = 'Die Tabelle konnte nicht erstellt werden.';
-      sse.send('text_delta', { text: msg });
-      sse.sendRaw('done', {
-        threadId: actualThreadId,
-        citations: [],
-        metadata: { intent: 'create_sheet' },
-      });
-      sse.end();
-      return true;
-    }
-    return false;
+    if (!streamOpened) sse.send('response_start', { message: 'Erstelle Tabelle...' });
+    return failCreation(
+      sse,
+      actualThreadId,
+      'create_sheet',
+      'Die Tabelle konnte nicht erstellt werden. Versuch es bitte noch einmal mit einer kurzen Beschreibung der gewünschten Spalten.'
+    );
   }
 }
 
@@ -533,9 +582,15 @@ export async function handlePresentationCreation(opts: {
       },
     });
     if (!created) {
-      // Nothing streamed yet — return false so the caller falls through to the
-      // normal respond pipeline cleanly (no dangling response_start).
-      return false;
+      // Nothing streamed yet — open the stream and report honestly. Never fall
+      // through: the responder has no artifact tools and invents workarounds.
+      sse.send('response_start', { message: 'Erstelle Präsentation...' });
+      return failCreation(
+        sse,
+        actualThreadId,
+        'create_presentation',
+        'Ich konnte die Präsentation nicht erstellen. Sag mir kurz, welche Folien sie enthalten soll, dann baue ich sie direkt.'
+      );
     }
 
     const responseText = `Präsentation **"${created.title}"** wurde erstellt.`;
@@ -567,6 +622,7 @@ export async function handlePresentationCreation(opts: {
         createdDocument: created,
       });
       await touchThread(actualThreadId);
+      await rememberArtifact(actualThreadId, 'presentation', created.documentId, created.title);
     }
 
     sse.end();
@@ -575,20 +631,13 @@ export async function handlePresentationCreation(opts: {
     log.error(
       `[ChatGraph] Presentation creation failed: ${presentationErr instanceof Error ? presentationErr.message : String(presentationErr)}`
     );
-    if (streamOpened) {
-      // The stream is already open; don't fall through (that would double the
-      // response). Close it with a short error message instead.
-      const msg = 'Die Präsentation konnte nicht erstellt werden.';
-      sse.send('text_delta', { text: msg });
-      sse.sendRaw('done', {
-        threadId: actualThreadId,
-        citations: [],
-        metadata: { intent: 'create_presentation' },
-      });
-      sse.end();
-      return true;
-    }
-    return false;
+    if (!streamOpened) sse.send('response_start', { message: 'Erstelle Präsentation...' });
+    return failCreation(
+      sse,
+      actualThreadId,
+      'create_presentation',
+      'Die Präsentation konnte nicht erstellt werden. Versuch es bitte noch einmal mit einer kurzen Beschreibung der gewünschten Folien.'
+    );
   }
 }
 
@@ -628,9 +677,16 @@ export async function handlePdfCreation(opts: {
       },
     });
     if (!result) {
-      // Nothing streamed yet — return false so the caller falls through to the
-      // normal respond pipeline cleanly (no dangling response_start).
-      return false;
+      // Nothing streamed yet — open the stream and report honestly. This is the
+      // exact path that produced the "copy it into the Office app" hallucination
+      // when it still fell through to the generic responder.
+      sse.send('response_start', { message: 'Erstelle PDF...' });
+      return failCreation(
+        sse,
+        actualThreadId,
+        'create_pdf',
+        'Ich konnte das PDF nicht erzeugen — die gelieferte Struktur war unvollständig. Sag mir kurz, was rein soll (Titel + Inhalte), dann baue ich es direkt.'
+      );
     }
     const created = result.document;
 
@@ -666,6 +722,9 @@ export async function handlePdfCreation(opts: {
         createdDocument: created,
       });
       await touchThread(actualThreadId);
+      // ref is the '<uuid>.pdf' asset file name, not a document UUID — 'pdf' is
+      // its own kind precisely so no doc-edit gate ever dereferences it.
+      await rememberArtifact(actualThreadId, 'pdf', created.documentId, created.title);
     }
 
     sse.end();
@@ -674,20 +733,13 @@ export async function handlePdfCreation(opts: {
     log.error(
       `[ChatGraph] PDF creation failed: ${pdfErr instanceof Error ? pdfErr.message : String(pdfErr)}`
     );
-    if (streamOpened) {
-      // The stream is already open; don't fall through (that would double the
-      // response). Close it with a short error message instead.
-      const msg = 'Das PDF konnte nicht erstellt werden.';
-      sse.send('text_delta', { text: msg });
-      sse.sendRaw('done', {
-        threadId: actualThreadId,
-        citations: [],
-        metadata: { intent: 'create_pdf' },
-      });
-      sse.end();
-      return true;
-    }
-    return false;
+    if (!streamOpened) sse.send('response_start', { message: 'Erstelle PDF...' });
+    return failCreation(
+      sse,
+      actualThreadId,
+      'create_pdf',
+      'Das PDF konnte nicht erstellt werden. Versuch es bitte noch einmal mit einer kurzen Beschreibung des gewünschten Inhalts.'
+    );
   }
 }
 
@@ -879,8 +931,14 @@ export async function generateAndCreateDocument(opts: {
   }
 
   try {
-    const { DOCUMENT_GENERATION_PROMPT, parseDocumentResponse, createDocumentWithContent } =
-      await import('../../../services/docs/DocGenerationService.js');
+    const {
+      DOCUMENT_GENERATION_PROMPT,
+      DOCUMENT_TOOL_SCHEMA,
+      parseDocumentResponse,
+      createDocumentWithContent,
+    } = await import('../../../services/docs/DocGenerationService.js');
+    const { generateStructured, viaLaxParser, withContent } =
+      await import('../../../services/ai/generateStructured.js');
 
     const subtypeHint = subtypeOverride ? `\nVerwende subtype: "${subtypeOverride}".` : '';
 
@@ -888,20 +946,36 @@ export async function generateAndCreateDocument(opts: {
       ? `Konversationskontext:\n${conversationContext}\n\nAktuelle Anfrage: ${userContent}`
       : userContent;
 
-    const docGenResult = await aiWorkerPool.processRequest(
-      {
-        type: 'doc_generation',
-        systemPrompt: DOCUMENT_GENERATION_PROMPT + subtypeHint,
-        messages: [{ role: 'user', content: userMessage }],
-        options: { temperature: 0.7 },
-      },
-      req as Express.Request & { user?: { id?: string }; sessionID?: string }
-    );
+    const docResult = await generateStructured({
+      aiWorkerPool,
+      req: req as Express.Request & { user?: { id?: string }; sessionID?: string },
+      type: 'doc_generation',
+      systemPrompt: DOCUMENT_GENERATION_PROMPT + subtypeHint,
+      userContent: userMessage,
+      toolName: 'create_document',
+      toolDescription: 'Erzeugt das Dokument als HTML mit Titel und subtype.',
+      schema: DOCUMENT_TOOL_SCHEMA,
+      validate: viaLaxParser(withContent(parseDocumentResponse), 'content fehlt oder ist leer'),
+      parseText: withContent(parseDocumentResponse),
+      temperature: 0.7,
+      label: 'document',
+    });
 
-    const generated =
-      docGenResult.success && docGenResult.content
-        ? parseDocumentResponse(docGenResult.content)
-        : { title: 'Neues Dokument', subtype: 'blank', content: '' };
+    const generated = docResult.ok ? docResult.data : null;
+    if (!generated || !generated.content) {
+      // Previously this substituted an empty {title:'Neues Dokument', content:''}
+      // document and reported success — a fake artifact is worse than an honest
+      // failure. save_as_doc (skipTerminate) does not own the stream, so it must
+      // still fall through to its caller.
+      log.warn(`[ChatGraph] Document generation returned no parseable content (${intent})`);
+      if (skipTerminate) return false;
+      return failCreation(
+        sse,
+        actualThreadId,
+        intent,
+        'Ich konnte das Dokument nicht erstellen. Sag mir kurz, was drinstehen soll, dann schreibe ich es direkt.'
+      );
+    }
 
     const docSubtype = subtypeOverride || generated.subtype;
     const newDoc = await createDocumentWithContent(
@@ -929,29 +1003,17 @@ export async function generateAndCreateDocument(opts: {
 
     log.info(`[ChatGraph] Document created (${intent}): "${docTitle}" (${newDocId})`);
 
-    // Remember the created document as the thread's last tool context so a vague
-    // follow-up ("Kürze die Begründung") routes to modify_doc on THIS doc
-    // (classifier Tier-2.7). save_as_doc runs with skipTerminate → it never
-    // reaches persistAssistantResponse's deriveToolContext, so without this the
-    // edit gate has no target. Written for both the terminating (@dokument-
-    // erstellen) and skipTerminate (save_as_doc) paths.
-    if (actualThreadId) {
-      const contextKind = docSubtype.startsWith('presentation')
-        ? 'presentation'
-        : docSubtype.startsWith('sheet')
-          ? 'sheet'
-          : 'document';
-      // Awaited (not fire-and-forget): the `done` for this turn — and thus the
-      // NEXT turn's classifier reading last_tool_context — must not race ahead
-      // of this write, or the follow-up edit gate sees a stale/empty context.
-      await setThreadToolContext(actualThreadId, {
-        kind: contextKind,
-        ref: newDocId,
-        label: docTitle,
-      }).catch((err) =>
-        log.warn('[ChatGraph] Failed to persist document thread tool context:', err)
-      );
-    }
+    // Remember the created document so a vague follow-up ("Kürze die
+    // Begründung") routes to modify_doc on THIS doc (classifier Tier-2.7).
+    // Written for both the terminating (@dokument-erstellen) and skipTerminate
+    // (save_as_doc) paths — the latter never reaches persistAssistantResponse's
+    // deriveToolContext, so without this the edit gate has no target.
+    const contextKind = docSubtype.startsWith('presentation')
+      ? 'presentation'
+      : docSubtype.startsWith('sheet')
+        ? 'sheet'
+        : 'document';
+    await rememberArtifact(actualThreadId, contextKind, newDocId, docTitle);
 
     if (!skipTerminate) {
       const totalTimeMs = Date.now() - classifiedState.startTime;
@@ -992,7 +1054,16 @@ export async function generateAndCreateDocument(opts: {
     log.error(
       `[ChatGraph] Document creation failed (${intent}): ${docErr instanceof Error ? docErr.message : String(docErr)}`
     );
-    return false;
+    // skipTerminate (save_as_doc) never opened the stream — its caller handles
+    // the failure. Every other path already sent `response_start`, so falling
+    // through would double the response on top of the hallucination risk.
+    if (skipTerminate) return false;
+    return failCreation(
+      sse,
+      actualThreadId,
+      intent,
+      'Das Dokument konnte nicht erstellt werden. Versuch es bitte noch einmal mit einer kurzen Beschreibung des Inhalts.'
+    );
   }
 }
 

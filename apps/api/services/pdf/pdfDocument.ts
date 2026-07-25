@@ -106,6 +106,100 @@ export type PdfBlock = z.infer<typeof pdfBlockSchema>;
 export type PdfDocumentSpec = z.infer<typeof pdfDocumentSchema>;
 
 /**
+ * The schema shown to the MODEL for the forced tool call — deliberately NOT
+ * `zodToJsonSchema(pdfDocumentSchema)`.
+ *
+ * That would emit an 11-member discriminated union plus a nested
+ * string|object union inside list items, i.e. deep `anyOf`. gpt-oss (via
+ * LiteLLM) and Mistral handle that badly, and strict provider schema modes
+ * additionally reject `default`. So the wire schema is flat: one block object
+ * with every field optional except `type`, and `additionalProperties: true`.
+ *
+ * Only `title` and `blocks` are required — exactly the two whose absence broke
+ * generation in production. The real strictness stays in `pdfDocumentSchema`,
+ * which validates the tool output afterwards.
+ */
+export const PDF_DOCUMENT_TOOL_SCHEMA: Record<string, unknown> = {
+  type: 'object',
+  required: ['title', 'blocks'],
+  additionalProperties: true,
+  properties: {
+    title: { type: 'string', description: 'Dokumenttitel, nicht leer' },
+    subtitle: { type: 'string' },
+    kind: { type: 'string', enum: ['document', 'letter', 'form'] },
+    language: { type: 'string' },
+    letter: {
+      type: 'object',
+      additionalProperties: true,
+      properties: {
+        recipient: { type: 'string' },
+        place: { type: 'string' },
+        subject: { type: 'string' },
+        salutation: { type: 'string' },
+        closing: { type: 'string' },
+        signature: { type: 'string' },
+      },
+    },
+    blocks: {
+      type: 'array',
+      minItems: 1,
+      description: 'Inhaltsblöcke in Lesereihenfolge, mindestens einer',
+      items: {
+        type: 'object',
+        required: ['type'],
+        additionalProperties: true,
+        properties: {
+          type: {
+            type: 'string',
+            enum: [
+              'heading',
+              'paragraph',
+              'list',
+              'table',
+              'quote',
+              'note',
+              'keyvalue',
+              'divider',
+              'pagebreak',
+              'field',
+              'signature',
+            ],
+          },
+          text: { type: 'string' },
+          level: { type: 'integer', enum: [1, 2, 3] },
+          ordered: { type: 'boolean' },
+          items: { type: 'array', items: { type: 'string' } },
+          columns: { type: 'array', items: { type: 'string' } },
+          rows: { type: 'array', items: { type: 'array', items: { type: 'string' } } },
+          caption: { type: 'string' },
+          source: { type: 'string' },
+          title: { type: 'string' },
+          entries: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: true,
+              properties: { label: { type: 'string' }, value: { type: 'string' } },
+            },
+          },
+          kind: {
+            type: 'string',
+            enum: ['text', 'multiline', 'date', 'checkbox', 'radio', 'select'],
+          },
+          label: { type: 'string' },
+          name: { type: 'string' },
+          options: { type: 'array', items: { type: 'string' } },
+          required: { type: 'boolean' },
+          help: { type: 'string' },
+          width: { type: 'string', enum: ['full', 'half'] },
+          labels: { type: 'array', items: { type: 'string' } },
+        },
+      },
+    },
+  },
+};
+
+/**
  * AcroForm field names must be unique and must not contain '.' (that builds a
  * field hierarchy) — collisions would silently merge two fields into one.
  */
