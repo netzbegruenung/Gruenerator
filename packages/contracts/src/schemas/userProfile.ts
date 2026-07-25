@@ -50,6 +50,7 @@ export const chatBackgroundSchema = z.enum([
   'himmel',
   'sand',
   'magenta',
+  'regenbogen',
   'neutral',
 ]);
 export type ChatBackground = z.infer<typeof chatBackgroundSchema>;
