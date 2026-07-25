@@ -105,6 +105,11 @@ function syncPrComment({ marker, hasDrift, body, allClear }) {
  * The whole CLI for a manifest generator. `generate()` returns the JSON text and
  * a short count label; `audit(manifest)` returns `{ hasDrift, body }` and is only
  * called for `--audit`.
+ *
+ * `audit` is optional. A manifest whose source already carries the user-facing
+ * German (labels *and* descriptions written for the screen) has no hand-written
+ * half that could go missing, so there is nothing to audit — `--check` is the
+ * whole contract for those.
  */
 export function runGenerator({
   outFile,
@@ -119,6 +124,11 @@ export function runGenerator({
   const argv = process.argv;
   const absOut = path.join(REPO_ROOT, outFile);
   const { json, summary } = generate();
+
+  if (argv.includes('--audit') && !audit) {
+    console.error(`✗ ${outFile} has no audit — this generator only supports --check.`);
+    process.exit(1);
+  }
 
   if (argv.includes('--audit')) {
     const committed = readCommitted(absOut);
