@@ -12,7 +12,7 @@
 import express, { type Request, type Response } from 'express';
 
 import { contentToBlocks } from '../../services/pdf/contentToBlocks.js';
-import { renderPdf, type PdfLocale } from '../../services/pdf/pdfRenderer.js';
+import { renderPdf, type PdfLocale, type PdfSender } from '../../services/pdf/pdfRenderer.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
@@ -20,6 +20,10 @@ import { sanitizeFilename as sanitizeFilenameCentral } from '../../utils/validat
 
 import type { ExportRequestBody, ExportResponse } from './types.js';
 import type { PdfDocumentSpec } from '../../services/pdf/pdfDocument.js';
+import type { PdfExportLayout, pdfExportLetterSchema } from '@gruenerator/contracts';
+import type { z } from 'zod';
+
+type PdfExportLetter = z.infer<typeof pdfExportLetterSchema>;
 
 const log = createLogger('exportPdf');
 
@@ -36,19 +40,40 @@ const sanitizeFilename = sanitizePdfFilename;
  * Core PDF generation logic, extracted so it can be reused by the
  * ts-rest contract router without duplicating the Express handler.
  */
+export interface PdfExportOptions {
+  /** See PdfExportLayout — 'letterhead' adds the Absender, 'letter' is DIN 5008. */
+  layout?: PdfExportLayout;
+  /** Resolved server-side from the caller's profile; never taken from the body. */
+  sender?: PdfSender | null;
+  letter?: PdfExportLetter;
+}
+
 export async function generatePdfBuffer(
   content: string,
   title: string | undefined,
-  locale: PdfLocale = 'de-DE'
+  locale: PdfLocale = 'de-DE',
+  options: PdfExportOptions = {}
 ): Promise<Buffer> {
+  const layout = options.layout ?? 'document';
+  const isLetter = layout === 'letter';
+
   const spec: PdfDocumentSpec = {
     title: (title ?? '').trim() || 'Dokument',
-    kind: 'document',
+    // 'document' for BOTH 'document' and 'letterhead': the letterhead is an
+    // additive band, not a layout. Making it a letter here would drag in
+    // recipient, date, subject and salutation furniture the user did not ask
+    // for — the one thing this feature must not do.
+    kind: isLetter ? 'letter' : 'document',
     language: locale,
     blocks: contentToBlocks(content ?? ''),
+    ...(isLetter && options.letter && { letter: options.letter }),
   };
 
-  const rendered = await renderPdf(spec, { locale });
+  const rendered = await renderPdf(spec, {
+    locale,
+    sender: options.sender ?? null,
+    letterhead: layout === 'letterhead',
+  });
   if (rendered.missingGlyphs.length) {
     log.warn(
       `[exportPdf] ${rendered.missingGlyphs.length} Zeichen ohne Glyphe entfernt: ${rendered.missingGlyphs.join(' ')}`

@@ -73,8 +73,9 @@ jobs:
     env:
       VERAPDF_IMAGE: verapdf/cli:v1.30.2
       FIXTURE_DIR: ${{ github.workspace }}/pdf-fixtures
-      # 5 handgeschriebene Spezifikationen + 10 aus dem Dokument-Export-Korpus.
-      EXPECTED_FIXTURES: '15'
+      # 5 handgeschriebene Spezifikationen + 5 Briefkopf-Varianten
+      # + 10 aus dem Dokument-Export-Korpus.
+      EXPECTED_FIXTURES: '20'
     steps:
       - name: Checkout
         uses: actions/checkout@v7

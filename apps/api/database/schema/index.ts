@@ -33,3 +33,4 @@ export * from './groups.js';
 export * from './monitor.js';
 export * from './contentSync.js';
 export * from './userWebsites.js';
+export * from './userLetterheads.js';
