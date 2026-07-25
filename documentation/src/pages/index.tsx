@@ -19,64 +19,92 @@ const categories: CategoryCard[] = [
   {
     title: 'Über den Grünerator',
     icon: '🎯',
-    description:
-      'Was ist der Grünerator? Lerne die grüne KI kennen und erfahre, was sie besonders macht.',
+    description: 'Was der Grünerator ist, welche Werkzeuge es gibt und worauf er aufbaut.',
     link: '/docs/ueber-den-gruenerator/intro',
     topPages: [
       { title: 'Einführung', link: '/docs/ueber-den-gruenerator/intro' },
-      { title: 'Pro EU', link: '/docs/ueber-den-gruenerator/gruenerator-pro-eu' },
+      { title: 'Alle Werkzeuge', link: '/docs/ueber-den-gruenerator/tools' },
+      { title: 'Deine Daten im Grünerator', link: '/docs/ueber-den-gruenerator/notebook' },
+    ],
+  },
+  {
+    title: 'Chat',
+    icon: '✨',
+    description:
+      'Im Gespräch arbeiten: fragen, recherchieren, Dateien mitgeben, Inhalte erstellen.',
+    link: '/docs/chat/was-kann-ich-fragen',
+    topPages: [
+      { title: 'Was kann ich fragen?', link: '/docs/chat/was-kann-ich-fragen' },
+      { title: 'KI-Modelle', link: '/docs/chat/ki-modelle' },
+      { title: 'Dateien hinzufügen', link: '/docs/chat/dateien-hinzufuegen' },
+    ],
+  },
+  {
+    title: 'Office',
+    icon: '📄',
+    description: 'Dokumente, Tabellen, Präsentationen und Boards — gemeinsam schreiben und planen.',
+    link: '/docs/office/intro',
+    topPages: [
+      { title: 'Überblick', link: '/docs/office/intro' },
+      { title: 'Tabellen', link: '/docs/office/tabellen' },
+      { title: 'Boards', link: '/docs/office/boards' },
+    ],
+  },
+  {
+    title: 'Wissen',
+    icon: '📚',
+    description: 'Eigene Notebooks anlegen und die Inhalte der Landesverbände nutzen.',
+    link: '/docs/wissen/eigenes-notebook-erstellen',
+    topPages: [
+      { title: 'Eigenes Notebook erstellen', link: '/docs/wissen/eigenes-notebook-erstellen' },
+      { title: 'Landesverbände', link: '/docs/wissen/landesverbaende' },
+    ],
+  },
+  {
+    title: 'Grüneratoren',
+    icon: '🕵️',
+    description: 'Die Agentura: fertige Grüneratoren nutzen und eigene bauen.',
+    link: '/docs/grueneratoren/agentura',
+    topPages: [
+      { title: 'Agentura', link: '/docs/grueneratoren/agentura' },
       {
-        title: 'Deine Daten im Grünerator',
-        link: '/docs/ueber-den-gruenerator/notebook',
+        title: 'Eigene Grüneratoren erstellen',
+        link: '/docs/grueneratoren/eigene-agentinnen-erstellen',
       },
     ],
   },
   {
-    title: 'Grundlagen',
-    icon: '📚',
-    description: 'Wichtige Basics für die Arbeit mit dem Grünerator und KI-generierten Inhalten.',
-    link: '/docs/Grundlagen/Kennzeichnungs-Guide',
-    topPages: [
-      { title: 'Kennzeichnungs-Guide', link: '/docs/Grundlagen/Kennzeichnungs-Guide' },
-      { title: 'Welches KI-Tool wofür?', link: '/docs/Grundlagen/welches-ki-tool-wofuer' },
-    ],
-  },
-  {
-    title: 'Profil',
+    title: 'Konto & Projekte',
     icon: '👤',
-    description: 'Personalisiere den Grünerator und nutze die Grüne Wolke für deine Inhalte.',
-    link: '/docs/Profil/gruene-wolke-tutorial',
-    topPages: [{ title: 'Grüne Wolke Tutorial', link: '/docs/Profil/gruene-wolke-tutorial' }],
-  },
-  {
-    title: 'Grünerieren',
-    icon: '✨',
-    description: 'Erstelle grüne Inhalte: Texte, Sharepics, Untertitel und mehr.',
-    link: '/docs/gruenerieren/ki-modelle',
+    description: 'Projekte, Einstellungen und die Anbindung der Grünen Wolke.',
+    link: '/docs/konto/projekte',
     topPages: [
-      { title: 'Was kann ich fragen?', link: '/docs/gruenerieren/was-kann-ich-fragen' },
-      { title: 'KI-Modelle', link: '/docs/gruenerieren/ki-modelle' },
-      { title: 'Dateien hinzufügen', link: '/docs/gruenerieren/dateien-hinzufuegen' },
+      { title: 'Projekte', link: '/docs/konto/projekte' },
+      { title: 'Einstellungen', link: '/docs/konto/einstellungen' },
+      { title: 'Grüne Wolke', link: '/docs/konto/gruene-wolke' },
     ],
   },
   {
     title: 'Integrationen',
     icon: '🔌',
-    description: 'Nutze den Grünerator direkt in ChatGPT, Claude oder Mistral Le Chat.',
-    link: '/docs/integrationen/ki-chat-einrichten',
+    description: 'Den Grünerator mit anderen Diensten verbinden — in beide Richtungen.',
+    link: '/docs/integrationen/konnektoren',
     topPages: [
+      { title: 'Konnektoren', link: '/docs/integrationen/konnektoren' },
       { title: 'KI-Chat einrichten', link: '/docs/integrationen/ki-chat-einrichten' },
-      { title: 'Was kann ich fragen?', link: '/docs/integrationen/mcp-was-kann-ich-fragen' },
+      { title: 'Was kann der MCP-Server?', link: '/docs/integrationen/mcp-was-kann-ich-fragen' },
     ],
   },
   {
-    title: 'LLM Basics',
+    title: 'Grundlagen',
     icon: '🧠',
-    description: 'Verstehe, wie Large Language Models funktionieren und welche Risiken es gibt.',
-    link: '/docs/llm-basics/wie-llms-funktionieren',
+    description:
+      'Wie KI-Sprachmodelle funktionieren, wo ihre Grenzen liegen, wie man kennzeichnet.',
+    link: '/docs/grundlagen/wie-llms-funktionieren',
     topPages: [
-      { title: 'Wie LLMs funktionieren', link: '/docs/llm-basics/wie-llms-funktionieren' },
-      { title: 'Risiken & Gefahren', link: '/docs/llm-basics/risiken-und-gefahren-von-llms' },
+      { title: 'Wie LLMs funktionieren', link: '/docs/grundlagen/wie-llms-funktionieren' },
+      { title: 'Risiken & Gefahren', link: '/docs/grundlagen/risiken-und-gefahren-von-llms' },
+      { title: 'Kennzeichnungs-Guide', link: '/docs/grundlagen/Kennzeichnungs-Guide' },
     ],
   },
 ];

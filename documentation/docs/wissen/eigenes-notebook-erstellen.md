@@ -48,7 +48,7 @@ Das **Hochladen** dauert nur Sekunden, das anschließende **Indexieren** (damit 
 
 Wenn du bereits einen Freigabe-Link aus der Grünen Wolke eingerichtet hast, kannst du über die Kachel **„Aus der Wolke verbinden"** einen ganzen Cloud-Ordner an dein Notebook hängen. Dokumente aus dem Ordner werden dann automatisch importiert und mit der Wolke synchronisiert. Diese Funktion ist mit einem **„Experimentell"**-Badge gekennzeichnet — der Komfort wächst, aber die Sync-Logik kann sich noch ändern.
 
-Mehr zur Einrichtung des Wolke-Links: → [Wolke einbinden](/docs/Profil/gruene-wolke-tutorial).
+Mehr zur Einrichtung des Wolke-Links: → [Wolke einbinden](/docs/konto/gruene-wolke).
 
 #### Optional: Docs importieren
 
@@ -132,5 +132,5 @@ Prüfe die Dateiendung (PDF, DOCX, DOC, TXT, MD, ODT, RTF) und die Dateigröße 
 
 ## Verwandte Themen
 
-- [Wolke einbinden](/docs/Profil/gruene-wolke-tutorial) — Voraussetzung, um Wolke-Ordner an Notebooks zu hängen.
+- [Wolke einbinden](/docs/konto/gruene-wolke) — Voraussetzung, um Wolke-Ordner an Notebooks zu hängen.
 - [Deine Daten im Grünerator](/docs/ueber-den-gruenerator/notebook) — Hintergrund zu Notebooks für Landesverbände und Abgeordnetenbüros.
