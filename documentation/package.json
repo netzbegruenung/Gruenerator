@@ -13,6 +13,8 @@
     "settings:generate": "node scripts/generate-settings.mjs",
     "settings:check": "node scripts/generate-settings.mjs --check",
     "settings:audit": "node scripts/generate-settings.mjs --audit",
+    "agentura:generate": "node scripts/generate-agentura.mjs",
+    "agentura:check": "node scripts/generate-agentura.mjs --check",
     "tools:generate": "node scripts/generate-tool-catalog.mjs",
     "tools:check": "node scripts/generate-tool-catalog.mjs --check",
     "tools:audit": "node scripts/generate-tool-catalog.mjs --audit",
