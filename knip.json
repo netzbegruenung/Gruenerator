@@ -13,6 +13,7 @@
         "vite.config.ts",
         "vitest.config.ts",
         "vitest.setup.ts",
+        "src/**/*.vitest.{ts,tsx}",
         "src/test/**/*.ts",
         "playwright.config.ts",
         "playwright.smoke.config.ts",
@@ -42,12 +43,17 @@
       "ignore": ["public/**"]
     },
     "packages/shared": {
-      "entry": ["src/index.ts"],
+      "entry": ["src/index.ts", "src/**/*.vitest.{ts,tsx}"],
       "project": ["src/**/*.{ts,tsx}"],
       "ignore": ["src/tiptap-editor/**"]
     },
     "packages/chat": {
-      "entry": ["src/index.ts", "src/index.native.ts"],
+      "entry": [
+        "src/index.ts",
+        "src/index.native.ts",
+        "vitest.config.ts",
+        "src/**/*.vitest.{ts,tsx}"
+      ],
       "project": ["src/**/*.{ts,tsx}"]
     },
     "packages/canvas-editor": {

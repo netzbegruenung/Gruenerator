@@ -88,7 +88,7 @@ const DocumentViewPage = () => {
           <div className="mb-lg pb-lg border-b border-grey-200 dark:border-grey-700">
             <button
               onClick={handleGoBack}
-              className="bg-none border-none text-[var(--primary)] text-base cursor-pointer p-sm mb-md rounded-lg transition-all duration-200 hover:bg-hover-alt hover:scale-[1.01]"
+              className="bg-none border-none text-[var(--primary)] text-base cursor-pointer p-sm max-sm:min-h-11 max-sm:inline-flex max-sm:items-center mb-md rounded-lg transition-all duration-200 hover:bg-hover-alt hover:scale-[1.01]"
             >
               ← Zurück
             </button>
