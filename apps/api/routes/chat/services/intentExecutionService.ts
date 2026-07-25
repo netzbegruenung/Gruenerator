@@ -1,8 +1,10 @@
 /**
  * Intent Execution Service
  *
- * Handles board creation, document creation, share_doc intent,
- * and the search/image/summary pipeline execution.
+ * The turn handlers that are NOT plain artifact creation: recurring tasks,
+ * share_doc, sharepic/social-post generation and the search/image/summary
+ * pipeline. Artifact-creating turns live in createTurn.ts (choreography) and
+ * artifactKinds.ts (per-kind data); the thin handlers below only name them.
  */
 
 import { createRecurringTaskBodySchema, type ScheduleRecurrence } from '@gruenerator/contracts';
@@ -35,7 +37,7 @@ import {
 } from './artifactKinds.js';
 import { CONFIRM_ACTION_CONFIG } from './confirmActionService.js';
 import { runCreateTurn, type CreateTurnOpts } from './createTurn.js';
-import { failCreation, rememberArtifact } from './createTurnHelpers.js';
+import { rememberArtifact } from './createTurnHelpers.js';
 import { extractTextContent } from './messageHelpers.js';
 import {
   recallPastChats,
@@ -56,12 +58,11 @@ import {
 } from './sharepicVariantHelpers.js';
 import { generateSliderDeckVariant } from './sliderDeckService.js';
 import { PROGRESS_MESSAGES, sendSearchDegradedWarning } from './sseHelpers.js';
-import { createMessage, setThreadToolContext, touchThread } from './threadPersistenceService.js';
+import { createMessage, touchThread } from './threadPersistenceService.js';
 
 import type { SSEWriter, SearchResultPayload } from './sseHelpers.js';
 import type {
   ChatGraphState,
-  CreatedDocument,
   GeneratedImageResult,
   ImageAttachment,
   PendingAction,
@@ -69,7 +70,6 @@ import type {
   SearchResult,
   SocialPostPayload,
 } from '../../../agents/langgraph/ChatGraph/types.js';
-import type { CreatePdfResult } from '../../../services/pdf/PdfGenerationService.js';
 import type { ModelMessage } from 'ai';
 import type { Request } from 'express';
 
@@ -84,8 +84,6 @@ export {
   runBoardGeneration,
   runDocGeneration,
   runPdfGeneration,
-  type CreatedBoard,
-  type PdfGenerationOptions,
 } from './artifactGeneration.js';
 
 /**
