@@ -88,9 +88,9 @@ export function ShareAgentModal({ identifier, open, onOpenChange }: ShareAgentMo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[42rem]">
         <DialogHeader>
-          <DialogTitle>Agent*in teilen</DialogTitle>
+          <DialogTitle>Grünerator-Agent teilen</DialogTitle>
           <DialogDescription>
-            Lege fest, wer diese*n Agent*in sehen und im Chat nutzen darf.
+            Lege fest, wer diesen Grünerator-Agenten sehen und im Chat nutzen darf.
           </DialogDescription>
         </DialogHeader>
 

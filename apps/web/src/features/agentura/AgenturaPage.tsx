@@ -535,7 +535,7 @@ function AgenturaPage() {
           </h1>
         </div>
         <p className="mt-sm max-w-[560px] text-sm text-foreground-muted">
-          Dein Markt für Grüneratoren und Skills — wähle links eine Kategorie oder such direkt im
+          Dein Markt für Grüneratoren und Rezepte — wähle links eine Kategorie oder such direkt im
           Markt.
         </p>
       </header>
