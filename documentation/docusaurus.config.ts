@@ -148,9 +148,12 @@ const config: Config = {
           label: 'Anleitung',
           position: 'left',
           items: [
+            { to: '/docs/ueber-den-gruenerator/tools', label: 'Alle Werkzeuge' },
             { to: '/docs/category/grünerieren', label: 'Grünerieren' },
+            { to: '/docs/category/office', label: 'Office' },
             // { to: '/docs/monitor/intro', label: 'Themen-Monitor' }, // hidden — Themen-Monitor not online yet
             { to: '/docs/category/notebooks', label: 'Notebooks' },
+            { to: '/docs/projekte/intro', label: 'Projekte' },
             { to: '/docs/category/profil', label: 'Profil' },
             { to: '/docs/category/integrationen', label: 'Integrationen' },
           ],

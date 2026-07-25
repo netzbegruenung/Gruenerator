@@ -38,13 +38,13 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/agents/agentura",
     "title": "Agentura",
     "category": "Grüneratoren",
-    "lead": "Die Agentura ist der Marktplatz für alle Assistent*innen und Skills im Grünerator. Hier findest du an einem Ort alle verfügbaren Agent*innen — vom Pressestellen-Profi bis zum Landesverbands-Assistent…"
+    "lead": "Die Agentura ist der Marktplatz für alle Grüneratoren und Rezepte. Hier findest du an einem Ort alle verfügbaren Grüneratoren — vom Pressestellen-Profi bis zum Landesverbands-Assistenten — entdeckst…"
   },
   {
     "url": "/docs/agents/eigene-agentinnen-erstellen",
-    "title": "Eigene Agent*innen erstellen",
+    "title": "Eigene Grüneratoren erstellen",
     "category": "Grüneratoren",
-    "lead": "Du kannst dir im Grünerator deine eigenen Agent*innen bauen — ganz ohne technische Vorkenntnisse. Es gibt zwei Wege: per Beschreibung (die KI erstellt einen Entwurf) oder manuell über das Formular."
+    "lead": "Du kannst dir im Grünerator deine eigenen Grüneratoren bauen — ganz ohne technische Vorkenntnisse. Es gibt zwei Wege: per Beschreibung (die KI erstellt einen Entwurf) oder manuell über das Formular."
   },
   {
     "url": "/docs/bildnachweise",
@@ -209,6 +209,42 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Ein Notebook bündelt Dokumente zu einem Thema und macht ihren Inhalt im Grünerator durchsuchbar — etwa für Anträge, Beschlüsse, Programme oder Pressemitteilungen. Diese Anleitung führt dich Schritt f…"
   },
   {
+    "url": "/docs/office/boards",
+    "title": "Boards",
+    "category": "Allgemein",
+    "lead": "Ein Board ist eine Tafel aus Spalten und Karten — für Aufgabenverteilung, Redaktionsplanung oder den Stand einer Kampagne. Du legst es über an."
+  },
+  {
+    "url": "/docs/office/dokumente",
+    "title": "Dokumente",
+    "category": "Allgemein",
+    "lead": "Ein Dokument ist der Ort für Fließtext: Anträge, Pressemitteilungen, Protokolle, Notizen, Einladungen. Du legst es über an oder startest über aus einer Vorlage."
+  },
+  {
+    "url": "/docs/office/intro",
+    "title": "Office: Dokumente, Tabellen, Folien und Boards",
+    "category": "Allgemein",
+    "lead": "Office ist der Ort für alles, was aus Text, Zahlen und Plänen besteht. Vier Arten von Dokumenten liegen dort nebeneinander: . Du findest sie über den Tab Arbeiten unter der Kachel ."
+  },
+  {
+    "url": "/docs/office/ki-im-editor",
+    "title": "Der Grünerator im Editor",
+    "category": "Allgemein",
+    "lead": "Jedes Office-Dokument hat eine Chat-Seitenleiste. Sie sieht aus wie der normale Chat und kann auch dasselbe — recherchieren, nachschlagen, Texte schreiben. Der Unterschied: Sie kennt das geöffnete Do…"
+  },
+  {
+    "url": "/docs/office/praesentationen",
+    "title": "Präsentationen",
+    "category": "Allgemein",
+    "lead": "Eine Präsentation ist eine Folge von Folien mit eigenem Vortragsmodus. Du legst sie über an — oder lässt sie dir im Chat aus einem Thema erzeugen."
+  },
+  {
+    "url": "/docs/office/tabellen",
+    "title": "Tabellen",
+    "category": "Allgemein",
+    "lead": "Eine Grünerator-Tabelle ist eine vollwertige Kalkulationstabelle: Formeln, Filter, Sortierung, Auswahllisten, bedingte Formatierung. Du legst sie über auf der Office-Startseite an — oder du lässt sie…"
+  },
+  {
     "url": "/docs/Profil/einstellungen",
     "title": "Einstellungen",
     "category": "Profil",
@@ -219,6 +255,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "title": "Wolke einbinden",
     "category": "Profil",
     "lead": "Die Grüne Wolke ist unser sicherer Cloud-Speicher für alle grünen Organisationen. Mit der richtigen Konfiguration kannst du deine Dateien nahtlos mit dem Grünerator teilen und automatisch Dokumente h…"
+  },
+  {
+    "url": "/docs/projekte/intro",
+    "title": "Projekte",
+    "category": "Allgemein",
+    "lead": "Ein Projekt bündelt alles, was zu einem Arbeitszusammenhang gehört: Chats, Dokumente und die Menschen, die daran arbeiten. Statt Unterhaltungen und Dateien über den ganzen Grünerator zu verstreuen, l…"
   },
   {
     "url": "/docs/signal-nachrichten/2026-05-erstelle-dein-notebook",
@@ -257,6 +299,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Der Grünerator steht auf den Schultern vieler freier Open-Source-Projekte – Software, die offen entwickelt wird und die alle nutzen, einsehen und weiterentwickeln dürfen. Das passt zu unserer Haltung…"
   },
   {
+    "url": "/docs/ueber-den-gruenerator/tools",
+    "title": "Welche Werkzeuge gibt es?",
+    "category": "Über den Grünerator",
+    "lead": "Der Grünerator ist kein einzelnes Programm, sondern eine Sammlung von Werkzeugen. Diese Seite zeigt, welche es gibt und wofür man sie nimmt — damit du nicht suchen musst, wo du etwas findest."
+  },
+  {
     "url": "/docs/webinare",
     "title": "Webinare",
     "category": "Allgemein",
@@ -271,15 +319,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Agentura",
     "anchor": "",
     "category": "Grüneratoren",
-    "text": "Die Agentura ist der Marktplatz für alle Assistent*innen und Skills im Grünerator. Hier findest du an einem Ort alle verfügbaren Agent*innen — vom Pressestellen-Profi bis zum Landesverbands-Assistenten — entdeckst neue Werkzeuge und baust dir mit wenigen Klicks deine eigenen. Du erreichst die Agentura über den Menüpunkt in der Seitenleiste oder direkt unter /agentura. Die alten Adressen /agents und /skills leiten automatisch dorthin weiter."
-  },
-  {
-    "url": "/docs/agents/agentura",
-    "pageTitle": "Agentura",
-    "heading": "Agent*innen und Skills",
-    "anchor": "#agentinnen-und-skills",
-    "category": "Grüneratoren",
-    "text": "In der Agentura leben zwei Arten von Helfern: Agent*innen sind spezialisierte KI-Persönlichkeiten mit eigenem Ton, eigenem Wissen und eigenen Werkzeugen. Du öffnest sie direkt im Chat und arbeitest dort mit ihnen. Skills sind kurze Schnellbefehle für eine konkrete Aufgabe (z.B. eine Pressemitteilung im Stil deines Landesverbands). Du rufst sie im Chat mit / auf. Eine Faustregel: Ein*e Agent*in ist eine eigenständige Gesprächspartner*in für ein ganzes Themenfeld. Ein Skill ist eine einzelne Vorlage, die du auf jeden beliebigen Agenten anwenden kannst."
+    "text": "Die Agentura ist der Marktplatz für alle Grüneratoren und Rezepte. Hier findest du an einem Ort alle verfügbaren Grüneratoren — vom Pressestellen-Profi bis zum Landesverbands-Assistenten — entdeckst neue Werkzeuge und baust dir mit wenigen Klicks deine eigenen. Du erreichst die Agentura über den Menüpunkt in der Seitenleiste oder direkt unter /agentura. Die alten Adressen /agents und /skills leiten automatisch dorthin weiter. Was früher Agent*innen hieß, heißt jetzt Grüneratoren; aus Skills sind Rezepte geworden. An einzelnen Stellen in der Oberfläche stehen die alten Begriffe noch — gemeint ist dasselbe."
   },
   {
     "url": "/docs/agents/agentura",
@@ -287,15 +327,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Detailseiten",
     "anchor": "#detailseiten",
     "category": "Grüneratoren",
-    "text": "Jede*r Agent*in und jeder Skill hat eine eigene Detailseite — wie ein Produkt im Laden. Agent*innen (/agentura/agent/...): Kopfbereich mit den Aktionen Im Chat öffnen, Favorit und Teilen. Übersicht — Beschreibung, Begrüßungsnachricht und eine Vorschau auf Beispiel-Antworten. Fähigkeiten — welche Werkzeuge der Agent nutzt, auf welches Wissen er zugreift und welches Sprachmodell dahintersteckt. Verwandte — ähnliche Agent*innen, die zum Thema passen. Skills (/agentura/skill/...): Kopfbereich mit denselben Aktionen. Der vollständige Skill-Text als Markdown — so siehst du genau, was der Skill macht, bevor du ihn nutzt. Eine Vorlage und verwandte Skills."
+    "text": "Jeder Grünerator und jedes Rezept hat eine eigene Detailseite — wie ein Produkt im Laden. Grüneratoren (/agentura/agent/...): Kopfbereich mit den Aktionen Im Chat öffnen, Favorit und Teilen. Übersicht — Beschreibung, Begrüßungsnachricht und eine Vorschau auf Beispiel-Antworten. Fähigkeiten — welche Werkzeuge der Grünerator nutzt, auf welches Wissen er zugreift und welches Sprachmodell dahintersteckt. Verwandte — ähnliche Grüneratoren, die zum Thema passen. Rezepte (/agentura/skill/...): Kopfbereich mit denselben Aktionen. Der vollständige Rezept-Text als Markdown — so siehst du genau, was das Rezept macht, bevor du es nutzt. Eine Vorlage und verwandte Rezepte."
   },
   {
     "url": "/docs/agents/agentura",
     "pageTitle": "Agentura",
-    "heading": "Eigene Agent*innen bauen",
-    "anchor": "#eigene-agentinnen-bauen",
+    "heading": "Eigene Grüneratoren bauen",
+    "anchor": "#eigene-grüneratoren-bauen",
     "category": "Grüneratoren",
-    "text": "Das Herzstück der Agentura: Du kannst deine eigenen Agent*innen bauen — ganz ohne technische Vorkenntnisse. Wie das Schritt für Schritt geht, liest du unter Eigene Agent*innen erstellen."
+    "text": "Das Herzstück der Agentura: Du kannst deine eigenen Grüneratoren bauen — ganz ohne technische Vorkenntnisse. Wie das Schritt für Schritt geht, liest du unter Eigene Grüneratoren erstellen."
   },
   {
     "url": "/docs/agents/agentura",
@@ -303,7 +343,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Favoriten",
     "anchor": "#favoriten",
     "category": "Grüneratoren",
-    "text": "Mit dem Stern auf einer Karte oder Detailseite markierst du eine*n Agent*in oder einen Skill als Favorit. System-, geteilte und Landesverbands-Agent*innen werden dadurch an deine Seitenleiste angeheftet, sodass du sie mit einem Klick im Chat öffnen kannst."
+    "text": "Mit dem Stern auf einer Karte oder Detailseite markierst du einen Grünerator oder ein Rezept als Favorit. System-, geteilte und Landesverbands-Grüneratoren werden dadurch an deine Seitenleiste angeheftet, sodass du sie mit einem Klick im Chat öffnen kannst."
+  },
+  {
+    "url": "/docs/agents/agentura",
+    "pageTitle": "Agentura",
+    "heading": "Grüneratoren und Rezepte",
+    "anchor": "#grüneratoren-und-rezepte",
+    "category": "Grüneratoren",
+    "text": "In der Agentura leben zwei Arten von Helfern: Grüneratoren sind spezialisierte KI-Persönlichkeiten mit eigenem Ton, eigenem Wissen und eigenen Werkzeugen. Du öffnest sie direkt im Chat und arbeitest dort mit ihnen. Rezepte sind kurze Schnellbefehle für eine konkrete Aufgabe (z. B. eine Pressemitteilung im Stil deines Landesverbands). Du rufst sie im Chat mit / auf. Eine Faustregel: Ein Grünerator ist eine eigenständige Gesprächspartnerin für ein ganzes Themenfeld. Ein Rezept ist eine einzelne Vorlage, die du auf jeden beliebigen Grünerator anwenden kannst."
   },
   {
     "url": "/docs/agents/agentura",
@@ -311,7 +359,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Im Marktplatz stöbern",
     "anchor": "#im-marktplatz-stöbern",
     "category": "Grüneratoren",
-    "text": "Die Startseite der Agentura ist wie ein Marktladen aufgebaut: Empfohlen — ein hervorgehobenes Regal mit ausgewählten Agent*innen und Skills zum Einstieg. Gänge (Regal-Navigation) — die Inhalte sind in thematische Abschnitte sortiert, jeweils mit Anzahl (u. a. Meine Grüneratoren und Wiederkehrende Aufgaben). Am Desktop bleibt die Gang-Liste seitlich stehen, auf dem Handy scrollst du durch Pillen-Buttons. Suche — über das Suchfeld findest du Agent*innen und Skills nach Name oder Beschreibung. Sortieren — Empfohlen oder A–Z. Auf den Karten der Agent*innen siehst du außerdem Fähigkeits-Hinweise: welche Werkzeuge sie nutzen, ob sie auf ein Wissens-Notebook zugreifen und für welche Region sie gedacht sind. Suche, Sortierung und die gewählte Kategorie werden in der Adresse (URL) gespeichert. Du kannst eine bestimmte Ansicht also einfach als Link weitergeben oder mit dem Zurück-Knopf zur vorherigen Auswahl springen."
+    "text": "Die Startseite der Agentura ist wie ein Marktladen aufgebaut: Empfohlen — ein hervorgehobenes Regal mit ausgewählten Grüneratoren und Rezepten zum Einstieg. Gänge (Regal-Navigation) — die Inhalte sind in thematische Abschnitte sortiert, jeweils mit Anzahl (u. a. Meine Grüneratoren und Wiederkehrende Aufgaben). Am Desktop bleibt die Gang-Liste seitlich stehen, auf dem Handy scrollst du durch Pillen-Buttons. Suche — über das Suchfeld findest du Grüneratoren und Rezepte nach Name oder Beschreibung. Sortieren — Empfohlen oder A–Z. Auf den Karten der Grüneratoren siehst du außerdem Fähigkeits-Hinweise: welche Werkzeuge sie nutzen, ob sie auf ein Wissens-Notebook zugreifen und für welche Region sie gedacht sind. Suche, Sortierung und die gewählte Kategorie werden in der Adresse (URL) gespeichert. Du kannst eine bestimmte Ansicht also einfach als Link weitergeben oder mit dem Zurück-Knopf zur vorherigen Auswahl springen."
+  },
+  {
+    "url": "/docs/agents/agentura",
+    "pageTitle": "Agentura",
+    "heading": "Schnell hinkommen",
+    "anchor": "#schnell-hinkommen",
+    "category": "Grüneratoren",
+    "text": "In der Seitenleiste liegt als eigener Eintrag. Ein Klick öffnet eine kurze Auswahl deiner Favoriten und der zuletzt genutzten Grüneratoren — von dort startest du direkt ein Gespräch, ohne den Umweg über den Marktplatz. Der Eintrag Alle ansehen führt in die Agentura."
   },
   {
     "url": "/docs/agents/agentura",
@@ -319,19 +375,19 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Tipps für die Nutzung",
     "anchor": "#tipps-für-die-nutzung",
     "category": "Grüneratoren",
-    "text": "Öffne einen Agenten direkt aus der Agentura im Chat — die ganze Konfiguration ist dann schon aktiv. Markiere häufig genutzte Agent*innen als Favorit, damit sie in der Seitenleiste auftauchen. Schau dir vor dem Bauen ähnliche Agent*innen an — über die „Verwandte\"-Liste auf den Detailseiten findest du Vorbilder. Mehr zum Arbeiten mit Agent*innen im Gespräch findest du unter KI-Chat."
+    "text": "Öffne einen Grünerator direkt aus der Agentura im Chat — die ganze Konfiguration ist dann schon aktiv. Markiere häufig genutzte Grüneratoren als Favorit, damit sie in der Seitenleiste auftauchen. Schau dir vor dem Bauen ähnliche Grüneratoren an — über die „Verwandte\"-Liste auf den Detailseiten findest du Vorbilder. Mehr zum Arbeiten mit Grüneratoren im Gespräch findest du unter KI-Chat."
   },
   {
     "url": "/docs/agents/eigene-agentinnen-erstellen",
-    "pageTitle": "Eigene Agent*innen erstellen",
-    "heading": "Eigene Agent*innen erstellen",
+    "pageTitle": "Eigene Grüneratoren erstellen",
+    "heading": "Eigene Grüneratoren erstellen",
     "anchor": "",
     "category": "Grüneratoren",
-    "text": "Du kannst dir im Grünerator deine eigenen Agent*innen bauen — ganz ohne technische Vorkenntnisse. Es gibt zwei Wege: per Beschreibung (die KI erstellt einen Entwurf) oder manuell über das Formular. Eigene Agent*innen sind noch in der Erprobung. Verhalten und Funktionen können sich ändern, und nicht alles funktioniert schon zuverlässig. Beim Bauen siehst du oben einen entsprechenden Hinweis-Banner. Bitte melde Probleme dem Team."
+    "text": "Du kannst dir im Grünerator deine eigenen Grüneratoren bauen — ganz ohne technische Vorkenntnisse. Es gibt zwei Wege: per Beschreibung (die KI erstellt einen Entwurf) oder manuell über das Formular. Eigene Grüneratoren sind noch in der Erprobung. Verhalten und Funktionen können sich ändern, und nicht alles funktioniert schon zuverlässig. Beim Bauen siehst du oben einen entsprechenden Hinweis-Banner. Bitte melde Probleme dem Team. In der Agentura und in der Seitenleiste heißen sie Grüneratoren. Die Knöpfe im Baukasten tragen aber noch die alten Beschriftungen — Neuer Agent, „Was für einen Agent möchtest du bauen?\". Gemeint ist dasselbe; unten stehen die Beschriftungen so, wie du sie auf dem Bildschirm findest."
   },
   {
     "url": "/docs/agents/eigene-agentinnen-erstellen",
-    "pageTitle": "Eigene Agent*innen erstellen",
+    "pageTitle": "Eigene Grüneratoren erstellen",
     "heading": "Schritt 1: Den Creator öffnen",
     "anchor": "#schritt-1-den-creator-öffnen",
     "category": "Grüneratoren",
@@ -339,7 +395,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/agents/eigene-agentinnen-erstellen",
-    "pageTitle": "Eigene Agent*innen erstellen",
+    "pageTitle": "Eigene Grüneratoren erstellen",
     "heading": "Schritt 2: Agent beschreiben (empfohlen)",
     "anchor": "#schritt-2-agent-beschreiben-empfohlen",
     "category": "Grüneratoren",
@@ -347,7 +403,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/agents/eigene-agentinnen-erstellen",
-    "pageTitle": "Eigene Agent*innen erstellen",
+    "pageTitle": "Eigene Grüneratoren erstellen",
     "heading": "Schritt 3: Im Editor anpassen",
     "anchor": "#schritt-3-im-editor-anpassen",
     "category": "Grüneratoren",
@@ -355,7 +411,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   },
   {
     "url": "/docs/agents/eigene-agentinnen-erstellen",
-    "pageTitle": "Eigene Agent*innen erstellen",
+    "pageTitle": "Eigene Grüneratoren erstellen",
     "heading": "Schritt 4: Speichern und nutzen",
     "anchor": "#schritt-4-speichern-und-nutzen",
     "category": "Grüneratoren",
@@ -1959,7 +2015,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 2: Quellen wählen",
     "anchor": "#schritt-2-quellen-wählen",
     "category": "Notebooks",
-    "text": "Im ersten Schritt des Editors („Quellen — Woher kommen deine Dokumente?\") stehen drei Kacheln zur Auswahl: Dateien hochladen — Dateien aus dem Dateibrowser auswählen (Mehrfachauswahl möglich) oder per Drag &amp; Drop auf das Fenster ziehen. Aus der Wolke verbinden — einen Ordner aus der Grünen Wolke als Quelle nutzen (siehe Schritt 3). Aus Docs importieren — eigene Docs als Quelle einbinden (siehe Schritt 3). Beim Hochladen werden die gewählten Dateien zunächst als Vorschau „Bereit zum Hochladen\" gesammelt. Dort kannst du einzelne Dateien wieder entfernen und startest den Upload dann mit „Hochladen\". Dateien in nicht unterstützten Formaten werden übersprungen, und überschüssige Uploads (über 100 hinaus) werden mit einem Hinweis abgelehnt. Sobald die erste Datei hochgeladen ist, schlägt der Editor automatisch einen Notebook-Namen vor — abgeleitet vom Dateinamen der ersten Datei (gekürzt auf 60 Zeichen). Mit „Weiter →\" gelangst du zu Schritt 2 (Details). Das Hochladen dauert nur Sekunden, das anschließende Indexieren (damit der Inhalt durchsuchbar wird) läuft im Hintergrund weiter. Du erkennst noch laufende Indexierung an einem kleinen Lade-Indikator („Wird verarbeitet…\") auf der Dok"
+    "text": "Im ersten Schritt des Editors („Quellen — Woher kommen deine Dokumente?\") stehen vier Kacheln zur Auswahl: Dateien hochladen — Dateien aus dem Dateibrowser auswählen (Mehrfachauswahl möglich) oder per Drag &amp; Drop auf das Fenster ziehen. Aus der Wolke verbinden — einen Ordner aus der Grünen Wolke als Quelle nutzen (siehe Schritt 3). Aus Docs importieren — eigene Docs als Quelle einbinden (siehe Schritt 3). Von einer Website — Beiträge und Seiten einer WordPress-Website importieren (siehe Schritt 3). Beim Hochladen werden die gewählten Dateien zunächst als Vorschau „Bereit zum Hochladen\" gesammelt. Dort kannst du einzelne Dateien wieder entfernen und startest den Upload dann mit „Hochladen\". Dateien in nicht unterstützten Formaten werden übersprungen, und überschüssige Uploads (über 100 hinaus) werden mit einem Hinweis abgelehnt. Sobald die erste Datei hochgeladen ist, schlägt der Editor automatisch einen Notebook-Namen vor — abgeleitet vom Dateinamen der ersten Datei (gekürzt auf 60 Zeichen). Mit „Weiter →\" gelangst du zu Schritt 2 (Details). Das Hochladen dauert nur Sekunden, das anschließende Indexieren (damit der Inhalt durchsuchbar wird) läuft im Hintergrund weiter. Du erken"
   },
   {
     "url": "/docs/notebooks/eigenes-notebook-erstellen",
@@ -2000,6 +2056,294 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#was-du-benötigst",
     "category": "Notebooks",
     "text": "Ein angemeldetes Grünerator-Konto und ein paar Dokumente, die du zusammenfassen, durchsuchen oder als Wissensbasis nutzen möchtest. Unterstützt werden PDF, DOCX, DOC, TXT, MD, ODT und RTF — bis zu 100 Dokumente pro Notebook und maximal 50 MB pro Datei."
+  },
+  {
+    "url": "/docs/office/boards",
+    "pageTitle": "Boards",
+    "heading": "Boards",
+    "anchor": "",
+    "category": "Allgemein",
+    "text": "Ein Board ist eine Tafel aus Spalten und Karten — für Aufgabenverteilung, Redaktionsplanung oder den Stand einer Kampagne. Du legst es über an. Was Boards von einer gewöhnlichen Aufgabenliste unterscheidet: Der Grünerator kann darin mitarbeiten. Er beantwortet Fragen in Karten, recherchiert, und kann eine ganze Spalte automatisch befüllen."
+  },
+  {
+    "url": "/docs/office/boards",
+    "pageTitle": "Boards",
+    "heading": "Auf dem Handy",
+    "anchor": "#auf-dem-handy",
+    "category": "Allgemein",
+    "text": "In der App kannst du Boards ansehen, aber nicht bearbeiten. Zum Verschieben von Karten und zum Einrichten von Grünerator-Spalten brauchst du die Web- oder Desktop-Version."
+  },
+  {
+    "url": "/docs/office/boards",
+    "pageTitle": "Boards",
+    "heading": "Den Grünerator in einer Karte fragen",
+    "anchor": "#den-grünerator-in-einer-karte-fragen",
+    "category": "Allgemein",
+    "text": "Schreib in einem Kartenkommentar @Grünerator und dahinter deinen Auftrag. Die Antwort erscheint als Kommentar an derselben Karte — der Zusammenhang bleibt also dort, wo die Aufgabe steht. „@Grünerator recherchier den aktuellen Stand beim Radwegeausbau und fass das kurz zusammen.\" Standardmäßig antwortet er als Kommentar. Sagst du ausdrücklich, dass etwas anderes herauskommen soll, erzeugt er stattdessen ein eigenes Dokument und hängt es an die Karte: Was du schreibst | Was entsteht | --- | --- | „…und mach eine Tabelle daraus\" | eine Tabelle, verknüpft mit der Karte | „…als Präsentation\" | eine Foliensammlung, verknüpft mit der Karte | „…leg daraus Aufgaben an\" | neue Karten im selben Board | „…schreib ein Dokument dazu\" | ein Textdokument, verknüpft mit der Karte | Tabellen, Präsentationen und Aufgabenlisten entstehen nur, wenn du sie ausdrücklich nennst. Das ist Absicht: Wer nur eine Frage stellt, soll eine Antwort bekommen und nicht ungefragt ein neues Dokument. Erzeugte Dokumente erben die Freigabe des Boards. Wer das Board sehen darf, sieht auch das Ergebnis — du musst nichts zusätzlich freigeben."
+  },
+  {
+    "url": "/docs/office/boards",
+    "pageTitle": "Boards",
+    "heading": "Fertige Aufgaben",
+    "anchor": "#fertige-aufgaben",
+    "category": "Allgemein",
+    "text": "Reicht keine davon, gibst du stattdessen eine eigene Anweisung ein. Bei Recherche-Aufgaben sucht der Grünerator zuerst und formuliert danach — er schreibt nicht aus dem Gedächtnis. Bei zitierten Recherchen bekommst du die Quellen mitgeliefert; prüf sie, bevor etwas nach außen geht."
+  },
+  {
+    "url": "/docs/office/boards",
+    "pageTitle": "Boards",
+    "heading": "Grünerator-Spalten",
+    "anchor": "#grünerator-spalten",
+    "category": "Allgemein",
+    "text": "Eine Grünerator-Spalte ist eine Spalte, die selbst arbeitet. Du richtest sie einmal ein, und danach durchläuft jede Karte drei Schritte: Quelle → Aufgabe → Ergebnis. Quelle — woher der Inhalt kommt: aus der Karte selbst, von einer Webadresse oder aus einem Social-Media-Beitrag. Aufgabe — was damit geschehen soll. Entweder eine der fertigen Aufgaben (unten) oder eine eigene Anweisung. Ergebnis — was dabei herauskommt: ein Kommentar, ein Dokument, eine Tabelle, eine Präsentation oder eine E-Mail. Das Ganze lässt sich auch nach Zeitplan laufen lassen — etwa jeden Montagmorgen."
+  },
+  {
+    "url": "/docs/office/boards",
+    "pageTitle": "Boards",
+    "heading": "Spalten und Karten",
+    "anchor": "#spalten-und-karten",
+    "category": "Allgemein",
+    "text": "Spalten sind die Stationen, die eine Aufgabe durchläuft — „Ideen\", „In Arbeit\", „Fertig\". Karten wandern per Ziehen von einer Spalte in die nächste. Jede Karte hat einen Titel, eine Beschreibung, Kommentare und kann Personen zugewiesen werden."
+  },
+  {
+    "url": "/docs/office/dokumente",
+    "pageTitle": "Dokumente",
+    "heading": "Dokumente",
+    "anchor": "",
+    "category": "Allgemein",
+    "text": "Ein Dokument ist der Ort für Fließtext: Anträge, Pressemitteilungen, Protokolle, Notizen, Einladungen. Du legst es über an oder startest über aus einer Vorlage."
+  },
+  {
+    "url": "/docs/office/dokumente",
+    "pageTitle": "Dokumente",
+    "heading": "Aus einer Vorlage starten",
+    "anchor": "#aus-einer-vorlage-starten",
+    "category": "Allgemein",
+    "text": "Die Vorlagengalerie enthält die Textsorten, die in der politischen Arbeit immer wieder vorkommen — Antrag, Pressemitteilung, Protokoll, Redaktionsplan, Checkliste, Einladung. Eine Vorlage bringt die übliche Gliederung mit, sodass du nicht bei der Frage anfängst, welche Abschnitte überhaupt hineingehören."
+  },
+  {
+    "url": "/docs/office/dokumente",
+    "pageTitle": "Dokumente",
+    "heading": "Dateien einlesen",
+    "anchor": "#dateien-einlesen",
+    "category": "Allgemein",
+    "text": "Du kannst bestehende Dateien in ein Dokument einlesen — auch abfotografierte oder gescannte Seiten. Der Text wird dabei erkannt und als bearbeitbarer Inhalt eingefügt, statt nur als Bild zu erscheinen. Wenn du nur den Text aus einem Foto brauchst und kein Dokument daraus machen willst, ist der Scanner der direktere Weg."
+  },
+  {
+    "url": "/docs/office/dokumente",
+    "pageTitle": "Dokumente",
+    "heading": "Der Grünerator im Dokument",
+    "anchor": "#der-grünerator-im-dokument",
+    "category": "Allgemein",
+    "text": "Die Chat-Seitenleiste arbeitet am offenen Text: „formulier den zweiten Absatz sachlicher\", „mach eine Zusammenfassung an den Anfang\", „kürz das auf 2.000 Zeichen\". Anders als in Tabellen und Präsentationen gibt es hier keine feste Liste von Änderungsarten — es geht um Text, und der lässt sich frei umschreiben. Mehr dazu unter Der Grünerator im Editor. Bei Zahlen, Zitaten und Namen lohnt der zweite Blick, bevor ein Text nach außen geht. Mehr dazu unter Risiken und Gefahren von LLMs."
+  },
+  {
+    "url": "/docs/office/dokumente",
+    "pageTitle": "Dokumente",
+    "heading": "Frühere Fassungen",
+    "anchor": "#frühere-fassungen",
+    "category": "Allgemein",
+    "text": "Das Dokument merkt sich seinen Verlauf. Über die Versionsgeschichte siehst du frühere Stände und stellst sie bei Bedarf wieder her — nützlich, wenn beim gemeinsamen Überarbeiten ein Absatz verloren gegangen ist."
+  },
+  {
+    "url": "/docs/office/dokumente",
+    "pageTitle": "Dokumente",
+    "heading": "Gemeinsam arbeiten",
+    "anchor": "#gemeinsam-arbeiten",
+    "category": "Allgemein",
+    "text": "Mehrere Personen können gleichzeitig im selben Dokument schreiben. Die Änderungen der anderen erscheinen live, und du siehst an den farbigen Markierungen, wo gerade jemand arbeitet. Es gibt kein Sperren und kein „Datei ist in Benutzung\" — der Text führt die Beiträge zusammen. Wer hineinkommt, steuerst du über die Freigabe. Wie die Stufen funktionieren, steht unter Office."
+  },
+  {
+    "url": "/docs/office/dokumente",
+    "pageTitle": "Dokumente",
+    "heading": "Schreiben",
+    "anchor": "#schreiben",
+    "category": "Allgemein",
+    "text": "Der Editor arbeitet mit Blöcken: Jeder Absatz, jede Überschrift, jede Liste ist ein eigener Baustein, den du per Anfasser verschieben kannst. Mit / mitten im Text öffnest du die Auswahl der Blocktypen — Überschrift, Liste, Zitat, Tabelle, Trennlinie."
+  },
+  {
+    "url": "/docs/office/intro",
+    "pageTitle": "Office: Dokumente, Tabellen, Folien und Boards",
+    "heading": "Office: Dokumente, Tabellen, Folien und Boards",
+    "anchor": "",
+    "category": "Allgemein",
+    "text": "Office ist der Ort für alles, was aus Text, Zahlen und Plänen besteht. Vier Arten von Dokumenten liegen dort nebeneinander: . Du findest sie über den Tab Arbeiten unter der Kachel ."
+  },
+  {
+    "url": "/docs/office/intro",
+    "pageTitle": "Office: Dokumente, Tabellen, Folien und Boards",
+    "heading": "Alles ist dasselbe Dokument",
+    "anchor": "#alles-ist-dasselbe-dokument",
+    "category": "Allgemein",
+    "text": "Das ist der wichtigste Gedanke hinter Office, und er erspart dir viel Sucherei: ein Board, eine Tabelle, eine Präsentation und ein Textdokument sind technisch dasselbe Ding, nur mit unterschiedlicher Oberfläche. Daraus folgt einiges, das sonst überraschend wäre: Alle vier tauchen in derselben Dokumentliste auf und lassen sich in dieselben Ordner einsortieren. Freigaben funktionieren überall gleich — was du über das Teilen einer Tabelle weißt, gilt genauso für ein Board. Alle vier lassen sich zu zweit oder zu zwanzigst gleichzeitig bearbeiten. Änderungen erscheinen live bei allen anderen. Jedes hat dieselbe Chat-Seitenleiste, über die der Grünerator direkt im Dokument mitarbeitet."
+  },
+  {
+    "url": "/docs/office/intro",
+    "pageTitle": "Office: Dokumente, Tabellen, Folien und Boards",
+    "heading": "Auf dem Handy",
+    "anchor": "#auf-dem-handy",
+    "category": "Allgemein",
+    "text": "Die Grünerator-App hat einen eigenen Office-Tab. Dokumente lassen sich dort lesen — Tabellen, Folien und Boards siehst du als Ansicht, nicht als Editor. Zum Bearbeiten von Tabellen und Präsentationen brauchst du die Web- oder Desktop-Version."
+  },
+  {
+    "url": "/docs/office/intro",
+    "pageTitle": "Office: Dokumente, Tabellen, Folien und Boards",
+    "heading": "Der Grünerator im Dokument",
+    "anchor": "#der-grünerator-im-dokument",
+    "category": "Allgemein",
+    "text": "In jedem Office-Dokument gibt es eine Chat-Seitenleiste. Was du dort schreibst, wirkt auf das offene Dokument: „mach die Kopfzeile fett\", „füg eine Folie zu den Kosten ein\", „sortier nach Datum\". Wie das genau funktioniert und was dabei zu beachten ist, steht unter Der Grünerator im Editor. Was in den einzelnen Dokumentarten möglich ist, steht in den jeweiligen Kapiteln: Dokumente — Text schreiben, gemeinsam bearbeiten, Versionen Tabellen — Formeln, Filter, Import und Export Präsentationen — Folien, Vortragsmodus, Export Boards — Aufgaben, Karten und automatische Spalten"
+  },
+  {
+    "url": "/docs/office/intro",
+    "pageTitle": "Office: Dokumente, Tabellen, Folien und Boards",
+    "heading": "Etwas Neues anlegen",
+    "anchor": "#etwas-neues-anlegen",
+    "category": "Allgemein",
+    "text": "Auf der Office-Startseite liegen fünf Kacheln. Vier davon legen sofort etwas Leeres an und öffnen es — es gibt keinen Zwischenschritt, kein Formular: — ein Textdokument — eine Kalkulationstabelle — eine Foliensammlung — ein Kanban-Board Die fünfte, , öffnet stattdessen die Vorlagengalerie. Nimm sie, wenn du nicht bei null anfangen willst: Anträge, Pressemitteilungen und Protokolle bringen ihre Gliederung schon mit. Du musst nicht erst ein leeres Dokument anlegen. „Erstell mir eine Tabelle mit dem Haushaltsentwurf\" oder „Mach eine Präsentation zu unserem Wahlprogramm\" im Chat erzeugt das fertige Dokument direkt — inklusive Inhalt. Bearbeiten kannst du es danach wie jedes andere."
+  },
+  {
+    "url": "/docs/office/intro",
+    "pageTitle": "Office: Dokumente, Tabellen, Folien und Boards",
+    "heading": "Teilen",
+    "anchor": "#teilen",
+    "category": "Allgemein",
+    "text": "Ein Dokument kennt Stufen von Sichtbarkeit: Sichtbarkeit | Wer kommt hinein | --- | --- | privat | nur du und ausdrücklich eingeladene Personen | angemeldet | alle, die im Grünerator angemeldet sind und den Link haben | öffentlich | alle mit dem Link, auch ohne Anmeldung | Unabhängig davon legst du fest, ob Eingeladene lesen oder bearbeiten dürfen. Beides lässt sich jederzeit ändern und zurücknehmen. Ein öffentlich geteiltes Dokument kann jede Person mit dem Link aufrufen — auch ohne Grünerator-Konto. Prüf vor dem Umschalten, ob im Dokument Namen, Adressen oder interne Absprachen stehen."
+  },
+  {
+    "url": "/docs/office/ki-im-editor",
+    "pageTitle": "Der Grünerator im Editor",
+    "heading": "Der Grünerator im Editor",
+    "anchor": "",
+    "category": "Allgemein",
+    "text": "Jedes Office-Dokument hat eine Chat-Seitenleiste. Sie sieht aus wie der normale Chat und kann auch dasselbe — recherchieren, nachschlagen, Texte schreiben. Der Unterschied: Sie kennt das geöffnete Dokument und kann es verändern."
+  },
+  {
+    "url": "/docs/office/ki-im-editor",
+    "pageTitle": "Der Grünerator im Editor",
+    "heading": "Gute Aufträge",
+    "anchor": "#gute-aufträge",
+    "category": "Allgemein",
+    "text": "Sag das Ziel, nicht den Weg. „Sortier nach Datum, neueste zuerst\" ist besser als eine Beschreibung, welche Zellen zu vertauschen sind. Beziehe dich auf Sichtbares. „Die dritte Spalte\", „die Folie mit den Zahlen\", „die Zeilen mit überschrittener Frist\" — der Grünerator sieht dasselbe wie du. Bau in Schritten. Große Umbauten gelingen zuverlässiger als Folge kleiner Aufträge. Pro Auftrag sind in Tabellen bis zu Änderungen möglich, in Präsentationen bis zu — wer mehr in einen Satz packt, bekommt eher ein halbes Ergebnis. Nachfassen ist normal. „Nicht so kräftig\", „nur die ersten zehn Zeilen\", „doch lieber absteigend\" — der Zusammenhang bleibt erhalten."
+  },
+  {
+    "url": "/docs/office/ki-im-editor",
+    "pageTitle": "Der Grünerator im Editor",
+    "heading": "Was nicht geht",
+    "anchor": "#was-nicht-geht",
+    "category": "Allgemein",
+    "text": "Nicht jede Fähigkeit steht in jeder Dokumentart bereit. Was in Tabellen und Präsentationen möglich ist, steht als Liste in den jeweiligen Kapiteln — Tabellen und Präsentationen. Beide Listen kommen direkt aus dem Programmcode und zeigen auch, was vorübergehend abgeschaltet ist. Er gestaltet nicht frei. Der Grünerator setzt Inhalte und Formatierungen, entwirft aber kein Layout von Grund auf. Er arbeitet immer nur am geöffneten Dokument. „Übertrag das ins andere Board\" funktioniert nicht — dafür wechselst du dorthin und gibst den Auftrag erneut. Gerade bei Zahlen gilt: Der Grünerator kann eine Formel richtig setzen und trotzdem die falsche Spalte gemeint haben. Ein kurzer Blick auf das Ergebnis lohnt sich, bevor die Tabelle in eine Entscheidung einfließt."
+  },
+  {
+    "url": "/docs/office/ki-im-editor",
+    "pageTitle": "Der Grünerator im Editor",
+    "heading": "Wie eine Änderung abläuft",
+    "anchor": "#wie-eine-änderung-abläuft",
+    "category": "Allgemein",
+    "text": "Du schreibst einen Auftrag in normaler Sprache. Der Grünerator übersetzt ihn in konkrete Änderungen und wendet sie an. Für dich sieht das aus wie ein einziger Schritt, aber es lohnt zu wissen, was dabei passiert: Er sieht sich das Dokument an. Was gerade darin steht, ist die Grundlage — deshalb funktionieren Bezüge wie „die Spalte mit den Kosten\" oder „die Folie mit dem Zitat\". Er recherchiert, falls nötig. „Trag die aktuellen Umfragewerte ein\" heißt: erst nachsehen, dann eintragen. Er ändert das Dokument — direkt, ohne dass du etwas bestätigen musst. Änderungen des Grünerators sind keine Sonderform. Strg + Z (bzw. Cmd + Z ) nimmt sie zurück wie eine eigene Eingabe — und ein Auftrag, der mehrere Änderungen umfasst, wird als ein Schritt zurückgenommen, nicht Zelle für Zelle. Arbeitet ihr zu mehreren am selben Dokument, sehen die anderen die Änderungen live — wie bei deinen eigenen."
+  },
+  {
+    "url": "/docs/office/praesentationen",
+    "pageTitle": "Präsentationen",
+    "heading": "Präsentationen",
+    "anchor": "",
+    "category": "Allgemein",
+    "text": "Eine Präsentation ist eine Folge von Folien mit eigenem Vortragsmodus. Du legst sie über an — oder lässt sie dir im Chat aus einem Thema erzeugen."
+  },
+  {
+    "url": "/docs/office/praesentationen",
+    "pageTitle": "Präsentationen",
+    "heading": "Aus einem Thema wird ein Foliensatz",
+    "anchor": "#aus-einem-thema-wird-ein-foliensatz",
+    "category": "Allgemein",
+    "text": "Das ist der eigentliche Nutzen — du fängst nicht mit einer leeren Folie an: „Mach mir eine Präsentation über unsere Verkehrspolitik für die Mitgliederversammlung, etwa zehn Folien.\" Der Grünerator recherchiert, gliedert und legt die Folien an — mit Titeln, Inhalten und Notizen für den Vortrag. Danach überarbeitest du einzelne Folien ganz normal weiter. Genauso funktioniert der Anschluss an eine Recherche: Wenn du vorher etwas nachgeschlagen hast, genügt „Mach eine Präsentation daraus\"."
+  },
+  {
+    "url": "/docs/office/praesentationen",
+    "pageTitle": "Präsentationen",
+    "heading": "Exportieren",
+    "anchor": "#exportieren",
+    "category": "Allgemein",
+    "text": "Es gibt zwei Wege heraus: Als PDF — öffnet die Präsentation in einer druckfertigen Ansicht, aus der du über den Druckdialog ein PDF erzeugst. Das klappt immer und sieht aus wie im Vortragsmodus. Als PowerPoint (.pptx) — erzeugt eine Datei, die sich in PowerPoint und LibreOffice öffnen lässt. Der .pptx-Export braucht ein Zusatzprogramm auf dem Server. Fehlt es in der Umgebung, in der du arbeitest, bekommst du eine entsprechende Meldung statt einer Datei — nimm dann den PDF-Weg."
+  },
+  {
+    "url": "/docs/office/praesentationen",
+    "pageTitle": "Präsentationen",
+    "heading": "Folien aufbauen",
+    "anchor": "#folien-aufbauen",
+    "category": "Allgemein",
+    "text": "Jede Folie hat ein Layout, das bestimmt, wie Titel und Inhalt angeordnet sind — insgesamt gibt es davon, von der Titelfolie über zweispaltige Folien bis zum Zitat und zum Codebeispiel. Dazu kommen pro Folie: Notizen — dein Text zum Vortrag, für das Publikum unsichtbar Hintergrund — eine Farbe, ein Bild oder ein Verlauf Schrittweises Einblenden — Aufzählungspunkte erscheinen nacheinander statt auf einmal Übergang — wie die Folie die vorherige ablöst Was für die ganze Präsentation gilt — Standardübergang, Akzentfarbe, Foliennummern, automatisches Weiterschalten — stellst du einmal zentral ein."
+  },
+  {
+    "url": "/docs/office/praesentationen",
+    "pageTitle": "Präsentationen",
+    "heading": "Vortragen",
+    "anchor": "#vortragen",
+    "category": "Allgemein",
+    "text": "Im Präsentationsmodus läuft die Präsentation bildschirmfüllend. Du blätterst mit den Pfeiltasten; deine Notizen bleiben dabei für das Publikum unsichtbar."
+  },
+  {
+    "url": "/docs/office/praesentationen",
+    "pageTitle": "Präsentationen",
+    "heading": "Was der Grünerator an der Präsentation ändern kann",
+    "anchor": "#was-der-grünerator-an-der-präsentation-ändern-kann",
+    "category": "Allgemein",
+    "text": "Schreib in der Chat-Seitenleiste, was passieren soll. Folien sprichst du dabei über ihre Nummer an („Folie 3\") oder über ihren Inhalt („die Folie mit den Zahlen\"). Pro Auftrag führt der Grünerator bis zu Änderungen aus. Wenn du „mach den Titel von Folie 2 kürzer\" sagst, bleibt alles andere an dieser Folie unangetastet — Inhalt, Notizen, Hintergrund. Du musst nie die ganze Folie neu beschreiben, nur weil du eine Kleinigkeit ändern willst. Welche Änderungen möglich sind, stammt direkt aus dem Programmcode. Kommt eine neue Fähigkeit dazu, meldet sich die Doku-Prüfung automatisch, bis sie hier mit einem Beispielsatz beschrieben ist."
+  },
+  {
+    "url": "/docs/office/tabellen",
+    "pageTitle": "Tabellen",
+    "heading": "Tabellen",
+    "anchor": "",
+    "category": "Allgemein",
+    "text": "Eine Grünerator-Tabelle ist eine vollwertige Kalkulationstabelle: Formeln, Filter, Sortierung, Auswahllisten, bedingte Formatierung. Du legst sie über auf der Office-Startseite an — oder du lässt sie dir im Chat gleich mit Inhalt erzeugen."
+  },
+  {
+    "url": "/docs/office/tabellen",
+    "pageTitle": "Tabellen",
+    "heading": "Bestehende Dateien importieren",
+    "anchor": "#bestehende-dateien-importieren",
+    "category": "Allgemein",
+    "text": "Über Tabelle importieren kannst du vorhandene Dateien hochladen. Unterstützt sind , bis pro Datei. Die Umwandlung passiert vollständig in deinem Browser — die Datei wird dafür nicht an einen Server geschickt. Aus dem Import entsteht eine neue Grünerator-Tabelle. Die Ursprungsdatei bleibt unberührt."
+  },
+  {
+    "url": "/docs/office/tabellen",
+    "pageTitle": "Tabellen",
+    "heading": "Eine Tabelle mit Inhalt entstehen lassen",
+    "anchor": "#eine-tabelle-mit-inhalt-entstehen-lassen",
+    "category": "Allgemein",
+    "text": "Der schnellste Weg zu einer gefüllten Tabelle führt über den Chat, nicht über das leere Blatt: „Erstell mir eine Tabelle mit allen Ortsverbänden im Kreis, je einer Spalte für Ansprechperson, E-Mail und Mitgliederzahl.\" Daraus entsteht eine fertige Tabelle, die du danach ganz normal weiterbearbeitest. Genauso funktioniert es im Anschluss an eine Recherche: „Mach mir daraus eine Tabelle\" nimmt die Ergebnisse des vorherigen Schritts als Grundlage."
+  },
+  {
+    "url": "/docs/office/tabellen",
+    "pageTitle": "Tabellen",
+    "heading": "Exportieren",
+    "anchor": "#exportieren",
+    "category": "Allgemein",
+    "text": "Über das Menü lädst du die Tabelle als .xlsx herunter. Dabei gilt eine Einschränkung, die du kennen solltest: Farben, Schriftschnitte, bedingte Formatierung und Auswahllisten gehen beim Export verloren. Die Zahlen und Formeln kommen vollständig in Excel an, das Aussehen musst du dort neu setzen. Wenn das Aussehen zählt, teile stattdessen die Grünerator-Tabelle selbst per Link — dort bleibt alles erhalten."
+  },
+  {
+    "url": "/docs/office/tabellen",
+    "pageTitle": "Tabellen",
+    "heading": "Ordnung in großen Tabellen",
+    "anchor": "#ordnung-in-großen-tabellen",
+    "category": "Allgemein",
+    "text": "Filter blenden Zeilen aus, ohne sie zu löschen — praktisch, um nur einen Ortsverband anzusehen. Sortieren bringt einen Bereich in Reihenfolge, etwa nach Datum oder Betrag. Auswahllisten legen fest, was in einer Spalte stehen darf. Statt frei getippter Status-Wörter gibt es dann ein Klappmenü mit „offen\", „in Arbeit\", „erledigt\" — das hält die Spalte auswertbar. Bedingte Formatierung färbt Zellen automatisch nach einer Regel. Die Farbe folgt dem Wert und aktualisiert sich mit, wenn sich die Zahl ändert. Kommentare und Notizen hängen an einzelnen Zellen, für Rückfragen an Mitschreibende."
+  },
+  {
+    "url": "/docs/office/tabellen",
+    "pageTitle": "Tabellen",
+    "heading": "Rechnen",
+    "anchor": "#rechnen",
+    "category": "Allgemein",
+    "text": "Formeln funktionieren wie gewohnt — =SUMME(B2:B20), =MITTELWERT(C:C) — und lassen sich auch diktieren: „Rechne in D2 die Summe der Spalte B\". Wichtig ist der Unterschied zwischen Wert und Darstellung: Eine Zahl als Euro-Betrag zu formatieren ändert nur, wie sie aussieht. Der gespeicherte Wert bleibt gleich, und Rechnungen darauf stimmen weiterhin. Tabellen wandeln „01067\" gern in die Zahl 1067 um und „2-2\" in ein Datum. Sag beim Eintragen dazu, dass es Text bleiben soll: „Trag die Postleitzahlen als Text ein.\" Dann bleiben führende Nullen erhalten."
+  },
+  {
+    "url": "/docs/office/tabellen",
+    "pageTitle": "Tabellen",
+    "heading": "Was der Grünerator in der Tabelle ändern kann",
+    "anchor": "#was-der-grünerator-in-der-tabelle-ändern-kann",
+    "category": "Allgemein",
+    "text": "Schreib in der Chat-Seitenleiste, was passieren soll. Du musst keine Fachbegriffe treffen — die Beispielsätze unten zeigen die Formulierungen, die zuverlässig funktionieren. Pro Auftrag führt der Grünerator bis zu Änderungen aus; größere Umbauten teilst du besser auf. Änderungen des Grünerators landen im normalen Rückgängig-Verlauf. Ein Strg + Z (bzw. Cmd + Z ) nimmt sie zurück wie eine eigene Eingabe. Welche Änderungen möglich sind, stammt direkt aus dem Programmcode. Kommt eine neue Fähigkeit dazu, meldet sich die Doku-Prüfung automatisch, bis sie hier mit einem Beispielsatz beschrieben ist — und was abgeschaltet wurde, verschwindet von selbst aus der Liste."
   },
   {
     "url": "/docs/Profil/einstellungen",
@@ -2096,6 +2440,46 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#wichtige-hinweise",
     "category": "Profil",
     "text": "Die Berechtigung „Kann bearbeiten\" ist zwingend erforderlich. Ein eigener Ordner wie „Grünerator\" hilft bei der Organisation. Der Link funktioniert auch ohne Ablaufdatum. Du kannst jederzeit die Berechtigungen ändern oder den Link deaktivieren."
+  },
+  {
+    "url": "/docs/projekte/intro",
+    "pageTitle": "Projekte",
+    "heading": "Projekte",
+    "anchor": "",
+    "category": "Allgemein",
+    "text": "Ein Projekt bündelt alles, was zu einem Arbeitszusammenhang gehört: Chats, Dokumente und die Menschen, die daran arbeiten. Statt Unterhaltungen und Dateien über den ganzen Grünerator zu verstreuen, liegt eine Kampagne, ein Ortsverband oder eine Arbeitsgruppe an einem Ort. Du findest Projekte in der Seitenleiste und als Kachel im Arbeiten-Tab. Gruppen und Ordner sind zu einem Begriff zusammengefasst worden. Alte Links auf /gruppen funktionieren weiterhin und leiten automatisch weiter — du musst nichts anpassen."
+  },
+  {
+    "url": "/docs/projekte/intro",
+    "pageTitle": "Projekte",
+    "heading": "Chats einem Projekt zuordnen",
+    "anchor": "#chats-einem-projekt-zuordnen",
+    "category": "Allgemein",
+    "text": "Der eigentliche Nutzen entsteht, wenn du Unterhaltungen zuordnest. Ein Chat, der zu einem Projekt gehört, taucht dort auf — und die Suche kann gezielt innerhalb eines Projekts suchen, statt über alles. Das hilft besonders, wenn du an mehreren Themen parallel arbeitest: „Was hatten wir dazu schon besprochen?\" liefert dann Antworten aus dem richtigen Zusammenhang statt aus allen Gesprächen der letzten Monate."
+  },
+  {
+    "url": "/docs/projekte/intro",
+    "pageTitle": "Projekte",
+    "heading": "Mitglieder",
+    "anchor": "#mitglieder",
+    "category": "Allgemein",
+    "text": "In einem Gruppen-Projekt gibt es zwei Rollen: Rolle | Was sie darf | --- | --- | Mitglied | Inhalte des Projekts sehen und mitarbeiten | Admin | zusätzlich Mitglieder verwalten und die Einstellungen des Projekts ändern | Du kannst Menschen per E-Mail einladen. Wer noch kein Konto hat, wird durch die Anmeldung geführt und landet danach direkt im Projekt. Ein Projekt kann außerdem auffindbar geschaltet werden. Dann können andere es finden und um Aufnahme bitten; die Anfrage geht an die Admins, die sie annehmen oder ablehnen. Ohne diese Einstellung ist ein Projekt nur über eine Einladung erreichbar."
+  },
+  {
+    "url": "/docs/projekte/intro",
+    "pageTitle": "Projekte",
+    "heading": "Projekte und Dokumente",
+    "anchor": "#projekte-und-dokumente",
+    "category": "Allgemein",
+    "text": "Office-Dokumente lassen sich mit einem Projekt teilen, statt einzeln mit jeder Person. Wer dem Projekt beitritt, bekommt dadurch Zugriff — und wer es verlässt, verliert ihn wieder. Bei wechselnden Mitstreiter*innen ist das deutlich weniger Pflegeaufwand als eine Liste einzelner Freigaben. Mehr zu den Freigabestufen steht unter Office."
+  },
+  {
+    "url": "/docs/projekte/intro",
+    "pageTitle": "Projekte",
+    "heading": "Zwei Arten von Projekten",
+    "anchor": "#zwei-arten-von-projekten",
+    "category": "Allgemein",
+    "text": "Beim Anlegen entscheidest du dich für eine der beiden: Eigenes Projekt — nur für dich. Gedacht, um die eigene Arbeit zu sortieren: alles zur Haushaltsdebatte an einem Ort, getrennt von allem zur Verkehrspolitik. Es taucht bei niemand anderem auf und lässt sich auch nicht finden. Gruppen-Projekt — für die Zusammenarbeit. Andere können Mitglied werden, sehen die zugeordneten Inhalte und arbeiten mit. Die Wahl legt dich nicht endgültig fest, aber sie bestimmt, ob überhaupt jemand anders hineinschauen kann — überleg also kurz, bevor du etwas Vertrauliches in ein Gruppen-Projekt legst."
   },
   {
     "url": "/docs/signal-nachrichten/2026-05-erstelle-dein-notebook",
@@ -2296,6 +2680,38 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#zusammenarbeit-in-echtzeit-yjs--hocuspocus",
     "category": "Über den Grünerator",
     "text": "Yjs und Hocuspocus arbeiten zusammen, damit mehrere Menschen gleichzeitig am selben Dokument oder Board arbeiten können. Yjs ist ein sogenanntes CRDT-Framework: eine Technik, die parallele Änderungen mehrerer Personen automatisch und ohne Konflikte zusammenführt – dieselbe Idee, die auch hinter Google Docs steckt. Hocuspocus ist der passende Server dazu (ursprünglich für den Editor Tiptap entwickelt): Er verbindet alle Beteiligten über eine dauerhafte Echtzeit-Verbindung und sichert den gemeinsamen Stand laufend in der Datenbank, damit keine Eingabe verloren geht. Yjs: GitHub · NPM Hocuspocus: GitHub · NPM"
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/tools",
+    "pageTitle": "Welche Werkzeuge gibt es?",
+    "heading": "Welche Werkzeuge gibt es?",
+    "anchor": "",
+    "category": "Über den Grünerator",
+    "text": "Der Grünerator ist kein einzelnes Programm, sondern eine Sammlung von Werkzeugen. Diese Seite zeigt, welche es gibt und wofür man sie nimmt — damit du nicht suchen musst, wo du etwas findest."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/tools",
+    "pageTitle": "Welche Werkzeuge gibt es?",
+    "heading": "Die Oberfläche hat zwei Tabs",
+    "anchor": "#die-oberfläche-hat-zwei-tabs",
+    "category": "Über den Grünerator",
+    "text": "Oben in der Mitte sitzen zwei Umschalter, und dahinter steckt die wichtigste Entscheidung: Chat ist die Startseite. Hier schreibst du in normalem Deutsch, was du brauchst, und der Grünerator wählt selbst, was er dafür tut — nachschlagen, recherchieren, rechnen, etwas erstellen. Für die meisten Aufgaben ist das der schnellste Weg, und du musst kein Werkzeug kennen. Was dort alles möglich ist, steht unter Was kann ich fragen?. Arbeiten ist die Werkzeugkiste. Hierher gehst du, wenn du gezielt etwas öffnen willst — ein bestimmtes Board, die Bildbearbeitung, deine Notebooks. Viele Werkzeuge auf dieser Seite lassen sich auch aus dem Chat heraus auslösen. „Mach mir daraus ein Sharepic\" oder „Erstell eine Tabelle mit den Zahlen\" führt ans selbe Ziel, ohne dass du den Bereich wechselst."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/tools",
+    "pageTitle": "Welche Werkzeuge gibt es?",
+    "heading": "Drei Bereiche, dann die Einzelwerkzeuge",
+    "anchor": "#drei-bereiche-dann-die-einzelwerkzeuge",
+    "category": "Über den Grünerator",
+    "text": "Der Arbeiten-Tab gliedert sich in drei große Bereiche — für Text und Zahlen, für Bilder und Videos, für Recherche. Jeder öffnet eine eigene Seite mit den zugehörigen Werkzeugen. Daneben liegen die Werkzeuge zum Organisieren und ein Menü mit dem Rest. Insgesamt sind es Werkzeuge:"
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/tools",
+    "pageTitle": "Welche Werkzeuge gibt es?",
+    "heading": "Wenn du etwas nicht findest",
+    "anchor": "#wenn-du-etwas-nicht-findest",
+    "category": "Über den Grünerator",
+    "text": "Such nach dem Namen. Die Suche im Grünerator kennt auch die gängigen Bezeichnungen — „Untertitel\" findet die Reels, „OCR\" den Scanner. Manches gibt es nur im Web. Einige Werkzeuge brauchen eine große Oberfläche. In der App siehst du die Inhalte dann, kannst sie aber nicht überall bearbeiten. Bei jedem Werkzeug oben steht, wo es läuft. Namen, Beschreibungen und Pfade stammen direkt aus dem Programmcode des Grünerators. Kommt ein Werkzeug dazu oder wird eines umbenannt, meldet sich die Doku-Prüfung automatisch, bis die Seite nachgezogen ist — sie kann also nicht stillschweigend veralten."
   },
   {
     "url": "/docs/webinare",

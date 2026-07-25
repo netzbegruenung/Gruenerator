@@ -2,12 +2,16 @@
 sidebar_position: 2
 ---
 
-# Eigene Agent\*innen erstellen
+# Eigene Grüneratoren erstellen
 
-Du kannst dir im Grünerator deine **eigenen Agent\*innen bauen** — ganz ohne technische Vorkenntnisse. Es gibt zwei Wege: per **Beschreibung** (die KI erstellt einen Entwurf) oder **manuell** über das Formular.
+Du kannst dir im Grünerator deine **eigenen Grüneratoren bauen** — ganz ohne technische Vorkenntnisse. Es gibt zwei Wege: per **Beschreibung** (die KI erstellt einen Entwurf) oder **manuell** über das Formular.
 
 :::caution[Experimentelles Feature]
-Eigene Agent\*innen sind noch in der Erprobung. Verhalten und Funktionen können sich ändern, und nicht alles funktioniert schon zuverlässig. Beim Bauen siehst du oben einen entsprechenden Hinweis-Banner. Bitte melde Probleme dem Team.
+Eigene Grüneratoren sind noch in der Erprobung. Verhalten und Funktionen können sich ändern, und nicht alles funktioniert schon zuverlässig. Beim Bauen siehst du oben einen entsprechenden Hinweis-Banner. Bitte melde Probleme dem Team.
+:::
+
+:::note[Der Baukasten sagt noch „Agent"]
+In der Agentura und in der Seitenleiste heißen sie **Grüneratoren**. Die Knöpfe im Baukasten tragen aber noch die alten Beschriftungen — **Neuer Agent**, _„Was für einen Agent möchtest du bauen?"_. Gemeint ist dasselbe; unten stehen die Beschriftungen so, wie du sie auf dem Bildschirm findest.
 :::
 
 ## Schritt 1: Den Creator öffnen
@@ -53,7 +57,7 @@ Darunter im selben Tab:
 
 - **Quell-Links direkt im Antworttext** — für versandfertige E-Mails/Briefe: konkrete Artikel-URLs aus der Recherche erscheinen inline im Text statt nur als Quellen-Karten.
 
-**Tab Wissen** — wähle per Checkbox die Notebooks, die dein Agent automatisch als Wissensquelle durchsucht. **Mehrfachauswahl ist möglich**; zur Auswahl stehen die Gruppen **Grünerator-Notebooks** und – sobald du eigene Notebooks hast – **Meine Notebooks**.
+**Tab Wissen** — wähle per Checkbox die Notebooks, die dein Grünerator automatisch als Wissensquelle durchsucht. **Mehrfachauswahl ist möglich**; zur Auswahl stehen die Abschnitte **Grünerator-Notebooks** und – sobald du eigene Notebooks hast – **Meine Notebooks**.
 
 **Aufklappbare Bereiche (optional):**
 
