@@ -26,6 +26,7 @@ export function CanvaMentionPopover({ visible, onSelect, onDismiss }: CanvaMenti
 
   useEffect(() => {
     if (!visible) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets panel state on close (visibility transition), not a render-derived value
       setSelection(new Map());
       setFilter('');
       setDebouncedFilter('');

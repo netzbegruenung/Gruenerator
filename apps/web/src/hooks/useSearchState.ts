@@ -54,6 +54,7 @@ export const useSearchState = ({
 
     // Set pending state when user types
     if (q) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- debounce: mark pending immediately on query change, cleared by the timeout below
       setSearchPending(true);
     }
 
@@ -93,6 +94,7 @@ export const useSearchState = ({
     const q = (searchQuery || '').trim();
 
     if (q) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- debounce: mark pending immediately on query change, cleared by the timeout below
       setLocalSearchPending(true);
     }
 

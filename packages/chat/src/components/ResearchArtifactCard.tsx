@@ -62,7 +62,10 @@ export const ResearchArtifactCard = memo(function ResearchArtifactCard({
   const [exportError, setExportError] = useState<string | null>(null);
 
   const answer = getString(result, 'answer');
-  const citations = (getArray(result, 'citations') as Citation[] | null) ?? [];
+  const citations = useMemo(
+    () => (getArray(result, 'citations') as Citation[] | null) ?? [],
+    [result]
+  );
   const confidence = getString(result, 'confidence');
 
   const headings = useMemo(() => extractHeadings(answer ?? ''), [answer]);

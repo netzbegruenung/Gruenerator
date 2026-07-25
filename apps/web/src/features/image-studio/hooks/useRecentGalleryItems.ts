@@ -133,6 +133,7 @@ export const useRecentGalleryItems = (
   // remounts from interleaving out-of-order responses.
   useEffect(() => {
     const controller = new AbortController();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data-fetch on mount; the async fetcher sets loading/error state, not a synchronous derive
     void fetchRecentItems(controller.signal);
     return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps

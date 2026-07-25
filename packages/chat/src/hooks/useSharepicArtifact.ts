@@ -93,6 +93,7 @@ export function useSharepicArtifact(variant: SharepicVariant) {
     if (viewState == null) {
       const cached = getCachedSharepicRender(variant.id, headVersion);
       if (cached) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- reads a module-level render cache that only exists post-mount; paints the cached image without a Konva re-render
         setImageBase64(cached);
         setRenderError(false);
         setIsRendering(false);
@@ -151,6 +152,7 @@ export function useSharepicArtifact(variant: SharepicVariant) {
 
   // New head version (chat edit applied) → drop any stale version preview.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resets version-preview state when a new head lands (SSE edit); must not run during render
     setViewVersion(null);
     setViewState(null);
     setVersions(null);

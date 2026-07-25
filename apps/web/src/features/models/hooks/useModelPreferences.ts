@@ -67,7 +67,7 @@ export function useModelPreferences(options: UseModelPreferencesOptions = {}) {
     },
   });
 
-  const preferences = query.data?.preferences ?? {};
+  const preferences = useMemo(() => query.data?.preferences ?? {}, [query.data]);
 
   const enabledModelIds = useMemo(() => {
     if (!query.data) return null;

@@ -32,6 +32,7 @@ export function DocumentChatPicker({ visible, onConfirm, onDismiss }: DocumentCh
 
   useEffect(() => {
     if (visible) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets selection when the picker opens (visibility transition), not a render-derived value
       setSelectedIds(new Set());
     }
   }, [visible]);

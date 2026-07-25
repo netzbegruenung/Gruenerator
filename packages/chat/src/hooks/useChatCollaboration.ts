@@ -81,6 +81,7 @@ export function useChatCollaboration(threadId: string | null, user: ChatCollabor
     const color = generateUserColor();
     p.awareness?.setLocalStateField('user', { id: user.id, name: user.name, color });
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- publishes the Hocuspocus provider after it is constructed; a connection/subscription object that only exists post-mount
     setProvider(p);
 
     return () => {
@@ -89,6 +90,7 @@ export function useChatCollaboration(threadId: string | null, user: ChatCollabor
       providerRef.current = null;
       setProvider(null);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on user.id (stable identity); user.name is read once at connect and re-subscribing on every name-object change would needlessly tear down the collab session
   }, [threadId, user?.id, docsBaseUrl]);
 
   const typingUsers = useAwarenessState(provider, selectTypingUsers, typingUsersEqual);

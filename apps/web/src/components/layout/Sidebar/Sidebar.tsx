@@ -108,6 +108,9 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
     if (!forceExpanded) {
       close();
     }
+    // Intentionally keyed to pathname only: this must fire on navigation, not
+    // when forceExpanded/close identities change (which would close mid-session).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
   // Keyboard shortcuts: Escape to close, Ctrl/Cmd+B to toggle, Ctrl/Cmd+K to search

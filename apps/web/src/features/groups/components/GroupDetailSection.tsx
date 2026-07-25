@@ -174,7 +174,7 @@ const GroupDetailSection = memo(
         onSuccess: () => navigate('/'),
         onError: (error: Error) => onErrorMessage(`Fehler beim Löschen: ${error.message}`),
       });
-    }, [groupId, data?.isAdmin, deleteGroup, navigate, onErrorMessage]);
+    }, [groupId, data?.isAdmin, deleteGroup, navigate, onErrorMessage, onSuccessMessage]);
 
     const startEditingName = useCallback(() => {
       if (data?.isAdmin) {

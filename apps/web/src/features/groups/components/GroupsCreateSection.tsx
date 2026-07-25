@@ -66,6 +66,9 @@ const GroupsCreateSection: React.FC<GroupsCreateSectionProps> = ({
     if (isOpen) {
       // The landing tiles already pick Projekt vs. Gruppe, so open on the name
       // step; "Zurück" still exposes the type choice.
+      // Reset as a reaction to the modal opening (isOpen toggle), not a
+      // render-derived value.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSpaceType(initialSpaceType);
       setStep(2);
       setGroupName('');
