@@ -92,6 +92,7 @@ Mistral AI (primary, EU), self-hosted GPT-OSS/Gemma via LiteLLM/verdigado, Seewe
 - **Before PR**: `git fetch origin master` to ensure fresh remote ref.
 - **Regular merge only** (not squash). `test-branch` is long-lived; squash breaks commit identity.
 - **PR merges require admin.** `gh pr merge` fails — ask user to merge via GitHub UI.
+- **Merge queue active on `master`** (ruleset id 19716112). Required checks: `Quality Checks`, `Tests`, `PDF-Barrierefreiheit`, `Build web/api/docs/sites/wordpress`. New required-check workflows MUST add a `merge_group:` trigger or the queue hangs. `--admin` still bypasses for emergencies. Details + rationale: memory `merge-queue-and-drift-guards`.
 
 ### Expo Apps
 
