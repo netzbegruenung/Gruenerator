@@ -86,8 +86,7 @@ export async function runPdfGeneration(opts: {
   const { PDF_GENERATION_PROMPT, parsePdfStructure, validatePdfStructure, createPdfDocument } =
     await import('../../../services/pdf/PdfGenerationService.js');
   const { PDF_DOCUMENT_TOOL_SCHEMA } = await import('../../../services/pdf/pdfDocument.js');
-  const { generateStructured, viaLaxParser, withContent } =
-    await import('../../../services/ai/generateStructured.js');
+  const { generateStructured } = await import('../../../services/ai/generateStructured.js');
 
   const pdfOptions = opts.pdfOptions ?? {};
   const directive =
@@ -292,7 +291,7 @@ export async function runBoardGeneration(opts: {
     parseBoardStructure,
     postProcessBoardStructure,
   } = await import('../../../services/boards/BoardService.js');
-  const { generateStructured, viaLaxParser, withContent } =
+  const { generateStructured, viaLaxParser } =
     await import('../../../services/ai/generateStructured.js');
 
   const generated = await generateStructured({
