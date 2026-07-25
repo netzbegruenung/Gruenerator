@@ -748,6 +748,10 @@ export async function streamAgenticResponse(params: {
         toolReplayMessages.length > 0 && messages.length > 0
           ? [...messages.slice(0, -1), ...toolReplayMessages, messages[messages.length - 1]]
           : messages,
+      // The synth phase runs WITHOUT tools — it gets the plain history. Feeding
+      // it the replay made it imitate the tool-call pattern in prose instead of
+      // answering (live: the entire answer was "Let's perform web_search.").
+      synthMessages: messages,
       maxSteps: budget.maxSteps,
       temperature: agentConfig.params.temperature ?? 0.3,
       // No output cap (OpenWebUI-style): the model window is the backstop.
