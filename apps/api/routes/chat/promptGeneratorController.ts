@@ -83,7 +83,6 @@ router.post('/', async (req, res) => {
       systemPrompt: META_PROMPT,
       messages: [{ role: 'user', content: description.trim() }],
       options: {
-        max_tokens: 2000,
         temperature: 0.7,
       },
     });
