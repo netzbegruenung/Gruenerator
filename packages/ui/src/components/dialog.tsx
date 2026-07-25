@@ -44,13 +44,19 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  overlayProps,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
+  // Radix portals overlay + content as direct <body> children (no wrapper
+  // element), so consumers that need to identify the whole dialog in the DOM
+  // (e.g. screenshot capture) must tag the overlay separately from the content.
+  overlayProps?: React.ComponentProps<typeof DialogPrimitive.Overlay> &
+    Record<`data-${string}`, string>;
 }) {
   return (
     <DialogPortal data-slot="dialog-portal">
-      <DialogOverlay />
+      <DialogOverlay {...overlayProps} />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
