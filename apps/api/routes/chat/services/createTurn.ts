@@ -57,7 +57,7 @@ export interface CreateTurnOpts {
 }
 
 /** What the generator needs; deliberately narrower than the turn options. */
-export interface GenerateContext {
+interface GenerateContext {
   aiWorkerPool: ChatGraphState['aiWorkerPool'];
   req: Express.Request;
   userId: string;
