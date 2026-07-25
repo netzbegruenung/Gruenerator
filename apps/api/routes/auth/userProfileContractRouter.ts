@@ -110,6 +110,8 @@ export const userProfileContractRouter = s.router(userProfileContract, {
         avatar_robot_id,
         email,
         custom_prompt,
+        sender_organization,
+        sender_address,
         default_startpage,
         feedback_button,
       } = args.body;
@@ -120,6 +122,9 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       if (avatar_robot_id !== undefined) updateData.avatar_robot_id = avatar_robot_id;
       if (email !== undefined) updateData.email = email || null;
       if (custom_prompt !== undefined) updateData.custom_prompt = custom_prompt || null;
+      if (sender_organization !== undefined)
+        updateData.sender_organization = sender_organization || null;
+      if (sender_address !== undefined) updateData.sender_address = sender_address || null;
       if (default_startpage !== undefined) updateData.default_startpage = default_startpage;
       if (feedback_button !== undefined) updateData.feedback_button = feedback_button;
 
