@@ -41,6 +41,28 @@ export interface GeneratedDocument {
   content: string;
 }
 
+/**
+ * Schema for the forced tool call. `content` is the HTML body, so there is no
+ * deep structure to constrain — what matters is that it is PRESENT: an empty
+ * content is the parser's failure signal and used to yield a blank document
+ * reported as a success.
+ */
+export const DOCUMENT_TOOL_SCHEMA: Record<string, unknown> = {
+  type: 'object',
+  required: ['title', 'subtype', 'content'],
+  additionalProperties: true,
+  properties: {
+    title: { type: 'string', description: 'Dokumenttitel' },
+    subtype: { type: 'string', enum: [...DOC_SUBTYPES] },
+    content: {
+      type: 'string',
+      minLength: 1,
+      description:
+        'Vollständiges Dokument als HTML (h1, h2, h3, p, ul, ol, li, blockquote, strong, em, hr, br, input), beginnend mit <h1>',
+    },
+  },
+};
+
 export interface CreatedDocument {
   id: string;
   title: string;
