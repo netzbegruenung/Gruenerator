@@ -145,25 +145,52 @@ export function detectLetterParts(text: string): DetectedLetterParts {
   return result;
 }
 
+/** The bit of a BlockNote block this module needs — kept structural so the
+ *  detection unit-tests without an editor. */
+interface BlockLike {
+  content?: unknown;
+}
+
+/**
+ * One line per top-level block.
+ *
+ * This is the single text the prefill AND the removal work on. They used to
+ * disagree: the dialog read the blocks while the removal ran on serialised
+ * HTML, where a line-based detector matches nothing — so the checkbox silently
+ * did nothing and the recipient ended up both in the address field and in the
+ * body. Sharing the line list keeps `consumedLines` usable as block indices.
+ *
+ * Deliberately NOT recursing into children: a nested list would add lines
+ * without adding top-level blocks and break that index alignment. Letter
+ * furniture is top-level anyway.
+ */
+export function blockLines(blocks: readonly BlockLike[]): string[] {
+  return blocks.map((block) =>
+    Array.isArray(block.content)
+      ? block.content
+          .map((inline) =>
+            inline && typeof inline === 'object' && 'text' in inline
+              ? String((inline as { text: unknown }).text ?? '')
+              : ''
+          )
+          .join('')
+      : ''
+  );
+}
+
+/** Drop the blocks the detection consumed, so they do not appear twice. */
+export function stripDetectedBlocks<T extends BlockLike>(
+  blocks: readonly T[],
+  parts: DetectedLetterParts
+): T[] {
+  if (!parts.consumedLines.length) return [...blocks];
+  const drop = new Set(parts.consumedLines);
+  return blocks.filter((_, i) => !drop.has(i));
+}
+
 /** True when anything was recognised — drives whether the hint is shown. */
 export function hasDetectedParts(parts: DetectedLetterParts): boolean {
   return Boolean(
     parts.recipient || parts.subject || parts.salutation || parts.closing || parts.signature
   );
-}
-
-/**
- * Remove the recognised lines from the body so they do not appear twice —
- * once in the DIN-5008 fields and once in the flowing text. Opt-in: the dialog
- * offers this as a checkbox rather than doing it silently, because a
- * misdetection would otherwise delete content without asking.
- */
-export function stripDetectedLines(text: string, parts: DetectedLetterParts): string {
-  if (!parts.consumedLines.length) return text;
-  const drop = new Set(parts.consumedLines);
-  return toLines(text)
-    .filter((_, i) => !drop.has(i))
-    .join('\n')
-    .replace(/^\n+/, '')
-    .replace(/\n{3,}/g, '\n\n');
 }

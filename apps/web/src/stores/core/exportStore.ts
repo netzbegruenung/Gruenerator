@@ -10,6 +10,10 @@ export interface PdfExportOptions {
   /** 'letterhead' adds the Absender block; 'letter' renders a DIN-5008 letter. */
   layout?: PdfExportLayout;
   letter?: z.infer<typeof pdfExportLetterSchema>;
+  /** One of the caller's saved letterheads; omitted uses their default. */
+  letterheadId?: string;
+  /** Absender typed in the export dialog, for this export only. */
+  letterhead?: { organization?: string; address?: string };
 }
 
 interface ExportState {
@@ -63,12 +67,13 @@ export const useExportStore = create<ExportState>((set) => ({
       const result = await client.exports.generatePdf({
         // Spread so a call without options sends exactly `{content, title}` —
         // the request shape apps/mobile relies on stays byte-identical.
-        body: {
-          content,
-          title,
-          ...(options?.layout && { layout: options.layout }),
-          ...(options?.letter && { letter: options.letter }),
-        },
+        // Spread the options wholesale rather than listing fields: enumerating
+        // them is what silently dropped the letterhead choice once already, and
+        // a forgotten field is invisible to the type checker because the caller
+        // builds `options` with conditional spreads. Callers omit absent keys,
+        // so a call without options still sends exactly `{content, title}` —
+        // the request shape apps/mobile relies on.
+        body: { content, title, ...(options ?? {}) },
       });
       if (result.status !== 200) {
         // The server explains a missing Absender in the 400 body; surfacing
