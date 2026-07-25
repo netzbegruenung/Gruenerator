@@ -60,8 +60,6 @@ CREATE TABLE IF NOT EXISTS profiles (
     beta_features JSONB DEFAULT '{}',
     presseabbinder TEXT,
     custom_antrag_gliederung TEXT,
-    sender_organization TEXT,
-    sender_address TEXT,
     auth_source TEXT,
     locale TEXT DEFAULT 'de-DE' CHECK (locale IN ('de-DE', 'de-AT')),
     groups_enabled BOOLEAN DEFAULT FALSE,

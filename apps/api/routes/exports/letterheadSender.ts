@@ -1,13 +1,17 @@
 /**
- * Absender for the PDF letterhead, resolved from the CALLER'S OWN profile.
+ * Absender for the PDF letterhead.
  *
- * Deliberately server-side: the export body carries only a layout choice, never
- * a sender object. A client-supplied sender would let anyone print any name and
- * organisation onto Grünen corporate-identity paper.
+ * Three sources, in this order:
+ *  1. an explicit `letterheadId` — one of the caller's saved letterheads,
+ *  2. inline values typed in the export dialog (not saved),
+ *  3. the caller's default letterhead.
  *
- * Returns null when there is no user, no profile, or nothing worth printing —
- * the renderer then draws no Absender block at all, and the caller decides
- * whether that is an error (see the letterhead/letter paths) or fine.
+ * The NAME always comes from the profile, never from the request: the saved
+ * fields carry organisation and address only, so there is one answer to "whose
+ * letter is this" and no way to sign as somebody else.
+ *
+ * Returns null when there is nothing worth printing — the renderer then draws
+ * no Absender block, and the caller decides whether that is an error.
  */
 
 import { createLogger } from '../../utils/logger.js';
@@ -15,6 +19,13 @@ import { createLogger } from '../../utils/logger.js';
 import type { PdfSender } from '../../services/pdf/pdfRenderer.js';
 
 const log = createLogger('LetterheadSender');
+
+export interface LetterheadSelection {
+  /** One of the caller's saved letterheads. */
+  letterheadId?: string | undefined;
+  /** Typed in the dialog for this export only. */
+  inline?: { organization?: string | undefined; address?: string | undefined } | undefined;
+}
 
 /** Formal name for a letterhead: "Vorname Nachname", else the display name. */
 function senderName(profile: {
@@ -27,7 +38,10 @@ function senderName(profile: {
   return full || (profile.display_name ?? '').trim();
 }
 
-export async function resolveLetterheadSender(userId?: string): Promise<PdfSender | null> {
+export async function resolveLetterheadSender(
+  userId?: string,
+  selection: LetterheadSelection = {}
+): Promise<PdfSender | null> {
   if (!userId) return null;
   try {
     // Lazy so importing this module does not drag the DB layer into unrelated
@@ -36,9 +50,22 @@ export async function resolveLetterheadSender(userId?: string): Promise<PdfSende
     const profile = await getProfileService().getProfileById(userId);
     if (!profile) return null;
 
+    let organization = (selection.inline?.organization ?? '').trim();
+    let address = (selection.inline?.address ?? '').trim();
+
+    if (!organization && !address) {
+      const { getDefaultLetterhead, getLetterhead } =
+        await import('../../services/user/letterheadRepository.js');
+      // Scoped by userId inside the repository, so a guessed id resolves to
+      // null rather than someone else's Absender.
+      const row = selection.letterheadId
+        ? await getLetterhead(userId, selection.letterheadId)
+        : await getDefaultLetterhead(userId);
+      organization = (row?.organization ?? '').trim();
+      address = (row?.address ?? '').trim();
+    }
+
     const name = senderName(profile);
-    const organization = (profile.sender_organization ?? '').trim();
-    const address = (profile.sender_address ?? '').trim();
     if (!name && !organization && !address) return null;
 
     return {
@@ -47,7 +74,8 @@ export async function resolveLetterheadSender(userId?: string): Promise<PdfSende
       ...(address && { address }),
     };
   } catch (err) {
-    // A profile read failure must never turn a PDF download into a 500.
+    // A profile or letterhead read failure must never turn a PDF download
+    // into a 500.
     log.warn(`Failed to resolve letterhead sender for ${userId}:`, err);
     return null;
   }

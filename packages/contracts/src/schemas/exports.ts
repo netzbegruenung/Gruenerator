@@ -50,12 +50,27 @@ export const pdfExportBodySchema = z.object({
    * `{content, title}` and the backward compatibility is pinned by
    * exportsContract.vitest.ts.
    *
-   * Note the absence of a `sender` field: the Absender is resolved server-side
-   * from the authenticated profile, so a client cannot print a foreign name or
-   * organisation onto Grünen corporate-identity paper.
+   * Note there is no `name` anywhere in this body. Organisation and address may
+   * be chosen (letterheadId) or typed (letterhead) by the caller — both are
+   * their own data either way — but the NAME on the letterhead is always
+   * resolved server-side from the authenticated profile, so nobody can sign as
+   * somebody else.
    */
   layout: pdfExportLayoutSchema.optional(),
   letter: pdfExportLetterSchema.optional(),
+  /** One of the caller's saved letterheads; omitted uses their default. */
+  letterheadId: z.string().optional(),
+  /**
+   * Typed in the export dialog for this export only. Organisation and address
+   * only — the NAME always comes from the profile, so nobody can sign as
+   * somebody else.
+   */
+  letterhead: z
+    .object({
+      organization: z.string().max(120).optional(),
+      address: z.string().max(300).optional(),
+    })
+    .optional(),
 });
 
 // ── Response schemas ────────────────────────────────────────────────────────

@@ -189,8 +189,6 @@ class ProfileService {
         'custom_prompt',
         'presseabbinder',
         'custom_antrag_gliederung',
-        'sender_organization',
-        'sender_address',
         'auth_source',
         'document_mode',
         'default_startpage',
