@@ -2,7 +2,7 @@
  * Extract: All Instagram posts per Landesverband for corpus analysis.
  *
  * Scrolls social_media_examples filtered by (landesverband, platform=instagram)
- * and writes one JSON file per LV to documentation/docs/landesverbaende/_raw/.
+ * and writes one JSON file per LV to documentation/docs/wissen/landesverbaende/_raw/.
  *
  * Sibling of extract-lv-pms.ts. Differences vs. press:
  *   - Single collection (`social_media_examples`), no chunk dedup needed
@@ -30,7 +30,7 @@ const QDRANT_API_KEY = process.env.QDRANT_API_KEY ?? '';
 const BASIC_USER = process.env.QDRANT_BASIC_AUTH_USERNAME;
 const BASIC_PASS = process.env.QDRANT_BASIC_AUTH_PASSWORD;
 const COLLECTION = 'social_media_examples';
-const OUTPUT_DIR = path.resolve(process.cwd(), 'documentation/docs/landesverbaende/_raw');
+const OUTPUT_DIR = path.resolve(process.cwd(), 'documentation/docs/wissen/landesverbaende/_raw');
 
 interface LvTarget {
   slug: string;

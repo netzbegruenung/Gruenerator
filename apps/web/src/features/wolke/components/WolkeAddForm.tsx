@@ -64,7 +64,7 @@ const WolkeAddForm = ({ scope, scopeId, onSuccess, onError }: WolkeAddFormProps)
         Erstelle in deiner Wolke einen Link mit der Berechtigung „Kann bearbeiten" und füge ihn hier
         ein.{' '}
         <a
-          href="https://doku.services.moritz-waechter.de/docs/Profil/gruene-wolke-tutorial"
+          href="https://doku.services.moritz-waechter.de/docs/konto/gruene-wolke"
           target="_blank"
           rel="noopener noreferrer"
           className="text-primary-500 dark:text-primary-400 hover:underline"
