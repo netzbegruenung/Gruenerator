@@ -65,7 +65,7 @@ Darunter im selben Tab:
 - **Erweiterte Einstellungen** — **Region** (Deutschland `de-DE` / Österreich `de-AT`), **Tags** (kommagetrennt) und das **Modell**.
 
 :::tip[Erst das Wissen, dann der Agent]
-Lege dir vorher unter [Notebooks](../notebooks/eigenes-notebook-erstellen) ein eigenes Notebook an und lade eure Dokumente hoch. Im Editor kannst du es dann unter **Wissen → Meine Notebooks** auswählen — und dein Agent antwortet ausschließlich aus euren Quellen, mit nachprüfbaren Quellenangaben.
+Lege dir vorher unter [Notebooks](../wissen/eigenes-notebook-erstellen) ein eigenes Notebook an und lade eure Dokumente hoch. Im Editor kannst du es dann unter **Wissen → Meine Notebooks** auswählen — und dein Agent antwortet ausschließlich aus euren Quellen, mit nachprüfbaren Quellenangaben.
 :::
 
 :::info[Wiederkehrende Aufgaben]

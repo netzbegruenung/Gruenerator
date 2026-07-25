@@ -1,31 +1,73 @@
 /* ============================================
-   HERO SECTION — Light, airy Mintlify-style
+   HERO SECTION — "Sunrise" wash like the app's
+   workplace page: warm base, one radial glow
+   that rises once and settles (see
+   apps/web/src/features/workplace/workplace-sunrise.css)
    ============================================ */
 
+@property --doku-sunrise-y {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 58%;
+}
+
+@property --doku-sunrise-glow {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
+}
+
 .hero {
-  background: linear-gradient(180deg, var(--primary-50) 0%, #ffffff 100%);
+  /* The workplace `tanne` preset — green on purpose, so the docs hero is
+     distinguishable from the app's yellow sunrise default. */
+  --doku-bg-tint: 122 176 143;
+  background-color: #f5faf7;
+  background-image: radial-gradient(
+    88% 58% at 50% var(--doku-sunrise-y),
+    rgb(var(--doku-bg-tint) / calc(0.5 * var(--doku-sunrise-glow))) 0%,
+    rgb(var(--doku-bg-tint) / calc(0.18 * var(--doku-sunrise-glow))) 40%,
+    rgb(255 255 255 / 0) 74%
+  );
+  animation: doku-sunrise 2.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   padding: 6rem 2rem 5rem;
   text-align: center;
   position: relative;
-  overflow: hidden;
 }
 
+/* Soft hand-over into the white content area below. */
 .hero::before {
   content: '';
   position: absolute;
-  top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background:
-    radial-gradient(circle at 20% 30%, rgba(0, 85, 56, 0.04) 0%, transparent 50%),
-    radial-gradient(circle at 80% 70%, rgba(95, 133, 117, 0.04) 0%, transparent 50%);
+  height: 6rem;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0) 0%, #ffffff 100%);
   pointer-events: none;
+}
+
+@keyframes doku-sunrise {
+  from {
+    --doku-sunrise-y: 88%;
+    --doku-sunrise-glow: 0;
+  }
+  to {
+    --doku-sunrise-y: 58%;
+    --doku-sunrise-glow: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero {
+    animation: none;
+    --doku-sunrise-y: 58%;
+    --doku-sunrise-glow: 1;
+  }
 }
 
 .heroContent {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   max-width: 680px;
   margin: 0 auto;
 }
@@ -54,66 +96,93 @@
   line-height: 1.6;
 }
 
-.heroButtons {
+/* The embedded local-search bar: same component as in the navbar, resized
+   into a proper hero search field. */
+.heroSearch {
   display: flex;
-  gap: 1rem;
   justify-content: center;
-  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
 }
 
-.primaryButton {
-  background: var(--primary-600);
-  color: white;
-  padding: 0.875rem 2rem;
-  border-radius: 10px;
-  font-weight: 600;
+/* The search plugin sizes its input for the navbar (collapsed width, expand
+   on focus) and positions its suggestion panel against the nearest positioned
+   ancestor — both need overriding to behave as a centered hero search. */
+.heroSearch :global(.navbar__search) {
+  width: 100%;
+  max-width: 520px;
+  position: relative;
+}
+
+/* autocomplete.js wraps the input in an inline-block span (inline style),
+   which shrink-wraps to the input's natural width — !important is the only
+   way to beat an inline style. */
+.heroSearch :global(.navbar__search) > span {
+  display: block !important;
+  width: 100%;
+}
+
+.heroSearch :global(.navbar__search-input) {
+  width: 100% !important;
+  height: 3.25rem;
+  border-radius: 12px;
   font-size: 1rem;
-  text-decoration: none;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 85, 56, 0.2);
-  border: none;
-}
-
-.primaryButton:hover {
-  background: var(--primary-700);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 85, 56, 0.25);
-  color: white;
-  text-decoration: none;
-}
-
-.secondaryButton {
-  background: transparent;
-  color: var(--primary-600);
-  padding: 0.875rem 2rem;
-  border-radius: 10px;
-  font-weight: 600;
-  font-size: 1rem;
-  text-decoration: none;
-  transition: all 0.2s ease;
+  padding-left: 2.75rem;
+  padding-right: 1.25rem;
+  background-color: #ffffff;
+  background-position: 1rem center;
   border: 1px solid rgba(0, 85, 56, 0.2);
+  box-shadow: 0 2px 10px rgba(0, 85, 56, 0.08);
+  color: #111827;
 }
 
-.secondaryButton:hover {
-  background: var(--primary-50);
-  border-color: rgba(0, 85, 56, 0.35);
-  transform: translateY(-1px);
+.heroSearch :global(.navbar__search-input):focus {
+  border-color: var(--primary-500);
+  box-shadow: 0 2px 12px rgba(0, 85, 56, 0.15);
+}
+
+.heroSearch :global([class*='dropdownMenu']),
+.heroSearch :global(.aa-dropdown-menu) {
+  left: 0 !important;
+  right: 0 !important;
+  top: calc(100% + 8px) !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  text-align: left;
+}
+
+.heroLink {
+  display: inline-block;
+  color: var(--primary-600);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  text-decoration: none;
+}
+
+.heroLink:hover {
   color: var(--primary-700);
   text-decoration: none;
 }
 
 /* ============================================
-   MAIN SECTION — CATEGORIES
+   MAIN SECTIONS
    ============================================ */
 
 .main {
-  padding: 5rem 2rem 6rem;
   background: #ffffff;
+}
+
+.tasksSection {
+  padding: 4.5rem 2rem 1rem;
+}
+
+.categoriesSection {
+  padding: 4.5rem 2rem 5rem;
 }
 
 .categoriesIntro {
   text-align: center;
-  margin-bottom: 4rem;
+  margin-bottom: 3rem;
 }
 
 .sectionTitle {
@@ -131,13 +200,83 @@
 }
 
 /* ============================================
+   QUICK TASKS — "Direkt loslegen"
+   ============================================ */
+
+.tasksGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.taskCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-card);
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.taskCard:hover {
+  transform: translateY(-1px);
+  border-color: rgba(0, 85, 56, 0.2);
+  box-shadow: var(--shadow-card-hover);
+  text-decoration: none;
+}
+
+.taskText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.taskLabel {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  line-height: 1.35;
+}
+
+.taskCard:hover .taskLabel {
+  color: var(--primary-700);
+}
+
+.taskDescription {
+  font-size: 0.8438rem;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.taskArrow {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--primary-600);
+  opacity: 0.45;
+  transition: all 0.15s ease;
+}
+
+.taskCard:hover .taskArrow {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+/* ============================================
    CATEGORY CARDS GRID
    ============================================ */
 
 .categoriesGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 2.5rem;
+  gap: 2rem;
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -145,13 +284,13 @@
 .categoryCard {
   background: var(--surface-card);
   border-radius: 16px;
-  padding: 2.5rem;
+  padding: 2.25rem;
   box-shadow: var(--shadow-card);
   transition: all 0.2s ease;
   border: 1px solid var(--surface-border);
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
 .categoryCard:hover {
@@ -244,6 +383,41 @@
 }
 
 /* ============================================
+   EXTRA ROW — Webinare · Archiv · Bildnachweise
+   ============================================ */
+
+.extraRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.75rem;
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--surface-border);
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.extraLabel {
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+
+.extraLink {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #4b5563;
+  text-decoration: none;
+}
+
+.extraLink:hover {
+  color: var(--primary-700);
+  text-decoration: none;
+}
+
+/* ============================================
    RESPONSIVE DESIGN
    ============================================ */
 
@@ -260,12 +434,20 @@
     padding: 4rem 1.5rem 3.5rem;
   }
 
-  .main {
-    padding: 3.5rem 1.5rem 4rem;
+  .tasksSection {
+    padding: 3rem 1.5rem 0.5rem;
+  }
+
+  .categoriesSection {
+    padding: 3rem 1.5rem 4rem;
   }
 
   .sectionTitle {
     font-size: 1.875rem;
+  }
+
+  .tasksGrid {
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .categoriesGrid {
@@ -283,16 +465,8 @@
     font-size: 1rem;
   }
 
-  .heroButtons {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .primaryButton,
-  .secondaryButton {
-    width: 100%;
-    max-width: 300px;
-    text-align: center;
+  .tasksGrid {
+    grid-template-columns: 1fr;
   }
 
   .categoryCard {
@@ -315,7 +489,18 @@
    ============================================ */
 
 [data-theme='dark'] .hero {
-  background: linear-gradient(180deg, #111827 0%, var(--surface-background) 100%);
+  background-color: var(--surface-background);
+  background-image: radial-gradient(
+    88% 58% at 50% 58%,
+    rgb(var(--doku-bg-tint) / 0.1) 0%,
+    rgb(var(--doku-bg-tint) / 0.035) 42%,
+    rgb(0 0 0 / 0) 74%
+  );
+  animation: none;
+}
+
+[data-theme='dark'] .hero::before {
+  background: linear-gradient(180deg, rgb(0 0 0 / 0) 0%, var(--surface-background) 100%);
 }
 
 [data-theme='dark'] .heroTitle {
@@ -330,24 +515,22 @@
   color: #9ca3af;
 }
 
-[data-theme='dark'] .primaryButton {
-  background: var(--primary-500);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-[data-theme='dark'] .primaryButton:hover {
-  background: var(--primary-400);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-}
-
-[data-theme='dark'] .secondaryButton {
-  color: var(--primary-400);
+[data-theme='dark'] .heroSearch :global(.navbar__search-input) {
+  background-color: var(--surface-card);
   border-color: rgba(96, 161, 131, 0.25);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  color: #f9fafb;
 }
 
-[data-theme='dark'] .secondaryButton:hover {
-  background: rgba(96, 161, 131, 0.1);
-  border-color: rgba(96, 161, 131, 0.4);
+[data-theme='dark'] .heroSearch :global(.navbar__search-input):focus {
+  border-color: var(--primary-400);
+}
+
+[data-theme='dark'] .heroLink {
+  color: var(--primary-400);
+}
+
+[data-theme='dark'] .heroLink:hover {
   color: var(--primary-300);
 }
 
@@ -361,6 +544,31 @@
 
 [data-theme='dark'] .sectionSubtitle {
   color: #6b7280;
+}
+
+[data-theme='dark'] .taskCard {
+  background: var(--surface-card);
+  border-color: var(--surface-border);
+}
+
+[data-theme='dark'] .taskCard:hover {
+  border-color: rgba(96, 161, 131, 0.25);
+}
+
+[data-theme='dark'] .taskLabel {
+  color: #f9fafb;
+}
+
+[data-theme='dark'] .taskCard:hover .taskLabel {
+  color: var(--primary-300);
+}
+
+[data-theme='dark'] .taskDescription {
+  color: #9ca3af;
+}
+
+[data-theme='dark'] .taskArrow {
+  color: var(--primary-400);
 }
 
 [data-theme='dark'] .categoryCard {
@@ -395,5 +603,17 @@
 
 [data-theme='dark'] .topPageLink:hover {
   background: rgba(96, 161, 131, 0.1);
+  color: var(--primary-300);
+}
+
+[data-theme='dark'] .extraRow {
+  border-top-color: var(--surface-border);
+}
+
+[data-theme='dark'] .extraLink {
+  color: #9ca3af;
+}
+
+[data-theme='dark'] .extraLink:hover {
   color: var(--primary-300);
 }
