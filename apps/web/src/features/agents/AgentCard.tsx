@@ -97,7 +97,7 @@ const AgentCard = memo(({ agent }: AgentCardProps) => {
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Agent löschen?</DialogTitle>
+            <DialogTitle>Grünerator-Agent löschen?</DialogTitle>
             <DialogDescription>
               „{agent.title}“ wird dauerhaft gelöscht. Das kann nicht rückgängig gemacht werden.
             </DialogDescription>
