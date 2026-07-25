@@ -99,8 +99,7 @@ export function createApiClient(options: CreateApiClientOptions): AxiosInstance 
         };
         // onUnauthorized is `(info?) => void | Promise<boolean>`; awaiting the
         // optional Promise variant is intentional (we act on the refreshed
-        // result). The `void` member of the union makes await-thenable flag it.
-        // eslint-disable-next-line @typescript-eslint/await-thenable
+        // result).
         const refreshed = await onUnauthorized(info);
         if (refreshed) {
           if (authMode === 'bearer' && getAuthToken) {

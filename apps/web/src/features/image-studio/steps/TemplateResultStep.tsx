@@ -508,6 +508,9 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
   );
 
   useEffect(() => {
+    // Re-triggers the "new image" flash animation each time the source changes;
+    // paired with the timer below, so the effect owns the timing.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsNewImage(true);
     const timer = setTimeout(() => setIsNewImage(false), 1000);
     return () => clearTimeout(timer);

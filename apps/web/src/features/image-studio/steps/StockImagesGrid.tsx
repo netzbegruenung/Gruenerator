@@ -122,6 +122,9 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
         (img) => img.filename === preloadedImageResult.image?.filename
       );
       if (matchingImage) {
+        // Applies the preloaded AI suggestion once matching stock data arrives;
+        // guarded by !recommendedImage so it settles rather than cascading.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setRecommendedImage(matchingImage);
         setRecommendedCategory(preloadedImageResult.category || null);
         hasAutoSuggested.current = true;

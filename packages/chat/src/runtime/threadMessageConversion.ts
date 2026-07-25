@@ -11,7 +11,7 @@ import {
   bundestagPayloadSchema,
   bahnPayloadSchema,
 } from '@gruenerator/contracts';
-import { INTENT_TO_TOOL } from '../lib/toolMappings';
+
 import {
   coerceSharepicVariants,
   type ComputeData,
@@ -19,6 +19,7 @@ import {
   type Citation,
   type SearchResult,
 } from '../hooks/useChatGraphStream';
+import { INTENT_TO_TOOL } from '../lib/toolMappings';
 import { type DocumentCreatedData } from '../types/messageMetadata';
 
 interface PersistedToolCall {

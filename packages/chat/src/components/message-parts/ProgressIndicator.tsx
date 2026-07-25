@@ -1,10 +1,12 @@
 'use client';
 
 import { Search, Image } from 'lucide-react';
+
 import { cn } from '../../lib/utils';
 import { ShimmerText } from './ShimmerText';
 import { usePacedLabel } from '../../hooks/usePacedLabel';
 import { type ProgressDisplay } from './progressDisplayContext';
+
 import type { ChatProgress } from '../../hooks/useChatGraphStream';
 
 interface ProgressIndicatorProps {

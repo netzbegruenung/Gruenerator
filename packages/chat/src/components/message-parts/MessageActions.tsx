@@ -1,17 +1,20 @@
 'use client';
 
-import { memo, useState } from 'react';
-import { Copy, Check, Download, Loader2, RefreshCw } from 'lucide-react';
-import { HiOutlineDocumentText } from 'react-icons/hi';
 import { useMessageRuntime } from '@assistant-ui/react';
-import type { ExportToDocsBody, ExportToDocsResponse } from '@gruenerator/contracts';
-import { useChatConfigStore } from '../../stores/chatConfigStore';
-import { useAgentStore } from '../../stores/chatStore';
+import { Copy, Check, Download, Loader2, RefreshCw } from 'lucide-react';
+import { memo, useState } from 'react';
+import { HiOutlineDocumentText } from 'react-icons/hi';
+
 import { useExtraActions } from '../../context/ExtraActionsContext';
 // import { MessageTTSButton } from './MessageTTSButton';
 import { formatSourcesMarkdown } from '../../lib/formatSourcesMarkdown';
+import { useChatConfigStore } from '../../stores/chatConfigStore';
+import { useAgentStore } from '../../stores/chatStore';
+
 import { MessageBranchPicker } from './MessageBranchPicker';
+
 import type { ChatMessage } from '../../hooks/useChatGraphStream';
+import type { ExportToDocsBody, ExportToDocsResponse } from '@gruenerator/contracts';
 
 interface MessageActionsProps {
   content: string;

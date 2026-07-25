@@ -179,6 +179,7 @@ const ImageStudioPageContent: React.FC = () => {
     setCategory,
     setType,
     aiGeneratedContent,
+    updateFormData,
   ]);
 
   // Handle gallery edit mode from location.state
@@ -219,6 +220,8 @@ const ImageStudioPageContent: React.FC = () => {
     // StrictMode's double-invoked effects once the module flag is set).
     if (state?.galleryEditMode || state?.templateMode) return;
     if (!hasRestorableGalleryEditSession(location.pathname)) {
+      // Mount-only gate release: no session to restore, so drop the spinner.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsHydratingExisting(false);
       return;
     }
@@ -334,7 +337,7 @@ const ImageStudioPageContent: React.FC = () => {
         resetStore();
       }
     };
-  }, []);
+  }, [resetStore]);
 
   const isImagineRoute = location.pathname.startsWith('/imagine');
 

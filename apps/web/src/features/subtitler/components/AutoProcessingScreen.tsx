@@ -127,6 +127,7 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
       }, interval);
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- setState runs inside the async poll callback (post-mount, network-driven), not synchronously during render
     void pollProgress().then(() => scheduleNextPoll());
 
     return () => {

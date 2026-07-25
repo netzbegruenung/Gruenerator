@@ -1,8 +1,10 @@
 'use client';
 
 import { createPortal } from 'react-dom';
-import { ChatThreadList } from './ChatThreadList';
+
 import { useThreadListSlot } from '../stores/threadListSlotStore';
+
+import { ChatThreadList } from './ChatThreadList';
 
 interface ChatThreadListPortalProps {
   /**

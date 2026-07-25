@@ -8,20 +8,21 @@ import { useDocumentChatStore } from '../../stores/documentChatStore';
 import { useReelLiveStore } from '../../stores/reelLiveStore';
 import { useSharepicLiveStore } from '../../stores/sharepicLiveStore';
 import { useSocialPostLiveStore } from '../../stores/socialPostLiveStore';
+import { getClientToolExecutor } from '../clientTools';
 import { REEL_UPLOAD_PART_NAME, type ReelUploadData } from '../GrueneratorAttachmentAdapter';
 import { streamErrorMessage } from '../streamErrorMessage';
 
-import { getClientToolExecutor } from '../clientTools';
-
-import { buildRequestBody, resolveRuntimeThreadId, type ThreadBinding } from './buildRequestBody';
+import {
+  buildRequestBody,
+  resolveRuntimeThreadId,
+  type ThreadBinding,
+  type ExtractedAttachment,
+  type FormattedMessage,
+  type InjectedCurrentDocument,
+} from './buildRequestBody';
 import { parseSSEStream } from './parseSSEStream';
 import { truncateAttachmentContext } from './truncation';
 
-import type {
-  ExtractedAttachment,
-  FormattedMessage,
-  InjectedCurrentDocument,
-} from './buildRequestBody';
 import type {
   GrueneratorAdapterConfig,
   GrueneratorAdapterCallbacks,
@@ -29,13 +30,13 @@ import type {
   ToolCallPart,
 } from './types';
 import type { ThreadMode } from '../../stores/chatStore';
-import type { CurrentBoard } from '@gruenerator/contracts';
 import type {
   ChatModelAdapter,
   ChatModelRunOptions,
   ChatModelRunResult,
   CompleteAttachment,
 } from '@assistant-ui/react';
+import type { CurrentBoard } from '@gruenerator/contracts';
 
 export type {
   GrueneratorMessageMetadata,
@@ -57,7 +58,7 @@ const MAX_CLIENT_TOOL_ROUNDS = 3;
  */
 function routeUnauthorized(response: Response): void {
   if (response.status === 401 || response.status === 403) {
-    useChatConfigStore.getState().onUnauthorized?.();
+    void useChatConfigStore.getState().onUnauthorized?.();
   }
 }
 

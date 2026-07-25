@@ -92,7 +92,7 @@ describe('createPacedLabelController', () => {
     expect(c.get()).toBe('b'); // 'b' still holding its window
     clk.advance(500);
     expect(c.get()).toBe('c');
-    expect(onChange.mock.calls.map((c2) => c2[0])).toEqual(['b', 'c']);
+    expect(onChange.mock.calls.map((c2: unknown[]) => c2[0])).toEqual(['b', 'c']);
   });
 
   it('ignores a push equal to the current value', () => {

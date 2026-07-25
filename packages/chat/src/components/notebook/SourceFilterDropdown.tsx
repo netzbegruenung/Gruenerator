@@ -1,6 +1,5 @@
 'use client';
 
-import { ListFilter } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -8,6 +7,8 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuSeparator,
 } from '@gruenerator/ui';
+import { ListFilter } from 'lucide-react';
+
 import { cn, composerToolbarButtonClass } from '../../lib/utils';
 
 export interface SourceFilterCollection {

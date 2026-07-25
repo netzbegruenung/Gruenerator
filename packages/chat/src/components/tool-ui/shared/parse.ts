@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { type z } from 'zod';
 
 function formatZodPath(path: Array<string | number | symbol>): string {
   if (path.length === 0) return 'root';

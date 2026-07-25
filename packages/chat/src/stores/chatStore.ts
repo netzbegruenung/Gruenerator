@@ -1,5 +1,3 @@
-import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
 import {
   TEXT_MODELS,
   TEXT_MODEL_BY_ID,
@@ -7,13 +5,18 @@ import {
   type TextModelOption,
   type TextProvider,
 } from '@gruenerator/shared/models';
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+
 import { AUTO_MODEL_ID, type AutoModelId, type SelectedModel } from '../lib/resolveAutoModel';
+
 import { useArtifactLiveStore } from './artifactLiveStore';
+import { useComputeExportStore } from './computeExportStore';
+import { useLastComputeStore } from './lastComputeStore';
+import { usePythonFileStore } from './pythonFileStore';
 import { useReelLiveStore } from './reelLiveStore';
 import { useSharepicLiveStore } from './sharepicLiveStore';
-import { useLastComputeStore } from './lastComputeStore';
-import { useComputeExportStore } from './computeExportStore';
-import { usePythonFileStore } from './pythonFileStore';
+
 import type { ChatApiClient } from '../context/ChatContext';
 
 export const MODEL_OPTIONS = TEXT_MODELS;

@@ -1,17 +1,19 @@
 'use client';
 
-import { memo } from 'react';
-import { Telescope, Zap } from 'lucide-react';
 import {
   DropdownMenuItem,
   ResponsiveMenu,
   ResponsiveMenuSection,
   ResponsiveMenuItem,
 } from '@gruenerator/ui';
-import { composerToolbarButtonClass } from '../lib/utils';
-import { useChatDensity } from './thread/chatDensityContext';
+import { Telescope, Zap } from 'lucide-react';
+import { memo } from 'react';
+
 import { SEARCH_DEPTHS, type SearchDepthIconKey } from '../lib/composerControls';
 import { useScopedSearchMode, useScopedSetSearchMode } from '../lib/useScopedAgentState';
+import { composerToolbarButtonClass } from '../lib/utils';
+
+import { useChatDensity } from './thread/chatDensityContext';
 
 // Presentation only: the modes, labels, and descriptions come from the shared
 // SEARCH_DEPTHS list; this maps the semantic icon key → lucide component.

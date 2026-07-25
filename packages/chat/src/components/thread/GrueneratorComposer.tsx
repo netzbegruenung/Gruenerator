@@ -1,6 +1,5 @@
 'use client';
 
-import { memo, useRef, useState, useCallback, useEffect } from 'react';
 import {
   AuiIf,
   ComposerPrimitive,
@@ -9,10 +8,12 @@ import {
   useVoiceState,
 } from '@assistant-ui/react';
 import { useAuiState } from '@assistant-ui/store';
-import { ArrowUp, Mic, Plug, Square, X } from 'lucide-react';
+import { getSystemAgent } from '@gruenerator/shared/agents';
 import { mcpBrandColor } from '@gruenerator/shared/utils';
+import { cn, useIsMobile } from '@gruenerator/ui';
+import { ArrowUp, Mic, Plug, Square, X } from 'lucide-react';
+import { memo, useRef, useState, useCallback, useEffect } from 'react';
 import { RiVoiceAiFill } from 'react-icons/ri';
-import type { IconType } from 'react-icons';
 import {
   SiGithub,
   SiNotion,
@@ -28,39 +29,42 @@ import {
   SiJira,
   SiConfluence,
 } from 'react-icons/si';
-import { cn, useIsMobile } from '@gruenerator/ui';
-import { useScopedAgentId } from '../../lib/useScopedAgentState';
-import { useAgentStore } from '../../stores/chatStore';
-import { SearchDepthToggle } from '../SearchDepthToggle';
-import { getSystemAgent } from '@gruenerator/shared/agents';
-import { ComposerAttachments } from '../assistant-ui/attachment';
-import { MentionPopover } from './MentionPopover';
-import { detectMention } from '../../lib/mentionDetection';
-import { getFilteredMentionables } from '../../lib/mentionDetection';
-import { computeMentionInsertion } from '../../lib/mentionInsertion';
-import { FileMentionPopover } from './FileMentionPopover';
-import { WolkeMentionPopover } from './WolkeMentionPopover';
-import { ConnectMentionPopover } from './ConnectMentionPopover';
-import { CanvaMentionPopover } from './CanvaMentionPopover';
-import { VorlagenMentionPopover } from './VorlagenMentionPopover';
-import { WebMentionPopover } from './WebMentionPopover';
-import type { CollabDocSelection } from '../../lib/documentMentionables';
-import type {
-  WolkeFileToken,
-  ConnectFileToken,
-  CanvaDesignToken,
-  VorlageToken,
-} from '../../lib/mentionables';
-import { PlusMenu, type ComposerPreset } from './PlusMenu';
-import { ModelPicker } from './ModelPicker';
-import { getCaretCoords } from '../../lib/caretPosition';
-import { registerDocumentSlug } from '../../lib/documentMentionables';
+
+import {
+  registerDocumentSlug,
+  type DocumentMention,
+  type CollabDocSelection,
+} from '../../lib/documentMentionables';
 import { useMentionablesQuery } from '../../hooks/useMentionablesQuery';
 import { useChatDensity } from './chatDensityContext';
-import type { Mentionable } from '../../lib/mentionables';
-import type { DocumentMention } from '../../lib/documentMentionables';
+import {
+  type Mentionable,
+  type WolkeFileToken,
+  type ConnectFileToken,
+  type CanvaDesignToken,
+  type VorlageToken,
+} from '../../lib/mentionables';
 import { useUserProfileStore } from '../../stores/userProfileStore';
 import { handleAttachmentAddError } from '../../lib/attachmentErrorHandler';
+import { getCaretCoords } from '../../lib/caretPosition';
+import { getFilteredMentionables, detectMention } from '../../lib/mentionDetection';
+import { computeMentionInsertion } from '../../lib/mentionInsertion';
+import { useScopedAgentId } from '../../lib/useScopedAgentState';
+import { useAgentStore } from '../../stores/chatStore';
+import { ComposerAttachments } from '../assistant-ui/attachment';
+import { SearchDepthToggle } from '../SearchDepthToggle';
+
+import { CanvaMentionPopover } from './CanvaMentionPopover';
+import { ConnectMentionPopover } from './ConnectMentionPopover';
+import { FileMentionPopover } from './FileMentionPopover';
+import { MentionPopover } from './MentionPopover';
+import { ModelPicker } from './ModelPicker';
+import { PlusMenu, type ComposerPreset } from './PlusMenu';
+import { VorlagenMentionPopover } from './VorlagenMentionPopover';
+import { WebMentionPopover } from './WebMentionPopover';
+import { WolkeMentionPopover } from './WolkeMentionPopover';
+
+import { type IconType } from 'react-icons';
 
 // Real vendor logo for the pinned-connector chip, keyword-matched on the
 // connector name/host (mirrors apps/web McpSection). No match → generic Plug.
@@ -730,6 +734,8 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         case 'Escape':
           e.preventDefault();
           dismissPopover();
+          break;
+        default:
           break;
       }
     },

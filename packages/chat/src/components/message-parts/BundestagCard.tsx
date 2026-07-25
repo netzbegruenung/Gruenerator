@@ -1,6 +1,5 @@
 'use client';
 
-import { FileText, ExternalLink, Quote } from 'lucide-react';
 import {
   dipSearchUrl,
   btpProtokollPdfUrl,
@@ -9,6 +8,7 @@ import {
   type BtSpeech,
   type BtVorgang,
 } from '@gruenerator/contracts';
+import { FileText, ExternalLink, Quote } from 'lucide-react';
 
 import { BundestagEagleIcon } from './BundestagEagleIcon';
 

@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
-import { cn } from '../lib/utils';
 import { Sun, Moon, LogOut, MoreVertical } from 'lucide-react';
-import { useTheme } from './ThemeProvider';
+import { useState } from 'react';
+
+import { cn } from '../lib/utils';
+
 import { ChatThreadList } from './ChatThreadList';
+import { useTheme } from './ThemeProvider';
 
 interface SidebarProps {
   isOpen: boolean;

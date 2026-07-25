@@ -1,16 +1,17 @@
 'use client';
 
-import { memo, useMemo } from 'react';
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
+import { memo, useMemo } from 'react';
+import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
+
 import { useCitations } from '../../context/CitationContext';
 import { useMarkdownSmooth } from '../../context/MarkdownStreamingContext';
+import { makeCitationComponents } from '../../lib/citationMarkdownComponents';
 import { escapeCitationMarkers } from '../../lib/citationProcessing';
 import { maybeLoadKatexCss } from '../../lib/katexCss';
 import { normalizeMathDelimiters, normalizeUnicodeMath } from '../../lib/normalizeMathDelimiters';
-import { makeCitationComponents } from '../../lib/citationMarkdownComponents';
 
 const remarkPlugins = [remarkGfm, remarkMath];
 // `throwOnError: false` → broken or half-streamed LaTeX renders as raw text
