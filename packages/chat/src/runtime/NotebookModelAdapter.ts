@@ -1,19 +1,21 @@
+import {
+  type ChatProgress,
+  type Citation as ChatCitation,
+  type FallbackInfo,
+} from '../hooks/useChatGraphStream';
+import { AUTO_MODEL_ID, resolveAutoModel } from '../lib/resolveAutoModel';
+import { parseSSELine } from '../lib/sseParser';
+import { useChatConfigStore } from '../stores/chatConfigStore';
+import { useAgentStore } from '../stores/chatStore';
+
+import { ChatStreamError, streamErrorMessage } from './streamErrorMessage';
+
 import type {
   ChatModelAdapter,
   ChatModelRunOptions,
   ChatModelRunResult,
 } from '@assistant-ui/react';
 import type { NotebookCitation, NotebookSource } from '@gruenerator/contracts';
-import {
-  type ChatProgress,
-  type Citation as ChatCitation,
-  type FallbackInfo,
-} from '../hooks/useChatGraphStream';
-import { parseSSELine } from '../lib/sseParser';
-import { AUTO_MODEL_ID, resolveAutoModel } from '../lib/resolveAutoModel';
-import { useAgentStore } from '../stores/chatStore';
-import { useChatConfigStore } from '../stores/chatConfigStore';
-import { ChatStreamError, streamErrorMessage } from './streamErrorMessage';
 
 function normalizeCiteMarkers(text: string): string {
   return text.replace(/\[cite:(\d+)\]/g, '[$1]');

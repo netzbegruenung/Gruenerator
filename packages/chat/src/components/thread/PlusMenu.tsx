@@ -1,6 +1,15 @@
 'use client';
 
-import { memo, useState } from 'react';
+import {
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  ResponsiveMenu,
+  ResponsiveMenuSection,
+  ResponsiveMenuItem,
+} from '@gruenerator/ui';
 import {
   BookOpen,
   Check,
@@ -17,20 +26,8 @@ import {
   Wand2,
   Zap,
 } from 'lucide-react';
-import {
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  ResponsiveMenu,
-  ResponsiveMenuSection,
-  ResponsiveMenuItem,
-} from '@gruenerator/ui';
-import { composerToolbarButtonClass } from '../../lib/utils';
-import { useChatDensity } from './chatDensityContext';
-import { useSkillFavoritesStore } from '../../stores/skillFavoritesStore';
-import { useUserProfileStore } from '../../stores/userProfileStore';
+import { memo, useState } from 'react';
+
 import {
   getAgentMentionables,
   getCustomAgentMentionables,
@@ -40,7 +37,6 @@ import {
   notebookMentionables,
   type Mentionable,
 } from '../../lib/mentionables';
-import { useAgentStore } from '../../stores/chatStore';
 import {
   useScopedThreadMode,
   useScopedSelectedNotebookId,
@@ -50,7 +46,13 @@ import {
   useScopedSetCustomSystemPrompt,
   useScopedSetCustomRoleName,
 } from '../../lib/useScopedAgentState';
+import { composerToolbarButtonClass } from '../../lib/utils';
+import { useAgentStore } from '../../stores/chatStore';
+import { useSkillFavoritesStore } from '../../stores/skillFavoritesStore';
+import { useUserProfileStore } from '../../stores/userProfileStore';
 import { SkillLibraryModal } from '../skills/SkillLibraryModal';
+
+import { useChatDensity } from './chatDensityContext';
 
 export interface ComposerPreset {
   key: string;

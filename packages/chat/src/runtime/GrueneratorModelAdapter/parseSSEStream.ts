@@ -5,19 +5,23 @@ import {
   isCanvasTemplateType,
   chatStreamEventSchemas,
   type ChatErrorEventPayload,
+  type SocialPostPayload,
+  type BundestagPayload,
+  type BahnPayload,
+  type SharepicUpdatedEvent,
 } from '@gruenerator/contracts';
 
 import { coerceSharepicVariants } from '../../hooks/useChatGraphStream';
-import { ChatStreamError } from '../streamErrorMessage';
+import { pickStageLabels } from '../../lib/progressLabels';
 import { parseSSELine } from '../../lib/sseParser';
 import { INTENT_TO_TOOL, DEEP_TOOL_MAP, formatNamespacedToolLabel } from '../../lib/toolMappings';
-import { pickStageLabels } from '../../lib/progressLabels';
+import { useArtifactLiveStore, type ActiveArtifact } from '../../stores/artifactLiveStore';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
-import { useArtifactLiveStore, type ActiveArtifact } from '../../stores/artifactLiveStore';
 import { useReelLiveStore } from '../../stores/reelLiveStore';
 import { useSharepicLiveStore } from '../../stores/sharepicLiveStore';
 import { useSocialPostLiveStore } from '../../stores/socialPostLiveStore';
+import { ChatStreamError } from '../streamErrorMessage';
 
 import type {
   GrueneratorAdapterCallbacks,
@@ -26,7 +30,6 @@ import type {
   SourcePart,
   StreamOutcome,
 } from './types';
-import type { ChatModelRunResult } from '@assistant-ui/react';
 import type {
   ProgressStage,
   SearchIntent,
@@ -39,6 +42,7 @@ import type {
   ProgressStep,
   ChartData,
   ComputeData,
+  SharepicData,
 } from '../../hooks/useChatGraphStream';
 import type {
   ConfirmActionData,
@@ -46,6 +50,7 @@ import type {
   ReelPickerData,
   ReelProcessingData,
 } from '../../types/messageMetadata';
+import type { ChatModelRunResult } from '@assistant-ui/react';
 
 /** Display titles for agentic sharepic-loop steps (tool_step_start events). */
 const TOOL_STEP_TITLES: Record<string, string> = {
@@ -131,13 +136,13 @@ export async function* parseSSEStream(
   let receivedSearchResults: SearchResult[] = [];
   let receivedCitations: Citation[] = [];
   let receivedImage: GeneratedImage | null = null;
-  let receivedSharepicData: import('../../hooks/useChatGraphStream').SharepicData | null = null;
-  let receivedSocialPostData: import('@gruenerator/contracts').SocialPostPayload | null = null;
+  let receivedSharepicData: SharepicData | null = null;
+  let receivedSocialPostData: SocialPostPayload | null = null;
   let receivedChartData: ChartData | null = null;
   let receivedArtifactData: ActiveArtifact | null = null;
   let receivedComputeData: ComputeData | null = null;
-  let receivedBundestagData: import('@gruenerator/contracts').BundestagPayload | null = null;
-  let receivedBahnData: import('@gruenerator/contracts').BahnPayload | null = null;
+  let receivedBundestagData: BundestagPayload | null = null;
+  let receivedBahnData: BahnPayload | null = null;
   let receivedFollowUpSuggestions: string[] = [];
   let receivedMetadata: StreamMetadata | null = null;
   let receivedConfirmAction: ConfirmActionData | null = null;
@@ -552,7 +557,7 @@ export async function* parseSSEStream(
 
         case 'bundestag': {
           const { bundestag } = data as {
-            bundestag?: import('@gruenerator/contracts').BundestagPayload;
+            bundestag?: BundestagPayload;
           };
           if (bundestag) receivedBundestagData = bundestag;
           yield buildResult();
@@ -560,7 +565,7 @@ export async function* parseSSEStream(
         }
 
         case 'bahn': {
-          const { bahn } = data as { bahn?: import('@gruenerator/contracts').BahnPayload };
+          const { bahn } = data as { bahn?: BahnPayload };
           if (bahn) receivedBahnData = bahn;
           yield buildResult();
           break;
@@ -611,7 +616,7 @@ export async function* parseSSEStream(
         case 'social_post_complete': {
           const payload = data as {
             message: string;
-            post?: import('@gruenerator/contracts').SocialPostPayload;
+            post?: SocialPostPayload;
             error?: string;
           };
           if (!payload.error && payload.post) {
@@ -628,7 +633,7 @@ export async function* parseSSEStream(
         case 'social_post_updated': {
           const payload = data as {
             postId: string;
-            post: import('@gruenerator/contracts').SocialPostPayload;
+            post: SocialPostPayload;
             summary: string;
           };
           useSocialPostLiveStore.getState().upsertEntry(payload.post);
@@ -650,7 +655,7 @@ export async function* parseSSEStream(
         case 'sharepic_updated': {
           // Validated by the contract gate above — canvasType is guaranteed
           // canonical, so junk template types can never enter the live store.
-          const payload = data as import('@gruenerator/contracts').SharepicUpdatedEvent;
+          const payload = data as SharepicUpdatedEvent;
           useSharepicLiveStore.getState().upsertEntry(payload.variantId, {
             canvasId: payload.canvasId,
             canvasType: payload.canvasType,
@@ -1222,6 +1227,9 @@ export async function* parseSSEStream(
           transitionStep('error');
           throw new ChatStreamError(payload.error ?? 'Es ist ein Fehler aufgetreten.', payload);
         }
+        default:
+          // Unknown event names pass through untouched (forward compatibility).
+          break;
       }
     }
   }

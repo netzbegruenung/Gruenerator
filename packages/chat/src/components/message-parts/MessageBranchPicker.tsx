@@ -1,7 +1,7 @@
 'use client';
 
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMessage, useMessageRuntime } from '@assistant-ui/react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 /**
  * Compact ‹ n/m › switcher shown when a message has sibling branches — created

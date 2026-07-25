@@ -1,13 +1,15 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+
 import {
   useUserShareLinksQuery,
   useWolkeBrowseQuery,
   type ChatWolkeFile,
 } from '../../hooks/useMentionablesQuery';
-import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { type WolkeFileToken } from '../../lib/mentionables';
+import { useChatConfigStore } from '../../stores/chatConfigStore';
+
 import { MentionFloatingPanel } from './MentionFloatingPanel';
 
 interface WolkeMentionPopoverProps {

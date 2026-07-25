@@ -1,8 +1,10 @@
 'use client';
 
 import { createContext, useCallback, useContext, useMemo } from 'react';
-import type { Citation } from '../hooks/useChatGraphStream';
+
 import { useChatConfigStore } from '../stores/chatConfigStore';
+
+import type { Citation } from '../hooks/useChatGraphStream';
 
 export type FetchFullTextFn = (url: string, collectionId: string) => Promise<string | null>;
 
@@ -47,8 +49,8 @@ export function useFetchFullText(): FetchFullTextFn {
         const params = new URLSearchParams({ url: sourceUrl, collection: collectionId });
         const res = await chatFetch(`/api/documents/qdrant/system-full-text?${params}`);
         if (!res.ok) return null;
-        const json = await res.json();
-        return json?.data?.fullText ?? null;
+        const json = (await res.json()) as { data?: { fullText?: string | null } };
+        return json.data?.fullText ?? null;
       } catch {
         return null;
       }

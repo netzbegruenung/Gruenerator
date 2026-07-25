@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useState, type ComponentProps } from 'react';
+import { type MessagePrimitive, useAuiState } from '@assistant-ui/react';
 import { ChevronDown } from 'lucide-react';
-import { MessagePrimitive, useAuiState } from '@assistant-ui/react';
+import { useMemo, useState, type ComponentProps } from 'react';
 import { useShallow } from 'zustand/shallow';
+
 import { toolCountLabel } from '../../lib/toolMappings';
 
 /** Derived from the `MessagePrimitive.Parts` slot so the props can't drift. */

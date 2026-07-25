@@ -1,7 +1,9 @@
-import { memo } from 'react';
-import { Clapperboard, Check } from 'lucide-react';
 import { formatRelativeTime } from '@gruenerator/shared/utils';
+import { Clapperboard, Check } from 'lucide-react';
+import { memo } from 'react';
+
 import { useReelLiveStore } from '../../stores/reelLiveStore';
+
 import type { ReelPickerData } from '../../types/messageMetadata';
 
 /**

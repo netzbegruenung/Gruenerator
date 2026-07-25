@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useEffect, useMemo, useState } from 'react';
+import { isModelEnabledByDefault } from '@gruenerator/shared/models';
 import {
   Badge,
   cn,
@@ -9,14 +9,15 @@ import {
   ResponsiveMenuSection,
   ResponsiveMenuItem,
 } from '@gruenerator/ui';
-import { isModelEnabledByDefault } from '@gruenerator/shared/models';
+import { memo, useEffect, useMemo, useState } from 'react';
 
-import { composerToolbarButtonClass } from '../../lib/utils';
-import { useChatDensity } from './chatDensityContext';
-import { MODEL_OPTIONS } from '../../stores/chatStore';
-import { useScopedSelectedModel, useScopedSetSelectedModel } from '../../lib/useScopedAgentState';
 import { useModelPreferencesContext } from '../../context/ModelPreferencesContext';
 import { AUTO_MODEL_ID, AUTO_MODEL_OPTION, type SelectedModel } from '../../lib/resolveAutoModel';
+import { useScopedSelectedModel, useScopedSetSelectedModel } from '../../lib/useScopedAgentState';
+import { composerToolbarButtonClass } from '../../lib/utils';
+import { MODEL_OPTIONS } from '../../stores/chatStore';
+
+import { useChatDensity } from './chatDensityContext';
 
 // Shared definition (see resolveAutoModel) — aliased to keep call sites terse.
 const AUTO_OPTION = AUTO_MODEL_OPTION;

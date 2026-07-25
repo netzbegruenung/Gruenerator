@@ -31,6 +31,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
     "test": "vitest run",
     "test:pyodide": "PYODIDE_TESTS=1 vitest run src/pyodide/runCore.integration.vitest.ts"
   },

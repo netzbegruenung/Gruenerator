@@ -1,5 +1,7 @@
 import { type ReactNode, Children, isValidElement, Fragment, createElement } from 'react';
+
 import { CitationBadge } from '../components/message-parts/CitationPopover';
+
 import type { Citation } from '../hooks/useChatGraphStream';
 
 const CITATION_REGEX = /\[(\d+)\]/g;

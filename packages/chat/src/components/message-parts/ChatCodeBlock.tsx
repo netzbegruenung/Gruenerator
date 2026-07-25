@@ -1,3 +1,5 @@
+import { type ChatChartData } from '@gruenerator/ui';
+import { Check, ChevronDown, ChevronRight, Copy, FileDown, Loader2, Play } from 'lucide-react';
 import {
   type ReactNode,
   Suspense,
@@ -7,16 +9,16 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { Check, ChevronDown, ChevronRight, Copy, FileDown, Loader2, Play } from 'lucide-react';
-import { type ChatChartData } from '@gruenerator/ui';
-import { highlightCode, normalizeLang } from '../../lib/shikiHighlight';
+
 import { parseComputeResult } from '../../lib/computeResult';
 import { downloadBase64, mimeFromFilename } from '../../lib/downloadBlob';
+import { highlightCode, normalizeLang } from '../../lib/shikiHighlight';
 import { useChatConfigStore, type CodeExecutionResult } from '../../stores/chatConfigStore';
-import { usePythonFileStore } from '../../stores/pythonFileStore';
 import { useLastComputeStore } from '../../stores/lastComputeStore';
-import { MermaidDiagram } from './MermaidDiagram';
+import { usePythonFileStore } from '../../stores/pythonFileStore';
+
 import { LazyChatChart } from './LazyChatChart';
+import { MermaidDiagram } from './MermaidDiagram';
 import { useIsMessageStreaming } from './messageStreamingContext';
 
 /** Heuristic: does this code operate on the pre-loaded pandas `df`? Used to (a)
@@ -231,7 +233,7 @@ export function ChatCodeBlock({ children }: { children?: ReactNode }) {
         ) : html ? (
           <div
             className="overflow-x-auto p-4 text-sm [&_pre]:!m-0 [&_pre]:!bg-transparent"
-            // eslint-disable-next-line react/no-danger
+
             dangerouslySetInnerHTML={{ __html: html }}
           />
         ) : (

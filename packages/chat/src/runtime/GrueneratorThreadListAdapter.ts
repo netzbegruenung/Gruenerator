@@ -1,10 +1,12 @@
 'use client';
 
-import type { ChatApiClient } from '../context/ChatContext';
 import { isUnauthorizedError } from '@gruenerator/shared/api';
-import type { RemoteThreadListAdapter } from '@assistant-ui/react';
 import { createAssistantStream } from 'assistant-stream';
+
 import { useAgentStore } from '../stores/chatStore';
+
+import type { ChatApiClient } from '../context/ChatContext';
+import type { RemoteThreadListAdapter } from '@assistant-ui/react';
 
 interface ApiThread {
   id: string;

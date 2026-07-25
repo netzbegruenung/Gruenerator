@@ -1,7 +1,5 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Check } from 'lucide-react';
 import {
   Badge,
   Command,
@@ -13,7 +11,11 @@ import {
   ScrollArea,
   Skeleton,
 } from '@gruenerator/ui';
+import { Check } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+
 import { useCombinedContentQuery } from '../../hooks/useFileMentionData';
+
 import type { UserDocumentItem, UserTextItem } from '../../lib/documentMentionables';
 
 interface DocumentChatPickerProps {

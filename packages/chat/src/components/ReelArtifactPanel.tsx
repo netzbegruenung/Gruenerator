@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { findActiveSegment, parseStoredSubtitles } from '@gruenerator/shared/subtitle-editor';
 import { Clapperboard, ExternalLink, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { useReelLiveStore, type ActiveReel } from '../stores/reelLiveStore';

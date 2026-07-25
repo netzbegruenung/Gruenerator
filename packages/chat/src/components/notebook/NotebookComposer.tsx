@@ -1,8 +1,6 @@
 'use client';
 
 import { useAuiState } from '@assistant-ui/store';
-import { BookOpen, Zap } from 'lucide-react';
-import { LuSettings2 } from 'react-icons/lu';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -16,11 +14,14 @@ import {
   DropdownMenuSubContent,
   DropdownMenuLabel,
 } from '@gruenerator/ui';
+import { BookOpen, Zap } from 'lucide-react';
+import { LuSettings2 } from 'react-icons/lu';
+
+import { composerToolbarButtonClass } from '../../lib/utils';
+import { GrueneratorComposer } from '../thread/GrueneratorComposer';
 
 import { type CategoryFilterField } from './CategoryFilterDropdown';
 import { type SourceFilterCollection } from './SourceFilterDropdown';
-import { composerToolbarButtonClass } from '../../lib/utils';
-import { GrueneratorComposer } from '../thread/GrueneratorComposer';
 
 export interface SourceFilterConfig {
   collections: SourceFilterCollection[];

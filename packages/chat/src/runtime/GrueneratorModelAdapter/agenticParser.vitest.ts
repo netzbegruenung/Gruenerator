@@ -1,6 +1,5 @@
-import { describe, it, expect } from 'vitest';
-
 import { chatStreamEventSchemas } from '@gruenerator/contracts';
+import { describe, it, expect } from 'vitest';
 
 import { formatNamespacedToolLabel } from '../../lib/toolMappings';
 

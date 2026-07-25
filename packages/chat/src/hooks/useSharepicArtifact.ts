@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 
-import { useAgentStore } from '../stores/chatStore';
 import { useChatConfigStore } from '../stores/chatConfigStore';
+import { useAgentStore } from '../stores/chatStore';
 import { useSharepicLiveStore } from '../stores/sharepicLiveStore';
 
 import { getCachedSharepicRender, seedThumbnailCache } from './useSharepicThumbnail';

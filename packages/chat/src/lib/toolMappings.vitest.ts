@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { toolCountLabel } from './toolMappings';
 
 describe('toolCountLabel', () => {

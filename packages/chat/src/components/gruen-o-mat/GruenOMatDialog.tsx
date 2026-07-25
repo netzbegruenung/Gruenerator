@@ -2,6 +2,7 @@ import { Leaf } from 'lucide-react';
 
 import { NotebookChatProvider } from '../../runtime/NotebookChatProvider';
 import { ChatModalDialog } from '../modal/ChatModalDialog';
+
 import { ModalThread } from './ModalThread';
 
 export interface GruenOMatDialogProps {

@@ -1,6 +1,6 @@
-import type { TextModelId } from '@gruenerator/shared/models';
-import type { Agent } from '@gruenerator/shared/agents';
 import type { ThreadMode } from '../stores/chatStore';
+import type { Agent } from '@gruenerator/shared/agents';
+import type { TextModelId } from '@gruenerator/shared/models';
 
 export const AUTO_MODEL_ID = 'auto' as const;
 export type AutoModelId = typeof AUTO_MODEL_ID;

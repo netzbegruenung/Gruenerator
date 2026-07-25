@@ -14,10 +14,8 @@ import { memo, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-import { useChatConfigStore } from '../stores/chatConfigStore';
 import { makeCitationComponents } from '../lib/citationMarkdownComponents';
 import { escapeCitationMarkers } from '../lib/citationProcessing';
-import { cn } from '../lib/utils';
 import {
   getString,
   getArray,
@@ -27,6 +25,8 @@ import {
   researchCitationToSerializable,
   type ResearchCitation,
 } from '../lib/toolResults';
+import { cn } from '../lib/utils';
+import { useChatConfigStore } from '../stores/chatConfigStore';
 
 import { CitationList } from './tool-ui/citation';
 

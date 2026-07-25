@@ -5,10 +5,13 @@
  * Uses ChatAdapter for platform-agnostic API communication.
  */
 
+import { sharepicVariantSchema } from '@gruenerator/contracts';
 import { useState, useCallback, useRef } from 'react';
+
 import { parseSSELine } from '../lib/sseParser';
 import { useChatConfigStore } from '../stores/chatConfigStore';
-import { sharepicVariantSchema } from '@gruenerator/contracts';
+
+import type { ProcessedFile } from '../lib/fileUtils';
 import type {
   GeneratedImagePayload,
   SearchResultPayload,
@@ -18,7 +21,6 @@ import type {
   SearchIntent,
   SharepicVariant,
 } from '@gruenerator/contracts';
-import type { ProcessedFile } from '../lib/fileUtils';
 
 export type ProgressStage =
   | 'idle'
@@ -294,8 +296,12 @@ export function useChatGraphStream(
         });
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || `HTTP error ${response.status}`);
+          const errorData: unknown = await response.json().catch(() => ({}));
+          const errorMessage =
+            errorData && typeof errorData === 'object' && 'error' in errorData
+              ? String((errorData as { error?: unknown }).error)
+              : undefined;
+          throw new Error(errorMessage || `HTTP error ${response.status}`);
         }
 
         const reader = response.body?.getReader();
@@ -305,7 +311,7 @@ export function useChatGraphStream(
 
         const decoder = new TextDecoder();
         let buffer = '';
-        let currentEvent = { type: '' };
+        const currentEvent = { type: '' };
         let accumulatedText = '';
         let receivedCitations: Citation[] = [];
         let receivedSearchResults: SearchResult[] = [];
@@ -519,6 +525,9 @@ export function useChatGraphStream(
                 const { error } = data as { error: string };
                 throw new Error(error);
               }
+
+              default:
+                break;
             }
           }
         }

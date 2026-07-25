@@ -1,13 +1,15 @@
 'use client';
 
-import type { Toolkit } from '@assistant-ui/react';
+import { UI_TOOL_NAMES, type UiToolName } from '../../lib/toolRegistry';
 import { ToolCallUI } from '../ToolCallUI';
+
 import { AskHumanToolUI } from './AskHumanToolUI';
 import { McpToolUI } from './McpToolUI';
-import { RunPythonToolUI } from './RunPythonToolUI';
 import { PressemitteilungExamplesToolRender } from './PressemitteilungExamplesToolRender';
 import { ResearchToolRender } from './ResearchToolRender';
-import { UI_TOOL_NAMES, type UiToolName } from '../../lib/toolRegistry';
+import { RunPythonToolUI } from './RunPythonToolUI';
+
+import type { Toolkit } from '@assistant-ui/react';
 
 function createToolRender(toolName: string) {
   return ({ args, result }: { args: Record<string, unknown>; result?: unknown }) => (
