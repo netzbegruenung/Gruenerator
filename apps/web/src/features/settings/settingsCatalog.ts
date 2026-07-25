@@ -55,18 +55,25 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
       'Darstellung des schwebenden Feedback-Buttons: mit Text, nur als Icon oder ganz ausgeblendet — er lässt sich in jede Bildschirmecke ziehen',
   },
   {
-    id: 'allgemein.animationen',
-    tab: 'allgemein',
+    id: 'barrierefreiheit.animationen',
+    tab: 'barrierefreiheit',
     title: 'Animationen reduzieren',
     description:
       'Schaltet dekorative Animationen und Übergänge ab — folgt sonst automatisch der Einstellung deines Betriebssystems',
   },
   {
-    id: 'allgemein.transparenz',
-    tab: 'allgemein',
+    id: 'barrierefreiheit.transparenz',
+    tab: 'barrierefreiheit',
     title: 'Transparenz reduzieren',
     description:
       'Entfernt durchscheinende Flächen und Unschärfe-Effekte — folgt sonst automatisch der Einstellung deines Betriebssystems',
+  },
+  {
+    id: 'barrierefreiheit.sprunglink',
+    tab: 'barrierefreiheit',
+    title: 'Sprung-Link zum Inhalt',
+    description:
+      'Blendet ganz oben einen Link ein, der beim Tabben den Fokus direkt auf den Hauptinhalt setzt — standardmäßig aus',
   },
   {
     id: 'allgemein.touren',
