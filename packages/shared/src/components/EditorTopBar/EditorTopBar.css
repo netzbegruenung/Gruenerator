@@ -15,7 +15,7 @@
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
-[data-theme="dark"] .editor-topbar {
+[data-theme='dark'] .editor-topbar {
   background: rgba(30, 30, 30, 0.7);
   border-bottom-color: rgba(255, 255, 255, 0.08);
 }
@@ -43,7 +43,9 @@
   padding: 0.125rem 0.375rem;
   border-radius: 0.25rem;
   border: 1px solid transparent;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
 
 .editor-topbar__title--editable:hover {
@@ -51,7 +53,7 @@
   background: rgba(0, 0, 0, 0.03);
 }
 
-[data-theme="dark"] .editor-topbar__title--editable:hover {
+[data-theme='dark'] .editor-topbar__title--editable:hover {
   border-color: var(--grey-600);
   background: rgba(255, 255, 255, 0.05);
 }
@@ -65,15 +67,15 @@
   max-width: 24rem;
   width: 24rem;
   background: transparent;
-  border: 1px solid var(--secondary-400, #85A899);
+  border: 1px solid var(--secondary-400, #85a899);
   border-radius: 0.25rem;
   outline: none;
   font-family: inherit;
   line-height: inherit;
 }
 
-[data-theme="dark"] .editor-topbar__title-input {
-  border-color: var(--secondary-600, #5F8575);
+[data-theme='dark'] .editor-topbar__title-input {
+  border-color: var(--secondary-600, #5f8575);
 }
 
 .editor-topbar__right {
@@ -81,6 +83,7 @@
   align-items: center;
   gap: 0.25rem;
   flex-shrink: 0;
+  min-width: 0;
 }
 
 /* ─────────────────────────────────────────────
@@ -106,23 +109,23 @@
   color: var(--grey-800);
 }
 
-[data-theme="dark"] .glass-btn {
+[data-theme='dark'] .glass-btn {
   color: var(--grey-400);
 }
 
-[data-theme="dark"] .glass-btn:hover {
+[data-theme='dark'] .glass-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   color: var(--grey-200);
 }
 
 .glass-btn.active {
-  background: var(--secondary-100, #D5E1DC);
-  color: var(--secondary-600, #5F8575);
+  background: var(--secondary-100, #d5e1dc);
+  color: var(--secondary-600, #5f8575);
 }
 
-[data-theme="dark"] .glass-btn.active {
+[data-theme='dark'] .glass-btn.active {
   background: rgba(95, 133, 117, 0.2);
-  color: var(--secondary-400, #85A899);
+  color: var(--secondary-400, #85a899);
 }
 
 .glass-btn svg {
@@ -160,8 +163,13 @@
 }
 
 @keyframes editorTopBarPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .status-label {
@@ -183,7 +191,7 @@
   flex-shrink: 0;
 }
 
-[data-theme="dark"] .glass-divider {
+[data-theme='dark'] .glass-divider {
   background: var(--grey-700);
 }
 
@@ -191,15 +199,128 @@
    Mobile Adjustments
    ───────────────────────────────────────────── */
 
-@media (max-width: 640px) {
+/* 767px, matching the collapse threshold in EditorTopBar.tsx and the editors'
+   own mobile layout switch. */
+@media (max-width: 767px) {
   .editor-topbar {
-    height: 2.75rem;
+    height: auto;
+    min-height: 3rem;
     padding: 0 0.5rem;
+    padding-top: env(safe-area-inset-top);
+    gap: 0.5rem;
   }
 
-  .editor-topbar__title,
-  .editor-topbar__title-input,
+  /* The title is the primary orientation cue — truncate it, never hide it. */
+  .editor-topbar__title {
+    max-width: none;
+    font-size: 0.875rem;
+  }
+
+  .editor-topbar__title-input {
+    max-width: 100%;
+    width: 100%;
+    /* 16px: anything smaller makes iOS Safari auto-zoom on focus. */
+    font-size: 1rem;
+  }
+
   .editor-topbar__divider {
     display: none;
   }
+
+  /* Saved/syncing is conveyed by the dot alone; the label costs scarce width. */
+  .status-label {
+    display: none;
+  }
+
+  /* px, not rem: the accessibility font-scale setting shrinks the rem base, and
+     a touch target must stay 44px regardless of the chosen text size. */
+  .glass-btn {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   Mobile Overflow Sheet
+   ───────────────────────────────────────────── */
+
+.editor-topbar__overflow-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 240;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.editor-topbar__overflow-sheet {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 241;
+  max-height: 70dvh;
+  overflow-y: auto;
+  padding: 0.5rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
+  background: var(--background, #fff);
+  border-top: 1px solid var(--grey-200);
+  border-radius: 1rem 1rem 0 0;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.18);
+  outline: none;
+  animation: editorTopBarSheetIn 0.2s ease-out;
+}
+
+[data-theme='dark'] .editor-topbar__overflow-sheet {
+  background: var(--grey-900, #1a1a1a);
+  border-top-color: var(--grey-700);
+}
+
+@keyframes editorTopBarSheetIn {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editor-topbar__overflow-sheet {
+    animation: none;
+  }
+}
+
+.editor-topbar__overflow-grip {
+  width: 2.25rem;
+  height: 0.25rem;
+  margin: 0.25rem auto 0.75rem;
+  border-radius: 999px;
+  background: var(--grey-300);
+}
+
+[data-theme='dark'] .editor-topbar__overflow-grip {
+  background: var(--grey-600);
+}
+
+/* Actions are authored as icon-only buttons for the desktop bar; in the sheet
+   they become a full-width, thumb-sized grid so their labels/targets work. */
+.editor-topbar__overflow-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
+  gap: 0.5rem;
+}
+
+.editor-topbar__overflow-actions > * {
+  width: 100%;
+  min-height: 2.75rem;
+  justify-content: center;
+}
+
+.editor-topbar__overflow-actions .glass-btn {
+  width: 100%;
+  height: 2.75rem;
+  background: var(--grey-100, #f3f4f6);
+}
+
+[data-theme='dark'] .editor-topbar__overflow-actions .glass-btn {
+  background: rgba(255, 255, 255, 0.06);
 }

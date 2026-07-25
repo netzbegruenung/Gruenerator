@@ -1,14 +1,25 @@
 import { type Slide } from '@gruenerator/contracts';
 import { useEffect, useRef, useState } from 'react';
-import { FiChevronDown, FiChevronLeft, FiChevronRight, FiChevronUp, FiEdit3 } from 'react-icons/fi';
+import {
+  FiChevronDown,
+  FiChevronLeft,
+  FiChevronRight,
+  FiChevronUp,
+  FiEdit3,
+  FiGrid,
+} from 'react-icons/fi';
 import * as Y from 'yjs';
 
 import { useSlides } from '../collab/useSlides.js';
 import { buildBlankDeckSlides } from '../lib/blankDeck.js';
+import { useIsMobile } from '../lib/useIsMobile.js';
+import { useSwipeNavigation } from '../lib/useSwipeNavigation.js';
 
+import { MobileSheet } from './MobileSheet.js';
 import { ScaledSlide } from './ScaledSlide.js';
 import { SlideDesignPanel } from './SlideDesignPanel.js';
 import { SlideSurface } from './SlideSurface.js';
+import { SlideTextSheet } from './SlideTextSheet.js';
 import { SlideThumbnailList } from './SlideThumbnailList.js';
 
 import './theme/gruene-deck.css';
@@ -37,6 +48,10 @@ export interface PresentationEditorProps {
  * "Gestalten" design panel. The canvas is a static themed surface
  * (`SlideSurface`), never a running reveal.js instance — that only appears in
  * present mode.
+ *
+ * On a phone the same pieces restack: the rail becomes a filmstrip under the
+ * canvas (plus a full-screen grid for reordering), the design panel becomes a
+ * bottom sheet, and text is edited in a focus sheet rather than in place.
  */
 export function PresentationEditor({
   ydoc,
@@ -60,6 +75,9 @@ export function PresentationEditor({
   } = useSlides(ydoc);
   const [activeIndex, setActiveIndex] = useState(0);
   const [notesOpen, setNotesOpen] = useState(false);
+  const isMobile = useIsMobile();
+  const [gridOpen, setGridOpen] = useState(false);
+  const [textField, setTextField] = useState<'title' | 'body' | null>(null);
 
   // Captured once — the seed only applies on first open, so a changing prop
   // identity must not reseed.
@@ -71,6 +89,14 @@ export function PresentationEditor({
   useEffect(() => {
     if (activeIndex >= slides.length && slides.length > 0) setActiveIndex(slides.length - 1);
   }, [slides.length, activeIndex]);
+
+  // Leaving mobile must not strand a mobile-only surface on screen.
+  useEffect(() => {
+    if (!isMobile) {
+      setGridOpen(false);
+      setTextField(null);
+    }
+  }, [isMobile]);
 
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
@@ -97,25 +123,39 @@ export function PresentationEditor({
 
   const goTo = (index: number) => setActiveIndex(Math.min(Math.max(index, 0), slides.length - 1));
 
+  const swipe = useSwipeNavigation(
+    () => goTo(activeIndex - 1),
+    () => goTo(activeIndex + 1),
+    isMobile && slides.length > 1
+  );
+
   const active: Slide | undefined = slides[activeIndex];
   const notesPreview = active?.notes.trim()
     ? active.notes.trim()
     : 'Noch keine Notizen für diese Folie – klicken zum Hinzufügen';
 
-  return (
-    <div className="flex h-full min-h-0 bg-[#EFF3F0] dark:bg-grey-950">
-      <SlideThumbnailList
-        slides={slides}
-        activeIndex={activeIndex}
-        editable={editable}
-        accent={deckOptions.accentColor}
-        onSelect={setActiveIndex}
-        onAdd={handleAdd}
-        onDelete={handleDelete}
-        onMove={handleMove}
-      />
+  const thumbnailProps = {
+    slides,
+    activeIndex,
+    editable,
+    accent: deckOptions.accentColor,
+    onSelect: setActiveIndex,
+    onAdd: handleAdd,
+    onDelete: handleDelete,
+    onMove: handleMove,
+  };
 
-      <div className="flex flex-1 flex-col items-center overflow-y-auto px-8 pb-4 pt-5">
+  return (
+    <div
+      className={`flex h-full min-h-0 bg-[#EFF3F0] dark:bg-grey-950 ${isMobile ? 'flex-col' : ''}`}
+    >
+      {!isMobile && <SlideThumbnailList {...thumbnailProps} orientation="vertical" />}
+
+      <div
+        className={`flex flex-1 min-h-0 flex-col items-center overflow-y-auto pb-4 ${
+          isMobile ? 'px-3 pt-3' : 'px-8 pt-5'
+        }`}
+      >
         {active ? (
           <>
             {/* Slide-position nav header */}
@@ -130,9 +170,11 @@ export function PresentationEditor({
                 disabled={activeIndex === 0}
                 aria-label="Vorherige Folie"
                 title="Vorherige Folie"
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-[#D4DDD7] dark:border-grey-600 bg-white dark:bg-grey-800 text-[#4A5A51] dark:text-grey-300 hover:bg-[#F4F7F5] dark:hover:bg-grey-700 disabled:opacity-40"
+                className={`flex items-center justify-center rounded-full border border-[#D4DDD7] dark:border-grey-600 bg-white dark:bg-grey-800 text-[#4A5A51] dark:text-grey-300 hover:bg-[#F4F7F5] dark:hover:bg-grey-700 disabled:opacity-40 ${
+                  isMobile ? 'h-11 w-11' : 'h-8 w-8'
+                }`}
               >
-                <FiChevronLeft size={14} />
+                <FiChevronLeft size={isMobile ? 18 : 14} />
               </button>
               <button
                 type="button"
@@ -140,14 +182,19 @@ export function PresentationEditor({
                 disabled={activeIndex === slides.length - 1}
                 aria-label="Nächste Folie"
                 title="Nächste Folie"
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-[#D4DDD7] dark:border-grey-600 bg-white dark:bg-grey-800 text-[#4A5A51] dark:text-grey-300 hover:bg-[#F4F7F5] dark:hover:bg-grey-700 disabled:opacity-40"
+                className={`flex items-center justify-center rounded-full border border-[#D4DDD7] dark:border-grey-600 bg-white dark:bg-grey-800 text-[#4A5A51] dark:text-grey-300 hover:bg-[#F4F7F5] dark:hover:bg-grey-700 disabled:opacity-40 ${
+                  isMobile ? 'h-11 w-11' : 'h-8 w-8'
+                }`}
               >
-                <FiChevronRight size={14} />
+                <FiChevronRight size={isMobile ? 18 : 14} />
               </button>
             </div>
 
             {/* Slide */}
-            <div className="w-full max-w-[920px] flex-none overflow-hidden rounded-[14px] shadow-[0_8px_28px_rgba(27,42,34,0.14)]">
+            <div
+              className="w-full max-w-[920px] flex-none overflow-hidden rounded-[14px] shadow-[0_8px_28px_rgba(27,42,34,0.14)]"
+              {...(isMobile ? swipe : {})}
+            >
               <ScaledSlide>
                 <SlideSurface
                   slide={active}
@@ -155,6 +202,7 @@ export function PresentationEditor({
                   editable={editable}
                   ydoc={ydoc}
                   onChange={(patch) => updateSlide(activeIndex, patch)}
+                  onRequestEdit={isMobile ? (field) => setTextField(field) : undefined}
                 />
               </ScaledSlide>
             </div>
@@ -172,7 +220,7 @@ export function PresentationEditor({
                     <span className="font-bold text-[#2F4238] dark:text-grey-200">
                       Sprechernotizen
                     </span>
-                    <span className="flex-1 text-xs text-[#6E7E74] dark:text-grey-400">
+                    <span className="flex-1 text-xs text-[#6E7E74] dark:text-grey-400 max-md:hidden">
                       Nur für dich sichtbar – erscheint in der Referent*innenansicht
                     </span>
                     <FiChevronUp size={14} className="text-[#6E7E74]" />
@@ -182,14 +230,15 @@ export function PresentationEditor({
                     onChange={(e) => updateSlide(activeIndex, { notes: e.target.value })}
                     placeholder="Was möchtest du zu dieser Folie sagen?"
                     disabled={!editable}
-                    className="min-h-[88px] w-full resize-y border-none border-t border-[#EFF3F0] dark:border-grey-700 bg-white dark:bg-grey-900 px-4 py-3 text-sm leading-[1.55] text-[#1B2A22] dark:text-grey-100"
+                    // text-base on mobile: below 16px iOS Safari zooms on focus.
+                    className="min-h-[88px] w-full resize-y border-none border-t border-[#EFF3F0] dark:border-grey-700 bg-white dark:bg-grey-900 px-4 py-3 text-sm max-md:text-base leading-[1.55] text-[#1B2A22] dark:text-grey-100"
                   />
                 </div>
               ) : (
                 <button
                   type="button"
                   onClick={() => setNotesOpen(true)}
-                  className="flex w-full items-center gap-2.5 rounded-[10px] border border-[#E2E8E4] dark:border-grey-700 bg-white dark:bg-grey-900 px-4 py-[11px] text-left text-[13.5px] text-[#6E7E74] dark:text-grey-400 hover:bg-[#F4F7F5] dark:hover:bg-grey-800"
+                  className="flex w-full items-center gap-2.5 rounded-[10px] border border-[#E2E8E4] dark:border-grey-700 bg-white dark:bg-grey-900 px-4 py-[11px] max-md:py-3 text-left text-[13.5px] text-[#6E7E74] dark:text-grey-400 hover:bg-[#F4F7F5] dark:hover:bg-grey-800"
                 >
                   <FiEdit3 size={15} className="text-primary-500" />
                   <span className="font-bold text-[#2F4238] dark:text-grey-200">
@@ -208,13 +257,71 @@ export function PresentationEditor({
         )}
       </div>
 
-      {designPanelOpen && editable && active && (
+      {/* Mobile filmstrip: always-visible slide navigation, with a grid button
+          for jumping and bulk reordering. */}
+      {isMobile && (
+        <div className="flex flex-none items-stretch border-t border-[#E2E8E4] bg-[#EFF3F0] dark:border-grey-700 dark:bg-grey-900">
+          <button
+            type="button"
+            onClick={() => setGridOpen(true)}
+            aria-label="Alle Folien anzeigen"
+            title="Alle Folien"
+            className="flex w-14 flex-none flex-col items-center justify-center gap-1 border-r border-[#E2E8E4] text-[10px] font-bold text-[#4A5A51] dark:border-grey-700 dark:text-grey-300"
+          >
+            <FiGrid size={18} />
+            Alle
+          </button>
+          <div className="min-w-0 flex-1">
+            <SlideThumbnailList {...thumbnailProps} orientation="horizontal" />
+          </div>
+        </div>
+      )}
+
+      {!isMobile && designPanelOpen && editable && active && (
         <SlideDesignPanel
           slide={active}
           onUpdateSlide={(patch) => updateSlide(activeIndex, patch)}
           deckOptions={deckOptions}
           onDeckOption={setDeckOption}
           onClose={() => onCloseDesignPanel?.()}
+        />
+      )}
+
+      {isMobile && designPanelOpen && editable && active && (
+        <MobileSheet title="Folie gestalten" onClose={() => onCloseDesignPanel?.()}>
+          <SlideDesignPanel
+            slide={active}
+            onUpdateSlide={(patch) => updateSlide(activeIndex, patch)}
+            deckOptions={deckOptions}
+            onDeckOption={setDeckOption}
+            onClose={() => onCloseDesignPanel?.()}
+            variant="sheet"
+          />
+        </MobileSheet>
+      )}
+
+      {isMobile && gridOpen && (
+        <MobileSheet title="Alle Folien" size="full" onClose={() => setGridOpen(false)}>
+          <p className="pb-3 text-xs text-[#6E7E74] dark:text-grey-400">
+            Tippen zum Öffnen, gedrückt halten zum Umsortieren.
+          </p>
+          <SlideThumbnailList
+            {...thumbnailProps}
+            orientation="grid"
+            onSelect={(index) => {
+              setActiveIndex(index);
+              setGridOpen(false);
+            }}
+          />
+        </MobileSheet>
+      )}
+
+      {isMobile && textField && active && editable && (
+        <SlideTextSheet
+          slide={active}
+          field={textField}
+          onChange={(patch) => updateSlide(activeIndex, patch)}
+          onClose={() => setTextField(null)}
         />
       )}
     </div>
