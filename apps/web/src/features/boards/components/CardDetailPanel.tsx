@@ -484,9 +484,9 @@ export const CardDetailPanel = memo(function CardDetailPanel({
 
   if (!row) return null;
 
-  const propertyRow = 'flex gap-3 px-3.5 py-2.5 min-h-[52px]';
+  const propertyRow = 'flex max-sm:flex-col gap-3 max-sm:gap-1.5 px-3.5 py-2.5 min-h-[52px]';
   const propertyLabel =
-    'flex items-center gap-2 w-[108px] shrink-0 text-[13px] font-semibold text-grey-500 dark:text-grey-400';
+    'flex items-center gap-2 w-[108px] max-sm:w-auto shrink-0 text-[13px] font-semibold text-grey-500 dark:text-grey-400';
   const sectionHeading = 'flex items-center gap-2 text-[13px] font-bold text-foreground';
 
   return (
@@ -776,7 +776,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
               {/* Termin — due date + recurrence. Recurrence lives inside the date
                   popover because it's a property of the due date: completing the card
                   spawns the next occurrence relative to it. */}
-              <div className={cn(propertyRow, 'items-center')}>
+              <div className={cn(propertyRow, 'items-center max-sm:items-start')}>
                 <div className={propertyLabel}>
                   <FiCalendar size={16} />
                   Termin
