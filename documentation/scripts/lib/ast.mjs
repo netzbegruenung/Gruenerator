@@ -135,6 +135,35 @@ export function constStringArray(sf, name) {
   return arrayStrings(findDeclaration(sf, name));
 }
 
+/** `const NAME = new Set(['a', 'b'])` → ['a', 'b']. */
+export function constSetStrings(sf, name) {
+  const decl = findDeclaration(sf, name);
+  if (!decl || !ts.isNewExpression(decl)) return [];
+  return arrayStrings(unwrap(decl.arguments?.[0]));
+}
+
+/**
+ * Evaluate a literal size expression like `25 * 1024 * 1024`. Only numeric
+ * literals and `*` are allowed — enough for the byte constants, and narrow
+ * enough that it can never execute app code.
+ */
+export function numericValue(node) {
+  const n = unwrap(node);
+  if (!n) return undefined;
+  if (ts.isNumericLiteral(n)) return Number(n.text);
+  if (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.AsteriskToken) {
+    const left = numericValue(n.left);
+    const right = numericValue(n.right);
+    if (left !== undefined && right !== undefined) return left * right;
+  }
+  return undefined;
+}
+
+/** `const NAME = 25 * 1024 * 1024` → 25165824. */
+export function constNumber(sf, name) {
+  return numericValue(findDeclaration(sf, name));
+}
+
 /**
  * The first line of a node's leading JSDoc, whitespace-collapsed. Used as a
  * hint for whoever has to write the German prose for a new entry — it is not

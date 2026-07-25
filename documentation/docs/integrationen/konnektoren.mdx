@@ -2,6 +2,8 @@
 sidebar_position: 3
 ---
 
+import { ConnectorTable, Fact } from '@site/src/components/Reference';
+
 # Konnektoren: Externe Dienste im Chat
 
 Mit **Konnektoren** verbindest du externe Dienste — etwa Notion, Tally oder Brevo — direkt mit dem Grünerator-Chat. Die KI kann dann in deinen Formularen, Dokumenten oder Kontakten arbeiten: _„Erstelle ein Anmeldeformular mit @tally"_ legt das Formular wirklich in deinem Tally-Konto an.
@@ -53,21 +55,9 @@ Die Mention erscheint als Chip in deiner Nachricht. Auch **Folgefragen ohne erne
 
 ## Verfügbare Konnektoren
 
-Das Verzeichnis wird laufend gepflegt — aktuell enthält es unter anderem:
+Das Verzeichnis enthält aktuell <Fact name="connectorCount" /> handverlesene Dienste:
 
-| Kategorie                      | Dienste                                        | Anmeldung        |
-| ------------------------------ | ---------------------------------------------- | ---------------- |
-| **Produktivität**              | Notion, Coda, monday.com, Todoist, Miro, Jamie | Login-Fenster    |
-|                                | Sally                                          | API-Token        |
-|                                | Goodnotes                                      | Keine            |
-| **Formulare**                  | Tally, Jotform                                 | Login-Fenster    |
-| **CRM & Marketing**            | Attio                                          | Login-Fenster    |
-|                                | HubSpot, Brevo                                 | API-Token        |
-| **Social Media**               | Swat.io (Beta, kein Direkt-Publishing)         | Login-Fenster    |
-| **Analyse & SEO**              | Statista, SISTRIX                              | API-Token        |
-| **Recht & Compliance**         | Ansvar (EU-Recht mit verifizierten Zitaten)    | Login-Fenster    |
-| **Automatisierung**            | Zapier (über 7.000 Apps)                       | API-Token        |
-| **Karten / Finanzen / Reisen** | Google Maps (Token), Yahoo Finance, trivago    | Token bzw. keine |
+<ConnectorTable />
 
 :::info[Ein Dienst fehlt?]
 Einige bekannte Anbieter (z. B. Typeform, Zoom, DocuSign) verlangen aktuell eine eigene App-Registrierung pro Organisation und sind deshalb vorerst nicht im Verzeichnis. Über die Suche und den offenen MCP-Katalog findest du trotzdem viele weitere Server — oder du fügst einen eigenen hinzu.
