@@ -2,6 +2,8 @@
 sidebar_position: 2
 ---
 
+import { CollectionTable, Fact } from '@site/src/components/Reference';
+
 # Was kann ich den MCP-Server fragen?
 
 Du hast den [Grünerator mit deinem KI-Chat verbunden](./ki-chat-einrichten) — aber was kannst du damit eigentlich alles machen? Hier erfährst du, welche Fähigkeiten dir zur Verfügung stehen und wie du sie am besten nutzt.
@@ -28,35 +30,19 @@ Die Kernfunktion des MCP-Servers ist die **semantische Suche** über grüne Part
 
 ### Welche Sammlungen gibt es?
 
-Der Server durchsucht verschiedene Dokumentensammlungen — **9 überregionale Sammlungen** und **9 Landesverbände**:
+Der Server durchsucht verschiedene Dokumentensammlungen — <Fact name="nationwideCount" /> überregionale Sammlungen und <Fact name="lvCount" /> Landesverbände:
 
-| Sammlung                     | Was ist drin?                                                         | Beispielfrage                            |
-| ---------------------------- | --------------------------------------------------------------------- | ---------------------------------------- |
-| **Bündnis 90/Die Grünen**    | Grundsatzprogramm 2020, EU-Wahlprogramm 2024, Regierungsprogramm 2025 | _„Was steht im Grundsatzprogramm zu X?"_ |
-| **Die Grünen Österreich**    | EU-Wahlprogramm, Grundsatzprogramm, Nationalratswahl-Programm         | _„Österreichische Grüne Position zu X"_  |
-| **Grüne Bundestagsfraktion** | Fachtexte, Positionen und Ziele von gruene-bundestag.de               | _„Bundestags-Position zu X"_             |
-| **gruene.de**                | Aktuelle Positionen und Themen der Grünen Deutschland                 | _„Aktuelle Grüne Meinung zu X"_          |
-| **gruene.at**                | Aktuelle Positionen und Themen der Grünen Österreich                  | _„Was sagen die Grünen AT zu X?"_        |
-| **KommunalWiki**             | Fachwissen zur Kommunalpolitik (Heinrich-Böll-Stiftung)               | _„Wie macht man X in der Kommune?"_      |
-| **Heinrich-Böll-Stiftung**   | Analysen, Dossiers und Atlanten                                       | _„Analyse zu X"_, _„Hintergründe zu X"_  |
-| **Grünblog**                 | Beiträge aus dem Grünblog                                             | _„Grünblog-Beiträge zu X"_               |
-| **Abgeordnetenwatch**        | Abstimmungen, Fragen & Antworten von Abgeordneten                     | _„Wie hat X bei Y abgestimmt?"_          |
+<CollectionTable kind="nationwide" />
+
+Beispielfragen: _„Was steht im Grundsatzprogramm zu X?"_ · _„Bundestags-Position zu X"_ · _„Wie macht man X in der Kommune?"_ · _„Wie hat Abgeordnete\*r X bei Y abgestimmt?"_
 
 ### Landesverbände
 
 Zusätzlich kannst du gezielt in **Dokumenten einzelner Landesverbände** suchen. Diese werden bei einer normalen Landessuche nicht automatisch mitdurchsucht — du musst den Landesverband explizit nennen.
 
-| Sammlung                         | Was ist drin?                         | Beispielfrage                                       |
-| -------------------------------- | ------------------------------------- | --------------------------------------------------- |
-| **Grüne Hamburg**                | Beschlüsse und Pressemitteilungen     | _„Was sagen die Grünen Hamburg zum Thema Verkehr?"_ |
-| **Grüne Schleswig-Holstein**     | Wahlprogramm zur Landtagswahl         | _„Wahlprogramm der Grünen SH zu Bildung"_           |
-| **Grüne Thüringen**              | Beschlüsse, Wahlprogramme und Presse  | _„Grüne Thüringen Position zu Energie?"_            |
-| **Grüne Bayern**                 | Regierungsprogramm zur Landtagswahl   | _„Was steht im Bayern-Programm zur Wirtschaft?"_    |
-| **Grüne Berlin**                 | Pressemitteilungen und Beschlüsse     | _„Grüne Berlin Beschlüsse zum Thema Wohnen"_        |
-| **Grüne Mecklenburg-Vorpommern** | Beschlüsse und Presse (LV + Fraktion) | _„Grüne MV Position zu X"_                          |
-| **Grüne Brandenburg**            | Beschlüsse und Presse                 | _„Grüne Brandenburg zu X"_                          |
-| **Grüne Sachsen-Anhalt**         | Beschlüsse und Presse (LV + Fraktion) | _„Grüne Sachsen-Anhalt zu X"_                       |
-| **Grüne Hessen**                 | Beschlüsse und Presse (LV + Fraktion) | _„Grüne Hessen zu X"_                               |
+<CollectionTable kind="landesverbaende" />
+
+Beispielfragen: _„Was sagen die Grünen Hamburg zum Thema Verkehr?"_ · _„Wahlprogramm der Grünen Schleswig-Holstein zu Bildung"_ · _„Grüne Bayern Position zur Wirtschaft"_
 
 :::tip[Mehrere Sammlungen vergleichen]
 Du kannst auch nach demselben Thema in verschiedenen Sammlungen suchen lassen, z.B.: _„Vergleiche die Position von Deutschland und Österreich zum Thema Mobilität."_ Die KI sucht dann automatisch in beiden Sammlungen.
@@ -140,15 +126,16 @@ Für alle Textformen, die nicht in eine spezielle Kategorie fallen.
 
 Erstellt plattformgerechte Inhalte für Presse und soziale Medien.
 
-| Plattform            | Format                                      | Besonderheiten            |
-| -------------------- | ------------------------------------------- | ------------------------- |
-| **Pressemitteilung** | Journalistisch mit Lead-Absatz und W-Fragen | max. 2000 Zeichen         |
-| **Instagram**        | Visuell ansprechend mit Hashtags            | max. 600 Zeichen          |
-| **Facebook**         | Locker, Community-fokussiert                | max. 600 Zeichen          |
-| **Twitter / X**      | Prägnant und direkt                         | max. 280 Zeichen          |
-| **LinkedIn**         | Professionell, analytisch                   | max. 600 Zeichen          |
-| **Reel / TikTok**    | 3-Akt-Skript (Hook → Main → CTA)            | mit Zeitangaben           |
-| **Aktionsideen**     | Kreative Kampagnenideen                     | mit Materialanforderungen |
+| Plattform            | Format                                      | Länge              |
+| -------------------- | ------------------------------------------- | ------------------ |
+| **Pressemitteilung** | Journalistisch mit Lead-Absatz und W-Fragen | ca. 2.000 Zeichen  |
+| **Instagram**        | Visuell ansprechend mit Hashtags            | max. 600 Zeichen   |
+| **Facebook**         | Locker, Community-fokussiert                | 300–700 Zeichen    |
+| **Twitter / X**      | Prägnant und direkt                         | max. 280 Zeichen   |
+| **LinkedIn**         | Professionell, analytisch                   | max. 600 Zeichen   |
+| **Reel / TikTok**    | 3-Akt-Skript (Hook → Main → CTA)            | max. 1.500 Zeichen |
+
+**Aktionsideen** gehören trotz thematischer Nähe nicht in diese Tabelle: Sie sind ein Rezept des universellen Textassistenten, keine Plattform-Variante der Öffentlichkeitsarbeit. Frag einfach direkt danach.
 
 > _„Schreibe eine Pressemitteilung zum neuen Radverkehrskonzept"_
 >
@@ -232,7 +219,9 @@ Darüber hinaus gibt es u. a. Assistenten für **Sharepics**, **Leichte Sprache*
 
 ## Notizbücher durchsuchen
 
-Wenn du dich beim MCP-Server mit deinem Grünerator-Konto anmeldest, stehen zusätzlich **Notizbuch-Tools** bereit: deine Notebooks auflisten, durchsuchen und Fragen an sie stellen.
+Wenn du dich beim MCP-Server mit deinem Grünerator-Konto anmeldest, stehen zusätzlich **Notizbuch-Werkzeuge** bereit: deine Notebooks auflisten, durchsuchen und ihre Filter abfragen. Ohne Anmeldung tauchen sie gar nicht erst in der Werkzeugliste auf.
+
+Die Suche liefert dabei die gefundenen Textstellen, **keine fertig formulierte Antwort** — die schreibt dein KI-Assistent selbst daraus. Das ist der Unterschied zum Grünerator-Chat, der die Synthese übernimmt.
 
 > _„Liste meine Notebooks auf"_
 >

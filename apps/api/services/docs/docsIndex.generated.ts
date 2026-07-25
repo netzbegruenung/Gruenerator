@@ -56,7 +56,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/gruenerieren/dateien-hinzufuegen",
     "title": "Dateien hinzufügen",
     "category": "Grünerieren",
-    "lead": "Der Grünerator kann Dateien als Kontext für die Textgenerierung verwenden. Durch das Hochladen von PDFs und Bildern erhält die KI zusätzliche Informationen, um präzisere und besser fundierte Texte zu…"
+    "lead": "Du kannst dem Grünerator Dateien mitgeben, statt ihren Inhalt abzutippen: ein Gesetzesentwurf, eine Studie, ein Screenshot, eine Tabelle. Er liest sie und bezieht sie in die Antwort ein."
   },
   {
     "url": "/docs/gruenerieren/ki-chat",
@@ -83,12 +83,6 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Der Grünerator ist kein Suchfeld mit festen Befehlen — du schreibst in normalem Deutsch, was du brauchst. Diese Seite zeigt, was dabei alles möglich ist, mit Musterfragen zum Abschauen und Weiterschr…"
   },
   {
-    "url": "/docs/gruenerieren/websuche",
-    "title": "Websuche",
-    "category": "Grünerieren",
-    "lead": "Der Grünerator kann aktuelle Informationen aus dem Internet in deine Texte einbinden. Die Websuche hilft dabei, deine Anträge und Dokumente mit aktuellen Fakten, Statistiken und politischen Entwicklu…"
-  },
-  {
     "url": "/docs/Grundlagen/Kennzeichnungs-Guide",
     "title": "Wie kennzeichne ich meine grünerierten Inhalte?",
     "category": "Grundlagen",
@@ -104,7 +98,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/integrationen/gruen-o-mat-einbetten",
     "title": "GrünOMat einbetten",
     "category": "Integrationen",
-    "lead": "Der GrünOMat lässt sich als Chat-Widget auf externen Websites einbinden. Besucher*innen sehen einen schwebenden Chat-Button, der beim Klicken ein Chat-Fenster mit dem GrünOMat öffnet."
+    "lead": "Dieser Artikel ist über draft: true aus dem Build genommen und nicht aktuell. Zwei Dinge müssen geprüft werden, bevor er wieder freigegeben wird:"
   },
   {
     "url": "/docs/integrationen/ki-chat-einrichten",
@@ -455,55 +449,39 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Dateien hinzufügen",
     "anchor": "",
     "category": "Grünerieren",
-    "text": "Der Grünerator kann Dateien als Kontext für die Textgenerierung verwenden. Durch das Hochladen von PDFs und Bildern erhält die KI zusätzliche Informationen, um präzisere und besser fundierte Texte zu erstellen."
+    "text": "Du kannst dem Grünerator Dateien mitgeben, statt ihren Inhalt abzutippen: ein Gesetzesentwurf, eine Studie, ein Screenshot, eine Tabelle. Er liest sie und bezieht sie in die Antwort ein."
   },
   {
     "url": "/docs/gruenerieren/dateien-hinzufuegen",
     "pageTitle": "Dateien hinzufügen",
-    "heading": "Dateien hochladen",
-    "anchor": "#dateien-hochladen",
+    "heading": "Grenzen",
+    "anchor": "#grenzen",
     "category": "Grünerieren",
-    "text": "Im Chat findest du den Datei-Upload im „+\"-Menü links im Eingabefeld unter Dateien; in den Generator-Formularen als Dateien-Symbol (📎). Wähle deine Dateien aus — der Grünerator zeigt dir: Validierungsstatus der hochgeladenen Dateien Kompatibilitätswarnungen falls nötig"
+    "text": "| | ------------------------------------- | ------------------------------------- | Dateien pro Nachricht | | Größe je Datei | | Alle Dateien einer Nachricht zusammen | | Videos (eigener Weg, siehe unten) | je Datei | Videos zählen nicht in die Gesamtsumme. Sie nehmen einen anderen Weg als die übrigen Dateien — statt in die Anfrage eingebettet zu werden, laden sie separat hoch. Deshalb haben sie ein eigenes, viel höheres Limit. Wählst du eine Datei aus, die der Grünerator nicht lesen kann, bekommst du eine Fehlermeldung mit der Liste der erlaubten Typen — und keine deiner Dateien wird angehängt, auch die gültigen nicht. Nimm die betroffene Datei heraus und häng den Rest erneut an."
   },
   {
     "url": "/docs/gruenerieren/dateien-hinzufuegen",
     "pageTitle": "Dateien hinzufügen",
-    "heading": "Fehlerbehebung",
-    "anchor": "#fehlerbehebung",
+    "heading": "Was damit gut funktioniert",
+    "anchor": "#was-damit-gut-funktioniert",
     "category": "Grünerieren",
-    "text": "Datei wird nicht akzeptiert: Überprüfe das Dateiformat und die Größe Verarbeitung dauert lange: Große Dateien benötigen mehr Zeit für die Analyse Der Grünerator extrahiert automatisch die relevanten Informationen aus deinen Dateien und integriert sie sinnvoll in die Textgenerierung. Die Dateien-Funktion macht deine Texte fundierter und präziser, indem sie der KI zusätzlichen Kontext und Referenzmaterial zur Verfügung stellt."
+    "text": "Anträge und politische Dokumente — einen bestehenden Antrag hochladen und um eine Fassung für den eigenen Kreisverband bitten. Einen Gesetzesentwurf hochladen und nach den Punkten fragen, die für die Kommune relevant sind. Pressearbeit — eine Studie hochladen und eine Pressemitteilung daraus entwickeln lassen, mit den Zahlen aus dem Papier statt aus dem Gedächtnis. Tabellen und Zahlen — eine Excel- oder CSV-Datei hochladen und daraus eine Auswertung, eine Grafik oder eine fertige Grünerator-Tabelle machen lassen. Dass eine Zahl aus deiner Datei stammt, heißt nicht, dass sie richtig übernommen wurde. Prüf sie, bevor der Text nach außen geht — mehr dazu unter Risiken und Gefahren von LLMs. Dateitypen und Grenzwerte stammen direkt aus dem Programmcode. Ändert sich dort etwas, schlägt die Doku-Prüfung an, bis diese Seite nachgezogen ist."
   },
   {
     "url": "/docs/gruenerieren/dateien-hinzufuegen",
     "pageTitle": "Dateien hinzufügen",
-    "heading": "Für Anträge und politische Dokumente",
-    "anchor": "#für-anträge-und-politische-dokumente",
+    "heading": "Was du hochladen kannst",
+    "anchor": "#was-du-hochladen-kannst",
     "category": "Grünerieren",
-    "text": "Lade Gesetzesentwürfe oder bestehende Anträge hoch Nutze Forschungsberichte als Grundlage Referenziere statistische Daten Beziehe dich auf offizielle Dokumente"
+    "text": "Deutlich mehr als nur PDFs und Bilder: Quellcode-Dateien werden an ihrer Endung erkannt, nicht am Dateityp — Browser melden .ts sonst als Video und würden die Datei ablehnen."
   },
   {
     "url": "/docs/gruenerieren/dateien-hinzufuegen",
     "pageTitle": "Dateien hinzufügen",
-    "heading": "Für Pressemitteilungen",
-    "anchor": "#für-pressemitteilungen",
+    "heading": "Wo du Dateien anhängst",
+    "anchor": "#wo-du-dateien-anhängst",
     "category": "Grünerieren",
-    "text": "Lade Studien oder Berichte hoch Nutze Infografiken als Referenz Integriere Umfrageergebnisse Verweise auf Fachliteratur"
-  },
-  {
-    "url": "/docs/gruenerieren/dateien-hinzufuegen",
-    "pageTitle": "Dateien hinzufügen",
-    "heading": "Unterstützte Dateitypen",
-    "anchor": "#unterstützte-dateitypen",
-    "category": "Grünerieren",
-    "text": "PDFs: Gesetze, Forschungsberichte, bestehende Dokumente und andere textbasierte Inhalte Bilder: Screenshots, Infografiken, Diagramme und andere visuelle Inhalte (.jpg, .jpeg, .png, .webp)"
-  },
-  {
-    "url": "/docs/gruenerieren/dateien-hinzufuegen",
-    "pageTitle": "Dateien hinzufügen",
-    "heading": "Wie funktioniert es?",
-    "anchor": "#wie-funktioniert-es",
-    "category": "Grünerieren",
-    "text": "Wenn du Dateien hochlädst: Validierung: Der Grünerator prüft die Dateien auf Kompatibilität Verarbeitung: Text wird aus PDFs extrahiert, Bilder werden analysiert Integration: Die Inhalte fließen in den Kontext für die Textgenerierung ein Ergebnis: Dein generierter Text berücksichtigt die hochgeladenen Informationen"
+    "text": "Im Chat über das „+\"-Menü links im Eingabefeld. Das ist der einzige Ort — die früheren Generator-Formulare mit Büroklammer-Symbol gibt es nicht mehr, seit alles im Chat und in den zusammengelaufen ist."
   },
   {
     "url": "/docs/gruenerieren/ki-chat",
@@ -682,46 +660,6 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "text": "Manches ist nur in der Web-Version möglich. Sharepics und einige Editor-Funktionen brauchen die große Oberfläche; in der App wirst du dorthin weitergeleitet. Einige Quellen decken nur Deutschland ab. Bundestag, Abgeordnetenwatch, Bahn und tagesschau beziehen sich auf deutsche Daten. Bei österreichischen Fragen weicht der Grünerator auf die Websuche aus. Nicht jede Zusatzquelle ist überall angebunden. Bahn, Wetterdienst, tagesschau und trivago werden pro Umgebung eingerichtet. Fehlt eine, greift der Grünerator auf die Websuche zurück und sagt dazu, worauf die Antwort beruht — erfundene Abfahrtszeiten gibt es nicht. Erfindet der Grünerator nichts? Bei Recherchen und Datenquellen nennt er die Belege. Prüfe Zahlen und Zitate trotzdem, bevor sie nach außen gehen — mehr dazu unter Risiken und Gefahren von LLMs. Du nutzt den Grünerator in ChatGPT, Claude oder Le Chat? Dort steht ein kleinerer Funktionsumfang bereit — was dann möglich ist, steht unter Was kann ich den MCP-Server fragen?. Namen, Beschreibungen und Kürzel stammen direkt aus dem Programmcode des Grünerators. Kommt eine neue Fähigkeit dazu, meldet sich die Doku-Prüfung automatisch mit einem Hinweis, bis sie hier mit Musterfrag"
   },
   {
-    "url": "/docs/gruenerieren/websuche",
-    "pageTitle": "Websuche",
-    "heading": "Websuche",
-    "anchor": "",
-    "category": "Grünerieren",
-    "text": "Der Grünerator kann aktuelle Informationen aus dem Internet in deine Texte einbinden. Die Websuche hilft dabei, deine Anträge und Dokumente mit aktuellen Fakten, Statistiken und politischen Entwicklungen zu unterstützen."
-  },
-  {
-    "url": "/docs/gruenerieren/websuche",
-    "pageTitle": "Websuche",
-    "heading": "Beispiel",
-    "anchor": "#beispiel",
-    "category": "Grünerieren",
-    "text": "Bei einem Antrag zum Thema \"Solarenergie in Kommunen fördern\" durchsucht die Websuche das Internet nach aktuellen Informationen zu diesem Thema. Diese Informationen fließen automatisch in deinen Antrag ein. Die gefundenen Informationen werden von einer KI sinnvoll zusammengefasst und auf das Wesentliche reduziert. So erhältst du nur relevante Inhalte für deinen Text."
-  },
-  {
-    "url": "/docs/gruenerieren/websuche",
-    "pageTitle": "Websuche",
-    "heading": "Datenschutz",
-    "anchor": "#datenschutz",
-    "category": "Grünerieren",
-    "text": "Die Standard-Websuche des Grünerators nutzt eine Open-Source-Suchmaschine (SearXNG). Die gefundenen Ergebnisse werden anschließend von einem Open-Source-KI-Modell zusammengefasst, das auf deutschen Servern gehostet wird. Dadurch ist die Websuche besonders datenschutzfreundlich und deine Suchanfragen bleiben privat."
-  },
-  {
-    "url": "/docs/gruenerieren/websuche",
-    "pageTitle": "Websuche",
-    "heading": "Websuche aktivieren",
-    "anchor": "#websuche-aktivieren",
-    "category": "Grünerieren",
-    "text": "Die Websuche steht dir bei den meisten Grüneratoren zur Verfügung. Aktiviere einfach die entsprechende Option."
-  },
-  {
-    "url": "/docs/gruenerieren/websuche",
-    "pageTitle": "Websuche",
-    "heading": "Wie funktioniert die Websuche?",
-    "anchor": "#wie-funktioniert-die-websuche",
-    "category": "Grünerieren",
-    "text": "Wenn du die Websuche aktivierst, durchsucht der Grünerator automatisch das Internet nach relevanten Informationen zu deinem Thema. Dabei werden: Aktuelle Nachrichten und Entwicklungen gefunden Relevante Fakten und Statistiken gesammelt Die Suchergebnisse intelligent zusammengefasst Diese Informationen in deinen Text eingearbeitet"
-  },
-  {
     "url": "/docs/Grundlagen/Kennzeichnungs-Guide",
     "pageTitle": "Wie kennzeichne ich meine grünerierten Inhalte?",
     "heading": "Wie kennzeichne ich meine grünerierten Inhalte?",
@@ -847,7 +785,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "GrünOMat einbetten",
     "anchor": "",
     "category": "Integrationen",
-    "text": "Der GrünOMat lässt sich als Chat-Widget auf externen Websites einbinden. Besucher*innen sehen einen schwebenden Chat-Button, der beim Klicken ein Chat-Fenster mit dem GrünOMat öffnet."
+    "text": "Dieser Artikel ist über draft: true aus dem Build genommen und nicht aktuell. Zwei Dinge müssen geprüft werden, bevor er wieder freigegeben wird: Die Sammlungstabelle ist unvollständig. Sie listet fünf Sammlungen; tatsächlich akzeptiert das Widget jede Sammlung aus SYSTEMCOLLECTIONS (apps/api/config/systemCollectionsConfig.ts) — die Validierung läuft über isSystemCollectionId(), nicht über eine kurze Auswahlliste. Beim Reaktivieren gehört die Tabelle an reference.json gehängt, nicht neu abgetippt. Die Aussage zu localhost ist vermutlich falsch. Der Artikel behauptet, für lokale Tests brauche es keine Freischaltung, weil 'self' immer erlaubt sei. 'self' in frame-ancestors meint aber die Herkunft der eingebetteten Ressource (gruen-o-mat.eu), nicht die Seite der Entwickler*in. Wer die Schnellstart-Zeile in eine lokale HTML-Datei kopiert, dürfte vom Browser blockiert werden. Das ist nicht verifiziert — es gehört ausprobiert, bevor es jemand befolgt. Der übrige Inhalt wurde gegen apps/gruen-o-mat/public/embed.js geprüft und stimmt (Attribute, Vorgabewerte, window.GruenOMat-API, Shadow-DOM, Lazy-Load, Mobil-Vollbild). Der GrünOMat lässt sich als Chat-Widget auf externen Websites einbinde"
   },
   {
     "url": "/docs/integrationen/gruen-o-mat-einbetten",
@@ -1015,7 +953,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Verfügbare Konnektoren",
     "anchor": "#verfügbare-konnektoren",
     "category": "Integrationen",
-    "text": "Das Verzeichnis wird laufend gepflegt — aktuell enthält es unter anderem: Kategorie | Dienste | Anmeldung | ------------------------------ | ---------------------------------------------- | ---------------- | Produktivität | Notion, Coda, monday.com, Todoist, Miro, Jamie | Login-Fenster | | Sally | API-Token | | Goodnotes | Keine | Formulare | Tally, Jotform | Login-Fenster | CRM & Marketing | Attio | Login-Fenster | | HubSpot, Brevo | API-Token | Social Media | Swat.io (Beta, kein Direkt-Publishing) | Login-Fenster | Analyse & SEO | Statista, SISTRIX | API-Token | Recht & Compliance | Ansvar (EU-Recht mit verifizierten Zitaten) | Login-Fenster | Automatisierung | Zapier (über 7.000 Apps) | API-Token | Karten / Finanzen / Reisen | Google Maps (Token), Yahoo Finance, trivago | Token bzw. keine | Einige bekannte Anbieter (z. B. Typeform, Zoom, DocuSign) verlangen aktuell eine eigene App-Registrierung pro Organisation und sind deshalb vorerst nicht im Verzeichnis. Über die Suche und den offenen MCP-Katalog findest du trotzdem viele weitere Server — oder du fügst einen eigenen hinzu."
+    "text": "Das Verzeichnis enthält aktuell handverlesene Dienste: Einige bekannte Anbieter (z. B. Typeform, Zoom, DocuSign) verlangen aktuell eine eigene App-Registrierung pro Organisation und sind deshalb vorerst nicht im Verzeichnis. Über die Suche und den offenen MCP-Katalog findest du trotzdem viele weitere Server — oder du fügst einen eigenen hinzu."
   },
   {
     "url": "/docs/integrationen/konnektoren",
@@ -1071,7 +1009,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Landesverbände",
     "anchor": "#landesverbände",
     "category": "Integrationen",
-    "text": "Zusätzlich kannst du gezielt in Dokumenten einzelner Landesverbände suchen. Diese werden bei einer normalen Landessuche nicht automatisch mitdurchsucht — du musst den Landesverband explizit nennen. Sammlung | Was ist drin? | Beispielfrage | -------------------------------- | ------------------------------------- | --------------------------------------------------- | Grüne Hamburg | Beschlüsse und Pressemitteilungen | „Was sagen die Grünen Hamburg zum Thema Verkehr?\" | Grüne Schleswig-Holstein | Wahlprogramm zur Landtagswahl | „Wahlprogramm der Grünen SH zu Bildung\" | Grüne Thüringen | Beschlüsse, Wahlprogramme und Presse | „Grüne Thüringen Position zu Energie?\" | Grüne Bayern | Regierungsprogramm zur Landtagswahl | „Was steht im Bayern-Programm zur Wirtschaft?\" | Grüne Berlin | Pressemitteilungen und Beschlüsse | „Grüne Berlin Beschlüsse zum Thema Wohnen\" | Grüne Mecklenburg-Vorpommern | Beschlüsse und Presse (LV + Fraktion) | „Grüne MV Position zu X\" | Grüne Brandenburg | Beschlüsse und Presse | „Grüne Brandenburg zu X\" | Grüne Sachsen-Anhalt | Beschlüsse und Presse (LV + Fraktion) | „Grüne Sachsen-Anhalt zu X\" | Grüne Hessen | Beschlüsse und Presse (LV + Fraktion) | „Grüne Hesse"
+    "text": "Zusätzlich kannst du gezielt in Dokumenten einzelner Landesverbände suchen. Diese werden bei einer normalen Landessuche nicht automatisch mitdurchsucht — du musst den Landesverband explizit nennen. Beispielfragen: „Was sagen die Grünen Hamburg zum Thema Verkehr?\" · „Wahlprogramm der Grünen Schleswig-Holstein zu Bildung\" · „Grüne Bayern Position zur Wirtschaft\" Du kannst auch nach demselben Thema in verschiedenen Sammlungen suchen lassen, z.B.: „Vergleiche die Position von Deutschland und Österreich zum Thema Mobilität.\" Die KI sucht dann automatisch in beiden Sammlungen."
   },
   {
     "url": "/docs/integrationen/mcp-was-kann-ich-fragen",
@@ -1079,7 +1017,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Notizbücher durchsuchen",
     "anchor": "#notizbücher-durchsuchen",
     "category": "Integrationen",
-    "text": "Wenn du dich beim MCP-Server mit deinem Grünerator-Konto anmeldest, stehen zusätzlich Notizbuch-Tools bereit: deine Notebooks auflisten, durchsuchen und Fragen an sie stellen. „Liste meine Notebooks auf\" „Was steht in meinem Wahlkampf-Notebook zur Verkehrswende?\" ---"
+    "text": "Wenn du dich beim MCP-Server mit deinem Grünerator-Konto anmeldest, stehen zusätzlich Notizbuch-Werkzeuge bereit: deine Notebooks auflisten, durchsuchen und ihre Filter abfragen. Ohne Anmeldung tauchen sie gar nicht erst in der Werkzeugliste auf. Die Suche liefert dabei die gefundenen Textstellen, keine fertig formulierte Antwort — die schreibt dein KI-Assistent selbst daraus. Das ist der Unterschied zum Grünerator-Chat, der die Synthese übernimmt. „Liste meine Notebooks auf\" „Was steht in meinem Wahlkampf-Notebook zur Verkehrswende?\" ---"
   },
   {
     "url": "/docs/integrationen/mcp-was-kann-ich-fragen",
@@ -1087,7 +1025,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Öffentlichkeitsarbeit & Social Media",
     "anchor": "#öffentlichkeitsarbeit--social-media",
     "category": "Integrationen",
-    "text": "Erstellt plattformgerechte Inhalte für Presse und soziale Medien. Plattform | Format | Besonderheiten | -------------------- | ------------------------------------------- | ------------------------- | Pressemitteilung | Journalistisch mit Lead-Absatz und W-Fragen | max. 2000 Zeichen | Instagram | Visuell ansprechend mit Hashtags | max. 600 Zeichen | Facebook | Locker, Community-fokussiert | max. 600 Zeichen | Twitter / X | Prägnant und direkt | max. 280 Zeichen | LinkedIn | Professionell, analytisch | max. 600 Zeichen | Reel / TikTok | 3-Akt-Skript (Hook → Main → CTA) | mit Zeitangaben | Aktionsideen | Kreative Kampagnenideen | mit Materialanforderungen | „Schreibe eine Pressemitteilung zum neuen Radverkehrskonzept\" „Erstelle einen Instagram-Post zur Verkehrswende\" „Schreibe ein Reel-Skript über bezahlbares Wohnen\" ---"
+    "text": "Erstellt plattformgerechte Inhalte für Presse und soziale Medien. Plattform | Format | Länge | -------------------- | ------------------------------------------- | ------------------ | Pressemitteilung | Journalistisch mit Lead-Absatz und W-Fragen | ca. 2.000 Zeichen | Instagram | Visuell ansprechend mit Hashtags | max. 600 Zeichen | Facebook | Locker, Community-fokussiert | 300–700 Zeichen | Twitter / X | Prägnant und direkt | max. 280 Zeichen | LinkedIn | Professionell, analytisch | max. 600 Zeichen | Reel / TikTok | 3-Akt-Skript (Hook → Main → CTA) | max. 1.500 Zeichen | Aktionsideen gehören trotz thematischer Nähe nicht in diese Tabelle: Sie sind ein Rezept des universellen Textassistenten, keine Plattform-Variante der Öffentlichkeitsarbeit. Frag einfach direkt danach. „Schreibe eine Pressemitteilung zum neuen Radverkehrskonzept\" „Erstelle einen Instagram-Post zur Verkehrswende\" „Schreibe ein Reel-Skript über bezahlbares Wohnen\" ---"
   },
   {
     "url": "/docs/integrationen/mcp-was-kann-ich-fragen",
@@ -1175,7 +1113,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Welche Sammlungen gibt es?",
     "anchor": "#welche-sammlungen-gibt-es",
     "category": "Integrationen",
-    "text": "Der Server durchsucht verschiedene Dokumentensammlungen — 9 überregionale Sammlungen und 9 Landesverbände: Sammlung | Was ist drin? | Beispielfrage | ---------------------------- | --------------------------------------------------------------------- | ---------------------------------------- | Bündnis 90/Die Grünen | Grundsatzprogramm 2020, EU-Wahlprogramm 2024, Regierungsprogramm 2025 | „Was steht im Grundsatzprogramm zu X?\" | Die Grünen Österreich | EU-Wahlprogramm, Grundsatzprogramm, Nationalratswahl-Programm | „Österreichische Grüne Position zu X\" | Grüne Bundestagsfraktion | Fachtexte, Positionen und Ziele von gruene-bundestag.de | „Bundestags-Position zu X\" | gruene.de | Aktuelle Positionen und Themen der Grünen Deutschland | „Aktuelle Grüne Meinung zu X\" | gruene.at | Aktuelle Positionen und Themen der Grünen Österreich | „Was sagen die Grünen AT zu X?\" | KommunalWiki | Fachwissen zur Kommunalpolitik (Heinrich-Böll-Stiftung) | „Wie macht man X in der Kommune?\" | Heinrich-Böll-Stiftung | Analysen, Dossiers und Atlanten | „Analyse zu X\", „Hintergründe zu X\" | Grünblog | Beiträge aus dem Grünblog | „Grünblog-Beiträge zu X\" | Abgeordnetenwatch | Abstimmungen, Fragen & Antworten"
+    "text": "Der Server durchsucht verschiedene Dokumentensammlungen — überregionale Sammlungen und Landesverbände: Beispielfragen: „Was steht im Grundsatzprogramm zu X?\" · „Bundestags-Position zu X\" · „Wie macht man X in der Kommune?\" · „Wie hat Abgeordnete*r X bei Y abgestimmt?\""
   },
   {
     "url": "/docs/landesverbaende/",
@@ -2015,7 +1953,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Schritt 2: Quellen wählen",
     "anchor": "#schritt-2-quellen-wählen",
     "category": "Notebooks",
-    "text": "Im ersten Schritt des Editors („Quellen — Woher kommen deine Dokumente?\") stehen vier Kacheln zur Auswahl: Dateien hochladen — Dateien aus dem Dateibrowser auswählen (Mehrfachauswahl möglich) oder per Drag &amp; Drop auf das Fenster ziehen. Aus der Wolke verbinden — einen Ordner aus der Grünen Wolke als Quelle nutzen (siehe Schritt 3). Aus Docs importieren — eigene Docs als Quelle einbinden (siehe Schritt 3). Von einer Website — Beiträge und Seiten einer WordPress-Website importieren (siehe Schritt 3). Beim Hochladen werden die gewählten Dateien zunächst als Vorschau „Bereit zum Hochladen\" gesammelt. Dort kannst du einzelne Dateien wieder entfernen und startest den Upload dann mit „Hochladen\". Dateien in nicht unterstützten Formaten werden übersprungen, und überschüssige Uploads (über 100 hinaus) werden mit einem Hinweis abgelehnt. Sobald die erste Datei hochgeladen ist, schlägt der Editor automatisch einen Notebook-Namen vor — abgeleitet vom Dateinamen der ersten Datei (gekürzt auf 60 Zeichen). Mit „Weiter →\" gelangst du zu Schritt 2 (Details). Das Hochladen dauert nur Sekunden, das anschließende Indexieren (damit der Inhalt durchsuchbar wird) läuft im Hintergrund weiter. Du erken"
+    "text": "Im ersten Schritt des Editors („Quellen — Woher kommen deine Dokumente?\") stehen vier Kacheln zur Auswahl: Dateien hochladen — Dateien aus dem Dateibrowser auswählen (Mehrfachauswahl möglich) oder per Drag &amp; Drop auf das Fenster ziehen. Aus der Wolke verbinden — einen Ordner aus der Grünen Wolke als Quelle nutzen (siehe Schritt 3). Aus Docs importieren — eigene Docs als Quelle einbinden (siehe Schritt 3). Von einer Website — Beiträge und Seiten einer WordPress-Website importieren (siehe Schritt 3). Beim Hochladen werden die gewählten Dateien zunächst als Vorschau „Bereit zum Hochladen\" gesammelt. Dort kannst du einzelne Dateien wieder entfernen und startest den Upload dann mit „Hochladen\". Überschüssige Uploads jenseits der 1.000 werden mit einem Hinweis abgelehnt. Der Assistent filtert nicht nach Format. Die Auswahlliste des Dateidialogs schlägt zwar die unterstützten Endungen vor, aber per Drag & Drop landet jede Datei im Upload — auch eine, die später nicht gelesen werden kann. Solche Dateien scheitern erst bei der Verarbeitung im Hintergrund, und das siehst du in der Dokumentenliste derzeit nicht: Der Ladehinweis verschwindet einfach, ohne Fehlermeldung. Wenn ein Dokument s"
   },
   {
     "url": "/docs/notebooks/eigenes-notebook-erstellen",
@@ -2055,7 +1993,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was du benötigst",
     "anchor": "#was-du-benötigst",
     "category": "Notebooks",
-    "text": "Ein angemeldetes Grünerator-Konto und ein paar Dokumente, die du zusammenfassen, durchsuchen oder als Wissensbasis nutzen möchtest. Unterstützt werden PDF, DOCX, DOC, TXT, MD, ODT und RTF — bis zu 100 Dokumente pro Notebook und maximal 50 MB pro Datei."
+    "text": "Ein angemeldetes Grünerator-Konto und ein paar Dokumente, die du zusammenfassen, durchsuchen oder als Wissensbasis nutzen möchtest. Unterstützt werden PDF, DOCX, DOC, TXT, MD, ODT und RTF — bis zu 1.000 Dokumente pro Notebook und maximal 50 MB pro Datei."
   },
   {
     "url": "/docs/office/boards",
