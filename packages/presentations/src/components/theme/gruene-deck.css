@@ -335,6 +335,48 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
+/* ── Touch editing (phone canvas) ─────────────────────────────────────────
+ * The canvas is scaled to ~0.35 on a phone, so a tapped region gets a visible
+ * affordance instead of a caret; the actual editing happens in a focus sheet. */
+
+/* Padding + matching negative margin grows the hit area without moving the text:
+ * the canvas is scaled to ~0.4 on a phone, so 24px of slide-space padding is
+ * only ~10 device px per side — that is what lifts these to a finger-sized
+ * target while the slide still renders identically to present mode. */
+.gruene-slide__tappable {
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 32px;
+  margin: -32px;
+  outline: 2px dashed transparent;
+  outline-offset: 2px;
+  transition:
+    outline-color 0.15s ease,
+    background 0.15s ease;
+}
+.gruene-slide__tappable:active,
+.gruene-slide__tappable:focus-visible {
+  outline-color: var(--deck-accent, #316049);
+  background: rgba(255, 255, 255, 0.14);
+}
+.gruene-slide.is-dark .gruene-slide__tappable:active,
+.gruene-slide.is-dark .gruene-slide__tappable:focus-visible {
+  outline-color: rgba(255, 255, 255, 0.85);
+}
+.gruene-slide__placeholder {
+  color: rgba(0, 0, 0, 0.3);
+  font-style: italic;
+}
+.gruene-slide.is-dark .gruene-slide__placeholder {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gruene-slide__tappable {
+    transition: none;
+  }
+}
+
 /* ── reveal.js chrome (present mode only) ────────────────────────────────── */
 
 .reveal.gruene-deck {
