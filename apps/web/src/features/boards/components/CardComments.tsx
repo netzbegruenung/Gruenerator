@@ -485,7 +485,8 @@ export const CardComments = memo(function CardComments({
             onKeyDown={handleKeyDown}
             onSelect={updateMentionState}
             rows={2}
-            className="w-full rounded-lg border border-grey-200 dark:border-grey-700 bg-transparent px-3 py-2 text-sm outline-none focus:border-primary-500 resize-none text-foreground placeholder:text-grey-400"
+            // 16px below sm, else iOS Safari zooms when writing a comment.
+            className="w-full rounded-lg border border-grey-200 dark:border-grey-700 bg-transparent px-3 py-2 text-sm max-sm:text-base outline-none focus:border-primary-500 resize-none text-foreground placeholder:text-grey-400"
             placeholder={
               replyToId
                 ? 'Antwort schreiben...'
