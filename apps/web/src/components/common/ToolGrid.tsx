@@ -12,7 +12,7 @@ import {
 } from '@gruenerator/ui';
 import { memo } from 'react';
 import { PiStar, PiStarFill } from 'react-icons/pi';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import useSidebarFavouritesStore, { useIsFavourite } from '../../stores/sidebarFavouritesStore';
 
@@ -117,21 +117,8 @@ const CompactToolCard = memo(
 CompactToolCard.displayName = 'CompactToolCard';
 
 const FullToolCard = memo(({ tool }: { tool: ToolEntry }) => {
-  const navigate = useNavigate();
-
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      className="group flex flex-row bg-background border border-grey-200 dark:border-grey-700 rounded-md overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md"
-      onClick={() => void navigate(tool.path)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          void navigate(tool.path);
-        }
-      }}
-    >
+    <div className="group relative flex flex-row bg-background border border-grey-200 dark:border-grey-700 rounded-md overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md">
       {(tool.imageUrl || tool.icon) && (
         <div className="flex items-center justify-center px-md text-secondary-600 shrink-0">
           {tool.imageUrl ? (
@@ -144,7 +131,16 @@ const FullToolCard = memo(({ tool }: { tool: ToolEntry }) => {
 
       <div className="flex flex-col flex-1 p-md min-w-0">
         <div className="flex justify-between items-start mb-sm">
-          <h3 className="text-base font-semibold text-foreground-heading m-0">{tool.title}</h3>
+          <h3 className="text-base font-semibold text-foreground-heading m-0 min-w-0">
+            {/* Stretched link: the whole card navigates via one tab stop, while the
+                star sibling stays its own control (no nested-interactive violation). */}
+            <Link
+              to={tool.path}
+              className="rounded-sm outline-none after:absolute after:inset-0 after:content-[''] after:rounded-md focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-primary-600"
+            >
+              {tool.title}
+            </Link>
+          </h3>
           <FavouriteStar id={tool.id} size={16} />
         </div>
 
