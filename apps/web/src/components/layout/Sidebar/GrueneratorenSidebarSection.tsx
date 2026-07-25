@@ -98,39 +98,43 @@ export const GrueneratorenSidebarSection = memo(function GrueneratorenSidebarSec
   );
 
   return (
-    <DropdownMenu open={open} onOpenChange={handleOpenChange}>
-      <DropdownMenuTrigger asChild>
-        <button className={menuLinkClass(false, false, collapsed)} type="button">
-          <RiSpyLine aria-hidden="true" className={iconClass} />
-          <span className={titleClass}>Grüneratoren</span>
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        side={isMobile ? 'bottom' : 'right'}
-        align="start"
-        sideOffset={8}
-        className="w-72 bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl"
-      >
-        <DropdownMenuLabel>Grüneratoren</DropdownMenuLabel>
-        {agents.length === 0 ? (
-          <div className="px-2 py-1.5 text-xs text-grey-500">Noch keine Grüneratoren.</div>
-        ) : (
-          agents.map((a) => (
-            <DropdownMenuItem
-              key={a.identifier}
-              onSelect={() => openPath(`/agents/${getAgentSlug(a.identifier)}`, a.title)}
-            >
-              <a.Icon className="size-4 shrink-0 text-grey-500" />
-              <span className="min-w-0 flex-1 truncate">{a.title}</span>
-            </DropdownMenuItem>
-          ))
-        )}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => openPath('/agentura', 'Grüneratoren')}>
-          <PiGearSix className="size-4" />
-          <span>Alle Grüneratoren &amp; Verwaltung</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    // Same full-width wrapper as the other rail popups — buttons don't stretch
+    // on their own, so the collapsed icon would sit left of center without it.
+    <div className="flex flex-col gap-0 p-0">
+      <DropdownMenu open={open} onOpenChange={handleOpenChange}>
+        <DropdownMenuTrigger asChild>
+          <button className={menuLinkClass(false, false, collapsed)} type="button">
+            <RiSpyLine aria-hidden="true" className={iconClass} />
+            <span className={titleClass}>Grüneratoren</span>
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          side={isMobile ? 'bottom' : 'right'}
+          align="start"
+          sideOffset={8}
+          className="w-72 bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl"
+        >
+          <DropdownMenuLabel>Grüneratoren</DropdownMenuLabel>
+          {agents.length === 0 ? (
+            <div className="px-2 py-1.5 text-xs text-grey-500">Noch keine Grüneratoren.</div>
+          ) : (
+            agents.map((a) => (
+              <DropdownMenuItem
+                key={a.identifier}
+                onSelect={() => openPath(`/agents/${getAgentSlug(a.identifier)}`, a.title)}
+              >
+                <a.Icon className="size-4 shrink-0 text-grey-500" />
+                <span className="min-w-0 flex-1 truncate">{a.title}</span>
+              </DropdownMenuItem>
+            ))
+          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onSelect={() => openPath('/agentura', 'Grüneratoren')}>
+            <PiGearSix className="size-4" />
+            <span>Alle Grüneratoren &amp; Verwaltung</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 });
