@@ -2,128 +2,62 @@ import type { ReactNode } from 'react';
 import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
+import SearchBar from '@theme/SearchBar';
+import {
+  SECTIONS,
+  QUICK_TASKS,
+  EXTRA_LINKS,
+  type DocSection,
+  type QuickTask,
+} from '@site/src/nav/sections';
 import styles from './index.module.css';
 
-type CategoryCard = {
-  title: string;
-  icon: string;
-  description: string;
-  link: string;
-  topPages: {
-    title: string;
-    link: string;
-  }[];
-};
+function TaskCard({ task }: { task: QuickTask }): ReactNode {
+  return (
+    <Link to={task.to} className={styles.taskCard}>
+      <div className={styles.taskText}>
+        <span className={styles.taskLabel}>{task.label}</span>
+        <span className={styles.taskDescription}>{task.description}</span>
+      </div>
+      <svg
+        className={styles.taskArrow}
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M14 5l7 7m0 0l-7 7m7-7H3"
+        />
+      </svg>
+    </Link>
+  );
+}
 
-const categories: CategoryCard[] = [
-  {
-    title: 'Über den Grünerator',
-    icon: '🎯',
-    description: 'Was der Grünerator ist, welche Werkzeuge es gibt und worauf er aufbaut.',
-    link: '/docs/ueber-den-gruenerator/intro',
-    topPages: [
-      { title: 'Einführung', link: '/docs/ueber-den-gruenerator/intro' },
-      { title: 'Alle Werkzeuge', link: '/docs/ueber-den-gruenerator/tools' },
-      { title: 'Deine Daten im Grünerator', link: '/docs/ueber-den-gruenerator/notebook' },
-    ],
-  },
-  {
-    title: 'Chat',
-    icon: '✨',
-    description:
-      'Im Gespräch arbeiten: fragen, recherchieren, Dateien mitgeben, Inhalte erstellen.',
-    link: '/docs/chat/was-kann-ich-fragen',
-    topPages: [
-      { title: 'Was kann ich fragen?', link: '/docs/chat/was-kann-ich-fragen' },
-      { title: 'KI-Modelle', link: '/docs/chat/ki-modelle' },
-      { title: 'Dateien hinzufügen', link: '/docs/chat/dateien-hinzufuegen' },
-    ],
-  },
-  {
-    title: 'Office',
-    icon: '📄',
-    description: 'Dokumente, Tabellen, Präsentationen und Boards — gemeinsam schreiben und planen.',
-    link: '/docs/office/intro',
-    topPages: [
-      { title: 'Überblick', link: '/docs/office/intro' },
-      { title: 'Tabellen', link: '/docs/office/tabellen' },
-      { title: 'Boards', link: '/docs/office/boards' },
-    ],
-  },
-  {
-    title: 'Wissen',
-    icon: '📚',
-    description: 'Eigene Notebooks anlegen und die Inhalte der Landesverbände nutzen.',
-    link: '/docs/wissen/eigenes-notebook-erstellen',
-    topPages: [
-      { title: 'Eigenes Notebook erstellen', link: '/docs/wissen/eigenes-notebook-erstellen' },
-      { title: 'Landesverbände', link: '/docs/wissen/landesverbaende' },
-    ],
-  },
-  {
-    title: 'Grüneratoren',
-    icon: '🕵️',
-    description: 'Die Agentura: fertige Grüneratoren nutzen und eigene bauen.',
-    link: '/docs/grueneratoren/agentura',
-    topPages: [
-      { title: 'Agentura', link: '/docs/grueneratoren/agentura' },
-      {
-        title: 'Eigene Grüneratoren erstellen',
-        link: '/docs/grueneratoren/eigene-agentinnen-erstellen',
-      },
-    ],
-  },
-  {
-    title: 'Konto & Projekte',
-    icon: '👤',
-    description: 'Projekte, Einstellungen und die Anbindung der Grünen Wolke.',
-    link: '/docs/konto/projekte',
-    topPages: [
-      { title: 'Projekte', link: '/docs/konto/projekte' },
-      { title: 'Einstellungen', link: '/docs/konto/einstellungen' },
-      { title: 'Grüne Wolke', link: '/docs/konto/gruene-wolke' },
-    ],
-  },
-  {
-    title: 'Integrationen',
-    icon: '🔌',
-    description: 'Den Grünerator mit anderen Diensten verbinden — in beide Richtungen.',
-    link: '/docs/integrationen/konnektoren',
-    topPages: [
-      { title: 'Konnektoren', link: '/docs/integrationen/konnektoren' },
-      { title: 'KI-Chat einrichten', link: '/docs/integrationen/ki-chat-einrichten' },
-      { title: 'Was kann der MCP-Server?', link: '/docs/integrationen/mcp-was-kann-ich-fragen' },
-    ],
-  },
-  {
-    title: 'Grundlagen',
-    icon: '🧠',
-    description:
-      'Wie KI-Sprachmodelle funktionieren, wo ihre Grenzen liegen, wie man kennzeichnet.',
-    link: '/docs/grundlagen/wie-llms-funktionieren',
-    topPages: [
-      { title: 'Wie LLMs funktionieren', link: '/docs/grundlagen/wie-llms-funktionieren' },
-      { title: 'Risiken & Gefahren', link: '/docs/grundlagen/risiken-und-gefahren-von-llms' },
-      { title: 'Kennzeichnungs-Guide', link: '/docs/grundlagen/Kennzeichnungs-Guide' },
-    ],
-  },
-];
-
-function CategoryCard({ category }: { category: CategoryCard }): ReactNode {
+function SectionCard({ section }: { section: DocSection }): ReactNode {
   return (
     <div className={styles.categoryCard}>
-      <Link to={category.link} className={styles.categoryCardLink}>
+      <Link to={section.intro} className={styles.categoryCardLink}>
         <div className={styles.categoryHeader}>
-          <span className={styles.categoryIcon}>{category.icon}</span>
-          <h3 className={styles.categoryTitle}>{category.title}</h3>
+          <span className={styles.categoryIcon}>{section.icon}</span>
+          <h3 className={styles.categoryTitle}>{section.label}</h3>
         </div>
-        <p className={styles.categoryDescription}>{category.description}</p>
+        <p className={styles.categoryDescription}>{section.description}</p>
       </Link>
 
       <div className={styles.topPages}>
-        {category.topPages.map((page, idx) => (
-          <Link key={idx} to={page.link} className={styles.topPageLink}>
-            <svg className={styles.linkIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        {section.topPages.map((page) => (
+          <Link key={page.to} to={page.to} className={styles.topPageLink}>
+            <svg
+              className={styles.linkIcon}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -131,7 +65,7 @@ function CategoryCard({ category }: { category: CategoryCard }): ReactNode {
                 d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
               />
             </svg>
-            {page.title}
+            {page.label}
           </Link>
         ))}
       </div>
@@ -147,7 +81,6 @@ export default function Home(): ReactNode {
       title={`${siteConfig.title}`}
       description="Dokumentation für den Grünerator - die grüne KI für Bündnis 90/Die Grünen"
     >
-      {/* Hero Section */}
       <header className={styles.hero}>
         <div className="container">
           <div className={styles.heroContent}>
@@ -155,37 +88,61 @@ export default function Home(): ReactNode {
               <span className={styles.titleGreen}>Grünerator</span> Dokumentation
             </h1>
             <p className={styles.heroSubtitle}>Alles, was du über die grüne KI wissen musst</p>
-            <div className={styles.heroButtons}>
-              <Link className={styles.primaryButton} to="/docs/ueber-den-gruenerator/intro">
-                Erste Schritte
-              </Link>
-              <Link
-                className={styles.secondaryButton}
-                href="https://gruenerator.eu"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Zum Grünerator →
-              </Link>
+            <div className={styles.heroSearch}>
+              <SearchBar />
             </div>
+            <Link
+              className={styles.heroLink}
+              href="https://gruenerator.eu"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Zum Grünerator →
+            </Link>
           </div>
         </div>
       </header>
 
-      {/* Category Explorer Section */}
       <main className={styles.main}>
-        <div className="container">
-          <div className={styles.categoriesIntro}>
-            <h2 className={styles.sectionTitle}>Entdecke die Dokumentation</h2>
-            <p className={styles.sectionSubtitle}>Wähle eine Kategorie, um mehr zu erfahren</p>
+        <section className={styles.tasksSection}>
+          <div className="container">
+            <div className={styles.categoriesIntro}>
+              <h2 className={styles.sectionTitle}>Direkt loslegen</h2>
+              <p className={styles.sectionSubtitle}>
+                Die häufigsten Aufgaben — Schritt für Schritt erklärt
+              </p>
+            </div>
+            <div className={styles.tasksGrid}>
+              {QUICK_TASKS.map((task) => (
+                <TaskCard key={task.to} task={task} />
+              ))}
+            </div>
           </div>
+        </section>
 
-          <div className={styles.categoriesGrid}>
-            {categories.map((category, idx) => (
-              <CategoryCard key={idx} category={category} />
-            ))}
+        <section className={styles.categoriesSection}>
+          <div className="container">
+            <div className={styles.categoriesIntro}>
+              <h2 className={styles.sectionTitle}>Alle Bereiche</h2>
+              <p className={styles.sectionSubtitle}>
+                Die Dokumentation folgt dem Aufbau des Grünerators
+              </p>
+            </div>
+            <div className={styles.categoriesGrid}>
+              {SECTIONS.map((s) => (
+                <SectionCard key={s.id} section={s} />
+              ))}
+            </div>
+            <div className={styles.extraRow}>
+              <span className={styles.extraLabel}>Außerdem:</span>
+              {Object.values(EXTRA_LINKS).map((link) => (
+                <Link key={link.to} to={link.to} className={styles.extraLink}>
+                  {link.label}
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
+        </section>
       </main>
     </Layout>
   );
