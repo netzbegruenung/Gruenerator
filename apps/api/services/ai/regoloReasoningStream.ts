@@ -36,7 +36,8 @@ export interface ReasoningStreamParams {
   provider: string;
   model: string;
   messages: ModelMessage[];
-  maxTokens: number;
+  /** Optional output cap — omitted on answer paths (provider decides). */
+  maxTokens?: number;
   temperature: number;
   signal?: AbortSignal;
   effort?: ThinkingEffort;
@@ -138,7 +139,7 @@ export async function* streamWithReasoning(
     body: JSON.stringify({
       model: params.model,
       messages: params.messages,
-      max_tokens: params.maxTokens,
+      ...(params.maxTokens != null && { max_tokens: params.maxTokens }),
       temperature: params.temperature,
       stream: true,
       ...config.bodyExtras,

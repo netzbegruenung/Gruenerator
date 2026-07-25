@@ -21,25 +21,25 @@ interface ModelMessage {
 }
 
 export const CONTEXT_CONFIG = {
-  MAX_CONTEXT_TOKENS: 40000,
-  RESPONSE_RESERVE: 2000,
+  /** Fallback budget when no context window is known. Sized for the smallest
+   *  live lane (32k) so an unknown model can never overflow. */
+  MAX_CONTEXT_TOKENS: 20000,
+  RESPONSE_RESERVE: 3000,
 };
 
-/** Share of a model's context window the conversation history may occupy. */
-const PRUNING_WINDOW_SHARE = 0.6;
+/** Share of a model's context window the conversation history may occupy.
+ *  The remainder covers the system prompt (retrieval context runs to several
+ *  thousand tokens) plus the response, which is no longer output-capped. */
+const PRUNING_WINDOW_SHARE = 0.7;
 /** Floor so a tiny declared window can't prune a thread down to nothing. */
 const MIN_PRUNING_BUDGET = 8000;
 
 /**
  * Token budget for message pruning, derived from the model's own window.
  *
- * MAX_CONTEXT_TOKENS is a ceiling, not a target. Without this the 32k lanes
- * (verdigado-pro, gemma4-31b) get pruned to 40k — above the window they can
- * actually accept. The remaining share covers the system prompt, whose
- * retrieval context runs to several thousand tokens, plus the response.
- *
- * Raising the ceiling for the 128k lanes is a deliberate cost decision, not an
- * oversight: it would roughly double the input tokens on long Mistral threads.
+ * Deliberately NO global ceiling: the model window is the only real limit.
+ * The former 40k ceiling halved what long threads could carry on the 128k
+ * Mistral lanes; the 32k lanes are bounded by their own window via the share.
  */
 export function getPruningBudget(contextWindowTokens?: number): number {
   if (!contextWindowTokens) return CONTEXT_CONFIG.MAX_CONTEXT_TOKENS;
@@ -47,7 +47,7 @@ export function getPruningBudget(contextWindowTokens?: number): number {
   const modelBudget =
     Math.floor(contextWindowTokens * PRUNING_WINDOW_SHARE) - CONTEXT_CONFIG.RESPONSE_RESERVE;
 
-  return Math.max(MIN_PRUNING_BUDGET, Math.min(modelBudget, CONTEXT_CONFIG.MAX_CONTEXT_TOKENS));
+  return Math.max(MIN_PRUNING_BUDGET, modelBudget);
 }
 
 /**
