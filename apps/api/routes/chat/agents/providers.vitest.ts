@@ -93,7 +93,7 @@ describe('getContextWindow', () => {
 
   it('uses provider fallback when model is unknown', () => {
     expect(getContextWindow('auto', 'mistral')).toBe(128000);
-    expect(getContextWindow('auto', 'litellm')).toBe(16384);
+    expect(getContextWindow('auto', 'litellm')).toBe(32768);
     expect(getContextWindow('auto', 'regolo')).toBe(32768);
   });
 
