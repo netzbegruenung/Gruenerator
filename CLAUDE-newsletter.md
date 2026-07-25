@@ -1,6 +1,6 @@
 # Newsletter Writing Style
 
-> Referenced from `CLAUDE.md`. Newsletters are sent via Brevo (Sendinblue) and archived in Docusaurus at `documentation/docs/newsletter/`.
+> Referenced from `CLAUDE.md`. Newsletters are sent via Brevo (Sendinblue) and archived in Docusaurus at `documentation/docs/archiv/newsletter/`.
 
 ## Tone & Voice
 

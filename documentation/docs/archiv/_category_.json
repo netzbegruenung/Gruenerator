@@ -1,0 +1,8 @@
+{
+  "label": "Archiv",
+  "position": 9,
+  "link": {
+    "type": "generated-index",
+    "description": "Newsletter und Signal-Nachrichten aus der Vergangenheit."
+  }
+}
