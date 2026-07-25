@@ -23,6 +23,8 @@ export const profileUpdateBodySchema = z.object({
   email: z.string().optional(),
   custom_prompt: z.string().optional(),
   default_startpage: startPageSchema.optional(),
+  reduce_motion: z.boolean().optional(),
+  reduce_transparency: z.boolean().optional(),
 });
 
 export const avatarUpdateBodySchema = z.object({
@@ -124,6 +126,8 @@ export const userProfileSchema = z.object({
   locale: localeSchema.optional(),
   // Default mirrors the `additionalFields` config in apps/api/config/betterAuth.ts.
   default_startpage: startPageSchema.default('chat'),
+  reduce_motion: z.boolean().default(false),
+  reduce_transparency: z.boolean().default(false),
   is_admin: z.boolean().optional(),
   groups_enabled: z.boolean().default(false),
   custom_generators: z.boolean().default(false),

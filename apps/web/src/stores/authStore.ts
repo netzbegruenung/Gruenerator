@@ -81,6 +81,10 @@ export interface AuthStore {
   updateLocale: (newLocale: SupportedLocale) => Promise<boolean>;
   updateChatBackground: (background: ChatBackground) => Promise<boolean>;
   updateStartPage: (page: StartPage) => Promise<boolean>;
+  updateA11yPreference: (
+    field: 'reduce_motion' | 'reduce_transparency',
+    enabled: boolean
+  ) => Promise<boolean>;
 }
 
 // Detect browser locale for unauthenticated default
@@ -685,6 +689,36 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('[AuthStore] Error updating start page:', errorMessage);
       toast.error('Startseite konnte nicht gespeichert werden.');
+      return false;
+    }
+  },
+
+  // Visual-accessibility preferences (Animationen/Transparenz reduzieren).
+  // Optimistic so App.tsx flips the <html> data attribute on the same frame.
+  updateA11yPreference: async (
+    field: 'reduce_motion' | 'reduce_transparency',
+    enabled: boolean
+  ): Promise<boolean> => {
+    const previous = get().user?.[field] ?? false;
+    set((state) => ({
+      user: state.user ? { ...state.user, [field]: enabled } : null,
+    }));
+
+    try {
+      const result = await getContractsClient().userProfile.updateProfile({
+        body: { [field]: enabled },
+      });
+      if (result.status !== 200) {
+        throw new Error(`HTTP ${result.status}`);
+      }
+      return true;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[AuthStore] Error updating a11y preference:', errorMessage);
+      set((state) => ({
+        user: state.user ? { ...state.user, [field]: previous } : null,
+      }));
+      toast.error('Einstellung konnte nicht gespeichert werden.');
       return false;
     }
   },
