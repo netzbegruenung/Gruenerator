@@ -11,11 +11,9 @@ import { CitationMarkdownText } from '../message-parts/CitationMarkdownText';
 import { MessageStreamingProvider } from '../message-parts/messageStreamingContext';
 import { Reasoning, ReasoningGroup } from '../assistant-ui/reasoning';
 import { ToolCallGroup } from '../message-parts/ToolCallGroup';
-import { ProgressIndicator } from '../message-parts/ProgressIndicator';
 import { useProgressDisplay } from '../message-parts/progressDisplayContext';
-import { ProgressTracker } from '../tool-ui/progress-tracker/ProgressTracker';
+import { StreamingStatusLine } from '../message-parts/StreamingStatusLine';
 import { SkillBadge } from '../message-parts/SkillBadge';
-import { TypingIndicator } from '../message-parts/TypingIndicator';
 import { ArtifactCard } from '../message-parts/ArtifactCard';
 import { ComputeCard } from '../message-parts/ComputeCard';
 import { BundestagCard } from '../message-parts/BundestagCard';
@@ -193,57 +191,14 @@ export const AssistantMessage = memo(function AssistantMessage() {
           />
         )}
 
-        {isStreaming &&
-          !hasToolCall &&
-          (() => {
-            const stage = custom?.progress?.stage;
-            const hasConcreteProgress =
-              stage === 'searching' || stage === 'generating' || stage === 'generating_image';
-
-            if (hasConcreteProgress) {
-              const agentColor = messageAgent?.backgroundColor || '#316049';
-              if (custom!.progress!.steps) {
-                return (
-                  <ProgressTracker
-                    steps={custom!.progress!.steps}
-                    agentColor={agentColor}
-                    totalTimeMs={custom?.streamMetadata?.totalTimeMs}
-                  />
-                );
-              }
-              return (
-                <ProgressIndicator
-                  progress={custom!.progress!}
-                  agentColor={agentColor}
-                  variant={progressDisplay}
-                />
-              );
-            }
-
-            if (!textContent) {
-              return <TypingIndicator />;
-            }
-
-            return null;
-          })()}
-
-        {isStreaming &&
-          hasToolCall &&
-          !textContent &&
-          (custom?.progress?.stage === 'generating' || custom?.progress?.stage === 'searching') &&
-          (custom?.progress?.steps ? (
-            <ProgressTracker
-              steps={custom.progress.steps}
-              agentColor={messageAgent?.backgroundColor || '#316049'}
-              totalTimeMs={custom?.streamMetadata?.totalTimeMs}
-            />
-          ) : (
-            <ProgressIndicator
-              progress={custom.progress}
-              agentColor={messageAgent?.backgroundColor || '#316049'}
-              variant={progressDisplay}
-            />
-          ))}
+        <StreamingStatusLine
+          isStreaming={isStreaming}
+          hasToolCall={hasToolCall}
+          textContent={textContent}
+          custom={custom}
+          progressDisplay={progressDisplay}
+          agentColor={messageAgent?.backgroundColor || '#316049'}
+        />
 
         {custom?.socialPostData && (
           <SocialPostCard
