@@ -32,6 +32,10 @@ export const SECTIONS: DocSection[] = [
     topPages: [
       { label: 'Einführung', to: '/docs/ueber-den-gruenerator/intro' },
       { label: 'Alle Werkzeuge', to: '/docs/ueber-den-gruenerator/tools' },
+      {
+        label: 'Wie nachhaltig ist der Grünerator?',
+        to: '/docs/ueber-den-gruenerator/nachhaltigkeit',
+      },
       { label: 'Deine Daten im Grünerator', to: '/docs/ueber-den-gruenerator/notebook' },
     ],
   },
