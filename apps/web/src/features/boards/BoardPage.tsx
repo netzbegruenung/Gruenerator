@@ -525,6 +525,7 @@ function BoardViewContent({
           rows={filteredRows}
           activeView={activeView}
           onRowClick={handleRowClick}
+          onCellUpdate={boardState.updateRowCell}
         />
       )}
 
