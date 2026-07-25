@@ -6,7 +6,12 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { detectLetterParts, hasDetectedParts, stripDetectedLines } from './letterDetection';
+import {
+  blockLines,
+  detectLetterParts,
+  hasDetectedParts,
+  stripDetectedBlocks,
+} from './letterDetection';
 
 const LETTER = `Stadtverwaltung Musterstadt
 Frau Erika Beispiel
@@ -99,27 +104,64 @@ Sehr geehrte Damen und Herren,`
   });
 });
 
-describe('stripDetectedLines', () => {
-  it('entfernt genau die erkannten Zeilen', () => {
-    const parts = detectLetterParts(LETTER);
-    const stripped = stripDetectedLines(LETTER, parts);
+/**
+ * The prefill and the removal must read the SAME text. They did not: the dialog
+ * read the blocks while the removal ran on serialised HTML, where a line-based
+ * detector matches nothing — so the checkbox silently did nothing and the
+ * recipient ended up both in the address field and in the body.
+ */
+describe('blockLines + stripDetectedBlocks', () => {
+  const p = (text: string) => ({ content: [{ type: 'text', text }] });
+  const BLOCKS = [
+    p('Stadtverwaltung Musterstadt'),
+    p('Rathausplatz 1'),
+    p('12345 Musterstadt'),
+    p(''),
+    p('Betreff: Antrag auf Radweg-Ausbau'),
+    p(''),
+    p('Sehr geehrte Damen und Herren,'),
+    p(''),
+    p('wir beantragen den Ausbau des Radwegs.'),
+    p(''),
+    p('Mit freundlichen Grüßen'),
+    p('Maxi Mustermensch'),
+  ];
 
-    expect(stripped).toContain('wir beantragen den Ausbau');
-    expect(stripped).not.toContain('Rathausplatz 1');
-    expect(stripped).not.toContain('Sehr geehrte Frau Beispiel,');
-    expect(stripped).not.toContain('Mit freundlichen Grüßen');
+  it('yields one line per block, so indices line up', () => {
+    expect(blockLines(BLOCKS)).toHaveLength(BLOCKS.length);
+    expect(blockLines(BLOCKS)[0]).toBe('Stadtverwaltung Musterstadt');
   });
 
-  it('lässt den Text unangetastet, wenn nichts erkannt wurde', () => {
-    const text = '# Überschrift\n\nEin Absatz.';
+  it('recognises the letter parts from the block text', () => {
+    const parts = detectLetterParts(blockLines(BLOCKS).join('\n'));
 
-    expect(stripDetectedLines(text, detectLetterParts(text))).toBe(text);
+    expect(parts.recipient).toBe('Stadtverwaltung Musterstadt\nRathausplatz 1\n12345 Musterstadt');
+    expect(parts.subject).toBe('Antrag auf Radweg-Ausbau');
+    expect(parts.salutation).toBe('Sehr geehrte Damen und Herren,');
+    expect(parts.signature).toBe('Maxi Mustermensch');
   });
 
-  it('hinterlässt keine Absatz-Lücken', () => {
-    const stripped = stripDetectedLines(LETTER, detectLetterParts(LETTER));
+  it('drops exactly the recognised blocks and keeps the body', () => {
+    const parts = detectLetterParts(blockLines(BLOCKS).join('\n'));
+    const kept = blockLines(stripDetectedBlocks(BLOCKS, parts));
 
-    expect(stripped).not.toMatch(/\n{3,}/);
-    expect(stripped.startsWith('\n')).toBe(false);
+    expect(kept).toContain('wir beantragen den Ausbau des Radwegs.');
+    expect(kept).not.toContain('Rathausplatz 1');
+    expect(kept).not.toContain('Sehr geehrte Damen und Herren,');
+    expect(kept).not.toContain('Mit freundlichen Grüßen');
+    expect(kept).not.toContain('Maxi Mustermensch');
+  });
+
+  it('leaves the blocks untouched when nothing was recognised', () => {
+    const plain = [p('# Überschrift'), p('Ein Absatz.')];
+    const parts = detectLetterParts(blockLines(plain).join('\n'));
+
+    expect(stripDetectedBlocks(plain, parts)).toEqual(plain);
+  });
+
+  it('tolerates blocks without text content', () => {
+    const withImage = [p('12345 Musterstadt'), { content: undefined }, p('Text')];
+
+    expect(blockLines(withImage)).toEqual(['12345 Musterstadt', '', 'Text']);
   });
 });

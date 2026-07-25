@@ -75,13 +75,13 @@ import { DocAiReviewBar } from './DocAiReviewBar';
 import { webAppDocsAdapter } from './docsAdapter';
 import { GuestBadge, GUEST_ANIMALS } from './GuestBadge';
 import { getOrCreateGuestIdentity } from './guestIdentity';
-import { detectLetterParts, stripDetectedLines } from './letterDetection';
+import { blockLines, detectLetterParts, stripDetectedBlocks } from './letterDetection';
 import { LetterExportDialog, type LetterExportSubmit } from './LetterExportDialog';
 import { LetterheadExportDialog } from './LetterheadExportDialog';
 import { useDocsLiveWolkeSync } from './useDocsLiveWolkeSync';
 
 import type { LetterheadChoice } from './LetterheadChooser';
-import type { BlockNoteEditor } from '@blocknote/core';
+import type { Block, BlockNoteEditor } from '@blocknote/core';
 
 const MemoizedBlockNoteEditor = memo(BlockNoteEditorComponent);
 
@@ -416,7 +416,7 @@ function EditorContent() {
    * and exporting immediately would silently drop it.
    */
   const runPdfExport = useCallback(
-    async (options?: PdfExportOptions, transform?: (html: string) => string) => {
+    async (options?: PdfExportOptions, selectBlocks?: (blocks: Block[]) => Block[]) => {
       if (!docData || !editor) return;
       if (exportBlockedBySuggestions()) return;
       if (isExportingPdf) return;
@@ -426,11 +426,15 @@ function EditorContent() {
       const pending = toast.loading('PDF wird erstellt …');
       try {
         const { blocksToHTML } = await import('@gruenerator/docs');
-        const html = await blocksToHTML(editor);
+        // Any block filtering happens BEFORE serialising: a line-based
+        // transform on HTML matches nothing, which is how the "remove
+        // recognised lines" option silently did nothing.
+        const blocks = selectBlocks ? selectBlocks(editor.document) : editor.document;
+        const html = await blocksToHTML(editor, blocks);
         // blocksToHTML swallows its errors and returns '' — exporting that
         // would download a PDF reading "enthält keinen Inhalt".
         if (!html.trim()) throw new Error('Das Dokument konnte nicht gelesen werden.');
-        const content = transform ? transform(html) : html;
+        const content = html;
         await useExportStore.getState().generatePDF(content, docData.title || 'Dokument', options);
         toast.success('PDF erstellt', { id: pending });
       } catch (error) {
@@ -457,7 +461,7 @@ function EditorContent() {
       choice: LetterheadChoice,
       layout: 'letterhead' | 'letter',
       letter?: LetterExportSubmit['letter'],
-      transform?: (html: string) => string
+      selectBlocks?: (blocks: Block[]) => Block[]
     ) => {
       let letterheadId = choice.letterheadId;
       if (choice.saveForLater) {
@@ -479,7 +483,7 @@ function EditorContent() {
           ...(!letterheadId && choice.inline ? { letterhead: choice.inline } : {}),
           ...(letter ? { letter } : {}),
         },
-        transform
+        selectBlocks
       );
     },
     [runPdfExport, queryClient]
@@ -488,8 +492,10 @@ function EditorContent() {
   const handleLetterSubmit = useCallback(
     (result: LetterExportSubmit) => {
       setShowLetterDialog(false);
-      void runWithChoice(result.letterhead, 'letter', result.letter, (html) =>
-        result.stripDetected ? stripDetectedLines(html, detectLetterParts(html)) : html
+      void runWithChoice(result.letterhead, 'letter', result.letter, (blocks) =>
+        result.stripDetected
+          ? stripDetectedBlocks(blocks, detectLetterParts(blockLines(blocks).join('\n')))
+          : blocks
       );
     },
     [runWithChoice]
@@ -1155,15 +1161,7 @@ function EditorContent() {
           documentTitle={docData?.title || 'Dokument'}
           // Plain text is enough for the prefill proposal — the detection works
           // line-wise, and the export itself uses the full HTML.
-          documentText={editor.document
-            .map((block) =>
-              Array.isArray(block.content)
-                ? block.content
-                    .map((c) => ('text' in c && typeof c.text === 'string' ? c.text : ''))
-                    .join('')
-                : ''
-            )
-            .join('\n')}
+          documentText={blockLines(editor.document).join('\n')}
           defaultSignature={profile?.display_name ?? ''}
           letterheads={letterheads}
           onCancel={() => setShowLetterDialog(false)}
