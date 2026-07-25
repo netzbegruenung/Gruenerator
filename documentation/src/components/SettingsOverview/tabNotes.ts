@@ -33,7 +33,7 @@ export const TAB_NOTES: TabNote[] = [
     intro:
       'Wer du bist. Name, Benutzername und E-Mail kommen aus deinem Grünen Login und lassen sich hier nur ansehen — ändern kannst du sie dort, wo du dich anmeldest.',
     extras: [
-      'Dein Profilbild ist ein Grünerator Friend — ausgewählt wird er im Bereich „Grünerator Friends", hier siehst du den aktuellen.',
+      'Dein Profilbild ist ein Grünerator Friend — ausgewählt wird er im Bereich „Friends".',
       'Ganz unten kannst du dein Konto endgültig löschen. Das entfernt deine Inhalte und lässt sich nicht rückgängig machen.',
     ],
   },
