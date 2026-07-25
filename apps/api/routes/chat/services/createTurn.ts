@@ -75,7 +75,9 @@ export interface ArtifactSpec<T> {
   failureText: string;
   /** Shown when generation threw. */
   errorText: string;
-  contextKind: ThreadToolContext['kind'];
+  /** Sticky-pointer kind. A function when it depends on the result — a
+   *  generated document may turn out to be a presentation or a sheet. */
+  contextKind: ThreadToolContext['kind'] | ((result: T) => ThreadToolContext['kind']);
   /**
    * Runs the generator. `onCommit` MUST be invoked once a usable structure
    * exists but before the write, so the stream opens at the same point it did
@@ -163,7 +165,9 @@ export async function runCreateTurn<T>(
         spec.persistMetadata?.(result)
       );
       await touchThread(actualThreadId);
-      await rememberArtifact(actualThreadId, spec.contextKind, ref, label);
+      const contextKind =
+        typeof spec.contextKind === 'function' ? spec.contextKind(result) : spec.contextKind;
+      await rememberArtifact(actualThreadId, contextKind, ref, label);
     }
 
     sse.end();

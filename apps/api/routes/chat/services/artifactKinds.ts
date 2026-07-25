@@ -8,6 +8,8 @@
  */
 
 import {
+  createDocumentArtifact,
+  documentContextKind,
   pdfKindFromText,
   runBoardGeneration,
   runDocGeneration,
@@ -121,3 +123,43 @@ export const BOARD_SPEC: ArtifactSpec<CreatedBoard> = {
   // No persistMetadata: the board turn stores plain text today.
   ref: (board) => ({ ref: board.boardId, label: board.title }),
 };
+
+/**
+ * The document spec is built per call: `intent` and `subtypeOverride` come from
+ * the caller (@dokument-erstellen vs. save_as_doc), so unlike the other four
+ * this one cannot be a constant.
+ */
+export function makeDocumentSpec(opts: {
+  intent: string;
+  subtypeOverride?: string | null;
+  conversationContext?: string;
+}): ArtifactSpec<CreatedDocument> {
+  return {
+    intent: opts.intent,
+    progressMessage: 'Erstelle Dokument...',
+    failureText:
+      'Ich konnte das Dokument nicht erstellen. Sag mir kurz, was drinstehen soll, dann schreibe ich es direkt.',
+    errorText:
+      'Das Dokument konnte nicht erstellt werden. Versuch es bitte noch einmal mit einer kurzen Beschreibung des Inhalts.',
+    // A generated "document" may turn out to be a presentation or a sheet.
+    contextKind: (doc) => documentContextKind(doc.subtype),
+    logLabel: 'Document',
+    generate: (ctx, onCommit) =>
+      createDocumentArtifact({
+        aiWorkerPool: ctx.aiWorkerPool,
+        req: ctx.req,
+        userId: ctx.userId,
+        userContent: ctx.userContent,
+        subtypeOverride: opts.subtypeOverride ?? null,
+        ...(opts.conversationContext != null && {
+          conversationContext: opts.conversationContext,
+        }),
+        onCommit,
+      }),
+    successText: (doc) => `Dokument **"${doc.title}"** wurde erstellt.`,
+    card: (doc) => doc,
+    doneExtras: (doc) => ({ documentId: doc.documentId }),
+    persistMetadata: (doc) => ({ intent: opts.intent, createdDocument: doc }),
+    ref: (doc) => ({ ref: doc.documentId, label: doc.title }),
+  };
+}
