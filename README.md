@@ -370,10 +370,15 @@ pnpm run build:documentation   # Build documentation site
 ```
 documentation/
 ├── docs/           # Main documentation pages
-│   ├── Grundlagen/        # Basics and guides
-│   ├── Profil/            # Profile and cloud features
-│   ├── gruenerieren/      # Content generation features
-│   ├── llm-basics/        # AI/LLM fundamentals
+│   ├── grundlagen/        # Basics and guides
+│   ├── konto/             # Profile and cloud features
+│   ├── chat/              # Content generation features
+│   ├── grueneratoren/     # Specialized agents
+│   ├── wissen/            # Notebooks and knowledge sources
+│   ├── office/            # Docs, boards, sheets, presentations
+│   ├── integrationen/     # MCP and third-party connectors
+│   ├── experimente/       # Monitor and other experimental features
+│   ├── archiv/            # Newsletter and Signal message archive
 │   └── ueber-den-gruenerator/  # About Grünerator
 ├── blog/           # News and updates
 ├── src/            # Custom pages and components

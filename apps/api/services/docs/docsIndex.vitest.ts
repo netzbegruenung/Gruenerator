@@ -24,10 +24,10 @@ describe('docs index (generated)', () => {
   });
 
   it('excludes the folders Docusaurus does not build', () => {
-    // intern/** and monitor/** are in docusaurus.config `exclude` — indexing
+    // intern/** and experimente/** are in docusaurus.config `exclude` — indexing
     // them would produce citations that 404.
     for (const page of DOCS_PAGES) {
-      expect(page.url).not.toMatch(/^\/docs\/(intern|monitor)\//);
+      expect(page.url).not.toMatch(/^\/docs\/(intern|experimente)\//);
     }
   });
 
@@ -51,7 +51,7 @@ describe('searchDocs', () => {
   it('finds the how-to page for an operating question', () => {
     const hits = searchDocs('wie lege ich ein eigenes notebook an');
     expect(hits.length).toBeGreaterThan(0);
-    expect(hits[0]!.url).toContain('/docs/notebooks/eigenes-notebook-erstellen');
+    expect(hits[0]!.url).toContain('/docs/wissen/eigenes-notebook-erstellen');
   });
 
   it('returns absolute, deep-linked URLs', () => {
@@ -69,19 +69,19 @@ describe('searchDocs', () => {
     // the actual guide — that is what CATEGORY_PRIOR corrects.
     const [top] = searchDocs('wie erstelle ich ein sharepic');
     expect(top).toBeDefined();
-    expect(top!.url).not.toContain('/docs/newsletter/');
+    expect(top!.url).not.toContain('/docs/archiv/newsletter/');
   });
 
   it('still finds the newsletter when the user asks for it', () => {
     const [top] = searchDocs('was war neu im juli 2026');
-    expect(top?.url).toContain('/docs/newsletter/');
+    expect(top?.url).toContain('/docs/archiv/newsletter/');
   });
 
   it('prefers the page a query names verbatim over generic heading matches', () => {
     // "wie funktioniert" is a stock heading across the corpus; naming a page is
     // the strongest relevance signal a user can give.
     const [top] = searchDocs('wie funktioniert der ki-chat');
-    expect(top?.url).toContain('/docs/gruenerieren/ki-chat');
+    expect(top?.url).toContain('/docs/chat/ki-chat');
   });
 
   it('does not let one long page fill the whole result list', () => {

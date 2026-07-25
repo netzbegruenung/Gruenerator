@@ -39,16 +39,14 @@ const EXCLUDED_TOP_FOLDERS = new Set(['intern', 'experimente']);
 /** Human labels per top-level folder — becomes the page-map grouping. */
 const CATEGORY_LABELS = {
   'ueber-den-gruenerator': 'Über den Grünerator',
-  Grundlagen: 'Grundlagen',
-  'llm-basics': 'LLM-Grundlagen',
-  gruenerieren: 'Grünerieren',
-  notebooks: 'Notebooks',
-  Profil: 'Profil',
+  chat: 'Chat',
+  office: 'Office',
+  wissen: 'Wissen',
+  grueneratoren: 'Grüneratoren',
+  konto: 'Konto & Projekte',
   integrationen: 'Integrationen',
-  agents: 'Grüneratoren',
-  landesverbaende: 'Landesverbände',
-  'signal-nachrichten': 'Signal-Nachrichten',
-  newsletter: 'Newsletter',
+  grundlagen: 'Grundlagen',
+  archiv: 'Archiv',
 };
 
 const LEAD_MAX_CHARS = 200;
@@ -287,7 +285,7 @@ function emit(index) {
  */
 
 export interface DocPage {
-  /** Site-relative URL path, e.g. \`/docs/gruenerieren/ki-chat\`. */
+  /** Site-relative URL path, e.g. \`/docs/chat/ki-chat\`. */
   url: string;
   title: string;
   category: string;

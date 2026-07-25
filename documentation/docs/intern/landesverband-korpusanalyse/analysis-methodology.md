@@ -7,7 +7,7 @@
 
 - **Qdrant-Collection**: `landesverbaende_documents`
 - **Pflicht-Filter pro Analyse**: `content_type='presse'` + `landesverband=<code>` + `source_type=<landesverband|fraktion>`
-- **Extraktion**: `apps/api/scripts/extract-lv-pms.ts` — scrollt alle Chunks, **dedupliziert per `document_id`** (pro PM gewinnt der Chunk mit `full_text` ODER der längste `chunk_text`), sortiert per `published_at` DESC in-memory, behält Top-20. Ablage: `documentation/docs/landesverbaende/_raw/<lv>-<source>.json`.
+- **Extraktion**: `apps/api/scripts/extract-lv-pms.ts` — scrollt alle Chunks, **dedupliziert per `document_id`** (pro PM gewinnt der Chunk mit `full_text` ODER der längste `chunk_text`), sortiert per `published_at` DESC in-memory, behält Top-20. Ablage: `documentation/docs/wissen/landesverbaende/_raw/<lv>-<source>.json`.
 - **Bekannte Daten-Anomalien aus der ersten Welle**:
   - Berlin LV: 7 exakte Repost-Duplikate (gleicher Inhalt, andere URL) — die 20 enthalten effektiv 13 unique PMs. Künftige Extraktionen könnten zusätzlich auf `content_hash` deduplizieren.
   - Berlin LV `content`: enthält Site-Chrome (Navigation, Termine, Related PMs). Analyse berücksichtigt das, nicht in Zeichen-Statistik einbeziehen. Mittelfristig: Scraper-Cleanup.
