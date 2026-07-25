@@ -300,6 +300,20 @@
   transform: translate(-50%, -60%) rotate(45deg);
 }
 
+/* The visible box stays 18px, but on touch an ::before overlay extends the
+ * tappable area to 44px. Padding would resize the checkbox itself. */
+@media (max-width: 767px) {
+  .bn-block-content[data-content-type='checkListItem'] > div > input::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+}
+
 [data-theme='dark'] .bn-block-content[data-content-type='checkListItem'] > div > input {
   border-color: var(--grey-500, #6b7280);
 }
