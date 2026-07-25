@@ -1,7 +1,7 @@
 import { type AgentListItem } from '@gruenerator/chat';
 import { type Agent } from '@gruenerator/shared/agents';
 import { Badge } from '@gruenerator/ui';
-import { type KeyboardEvent, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { PiPencilSimple, PiSparkle, PiStar, PiStarFill, PiTrash } from 'react-icons/pi';
 
 import { type SharedAgentEntry } from '../../agents/api';
@@ -28,13 +28,11 @@ export function TypeBadge({ kind }: { kind: 'agent' | 'skill' }) {
   );
 }
 
-function cardKeyActivate(e: KeyboardEvent, onSelect: () => void) {
-  if ((e.target as HTMLElement).closest('button')) return;
-  if (e.key === 'Enter' || e.key === ' ') {
-    e.preventDefault();
-    onSelect();
-  }
-}
+// Primary action is a stretched <button> over the title: one tab stop opens the
+// card, and the favourite/edit/delete controls stay their own siblings (raised
+// with `relative z-10`) — no interactive element nested inside another.
+const STRETCHED =
+  "line-clamp-2 text-left outline-none after:absolute after:inset-0 after:content-[''] after:rounded-md focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-primary-600";
 
 interface SkillCardProps {
   skill: AgentListItem;
@@ -46,16 +44,7 @@ interface SkillCardProps {
 export function SkillCard({ skill, isFavorite, onToggleFavorite, onSelect }: SkillCardProps) {
   const Icon = skill.icon ?? PiSparkle;
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={(e) => {
-        if ((e.target as HTMLElement).closest('button')) return;
-        onSelect(skill);
-      }}
-      onKeyDown={(e) => cardKeyActivate(e, () => onSelect(skill))}
-      className={CARD_CLASS}
-    >
+    <div className={CARD_CLASS}>
       <div className="flex items-center justify-center px-md text-secondary-600 shrink-0">
         <Icon className="text-2xl" />
       </div>
@@ -63,19 +52,17 @@ export function SkillCard({ skill, isFavorite, onToggleFavorite, onSelect }: Ski
         <div className="flex justify-between items-start gap-sm mb-xs">
           <div className="flex min-w-0 items-start gap-xs">
             <h3 className="text-base font-semibold text-foreground-heading m-0 line-clamp-2">
-              {skill.title}
+              <button type="button" onClick={() => onSelect(skill)} className={STRETCHED}>
+                {skill.title}
+              </button>
             </h3>
             <TypeBadge kind="skill" />
           </div>
           <button
             type="button"
             aria-label={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleFavorite(skill.mention);
-            }}
-            onKeyDown={(e) => e.stopPropagation()}
-            className={`shrink-0 ${ICON_BTN}`}
+            onClick={() => onToggleFavorite(skill.mention)}
+            className={`relative z-10 shrink-0 ${ICON_BTN}`}
           >
             {isFavorite ? <PiStarFill className="h-4 w-4" /> : <PiStar className="h-4 w-4" />}
           </button>
@@ -110,16 +97,7 @@ export function AgentCard({
 }: AgentCardProps) {
   const Icon = getAgentIcon(agent.identifier);
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={(e) => {
-        if ((e.target as HTMLElement).closest('button')) return;
-        onSelect(agent);
-      }}
-      onKeyDown={(e) => cardKeyActivate(e, () => onSelect(agent))}
-      className={CARD_CLASS}
-    >
+    <div className={CARD_CLASS}>
       <div className="flex items-center justify-center px-md text-secondary-600 shrink-0">
         {iconOverride ?? <Icon className="text-2xl" />}
       </div>
@@ -127,11 +105,13 @@ export function AgentCard({
         <div className="flex justify-between items-start gap-sm mb-xs">
           <div className="flex min-w-0 items-start gap-xs">
             <h3 className="text-base font-semibold text-foreground-heading m-0 line-clamp-2">
-              {agent.title}
+              <button type="button" onClick={() => onSelect(agent)} className={STRETCHED}>
+                {agent.title}
+              </button>
             </h3>
             <TypeBadge kind="agent" />
           </div>
-          <div className="flex shrink-0 gap-1">
+          <div className="relative z-10 flex shrink-0 gap-1">
             {onToggleFavorite && (
               <button
                 type="button"
@@ -201,16 +181,7 @@ export function SharedAgentCard({
   const { agent, groups } = entry;
   const Icon = getAgentIcon(agent.identifier);
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={(e) => {
-        if ((e.target as HTMLElement).closest('button')) return;
-        onSelect(agent);
-      }}
-      onKeyDown={(e) => cardKeyActivate(e, () => onSelect(agent))}
-      className={CARD_CLASS}
-    >
+    <div className={CARD_CLASS}>
       <div className="flex items-center justify-center px-md text-secondary-600 shrink-0">
         <Icon className="text-2xl" />
       </div>
@@ -218,7 +189,9 @@ export function SharedAgentCard({
         <div className="flex justify-between items-start gap-sm mb-xs">
           <div className="flex min-w-0 items-start gap-xs">
             <h3 className="text-base font-semibold text-foreground-heading m-0 line-clamp-2">
-              {agent.title}
+              <button type="button" onClick={() => onSelect(agent)} className={STRETCHED}>
+                {agent.title}
+              </button>
             </h3>
             <TypeBadge kind="agent" />
           </div>
@@ -226,12 +199,8 @@ export function SharedAgentCard({
             <button
               type="button"
               aria-label={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleFavorite(agent);
-              }}
-              onKeyDown={(e) => e.stopPropagation()}
-              className={`shrink-0 ${ICON_BTN}`}
+              onClick={() => onToggleFavorite(agent)}
+              className={`relative z-10 shrink-0 ${ICON_BTN}`}
             >
               {isFavorite ? <PiStarFill className="h-4 w-4" /> : <PiStar className="h-4 w-4" />}
             </button>
