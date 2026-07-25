@@ -61,6 +61,39 @@ export interface GenerateStructuredOptions<T> {
 
 export type GenerateStructuredResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
+/**
+ * Bridge an existing lax parser into the `validate` slot.
+ *
+ * Those parsers take a JSON STRING and NORMALIZE rather than reject (casting,
+ * capping, dropping malformed entries). Round-tripping the tool call's object
+ * through JSON.stringify reuses that exact normalization for both the tool path
+ * and the text-fallback path, so the two cannot drift — and it keeps the forced
+ * tool call from making generation STRICTER than before, which would turn
+ * today's repairable output into new failures.
+ */
+export function viaLaxParser<T>(
+  parse: (raw: string) => T | null,
+  missing: string
+): (input: unknown) => StructuredValidation<T> {
+  return (input: unknown) => {
+    const value = parse(JSON.stringify(input));
+    return value ? { ok: true, value } : { ok: false, error: missing };
+  };
+}
+
+/**
+ * Adapt a parser that never returns null but signals failure with empty
+ * content (parseDocumentResponse) into the null-on-failure shape.
+ */
+export function withContent<T extends { content: string }>(
+  parse: (raw: string) => T
+): (raw: string) => T | null {
+  return (raw: string) => {
+    const parsed = parse(raw);
+    return parsed.content ? parsed : null;
+  };
+}
+
 function extractToolInput(
   result: AIWorkerResult,
   toolName: string

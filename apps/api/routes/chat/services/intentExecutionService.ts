@@ -26,6 +26,7 @@ import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { CONFIRM_ACTION_CONFIG } from './confirmActionService.js';
+import { failCreation, rememberArtifact } from './createTurnHelpers.js';
 import { extractTextContent } from './messageHelpers.js';
 import {
   recallPastChats,
@@ -59,75 +60,11 @@ import type {
   SearchResult,
   SocialPostPayload,
 } from '../../../agents/langgraph/ChatGraph/types.js';
-import type { StructuredValidation } from '../../../services/ai/generateStructured.js';
 import type { CreatePdfResult } from '../../../services/pdf/PdfGenerationService.js';
 import type { ModelMessage } from 'ai';
 import type { Request } from 'express';
 
 const log = createLogger('ChatGraphController');
-
-/**
- * Close a create_* turn with an honest error instead of falling through to the
- * generic respond pipeline.
- *
- * The fall-through was the bug: a create_pdf turn whose structure failed to
- * parse handed the turn to the responder, which — having no artifact tools —
- * invented a workaround ("copy the content into the Office app and use 'save as
- * PDF'"). That prose was persisted, and the NEXT referential turn ("erstelle
- * als pdf") inherited it as its subject, so the finished PDF contained the
- * invented instructions.
- *
- * Two properties matter: the text is templated, so it can never carry a
- * hallucinated URL or workflow; and it is deliberately NOT persisted (the SSE
- * text listener is attached later than the create branches, so the placeholder
- * row stays empty and `cleanupPending(true)` drops it) — a persisted failure
- * message would itself become eligible as a referential subject.
- */
-function failCreation(
-  sse: SSEWriter,
-  actualThreadId: string | undefined,
-  intent: string,
-  message: string
-): true {
-  sse.send('text_delta', { text: message });
-  sse.sendRaw('done', {
-    threadId: actualThreadId,
-    citations: [],
-    metadata: { intent },
-  });
-  sse.end();
-  return true;
-}
-
-/**
- * Bridge the existing lax parsers into `generateStructured`'s validate slot.
- *
- * Those parsers take a JSON STRING and normalize rather than reject (casting,
- * capping, dropping malformed entries). Round-tripping the tool call's object
- * through JSON.stringify reuses that exact normalization for the tool path and
- * the text-fallback path, so the two can never drift — and it keeps the forced
- * tool call from making generation STRICTER than before, which would turn
- * today's repairable output into new failures.
- */
-function viaLaxParser<T>(
-  parse: (raw: string) => T | null,
-  missing: string
-): (input: unknown) => StructuredValidation<T> {
-  return (input: unknown) => {
-    const value = parse(JSON.stringify(input));
-    return value ? { ok: true, value } : { ok: false, error: missing };
-  };
-}
-
-/** parseDocumentResponse never returns null — empty content is its failure signal. */
-function withContent(
-  parse: (raw: string) => { title: string; subtype: string; content: string }
-): (raw: string) => { title: string; subtype: string; content: string } | null {
-  return (raw: string) => {
-    const parsed = parse(raw);
-    return parsed.content ? parsed : null;
-  };
-}
 
 /**
  * Handle @board-erstellen forced tool.
@@ -154,7 +91,8 @@ export async function handleBoardCreation(opts: {
       parseBoardStructure,
       postProcessBoardStructure,
     } = await import('../../../services/boards/BoardService.js');
-    const { generateStructured } = await import('../../../services/ai/generateStructured.js');
+    const { generateStructured, viaLaxParser, withContent } =
+      await import('../../../services/ai/generateStructured.js');
 
     const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
     // A referential follow-up ("mach ein Board davon") inherits the prior turn's
@@ -217,6 +155,7 @@ export async function handleBoardCreation(opts: {
       if (actualThreadId) {
         await createMessage(actualThreadId, 'assistant', responseText);
         await touchThread(actualThreadId);
+        await rememberArtifact(actualThreadId, 'board', newBoardId, boardTitle);
       }
 
       log.info(`[ChatGraph] Board created: "${boardTitle}" (${newBoardId})`);
@@ -292,7 +231,8 @@ export async function runPdfGeneration(opts: {
   const { PDF_GENERATION_PROMPT, parsePdfStructure, validatePdfStructure, createPdfDocument } =
     await import('../../../services/pdf/PdfGenerationService.js');
   const { PDF_DOCUMENT_TOOL_SCHEMA } = await import('../../../services/pdf/pdfDocument.js');
-  const { generateStructured } = await import('../../../services/ai/generateStructured.js');
+  const { generateStructured, viaLaxParser, withContent } =
+    await import('../../../services/ai/generateStructured.js');
 
   const pdfOptions = opts.pdfOptions ?? {};
   const directive =
@@ -356,7 +296,8 @@ export async function runDocGeneration(opts: {
 }): Promise<CreatedDocument | null> {
   const { kind, userContent, aiWorkerPool, req, userId, onCommit } = opts;
   const reqWithUser = req as Express.Request & { user?: { id?: string }; sessionID?: string };
-  const { generateStructured } = await import('../../../services/ai/generateStructured.js');
+  const { generateStructured, viaLaxParser, withContent } =
+    await import('../../../services/ai/generateStructured.js');
 
   if (kind === 'presentation') {
     const {
@@ -487,7 +428,8 @@ export async function runBoardGeneration(opts: {
     parseBoardStructure,
     postProcessBoardStructure,
   } = await import('../../../services/boards/BoardService.js');
-  const { generateStructured } = await import('../../../services/ai/generateStructured.js');
+  const { generateStructured, viaLaxParser, withContent } =
+    await import('../../../services/ai/generateStructured.js');
 
   const generated = await generateStructured({
     aiWorkerPool,
@@ -593,6 +535,7 @@ export async function handleSheetCreation(opts: {
         createdDocument: created,
       });
       await touchThread(actualThreadId);
+      await rememberArtifact(actualThreadId, 'sheet', created.documentId, created.title);
     }
 
     sse.end();
@@ -679,6 +622,7 @@ export async function handlePresentationCreation(opts: {
         createdDocument: created,
       });
       await touchThread(actualThreadId);
+      await rememberArtifact(actualThreadId, 'presentation', created.documentId, created.title);
     }
 
     sse.end();
@@ -778,6 +722,9 @@ export async function handlePdfCreation(opts: {
         createdDocument: created,
       });
       await touchThread(actualThreadId);
+      // ref is the '<uuid>.pdf' asset file name, not a document UUID — 'pdf' is
+      // its own kind precisely so no doc-edit gate ever dereferences it.
+      await rememberArtifact(actualThreadId, 'pdf', created.documentId, created.title);
     }
 
     sse.end();
@@ -990,7 +937,8 @@ export async function generateAndCreateDocument(opts: {
       parseDocumentResponse,
       createDocumentWithContent,
     } = await import('../../../services/docs/DocGenerationService.js');
-    const { generateStructured } = await import('../../../services/ai/generateStructured.js');
+    const { generateStructured, viaLaxParser, withContent } =
+      await import('../../../services/ai/generateStructured.js');
 
     const subtypeHint = subtypeOverride ? `\nVerwende subtype: "${subtypeOverride}".` : '';
 
@@ -1055,29 +1003,17 @@ export async function generateAndCreateDocument(opts: {
 
     log.info(`[ChatGraph] Document created (${intent}): "${docTitle}" (${newDocId})`);
 
-    // Remember the created document as the thread's last tool context so a vague
-    // follow-up ("Kürze die Begründung") routes to modify_doc on THIS doc
-    // (classifier Tier-2.7). save_as_doc runs with skipTerminate → it never
-    // reaches persistAssistantResponse's deriveToolContext, so without this the
-    // edit gate has no target. Written for both the terminating (@dokument-
-    // erstellen) and skipTerminate (save_as_doc) paths.
-    if (actualThreadId) {
-      const contextKind = docSubtype.startsWith('presentation')
-        ? 'presentation'
-        : docSubtype.startsWith('sheet')
-          ? 'sheet'
-          : 'document';
-      // Awaited (not fire-and-forget): the `done` for this turn — and thus the
-      // NEXT turn's classifier reading last_tool_context — must not race ahead
-      // of this write, or the follow-up edit gate sees a stale/empty context.
-      await setThreadToolContext(actualThreadId, {
-        kind: contextKind,
-        ref: newDocId,
-        label: docTitle,
-      }).catch((err) =>
-        log.warn('[ChatGraph] Failed to persist document thread tool context:', err)
-      );
-    }
+    // Remember the created document so a vague follow-up ("Kürze die
+    // Begründung") routes to modify_doc on THIS doc (classifier Tier-2.7).
+    // Written for both the terminating (@dokument-erstellen) and skipTerminate
+    // (save_as_doc) paths — the latter never reaches persistAssistantResponse's
+    // deriveToolContext, so without this the edit gate has no target.
+    const contextKind = docSubtype.startsWith('presentation')
+      ? 'presentation'
+      : docSubtype.startsWith('sheet')
+        ? 'sheet'
+        : 'document';
+    await rememberArtifact(actualThreadId, contextKind, newDocId, docTitle);
 
     if (!skipTerminate) {
       const totalTimeMs = Date.now() - classifiedState.startTime;

@@ -1280,6 +1280,9 @@ const TOOL_CONTEXT_HINTS: Record<NonNullable<ChatGraphState['lastToolContext']>[
   sheet: 'der Tabellen-Erstellung',
   document:
     'der Dokument-Erstellung — Folgeaufträge wie "kürze den zweiten Absatz" / "ändere die Begründung" sind Intent "modify_doc"',
+  // A finished file, not an editable document: a follow-up produces a NEW pdf,
+  // it never edits the old one (there is nothing editable to point at).
+  pdf: 'der PDF-Erstellung — Folgeaufträge erzeugen ein neues PDF (Intent "create_pdf")',
   board: 'der Board-Erstellung',
 };
 
