@@ -193,6 +193,9 @@ export interface ProfileUpdateData {
   username?: string | null;
   email?: string | null;
   custom_prompt?: string | null;
+  /** Absender for the PDF letterhead; the address is multi-line. */
+  sender_organization?: string | null;
+  sender_address?: string | null;
 }
 
 // === AVATAR DISPLAY TYPES ===
@@ -291,6 +294,8 @@ export const profileApiService = {
       beta_features: profile.beta_features || {},
       memory_enabled: profile.memory_enabled || false,
       custom_prompt: profile.custom_prompt || '',
+      sender_organization: profile.sender_organization || '',
+      sender_address: profile.sender_address || '',
     };
 
     return profileData;
@@ -342,12 +347,18 @@ export const profileApiService = {
       username?: string;
       email?: string;
       custom_prompt?: string;
+      sender_organization?: string;
+      sender_address?: string;
     } = {};
     if (profileData.display_name !== undefined) body.display_name = profileData.display_name;
     if (profileData.username !== undefined) body.username = profileData.username ?? '';
     if (profileData.email !== undefined) body.email = profileData.email ?? '';
     if (profileData.custom_prompt !== undefined)
       body.custom_prompt = profileData.custom_prompt ?? '';
+    if (profileData.sender_organization !== undefined)
+      body.sender_organization = profileData.sender_organization ?? '';
+    if (profileData.sender_address !== undefined)
+      body.sender_address = profileData.sender_address ?? '';
 
     const res = await getContractsClient().userProfile.updateProfile({ body });
     if (res.status !== 200) {

@@ -26,12 +26,32 @@ export type StartPage = z.infer<typeof startPageSchema>;
 export const feedbackButtonSchema = z.enum(['text', 'icon', 'off']);
 export type FeedbackButtonMode = z.infer<typeof feedbackButtonSchema>;
 
+/**
+ * Absender for the PDF letterhead.
+ *
+ * Free text, and the address is multi-line: senderLines() splits it on '\n',
+ * and real Gliederung addresses ("c/o Kreisgeschäftsstelle", "Stiege 2/Top 5")
+ * do not fit a street/zip/city triple. Capped at 3 lines so the renderer's
+ * 5-line clamp (organization + name + address) never has to truncate.
+ *
+ * Always `.optional()`, never `.default()` — a default would make the field
+ * required in the inferred UserProfile, and therefore in DEV_BYPASS_USER and
+ * buildE2EBypassAuthData.
+ */
+export const senderOrganizationSchema = z.string().max(120);
+export const senderAddressSchema = z
+  .string()
+  .max(300)
+  .refine((v) => v.split('\n').length <= 3, 'höchstens 3 Zeilen');
+
 export const profileUpdateBodySchema = z.object({
   display_name: z.string().optional(),
   username: z.string().optional(),
   avatar_robot_id: z.number().int().min(ROBOT_ID_MIN).max(ROBOT_ID_MAX).optional(),
   email: z.string().optional(),
   custom_prompt: z.string().optional(),
+  sender_organization: senderOrganizationSchema.optional(),
+  sender_address: senderAddressSchema.optional(),
   default_startpage: startPageSchema.optional(),
   feedback_button: feedbackButtonSchema.optional(),
   reduce_motion: z.boolean().optional(),
@@ -163,6 +183,8 @@ export const userProfileSchema = z.object({
   bundestag_api_enabled: z.boolean().optional(),
   memory_enabled: z.boolean().optional(),
   custom_prompt: z.string().optional(),
+  sender_organization: z.string().optional(),
+  sender_address: z.string().optional(),
   created_at: z.union([z.string(), z.date()]),
   updated_at: z.union([z.string(), z.date()]),
   last_login: z.union([z.string(), z.date()]).optional(),

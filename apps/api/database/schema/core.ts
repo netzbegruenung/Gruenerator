@@ -32,6 +32,9 @@ export const profiles = pgTable(
     beta_features: jsonb('beta_features').$type<Record<string, boolean>>().notNull().default({}),
     presseabbinder: text('presseabbinder'),
     custom_antrag_gliederung: text('custom_antrag_gliederung'),
+    /** Absender for the PDF letterhead — free text, address is multi-line. */
+    sender_organization: text('sender_organization'),
+    sender_address: text('sender_address'),
     auth_source: text('auth_source'),
     locale: text('locale').notNull().default('de-DE'),
     groups_enabled: boolean('groups_enabled').notNull().default(false),

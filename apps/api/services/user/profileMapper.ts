@@ -37,6 +37,10 @@ export function toUserProfile(row: ProfileSelectModel): UserProfile {
     reduce_transparency: row.reduce_transparency,
     show_skip_link: row.show_skip_link,
     ...(row.custom_prompt != null && { custom_prompt: row.custom_prompt }),
+    // Must be mapped here or the value never leaves the database — that is
+    // exactly why presseabbinder reads back empty today despite being stored.
+    ...(row.sender_organization != null && { sender_organization: row.sender_organization }),
+    ...(row.sender_address != null && { sender_address: row.sender_address }),
 
     // Feature flags — all have DB defaults so they are non-null
     is_admin: row.is_admin,

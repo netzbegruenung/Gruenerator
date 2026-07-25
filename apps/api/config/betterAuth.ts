@@ -186,6 +186,8 @@ export const auth = betterAuth({
       first_name: { type: 'string', required: false },
       last_name: { type: 'string', required: false },
       custom_prompt: { type: 'string', required: false },
+      sender_organization: { type: 'string', required: false },
+      sender_address: { type: 'string', required: false },
       custom_antrag_gliederung: { type: 'string', required: false },
       presseabbinder: { type: 'string', required: false },
       chat_color: { type: 'string', required: false },
