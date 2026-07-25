@@ -32,6 +32,10 @@ interface PersistedToolCall {
    *  numeric offset, reload interleaves text segments and cards in live order;
    *  absent (legacy / split turns) keeps the cards-first layout. */
   textOffset?: number;
+  /** Planner announcement sentence(s) that preceded this tool call (split mode).
+   *  Rendered as muted text above the card on reload — the durable counterpart
+   *  of the live gather_narration status line. Absent on pre-rollout turns. */
+  narration?: string;
 }
 
 export interface LoadedMessage {
@@ -222,6 +226,7 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
         readonly args: Record<string, string>;
         readonly result?: unknown;
         readonly parentId?: string;
+        readonly narration?: string;
       };
 
       const contentParts: Array<{ type: 'text'; text: string } | ToolCallLike> = [];
@@ -233,6 +238,7 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
         args: { query: String((tc.args as Record<string, unknown>)?.query ?? '') },
         result: tc.result,
         parentId,
+        ...(tc.narration ? { narration: tc.narration } : {}),
       });
 
       const toolCalls = m.metadata?.toolCalls;
@@ -278,6 +284,7 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
               toolName: tc.toolName,
               args: { query: String((tc.args as Record<string, unknown>)?.query ?? '') },
               result: tc.result,
+              ...(tc.narration ? { narration: tc.narration } : {}),
             });
           }
         } else if (

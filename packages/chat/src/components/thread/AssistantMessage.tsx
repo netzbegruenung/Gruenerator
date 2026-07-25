@@ -10,6 +10,10 @@ import { resolveCitations } from '../../lib/citationUtils';
 import { phosphorAgentIcon } from '../../lib/phosphorAgentIcon';
 import { useUserAgentsRegistry } from '../../stores/userAgentsRegistry';
 import { Reasoning, ReasoningGroup } from '../assistant-ui/reasoning';
+import { ToolCallGroup } from '../message-parts/ToolCallGroup';
+import { useProgressDisplay } from '../message-parts/progressDisplayContext';
+import { StreamingStatusLine } from '../message-parts/StreamingStatusLine';
+import { SkillBadge } from '../message-parts/SkillBadge';
 import { GrueneratorHomeIconLoading } from '../icons';
 import { ArtifactCard } from '../message-parts/ArtifactCard';
 import { BahnCard } from '../message-parts/BahnCard';
@@ -21,13 +25,10 @@ import { GeneratedImageDisplay } from '../message-parts/GeneratedImageDisplay';
 import { MemoryIndicator } from '../message-parts/MemoryIndicator';
 import { MessageActions } from '../message-parts/MessageActions';
 import { MessageStreamingProvider } from '../message-parts/messageStreamingContext';
-import { useProgressDisplay } from '../message-parts/progressDisplayContext';
 import { ProgressIndicator } from '../message-parts/ProgressIndicator';
 import { SearchResultsSection, type AdditionalSource } from '../message-parts/SearchResultsSection';
 import { SharepicVariantStack } from '../message-parts/SharepicVariantStack';
-import { SkillBadge } from '../message-parts/SkillBadge';
 import { SocialPostCard } from '../message-parts/SocialPostCard';
-import { ToolCallGroup } from '../message-parts/ToolCallGroup';
 import { TypingIndicator } from '../message-parts/TypingIndicator';
 import { ConfirmActionCard } from '../tool-ui/ConfirmActionCard';
 import { DocumentCreatedCard } from '../tool-ui/DocumentCreatedCard';
@@ -196,57 +197,14 @@ export const AssistantMessage = memo(function AssistantMessage() {
           />
         )}
 
-        {isStreaming &&
-          !hasToolCall &&
-          (() => {
-            const stage = custom?.progress?.stage;
-            const hasConcreteProgress =
-              stage === 'searching' || stage === 'generating' || stage === 'generating_image';
-
-            if (hasConcreteProgress) {
-              const agentColor = messageAgent?.backgroundColor || '#316049';
-              if (custom!.progress!.steps) {
-                return (
-                  <ProgressTracker
-                    steps={custom!.progress!.steps}
-                    agentColor={agentColor}
-                    totalTimeMs={custom?.streamMetadata?.totalTimeMs}
-                  />
-                );
-              }
-              return (
-                <ProgressIndicator
-                  progress={custom!.progress!}
-                  agentColor={agentColor}
-                  variant={progressDisplay}
-                />
-              );
-            }
-
-            if (!textContent) {
-              return <TypingIndicator />;
-            }
-
-            return null;
-          })()}
-
-        {isStreaming &&
-          hasToolCall &&
-          !textContent &&
-          (custom?.progress?.stage === 'generating' || custom?.progress?.stage === 'searching') &&
-          (custom?.progress?.steps ? (
-            <ProgressTracker
-              steps={custom.progress.steps}
-              agentColor={messageAgent?.backgroundColor || '#316049'}
-              totalTimeMs={custom?.streamMetadata?.totalTimeMs}
-            />
-          ) : (
-            <ProgressIndicator
-              progress={custom.progress}
-              agentColor={messageAgent?.backgroundColor || '#316049'}
-              variant={progressDisplay}
-            />
-          ))}
+        <StreamingStatusLine
+          isStreaming={isStreaming}
+          hasToolCall={hasToolCall}
+          textContent={textContent}
+          custom={custom}
+          progressDisplay={progressDisplay}
+          agentColor={messageAgent?.backgroundColor || '#316049'}
+        />
 
         {custom?.socialPostData && (
           <SocialPostCard

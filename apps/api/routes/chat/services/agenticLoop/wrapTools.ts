@@ -46,6 +46,11 @@ export interface WrapToolsContext {
    *  when offsets must NOT be recorded (split mode: text stays empty during
    *  gather, so every offset would be a meaningless 0). */
   getTextOffset?: () => number | null;
+  /** Drains the planner narration buffered since the previous tool call and
+   *  returns it (or `null` if none). Called once at each tool START, so the
+   *  announcement sentence(s) are associated with the tool they preceded.
+   *  Split mode only; unified mode narration flows through the answer text. */
+  takeNarration?: () => string | null;
   /** Safety-net cap on the serialized model-facing result. Default 6000. */
   maxResultChars?: number;
 }
@@ -127,13 +132,18 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
     const title = ctx.titleFor?.(toolName);
     const serverName = ctx.serverNameFor?.(toolName);
 
-    const sendStart = (stepId: string, args: Record<string, unknown>): void => {
+    const sendStart = (
+      stepId: string,
+      args: Record<string, unknown>,
+      narration?: string | null
+    ): void => {
       ctx.sse.send('tool_step_start', {
         stepId,
         toolName,
         args,
         ...(title ? { title } : {}),
         ...(serverName ? { serverName } : {}),
+        ...(narration ? { narration } : {}),
       });
     };
     const sendResult = (stepId: string, ok: boolean, result: unknown): void => {
@@ -152,6 +162,10 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
       const args = asRecord(input);
       // Captured at tool START (before execution) — the semantics of textOffset.
       const textOffset = ctx.getTextOffset?.();
+      // Drained once at START: the planner sentence(s) that announced this call.
+      // Parallel siblings in one model step share the announcement, so only the
+      // first sendStart gets it — the rest drain empty. Split mode only.
+      const narration = ctx.takeNarration?.() ?? null;
       // MCP connector server title (undefined for internal tools) — persisted so
       // a later turn can identify + replay which server this call hit.
       const server = ctx.serverNameFor?.(toolName);
@@ -172,7 +186,7 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         ctx.guards.checkDuplicate(toolName, input, { skipNearDuplicate: !!server });
       if (guardError) {
         const result = { error: guardError };
-        sendStart(stepId, args);
+        sendStart(stepId, args, narration);
         sendResult(stepId, false, result);
         ctx.recordStep({
           toolCallId: stepId,
@@ -181,12 +195,13 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
           result,
           ...serverMeta,
           ...(textOffset != null && { textOffset }),
+          ...(narration ? { narration } : {}),
         });
         return result;
       }
 
       ctx.guards.noteCall(toolName);
-      sendStart(stepId, args);
+      sendStart(stepId, args, narration);
 
       let output: unknown;
       try {
@@ -231,6 +246,7 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         result: asRecord(output),
         ...serverMeta,
         ...(textOffset != null && { textOffset }),
+        ...(narration ? { narration } : {}),
       });
       sendResult(stepId, ok, output);
 

@@ -90,6 +90,10 @@ export interface ToolCallPart {
    *  form separate runs). Consumed by assistant-ui's PartsGrouped rendering;
    *  absent on messages predating the interleaving rollout. */
   parentId?: string;
+  /** Planner announcement sentence(s) that preceded this tool call (split-gather
+   *  mode). Rendered as muted text above the card and persisted with the turn;
+   *  the durable form of the live `gather_narration` status line. */
+  narration?: string;
 }
 
 export interface SourcePart {

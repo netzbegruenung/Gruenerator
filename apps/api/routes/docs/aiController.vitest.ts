@@ -397,7 +397,7 @@ describe('aiController – POST /api/docs/ai', () => {
       expect(opts.system).toContain('You are a document editor.');
       expect(opts.system).toContain('VALID SHAPES');
       expect(opts.toolChoice).toBe('auto');
-      expect(opts.maxOutputTokens).toBe(32768);
+      expect(opts.maxOutputTokens).toBeUndefined();
       expect(opts.temperature).toBe(0.3);
     });
 
