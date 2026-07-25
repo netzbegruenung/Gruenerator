@@ -22,8 +22,7 @@ export function ChatProgressIndicator({ progress, theme }: ChatProgressIndicator
   // and pace it (shared usePacedLabel) so a burst stays readable. Hook runs
   // before the early return.
   const pending = progress.pendingNarration;
-  const rawLabel =
-    pending && pending.length > 0 ? pending[pending.length - 1] : progress.message;
+  const rawLabel = pending && pending.length > 0 ? pending[pending.length - 1] : progress.message;
   const label = usePacedLabel(rawLabel);
 
   // Mirror web ProgressIndicator's early return: only the concrete working

@@ -1,9 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 
-import {
-  createPacedLabelController,
-  createExitLatchController,
-} from './labelPacing';
+import { createPacedLabelController, createExitLatchController } from './labelPacing';
 
 /**
  * Deterministic timing tests: a manual clock (`now`) plus a manual timer queue

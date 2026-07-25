@@ -737,7 +737,8 @@ export async function* parseSSEStream(
           // Associate narration with this card: prefer the server-stamped value
           // (also survives reload); else drain the client buffer (old server).
           const cardNarration =
-            serverNarration ?? (pendingNarration.length > 0 ? pendingNarration.join(' ') : undefined);
+            serverNarration ??
+            (pendingNarration.length > 0 ? pendingNarration.join(' ') : undefined);
           pendingNarration = [];
           // Prefer a server-provided title; else the legacy mcpToolNode
           // `mcp_tool` server/tool label; else the sharepic-specific map; else a

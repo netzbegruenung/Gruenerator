@@ -23,8 +23,7 @@ export function ProgressIndicator({
   // stage message, and pace it so bursts stay readable. Hook runs before any
   // early return.
   const pending = progress.pendingNarration;
-  const rawMessage =
-    pending && pending.length > 0 ? pending[pending.length - 1] : progress.message;
+  const rawMessage = pending && pending.length > 0 ? pending[pending.length - 1] : progress.message;
   const message = usePacedLabel(rawMessage);
 
   if (

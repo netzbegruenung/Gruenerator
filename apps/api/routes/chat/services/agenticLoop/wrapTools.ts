@@ -135,7 +135,7 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
     const sendStart = (
       stepId: string,
       args: Record<string, unknown>,
-      narration?: string | null,
+      narration?: string | null
     ): void => {
       ctx.sse.send('tool_step_start', {
         stepId,
