@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
 import { X, Star, Search } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { PiSparkle } from 'react-icons/pi';
+
 import { agentsList, SKILL_CATEGORY_LABELS, type SkillCategory } from '../../lib/agents';
 import {
   agentToMentionable,

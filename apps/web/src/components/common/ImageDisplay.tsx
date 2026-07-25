@@ -78,7 +78,10 @@ const ImageDisplay = ({
 }: ImageDisplayProps): JSX.Element | null => {
   // Determine if we have multiple sharepics
   const isMultiple = Array.isArray(sharepicData);
-  const sharepicItems = isMultiple ? sharepicData.filter(Boolean) : [sharepicData];
+  const sharepicItems = React.useMemo(
+    () => (isMultiple ? sharepicData.filter(Boolean) : [sharepicData]),
+    [sharepicData, isMultiple]
+  );
 
   // State for multiple image handling
   const [activeImageIndex, setActiveImageIndex] = useState(0);

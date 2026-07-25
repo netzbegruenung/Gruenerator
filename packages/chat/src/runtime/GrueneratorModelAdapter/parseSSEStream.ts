@@ -5,19 +5,23 @@ import {
   isCanvasTemplateType,
   chatStreamEventSchemas,
   type ChatErrorEventPayload,
+  type SocialPostPayload,
+  type BundestagPayload,
+  type BahnPayload,
+  type SharepicUpdatedEvent,
 } from '@gruenerator/contracts';
 
 import { coerceSharepicVariants } from '../../hooks/useChatGraphStream';
-import { ChatStreamError } from '../streamErrorMessage';
+import { pickStageLabels } from '../../lib/progressLabels';
 import { parseSSELine } from '../../lib/sseParser';
 import { INTENT_TO_TOOL, DEEP_TOOL_MAP, formatNamespacedToolLabel } from '../../lib/toolMappings';
-import { pickStageLabels } from '../../lib/progressLabels';
+import { useArtifactLiveStore, type ActiveArtifact } from '../../stores/artifactLiveStore';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
-import { useArtifactLiveStore, type ActiveArtifact } from '../../stores/artifactLiveStore';
 import { useReelLiveStore } from '../../stores/reelLiveStore';
 import { useSharepicLiveStore } from '../../stores/sharepicLiveStore';
 import { useSocialPostLiveStore } from '../../stores/socialPostLiveStore';
+import { ChatStreamError } from '../streamErrorMessage';
 
 import type {
   GrueneratorAdapterCallbacks,
@@ -26,7 +30,6 @@ import type {
   SourcePart,
   StreamOutcome,
 } from './types';
-import type { ChatModelRunResult } from '@assistant-ui/react';
 import type {
   ProgressStage,
   SearchIntent,
@@ -39,6 +42,7 @@ import type {
   ProgressStep,
   ChartData,
   ComputeData,
+  SharepicData,
 } from '../../hooks/useChatGraphStream';
 import type {
   ConfirmActionData,
@@ -46,6 +50,7 @@ import type {
   ReelPickerData,
   ReelProcessingData,
 } from '../../types/messageMetadata';
+import type { ChatModelRunResult } from '@assistant-ui/react';
 
 /** Display titles for agentic sharepic-loop steps (tool_step_start events). */
 const TOOL_STEP_TITLES: Record<string, string> = {
@@ -131,13 +136,13 @@ export async function* parseSSEStream(
   let receivedSearchResults: SearchResult[] = [];
   let receivedCitations: Citation[] = [];
   let receivedImage: GeneratedImage | null = null;
-  let receivedSharepicData: import('../../hooks/useChatGraphStream').SharepicData | null = null;
-  let receivedSocialPostData: import('@gruenerator/contracts').SocialPostPayload | null = null;
+  let receivedSharepicData: SharepicData | null = null;
+  let receivedSocialPostData: SocialPostPayload | null = null;
   let receivedChartData: ChartData | null = null;
   let receivedArtifactData: ActiveArtifact | null = null;
   let receivedComputeData: ComputeData | null = null;
-  let receivedBundestagData: import('@gruenerator/contracts').BundestagPayload | null = null;
-  let receivedBahnData: import('@gruenerator/contracts').BahnPayload | null = null;
+  let receivedBundestagData: BundestagPayload | null = null;
+  let receivedBahnData: BahnPayload | null = null;
   let receivedFollowUpSuggestions: string[] = [];
   let receivedMetadata: StreamMetadata | null = null;
   let receivedConfirmAction: ConfirmActionData | null = null;
@@ -152,6 +157,12 @@ export async function* parseSSEStream(
   // step is pushed on `tool_step_start` and updated in place on
   // `tool_step_result`.
   const toolStepsById = new Map<string, ToolCallPart>();
+  // Split-gather narration sentences seen since the last tool card was pushed.
+  // Surfaced live as `progress.pendingNarration` (paced status line) and, when
+  // the server omits `narration` on tool_step_start (older API), drained here to
+  // stamp the card client-side — same ordering rule as the server path, so an
+  // old server + new client still gets live narration (just not on reload).
+  let pendingNarration: string[] = [];
   let interruptPending = false;
   // client_tool interrupt (auto-executed by the ModelAdapter): unlike a
   // clarification it must NOT flip the message to requires-action — the same
@@ -552,7 +563,7 @@ export async function* parseSSEStream(
 
         case 'bundestag': {
           const { bundestag } = data as {
-            bundestag?: import('@gruenerator/contracts').BundestagPayload;
+            bundestag?: BundestagPayload;
           };
           if (bundestag) receivedBundestagData = bundestag;
           yield buildResult();
@@ -560,7 +571,7 @@ export async function* parseSSEStream(
         }
 
         case 'bahn': {
-          const { bahn } = data as { bahn?: import('@gruenerator/contracts').BahnPayload };
+          const { bahn } = data as { bahn?: BahnPayload };
           if (bahn) receivedBahnData = bahn;
           yield buildResult();
           break;
@@ -611,7 +622,7 @@ export async function* parseSSEStream(
         case 'social_post_complete': {
           const payload = data as {
             message: string;
-            post?: import('@gruenerator/contracts').SocialPostPayload;
+            post?: SocialPostPayload;
             error?: string;
           };
           if (!payload.error && payload.post) {
@@ -628,7 +639,7 @@ export async function* parseSSEStream(
         case 'social_post_updated': {
           const payload = data as {
             postId: string;
-            post: import('@gruenerator/contracts').SocialPostPayload;
+            post: SocialPostPayload;
             summary: string;
           };
           useSocialPostLiveStore.getState().upsertEntry(payload.post);
@@ -650,7 +661,7 @@ export async function* parseSSEStream(
         case 'sharepic_updated': {
           // Validated by the contract gate above — canvasType is guaranteed
           // canonical, so junk template types can never enter the live store.
-          const payload = data as import('@gruenerator/contracts').SharepicUpdatedEvent;
+          const payload = data as SharepicUpdatedEvent;
           useSharepicLiveStore.getState().upsertEntry(payload.variantId, {
             canvasId: payload.canvasId,
             canvasType: payload.canvasType,
@@ -719,13 +730,21 @@ export async function* parseSSEStream(
             args,
             title: serverTitle,
             serverName,
+            narration: serverNarration,
           } = data as {
             stepId: string;
             toolName: string;
             args?: Record<string, unknown>;
             title?: string;
             serverName?: string;
+            narration?: string;
           };
+          // Associate narration with this card: prefer the server-stamped value
+          // (also survives reload); else drain the client buffer (old server).
+          const cardNarration =
+            serverNarration ??
+            (pendingNarration.length > 0 ? pendingNarration.join(' ') : undefined);
+          pendingNarration = [];
           // Prefer a server-provided title; else the legacy mcpToolNode
           // `mcp_tool` server/tool label; else the sharepic-specific map; else a
           // generic label derived from the (possibly MCP-namespaced) name.
@@ -745,6 +764,7 @@ export async function* parseSSEStream(
               toolName,
               args: toolArgs as Record<string, string | number | boolean | null>,
               argsText: JSON.stringify(toolArgs),
+              ...(cardNarration ? { narration: cardNarration } : {}),
             };
             // Push immediately so a parallel sibling's start doesn't orphan this
             // card; the result updates it in place. orderPushCard breaks the
@@ -753,7 +773,8 @@ export async function* parseSSEStream(
             allToolCalls.push(toolCall);
             orderPushCard(toolCall);
           }
-          currentProgress = { stage: 'searching', message: title };
+          // Narration now lives on the card; clear the transient status line.
+          currentProgress = { stage: 'searching', message: title, pendingNarration: [] };
           yield buildResult();
           break;
         }
@@ -906,19 +927,15 @@ export async function* parseSSEStream(
         }
 
         case 'gather_narration': {
-          // Live status line during the tool phase — updates message (Mobile
-          // reads this field directly) and, if a step is currently
-          // in-progress, its label (Desktop's ProgressTracker renders step
-          // labels and ignores message once steps exist). Last writer wins:
-          // a later tool_step_start/thinking_step overwrites this freely.
+          // Live narration during the tool phase. Accumulated (not overwritten)
+          // into pendingNarration so nothing is lost between tool starts; the
+          // consumer paces the display (min-visible time), and the whole run
+          // lands on the next tool card as durable `narration`. `message` is
+          // still set so Mobile's simple status field and non-agentic paths
+          // keep a value.
           const narration = (data as { text: string }).text;
-          currentProgress = { ...currentProgress, message: narration };
-          for (let i = progressSteps.length - 1; i >= 0; i--) {
-            if (progressSteps[i].status === 'in-progress') {
-              progressSteps[i] = { ...progressSteps[i], label: narration };
-              break;
-            }
-          }
+          pendingNarration = [...pendingNarration, narration];
+          currentProgress = { ...currentProgress, message: narration, pendingNarration };
           const now = performance.now();
           if (now - lastYieldTime >= YIELD_INTERVAL) {
             lastYieldTime = now;
@@ -930,6 +947,13 @@ export async function* parseSSEStream(
         case 'text_delta': {
           const delta = (data as { text: string }).text;
           appendText(delta);
+          // Synthesis has started: any trailing narration after the last tool
+          // call (never associated with a card) is now stale — drop it so the
+          // status line doesn't linger behind the streaming answer.
+          if (pendingNarration.length > 0) {
+            pendingNarration = [];
+            currentProgress = { ...currentProgress, pendingNarration: [] };
+          }
           const now = performance.now();
           if (now - lastYieldTime >= YIELD_INTERVAL) {
             lastYieldTime = now;
@@ -1222,6 +1246,9 @@ export async function* parseSSEStream(
           transitionStep('error');
           throw new ChatStreamError(payload.error ?? 'Es ist ein Fehler aufgetreten.', payload);
         }
+        default:
+          // Unknown event names pass through untouched (forward compatibility).
+          break;
       }
     }
   }

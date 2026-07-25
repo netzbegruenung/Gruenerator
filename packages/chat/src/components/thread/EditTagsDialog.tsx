@@ -1,11 +1,11 @@
 'use client';
 
-import { type KeyboardEvent, memo, useEffect, useState } from 'react';
-import { Dialog as DialogPrimitive } from 'radix-ui';
 import { Tag, X } from 'lucide-react';
+import { Dialog as DialogPrimitive } from 'radix-ui';
+import { type KeyboardEvent, memo, useEffect, useState } from 'react';
 
-import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { setThreadTagsCache } from '../../runtime/GrueneratorThreadListAdapter';
+import { useChatConfigStore } from '../../stores/chatConfigStore';
 
 interface EditTagsDialogProps {
   threadId: string | null;

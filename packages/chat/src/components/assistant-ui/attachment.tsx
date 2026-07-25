@@ -1,7 +1,5 @@
 'use client';
 
-import { PropsWithChildren, useEffect, useState, type FC } from 'react';
-import { XIcon, PlusIcon, FileText, FileSearch, Cloud, Plug, Globe } from 'lucide-react';
 import {
   AttachmentPrimitive,
   ComposerPrimitive,
@@ -9,7 +7,6 @@ import {
   useAuiState,
   useAui,
 } from '@assistant-ui/react';
-import { useShallow } from 'zustand/shallow';
 import {
   Avatar,
   AvatarFallback,
@@ -23,6 +20,10 @@ import {
   TooltipTrigger,
   cn,
 } from '@gruenerator/ui';
+import { XIcon, PlusIcon, FileText, FileSearch, Cloud, Plug, Globe } from 'lucide-react';
+import { type PropsWithChildren, useEffect, useState, type FC } from 'react';
+import { useShallow } from 'zustand/shallow';
+
 import { TooltipIconButton } from './tooltip-icon-button';
 
 const useFileSrc = (file: File | undefined) => {
@@ -30,6 +31,7 @@ const useFileSrc = (file: File | undefined) => {
 
   useEffect(() => {
     if (!file) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- object URL is a side effect with a revoke cleanup; cannot be derived during render
       setSrc(undefined);
       return;
     }

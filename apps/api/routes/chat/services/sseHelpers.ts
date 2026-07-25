@@ -227,6 +227,7 @@ export interface SSEEventPayloads {
     args?: Record<string, unknown>;
     title?: string;
     serverName?: string;
+    narration?: string;
   };
   tool_step_result: {
     stepId: string;

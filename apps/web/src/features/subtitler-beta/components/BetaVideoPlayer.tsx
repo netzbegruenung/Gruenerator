@@ -281,7 +281,7 @@ export const BetaVideoPlayer = forwardRef<BetaVideoPlayerRef, BetaVideoPlayerPro
         videoRef.current.currentTime = targetTime;
         setLocalCurrentTime(targetTime);
       },
-      [previewMode, keptSegments]
+      [previewMode, keptSegments, duration]
     );
 
     // Vor-/Zurückspulen
@@ -555,6 +555,8 @@ export const BetaVideoPlayer = forwardRef<BetaVideoPlayerRef, BetaVideoPlayerPro
           case 'KeyF':
             e.preventDefault();
             toggleFullscreen();
+            break;
+          default:
             break;
         }
       };

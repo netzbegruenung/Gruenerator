@@ -48,6 +48,13 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     description: 'Was das Start-Symbol in der Seitenleiste öffnet',
   },
   {
+    id: 'allgemein.feedbackButton',
+    tab: 'allgemein',
+    title: 'Feedback-Button',
+    description:
+      'Darstellung des schwebenden Feedback-Buttons: mit Text, nur als Icon oder ganz ausgeblendet — er lässt sich in jede Bildschirmecke ziehen',
+  },
+  {
     id: 'allgemein.animationen',
     tab: 'allgemein',
     title: 'Animationen reduzieren',

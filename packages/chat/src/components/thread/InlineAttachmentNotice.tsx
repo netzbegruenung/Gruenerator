@@ -1,8 +1,10 @@
 'use client';
 
 import { X } from 'lucide-react';
+
 import { useAttachmentNoticeStore } from '../../stores/attachmentNoticeStore';
 import { GrueneratorHomeIconLoading } from '../icons';
+
 import { useChatDensity } from './chatDensityContext';
 
 export function InlineAttachmentNotice() {

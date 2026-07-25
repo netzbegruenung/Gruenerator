@@ -1,39 +1,43 @@
 'use client';
 
-import { memo, useMemo } from 'react';
 import { MessagePrimitive, useMessage } from '@assistant-ui/react';
 import { type SkillIcon } from '@gruenerator/shared/agents';
+import { memo, useMemo } from 'react';
+
+import { CitationProvider, useFetchFullText } from '../../context/CitationContext';
 import { agentsList, getDefaultAgent } from '../../lib/agents';
+import { resolveCitations } from '../../lib/citationUtils';
 import { phosphorAgentIcon } from '../../lib/phosphorAgentIcon';
 import { useUserAgentsRegistry } from '../../stores/userAgentsRegistry';
-import { GrueneratorHomeIconLoading } from '../icons';
-import { CitationMarkdownText } from '../message-parts/CitationMarkdownText';
-import { MessageStreamingProvider } from '../message-parts/messageStreamingContext';
 import { Reasoning, ReasoningGroup } from '../assistant-ui/reasoning';
 import { ToolCallGroup } from '../message-parts/ToolCallGroup';
-import { ProgressIndicator } from '../message-parts/ProgressIndicator';
 import { useProgressDisplay } from '../message-parts/progressDisplayContext';
-import { ProgressTracker } from '../tool-ui/progress-tracker/ProgressTracker';
+import { StreamingStatusLine } from '../message-parts/StreamingStatusLine';
 import { SkillBadge } from '../message-parts/SkillBadge';
-import { TypingIndicator } from '../message-parts/TypingIndicator';
+import { GrueneratorHomeIconLoading } from '../icons';
 import { ArtifactCard } from '../message-parts/ArtifactCard';
-import { ComputeCard } from '../message-parts/ComputeCard';
-import { BundestagCard } from '../message-parts/BundestagCard';
 import { BahnCard } from '../message-parts/BahnCard';
+import { BundestagCard } from '../message-parts/BundestagCard';
 import { ChatChart } from '../message-parts/ChatChart';
+import { CitationMarkdownText } from '../message-parts/CitationMarkdownText';
+import { ComputeCard } from '../message-parts/ComputeCard';
 import { GeneratedImageDisplay } from '../message-parts/GeneratedImageDisplay';
-import { SharepicVariantStack } from '../message-parts/SharepicVariantStack';
-import { SocialPostCard } from '../message-parts/SocialPostCard';
 import { MemoryIndicator } from '../message-parts/MemoryIndicator';
 import { MessageActions } from '../message-parts/MessageActions';
+import { MessageStreamingProvider } from '../message-parts/messageStreamingContext';
+import { ProgressIndicator } from '../message-parts/ProgressIndicator';
 import { SearchResultsSection, type AdditionalSource } from '../message-parts/SearchResultsSection';
-import { CitationProvider, useFetchFullText } from '../../context/CitationContext';
-import { resolveCitations } from '../../lib/citationUtils';
+import { SharepicVariantStack } from '../message-parts/SharepicVariantStack';
+import { SocialPostCard } from '../message-parts/SocialPostCard';
+import { TypingIndicator } from '../message-parts/TypingIndicator';
 import { ConfirmActionCard } from '../tool-ui/ConfirmActionCard';
 import { DocumentCreatedCard } from '../tool-ui/DocumentCreatedCard';
+import { ProgressTracker } from '../tool-ui/progress-tracker/ProgressTracker';
 import { ReelPickerCard } from '../tool-ui/ReelPickerCard';
 import { ReelProcessingCard } from '../tool-ui/ReelProcessingCard';
+
 import { useChatDensity } from './chatDensityContext';
+
 import type { ChatMessageMetadata } from '../../types/messageMetadata';
 
 function AssistantMessageTextPart() {
@@ -193,57 +197,14 @@ export const AssistantMessage = memo(function AssistantMessage() {
           />
         )}
 
-        {isStreaming &&
-          !hasToolCall &&
-          (() => {
-            const stage = custom?.progress?.stage;
-            const hasConcreteProgress =
-              stage === 'searching' || stage === 'generating' || stage === 'generating_image';
-
-            if (hasConcreteProgress) {
-              const agentColor = messageAgent?.backgroundColor || '#316049';
-              if (custom!.progress!.steps) {
-                return (
-                  <ProgressTracker
-                    steps={custom!.progress!.steps}
-                    agentColor={agentColor}
-                    totalTimeMs={custom?.streamMetadata?.totalTimeMs}
-                  />
-                );
-              }
-              return (
-                <ProgressIndicator
-                  progress={custom!.progress!}
-                  agentColor={agentColor}
-                  variant={progressDisplay}
-                />
-              );
-            }
-
-            if (!textContent) {
-              return <TypingIndicator />;
-            }
-
-            return null;
-          })()}
-
-        {isStreaming &&
-          hasToolCall &&
-          !textContent &&
-          (custom?.progress?.stage === 'generating' || custom?.progress?.stage === 'searching') &&
-          (custom?.progress?.steps ? (
-            <ProgressTracker
-              steps={custom.progress.steps}
-              agentColor={messageAgent?.backgroundColor || '#316049'}
-              totalTimeMs={custom?.streamMetadata?.totalTimeMs}
-            />
-          ) : (
-            <ProgressIndicator
-              progress={custom.progress}
-              agentColor={messageAgent?.backgroundColor || '#316049'}
-              variant={progressDisplay}
-            />
-          ))}
+        <StreamingStatusLine
+          isStreaming={isStreaming}
+          hasToolCall={hasToolCall}
+          textContent={textContent}
+          custom={custom}
+          progressDisplay={progressDisplay}
+          agentColor={messageAgent?.backgroundColor || '#316049'}
+        />
 
         {custom?.socialPostData && (
           <SocialPostCard

@@ -40,6 +40,9 @@ const BulkDeleteConfirmModal = ({
   // autoFocus (below) instead of a setTimeout focus — more reliable than racing
   // the portal mount, which the old 100ms timeout was working around.
   useEffect(() => {
+    // Reset the field as a reaction to the modal opening (isOpen toggle), not a
+    // render-derived value.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (isOpen) setConfirmText('');
   }, [isOpen]);
 

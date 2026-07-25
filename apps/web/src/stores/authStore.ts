@@ -1,5 +1,10 @@
 import { useUserProfileStore } from '@gruenerator/chat/stores';
-import { type ChatBackground, type StartPage, type UserProfile } from '@gruenerator/contracts';
+import {
+  type ChatBackground,
+  type FeedbackButtonMode,
+  type StartPage,
+  type UserProfile,
+} from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { toast } from '@gruenerator/ui';
 import { create } from 'zustand';
@@ -81,6 +86,7 @@ export interface AuthStore {
   updateLocale: (newLocale: SupportedLocale) => Promise<boolean>;
   updateChatBackground: (background: ChatBackground) => Promise<boolean>;
   updateStartPage: (page: StartPage) => Promise<boolean>;
+  updateFeedbackButton: (mode: FeedbackButtonMode) => Promise<boolean>;
   updateA11yPreference: (
     field: 'reduce_motion' | 'reduce_transparency',
     enabled: boolean
@@ -689,6 +695,32 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('[AuthStore] Error updating start page:', errorMessage);
       toast.error('Startseite konnte nicht gespeichert werden.');
+      return false;
+    }
+  },
+
+  // Darstellung des schwebenden Feedback-Buttons (Text/Icon/aus). Persisted
+  // via the profile update contract.
+  updateFeedbackButton: async (mode: FeedbackButtonMode): Promise<boolean> => {
+    try {
+      const result = await getContractsClient().userProfile.updateProfile({
+        body: { feedback_button: mode },
+      });
+      if (result.status !== 200) {
+        console.error('[AuthStore] Error updating feedback visibility:', result.status);
+        toast.error('Einstellung konnte nicht gespeichert werden.');
+        return false;
+      }
+
+      set((state) => ({
+        user: state.user ? { ...state.user, ...result.body.profile } : null,
+      }));
+
+      return true;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[AuthStore] Error updating feedback visibility:', errorMessage);
+      toast.error('Einstellung konnte nicht gespeichert werden.');
       return false;
     }
   },

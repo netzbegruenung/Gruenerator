@@ -1,10 +1,12 @@
 'use client';
 
+import { TooltipProvider } from '@gruenerator/ui';
 import { useState } from 'react';
+
+import { GrueneratorChatProvider } from '../runtime/GrueneratorChatProvider';
+
 import { ChatSidebar } from './ChatSidebar';
 import { GrueneratorThread } from './thread/GrueneratorThread';
-import { GrueneratorChatProvider } from '../runtime/GrueneratorChatProvider';
-import { TooltipProvider } from '@gruenerator/ui';
 
 interface ChatLayoutProps {
   userId?: string;

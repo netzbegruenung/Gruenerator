@@ -189,7 +189,7 @@ const VorlagenGallery = memo((): JSX.Element => {
     placeholderData: (prev) => prev,
   });
 
-  const categories = categoriesQuery.data ?? [];
+  const categories = useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data]);
   const items = dataQuery.data ?? [];
 
   const { likedIds, toggleLike, isToggling: isLikeToggling, canLike } = useEntityLikes('template');
@@ -230,6 +230,9 @@ const VorlagenGallery = memo((): JSX.Element => {
   useEffect(() => {
     if (categories.length === 0) return;
     if (!categories.some((c) => c.id === selectedCategory)) {
+      // Reset an invalid selection once categories load; guarded so it is a
+      // one-shot reaction to loaded data, not a render-derived value.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedCategory('all');
     }
   }, [categories, selectedCategory]);

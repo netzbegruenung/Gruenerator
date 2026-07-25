@@ -1,11 +1,11 @@
 'use client';
 
-import { TooltipIconButton } from '../assistant-ui/tooltip-icon-button';
-import { Button } from '@gruenerator/ui';
-import { cn } from '@gruenerator/ui';
 import { AuiIf, useVoiceControls, useVoiceState, useVoiceVolume } from '@assistant-ui/react';
+import { Button, cn } from '@gruenerator/ui';
 import { MicIcon, MicOffIcon, PhoneIcon, PhoneOffIcon } from 'lucide-react';
 import { type FC, memo, useCallback, useEffect, useRef, useState } from 'react';
+
+import { TooltipIconButton } from '../assistant-ui/tooltip-icon-button';
 
 export type VoiceOrbState = 'idle' | 'connecting' | 'listening' | 'speaking' | 'muted';
 

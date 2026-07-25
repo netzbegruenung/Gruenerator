@@ -2,10 +2,10 @@ import { getContractsClient } from '@gruenerator/shared/api';
 import {
   Badge,
   Button,
-  Checkbox,
   Dialog,
   DialogContent,
   DialogFooter,
+  DialogTitle,
   Input,
   Pagination,
   PaginationContent,
@@ -20,7 +20,7 @@ import {
 } from '@gruenerator/ui';
 import { useQueries } from '@tanstack/react-query';
 import { ChevronLeft, XIcon } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { FiGrid, FiMonitor } from 'react-icons/fi';
 import { HiDocumentText, HiLink } from 'react-icons/hi';
 import { PiSquaresFour } from 'react-icons/pi';
@@ -162,7 +162,13 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
   const [linkTitleManual, setLinkTitleManual] = useState(false);
   const [linkUrlError, setLinkUrlError] = useState<string | null>(null);
 
-  useEffect(() => {
+  // Reset all modal state when the parent closes it. Done during render via a
+  // previous-value guard (React's documented "reset state when a prop changes"
+  // pattern) rather than an effect — no setState-in-effect, and the reset lands
+  // before the next paint instead of one frame later.
+  const [wasOpen, setWasOpen] = useState(isOpen);
+  if (wasOpen !== isOpen) {
+    setWasOpen(isOpen);
     if (!isOpen) {
       setSelectedItems({});
       setActiveCategory(null);
@@ -176,7 +182,7 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
       setLinkTitleManual(false);
       setLinkUrlError(null);
     }
-  }, [isOpen]);
+  }
 
   const contentQueries = useQueries({
     queries: [
@@ -316,10 +322,13 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
     return cats;
   }, [content, onAddLink]);
 
-  const allCategoryItems: ContentItem[] =
-    activeCategory && activeCategory !== 'links'
-      ? content[activeCategory as keyof ContentState] || []
-      : [];
+  const allCategoryItems: ContentItem[] = useMemo(
+    () =>
+      activeCategory && activeCategory !== 'links'
+        ? content[activeCategory as keyof ContentState] || []
+        : [],
+    [activeCategory, content]
+  );
 
   const currentItems = useMemo(() => {
     if (!searchQuery.trim()) return allCategoryItems;
@@ -371,13 +380,15 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
               <ChevronLeft className="size-4" />
             </button>
           )}
-          <h2 className="text-lg font-semibold text-foreground-heading m-0 shrink-0">
+          {/* DialogTitle (not a bare h2) so Radix wires aria-labelledby and the
+              dialog has an accessible name. */}
+          <DialogTitle className="text-lg font-semibold text-foreground-heading m-0 shrink-0">
             {activeCategory === 'links'
               ? 'Link hinzufügen'
               : activeCategory
                 ? activeCategoryData?.label
                 : 'Inhalte hinzufügen'}
-          </h2>
+          </DialogTitle>
           {activeCategory &&
             activeCategory !== 'links' &&
             allCategoryItems.length > itemsPerPage && (
@@ -403,8 +414,8 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
 
         {isLoading ? (
           <div className="flex flex-col gap-md p-lg flex-1">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-md">
+            {['a', 'b', 'c', 'd'].map((k) => (
+              <div key={`skeleton-${k}`} className="flex items-center gap-md">
                 <Skeleton className="size-8 rounded-lg" />
                 <Skeleton className="h-4 w-3/4 rounded" />
               </div>

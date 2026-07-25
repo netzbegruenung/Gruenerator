@@ -1,5 +1,7 @@
 import { type ChatApiClient } from '../context/ChatContext';
 
+import { type LoadedMessage } from './messageConversion';
+
 export { type LoadedMessage } from './messageConversion';
 
 export interface ThreadHistoryAdapter<TMessage extends { id: string } = { id: string }> {
@@ -12,13 +14,13 @@ export interface ThreadHistoryAdapter<TMessage extends { id: string } = { id: st
 export function createThreadHistoryAdapter<TMessageLike, TMessage extends { id: string }>(
   remoteId: string,
   apiClient: ChatApiClient,
-  convertFn: (msgs: import('./messageConversion').LoadedMessage[]) => TMessageLike[],
+  convertFn: (msgs: LoadedMessage[]) => TMessageLike[],
   transformFn: (msg: TMessageLike) => TMessage
 ): ThreadHistoryAdapter<TMessage> {
   return {
     async load() {
       try {
-        const msgs = await apiClient.get<import('./messageConversion').LoadedMessage[]>(
+        const msgs = await apiClient.get<LoadedMessage[]>(
           `/api/chat-service/messages?threadId=${remoteId}`
         );
         const converted = convertFn(msgs);

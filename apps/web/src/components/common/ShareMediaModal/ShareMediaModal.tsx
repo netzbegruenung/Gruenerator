@@ -77,6 +77,9 @@ const ShareMediaModal = ({
         clearCurrentShare();
       }
       clearError();
+      // Prefill/reset as a reaction to the modal opening (isOpen toggle), not a
+      // render-derived value.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShareTitle(defaultTitle || existingShare?.title || '');
       setCopied(false);
     }

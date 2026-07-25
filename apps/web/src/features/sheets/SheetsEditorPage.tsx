@@ -109,6 +109,9 @@ function SheetsEditorContent() {
   // connection survive close/reopen (docs pattern).
   const [hasOpenedChat, setHasOpenedChat] = useState(false);
   useEffect(() => {
+    // Sticky latch: flips once when chat first opens, then settles (guarded by
+    // !hasOpenedChat). Keeps the chat panel mounted across close/reopen.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (chatOpen && !hasOpenedChat) setHasOpenedChat(true);
   }, [chatOpen, hasOpenedChat]);
 

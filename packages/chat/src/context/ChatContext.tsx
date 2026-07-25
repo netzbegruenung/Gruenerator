@@ -47,18 +47,18 @@ export function createChatApiClient(
     }
 
     if (!response.ok) {
-      let errorData;
+      let errorData: { message?: unknown; error?: unknown };
       try {
-        errorData = await response.json();
+        errorData = (await response.json()) as { message?: unknown; error?: unknown };
       } catch {
         errorData = { message: response.statusText };
       }
-      throw new Error(errorData.message || errorData.error || 'Request failed');
+      throw new Error(String(errorData.message || errorData.error || 'Request failed'));
     }
 
     const contentType = response.headers.get('content-type');
     if (contentType?.includes('application/json')) {
-      return await response.json();
+      return (await response.json()) as T;
     }
 
     return response as unknown as T;

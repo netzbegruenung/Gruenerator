@@ -8,7 +8,9 @@ import {
   MoreHorizontal,
 } from 'lucide-react';
 import { memo } from 'react';
+
 import { cn } from '../../../lib/utils';
+
 import type { SerializableCitation } from './registrySchema';
 
 const TYPE_ICONS = {

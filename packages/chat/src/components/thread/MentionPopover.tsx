@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useRef } from 'react';
+
 import { filterMentionables, type Mentionable } from '../../lib/mentionables';
 import { getFilteredMentionables } from '../../lib/mentionDetection';
+
 import { MentionFloatingPanel } from './MentionFloatingPanel';
 
 interface MentionPopoverProps {

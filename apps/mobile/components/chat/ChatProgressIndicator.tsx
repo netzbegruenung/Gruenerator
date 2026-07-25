@@ -1,4 +1,4 @@
-import { type ChatProgress } from '@gruenerator/chat';
+import { type ChatProgress, usePacedLabel } from '@gruenerator/chat';
 import { StyleSheet, View } from 'react-native';
 
 import { spacing } from '../../theme';
@@ -18,6 +18,13 @@ interface ChatProgressIndicatorProps {
 }
 
 export function ChatProgressIndicator({ progress, theme }: ChatProgressIndicatorProps) {
+  // Prefer the latest pending narration sentence over the raw stage message,
+  // and pace it (shared usePacedLabel) so a burst stays readable. Hook runs
+  // before the early return.
+  const pending = progress.pendingNarration;
+  const rawLabel = pending && pending.length > 0 ? pending[pending.length - 1] : progress.message;
+  const label = usePacedLabel(rawLabel);
+
   // Mirror web ProgressIndicator's early return: only the concrete working
   // stages carry a label worth showing. Classify/idle/complete/error and the
   // `direct` intent (no search) fall through to mobile's 3-dot indicator.
@@ -26,7 +33,7 @@ export function ChatProgressIndicator({ progress, theme }: ChatProgressIndicator
       progress.stage === 'generating' ||
       progress.stage === 'generating_image') &&
     progress.intent !== 'direct' &&
-    !!progress.message;
+    !!label;
 
   if (!showsLabel) return null;
 
@@ -34,7 +41,7 @@ export function ChatProgressIndicator({ progress, theme }: ChatProgressIndicator
     <View style={styles.row}>
       <GrueneratorLoadingIcon size={18} color={theme.textGreen} loading />
       <ShimmerText mutedColor={theme.textSecondary} brightColor={theme.text}>
-        {progress.message}
+        {label}
       </ShimmerText>
     </View>
   );

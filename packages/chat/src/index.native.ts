@@ -148,6 +148,10 @@ export { useFetchFullText, type FetchFullTextFn } from './context/CitationContex
 // SSE Parsing
 export { parseSSELine, type SSECurrentEvent, type SSEParseResult } from './lib/sseParser';
 
+// Narration view-logic + label pacing (shared web + mobile)
+export { selectNarration, type PartLike } from './lib/narrationView';
+export { usePacedLabel } from './hooks/usePacedLabel';
+
 // URL Utilities
 export { extractDomain, getFaviconUrl, getHostname, faviconFromHostname } from './lib/urlUtils';
 

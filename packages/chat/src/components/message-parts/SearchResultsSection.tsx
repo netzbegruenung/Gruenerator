@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useMemo, memo } from 'react';
 import { ChevronRight, FileText, Globe, Paperclip } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { useState, useEffect, useMemo, memo } from 'react';
+
 import { type Citation } from '../../hooks/useChatGraphStream';
+import { cn } from '../../lib/utils';
 import { Citation as CitationCard } from '../tool-ui/citation/ProjectCitation';
 
 export interface AdditionalSource {

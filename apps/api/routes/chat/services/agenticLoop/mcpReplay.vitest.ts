@@ -42,6 +42,15 @@ describe('buildToolObservationReplay', () => {
     expect(call.toolName).toBe('gruenerator_search');
   });
 
+  it('never leaks a step narration into the replayed model messages', () => {
+    // Narration is a UI-only field; the model must not see the announcement
+    // prose as part of cross-turn tool observations.
+    const withNarration = mcpStep({ narration: 'Ich suche jetzt nach Klima-Beschlüssen.' });
+    const serialized = JSON.stringify(buildToolObservationReplay([withNarration], catalog));
+    expect(serialized).not.toContain('Ich suche jetzt');
+    expect(serialized).not.toContain('narration');
+  });
+
   it('replays a domain retrieval step (bundestag)', () => {
     const step = mcpStep({ serverName: undefined, toolName: 'bundestag', toolCallId: 'b1' });
     const msgs = buildToolObservationReplay([step], catalog);

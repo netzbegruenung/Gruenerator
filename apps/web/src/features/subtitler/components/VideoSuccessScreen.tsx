@@ -124,6 +124,9 @@ const VideoSuccessScreen: React.FC<VideoSuccessScreenProps> = ({
       }, 300);
       return () => clearTimeout(timer);
     } else {
+      // Reaction to the loading/export status changing — the hide side is a timed
+      // 300ms fade (setTimeout above), so this show/hide gate must stay an effect.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowSpinner(true);
     }
   }, [isLoading, exportStatus]);

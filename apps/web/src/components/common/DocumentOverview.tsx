@@ -316,11 +316,17 @@ const DocumentOverview = ({
     if (!sortBy || !searchState) return;
 
     if (remoteSearchEnabled && searchState.hasQuery && sortBy !== 'similarity_score') {
+      // Reaction to search activation; guarded on current sortBy so it is a
+      // one-shot switch, not a render-derived value.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSortBy('similarity_score');
     } else if (remoteSearchEnabled && !searchState.hasQuery && sortBy === 'similarity_score') {
       // Switch back to default sort when search is cleared
       setSortBy(sortOptions[0]?.value || 'updated_at');
     }
+    // searchState is a fresh useSearchState() object each render; only its
+    // primitive hasQuery drives this effect, so the whole object stays out.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remoteSearchEnabled, searchState?.hasQuery, sortBy, sortOptions]);
 
   // Handle item deletion
@@ -440,6 +446,9 @@ const DocumentOverview = ({
   // infinite loop (React #185). Bail out to the previous reference when nothing
   // is selected or no selected id was actually pruned.
   useEffect(() => {
+    // Idempotent functional prune (bails to prev reference when unchanged), so
+    // this setState reconciles selection against item changes without looping.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedItemIds((prev) => {
       if (prev.size === 0) return prev;
       const activeItems =
