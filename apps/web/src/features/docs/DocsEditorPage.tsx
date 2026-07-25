@@ -583,7 +583,10 @@ function EditorContent() {
                 <button
                   type="button"
                   onClick={() => setShowWolkeModal(true)}
-                  className="group relative flex items-center gap-1.5 py-1 px-2 text-[0.75rem] rounded-full text-secondary-700 dark:text-secondary-300 transition-all duration-200 ease-out hover:bg-secondary-100/80 dark:hover:bg-secondary-900/50 hover:scale-105 hover:shadow-[0_0_0_3px_rgba(34,197,94,0.15)] dark:hover:shadow-[0_0_0_3px_rgba(34,197,94,0.25)]"
+                  // Hidden below sm: its "Live" label only appears on hover, so
+                  // on touch it is a mute icon competing for scarce bar width.
+                  // "In Wolke speichern" in the actions menu covers the same ground.
+                  className="group relative hidden sm:flex items-center gap-1.5 py-1 px-2 text-[0.75rem] rounded-full text-secondary-700 dark:text-secondary-300 transition-all duration-200 ease-out hover:bg-secondary-100/80 dark:hover:bg-secondary-900/50 hover:scale-105 hover:shadow-[0_0_0_3px_rgba(34,197,94,0.15)] dark:hover:shadow-[0_0_0_3px_rgba(34,197,94,0.25)]"
                   title={
                     docData.wolke_file_path
                       ? `Live mit Wolke synchronisiert: ${docData.wolke_file_path}`
@@ -613,10 +616,16 @@ function EditorContent() {
                   Lesezugriff
                 </div>
               )}
-              <CollaboratorAvatars collaborators={collaborators} />
+              {/* Presence is informational — on a phone the width is better
+                  spent on the actions themselves. */}
+              <span className="max-sm:hidden">
+                <CollaboratorAvatars collaborators={collaborators} />
+              </span>
 
+              {/* Undo/redo move into the actions menu below sm; keeping five
+                  icon buttons plus the title overflowed a 390px bar. */}
               {isEditable && (
-                <>
+                <span className="flex items-center gap-1 max-sm:hidden">
                   <button
                     className="glass-btn"
                     onClick={undo}
@@ -635,7 +644,7 @@ function EditorContent() {
                   >
                     <FiCornerUpRight />
                   </button>
-                </>
+                </span>
               )}
 
               <button
@@ -686,14 +695,44 @@ function EditorContent() {
                 createPortal(
                   <div
                     ref={actionsMenuRef}
-                    className="fixed min-w-[200px] p-1.5 bg-white/90 dark:bg-grey-900/90 backdrop-blur-xl border border-white/30 dark:border-white/10 rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] z-[1000]"
+                    // max-h/overflow so a long menu stays reachable on a short
+                    // phone viewport instead of running off the bottom.
+                    className="fixed min-w-[200px] max-h-[70dvh] overflow-y-auto p-1.5 bg-white/90 dark:bg-grey-900/90 backdrop-blur-xl border border-white/30 dark:border-white/10 rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] z-[1000]"
                     style={{ top: actionsMenuRect.top, right: actionsMenuRect.right }}
                   >
+                    {/* Mirrors the top-bar buttons that are hidden below sm. */}
+                    {isEditable && (
+                      <div className="sm:hidden">
+                        <button
+                          className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-50 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                          disabled={!canUndo}
+                          onClick={() => {
+                            setShowActionsMenu(false);
+                            undo();
+                          }}
+                        >
+                          <FiCornerUpLeft />
+                          Rückgängig
+                        </button>
+                        <button
+                          className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-50 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                          disabled={!canRedo}
+                          onClick={() => {
+                            setShowActionsMenu(false);
+                            redo();
+                          }}
+                        >
+                          <FiCornerUpRight />
+                          Wiederholen
+                        </button>
+                        <div className="my-1 h-px bg-black/5 dark:bg-white/10" />
+                      </div>
+                    )}
                     {!isGuest && (
                       <>
                         {canEdit && (
                           <button
-                            className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                            className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
                             onClick={() => {
                               setShowActionsMenu(false);
                               setShowShareModal(true);
@@ -704,7 +743,7 @@ function EditorContent() {
                           </button>
                         )}
                         <button
-                          className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                          className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
                           onClick={() => {
                             setShowActionsMenu(false);
                             togglePanel('versions');
@@ -715,7 +754,7 @@ function EditorContent() {
                         </button>
                         {canEdit && (
                           <button
-                            className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                            className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
                             disabled={hasPendingAIChanges}
                             title={
                               hasPendingAIChanges
@@ -736,7 +775,7 @@ function EditorContent() {
                         )}
                         {canEdit && suggestionModeEnabled && (
                           <button
-                            className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                            className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
                             onClick={() => {
                               setShowActionsMenu(false);
                               togglePanel('suggestions');
@@ -748,7 +787,7 @@ function EditorContent() {
                         )}
                         {wolkeConnected && (
                           <button
-                            className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                            className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
                             onClick={() => {
                               setShowActionsMenu(false);
                               setShowWolkeModal(true);
@@ -768,7 +807,7 @@ function EditorContent() {
                       </>
                     )}
                     <button
-                      className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                      className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
                       onClick={() => {
                         // Cycle Hell → Dunkel → System; keep the menu open to click through.
                         cycleTheme();
@@ -788,7 +827,7 @@ function EditorContent() {
                           : 'System'}
                     </button>
                     <button
-                      className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                      className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
                       onClick={() => setShowExportSubmenu((v) => !v)}
                       aria-expanded={showExportSubmenu}
                     >
@@ -801,19 +840,19 @@ function EditorContent() {
                     {showExportSubmenu && (
                       <div className="flex flex-col pl-4">
                         <button
-                          className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                          className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
                           onClick={handleExport}
                         >
                           Als Word (.docx)
                         </button>
                         <button
-                          className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                          className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
                           onClick={handleExportPDF}
                         >
                           Als PDF (.pdf)
                         </button>
                         <button
-                          className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                          className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
                           onClick={handleExportODT}
                         >
                           Als ODT (.odt)
