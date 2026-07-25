@@ -1,0 +1,67 @@
+/* Sits directly under the footer and shares its surface so it reads as the
+   footer's last row, not a separate bar. */
+.themeBar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0 2rem 2rem;
+  background: var(--surface-background);
+}
+
+.themeLabel {
+  font-size: 0.8125rem;
+  color: #9ca3af;
+}
+
+[data-theme='dark'] .themeLabel {
+  color: #6b7280;
+}
+
+.themeGroup {
+  display: inline-flex;
+  border: 1px solid var(--surface-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface-card);
+}
+
+.themeButton {
+  border: none;
+  background: transparent;
+  font-family: var(--ifm-font-family-base);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #6b7280;
+  padding: 0.35rem 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.themeButton + .themeButton {
+  border-left: 1px solid var(--surface-border);
+}
+
+.themeButton:hover {
+  background: var(--primary-50);
+  color: var(--primary-700);
+}
+
+.themeButton[aria-pressed='true'] {
+  background: var(--primary-600);
+  color: #ffffff;
+}
+
+[data-theme='dark'] .themeButton {
+  color: #9ca3af;
+}
+
+[data-theme='dark'] .themeButton:hover {
+  background: rgba(96, 161, 131, 0.1);
+  color: var(--primary-300);
+}
+
+[data-theme='dark'] .themeButton[aria-pressed='true'] {
+  background: var(--primary-500);
+  color: #ffffff;
+}
