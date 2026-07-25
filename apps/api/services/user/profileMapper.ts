@@ -32,7 +32,9 @@ export function toUserProfile(row: ProfileSelectModel): UserProfile {
     user_defaults: row.user_defaults,
     ...(row.locale != null && { locale: row.locale as 'de-DE' | 'de-AT' }),
     default_startpage: row.default_startpage as 'chat' | 'arbeiten',
-    feedback_enabled: row.feedback_enabled,
+    feedback_button: row.feedback_button as 'text' | 'icon' | 'off',
+    reduce_motion: row.reduce_motion,
+    reduce_transparency: row.reduce_transparency,
     ...(row.custom_prompt != null && { custom_prompt: row.custom_prompt }),
 
     // Feature flags — all have DB defaults so they are non-null

@@ -123,13 +123,14 @@ describe('parseSSEStream interleaving', () => {
     expect(texts).toEqual(['Siehe [1] ', 'und [2].']);
   });
 
-  it('still handles the gather_narration case (S1 regression)', async () => {
+  it('accumulates gather_narration into progress.pendingNarration (S1 regression)', async () => {
     const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
     let last: { metadata: { custom: Record<string, unknown> } } | undefined;
     for await (const result of parseSSEStream(
       sseResponse([
         { event: 'intent', data: { intent: 'search', message: 'Suche läuft…' } },
         { event: 'gather_narration', data: { text: 'Ich durchsuche die Beschlüsse…' } },
+        { event: 'gather_narration', data: { text: 'Jetzt prüfe ich das Wahlprogramm.' } },
       ]),
       callbacks,
       outcome
@@ -138,11 +139,59 @@ describe('parseSSEStream interleaving', () => {
     }
     const progress = last!.metadata.custom.progress as {
       message: string;
-      steps: Array<{ status: string; label: string }>;
+      pendingNarration?: string[];
     };
-    expect(progress.message).toBe('Ich durchsuche die Beschlüsse…');
-    expect(progress.steps.find((s) => s.status === 'in-progress')?.label).toBe(
-      'Ich durchsuche die Beschlüsse…'
-    );
+    // Both sentences accumulate (nothing lost); message keeps the latest so
+    // Mobile's simple status field still shows something.
+    expect(progress.pendingNarration).toEqual([
+      'Ich durchsuche die Beschlüsse…',
+      'Jetzt prüfe ich das Wahlprogramm.',
+    ]);
+    expect(progress.message).toBe('Jetzt prüfe ich das Wahlprogramm.');
+  });
+
+  it('stamps server-provided narration onto the tool card and clears the pending line', async () => {
+    const content = await lastContent([
+      { event: 'gather_narration', data: { text: 'Ich suche gleich.' } },
+      {
+        event: 'tool_step_start',
+        data: {
+          stepId: 's1',
+          toolName: 'gruenerator_search',
+          narration: 'Ich suche jetzt danach.',
+        },
+      },
+    ]);
+    const card = content.find(isCard);
+    // Server value wins (survives reload); the client buffer is discarded.
+    expect(card?.narration).toBe('Ich suche jetzt danach.');
+  });
+
+  it('falls back to draining buffered narration onto the card (old server, no field)', async () => {
+    const content = await lastContent([
+      { event: 'gather_narration', data: { text: 'Zuerst schaue ich' } },
+      { event: 'gather_narration', data: { text: 'ins Parteiprogramm.' } },
+      { event: 'tool_step_start', data: { stepId: 's1', toolName: 'gruenerator_search' } },
+    ]);
+    const card = content.find(isCard);
+    expect(card?.narration).toBe('Zuerst schaue ich ins Parteiprogramm.');
+  });
+
+  it('drops trailing narration once synthesis text starts', async () => {
+    const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
+    let last: { metadata: { custom: Record<string, unknown> } } | undefined;
+    for await (const result of parseSSEStream(
+      sseResponse([
+        { event: 'tool_step_start', data: { stepId: 's1', toolName: 'gruenerator_search' } },
+        { event: 'gather_narration', data: { text: 'Fast fertig…' } },
+        { event: 'text_delta', data: { text: 'Die Antwort lautet' } },
+      ]),
+      callbacks,
+      outcome
+    )) {
+      last = result as unknown as { metadata: { custom: Record<string, unknown> } };
+    }
+    const progress = last!.metadata.custom.progress as { pendingNarration?: string[] };
+    expect(progress.pendingNarration).toEqual([]);
   });
 });

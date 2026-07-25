@@ -27,6 +27,10 @@ export interface PersistedStep {
    *  set in unified mode; absent on legacy messages, split-mode turns, and
    *  after a citation clamp rewrote the text (offset drift protection). */
   textOffset?: number;
+  /** Planner announcement sentence(s) streamed before this tool call started
+   *  (split-gather mode only). Rendered as muted text above the card and
+   *  persisted with the turn; never replayed into model context. */
+  narration?: string;
 }
 
 /**

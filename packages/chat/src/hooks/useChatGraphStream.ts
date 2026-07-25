@@ -118,6 +118,10 @@ export interface ChatProgress {
   reasoning?: string;
   steps?: ProgressStep[];
   memoryContext?: MemoryContextInfo;
+  /** Live split-gather narration sentences awaiting a tool card to land on.
+   *  Rendered as the paced status line until the next `tool_step_start`
+   *  associates them with a card. Cleared when synthesis text starts. */
+  pendingNarration?: string[];
 }
 
 export interface Citation {

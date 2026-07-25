@@ -9,7 +9,7 @@ import {
   type KeyboardCoordinateGetter,
 } from '@dnd-kit/core';
 import { restrictToWindowEdges } from '@dnd-kit/modifiers';
-import { GripVertical } from 'lucide-react';
+import { GripVertical, MessageSquare } from 'lucide-react';
 import { useCallback, useRef, useState, type JSX, type RefObject } from 'react';
 
 import { cn } from '@/utils/cn';
@@ -72,18 +72,27 @@ const cornerCoordinateGetter: KeyboardCoordinateGetter = (
   }
 };
 
+type LauncherVariant = 'text' | 'icon';
+
 interface DraggableFeedbackLauncherProps {
   onOpen: () => void;
   defaultCorner?: LauncherCorner;
+  variant?: LauncherVariant;
 }
 
 interface LauncherPillProps {
   onOpen: () => void;
   corner: LauncherCorner;
+  variant: LauncherVariant;
   suppressClickRef: RefObject<boolean>;
 }
 
-function LauncherPill({ onOpen, corner, suppressClickRef }: LauncherPillProps): JSX.Element {
+function LauncherPill({
+  onOpen,
+  corner,
+  variant,
+  suppressClickRef,
+}: LauncherPillProps): JSX.Element {
   const { setNodeRef, setActivatorNodeRef, listeners, attributes, transform, isDragging } =
     useDraggable({ id: 'feedback-launcher' });
 
@@ -118,9 +127,13 @@ function LauncherPill({ onOpen, corner, suppressClickRef }: LauncherPillProps): 
           if (suppressClickRef.current) return;
           onOpen();
         }}
-        className="cursor-pointer py-3 pl-5 pr-2 text-sm font-semibold hover:bg-primary-700"
+        aria-label={variant === 'icon' ? 'Feedback geben' : undefined}
+        className={cn(
+          'cursor-pointer hover:bg-primary-700',
+          variant === 'icon' ? 'py-3 pl-3.5 pr-1.5' : 'py-3 pl-5 pr-2 text-sm font-semibold'
+        )}
       >
-        Feedback
+        {variant === 'icon' ? <MessageSquare className="size-5" aria-hidden="true" /> : 'Feedback'}
       </button>
       <button
         type="button"
@@ -144,6 +157,7 @@ function LauncherPill({ onOpen, corner, suppressClickRef }: LauncherPillProps): 
 export default function DraggableFeedbackLauncher({
   onOpen,
   defaultCorner = 'bottom-right',
+  variant = 'text',
 }: DraggableFeedbackLauncherProps): JSX.Element {
   const [corner, setCorner] = useState<LauncherCorner>(() => loadCorner(defaultCorner));
   const suppressClickRef = useRef(false);
@@ -196,7 +210,12 @@ export default function DraggableFeedbackLauncher({
         },
       }}
     >
-      <LauncherPill onOpen={onOpen} corner={corner} suppressClickRef={suppressClickRef} />
+      <LauncherPill
+        onOpen={onOpen}
+        corner={corner}
+        variant={variant}
+        suppressClickRef={suppressClickRef}
+      />
     </DndContext>
   );
 }
