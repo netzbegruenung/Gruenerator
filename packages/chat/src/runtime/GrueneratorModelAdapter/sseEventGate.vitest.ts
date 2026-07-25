@@ -110,6 +110,24 @@ describe('chatStreamEventSchemas gate', () => {
     expect(schema.safeParse({ text: 42 }).success).toBe(false);
   });
 
+  it('tool_step_start accepts optional narration and stays valid without it (back-compat)', () => {
+    const schema = chatStreamEventSchemas['tool_step_start']!;
+    // Old payload (no narration) still validates.
+    expect(schema.safeParse({ stepId: 's1', toolName: 'gruenerator_search' }).success).toBe(true);
+    // New payload with narration validates and keeps the field.
+    const withNarration = schema.safeParse({
+      stepId: 's1',
+      toolName: 'gruenerator_search',
+      narration: 'Ich suche jetzt danach.',
+    });
+    expect(withNarration.success).toBe(true);
+    if (withNarration.success) {
+      expect((withNarration.data as Record<string, unknown>).narration).toBe(
+        'Ich suche jetzt danach.'
+      );
+    }
+  });
+
   it('reel_updated pins the segment shape', () => {
     const schema = chatStreamEventSchemas['reel_updated']!;
     const base = { projectId: 'p', title: 't', summary: 's', changedIndices: [0] };
@@ -167,7 +185,7 @@ describe('parseSSEStream gather_narration handling', () => {
 
   const callbacks: GrueneratorAdapterCallbacks = {};
 
-  it('sets custom.progress.message and updates the in-progress step title', async () => {
+  it('sets custom.progress.message and accumulates pendingNarration', async () => {
     const response = sseResponse([
       { event: 'intent', data: { intent: 'search', message: 'Suche läuft…' } },
       { event: 'gather_narration', data: { text: 'Ich durchsuche gerade die Beschlüsse…' } },
@@ -180,11 +198,10 @@ describe('parseSSEStream gather_narration handling', () => {
     }
 
     const custom = (last as { metadata: { custom: Record<string, unknown> } }).metadata.custom as {
-      progress: { message: string; steps: Array<{ status: string; label: string }> };
+      progress: { message: string; pendingNarration?: string[] };
     };
     expect(custom.progress.message).toBe('Ich durchsuche gerade die Beschlüsse…');
-    const inProgressStep = custom.progress.steps.find((s) => s.status === 'in-progress');
-    expect(inProgressStep?.label).toBe('Ich durchsuche gerade die Beschlüsse…');
+    expect(custom.progress.pendingNarration).toEqual(['Ich durchsuche gerade die Beschlüsse…']);
   });
 
   it('drops a malformed gather_narration event before it reaches the switch', async () => {

@@ -278,6 +278,16 @@ export async function streamAgenticResponse(params: {
   });
   const steps: PersistedStep[] = [];
   let text = '';
+  // Planner narration sentences buffered since the last tool call started, so
+  // wrapTools can drain + associate them with the tool they announced. Split
+  // mode only; unified narration flows through the answer text via onText.
+  const narrationBuffer: string[] = [];
+  const takeNarration = (): string | null => {
+    if (narrationBuffer.length === 0) return null;
+    const joined = narrationBuffer.join(' ').trim();
+    narrationBuffer.length = 0;
+    return joined || null;
+  };
   let responseStarted = false;
   let resolution: Awaited<ReturnType<typeof resolveModel>> | null = null;
   let mcpCatalog: McpCatalog | null = null;
@@ -433,6 +443,7 @@ export async function streamAgenticResponse(params: {
       // recorded, and reload falls back to the legacy cards-first layout.
       // Reads `mode` lazily: it's finalized (line below) before the loop runs.
       getTextOffset: () => (mode === 'unified' ? text.length : null),
+      takeNarration,
       ...(toolLabels.size > 0
         ? {
             titleFor: (name: string) => {
@@ -756,8 +767,12 @@ export async function streamAgenticResponse(params: {
       onReasoning: (delta) => sse.send('reasoning_delta', { text: delta }),
       // Split-gather narration: the planner's inter-tool prose, sentence-wise.
       // NOT routed through onText — that starts the response + persists it as
-      // answer text; narration is ephemeral progress, its own SSE channel.
-      onNarration: (s) => sse.send('gather_narration', { text: s }),
+      // answer text. Sent live on its own SSE channel AND buffered so the next
+      // tool_step_start can stamp it onto the card for durable rendering.
+      onNarration: (s) => {
+        narrationBuffer.push(s);
+        sse.send('gather_narration', { text: s });
+      },
     });
 
     // Edit + compound-generation guarantees now run inside afterGather in BOTH
