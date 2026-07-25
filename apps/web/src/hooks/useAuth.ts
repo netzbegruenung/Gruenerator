@@ -426,6 +426,8 @@ const buildE2EBypassAuthData = (): AuthData => {
       locale: 'de-DE',
       default_startpage: 'chat',
       feedback_button: 'text',
+      reduce_motion: false,
+      reduce_transparency: false,
       groups_enabled: true,
       custom_generators: true,
       database_access: true,
