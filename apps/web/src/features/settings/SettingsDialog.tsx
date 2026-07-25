@@ -22,6 +22,7 @@ import {
   FiSliders,
   FiUser,
 } from 'react-icons/fi';
+import { IoAccessibilityOutline } from 'react-icons/io5';
 import { PiBrain, PiPencil, PiRobot } from 'react-icons/pi';
 
 import Spinner from '../../components/common/Spinner';
@@ -31,6 +32,7 @@ import { useSettingsDialogStore, type SettingsTab } from './settingsDialogStore'
 // hideHeading: the tab's content brings its own top-level heading.
 const NAV: { value: SettingsTab; label: string; icon: IconType; hideHeading?: boolean }[] = [
   { value: 'allgemein', label: 'Allgemein', icon: FiSettings },
+  { value: 'barrierefreiheit', label: 'Barrierefreiheit', icon: IoAccessibilityOutline },
   { value: 'konto', label: 'Konto', icon: FiUser },
   { value: 'friends', label: 'Friends', icon: PiRobot },
   { value: 'personalisierung', label: 'Personalisierung', icon: FiSliders },
@@ -46,6 +48,7 @@ const NAV: { value: SettingsTab; label: string; icon: IconType; hideHeading?: bo
 
 const TAB_COMPONENTS: Record<SettingsTab, LazyExoticComponent<ComponentType>> = {
   allgemein: lazy(() => import('./tabs/GeneralTab')),
+  barrierefreiheit: lazy(() => import('./tabs/AccessibilityTab')),
   konto: lazy(() => import('./tabs/AccountTab')),
   friends: lazy(() => import('./tabs/FriendsTab')),
   personalisierung: lazy(() => import('./tabs/PersonalizationTab')),

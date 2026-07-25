@@ -29,6 +29,15 @@ export const TAB_NOTES: TabNote[] = [
     ],
   },
   {
+    tab: 'barrierefreiheit',
+    intro:
+      'Einstellungen, die die Oberfläche zugänglicher machen. Sie folgen zunächst den Vorgaben deines Betriebssystems und lassen sich hier gezielt übersteuern; Änderungen greifen sofort und gelten auf allen Geräten, an denen du angemeldet bist.',
+    extras: [
+      '**Animationen reduzieren** und **Transparenz reduzieren** schalten dekorative Bewegung bzw. durchscheinende Flächen und Unschärfe ab — hilfreich bei Reizempfindlichkeit oder auf schwächerer Hardware.',
+      '**Sprung-Link zum Inhalt** blendet ganz oben einen Link ein, mit dem du beim Tabben die Navigation überspringst und direkt zum Hauptinhalt springst. Standardmäßig aus.',
+    ],
+  },
+  {
     tab: 'konto',
     intro:
       'Wer du bist. Name, Benutzername und E-Mail kommen aus deinem Grünen Login und lassen sich hier nur ansehen — ändern kannst du sie dort, wo du dich anmeldest.',
