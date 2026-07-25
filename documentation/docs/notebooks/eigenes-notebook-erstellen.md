@@ -21,11 +21,12 @@ Der Editor führt dich durch **drei Schritte**: **Quellen → Details → Überp
 
 ### Schritt 2: Quellen wählen
 
-Im ersten Schritt des Editors („Quellen — Woher kommen deine Dokumente?") stehen drei Kacheln zur Auswahl:
+Im ersten Schritt des Editors („Quellen — Woher kommen deine Dokumente?") stehen vier Kacheln zur Auswahl:
 
 - **Dateien hochladen** — Dateien aus dem Dateibrowser auswählen (Mehrfachauswahl möglich) oder per **Drag &amp; Drop** auf das Fenster ziehen.
 - **Aus der Wolke verbinden** — einen Ordner aus der Grünen Wolke als Quelle nutzen (siehe Schritt 3).
 - **Aus Docs importieren** — eigene Docs als Quelle einbinden (siehe Schritt 3).
+- **Von einer Website** — Beiträge und Seiten einer WordPress-Website importieren (siehe Schritt 3).
 
 Beim Hochladen werden die gewählten Dateien zunächst als Vorschau **„Bereit zum Hochladen"** gesammelt. Dort kannst du einzelne Dateien wieder entfernen und startest den Upload dann mit **„Hochladen"**. Dateien in nicht unterstützten Formaten werden übersprungen, und überschüssige Uploads (über 100 hinaus) werden mit einem Hinweis abgelehnt.
 
@@ -44,6 +45,16 @@ Mehr zur Einrichtung des Wolke-Links: → [Wolke einbinden](/docs/Profil/gruene-
 #### Optional: Docs importieren
 
 Über die Kachel **„Aus Docs importieren"** kannst du eigene Docs verknüpfen und als Quelle einbinden — sie werden beim Import in durchsuchbaren Text umgewandelt und lassen sich später per Sync aktualisieren. Auch diese Funktion trägt ein **„Experimentell"**-Badge.
+
+#### Optional: Eine Website einlesen
+
+Über die Kachel **„Von einer Website"** bindest du die Inhalte einer **WordPress**-Website ein — etwa die Seite deines Kreis- oder Landesverbands. Du gibst die Adresse ein, der Grünerator sieht nach, welche Beiträge und Seiten es dort gibt, und du wählst aus, was ins Notebook soll. Rubriken lassen sich dabei gezielt an- und abwählen, statt alles auf einmal zu übernehmen.
+
+:::note[Nur WordPress]
+Der Import setzt voraus, dass die Website mit WordPress läuft und ihre Inhalte maschinenlesbar bereitstellt. Bei anderen Systemen bleibt der Weg über heruntergeladene Dateien.
+:::
+
+Websites, die du einmal hinterlegt hast, merkt sich dein Konto — du kannst sie später für weitere Notebooks wiederverwenden, ohne die Adresse erneut einzutragen.
 
 ### Schritt 3: Name, Beschreibung und Labels
 
