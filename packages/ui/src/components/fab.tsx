@@ -26,7 +26,8 @@ export const Fab = React.forwardRef<HTMLButtonElement, FabProps>(function Fab(
       ref={ref}
       type="button"
       className={cn(
-        'fixed bottom-6 right-6 w-12 h-12 rounded-full flex items-center justify-center',
+        // Offset by the home-indicator inset so the button never sits under it.
+        'fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] right-6 w-12 h-12 rounded-full flex items-center justify-center',
         'bg-white/85 dark:bg-grey-900/85 backdrop-blur-xl border border-black/8 dark:border-white/10',
         'shadow-lg cursor-pointer z-[150] transition-all hover:bg-white/95 dark:hover:bg-grey-800/95',
         'hover:shadow-xl active:scale-95',
