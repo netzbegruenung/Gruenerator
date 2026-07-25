@@ -6,7 +6,7 @@
  * is the default, which is what the export preselects.
  */
 
-import { Button, toast } from '@gruenerator/ui';
+import { Button, toast, useConfirm } from '@gruenerator/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
@@ -106,6 +106,7 @@ function LetterheadForm({
 
 const LetterheadsSection = () => {
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
 
@@ -219,7 +220,18 @@ const LetterheadsSection = () => {
                   type="button"
                   size="sm"
                   variant="ghost"
-                  onClick={() => deleteMutation.mutate(lh.id)}
+                  onClick={() => {
+                    // Destructive and not undoable — and deleting the default
+                    // silently promotes another one, so ask first.
+                    void confirm({
+                      title: `„${lh.label}" löschen?`,
+                      description: lh.is_default
+                        ? 'Das ist dein Standard-Briefkopf. Nach dem Löschen wird ein anderer zum Standard.'
+                        : 'Der Briefkopf steht dann beim Export nicht mehr zur Auswahl.',
+                    }).then((confirmed) => {
+                      if (confirmed) deleteMutation.mutate(lh.id);
+                    });
+                  }}
                 >
                   Löschen
                 </Button>

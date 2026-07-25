@@ -9,6 +9,7 @@
 import { useState } from 'react';
 
 import { isChoiceUsable, LetterheadChooser, type LetterheadChoice } from './LetterheadChooser';
+import { useModalDialog } from './useModalDialog';
 
 import type { Letterhead } from '../settings/letterheadApi';
 
@@ -21,6 +22,7 @@ export function LetterheadExportDialog({
   onCancel: () => void;
   onSubmit: (choice: LetterheadChoice) => void;
 }) {
+  const dialogRef = useModalDialog<HTMLDivElement>(onCancel);
   const [choice, setChoice] = useState<LetterheadChoice>(() => {
     const preselected = letterheads.find((l) => l.is_default) ?? letterheads[0];
     return preselected ? { letterheadId: preselected.id } : { inline: {} };
@@ -33,7 +35,10 @@ export function LetterheadExportDialog({
       aria-modal="true"
       aria-labelledby="letterhead-export-title"
     >
-      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl bg-white dark:bg-grey-900 p-5 shadow-xl">
+      <div
+        ref={dialogRef}
+        className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl bg-white dark:bg-grey-900 p-5 shadow-xl"
+      >
         <h2 id="letterhead-export-title" className="text-base font-semibold text-foreground mb-1">
           Briefkopf wählen
         </h2>
