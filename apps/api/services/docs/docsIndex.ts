@@ -64,8 +64,7 @@ const HEADING_WEIGHT = 3;
  * im Juli"), just not at the expense of current documentation.
  */
 const CATEGORY_PRIOR: Record<string, number> = {
-  Newsletter: 0.5,
-  'Signal-Nachrichten': 0.5,
+  Archiv: 0.5,
 };
 const DEFAULT_CATEGORY_PRIOR = 1;
 
