@@ -38,6 +38,9 @@ const GeneralTab = () => {
   const updateStartPage = useAuthStore((s) => s.updateStartPage);
   const feedbackEnabled = useAuthStore((s) => s.user?.feedback_enabled ?? true);
   const updateFeedbackEnabled = useAuthStore((s) => s.updateFeedbackEnabled);
+  const reduceMotion = useAuthStore((s) => s.user?.reduce_motion ?? false);
+  const reduceTransparency = useAuthStore((s) => s.user?.reduce_transparency ?? false);
+  const updateA11yPreference = useAuthStore((s) => s.updateA11yPreference);
 
   return (
     <div className="-my-4 divide-y divide-grey-200 dark:divide-grey-800">
@@ -139,6 +142,22 @@ const GeneralTab = () => {
           checked={feedbackEnabled}
           onCheckedChange={(checked) => void updateFeedbackEnabled(checked)}
           aria-label="Feedback-Button anzeigen"
+        />
+      </SettingsRow>
+
+      <SettingsRow id="allgemein.animationen">
+        <Switch
+          checked={reduceMotion}
+          onCheckedChange={(checked) => void updateA11yPreference('reduce_motion', checked)}
+          aria-label="Animationen reduzieren"
+        />
+      </SettingsRow>
+
+      <SettingsRow id="allgemein.transparenz">
+        <Switch
+          checked={reduceTransparency}
+          onCheckedChange={(checked) => void updateA11yPreference('reduce_transparency', checked)}
+          aria-label="Transparenz und Unschärfe reduzieren"
         />
       </SettingsRow>
 

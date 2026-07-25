@@ -166,6 +166,8 @@ class ProfileService {
         'bundestag_api_enabled',
         'memory_enabled',
         'feedback_enabled',
+        'reduce_motion',
+        'reduce_transparency',
         'deutschlandmodus',
         'is_admin',
         'content_management',
