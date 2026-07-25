@@ -1,0 +1,250 @@
+{
+  "groups": [
+    {
+      "id": "bereiche",
+      "title": "Die drei Bereiche",
+      "tools": [
+        {
+          "id": "office",
+          "title": "Office",
+          "description": "Dokumente, Boards, Tabellen & Slides",
+          "path": "/office"
+        },
+        {
+          "id": "canvas",
+          "title": "Studio",
+          "description": "KI-Bilder, Sharepics & Reels",
+          "path": "/studio"
+        },
+        {
+          "id": "wissen",
+          "title": "Wissen",
+          "description": "Recherche & Notebooks",
+          "path": "/wissen"
+        }
+      ]
+    },
+    {
+      "id": "office",
+      "title": "Office — Dokumente, Boards, Tabellen, Folien",
+      "tools": [
+        {
+          "id": "vorlagen",
+          "title": "Vorlagen",
+          "description": "Aus Vorlage starten",
+          "create": "gallery"
+        },
+        {
+          "id": "docs",
+          "title": "Leeres Dokument",
+          "description": "Leeres Textdokument",
+          "create": "doc"
+        },
+        {
+          "id": "boards",
+          "title": "Leeres Board",
+          "description": "Leeres Kanban-Board",
+          "create": "board"
+        },
+        {
+          "id": "sheets",
+          "title": "Leere Tabelle",
+          "description": "Leere Kalkulationstabelle",
+          "create": "sheet"
+        },
+        {
+          "id": "presentations",
+          "title": "Leere Präsentation",
+          "description": "Leere Foliensammlung",
+          "create": "pres"
+        }
+      ]
+    },
+    {
+      "id": "studio",
+      "title": "Studio — Bilder, Sharepics, Reels",
+      "tools": [
+        {
+          "id": "canvas-vorlagen",
+          "title": "Vorlagen",
+          "description": "Design-Vorlagen",
+          "path": "/vorlagen"
+        },
+        {
+          "id": "canvas-ki",
+          "title": "KI-Bilder",
+          "description": "Erstellen & bearbeiten",
+          "path": "/bild-editor"
+        },
+        {
+          "id": "canvas-sharepics",
+          "title": "Sharepics",
+          "description": "Grafiken gestalten",
+          "path": "/studio/templates"
+        },
+        {
+          "id": "reels-untertitel",
+          "title": "Reels",
+          "description": "Untertitel für Clips",
+          "path": "/studio/video"
+        }
+      ]
+    },
+    {
+      "id": "organisieren",
+      "title": "Organisieren",
+      "tools": [
+        {
+          "id": "agents",
+          "title": "Agentura",
+          "description": "Grüneratoren & Rezepte",
+          "path": "/agentura"
+        },
+        {
+          "id": "spaces",
+          "title": "Projekte",
+          "description": "Chats & Inhalte bündeln",
+          "path": "/projekte"
+        }
+      ]
+    },
+    {
+      "id": "weitere",
+      "title": "Weitere Werkzeuge",
+      "tools": [
+        {
+          "id": "scanner",
+          "title": "Scanner",
+          "description": "Fotos & Scans zu Text",
+          "path": "/scanner"
+        },
+        {
+          "id": "zeichenzaehler",
+          "title": "Zeichenzähler",
+          "description": "Wörter zählen",
+          "path": "/zeichenzaehler"
+        },
+        {
+          "id": "transkription",
+          "title": "Transkription",
+          "description": "Audio zu Text",
+          "path": "/transkription"
+        },
+        {
+          "id": "newsletter",
+          "title": "Newsletter",
+          "description": "Updates abonnieren"
+        },
+        {
+          "id": "mcp",
+          "title": "MCP",
+          "description": "ChatGPT & Co verbinden",
+          "path": "/apps"
+        }
+      ]
+    }
+  ],
+  "catalog": {
+    "boards": {
+      "title": "Boards",
+      "path": "/boards",
+      "subtitle": "Planen & organisieren"
+    },
+    "docs": {
+      "title": "Dokumente",
+      "path": "/docs",
+      "subtitle": "Texte schreiben"
+    },
+    "office": {
+      "title": "Office",
+      "path": "/office",
+      "subtitle": "Dokumente, Boards, Tabellen & Slides"
+    },
+    "presentations": {
+      "title": "Präsentationen",
+      "path": "/presentations",
+      "subtitle": "Folien & Vorträge"
+    },
+    "sheets": {
+      "title": "Tabellen",
+      "path": "/sheets",
+      "subtitle": "Daten & Kalkulationen"
+    },
+    "tool-agentura": {
+      "title": "Agentura",
+      "path": "/agentura",
+      "subtitle": "KI-Grüneratoren & Rezepte entdecken"
+    },
+    "tool-chat": {
+      "title": "Chat",
+      "path": "/chat",
+      "subtitle": "KI-Assistent"
+    },
+    "tool-gruppen": {
+      "title": "Projekte",
+      "path": "/projekte",
+      "subtitle": "Chats & Inhalte bündeln, Zusammenarbeit im Team"
+    },
+    "tool-imagine": {
+      "title": "KI-Bild erstellen",
+      "path": "/bild-editor",
+      "subtitle": "Bilder mit KI erstellen & bearbeiten"
+    },
+    "tool-notebooks": {
+      "title": "Notebooks",
+      "path": "/notebooks",
+      "subtitle": "Wissensmanagement & Recherche"
+    },
+    "tool-reel": {
+      "title": "Reel",
+      "path": "/studio/video",
+      "subtitle": "Social-Clips untertiteln"
+    },
+    "tool-scanner": {
+      "title": "Scanner",
+      "path": "/scanner",
+      "subtitle": "Fotos & Scans in Text umwandeln"
+    },
+    "tool-studio": {
+      "title": "Studio",
+      "path": "/studio",
+      "subtitle": "Sharepics, KI-Bilder & Videos"
+    },
+    "tool-suche": {
+      "title": "Websuche",
+      "path": "/suche",
+      "subtitle": "Recherche im Netz"
+    },
+    "tool-transkription": {
+      "title": "Transkription",
+      "path": "/transkription",
+      "subtitle": "Audio mit KI verschriftlichen"
+    },
+    "tool-vorlagen": {
+      "title": "Vorlagen",
+      "path": "/vorlagen",
+      "subtitle": "Fertige Design-Vorlagen"
+    },
+    "tool-zeichenzaehler": {
+      "title": "Zeichenzähler",
+      "path": "/zeichenzaehler",
+      "subtitle": "Zeichen, Wörter & Social-Limits zählen"
+    }
+  },
+  "publicRoutes": [
+    "/",
+    "/boards/public/:id",
+    "/datenschutz",
+    "/impressum",
+    "/ki-transparenz",
+    "/login",
+    "/nutzungsbedingungen",
+    "/register",
+    "/share/:shareToken",
+    "/sites/login",
+    "/startseite",
+    "/subtitler/share/:shareToken",
+    "/support",
+    "/testsommer"
+  ]
+}
