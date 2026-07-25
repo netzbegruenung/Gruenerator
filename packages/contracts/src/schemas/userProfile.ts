@@ -36,6 +36,7 @@ export const profileUpdateBodySchema = z.object({
   feedback_button: feedbackButtonSchema.optional(),
   reduce_motion: z.boolean().optional(),
   reduce_transparency: z.boolean().optional(),
+  show_skip_link: z.boolean().optional(),
 });
 
 export const avatarUpdateBodySchema = z.object({
@@ -140,6 +141,7 @@ export const userProfileSchema = z.object({
   feedback_button: feedbackButtonSchema.default('text'),
   reduce_motion: z.boolean().default(false),
   reduce_transparency: z.boolean().default(false),
+  show_skip_link: z.boolean().default(false),
   is_admin: z.boolean().optional(),
   groups_enabled: z.boolean().default(false),
   custom_generators: z.boolean().default(false),

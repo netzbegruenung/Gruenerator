@@ -5,6 +5,10 @@
       "label": "Allgemein"
     },
     {
+      "value": "barrierefreiheit",
+      "label": "Barrierefreiheit"
+    },
+    {
       "value": "konto",
       "label": "Konto"
     },
@@ -75,15 +79,20 @@
       "title": "Feedback-Button",
       "description": "Darstellung des schwebenden Feedback-Buttons: mit Text, nur als Icon oder ganz ausgeblendet — er lässt sich in jede Bildschirmecke ziehen"
     },
-    "allgemein.animationen": {
-      "tab": "allgemein",
+    "barrierefreiheit.animationen": {
+      "tab": "barrierefreiheit",
       "title": "Animationen reduzieren",
       "description": "Schaltet dekorative Animationen und Übergänge ab — folgt sonst automatisch der Einstellung deines Betriebssystems"
     },
-    "allgemein.transparenz": {
-      "tab": "allgemein",
+    "barrierefreiheit.transparenz": {
+      "tab": "barrierefreiheit",
       "title": "Transparenz reduzieren",
       "description": "Entfernt durchscheinende Flächen und Unschärfe-Effekte — folgt sonst automatisch der Einstellung deines Betriebssystems"
+    },
+    "barrierefreiheit.sprunglink": {
+      "tab": "barrierefreiheit",
+      "title": "Sprung-Link zum Inhalt",
+      "description": "Blendet ganz oben einen Link ein, der beim Tabben den Fokus direkt auf den Hauptinhalt setzt — standardmäßig aus"
     },
     "allgemein.touren": {
       "tab": "allgemein",
