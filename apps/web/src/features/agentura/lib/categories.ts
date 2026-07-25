@@ -70,7 +70,7 @@ export const AGENTURA_CATEGORIES: AgenturaCategory[] = [
     icon: PiSparkle,
     description: 'Deine selbst erstellten Grüneratoren und wiederkehrenden Aufgaben.',
     emptyText:
-      'Du hast noch keine eigenen Grüneratoren erstellt. Leg deinen ersten über „Neuer Grünerator" an.',
+      'Du hast noch keine eigenen Grüneratoren erstellt. Leg deinen ersten über „Neuer Grünerator-Agent" an.',
     emptyIcon: PiSparkle,
   },
   {
