@@ -263,6 +263,12 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "lead": "Der Grünerator ist ein speziell für Bündnis 90/Die Grünen entwickeltes KI-Tool. Er erstellt Texte wie Pressemitteilungen, Social-Media-Beiträge, Anträge für kommunale Parlamente und viele weitere. Au…"
   },
   {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "title": "Wie nachhaltig ist der Grünerator?",
+    "category": "Über den Grünerator",
+    "lead": "Künstliche Intelligenz kostet Strom, Wasser und Hardware — das lässt sich nicht wegdiskutieren. Der Grünerator ist deshalb so gebaut, dass er möglichst wenig davon braucht und den Rest aus möglichst…"
+  },
+  {
     "url": "/docs/ueber-den-gruenerator/notebook",
     "title": "Deine Daten im Grünerator",
     "category": "Über den Grünerator",
@@ -2297,7 +2303,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Unsere europäischen Partner",
     "anchor": "#unsere-europäischen-partner",
     "category": "Über den Grünerator",
-    "text": "Mistral AI (Frankreich) — Text, Sprache, Reasoning Black Forest Labs (Deutschland) — Bildbearbeitung Regolo / Seeweb (Italien) — Audio-/Video-Transkription (Zero Data Retention) netzbegrünung e.V. (Deutschland / Finnland) — Infrastruktur, Datenbank, selbst gehostete Open-Source-Modelle (GPT-OSS, Gemma) SearXNG (selbstgehostet, Deutschland) — Suche Hetzner (Deutschland) — Hosting Wer europäische Werte vertritt, sollte europäische Werkzeuge nutzen. Der Grünerator zeigt, dass das ohne Qualitätsverlust möglich ist. Details zu allen Anbietern findest du in unserer Datenschutzerklärung."
+    "text": "Mistral AI (Frankreich) — Standardmodell Mistral Medium 3.5 (mistral-medium-2604), Werkzeug-Planung mit Mistral Small, Bildverstehen mit Pixtral Large, Suche und Notebooks mit mistral-embed, Transkriptions-Fallback Voxtral Black Forest Labs (Freiburg, Deutschland) — Bilderzeugung und -bearbeitung mit FLUX 2 Pro (flux-2-pro), ausschließlich über den EU-Endpunkt api.eu.bfl.ai Regolo / Seeweb (Italien) — Open-Source-Modelle (Gemma 4, GPT-OSS 120B, Mistral Small 4), Bildmodell Qwen-Image und Transkription mit Whisper Large v3 — Zero Data Retention, 100 % erneuerbare Energie netzbegrünung e.V. / verdigado eG (Deutschland / Finnland) — Infrastruktur, Datenbank, selbst gehostete Open-Source-Modelle (GPT-OSS, Gemma 4) SearXNG (selbstgehostet, Deutschland) — Suche Hetzner (Deutschland) — Hosting, an deutschen Standorten mit 100 % Wasserkraft Wer europäische Werte vertritt, sollte europäische Werkzeuge nutzen. Der Grünerator zeigt, dass das ohne Qualitätsverlust möglich ist. Wie nachhaltig diese Partner arbeiten, zeigt Wie nachhaltig ist der Grünerator?. Details zu allen Anbietern findest du in unserer Datenschutzerklärung."
   },
   {
     "url": "/docs/ueber-den-gruenerator/intro",
@@ -2346,6 +2352,70 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#plus-für-barrierefreiheit",
     "category": "Über den Grünerator",
     "text": "Der Grünerator hilft beim Erstellen von Untertiteln für Instagram Reels & TikToks und kreiert Alt-Texte für Sharepics. Beides ist essenziell für mehr Barrierefreiheit im Netz, aber auch viel Aufwand, den viele Ehrenamtliche kaum schaffen. Mit dem Reel-Grünerator und dem Grünerator für Alt-Texte nimmt der Grünerator diese Aufgaben fast vollständig ab."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Wie nachhaltig ist der Grünerator?",
+    "anchor": "",
+    "category": "Über den Grünerator",
+    "text": "Künstliche Intelligenz kostet Strom, Wasser und Hardware — das lässt sich nicht wegdiskutieren. Der Grünerator ist deshalb so gebaut, dass er möglichst wenig davon braucht und den Rest aus möglichst sauberen Quellen bezieht. Drei Hebel machen den Unterschied: Grünes Hosting — die Server laufen mit erneuerbarer Energie. Sparsame Modelle — kleine und mittlere Modelle statt Frontier-Giganten. Intelligentes Routing — jede Anfrage bekommt nur so viel Rechenleistung, wie sie wirklich braucht."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Black Forest Labs (Freiburg) — Bilder aus der EU",
+    "anchor": "#black-forest-labs-freiburg--bilder-aus-der-eu",
+    "category": "Über den Grünerator",
+    "text": "Black Forest Labs aus Freiburg entwickelt die FLUX-Bildmodelle. Der Grünerator nutzt ausschließlich den EU-Endpunkt (api.eu.bfl.ai) mit flux-2-pro — die Bilderzeugung läuft damit im europäischen Strommix, der deutlich CO₂-ärmer ist als der US-amerikanische, wo die meisten Bild-KIs rechnen. Die genannten Zahlen sind Anbieterangaben (Stand Juli 2026). Und auch grüne KI verbraucht Ressourcen — Nachhaltigkeit heißt beim Grünerator nicht „kostenlos für die Umwelt\", sondern: bewusst kleine Modelle, bewusst grüne Anbieter, bewusst europäische Infrastruktur. Warum die Anbieter außerdem alle in Europa sitzen, liest du unter Grünerator Pro-EU."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "GreenPT — grüne Entwicklung",
+    "anchor": "#greenpt--grüne-entwicklung",
+    "category": "Über den Grünerator",
+    "text": "GreenPT rechnet ausschließlich in EU-Rechenzentren mit 100 % erneuerbarer Energie — in Paris sowie in Helsinki (je zur Hälfte Wasser- und Windkraft) — und nennt konkrete Effizienzwerte: PUE 1,25 (Branchenschnitt: 1,55) und ein Wasserverbrauch (WUE) von 0,25 statt branchenüblicher 1,8. Der Grünerator nutzt GreenPT als Modell-Lane in der Entwicklungsumgebung (gemma4) — auch das Testen neuer Funktionen läuft damit grün."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Grünes Hosting: Wasserkraft statt Kohlestrom",
+    "anchor": "#grünes-hosting-wasserkraft-statt-kohlestrom",
+    "category": "Über den Grünerator",
+    "text": "Der Grünerator selbst — Web-Oberfläche, Datenbanken, Suche — läuft bei Hetzner in Deutschland. Hetzner betreibt seine deutschen Standorte nach eigenen Angaben mit 100 % Wasserkraft, ist EMAS- und ISO-14001-zertifiziert und erreicht mit einem durchschnittlichen PUE-Wert von 1,13 eine überdurchschnittliche Energieeffizienz (je näher an 1,0, desto weniger Strom geht für Kühlung und Infrastruktur verloren). Gegenüber dem deutschen Durchschnitts-Strommix spart das laut Hetzner rund 77.000 Tonnen CO₂ pro Jahr. Auch die selbst gehosteten Open-Source-Modelle (GPT-OSS und Gemma 4), die netzbegrünung e.V. und die verdigado eG für den Grünerator betreiben, laufen auf dieser Wasserkraft-Infrastruktur."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Intelligentes Routing: nur so viel KI wie nötig",
+    "anchor": "#intelligentes-routing-nur-so-viel-ki-wie-nötig",
+    "category": "Über den Grünerator",
+    "text": "Der Grünerator schickt nicht jede Anfrage an das größte verfügbare Modell. Stattdessen entscheidet ein kompaktes Einordnungs-Modell (Mistral Small 4 bei Regolo) zuerst, was überhaupt gebraucht wird: eine einfache Antwort, eine Recherche, ein Dokument, ein Bild. Auch innerhalb einer Antwort ist die Arbeit geteilt: Ein kleines, schnelles Modell übernimmt das Planen und Aufrufen von Werkzeugen (Suche, Notebooks, Dokumente), und ein kompaktes 31-Milliarden-Modell schreibt den Text. Das große Standardmodell kommt nur dort zum Einsatz, wo seine Qualität wirklich gebraucht wird. So bleibt der Energieverbrauch pro Anfrage niedrig, ohne dass die Qualität leidet."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Mistral AI (Frankreich) — Transparenz-Vorreiter",
+    "anchor": "#mistral-ai-frankreich--transparenz-vorreiter",
+    "category": "Über den Grünerator",
+    "text": "Mistral AI vermarktet sich nicht als Öko-Anbieter, hat aber als erstes KI-Unternehmen überhaupt eine vollständige, unabhängig geprüfte Lebenszyklus-Analyse eines eigenen Modells veröffentlicht — erstellt mit der französischen Umweltagentur ADEME und Carbone 4, peer-reviewed nach ISO 14040/44. Die Zahlen machen KI-Umweltkosten erstmals konkret vergleichbar: Eine typische Antwort (400 Token) verursacht etwa 1,14 g CO₂e und 45 ml Wasser. Mistral setzt sich zudem für einen verbindlichen globalen Umweltstandard für KI ein. Dazu kommt der französische Strommix, der zu den CO₂-ärmsten Europas gehört. Beim Grünerator liefert Mistral das Standardmodell (mistral-medium-2604), die Werkzeug-Planung, die Embeddings für Suche und Notebooks sowie den Transkriptions-Fallback Voxtral."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Regolo (Seeweb, Italien) — 100 % erneuerbar",
+    "anchor": "#regolo-seeweb-italien--100--erneuerbar",
+    "category": "Über den Grünerator",
+    "text": "Regolo betreibt seine GPU-Server nach eigenen Angaben mit 100 % erneuerbarer Energie, verzichtet auf Wasserkühlung und führt Hardware im Kreislauf (wiederverwenden, aufarbeiten, recyceln). Das Unternehmen ist ISO-14001-zertifiziert, Qualified Supporter der Green Web Foundation und arbeitet nach dem europäischen DNSH-Prinzip („Do No Significant Harm\", EU-Taxonomie) — alles in europäischen Rechenzentren, mit Zero Data Retention. Beim Grünerator übernimmt Regolo die Anfragen-Einordnung (mistral-small-4-119b), das Schreiben von Antworten (gemma4-31b), Transkription (faster-whisper-large-v3) und dient als Überlauf für die selbst gehosteten Modelle."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Sparsame Modelle statt Größenwahn",
+    "anchor": "#sparsame-modelle-statt-größenwahn",
+    "category": "Über den Grünerator",
+    "text": "Die größten kommerziellen KI-Modelle brauchen für jede einzelne Antwort ein Vielfaches der Energie eines kompakten Modells. Der Grünerator setzt deshalb bewusst auf kleine und mittlere Modelle — vom 31-Milliarden-Parameter-Modell Gemma 4 bis zum mittelgroßen Mistral Medium. Das sind die Modelle, die tatsächlich im Einsatz sind: Aufgabe | Modell | Läuft bei | --- | --- | --- | Chat & Texte (Standard) | Mistral Medium 3.5 (mistral-medium-2604) | Mistral AI 🇫🇷 | Kreativtexte, Antworten schreiben | Gemma 4 — 31 Mrd. Parameter (gemma4-31b) | verdigado 🇩🇪 / Regolo 🇮🇹 | Schnelle Antworten | GPT-OSS 120B (gpt-oss-120b) | verdigado 🇩🇪 / Regolo 🇮🇹 | Anfragen einordnen, Zwischenschritte | Mistral Small 4 (mistral-small-4-119b) | Regolo 🇮🇹 | Werkzeuge planen und aufrufen | Mistral Small (mistral-small-latest) | Mistral AI 🇫🇷 | Bilder verstehen | Gemma 4 (gemma4-31b), Pixtral Large | Regolo 🇮🇹 / Mistral AI 🇫🇷 | Bilder erzeugen & bearbeiten | FLUX 2 Pro (flux-2-pro), Qwen-Image | Black Forest Labs 🇩🇪 (EU-Endpunkt) / Regolo 🇮🇹 | Untertitel & Transkription | Whisper Large v3 (faster-whisper-large-v3), Fallback Voxtral | Regolo 🇮🇹 / Mistral AI 🇫🇷 | Suche & Notebooks (Embed"
   },
   {
     "url": "/docs/ueber-den-gruenerator/notebook",
