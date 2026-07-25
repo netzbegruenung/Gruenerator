@@ -9,7 +9,7 @@
 import { and, asc, eq, ne } from 'drizzle-orm';
 
 import { userLetterheads, type UserLetterheadRow } from '../../database/schema/userLetterheads.js';
-import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
+import { getDrizzleInstance, type DrizzleDB } from '../../database/services/DrizzleService.js';
 
 export interface LetterheadInput {
   label: string;
@@ -47,10 +47,18 @@ export async function getDefaultLetterhead(userId: string): Promise<UserLetterhe
   return rows[0] ?? null;
 }
 
-/** Clear the other defaults — a partial unique index enforces this in the DB too. */
-async function unsetOtherDefaults(userId: string, keepId?: string): Promise<void> {
-  const db = getDrizzleInstance();
-  await db
+/**
+ * Clear the other defaults. Runs inside the caller's transaction: a partial
+ * unique index enforces one default per user, so doing this in a separate
+ * statement from the insert/update lets two concurrent requests collide and
+ * fail with a 500 instead of the 409 the constraint is meant to express.
+ */
+async function unsetOtherDefaults(
+  tx: Pick<DrizzleDB, 'update'>,
+  userId: string,
+  keepId?: string
+): Promise<void> {
+  await tx
     .update(userLetterheads)
     .set({ is_default: false, updated_at: new Date() })
     .where(
@@ -69,23 +77,32 @@ export async function createLetterhead(
   input: LetterheadInput
 ): Promise<UserLetterheadRow> {
   const db = getDrizzleInstance();
-  // The first one a user creates becomes the default, so the export has
-  // something preselected without them having to think about it.
-  const existing = await listLetterheads(userId);
-  const shouldDefault = input.is_default === true || existing.length === 0;
-  if (shouldDefault) await unsetOtherDefaults(userId);
+  return db.transaction(async (tx) => {
+    // The first one a user creates becomes the default, so the export has
+    // something preselected without them having to think about it. Counting
+    // and inserting must be one unit, or two parallel "first" letterheads both
+    // decide they are the default.
+    const existing = await tx
+      .select({ id: userLetterheads.id })
+      .from(userLetterheads)
+      .where(eq(userLetterheads.user_id, userId))
+      .limit(1);
+    const shouldDefault = input.is_default === true || existing.length === 0;
+    // Nothing to clear when this is the user's first — skip the no-op UPDATE.
+    if (shouldDefault && existing.length > 0) await unsetOtherDefaults(tx, userId);
 
-  const rows = await db
-    .insert(userLetterheads)
-    .values({
-      user_id: userId,
-      label: input.label,
-      organization: input.organization ?? null,
-      address: input.address ?? null,
-      is_default: shouldDefault,
-    })
-    .returning();
-  return rows[0]!;
+    const rows = await tx
+      .insert(userLetterheads)
+      .values({
+        user_id: userId,
+        label: input.label,
+        organization: input.organization ?? null,
+        address: input.address ?? null,
+        is_default: shouldDefault,
+      })
+      .returning();
+    return rows[0]!;
+  });
 }
 
 export async function updateLetterhead(
@@ -94,41 +111,51 @@ export async function updateLetterhead(
   input: { [K in keyof LetterheadInput]?: LetterheadInput[K] | undefined }
 ): Promise<UserLetterheadRow | null> {
   const db = getDrizzleInstance();
-  if (input.is_default === true) await unsetOtherDefaults(userId, id);
+  return db.transaction(async (tx) => {
+    if (input.is_default === true) await unsetOtherDefaults(tx, userId, id);
 
-  const rows = await db
-    .update(userLetterheads)
-    .set({
-      ...(input.label !== undefined && { label: input.label }),
-      ...(input.organization !== undefined && { organization: input.organization ?? null }),
-      ...(input.address !== undefined && { address: input.address ?? null }),
-      ...(input.is_default !== undefined && { is_default: input.is_default }),
-      updated_at: new Date(),
-    })
-    .where(and(eq(userLetterheads.id, id), eq(userLetterheads.user_id, userId)))
-    .returning();
-  return rows[0] ?? null;
+    const rows = await tx
+      .update(userLetterheads)
+      .set({
+        ...(input.label !== undefined && { label: input.label }),
+        ...(input.organization !== undefined && { organization: input.organization ?? null }),
+        ...(input.address !== undefined && { address: input.address ?? null }),
+        ...(input.is_default !== undefined && { is_default: input.is_default }),
+        updated_at: new Date(),
+      })
+      .where(and(eq(userLetterheads.id, id), eq(userLetterheads.user_id, userId)))
+      .returning();
+    return rows[0] ?? null;
+  });
 }
 
 export async function deleteLetterhead(userId: string, id: string): Promise<boolean> {
   const db = getDrizzleInstance();
-  const rows = await db
-    .delete(userLetterheads)
-    .where(and(eq(userLetterheads.id, id), eq(userLetterheads.user_id, userId)))
-    .returning();
-  if (!rows.length) return false;
+  return db.transaction(async (tx) => {
+    const rows = await tx
+      .delete(userLetterheads)
+      .where(and(eq(userLetterheads.id, id), eq(userLetterheads.user_id, userId)))
+      .returning();
+    if (!rows.length) return false;
 
-  // Deleting the default would leave the export with no preselection — promote
-  // the next one instead of silently having none.
-  if (rows[0]?.is_default) {
-    const remaining = await listLetterheads(userId);
-    const next = remaining[0];
-    if (next) {
-      await db
-        .update(userLetterheads)
-        .set({ is_default: true, updated_at: new Date() })
-        .where(eq(userLetterheads.id, next.id));
+    // Deleting the default would leave the export with no preselection —
+    // promote the next one. Same transaction as the delete, so a crash in
+    // between cannot leave the user without any default at all.
+    if (rows[0]?.is_default) {
+      const remaining = await tx
+        .select({ id: userLetterheads.id })
+        .from(userLetterheads)
+        .where(eq(userLetterheads.user_id, userId))
+        .orderBy(asc(userLetterheads.label))
+        .limit(1);
+      const next = remaining[0];
+      if (next) {
+        await tx
+          .update(userLetterheads)
+          .set({ is_default: true, updated_at: new Date() })
+          .where(eq(userLetterheads.id, next.id));
+      }
     }
-  }
-  return true;
+    return true;
+  });
 }

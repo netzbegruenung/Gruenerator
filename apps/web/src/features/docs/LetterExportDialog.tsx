@@ -11,6 +11,7 @@ import { useMemo, useState } from 'react';
 
 import { detectLetterParts, hasDetectedParts } from './letterDetection';
 import { isChoiceUsable, LetterheadChooser, type LetterheadChoice } from './LetterheadChooser';
+import { useModalDialog } from './useModalDialog';
 
 import type { Letterhead } from '../settings/letterheadApi';
 import type { pdfExportLetterSchema } from '@gruenerator/contracts';
@@ -50,6 +51,7 @@ export function LetterExportDialog({
   onCancel: () => void;
   onSubmit: (result: LetterExportSubmit) => void;
 }) {
+  const dialogRef = useModalDialog<HTMLDivElement>(onCancel);
   const detected = useMemo(() => detectLetterParts(documentText), [documentText]);
   const foundSomething = hasDetectedParts(detected);
 
@@ -74,7 +76,10 @@ export function LetterExportDialog({
       aria-modal="true"
       aria-labelledby="letter-export-title"
     >
-      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white dark:bg-grey-900 p-5 shadow-xl">
+      <div
+        ref={dialogRef}
+        className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white dark:bg-grey-900 p-5 shadow-xl"
+      >
         <h2 id="letter-export-title" className="text-base font-semibold text-foreground mb-1">
           Als Brief exportieren
         </h2>
