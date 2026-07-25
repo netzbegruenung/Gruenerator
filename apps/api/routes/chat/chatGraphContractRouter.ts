@@ -31,7 +31,6 @@ import {
   isSheetFillRequest,
   isTabularComputeQuestion,
 } from '../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
-import { isReasoningStreamModel } from '../../services/ai/regoloReasoningStream.js';
 import {
   SYSTEM_TOOL_INTENTS,
   isSystemIntentAvailable,
@@ -1280,7 +1279,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           req,
           ...(actualThreadId != null && { actualThreadId }),
           userId,
-          userContent: lastUserText as string,
+          userContent: resolveReferentialTopic(
+            lastUserText as string,
+            classifiedState.messages ?? []
+          ).text,
           intent: 'direct',
         });
         if (created) {
@@ -1361,7 +1363,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           req,
           ...(actualThreadId != null && { actualThreadId }),
           userId,
-          userContent: lastUserText as string,
+          // A referential follow-up ("also aus der tabelle") inherits the prior
+          // turn's subject instead of the bare instruction.
+          userContent: resolveReferentialTopic(
+            lastUserText as string,
+            classifiedState.messages ?? []
+          ).text,
           userLocale: classifiedState.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
         });
         if (created) return { status: 200 as const, body: undefined };
@@ -1660,26 +1667,22 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             );
           }
 
-          const baseMaxTokens = finalState.agentConfig.params.max_tokens;
-
           try {
             fullText = await streamWithFallback({
               primary: resolution,
               sse,
               logPrefix: '[ChatGraph]',
-              buildStream: async (r) => {
-                const isReasoning = isReasoningStreamModel(r.provider, r.modelName);
-                return streamForResolution({
+              buildStream: async (r) =>
+                // No output cap (OpenWebUI-style): the provider/model window is
+                // the backstop; agentConfig.params.max_tokens is deliberately
+                // ignored here so answers are never cut mid-sentence.
+                streamForResolution({
                   resolution: r,
                   messages: messagesForAI as Parameters<typeof streamForResolution>[0]['messages'],
-                  maxTokens: isReasoning
-                    ? Math.max(baseMaxTokens, 16000)
-                    : Math.max(baseMaxTokens, 8000),
                   temperature: finalState.agentConfig.params.temperature,
                   sse,
                   logPrefix: '[ChatGraph]',
-                });
-              },
+                }),
             });
           } finally {
             if (resolution.releaseSlot) await resolution.releaseSlot();

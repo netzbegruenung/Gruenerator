@@ -165,6 +165,18 @@ export const EXAMPLES: CapabilityExample[] = [
     ],
   },
   {
+    intent: 'hilfe',
+    group: 'recherche',
+    label: 'Hilfe zum Grünerator',
+    mentionable: 'hilfe',
+    hint: 'Fragen zum Grünerator selbst werden in dieser Dokumentation nachgeschlagen und mit Link auf den passenden Artikel beantwortet.',
+    questions: [
+      'Wie erstelle ich ein Sharepic?',
+      'Wie verbinde ich meine Grüne Wolke?',
+      '@doku Was kann der Untertitler?',
+    ],
+  },
+  {
     intent: 'chat_history',
     group: 'recherche',
     label: 'Frühere Chats und eigene Inhalte',
@@ -289,6 +301,18 @@ export const EXAMPLES: CapabilityExample[] = [
     questions: [
       'Speichere das als Dokument.',
       'Schreib daraus ein Dokument, das ich weiterbearbeiten kann.',
+    ],
+  },
+  {
+    intent: 'create_pdf',
+    group: 'erstellen',
+    label: 'PDF erstellen',
+    mentionable: 'pdf-erstellen',
+    hint: 'Fertige, barrierefreie PDFs zum Herunterladen — als Dokument, Brief mit Briefkopf oder ausfüllbares Formular.',
+    questions: [
+      'Mach aus diesem Text ein PDF zum Ausdrucken.',
+      'Schreib einen Brief an die Bürgermeisterin als PDF mit Briefkopf.',
+      'Erstelle ein ausfüllbares Anmeldeformular für unser Sommerfest als PDF.',
     ],
   },
   {

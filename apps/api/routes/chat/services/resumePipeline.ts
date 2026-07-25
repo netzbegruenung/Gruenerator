@@ -22,7 +22,6 @@ import {
   buildCitations,
 } from '../../../agents/langgraph/ChatGraph/index.js';
 import { isSourceAvailabilityError } from '../../../agents/langgraph/ChatGraph/types.js';
-import { isReasoningStreamModel } from '../../../services/ai/regoloReasoningStream.js';
 import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../../utils/logger.js';
 import { getContextWindow } from '../agents/providers.js';
@@ -489,25 +488,21 @@ export async function runChatGraphResume({
     const prunedValidMessages = pruneMessages(validMessages, getContextWindow(modelId));
     const messagesForAI = buildMessagesForAI(systemMessage, prunedValidMessages);
 
-    const baseMaxTokens = finalState.agentConfig.params.max_tokens;
-
     let fullText: string | null;
     try {
       fullText = await streamWithFallback({
         primary: resolution2,
         sse,
         logPrefix: '[ChatGraph:Resume]',
-        buildStream: async (r) => {
-          const isReasoning = isReasoningStreamModel(r.provider, r.modelName);
-          return streamForResolution({
+        buildStream: async (r) =>
+          // No output cap (OpenWebUI-style) — see chatGraphContractRouter.
+          streamForResolution({
             resolution: r,
             messages: messagesForAI,
-            maxTokens: isReasoning ? Math.max(baseMaxTokens, 16000) : Math.max(baseMaxTokens, 8000),
             temperature: finalState.agentConfig.params.temperature,
             sse,
             logPrefix: '[ChatGraph:Resume]',
-          });
-        },
+          }),
       });
     } finally {
       if (resolution2.releaseSlot) await resolution2.releaseSlot();
