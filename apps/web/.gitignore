@@ -5,7 +5,11 @@ node_modules
 
 # Testing
 coverage
-test/
+# Ignore test OUTPUT dirs, but not the source test helpers under src/test/
+# (msw-server, fixtures) — `test/` alone swallowed src/test/ and dropped
+# msw-server.ts from #2016, breaking web typecheck.
+/test/
+!src/test/
 
 # Playwright E2E output
 test-results/

@@ -585,6 +585,48 @@
   }
 }
 
+/* Status-line pacing: each new (paced) label fades+slides in via a key change,
+   and the whole line fades out gracefully instead of vanishing on unmount. */
+@keyframes status-line-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes status-line-out {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: translateY(-4px); }
+}
+
+.status-line-swap {
+  animation: status-line-in 0.2s ease-out;
+}
+
+.status-line-exit {
+  animation: status-line-out 0.25s ease-in forwards;
+}
+
+/* Persistent planner narration rendered above a tool card (ChatGPT-style
+   between-tool prose). Muted, clamped to two lines so long German sentences
+   don't dominate the card. */
+.tool-narration {
+  color: var(--color-foreground-muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  margin: 0.25rem 0 0.125rem;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-line-swap,
+  .status-line-exit {
+    animation: none;
+  }
+}
+
 /* Thread list item animation */
 @keyframes thread-item-in {
   from {

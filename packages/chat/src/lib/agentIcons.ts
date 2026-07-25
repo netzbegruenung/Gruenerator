@@ -10,6 +10,7 @@ import {
   PiMicrophone,
   PiSparkle,
 } from 'react-icons/pi';
+
 import type { SkillIcon } from '@gruenerator/shared/agents';
 
 const AGENT_ICON_REGISTRY: Record<string, SkillIcon> = {

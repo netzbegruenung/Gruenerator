@@ -10,7 +10,9 @@ import { useAgentStore } from '../../stores/chatStore';
 import { useExtraActions } from '../../context/ExtraActionsContext';
 // import { MessageTTSButton } from './MessageTTSButton';
 import { formatSourcesMarkdown } from '../../lib/formatSourcesMarkdown';
+
 import { MessageBranchPicker } from './MessageBranchPicker';
+
 import type { ChatMessage } from '../../hooks/useChatGraphStream';
 
 interface MessageActionsProps {

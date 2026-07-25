@@ -1,10 +1,4 @@
-import type {
-  ConfirmActionType,
-  DocumentCreatedEvent,
-  SocialPostPayload,
-  BundestagPayload,
-  BahnPayload,
-} from '@gruenerator/contracts';
+import type { AdditionalSource } from '../components/message-parts/SearchResultsSection';
 import type {
   ChatProgress,
   Citation,
@@ -15,9 +9,15 @@ import type {
   SearchResult,
   StreamMetadata,
 } from '../hooks/useChatGraphStream';
-import type { ActiveArtifact } from '../stores/artifactLiveStore';
 import type { Citation as RawCitation, Source, LinkConfig } from '../runtime/NotebookModelAdapter';
-import type { AdditionalSource } from '../components/message-parts/SearchResultsSection';
+import type { ActiveArtifact } from '../stores/artifactLiveStore';
+import type {
+  ConfirmActionType,
+  DocumentCreatedEvent,
+  SocialPostPayload,
+  BundestagPayload,
+  BahnPayload,
+} from '@gruenerator/contracts';
 
 // Wire enum lives in @gruenerator/contracts (chatStreamEvents); the
 // confirm_action event's optionals are normalized to this required UI shape

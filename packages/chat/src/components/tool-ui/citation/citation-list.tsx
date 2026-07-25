@@ -1,12 +1,15 @@
 'use client';
 
-import * as React from 'react';
-import type { LucideIcon } from 'lucide-react';
 import { FileText, Globe, Code2, Newspaper, Database, File, ExternalLink } from 'lucide-react';
+import * as React from 'react';
+
+import { openSafeNavigationHref, resolveSafeNavigationHref } from '../shared/media';
+
 import { cn, Popover, PopoverContent, PopoverTrigger } from './_adapter';
 import { Citation } from './citation';
+
 import type { SerializableCitation, CitationType, CitationVariant } from './schema';
-import { openSafeNavigationHref, resolveSafeNavigationHref } from '../shared/media';
+import type { LucideIcon } from 'lucide-react';
 
 const TYPE_ICONS: Record<CitationType, LucideIcon> = {
   webpage: Globe,

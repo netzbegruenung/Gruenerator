@@ -103,6 +103,9 @@ const SharepicShareModal = ({
 
   useEffect(() => {
     if (!isOpen) {
+      // Reset as a reaction to the modal closing (isOpen toggle), not a
+      // render-derived value.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCopySuccess(null);
       setShareError(null);
     }

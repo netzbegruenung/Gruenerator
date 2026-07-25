@@ -146,6 +146,7 @@ export function useApiAction<TRequest = unknown, TResponse = unknown>(
         throw err;
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- depend on the specific option fields, not the (often inline/unstable) options object, to keep execute stable
     [submitForm, options.transformResponse, options.onSuccess, options.onError, errorState]
   );
 

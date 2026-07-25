@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import {
   convertToThreadMessageLike,
   PASSTHROUGH_METADATA_FIELDS,
@@ -325,6 +326,7 @@ type ContentPart =
       toolName: string;
       parentId?: string;
       result?: unknown;
+      narration?: string;
     };
 
 function contentOf(metadata: LoadedMessage['metadata'], text = 'ABCDEFGHIJ'): ContentPart[] {
@@ -426,5 +428,48 @@ describe('convertToThreadMessageLike — interleaved reload', () => {
     expect((content[2] as { text: string }).text).toBe('ABCDEFGHIJ');
     // Legacy cards carry no parentId.
     expect((content[0] as { parentId?: string }).parentId).toBeUndefined();
+  });
+
+  // Narration survives reload on the durable channel (split-mode cards-first):
+  // the field must round-trip onto the tool-call part so ToolNarration renders
+  // it above the card, exactly as parentId does — pins it against an
+  // assistant-ui upgrade silently stripping unknown part fields.
+  it('carries persisted narration onto cards-first tool parts', () => {
+    const content = contentOf({
+      toolCalls: [
+        {
+          toolCallId: 't1',
+          toolName: 'gruenerator_search',
+          args: {},
+          result: { results: [] },
+          narration: 'Ich suche jetzt nach passenden Beschlüssen.',
+        },
+        { toolCallId: 't2', toolName: 'web_search', args: {}, result: { results: [] } },
+      ],
+    });
+    const cards = content.filter(
+      (p): p is ContentPart & { narration?: string } => p.type === 'tool-call'
+    );
+    expect(cards[0].narration).toBe('Ich suche jetzt nach passenden Beschlüssen.');
+    expect(cards[1].narration).toBeUndefined();
+  });
+
+  it('carries persisted narration onto interleaved (offset) tool parts', () => {
+    const content = contentOf({
+      toolCalls: [
+        {
+          toolCallId: 't1',
+          toolName: 'gruenerator_search',
+          args: {},
+          result: {},
+          textOffset: 3,
+          narration: 'Zuerst prüfe ich das Parteiprogramm.',
+        },
+      ],
+    });
+    const card = content.find(
+      (p): p is ContentPart & { narration?: string } => p.type === 'tool-call'
+    );
+    expect(card?.narration).toBe('Zuerst prüfe ich das Parteiprogramm.');
   });
 });

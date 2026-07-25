@@ -1,10 +1,12 @@
-import type { ChatModelRunResult } from '@assistant-ui/react';
 import type {
   GeneratedImage,
   ChatProgress,
   Citation,
   SearchResult,
   StreamMetadata,
+  SharepicData,
+  ChartData,
+  ComputeData,
 } from '../../hooks/useChatGraphStream';
 import type { ToolKey, ThreadMode, SearchMode } from '../../stores/chatStore';
 import type {
@@ -13,18 +15,21 @@ import type {
   ReelPickerData,
   ReelProcessingData,
 } from '../../types/messageMetadata';
+import type { ActiveArtifact } from '../../stores/artifactLiveStore';
+import type { BundestagPayload, BahnPayload } from '@gruenerator/contracts';
+import type { ChatModelRunResult } from '@assistant-ui/react';
 
 export type GrueneratorMessageMetadata = {
   progress?: ChatProgress;
   searchResults?: SearchResult[];
   citations?: Citation[];
   generatedImage?: GeneratedImage;
-  sharepicData?: import('../../hooks/useChatGraphStream').SharepicData;
-  chartData?: import('../../hooks/useChatGraphStream').ChartData;
-  artifactData?: import('../../stores/artifactLiveStore').ActiveArtifact;
-  computeData?: import('../../hooks/useChatGraphStream').ComputeData;
-  bundestagData?: import('@gruenerator/contracts').BundestagPayload;
-  bahnData?: import('@gruenerator/contracts').BahnPayload;
+  sharepicData?: SharepicData;
+  chartData?: ChartData;
+  artifactData?: ActiveArtifact;
+  computeData?: ComputeData;
+  bundestagData?: BundestagPayload;
+  bahnData?: BahnPayload;
   streamMetadata?: StreamMetadata;
   threadId?: string;
   followUpSuggestions?: string[];
@@ -85,6 +90,10 @@ export interface ToolCallPart {
    *  form separate runs). Consumed by assistant-ui's PartsGrouped rendering;
    *  absent on messages predating the interleaving rollout. */
   parentId?: string;
+  /** Planner announcement sentence(s) that preceded this tool call (split-gather
+   *  mode). Rendered as muted text above the card and persisted with the turn;
+   *  the durable form of the live `gather_narration` status line. */
+  narration?: string;
 }
 
 export interface SourcePart {

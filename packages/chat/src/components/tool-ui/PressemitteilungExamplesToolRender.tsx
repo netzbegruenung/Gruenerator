@@ -1,8 +1,9 @@
 'use client';
 
 import { Newspaper, Loader2 } from 'lucide-react';
-import { PressemitteilungExamplesCard } from '../PressemitteilungExamplesCard';
+
 import { getToolQuery } from '../../lib/toolResults';
+import { PressemitteilungExamplesCard } from '../PressemitteilungExamplesCard';
 
 interface PressemitteilungExamplesToolRenderProps {
   args: Record<string, unknown>;

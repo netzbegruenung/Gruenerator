@@ -72,6 +72,9 @@ const ImageUploadStep: React.FC<ImageUploadStepProps> = ({
   useEffect(() => {
     if (uploadedImage) {
       if (typeof uploadedImage === 'string') {
+        // Sibling blob branch needs this effect for object-URL lifecycle;
+        // keep the string sync here rather than splitting the effect.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setPreviewUrl(uploadedImage);
         return;
       }

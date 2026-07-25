@@ -1,8 +1,8 @@
 'use client';
 
-import { memo, useEffect, useState } from 'react';
-import { Dialog as DialogPrimitive } from 'radix-ui';
 import { Users, FolderPlus, X } from 'lucide-react';
+import { Dialog as DialogPrimitive } from 'radix-ui';
+import { memo, useEffect, useState } from 'react';
 
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 

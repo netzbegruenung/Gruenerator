@@ -68,6 +68,9 @@ const HelpTooltip = ({ children, className = '' }: HelpTooltipProps) => {
         window.removeEventListener('resize', updatePosition);
       };
     } else {
+      // Hide as a reaction to the isVisible toggle (driven by mouse/click
+      // handlers), not a render-derived value.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStyle({ opacity: 0 });
     }
   }, [isVisible, updatePosition]);

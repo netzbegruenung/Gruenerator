@@ -1,6 +1,5 @@
 'use client';
 
-import { type ReactNode, useMemo, useCallback, useRef } from 'react';
 import {
   AuiProvider,
   AssistantRuntimeProvider,
@@ -9,8 +8,11 @@ import {
   type ThreadMessageLike,
 } from '@assistant-ui/react';
 import { VoxtralDictationAdapter } from '@gruenerator/voice';
-import { handleDictationError } from '../lib/dictationErrorHandler';
+import { type ReactNode, useMemo, useCallback, useRef } from 'react';
+
 import { MarkdownStreamingProvider } from '../context/MarkdownStreamingContext';
+import { handleDictationError } from '../lib/dictationErrorHandler';
+
 import { GrueneratorAttachmentAdapter } from './GrueneratorAttachmentAdapter';
 import {
   createNotebookModelAdapter,

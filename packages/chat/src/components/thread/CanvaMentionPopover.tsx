@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { useCanvaDesignsQuery, type ChatCanvaDesign } from '../../hooks/useMentionablesQuery';
 import { type CanvaDesignToken } from '../../lib/mentionables';
+
 import { MentionFloatingPanel } from './MentionFloatingPanel';
 
 interface CanvaMentionPopoverProps {
@@ -25,6 +26,7 @@ export function CanvaMentionPopover({ visible, onSelect, onDismiss }: CanvaMenti
 
   useEffect(() => {
     if (!visible) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets panel state on close (visibility transition), not a render-derived value
       setSelection(new Map());
       setFilter('');
       setDebouncedFilter('');

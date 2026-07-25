@@ -222,7 +222,7 @@ export const KanbanCards = <T extends KanbanItemProps = KanbanItemProps>({
   ...props
 }: KanbanCardsProps<T>) => {
   const { cardsByColumn } = useContext(KanbanContext) as KanbanContextProps<T>;
-  const columnCards = cardsByColumn.get(props.id) || [];
+  const columnCards = useMemo(() => cardsByColumn.get(props.id) || [], [cardsByColumn, props.id]);
   const items = useMemo(() => columnCards.map((item) => item.id), [columnCards]);
 
   return (

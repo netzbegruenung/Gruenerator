@@ -1,7 +1,7 @@
 'use client';
 
-import { memo, useEffect, useState } from 'react';
 import { Check, ChevronDown, ChevronRight, Loader2, TriangleAlert } from 'lucide-react';
+import { memo, useEffect, useState } from 'react';
 
 import { highlightCode } from '../../lib/shikiHighlight';
 
@@ -88,7 +88,7 @@ export const RunPythonToolUI = memo(function RunPythonToolUI({
         (html ? (
           <div
             className="overflow-x-auto border-t border-border/60 bg-code-block-bg p-3 text-xs [&_pre]:!m-0 [&_pre]:!bg-transparent"
-            // eslint-disable-next-line react/no-danger
+
             dangerouslySetInnerHTML={{ __html: html }}
           />
         ) : (

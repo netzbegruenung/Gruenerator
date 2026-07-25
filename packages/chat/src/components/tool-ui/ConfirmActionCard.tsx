@@ -1,4 +1,3 @@
-import { useState, memo } from 'react';
 import {
   FileText,
   Pencil,
@@ -11,8 +10,11 @@ import {
   ArrowRight,
   Loader2,
 } from 'lucide-react';
-import type { ConfirmActionData, ConfirmActionType } from '../../types/messageMetadata';
+import { useState, memo } from 'react';
+
 import { confirmChatAction } from '../../lib/confirmAction';
+
+import type { ConfirmActionData, ConfirmActionType } from '../../types/messageMetadata';
 
 type CardStatus = 'idle' | 'loading' | 'confirmed' | 'rejected' | 'error' | 'expired';
 

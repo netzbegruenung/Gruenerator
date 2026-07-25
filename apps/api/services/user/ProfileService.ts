@@ -191,6 +191,7 @@ class ProfileService {
         'auth_source',
         'document_mode',
         'default_startpage',
+        'feedback_button',
       ] as const;
 
       for (const col of knownTextColumns) {

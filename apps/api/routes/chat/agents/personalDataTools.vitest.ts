@@ -208,10 +208,10 @@ describe('documents', () => {
       limit: 15,
     })) as { ok?: boolean };
     expect(out.ok).toBe(true);
-    expect(dbQuery).toHaveBeenCalledWith(expect.stringContaining('UPDATE collaborative_documents'), [
-      'Neu',
-      'd1',
-    ]);
+    expect(dbQuery).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE collaborative_documents'),
+      ['Neu', 'd1']
+    );
   });
 
   it('delete without confirm asks for confirmation and does NOT delete', async () => {
@@ -259,7 +259,9 @@ describe('documents', () => {
 
   it('share_to_group emits a share_doc confirm for a member group', async () => {
     listUserDocuments.mockResolvedValue([{ id: 'd1', title: 'Doc', document_subtype: 'docs' }]);
-    findGroups.mockResolvedValue([{ id: 'g1', name: 'Klima', slug_suffix: 'ab12', role: 'member' }]);
+    findGroups.mockResolvedValue([
+      { id: 'g1', name: 'Klima', slug_suffix: 'ab12', role: 'member' },
+    ]);
     const out = (await exec(makeDocumentsTool(ctx('u1')), {
       action: 'share_to_group',
       id: 'd1',
@@ -269,7 +271,10 @@ describe('documents', () => {
       limit: 15,
     })) as { ok?: boolean };
     expect(out.ok).toBe(true);
-    const [, action] = emitToolConfirmAction.mock.calls[0] as [unknown, { type: string; payload: unknown }];
+    const [, action] = emitToolConfirmAction.mock.calls[0] as [
+      unknown,
+      { type: string; payload: unknown },
+    ];
     expect(action.type).toBe('share_doc');
     expect(action.payload).toMatchObject({
       docId: 'd1',
@@ -287,8 +292,19 @@ describe('boards_tasks', () => {
     boardType: 'kanban',
     fields: [],
     rows: [
-      { id: 'r1', snap: { cardTitle: 'Plakate', statusLabel: 'Offen', dueDate: '2026-08-01', assigneeNames: ['Mia'] } },
-      { id: 'r2', snap: { cardTitle: 'Idee', statusLabel: 'Ideen', dueDate: null, assigneeNames: [] } },
+      {
+        id: 'r1',
+        snap: {
+          cardTitle: 'Plakate',
+          statusLabel: 'Offen',
+          dueDate: '2026-08-01',
+          assigneeNames: ['Mia'],
+        },
+      },
+      {
+        id: 'r2',
+        snap: { cardTitle: 'Idee', statusLabel: 'Ideen', dueDate: null, assigneeNames: [] },
+      },
     ],
   };
   beforeEach(() => {
@@ -328,7 +344,10 @@ describe('boards_tasks', () => {
       limit: 15,
     })) as { ok?: boolean };
     expect(out.ok).toBe(true);
-    const [, action] = emitToolConfirmAction.mock.calls[0] as [unknown, { type: string; payload: { rows: unknown[] } }];
+    const [, action] = emitToolConfirmAction.mock.calls[0] as [
+      unknown,
+      { type: string; payload: { rows: unknown[] } },
+    ];
     expect(action.type).toBe('modify_board');
     expect(action.payload.rows).toHaveLength(1);
     expect(updateCard).not.toHaveBeenCalled();
@@ -381,7 +400,11 @@ describe('media', () => {
   it('list merges reels and sharepics with follow-up refs', async () => {
     getUserProjects.mockResolvedValue([{ id: 'p1', title: 'Reel A', status: 'exported' }]);
     getUserShares.mockResolvedValue([{ share_token: 'tok', title: 'Pic', media_type: 'image' }]);
-    const out = (await exec(makeMediaTool(ctx('u1')), { action: 'list', type: 'all', limit: 15 })) as {
+    const out = (await exec(makeMediaTool(ctx('u1')), {
+      action: 'list',
+      type: 'all',
+      limit: 15,
+    })) as {
       results: Array<{ type: string; ref?: string }>;
     };
     const refs = out.results.map((r) => r.ref);

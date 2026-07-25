@@ -1,7 +1,7 @@
 'use client';
 
-import { CalendarDays, TrainFront } from 'lucide-react';
 import { type BahnPayload, type BahnEntry } from '@gruenerator/contracts';
+import { CalendarDays, TrainFront } from 'lucide-react';
 
 /**
  * Dedicated card for the `bahn` intent — a condensed Deutsche-Bahn departure

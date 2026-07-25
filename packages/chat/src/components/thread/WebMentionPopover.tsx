@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+
 import { MentionFloatingPanel } from './MentionFloatingPanel';
 
 interface WebMentionPopoverProps {
@@ -28,6 +29,7 @@ export function WebMentionPopover({ visible, onSelect, onDismiss }: WebMentionPo
   const [value, setValue] = useState('');
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clears the input on close (visibility transition), not a render-derived value
     if (!visible) setValue('');
   }, [visible]);
 

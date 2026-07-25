@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+
 import {
   useConnectProvidersQuery,
   useConnectBrowseQuery,
   type ChatConnectFile,
 } from '../../hooks/useMentionablesQuery';
 import { type ConnectFileToken } from '../../lib/mentionables';
+
 import { MentionFloatingPanel } from './MentionFloatingPanel';
 
 interface ConnectMentionPopoverProps {
@@ -36,6 +38,7 @@ export function ConnectMentionPopover({
 
   useEffect(() => {
     if (!visible) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets panel state on close (visibility transition), not a render-derived value
       setSelection(new Map());
       setActiveProvider(null);
       setFolderId(null);

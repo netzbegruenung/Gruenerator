@@ -3,6 +3,7 @@ import { Leaf, X } from 'lucide-react';
 
 import { cn } from '../../lib/utils';
 import { NotebookChatProvider } from '../../runtime/NotebookChatProvider';
+
 import { ModalThread } from './ModalThread';
 
 export interface GruenOMatModalProps {

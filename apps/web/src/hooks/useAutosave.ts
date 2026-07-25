@@ -61,7 +61,7 @@ export const useAutosave = ({
 
     lastSavedValuesRef.current = trackedValues;
     isInitializedRef.current = true;
-  }, [formRef, getFieldsToTrack, enabled]);
+  }, [formRef, getFieldsToTrack]);
 
   // Get changed fields by comparing current values with last saved
   const getChangedFields = useCallback((): Record<string, unknown> | null => {

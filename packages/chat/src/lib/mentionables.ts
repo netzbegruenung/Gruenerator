@@ -1,6 +1,3 @@
-import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
-import { NOTEBOOK_REGISTRY, isNotebookEnabled } from '@gruenerator/shared/notebooks';
-import { mcpBrandColor, slugifyName } from '@gruenerator/shared/utils';
 import {
   PiFlask,
   PiFiles,
@@ -21,7 +18,11 @@ import {
   PiChartBar,
   PiBooks,
 } from '@gruenerator/shared/icons';
-import { agentsList, type AgentListItem } from './agents';
+import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
+import { NOTEBOOK_REGISTRY, isNotebookEnabled } from '@gruenerator/shared/notebooks';
+import { mcpBrandColor, slugifyName } from '@gruenerator/shared/utils';
+
+import { agentsList, type AgentListItem, type SkillCategory } from './agents';
 
 export type MentionableType =
   | 'agent'
@@ -51,7 +52,7 @@ export interface Mentionable {
   avatar: string;
   backgroundColor: string;
   mention: string;
-  skillCategory?: import('./agents').SkillCategory;
+  skillCategory?: SkillCategory;
   promptTemplate?: string;
   isSystemDefault?: boolean;
   iconKey?: string;
