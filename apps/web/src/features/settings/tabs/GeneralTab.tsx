@@ -1,5 +1,5 @@
 import { type FeedbackButtonMode, type StartPage } from '@gruenerator/contracts';
-import { Button, Switch, toast } from '@gruenerator/ui';
+import { Button, toast } from '@gruenerator/ui';
 import { Check, RotateCcw } from 'lucide-react';
 import { type IconType } from 'react-icons';
 import {
@@ -53,9 +53,6 @@ const GeneralTab = () => {
   const updateStartPage = useAuthStore((s) => s.updateStartPage);
   const feedbackButton = useAuthStore((s) => s.user?.feedback_button ?? 'text');
   const updateFeedbackButton = useAuthStore((s) => s.updateFeedbackButton);
-  const reduceMotion = useAuthStore((s) => s.user?.reduce_motion ?? false);
-  const reduceTransparency = useAuthStore((s) => s.user?.reduce_transparency ?? false);
-  const updateA11yPreference = useAuthStore((s) => s.updateA11yPreference);
 
   return (
     <div className="-my-4 divide-y divide-grey-200 dark:divide-grey-800">
@@ -171,22 +168,6 @@ const GeneralTab = () => {
             </button>
           ))}
         </div>
-      </SettingsRow>
-
-      <SettingsRow id="allgemein.animationen">
-        <Switch
-          checked={reduceMotion}
-          onCheckedChange={(checked) => void updateA11yPreference('reduce_motion', checked)}
-          aria-label="Animationen reduzieren"
-        />
-      </SettingsRow>
-
-      <SettingsRow id="allgemein.transparenz">
-        <Switch
-          checked={reduceTransparency}
-          onCheckedChange={(checked) => void updateA11yPreference('reduce_transparency', checked)}
-          aria-label="Transparenz und Unschärfe reduzieren"
-        />
       </SettingsRow>
 
       <SettingsRow id="allgemein.touren">
