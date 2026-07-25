@@ -1,8 +1,8 @@
 {
-  "label": "Themen-Monitor",
-  "position": 5,
+  "label": "Experimente",
+  "position": 9,
   "link": {
     "type": "doc",
-    "id": "monitor/intro"
+    "id": "experimente/intro"
   }
 }

@@ -1,0 +1,354 @@
+{
+  "uploads": {
+    "groups": [
+      {
+        "id": "dokumente",
+        "title": "Dokumente",
+        "labels": [
+          "PDF",
+          "Word",
+          "OpenDocument"
+        ]
+      },
+      {
+        "id": "tabellen",
+        "title": "Tabellen",
+        "labels": [
+          "CSV",
+          "Excel",
+          "ODS Spreadsheet"
+        ]
+      },
+      {
+        "id": "praesentationen",
+        "title": "Präsentationen",
+        "labels": [
+          "PowerPoint"
+        ]
+      },
+      {
+        "id": "bilder",
+        "title": "Bilder",
+        "labels": [
+          "JPEG Image",
+          "PNG Image",
+          "WebP Image"
+        ]
+      },
+      {
+        "id": "text",
+        "title": "Text & Code",
+        "labels": [
+          "Text",
+          "Markdown",
+          "HTML",
+          "XML",
+          "JavaScript",
+          "Python",
+          "JSON"
+        ]
+      }
+    ],
+    "codeExtensions": [
+      ".c",
+      ".cjs",
+      ".cpp",
+      ".css",
+      ".env",
+      ".go",
+      ".h",
+      ".java",
+      ".jsx",
+      ".less",
+      ".log",
+      ".md",
+      ".mdx",
+      ".mjs",
+      ".php",
+      ".rb",
+      ".rs",
+      ".scss",
+      ".sh",
+      ".sql",
+      ".toml",
+      ".ts",
+      ".tsx",
+      ".yaml",
+      ".yml"
+    ],
+    "videoFormats": [
+      "mp4",
+      "quicktime",
+      "webm"
+    ],
+    "limits": {
+      "maxFileSizeMB": 25,
+      "maxTotalSizeMB": 30,
+      "maxFiles": 10,
+      "maxVideoFileSizeMB": 500
+    }
+  },
+  "collections": {
+    "nationwide": [
+      {
+        "id": "abgeordnetenwatch-system",
+        "name": "Abgeordnetenwatch",
+        "description": "Namentliche Abstimmungen (mit Grünen-Votum) und Nebentätigkeiten von Abgeordneten"
+      },
+      {
+        "id": "oesterreich-gruene-system",
+        "name": "Die Grünen Österreich",
+        "description": "Programme der Grünen – Die Grüne Alternative Österreich"
+      },
+      {
+        "id": "gruenblog-system",
+        "name": "Grünblog",
+        "description": "Onlinemagazin der Grünen – Artikel zu Wissen, Meinen, Machen"
+      },
+      {
+        "id": "bundestagsfraktion-system",
+        "name": "Grüne Bundestagsfraktion",
+        "description": "Fachtexte, Ziele und Positionen von gruene-bundestag.de"
+      },
+      {
+        "id": "gruene-de-system",
+        "name": "Grüne Deutschland (gruene.de)",
+        "description": "Inhalte von gruene.de – Positionen, Themen und Aktuelles"
+      },
+      {
+        "id": "grundsatz-system",
+        "name": "Grüne Grundsatzprogramme",
+        "description": "Grundsatzprogramm 2020, EU-Wahlprogramm 2024, Regierungsprogramm 2025"
+      },
+      {
+        "id": "gruene-at-system",
+        "name": "Grüne Österreich (gruene.at)",
+        "description": "Inhalte von gruene.at – Positionen, Themen und Aktuelles"
+      },
+      {
+        "id": "boell-stiftung-system",
+        "name": "Heinrich-Böll-Stiftung",
+        "description": "Analysen, Dossiers und Atlanten der Heinrich-Böll-Stiftung"
+      },
+      {
+        "id": "kommunalwiki-system",
+        "name": "KommunalWiki",
+        "description": "Fachwissen zur Kommunalpolitik (Heinrich-Böll-Stiftung)"
+      }
+    ],
+    "landesverbaende": [
+      {
+        "id": "bayern-system",
+        "name": "Grüne Bayern",
+        "description": "Pressemitteilungen, Beschlüsse und Regierungsprogramm der Grünen Bayern (Landesverband & Fraktion)",
+        "codes": [
+          "BY",
+          "BY-F"
+        ]
+      },
+      {
+        "id": "berlin-system",
+        "name": "Grüne Berlin",
+        "description": "Pressemitteilungen und Beschlüsse der Grünen Berlin (Landesverband & Fraktion)",
+        "codes": [
+          "BE",
+          "BE-F"
+        ]
+      },
+      {
+        "id": "brandenburg-system",
+        "name": "Grüne Brandenburg",
+        "description": "Pressemitteilungen, Beschlüsse und Landtagswahlprogramm 2024 der Grünen Brandenburg",
+        "codes": [
+          "BB"
+        ]
+      },
+      {
+        "id": "hamburg-system",
+        "name": "Grüne Hamburg",
+        "description": "Beschlüsse und Pressemitteilungen der Grünen Hamburg",
+        "codes": [
+          "HH"
+        ]
+      },
+      {
+        "id": "hessen-system",
+        "name": "Grüne Hessen",
+        "description": "Pressemitteilungen und Beschlüsse der Grünen Hessen (Landesverband & Fraktion)",
+        "codes": [
+          "HE",
+          "HE-F"
+        ]
+      },
+      {
+        "id": "mecklenburg-vorpommern-system",
+        "name": "Grüne Mecklenburg-Vorpommern",
+        "description": "Pressemitteilungen und Parteitagsbeschlüsse der Grünen Mecklenburg-Vorpommern",
+        "codes": [
+          "MV"
+        ]
+      },
+      {
+        "id": "saarland-system",
+        "name": "Grüne Saarland",
+        "description": "Pressemitteilungen, Artikel und Parteitagsbeschlüsse der Grünen Saarland",
+        "codes": [
+          "SL"
+        ]
+      },
+      {
+        "id": "sachsen-anhalt-system",
+        "name": "Grüne Sachsen-Anhalt",
+        "description": "Pressemitteilungen, Beschlüsse und Landtagswahlprogramm 2026 der Grünen Sachsen-Anhalt (Landesverband & Fraktion)",
+        "codes": [
+          "LSA",
+          "LSA-F"
+        ]
+      },
+      {
+        "id": "schleswig-holstein-system",
+        "name": "Grüne Schleswig-Holstein",
+        "description": "Wahlprogramm der Grünen Schleswig-Holstein zur Landtagswahl",
+        "codes": [
+          "SH"
+        ]
+      },
+      {
+        "id": "thueringen-system",
+        "name": "Grüne Thüringen",
+        "description": "Beschlüsse, Wahlprogramme und Pressemitteilungen der Grünen Thüringen",
+        "codes": [
+          "TH",
+          "TH-F"
+        ]
+      }
+    ],
+    "examples": [
+      {
+        "id": "examples-system",
+        "name": "Social Media Beispiele",
+        "description": "Erfolgreiche Instagram- und Facebook-Posts als Inspiration für eigene Inhalte"
+      }
+    ]
+  },
+  "connectors": {
+    "Analyse & SEO": [
+      {
+        "title": "SISTRIX",
+        "auth": "Zugangsschlüssel",
+        "description": "SEO-Metriken, Sichtbarkeit und Keyword-Rankings."
+      },
+      {
+        "title": "Statista",
+        "auth": "Zugangsschlüssel",
+        "description": "Statistiken, Konsumenten- und Marktdaten."
+      }
+    ],
+    "Automatisierung": [
+      {
+        "title": "Zapier",
+        "auth": "Zugangsschlüssel",
+        "description": "Über 7.000 Apps und Workflows verbinden."
+      }
+    ],
+    "CRM & Marketing": [
+      {
+        "title": "Attio",
+        "auth": "Anmeldung beim Dienst",
+        "description": "CRM für Beziehungen, Kontakte und Deals."
+      },
+      {
+        "title": "Brevo",
+        "auth": "Zugangsschlüssel",
+        "description": "Kontakte, E-Mail-Kampagnen, Newsletter-Listen und CRM verwalten."
+      },
+      {
+        "title": "HubSpot",
+        "auth": "Zugangsschlüssel",
+        "description": "Kontakte, Deals, Unternehmen und Marketing-Daten."
+      }
+    ],
+    "Finanzen": [
+      {
+        "title": "Yahoo Finance",
+        "auth": "Keine",
+        "description": "Marktdaten, Finanznachrichten, Kennzahlen und Kursverläufe abfragen."
+      }
+    ],
+    "Formulare": [
+      {
+        "title": "Jotform",
+        "auth": "Anmeldung beim Dienst",
+        "description": "Formulare erstellen und Antworten auswerten."
+      },
+      {
+        "title": "Tally",
+        "auth": "Anmeldung beim Dienst",
+        "description": "Formulare erstellen, bearbeiten und Antworten auswerten."
+      }
+    ],
+    "Karten": [
+      {
+        "title": "Google Maps",
+        "auth": "Zugangsschlüssel",
+        "description": "Geocoding, Places, Routing und Kartendaten."
+      }
+    ],
+    "Produktivität": [
+      {
+        "title": "Coda",
+        "auth": "Anmeldung beim Dienst",
+        "description": "Dokumente erstellen, Tabellen lesen und Inhalte aktualisieren."
+      },
+      {
+        "title": "Goodnotes",
+        "auth": "Keine",
+        "description": "Notizen und handschriftliche Dokumente durchsuchen und verwalten."
+      },
+      {
+        "title": "Jamie",
+        "auth": "Anmeldung beim Dienst",
+        "description": "Meeting-Notizen durchsuchen und Action Items extrahieren."
+      },
+      {
+        "title": "Miro",
+        "auth": "Anmeldung beim Dienst",
+        "description": "Whiteboards, Boards und Diagramme lesen und bearbeiten."
+      },
+      {
+        "title": "monday.com",
+        "auth": "Anmeldung beim Dienst",
+        "description": "Work OS für Projekte, Aufgaben und Team-Workflows."
+      },
+      {
+        "title": "Notion",
+        "auth": "Anmeldung beim Dienst",
+        "description": "Seiten, Datenbanken und Aufgaben durchsuchen und bearbeiten."
+      },
+      {
+        "title": "Sally",
+        "auth": "Zugangsschlüssel",
+        "description": "Termine, Aufzeichnungen, Zusammenfassungen und Transkripte abfragen."
+      },
+      {
+        "title": "Todoist",
+        "auth": "Anmeldung beim Dienst",
+        "description": "Aufgaben, Projekte und To-do-Listen verwalten."
+      }
+    ],
+    "Recht & Compliance": [
+      {
+        "title": "Ansvar",
+        "auth": "Anmeldung beim Dienst",
+        "description": "EU-Recht und Compliance recherchieren — mit verifizierten Zitaten und Quellenangaben."
+      }
+    ],
+    "Social Media": [
+      {
+        "title": "Swat.io",
+        "auth": "Anmeldung beim Dienst",
+        "description": "Social-Media-Beiträge planen und vorbereiten (Beta; kein Direkt-Publishing)."
+      }
+    ]
+  }
+}

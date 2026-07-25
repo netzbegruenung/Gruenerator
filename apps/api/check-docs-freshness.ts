@@ -66,7 +66,7 @@ const SCOPE_FOLDERS = [
   'Profil',
   'notebooks',
   'agents',
-  'monitor',
+  'experimente',
   'office',
   'projekte',
   'signal-nachrichten',
@@ -81,7 +81,7 @@ const AREA_HINTS: Record<string, string> = {
     'packages/chat, apps/web/src/features/chat, apps/web/src/features/models, apps/api/routes/chat, apps/api/agents/langgraph/ChatGraph, packages/contracts/src/schemas',
   agents: 'apps/web/src/features/agents, apps/web/src/features/agentura, packages/chat',
   notebooks: 'apps/web/src/features/notebook',
-  monitor: 'apps/web/src/features/monitor',
+  experimente: 'apps/web/src/features/monitor',
   Profil: 'apps/web/src/features/wolke, apps/web/src/features/user-defaults',
   integrationen: 'apps/web/src/features/connections, services/mcp',
   // The Office articles describe four editors that share one document model, so
