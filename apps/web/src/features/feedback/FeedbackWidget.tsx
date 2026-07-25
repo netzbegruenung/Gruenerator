@@ -24,6 +24,8 @@ interface FeedbackWidgetProps {
   feature?: string;
   position?: LauncherCorner;
   visible?: boolean;
+  /** Launcher appearance — text pill (default) or compact icon button. */
+  variant?: 'text' | 'icon';
 }
 
 function collectPageContext(): FeedbackPageContext {
@@ -74,6 +76,7 @@ export default function FeedbackWidget({
   feature,
   position = 'bottom-right',
   visible = true,
+  variant = 'text',
 }: FeedbackWidgetProps): JSX.Element | null {
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState('');
@@ -126,7 +129,11 @@ export default function FeedbackWidget({
 
   return (
     <>
-      <DraggableFeedbackLauncher onOpen={handleLauncherClick} defaultCorner={position} />
+      <DraggableFeedbackLauncher
+        onOpen={handleLauncherClick}
+        defaultCorner={position}
+        variant={variant}
+      />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent data-feedback-dialog="" className="sm:max-w-2xl">

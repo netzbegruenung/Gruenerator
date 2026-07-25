@@ -52,7 +52,7 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     tab: 'allgemein',
     title: 'Feedback-Button',
     description:
-      'Zeigt den schwebenden Feedback-Button auf allen Seiten — er lässt sich in jede Bildschirmecke ziehen',
+      'Darstellung des schwebenden Feedback-Buttons: mit Text, nur als Icon oder ganz ausgeblendet — er lässt sich in jede Bildschirmecke ziehen',
   },
   {
     id: 'allgemein.touren',
