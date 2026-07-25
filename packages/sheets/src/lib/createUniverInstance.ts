@@ -70,10 +70,9 @@ export interface CreateUniverInstanceOptions {
 }
 
 /**
- * Creates a Univer sheets instance with our chrome decisions baked in: no
- * Univer header/toolbar (our EditorTopBar owns the top; feature entry points
- * live in the native right-click context menu, keyboard shortcuts, and the
- * compact `SheetFormatMenu` in the top bar), formula bar and sheet tabs kept,
+ * Creates a Univer sheets instance with our chrome decisions baked in: Univer's
+ * native collapsed ribbon owns formatting, our `EditorTopBar` owns identity
+ * (title, back, sharing, collaborators, chat); formula bar and sheet tabs kept,
  * footer menus hidden. No formula web worker in V1 — the main-thread engine is
  * fine for the sheet sizes we expect (see `sheets-no-worker` upstream example).
  *
@@ -118,8 +117,19 @@ export function createUniverInstance({
     presets: [
       UniverSheetsCorePreset({
         container,
-        header: false,
-        toolbar: false,
+        // Univer's ribbon is the only entry point to cell formatting (bold,
+        // colours, number formats, borders, alignment, merge). With it off those
+        // were reachable through keyboard shortcuts and the right-click menu
+        // only — i.e. not at all on a phone. `header` and `toolbar` must BOTH be
+        // true: the ribbon does not render otherwise, and in sheets the header
+        // slot is simply where the formula bar lives — Univer contributes no
+        // filename or menu bar of its own, so nothing competes with our title.
+        header: true,
+        toolbar: true,
+        // 'collapsed' is the single 40px row (tabs behind a dropdown); 'classic'
+        // would stack another 36px tab strip on top, which we cannot afford
+        // next to our own top bar on a phone.
+        ribbonType: 'collapsed',
         menu: HIDDEN_PROTECTION_MENU,
         formulaBar: true,
         footer: {

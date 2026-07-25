@@ -18,7 +18,7 @@ import { SheetsEditor, type FUniver, type IWorkbookData } from '@gruenerator/she
 import { Skeleton } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { FiCornerUpLeft, FiCornerUpRight, FiMessageSquare, FiShare2 } from 'react-icons/fi';
+import { FiMessageSquare, FiShare2 } from 'react-icons/fi';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { CollaboratorAvatars } from '../../components/editor/CollaboratorAvatars';
@@ -247,26 +247,10 @@ function SheetsEditorContent() {
                 <FiMessageSquare />
               </button>
             )}
+            {/* Undo/redo are the ribbon's first group now — a second pair here
+                would just be a duplicate. */}
             {isEditable && univerAPI && (
-              <>
-                <button
-                  className="glass-btn"
-                  onClick={() => void univerAPI.undo()}
-                  aria-label="Rückgängig"
-                  title="Rückgängig (Strg+Z)"
-                >
-                  <FiCornerUpLeft />
-                </button>
-                <button
-                  className="glass-btn"
-                  onClick={() => void univerAPI.redo()}
-                  aria-label="Wiederholen"
-                  title="Wiederholen (Strg+Umschalt+Z)"
-                >
-                  <FiCornerUpRight />
-                </button>
-                <SheetFormatMenu univerAPI={univerAPI} documentTitle={docData.title} />
-              </>
+              <SheetFormatMenu univerAPI={univerAPI} documentTitle={docData.title} />
             )}
             {!isGuest && (
               <button
