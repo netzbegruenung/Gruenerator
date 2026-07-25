@@ -60,6 +60,12 @@ interface ParsedDocumentResponse {
   content?: unknown;
 }
 
+/**
+ * Deliberately lenient: partial objects are normalized rather than rejected.
+ * An empty `content` is therefore the FAILURE SIGNAL — callers must check it and
+ * report an error instead of creating the document. Creating a document from an
+ * empty parse produced a blank artifact with a success message.
+ */
 export function parseDocumentResponse(aiContent: string): GeneratedDocument {
   try {
     let parsed: ParsedDocumentResponse;

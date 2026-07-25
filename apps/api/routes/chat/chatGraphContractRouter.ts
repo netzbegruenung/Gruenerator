@@ -1371,7 +1371,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           ).text,
           userLocale: classifiedState.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
         });
-        if (created) return { status: 200 as const, body: undefined };
+        if (created) {
+          await cleanupPending(true);
+          return { status: 200 as const, body: undefined };
+        }
       }
 
       // === EXPERIMENTAL: create_recurring_task intent ===
