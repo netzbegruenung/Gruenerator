@@ -16,6 +16,16 @@ import { z } from 'zod';
 export const startPageSchema = z.enum(['chat', 'arbeiten']);
 export type StartPage = z.infer<typeof startPageSchema>;
 
+/**
+ * Closed set of feedback-launcher appearances — how the floating feedback
+ * button renders, or whether it renders at all.
+ *   'text' → pill with the label „Feedback" (default)
+ *   'icon' → compact icon-only button
+ *   'off'  → hidden entirely
+ */
+export const feedbackButtonSchema = z.enum(['text', 'icon', 'off']);
+export type FeedbackButtonMode = z.infer<typeof feedbackButtonSchema>;
+
 export const profileUpdateBodySchema = z.object({
   display_name: z.string().optional(),
   username: z.string().optional(),
@@ -23,7 +33,7 @@ export const profileUpdateBodySchema = z.object({
   email: z.string().optional(),
   custom_prompt: z.string().optional(),
   default_startpage: startPageSchema.optional(),
-  feedback_enabled: z.boolean().optional(),
+  feedback_button: feedbackButtonSchema.optional(),
   reduce_motion: z.boolean().optional(),
   reduce_transparency: z.boolean().optional(),
 });
@@ -127,7 +137,7 @@ export const userProfileSchema = z.object({
   locale: localeSchema.optional(),
   // Default mirrors the `additionalFields` config in apps/api/config/betterAuth.ts.
   default_startpage: startPageSchema.default('chat'),
-  feedback_enabled: z.boolean().default(true),
+  feedback_button: feedbackButtonSchema.default('text'),
   reduce_motion: z.boolean().default(false),
   reduce_transparency: z.boolean().default(false),
   is_admin: z.boolean().optional(),
