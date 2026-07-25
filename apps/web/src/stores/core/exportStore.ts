@@ -3,6 +3,15 @@ import { create } from 'zustand';
 
 import apiClient from '../../components/utils/apiClient';
 
+import type { PdfExportLayout, pdfExportLetterSchema } from '@gruenerator/contracts';
+import type { z } from 'zod';
+
+export interface PdfExportOptions {
+  /** 'letterhead' adds the Absender block; 'letter' renders a DIN-5008 letter. */
+  layout?: PdfExportLayout;
+  letter?: z.infer<typeof pdfExportLetterSchema>;
+}
+
 interface ExportState {
   isGenerating: boolean;
   loadingPDF: boolean;
@@ -14,7 +23,7 @@ interface ExportState {
   setLoadingDOCX: (loadingDOCX: boolean) => void;
   loadPDFLibrary: () => Promise<null>;
   loadDOCXLibrary: () => Promise<null>;
-  generatePDF: (content: string, title: string) => Promise<void>;
+  generatePDF: (content: string, title: string, options?: PdfExportOptions) => Promise<void>;
   generateDOCX: (content: string, title: string) => Promise<void>;
   generateNotebookDOCX: (
     content: string,
@@ -45,17 +54,27 @@ export const useExportStore = create<ExportState>((set) => ({
   loadDOCXLibrary: async (): Promise<null> => null,
 
   // PDF Generation via backend (typed contract)
-  generatePDF: async (content: string, title: string) => {
+  generatePDF: async (content: string, title: string, options?: PdfExportOptions) => {
     set({ isGenerating: true });
     try {
       const { extractFilenameFromContent } = await import('../../components/utils/titleExtractor');
       const filename = `${extractFilenameFromContent(content, title)}.pdf`;
       const client = getContractsClient();
       const result = await client.exports.generatePdf({
-        body: { content, title },
+        // Spread so a call without options sends exactly `{content, title}` —
+        // the request shape apps/mobile relies on stays byte-identical.
+        body: {
+          content,
+          title,
+          ...(options?.layout && { layout: options.layout }),
+          ...(options?.letter && { letter: options.letter }),
+        },
       });
       if (result.status !== 200) {
-        throw new Error(`PDF generation failed (HTTP ${result.status})`);
+        // The server explains a missing Absender in the 400 body; surfacing
+        // "HTTP 400" instead would hide the one thing the user can act on.
+        const message = (result.body as { message?: string } | undefined)?.message;
+        throw new Error(message || `PDF generation failed (HTTP ${result.status})`);
       }
       // binaryFileResponseSchema is z.unknown(); axios adapter returns Blob
       // when the path is in BINARY_RESPONSE_PATHS in contractsClient.ts.
