@@ -46,27 +46,41 @@ export function ComposerCard({
   const hasText = text.trim().length > 0;
   const compact = variant === 'compact';
 
+  const iconSize = compact ? 20 : 18;
+
   const settingsButton = onSettings ? (
-    <Pressable onPress={onSettings} style={styles.settingsButton} hitSlop={6}>
-      <Ionicons name="options-outline" size={18} color={theme.textSecondary} />
+    <Pressable
+      onPress={onSettings}
+      style={[styles.settingsButton, compact && styles.settingsButtonCompact]}
+      hitSlop={6}
+    >
+      <Ionicons name="options-outline" size={iconSize} color={theme.textSecondary} />
     </Pressable>
   ) : null;
 
   const sendOrMic = hasText ? (
-    <Pressable onPress={handleSend} style={styles.actionButton}>
-      <Ionicons name={compact ? 'arrow-up' : 'arrow-forward'} size={18} color={colors.white} />
+    <Pressable
+      onPress={handleSend}
+      style={[styles.actionButton, compact && styles.actionButtonCompact]}
+    >
+      <Ionicons
+        name={compact ? 'arrow-up' : 'arrow-forward'}
+        size={iconSize}
+        color={colors.white}
+      />
     </Pressable>
   ) : (
     <Pressable
       onPress={handleVoice}
       style={[
         styles.actionButton,
+        compact && styles.actionButtonCompact,
         isListening ? { backgroundColor: colors.error[500] } : styles.actionButtonMuted,
       ]}
     >
       <Ionicons
         name={isListening ? 'stop' : 'mic'}
-        size={18}
+        size={iconSize}
         color={isListening ? colors.white : theme.textSecondary}
       />
     </Pressable>
@@ -89,12 +103,7 @@ export function ComposerCard({
 
   if (compact) {
     return (
-      <View
-        style={[
-          styles.compactContainer,
-          { backgroundColor: theme.surface, borderColor: theme.border, shadowColor: colors.black },
-        ]}
-      >
+      <View style={[styles.compactContainer, { backgroundColor: theme.surface }]}>
         {settingsButton}
         {input}
         <View style={styles.actions}>{sendOrMic}</View>
@@ -146,28 +155,30 @@ const styles = StyleSheet.create({
     marginTop: spacing.xxsmall,
   },
   // compact variant (bar)
+  // No border and no shadow: the bar sits on the sunrise gradient, and the
+  // surface fill alone carries enough contrast to read as a distinct surface.
+  //
+  // Sizing is ~10% up from the original 52dp bar. minHeight is deliberately the
+  // natural content height (input 48 + 5/5 padding), not a round number above
+  // it: the row is `alignItems: 'flex-end'`, so any minHeight in excess of the
+  // content becomes slack that lands on TOP and pushes everything down.
   compactContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     borderRadius: borderRadius.pill,
-    borderWidth: 1,
     paddingLeft: spacing.xsmall,
     paddingRight: spacing.xxsmall,
-    paddingVertical: spacing.xxsmall,
-    minHeight: 52,
+    paddingVertical: 5,
+    minHeight: 58,
     gap: spacing.xxsmall,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
   },
   inputCompact: {
     flex: 1,
-    fontSize: 16,
-    lineHeight: 22,
-    maxHeight: 120,
-    paddingTop: 10,
-    paddingBottom: 10,
+    fontSize: 17,
+    lineHeight: 24,
+    maxHeight: 132,
+    paddingTop: 12,
+    paddingBottom: 12,
     paddingLeft: spacing.xxsmall,
   },
   actions: {
@@ -189,6 +200,33 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[600],
     justifyContent: 'center',
     alignItems: 'center',
+  },
+
+  // Compact-only. The row is `alignItems: 'flex-end'` so the buttons stay beside
+  // the LAST line once the input grows — but that bottom-aligns them against the
+  // input, which is taller than either button (lineHeight 24 + 12/12 padding =
+  // 48). Without compensation both sit below the text they belong to, and 2dp
+  // apart from each other, since they are not the same size.
+  //
+  // marginBottom lifts each button's centre onto the text line's centre, which
+  // sits paddingBottom(12) + lineHeight/2(12) = 24dp above the content bottom:
+  //   settings: 24 - 38/2 = 5      action: 24 - 42/2 = 3
+  // Correct for the multi-line case too — the target is the last line, not the
+  // input's outer box.
+  //
+  // The `card` variant centres its actions in a row of its own and needs none of
+  // this, which is why these are separate styles rather than edits above.
+  settingsButtonCompact: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    marginBottom: 5,
+  },
+  actionButtonCompact: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    marginBottom: 3,
   },
   actionButtonMuted: {
     backgroundColor: 'transparent',
