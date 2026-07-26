@@ -99,33 +99,32 @@ describe('makeSummaryTool', () => {
 describe('makeBundestagTool', () => {
   beforeEach(() => searchNode.mockReset());
 
-  it('emits the bundestag event, registers sources, and returns the payload verbatim', async () => {
-    const payload = { kind: 'topic', notes: ['Treffer'], metadata: { query: 'Klima' } };
+  it('registers results with a raised snippet cap and returns the lean sources shape', async () => {
+    const longExcerpt = `Rede zur Klimapolitik. ${'x'.repeat(500)} ENDE`;
     searchNode.mockResolvedValue({
-      bundestagResult: payload,
       searchResults: [
         {
           source: 'bundestag',
           url: 'https://dip.bundestag.de/x',
-          title: 'Drucksache',
-          content: 'Text zur Klimapolitik.',
+          title: 'Drucksache 21/50 · Antrag',
+          content: longExcerpt,
         },
       ],
     });
-    const events: SseEvent[] = [];
     const sourceRegistry = createSourceRegistry();
-    const out = await exec(
+    const out = (await exec(
       makeBundestagTool({
-        sse: fakeSse(events),
         state: { ...baseState, intent: 'bundestag' } as ChatGraphState,
         sourceRegistry,
       }),
       { query: 'Klima' }
-    );
-    expect(out).toBe(payload);
-    expect(events).toHaveLength(1);
-    expect(events[0].type).toBe('bundestag');
-    expect((events[0].payload as { bundestag: unknown }).bundestag).toBe(payload);
+    )) as { resultCount?: number; sources?: string };
+    expect(out.resultCount).toBe(1);
+    // The 700-char registration cap keeps the full ~530-char excerpt intact
+    // (the default 320 would cut it before "ENDE").
+    expect(out.sources).toContain('ENDE');
+    expect(out.sources).toContain('[1] Drucksache 21/50 · Antrag');
+    expect(sourceRegistry.renderAll()).toContain('ENDE');
     expect(sourceRegistry.size).toBe(1);
     // searchNode was routed with the bundestag intent + the model's query.
     expect(searchNode).toHaveBeenCalledWith(
@@ -133,22 +132,39 @@ describe('makeBundestagTool', () => {
     );
   });
 
-  it('returns a note (no event) when there is no structured payload (e.g. de-AT decline)', async () => {
+  it('registers the de-AT decline note as a citable source', async () => {
     searchNode.mockResolvedValue({
-      bundestagResult: null,
-      searchResults: [{ source: 'bundestag', url: '', title: '', content: 'Nur für Deutschland.' }],
+      searchResults: [
+        {
+          source: 'bundestag',
+          url: '',
+          title: 'Nur für Deutschland verfügbar',
+          content: 'Nur für Deutschland.',
+        },
+      ],
     });
-    const events: SseEvent[] = [];
     const out = (await exec(
       makeBundestagTool({
-        sse: fakeSse(events),
         state: { ...baseState, intent: 'bundestag' } as ChatGraphState,
         sourceRegistry: createSourceRegistry(),
       }),
       { query: 'x' }
-    )) as { note?: string };
-    expect(out.note).toBe('Nur für Deutschland.');
-    expect(events).toHaveLength(0);
+    )) as { resultCount?: number; sources?: string };
+    expect(out.resultCount).toBe(1);
+    expect(out.sources).toContain('Nur für Deutschland.');
+  });
+
+  it('returns an error shape when the search comes back empty', async () => {
+    searchNode.mockResolvedValue({ searchResults: [] });
+    const out = (await exec(
+      makeBundestagTool({
+        state: { ...baseState, intent: 'bundestag' } as ChatGraphState,
+        sourceRegistry: createSourceRegistry(),
+      }),
+      { query: 'x' }
+    )) as { resultCount?: number; error?: string };
+    expect(out.resultCount).toBe(0);
+    expect(out.error).toBeTruthy();
   });
 });
 
