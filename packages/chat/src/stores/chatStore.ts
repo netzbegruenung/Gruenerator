@@ -8,6 +8,9 @@ import {
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { isApiErrorWithStatus } from '@gruenerator/shared/api';
+
+import { notifyError, notifyWarning } from '../lib/notify';
 import { AUTO_MODEL_ID, type AutoModelId, type SelectedModel } from '../lib/resolveAutoModel';
 
 import { useArtifactLiveStore } from './artifactLiveStore';
@@ -157,7 +160,7 @@ interface AgentState {
    *  every new-chat surface (workplace composer, /chat overview, ChatPage). */
   resetChatContext: () => void;
   loadThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
-  saveThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
+  saveThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<boolean>;
 }
 
 const DEFAULT_ENABLED_TOOLS: Record<ToolKey, boolean> = {
@@ -394,8 +397,19 @@ export const useAgentStore = create<AgentState>()(
             customSystemPrompt: response.customSystemPrompt ?? null,
             customEnabledTools: response.customEnabledTools ?? null,
           });
-        } catch {
-          // Thread may not exist yet
+        } catch (error) {
+          // 404 is the normal "thread has no settings row yet" case and falls
+          // through to the mode reset below. Anything else means we do not KNOW
+          // the settings — resetting on that assumption silently kicked the user
+          // out of their custom agent because a request happened to fail.
+          if (!isApiErrorWithStatus(error, 404)) {
+            console.warn('[chatStore] Thread settings could not be loaded:', error);
+            notifyWarning(
+              'Chat-Einstellungen konnten nicht geladen werden',
+              'Die zuletzt bekannten Einstellungen bleiben aktiv.'
+            );
+            return;
+          }
         }
         const state = useAgentStore.getState();
         if (
@@ -417,8 +431,16 @@ export const useAgentStore = create<AgentState>()(
               customEnabledTools: state.customEnabledTools,
             }
           );
+          return true;
         } catch (error) {
+          // The UI shows the new values either way, so a silent failure meant
+          // the user believed their prompt was saved until it vanished on reload.
           console.error('Failed to save thread settings:', error);
+          notifyError(
+            'Einstellungen konnten nicht gespeichert werden',
+            'Bitte versuche es noch einmal.'
+          );
+          return false;
         }
       },
     }),

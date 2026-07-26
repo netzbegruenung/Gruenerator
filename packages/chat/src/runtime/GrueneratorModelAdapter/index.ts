@@ -2,6 +2,7 @@ import { getSystemAgent } from '@gruenerator/shared/agents';
 import { buildMentionToken } from '@gruenerator/shared/utils';
 
 import { parseAllMentions } from '../../lib/mentionParser';
+import { notifyWarning } from '../../lib/notify';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
 import { useDocumentChatStore } from '../../stores/documentChatStore';
@@ -599,6 +600,10 @@ export function createGrueneratorModelAdapter(
             console.warn(
               '[ChatAdapter] contextProvider threw, continuing without injected context',
               err
+            );
+            notifyWarning(
+              'Dokumentkontext konnte nicht gelesen werden',
+              'Die Antwort bezieht sich möglicherweise nicht auf das Dokument.'
             );
           }
         }
