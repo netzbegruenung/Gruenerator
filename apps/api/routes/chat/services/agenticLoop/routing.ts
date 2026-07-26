@@ -77,8 +77,13 @@ export const COMPOUND_GENERATION_INTENTS: ReadonlySet<string> = new Set([
  */
 const GENERATION_NOUN_RE =
   /\b(sharepic|share-pic|grafik|kachel|pr[äa]sentation|presentation|folien?|slides?|tabelle|kalkulation|spreadsheet|sheet|dokument|schriftst[üu]ck|textdokument|entwurf|board|kanban|aufgabenboard|taskboard|pdf|briefkopf|antragsformular|anmeldeformular|fragebogen)\b/i;
+// `recherch\w*` (not `recherchier\w*`) so the NOUN "Recherche" counts too — a
+// follow-up like "erstelle ein PDF mit den Originalquellen aus der Recherche"
+// carries an unmistakable research signal but no research VERB, and used to
+// fall through to the single-pass generator with no sources at all.
+// `\w*quellen?` likewise catches Quellen/Originalquellen/Primärquellen.
 const RESEARCH_SIGNAL_RE =
-  /\b(recherchier\w*|such[e]?\b|finde|informier\w*|aktuell\w*|zahlen|fakten|daten|statistik\w*|position\w*|programm\w*|beschl(u|ü)ss\w*|was\s+sag(t|en)|abgestimmt|studie\w*)\b/i;
+  /\b(recherch\w*|such[e]?\b|finde|informier\w*|aktuell\w*|zahlen|fakten|daten|statistik\w*|position\w*|programm\w*|beschl(u|ü)ss\w*|was\s+sag(t|en)|abgestimmt|studie\w*|\w*quellen?|belege\w*|nachweis\w*)\b/i;
 
 export function looksLikeCompoundGeneration(raw: string): boolean {
   const t = (raw ?? '').trim();

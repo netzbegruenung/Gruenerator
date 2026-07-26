@@ -161,6 +161,7 @@ export * from './sheetsYdoc.js';
 // Presentations (reveal.js) collab schema + pure formatting helpers —
 // reveal-free, shared by the editor package and the API.
 export * from './presentationsYdoc.js';
+export * from './presentationBrand.js';
 
 export * from './schemas/scanner.js';
 export * from './schemas/prompts.js';

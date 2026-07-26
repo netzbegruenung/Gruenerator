@@ -24,6 +24,10 @@ import { summarizeNode } from '../../../agents/langgraph/ChatGraph/nodes/summari
 import { relatedDocsPages, searchDocs } from '../../../services/docs/docsIndex.js';
 import { lookupUmfragen } from '../../../services/monitor/UmfragenService.js';
 import {
+  withResearchedSources,
+  type SourceRegistry,
+} from '../services/agenticLoop/sourceRegistry.js';
+import {
   pdfKindFromText,
   runBoardGeneration,
   runDocGeneration,
@@ -33,7 +37,6 @@ import {
 import { PROGRESS_MESSAGES, type SSEWriter } from '../services/sseHelpers.js';
 
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
-import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import type { Request } from 'express';
 
 /**
@@ -388,8 +391,12 @@ export function makeCreateDocTool(ctx: {
   sse: SSEWriter;
   state: ChatGraphState;
   req: Request;
+  /** Sources gathered this turn. Appended to the brief so the artifact is built
+   *  from the real snippets (incl. URLs) rather than from whatever the planner
+   *  chose to retype into `prompt`. */
+  sourceRegistry?: SourceRegistry;
 }): Tool {
-  const { kind, sse, state, req } = ctx;
+  const { kind, sse, state, req, sourceRegistry } = ctx;
   const { label, artifact } = DOC_LABELS[kind];
   return tool({
     description: `Erstellt ${artifact}.
@@ -418,7 +425,7 @@ NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/F
       }
       const created = await runDocGeneration({
         kind,
-        userContent: prompt,
+        userContent: withResearchedSources(prompt, sourceRegistry?.renderReference() ?? ''),
         aiWorkerPool: state.aiWorkerPool,
         req,
         userId,
@@ -449,8 +456,12 @@ export function makeCreatePdfTool(ctx: {
   sse: SSEWriter;
   state: ChatGraphState;
   req: Request;
+  /** See {@link makeCreateDocTool} — the brief is enriched with this turn's
+   *  (and any carried) sources so "PDF mit den Originalquellen" can actually
+   *  reproduce them. */
+  sourceRegistry?: SourceRegistry;
 }): Tool {
-  const { sse, state, req } = ctx;
+  const { sse, state, req, sourceRegistry } = ctx;
   return tool({
     description: `Erstellt ein fertig gestaltetes PDF nach dem Barrierefreiheits-Standard PDF/UA-1 zum Herunterladen. Der*die Nutzer*in beschreibt frei, was drin stehen soll — Aufbau (Überschriften, Listen, Tabellen, Hinweiskästen, Datenblätter, Unterschriftszeilen) wählt das System passend zum Auftrag.
 
@@ -502,11 +513,12 @@ WICHTIG — PRÜFEN STATT BEHAUPTEN: Das Tool öffnet das erzeugte PDF erneut un
       if (!userId) {
         return { error: 'PDF-Erstellung nicht möglich (keine Nutzer-Sitzung).' };
       }
-      const userContent = recipient
-        ? `${prompt}\n\nEmpfänger des Schreibens:\n${recipient}`
-        : prompt;
+      const brief = withResearchedSources(prompt, sourceRegistry?.renderReference() ?? '');
+      const userContent = recipient ? `${brief}\n\nEmpfänger des Schreibens:\n${recipient}` : brief;
+      // Classify on the ASK, never on the enriched brief: a "Formular"/"Brief"
+      // wording inside an appended source snippet would otherwise flip the layout.
       const documentKind =
-        art === 'formular' ? 'form' : art === 'brief' ? 'letter' : pdfKindFromText(userContent);
+        art === 'formular' ? 'form' : art === 'brief' ? 'letter' : pdfKindFromText(prompt);
       const result = await runPdfGeneration({
         userContent,
         aiWorkerPool: state.aiWorkerPool,

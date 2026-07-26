@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { localeSchema } from './userProfile.js';
+
 /**
  * Presentations (reveal.js decks, collaborative_documents subtype
  * 'presentations'). A deck is an ordered list of slides; each slide has a
@@ -125,6 +127,8 @@ export const presentationAiRequestBodySchema = z.object({
   userPrompt: z.string(),
   presentationContext: z.string(),
   referenceContent: z.string().nullish(),
+  /** Deck country brand — steers the accent palette the planner may pick. */
+  brand: localeSchema.nullish(),
 });
 
 export type PresentationAiRequestBody = z.infer<typeof presentationAiRequestBodySchema>;
@@ -170,6 +174,9 @@ export const presentationContentResponseSchema = z.object({
   title: z.string(),
   slides: z.array(slideSchema),
   accentColor: z.string().nullable(),
+  /** Country CI; legacy decks resolve to the requesting user's locale. */
+  brand: localeSchema.nullable(),
+  showLogo: z.boolean(),
 });
 
 export type PresentationContentResponse = z.infer<typeof presentationContentResponseSchema>;

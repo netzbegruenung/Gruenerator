@@ -99,12 +99,19 @@ export const DocumentCard = memo(function DocumentCard({
         'group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border border-grey-200/80 bg-background',
         'transition-[box-shadow,border-color,transform] duration-150',
         'hover:-translate-y-0.5 hover:border-secondary-300 hover:shadow-md',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
         'dark:border-grey-700/60 dark:hover:border-secondary-700',
         isSelected && 'border-primary-500 ring-2 ring-primary-400 dark:border-primary-400',
         isDisabled && 'pointer-events-none opacity-60'
       )}
       onClick={handleClick}
-      role={isSelectMode ? 'button' : undefined}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return;
+        e.preventDefault();
+        handleClick();
+      }}
+      role="button"
+      tabIndex={isDisabled ? -1 : 0}
       aria-pressed={isSelectMode ? isSelected : undefined}
       aria-disabled={isDisabled || undefined}
     >
