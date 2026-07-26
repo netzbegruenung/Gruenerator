@@ -28,7 +28,7 @@ import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { generateDocxBuffer, sanitizeDocxFilename } from './docxController.js';
-import { resolveLetterheadSender } from './letterheadSender.js';
+import { resolveLetterheadOptions } from './letterheadSender.js';
 import { generatePdfBuffer, sanitizePdfFilename } from './pdfController.js';
 
 import type { Application } from 'express';
@@ -85,12 +85,15 @@ export const exportsContractRouter = s.router(exportsContract, {
       // is undefined in the contract tests (they mount without auth); the
       // resolver returns null there instead of throwing.
       const wantsSender = layout === 'letterhead' || layout === 'letter';
-      const sender = wantsSender
-        ? await resolveLetterheadSender((req as { user?: { id?: string } }).user?.id, {
+      // Nicht nur der Absender: am selben Briefkopf hängen Versandweg,
+      // Rücksendeangabe, Falzmarken und das eigene Briefpapier.
+      const letterheadOptions = wantsSender
+        ? await resolveLetterheadOptions((req as { user?: { id?: string } }).user?.id, {
             letterheadId,
             inline: letterhead,
           })
         : null;
+      const sender = letterheadOptions?.sender ?? null;
 
       if (wantsSender && !sender) {
         // An honest error beats a file that is byte-identical to the plain
@@ -109,6 +112,12 @@ export const exportsContractRouter = s.router(exportsContract, {
         ...(layout && { layout }),
         sender,
         ...(letter && { letter }),
+        ...(letterheadOptions && {
+          dispatchMode: letterheadOptions.dispatchMode,
+          returnLine: letterheadOptions.returnLine,
+          foldMarks: letterheadOptions.foldMarks,
+          stationery: letterheadOptions.stationery,
+        }),
       });
       const filename = `${sanitizePdfFilename(title || 'Dokument')}.pdf`;
 
