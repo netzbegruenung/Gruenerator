@@ -9,7 +9,13 @@
  *
  * Class strings are literal (never built at runtime) so Tailwind's JIT keeps them.
  * Dark variants are muted, same-hue fields fading to a near-neutral dark.
+ *
+ * Keys are typed against the registry (`ToolThemeId`): a tool marked
+ * `theme: true` in toolRegistry.ts without an entry here — or an entry no tool
+ * claims — is a type error.
  */
+import { type ToolThemeId } from './toolRegistry';
+
 export interface ToolTheme {
   /** Colored square tile field: bg only. The hover lift is uniform and lives in
    * OFFICE_TILE_BASE, so it stays minimal and consistent across tiles. */
@@ -156,7 +162,7 @@ export const TOOL_THEME = {
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#E9F5EE_0%,#F5FBF7_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#142219_0%,#0F1812_55%,#0A0F0C_100%)]',
   },
-} satisfies Record<string, ToolTheme>;
+} satisfies Record<ToolThemeId, ToolTheme>;
 
 export type ToolThemeKey = keyof typeof TOOL_THEME;
 
