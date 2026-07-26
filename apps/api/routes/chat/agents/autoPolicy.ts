@@ -47,6 +47,22 @@ export type ReasoningSetting = 'off' | 'low' | 'medium' | 'high';
 
 export type Complexity = 'simple' | 'moderate' | 'complex';
 
+/**
+ * Input size (tokens) above which an overflow lane must run on its HOSTED
+ * (Regolo) side instead of self-hosted Verdigado.
+ *
+ * Verdigado is declared at 64k (CTX_VERDIGADO — deliberately below the point
+ * where Ollama was observed to truncate silently), so its pruning budget is
+ * `0.7 * 64k - 3000` ≈ 41.8k. A larger request does not fail there, it gets
+ * *pruned down* to fit while a lane with a 262k window sat available. That is
+ * the silent context loss this threshold exists to prevent.
+ *
+ * Kept as a literal (not derived from providers.ts) because this module is
+ * deliberately import-free so `providers.ts` can depend on it without a cycle.
+ * Change it together with CTX_VERDIGADO there.
+ */
+export const VERDIGADO_INPUT_LIMIT = 40_000;
+
 /** A scalar applies to every complexity; the record grades by it. */
 type ReasoningRule = ReasoningSetting | Record<Complexity, ReasoningSetting>;
 
