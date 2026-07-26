@@ -65,6 +65,14 @@ export const TAB_NOTES: TabNote[] = [
     ],
   },
   {
+    tab: 'briefkoepfe',
+    intro:
+      'Absenderangaben für den PDF-Export von Briefen. Du kannst mehrere Briefköpfe anlegen — etwa einen für den Kreisverband und einen für die Fraktion — und beim Export auswählen, welcher oben links erscheint.',
+    extras: [
+      'Genau ein Briefkopf ist der Standard; der Export schlägt ihn vor. Löschst du den Standard, rückt automatisch ein anderer nach.',
+    ],
+  },
+  {
     tab: 'texte-anlernen',
     intro:
       'Hier bringst du dem Grünerator deinen Schreibstil bei: Du hinterlegst eigene Texte, er leitet daraus Ton, Satzbau und Länge ab und schreibt künftig ähnlich.',
