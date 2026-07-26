@@ -1,16 +1,24 @@
 import {
+  fitScaleForRatio,
   getPresentationBrandTheme,
   PRESENTATION_FONT_SIZE_SCALE,
   type Slide,
 } from '@gruenerator/contracts';
 import { Image } from 'expo-image';
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 
 import { SLIDE_H, SLIDE_W, resolveSlideBackground, slideAccent } from './slideStyles';
 
 const INK = '#262a28';
+
+/** Vertical padding of the surface (mirrors `styles.surface`). */
+const PAD_Y = 64;
+/** Column gap between title and body (mirrors `styles.surface`). */
+const GAP = 20;
+/** Height the content column has to fit into at the 960×540 design size. */
+const CONTENT_H = SLIDE_H - PAD_Y * 2;
 
 // Logo PNGs live in the web app's public root; derive the origin from the API
 // env (same value chatConfig uses), stripping a trailing /api.
@@ -27,6 +35,12 @@ const ASSET_ORIGIN = (process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu
  * (card grid / numbered circles) and split columns fall back to the base list.
  * Country brand (DE/AT) drives colours and the title-slide logo; the CI fonts
  * are not bundled in the app (follow-up) — system fonts render the text.
+ *
+ * Slides on "Auto" shrink to fit like they do on the web: both renderers work
+ * in the same 960×540 design space and share the ladder from contracts, so a
+ * deck lands on the same step on either client. The step can still differ by
+ * one where wrapping is non-linear — the web probes each step, this computes
+ * from one measurement — and the error is conservative (never clipped).
  */
 export function SlideView({
   slide,
@@ -53,9 +67,36 @@ export function SlideView({
   const isQuote = slide.layout === 'quote';
   const isCode = slide.layout === 'code';
   const variant = slide.variant ?? 0;
-  // Preset font scale; auto-fit ("Auto") renders at 1 — RN's
-  // adjustsFontSizeToFit can't apply to a Markdown tree.
-  const fs = slide.fontSize ? PRESENTATION_FONT_SIZE_SCALE[slide.fontSize] : 1;
+
+  // Font scale: an explicit preset, else auto-fit. Auto-fit is a single
+  // measuring pass — the viewer is read-only, so unlike the web editor there is
+  // nothing to re-fit against. Yoga has no `scrollHeight`: a body with
+  // `flexShrink: 1` gets compressed rather than reported as overflowing, so the
+  // pass renders with `flexShrink: 0` (natural height, clipped by the box) and
+  // invisible, then derives the step from the measured ratio. Code slides are
+  // excluded, matching the web hook.
+  const preset = slide.fontSize ? PRESENTATION_FONT_SIZE_SCALE[slide.fontSize] : null;
+  const [autoScale, setAutoScale] = useState<number | null>(null);
+  const measuring = preset == null && !isCode && autoScale == null;
+  const fs = preset ?? autoScale ?? 1;
+
+  const hasTitle = slide.title.trim() !== '';
+  const measured = useRef<{ title: number | null; body: number | null }>({
+    title: null,
+    body: null,
+  });
+  const reportHeight = useCallback(
+    (key: 'title' | 'body', height: number) => {
+      measured.current[key] = height;
+      const { title, body } = measured.current;
+      // Both boxes must have reported before the column height is known.
+      if (body === null || (hasTitle && title === null)) return;
+      const total = (title ?? 0) + body + (title && body ? GAP : 0);
+      // A zero/invalid total degrades to scale 1 (fitScaleForRatio guards it).
+      setAutoScale(fitScaleForRatio(CONTENT_H / total));
+    },
+    [hasTitle]
+  );
 
   const surfaceAlign: {
     alignItems?: 'center' | 'flex-start';
@@ -95,6 +136,8 @@ export function SlideView({
             styles.surface,
             { backgroundColor: bg.backgroundColor, transform: [{ scale }] },
             surfaceAlign,
+            // Hide the measuring pass: it renders unshrunk and may overflow.
+            measuring && styles.measuring,
           ]}
         >
           {bg.imageUri && (
@@ -112,8 +155,11 @@ export function SlideView({
             <View style={[styles.sidePanel, { backgroundColor: deckAccent }]} />
           )}
 
-          {slide.title.trim() !== '' && (
+          {hasTitle && (
             <Text
+              onLayout={
+                measuring ? (e) => reportHeight('title', e.nativeEvent.layout.height) : undefined
+              }
               style={[
                 styles.title,
                 {
@@ -135,6 +181,9 @@ export function SlideView({
             </View>
           ) : (
             <View
+              onLayout={
+                measuring ? (e) => reportHeight('body', e.nativeEvent.layout.height) : undefined
+              }
               style={[
                 styles.body,
                 isQuote && styles.quoteBody,
@@ -144,6 +193,9 @@ export function SlideView({
                   },
                 isTitle && { flexGrow: 0 },
                 isTitle && variant === 1 && { paddingRight: SLIDE_W * 0.42 },
+                // Natural height while measuring — flexShrink would compress it
+                // and hide exactly the overflow we are trying to detect.
+                measuring && styles.bodyMeasuring,
               ]}
             >
               <Markdown style={mdStyles as never}>{slide.body}</Markdown>
@@ -198,6 +250,12 @@ const styles = StyleSheet.create({
   },
   body: {
     flexShrink: 1,
+  },
+  bodyMeasuring: {
+    flexShrink: 0,
+  },
+  measuring: {
+    opacity: 0,
   },
   quoteBody: {
     borderLeftWidth: 6,
