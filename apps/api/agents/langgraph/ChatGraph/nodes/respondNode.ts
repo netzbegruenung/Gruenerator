@@ -9,6 +9,7 @@
 
 import { SKILLS } from '@gruenerator/shared/agents';
 
+import { getRetrievalBudget } from '../../../../routes/chat/services/messageHelpers.js';
 import { getPrAgentInsightFragment } from '../../../../services/agents/prAgentInsightService.js';
 import {
   buildCompactProductIdentity,
@@ -44,8 +45,13 @@ const log = createLogger('ChatGraph:Respond');
  * These prevent large documents from consuming the entire token budget.
  */
 const ATTACHMENT_LIMITS = {
-  PER_DOCUMENT_CHARS: 8000, // ~2000 tokens per document
-  TOTAL_BUDGET_CHARS: 20000, // ~5000 tokens total for all attachments
+  /** Floor per document; the effective per-doc limit follows the total budget. */
+  PER_DOCUMENT_CHARS: 25000,
+  /** FLOOR for all attachments together — the real budget is derived from the
+   *  model window (getRetrievalBudget). The former fixed 20000 (~5k tokens) was
+   *  model-blind: a 262k lane got exactly as much of an uploaded document as a
+   *  32k one. */
+  TOTAL_BUDGET_CHARS: 20000,
 };
 
 /**
@@ -76,8 +82,10 @@ export function truncateDocument(
  */
 function limitAttachmentContext(
   context: string,
+  contextWindowTokens?: number,
   budget: number = ATTACHMENT_LIMITS.TOTAL_BUDGET_CHARS
 ): string {
+  budget = getRetrievalBudget(contextWindowTokens, budget);
   if (!context || context.length <= budget) return context;
 
   // Parse documents by the ### header pattern
@@ -143,9 +151,19 @@ function limitAttachmentContext(
  * Distributed proportionally by relevance score across top results.
  * Increases to 6000 when crawled full content is available.
  */
-const SEARCH_CONTEXT_BUDGET = 4000;
-const SEARCH_CONTEXT_BUDGET_CRAWLED = 6000;
-const SEARCH_CONTEXT_BUDGET_DOCUMENTCHAT = 8000;
+/**
+ * FLOORS, not ceilings. The effective budget is derived from the model's window
+ * via getRetrievalBudget — these values only guarantee a sane minimum when the
+ * window is unknown or tiny.
+ *
+ * They used to be the budget itself: absolute character counts, identical on a
+ * 32k and a 262k lane. On the big lane that meant retrieved research occupied
+ * ~0.9% of the window while the conversation history took ~68% — the material
+ * the turn actually needed was the most tightly rationed part of the request.
+ */
+const SEARCH_CONTEXT_FLOOR = 4000;
+const SEARCH_CONTEXT_FLOOR_CRAWLED = 6000;
+const SEARCH_CONTEXT_FLOOR_DOCUMENTCHAT = 8000;
 const MAX_SEARCH_RESULTS = 8;
 
 /**
@@ -256,13 +274,14 @@ export async function formatSearchContext(
   const hasCrawledContent = sources.some((s) => (s.representative.content?.length ?? 0) > 500);
   // Multi-source results get the higher budget (mixed doc + web content)
   const isMultiSource = (state.searchSources?.length || 0) > 1;
-  const budget = isDocumentChat
-    ? SEARCH_CONTEXT_BUDGET_DOCUMENTCHAT
+  const floor = isDocumentChat
+    ? SEARCH_CONTEXT_FLOOR_DOCUMENTCHAT
     : isNotebookScoped
-      ? SEARCH_CONTEXT_BUDGET_DOCUMENTCHAT
+      ? SEARCH_CONTEXT_FLOOR_DOCUMENTCHAT
       : hasCrawledContent || isMultiSource
-        ? SEARCH_CONTEXT_BUDGET_CRAWLED
-        : SEARCH_CONTEXT_BUDGET;
+        ? SEARCH_CONTEXT_FLOOR_CRAWLED
+        : SEARCH_CONTEXT_FLOOR;
+  const budget = getRetrievalBudget(state.contextWindowTokens, floor);
 
   // Crawled sources get 2x weight in budget allocation
   const weightedRelevance = sources.map((s) => {
@@ -378,7 +397,7 @@ function formatCurrentDocument(state: ChatGraphState): string {
     return '';
   }
   const { title, markdown, selectionText } = state.currentDocument;
-  const limitedMarkdown = limitAttachmentContext(markdown);
+  const limitedMarkdown = limitAttachmentContext(markdown, state.contextWindowTokens);
   const titleLine = title ? `Titel: ${title}\n\n` : '';
   const selection = selectionText
     ? `\n\n### AUSGEWÄHLTER TEXT\n\n${selectionText.slice(0, 4000)}`
@@ -400,7 +419,7 @@ function formatAttachmentContext(state: ChatGraphState): string {
   }
 
   // Apply truncation limits to prevent context explosion
-  const limitedContext = limitAttachmentContext(state.attachmentContext);
+  const limitedContext = limitAttachmentContext(state.attachmentContext, state.contextWindowTokens);
 
   return `
 
@@ -452,7 +471,10 @@ Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}
  * Images carry a vision-generated description as their summary, letting
  * follow-up turns reason about an earlier image without re-sending the pixels.
  */
-function formatThreadAttachmentsContext(attachments: ThreadAttachment[]): string {
+function formatThreadAttachmentsContext(
+  attachments: ThreadAttachment[],
+  contextWindowTokens?: number
+): string {
   if (!attachments || attachments.length === 0) {
     return '';
   }
@@ -470,7 +492,7 @@ function formatThreadAttachmentsContext(attachments: ThreadAttachment[]): string
   if (docBlocks) {
     // Reuse the same per-document + total budget limiter as current-turn
     // attachments so re-injected full text can't blow the context window.
-    const docs = limitAttachmentContext(docBlocks);
+    const docs = limitAttachmentContext(docBlocks, contextWindowTokens);
     sections.push(`
 
 ## FRÜHERE DOKUMENTE IN DIESEM GESPRÄCH
@@ -976,7 +998,10 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   const summaryContextFormatted = formatSummaryContext(summaryContext);
   const computedResultFormatted = formatComputedResultContext(computedResult);
   const tabularComputeGuidance = formatTabularComputeGuidance(state);
-  const threadAttachmentsContext = formatThreadAttachmentsContext(threadAttachments);
+  const threadAttachmentsContext = formatThreadAttachmentsContext(
+    threadAttachments,
+    state.contextWindowTokens
+  );
   const memoryContextFormatted = formatMemoryContext(memoryContext);
   const chatHistoryFormatted = state.chatHistoryContext ? `\n\n${state.chatHistoryContext}` : '';
   const boardContextFormatted = formatBoardContext(boardContext);
