@@ -30,7 +30,7 @@ export const CardActionMenu = memo(function CardActionMenu({
           size="icon-xs"
           // icon-xs is a 24px box — fine beside a mouse, too small for a finger.
           // Grow the hit area on touch only, so dense desktop cards are unchanged.
-          className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100 max-sm:size-11 max-sm:opacity-100"
+          className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 data-[state=open]:opacity-100 max-sm:size-11 max-sm:opacity-100"
           onClick={(e: React.MouseEvent) => e.stopPropagation()}
           aria-label={ariaLabel}
         >
