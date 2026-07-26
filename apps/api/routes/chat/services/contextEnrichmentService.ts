@@ -10,6 +10,7 @@ import { truncateDocument } from '../../../agents/langgraph/ChatGraph/nodes/resp
 import { createLogger } from '../../../utils/logger.js';
 
 import { fetchDocumentContext, fetchTextContext } from './documentContextService.js';
+import { sendChatWarning } from './sseHelpers.js';
 
 import type { ProcessedAttachmentMeta } from './attachmentProcessingService.js';
 import type { SSEWriter } from './sseHelpers.js';
@@ -47,6 +48,10 @@ export async function enrichContext(opts: {
     sse,
   } = opts;
 
+  // Human-readable labels of referenced content that could not be loaded.
+  // Collected across every catch below and reported once at the end.
+  const failedMentions: string[] = [];
+
   // Handle @datei document references
   if (rawDocumentIds?.length) {
     try {
@@ -62,6 +67,7 @@ export async function enrichContext(opts: {
       log.warn(
         `[ChatGraph] Document context retrieval failed: ${err instanceof Error ? err.message : String(err)}`
       );
+      failedMentions.push('Datei');
     }
   }
 
@@ -81,6 +87,7 @@ export async function enrichContext(opts: {
       log.warn(
         `[ChatGraph] Text context retrieval failed: ${err instanceof Error ? err.message : String(err)}`
       );
+      failedMentions.push('Text');
     }
   }
 
@@ -96,6 +103,7 @@ export async function enrichContext(opts: {
             log.warn(
               `[ChatGraph] Failed to load board ${boardId}: ${err instanceof Error ? err.message : String(err)}`
             );
+            failedMentions.push('Board');
             return null;
           })
         )
@@ -117,6 +125,7 @@ export async function enrichContext(opts: {
       log.warn(
         `[ChatGraph] Board context services unavailable: ${importErr instanceof Error ? importErr.message : String(importErr)}`
       );
+      failedMentions.push('Board');
     }
   }
 
@@ -132,6 +141,7 @@ export async function enrichContext(opts: {
             log.warn(
               `[ChatGraph] Failed to load sheet ${sheetId}: ${err instanceof Error ? err.message : String(err)}`
             );
+            failedMentions.push('Tabelle');
             return null;
           })
         )
@@ -151,6 +161,7 @@ export async function enrichContext(opts: {
       log.warn(
         `[ChatGraph] Sheet context services unavailable: ${importErr instanceof Error ? importErr.message : String(importErr)}`
       );
+      failedMentions.push('Tabelle');
     }
   }
 
@@ -227,6 +238,7 @@ export async function enrichContext(opts: {
       log.warn(
         `[ChatGraph] Doc mention context failed: ${err instanceof Error ? err.message : String(err)}`
       );
+      failedMentions.push('Dokument');
     }
   }
 
@@ -278,12 +290,14 @@ export async function enrichContext(opts: {
           log.warn(
             `[ChatGraph] Failed to index attachment "${att.name}": ${indexErr instanceof Error ? indexErr.message : String(indexErr)}`
           );
+          failedMentions.push(att.name);
         }
       }
     } catch (importErr) {
       log.warn(
         `[ChatGraph] Document indexing services unavailable: ${importErr instanceof Error ? importErr.message : String(importErr)}`
       );
+      failedMentions.push(...largeDocAttachments.map((att) => att.name));
     }
   }
 
@@ -312,5 +326,24 @@ export async function enrichContext(opts: {
     log.info(
       `[ChatGraph] Attachment routing: ${largeDocAttachments.length} vectorized (RAG), ${docAttachments.length - largeDocAttachments.length} inline`
     );
+  }
+
+  // Report referenced content that silently failed to load. Feeds BOTH channels
+  // from one fact: the warning is the telemetry signal, the degradation note
+  // makes the answer itself admit the context is missing.
+  if (failedMentions.length > 0) {
+    const labels = [...new Set(failedMentions)].join(', ');
+    sendChatWarning(
+      sse,
+      'mention_context_failed',
+      `Folgende referenzierte Inhalte konnten nicht geladen werden: ${labels} — die Antwort entsteht ohne diesen Kontext.`
+    );
+    initialState.degradationNotes = [
+      ...(initialState.degradationNotes ?? []),
+      {
+        code: 'mention_context_failed',
+        modelHint: `Diese referenzierten Inhalte konnten NICHT geladen werden: ${labels}. Sag das ehrlich und tu nicht so, als hättest du sie gelesen.`,
+      },
+    ];
   }
 }
