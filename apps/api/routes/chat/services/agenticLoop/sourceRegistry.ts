@@ -16,6 +16,7 @@
  * up front keeps `[N]` in lockstep).
  */
 import { buildCitations } from '../../../../agents/langgraph/ChatGraph/nodes/citationUtils.js';
+import { applyContextCap } from '../../../../utils/contextCap.js';
 
 import type { Citation, SearchResult } from '../../../../agents/langgraph/ChatGraph/types.js';
 
@@ -106,7 +107,12 @@ export function withResearchedSources(brief: string, sourcesBlock: string): stri
 // `[N]` stays the citation marker; the URL is the payload behind it.
 function snippetLine(index: number, r: SearchResult, cap = SNIPPET_CHARS): string {
   const title = (r.title || r.source || 'Quelle').trim();
-  const body = (r.content ?? '').replace(/\s+/g, ' ').trim().slice(0, cap);
+  const body = applyContextCap(
+    (r.content ?? '').replace(/\s+/g, ' ').trim(),
+    cap,
+    'sourceRegistry:snippet',
+    false
+  );
   const url = typeof r.url === 'string' && r.url.trim() ? ` <${r.url.trim()}>` : '';
   return `[${index}] ${title}${url}${body ? ` — ${body}` : ''}`;
 }
