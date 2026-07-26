@@ -3,20 +3,20 @@ import { describe, expect, it } from 'vitest';
 
 import { axe, renderWithProviders } from '../../../test-utils';
 
-import { SpaceTile } from './SpaceTile';
+import { ProjektTile } from './ProjektTile';
 
 import type { GroupSummary } from '@gruenerator/shared/groups';
 
-const personalSpace: GroupSummary = {
-  id: 'space-1',
+const personalProjekt: GroupSummary = {
+  id: 'projekt-1',
   name: 'Mein Projekt',
   role: 'admin',
   isAdmin: true,
   group_type: 'personal',
 };
 
-const teamSpace: GroupSummary = {
-  id: 'space-2',
+const teamProjekt: GroupSummary = {
+  id: 'projekt-2',
   name: 'Grüne NRW',
   role: 'member',
   isAdmin: false,
@@ -24,44 +24,44 @@ const teamSpace: GroupSummary = {
   member_count: 3,
 };
 
-describe('SpaceTile', () => {
-  it('links to the group path built from the space', () => {
-    renderWithProviders(<SpaceTile space={personalSpace} />);
+describe('ProjektTile', () => {
+  it('links to the group path built from the projekt', () => {
+    renderWithProviders(<ProjektTile projekt={personalProjekt} />);
     expect(screen.getByRole('link', { name: /Mein Projekt/ })).toHaveAttribute(
       'href',
-      '/projekte/space-1'
+      '/projekte/projekt-1'
     );
   });
 
-  it('shows "Nur für dich" for a personal space', () => {
-    renderWithProviders(<SpaceTile space={personalSpace} />);
+  it('shows "Nur für dich" for a personal projekt', () => {
+    renderWithProviders(<ProjektTile projekt={personalProjekt} />);
     expect(screen.getByText('Nur für dich')).toBeInTheDocument();
   });
 
-  it('shows the pluralized member count for a team space', () => {
-    renderWithProviders(<SpaceTile space={teamSpace} />);
+  it('shows the pluralized member count for a team projekt', () => {
+    renderWithProviders(<ProjektTile projekt={teamProjekt} />);
     expect(screen.getByText('3 Mitglieder')).toBeInTheDocument();
   });
 
   it('shows singular "Mitglied" for exactly one member', () => {
-    renderWithProviders(<SpaceTile space={{ ...teamSpace, member_count: 1 }} />);
+    renderWithProviders(<ProjektTile projekt={{ ...teamProjekt, member_count: 1 }} />);
     expect(screen.getByText('1 Mitglied')).toBeInTheDocument();
   });
 
   it('falls back to the admin/member role label when member_count is absent', () => {
     renderWithProviders(
-      <SpaceTile space={{ ...teamSpace, member_count: undefined, isAdmin: true }} />
+      <ProjektTile projekt={{ ...teamProjekt, member_count: undefined, isAdmin: true }} />
     );
     expect(screen.getByText('Admin')).toBeInTheDocument();
   });
 
   it('renders initials when there is no avatar_url', () => {
-    renderWithProviders(<SpaceTile space={personalSpace} />);
+    renderWithProviders(<ProjektTile projekt={personalProjekt} />);
     expect(screen.getByText('MP')).toBeInTheDocument();
   });
 
   it('has no axe violations', async () => {
-    const { container } = renderWithProviders(<SpaceTile space={teamSpace} />);
+    const { container } = renderWithProviders(<ProjektTile projekt={teamProjekt} />);
     expect(await axe(container)).toHaveNoViolations();
   });
 });

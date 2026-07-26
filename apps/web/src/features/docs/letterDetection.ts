@@ -168,9 +168,9 @@ export function blockLines(blocks: readonly BlockLike[]): string[] {
   return blocks.map((block) =>
     Array.isArray(block.content)
       ? block.content
-          .map((inline) =>
+          .map((inline: unknown) =>
             inline && typeof inline === 'object' && 'text' in inline
-              ? String((inline as { text: unknown }).text ?? '')
+              ? String(inline.text ?? '')
               : ''
           )
           .join('')

@@ -1,7 +1,7 @@
 /**
  * Resolve a Notion-style group slug (or raw UUID) to its canonical id.
  *
- * Used by GruppenPage to translate pretty URLs like `/gruppen/mein-team-Ab3xK9`
+ * Used by ProjektePage to translate pretty URLs like `/projekte/mein-team-Ab3xK9`
  * into the UUID that GroupDetailSection and the group hooks already consume. The
  * lookup only fires for inputs that look like a slug and aren't a raw UUID —
  * UUID URLs skip the network round-trip entirely.
