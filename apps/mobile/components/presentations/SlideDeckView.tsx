@@ -12,7 +12,17 @@ import { SlideView } from './SlideView';
  * page counter. Present-mode navigation is trivial natively since reveal.js only
  * paged/transitioned on the web — the slide markup itself is what SlideView ports.
  */
-export function SlideDeckView({ slides, accent }: { slides: Slide[]; accent?: string | null }) {
+export function SlideDeckView({
+  slides,
+  accent,
+  brand,
+  showLogo,
+}: {
+  slides: Slide[];
+  accent?: string | null;
+  brand?: string | null;
+  showLogo?: boolean;
+}) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const [page, setPage] = useState(0);
@@ -38,7 +48,7 @@ export function SlideDeckView({ slides, accent }: { slides: Slide[]; accent?: st
       >
         {visible.map((slide) => (
           <View key={slide.id} style={styles.page}>
-            <SlideView slide={slide} accent={accent} />
+            <SlideView slide={slide} accent={accent} brand={brand} showLogo={showLogo} />
           </View>
         ))}
       </PagerView>

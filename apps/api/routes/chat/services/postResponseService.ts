@@ -19,6 +19,7 @@ import { createLogger } from '../../../utils/logger.js';
 import { reportBackgroundError } from '../../../utils/reportBackgroundError.js';
 import { type AIWorkerPool } from '../../../workers/types.js';
 
+import { MAX_SOURCES } from './agenticLoop/loopGuards.js';
 import {
   embedThreadAttachmentForRag,
   RAG_ATTACHMENT_THRESHOLD_CHARS,
@@ -45,11 +46,7 @@ import type {
   SearchSource,
   ThreadToolContext,
 } from '../../../agents/langgraph/ChatGraph/types.js';
-import type {
-  SocialPostPayload,
-  SocialPostToolResult,
-  BundestagPayload,
-} from '@gruenerator/contracts';
+import type { SocialPostPayload, SocialPostToolResult } from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
 
 const log = createLogger('PostResponse');
@@ -105,8 +102,7 @@ type ToolCallResult =
   | ImageToolCallResult
   | SharepicToolCallResult
   | ScrapeToolCallResult
-  | SocialPostToolResult
-  | BundestagPayload;
+  | SocialPostToolResult;
 
 interface PersistedToolCall {
   toolCallId: string;
@@ -143,9 +139,6 @@ function buildToolCallResult(
   }
   if (toolName === 'sharepic') {
     return { variants: sharepicVariants };
-  }
-  if (toolName === 'bundestag' && finalState.bundestagResult) {
-    return finalState.bundestagResult;
   }
   const base: SearchToolCallResult = {
     results: finalState.searchResults?.slice(0, 10) || [],
@@ -392,7 +385,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
       // reload matches the live stream (which sets agentInfo only for agents).
       ...(agentId && agentId !== 'gruenerator-universal' ? { agentId } : {}),
       citations: finalState.citations,
-      searchResults: finalState.searchResults?.slice(0, 10) || [],
+      searchResults: finalState.searchResults?.slice(0, MAX_SOURCES) || [],
       generatedImage: generatedImage
         ? {
             url: generatedImage.url,
@@ -642,7 +635,7 @@ export async function persistResumedResponse(params: {
       intent: finalState.intent,
       searchCount: finalState.searchCount,
       citations: finalState.citations,
-      searchResults: finalState.searchResults?.slice(0, 10) || [],
+      searchResults: finalState.searchResults?.slice(0, MAX_SOURCES) || [],
       resumed: true,
       // Same shape the non-resumed path persists, so the document card
       // rehydrates identically on reload.

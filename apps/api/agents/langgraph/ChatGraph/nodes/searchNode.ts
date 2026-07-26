@@ -193,8 +193,9 @@ function buildAbgeordnetenwatchResults(enriched: AwEnrichedResult): SearchResult
 }
 
 // ── Bundestag (DIP) → SearchResult mapping ────────────────────────────────────
-// dipSearchUrl / btpPdfUrl link helpers are shared with the BundestagCard via
-// @gruenerator/contracts (imported at the top of this file).
+// dipSearchUrl / btpPdfUrl link helpers live in @gruenerator/contracts
+// (imported at the top of this file). Titles double as citation labels
+// ("Drucksache 21/123 · Antrag") in the standard sources footer.
 function btDrucksacheResult(d: BtDrucksache, relevance: number): SearchResult {
   const content =
     [d.titel, d.datum, d.urheber.length > 0 ? `Urheber: ${d.urheber.join(', ')}` : null]
@@ -738,7 +739,6 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     let searchedCollections: string[] = [];
     let researchMeta: ResearchToolResult | null = null;
     let examplesResult: ExamplesToolResult | null = null;
-    let bundestagResult: BtEnrichedResult | null = null;
 
     const searchSources = state.searchSources || [];
     const documentSources = state.documentSources || [];
@@ -1296,9 +1296,6 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           break;
         }
         const enriched = await getBundestagEnrichedService().search(searchQuery || '');
-        // Stash the structured result for the dedicated BundestagCard; the flat
-        // `results` below stay for text grounding + inline citations.
-        bundestagResult = enriched;
         results = buildBundestagResults(enriched);
         log.info(
           `[Search] Bundestag (${enriched.kind}): ${results.length} results in ${Date.now() - startTime}ms`
@@ -1561,7 +1558,6 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       searchTimeMs,
       researchMeta,
       examplesResult,
-      bundestagResult,
       ...(searchedCollections.length > 0 && { searchedCollections }),
     };
   } catch (error: unknown) {

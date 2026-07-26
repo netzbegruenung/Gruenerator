@@ -1,4 +1,4 @@
-import { type Slide } from '@gruenerator/contracts';
+import { getPresentationBrandTheme, type Slide } from '@gruenerator/contracts';
 import { Image } from 'expo-image';
 import { useState } from 'react';
 import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
@@ -7,7 +7,13 @@ import Markdown from 'react-native-markdown-display';
 import { SLIDE_H, SLIDE_W, resolveSlideBackground, slideAccent } from './slideStyles';
 
 const INK = '#262a28';
-const KLEE = '#52907a';
+
+// Logo PNGs live in the web app's public root; derive the origin from the API
+// env (same value chatConfig uses), stripping a trailing /api.
+const ASSET_ORIGIN = (process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu').replace(
+  /\/api\/?$/,
+  ''
+);
 
 /**
  * One slide rendered natively at the fixed 960×540 design size, then uniformly
@@ -15,11 +21,24 @@ const KLEE = '#52907a';
  * from gruene-deck.css are approximated: backgrounds, accent title, quote rule,
  * code panel and title decorations are faithful; the fancier content variants
  * (card grid / numbered circles) and split columns fall back to the base list.
+ * Country brand (DE/AT) drives colours and the title-slide logo; the CI fonts
+ * are not bundled in the app (follow-up) — system fonts render the text.
  */
-export function SlideView({ slide, accent }: { slide: Slide; accent?: string | null }) {
+export function SlideView({
+  slide,
+  accent,
+  brand,
+  showLogo,
+}: {
+  slide: Slide;
+  accent?: string | null;
+  brand?: string | null;
+  showLogo?: boolean;
+}) {
   const [width, setWidth] = useState(0);
-  const bg = resolveSlideBackground(slide, accent);
-  const deckAccent = slideAccent(accent);
+  const theme = getPresentationBrandTheme(brand);
+  const bg = resolveSlideBackground(slide, accent, brand);
+  const deckAccent = slideAccent(accent, brand);
   const textColor = bg.dark ? '#ffffff' : INK;
   const titleColor = bg.dark ? '#ffffff' : deckAccent;
   const scale = width / SLIDE_W;
@@ -52,7 +71,7 @@ export function SlideView({ slide, accent }: { slide: Slide; accent?: string | n
     list_item: { marginBottom: 10 },
     heading1: { color: titleColor, fontSize: 40, fontWeight: '700' as const },
     heading2: { color: titleColor, fontSize: 34, fontWeight: '700' as const },
-    link: { color: bg.dark ? 'rgba(255,255,255,0.85)' : KLEE },
+    link: { color: bg.dark ? 'rgba(255,255,255,0.85)' : theme.colors.accent },
     strong: { fontWeight: '700' as const },
     code_inline: {
       backgroundColor: bg.dark ? 'rgba(255,255,255,0.15)' : '#eef3f0',
@@ -101,13 +120,36 @@ export function SlideView({ slide, accent }: { slide: Slide; accent?: string | n
               style={[
                 styles.body,
                 isQuote && styles.quoteBody,
-                isQuote && variant !== 1 && { borderLeftColor: bg.dark ? '#a9d3be' : deckAccent },
+                isQuote &&
+                  variant !== 1 && {
+                    borderLeftColor: bg.dark ? theme.colors.onDarkSoft : deckAccent,
+                  },
                 isTitle && { flexGrow: 0 },
                 isTitle && variant === 1 && { paddingRight: SLIDE_W * 0.42 },
               ]}
             >
               <Markdown style={mdStyles as never}>{slide.body}</Markdown>
             </View>
+          )}
+
+          {isTitle && showLogo !== false && (
+            <Image
+              source={{
+                uri: `${ASSET_ORIGIN}/${
+                  // Variant 1 (Geteilt): the accent side panel sits bottom-right
+                  // where the logo lands → on-dark variant even on light bg.
+                  bg.dark || variant === 1 ? theme.logo.dark.apiFile : theme.logo.light.apiFile
+                }`,
+              }}
+              style={{
+                position: 'absolute',
+                right: 40,
+                bottom: 36,
+                height: theme.logo.heightPx,
+                width: theme.logo.heightPx * theme.logo.aspect,
+              }}
+              contentFit="contain"
+            />
           )}
         </View>
       )}

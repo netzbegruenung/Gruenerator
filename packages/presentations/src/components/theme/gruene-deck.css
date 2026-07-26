@@ -17,6 +17,13 @@
   --deck-accent: var(--deck-green);
   --deck-ink: var(--grey-800, #262a28);
   --deck-paper: #ffffff;
+  /* Country-CI tokens (de-DE defaults; overridden by `.brand-at` below).
+   * Values mirror PRESENTATION_BRANDS in @gruenerator/contracts. */
+  --deck-heading-font: 'GrueneTypeNeue', 'Raleway', 'PT Sans', system-ui, sans-serif;
+  --deck-body-font: 'PT Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --deck-heading-lh: 1.1;
+  --deck-quote-font: inherit;
+  --deck-on-dark-soft: #a9d3be;
 
   position: relative;
   box-sizing: border-box;
@@ -25,13 +32,7 @@
   padding: 64px 72px;
   background: var(--deck-paper);
   color: var(--deck-ink);
-  font-family:
-    'PT Sans',
-    'Raleway',
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    sans-serif;
+  font-family: var(--deck-body-font);
   font-size: 26px;
   line-height: 1.4;
   display: flex;
@@ -41,14 +42,34 @@
   text-align: left;
 }
 
+/* AT CI ("The Odd"): Gotham Narrow, tighter headline leading, Vollkorn quotes. */
+.gruene-slide.brand-at {
+  --deck-heading-font: 'GothamNarrow-Ultra', 'Raleway', system-ui, sans-serif;
+  --deck-body-font: 'GothamNarrow-Book', 'PT Sans', system-ui, sans-serif;
+  --deck-heading-lh: 0.9;
+  --deck-quote-font: 'Vollkorn', Georgia, serif;
+  --deck-on-dark-soft: #a4d78f;
+}
+
 .gruene-slide h1,
 .gruene-slide h2,
 .gruene-slide .gruene-slide__title {
-  font-family: 'Raleway', 'PT Sans', system-ui, sans-serif;
+  font-family: var(--deck-heading-font);
   font-weight: 700;
   color: var(--deck-accent);
   margin: 0;
-  line-height: 1.15;
+  line-height: var(--deck-heading-lh);
+}
+
+.gruene-slide__logo {
+  position: absolute;
+  right: 40px;
+  bottom: 36px;
+  width: auto;
+  z-index: 1; /* above the variant-1 accent side panel */
+  opacity: 0.95;
+  pointer-events: none;
+  user-select: none;
 }
 
 .gruene-slide__title {
@@ -123,7 +144,7 @@
   color: rgba(255, 255, 255, 0.92);
 }
 .gruene-slide.is-dark .gruene-slide__body ul li::before {
-  background: #a9d3be;
+  background: var(--deck-on-dark-soft);
 }
 .gruene-slide.is-dark .gruene-slide__body a,
 .gruene-slide.is-dark .gruene-slide__input::placeholder {
@@ -181,13 +202,19 @@
 }
 .gruene-slide.layout-quote .gruene-slide__body {
   flex: 0 0 auto;
+  font-family: var(--deck-quote-font);
   font-size: 34px;
   font-style: italic;
   border-left: 6px solid var(--deck-accent);
   padding-left: 28px;
 }
+/* The web app ships Vollkorn only as Bold/BlackItalic faces — force 700 so the
+ * browser doesn't synthesize a faux italic from a missing regular. */
+.gruene-slide.brand-at.layout-quote .gruene-slide__body {
+  font-weight: 700;
+}
 .gruene-slide.layout-quote.is-dark .gruene-slide__body {
-  border-left-color: #a9d3be;
+  border-left-color: var(--deck-on-dark-soft);
 }
 .gruene-slide.layout-quote.variant-1 .gruene-slide__body {
   border-left: none;
@@ -233,7 +260,7 @@
   border-radius: 999px;
   background: #eaf2ee;
   color: var(--deck-accent);
-  font-family: 'Raleway', sans-serif;
+  font-family: var(--deck-heading-font);
   font-weight: 700;
   font-size: 16px;
   display: flex;

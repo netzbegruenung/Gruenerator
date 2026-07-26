@@ -37,6 +37,7 @@ import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import apiClient from '../../components/utils/apiClient';
 import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
+import { useAuthStore } from '../../stores/authStore';
 import { platformFetch } from '../../utils/platformFetch';
 import { webAppDocsAdapter } from '../docs/docsAdapter';
 import { GuestBadge, GUEST_ANIMALS } from '../docs/GuestBadge';
@@ -68,6 +69,10 @@ function PresentationsEditorContent() {
     ?.presentationTemplate;
   const { user, isAuthResolved } = useAuth({ lazy: true });
   const isGuest = Boolean(isAuthResolved) && !user;
+  // Country brand source: only an authenticated profile locale may stamp the
+  // deck (guests would backfill their browser default onto foreign decks).
+  const authLocale = useAuthStore((s) => s.locale);
+  const userLocale = user ? authLocale : null;
 
   const [searchParams] = useSearchParams();
 
@@ -418,6 +423,8 @@ function PresentationsEditorContent() {
               onCloseDesignPanel={() => setDesignPanelOpen(false)}
               onReady={setEditorApi}
               seedSlides={seedSlides}
+              shortcutsDisabled={presenting || showShareModal}
+              userLocale={userLocale}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center text-sm text-grey-500">

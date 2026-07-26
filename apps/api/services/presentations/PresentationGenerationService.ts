@@ -17,6 +17,8 @@ import { promisify } from 'util';
 import { gunzip, gzip } from 'zlib';
 
 import {
+  isPresentationBrand,
+  type PresentationBrand,
   PRESENTATION_META_KEYS,
   PRESENTATION_SCHEMA_VERSION,
   PRESENTATION_YDOC_KEYS,
@@ -60,7 +62,8 @@ Regeln:
 - Layouts: "title" = Titelfolie, "content" = Titel + Aufzählung, "split" = zweispaltig, "quote" = Zitat, "image" = Bildfolie
 - "body" ist Markdown — nutze "- " für Aufzählungen. Stichpunkte statt Fließtext
 - "notes" sind optionale Sprechernotizen (können leer sein)
-- Erstelle realistische, vollständige Platzhalterinhalte
+- Schreibe jede Folie inhaltlich aus. NIEMALS Platzhalter wie "Kernpunkt 1", "Beispieltitel" oder "hier Inhalt einfügen" — wenn der Auftrag zu einem Punkt nichts hergibt, lass die Folie weg statt sie zu füllen
+- Enthält der Auftrag recherchierte Quellen (Zeilen der Form "[1] Titel <URL> — Auszug"), nutze deren Fakten und schließe mit einer Quellenfolie ab, die Titel und vollständige URL je Quelle nennt
 - Schreibe auf Deutsch mit geschlechtergerechter Sprache (Genderstern *)`;
 
 export interface PresentationStructure {
@@ -202,7 +205,8 @@ function structureToSlides(structure: PresentationStructure): Slide[] {
  */
 export async function createPresentationDocument(
   structure: PresentationStructure,
-  userId: string
+  userId: string,
+  userLocale?: string | null
 ): Promise<{ id: string; title: string }> {
   const db = getPostgresInstance();
   const result = await db.query(
@@ -234,6 +238,9 @@ export async function createPresentationDocument(
       }
       meta.set(PRESENTATION_META_KEYS.seeded, true);
       meta.set(PRESENTATION_META_KEYS.schemaVersion, PRESENTATION_SCHEMA_VERSION);
+      if (isPresentationBrand(userLocale)) {
+        meta.set(PRESENTATION_META_KEYS.brand, userLocale);
+      }
     });
     const compressed = await gzipAsync(Y.encodeStateAsUpdate(ydoc));
     await getDrizzleInstance()
@@ -256,6 +263,10 @@ export interface LoadedPresentationState {
   slides: Slide[];
   /** Deck brand accent colour (CSS color); drives titles, panels, markers. */
   accentColor: string | null;
+  /** Country CI ('de-DE' | 'de-AT') stamped at creation; null on legacy decks. */
+  brand: PresentationBrand | null;
+  /** Render the party logo on title-layout slides (default true). */
+  showLogo: boolean;
 }
 
 /**
@@ -323,17 +334,27 @@ export async function loadPresentationState(
       }
     }
   }
-  if (!hasData) return { id: presentationId, title, slides: [], accentColor: null };
+  if (!hasData)
+    return {
+      id: presentationId,
+      title,
+      slides: [],
+      accentColor: null,
+      brand: null,
+      showLogo: true,
+    };
 
   const slides = ydoc
     .getArray<Y.Map<unknown>>(PRESENTATION_YDOC_KEYS.slides)
     .toArray()
     .map((m) => readSlideYMap(m, ydoc));
-  const metaAccent = ydoc
-    .getMap<unknown>(PRESENTATION_YDOC_KEYS.meta)
-    .get(PRESENTATION_META_KEYS.accentColor);
+  const meta = ydoc.getMap<unknown>(PRESENTATION_YDOC_KEYS.meta);
+  const metaAccent = meta.get(PRESENTATION_META_KEYS.accentColor);
   const accentColor = typeof metaAccent === 'string' ? metaAccent : null;
-  return { id: presentationId, title, slides, accentColor };
+  const metaBrand = meta.get(PRESENTATION_META_KEYS.brand);
+  const brand = isPresentationBrand(metaBrand) ? metaBrand : null;
+  const showLogo = Boolean(meta.get(PRESENTATION_META_KEYS.showLogo) ?? true);
+  return { id: presentationId, title, slides, accentColor, brand, showLogo };
 }
 
 /** Render a loaded deck as a markdown outline for LLM context injection. */
