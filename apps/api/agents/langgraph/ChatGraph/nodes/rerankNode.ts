@@ -19,6 +19,9 @@ import { SOURCE_PREFIX, type ChatGraphState } from '../types.js';
 
 const log = createLogger('ChatGraph:Rerank');
 
+/** Excerpt per candidate handed to the cross-encoder. */
+const RERANK_EXCERPT_CHARS = 1200;
+
 function getSourceTag(source: string): string {
   if (source.startsWith(SOURCE_PREFIX.GRUENERATOR)) return 'Parteidokument';
   if (source.startsWith(SOURCE_PREFIX.DOCUMENT)) return 'Nutzerdokument';
@@ -63,7 +66,11 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
   const items: RerankableItem[] = candidates.map((r) => {
     const item: RerankableItem = {
       title: r.title,
-      content: r.content.slice(0, 300),
+      // The cross-encoder scores THIS text, so the excerpt decides which sources
+      // survive. At 300 chars a crawled page whose relevant passage sits further
+      // in was judged on its boilerplate header — a selection loss that then
+      // propagates into everything downstream.
+      content: r.content.slice(0, RERANK_EXCERPT_CHARS),
       source: r.source,
     };
     if (r.relevance != null) {
