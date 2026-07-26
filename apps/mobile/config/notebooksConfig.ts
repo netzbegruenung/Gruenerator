@@ -91,6 +91,7 @@ export const MOBILE_SYSTEM_NOTEBOOKS: MobileNotebookEntry[] = NOTEBOOK_REGISTRY.
 export const HIDDEN_NOTEBOOK_IDS = [
   'gruenerator-notebook',
   'gruenblog-notebook',
+  'boell-stiftung-notebook',
   // Vorerst ausgeblendet — Kachel wieder einblenden = diese Zeile entfernen.
   'abgeordnetenwatch-notebook',
 ];
