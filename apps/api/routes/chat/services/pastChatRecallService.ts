@@ -311,11 +311,16 @@ export async function getThreadRecallContext(
         [threadId, maxMessages]
       )) as Array<{ role: string; content: string }>;
 
-      transcript = messageRows
+      // The rows arrive newest-first; `.reverse()` restores reading order, so a
+      // head-slice would keep the OLDEST part of the excerpt and drop the most
+      // recent exchange — the exact opposite of what "was hatten wir zuletzt
+      // beschlossen?" needs. Keep the TAIL instead.
+      const ordered = messageRows
         .reverse()
         .map((m) => `[${m.role}] ${m.content}`)
-        .join('\n')
-        .slice(0, maxChars);
+        .join('\n');
+      transcript =
+        ordered.length > maxChars ? `…\n${ordered.slice(ordered.length - maxChars)}` : ordered;
     }
 
     return {
