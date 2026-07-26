@@ -1,10 +1,15 @@
 /**
- * Two things are pinned here.
+ * Three things are pinned here.
  *
  * The rule: the recipient — and nothing else — decides between a document with
  * a letterhead and a DIN 5008 letter. It used to be two menu entries, and the
  * one that skipped the dialog produced the document, so whoever wanted a letter
  * got a sender band and no address field.
+ *
+ * The scope: the dialog asks for the Absender and the Anschrift, because those
+ * two are the only things that have to sit on a prescribed millimetre position.
+ * Betreff, Anrede, Grußformel, Ort and Unterschrift were once fields here; they
+ * are letter text and belong in the document.
  *
  * The promise of `role="dialog"` + `aria-modal`: focus stays inside, Escape
  * closes, focus returns to the opener. Without it a keyboard or screen-reader
@@ -49,6 +54,16 @@ const LETTERHEADS: Letterhead[] = [
   },
 ];
 
+const WRITTEN_LETTER = [
+  'Stadt Musterstadt',
+  'Rathausplatz 1',
+  '12345 Musterstadt',
+  '',
+  'Betreff: Radverkehrskonzept',
+  '',
+  'Sehr geehrte Frau Bürgermeisterin,',
+].join('\n');
+
 function setup(props: Partial<Parameters<typeof PdfExportDialog>[0]> = {}) {
   const onCancel = vi.fn();
   const onSubmit = vi.fn<(result: PdfExportSubmit) => void>();
@@ -56,7 +71,6 @@ function setup(props: Partial<Parameters<typeof PdfExportDialog>[0]> = {}) {
     <PdfExportDialog
       documentTitle="Antrag zum Radverkehr"
       documentText="Ein Absatz ohne Briefmerkmale."
-      defaultSignature="Moritz Wächter"
       letterheads={LETTERHEADS}
       onCancel={onCancel}
       onSubmit={onSubmit}
@@ -87,21 +101,6 @@ describe('PdfExportDialog — layout follows the recipient', () => {
     const result = onSubmit.mock.calls[0]![0];
     expect(result.layout).toBe('letter');
     expect(result.letter?.recipient).toBe('Stadt Musterstadt\n12345 Ort');
-    // Defaults the user never touched still have to travel.
-    expect(result.letter?.subject).toBe('Antrag zum Radverkehr');
-    expect(result.letter?.salutation).toBe('Sehr geehrte Damen und Herren,');
-    expect(result.letter?.signature).toBe('Moritz Wächter');
-  });
-
-  it('hides the DIN fields until there is a recipient', async () => {
-    setup();
-
-    expect(screen.queryByLabelText('Betreff')).not.toBeInTheDocument();
-
-    await userEvent.type(screen.getByLabelText(/Empfänger/), 'Stadt Musterstadt');
-
-    expect(screen.getByLabelText('Betreff')).toBeInTheDocument();
-    expect(screen.getByLabelText('Anrede')).toBeInTheDocument();
   });
 
   it('names the outcome before the file exists', async () => {
@@ -122,19 +121,28 @@ describe('PdfExportDialog — layout follows the recipient', () => {
 
     expect(onSubmit.mock.calls[0]![0].layout).toBe('letterhead');
   });
+});
 
-  it('prefills from the document and opens as a letter', async () => {
-    const { onSubmit } = setup({
-      documentText: [
-        'Stadt Musterstadt',
-        'Rathausplatz 1',
-        '12345 Musterstadt',
-        '',
-        'Betreff: Radverkehrskonzept',
-        '',
-        'Sehr geehrte Frau Bürgermeisterin,',
-      ].join('\n'),
-    });
+describe('PdfExportDialog — the letter text stays in the document', () => {
+  it('asks for the Anschrift and for nothing else', () => {
+    setup({ documentText: WRITTEN_LETTER });
+
+    expect(screen.getByLabelText(/Empfänger/)).toBeInTheDocument();
+    // Diese fünf waren einmal Felder hier. Sie im Export abzufragen hieß, den
+    // Brieftext an zwei Orten zu pflegen.
+    for (const gone of ['Betreff', 'Anrede', 'Grußformel', 'Ort', 'Unterschrift']) {
+      expect(screen.queryByLabelText(gone)).not.toBeInTheDocument();
+    }
+  });
+
+  it('takes the Betreff from the document title', async () => {
+    setup({ documentText: WRITTEN_LETTER, documentTitle: 'Antrag zum Radverkehr' });
+
+    expect(await screen.findByText(/Betreff: „Antrag zum Radverkehr“/)).toBeInTheDocument();
+  });
+
+  it('prefills the address from the document and opens as a letter', async () => {
+    const { onSubmit } = setup({ documentText: WRITTEN_LETTER });
 
     // No typing at all — the document itself supplied the recipient.
     expect(screen.getByText('Brief nach DIN 5008')).toBeInTheDocument();
@@ -142,25 +150,30 @@ describe('PdfExportDialog — layout follows the recipient', () => {
     await userEvent.click(screen.getByRole('button', { name: /Brief erstellen/i }));
 
     const result = onSubmit.mock.calls[0]![0];
-    expect(result.layout).toBe('letter');
-    expect(result.letter?.recipient).toContain('Musterstadt');
-    // Recognised lines are removed by default so they do not appear twice.
+    expect(result.letter?.recipient).toContain('Rathausplatz 1');
+    // Sie zieht ins Anschriftfeld um, steht also nicht mehr im Fließtext.
     expect(result.stripDetected).toBe(true);
   });
 
-  it('never reports stripDetected for a document export', async () => {
-    const { onSubmit } = setup({
-      documentText: ['Stadt Musterstadt', 'Rathausplatz 1', '12345 Musterstadt'].join('\n'),
-    });
+  it('never removes anything from a document export', async () => {
+    const { onSubmit } = setup({ documentText: WRITTEN_LETTER });
 
     await userEvent.clear(screen.getByLabelText(/Empfänger/));
     await userEvent.click(screen.getByRole('button', { name: /PDF erstellen/i }));
 
     const result = onSubmit.mock.calls[0]![0];
     expect(result.layout).toBe('letterhead');
-    // Stripping lines out of a document nobody turned into a letter would
-    // delete content for no reason.
+    // Ohne Anschriftfeld gibt es nichts, was die Zeilen ersetzen würde.
     expect(result.stripDetected).toBe(false);
+  });
+
+  it('never removes an address the document never had', async () => {
+    const { onSubmit } = setup();
+
+    await userEvent.type(screen.getByLabelText(/Empfänger/), 'Stadt Musterstadt\n12345 Ort');
+    await userEvent.click(screen.getByRole('button', { name: /Brief erstellen/i }));
+
+    expect(onSubmit.mock.calls[0]![0].stripDetected).toBe(false);
   });
 });
 
@@ -231,7 +244,6 @@ describe('PdfExportDialog — modal behaviour', () => {
       <PdfExportDialog
         documentTitle="Antrag"
         documentText="Text"
-        defaultSignature=""
         letterheads={LETTERHEADS}
         onCancel={vi.fn()}
         onSubmit={vi.fn()}
