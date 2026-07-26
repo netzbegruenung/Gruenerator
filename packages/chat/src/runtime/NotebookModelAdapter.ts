@@ -3,12 +3,18 @@ import {
   type Citation as ChatCitation,
   type FallbackInfo,
 } from '../hooks/useChatGraphStream';
+import { notifyWarning } from '../lib/notify';
 import { AUTO_MODEL_ID, resolveAutoModel } from '../lib/resolveAutoModel';
 import { parseSSELine } from '../lib/sseParser';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { useAgentStore } from '../stores/chatStore';
 
-import { ChatStreamError, streamErrorMessage } from './streamErrorMessage';
+import {
+  ChatStreamError,
+  errorStatus,
+  streamErrorMessage,
+  STREAM_INTERRUPTED_MESSAGE,
+} from './streamErrorMessage';
 
 import type {
   ChatModelAdapter,
@@ -369,6 +375,15 @@ export function createNotebookModelAdapter(
                 break;
               }
 
+              case 'warning': {
+                // Non-fatal degradation the backend wants the user to know
+                // about. Without this case the event fell into `default:` and
+                // was dropped on every notebook surface.
+                const { message } = data as { code: string; message: string };
+                if (message) notifyWarning(message);
+                break;
+              }
+
               case 'completion': {
                 completionData = data as StreamCompletionData;
                 console.debug(
@@ -484,6 +499,13 @@ export function createNotebookModelAdapter(
         callbacks.onComplete?.(metadata);
         console.debug('[Notebook] ⏱ onComplete callback: %.1fms', performance.now() - tCb0);
         console.debug(`[Notebook] ⏱ Total: ${Math.round(performance.now() - c0)}ms`);
+      } else if (accumulatedText && streamErrorEncountered) {
+        // Partial answer + a stream error: the text must NOT be presented as
+        // finished. Keep it (it is still worth reading), append the
+        // interruption notice, and mark the turn failed so the retry
+        // affordance appears.
+        accumulatedText += `\n\n⚠️ **${STREAM_INTERRUPTED_MESSAGE}**`;
+        yield { ...buildResult(), status: errorStatus(streamErrorEncountered) };
       } else if (accumulatedText) {
         yield buildResult();
       } else if (streamErrorEncountered) {
@@ -492,6 +514,7 @@ export function createNotebookModelAdapter(
         // "keine passende Antwort" fallback.
         yield {
           content: [{ type: 'text' as const, text: streamErrorMessage(streamErrorEncountered) }],
+          status: errorStatus(streamErrorEncountered),
         };
       } else {
         accumulatedText =

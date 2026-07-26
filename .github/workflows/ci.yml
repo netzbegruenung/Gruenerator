@@ -49,6 +49,12 @@ jobs:
       - name: Tour anchors in sync
         run: node scripts/check-tour-anchors.mjs
 
+      # A swallowed error in the chat stack is invisible: the turn looks
+      # successful and the artefact/answer is silently missing. Ratchet against
+      # a baseline — the count may fall, never rise.
+      - name: No new silent error swallows
+        run: node scripts/check-silent-swallows.mjs
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 

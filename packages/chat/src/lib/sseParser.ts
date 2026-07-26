@@ -17,6 +17,10 @@ export interface SSECurrentEvent {
 export interface SSEParseResult {
   event?: string;
   data?: unknown;
+  /** The data line was unparseable JSON — a truncated frame, i.e. exactly what
+   *  a mid-stream cut produces. Callers count these; a run of them means the
+   *  stream is corrupt and must be reported, not silently dropped. */
+  parseError?: boolean;
 }
 
 export function parseSSELine(line: string, currentEvent: SSECurrentEvent): SSEParseResult {
@@ -26,13 +30,16 @@ export function parseSSELine(line: string, currentEvent: SSECurrentEvent): SSEPa
   }
 
   if (line.startsWith('data: ')) {
+    const pendingType = currentEvent.type;
+    // Clear the pending type BEFORE parsing: on a truncated data line the type
+    // used to survive and mislabel the NEXT data line, so a continuation
+    // fragment could be parsed as e.g. `error` or `done`.
+    currentEvent.type = '';
     try {
-      const data = JSON.parse(line.slice(6));
-      const event = currentEvent.type;
-      currentEvent.type = '';
-      return { event, data };
+      return { event: pendingType, data: JSON.parse(line.slice(6)) };
     } catch {
-      return {};
+      console.warn(`[SSE] Unparsable data line for event "${pendingType}":`, line.slice(0, 200));
+      return { parseError: true };
     }
   }
 
