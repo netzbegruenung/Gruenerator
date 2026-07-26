@@ -419,6 +419,7 @@ function PresentationsEditorContent() {
               onCloseDesignPanel={() => setDesignPanelOpen(false)}
               onReady={setEditorApi}
               seedSlides={seedSlides}
+              shortcutsDisabled={presenting || showShareModal}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center text-sm text-grey-500">
