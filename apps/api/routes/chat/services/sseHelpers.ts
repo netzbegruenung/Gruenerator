@@ -32,6 +32,7 @@ import type {
   SocialPostPayload,
   BahnPayload,
   ChatErrorCode,
+  ChatWarningCode,
 } from '@gruenerator/contracts';
 import type { Response } from 'express';
 
@@ -560,13 +561,178 @@ export function sseFail(
  * copy can't drift.
  */
 export function sendSearchDegradedWarning(sse: SSEWriter, resultCount: number): void {
-  sse.send('warning', {
-    code: 'search_degraded',
+  sendChatWarning(
+    sse,
+    'search_degraded',
+    resultCount === 0
+      ? 'Die Quellensuche ist momentan gestört — es konnten keine Quellen abgerufen werden.'
+      : 'Einige Quellen waren nicht erreichbar — die Antwort stützt sich auf unvollständige Suchergebnisse.'
+  );
+}
+
+/**
+ * Per-code metadata for the `warning` SSE event.
+ *
+ * `severity`/`attribution` are not rendered today — they classify the failure
+ * for monitoring and drive future copy decisions (who owns the fix: the user,
+ * the provider, or us).
+ *
+ * IMPORTANT: warning codes are machine vocabulary. Wherever the turn still has
+ * a model available, the degradation is explained by the ANSWER (see
+ * `degradationNotes`), and the warning is only the telemetry signal; `message`
+ * is the curated fallback for the paths where no answer can carry it.
+ *
+ * To add a code: add it to `chatWarningCodeSchema` in @gruenerator/contracts,
+ * then add its spec here — the `satisfies` below fails the build if either
+ * half is missing.
+ */
+interface ChatWarningSpec {
+  message: string;
+  severity: 'info' | 'warning' | 'error';
+  attribution: 'user' | 'provider' | 'system';
+}
+
+export const CHAT_WARNINGS = {
+  search_degraded: {
+    message: 'Einige Quellen waren nicht erreichbar — die Antwort nutzt unvollständige Ergebnisse.',
+    severity: 'warning',
+    attribution: 'provider',
+  },
+  wolke_refs_dropped: {
+    message: 'Einige Wolke-Verweise konnten nicht aufgelöst werden.',
+    severity: 'warning',
+    attribution: 'user',
+  },
+  wolke_check_failed: {
+    message: 'Die Wolke-Verbindung konnte nicht geprüft werden.',
+    severity: 'warning',
+    attribution: 'provider',
+  },
+  doc_creation_failed: {
+    message: 'Das Dokument konnte nicht erstellt werden. Bitte versuche es noch einmal.',
+    severity: 'error',
+    attribution: 'system',
+  },
+  persist_failed: {
     message:
-      resultCount === 0
-        ? 'Die Quellensuche ist momentan gestört — es konnten keine Quellen abgerufen werden.'
-        : 'Einige Quellen waren nicht erreichbar — die Antwort stützt sich auf unvollständige Suchergebnisse.',
-  });
+      'Die Nachricht konnte nicht gespeichert werden — der Verlauf ist möglicherweise unvollständig.',
+    severity: 'error',
+    attribution: 'system',
+  },
+  board_creation_failed: {
+    message: 'Das Board konnte nicht erstellt werden. Bitte versuche es noch einmal.',
+    severity: 'error',
+    attribution: 'system',
+  },
+  task_creation_failed: {
+    message:
+      'Die wiederkehrende Aufgabe konnte nicht eingerichtet werden. Bitte versuche es noch einmal.',
+    severity: 'error',
+    attribution: 'system',
+  },
+  sheet_creation_failed: {
+    message: 'Die Tabelle konnte nicht erstellt werden. Bitte versuche es noch einmal.',
+    severity: 'error',
+    attribution: 'system',
+  },
+  presentation_creation_failed: {
+    message: 'Die Präsentation konnte nicht erstellt werden. Bitte versuche es noch einmal.',
+    severity: 'error',
+    attribution: 'system',
+  },
+  sharepic_failed: {
+    message: 'Das Sharepic konnte nicht erstellt werden — der Text ist trotzdem da.',
+    severity: 'warning',
+    attribution: 'system',
+  },
+  generation_failed: {
+    message: 'Die Erstellung konnte nicht abgeschlossen werden.',
+    severity: 'error',
+    attribution: 'system',
+  },
+  edit_failed: {
+    message: 'Die Bearbeitung konnte nicht ausgeführt werden. Bitte versuche es noch einmal.',
+    severity: 'error',
+    attribution: 'system',
+  },
+  source_unavailable: {
+    message: 'Eine Quelle war nicht erreichbar — die Antwort entstand ohne sie.',
+    severity: 'warning',
+    attribution: 'provider',
+  },
+  rerank_degraded: {
+    message: 'Die Quellenbewertung ist fehlgeschlagen — die Reihenfolge kann ungenauer sein.',
+    severity: 'info',
+    attribution: 'system',
+  },
+  research_plan_failed: {
+    message: 'Die Recherche-Planung ist fehlgeschlagen — es wird direkt gesucht.',
+    severity: 'info',
+    attribution: 'system',
+  },
+  classifier_degraded: {
+    message:
+      'Die Anfrage-Analyse war eingeschränkt — die Antwort nutzt eine vereinfachte Einordnung.',
+    severity: 'info',
+    attribution: 'system',
+  },
+  summary_partial: {
+    message:
+      'Teile des Dokuments konnten nicht geladen werden — die Zusammenfassung ist unvollständig.',
+    severity: 'warning',
+    attribution: 'system',
+  },
+  recall_degraded: {
+    message: 'Frühere Chats konnten nicht durchsucht werden.',
+    severity: 'warning',
+    attribution: 'system',
+  },
+  connect_reauth_required: {
+    message: 'Eine Verbindung ist abgelaufen — bitte in den Einstellungen neu verbinden.',
+    severity: 'warning',
+    attribution: 'user',
+  },
+  mention_context_failed: {
+    message: 'Referenzierte Inhalte konnten nicht geladen werden — Antwort ohne diesen Kontext.',
+    severity: 'warning',
+    attribution: 'system',
+  },
+  extraction_failed: {
+    message: 'Der Text aus einer angehängten Datei konnte nicht gelesen werden.',
+    severity: 'warning',
+    attribution: 'system',
+  },
+  mcp_unreachable: {
+    message: 'Ein verbundener Dienst ist gerade nicht erreichbar.',
+    severity: 'warning',
+    attribution: 'provider',
+  },
+  compute_failed: {
+    message: 'Die Berechnung ist fehlgeschlagen — Zahlen in der Antwort sind ungeprüft.',
+    severity: 'warning',
+    attribution: 'system',
+  },
+  privacy_mode_degraded: {
+    message:
+      'Der Privacy-Modus konnte nicht angewendet werden — es wurde der Standard-Anbieter genutzt.',
+    severity: 'warning',
+    attribution: 'provider',
+  },
+} satisfies Record<ChatWarningCode, ChatWarningSpec>;
+
+/**
+ * Emit a non-fatal degradation warning. No-op once the stream has ended.
+ *
+ * `messageOverride` is for codes whose copy names a concrete subject (the
+ * unavailable source, the expired provider); otherwise the spec's copy is used.
+ */
+export function sendChatWarning(
+  sse: SSEWriter,
+  code: ChatWarningCode,
+  messageOverride?: string
+): void {
+  if (sse.isEnded()) return;
+  sse.send('warning', { code, message: messageOverride ?? CHAT_WARNINGS[code].message });
 }
 
 /**

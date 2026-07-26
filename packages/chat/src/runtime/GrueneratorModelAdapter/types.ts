@@ -108,6 +108,10 @@ export interface StreamOutcome {
   interrupted: boolean;
   lastResult?: ChatModelRunResult;
   indexedDocumentIds: string[];
+  /** Whether the backend's terminal event (`done`/`completion`) arrived. False
+   *  means the stream just closed — the rendered answer is incomplete even
+   *  though it looks finished, so the adapter marks the turn failed. */
+  completed?: boolean;
   /** A client_tool interrupt the ModelAdapter must auto-execute (clientTools
    *  registry) and resume with — set instead of `interrupted`, which is
    *  reserved for manual human-in-the-loop interrupts (ask_human). threadId is
