@@ -44,6 +44,7 @@ import {
   type Citation,
   type ResearchToolResult,
   type ExamplesToolResult,
+  type SearchErrorEntry,
 } from '../types.js';
 
 import {
@@ -368,7 +369,7 @@ export function getSupplementaryCollectionsForLocale(locale: string | undefined)
 export interface DocumentSearchParallelResult {
   results: SearchResult[];
   searchedCollections: string[];
-  errors: { source: string; message: string }[];
+  errors: SearchErrorEntry[];
 }
 
 export async function executeDocumentSearchParallel(
@@ -404,7 +405,7 @@ export async function executeDocumentSearchParallel(
   // (the collection's defaultFilter already handles this)
   const searchFilters = filters || undefined;
 
-  const collectedErrors: { source: string; message: string }[] = [];
+  const collectedErrors: SearchErrorEntry[] = [];
   const searchPromises = uniqueCollections.flatMap((collection) =>
     queries.map((sq) => {
       const params: Parameters<typeof executeDirectSearch>[0] = {
@@ -451,9 +452,22 @@ export async function executeDocumentSearchParallel(
   }
 
   allResults.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
-  // Only surface errors when the source produced zero usable results.
-  // Partial failures (some collections OK, some failed) are already logged as warns.
-  const errors = allResults.length === 0 ? collectedErrors : [];
+  // Report a collection only when EVERY one of its queries failed — that
+  // corpus contributed nothing and the answer is missing it entirely.
+  // Previously all partial failures were dropped as soon as any other
+  // collection returned something, so an answer built on a quarter of the
+  // corpus looked complete. Per-query failures within a still-working
+  // collection stay warns: the corpus was reached, one phrasing missed.
+  const failuresPerCollection = new Map<string, number>();
+  for (const err of collectedErrors) {
+    failuresPerCollection.set(err.source, (failuresPerCollection.get(err.source) ?? 0) + 1);
+  }
+  const errors =
+    allResults.length === 0
+      ? collectedErrors
+      : collectedErrors.filter(
+          (err) => (failuresPerCollection.get(err.source) ?? 0) >= queries.length
+        );
   return {
     results: allResults.slice(0, FANIN_CANDIDATE_LIMIT),
     searchedCollections: uniqueCollections,
@@ -466,14 +480,14 @@ export async function executeDocumentSearchParallel(
  */
 export interface WebSearchParallelResult {
   results: SearchResult[];
-  errors: { source: string; message: string }[];
+  errors: SearchErrorEntry[];
 }
 
 export async function executeWebSearchParallel(
   query: string,
   aiWorkerPool: AIWorkerPool
 ): Promise<WebSearchParallelResult> {
-  const collectedErrors: { source: string; message: string }[] = [];
+  const collectedErrors: SearchErrorEntry[] = [];
   let allWebQueries = [query];
   try {
     const expanded = await expandQuery(query, aiWorkerPool);
@@ -589,7 +603,7 @@ export function mergeSearchResults(...resultSets: SearchResult[][]): SearchResul
 export interface MultiDocFanoutResult {
   perSourceResults: Record<string, SearchResult[]>;
   searchedCollections: string[];
-  errors: { source: string; message: string }[];
+  errors: SearchErrorEntry[];
 }
 
 export async function executeMultiDocFanout(
@@ -598,7 +612,7 @@ export async function executeMultiDocFanout(
   agentConfig: AgentConfig
 ): Promise<MultiDocFanoutResult> {
   const perSourceLimit = Math.max(3, Math.floor(12 / sources.length));
-  const errors: { source: string; message: string }[] = [];
+  const errors: SearchErrorEntry[] = [];
   const collections = new Set<string>();
 
   const documentSearchService = (
@@ -644,8 +658,14 @@ export async function executeMultiDocFanout(
           log.warn(`[Search] Skipping wolke source ${src.id}: no userId on agentConfig`);
           return [src.id, []];
         }
-        const results = await retrieveWolkeFile(src, perSourceLimit, agentConfig.userId);
-        return [src.id, results];
+        const wolkeResult = await retrieveWolkeFile(src, perSourceLimit, agentConfig.userId);
+        if (wolkeResult.error) {
+          errors.push({
+            source: `${SOURCE_PREFIX.WOLKE}${src.id}`,
+            message: wolkeResult.error.message,
+          });
+        }
+        return [src.id, wolkeResult.results];
       }
 
       if (src.kind === 'connect') {
@@ -654,8 +674,18 @@ export async function executeMultiDocFanout(
           log.warn(`[Search] Skipping connect source ${src.id}: no userId on agentConfig`);
           return [src.id, []];
         }
-        const results = await retrieveConnectFile(src, perSourceLimit, agentConfig.userId);
-        return [src.id, results];
+        const connectResult = await retrieveConnectFile(src, perSourceLimit, agentConfig.userId);
+        if (connectResult.error) {
+          errors.push({
+            source: `${SOURCE_PREFIX.CONNECT}${src.id}`,
+            message: connectResult.error.message,
+            // Expired OAuth grant: the user can fix this one, so it must stay
+            // distinguishable all the way to the emitter (which picks
+            // connect_reauth_required over the generic source_unavailable).
+            ...(connectResult.error.reauth === true && { reauth: true }),
+          });
+        }
+        return [src.id, connectResult.results];
       }
 
       if (src.kind === 'notebook' && src.collectionIds && src.collectionIds.length > 0) {
@@ -751,6 +781,11 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     let searchedCollections: string[] = [];
     let researchMeta: ResearchToolResult | null = null;
     let examplesResult: ExamplesToolResult | null = null;
+    // Backend failures on the single-source paths. The multi-source paths have
+    // collected these all along; here they were only logged, so a Qdrant or
+    // SearXNG outage reached the user as "0 Treffer" — and the model then
+    // confidently said there is nothing on the topic.
+    const singleSourceErrors: SearchErrorEntry[] = [];
 
     const searchSources = state.searchSources || [];
     const documentSources = state.documentSources || [];
@@ -808,7 +843,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       type SourceResult = {
         results: SearchResult[];
         collections: string[];
-        errors: { source: string; message: string }[];
+        errors: SearchErrorEntry[];
       };
       const sourcePromises: Promise<SourceResult>[] = [];
 
@@ -1041,9 +1076,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             }
             searchedCollections.push('documentchat');
           } catch (err: unknown) {
-            log.warn(
-              `[Search] Document-chat search failed: ${err instanceof Error ? err.message : String(err)}`
-            );
+            const msg = err instanceof Error ? err.message : String(err);
+            log.warn(`[Search] Document-chat search failed: ${msg}`);
+            singleSourceErrors.push({ source: 'documents:documentchat', message: msg });
           }
           break;
         }
@@ -1102,9 +1137,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             }
             searchedCollections.push(fromUserNotebook ? 'user-notebook' : 'user-documents');
           } catch (err: unknown) {
-            log.warn(
-              `[Search] Document-scoped search failed: ${err instanceof Error ? err.message : String(err)}`
-            );
+            const msg = err instanceof Error ? err.message : String(err);
+            log.warn(`[Search] Document-scoped search failed: ${msg}`);
+            singleSourceErrors.push({ source: 'documents:scoped', message: msg });
           }
           break;
         }
@@ -1176,9 +1211,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
               params.filters = detectedFilters;
             }
             return executeDirectSearch(params).catch((err: unknown) => {
-              log.warn(
-                `[Search] Collection ${collection} failed for query "${sq}": ${err instanceof Error ? err.message : String(err)}`
-              );
+              const msg = err instanceof Error ? err.message : String(err);
+              log.warn(`[Search] Collection ${collection} failed for query "${sq}": ${msg}`);
+              singleSourceErrors.push({ source: `documents:${collection}`, message: msg });
               return null;
             });
           })
@@ -1341,9 +1376,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             searchType: 'general',
             maxResults: 5,
           }).catch((err: unknown) => {
-            log.warn(
-              `[Search] Web search failed for variant "${q}": ${err instanceof Error ? err.message : String(err)}`
-            );
+            const msg = err instanceof Error ? err.message : String(err);
+            log.warn(`[Search] Web search failed for variant "${q}": ${msg}`);
+            singleSourceErrors.push({ source: 'web', message: msg });
             return null;
           })
         );
@@ -1571,6 +1606,12 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       researchMeta,
       examplesResult,
       ...(searchedCollections.length > 0 && { searchedCollections }),
+      // Only when the turn ends up with nothing: a backend failure that still
+      // left usable results is a warn, not a user-facing degradation. With
+      // zero results the distinction is exactly what the user needs — "there
+      // is nothing on this" versus "the search never ran".
+      ...(results.length === 0 &&
+        singleSourceErrors.length > 0 && { searchErrors: singleSourceErrors }),
     };
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : String(error);
