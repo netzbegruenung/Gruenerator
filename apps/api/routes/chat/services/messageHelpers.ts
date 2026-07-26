@@ -90,9 +90,6 @@ export function estimateRequestTokens(systemMessage: string, messages: readonly 
  */
 const RETRIEVAL_WINDOW_SHARE = 0.15;
 
-/** Rough chars-per-token for German prose plus JSON scaffolding. */
-const CHARS_PER_TOKEN = 3.5;
-
 /**
  * Character budget for retrieved context on a given model.
  *
