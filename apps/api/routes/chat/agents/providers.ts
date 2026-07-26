@@ -73,7 +73,13 @@ export interface ModelConfigOverflow {
   kind: 'overflow';
   primary: { provider: 'litellm'; model: string };
   overflow: { provider: 'regolo'; model: string };
+  /** Window of the PRIMARY (Verdigado) side — the conservative one. */
   contextWindow: number;
+  /** Window of the OVERFLOW (Regolo) side, which is hosted and serves the full
+   *  model context. Kept separate because one config drives two very differently
+   *  sized backends: reporting the primary's window while actually running on
+   *  Regolo would prune away context the request could have carried. */
+  overflowContextWindow: number;
 }
 
 export type ModelConfig = ModelConfigSingle | ModelConfigOverflow;
@@ -98,9 +104,9 @@ const GPT_OSS_OVERFLOW: ModelConfigOverflow = {
   primary: { provider: 'litellm', model: 'verdigado-pro' },
   overflow: { provider: 'regolo', model: 'gpt-oss-120b' },
   // Bounded by the Verdigado PRIMARY, not the Regolo overflow: one config
-  // serves both, and the primary truncates silently. Size-aware routing to the
-  // larger sibling is a follow-up.
+  // serves both, and the primary truncates silently.
   contextWindow: CTX_VERDIGADO,
+  overflowContextWindow: CTX_FULL,
 };
 
 const GEMMA_4_OVERFLOW: ModelConfigOverflow = {
@@ -108,6 +114,7 @@ const GEMMA_4_OVERFLOW: ModelConfigOverflow = {
   primary: { provider: 'litellm', model: 'verdigado-think' },
   overflow: { provider: 'regolo', model: 'gemma4-31b' },
   contextWindow: CTX_VERDIGADO,
+  overflowContextWindow: CTX_FULL,
 };
 
 export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
@@ -208,7 +215,14 @@ export interface ResolvedModelTuple {
  */
 export async function resolveModelTuple(
   modelId: string,
-  requestId: string
+  requestId: string,
+  opts?: {
+    /** Skip the Verdigado slot and go straight to the hosted Regolo side.
+     *  Set for turns whose input is too large for the primary's window — see
+     *  {@link VERDIGADO_INPUT_LIMIT}. Without this the request would be pruned
+     *  down to the small lane's budget even though a bigger lane was free. */
+    preferOverflow?: boolean;
+  }
 ): Promise<ResolvedModelTuple | null> {
   const config = AVAILABLE_MODELS[modelId];
   if (!config) return null;
@@ -235,6 +249,15 @@ export async function resolveModelTuple(
     return result;
   }
 
+  if (opts?.preferOverflow) {
+    return {
+      provider: config.overflow.provider,
+      model: config.overflow.model,
+      contextWindow: config.overflowContextWindow,
+      sibling: { provider: config.primary.provider, model: config.primary.model },
+    };
+  }
+
   const acquired = await tryAcquireVerdigadoSlot(requestId);
   if (acquired) {
     return {
@@ -248,7 +271,7 @@ export async function resolveModelTuple(
   return {
     provider: config.overflow.provider,
     model: config.overflow.model,
-    contextWindow: config.contextWindow,
+    contextWindow: config.overflowContextWindow,
     sibling: { provider: config.primary.provider, model: config.primary.model },
   };
 }
