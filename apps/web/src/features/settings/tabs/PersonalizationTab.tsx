@@ -2,7 +2,6 @@ import { Button, toast } from '@gruenerator/ui';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 
-import LetterheadsSection from './LetterheadsSection';
 import RolesSection from './RolesSection';
 
 import Spinner from '@/components/common/Spinner';
@@ -93,7 +92,6 @@ const CustomPromptSection = () => {
 const PersonalizationTab = () => (
   <div className="flex flex-col gap-xl">
     <CustomPromptSection />
-    <LetterheadsSection />
     <RolesSection />
   </div>
 );
