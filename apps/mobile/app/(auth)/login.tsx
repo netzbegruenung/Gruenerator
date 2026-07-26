@@ -155,18 +155,21 @@ export default function LoginScreen() {
           {loginOpen ? (
             <View style={styles.cta}>
               <PillButton
+                testID="login-source-detected"
                 label={`Ja, ${COUNTRY_LABEL[detected]}`}
                 loading={loadingSource === COUNTRY_SOURCE[detected]}
                 disabled={isLoading}
                 onPress={() => startLogin(COUNTRY_SOURCE[detected])}
               />
               <PillButton
+                testID="login-source-other"
                 label={`Nein, ${COUNTRY_LABEL[other(detected)]}`}
                 loading={loadingSource === COUNTRY_SOURCE[other(detected)]}
                 disabled={isLoading}
                 onPress={() => startLogin(COUNTRY_SOURCE[other(detected)])}
               />
               <Pressable
+                testID="login-source-netzbegruenung"
                 onPress={() => startLogin('netzbegruenung-login')}
                 disabled={isLoading}
                 style={styles.ghost}
@@ -191,6 +194,7 @@ export default function LoginScreen() {
           ) : (
             <View style={styles.cta}>
               <PillButton
+                testID="login-open"
                 label="Login"
                 icon="lock-closed"
                 disabled={isLoading}
@@ -230,15 +234,18 @@ function PillButton({
   loading = false,
   disabled = false,
   onPress,
+  testID,
 }: {
   label: string;
   icon?: 'lock-closed';
   loading?: boolean;
   disabled?: boolean;
   onPress: () => void;
+  testID?: string;
 }) {
   return (
     <Pressable
+      testID={testID}
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [

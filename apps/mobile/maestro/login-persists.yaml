@@ -1,0 +1,29 @@
+# The session survives a full app restart.
+#
+# Regression guard for `83a96bd76 persist login across restarts; harden session
+# restore`. The failure mode was subtle: the app looked logged in until it was
+# killed and relaunched, at which point session restore dropped the user back at
+# the login screen.
+#
+# Note this asserts the *restore* path, not the Keycloak round-trip — the dev
+# bypass stands in for the identity provider. Run without
+# EXPO_PUBLIC_DEV_AUTH_BYPASS to confirm the flow really passes through the gate
+# rather than around it: it must then fail at the first assertion.
+appId: de.gruenerator.app
+---
+- launchApp:
+    clearState: true
+    stopApp: true
+
+- assertVisible: 'Chat'
+- assertNotVisible:
+    id: 'login-open'
+
+# Kill and relaunch WITHOUT clearing state — the stored session must survive.
+- stopApp
+- launchApp:
+    clearState: false
+
+- assertVisible: 'Chat'
+- assertNotVisible:
+    id: 'login-open'

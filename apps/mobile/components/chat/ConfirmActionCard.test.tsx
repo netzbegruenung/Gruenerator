@@ -1,5 +1,10 @@
-import { confirmChatAction } from '@gruenerator/chat';
+/* eslint-disable import-x/order -- `@jest/globals` MUST stay the first import.
+   babel-plugin-jest-hoist lifts the `jest.mock` call below above the other
+   requires; only a `@jest/globals` require that already precedes it survives
+   that move. Sorted alphabetically (after `@gruenerator/*`) the factory blows up
+   with "Cannot read properties of undefined (reading 'jest')". */
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { confirmChatAction } from '@gruenerator/chat';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import { ActivityIndicator } from 'react-native';
