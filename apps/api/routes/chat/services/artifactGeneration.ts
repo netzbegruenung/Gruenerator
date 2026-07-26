@@ -119,10 +119,18 @@ export async function runPdfGeneration(opts: {
   const structure = generated.data;
   onCommit?.();
 
+  const isLetter = structure.kind === 'letter' || pdfOptions.documentKind === 'letter';
+
+  // Der gespeicherte Briefkopf gilt auch hier. Das fehlte: der Chat-Pfad hat
+  // nur den Profilnamen gesetzt, also stand auf einem per Chat erzeugten Brief
+  // weder Organisation noch Anschrift — und die Versandoptionen aus den
+  // Einstellungen griffen gar nicht.
+  const { resolveLetterheadOptions } = await import('../../exports/letterheadSender.js');
+  const letterhead = await resolveLetterheadOptions(userId);
+
   // Sender defaults to the profile display name so a letterhead never renders
   // an empty Absender block.
-  let sender = pdfOptions.sender ?? null;
-  const isLetter = structure.kind === 'letter' || pdfOptions.documentKind === 'letter';
+  let sender = pdfOptions.sender ?? letterhead.sender;
   if (isLetter && !sender?.name && !sender?.organization) {
     const profileName = await resolveSharepicAuthorName(userId);
     if (profileName) sender = { ...sender, name: profileName };
@@ -132,6 +140,10 @@ export async function runPdfGeneration(opts: {
     userId,
     locale: pdfOptions.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
     sender,
+    dispatchMode: letterhead.dispatchMode,
+    returnLine: letterhead.returnLine,
+    foldMarks: letterhead.foldMarks,
+    stationery: letterhead.stationery,
   });
 }
 

@@ -37,6 +37,16 @@ function toResponse(row: UserLetterheadRow) {
     label: row.label,
     organization: row.organization,
     address: row.address,
+    // Die Spalte ist TEXT mit Check-Constraint, das Enum lebt im Zod-Schema.
+    // Der Fallback greift nur bei einer von Hand verbogenen Zeile — ts-rest
+    // würde die Antwort sonst als ungültig verwerfen.
+    dispatch_mode:
+      row.dispatch_mode === 'direktfrankierung'
+        ? ('direktfrankierung' as const)
+        : ('fensterkuvert' as const),
+    show_return_line: row.show_return_line,
+    show_fold_marks: row.show_fold_marks,
+    stationery_file: row.stationery_file,
     is_default: row.is_default,
     created_at: row.created_at,
     updated_at: row.updated_at,

@@ -19,11 +19,25 @@ export const letterheadAddressSchema = z
   .max(300)
   .refine((v) => v.split('\n').length <= 3, 'höchstens 3 Zeilen');
 
+/**
+ * Wie der Brief das Haus verlässt. Die DIN-5008-Geometrie ist für beide Wege
+ * dieselbe; unterschiedlich ist nur, ob oben rechts 74 × 40 mm für Freimachung
+ * und Matchcode freibleiben müssen. Im Fensterkuvert kommt beides aufs Kuvert,
+ * das Blatt darf dort also bedruckt sein.
+ */
+export const letterheadDispatchModeSchema = z.enum(['fensterkuvert', 'direktfrankierung']);
+export type LetterheadDispatchMode = z.infer<typeof letterheadDispatchModeSchema>;
+
 export const letterheadSchema = z.object({
   id: z.string(),
   label: z.string(),
   organization: z.string().nullable(),
   address: z.string().nullable(),
+  dispatch_mode: letterheadDispatchModeSchema,
+  show_return_line: z.boolean(),
+  show_fold_marks: z.boolean(),
+  /** Dateiname des hochgeladenen Briefbogens, null wenn das CI-Layout gilt. */
+  stationery_file: z.string().nullable(),
   is_default: z.boolean(),
   created_at: z.union([z.string(), z.date()]),
   updated_at: z.union([z.string(), z.date()]),
@@ -34,6 +48,9 @@ export const letterheadCreateBodySchema = z.object({
   label: letterheadLabelSchema,
   organization: letterheadOrganizationSchema.optional(),
   address: letterheadAddressSchema.optional(),
+  dispatch_mode: letterheadDispatchModeSchema.optional(),
+  show_return_line: z.boolean().optional(),
+  show_fold_marks: z.boolean().optional(),
   is_default: z.boolean().optional(),
 });
 
