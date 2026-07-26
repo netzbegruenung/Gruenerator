@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 
+import { notifyError } from '../lib/notify';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { useSharepicLiveStore } from '../stores/sharepicLiveStore';
 
@@ -130,7 +131,11 @@ export function useSliderDeckArtifact(variant: SharepicVariant) {
     if (versions) return versions;
     const fetchVersions = useChatConfigStore.getState().fetchSharepicVersions;
     if (!canvasId || !fetchVersions) return [];
-    const list = await fetchVersions(canvasId).catch(() => []);
+    const list = await fetchVersions(canvasId).catch((err) => {
+      console.warn('[useSliderDeckArtifact] Versionen laden fehlgeschlagen:', err);
+      notifyError('Versionen konnten nicht geladen werden');
+      return [];
+    });
     const entries = list.map((v) => ({ version: v.version, summary: v.summary }));
     setVersions(entries);
     return entries;
@@ -175,7 +180,11 @@ export function useSliderDeckArtifact(variant: SharepicVariant) {
       }
       const fetchVersionState = useChatConfigStore.getState().fetchSharepicVersionState;
       if (!fetchVersionState) return;
-      const state = await fetchVersionState(canvasId, target.version).catch(() => null);
+      const state = await fetchVersionState(canvasId, target.version).catch((err) => {
+        console.warn('[useSliderDeckArtifact] Version anzeigen fehlgeschlagen:', err);
+        notifyError('Version konnte nicht angezeigt werden');
+        return null;
+      });
       const versionPages = extractVersionPages(state);
       if (versionPages) {
         versionPagesCache.current.set(target.version, versionPages);
@@ -190,7 +199,11 @@ export function useSliderDeckArtifact(variant: SharepicVariant) {
     if (!canvasId || viewVersion == null) return;
     const restore = useChatConfigStore.getState().restoreSharepicVersion;
     if (!restore) return;
-    const result = await restore(canvasId, viewVersion).catch(() => null);
+    const result = await restore(canvasId, viewVersion).catch((err) => {
+      console.warn('[useSliderDeckArtifact] Version wiederherstellen fehlgeschlagen:', err);
+      notifyError('Version konnte nicht wiederhergestellt werden');
+      return null;
+    });
     if (result) {
       const restoredPages = extractVersionPages(result.state);
       useSharepicLiveStore.getState().upsertEntry(variant.id, {
@@ -233,6 +246,7 @@ export function useSliderDeckArtifact(variant: SharepicVariant) {
       if (images.length > 0) await zip(images, variant.canvasType);
     } catch (err) {
       console.warn('[useSliderDeckArtifact] ZIP-Export fehlgeschlagen:', err);
+      notifyError('ZIP-Export fehlgeschlagen');
     } finally {
       setIsExporting(false);
     }

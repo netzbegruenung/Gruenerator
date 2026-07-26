@@ -119,10 +119,18 @@ export async function runPdfGeneration(opts: {
   const structure = generated.data;
   onCommit?.();
 
+  const isLetter = structure.kind === 'letter' || pdfOptions.documentKind === 'letter';
+
+  // Der gespeicherte Briefkopf gilt auch hier. Das fehlte: der Chat-Pfad hat
+  // nur den Profilnamen gesetzt, also stand auf einem per Chat erzeugten Brief
+  // weder Organisation noch Anschrift — und die Versandoptionen aus den
+  // Einstellungen griffen gar nicht.
+  const { resolveLetterheadOptions } = await import('../../exports/letterheadSender.js');
+  const letterhead = await resolveLetterheadOptions(userId);
+
   // Sender defaults to the profile display name so a letterhead never renders
   // an empty Absender block.
-  let sender = pdfOptions.sender ?? null;
-  const isLetter = structure.kind === 'letter' || pdfOptions.documentKind === 'letter';
+  let sender = pdfOptions.sender ?? letterhead.sender;
   if (isLetter && !sender?.name && !sender?.organization) {
     const profileName = await resolveSharepicAuthorName(userId);
     if (profileName) sender = { ...sender, name: profileName };
@@ -132,6 +140,10 @@ export async function runPdfGeneration(opts: {
     userId,
     locale: pdfOptions.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
     sender,
+    dispatchMode: letterhead.dispatchMode,
+    returnLine: letterhead.returnLine,
+    foldMarks: letterhead.foldMarks,
+    stationery: letterhead.stationery,
   });
 }
 
@@ -383,7 +395,17 @@ export async function createDocumentArtifact(opts: {
   }
 
   onCommit?.();
-  const subtype = subtypeOverride || generated.subtype;
+  // The override wins over the generator's own (validated) subtype, so it must
+  // be validated too — it originates from the classifier, which can hallucinate
+  // a plausible-but-invalid value. An unknown override is dropped rather than
+  // used, leaving the generator's choice in place.
+  const { GENERATED_DOC_SUBTYPES } = await import('../../../services/docs/DocGenerationService.js');
+  const overrideIsValid =
+    subtypeOverride != null && GENERATED_DOC_SUBTYPES.includes(subtypeOverride);
+  if (subtypeOverride && !overrideIsValid) {
+    log.warn(`[ChatGraph] Ignoring invalid document subtype override "${subtypeOverride}"`);
+  }
+  const subtype = overrideIsValid ? subtypeOverride : generated.subtype;
   const doc = await createDocumentWithContent(generated.title, generated.content, subtype, userId);
   return { documentId: doc.id, title: generated.title, subtype, url: `/office/${doc.id}` };
 }

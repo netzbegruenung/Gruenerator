@@ -163,6 +163,18 @@ export const SOURCE_PREFIX = {
 } as const;
 
 /**
+ * One retrieval failure. `reauth` marks the subset the user can actually fix
+ * (an expired OAuth connection) — that needs a different message than "try
+ * again later", so it must survive the trip to the emitter rather than being
+ * folded into the message text.
+ */
+export interface SearchErrorEntry {
+  source: string;
+  message: string;
+  reauth?: boolean;
+}
+
+/**
  * True when a searchErrors entry means a search backend was unreachable
  * (Qdrant collection, web search, whole-search catch) — as opposed to soft
  * LLM-stage failures (briefGenerator/qualityGate/rerank) that also append to
@@ -171,6 +183,71 @@ export const SOURCE_PREFIX = {
 export function isSourceAvailabilityError(entry: { source: string }): boolean {
   return (
     entry.source === 'web' || entry.source === 'search' || entry.source.startsWith('documents:')
+  );
+}
+
+/**
+ * Prefixes used for per-source failures in the multi-doc fan-out — a file the
+ * user explicitly attached or @-mentioned that could not be read.
+ *
+ * Deliberately NOT folded into isSourceAvailabilityError: that one drives the
+ * generic "die Quellensuche ist gestört" copy, while these name a specific
+ * source and belong in a message that says WHICH one was missing. They were
+ * collected all along and then filtered out by that predicate, so nobody ever
+ * heard about them.
+ */
+const UNAVAILABLE_SOURCE_PREFIXES = ['wolke:', 'connect:', 'doc_mention:', 'notebook:'] as const;
+
+export function isNamedSourceUnavailable(entry: { source: string }): boolean {
+  return UNAVAILABLE_SOURCE_PREFIXES.some((p) => entry.source.startsWith(p));
+}
+
+/**
+ * Split search failures into the kinds that need different wording:
+ * `coreDegraded` — the search backends themselves were unreachable;
+ * `unavailableSources` — specific attached/mentioned files could not be read;
+ * `needsReauth` — of those, the ones the user can fix by reconnecting.
+ */
+export function partitionSearchErrors(errors: SearchErrorEntry[] | undefined): {
+  coreDegraded: boolean;
+  unavailableSources: string[];
+  needsReauth: boolean;
+} {
+  if (!errors || errors.length === 0) {
+    return { coreDegraded: false, unavailableSources: [], needsReauth: false };
+  }
+  const named = errors.filter(isNamedSourceUnavailable);
+  return {
+    coreDegraded: errors.some(isSourceAvailabilityError),
+    unavailableSources: [...new Set(named.map((e) => e.source))],
+    needsReauth: named.some((e) => e.reauth === true),
+  };
+}
+
+/**
+ * One degradation the answer must disclose.
+ *
+ * `code` doubles as the SSE warning code (telemetry); `modelHint` is the
+ * sentence handed to the model. Keeping both on one object is what stops the
+ * two channels from drifting — the user hears about exactly what was logged.
+ */
+export interface DegradationNote {
+  code: string;
+  modelHint: string;
+}
+
+/**
+ * Render the notes as a system-prompt block. Returns '' when nothing degraded,
+ * so callers can append unconditionally.
+ */
+export function renderDegradationNotes(notes: DegradationNote[] | undefined): string {
+  if (!notes || notes.length === 0) return '';
+  const lines = notes.map((n) => `- ${n.modelHint}`).join('\n');
+  return (
+    `\n\n## HINWEIS: EINGESCHRÄNKTER TURN\n\n` +
+    `Folgendes hat in diesem Durchgang NICHT funktioniert:\n${lines}\n\n` +
+    `Sag der*dem Nutzer*in in deiner Antwort transparent, was nicht geklappt hat. ` +
+    `Behaupte NICHT, etwas sei erledigt, das fehlgeschlagen ist, und erfinde keine Ergebnisse.`
   );
 }
 
@@ -619,9 +696,22 @@ export interface ChatGraphState {
   // failures (briefGenerator, qualityGate, rerank) also append here but say
   // nothing about source availability — filter with isSourceAvailabilityError
   // before telling anyone the sources were down.
-  searchErrors: { source: string; message: string }[];
+  searchErrors: SearchErrorEntry[];
   briefGenerationFailed: boolean;
   rerankFailed: boolean;
+  /** LLM classification failed and the heuristic took over — same turn, worse
+   *  routing (no multi-source search, no metadata filters). */
+  classifierDegraded?: boolean;
+
+  /**
+   * Degradations the ANSWER must own up to.
+   *
+   * A warning event is telemetry; it does not stop the model from confidently
+   * presenting a degraded turn as a complete one. These notes are rendered into
+   * the system prompt so the reply itself says what was missing — the same
+   * mechanism the unreachable-sources block uses, generalised.
+   */
+  degradationNotes: DegradationNote[];
 
   // Image generation
   imagePrompt: string | null;

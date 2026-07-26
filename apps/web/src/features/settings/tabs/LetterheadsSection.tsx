@@ -7,21 +7,83 @@
  */
 
 import { Button, toast, useConfirm } from '@gruenerator/ui';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { useRef, useState } from 'react';
 
+import { SettingsCardsSkeleton } from '../components/SettingsSkeleton';
 import {
   letterheadApi,
+  letterheadsQuery,
   LETTERHEADS_QUERY_KEY,
   type Letterhead,
+  type LetterheadDispatchMode,
   type LetterheadInput,
 } from '../letterheadApi';
+
+export const prefetch = (queryClient: QueryClient) => {
+  void queryClient.prefetchQuery(letterheadsQuery);
+};
 
 const FIELD =
   'w-full rounded-md border border-grey-300 bg-input-bg p-sm text-sm text-foreground placeholder:text-grey-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-grey-600';
 const LABEL = 'text-xs font-medium text-grey-600 dark:text-grey-300';
 
-const EMPTY: LetterheadInput = { label: '', organization: '', address: '' };
+const EMPTY: LetterheadInput = {
+  label: '',
+  organization: '',
+  address: '',
+  dispatch_mode: 'fensterkuvert',
+  show_return_line: true,
+  show_fold_marks: true,
+};
+
+/**
+ * Die Brief-Geometrie folgt DIN 5008 und gilt für jeden Versanddienst. Was sich
+ * zwischen ihnen unterscheidet, steht hier — deshalb ist es einstellbar und
+ * keine Konstante im Renderer.
+ */
+const DISPATCH_MODES: { value: LetterheadDispatchMode; label: string; hint: string }[] = [
+  {
+    value: 'fensterkuvert',
+    label: 'Fensterkuvert',
+    hint: 'Freimachung kommt aufs Kuvert. Das Blatt darf oben rechts bedruckt sein.',
+  },
+  {
+    value: 'direktfrankierung',
+    label: 'Direkt aufs Blatt frankiert',
+    hint: 'Oben rechts bleiben 74 × 40 mm für Freimachung und Matchcode frei.',
+  },
+];
+
+function Checkbox({
+  id,
+  checked,
+  label,
+  hint,
+  onChange,
+}: {
+  id: string;
+  checked: boolean;
+  label: string;
+  hint: string;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <div className="flex items-start gap-xs">
+      <input
+        id={id}
+        type="checkbox"
+        className="mt-1"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <label htmlFor={id} className="flex flex-col">
+        <span className="text-sm text-foreground">{label}</span>
+        <span className="text-xs text-grey-500 dark:text-grey-400">{hint}</span>
+      </label>
+    </div>
+  );
+}
 
 function LetterheadForm({
   initial,
@@ -39,6 +101,11 @@ function LetterheadForm({
   const [label, setLabel] = useState(initial.label);
   const [organization, setOrganization] = useState(initial.organization ?? '');
   const [address, setAddress] = useState(initial.address ?? '');
+  const [dispatchMode, setDispatchMode] = useState<LetterheadDispatchMode>(
+    initial.dispatch_mode ?? 'fensterkuvert'
+  );
+  const [returnLine, setReturnLine] = useState(initial.show_return_line ?? true);
+  const [foldMarks, setFoldMarks] = useState(initial.show_fold_marks ?? true);
 
   return (
     <div className="flex flex-col gap-sm rounded-md border border-grey-200 p-sm dark:border-grey-700">
@@ -87,6 +154,42 @@ function LetterheadForm({
           Eine Zeile je Adresszeile, höchstens drei. Dein Anzeigename wird automatisch ergänzt.
         </p>
       </div>
+      <fieldset className="m-0 flex flex-col gap-xs border-0 p-0">
+        <legend className={LABEL}>Versandweg</legend>
+        {DISPATCH_MODES.map((mode) => (
+          <div key={mode.value} className="flex items-start gap-xs">
+            <input
+              id={`lh-dispatch-${mode.value}`}
+              type="radio"
+              className="mt-1"
+              name="lh-dispatch"
+              value={mode.value}
+              checked={dispatchMode === mode.value}
+              onChange={() => setDispatchMode(mode.value)}
+            />
+            <label htmlFor={`lh-dispatch-${mode.value}`} className="flex flex-col">
+              <span className="text-sm text-foreground">{mode.label}</span>
+              <span className="text-xs text-grey-500 dark:text-grey-400">{mode.hint}</span>
+            </label>
+          </div>
+        ))}
+      </fieldset>
+
+      <Checkbox
+        id="lh-return-line"
+        checked={returnLine}
+        label="Rücksendeangabe im Sichtfenster"
+        hint="Kleine Absenderzeile über der Anschrift. Aus, wenn dein Briefbogen sie schon trägt."
+        onChange={setReturnLine}
+      />
+      <Checkbox
+        id="lh-fold-marks"
+        checked={foldMarks}
+        label="Falz- und Lochmarken"
+        hint="Hilfsstriche zum Falten. Beim Druck über einen Dienstleister überflüssig."
+        onChange={setFoldMarks}
+      />
+
       <div className="flex justify-end gap-xs">
         <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
           Abbrechen
@@ -95,11 +198,93 @@ function LetterheadForm({
           type="button"
           size="sm"
           disabled={!label.trim() || isPending}
-          onClick={() => onSubmit({ label: label.trim(), organization, address })}
+          onClick={() =>
+            onSubmit({
+              label: label.trim(),
+              organization,
+              address,
+              dispatch_mode: dispatchMode,
+              show_return_line: returnLine,
+              show_fold_marks: foldMarks,
+            })
+          }
         >
           {isPending ? 'Wird gespeichert…' : submitLabel}
         </Button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Eigener Briefbogen je Briefkopf.
+ *
+ * Wird beim Rendern UNTER den Brieftext gelegt. Trägt er Logo und Absender,
+ * zeichnet der Renderer beides nicht noch einmal darüber — deshalb der Hinweis
+ * direkt am Feld statt in einer Doku, die niemand aufschlägt.
+ */
+function StationeryField({ letterhead }: { letterhead: Letterhead }) {
+  const queryClient = useQueryClient();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: LETTERHEADS_QUERY_KEY });
+
+  const uploadMutation = useMutation({
+    mutationFn: (file: File) => letterheadApi.uploadStationery(letterhead.id, file),
+    onSuccess: async () => {
+      await invalidate();
+      toast.success('Briefpapier hinterlegt');
+    },
+    onError: () => toast.error('Briefpapier konnte nicht hochgeladen werden.'),
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: () => letterheadApi.removeStationery(letterhead.id),
+    onSuccess: async () => {
+      await invalidate();
+      toast.success('Briefpapier entfernt');
+    },
+    onError: () => toast.error('Briefpapier konnte nicht entfernt werden.'),
+  });
+
+  return (
+    <div className="mt-xs flex flex-wrap items-center gap-xs">
+      <input
+        ref={inputRef}
+        type="file"
+        className="hidden"
+        accept="application/pdf,image/png,image/jpeg"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) uploadMutation.mutate(file);
+          // Zurücksetzen, sonst löst dieselbe Datei kein change mehr aus.
+          e.target.value = '';
+        }}
+      />
+      <span className="text-xs text-grey-500 dark:text-grey-400">
+        {letterhead.stationery_file
+          ? 'Eigenes Briefpapier hinterlegt — Logo und Absenderblock werden nicht zusätzlich gedruckt.'
+          : 'Kein eigenes Briefpapier — es gilt das Grünen-Layout.'}
+      </span>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        disabled={uploadMutation.isPending}
+        onClick={() => inputRef.current?.click()}
+      >
+        {letterhead.stationery_file ? 'Ersetzen' : 'Briefpapier hochladen'}
+      </Button>
+      {letterhead.stationery_file && (
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={removeMutation.isPending}
+          onClick={() => removeMutation.mutate()}
+        >
+          Entfernen
+        </Button>
+      )}
     </div>
   );
 }
@@ -110,11 +295,7 @@ const LetterheadsSection = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
 
-  const { data: letterheads = [], isLoading } = useQuery({
-    queryKey: LETTERHEADS_QUERY_KEY,
-    queryFn: letterheadApi.list,
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: letterheads = [], isLoading } = useQuery(letterheadsQuery);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: LETTERHEADS_QUERY_KEY });
 
@@ -148,7 +329,7 @@ const LetterheadsSection = () => {
     onError: (error: Error) => toast.error(error.message),
   });
 
-  if (isLoading) return null;
+  if (isLoading) return <SettingsCardsSkeleton cards={2} />;
 
   return (
     <div className="flex flex-col gap-sm">
@@ -172,6 +353,9 @@ const LetterheadsSection = () => {
                   label: lh.label,
                   organization: lh.organization ?? '',
                   address: lh.address ?? '',
+                  dispatch_mode: lh.dispatch_mode,
+                  show_return_line: lh.show_return_line,
+                  show_fold_marks: lh.show_fold_marks,
                 }}
                 submitLabel="Speichern"
                 isPending={updateMutation.isPending}
@@ -196,6 +380,14 @@ const LetterheadsSection = () => {
                 <p className="m-0 whitespace-pre-line text-xs text-grey-500 dark:text-grey-400">
                   {[lh.organization, lh.address].filter(Boolean).join('\n')}
                 </p>
+                <p className="m-0 mt-xs text-xs text-grey-500 dark:text-grey-400">
+                  {lh.dispatch_mode === 'direktfrankierung'
+                    ? 'Direkt aufs Blatt frankiert'
+                    : 'Fensterkuvert'}
+                  {!lh.show_return_line && ' · ohne Rücksendeangabe'}
+                  {!lh.show_fold_marks && ' · ohne Falzmarken'}
+                </p>
+                <StationeryField letterhead={lh} />
               </div>
               <div className="flex flex-shrink-0 gap-xs">
                 {!lh.is_default && (

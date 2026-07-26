@@ -20,6 +20,7 @@ import {
   looksMultiTopic,
   HEURISTIC_CONFIDENCE_THRESHOLD,
 } from './classifierNode.js';
+import { CHAT_HISTORY_KEYWORDS } from './classifierParsing.js';
 
 // ─── extractSearchTopic ───────────────────────────────────────────────────
 
@@ -1140,5 +1141,54 @@ describe('parseClassifierResponse: new intent values', () => {
     const result = parseClassifierResponse(json, 'Füge neue Aufgaben zum Board hinzu');
     expect(result).not.toBeNull();
     expect(result!.intent).toBe('modify_board');
+  });
+});
+
+// ─── chat_history: reel recall ────────────────────────────────────────────
+
+describe('CHAT_HISTORY_KEYWORDS: reels', () => {
+  const directJson = (userText: string) =>
+    parseClassifierResponse(
+      JSON.stringify({
+        intent: 'direct',
+        searchQuery: null,
+        optimizedSearchQuery: null,
+        reasoning: 'looks like a writing task',
+        contentType: null,
+        needsResearch: false,
+        needsClarification: false,
+      }),
+      userText
+    );
+
+  it.each([
+    'Such mein Reel zum Thema Windkraft',
+    'In welchem Video habe ich über Mieten gesprochen?',
+    'Welches Reel passt zu Klimageld?',
+    'Zeig mir meine Reels',
+    'Das Video über Radwege — schreib mir eine Caption dazu',
+  ])('matches reel recall phrasing: %s', (text) => {
+    expect(CHAT_HISTORY_KEYWORDS.test(text)).toBe(true);
+  });
+
+  it.each([
+    'Erstelle ein Reel aus diesem Video',
+    'Mach die Untertitel größer',
+    'Wie funktioniert der Reel-Grünerator?',
+    'Was fordern die Grünen zur Videoüberwachung?',
+  ])('does not hijack non-recall phrasing: %s', (text) => {
+    expect(CHAT_HISTORY_KEYWORDS.test(text)).toBe(false);
+  });
+
+  it('upgrades a misclassified direct to chat_history for a reel search', () => {
+    const result = directJson('Such mein Reel zum Thema Windkraft und schreib eine Caption');
+    expect(result).not.toBeNull();
+    expect(result!.intent).toBe('chat_history');
+  });
+
+  it('leaves reel creation on its original intent', () => {
+    const result = directJson('Erstelle ein Reel aus diesem Video');
+    expect(result).not.toBeNull();
+    expect(result!.intent).toBe('direct');
   });
 });

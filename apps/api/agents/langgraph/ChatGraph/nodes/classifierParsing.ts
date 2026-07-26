@@ -9,7 +9,7 @@ import { createLogger } from '../../../../utils/logger.js';
 
 import { extractFilters } from './classifierFilters.js';
 import { extractSearchTopic } from './classifierHeuristics.js';
-import { NON_SEARCH_INTENTS } from './classifierPrompt.js';
+import { CLASSIFIER_DOC_SUBTYPES, NON_SEARCH_INTENTS } from './classifierPrompt.js';
 
 import type { SearchIntent, SearchSource, ClassificationResult } from '../types.js';
 import type { ClassifierLLMResponse } from './classifierFilters.js';
@@ -19,12 +19,17 @@ const log = createLogger('ChatGraph:Classifier');
 /**
  * Phrases that reference the user's earlier work — a past conversation with the
  * assistant OR one of the user's own office documents (docs/presentations/
- * sheets). Used both to add the `chat_history` search source (combined queries)
- * and to defensively upgrade a misclassified `direct` intent to the
+ * sheets) OR one of their reels (subtitled videos, matched on the spoken
+ * transcript). Used both to add the `chat_history` search source (combined
+ * queries) and to defensively upgrade a misclassified `direct` intent to the
  * `chat_history` tool.
+ *
+ * The reel alternatives are phrased as possessives ("mein reel", "das video in
+ * dem ich") on purpose: a bare "reel"/"video" would grab reel CREATION and the
+ * reel_edit turns, which are separate branches.
  */
 export const CHAT_HISTORY_KEYWORDS =
-  /\b(letzte[sn]?\s+gespräch|vorher\s+besprochen|letzte\s+woche|gestern\s+besprochen|was\s+haben\s+wir|erinnere?\s+dich|wir\s+hatten|früheres?\s+chat|voriges?\s+gespräch|damals\s+besprochen|da\s+weiter|wo\s+wir\s+aufgehört|mein(e|en)?\s+(dokument|präsentation|tabelle|notiz|antrag|board|kanban|tafel)|meine\s+(dokumente|präsentationen|tabellen|notizen|boards)|die\s+tabelle\s+die\s+ich|das\s+dokument\s+das\s+ich|das\s+board\s+das\s+ich)\b/i;
+  /\b(letzte[sn]?\s+gespräch|vorher\s+besprochen|letzte\s+woche|gestern\s+besprochen|was\s+haben\s+wir|erinnere?\s+dich|wir\s+hatten|früheres?\s+chat|voriges?\s+gespräch|damals\s+besprochen|da\s+weiter|wo\s+wir\s+aufgehört|mein(e|en)?\s+(dokument|präsentation|tabelle|notiz|antrag|board|kanban|tafel|reel|video|clip)|meine\s+(dokumente|präsentationen|tabellen|notizen|boards|reels|videos|clips)|die\s+tabelle\s+die\s+ich|das\s+dokument\s+das\s+ich|das\s+board\s+das\s+ich|das\s+(reel|video)\s+(das\s+ich|zu(m)?\s|über)|welches\s+(reel|video)|in\s+welchem\s+(reel|video))\b/i;
 
 /**
  * Concrete travel / timetable / weather / news phrasings that map to a
@@ -256,6 +261,21 @@ export function parseClassifierResponse(
         log.info(`[Classifier] Secondary intent detected: ${validSecondary}`);
       }
 
+      // Validate documentSubtype like secondaryIntent above. The model invents
+      // values outside the prompt's enum ("brief"), and this one is passed
+      // downstream as `subtypeOverride`, which wins over the generator's own
+      // validated subtype — so an invalid value reaches the INSERT and only the
+      // DB check constraint stops it. Dropping it here lets the document
+      // generator pick a valid subtype itself.
+      let validDocumentSubtype: string | null = null;
+      if (typeof parsed.documentSubtype === 'string' && parsed.documentSubtype) {
+        if ((CLASSIFIER_DOC_SUBTYPES as readonly string[]).includes(parsed.documentSubtype)) {
+          validDocumentSubtype = parsed.documentSubtype;
+        } else {
+          log.warn(`[Classifier] Invalid documentSubtype "${parsed.documentSubtype}" — dropped`);
+        }
+      }
+
       const result: ClassificationResult = {
         intent: parsed.intent as SearchIntent,
         secondaryIntent: validSecondary,
@@ -265,7 +285,7 @@ export function parseClassifierResponse(
         filters,
         reasoning: (parsed.reasoning || 'LLM classification') + suffix,
         contentType: parsed.contentType || null,
-        documentSubtype: parsed.documentSubtype || null,
+        documentSubtype: validDocumentSubtype,
         targetGroupName: parsed.targetGroupName || null,
       };
 
