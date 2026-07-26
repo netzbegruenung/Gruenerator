@@ -7,13 +7,13 @@ import { useNavigate } from 'react-router-dom';
 
 import { type GroupSummary } from '../hooks/useGroups';
 
-type SpaceType = 'personal' | 'standard';
+type ProjektType = 'personal' | 'standard';
 
-interface SpacesComposerProps {
-  /** The user's own spaces — the corpus the composer searches across. */
-  spaces: GroupSummary[];
+interface ProjekteComposerProps {
+  /** The user's own projects — the corpus the composer searches across. */
+  projekte: GroupSummary[];
   isCreating: boolean;
-  onCreate: (name: string, type: SpaceType) => void;
+  onCreate: (name: string, type: ProjektType) => void;
 }
 
 interface Option {
@@ -27,7 +27,7 @@ const MAX_MATCHES = 6;
 const PLACEHOLDERS = ['Neues Projekt erstellen …', 'Projekt suchen …', 'Gruppe anlegen …'];
 const PLACEHOLDERS_SHORT = ['Projekt erstellen …', 'Projekt suchen …', 'Gruppe …'];
 
-function TypeIcon({ type }: { type: SpaceType }) {
+function TypeIcon({ type }: { type: ProjektType }) {
   const Icon = type === 'standard' ? HiUserGroup : HiUser;
   return (
     <span className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-lg bg-[#DCE6F2] text-[#2E4E7A] dark:bg-[#14202E] dark:text-[#7CA2CB]">
@@ -43,7 +43,7 @@ function TypeIcon({ type }: { type: SpaceType }) {
  * "Gruppe" (standard/team). No doc kinds, templates, backend search or
  * imports.
  */
-export function SpacesComposer({ spaces, isCreating, onCreate }: SpacesComposerProps) {
+export function ProjekteComposer({ projekte, isCreating, onCreate }: ProjekteComposerProps) {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [q, setQ] = useState('');
@@ -61,18 +61,18 @@ export function SpacesComposer({ spaces, isCreating, onCreate }: SpacesComposerP
   const query = q.trim();
   const lcQuery = query.toLowerCase();
   const matches = lcQuery
-    ? spaces.filter((s) => s.name.toLowerCase().includes(lcQuery)).slice(0, MAX_MATCHES)
+    ? projekte.filter((s) => s.name.toLowerCase().includes(lcQuery)).slice(0, MAX_MATCHES)
     : [];
-  // No name match → the user is naming a new space, so the create actions lead.
+  // No name match → the user is naming a new project, so the create actions lead.
   const promptMode = query.length > 0 && matches.length === 0;
 
-  const runCreate = (type: SpaceType) => {
+  const runCreate = (type: ProjektType) => {
     if (!query || isCreating) return;
     onCreate(query, type);
   };
 
   const searchOptions: Option[] = matches.map((s) => ({
-    key: `space-${s.id}`,
+    key: `projekt-${s.id}`,
     onSelect: () => navigate(buildGroupPath(s)),
     render: () => (
       <div className="flex w-full min-w-0 items-center gap-3">

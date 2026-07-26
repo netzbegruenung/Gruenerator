@@ -26,6 +26,18 @@ describe('createSourceRegistry', () => {
     expect(reg.size).toBe(1);
   });
 
+  it('honors a per-registration snippetChars override in the block and renderAll', () => {
+    const reg = createSourceRegistry();
+    const long = `Anfang ${'x'.repeat(400)} ENDE`;
+    reg.register([result({ title: 'Kurz', content: `k ${'y'.repeat(400)} SCHLUSS` })]);
+    const block = reg.register([result({ title: 'Lang', content: long })], { snippetChars: 700 });
+    // Default cap (320) truncates the first source; the override keeps the second intact.
+    expect(block).toContain('ENDE');
+    const all = reg.renderAll();
+    expect(all).not.toContain('SCHLUSS');
+    expect(all).toContain('ENDE');
+  });
+
   it('builds citations over the accumulated results', () => {
     const reg = createSourceRegistry();
     reg.register([

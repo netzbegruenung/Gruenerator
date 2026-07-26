@@ -433,10 +433,6 @@ export async function runChatGraphResume({
             ? { examplesResult: finalState.examplesResult }
             : {}),
         });
-
-        if (classifiedState.intent === 'bundestag' && finalState.bundestagResult) {
-          sse.send('bundestag', { bundestag: finalState.bundestagResult });
-        }
       }
     }
 

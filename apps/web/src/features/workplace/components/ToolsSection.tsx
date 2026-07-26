@@ -313,11 +313,11 @@ function FavoriteTile({ favorite }: { favorite: FavoriteItem }) {
 const byId = (id: string): WorkplaceToolItem | undefined =>
   WORKPLACE_TOOLS.find((t) => t.id === id);
 
-// Default order: Agentura first, then the office apps, then Spaces (after Wissen).
+// Default order: Agentura first, then the office apps, then Projekte (after Wissen).
 const OFFICE_ROW_TOOLS: WorkplaceToolItem[] = [
   byId('agents'),
   ...OFFICE_TOOLS,
-  byId('spaces'),
+  byId('projekte'),
 ].filter((t): t is WorkplaceToolItem => Boolean(t));
 
 // The Arbeiten tool row: colored creation tiles + the Weitere toggle tile, in one

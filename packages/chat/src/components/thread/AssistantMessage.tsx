@@ -10,14 +10,9 @@ import { resolveCitations } from '../../lib/citationUtils';
 import { phosphorAgentIcon } from '../../lib/phosphorAgentIcon';
 import { useUserAgentsRegistry } from '../../stores/userAgentsRegistry';
 import { Reasoning, ReasoningGroup } from '../assistant-ui/reasoning';
-import { ToolCallGroup } from '../message-parts/ToolCallGroup';
-import { useProgressDisplay } from '../message-parts/progressDisplayContext';
-import { StreamingStatusLine } from '../message-parts/StreamingStatusLine';
-import { SkillBadge } from '../message-parts/SkillBadge';
 import { GrueneratorHomeIconLoading } from '../icons';
 import { ArtifactCard } from '../message-parts/ArtifactCard';
 import { BahnCard } from '../message-parts/BahnCard';
-import { BundestagCard } from '../message-parts/BundestagCard';
 import { ChatChart } from '../message-parts/ChatChart';
 import { CitationMarkdownText } from '../message-parts/CitationMarkdownText';
 import { ComputeCard } from '../message-parts/ComputeCard';
@@ -25,10 +20,14 @@ import { GeneratedImageDisplay } from '../message-parts/GeneratedImageDisplay';
 import { MemoryIndicator } from '../message-parts/MemoryIndicator';
 import { MessageActions } from '../message-parts/MessageActions';
 import { MessageStreamingProvider } from '../message-parts/messageStreamingContext';
+import { useProgressDisplay } from '../message-parts/progressDisplayContext';
 import { ProgressIndicator } from '../message-parts/ProgressIndicator';
 import { SearchResultsSection, type AdditionalSource } from '../message-parts/SearchResultsSection';
 import { SharepicVariantStack } from '../message-parts/SharepicVariantStack';
+import { SkillBadge } from '../message-parts/SkillBadge';
 import { SocialPostCard } from '../message-parts/SocialPostCard';
+import { StreamingStatusLine } from '../message-parts/StreamingStatusLine';
+import { ToolCallGroup } from '../message-parts/ToolCallGroup';
 import { TypingIndicator } from '../message-parts/TypingIndicator';
 import { ConfirmActionCard } from '../tool-ui/ConfirmActionCard';
 import { DocumentCreatedCard } from '../tool-ui/DocumentCreatedCard';
@@ -150,15 +149,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
     };
   }, [custom]);
 
-  // The dedicated BundestagCard already renders the DIP hits — drop their
-  // generic source cards to avoid double-rendering. Inline citations (in the
-  // text via CitationProvider) stay untouched.
-  const sourceCardCitations = useMemo(
-    () => (custom?.bundestagData ? citations.filter((c) => c.source !== 'bundestag') : citations),
-    [citations, custom?.bundestagData]
-  );
-
-  const showSearchResults = !isStreaming && sourceCardCitations.length > 0;
+  const showSearchResults = !isStreaming && citations.length > 0;
 
   return (
     <MessagePrimitive.Root
@@ -229,7 +220,6 @@ export const AssistantMessage = memo(function AssistantMessage() {
 
         {!isStreaming && custom?.artifactData && <ArtifactCard artifact={custom.artifactData} />}
         {!isStreaming && custom?.computeData && <ComputeCard data={custom.computeData} />}
-        {!isStreaming && custom?.bundestagData && <BundestagCard data={custom.bundestagData} />}
         {!isStreaming && custom?.bahnData && <BahnCard data={custom.bahnData} />}
 
         {!isStreaming && custom?.confirmAction && (
@@ -247,10 +237,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
         {!isStreaming && custom?.reelPicker && <ReelPickerCard data={custom.reelPicker} />}
 
         {showSearchResults && (
-          <SearchResultsSection
-            citations={sourceCardCitations}
-            additionalSources={additionalSources}
-          />
+          <SearchResultsSection citations={citations} additionalSources={additionalSources} />
         )}
 
         {!isStreaming && textContent && (
