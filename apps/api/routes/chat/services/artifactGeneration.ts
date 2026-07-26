@@ -383,7 +383,17 @@ export async function createDocumentArtifact(opts: {
   }
 
   onCommit?.();
-  const subtype = subtypeOverride || generated.subtype;
+  // The override wins over the generator's own (validated) subtype, so it must
+  // be validated too — it originates from the classifier, which can hallucinate
+  // a plausible-but-invalid value. An unknown override is dropped rather than
+  // used, leaving the generator's choice in place.
+  const { GENERATED_DOC_SUBTYPES } = await import('../../../services/docs/DocGenerationService.js');
+  const overrideIsValid =
+    subtypeOverride != null && GENERATED_DOC_SUBTYPES.includes(subtypeOverride);
+  if (subtypeOverride && !overrideIsValid) {
+    log.warn(`[ChatGraph] Ignoring invalid document subtype override "${subtypeOverride}"`);
+  }
+  const subtype = overrideIsValid ? subtypeOverride : generated.subtype;
   const doc = await createDocumentWithContent(generated.title, generated.content, subtype, userId);
   return { documentId: doc.id, title: generated.title, subtype, url: `/office/${doc.id}` };
 }

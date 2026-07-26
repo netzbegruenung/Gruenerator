@@ -37,7 +37,7 @@ import {
 } from './artifactKinds.js';
 import { CONFIRM_ACTION_CONFIG } from './confirmActionService.js';
 import { runCreateTurn, type CreateTurnOpts } from './createTurn.js';
-import { rememberArtifact } from './createTurnHelpers.js';
+import { failCreation, rememberArtifact } from './createTurnHelpers.js';
 import { extractTextContent } from './messageHelpers.js';
 import {
   recallPastChats,
@@ -141,6 +141,15 @@ const DELIVERY_LABELS_DE: Record<string, string> = {
   thread: 'als neuer Chat',
 };
 
+/**
+ * Templated, like every other create failure (see failCreation): the previous
+ * fall-through handed the turn to the generic responder, which typically
+ * CONFIRMED the recurring task — while no row had been written.
+ */
+const RECURRING_TASK_FAILURE_TEXT =
+  'Ich konnte die wiederkehrende Aufgabe nicht einrichten. Sie wurde **nicht** gespeichert — ' +
+  'bitte formuliere sie noch einmal, zum Beispiel: „Erinnere mich jeden Montag um 9 Uhr an den Wochenbericht."';
+
 const RECURRING_EXTRACTION_PROMPT = `Du extrahierst aus einer Nutzeranfrage die Konfiguration für eine WIEDERKEHRENDE Aufgabe und gibst NUR ein JSON-Objekt zurück (keine Erklärung, kein Markdown).
 
 Schema:
@@ -211,7 +220,17 @@ export async function handleRecurringTaskCreation(opts: {
       },
       req as Express.Request & { user?: { id?: string }; sessionID?: string }
     );
-    if (!genResult.success || !genResult.content) return false;
+    if (!genResult.success || !genResult.content) {
+      log.warn(
+        `[ChatGraph] Recurring task extraction produced nothing: ${genResult.error ?? 'no content'}`
+      );
+      return failCreation(
+        sse,
+        actualThreadId,
+        'create_recurring_task',
+        RECURRING_TASK_FAILURE_TEXT
+      );
+    }
 
     const parsed = parseExtractedJson(genResult.content) as Record<string, unknown>;
     const candidate = {
@@ -227,7 +246,12 @@ export async function handleRecurringTaskCreation(opts: {
     const validated = createRecurringTaskBodySchema.safeParse(candidate);
     if (!validated.success) {
       log.warn(`[ChatGraph] Recurring task extraction invalid: ${validated.error.message}`);
-      return false;
+      return failCreation(
+        sse,
+        actualThreadId,
+        'create_recurring_task',
+        RECURRING_TASK_FAILURE_TEXT
+      );
     }
 
     const task = await createRecurringTask(userId, validated.data);
@@ -272,7 +296,7 @@ export async function handleRecurringTaskCreation(opts: {
     log.error(
       `[ChatGraph] Recurring task creation failed: ${err instanceof Error ? err.message : String(err)}`
     );
-    return false;
+    return failCreation(sse, actualThreadId, 'create_recurring_task', RECURRING_TASK_FAILURE_TEXT);
   }
 }
 
@@ -772,6 +796,15 @@ export async function executeIntentPipeline(opts: {
 
       if (variantsSettled.status === 'fulfilled') {
         sharepicVariants = variantsSettled.value;
+      } else {
+        // Mirror the text half below: without this the sharepic simply never
+        // arrived and the turn reported success with only the post text.
+        log.error('[ChatGraph] social_post sharepic generation failed:', variantsSettled.reason);
+        sse.send('sharepic_complete', {
+          message: 'Sharepic konnte nicht erstellt werden',
+          variants: [],
+          error: 'Das Sharepic konnte nicht erstellt werden — der Text steht trotzdem bereit.',
+        });
       }
       if (textSettled.status === 'fulfilled') {
         socialPost = textSettled.value.post;

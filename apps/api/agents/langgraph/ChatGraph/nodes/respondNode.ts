@@ -22,7 +22,7 @@ import { type Locale } from '../../../../services/localization/types.js';
 import { getTextFormForInjection } from '../../../../services/user/textFormRepository.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { formatGermanDate } from '../../../../utils/stringUtils.js';
-import { isSourceAvailabilityError } from '../types.js';
+import { isSourceAvailabilityError, renderDegradationNotes } from '../types.js';
 
 import { type AnchorDescriptor, getActiveAnchors } from './anchorContext.js';
 import { buildCitableSources, type CitableSource } from './citableSources.js';
@@ -1136,7 +1136,13 @@ Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsForm
     ? ''
     : await getPrAgentInsightFragment(agentConfig.identifier);
 
-  return `${systemRole}${skillFragment}${insightsFragment}
+  // What broke in this turn, in the model's own words. A warning event is
+  // telemetry only — without this block the model happily presents a degraded
+  // turn as a complete one (answering an arithmetic question from memory after
+  // the compute step failed, for instance).
+  const degradationBlock = renderDegradationNotes(state.degradationNotes);
+
+  return `${systemRole}${skillFragment}${insightsFragment}${degradationBlock}
 Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${productKnowledge}${docsPageMap}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
 
 ## ANTWORT-REGELN
