@@ -52,6 +52,7 @@ export function applyPresentationOperations(
               background: null,
               transition: null,
               fragments: false,
+              fontSize: op.fontSize && op.fontSize !== 'auto' ? op.fontSize : null,
             };
             const idx = op.at != null ? clampInsert(op.at - 1, arr.length) : arr.length;
             arr.insert(idx, [slideToYMap(slide)]);
