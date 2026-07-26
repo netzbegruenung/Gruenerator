@@ -432,6 +432,17 @@ export async function executeDocumentSearchParallel(
 
   for (const searchResult of searchResults) {
     if (!searchResult?.results) continue;
+    // The search service does NOT throw on a backend failure — it resolves with
+    // `{ error: true, results: [] }`. The .catch above therefore never fires,
+    // and an empty array is truthy, so a Qdrant outage used to slip through
+    // here as "no hits" with no error recorded anywhere.
+    if (searchResult.error) {
+      collectedErrors.push({
+        source: `documents:${searchResult.collection}`,
+        message: searchResult.message ?? 'Suche fehlgeschlagen',
+      });
+      continue;
+    }
     for (const r of searchResult.results) {
       if (r.url && seenUrls.has(r.url)) continue;
       if (r.url) seenUrls.add(r.url);
@@ -520,6 +531,14 @@ export async function executeWebSearchParallel(
 
   for (const webResult of webResults) {
     if (!webResult?.results) continue;
+    // Same resolved-not-thrown failure shape as the document search above.
+    if (webResult.error) {
+      collectedErrors.push({
+        source: 'web',
+        message: webResult.message ?? 'Websuche fehlgeschlagen',
+      });
+      continue;
+    }
     for (const r of webResult.results) {
       if (r.url && seenWebUrls.has(r.url)) continue;
       if (r.url) seenWebUrls.add(r.url);
@@ -1227,6 +1246,14 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
         for (const searchResult of searchResults) {
           if (!searchResult?.results) continue;
+          // Resolved-not-thrown failure (see executeDocumentSearchParallel).
+          if (searchResult.error) {
+            singleSourceErrors.push({
+              source: `documents:${searchResult.collection}`,
+              message: searchResult.message ?? 'Suche fehlgeschlagen',
+            });
+            continue;
+          }
           for (const r of searchResult.results) {
             // Deduplicate by URL
             if (r.url && seenUrls.has(r.url)) continue;
@@ -1390,6 +1417,13 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
         for (const webResult of webResults) {
           if (!webResult?.results) continue;
+          if (webResult.error) {
+            singleSourceErrors.push({
+              source: 'web',
+              message: webResult.message ?? 'Websuche fehlgeschlagen',
+            });
+            continue;
+          }
           for (const r of webResult.results) {
             if (r.url && seenWebUrls.has(r.url)) continue;
             if (r.url) seenWebUrls.add(r.url);

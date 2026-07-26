@@ -285,13 +285,20 @@ export async function* parseSSEStream(
 
     const isInterrupted = interruptPending && currentProgress.stage === 'complete';
 
-    return {
+    const result: ChatModelRunResult = {
       content,
       metadata: { custom },
       ...(isInterrupted
         ? { status: { type: 'requires-action' as const, reason: 'tool-calls' as const } }
         : {}),
     };
+    // Record every result, not just the final one. assistant-ui merges a
+    // yielded `content` by REPLACING the message content (initialContent is
+    // frozen at roundtrip start), so a caller that has to report a mid-stream
+    // failure must re-yield everything accumulated so far — and on a network
+    // drop the end of this function is never reached.
+    outcome.lastResult = result;
+    return result;
   }
 
   // Feed chunks: stream from reader, or single chunk from full text fallback
@@ -329,7 +336,11 @@ export async function* parseSSEStream(
         }
         continue;
       }
-      consecutiveParseErrors = 0;
+      // Reset only on a line that actually carried a parsed event. SSE framing
+      // puts an `event:` line and a blank line between any two `data:` lines,
+      // so resetting on every non-error line made the counter unreachable —
+      // it never got past 1.
+      if (event && rawData) consecutiveParseErrors = 0;
       if (!event || !rawData) continue;
 
       // Contract gate: every known event is validated against its wire
