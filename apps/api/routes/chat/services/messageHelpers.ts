@@ -50,6 +50,31 @@ export function getPruningBudget(contextWindowTokens?: number): number {
   return Math.max(MIN_PRUNING_BUDGET, modelBudget);
 }
 
+/** Rough chars-per-token for German prose plus JSON scaffolding. */
+const CHARS_PER_TOKEN = 3.5;
+
+/**
+ * Size estimate for a whole request, used for LANE ROUTING (not for pruning).
+ *
+ * Deliberately serialises the entire message — unlike {@link extractTextContent}
+ * and the TokenCounter, which read only `type: 'text'` parts and therefore score
+ * replayed tool results, images and reasoning traces as zero. For "is this
+ * request too big for the small lane?" an over-estimate is the safe direction:
+ * it routes to the bigger window, which is never wrong, only occasionally
+ * generous.
+ */
+export function estimateRequestTokens(systemMessage: string, messages: readonly unknown[]): number {
+  let chars = systemMessage.length;
+  for (const m of messages) {
+    try {
+      chars += JSON.stringify(m)?.length ?? 0;
+    } catch {
+      // Unserialisable message (circular ref) — skip rather than fail routing.
+    }
+  }
+  return Math.ceil(chars / CHARS_PER_TOKEN);
+}
+
 /**
  * Extract text content from a ModelMessage content field.
  * Handles both string content and AI SDK v6 parts array format.

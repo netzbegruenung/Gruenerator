@@ -18,6 +18,7 @@ import {
 import { createLogger } from '../../../utils/logger.js';
 import {
   resolveAutoSelection,
+  VERDIGADO_INPUT_LIMIT,
   type Complexity,
   type ReasoningSetting,
 } from '../agents/autoPolicy.js';
@@ -150,6 +151,10 @@ export async function resolveModel(
     agentId?: string | null;
     /** For surfaces without a classifier (notebook) — see resolveAutoSelection. */
     surface?: 'notebook';
+    /** Rough size of this request (see estimateRequestTokens). Above
+     *  VERDIGADO_INPUT_LIMIT an overflow lane runs on its hosted side so the
+     *  request isn't pruned down to the small lane's budget. */
+    estimatedInputTokens?: number;
   }
 ): Promise<ModelResolution> {
   let modelProvider = agentConfig.provider;
@@ -164,8 +169,17 @@ export async function resolveModel(
 
   const isAuto = !modelId || modelId === 'mistral' || modelId === 'auto';
 
+  const oversized = (options?.estimatedInputTokens ?? 0) > VERDIGADO_INPUT_LIMIT;
+  const preferOverflow = oversized ? { preferOverflow: true } : {};
+  if (oversized) {
+    log.info(
+      `[ChatGraph] input ~${Math.round((options?.estimatedInputTokens ?? 0) / 1000)}k tokens > ` +
+        `${VERDIGADO_INPUT_LIMIT / 1000}k — overflow lanes run hosted (full window, no pruning)`
+    );
+  }
+
   if (!isAuto) {
-    const tuple = await resolveModelTuple(modelId, requestId);
+    const tuple = await resolveModelTuple(modelId, requestId, preferOverflow);
     if (tuple) {
       modelProvider = tuple.provider;
       modelName = tuple.model;
@@ -188,7 +202,7 @@ export async function resolveModel(
       ...(options?.surface != null && { surface: options.surface }),
     });
     reasoningEffort = selection.reasoning;
-    const tuple = await resolveModelTuple(selection.modelId, requestId);
+    const tuple = await resolveModelTuple(selection.modelId, requestId, preferOverflow);
     if (tuple) {
       modelProvider = tuple.provider;
       modelName = tuple.model;

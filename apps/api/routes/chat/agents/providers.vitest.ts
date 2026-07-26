@@ -7,6 +7,7 @@ import {
   getModelConfig,
   loopPlannerModelName,
   prefersUnifiedLoop,
+  resolveModelTuple,
 } from './providers.js';
 
 const WRITER_MODELS = new Set(['gemma4-31b', 'verdigado-pro']);
@@ -144,5 +145,42 @@ describe('getModelConfig', () => {
 
   it('returns null for unknown model', () => {
     expect(getModelConfig('nonexistent')).toBeNull();
+  });
+});
+
+describe('resolveModelTuple — size-aware overflow routing', () => {
+  // Stufe 2: an overflow lane serves two very differently sized backends. The
+  // reported contextWindow must follow the side actually chosen, otherwise the
+  // request is pruned to the small lane's budget while running on the big one.
+  it('reports the PRIMARY window when the Verdigado slot is taken normally', async () => {
+    const tuple = await resolveModelTuple('gemma-4', 'req-primary');
+    expect(tuple).not.toBeNull();
+    // Either side may win depending on slot availability, but the window must
+    // match the side that was chosen.
+    if (tuple!.provider === 'litellm') {
+      expect(tuple!.contextWindow).toBe(64_000);
+    } else {
+      expect(tuple!.contextWindow).toBe(262_144);
+    }
+  });
+
+  it('goes straight to the hosted side with preferOverflow, reporting its full window', async () => {
+    const tuple = await resolveModelTuple('gemma-4', 'req-overflow', { preferOverflow: true });
+    expect(tuple).not.toBeNull();
+    expect(tuple!.provider).toBe('regolo');
+    expect(tuple!.model).toBe('gemma4-31b');
+    expect(tuple!.contextWindow).toBe(262_144);
+    // No slot was acquired, so nothing needs releasing.
+    expect(tuple!.releaseSlot).toBeUndefined();
+    // The unchosen sibling stays available as the timeout fallback.
+    expect(tuple!.sibling).toEqual({ provider: 'litellm', model: 'verdigado-think' });
+  });
+
+  it('preferOverflow is a no-op for single lanes', async () => {
+    const tuple = await resolveModelTuple('mistral-medium-3.5', 'req-single', {
+      preferOverflow: true,
+    });
+    expect(tuple!.provider).toBe('mistral');
+    expect(tuple!.contextWindow).toBe(262_144);
   });
 });
