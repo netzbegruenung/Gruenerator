@@ -52,7 +52,7 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
         popover: {
           title: 'Dein Chat-Einstieg',
           description:
-            'Stell Fragen oder lass Texte schreiben — mit / startest du direkt einen Grünerator, die Vorschläge unterm Feld liefern fertige Beispiele. Beim Absenden geht es nahtlos im Chat weiter.',
+            'Stell Fragen oder lass Texte schreiben — mit @ holst du Grüneratoren, Notebooks und Dateien ins Feld, im Plus-Menü findest du fertige Vorlagen. Beim Absenden geht es nahtlos im Chat weiter.',
           side: 'bottom',
         },
       },
@@ -90,7 +90,7 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
         popover: {
           title: 'Zuletzt',
           description:
-            'Alle deine Inhalte an einem Ort: Dokumente, Boards, Sharepics, Reels und Texte.',
+            'Alle deine Inhalte an einem Ort: Dokumente, Tabellen, Präsentationen, Boards, Sharepics, Bilder und Reels.',
           side: 'top',
           onNextClick: (_el, _step, opts) => {
             expandSidebar(() => opts.driver.moveNext());
