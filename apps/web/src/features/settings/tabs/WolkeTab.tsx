@@ -1,6 +1,14 @@
 import { toast } from '@gruenerator/ui';
-import { useShareLinks, useSharedWithMeLinks } from '@gruenerator/wolke';
+import {
+  fetchShareLinks,
+  useShareLinks,
+  useSharedWithMeLinks,
+  wolkeKeys,
+} from '@gruenerator/wolke';
+import { type QueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
+
+import { SettingsCardsSkeleton } from '../components/SettingsSkeleton';
 
 import AutoBackupSection from '@/features/wolke/components/AutoBackupSection';
 import CloudButton from '@/features/wolke/components/CloudButton';
@@ -11,6 +19,16 @@ import WolkeSetupWizard from '@/features/wolke/components/WolkeSetupWizard';
 
 const onSuccess = (message: string) => toast.success(message);
 const onError = (message: string) => toast.error(message);
+
+// The Friends tab reads the same connections (Wolki stays locked without one),
+// so warming this here pays off for both.
+export const prefetch = (queryClient: QueryClient) => {
+  void queryClient.prefetchQuery({
+    queryKey: wolkeKeys.shareLinks(),
+    queryFn: () => fetchShareLinks(),
+    staleTime: 30_000,
+  });
+};
 
 const WolkeTab = () => {
   const { data: shareLinks = [], isLoading } = useShareLinks();
@@ -31,7 +49,7 @@ const WolkeTab = () => {
     <div className="flex flex-col gap-xl">
       {(hasLinks || showManualForm) && <WolkeAddForm onSuccess={onSuccess} onError={onError} />}
 
-      {isLoading && <p className="py-sm text-center text-sm text-grey-400">Lade Verbindungen...</p>}
+      {isLoading && <SettingsCardsSkeleton cards={2} />}
 
       {hasLinks && (
         <div className="flex flex-col gap-sm">
