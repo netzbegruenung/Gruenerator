@@ -11,6 +11,7 @@ const TAB_MAP: Record<string, SettingsTab> = {
   konto: 'konto',
   friends: 'friends',
   personalisierung: 'personalisierung',
+  briefkoepfe: 'briefkoepfe',
   'texte-anlernen': 'texte-anlernen',
   erinnerungen: 'erinnerungen',
   benachrichtigungen: 'benachrichtigungen',
