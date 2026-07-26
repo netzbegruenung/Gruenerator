@@ -9,7 +9,7 @@
  * (`Y.Array<Y.Map>`), so the Y.Doc IS the state.
  */
 
-import { type Slide } from './schemas/presentations.js';
+import { type Slide, type SlideFontSize } from './schemas/presentations.js';
 
 /** Y keys of a presentation document's shared Y.Doc. */
 export const PRESENTATION_YDOC_KEYS = {
@@ -42,6 +42,20 @@ export const PRESENTATION_META_KEYS = {
 
 export const PRESENTATION_SCHEMA_VERSION = 1;
 
+/**
+ * Multiplier each font-size preset applies to the deck's base type scale
+ * (28px body / 44-56px titles on the 960×540 surface). Shared by the web
+ * renderer (CSS `--gs-font-scale`), the PPTX export (pt sizes), and mobile.
+ * Tuning a value here restyles existing decks — no data migration.
+ */
+export const PRESENTATION_FONT_SIZE_SCALE: Record<SlideFontSize, number> = {
+  xs: 0.6,
+  s: 0.8,
+  m: 1,
+  l: 1.15,
+  xl: 1.35,
+};
+
 /** Max characters the markdown-outline renderer emits (AI context cap). */
 export const PRESENTATION_CONTEXT_MAX = 20_000;
 
@@ -57,7 +71,8 @@ export function formatSlidesAsMarkdown(slides: readonly Slide[], title: string):
 
   slides.forEach((slide, i) => {
     const num = i + 1;
-    let block = `\n## Folie ${num} (Layout: ${slide.layout}): ${slide.title || '(ohne Titel)'}`;
+    const fontTag = slide.fontSize ? ` [Schriftgröße: ${slide.fontSize.toUpperCase()}]` : '';
+    let block = `\n## Folie ${num} (Layout: ${slide.layout})${fontTag}: ${slide.title || '(ohne Titel)'}`;
     if (slide.body.trim()) block += `\n${slide.body.trim()}`;
     if (slide.notes.trim()) block += `\nNotizen: ${slide.notes.trim()}`;
     parts.push(block);
