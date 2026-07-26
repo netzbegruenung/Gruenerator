@@ -20,6 +20,7 @@ import {
   loadPresentationState,
   formatPresentationAsContext,
 } from '../../../services/presentations/PresentationGenerationService.js';
+import { withRetry } from '../../../services/search/searchRetryStrategy.js';
 import {
   loadSheetState,
   formatSheetAsContext,
@@ -36,6 +37,7 @@ import {
   getThreadRecallContext,
 } from './pastChatRecallService.js';
 import { createLoopGuards } from './sharepicAgenticGuards.js';
+import { sendChatWarning } from './sseHelpers.js';
 import { createMessage, touchThread } from './threadPersistenceService.js';
 
 import type { SSEWriter } from './sseHelpers.js';
@@ -331,13 +333,21 @@ async function endTurn(
   });
   if (threadId) {
     try {
-      await createMessage(threadId, 'assistant', text, {
-        intent: 'chat_history',
-        ...(steps.length > 0 ? { toolCalls: steps as unknown as Record<string, unknown>[] } : {}),
-      });
+      await withRetry(
+        () =>
+          createMessage(threadId, 'assistant', text, {
+            intent: 'chat_history',
+            ...(steps.length > 0
+              ? { toolCalls: steps as unknown as Record<string, unknown>[] }
+              : {}),
+          }),
+        { maxRetries: 1, delayMs: 300, isRecoverable: () => true, label: 'recallLoop:persist' }
+      );
       await touchThread(threadId);
     } catch (err) {
+      // Retry + Warnung: ein stiller Persist-Fehler lässt State und History divergieren.
       log.error('[RecallLoop] Failed to persist message:', err);
+      sendChatWarning(sse, 'persist_failed');
     }
   }
   sse.end();
