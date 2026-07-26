@@ -291,6 +291,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   'kommunalwiki-system': {
     id: 'kommunalwiki-system',
     key: 'kommunalwiki',
+    country: 'DE',
     includeInDefaultSearch: true,
     mcpExposed: true,
     qdrantCollection: 'kommunalwiki_documents',
@@ -341,6 +342,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   'boell-stiftung-system': {
     id: 'boell-stiftung-system',
     key: 'boell-stiftung',
+    country: 'DE',
     includeInDefaultSearch: true,
     mcpExposed: true,
     qdrantCollection: 'boell_stiftung_documents',
@@ -359,6 +361,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   'satzungen-system': {
     id: 'satzungen-system',
     key: 'satzungen',
+    country: 'DE',
     includeInDefaultSearch: false,
     // Dormant collection — hidden from the public MCP catalog (/api/v1/collections).
     mcpExposed: false,
@@ -649,6 +652,37 @@ export function getAllSystemCollectionIds(): string[] {
 export function getSearchableSystemCollectionIds(): string[] {
   return Object.values(SYSTEM_COLLECTIONS)
     .filter((c) => !c.agentOnly && c.qdrantCollection !== 'social_media_examples')
+    .map((c) => c.id);
+}
+
+/** Country a user locale maps to — anything that isn't de-AT counts as DE. */
+const countryForLocale = (locale: string | undefined): 'DE' | 'AT' =>
+  locale === 'de-AT' ? 'AT' : 'DE';
+
+/**
+ * Whether a collection belongs to the viewer's country. Untagged collections
+ * count for both — tag DE-/AT-specific ones explicitly via `country`.
+ */
+export function collectionMatchesLocale(
+  c: SystemCollectionConfig,
+  locale: string | undefined
+): boolean {
+  return !c.country || c.country === countryForLocale(locale);
+}
+
+/**
+ * Locale-scoped default corpus for research search: the searchable set minus
+ * the other country's collections. Explicitly requested ids are NOT gated by
+ * this — audience/country is a discovery-curation hint, not an access wall.
+ */
+export function getSearchableSystemCollectionIdsForLocale(locale: string | undefined): string[] {
+  return Object.values(SYSTEM_COLLECTIONS)
+    .filter(
+      (c) =>
+        !c.agentOnly &&
+        c.qdrantCollection !== 'social_media_examples' &&
+        collectionMatchesLocale(c, locale)
+    )
     .map((c) => c.id);
 }
 

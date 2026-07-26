@@ -1,7 +1,7 @@
 import { getDisabledNotebookIds } from '@gruenerator/shared/notebooks';
 
 import { COLLECTION_MAP } from './collectionMap.js';
-import { getSystemCollectionConfig } from './systemCollectionsConfig.js';
+import { collectionMatchesLocale, getSystemCollectionConfig } from './systemCollectionsConfig.js';
 
 /**
  * Notebook IDs that are configured but currently disabled.
@@ -113,6 +113,25 @@ export function getAllCollectionIds(): string[] {
     for (const c of collections) all.add(c);
   }
   return [...all];
+}
+
+/**
+ * Locale-scoped "search everything" set for SearchGraph's Suche mode: all
+ * notebook collections minus the other country's (via SYSTEM_COLLECTIONS
+ * `country`) and minus agent-only ones (which must never be in "search all"
+ * sweeps). `gruene-at` hangs off no notebook but belongs to the AT corpus
+ * (cf. getDefaultCollectionsForLocale), so it is appended explicitly.
+ */
+export function getAllCollectionIdsForLocale(locale: string | undefined): string[] {
+  const scoped = getAllCollectionIds().filter((key) => {
+    const systemId = COLLECTION_MAP[key]?.systemId;
+    const config = systemId ? getSystemCollectionConfig(systemId) : undefined;
+    if (!config) return true;
+    if (config.agentOnly) return false;
+    return collectionMatchesLocale(config, locale);
+  });
+  if (locale === 'de-AT') scoped.push('gruene-at');
+  return scoped;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
