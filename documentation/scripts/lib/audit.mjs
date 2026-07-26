@@ -115,6 +115,7 @@ export function runGenerator({
   outFile,
   generate,
   audit,
+  check,
   label,
   issueTitle,
   marker,
@@ -158,6 +159,17 @@ export function runGenerator({
           `  Run: ${regenerateCmd}`
       );
       process.exit(1);
+    }
+    // Unlike audit drift (missing hand-written prose = a task, filed as an
+    // issue), `check` errors are always bugs — e.g. a hand-written key for a
+    // tool id that no longer exists means a rename slipped through. Fail the
+    // build instead of filing an issue after the fact.
+    if (check) {
+      const errors = check(JSON.parse(json));
+      if (errors.length > 0) {
+        console.error(`✗ ${outFile}:\n${errors.map((e) => `  - ${e}`).join('\n')}`);
+        process.exit(1);
+      }
     }
     console.log(`✓ ${outFile} is up to date (${summary}).`);
     return;
