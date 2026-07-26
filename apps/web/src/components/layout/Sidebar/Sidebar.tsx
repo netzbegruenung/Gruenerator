@@ -32,10 +32,10 @@ import {
 
 import { GrueneratorenSidebarSection } from './GrueneratorenSidebarSection';
 import NewItemDropdown from './NewItemDropdown';
+import { ProjekteSidebarSection } from './ProjekteSidebarSection';
 import SidebarAccount from './SidebarAccount';
 import { getAgentIcon } from './sidebarAgentConfig';
 import { iconClass, menuLinkClass } from './sidebarStyles';
-import { SpacesSidebarSection } from './SpacesSidebarSection';
 
 import { cn } from '@/utils/cn';
 import { startPagePath } from '@/utils/startpage';
@@ -82,7 +82,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
   const newMenuOpenRef = useRef(false);
   const accountMenuOpenRef = useRef(false);
-  const spacesMenuOpenRef = useRef(false);
+  const projekteMenuOpenRef = useRef(false);
   const grueneratorenMenuOpenRef = useRef(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -205,7 +205,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
       if (
         !newMenuOpenRef.current &&
         !accountMenuOpenRef.current &&
-        !spacesMenuOpenRef.current &&
+        !projekteMenuOpenRef.current &&
         !grueneratorenMenuOpenRef.current
       ) {
         close();
@@ -342,8 +342,8 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
         />
 
         {/* Projekte quick-view popup — directly below Grüneratoren */}
-        <SpacesSidebarSection
-          openRef={spacesMenuOpenRef}
+        <ProjekteSidebarSection
+          openRef={projekteMenuOpenRef}
           titleClass={titleClass}
           collapsed={!sidebarExpanded}
           onNavigate={handleLinkClick}

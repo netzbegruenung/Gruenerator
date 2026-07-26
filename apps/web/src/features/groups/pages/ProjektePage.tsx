@@ -18,17 +18,17 @@ import {
 import { WorkplaceHero } from '../../workplace/components/WorkplaceHero';
 import GroupDetailSection from '../components/GroupDetailSection';
 import GroupsCreateSection from '../components/GroupsCreateSection';
+import { ProjekteComposer } from '../components/ProjekteComposer';
+import { ProjektTile } from '../components/ProjektTile';
 import PublicGroupsSection from '../components/PublicGroupsSection';
-import { SpacesComposer } from '../components/SpacesComposer';
-import { SpaceTile } from '../components/SpaceTile';
 import { useGroupResolver } from '../hooks/useGroupResolver';
 import { useGroups, useInviteToGroup, type GroupSummary } from '../hooks/useGroups';
 
-type SpaceType = 'personal' | 'standard';
+type ProjektType = 'personal' | 'standard';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const GruppenPage = () => {
+const ProjektePage = () => {
   const navigate = useNavigate();
   const firstName = useFirstName();
   const { idOrSlug } = useParams<{ idOrSlug?: string }>();
@@ -41,7 +41,7 @@ const GruppenPage = () => {
   );
   const resolvedGroupId = isUuid ? idOrSlug : (groupResolver.data?.id ?? null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [createType, setCreateType] = useState<SpaceType>('personal');
+  const [createType, setCreateType] = useState<ProjektType>('personal');
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -63,7 +63,7 @@ const GruppenPage = () => {
     errorTimer.current = setTimeout(() => setErrorMessage(''), 7000);
   }, []);
 
-  const openCreate = useCallback((type: SpaceType) => {
+  const openCreate = useCallback((type: ProjektType) => {
     setCreateType(type);
     setCreateDialogOpen(true);
     setSuccessMessage('');
@@ -71,7 +71,7 @@ const GruppenPage = () => {
   }, []);
 
   const handleCreateGroup = useCallback(
-    (groupName: string, groupType: SpaceType, inviteEmails: string[] = []) => {
+    (groupName: string, groupType: ProjektType, inviteEmails: string[] = []) => {
       if (isCreatingGroup) return;
       const name = groupName.trim();
       const noun = groupType === 'standard' ? 'Gruppe' : 'Projekt';
@@ -82,7 +82,7 @@ const GruppenPage = () => {
         onSuccess: (newGroup: GroupSummary) => {
           setCreateDialogOpen(false);
           // Navigate to the new group immediately; the target is the same
-          // GruppenPage (detail view), so the banner still updates once the
+          // ProjektePage (detail view), so the banner still updates once the
           // invites resolve in the background.
           showSuccess(`${noun} „${name}" erfolgreich erstellt!`);
           void navigate(buildGroupPath(newGroup));
@@ -123,7 +123,7 @@ const GruppenPage = () => {
       isCreatingGroup={isCreatingGroup}
       isCreateGroupError={isCreateGroupError}
       createGroupError={createGroupError}
-      initialSpaceType={createType}
+      initialProjektType={createType}
     />
   );
 
@@ -156,12 +156,12 @@ const GruppenPage = () => {
   // Overview — Office/Studio landing recipe: tinted gradient shell, hero greeting,
   // a create-or-search composer, the two create "tools", then the project grids.
   return (
-    <PageContainer maxWidth="lg" noPadTop bgClassName={getToolGradient('spaces')}>
+    <PageContainer maxWidth="lg" noPadTop bgClassName={getToolGradient('projekte')}>
       {banners}
 
       <WorkplaceHero title={firstName ? `Deine Projekte, ${firstName}` : 'Deine Projekte'}>
-        <SpacesComposer
-          spaces={userGroups}
+        <ProjekteComposer
+          projekte={userGroups}
           isCreating={isCreatingGroup}
           onCreate={handleCreateGroup}
         />
@@ -171,7 +171,7 @@ const GruppenPage = () => {
         <div className={OFFICE_SCROLL_ROW} style={officeStripStyle(2, { maxTilePx: 200 })}>
           <div className={OFFICE_SCROLL_ITEM}>
             <OfficeActionTile
-              styleKey="spaces"
+              styleKey="projekte"
               icon={HiUser}
               title="Projekt erstellen"
               description="Nur für dich — organisiere deine Chats & Inhalte."
@@ -180,7 +180,7 @@ const GruppenPage = () => {
           </div>
           <div className={OFFICE_SCROLL_ITEM}>
             <OfficeActionTile
-              styleKey="spaces"
+              styleKey="projekte"
               icon={HiUserGroup}
               title="Gruppe erstellen"
               description="Mit Team — Mitglieder, geteilte Inhalte & Beitritt."
@@ -198,7 +198,7 @@ const GruppenPage = () => {
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,200px))] gap-3 sm:gap-4">
           {(userGroups || []).map((g) => (
-            <SpaceTile key={g.id} space={g} />
+            <ProjektTile key={g.id} projekt={g} />
           ))}
         </div>
       )}
@@ -209,4 +209,4 @@ const GruppenPage = () => {
   );
 };
 
-export default withAuthRequired(GruppenPage, { title: 'Projekte' });
+export default withAuthRequired(ProjektePage, { title: 'Projekte' });
