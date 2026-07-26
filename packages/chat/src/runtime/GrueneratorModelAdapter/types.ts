@@ -8,6 +8,7 @@ import type {
   ChartData,
   ComputeData,
 } from '../../hooks/useChatGraphStream';
+import type { ActiveArtifact } from '../../stores/artifactLiveStore';
 import type { ToolKey, ThreadMode, SearchMode } from '../../stores/chatStore';
 import type {
   ConfirmActionData,
@@ -15,9 +16,8 @@ import type {
   ReelPickerData,
   ReelProcessingData,
 } from '../../types/messageMetadata';
-import type { ActiveArtifact } from '../../stores/artifactLiveStore';
-import type { BundestagPayload, BahnPayload } from '@gruenerator/contracts';
 import type { ChatModelRunResult } from '@assistant-ui/react';
+import type { BahnPayload } from '@gruenerator/contracts';
 
 export type GrueneratorMessageMetadata = {
   progress?: ChatProgress;
@@ -28,7 +28,6 @@ export type GrueneratorMessageMetadata = {
   chartData?: ChartData;
   artifactData?: ActiveArtifact;
   computeData?: ComputeData;
-  bundestagData?: BundestagPayload;
   bahnData?: BahnPayload;
   streamMetadata?: StreamMetadata;
   threadId?: string;

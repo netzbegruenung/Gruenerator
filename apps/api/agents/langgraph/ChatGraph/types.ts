@@ -12,7 +12,6 @@
 
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
-import type { BtEnrichedResult } from '../../../services/bundestag/types.js';
 import type { AIWorkerPool } from '../../../workers/types.js';
 import type {
   WolkeFileRef,
@@ -30,7 +29,6 @@ import type {
 import type { ModelMessage } from 'ai';
 
 export type { WolkeFileRef, ConnectFileRef, CurrentBoard, SocialPostPayload };
-export type { BtEnrichedResult };
 
 /**
  * Search source backends that can be queried in parallel.
@@ -610,12 +608,6 @@ export interface ChatGraphState {
   // `result.examples` so PressemitteilungExamplesCard can render title/body/lv
   // /url; the generic ToolCallUI also reads `examples`.
   examplesResult: ExamplesToolResult | null;
-
-  // Structured Bundestag/DIP result (set by search node for the `bundestag`
-  // intent). Emitted as its own `bundestag` SSE event and persisted into the
-  // `bundestag` tool-call result so BundestagCard can render Drucksachen,
-  // Verfahrensstand, Reden and PDF links on stream + reload.
-  bundestagResult: BtEnrichedResult | null;
 
   // Quality gate (iterative search)
   qualityScore: number;
