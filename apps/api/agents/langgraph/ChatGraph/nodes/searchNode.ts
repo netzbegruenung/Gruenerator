@@ -72,6 +72,18 @@ export {
 
 const log = createLogger('ChatGraph:Search');
 
+/**
+ * How many candidates a fan-in hands downstream, BEFORE reranking.
+ *
+ * This used to be 8 — below the reranker's own input budget
+ * (RERANK_INPUT_LIMIT = 16, or 20 when notebook-scoped), so the cross-encoder
+ * could only reorder what the weaker retrieval score had already picked. Its
+ * entire value is promoting a result that scored low on the cheap metric, which
+ * a pre-cut of 8 makes impossible. Sized above the largest rerank input so the
+ * reranker is the thing that decides, not the fan-in.
+ */
+const FANIN_CANDIDATE_LIMIT = 24;
+
 // ── Abgeordnetenwatch → SearchResult mapping ──────────────────────────────────
 const AW_VOTE_LABELS: Record<string, string> = {
   yes: 'Ja',
@@ -443,7 +455,7 @@ export async function executeDocumentSearchParallel(
   // Partial failures (some collections OK, some failed) are already logged as warns.
   const errors = allResults.length === 0 ? collectedErrors : [];
   return {
-    results: allResults.slice(0, 8),
+    results: allResults.slice(0, FANIN_CANDIDATE_LIMIT),
     searchedCollections: uniqueCollections,
     errors,
   };
@@ -510,7 +522,7 @@ export async function executeWebSearchParallel(
   allWebResults.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
   // Only surface when zero usable results — partial variant failures are normal.
   const errors = allWebResults.length === 0 ? collectedErrors : [];
-  return { results: allWebResults.slice(0, 8), errors };
+  return { results: allWebResults.slice(0, FANIN_CANDIDATE_LIMIT), errors };
 }
 
 /**
@@ -1358,7 +1370,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
         // Sort by relevance and limit
         allWebResults.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
-        results = allWebResults.slice(0, 8);
+        results = allWebResults.slice(0, FANIN_CANDIDATE_LIMIT);
 
         // A1: Crawl top 2 web results for full content
         try {
