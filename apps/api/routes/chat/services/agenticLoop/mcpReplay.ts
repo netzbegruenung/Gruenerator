@@ -19,6 +19,8 @@
  * after execution), so — unlike OpenWebUI's separate call/result items — orphans
  * are impossible here; every replayed call has its result.
  */
+import { applyContextCap } from '../../../../utils/contextCap.js';
+
 import { type PersistedStep } from './types.js';
 
 import type { ModelMessage } from 'ai';
@@ -60,7 +62,7 @@ function shortValue(result: Record<string, unknown>): string {
   if (!s) return '';
   s = stripReplayCitationMarkers(s);
   const cap = carriesSources(result) ? SOURCE_RESULT_CHARS : RESULT_PREVIEW_CHARS;
-  return s.length > cap ? `${s.slice(0, cap)}…` : s;
+  return applyContextCap(s, cap, carriesSources(result) ? 'mcpReplay:sources' : 'mcpReplay:result');
 }
 
 /**

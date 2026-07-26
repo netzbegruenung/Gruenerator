@@ -283,7 +283,6 @@ function PresentationsEditorContent() {
   return (
     <div className="h-full flex flex-col relative">
       <EditorTopBar
-        dataTour="presentations-topbar"
         title={docData.title}
         connectionStatus={connectionStatus}
         onBack={isGuest ? undefined : () => navigate('/office')}
