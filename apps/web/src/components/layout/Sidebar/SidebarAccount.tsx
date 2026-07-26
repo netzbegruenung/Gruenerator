@@ -12,6 +12,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@gruenerator/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { Bell, LogOut } from 'lucide-react';
 import { type MutableRefObject, type ReactNode, memo, useEffect, useState } from 'react';
 import { FaUsers } from 'react-icons/fa';
@@ -26,6 +27,7 @@ import {
   useSettingsDialogStore,
   type SettingsTab,
 } from '../../../features/settings/settingsDialogStore';
+import { loadSettingsShell, preloadSettingsTab } from '../../../features/settings/settingsTabs';
 import { useAuthStore } from '../../../stores/authStore';
 
 import { cn } from '@/utils/cn';
@@ -64,8 +66,20 @@ const SidebarAccount = memo(function SidebarAccount({
   const unreadCount = notifData?.pages.flat().length ?? 0;
   const unreadBadgeLabel = hasNextPage || unreadCount > 9 ? '9+' : String(unreadCount);
   const { data: profile } = useProfile(user?.id);
+  const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+
+  // Reaching for the account button, or hovering one of its settings entries,
+  // happens hundreds of milliseconds before the click — long enough to have the
+  // dialog chunk, the tab chunk and the tab's data all in place by then.
+  const warmSettingsShell = () => {
+    void loadSettingsShell().catch(() => {});
+  };
+  const warmSettingsTab = (tab: SettingsTab) => {
+    warmSettingsShell();
+    preloadSettingsTab(tab, queryClient);
+  };
 
   // Keep the sidebar from collapsing (hover-leave) while either surface is open.
   useEffect(() => {
@@ -111,6 +125,8 @@ const SidebarAccount = memo(function SidebarAccount({
       {/* Profile header — avatar + name on top, opens the Konto tab. */}
       <DropdownMenuItem
         onSelect={() => openSettingsDeferred('konto')}
+        onPointerEnter={() => warmSettingsTab('konto')}
+        onFocus={() => warmSettingsTab('konto')}
         className="items-center gap-2 py-2"
       >
         <span className="shrink-0">{avatarEl}</span>
@@ -130,15 +146,28 @@ const SidebarAccount = memo(function SidebarAccount({
       </DropdownMenuItem>
       {/* Deep links to specific settings tabs; deferred so the closing dropdown
           and the opening dialog don't fight over the Radix body/focus lock. */}
-      <DropdownMenuItem onSelect={() => openSettingsDeferred('personalisierung')}>
+      <DropdownMenuItem
+        onSelect={() => openSettingsDeferred('personalisierung')}
+        onPointerEnter={() => warmSettingsTab('personalisierung')}
+        onFocus={() => warmSettingsTab('personalisierung')}
+      >
         <FiSliders className="size-4" />
         <span>Personalisierung</span>
       </DropdownMenuItem>
-      <DropdownMenuItem onSelect={() => openSettingsDeferred('konnektoren')}>
+      <DropdownMenuItem
+        onSelect={() => openSettingsDeferred('konnektoren')}
+        onPointerEnter={() => warmSettingsTab('konnektoren')}
+        onFocus={() => warmSettingsTab('konnektoren')}
+      >
         <FiServer className="size-4" />
         <span>Konnektoren</span>
       </DropdownMenuItem>
-      <DropdownMenuItem onSelect={() => openSettingsDeferred()}>
+      <DropdownMenuItem
+        onSelect={() => openSettingsDeferred()}
+        // No tab argument: this entry reopens whichever tab the store last held.
+        onPointerEnter={() => warmSettingsTab(useSettingsDialogStore.getState().tab)}
+        onFocus={() => warmSettingsTab(useSettingsDialogStore.getState().tab)}
+      >
         <HiCog className="size-4" />
         <span>Einstellungen</span>
       </DropdownMenuItem>
@@ -204,6 +233,8 @@ const SidebarAccount = memo(function SidebarAccount({
           {accountMenu(
             <button
               type="button"
+              onPointerEnter={warmSettingsShell}
+              onFocus={warmSettingsShell}
               className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-3 py-1 transition-colors hover:bg-hover-alt"
               aria-label="Konto-Menü öffnen"
             >
@@ -225,6 +256,8 @@ const SidebarAccount = memo(function SidebarAccount({
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
+                    onPointerEnter={warmSettingsShell}
+                    onFocus={warmSettingsShell}
                     className="flex size-9 items-center justify-center rounded-full transition-colors hover:bg-hover-alt"
                     aria-label="Konto-Menü öffnen"
                   >
