@@ -352,6 +352,12 @@ describe('looksLikeCompoundGeneration', () => {
     ['zahlen + folien', 'Such aktuelle Zahlen zur Windkraft und mach Folien daraus'],
     ['position + tabelle', 'Vergleiche die Positionen zum Tempolimit in einer Tabelle'],
     ['fakten + sheet', 'Ich brauche ein Sheet mit den Fakten zur Kindergrundsicherung'],
+    // The research signal used to require the VERB stem `recherchier`, so these
+    // follow-ups fell through to the single-pass generator with no sources at
+    // all and produced placeholder documents ("Beispielautor*in", example.com).
+    ['recherche as a NOUN + pdf', 'erstelle nun ein pdf mit originalquellen aus der recherche'],
+    ['quellen + pdf', 'Mach mir daraus ein PDF mit den Quellen'],
+    ['belege + tabelle', 'Erstelle eine Tabelle mit Belegen zum Radverkehr'],
   ];
   it.each(compound)('routes compound research+generation into the loop: %s', (_l, q) => {
     expect(looksLikeCompoundGeneration(q)).toBe(true);

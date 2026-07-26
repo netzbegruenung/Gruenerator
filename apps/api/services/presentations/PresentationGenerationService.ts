@@ -60,7 +60,8 @@ Regeln:
 - Layouts: "title" = Titelfolie, "content" = Titel + Aufzählung, "split" = zweispaltig, "quote" = Zitat, "image" = Bildfolie
 - "body" ist Markdown — nutze "- " für Aufzählungen. Stichpunkte statt Fließtext
 - "notes" sind optionale Sprechernotizen (können leer sein)
-- Erstelle realistische, vollständige Platzhalterinhalte
+- Schreibe jede Folie inhaltlich aus. NIEMALS Platzhalter wie "Kernpunkt 1", "Beispieltitel" oder "hier Inhalt einfügen" — wenn der Auftrag zu einem Punkt nichts hergibt, lass die Folie weg statt sie zu füllen
+- Enthält der Auftrag recherchierte Quellen (Zeilen der Form "[1] Titel <URL> — Auszug"), nutze deren Fakten und schließe mit einer Quellenfolie ab, die Titel und vollständige URL je Quelle nennt
 - Schreibe auf Deutsch mit geschlechtergerechter Sprache (Genderstern *)`;
 
 export interface PresentationStructure {
