@@ -867,3 +867,168 @@ describe('renderPdf', () => {
     });
   });
 });
+
+/**
+ * Briefe gehen ins Fensterkuvert — beim Selbstdruck wie bei jedem digitalen
+ * Versanddienst (LetterXpress, Pingen, E-POST). Die Maße unten sind deshalb
+ * keine Geschmacksfrage, sondern die Zustellbedingung: die Anschrift muss im
+ * Sichtfenster liegen, sonst dort nichts, und die Codierzone am Fuß bleibt der
+ * Post vorbehalten. Gemessen wird in Millimetern ab OBERKANTE, so wie DIN 5008
+ * die Maße angibt.
+ */
+describe('Brief: DIN 5008 Form B, versandfähig im Fensterkuvert', () => {
+  const MM = 2.834645669;
+  const PAGE_H = 841.89;
+  const PAGE_W = 595.28;
+
+  interface Placed {
+    page: number;
+    x: number;
+    top: number;
+    right: number;
+    text: string;
+  }
+
+  /** Jede gezeichnete Textzeile mit ihrer Lage in mm — Artefakte eingeschlossen. */
+  async function placedText(bytes: Buffer): Promise<Placed[]> {
+    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    const task = pdfjs.getDocument({ data: new Uint8Array(bytes), useSystemFonts: false });
+    const doc = await task.promise;
+    const out: Placed[] = [];
+    for (let i = 1; i <= doc.numPages; i++) {
+      const content = await (await doc.getPage(i)).getTextContent();
+      for (const item of content.items) {
+        if (!('str' in item) || !item.str.trim()) continue;
+        const t = item.transform as number[];
+        out.push({
+          page: i,
+          x: (t[4] ?? 0) / MM,
+          top: (PAGE_H - (t[5] ?? 0)) / MM,
+          right: ((t[4] ?? 0) + (item.width ?? 0)) / MM,
+          text: item.str.trim(),
+        });
+      }
+    }
+    await task.destroy();
+    return out;
+  }
+
+  const LETTER = spec({
+    kind: 'letter',
+    title: 'Brief',
+    letter: {
+      recipient:
+        'Stadtverwaltung Musterstadt\nAmt für Stadtentwicklung\nFrau Dr. Erika Mustermann\nRathausplatz 1\n12345 Musterstadt',
+      place: 'Musterstadt',
+      subject: 'Antrag auf Förderung des Radwegeausbaus',
+      salutation: 'Sehr geehrte Frau Dr. Mustermann,',
+      closing: 'Mit freundlichen Grüßen',
+      signature: 'Max Beispiel',
+    },
+    blocks: [
+      { type: 'paragraph', text: 'Wir beantragen den Ausbau des Radwegenetzes. '.repeat(60) },
+    ],
+  });
+  const SENDER = {
+    organization: 'BÜNDNIS 90/DIE GRÜNEN Musterstadt',
+    name: 'Max Beispiel',
+    address: 'Grüne Straße 12\n12345 Musterstadt',
+  };
+
+  it('setzt die Anschrift in die Anschriftzone des Sichtfensters', async () => {
+    const result = await renderPdf(LETTER, { locale: 'de-DE', sender: SENDER });
+    // Nach Lage gefiltert, nicht nach Text: "12345 Musterstadt" steht auch im
+    // Absenderblock, eine Textsuche zählte es doppelt.
+    const address = (await placedText(result.bytes)).filter(
+      (l) => l.page === 1 && l.top > 63 && l.x < 24
+    );
+
+    expect(address.map((l) => l.text)).toEqual(LETTER.letter?.recipient?.split('\n'));
+    for (const line of address) {
+      // Anschriftzone Form B: 63,3 mm bis 90 mm unter der Oberkante,
+      // linksbündig auf 20 mm, höchstens 85 mm breit.
+      expect(line.x).toBeCloseTo(20, 1);
+      expect(line.top).toBeGreaterThanOrEqual(63.3);
+      expect(line.top).toBeLessThanOrEqual(90);
+      expect(line.right).toBeLessThanOrEqual(105);
+    }
+  });
+
+  it('lässt im Sichtfenster nichts außer Anschrift und Rücksendeangabe stehen', async () => {
+    const result = await renderPdf(LETTER, { locale: 'de-DE', sender: SENDER });
+    const allowed = new Set(LETTER.letter?.recipient?.split('\n').map((l) => l.trim()));
+    // Das Kuvertfenster deckt 20–110 mm waagerecht und 45–90 mm senkrecht ab.
+    const intruders = (await placedText(result.bytes)).filter(
+      (l) =>
+        l.page === 1 &&
+        l.top >= 45 &&
+        l.top <= 90 &&
+        l.right >= 20 &&
+        l.x <= 110 &&
+        !allowed.has(l.text) &&
+        // Die Rücksendeangabe gehört als einzige weitere Angabe ins Feld.
+        !l.text.startsWith('BÜNDNIS 90/DIE GRÜNEN Musterstadt ·')
+    );
+
+    expect(intruders.map((l) => `${l.text} @ ${l.top.toFixed(1)}mm`)).toEqual([]);
+  });
+
+  it('hält den Absenderblock über dem Anschriftfeld', async () => {
+    const result = await renderPdf(LETTER, {
+      locale: 'de-DE',
+      // Fünf Zeilen — mehr zeichnet drawSenderBlock nicht.
+      sender: { ...SENDER, address: 'Grüne Straße 12\nHinterhaus\n12345 Musterstadt' },
+    });
+    const senderLines = (await placedText(result.bytes)).filter(
+      (l) => l.page === 1 && l.top < 45 && l.x < 100
+    );
+
+    expect(senderLines.length).toBeGreaterThan(0);
+    for (const line of senderLines) expect(line.top).toBeLessThan(45);
+  });
+
+  it('hält die Codierzone der Post am Fuß jeder Seite frei', async () => {
+    const result = await renderPdf(LETTER, { locale: 'de-DE', sender: SENDER });
+    const lines = await placedText(result.bytes);
+
+    expect(lines.filter((l) => l.page === 2)).not.toHaveLength(0);
+    // Unterste 15 mm gehören dem Codierstreifen; 1 mm Puffer für Unterlängen.
+    for (const line of lines) expect(line.top).toBeLessThanOrEqual(297 - 16);
+  });
+
+  it('bringt eine überlange Empfängerzeile im Fenster unter, statt sie zu überschreiben', async () => {
+    const result = await renderPdf(
+      spec({
+        kind: 'letter',
+        letter: { recipient: `${'Sehr lange Empfängerzeile '.repeat(10)}\n12345 Ort` },
+        blocks: [{ type: 'paragraph', text: 'Brieftext.' }],
+      }),
+      { locale: 'de-DE', sender: SENDER }
+    );
+    // Nur die Anschriftzone selbst — die Datumszeile liegt zwar auf gleicher
+    // Höhe, aber rechts vom Fenster und ist deshalb nicht gemeint.
+    const lines = (await placedText(result.bytes)).filter(
+      (l) => l.page === 1 && l.top >= 63.3 && l.top <= 90 && l.x < 24
+    );
+
+    expect(lines.length).toBeGreaterThan(0);
+    for (const line of lines) expect(line.right).toBeLessThanOrEqual(105);
+  });
+
+  it('setzt Datum und Betreff außerhalb des Fensters an die DIN-Positionen', async () => {
+    const result = await renderPdf(LETTER, { locale: 'de-DE', sender: SENDER });
+    const lines = (await placedText(result.bytes)).filter((l) => l.page === 1);
+
+    const date = lines.find((l) => l.text.startsWith('Musterstadt,'));
+    expect(date).toBeDefined();
+    // Informationsblock: rechts von 125 mm, damit das Fenster frei bleibt.
+    expect(date?.x).toBeGreaterThanOrEqual(125);
+    expect(date?.right).toBeLessThanOrEqual(PAGE_W / MM - 20 + 1);
+
+    // Betreff: zwei Zeilen unter dem Anschriftfeld, also ab 98 mm.
+    const subject = lines.find((l) => l.text.startsWith('Antrag'));
+    expect(subject?.top).toBeGreaterThanOrEqual(98);
+    expect(subject?.top).toBeLessThanOrEqual(102);
+    expect(subject?.x).toBeCloseTo(25, 1);
+  });
+});

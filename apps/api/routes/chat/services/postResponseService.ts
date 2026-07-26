@@ -15,6 +15,7 @@ import { generateThreadTitle } from '../../../services/chat/threadTitleService.j
 import { shouldExtractMemories } from '../../../services/mem0/gatekeeperService.js';
 import { getMem0Instance } from '../../../services/mem0/index.js';
 import { maybeRecompilePersona } from '../../../services/mem0/personaService.js';
+import { withRetry } from '../../../services/search/searchRetryStrategy.js';
 import { createLogger } from '../../../utils/logger.js';
 import { reportBackgroundError } from '../../../utils/reportBackgroundError.js';
 import { type AIWorkerPool } from '../../../workers/types.js';
@@ -336,7 +337,32 @@ function deriveToolContext(p: {
 /**
  * Persist the assistant response and handle all post-response side effects.
  */
-export async function persistAssistantResponse(params: PersistParams): Promise<void> {
+/**
+ * Outcome of a persistence attempt. `ok: false` means the user's turn is NOT
+ * in the database — the caller must tell the user (the answer looked fine
+ * live, but it is gone on reload).
+ */
+export interface PersistOutcome {
+  ok: boolean;
+}
+
+/**
+ * Retry a message write once. DB writes fail transiently (connection reset,
+ * failover, brief pool exhaustion) far more often than they fail permanently,
+ * and the cost of a duplicate attempt is far lower than losing the turn.
+ * `isRecoverable: () => true` because Postgres errors don't carry the
+ * HTTP-ish markers `isRecoverableError` classifies on.
+ */
+async function withMessageWriteRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
+  return withRetry(fn, {
+    maxRetries: 1,
+    delayMs: 300,
+    isRecoverable: () => true,
+    label: `persist:${label}`,
+  });
+}
+
+export async function persistAssistantResponse(params: PersistParams): Promise<PersistOutcome> {
   const {
     threadId,
     userId,
@@ -362,7 +388,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
     !threadId ||
     (!fullText && !generatedImage && sharepicVariants.length === 0 && !createdDocument)
   )
-    return;
+    return { ok: true };
 
   try {
     // Agentic loop: persist the real executed steps (already in the
@@ -413,15 +439,21 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
       // row is gone (e.g. a regenerate from another tab deleted it) — do NOT
       // re-insert (that would resurrect a turn the user discarded); just warn
       // and skip all post-persist side effects for this turn.
-      const matched = await finalizeAssistantMessage(pendingMessageId, fullText || null, metadata);
+      const matched = await withMessageWriteRetry(
+        () => finalizeAssistantMessage(pendingMessageId, fullText || null, metadata),
+        'finalizeAssistantMessage'
+      );
       if (!matched) {
         log.warn(
           `[ChatGraph] Pending assistant row ${pendingMessageId} vanished before finalize — response discarded (thread ${threadId})`
         );
-        return;
+        return { ok: true };
       }
     } else {
-      await createMessage(threadId, 'assistant', fullText || null, metadata);
+      await withMessageWriteRetry(
+        () => createMessage(threadId, 'assistant', fullText || null, metadata),
+        'createMessage'
+      );
     }
 
     if (toolCalls) {
@@ -484,7 +516,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
 
     log.info(`[ChatGraph] Message persisted for thread ${threadId}`);
 
-    await saveThreadAttachmentsFromMeta(threadId, userId, processedMeta);
+    const attachmentsOk = await saveThreadAttachmentsFromMeta(threadId, userId, processedMeta);
 
     const mem0 = getMem0Instance();
     if (mem0 && lastUserMessage && fullText && memoryEnabled) {
@@ -524,8 +556,14 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
           reportBackgroundError(memError, { job: 'chat-memory-save', requestId, userId });
         });
     }
+
+    return { ok: attachmentsOk };
   } catch (error) {
+    // The turn is NOT in the database. Report it so the caller can tell the
+    // user before the stream closes — a silently lost turn looks perfect live
+    // and is gone on reload.
     log.error('[ChatGraph] Error persisting message:', error);
+    return { ok: false };
   }
 }
 
@@ -541,22 +579,28 @@ async function saveThreadAttachmentsFromMeta(
   threadId: string,
   userId: string,
   processedMeta: ProcessedAttachmentMeta[]
-): Promise<void> {
-  if (processedMeta.length === 0) return;
+): Promise<boolean> {
+  if (processedMeta.length === 0) return true;
+  let saved = 0;
   for (const meta of processedMeta) {
     try {
-      const attachmentId = await saveThreadAttachment({
-        threadId,
-        messageId: null,
-        userId,
-        name: meta.name,
-        mimeType: meta.mimeType,
-        sizeBytes: meta.sizeBytes,
-        isImage: meta.isImage,
-        extractedText: meta.extractedText,
-        ...(meta.imageData != null && { imageData: meta.imageData }),
-        ...(meta.fileData != null && { fileData: meta.fileData }),
-      });
+      const attachmentId = await withMessageWriteRetry(
+        () =>
+          saveThreadAttachment({
+            threadId,
+            messageId: null,
+            userId,
+            name: meta.name,
+            mimeType: meta.mimeType,
+            sizeBytes: meta.sizeBytes,
+            isImage: meta.isImage,
+            extractedText: meta.extractedText,
+            ...(meta.imageData != null && { imageData: meta.imageData }),
+            ...(meta.fileData != null && { fileData: meta.fileData }),
+          }),
+        `saveThreadAttachment:${meta.name}`
+      );
+      saved++;
 
       // Large prose documents (not images, not tabular) get chunked+embedded
       // in the background so follow-up turns retrieve them via RAG instead of
@@ -581,7 +625,10 @@ async function saveThreadAttachmentsFromMeta(
       log.error(`[ChatGraph] Failed to save attachment ${meta.name}:`, attachError);
     }
   }
-  log.info(`[ChatGraph] Saved ${processedMeta.length} attachments for thread ${threadId}`);
+  // Count successes, not inputs: the old log claimed "Saved N" even when every
+  // single attachment had failed.
+  log.info(`[ChatGraph] Saved ${saved}/${processedMeta.length} attachments for thread ${threadId}`);
+  return saved === processedMeta.length;
 }
 
 /**
@@ -610,7 +657,7 @@ export async function persistResumedResponse(params: {
    *  inserting a new one; a vanished row is NOT re-inserted (the turn was
    *  discarded), matching persistAssistantResponse. Null/omitted → insert. */
   pendingMessageId?: string | null;
-}): Promise<void> {
+}): Promise<PersistOutcome> {
   const {
     threadId,
     fullText,
@@ -621,7 +668,7 @@ export async function persistResumedResponse(params: {
     pendingMessageId,
   } = params;
 
-  if (!threadId || !fullText) return;
+  if (!threadId || !fullText) return { ok: true };
 
   try {
     const toolCalls = buildToolCalls(
@@ -652,15 +699,21 @@ export async function persistResumedResponse(params: {
       // Finalize the placeholder minted before streaming. A miss means the row
       // is gone (e.g. a regenerate from another tab deleted it) — do NOT
       // re-insert; just warn and skip the post-persist side effects.
-      const matched = await finalizeAssistantMessage(pendingMessageId, fullText, metadata);
+      const matched = await withMessageWriteRetry(
+        () => finalizeAssistantMessage(pendingMessageId, fullText, metadata),
+        'finalizeAssistantMessage:resume'
+      );
       if (!matched) {
         log.warn(
           `[ChatGraph:Resume] Pending assistant row ${pendingMessageId} vanished before finalize — response discarded (thread ${threadId})`
         );
-        return;
+        return { ok: true };
       }
     } else {
-      await createMessage(threadId, 'assistant', fullText, metadata);
+      await withMessageWriteRetry(
+        () => createMessage(threadId, 'assistant', fullText, metadata),
+        'createMessage:resume'
+      );
     }
     await touchThread(threadId);
 
@@ -679,11 +732,14 @@ export async function persistResumedResponse(params: {
       );
     }
 
+    let attachmentsOk = true;
     if (userId && processedMeta?.length) {
-      await saveThreadAttachmentsFromMeta(threadId, userId, processedMeta);
+      attachmentsOk = await saveThreadAttachmentsFromMeta(threadId, userId, processedMeta);
     }
     log.info(`[ChatGraph:Resume] Message persisted for thread ${threadId}`);
+    return { ok: attachmentsOk };
   } catch (error) {
     log.error('[ChatGraph:Resume] Error persisting message:', error);
+    return { ok: false };
   }
 }

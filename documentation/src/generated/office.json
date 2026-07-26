@@ -410,6 +410,11 @@
             "name": "at",
             "optional": true,
             "doc": "1-based insert position; appended to the end when omitted."
+          },
+          {
+            "name": "fontSize",
+            "optional": true,
+            "doc": "Font-size preset; omitted or 'auto' creates the slide on auto-fit."
           }
         ]
       },
@@ -466,6 +471,11 @@
             "name": "variant",
             "optional": true,
             "doc": "Design variant within the layout (0–2); see slideSchema.variant."
+          },
+          {
+            "name": "fontSize",
+            "optional": true,
+            "doc": "Font-size preset. 'auto' resets the slide to auto-fit — an explicit literal because null means \"no change\" under patch semantics."
           }
         ]
       },
