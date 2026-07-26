@@ -33,11 +33,14 @@
   background: var(--deck-paper);
   color: var(--deck-ink);
   font-family: var(--deck-body-font);
-  font-size: 26px;
+  /* --gs-font-scale: per-slide type scale (preset or auto-fit), set inline by
+   * SlideSurface. Scales type + list rhythm; frame geometry (padding, panels,
+   * bars, images) stays fixed so decorations match the PPTX export 1:1. */
+  font-size: calc(26px * var(--gs-font-scale, 1));
   line-height: 1.4;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: calc(20px * var(--gs-font-scale, 1));
   overflow: hidden;
   text-align: left;
 }
@@ -73,13 +76,13 @@
 }
 
 .gruene-slide__title {
-  font-size: 44px;
+  font-size: calc(44px * var(--gs-font-scale, 1));
 }
 
 .gruene-slide__body {
   flex: 1 1 auto;
   min-height: 0;
-  font-size: 28px;
+  font-size: calc(28px * var(--gs-font-scale, 1));
 }
 
 .gruene-slide__body ul {
@@ -90,8 +93,8 @@
 
 .gruene-slide__body ul li {
   position: relative;
-  padding-left: 26px;
-  margin-bottom: 14px;
+  padding-left: calc(26px * var(--gs-font-scale, 1));
+  margin-bottom: calc(14px * var(--gs-font-scale, 1));
 }
 
 /* Accent dot bullet (matches the Präsentations-Editor design). */
@@ -100,8 +103,8 @@
   position: absolute;
   left: 0;
   top: 0.55em;
-  width: 10px;
-  height: 10px;
+  width: calc(10px * var(--gs-font-scale, 1));
+  height: calc(10px * var(--gs-font-scale, 1));
   border-radius: 999px;
   background: var(--deck-accent);
 }
@@ -112,7 +115,7 @@
 }
 
 .gruene-slide__body ol li {
-  margin-bottom: 12px;
+  margin-bottom: calc(12px * var(--gs-font-scale, 1));
 }
 
 .gruene-slide__body p {
@@ -156,7 +159,7 @@
 /* Title. v0 Klassisch = centered; v1 Geteilt = left text + accent side panel;
  * v2 Sand = left text with a short accent bar on top. */
 .gruene-slide.layout-title .gruene-slide__title {
-  font-size: 56px;
+  font-size: calc(56px * var(--gs-font-scale, 1));
 }
 .gruene-slide.layout-title .gruene-slide__body {
   flex: 0 0 auto;
@@ -203,10 +206,10 @@
 .gruene-slide.layout-quote .gruene-slide__body {
   flex: 0 0 auto;
   font-family: var(--deck-quote-font);
-  font-size: 34px;
+  font-size: calc(34px * var(--gs-font-scale, 1));
   font-style: italic;
   border-left: 6px solid var(--deck-accent);
-  padding-left: 28px;
+  padding-left: calc(28px * var(--gs-font-scale, 1));
 }
 /* The web app ships Vollkorn only as Bold/BlackItalic faces — force 700 so the
  * browser doesn't synthesize a faux italic from a missing regular. */
@@ -226,12 +229,12 @@
 .gruene-slide.layout-content.variant-1 .gruene-slide__body ul {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: calc(16px * var(--gs-font-scale, 1));
   align-content: start;
 }
 .gruene-slide.layout-content.variant-1 .gruene-slide__body ul li {
   margin: 0;
-  padding: 18px 20px;
+  padding: calc(18px * var(--gs-font-scale, 1)) calc(20px * var(--gs-font-scale, 1));
   background: #f0f5f2;
   border-radius: 12px;
 }
@@ -247,22 +250,22 @@
 }
 .gruene-slide.layout-content.variant-2 .gruene-slide__body ul li {
   counter-increment: gs-num;
-  padding-left: 46px;
-  min-height: 30px;
+  padding-left: calc(46px * var(--gs-font-scale, 1));
+  min-height: calc(30px * var(--gs-font-scale, 1));
   display: flex;
   align-items: center;
 }
 .gruene-slide.layout-content.variant-2 .gruene-slide__body ul li::before {
   content: counter(gs-num);
-  width: 30px;
-  height: 30px;
+  width: calc(30px * var(--gs-font-scale, 1));
+  height: calc(30px * var(--gs-font-scale, 1));
   top: 0;
   border-radius: 999px;
   background: #eaf2ee;
   color: var(--deck-accent);
   font-family: var(--deck-heading-font);
   font-weight: 700;
-  font-size: 16px;
+  font-size: calc(16px * var(--gs-font-scale, 1));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -308,7 +311,7 @@
   flex: 1 1 auto;
   min-height: 0;
   font-family: 'JetBrains Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
-  font-size: 20px;
+  font-size: calc(20px * var(--gs-font-scale, 1));
   line-height: 1.45;
   background: #1e2420;
   color: #e8efe9;
