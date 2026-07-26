@@ -1,10 +1,10 @@
-import { templates, type DocumentTemplate } from '@gruenerator/docs/templates';
+import { type DocumentTemplate } from '@gruenerator/docs/templates';
 import { useAuth } from '@gruenerator/shared/hooks';
-import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useCallback, useState, useMemo, type ReactNode } from 'react';
+import { useEffect, useCallback, useState, useMemo } from 'react';
 import {
   View,
   FlatList,
@@ -13,15 +13,17 @@ import {
   StyleSheet,
   RefreshControl,
   Alert,
-  TextInput,
+  Platform,
   useColorScheme,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useIsTablet } from '../../hooks/useIsTablet';
 import { useDocsStore } from '../../stores/docsStore';
-import { lightTheme, darkTheme, colors } from '../../theme';
+import { lightTheme, darkTheme, colors, spacing } from '../../theme';
+import { FLOATING_TAB_BAR_HEIGHT } from '../../theme/layout';
 import { officeTypeColor } from '../../theme/officeColors';
-import { BottomSheet } from '../common/BottomSheet';
+import { getSurfaceFab } from '../../theme/toolTheme';
 import { DocPreview } from '../common/DocPreview';
 import { Fab } from '../common/Fab';
 import {
@@ -32,41 +34,24 @@ import {
   type OfficeItem,
 } from '../office/officeItem';
 
-import { AIDocumentCreatorSheet } from './AIDocumentCreatorSheet';
+import { CreateDocSheet } from './CreateDocSheet';
 import { NativeShareModal } from './NativeShareModal';
 
-const TEMPLATE_ICONS: Record<string, IoniconsIconName> = {
-  blank: 'document-outline',
-  antrag: 'clipboard-outline',
-  pressemitteilung: 'newspaper-outline',
-  protokoll: 'create-outline',
-  notizen: 'bulb-outline',
-  redaktionsplan: 'calendar-outline',
-  checkliste: 'checkbox-outline',
-  einladung: 'mail-outline',
-  tabelle: 'grid-outline',
-};
-
 /**
- * Documents body without the surrounding ScreenScaffold, so it can render both
- * standalone (the /(tabs)/(office) route) and inside the merged Arbeiten tab.
+ * Documents body without the surrounding ScreenScaffold — the Arbeiten tab's
+ * content.
  *
- * `header` scrolls above the document grid (the Arbeiten tab feeds its Werkzeuge
- * grid in here so tools + docs read as one page). `showSearch` hides the doc
- * search bar in contexts where it would be redundant.
+ * Creating and finding are one surface, as on web (`features/docs/DocsComposer`):
+ * the FAB opens a sheet whose single input either generates a document from the
+ * text or jumps to a document/template matching it. Templates are never
+ * enumerated up front — they sit behind one "Vorlagen" row until asked for.
  */
 export function DocumentsView({
-  header,
-  showSearch = true,
-  showFab = true,
   extraItems,
 }: {
-  header?: ReactNode;
-  showSearch?: boolean;
-  showFab?: boolean;
   /**
-   * Non-doc Office items (boards + canvas) merged into the list. Passed only by
-   * the Office tab; the Arbeiten tab omits it and stays docs-only.
+   * Non-doc Office items (boards + canvas) merged into the list — they have their
+   * own endpoints and are fetched by the screen, not by the docs store.
    */
   extraItems?: OfficeItem[];
 } = {}) {
@@ -84,11 +69,19 @@ export function DocumentsView({
     createDocument,
     generateDocument,
     deleteDocument,
+    clearError,
   } = useDocsStore();
-  const [showTemplates, setShowTemplates] = useState(false);
-  const [showAICreator, setShowAICreator] = useState(false);
+  const insets = useSafeAreaInsets();
+  const fabTones = getSurfaceFab('arbeiten', colorScheme === 'dark');
+  // The Android tab bar is an absolutely positioned capsule, so nothing reserves
+  // space for it — the FABs and the list's bottom padding clear it themselves.
+  // On iOS the native tab bar is already inside insets.bottom.
+  const fabBottom =
+    Platform.OS === 'ios'
+      ? insets.bottom + spacing.medium
+      : insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.small;
+  const [createOpen, setCreateOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [activeDoc, setActiveDoc] = useState<{ id: string; title: string } | null>(null);
 
@@ -107,12 +100,6 @@ export function DocumentsView({
     return merged.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }, [documents, extraItems]);
 
-  const filteredItems = useMemo(() => {
-    if (!searchQuery.trim()) return officeItems;
-    const q = searchQuery.toLowerCase();
-    return officeItems.filter((it) => (it.title || 'Unbenannt').toLowerCase().includes(q));
-  }, [officeItems, searchQuery]);
-
   const { prefetchRecentDocs } = useDocsStore();
 
   useEffect(() => {
@@ -129,7 +116,7 @@ export function DocumentsView({
   const handleSelectTemplate = async (template: DocumentTemplate) => {
     if (isCreating) return;
     setIsCreating(true);
-    setShowTemplates(false);
+    setCreateOpen(false);
     try {
       const doc = await createDocument(
         template.defaultTitle,
@@ -137,6 +124,11 @@ export function DocumentsView({
       );
       if (doc) {
         router.push({ pathname: '/(fullscreen)/doc-editor', params: { id: doc.id } });
+      } else {
+        // The store swallows the failure into `error`; clearing it keeps a failed
+        // create from replacing the whole list with the load-error screen.
+        clearError();
+        Alert.alert('Fehler', 'Dokument konnte nicht erstellt werden.');
       }
     } catch {
       Alert.alert('Fehler', 'Dokument konnte nicht erstellt werden.');
@@ -148,11 +140,14 @@ export function DocumentsView({
   const handleGenerate = async (description: string) => {
     if (isCreating) return;
     setIsCreating(true);
-    setShowAICreator(false);
+    setCreateOpen(false);
     try {
       const doc = await generateDocument(description);
       if (doc) {
         router.push({ pathname: '/(fullscreen)/doc-editor', params: { id: doc.id } });
+      } else {
+        clearError();
+        Alert.alert('Fehler', 'Dokument konnte nicht generiert werden.');
       }
     } catch {
       Alert.alert('Fehler', 'Dokument konnte nicht generiert werden.');
@@ -273,10 +268,11 @@ export function DocumentsView({
     </View>
   );
 
-  if (error) {
+  // Only a failed *load* takes over the screen; with items on hand the list wins
+  // and the failure is reported by the Alert that raised it.
+  if (error && officeItems.length === 0) {
     return (
       <View style={styles.fill}>
-        {header ? <View style={styles.headerPad}>{header}</View> : null}
         <View style={styles.errorState}>
           <Ionicons name="alert-circle-outline" size={64} color={colors.error[500]} />
           <Text style={[styles.errorTitle, { color: theme.text }]}>Fehler beim Laden</Text>
@@ -295,53 +291,25 @@ export function DocumentsView({
     <>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
 
-      {/* Top Bar */}
-      {showSearch && (
-        <View style={styles.topBar}>
-          <View
-            style={[
-              styles.searchBar,
-              { backgroundColor: theme.surface, borderColor: theme.border },
-            ]}
-          >
-            <Ionicons
-              name="search"
-              size={18}
-              color={theme.textSecondary}
-              style={styles.searchIcon}
-            />
-            <TextInput
-              style={[styles.searchInput, { color: theme.text }]}
-              placeholder="In Dokumenten suchen"
-              placeholderTextColor={theme.textSecondary}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              returnKeyType="search"
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.searchClear}>
-                <Ionicons name="close-circle" size={18} color={theme.textSecondary} />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <TouchableOpacity
-            onPress={() => setViewMode((v) => (v === 'grid' ? 'list' : 'grid'))}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons
-              name={viewMode === 'grid' ? 'list-outline' : 'grid-outline'}
-              size={20}
-              color={theme.textSecondary}
-            />
-          </TouchableOpacity>
-        </View>
-      )}
+      {/* Search moved into the create sheet (web parity), so the only chrome left
+          above the list is the grid/list switch. */}
+      <View style={styles.topBar}>
+        <TouchableOpacity
+          onPress={() => setViewMode((v) => (v === 'grid' ? 'list' : 'grid'))}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityLabel={viewMode === 'grid' ? 'Als Liste anzeigen' : 'Als Raster anzeigen'}
+        >
+          <Ionicons
+            name={viewMode === 'grid' ? 'list-outline' : 'grid-outline'}
+            size={20}
+            color={theme.textSecondary}
+          />
+        </TouchableOpacity>
+      </View>
 
       {/* Document Grid */}
       {isLoading && officeItems.length === 0 ? (
         <View style={styles.gridContent}>
-          {header}
           <View style={styles.gridRow}>
             {[0, 1].map((i) => (
               <View
@@ -405,27 +373,19 @@ export function DocumentsView({
             ))}
           </View>
         </View>
-      ) : filteredItems.length === 0 && searchQuery.trim() ? (
-        <View style={styles.emptyState}>
-          <Ionicons name="search-outline" size={48} color={theme.textSecondary} />
-          <Text style={[styles.emptyTitle, { color: theme.text }]}>Keine Ergebnisse</Text>
-          <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
-            Keine Dokumente für „{searchQuery}“ gefunden.
-          </Text>
-        </View>
       ) : viewMode === 'grid' ? (
         <FlatList
           key={`grid-${gridCols}`}
-          data={filteredItems}
+          data={officeItems}
           keyExtractor={(item) => item.id}
           renderItem={renderDocument}
           numColumns={gridCols}
           columnWrapperStyle={styles.gridRow}
           contentContainerStyle={[
             styles.gridContent,
-            filteredItems.length === 0 && styles.listEmpty,
+            { paddingBottom: fabBottom + 88 },
+            officeItems.length === 0 && styles.listEmpty,
           ]}
-          ListHeaderComponent={header ? <View>{header}</View> : undefined}
           ListEmptyComponent={renderEmptyState}
           refreshControl={
             <RefreshControl
@@ -440,14 +400,14 @@ export function DocumentsView({
       ) : (
         <FlatList
           key="list"
-          data={filteredItems}
+          data={officeItems}
           keyExtractor={(item) => item.id}
           renderItem={renderListItem}
           contentContainerStyle={[
             styles.listContent,
-            filteredItems.length === 0 && styles.listEmpty,
+            { paddingBottom: fabBottom + 88 },
+            officeItems.length === 0 && styles.listEmpty,
           ]}
-          ListHeaderComponent={header ? <View>{header}</View> : undefined}
           ListEmptyComponent={renderEmptyState}
           refreshControl={
             <RefreshControl
@@ -461,78 +421,26 @@ export function DocumentsView({
         />
       )}
 
-      {showFab && (
-        <Fab
-          icon="add"
-          onPress={() => setShowTemplates(true)}
-          loading={isCreating}
-          accessibilityLabel="Neues Dokument"
-        />
-      )}
+      <Fab
+        icon="add"
+        onPress={() => setCreateOpen(true)}
+        loading={isCreating}
+        accessibilityLabel="Erstellen oder finden"
+        color={fabTones.solid.icon}
+        style={{ backgroundColor: fabTones.solid.background, bottom: fabBottom }}
+      />
 
-      {/* Template selection bottom sheet */}
-      <BottomSheet visible={showTemplates} onClose={() => setShowTemplates(false)}>
-        <Text style={[styles.bottomSheetTitle, { color: theme.text }]}>Neues Dokument</Text>
-        <TouchableOpacity
-          style={[styles.templateRow, { borderBottomColor: theme.border }]}
-          onPress={() => {
-            setShowTemplates(false);
-            setShowAICreator(true);
-          }}
-          activeOpacity={0.7}
-        >
-          <View
-            style={[
-              styles.templateIconTile,
-              { backgroundColor: theme.card, borderColor: theme.cardBorder },
-            ]}
-          >
-            <Ionicons name="sparkles-outline" size={20} color={colors.secondary[600]} />
-          </View>
-          <View style={styles.templateInfo}>
-            <Text style={[styles.templateName, { color: theme.text }]}>Mit KI erstellen</Text>
-            <Text style={[styles.templateDescription, { color: theme.textSecondary }]}>
-              Aus einer Beschreibung generieren
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
-        </TouchableOpacity>
-        {templates.map((template) => (
-          <TouchableOpacity
-            key={template.id}
-            style={[styles.templateRow, { borderBottomColor: theme.border }]}
-            onPress={() => handleSelectTemplate(template)}
-            activeOpacity={0.7}
-          >
-            <View
-              style={[
-                styles.templateIconTile,
-                { backgroundColor: theme.card, borderColor: theme.cardBorder },
-              ]}
-            >
-              <Ionicons
-                name={TEMPLATE_ICONS[template.id] ?? 'document-outline'}
-                size={20}
-                color={colors.secondary[600]}
-              />
-            </View>
-            <View style={styles.templateInfo}>
-              <Text style={[styles.templateName, { color: theme.text }]}>{template.name}</Text>
-              <Text style={[styles.templateDescription, { color: theme.textSecondary }]}>
-                {template.description}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
-          </TouchableOpacity>
-        ))}
-      </BottomSheet>
-
-      {/* AI document generation sheet */}
-      <AIDocumentCreatorSheet
-        visible={showAICreator}
-        onClose={() => setShowAICreator(false)}
-        onGenerate={handleGenerate}
-        isLoading={isCreating}
+      <CreateDocSheet
+        visible={createOpen}
+        onClose={() => setCreateOpen(false)}
+        items={officeItems}
+        isCreating={isCreating}
+        onGenerate={(description) => void handleGenerate(description)}
+        onSelectTemplate={(template) => void handleSelectTemplate(template)}
+        onOpenItem={(item) => {
+          setCreateOpen(false);
+          pushOfficeItem(router, item);
+        }}
       />
 
       {/* Document share/actions modal — reuses the same share modal as the editor */}
@@ -554,42 +462,19 @@ const CARD_GAP = 16;
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  headerPad: { paddingHorizontal: 12, paddingTop: 8 },
 
-  // Top Bar
   topBar: {
     flexDirection: 'row',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 14,
-  },
-  searchBar: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    paddingVertical: 0,
-  },
-  searchClear: {
-    padding: 4,
-    marginLeft: 4,
+    paddingHorizontal: 16,
+    paddingTop: 8,
   },
 
   // Grid
   gridContent: {
-    paddingTop: 8,
-    paddingHorizontal: 12,
+    paddingTop: 16,
+    paddingHorizontal: 16,
     paddingBottom: 96,
   },
   gridRow: {
@@ -640,8 +525,8 @@ const styles = StyleSheet.create({
 
   // List view
   listContent: {
-    paddingTop: 8,
-    paddingHorizontal: 12,
+    paddingTop: 16,
+    paddingHorizontal: 16,
     paddingBottom: 96,
   },
   listCard: {
@@ -711,39 +596,5 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
-  },
-
-  bottomSheetTitle: {
-    fontFamily: 'Raleway_700Bold',
-    fontSize: 20,
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  templateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  templateIconTile: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  templateInfo: {
-    flex: 1,
-    marginRight: 8,
-  },
-  templateName: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  templateDescription: {
-    fontSize: 13,
   },
 });
