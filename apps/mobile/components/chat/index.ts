@@ -6,7 +6,6 @@ export { ToolCallProgress } from './ToolCallProgress';
 export { CitationsFooter } from './CitationsFooter';
 export { CitationDetailSheet } from './CitationDetailSheet';
 export { MentionSuggestions } from './MentionSuggestions';
-export { NewChatSheet } from './NewChatSheet';
 export { DocumentBrowserSheet } from './DocumentBrowserSheet';
 export { ThreadListDrawer } from './ThreadListDrawer';
 export { ChatDrawerHeader } from './ChatDrawerHeader';
