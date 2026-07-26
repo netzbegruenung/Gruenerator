@@ -6,16 +6,19 @@
  * at the point of use is indistinguishable from one created in settings.
  */
 
-import { getContractsClient } from '@gruenerator/shared/api';
+import { getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
 
-import type { Letterhead } from '@gruenerator/contracts';
+import type { Letterhead, LetterheadDispatchMode } from '@gruenerator/contracts';
 
-export type { Letterhead };
+export type { Letterhead, LetterheadDispatchMode };
 
 export interface LetterheadInput {
   label: string;
   organization?: string;
   address?: string;
+  dispatch_mode?: LetterheadDispatchMode;
+  show_return_line?: boolean;
+  show_fold_marks?: boolean;
   is_default?: boolean;
 }
 
@@ -59,6 +62,26 @@ export const letterheadApi = {
         (res.body as { message?: string })?.message ?? 'Briefkopf konnte nicht gelöscht werden.'
       );
     }
+  },
+
+  /**
+   * Briefpapier hochladen. Läuft über den rohen apiClient statt den
+   * Contracts-Client: der Upload ist multipart, und der Contract beschreibt
+   * JSON-Bodies. Der Server gibt den Dateinamen zurück, der danach in der
+   * contract-typisierten Zeile steht.
+   */
+  async uploadStationery(id: string, file: File): Promise<string> {
+    const form = new FormData();
+    form.append('stationery', file);
+    const res = await getGlobalApiClient().post<{ success: boolean; stationery_file: string }>(
+      `/api/auth/letterheads/${id}/stationery`,
+      form
+    );
+    return res.data.stationery_file;
+  },
+
+  async removeStationery(id: string): Promise<void> {
+    await getGlobalApiClient().delete(`/api/auth/letterheads/${id}/stationery`);
   },
 };
 
