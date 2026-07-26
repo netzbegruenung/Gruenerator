@@ -54,6 +54,11 @@ import { parallelLimit } from './utils/parallelLimit.js';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '../..');
 const DOCS_ROOT = path.join(REPO_ROOT, 'documentation', 'docs');
+// In-app product tours audited as pseudo-docs under the virtual folder
+// "touren/": the step titles/descriptions are UI claims exactly like doc
+// prose, they just live in TS modules instead of markdown.
+const TOURS_ROOT = path.join(REPO_ROOT, 'apps', 'web', 'src', 'features', 'tours');
+const TOURS_FOLDER = 'touren';
 
 // ── Scope ───────────────────────────────────────────────────────────────────
 // Feature/tutorial docs only — folders that describe the app UI. Content archives
@@ -89,6 +94,11 @@ const AREA_HINTS: Record<string, string> = {
   // docs-freshness-pr.yml.
   office:
     'apps/web/src/features/docs, apps/web/src/features/sheets, apps/web/src/features/presentations, apps/web/src/features/boards, packages/sheets, packages/presentations, packages/docs, packages/chat/src/editor-surface, packages/contracts/src/schemas',
+  // Every surface a tour steps through, plus the tour modules themselves —
+  // so a PR touching a toured surface re-audits the tour texts (the anchor
+  // EXISTENCE check is deterministic: scripts/check-tour-anchors.mjs).
+  [TOURS_FOLDER]:
+    'apps/web/src/features/tours, apps/web/src/features/workplace, apps/web/src/components/layout/Sidebar, apps/web/src/features/docs, apps/web/src/features/sheets, apps/web/src/features/presentations, apps/web/src/features/image-studio, packages/canvas-editor, packages/presentations',
   // Renamed twice (Gruppen → Spaces → Projekte); the code still says "groups"
   // throughout, so the hint points at the old names on purpose.
 };
@@ -190,12 +200,28 @@ function collectMarkdown(dir: string, out: string[]): void {
   }
 }
 
+function tourDocs(): string[] {
+  try {
+    return readdirSync(TOURS_ROOT)
+      .filter((f) => f.endsWith('Tour.ts') && f !== 'runTour.ts')
+      .map((f) => `${TOURS_FOLDER}/${f}`)
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
 function docsInFolders(folders: readonly string[]): string[] {
   const abs: string[] = [];
+  const rel: string[] = [];
   for (const folder of folders) {
+    if (folder === TOURS_FOLDER) {
+      rel.push(...tourDocs());
+      continue;
+    }
     collectMarkdown(path.join(DOCS_ROOT, folder), abs);
   }
-  return abs.map((f) => path.relative(DOCS_ROOT, f)).sort();
+  return [...abs.map((f) => path.relative(DOCS_ROOT, f)), ...rel].sort();
 }
 
 function discoverDocs(single?: string): string[] {
@@ -203,7 +229,7 @@ function discoverDocs(single?: string): string[] {
     const rel = single.replace(/^documentation\/docs\//, '');
     return [rel];
   }
-  return docsInFolders(SCOPE_FOLDERS);
+  return docsInFolders([...SCOPE_FOLDERS, TOURS_FOLDER]);
 }
 
 // Reverse of AREA_HINTS: given the source files a PR changed, which doc folders
@@ -269,6 +295,25 @@ If everything checks out, return {"upToDate": true, "findings": []}.`;
 function buildUserPrompt(docPath: string, content: string): string {
   const folder = docPath.split('/')[0];
   const hint = AREA_HINTS[folder];
+  if (folder === TOURS_FOLDER) {
+    return [
+      'Audit this in-app product tour (driver.js module) for freshness against the current source code.',
+      '',
+      `Tour module: apps/web/src/features/tours/${docPath.slice(TOURS_FOLDER.length + 1)}`,
+      hint ? `Likely relevant source dirs: ${hint}` : '',
+      '',
+      'Each step highlights the element matched by its `[data-tour="..."]` selector and shows a popover with title + description. The step titles and descriptions are the UI claims to verify: grep for the matching `data-tour="..."` attribute (or a `dataTour="..."` prop / dynamic template), read the anchored component, and confirm the text still accurately describes what that element shows or does (labels, listed features, keyboard shortcuts, described positions).',
+      'Anchor EXISTENCE is checked deterministically elsewhere — focus on whether the wording still matches the UI.',
+      '',
+      '--- TOUR MODULE ---',
+      content,
+      '--- END TOUR MODULE ---',
+      '',
+      'Search the codebase to verify the step texts, then output the JSON verdict.',
+    ]
+      .filter((l) => l !== '')
+      .join('\n');
+  }
   return [
     'Audit this documentation article for freshness against the current source code.',
     '',
@@ -306,9 +351,13 @@ async function auditDoc(docPath: string, model: string): Promise<DocResult> {
   const start = Date.now();
   const base: Pick<DocResult, 'docPath'> = { docPath };
 
+  const contentPath = docPath.startsWith(`${TOURS_FOLDER}/`)
+    ? path.join(TOURS_ROOT, docPath.slice(TOURS_FOLDER.length + 1))
+    : path.join(DOCS_ROOT, docPath);
+
   let content: string;
   try {
-    content = readFileSync(path.join(DOCS_ROOT, docPath), 'utf-8');
+    content = readFileSync(contentPath, 'utf-8');
   } catch (err) {
     return {
       ...base,

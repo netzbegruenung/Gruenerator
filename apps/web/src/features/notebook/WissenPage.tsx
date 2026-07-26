@@ -9,7 +9,7 @@ import { cn } from '@/utils/cn';
 // full-height flex chain here matters (sidebarOnly layout provides h-dvh).
 // Route-level RequireAuth gates access, so no auth wrapper is needed.
 const WissenPage = () => (
-  <div className={cn('flex h-full min-h-0 flex-col', NOTEBOOK_MAGENTA_BG)} data-tour="wissen">
+  <div className={cn('flex h-full min-h-0 flex-col', NOTEBOOK_MAGENTA_BG)}>
     <NotebooksIndexContent />
   </div>
 );

@@ -28,8 +28,9 @@
 
 import { createLogger } from '../../../utils/logger.js';
 
+import { renderSourceLines, withResearchedSources } from './agenticLoop/sourceRegistry.js';
 import { failCreation, rememberArtifact } from './createTurnHelpers.js';
-import { createMessage, touchThread } from './threadPersistenceService.js';
+import { createMessage, getRecentThreadSources, touchThread } from './threadPersistenceService.js';
 
 import type { SSEWriter } from './sseHelpers.js';
 import type {
@@ -116,13 +117,33 @@ export async function runCreateTurn<T>(
     streamOpened = true;
   };
 
+  // A single-pass create turn builds NO message history — the generator sees one
+  // string. Without this, "erstelle ein PDF mit den Quellen aus der Recherche"
+  // reaches the model as that bare sentence and it fills the document with
+  // placeholders. Hand it the thread's most recent research instead, in the same
+  // numbered shape the artifact prompts are told to expect.
+  let enrichedContent = userContent;
+  if (actualThreadId) {
+    try {
+      const carried = await getRecentThreadSources(actualThreadId);
+      if (carried.length > 0) {
+        enrichedContent = withResearchedSources(userContent, renderSourceLines(carried));
+        log.info(`[${spec.logLabel}] briefed with ${carried.length} prior source(s)`);
+      }
+    } catch (err) {
+      log.warn(
+        `[${spec.logLabel}] source briefing skipped: ${err instanceof Error ? err.message : err}`
+      );
+    }
+  }
+
   try {
     const result = await spec.generate(
       {
         aiWorkerPool,
         req,
         userId,
-        userContent,
+        userContent: enrichedContent,
         ...(opts.userLocale != null && { userLocale: opts.userLocale }),
       },
       openStream

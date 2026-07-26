@@ -268,7 +268,13 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
         <div className="slides">
           {slides.map((slide) => (
             <section key={slide.id} {...sectionAttrs(slide)}>
-              <SlideSurface slide={slide} accent={deckOptions.accentColor} presenting />
+              <SlideSurface
+                slide={slide}
+                accent={deckOptions.accentColor}
+                brand={deckOptions.brand}
+                showLogo={deckOptions.showLogo}
+                presenting
+              />
               {slide.notes.trim() !== '' && <aside className="notes">{slide.notes}</aside>}
             </section>
           ))}
