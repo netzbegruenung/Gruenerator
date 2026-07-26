@@ -1,6 +1,7 @@
 import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
 import {
   NOTEBOOK_REGISTRY,
+  type NotebookAudience,
   type NotebookCategory,
   type NotebookDefinition,
   type NotebookId,
@@ -22,6 +23,7 @@ export interface NotebookConfigEntry {
   icon: IconType;
   order: number;
   category: NotebookCategory;
+  audience: NotebookAudience;
   /**
    * Branded 1:1 cover shown in the gallery tile (public path). Absent notebooks
    * fall back to the ghost-icon preview.
@@ -98,6 +100,7 @@ const toEntry = (nb: NotebookDefinition): NotebookConfigEntry => ({
   icon: NOTEBOOK_ICONS[nb.id],
   order: nb.order,
   category: nb.category,
+  audience: nb.audience,
   ...(NOTEBOOK_COVERS[nb.id] ? { coverImage: NOTEBOOK_COVERS[nb.id] } : {}),
   ...(nb.enabled === false ? { enabled: false } : {}),
   ...(nb.defaultAgent ? { defaultAgent: nb.defaultAgent as SystemAgentId } : {}),
@@ -127,6 +130,17 @@ export const getNotebooksByCategory = (category: NotebookCategory): NotebookConf
   SYSTEM_NOTEBOOKS.filter((nb) => isNotebookEnabled(nb) && nb.category === category).sort(
     (a, b) => a.order - b.order
   );
+
+/**
+ * Audience gate mirroring `getNotebooksForAudience` in the shared registry:
+ * a notebook is visible when tagged for the viewer's locale or for `all`.
+ * Category-based grouping (`landesebene`, `oesterreich`, …) decides *where* a
+ * notebook renders; this decides *whether* it renders for the viewer at all.
+ */
+export const isNotebookVisibleForLocale = (
+  nb: NotebookConfigEntry,
+  locale: Exclude<NotebookAudience, 'all'>
+): boolean => nb.audience === 'all' || nb.audience === locale;
 
 export const getGermanNotebooks = (): NotebookConfigEntry[] =>
   SYSTEM_NOTEBOOKS.filter(

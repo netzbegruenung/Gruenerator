@@ -7,7 +7,7 @@ import {
   matchTargetsByName,
 } from './omniIntent';
 
-const targets = buildSystemTargets();
+const targets = buildSystemTargets('de-DE');
 const ids = (query: string) => detectNotebookEntities(query, targets).map((m) => m.target.key);
 
 describe('detectNotebookEntities', () => {
@@ -39,6 +39,20 @@ describe('detectNotebookEntities', () => {
   it('ignores empty and single-character input', () => {
     expect(ids('')).toEqual([]);
     expect(ids('b')).toEqual([]);
+  });
+});
+
+describe('buildSystemTargets audience gating', () => {
+  it('offers Austrian users no German notebooks', () => {
+    const atTargets = buildSystemTargets('de-AT');
+    expect(atTargets.map((t) => t.key)).toEqual(['oesterreich-notebook']);
+    expect(detectNotebookEntities('Was tun die Grünen Berlin für Hitzeschutz?', atTargets)).toEqual(
+      []
+    );
+  });
+
+  it('offers German users no Austria-only notebooks', () => {
+    expect(targets.map((t) => t.key)).not.toContain('oesterreich-notebook');
   });
 });
 
