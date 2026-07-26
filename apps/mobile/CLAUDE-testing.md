@@ -84,8 +84,14 @@ Four things that will cost you an afternoon if you change them without reading:
    import { beforeEach, describe, expect, it, jest } from '@jest/globals';
    ```
 
-   `babel-plugin-jest-hoist` understands this import and still hoists
-   `jest.mock` above the module imports.
+   `babel-plugin-jest-hoist` still hoists `jest.mock` above the module imports —
+   but **only a `@jest/globals` import that already precedes the mock call
+   survives that move**. So in any file using `jest.mock`, that import must come
+   first, which means overriding `import-x/order` (it sorts `@gruenerator/*`
+   ahead alphabetically). Get it wrong and the factory dies with
+   `Cannot read properties of undefined (reading 'jest')`. See the disable block
+   at the top of
+   [components/chat/ConfirmActionCard.test.tsx](components/chat/ConfirmActionCard.test.tsx).
 
 ### Gotchas
 

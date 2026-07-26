@@ -179,6 +179,7 @@ export function AssistantComposer({
       <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <TextInput
           ref={inputRef}
+          testID="chat-composer-input"
           style={[styles.input, { color: theme.text }]}
           placeholder="Nachricht eingeben..."
           placeholderTextColor={theme.textSecondary}
@@ -217,6 +218,7 @@ export function AssistantComposer({
             </ComposerPrimitive.Cancel>
           ) : hasText ? (
             <ComposerPrimitive.Send
+              testID="chat-composer-send"
               style={styles.sendButton}
               onPressIn={() => {
                 inputRef.current?.clear();

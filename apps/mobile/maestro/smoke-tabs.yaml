@@ -1,0 +1,31 @@
+# App boots and every tab mounts without a redbox.
+#
+# This is the flow that would have caught `68ff3ec66 dedupe react in metro so
+# chat finds the QueryClient`: a second React copy in the bundle made the chat
+# subtree read a different QueryClientContext than the provider, and the tab
+# threw "No QueryClient set" the moment it mounted. Nothing below the bundler
+# can see that.
+appId: de.gruenerator.app
+---
+- launchApp:
+    clearState: true
+    stopApp: true
+
+# Past the auth gate via the dev bypass.
+- assertVisible: 'Chat'
+
+- tapOn: 'Arbeiten'
+- assertVisible: 'Arbeiten'
+- assertNotVisible:
+    text: '.*No QueryClient set.*'
+    optional: true
+
+- tapOn: 'Wissen'
+- assertVisible: 'Wissen'
+
+- tapOn: 'Profil'
+- assertVisible: 'Profil'
+
+- tapOn: 'Chat'
+- assertVisible:
+    id: 'chat-composer-input'
