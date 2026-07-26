@@ -20,6 +20,7 @@ import { getQdrantDocumentService } from '../../services/document-services/Docum
 import { setUserLocale } from '../../services/localization/localeCache.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
 import { forwardBetterAuthCookies } from '../../utils/betterAuthBridge.js';
+import { refreshSessionUserSnapshot } from '../../utils/betterAuthSessionUser.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { KeycloakApiClient } from '../../utils/keycloak/index.js';
@@ -39,14 +40,22 @@ function getUser(req: Request): UserProfile {
 }
 
 /**
- * Re-read the session from the DB (bypassing the 300s `ba.session_data` cookie
- * cache) and forward the refreshed Set-Cookie to the browser. A profile write
- * via Drizzle bypasses Better Auth, so its cached copy of the user — which
- * server-side readers like the chat graph resolve `locale` from — stays stale
- * for up to 300s and the change silently reverts. `getSession` with
- * `disableCookieCache` forces a fresh DB read and re-writes the cache cookie.
+ * Push a Drizzle profile write into both Better Auth session caches, in order.
+ *
+ * A profile write bypasses Better Auth entirely, so two independent caches keep
+ * serving the pre-write user and the change silently reverts on reload:
+ *
+ *  1. **Secondary storage (Redis).** `ba:<token>` holds a user snapshot frozen
+ *     at session creation and kept for the full 30-day session lifetime;
+ *     `getSession` resolves the user from it, and `disableCookieCache` does NOT
+ *     reach past it. Must be refreshed FIRST — otherwise step 2 just re-signs
+ *     the stale copy.
+ *  2. **The 300s `ba.session_data` cookie cache.** Refreshed by re-reading the
+ *     session with `disableCookieCache` (which now sees the fresh snapshot) and
+ *     forwarding the resulting Set-Cookie to the browser.
  */
-async function refreshSessionCookieCache(req: Request, res: Response): Promise<void> {
+async function refreshSessionCaches(req: Request, res: Response): Promise<void> {
+  await refreshSessionUserSnapshot(getUserId(req));
   try {
     const betterAuthResponse = await auth.api.getSession({
       headers: fromNodeHeaders(req.headers),
@@ -112,6 +121,9 @@ export const userProfileContractRouter = s.router(userProfileContract, {
         custom_prompt,
         default_startpage,
         feedback_button,
+        reduce_motion,
+        reduce_transparency,
+        show_skip_link,
       } = args.body;
 
       const updateData: Record<string, string | number | boolean | null | undefined> = {};
@@ -122,6 +134,9 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       if (custom_prompt !== undefined) updateData.custom_prompt = custom_prompt || null;
       if (default_startpage !== undefined) updateData.default_startpage = default_startpage;
       if (feedback_button !== undefined) updateData.feedback_button = feedback_button;
+      if (reduce_motion !== undefined) updateData.reduce_motion = reduce_motion;
+      if (reduce_transparency !== undefined) updateData.reduce_transparency = reduce_transparency;
+      if (show_skip_link !== undefined) updateData.show_skip_link = show_skip_link;
 
       log.debug(
         `[Profile Contract PUT /profile] Updating profile for user ${user.id}:`,
@@ -138,12 +153,11 @@ export const userProfileContractRouter = s.router(userProfileContract, {
         }
       }
 
-      // `default_startpage` is read from the Better Auth session at boot to pick
-      // the sidebar/root redirect target. The Drizzle write above bypasses BA,
-      // so refresh the cookie cache (as updateLocale does) — otherwise a reload
-      // within the cache window still routes to the previous start page.
-      if (default_startpage !== undefined || feedback_button !== undefined) {
-        await refreshSessionCookieCache(args.req, args.res);
+      // Every column written here is also carried on the Better Auth session
+      // user the frontend boots from, so the caches have to learn about the
+      // Drizzle write — otherwise the next reload serves the pre-write values.
+      if (Object.keys(updateData).length > 0) {
+        await refreshSessionCaches(args.req, args.res);
       }
 
       return {
@@ -174,6 +188,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       const { avatar_robot_id } = args.body;
 
       const data = await profileService.updateAvatar(userId, avatar_robot_id);
+      await refreshSessionCaches(args.req, args.res);
 
       const sessionUser = args.req.user as UserProfile | undefined;
       if (sessionUser) {
@@ -313,6 +328,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       const { color } = args.body;
 
       await profileService.updateChatColor(userId, color);
+      await refreshSessionCaches(args.req, args.res);
 
       return {
         status: 200 as const,
@@ -343,10 +359,10 @@ export const userProfileContractRouter = s.router(userProfileContract, {
 
       await profileService.updateChatBackground(userId, background);
 
-      // The Drizzle write bypasses Better Auth, so without this the cached
-      // session keeps the old preset for up to 300s and the background visibly
-      // reverts on the next reload.
-      await refreshSessionCookieCache(args.req, args.res);
+      // Without this the cached session keeps the old preset for the rest of
+      // the session's 30-day life and the background visibly reverts to the
+      // `sunrise` fallback on the next reload.
+      await refreshSessionCaches(args.req, args.res);
 
       const sessionUser = args.req.user as UserProfile | undefined;
       if (sessionUser) sessionUser.chat_background = background;
@@ -387,10 +403,10 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       // Keep the in-memory user for the rest of this request consistent...
       const sessionUser = args.req.user as UserProfile | undefined;
       if (sessionUser) sessionUser.locale = locale;
-      // ...and refresh Better Auth's cookie cache so the next getSession()
+      // ...and refresh Better Auth's session caches so the next getSession()
       // (page reload, new request, chat) sees the new locale instead of the
-      // stale cached one — otherwise the switch reverts within ~5 min.
-      await refreshSessionCookieCache(args.req, args.res);
+      // stale cached one — otherwise the switch reverts on the next reload.
+      await refreshSessionCaches(args.req, args.res);
 
       log.debug(`[Profile Contract PUT /locale] User ${user.id} locale set to ${locale}`);
 
