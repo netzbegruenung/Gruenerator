@@ -60,6 +60,7 @@ import { openOAuthPopup, waitForOAuthPopup } from '../lib/mcpOAuthPopup';
 
 import type { IconType } from 'react-icons';
 
+import { SettingsCardsSkeleton } from '@/features/settings/components/SettingsSkeleton';
 import { cn } from '@/utils/cn';
 
 interface RunOAuthResult {
@@ -877,7 +878,11 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
         Verbindung.
       </p>
 
-      {isLoading && <p className="text-sm text-grey-400 text-center py-md">Lade…</p>}
+      {isLoading && (
+        <div className="mt-md">
+          <SettingsCardsSkeleton cards={3} />
+        </div>
+      )}
 
       {/* OAuth servers still waiting for their authorization — kept out of
           "Verbunden" so a pending server never looks usable. */}

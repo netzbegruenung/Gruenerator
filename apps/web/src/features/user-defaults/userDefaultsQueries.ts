@@ -20,21 +20,23 @@ export type {
 
 export const USER_DEFAULTS_QUERY_KEY = ['user-defaults'] as const;
 
+/** Shared by the hook and the Personalisierung tab's preload. */
+export const userDefaultsQuery = {
+  queryKey: USER_DEFAULTS_QUERY_KEY,
+  queryFn: async (): Promise<UserDefaultsBlob> => {
+    const response = await apiClient.get<{ userDefaults?: UserDefaultsBlob }>(
+      '/auth/profile/user-defaults',
+      { skipAuthRedirect: true }
+    );
+    return response.data.userDefaults ?? {};
+  },
+  staleTime: 5 * 60 * 1000,
+};
+
 export function useUserDefaultsQuery() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
-  return useQuery({
-    queryKey: USER_DEFAULTS_QUERY_KEY,
-    queryFn: async (): Promise<UserDefaultsBlob> => {
-      const response = await apiClient.get<{ userDefaults?: UserDefaultsBlob }>(
-        '/auth/profile/user-defaults',
-        { skipAuthRedirect: true }
-      );
-      return response.data.userDefaults ?? {};
-    },
-    enabled: isAuthenticated,
-    staleTime: 5 * 60 * 1000,
-  });
+  return useQuery({ ...userDefaultsQuery, enabled: isAuthenticated });
 }
 
 export function useUserDefault<G extends UserDefaultsGenerator, K extends UserDefaultsKey<G>>(
