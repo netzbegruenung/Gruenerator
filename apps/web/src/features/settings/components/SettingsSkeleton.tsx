@@ -111,12 +111,11 @@ export function SettingsStatsSkeleton() {
 }
 
 const TAB_SKELETONS: Record<SettingsTab, () => React.ReactElement> = {
-  allgemein: () => <SettingsRowsSkeleton rows={5} />,
+  allgemein: () => <SettingsRowsSkeleton rows={6} />,
   barrierefreiheit: () => <SettingsRowsSkeleton rows={3} />,
-  konto: () => <SettingsRowsSkeleton rows={3} />,
   friends: () => <SettingsCardsSkeleton cards={4} />,
   personalisierung: () => <SettingsFormSkeleton />,
-  briefkoepfe: () => <SettingsCardsSkeleton cards={2} />,
+  briefe: () => <SettingsCardsSkeleton cards={2} />,
   'texte-anlernen': () => <SettingsCardsSkeleton cards={4} />,
   erinnerungen: () => <SettingsCardsSkeleton cards={4} />,
   benachrichtigungen: () => <SettingsRowsSkeleton rows={2} />,
