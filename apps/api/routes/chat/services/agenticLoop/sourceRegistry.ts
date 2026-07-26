@@ -16,14 +16,28 @@
  * up front keeps `[N]` in lockstep).
  */
 import { buildCitations } from '../../../../agents/langgraph/ChatGraph/nodes/citationUtils.js';
+import { applyContextCap } from '../../../../utils/contextCap.js';
 
 import type { Citation, SearchResult } from '../../../../agents/langgraph/ChatGraph/types.js';
 
-/** How much of each result's content the model sees per snippet line. It's the
- *  only grounding text the model gets (the tool return drops the raw content),
- *  so keep it generous. Tools whose results carry longer prose (e.g. bundestag
- *  speech excerpts) can raise it per registration via `snippetChars`. */
-const SNIPPET_CHARS = 320;
+/**
+ * How much of each result's content the model sees per snippet line. It's the
+ * only grounding text the model gets — the tool return drops the raw content —
+ * so this number IS the retrieval quality ceiling.
+ *
+ * 320 was below our own chunk size: documents are indexed at 400-500 tokens
+ * (~1400-1750 chars), so we embedded, stored and searched a chunk and then
+ * showed the model a quarter of it. Numeric and tabular answers landed just
+ * past the cut, and the model reported "dazu steht nichts in den Quellen"
+ * while the citation chip pointed at the right document.
+ *
+ * 1500 covers a whole chunk. For reference, neither Open WebUI nor LobeChat
+ * truncates a retrieved source at all — they bound retrieval by COUNT
+ * (top_k 3 / 30 items) and let the chunk size do the limiting.
+ *
+ * Tools with longer prose can still raise it per registration (`snippetChars`).
+ */
+const SNIPPET_CHARS = 1500;
 
 export interface SourceRegistry {
   /** Add raw results (search/web/research/examples). Returns the numbered
@@ -93,7 +107,12 @@ export function withResearchedSources(brief: string, sourcesBlock: string): stri
 // `[N]` stays the citation marker; the URL is the payload behind it.
 function snippetLine(index: number, r: SearchResult, cap = SNIPPET_CHARS): string {
   const title = (r.title || r.source || 'Quelle').trim();
-  const body = (r.content ?? '').replace(/\s+/g, ' ').trim().slice(0, cap);
+  const body = applyContextCap(
+    (r.content ?? '').replace(/\s+/g, ' ').trim(),
+    cap,
+    'sourceRegistry:snippet',
+    false
+  );
   const url = typeof r.url === 'string' && r.url.trim() ? ` <${r.url.trim()}>` : '';
   return `[${index}] ${title}${url}${body ? ` — ${body}` : ''}`;
 }
