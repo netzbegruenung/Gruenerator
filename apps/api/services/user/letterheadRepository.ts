@@ -6,6 +6,7 @@
  * impossible even with a guessed id.
  */
 
+import { type LetterheadDispatchMode } from '@gruenerator/contracts';
 import { and, asc, eq, ne } from 'drizzle-orm';
 
 import { userLetterheads, type UserLetterheadRow } from '../../database/schema/userLetterheads.js';
@@ -15,6 +16,9 @@ export interface LetterheadInput {
   label: string;
   organization?: string | null | undefined;
   address?: string | null | undefined;
+  dispatch_mode?: LetterheadDispatchMode | undefined;
+  show_return_line?: boolean | undefined;
+  show_fold_marks?: boolean | undefined;
   is_default?: boolean | undefined;
 }
 
@@ -98,6 +102,9 @@ export async function createLetterhead(
         label: input.label,
         organization: input.organization ?? null,
         address: input.address ?? null,
+        ...(input.dispatch_mode !== undefined && { dispatch_mode: input.dispatch_mode }),
+        ...(input.show_return_line !== undefined && { show_return_line: input.show_return_line }),
+        ...(input.show_fold_marks !== undefined && { show_fold_marks: input.show_fold_marks }),
         is_default: shouldDefault,
       })
       .returning();
@@ -120,6 +127,9 @@ export async function updateLetterhead(
         ...(input.label !== undefined && { label: input.label }),
         ...(input.organization !== undefined && { organization: input.organization ?? null }),
         ...(input.address !== undefined && { address: input.address ?? null }),
+        ...(input.dispatch_mode !== undefined && { dispatch_mode: input.dispatch_mode }),
+        ...(input.show_return_line !== undefined && { show_return_line: input.show_return_line }),
+        ...(input.show_fold_marks !== undefined && { show_fold_marks: input.show_fold_marks }),
         ...(input.is_default !== undefined && { is_default: input.is_default }),
         updated_at: new Date(),
       })
@@ -158,4 +168,25 @@ export async function deleteLetterhead(userId: string, id: string): Promise<bool
     }
     return true;
   });
+}
+
+/**
+ * Den hochgeladenen Briefbogen setzen oder entfernen.
+ *
+ * Eigene Funktion statt eines Felds in `LetterheadInput`: der Dateiname wird
+ * vom Upload-Handler vergeben, nie vom Client geschickt — sonst könnte jemand
+ * per PATCH auf eine fremde Datei zeigen.
+ */
+export async function setStationeryFile(
+  userId: string,
+  id: string,
+  fileName: string | null
+): Promise<UserLetterheadRow | null> {
+  const db = getDrizzleInstance();
+  const rows = await db
+    .update(userLetterheads)
+    .set({ stationery_file: fileName, updated_at: new Date() })
+    .where(and(eq(userLetterheads.id, id), eq(userLetterheads.user_id, userId)))
+    .returning();
+  return rows[0] ?? null;
 }

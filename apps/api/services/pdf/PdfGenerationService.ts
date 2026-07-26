@@ -13,7 +13,13 @@ import { storeBinaryAsset } from '../../routes/chat/services/computeAssetStorage
 import { createLogger } from '../../utils/logger.js';
 
 import { pdfDocumentSchema, type PdfDocumentSpec } from './pdfDocument.js';
-import { PDF_TYPE_AREA, renderPdf, type PdfLocale, type PdfSender } from './pdfRenderer.js';
+import {
+  PDF_TYPE_AREA,
+  renderPdf,
+  type PdfLocale,
+  type PdfSender,
+  type RenderPdfOptions,
+} from './pdfRenderer.js';
 import { summarizeVerification, verifyPdf, type PdfVerification } from './pdfVerification.js';
 
 const log = createLogger('PdfGeneration');
@@ -62,7 +68,10 @@ REGELN:
 - Enthält der Auftrag recherchierte Quellen (Zeilen der Form "[1] Titel <URL> — Auszug"), nutze deren Fakten und hänge einen Quellenabschnitt an: eine table mit "columns":["Nr.","Quelle","URL"] und der VOLLSTÄNDIGEN URL je Zeile. Übernimm nur Quellen aus dem Auftrag, erfinde keine.
 - Deutsch, geschlechtergerecht (Genderstern *). Nutze die Fakten aus dem Auftrag vollständig, erfinde keine Zahlen oder Zitate.`;
 
-export interface CreatePdfOptions {
+export interface CreatePdfOptions extends Pick<
+  RenderPdfOptions,
+  'dispatchMode' | 'returnLine' | 'foldMarks' | 'stationery'
+> {
   userId: string;
   locale: PdfLocale;
   sender?: PdfSender | null;
@@ -143,7 +152,14 @@ export async function createPdfDocument(
     spec.kind === 'letter' || Boolean(spec.letter?.recipient || spec.letter?.salutation);
   const effective: PdfDocumentSpec = isLetter ? { ...spec, kind: 'letter' } : spec;
 
-  const rendered = await renderPdf(effective, { locale: opts.locale, sender: opts.sender ?? null });
+  const rendered = await renderPdf(effective, {
+    locale: opts.locale,
+    sender: opts.sender ?? null,
+    ...(opts.dispatchMode !== undefined && { dispatchMode: opts.dispatchMode }),
+    ...(opts.returnLine !== undefined && { returnLine: opts.returnLine }),
+    ...(opts.foldMarks !== undefined && { foldMarks: opts.foldMarks }),
+    ...(opts.stationery !== undefined && { stationery: opts.stationery }),
+  });
   const verification = await verifyPdf(rendered.bytes, PDF_TYPE_AREA);
   if (rendered.missingGlyphs.length) {
     verification.problems.push(

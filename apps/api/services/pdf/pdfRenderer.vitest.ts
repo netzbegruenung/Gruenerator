@@ -1032,3 +1032,163 @@ describe('Brief: DIN 5008 Form B, versandfähig im Fensterkuvert', () => {
     expect(subject?.x).toBeCloseTo(25, 1);
   });
 });
+
+/**
+ * Was sich zwischen den Versanddiensten unterscheidet, steht im Briefkopf der
+ * Nutzer*in — nicht in einer Konstante hier. Diese Tests halten fest, dass die
+ * Optionen wirklich durchschlagen, und nicht nur entgegengenommen werden.
+ */
+describe('Brief: Versandoptionen aus dem Briefkopf', () => {
+  const MM = 2.834645669;
+  const PAGE_H = 841.89;
+  const PAGE_W = 595.28;
+
+  /** Rechtecke aller gezeichneten Bilder/Seiten in mm, y ab Oberkante. */
+  async function placedImages(
+    bytes: Buffer,
+    pageNumber = 1
+  ): Promise<{ x: number; top: number; width: number; height: number }[]> {
+    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    const task = pdfjs.getDocument({ data: new Uint8Array(bytes), useSystemFonts: false });
+    const doc = await task.promise;
+    const page = await doc.getPage(pageNumber);
+    const ops = await page.getOperatorList();
+    const out: { x: number; top: number; width: number; height: number }[] = [];
+
+    // pdfjs zerlegt ein `cm` in mehrere transform-Ops, die letzte allein sagt
+    // also nichts. Die Matrix wird deshalb mitgeführt — samt q/Q-Stapel.
+    type M = [number, number, number, number, number, number];
+    const mul = (m: M, n: M): M => [
+      m[0] * n[0] + m[2] * n[1],
+      m[1] * n[0] + m[3] * n[1],
+      m[0] * n[2] + m[2] * n[3],
+      m[1] * n[2] + m[3] * n[3],
+      m[0] * n[4] + m[2] * n[5] + m[4],
+      m[1] * n[4] + m[3] * n[5] + m[5],
+    ];
+    let ctm: M = [1, 0, 0, 1, 0, 0];
+    const stack: M[] = [];
+    // Alles innerhalb eines Form-XObjects gehört dem eingebetteten Dokument,
+    // nicht unserer Seite — sonst zählte das Logo AUF dem Briefbogen mit.
+    let formDepth = 0;
+
+    for (let i = 0; i < ops.fnArray.length; i++) {
+      const fn = ops.fnArray[i];
+      if (fn === pdfjs.OPS.save) stack.push([...ctm] as M);
+      else if (fn === pdfjs.OPS.restore) ctm = stack.pop() ?? ctm;
+      else if (fn === pdfjs.OPS.transform) ctm = mul(ctm, ops.argsArray[i] as M);
+      else if (fn === pdfjs.OPS.paintFormXObjectEnd) formDepth -= 1;
+      else if (fn === pdfjs.OPS.paintImageXObject || fn === pdfjs.OPS.paintFormXObjectBegin) {
+        const isForm = fn === pdfjs.OPS.paintFormXObjectBegin;
+        if (formDepth === 0) {
+          // Bilder füllen das Einheitsquadrat, ein Form-XObject dagegen seine
+          // BBox — und trägt eine eigene Matrix, die pdfjs erst NACH diesem Op
+          // anwendet. Beides zusammengerechnet ergibt das gezeichnete Rechteck.
+          const args = ops.argsArray[i] as [M, [number, number, number, number]];
+          const m = isForm ? mul(ctm, args[0]) : ctm;
+          const [bx, by, bw, bh] = isForm
+            ? [args[1][0], args[1][1], args[1][2] - args[1][0], args[1][3] - args[1][1]]
+            : [0, 0, 1, 1];
+          const width = m[0] * bw;
+          const height = m[3] * bh;
+          const x = m[4] + m[0] * bx;
+          const y = m[5] + m[3] * by;
+          out.push({
+            x: x / MM,
+            top: (PAGE_H - y - height) / MM,
+            width: width / MM,
+            height: height / MM,
+          });
+        }
+        if (isForm) formDepth += 1;
+      }
+    }
+    await task.destroy();
+    return out;
+  }
+
+  const LETTER = spec({
+    kind: 'letter',
+    title: 'Brief',
+    letter: {
+      recipient: 'Testperson\nTeststraße 1\n12345 Teststadt',
+      subject: 'Betreff',
+      salutation: 'Guten Tag,',
+    },
+    blocks: [{ type: 'paragraph', text: 'Brieftext.' }],
+  });
+  const SENDER = { organization: 'KV Musterstadt', name: 'Max Beispiel' };
+
+  it('hält bei Direktfrankierung die Freimachungszone oben rechts frei', async () => {
+    const franked = await renderPdf(LETTER, {
+      locale: 'de-DE',
+      sender: SENDER,
+      dispatchMode: 'direktfrankierung',
+    });
+    // Freimachungszone: 74 mm ab der rechten Kante, 40 mm ab der Oberkante.
+    const zoneLeft = PAGE_W / MM - 74;
+    for (const image of await placedImages(franked.bytes)) {
+      const intrudes = image.top < 40 && image.x + image.width > zoneLeft;
+      expect(intrudes, `Bild bei ${image.top.toFixed(1)}mm/${image.x.toFixed(1)}mm`).toBe(false);
+    }
+  });
+
+  it('lässt das Logo im Fensterkuvert oben stehen — der Standard ändert sich nicht', async () => {
+    const normal = await renderPdf(LETTER, { locale: 'de-DE', sender: SENDER });
+    const images = await placedImages(normal.bytes);
+
+    expect(images).toHaveLength(1);
+    expect(images[0]!.top).toBeCloseTo(42 / MM, 1);
+  });
+
+  it('zeichnet Falzmarken und Rücksendeangabe nur, wenn sie gewollt sind', async () => {
+    const withMarks = await renderPdf(LETTER, { locale: 'de-DE', sender: SENDER });
+    const without = await renderPdf(LETTER, {
+      locale: 'de-DE',
+      sender: SENDER,
+      foldMarks: false,
+      returnLine: false,
+    });
+
+    expect(await extractText(withMarks.bytes)).toContain('KV Musterstadt ·');
+    expect(await extractText(without.bytes)).not.toContain('KV Musterstadt ·');
+    // Die Marken sind Striche, kein Text — an der Länge des Inhaltsstroms
+    // gemessen, der ohne sie kürzer sein MUSS.
+    expect(without.bytes.length).toBeLessThan(withMarks.bytes.length);
+  });
+
+  it('legt eigenes Briefpapier unter den Text und verzichtet dann auf Logo und Absenderblock', async () => {
+    const paper = await renderPdf(spec({ blocks: [{ type: 'paragraph', text: 'Bogen.' }] }), {
+      locale: 'de-DE',
+    });
+    const result = await renderPdf(LETTER, {
+      locale: 'de-DE',
+      sender: SENDER,
+      stationery: { bytes: paper.bytes, type: 'pdf' },
+    });
+
+    const images = await placedImages(result.bytes);
+    // Genau ein vollflächiges Objekt: der Bogen. Das CI-Logo entfällt, sonst
+    // stünden zwei Absender auf einem Blatt.
+    expect(images).toHaveLength(1);
+    expect(images[0]!.width).toBeCloseTo(PAGE_W / MM, 0);
+    expect(images[0]!.height).toBeCloseTo(PAGE_H / MM, 0);
+    expect(images[0]!.top).toBeCloseTo(0, 1);
+
+    const text = await extractText(result.bytes);
+    expect(text).toContain('Testperson');
+    // Der Absenderblock käme aus dem Bogen, nicht von uns.
+    expect(await sectTitles(result.bytes)).not.toContain('Absender');
+  });
+
+  it('fällt auf das CI-Layout zurück, wenn der Briefbogen unlesbar ist', async () => {
+    const result = await renderPdf(LETTER, {
+      locale: 'de-DE',
+      sender: SENDER,
+      stationery: { bytes: Buffer.from('kein PDF'), type: 'pdf' },
+    });
+
+    expect((await verifyPdf(result.bytes, PDF_TYPE_AREA)).problems).toEqual([]);
+    expect(await sectTitles(result.bytes)).toContain('Absender');
+  });
+});
