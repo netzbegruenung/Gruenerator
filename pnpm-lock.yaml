@@ -1131,7 +1131,7 @@ importers:
         version: 6.20.0
       '@wordpress/scripts':
         specifier: ^31.8.0
-        version: 31.8.0(@playwright/test@1.61.1)(@rspack/core@1.7.12(@swc/helpers@0.5.23))(@types/eslint@9.6.1)(@types/node@26.1.1)(@types/react@19.2.17)(@types/webpack@4.41.40)(babel-plugin-macros@3.1.0)(canvas@3.2.0)(eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.65.0(eslint@8.57.1)(typescript@6.0.3))(eslint-import-resolver-node@0.3.10)(eslint@8.57.1))(file-loader@6.2.0(webpack@5.108.4))(lightningcss@1.32.0)(node-sass@9.0.0)(react-dom@19.2.8(react@18.3.1))(react@18.3.1)(sass-embedded@1.99.0)(stylelint-scss@6.14.0(stylelint@16.26.1(typescript@6.0.3)))(type-fest@4.41.0)(typescript@6.0.3)(vite@7.3.6(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.101.7)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
+        version: 31.8.0(@playwright/test@1.61.1)(@rspack/core@1.7.12(@swc/helpers@0.5.23))(@types/eslint@9.6.1)(@types/node@26.1.1)(@types/react@19.2.17)(@types/webpack@4.41.40)(babel-plugin-macros@3.1.0)(canvas@3.2.0)(eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.65.0(eslint@8.57.1)(typescript@6.0.3))(eslint-import-resolver-node@0.3.10)(eslint@8.57.1))(file-loader@6.2.0(webpack@5.108.4))(lightningcss@1.32.0)(node-sass@9.0.0)(react-dom@19.2.8(react@18.3.1))(react@18.3.1)(sass-embedded@1.99.0)(stylelint-scss@6.14.0(stylelint@16.26.1(typescript@6.0.3)))(tslib@2.8.1)(type-fest@4.41.0)(typescript@6.0.3)(vite@7.3.6(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.101.7)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
       sass:
         specifier: ^1.101.7
         version: 1.101.7
@@ -1694,9 +1694,21 @@ importers:
         specifier: ^13.6.31
         version: 13.6.31
     devDependencies:
+      '@testing-library/jest-dom':
+        specifier: ^7.0.0
+        version: 7.0.0(@testing-library/dom@10.4.1)
+      '@testing-library/react':
+        specifier: ^16.3.2
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@types/react':
         specifier: 19.2.17
         version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.17)
+      jsdom:
+        specifier: 26.1.0
+        version: 26.1.0(canvas@3.2.0)
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -29382,7 +29394,7 @@ snapshots:
     optionalDependencies:
       '@types/webpack': 4.41.40
       type-fest: 4.41.0
-      webpack-dev-server: 6.0.0(webpack-cli@5.1.4)(webpack@5.108.4)
+      webpack-dev-server: 6.0.0(tslib@2.8.1)(webpack-cli@5.1.4)(webpack@5.108.4)
 
   '@pnpm/config.env-replace@1.1.0': {}
 
@@ -34976,7 +34988,7 @@ snapshots:
       webpack: 5.108.4(cssnano@6.1.2(postcss@8.5.22))(lightningcss@1.32.0)(postcss@8.5.22)(webpack-cli@5.1.4)
       webpack-cli: 5.1.4(webpack-bundle-analyzer@4.10.2)(webpack-dev-server@6.0.0)(webpack@5.108.4)
     optionalDependencies:
-      webpack-dev-server: 6.0.0(webpack-cli@5.1.4)(webpack@5.108.4)
+      webpack-dev-server: 6.0.0(tslib@2.8.1)(webpack-cli@5.1.4)(webpack@5.108.4)
 
   '@wendellhu/redi@1.1.1(react@19.2.8)':
     optionalDependencies:
@@ -35659,7 +35671,7 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.17
 
-  '@wordpress/scripts@31.8.0(@playwright/test@1.61.1)(@rspack/core@1.7.12(@swc/helpers@0.5.23))(@types/eslint@9.6.1)(@types/node@26.1.1)(@types/react@19.2.17)(@types/webpack@4.41.40)(babel-plugin-macros@3.1.0)(canvas@3.2.0)(eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.65.0(eslint@8.57.1)(typescript@6.0.3))(eslint-import-resolver-node@0.3.10)(eslint@8.57.1))(file-loader@6.2.0(webpack@5.108.4))(lightningcss@1.32.0)(node-sass@9.0.0)(react-dom@19.2.8(react@18.3.1))(react@18.3.1)(sass-embedded@1.99.0)(stylelint-scss@6.14.0(stylelint@16.26.1(typescript@6.0.3)))(type-fest@4.41.0)(typescript@6.0.3)(vite@7.3.6(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.101.7)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))':
+  '@wordpress/scripts@31.8.0(@playwright/test@1.61.1)(@rspack/core@1.7.12(@swc/helpers@0.5.23))(@types/eslint@9.6.1)(@types/node@26.1.1)(@types/react@19.2.17)(@types/webpack@4.41.40)(babel-plugin-macros@3.1.0)(canvas@3.2.0)(eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.65.0(eslint@8.57.1)(typescript@6.0.3))(eslint-import-resolver-node@0.3.10)(eslint@8.57.1))(file-loader@6.2.0(webpack@5.108.4))(lightningcss@1.32.0)(node-sass@9.0.0)(react-dom@19.2.8(react@18.3.1))(react@18.3.1)(sass-embedded@1.99.0)(stylelint-scss@6.14.0(stylelint@16.26.1(typescript@6.0.3)))(tslib@2.8.1)(type-fest@4.41.0)(typescript@6.0.3)(vite@7.3.6(@types/node@26.1.1)(jiti@2.7.0)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.101.7)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))':
     dependencies:
       '@babel/core': 7.29.7
       '@playwright/test': 1.61.1
@@ -35722,7 +35734,7 @@ snapshots:
       webpack: 5.108.4(cssnano@6.1.2(postcss@8.5.22))(lightningcss@1.32.0)(postcss@8.5.22)(webpack-cli@5.1.4)
       webpack-bundle-analyzer: 4.10.2
       webpack-cli: 5.1.4(webpack-bundle-analyzer@4.10.2)(webpack-dev-server@6.0.0)(webpack@5.108.4)
-      webpack-dev-server: 6.0.0(webpack-cli@5.1.4)(webpack@5.108.4)
+      webpack-dev-server: 6.0.0(tslib@2.8.1)(webpack-cli@5.1.4)(webpack@5.108.4)
     transitivePeerDependencies:
       - '@minify-html/node'
       - '@rspack/core'
@@ -49083,7 +49095,7 @@ snapshots:
       webpack-merge: 5.10.0
     optionalDependencies:
       webpack-bundle-analyzer: 4.10.2
-      webpack-dev-server: 6.0.0(webpack-cli@5.1.4)(webpack@5.108.4)
+      webpack-dev-server: 6.0.0(tslib@2.8.1)(webpack-cli@5.1.4)(webpack@5.108.4)
 
   webpack-dev-middleware@8.0.3(tslib@2.8.1)(webpack@5.108.4(@swc/core@1.15.43(@swc/helpers@0.5.23))(@swc/html@1.15.43)(lightningcss@1.32.0)(postcss@8.5.22)):
     dependencies:
@@ -49097,7 +49109,7 @@ snapshots:
     transitivePeerDependencies:
       - tslib
 
-  webpack-dev-middleware@8.0.3(webpack@5.108.4):
+  webpack-dev-middleware@8.0.3(tslib@2.8.1)(webpack@5.108.4):
     dependencies:
       memfs: 4.64.0(tslib@2.8.1)
       mime-types: 3.0.2
@@ -49145,7 +49157,7 @@ snapshots:
       - tslib
       - utf-8-validate
 
-  webpack-dev-server@6.0.0(webpack-cli@5.1.4)(webpack@5.108.4):
+  webpack-dev-server@6.0.0(tslib@2.8.1)(webpack-cli@5.1.4)(webpack@5.108.4):
     dependencies:
       '@types/bonjour': 3.5.13
       '@types/connect-history-api-fallback': 1.5.4
@@ -49170,7 +49182,7 @@ snapshots:
       selfsigned: 5.5.0
       serve-index: 1.9.2
       tinyglobby: 0.2.17
-      webpack-dev-middleware: 8.0.3(webpack@5.108.4)
+      webpack-dev-middleware: 8.0.3(tslib@2.8.1)(webpack@5.108.4)
       ws: 8.21.1
     optionalDependencies:
       webpack: 5.108.4(cssnano@6.1.2(postcss@8.5.22))(lightningcss@1.32.0)(postcss@8.5.22)(webpack-cli@5.1.4)
