@@ -18,6 +18,13 @@ on:
       - 'packages/presentations/**'
       - 'apps/api/routes/chat/**'
       - 'apps/api/agents/langgraph/ChatGraph/**'
+      # Structural files audited against the root README (readme/ pseudo-doc)
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - 'turbo.json'
+      - '.env.example'
+      - 'apps/api/workers/providers/**'
+      - 'apps/api/services/ai/**'
 
 permissions:
   contents: read

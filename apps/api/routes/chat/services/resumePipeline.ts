@@ -45,6 +45,7 @@ import {
   type createSSEStream,
   getIntentMessage,
   PROGRESS_MESSAGES,
+  sendChatWarning,
   sendSearchDegradedWarning,
   sseFail,
   sseInternalError,
@@ -327,7 +328,7 @@ export async function runChatGraphResume({
       // Persist the artifacts too — without the sharepic/social_post tool
       // calls the card can't rehydrate on reload and later text edits would
       // fall through to the sharepic edit branch.
-      await persistResumedResponse({
+      const artifactPersist = await persistResumedResponse({
         threadId: requestContext.actualThreadId!,
         fullText,
         finalState: resumedFinalState,
@@ -337,6 +338,7 @@ export async function runChatGraphResume({
         sharepicVariants,
         socialPost,
       });
+      if (!artifactPersist.ok) sendChatWarning(sse, 'persist_failed');
 
       sse.send('done', {
         ...(requestContext.actualThreadId != null && {
@@ -513,7 +515,7 @@ export async function runChatGraphResume({
     // Stop the writer BEFORE persist so its final throttle write can't race the
     // finalize UPDATE (both target the same placeholder row).
     await cleanupPending(false);
-    await persistResumedResponse({
+    const persistOutcome = await persistResumedResponse({
       threadId: requestContext.actualThreadId!,
       fullText,
       finalState,
@@ -522,6 +524,7 @@ export async function runChatGraphResume({
       processedMeta: requestContext.processedMeta,
       pendingMessageId: pendingId,
     });
+    if (!persistOutcome.ok) sendChatWarning(sse, 'persist_failed');
 
     const totalTimeMs = Date.now() - startTime;
     sse.send('done', {
