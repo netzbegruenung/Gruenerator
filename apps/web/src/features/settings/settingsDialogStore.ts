@@ -3,10 +3,9 @@ import { create } from 'zustand';
 export type SettingsTab =
   | 'allgemein'
   | 'barrierefreiheit'
-  | 'konto'
   | 'friends'
   | 'personalisierung'
-  | 'briefkoepfe'
+  | 'briefe'
   | 'texte-anlernen'
   | 'erinnerungen'
   | 'benachrichtigungen'
