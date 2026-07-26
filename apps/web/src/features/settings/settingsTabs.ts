@@ -84,6 +84,32 @@ export function preloadSettingsTab(tab: SettingsTab, queryClient?: QueryClient):
 }
 
 /**
+ * Preload only once the pointer has settled on an entry.
+ *
+ * Nav entries sit directly above one another, so a pointer travelling to the
+ * bottom of the list crosses every one of them. Firing on each would turn one
+ * mouse movement into fourteen chunk requests and nine API calls. One shared
+ * timer means the entry the pointer is merely passing over gets cancelled by
+ * the next, and only where it comes to rest actually loads.
+ */
+const HOVER_INTENT_MS = 120;
+let hoverTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function preloadSettingsTabOnHover(tab: SettingsTab, queryClient?: QueryClient): void {
+  cancelSettingsHoverPreload();
+  hoverTimer = setTimeout(() => {
+    hoverTimer = null;
+    preloadSettingsTab(tab, queryClient);
+  }, HOVER_INTENT_MS);
+}
+
+export function cancelSettingsHoverPreload(): void {
+  if (hoverTimer === null) return;
+  clearTimeout(hoverTimer);
+  hoverTimer = null;
+}
+
+/**
  * The component for a tab — the already-loaded module if it was preloaded, a
  * lazy wrapper otherwise.
  *
