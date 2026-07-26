@@ -29,9 +29,11 @@ import { PiBrain, PiEnvelopeSimple, PiPencil, PiRobot } from 'react-icons/pi';
 import { SettingsTabSkeleton } from './components/SettingsSkeleton';
 import { useSettingsDialogStore, type SettingsTab } from './settingsDialogStore';
 import {
+  cancelSettingsHoverPreload,
   getSettingsTabComponent,
   preloadRemainingSettingsTabs,
   preloadSettingsTab,
+  preloadSettingsTabOnHover,
 } from './settingsTabs';
 
 // hideHeading: the tab's content brings its own top-level heading.
@@ -109,11 +111,13 @@ const SettingsDialog = () => {
                 <TabsTrigger
                   key={value}
                   value={value}
-                  // Pointing at or tabbing to a nav entry is enough intent to
-                  // fetch its chunk and data — by the time the click lands the
-                  // tab renders with content instead of a placeholder.
-                  onPointerEnter={() => preloadSettingsTab(value, queryClient)}
-                  onFocus={() => preloadSettingsTab(value, queryClient)}
+                  // Settling on a nav entry is enough intent to fetch its chunk
+                  // and data — by the time the click lands the tab renders with
+                  // content instead of a placeholder. Merely passing over it on
+                  // the way down the list is not, hence the intent delay.
+                  onPointerEnter={() => preloadSettingsTabOnHover(value, queryClient)}
+                  onPointerLeave={cancelSettingsHoverPreload}
+                  onFocus={() => preloadSettingsTabOnHover(value, queryClient)}
                   // Active = bold text only: no indicator bar, no background pill.
                   className="shrink-0 justify-start gap-2 whitespace-nowrap text-foreground/70 after:hidden data-[state=active]:font-semibold data-[state=active]:text-foreground md:py-1.5"
                 >
