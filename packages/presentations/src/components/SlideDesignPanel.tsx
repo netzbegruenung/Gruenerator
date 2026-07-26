@@ -9,7 +9,14 @@ import { FiChevronDown, FiImage, FiX } from 'react-icons/fi';
 
 import { type DeckOptions } from '../collab/useSlides.js';
 
-import { LAYOUTS, LAYOUT_LABELS, TRANSITIONS, TRANSITION_LABELS, VARIANT_NAMES } from './labels.js';
+import {
+  FONT_SIZE_OPTIONS,
+  LAYOUTS,
+  LAYOUT_LABELS,
+  TRANSITIONS,
+  TRANSITION_LABELS,
+  VARIANT_NAMES,
+} from './labels.js';
 import { ToggleSwitch } from './ToggleSwitch.js';
 import { VariantThumb } from './VariantThumb.js';
 
@@ -142,6 +149,24 @@ export function SlideDesignPanel({
             </div>
           </div>
         )}
+
+        {/* Font size */}
+        <div className="flex flex-col gap-2">
+          <SectionLabel>Schriftgröße</SectionLabel>
+          <div className="flex flex-wrap gap-1.5">
+            {FONT_SIZE_OPTIONS.map(({ value, label }) => (
+              <button
+                key={label}
+                type="button"
+                title={value === null ? 'Automatisch an die Folie anpassen' : undefined}
+                onClick={() => onUpdateSlide({ fontSize: value })}
+                className={segClass((slide.fontSize ?? null) === value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* Background */}
         <div className="flex flex-col gap-2">
