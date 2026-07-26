@@ -39,7 +39,7 @@ Du MUSST NUR mit einem Aufruf von applyPresentationOperations mit { "operations"
 Der AKTUELLE FOLIEN-ZUSTAND unten nummeriert die Folien fortlaufend (Folie 1, Folie 2, …). Adressiere Folien IMMER über diese 1-basierte Nummer.
 
 Erlaubte Operationstypen (jedes Objekt braucht ein "type"-Feld):
-- { "type": "add_slide", "layout": "title|content|split|quote|image|code", "title": "…", "body": "Markdown …", "notes"?: "…", "at"?: 3 }
+- { "type": "add_slide", "layout": "title|content|split|quote|image|code", "title": "…", "body": "Markdown …", "notes"?: "…", "at"?: 3, "fontSize"?: "l" }
     // Fügt eine neue Folie hinzu. "at" ist die 1-basierte Einfügeposition; ohne "at" wird ans Ende angehängt.
     // "body" ist Markdown — nutze "- " für Aufzählungen. Halte Folien knapp (Stichpunkte, kein Fließtext).
 - { "type": "update_slide", "slide": 2, "title"?: "…", "body"?: "…", "notes"?: "…", "layout"?: "content", "variant"?: 0, "fontSize"?: "l", "transition"?: "fade", "fragments"?: true, "autoAnimate"?: true, "hidden"?: false, "background"?: "#316049", "codeLanguage"?: "typescript" }

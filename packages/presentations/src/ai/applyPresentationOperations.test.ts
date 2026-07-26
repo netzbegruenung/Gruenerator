@@ -100,6 +100,17 @@ describe('applyPresentationOperations', () => {
     expect(getMetaMap(ydoc).get('accentColor')).toBe('#005538');
   });
 
+  it('creates a slide with a font-size preset, defaulting to auto-fit', () => {
+    const ydoc = seededDoc();
+    applyPresentationOperations(ydoc, [
+      { type: 'add_slide', layout: 'content', title: 'Groß', body: '- x', fontSize: 'xl' },
+      { type: 'add_slide', layout: 'content', title: 'Normal', body: '- y' },
+    ]);
+    const arr = getSlidesArray(ydoc);
+    expect(arr.get(arr.length - 2).get('fontSize')).toBe('xl');
+    expect(arr.get(arr.length - 1).get('fontSize')).toBeNull();
+  });
+
   it('sets a font-size preset and resets it via the "auto" literal', () => {
     const ydoc = seededDoc();
     applyPresentationOperations(ydoc, [{ type: 'update_slide', slide: 2, fontSize: 'l' }]);

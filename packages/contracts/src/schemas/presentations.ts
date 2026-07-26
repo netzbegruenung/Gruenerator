@@ -82,6 +82,8 @@ export const presentationOperationSchema = z.discriminatedUnion('type', [
     notes: z.string().nullish(),
     /** 1-based insert position; appended to the end when omitted. */
     at: z.number().int().positive().nullish(),
+    /** Font-size preset; omitted or 'auto' creates the slide on auto-fit. */
+    fontSize: z.enum(['auto', 'xs', 's', 'm', 'l', 'xl']).nullish(),
   }),
   z.object({
     type: z.literal('update_slide'),
