@@ -41,7 +41,7 @@ import {
 import { stripOutOfRangeCitations } from './citationStrip.js';
 import { isMcpReplayEnabled } from './flags.js';
 import { runAgenticLoop, type LoopMode } from './loopEngine.js';
-import { createToolLoopGuards } from './loopGuards.js';
+import { createToolLoopGuards, MAX_SOURCES } from './loopGuards.js';
 import { buildToolObservationReplay } from './mcpReplay.js';
 import { resolveEditorSurfaceKind } from './routing.js';
 import { createSourceRegistry, withResearchedSources } from './sourceRegistry.js';
@@ -883,7 +883,10 @@ export async function streamAgenticResponse(params: {
     fullText: text,
     steps,
     citations: sourceRegistry.getCitations(),
-    sources: sourceRegistry.getResults(10),
+    // MAX_SOURCES, not 10: this is what gets persisted and what a later turn
+    // rehydrates. Capping here below the loop's own gathering budget silently
+    // threw away half the research of a thorough turn.
+    sources: sourceRegistry.getResults(MAX_SOURCES),
     modelName: resolution?.modelName ?? agentConfig.model,
   };
 }
