@@ -112,7 +112,8 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const composerRuntime = useComposerRuntime();
-  const isAustrian = useAuthStore((s) => s.locale === 'de-AT');
+  const locale = useAuthStore((s) => s.locale);
+  const isAustrian = locale === 'de-AT';
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -133,7 +134,7 @@ export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerPro
     []
   );
 
-  const systemTargets = useMemo(() => buildSystemTargets(), []);
+  const systemTargets = useMemo(() => buildSystemTargets(locale), [locale]);
 
   // Own notebooks join the lexicon by name. The gallery below fetches the same
   // query, so this is served from the React Query cache.
