@@ -21,6 +21,8 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "build:android": "EAS_NO_VCS=1 eas build -p android --profile production",
@@ -102,6 +104,7 @@
     "eslint": "^9.39.4",
     "expo-atlas": "^0.4.0",
     "globals": "^17.7.0",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.10"
   }
 }
