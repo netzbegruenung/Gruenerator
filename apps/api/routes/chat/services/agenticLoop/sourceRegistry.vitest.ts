@@ -18,12 +18,41 @@ describe('createSourceRegistry', () => {
     expect(reg.size).toBe(2);
   });
 
+  // Without the URL in the line, a generating model (PDF/deck/sheet) can cite
+  // [N] but cannot reproduce the link — "PDF mit den Originalquellen" then
+  // renders invented placeholder URLs.
+  it('puts the source URL in the snippet line the model reads', () => {
+    const reg = createSourceRegistry();
+    const block = reg.register([
+      result({ url: 'https://bfn.de/artenschutz', title: 'BfN', content: 'alpha' }),
+    ]);
+    expect(block).toBe('[1] BfN <https://bfn.de/artenschutz> — alpha');
+    expect(reg.renderAll()).toContain('https://bfn.de/artenschutz');
+  });
+
+  it('omits the URL segment for sources that have none', () => {
+    const reg = createSourceRegistry();
+    expect(reg.register([result({ title: 'A', content: 'alpha' })])).toBe('[1] A — alpha');
+  });
+
   it('collapses exact duplicates so numbering stays stable', () => {
     const reg = createSourceRegistry();
     reg.register([result({ url: 'https://x', title: 'A', content: 'alpha' })]);
     const dup = reg.register([result({ url: 'https://x', title: 'A', content: 'alpha' })]);
     expect(dup).toBe(''); // nothing new added
     expect(reg.size).toBe(1);
+  });
+
+  it('honors a per-registration snippetChars override in the block and renderAll', () => {
+    const reg = createSourceRegistry();
+    const long = `Anfang ${'x'.repeat(400)} ENDE`;
+    reg.register([result({ title: 'Kurz', content: `k ${'y'.repeat(400)} SCHLUSS` })]);
+    const block = reg.register([result({ title: 'Lang', content: long })], { snippetChars: 700 });
+    // Default cap (320) truncates the first source; the override keeps the second intact.
+    expect(block).toContain('ENDE');
+    const all = reg.renderAll();
+    expect(all).not.toContain('SCHLUSS');
+    expect(all).toContain('ENDE');
   });
 
   it('builds citations over the accumulated results', () => {
@@ -102,7 +131,7 @@ describe('createSourceRegistry', () => {
       reg.seedCarried([result({ title: 'A', content: 'alpha', url: 'https://a' })]);
       reg.register([result({ title: 'A', content: 'alpha', url: 'https://a' })]);
       const ref = reg.renderReference();
-      expect(ref).toBe('[1] A — alpha');
+      expect(ref).toBe('[1] A <https://a> — alpha');
       // this-turn citation still counts the fresh registration (it was cited live)
       expect(reg.size).toBe(1);
     });

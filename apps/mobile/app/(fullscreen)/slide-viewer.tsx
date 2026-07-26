@@ -49,7 +49,12 @@ export default function SlideViewerScreen() {
       ) : status === 'error' || !deck ? (
         <ViewerError />
       ) : (
-        <SlideDeckView slides={deck.slides} accent={deck.accentColor} />
+        <SlideDeckView
+          slides={deck.slides}
+          accent={deck.accentColor}
+          brand={deck.brand}
+          showLogo={deck.showLogo}
+        />
       )}
     </View>
   );

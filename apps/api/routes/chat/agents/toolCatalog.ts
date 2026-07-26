@@ -22,10 +22,10 @@
  * turn also crawl a page ("suche X und lies den ersten Treffer").
  *
  * Phase 2b: when a `loop` context is supplied (the live agentic path, absent in
- * unit tests) the classified intent's DOMAIN tool is mounted too — `summary`,
- * `bundestag` or `abgeordnetenwatch` (see `domainTools.ts`). These are
- * intent-scoped (only the routed intent's tool is added) to keep Mistral's
- * catalog lean; a general per-turn selector is Phase 3n.
+ * unit tests) the DOMAIN tools are mounted too — `summary`, `bundestag`,
+ * `abgeordnetenwatch`, `umfragen` (see `domainTools.ts`). They mount broadly
+ * (not gated on the classified intent) so the model can pick them even when the
+ * classifier routed to plain `search`; a general per-turn selector is Phase 3n.
  *
  * Loop-level concerns (guards, SSE cards, timeouts, truncation, step recording)
  * are layered on separately by `wrapToolsForLoop`.
@@ -109,10 +109,9 @@ export function buildChatToolCatalog(params: {
   agentConfig: AgentConfig;
   sourceRegistry: SourceRegistry;
   /**
-   * Live-loop context. Present only on the agentic path; enables the intent-
-   * scoped domain tools (summary/bundestag/abgeordnetenwatch) which emit their
-   * own SSE and run existing ChatGraph nodes. Absent in unit tests → search
-   * family only.
+   * Live-loop context. Present only on the agentic path; enables the domain
+   * tools (summary/bundestag/abgeordnetenwatch) which run existing ChatGraph
+   * nodes. Absent in unit tests → search family only.
    */
   loop?: { sse: SSEWriter; state: ChatGraphState; req?: Request; threadId?: string | null };
 }): ChatToolCatalog {
@@ -229,7 +228,7 @@ NUTZE WENN:
   if (loop) {
     const { sse, state } = loop;
     tools.summarize = makeSummaryTool({ sse, state });
-    tools.bundestag = makeBundestagTool({ sse, state, sourceRegistry });
+    tools.bundestag = makeBundestagTool({ state, sourceRegistry });
     tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
     tools.umfragen = makeUmfragenTool({ sourceRegistry });
     // Documentation search (`hilfe`). Mounted broadly like the other domain
@@ -367,15 +366,28 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
           sse,
           state,
           req: loop.req,
+          sourceRegistry,
         });
       } else if (kind === 'sheet' && enabled('create_sheet')) {
-        tools.create_sheet = makeCreateDocTool({ kind: 'sheet', sse, state, req: loop.req });
+        tools.create_sheet = makeCreateDocTool({
+          kind: 'sheet',
+          sse,
+          state,
+          req: loop.req,
+          sourceRegistry,
+        });
       } else if (kind === 'document' && enabled('create_document')) {
-        tools.create_document = makeCreateDocTool({ kind: 'document', sse, state, req: loop.req });
+        tools.create_document = makeCreateDocTool({
+          kind: 'document',
+          sse,
+          state,
+          req: loop.req,
+          sourceRegistry,
+        });
       } else if (kind === 'board' && enabled('create_board')) {
         tools.create_board = makeCreateBoardTool({ state, req: loop.req });
       } else if (kind === 'pdf' && enabled('create_pdf')) {
-        tools.create_pdf = makeCreatePdfTool({ sse, state, req: loop.req });
+        tools.create_pdf = makeCreatePdfTool({ sse, state, req: loop.req, sourceRegistry });
       }
     }
   }

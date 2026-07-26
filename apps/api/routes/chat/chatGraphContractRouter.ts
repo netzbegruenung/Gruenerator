@@ -1595,15 +1595,20 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             });
           }
 
-          const prunedValidMessages = pruneMessages(
-            validMessages as Parameters<typeof pruneMessages>[0],
-            contextWindowTokens
-          );
           // contextWindowTokens was computed before the classifier ran, when
           // `auto` had no concrete model yet (→ conservative 32k default). Now
           // that the policy has picked a lane, use its real window so a
           // long-context model isn't compacted as if it were a short one.
+          //
+          // This MUST be resolved before pruning, not just before compaction:
+          // pruneMessages physically drops the oldest turns, so running it on
+          // the stale 32k default trimmed a 128k lane to ~20k tokens and
+          // compaction then only ever saw the survivors.
           const resolvedContextWindow = resolution.contextWindow ?? contextWindowTokens;
+          const prunedValidMessages = pruneMessages(
+            validMessages as Parameters<typeof pruneMessages>[0],
+            resolvedContextWindow
+          );
           const { systemMessage: finalSystemMessage, messages: contextMessages } = actualThreadId
             ? await applyCompaction(
                 actualThreadId,
