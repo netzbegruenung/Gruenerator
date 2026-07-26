@@ -73,3 +73,25 @@ describe('buildFeatureIndex — invariants', () => {
     expect(index.some((h) => h.path === '/studio/video')).toBe(true);
   });
 });
+
+describe('buildFeatureIndex — notebook audience gating', () => {
+  const atIndex = buildFeatureIndex({ isAustrian: true, locale: 'de-AT', userAgents: [] });
+
+  it('offers Austrian users no German notebooks', () => {
+    expect(matchFeatures(atIndex, 'bayern')).toHaveLength(0);
+    expect(atIndex.some((h) => h.path === '/notebooks/berlin')).toBe(false);
+  });
+
+  it('offers Austrian users the Austria notebook', () => {
+    expect(atIndex.some((h) => h.path === '/notebooks/oesterreich')).toBe(true);
+  });
+
+  it('offers German users no Austria-only notebooks', () => {
+    expect(index.some((h) => h.path === '/notebooks/oesterreich')).toBe(false);
+  });
+
+  it('never surfaces disabled notebooks', () => {
+    // schleswig-holstein is enabled: false in the registry (kept routable only).
+    expect(index.some((h) => h.path === '/notebooks/schleswig-holstein')).toBe(false);
+  });
+});

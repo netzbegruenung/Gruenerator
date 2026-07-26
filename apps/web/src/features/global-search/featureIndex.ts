@@ -10,7 +10,7 @@ import { getAgentSlug, getVisibleSystemAgentsForLocale } from '@gruenerator/shar
 import { foldUmlauts } from '@gruenerator/shared/utils';
 
 import { getDirectMenuItems, getFooterLinks } from '../../components/layout/Header/menuData';
-import FAVOURITE_ITEMS from '../../config/sidebarFavouritesConfig';
+import { getSearchableFavouriteItems } from '../../config/sidebarFavouritesConfig';
 
 import { getToolCatalog } from './toolCatalog';
 
@@ -93,7 +93,7 @@ export function buildFeatureIndex({
     });
   }
 
-  for (const item of FAVOURITE_ITEMS) {
+  for (const item of getSearchableFavouriteItems(locale)) {
     push({ id: item.id, title: item.title, subtitle: null, path: item.path, icon: item.icon });
   }
 

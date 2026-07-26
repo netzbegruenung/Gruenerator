@@ -1,4 +1,7 @@
-import { SYSTEM_NOTEBOOKS } from '../features/notebook/config/notebooksConfig';
+import {
+  SYSTEM_NOTEBOOKS,
+  isNotebookVisibleForLocale,
+} from '../features/notebook/config/notebooksConfig';
 
 import { getIcon } from './icons';
 import {
@@ -77,6 +80,9 @@ const LEGACY_TOOL_ITEMS: FavouriteItemConfig[] = [
   },
 ];
 
+// Complete (incl. disabled + other-locale notebooks) so already-pinned
+// favourites always resolve in the sidebar. Discovery surfaces must use
+// getSearchableFavouriteItems instead.
 const NOTEBOOK_ITEMS: FavouriteItemConfig[] = SYSTEM_NOTEBOOKS.map((nb) => ({
   id: nb.id,
   title: nb.title,
@@ -108,6 +114,21 @@ const MENU_TOOL_ITEMS: FavouriteItemConfig[] = TOOL_MENUS.flatMap((menu) =>
 
 const FAVOURITE_ITEMS: FavouriteItemConfig[] = [...TOOL_ITEMS, ...NOTEBOOK_ITEMS];
 
+/**
+ * Discovery variant for the global search (Cmd+K): tools plus only the
+ * notebooks the viewer may see — enabled and audience-matched. The resolution
+ * map below stays complete so pinned favourites never break.
+ */
+export const getSearchableFavouriteItems = (locale: string): FavouriteItemConfig[] => {
+  const viewerLocale = locale === 'de-AT' ? ('de-AT' as const) : ('de-DE' as const);
+  return [
+    ...TOOL_ITEMS,
+    ...SYSTEM_NOTEBOOKS.filter(
+      (nb) => nb.enabled !== false && isNotebookVisibleForLocale(nb, viewerLocale)
+    ).map((nb) => ({ id: nb.id, title: nb.title, path: nb.path, icon: nb.icon })),
+  ];
+};
+
 const FAVOURITE_ITEMS_MAP = new Map(
   [...FAVOURITE_ITEMS, ...LEGACY_TOOL_ITEMS, ...WORKPLACE_TOOL_ITEMS, ...MENU_TOOL_ITEMS].map(
     (item) => [item.id, item]
@@ -118,5 +139,3 @@ export const getFavouriteItemsById = (ids: string[]): FavouriteItemConfig[] =>
   ids.map((id) => FAVOURITE_ITEMS_MAP.get(id)).filter(Boolean) as FavouriteItemConfig[];
 
 export const isFavouritableItem = (id: string): boolean => FAVOURITE_ITEMS_MAP.has(id);
-
-export default FAVOURITE_ITEMS;
