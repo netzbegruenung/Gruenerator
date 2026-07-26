@@ -19,6 +19,7 @@ import { ComputeCard } from '../message-parts/ComputeCard';
 import { GeneratedImageDisplay } from '../message-parts/GeneratedImageDisplay';
 import { MemoryIndicator } from '../message-parts/MemoryIndicator';
 import { MessageActions } from '../message-parts/MessageActions';
+import { MessageErrorBanner } from '../message-parts/MessageErrorBanner';
 import { MessageStreamingProvider } from '../message-parts/messageStreamingContext';
 import { useProgressDisplay } from '../message-parts/progressDisplayContext';
 import { ProgressIndicator } from '../message-parts/ProgressIndicator';
@@ -211,6 +212,8 @@ export const AssistantMessage = memo(function AssistantMessage() {
         <CitationProvider citations={citations} fetchFullText={fetchFullText}>
           <MessagePrimitive.Parts components={partComponents} />
         </CitationProvider>
+
+        <MessageErrorBanner />
 
         {custom?.interrupted && (
           <p className="text-xs text-foreground-muted italic">Antwort wurde unterbrochen</p>

@@ -3,6 +3,7 @@
 import { useAssistantRuntime, useComposerRuntime } from '@assistant-ui/react';
 import { useEffect, useRef } from 'react';
 
+import { notifyError } from '../../lib/notify';
 import { useAgentStore } from '../../stores/chatStore';
 
 export function AutoMessageSender() {
@@ -40,6 +41,12 @@ export function AutoMessageSender() {
         }
       } catch (err) {
         console.warn('[AutoMessageSender] Failed:', err);
+        if (isMessage) {
+          notifyError(
+            'Nachricht konnte nicht gesendet werden',
+            'Der Text steht weiterhin im Eingabefeld.'
+          );
+        }
       }
       if (isMessage) {
         setPendingMessage(null);

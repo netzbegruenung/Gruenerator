@@ -26,6 +26,7 @@ import {
 } from '@gruenerator/shared/subtitle-editor';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import { withRetry } from '../../../services/search/searchRetryStrategy.js';
 import {
   getAutoProgress,
   startAutoProcessing,
@@ -46,6 +47,7 @@ import { APP_REDIRECT_TEXTS } from './platformGating.js';
 import { hasStrongReelNoun } from './reelEditHeuristics.js';
 import { runReelEdit } from './reelEditLlm.js';
 import { applyReelOps, validateReelOps } from './reelEditOps.js';
+import { sendChatWarning } from './sseHelpers.js';
 import { createMessage, touchThread } from './threadPersistenceService.js';
 
 import type { SSEWriter } from './sseHelpers.js';
@@ -132,13 +134,19 @@ async function finishWithText(
     },
   });
   try {
-    await createMessage(threadId, 'assistant', text, {
-      intent: 'reel_edit',
-      ...(toolCalls ? { toolCalls } : {}),
-    });
+    await withRetry(
+      () =>
+        createMessage(threadId, 'assistant', text, {
+          intent: 'reel_edit',
+          ...(toolCalls ? { toolCalls } : {}),
+        }),
+      { maxRetries: 1, delayMs: 300, isRecoverable: () => true, label: 'reelEdit:persist' }
+    );
     await touchThread(threadId);
   } catch (err) {
+    // Retry + Warnung: ein stiller Persist-Fehler lässt State und History divergieren.
     log.error('[ReelEdit] Failed to persist message:', err);
+    sendChatWarning(sse, 'persist_failed');
   }
   sse.end();
 }

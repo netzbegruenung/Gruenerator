@@ -138,9 +138,14 @@ describe('pandasComputeNode', () => {
     expect(call.messages[0].content).toContain("KeyError: 'Gewinnn'");
   });
 
-  it('returns null for unrelated questions (escape valve)', async () => {
+  it('returns null for unrelated questions (escape valve) WITHOUT flagging a failure', async () => {
     const state = makeState('{"related": false, "code": ""}');
     expect(await pandasComputeNode(state)).toEqual({ pythonCode: null });
+  });
+
+  it('flags an empty codegen response as a failure', async () => {
+    const state = makeState('{"related": true, "code": ""}');
+    expect(await pandasComputeNode(state)).toEqual({ pythonCode: null, computeFailed: true });
   });
 
   it('returns null without table context', async () => {
@@ -151,11 +156,14 @@ describe('pandasComputeNode', () => {
     expect(await pandasComputeNode(state)).toEqual({ pythonCode: null });
   });
 
-  it('returns null when the LLM call throws', async () => {
+  it('flags a thrown LLM call as a FAILURE, not a skip', async () => {
+    // The distinction matters downstream: a skip means "the question wasn't
+    // about the table" (answer normally), a failure means the model must NOT
+    // compute the number itself.
     const state = makeState('');
     (
       state.aiWorkerPool as unknown as { processRequest: ReturnType<typeof vi.fn> }
     ).processRequest.mockRejectedValue(new Error('provider down'));
-    expect(await pandasComputeNode(state)).toEqual({ pythonCode: null });
+    expect(await pandasComputeNode(state)).toEqual({ pythonCode: null, computeFailed: true });
   });
 });
