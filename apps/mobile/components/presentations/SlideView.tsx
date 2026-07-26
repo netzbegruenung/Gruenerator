@@ -1,4 +1,8 @@
-import { getPresentationBrandTheme, type Slide } from '@gruenerator/contracts';
+import {
+  getPresentationBrandTheme,
+  PRESENTATION_FONT_SIZE_SCALE,
+  type Slide,
+} from '@gruenerator/contracts';
 import { Image } from 'expo-image';
 import { useState } from 'react';
 import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
@@ -49,6 +53,9 @@ export function SlideView({
   const isQuote = slide.layout === 'quote';
   const isCode = slide.layout === 'code';
   const variant = slide.variant ?? 0;
+  // Preset font scale; auto-fit ("Auto") renders at 1 — RN's
+  // adjustsFontSizeToFit can't apply to a Markdown tree.
+  const fs = slide.fontSize ? PRESENTATION_FONT_SIZE_SCALE[slide.fontSize] : 1;
 
   const surfaceAlign: {
     alignItems?: 'center' | 'flex-start';
@@ -64,13 +71,13 @@ export function SlideView({
         : { justifyContent: 'flex-start' };
 
   const mdStyles = {
-    body: { fontSize: 28, color: textColor, lineHeight: 28 * 1.4 },
-    paragraph: { marginTop: 0, marginBottom: 12 },
-    bullet_list_icon: { color: deckAccent, fontSize: 28 },
-    ordered_list_icon: { color: deckAccent, fontSize: 28 },
-    list_item: { marginBottom: 10 },
-    heading1: { color: titleColor, fontSize: 40, fontWeight: '700' as const },
-    heading2: { color: titleColor, fontSize: 34, fontWeight: '700' as const },
+    body: { fontSize: 28 * fs, color: textColor, lineHeight: 28 * 1.4 * fs },
+    paragraph: { marginTop: 0, marginBottom: 12 * fs },
+    bullet_list_icon: { color: deckAccent, fontSize: 28 * fs },
+    ordered_list_icon: { color: deckAccent, fontSize: 28 * fs },
+    list_item: { marginBottom: 10 * fs },
+    heading1: { color: titleColor, fontSize: 40 * fs, fontWeight: '700' as const },
+    heading2: { color: titleColor, fontSize: 34 * fs, fontWeight: '700' as const },
     link: { color: bg.dark ? 'rgba(255,255,255,0.85)' : theme.colors.accent },
     strong: { fontWeight: '700' as const },
     code_inline: {
@@ -106,14 +113,25 @@ export function SlideView({
           )}
 
           {slide.title.trim() !== '' && (
-            <Text style={[styles.title, { color: titleColor, fontSize: isTitle ? 56 : 44 }]}>
+            <Text
+              style={[
+                styles.title,
+                {
+                  color: titleColor,
+                  fontSize: (isTitle ? 56 : 44) * fs,
+                  lineHeight: (isTitle ? 56 : 44) * 1.15 * fs,
+                },
+              ]}
+            >
               {slide.title}
             </Text>
           )}
 
           {isCode ? (
             <View style={styles.codePanel}>
-              <Text style={styles.codeText}>{slide.body}</Text>
+              <Text style={[styles.codeText, { fontSize: 20 * fs, lineHeight: 20 * 1.45 * fs }]}>
+                {slide.body}
+              </Text>
             </View>
           ) : (
             <View
@@ -177,7 +195,6 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: '700',
-    lineHeight: 56 * 1.15,
   },
   body: {
     flexShrink: 1,

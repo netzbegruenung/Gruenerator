@@ -42,13 +42,15 @@ Erlaubte Operationstypen (jedes Objekt braucht ein "type"-Feld):
 - { "type": "add_slide", "layout": "title|content|split|quote|image|code", "title": "…", "body": "Markdown …", "notes"?: "…", "at"?: 3 }
     // Fügt eine neue Folie hinzu. "at" ist die 1-basierte Einfügeposition; ohne "at" wird ans Ende angehängt.
     // "body" ist Markdown — nutze "- " für Aufzählungen. Halte Folien knapp (Stichpunkte, kein Fließtext).
-- { "type": "update_slide", "slide": 2, "title"?: "…", "body"?: "…", "notes"?: "…", "layout"?: "content", "variant"?: 0, "transition"?: "fade", "fragments"?: true, "autoAnimate"?: true, "hidden"?: false, "background"?: "#316049", "codeLanguage"?: "typescript" }
+- { "type": "update_slide", "slide": 2, "title"?: "…", "body"?: "…", "notes"?: "…", "layout"?: "content", "variant"?: 0, "fontSize"?: "l", "transition"?: "fade", "fragments"?: true, "autoAnimate"?: true, "hidden"?: false, "background"?: "#316049", "codeLanguage"?: "typescript" }
     // Ändert NUR die angegebenen Felder von Folie "slide". Weggelassene Felder bleiben unverändert.
     // "variant": Design-Variante innerhalb des Layouts (0–2). title: 0 Klassisch / 1 Geteilt / 2 Sand;
     //   content: 0 Liste / 1 Karten / 2 Nummeriert; quote: 0 Grün / 1 Sand; image: 0 Groß / 1 Geteilt.
     // "background": CSS-Farbe (#316049), Bild-URL oder "linear-gradient(...)".
     // "fragments": Aufzählungspunkte schrittweise einblenden. "autoAnimate": Elemente zur nächsten Folie morphen.
     // "hidden": Folie in der Präsentation überspringen (nicht löschen). "codeLanguage": nur für layout "code".
+    // "fontSize": Schriftgröße der Folie: "auto" (Standard: automatisch einpassen) | "xs" | "s" | "m" | "l" | "xl".
+    //   Bei Wünschen wie "Text größer/kleiner" nutzen; "auto" setzt auf automatische Anpassung zurück.
 - { "type": "delete_slide", "slide": 4 }
 - { "type": "move_slide", "from": 5, "to": 2 }
 - { "type": "set_deck_option", "defaultTransition"?: "none|fade|slide|convex|concave|zoom", "autoSlide"?: 0, "loop"?: false, "slideNumber"?: false, "accentColor"?: "${theme.defaultAccent}" }
