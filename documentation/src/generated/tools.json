@@ -101,7 +101,7 @@
           "path": "/agentura"
         },
         {
-          "id": "spaces",
+          "id": "projekte",
           "title": "Projekte",
           "description": "Chats & Inhalte bündeln",
           "path": "/projekte"
@@ -145,30 +145,10 @@
     }
   ],
   "catalog": {
-    "boards": {
-      "title": "Boards",
-      "path": "/boards",
-      "subtitle": "Planen & organisieren"
-    },
-    "docs": {
-      "title": "Dokumente",
-      "path": "/docs",
-      "subtitle": "Texte schreiben"
-    },
     "office": {
       "title": "Office",
       "path": "/office",
-      "subtitle": "Dokumente, Boards, Tabellen & Slides"
-    },
-    "presentations": {
-      "title": "Präsentationen",
-      "path": "/presentations",
-      "subtitle": "Folien & Vorträge"
-    },
-    "sheets": {
-      "title": "Tabellen",
-      "path": "/sheets",
-      "subtitle": "Daten & Kalkulationen"
+      "subtitle": "Dokumente, Boards, Tabellen & Präsentationen"
     },
     "tool-agentura": {
       "title": "Agentura",
@@ -180,11 +160,6 @@
       "path": "/chat",
       "subtitle": "KI-Assistent"
     },
-    "tool-gruppen": {
-      "title": "Projekte",
-      "path": "/projekte",
-      "subtitle": "Chats & Inhalte bündeln, Zusammenarbeit im Team"
-    },
     "tool-imagine": {
       "title": "KI-Bild erstellen",
       "path": "/bild-editor",
@@ -194,6 +169,11 @@
       "title": "Notebooks",
       "path": "/notebooks",
       "subtitle": "Wissensmanagement & Recherche"
+    },
+    "tool-projekte": {
+      "title": "Projekte",
+      "path": "/projekte",
+      "subtitle": "Chats & Inhalte bündeln, Zusammenarbeit im Team"
     },
     "tool-reel": {
       "title": "Reel",

@@ -19,8 +19,34 @@ export interface FavouriteItemConfig {
 
 const TOOL_ITEMS: FavouriteItemConfig[] = [
   { id: 'office', title: 'Office', path: '/office', icon: getIcon('navigation', 'desk')! },
-  // Legacy office-app ids kept so already-pinned favourites still resolve; their
-  // paths now redirect to the unified /office hub.
+  {
+    id: 'canvas',
+    title: 'Bilder & Videos',
+    path: '/studio',
+    icon: getIcon('navigation', 'sharepic')!,
+  },
+  { id: 'wissen', title: 'Wissen', path: '/wissen', icon: getIcon('navigation', 'notebooks')! },
+  {
+    id: 'projekte',
+    title: 'Projekte',
+    path: '/projekte',
+    icon: getIcon('navigation', 'projekte')!,
+  },
+  { id: 'suche', title: 'Suche', path: '/suche', icon: getIcon('navigation', 'suche')! },
+  { id: 'scanner', title: 'Scanner', path: '/scanner', icon: getIcon('navigation', 'scanner')! },
+  {
+    id: 'transkription',
+    title: 'Transkription',
+    path: '/transkription',
+    icon: getIcon('navigation', 'transkription')!,
+  },
+];
+
+// Legacy ids kept ONLY so already-pinned favourites still resolve — they are
+// part of the resolution map but not of the default export, so the global
+// search never surfaces them (their paths are mere redirects to /office
+// respectively /wissen).
+const LEGACY_TOOL_ITEMS: FavouriteItemConfig[] = [
   { id: 'docs', title: 'Dokumente', path: '/docs', icon: getIcon('navigation', 'docs')! },
   { id: 'boards', title: 'Boards', path: '/boards', icon: getIcon('navigation', 'boards')! },
   { id: 'sheets', title: 'Tabellen', path: '/sheets', icon: getIcon('navigation', 'sheets')! },
@@ -31,27 +57,23 @@ const TOOL_ITEMS: FavouriteItemConfig[] = [
     icon: getIcon('navigation', 'presentations')!,
   },
   {
-    id: 'canvas',
-    title: 'Bilder & Videos',
-    path: '/studio',
-    icon: getIcon('navigation', 'sharepic')!,
-  },
-  { id: 'wissen', title: 'Wissen', path: '/wissen', icon: getIcon('navigation', 'notebooks')! },
-  { id: 'gruppen', title: 'Projekte', path: '/projekte', icon: getIcon('navigation', 'gruppen')! },
-  { id: 'suche', title: 'Suche', path: '/suche', icon: getIcon('navigation', 'suche')! },
-  {
-    // Legacy id kept so already-pinned "Wissen" favourites still resolve.
     id: 'notebooks',
     title: 'Wissen',
     path: '/wissen',
     icon: getIcon('navigation', 'notebooks')!,
   },
-  { id: 'scanner', title: 'Scanner', path: '/scanner', icon: getIcon('navigation', 'scanner')! },
+  // Former ids of the /projekte tool (Gruppen → Spaces → Projekte renames).
   {
-    id: 'transkription',
-    title: 'Transkription',
-    path: '/transkription',
-    icon: getIcon('navigation', 'transkription')!,
+    id: 'gruppen',
+    title: 'Projekte',
+    path: '/projekte',
+    icon: getIcon('navigation', 'projekte')!,
+  },
+  {
+    id: 'spaces',
+    title: 'Projekte',
+    path: '/projekte',
+    icon: getIcon('navigation', 'projekte')!,
   },
 ];
 
@@ -87,7 +109,9 @@ const MENU_TOOL_ITEMS: FavouriteItemConfig[] = TOOL_MENUS.flatMap((menu) =>
 const FAVOURITE_ITEMS: FavouriteItemConfig[] = [...TOOL_ITEMS, ...NOTEBOOK_ITEMS];
 
 const FAVOURITE_ITEMS_MAP = new Map(
-  [...FAVOURITE_ITEMS, ...WORKPLACE_TOOL_ITEMS, ...MENU_TOOL_ITEMS].map((item) => [item.id, item])
+  [...FAVOURITE_ITEMS, ...LEGACY_TOOL_ITEMS, ...WORKPLACE_TOOL_ITEMS, ...MENU_TOOL_ITEMS].map(
+    (item) => [item.id, item]
+  )
 );
 
 export const getFavouriteItemsById = (ids: string[]): FavouriteItemConfig[] =>

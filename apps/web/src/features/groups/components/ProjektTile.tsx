@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 
 import { getToolTheme } from '../../../config/toolTheme';
 
-// Square spaces-blue tile mirroring the OfficeTile idiom (aspect-square,
+// Square projekte-blue tile mirroring the OfficeTile idiom (aspect-square,
 // rounded-2xl, icon pinned top / label pinned bottom) so the "Deine Projekte"
 // grid reads as one family with the create tiles above it.
 const TILE_BASE =
@@ -12,29 +12,29 @@ const TILE_BASE =
   'transition-shadow duration-150 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] ' +
   'dark:hover:shadow-[0_4px_12px_rgba(0,0,0,0.30)]';
 
-function spaceMeta(space: GroupSummary): string {
-  if (space.group_type === 'personal') return 'Nur für dich';
-  if (space.member_count != null) {
-    return `${space.member_count} Mitglied${space.member_count === 1 ? '' : 'er'}`;
+function projektMeta(projekt: GroupSummary): string {
+  if (projekt.group_type === 'personal') return 'Nur für dich';
+  if (projekt.member_count != null) {
+    return `${projekt.member_count} Mitglied${projekt.member_count === 1 ? '' : 'er'}`;
   }
-  return space.isAdmin ? 'Admin' : 'Mitglied';
+  return projekt.isAdmin ? 'Admin' : 'Mitglied';
 }
 
-export function SpaceTile({ space }: { space: GroupSummary }) {
-  const theme = getToolTheme('spaces');
-  const TypeIcon = space.group_type === 'personal' ? HiUser : HiUserGroup;
+export function ProjektTile({ projekt }: { projekt: GroupSummary }) {
+  const theme = getToolTheme('projekte');
+  const TypeIcon = projekt.group_type === 'personal' ? HiUser : HiUserGroup;
   return (
     <Link
-      to={buildGroupPath(space)}
+      to={buildGroupPath(projekt)}
       className={`${TILE_BASE} ${theme?.tile ?? 'bg-grey-50 dark:bg-grey-800/40'}`}
     >
       <span className="flex items-start justify-between">
         <span className="flex size-10 items-center justify-center overflow-hidden rounded-full bg-white/70 dark:bg-white/10">
-          {space.avatar_url ? (
-            <img src={space.avatar_url} alt="" className="size-full object-cover" />
+          {projekt.avatar_url ? (
+            <img src={projekt.avatar_url} alt="" className="size-full object-cover" />
           ) : (
             <span className={`text-sm font-bold ${theme?.icon ?? 'text-secondary-600'}`}>
-              {getGroupInitials(space.name)}
+              {getGroupInitials(projekt.name)}
             </span>
           )}
         </span>
@@ -44,12 +44,12 @@ export function SpaceTile({ space }: { space: GroupSummary }) {
         <span
           className={`block text-[15px] font-bold leading-tight line-clamp-2 sm:text-[16px] ${theme?.title ?? 'text-foreground-heading'}`}
         >
-          {space.name}
+          {projekt.name}
         </span>
         <span
           className={`mt-0.5 block truncate text-[12px] leading-snug sm:text-[13px] ${theme?.desc ?? 'text-muted-foreground'}`}
         >
-          {spaceMeta(space)}
+          {projektMeta(projekt)}
         </span>
       </span>
     </Link>

@@ -1,28 +1,8 @@
 {
-  "catalog.boards": {
-    "title": "Boards",
-    "subtitle": "Planen & organisieren",
-    "path": "/boards"
-  },
-  "catalog.docs": {
-    "title": "Dokumente",
-    "subtitle": "Texte schreiben",
-    "path": "/docs"
-  },
   "catalog.office": {
     "title": "Office",
-    "subtitle": "Dokumente, Boards, Tabellen & Slides",
+    "subtitle": "Dokumente, Boards, Tabellen & Präsentationen",
     "path": "/office"
-  },
-  "catalog.presentations": {
-    "title": "Präsentationen",
-    "subtitle": "Folien & Vorträge",
-    "path": "/presentations"
-  },
-  "catalog.sheets": {
-    "title": "Tabellen",
-    "subtitle": "Daten & Kalkulationen",
-    "path": "/sheets"
   },
   "catalog.tool-agentura": {
     "title": "Agentura",
@@ -34,11 +14,6 @@
     "subtitle": "KI-Assistent",
     "path": "/chat"
   },
-  "catalog.tool-gruppen": {
-    "title": "Projekte",
-    "subtitle": "Chats & Inhalte bündeln, Zusammenarbeit im Team",
-    "path": "/projekte"
-  },
   "catalog.tool-imagine": {
     "title": "KI-Bild erstellen",
     "subtitle": "Bilder mit KI erstellen & bearbeiten",
@@ -48,6 +23,11 @@
     "title": "Notebooks",
     "subtitle": "Wissensmanagement & Recherche",
     "path": "/notebooks"
+  },
+  "catalog.tool-projekte": {
+    "title": "Projekte",
+    "subtitle": "Chats & Inhalte bündeln, Zusammenarbeit im Team",
+    "path": "/projekte"
   },
   "catalog.tool-reel": {
     "title": "Reel",
@@ -218,6 +198,11 @@
     "title": "Leere Präsentation",
     "subtitle": "Leere Foliensammlung"
   },
+  "workplace.projekte": {
+    "title": "Projekte",
+    "subtitle": "Chats & Inhalte bündeln",
+    "path": "/projekte"
+  },
   "workplace.reels-untertitel": {
     "title": "Reels",
     "subtitle": "Untertitel für Clips",
@@ -231,11 +216,6 @@
   "workplace.sheets": {
     "title": "Leere Tabelle",
     "subtitle": "Leere Kalkulationstabelle"
-  },
-  "workplace.spaces": {
-    "title": "Projekte",
-    "subtitle": "Chats & Inhalte bündeln",
-    "path": "/projekte"
   },
   "workplace.transkription": {
     "title": "Transkription",
