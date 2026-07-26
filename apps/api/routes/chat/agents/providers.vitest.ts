@@ -75,11 +75,15 @@ describe('AVAILABLE_MODELS', () => {
 });
 
 describe('getContextWindow', () => {
+  // Measured 2026-07-26, not copied from datasheets. Mistral reports its own
+  // limit on overflow (`262144 maximum context length`); the Ollama-backed
+  // Verdigado lanes silently truncate instead of erroring, so they carry the
+  // largest size verified end-to-end rather than their nominal one.
   it('returns correct context window for known models', () => {
-    expect(getContextWindow('mistral-large')).toBe(128000);
-    expect(getContextWindow('gpt-oss')).toBe(32768);
-    expect(getContextWindow('gemma-4')).toBe(32768);
-    expect(getContextWindow('regolo')).toBe(32768);
+    expect(getContextWindow('mistral-large')).toBe(262_144);
+    expect(getContextWindow('gpt-oss')).toBe(120_000);
+    expect(getContextWindow('gemma-4')).toBe(120_000);
+    expect(getContextWindow('regolo')).toBe(262_144);
   });
 
   it('returns default for unknown model', () => {
@@ -92,13 +96,19 @@ describe('getContextWindow', () => {
   });
 
   it('uses provider fallback when model is unknown', () => {
-    expect(getContextWindow('auto', 'mistral')).toBe(128000);
-    expect(getContextWindow('auto', 'litellm')).toBe(32768);
-    expect(getContextWindow('auto', 'regolo')).toBe(32768);
+    expect(getContextWindow('auto', 'mistral')).toBe(262_144);
+    expect(getContextWindow('auto', 'litellm')).toBe(120_000);
+    expect(getContextWindow('auto', 'regolo')).toBe(262_144);
   });
 
   it('legacy litellm ID resolves to overflow lane window', () => {
-    expect(getContextWindow('litellm', 'mistral')).toBe(32768);
+    expect(getContextWindow('litellm', 'mistral')).toBe(120_000);
+  });
+
+  // The unknown-model fallback stays conservative on purpose: an unrecognised
+  // model may be small, and over-declaring costs silent truncation upstream.
+  it('keeps the unknown-model fallback conservative', () => {
+    expect(getContextWindow('nonexistent-model')).toBe(32768);
   });
 });
 
@@ -109,7 +119,7 @@ describe('getModelConfig', () => {
     expect(config!.kind).toBe('single');
     if (config!.kind === 'single') {
       expect(config.provider).toBe('mistral');
-      expect(config.contextWindow).toBe(128000);
+      expect(config.contextWindow).toBe(262_144);
     }
   });
 
@@ -120,7 +130,7 @@ describe('getModelConfig', () => {
     if (config!.kind === 'overflow') {
       expect(config.primary.provider).toBe('litellm');
       expect(config.overflow.provider).toBe('regolo');
-      expect(config.contextWindow).toBe(32768);
+      expect(config.contextWindow).toBe(120_000);
     }
   });
 
