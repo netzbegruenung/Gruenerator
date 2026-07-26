@@ -106,9 +106,9 @@ export const TOOL_THEME = {
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#FBF7DF_0%,#FDFBF1_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#201D0E_0%,#16130A_55%,#0E0C07_100%)]',
   },
-  // Spaces — a soft blue (the calm, "bündeln/organisieren" hue), distinct from
+  // Projekte — a soft blue (the calm, "bündeln/organisieren" hue), distinct from
   // sheets' teal and the warm office/agentura tones.
-  spaces: {
+  projekte: {
     tile: 'bg-[#DCE6F2] dark:bg-[#14202E]',
     icon: 'text-[#2E4E7A] dark:text-[#7CA2CB]',
     title: 'text-[#1E3A5E] dark:text-[#A2C0E4]',
