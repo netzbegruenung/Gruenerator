@@ -20,9 +20,7 @@ describe('partitionSearchErrors', () => {
   });
 
   it('flags a search backend outage as core degradation', () => {
-    const result = partitionSearchErrors([
-      { source: 'documents:deutschland', message: 'timeout' },
-    ]);
+    const result = partitionSearchErrors([{ source: 'documents:deutschland', message: 'timeout' }]);
 
     expect(result.coreDegraded).toBe(true);
     expect(result.unavailableSources).toEqual([]);

@@ -1085,9 +1085,11 @@ export async function executeIntentPipeline(opts: {
         // Degraded search (Qdrant/web source unreachable) must be
         // distinguishable from a genuine zero-hit — both for the user
         // (warning toast + status copy) and for monitoring.
-        const { coreDegraded: searchDegraded, unavailableSources, needsReauth } = partitionSearchErrors(
-          finalState.searchErrors
-        );
+        const {
+          coreDegraded: searchDegraded,
+          unavailableSources,
+          needsReauth,
+        } = partitionSearchErrors(finalState.searchErrors);
         if (searchDegraded) sendSearchDegradedWarning(sse, resultCount);
         // A file the user explicitly attached or @-mentioned that could not be
         // read. These were collected but filtered away by the availability
