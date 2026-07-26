@@ -29,6 +29,7 @@ import {
 import { useFavoritesStore } from '../../../stores/favoritesStore';
 import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../../theme';
 import { FLOATING_TAB_BAR_HEIGHT } from '../../../theme/layout';
+import { getSurfaceFab } from '../../../theme/toolTheme';
 import { routeWithParams } from '../../../types/routes';
 
 /** "12 Dokumente · Beschreibung" line for a user's own notebook card. */
@@ -43,6 +44,7 @@ export default function NotebooksScreen() {
   const router = useRouter();
   const isTablet = useIsTablet();
   const insets = useSafeAreaInsets();
+  const fabTone = getSurfaceFab('wissen', colorScheme === 'dark');
   const [creatorVisible, setCreatorVisible] = useState(false);
   // The ask-all-sources composer is opt-in: the gallery is what the tab is for,
   // and a permanently pinned bar ate a sixth of the screen for it.
@@ -296,13 +298,14 @@ export default function NotebooksScreen() {
             style={({ pressed }) => [
               styles.fab,
               {
+                backgroundColor: fabTone.solid.background,
                 bottom: insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.small,
                 opacity: pressed ? 0.9 : 1,
                 transform: [{ scale: pressed ? 0.96 : 1 }],
               },
             ]}
           >
-            <Ionicons name="search" size={24} color={colors.primary[600]} />
+            <Ionicons name="search" size={24} color={fabTone.solid.icon} />
           </Pressable>
         )}
       </View>
@@ -322,7 +325,6 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.white,
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.16,
