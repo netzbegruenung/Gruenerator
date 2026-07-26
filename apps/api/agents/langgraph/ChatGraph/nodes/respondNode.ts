@@ -21,7 +21,6 @@ import { type Locale } from '../../../../services/localization/types.js';
 import { getTextFormForInjection } from '../../../../services/user/textFormRepository.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { formatGermanDate } from '../../../../utils/stringUtils.js';
-import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 import { isSourceAvailabilityError } from '../types.js';
 
 import { type AnchorDescriptor, getActiveAnchors } from './anchorContext.js';
@@ -149,59 +148,6 @@ const SEARCH_CONTEXT_BUDGET_CRAWLED = 6000;
 const SEARCH_CONTEXT_BUDGET_DOCUMENTCHAT = 8000;
 const MAX_SEARCH_RESULTS = 8;
 
-const FINDINGS_CLEANING_PROMPT = `Du bist ein Forschungsassistent. Fasse die folgenden Suchergebnisse zu einem kohärenten Überblick zusammen, fokussiert auf den Recherche-Auftrag.
-
-Regeln:
-- Strukturierte Zusammenfassung (max 1500 Zeichen)
-- Verweise auf die Quellen beibehalten (Titel in **Fettschrift**)
-- Wichtige Fakten, Zahlen und Positionen hervorheben
-- Redundante Informationen zusammenfassen
-- Auf Deutsch antworten
-
-Antworte NUR mit der Zusammenfassung, ohne Einleitung.`;
-
-const MAX_CLEANED_FINDINGS_LENGTH = 2000;
-
-/**
- * Clean and summarize search results using Mistral-small.
- * Returns a coherent findings summary or null on failure.
- */
-async function cleanFindings(state: ChatGraphState): Promise<string | null> {
-  const { searchResults, researchBrief, searchQuery, aiWorkerPool } = state;
-
-  const topResults = searchResults.slice(0, 6);
-  const resultsText = topResults
-    .map((r, i) => `[${i + 1}] **${r.title}**\n${r.content.slice(0, 500)}`)
-    .join('\n\n');
-
-  const brief = researchBrief || searchQuery || '';
-
-  const response = await aiWorkerPool.processRequest(
-    {
-      type: 'chat_clean_findings',
-      provider: INTERMEDIATE_MODEL.provider,
-      systemPrompt: FINDINGS_CLEANING_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: `Recherche-Auftrag: ${brief}\n\nSuchergebnisse:\n${resultsText}\n\nErstelle eine strukturierte Zusammenfassung.`,
-        },
-      ],
-      options: {
-        model: INTERMEDIATE_MODEL.model,
-        max_tokens: 600,
-        temperature: 0.2,
-      },
-    },
-    null
-  );
-
-  const cleaned = (response.content || '').trim();
-  if (!cleaned) return null;
-
-  return cleaned.slice(0, MAX_CLEANED_FINDINGS_LENGTH);
-}
-
 /**
  * Format search results as context for the response generation.
  * Uses budget-based allocation weighted by relevance score.
@@ -282,19 +228,13 @@ export async function formatSearchContext(
     return '';
   }
 
-  // Complex research: try LLM-cleaned findings
-  if (state.complexity === 'complex' && state.researchBrief && state.aiWorkerPool) {
-    try {
-      const cleaned = await cleanFindings(state);
-      if (cleaned) {
-        log.info(`[Respond] Using cleaned findings (${cleaned.length} chars)`);
-        return `\n\n## RECHERCHE-ERGEBNISSE\n\n${cleaned}`;
-      }
-    } catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error);
-      log.error(`[Respond] Findings cleaning failed, falling back to budget truncation: ${errMsg}`);
-    }
-  }
+  // A `complex` + researchBrief turn used to be handed to an intermediate model
+  // that condensed 6 results (500 chars each) into <=2000 chars WITHOUT URLs,
+  // and that digest REPLACED the budget block below. It fired on exactly the
+  // deep-research turns where losing sources hurts most: fewer sources, no
+  // links, and [N] markers numbered against 6 items while the citation list had
+  // up to 20. The budget path handles the same turns with more material and
+  // intact provenance, so there is nothing left to special-case.
 
   // Default: budget-based truncation
   // Notebook-scoped searches get more results and higher budget for deeper answers
