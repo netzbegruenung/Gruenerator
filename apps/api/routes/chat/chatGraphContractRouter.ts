@@ -69,7 +69,7 @@ import {
   handleShareDoc,
   executeIntentPipeline,
 } from './services/intentExecutionService.js';
-import { extractTextContent } from './services/messageHelpers.js';
+import { estimateRequestTokens, extractTextContent } from './services/messageHelpers.js';
 import {
   recallPastChats,
   recallOfficeDocuments,
@@ -1585,6 +1585,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               hasImages: imageAttachments.length > 0,
               intent: finalState.intent,
               agentId: finalState.agentConfig.identifier,
+              // Measured BEFORE pruning on purpose: the question is "does this
+              // turn need a bigger lane", and pruning is exactly the loss we
+              // want to avoid by answering it.
+              estimatedInputTokens: estimateRequestTokens(systemMessage, validMessages),
               ...(finalState.complexity != null && { complexity: finalState.complexity }),
             }
           );
