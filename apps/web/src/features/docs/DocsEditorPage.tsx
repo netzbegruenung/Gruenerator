@@ -64,17 +64,24 @@ import useDarkMode from '../../components/hooks/useDarkMode';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
+import { useExportStore, type PdfExportOptions } from '../../stores/core/exportStore';
 import { isDesktopApp } from '../../utils/platform';
 import { platformFetch } from '../../utils/platformFetch';
+import { useProfile } from '../auth/hooks/useProfileData';
+import { letterheadApi, LETTERHEADS_QUERY_KEY } from '../settings/letterheadApi';
 import { useTourAutostart } from '../tours/useTourAutostart';
 
 import { DocAiReviewBar } from './DocAiReviewBar';
 import { webAppDocsAdapter } from './docsAdapter';
 import { GuestBadge, GUEST_ANIMALS } from './GuestBadge';
 import { getOrCreateGuestIdentity } from './guestIdentity';
+import { blockLines, detectLetterParts, stripDetectedBlocks } from './letterDetection';
+import { LetterExportDialog, type LetterExportSubmit } from './LetterExportDialog';
+import { LetterheadExportDialog } from './LetterheadExportDialog';
 import { useDocsLiveWolkeSync } from './useDocsLiveWolkeSync';
 
-import type { BlockNoteEditor } from '@blocknote/core';
+import type { LetterheadChoice } from './LetterheadChooser';
+import type { Block, BlockNoteEditor } from '@blocknote/core';
 
 const MemoizedBlockNoteEditor = memo(BlockNoteEditorComponent);
 
@@ -129,6 +136,14 @@ function EditorContent() {
   const adapter = useDocsAdapter();
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
   const { user, isAuthResolved } = useAuth({ lazy: true });
+  const { data: profile } = useProfile();
+  // Drives both the menu's availability hint and the chooser's options.
+  const { data: letterheads = [] } = useQuery({
+    queryKey: LETTERHEADS_QUERY_KEY,
+    queryFn: letterheadApi.list,
+    enabled: Boolean(user),
+    staleTime: 5 * 60 * 1000,
+  });
   const isGuest = Boolean(isAuthResolved) && !user;
   const [, , themePreference, cycleTheme] = useDarkMode();
 
@@ -208,6 +223,11 @@ function EditorContent() {
   const [showWolkeModal, setShowWolkeModal] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showExportSubmenu, setShowExportSubmenu] = useState(false);
+  // The old export was local and instant; the server round-trip takes seconds,
+  // so a second click has to be blocked rather than queueing another render.
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [showLetterDialog, setShowLetterDialog] = useState(false);
+  const [showLetterheadDialog, setShowLetterheadDialog] = useState(false);
   const [activeSidebar, setActiveSidebar] = useState<SidebarPanel | null>(null);
   // Sticky: once the chat panel is opened, DocsChatPanel stays mounted to
   // preserve its runtime + Hocuspocus connection across close/reopen. Avoids
@@ -385,31 +405,112 @@ function EditorContent() {
     }
   }, [docData, editor, exportBlockedBySuggestions]);
 
-  // @blocknote/xl-pdf-exporter and xl-odt-exporter ship no .d.ts in this install,
-  // so dynamic-import members are typed as `any`. Scoped disable until upstream types arrive.
-  const handleExportPDF = useCallback(async () => {
-    if (!docData || !editor) return;
-    if (exportBlockedBySuggestions()) return;
-    try {
-      const { PDFExporter, pdfDefaultSchemaMappings } = await import('@blocknote/xl-pdf-exporter');
-      const { pdf } = await import('@react-pdf/renderer');
-      const exporter = new PDFExporter(editor.schema, pdfDefaultSchemaMappings);
-      const pdfDocument: Parameters<typeof pdf>[0] = (await exporter.toReactPDFDocument(
-        editor.document
-      )) as Parameters<typeof pdf>[0];
-      const blob = await pdf(pdfDocument).toBlob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${docData.title || 'Dokument'}.pdf`;
-      link.click();
-      window.URL.revokeObjectURL(url);
+  /**
+   * PDF export goes through the SERVER renderer (POST /api/exports/pdf).
+   *
+   * The old client-side @blocknote/xl-pdf-exporter path produced an untagged
+   * PDF with no Grünen CI — a screen reader got nothing out of it — and a
+   * letterhead was impossible there. The HTML is serialised from the LIVE
+   * editor rather than fetched from /api/docs/:id/export/html, because that
+   * route reads a Yjs snapshot written only every 5 minutes: typing a sentence
+   * and exporting immediately would silently drop it.
+   */
+  const runPdfExport = useCallback(
+    async (options?: PdfExportOptions, selectBlocks?: (blocks: Block[]) => Block[]) => {
+      if (!docData || !editor) return;
+      if (exportBlockedBySuggestions()) return;
+      if (isExportingPdf) return;
+      const { toast } = await import('sonner');
+      setIsExportingPdf(true);
       setShowActionsMenu(false);
-    } catch (error) {
-      console.error('PDF export failed:', error);
-      void import('sonner').then(({ toast }) => toast.error('PDF-Export fehlgeschlagen'));
+      const pending = toast.loading('PDF wird erstellt …');
+      try {
+        const { blocksToHTML } = await import('@gruenerator/docs');
+        // Any block filtering happens BEFORE serialising: a line-based
+        // transform on HTML matches nothing, which is how the "remove
+        // recognised lines" option silently did nothing.
+        const blocks = selectBlocks ? selectBlocks(editor.document) : editor.document;
+        const html = await blocksToHTML(editor, blocks);
+        // blocksToHTML swallows its errors and returns '' — exporting that
+        // would download a PDF reading "enthält keinen Inhalt".
+        if (!html.trim()) throw new Error('Das Dokument konnte nicht gelesen werden.');
+        const content = html;
+        await useExportStore.getState().generatePDF(content, docData.title || 'Dokument', options);
+        toast.success('PDF erstellt', { id: pending });
+      } catch (error) {
+        console.error('PDF export failed:', error);
+        toast.error(error instanceof Error ? error.message : 'PDF-Export fehlgeschlagen', {
+          id: pending,
+        });
+      } finally {
+        setIsExportingPdf(false);
+      }
+    },
+    [docData, editor, exportBlockedBySuggestions, isExportingPdf]
+  );
+
+  const handleExportPDF = useCallback(() => void runPdfExport(), [runPdfExport]);
+
+  /**
+   * Run an export from a chooser result, saving the Absender first when the
+   * user ticked "für später speichern" — through the same create call the
+   * settings tab uses, so both paths produce the same thing.
+   */
+  const runWithChoice = useCallback(
+    async (
+      choice: LetterheadChoice,
+      layout: 'letterhead' | 'letter',
+      letter?: LetterExportSubmit['letter'],
+      selectBlocks?: (blocks: Block[]) => Block[]
+    ) => {
+      let letterheadId = choice.letterheadId;
+      if (choice.saveForLater) {
+        try {
+          const saved = await letterheadApi.create(choice.saveForLater);
+          letterheadId = saved.id;
+          await queryClient.invalidateQueries({ queryKey: LETTERHEADS_QUERY_KEY });
+        } catch (error) {
+          // Saving is a convenience — it must never block the export the user
+          // actually asked for.
+          const { toast } = await import('sonner');
+          toast.error(error instanceof Error ? error.message : 'Briefkopf nicht gespeichert');
+        }
+      }
+      await runPdfExport(
+        {
+          layout,
+          ...(letterheadId ? { letterheadId } : {}),
+          ...(!letterheadId && choice.inline ? { letterhead: choice.inline } : {}),
+          ...(letter ? { letter } : {}),
+        },
+        selectBlocks
+      );
+    },
+    [runPdfExport, queryClient]
+  );
+
+  const handleLetterSubmit = useCallback(
+    (result: LetterExportSubmit) => {
+      setShowLetterDialog(false);
+      void runWithChoice(result.letterhead, 'letter', result.letter, (blocks) =>
+        result.stripDetected
+          ? stripDetectedBlocks(blocks, detectLetterParts(blockLines(blocks).join('\n')))
+          : blocks
+      );
+    },
+    [runWithChoice]
+  );
+
+  // One saved letterhead means there is nothing to choose — export straight
+  // away. Zero or several open the chooser.
+  const handleExportLetterhead = useCallback(() => {
+    setShowActionsMenu(false);
+    if (letterheads.length === 1) {
+      void runWithChoice({ letterheadId: letterheads[0]!.id }, 'letterhead');
+      return;
     }
-  }, [docData, editor, exportBlockedBySuggestions]);
+    setShowLetterheadDialog(true);
+  }, [letterheads, runWithChoice]);
 
   const handleExportODT = useCallback(async () => {
     if (!docData || !editor) return;
@@ -583,7 +684,10 @@ function EditorContent() {
                 <button
                   type="button"
                   onClick={() => setShowWolkeModal(true)}
-                  className="group relative flex items-center gap-1.5 py-1 px-2 text-[0.75rem] rounded-full text-secondary-700 dark:text-secondary-300 transition-all duration-200 ease-out hover:bg-secondary-100/80 dark:hover:bg-secondary-900/50 hover:scale-105 hover:shadow-[0_0_0_3px_rgba(34,197,94,0.15)] dark:hover:shadow-[0_0_0_3px_rgba(34,197,94,0.25)]"
+                  // Hidden below sm: its "Live" label only appears on hover, so
+                  // on touch it is a mute icon competing for scarce bar width.
+                  // "In Wolke speichern" in the actions menu covers the same ground.
+                  className="group relative hidden sm:flex items-center gap-1.5 py-1 px-2 text-[0.75rem] rounded-full text-secondary-700 dark:text-secondary-300 transition-all duration-200 ease-out hover:bg-secondary-100/80 dark:hover:bg-secondary-900/50 hover:scale-105 hover:shadow-[0_0_0_3px_rgba(34,197,94,0.15)] dark:hover:shadow-[0_0_0_3px_rgba(34,197,94,0.25)]"
                   title={
                     docData.wolke_file_path
                       ? `Live mit Wolke synchronisiert: ${docData.wolke_file_path}`
@@ -613,10 +717,16 @@ function EditorContent() {
                   Lesezugriff
                 </div>
               )}
-              <CollaboratorAvatars collaborators={collaborators} />
+              {/* Presence is informational — on a phone the width is better
+                  spent on the actions themselves. */}
+              <span className="max-sm:hidden">
+                <CollaboratorAvatars collaborators={collaborators} />
+              </span>
 
+              {/* Undo/redo move into the actions menu below sm; keeping five
+                  icon buttons plus the title overflowed a 390px bar. */}
               {isEditable && (
-                <>
+                <span className="flex items-center gap-1 max-sm:hidden">
                   <button
                     className="glass-btn"
                     onClick={undo}
@@ -635,7 +745,7 @@ function EditorContent() {
                   >
                     <FiCornerUpRight />
                   </button>
-                </>
+                </span>
               )}
 
               <button
@@ -686,14 +796,44 @@ function EditorContent() {
                 createPortal(
                   <div
                     ref={actionsMenuRef}
-                    className="fixed min-w-[200px] p-1.5 bg-white/90 dark:bg-grey-900/90 backdrop-blur-xl border border-white/30 dark:border-white/10 rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] z-[1000]"
+                    // max-h/overflow so a long menu stays reachable on a short
+                    // phone viewport instead of running off the bottom.
+                    className="fixed min-w-[200px] max-h-[70dvh] overflow-y-auto p-1.5 bg-white/90 dark:bg-grey-900/90 backdrop-blur-xl border border-white/30 dark:border-white/10 rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] z-[1000]"
                     style={{ top: actionsMenuRect.top, right: actionsMenuRect.right }}
                   >
+                    {/* Mirrors the top-bar buttons that are hidden below sm. */}
+                    {isEditable && (
+                      <div className="sm:hidden">
+                        <button
+                          className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-50 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                          disabled={!canUndo}
+                          onClick={() => {
+                            setShowActionsMenu(false);
+                            undo();
+                          }}
+                        >
+                          <FiCornerUpLeft />
+                          Rückgängig
+                        </button>
+                        <button
+                          className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-50 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                          disabled={!canRedo}
+                          onClick={() => {
+                            setShowActionsMenu(false);
+                            redo();
+                          }}
+                        >
+                          <FiCornerUpRight />
+                          Wiederholen
+                        </button>
+                        <div className="my-1 h-px bg-black/5 dark:bg-white/10" />
+                      </div>
+                    )}
                     {!isGuest && (
                       <>
                         {canEdit && (
                           <button
-                            className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                            className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
                             onClick={() => {
                               setShowActionsMenu(false);
                               setShowShareModal(true);
@@ -704,7 +844,7 @@ function EditorContent() {
                           </button>
                         )}
                         <button
-                          className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                          className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
                           onClick={() => {
                             setShowActionsMenu(false);
                             togglePanel('versions');
@@ -715,7 +855,7 @@ function EditorContent() {
                         </button>
                         {canEdit && (
                           <button
-                            className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                            className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
                             disabled={hasPendingAIChanges}
                             title={
                               hasPendingAIChanges
@@ -736,7 +876,7 @@ function EditorContent() {
                         )}
                         {canEdit && suggestionModeEnabled && (
                           <button
-                            className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                            className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
                             onClick={() => {
                               setShowActionsMenu(false);
                               togglePanel('suggestions');
@@ -748,7 +888,7 @@ function EditorContent() {
                         )}
                         {wolkeConnected && (
                           <button
-                            className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                            className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
                             onClick={() => {
                               setShowActionsMenu(false);
                               setShowWolkeModal(true);
@@ -768,7 +908,7 @@ function EditorContent() {
                       </>
                     )}
                     <button
-                      className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                      className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
                       onClick={() => {
                         // Cycle Hell → Dunkel → System; keep the menu open to click through.
                         cycleTheme();
@@ -788,7 +928,7 @@ function EditorContent() {
                           : 'System'}
                     </button>
                     <button
-                      className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                      className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
                       onClick={() => setShowExportSubmenu((v) => !v)}
                       aria-expanded={showExportSubmenu}
                     >
@@ -801,19 +941,37 @@ function EditorContent() {
                     {showExportSubmenu && (
                       <div className="flex flex-col pl-4">
                         <button
-                          className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                          className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
                           onClick={handleExport}
                         >
                           Als Word (.docx)
                         </button>
                         <button
-                          className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                          className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500 disabled:opacity-50"
                           onClick={handleExportPDF}
+                          disabled={isExportingPdf}
                         >
                           Als PDF (.pdf)
                         </button>
                         <button
-                          className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                          className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500 disabled:opacity-50 aria-disabled:opacity-50"
+                          onClick={handleExportLetterhead}
+                          disabled={isExportingPdf}
+                        >
+                          Als PDF mit Briefkopf
+                        </button>
+                        <button
+                          className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500 disabled:opacity-50 aria-disabled:opacity-50"
+                          onClick={() => {
+                            setShowActionsMenu(false);
+                            setShowLetterDialog(true);
+                          }}
+                          disabled={isExportingPdf}
+                        >
+                          Als Brief (.pdf)
+                        </button>
+                        <button
+                          className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
                           onClick={handleExportODT}
                         >
                           Als ODT (.odt)
@@ -984,6 +1142,30 @@ function EditorContent() {
           onOpenChange={setShowWolkeModal}
           onSave={handleSaveToWolke}
           initialLiveSync={!!docData.wolke_live_sync}
+        />
+      )}
+
+      {showLetterheadDialog && (
+        <LetterheadExportDialog
+          letterheads={letterheads}
+          onCancel={() => setShowLetterheadDialog(false)}
+          onSubmit={(choice) => {
+            setShowLetterheadDialog(false);
+            void runWithChoice(choice, 'letterhead');
+          }}
+        />
+      )}
+
+      {showLetterDialog && editor && (
+        <LetterExportDialog
+          documentTitle={docData?.title || 'Dokument'}
+          // Plain text is enough for the prefill proposal — the detection works
+          // line-wise, and the export itself uses the full HTML.
+          documentText={blockLines(editor.document).join('\n')}
+          defaultSignature={profile?.display_name ?? ''}
+          letterheads={letterheads}
+          onCancel={() => setShowLetterDialog(false)}
+          onSubmit={handleLetterSubmit}
         />
       )}
     </div>

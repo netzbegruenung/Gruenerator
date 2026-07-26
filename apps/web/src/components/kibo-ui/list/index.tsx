@@ -4,9 +4,14 @@
 import {
   DndContext,
   type DragEndEvent,
+  KeyboardSensor,
+  MouseSensor,
   rectIntersection,
+  TouchSensor,
   useDraggable,
   useDroppable,
+  useSensor,
+  useSensors,
 } from '@dnd-kit/core';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import type { ReactNode } from 'react';
@@ -123,12 +128,27 @@ export type ListProviderProps = {
   className?: string;
 };
 
-export const ListProvider = ({ children, onDragEnd, className }: ListProviderProps) => (
-  <DndContext
-    collisionDetection={rectIntersection}
-    modifiers={[restrictToVerticalAxis]}
-    onDragEnd={onDragEnd}
-  >
-    <div className={cn('flex size-full flex-col', className)}>{children}</div>
-  </DndContext>
-);
+export const ListProvider = ({ children, onDragEnd, className }: ListProviderProps) => {
+  // Without an explicit TouchSensor, dnd-kit's default PointerSensor claims the
+  // very first touchmove. Since ListItem spreads its drag listeners over the
+  // whole row and the list is restricted to the vertical axis, every attempt to
+  // scroll the list on a phone started a drag instead. The delay/tolerance
+  // constraint makes a long-press drag and leaves short swipes to the scroller —
+  // same configuration as the kanban board.
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+    useSensor(KeyboardSensor)
+  );
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={rectIntersection}
+      modifiers={[restrictToVerticalAxis]}
+      onDragEnd={onDragEnd}
+    >
+      <div className={cn('flex size-full flex-col', className)}>{children}</div>
+    </DndContext>
+  );
+};

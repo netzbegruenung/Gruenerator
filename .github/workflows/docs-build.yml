@@ -10,12 +10,17 @@ name: Docs Build
 #      stale vs. documentation/docs (a page added, renamed or restructured
 #      without regenerating), which would make the chat cite dead deep links or
 #      miss the page entirely.
-# Triggers on doc changes and on the catalog source files the manifest derives
-# from. Blocking on purpose — all three are real drift the author must fix.
+#   4. tools:check / office:check fail if the tool-overview or Office manifests
+#      are stale vs. the configs and contracts they derive from.
+# Triggers on doc changes and on the catalog source files the manifests derive
+# from. Blocking on purpose — all of these are real drift the author must fix.
 #
 # The chat-capabilities manifest is deliberately NOT checked here: an
 # undocumented chat capability is reported as a GitHub issue by
 # docs-capabilities.yml instead, so a backend change never breaks the docs build.
+# Same split applies to the new manifests: a STALE manifest blocks here, but a
+# tool or operation that merely lacks German prose is an issue from
+# docs-tools.yml, never a failed build.
 
 on:
   pull_request:
@@ -25,6 +30,23 @@ on:
       - 'apps/web/src/config/workplaceToolsConfig.ts'
       - 'apps/web/src/components/layout/Header/menuData.tsx'
       - 'packages/shared/src/agents/landesverbaende.ts'
+      - 'apps/web/src/config/routes.ts'
+      # Agentura manifest sources
+      - 'apps/web/src/features/agentura/lib/categories.ts'
+      - 'packages/shared/src/agents/types.ts'
+      # Office manifest sources — the contracts plus the two files that decide
+      # what actually reaches the user (runtime skips, import limits).
+      - 'packages/contracts/src/schemas/docs.ts'
+      - 'packages/contracts/src/schemas/sheets.ts'
+      - 'packages/contracts/src/schemas/presentations.ts'
+      - 'packages/contracts/src/schemas/boardFlow.ts'
+      - 'packages/sheets/src/ai/applySheetOperations.ts'
+      - 'apps/web/src/features/docs/docTypeMeta.tsx'
+      - 'apps/web/src/features/sheets/SheetImportDialog.tsx'
+      # reference manifest sources
+      - 'packages/chat/src/lib/fileUtils.ts'
+      - 'apps/api/config/systemCollectionsConfig.ts'
+      - 'apps/api/services/mcp/McpRegistryService.ts'
 
 permissions:
   contents: read
@@ -49,6 +71,24 @@ jobs:
 
       - name: Check ui-labels.json is in sync with the app source
         run: pnpm --filter @gruenerator/documentation labels:check
+
+      - name: Check tools.json is in sync with the app's tool configs
+        run: pnpm --filter @gruenerator/documentation tools:check
+
+      - name: Check office.json is in sync with the contracts and the editor
+        run: pnpm --filter @gruenerator/documentation office:check
+
+      # No audit counterpart: the market's category catalog carries its own
+      # German labels AND descriptions, so there is no hand-written half that
+      # could go missing — staleness is the only failure mode.
+      - name: Check agentura.json is in sync with the market's categories
+        run: pnpm --filter @gruenerator/documentation agentura:check
+
+      # Upload limits, MCP collections and the connector directory — plain facts
+      # the articles used to restate in prose. No audit either: nothing to pair
+      # them with, so staleness is the only failure mode.
+      - name: Check reference.json is in sync with its sources
+        run: pnpm --filter @gruenerator/documentation reference:check
 
       - name: Build docs (fails on unknown UiLabel ids)
         run: pnpm --filter @gruenerator/documentation build

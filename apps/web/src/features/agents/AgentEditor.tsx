@@ -137,7 +137,7 @@ function AgentEditor({
           // Suffix lowercased to satisfy the identifier regex `^[a-z0-9-]+$`.
           const created = await createMut.mutateAsync({
             identifier: `${slug}-${generateSlugSuffix().toLowerCase()}`,
-            author: 'Eigene*r Agent*in',
+            author: 'Eigener Grünerator-Agent',
             ...payload,
           });
           agentId = created.identifier;
@@ -158,7 +158,7 @@ function AgentEditor({
             });
           } catch {
             setError(
-              'Agent angelegt, aber der Zeitplan konnte nicht gespeichert werden. Bitte erneut speichern.'
+              'Grünerator-Agent angelegt, aber der Zeitplan konnte nicht gespeichert werden. Bitte erneut speichern.'
             );
             return;
           }
@@ -218,7 +218,9 @@ function AgentEditor({
             size="md"
           />
           <h1 className="truncate text-lg font-bold tracking-tight text-foreground-heading">
-            {mode === 'create' ? 'Neuer Agent' : form.title || 'Agent bearbeiten'}
+            {mode === 'create'
+              ? 'Neuer Grünerator-Agent'
+              : form.title || 'Grünerator-Agent bearbeiten'}
           </h1>
         </div>
         <div className="flex items-center gap-sm">
@@ -274,7 +276,7 @@ function AgentEditor({
                     value={form.title}
                     onChange={(e) => set('title', e.target.value)}
                     maxLength={100}
-                    placeholder="Gib deinem Agenten einen Namen"
+                    placeholder="Gib deinem Grünerator-Agenten einen Namen"
                   />
                 </label>
                 <IconPicker
@@ -290,7 +292,7 @@ function AgentEditor({
                   value={form.description}
                   onChange={(e) => set('description', e.target.value)}
                   maxLength={500}
-                  placeholder="Beschreibe deinen Agenten und wie er funktioniert"
+                  placeholder="Beschreibe deinen Grünerator-Agenten und wie er funktioniert"
                 />
               </label>
               <label className={labelCls}>
@@ -422,8 +424,8 @@ function AgentEditor({
               <div className="mb-md">
                 <h2 className="m-0 text-base font-bold text-foreground-heading">Wissen</h2>
                 <p className="m-0 mt-1 text-sm text-foreground-muted">
-                  Notebooks, die der Agent automatisch als Wissensquelle durchsucht. Mehrfachauswahl
-                  möglich.
+                  Notebooks, die der Grünerator-Agent automatisch als Wissensquelle durchsucht.
+                  Mehrfachauswahl möglich.
                 </p>
               </div>
               <div className="mb-xs text-xs font-medium uppercase tracking-wide text-foreground-muted">
@@ -468,8 +470,8 @@ function AgentEditor({
               <div className="mb-md">
                 <h2 className="m-0 text-base font-bold text-foreground-heading">Zeitplan</h2>
                 <p className="m-0 mt-1 text-sm text-foreground-muted">
-                  Wann und wie oft der Agent automatisch läuft. Ausgeführt wird dabei die Anleitung
-                  des Agenten; das Ergebnis wird wie gewählt geliefert.
+                  Wann und wie oft der Grünerator-Agent automatisch läuft. Ausgeführt wird dabei die
+                  Anleitung des Grünerator-Agenten; das Ergebnis wird wie gewählt geliefert.
                 </p>
               </div>
               <RecurrenceFields value={schedule} onChange={setSchedule} />

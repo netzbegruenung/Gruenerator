@@ -1,0 +1,53 @@
+---
+sidebar_position: 6
+---
+
+import UiLabel from '@site/src/components/UiLabel';
+import { UploadFormats, Fact } from '@site/src/components/Reference';
+
+# Dateien hinzufügen
+
+Du kannst dem Grünerator Dateien mitgeben, statt ihren Inhalt abzutippen: ein Gesetzesentwurf, eine Studie, ein Screenshot, eine Tabelle. Er liest sie und bezieht sie in die Antwort ein.
+
+## Wo du Dateien anhängst
+
+Im Chat über das **„+"-Menü** links im Eingabefeld. Das ist der einzige Ort — die früheren Generator-Formulare mit Büroklammer-Symbol gibt es nicht mehr, seit alles im Chat und in den <UiLabel id="menu.grueneratoren" /> zusammengelaufen ist.
+
+## Was du hochladen kannst
+
+Deutlich mehr als nur PDFs und Bilder:
+
+<UploadFormats />
+
+Quellcode-Dateien werden an ihrer Endung erkannt, nicht am Dateityp — Browser melden `.ts` sonst als Video und würden die Datei ablehnen.
+
+## Grenzen
+
+|                                       |                                       |
+| ------------------------------------- | ------------------------------------- |
+| Dateien pro Nachricht                 | <Fact name="maxFiles" />              |
+| Größe je Datei                        | <Fact name="maxFileSize" />           |
+| Alle Dateien einer Nachricht zusammen | <Fact name="maxTotalSize" />          |
+| Videos (eigener Weg, siehe unten)     | <Fact name="maxVideoSize" /> je Datei |
+
+**Videos zählen nicht in die Gesamtsumme.** Sie nehmen einen anderen Weg als die übrigen Dateien — statt in die Anfrage eingebettet zu werden, laden sie separat hoch. Deshalb haben sie ein eigenes, viel höheres Limit.
+
+:::caution[Ein nicht unterstützter Dateityp bricht den ganzen Anhang ab]
+Wählst du eine Datei aus, die der Grünerator nicht lesen kann, bekommst du eine Fehlermeldung mit der Liste der erlaubten Typen — und **keine** deiner Dateien wird angehängt, auch die gültigen nicht. Nimm die betroffene Datei heraus und häng den Rest erneut an.
+:::
+
+## Was damit gut funktioniert
+
+**Anträge und politische Dokumente** — einen bestehenden Antrag hochladen und um eine Fassung für den eigenen Kreisverband bitten. Einen Gesetzesentwurf hochladen und nach den Punkten fragen, die für die Kommune relevant sind.
+
+**Pressearbeit** — eine Studie hochladen und eine Pressemitteilung daraus entwickeln lassen, mit den Zahlen aus dem Papier statt aus dem Gedächtnis.
+
+**Tabellen und Zahlen** — eine Excel- oder CSV-Datei hochladen und daraus eine Auswertung, eine Grafik oder eine fertige Grünerator-Tabelle machen lassen.
+
+:::note[Bei Zahlen und Zitaten gegenlesen]
+Dass eine Zahl aus deiner Datei stammt, heißt nicht, dass sie richtig übernommen wurde. Prüf sie, bevor der Text nach außen geht — mehr dazu unter [Risiken und Gefahren von LLMs](../grundlagen/risiken-und-gefahren-von-llms.md).
+:::
+
+:::note[Diese Angaben halten sich selbst aktuell]
+Dateitypen und Grenzwerte stammen direkt aus dem Programmcode. Ändert sich dort etwas, schlägt die Doku-Prüfung an, bis diese Seite nachgezogen ist.
+:::

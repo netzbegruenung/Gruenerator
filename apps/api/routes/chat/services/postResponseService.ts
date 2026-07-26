@@ -315,11 +315,17 @@ function deriveToolContext(p: {
   if (p.sharepicVariants.length > 0) return { kind: 'sharepic' };
   if (p.createdDocument) {
     const sub = p.createdDocument.subtype;
+    // 'pdf' must be matched BEFORE the 'document' default. Without it a created
+    // PDF was stored as {kind:'document', ref:'<uuid>.pdf'}, and the classifier's
+    // Tier-2.7 doc-edit gate then emitted modify_doc carrying an asset FILE NAME
+    // where a collaborative-document UUID was expected.
     const kind = sub.startsWith('presentation')
       ? 'presentation'
       : sub.startsWith('sheet')
         ? 'sheet'
-        : 'document';
+        : sub.startsWith('pdf')
+          ? 'pdf'
+          : 'document';
     return { kind, ref: p.createdDocument.documentId, label: p.createdDocument.title };
   }
   const mcpStep = p.agenticSteps?.find((s) => s.serverName);
@@ -611,6 +617,10 @@ export async function persistResumedResponse(params: {
   socialPost?: SocialPostPayload | null;
   /** Langfuse trace id — persisted so the thumbs feedback button survives reload. */
   traceId?: string;
+  /** Artifact created on the resumed turn. Without it the DocumentCreatedCard
+   *  vanishes on reload and the thread's tool context stays stale — the resume
+   *  path used to drop it while the normal path persisted it. */
+  createdDocument?: CreatedDocument | null;
   /** Placeholder assistant row minted before the resumed stream (WP-B). When
    *  present the final content+metadata flip THIS row to 'complete' instead of
    *  inserting a new one; a vanished row is NOT re-inserted (the turn was
@@ -645,6 +655,9 @@ export async function persistResumedResponse(params: {
       citations: finalState.citations,
       searchResults: finalState.searchResults?.slice(0, 10) || [],
       resumed: true,
+      // Same shape the non-resumed path persists, so the document card
+      // rehydrates identically on reload.
+      ...(params.createdDocument && { createdDocument: params.createdDocument }),
       // run_python result incl. figures/files — persists the Berechnung card
       // across reloads. Fresh-gated: a forwarded last-turn result must not
       // stamp a stale card onto an unrelated resumed message.
@@ -668,6 +681,22 @@ export async function persistResumedResponse(params: {
       await createMessage(threadId, 'assistant', fullText, metadata);
     }
     await touchThread(threadId);
+
+    // Same sticky pointer the non-resumed path writes — without it a resumed
+    // artifact turn leaves the next turn's classifier looking at a stale one.
+    const toolContext = deriveToolContext({
+      finalState,
+      classifiedState,
+      generatedImage: null,
+      sharepicVariants: params.sharepicVariants ?? [],
+      createdDocument: params.createdDocument ?? null,
+    });
+    if (toolContext) {
+      void setThreadToolContext(threadId, toolContext).catch((err) =>
+        log.warn('[ChatGraph:Resume] Failed to persist thread tool context:', err)
+      );
+    }
+
     if (userId && processedMeta?.length) {
       await saveThreadAttachmentsFromMeta(threadId, userId, processedMeta);
     }

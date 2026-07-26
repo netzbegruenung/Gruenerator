@@ -154,6 +154,60 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
     return () => document.removeEventListener('keydown', onKey, true);
   }, [overview, onClose]);
 
+  // Keep the screen awake while presenting. Best-effort: the API is missing on
+  // iOS Safari and the lock is dropped whenever the tab is backgrounded, so it
+  // is re-acquired on visibility change.
+  useEffect(() => {
+    if (printPdf) return;
+    const nav = navigator as Navigator & {
+      wakeLock?: { request: (type: 'screen') => Promise<{ release: () => Promise<void> }> };
+    };
+    if (!nav.wakeLock) return;
+    let sentinel: { release: () => Promise<void> } | null = null;
+    let cancelled = false;
+    const acquire = () => {
+      if (document.visibilityState !== 'visible') return;
+      void nav.wakeLock
+        ?.request('screen')
+        .then((s) => {
+          if (cancelled) void s.release();
+          else sentinel = s;
+        })
+        .catch(() => {
+          /* denied (battery saver, no user gesture) — presenting still works */
+        });
+    };
+    acquire();
+    document.addEventListener('visibilitychange', acquire);
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', acquire);
+      void sentinel?.release().catch(() => {});
+    };
+  }, [printPdf]);
+
+  // Auto-hide the toolbar on touch so it stops covering the slide; any tap or
+  // slide change brings it back. Never hides for mouse users.
+  const [chromeVisible, setChromeVisible] = useState(true);
+  useEffect(() => {
+    if (printPdf) return;
+    if (!window.matchMedia('(hover: none)').matches) return;
+    const el = deckRef.current;
+    if (!el) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      clearTimeout(timer);
+      setChromeVisible(true);
+      timer = setTimeout(() => setChromeVisible(false), 3000);
+    };
+    schedule();
+    el.addEventListener('pointerdown', schedule);
+    return () => {
+      clearTimeout(timer);
+      el.removeEventListener('pointerdown', schedule);
+    };
+  }, [printPdf]);
+
   const toggleOverview = useCallback(() => revealRef.current?.toggleOverview(), []);
   const toggleFullscreen = useCallback(() => {
     const el = deckRef.current;
@@ -168,11 +222,15 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
 
   return (
     <div className="fixed inset-0 z-[300] bg-black">
-      <div className="absolute right-3 top-3 z-[310] flex items-center gap-2 print:hidden">
+      <div
+        className={`absolute right-[max(0.75rem,env(safe-area-inset-right))] top-[max(0.75rem,env(safe-area-inset-top))] z-[310] flex items-center gap-2 transition-opacity duration-300 motion-reduce:transition-none print:hidden ${
+          chromeVisible ? 'opacity-100' : 'pointer-events-none opacity-0'
+        }`}
+      >
         <button
           type="button"
           onClick={openSpeakerView}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/30"
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/30"
           aria-label="Referentenansicht"
           title="Referentenansicht (S)"
         >
@@ -181,7 +239,7 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
         <button
           type="button"
           onClick={toggleOverview}
-          className={`flex h-9 w-9 items-center justify-center rounded-full text-white hover:bg-white/30 ${overview ? 'bg-white/40' : 'bg-white/15'}`}
+          className={`flex h-11 w-11 items-center justify-center rounded-full text-white hover:bg-white/30 ${overview ? 'bg-white/40' : 'bg-white/15'}`}
           aria-label="Übersicht"
           title="Übersicht (O / Esc)"
         >
@@ -190,7 +248,7 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
         <button
           type="button"
           onClick={toggleFullscreen}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/30"
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/30"
           aria-label="Vollbild"
           title="Vollbild (F)"
         >
@@ -199,7 +257,7 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
         <button
           type="button"
           onClick={onClose}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/30"
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/30"
           aria-label="Präsentation schließen"
           title="Schließen"
         >

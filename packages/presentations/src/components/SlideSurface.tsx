@@ -22,6 +22,14 @@ export interface SlideSurfaceProps {
   onChange?: (patch: Partial<Slide>) => void;
   /** Present mode: apply per-item `fragment` classes when the slide opts in. */
   presenting?: boolean;
+  /**
+   * Touch editing. When set, the surface renders read-only and a tap on the
+   * title/body asks the parent to open a focus editor instead. The canvas is
+   * scaled to ~0.35 on a phone, and `contentEditable` inside a CSS transform has
+   * unusable carets and selection handles on iOS Safari — so on touch we never
+   * edit in place.
+   */
+  onRequestEdit?: (field: 'title' | 'body') => void;
 }
 
 const LAYOUT_CLASS: Record<Slide['layout'], string> = {
@@ -92,7 +100,10 @@ export function SlideSurface({
   ydoc,
   onChange,
   presenting,
+  onRequestEdit,
 }: SlideSurfaceProps) {
+  const touchEdit = !!editable && !!onRequestEdit;
+  const inlineEdit = !!editable && !touchEdit;
   const deckAccent = accent?.trim() || PRESENTATION_DEFAULT_ACCENT;
   const variant = slide.variant ?? 0;
   const layoutClass = LAYOUT_CLASS[slide.layout];
@@ -119,19 +130,58 @@ export function SlideSurface({
       {/* Title-variant decoration: Sand (v2) top bar, Geteilt (v1) side panel. */}
       {isTitle && variant === 2 && <span className="gruene-slide__bar" aria-hidden="true" />}
 
-      {editable ? (
+      {inlineEdit ? (
         <InlineEditable
           className="gruene-slide__input gruene-slide__title"
           value={slide.title}
           placeholder="Folientitel"
           onChange={(title) => onChange?.({ title })}
         />
+      ) : touchEdit ? (
+        <h2
+          className="gruene-slide__title gruene-slide__tappable"
+          role="button"
+          tabIndex={0}
+          onClick={() => onRequestEdit('title')}
+          aria-label="Folientitel bearbeiten"
+        >
+          {slide.title.trim() !== '' ? slide.title : 'Folientitel'}
+        </h2>
       ) : (
         slide.title.trim() !== '' && <h2 className="gruene-slide__title">{slide.title}</h2>
       )}
 
-      {isCode ? (
-        editable ? (
+      {touchEdit ? (
+        <div
+          className={`${isCode ? 'gruene-slide__body' : 'gruene-slide__body'} gruene-slide__tappable`}
+          role="button"
+          tabIndex={0}
+          onClick={() => onRequestEdit('body')}
+          aria-label="Folieninhalt bearbeiten"
+        >
+          {slide.body.trim() === '' ? (
+            <p className="gruene-slide__placeholder">Tippen, um Inhalt hinzuzufügen</p>
+          ) : isCode ? (
+            <pre>
+              <code
+                {...(slide.codeLanguage ? { 'data-language': slide.codeLanguage } : {})}
+                className={slide.codeLanguage ? `language-${slide.codeLanguage}` : undefined}
+              >
+                {slide.body}
+              </code>
+            </pre>
+          ) : (
+            <Markdown
+              remarkPlugins={[remarkGfm, remarkMath]}
+              rehypePlugins={[rehypeKatex]}
+              components={mdComponents}
+            >
+              {slide.body}
+            </Markdown>
+          )}
+        </div>
+      ) : isCode ? (
+        inlineEdit ? (
           <textarea
             className="gruene-slide__input gruene-slide__code"
             value={slide.body}
@@ -149,9 +199,9 @@ export function SlideSurface({
             </code>
           </pre>
         )
-      ) : editable && ydoc ? (
+      ) : inlineEdit && ydoc ? (
         <SlideBodyEditor key={slide.id} ydoc={ydoc} slideId={slide.id} />
-      ) : editable ? (
+      ) : inlineEdit ? (
         <textarea
           className="gruene-slide__input gruene-slide__body"
           value={slide.body}

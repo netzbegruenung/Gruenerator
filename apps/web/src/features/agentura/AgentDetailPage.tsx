@@ -72,7 +72,7 @@ function AgentDetailPage() {
 
   if (!agent) {
     return (
-      <PageContainer maxWidth="sm" title="Agent*in nicht gefunden">
+      <PageContainer maxWidth="sm" title="Grünerator-Agent nicht gefunden">
         <div className="text-center">
           <Button asChild variant="brand">
             <Link to="/agentura">Zurück zur Agentura</Link>
@@ -138,7 +138,7 @@ function AgentDetailPage() {
             {agent.title}
           </h1>
           <p className="m-0 mt-1 text-sm text-foreground-muted">
-            Agent{agent.author ? ` · von ${agent.author}` : ''}
+            Grünerator-Agent{agent.author ? ` · von ${agent.author}` : ''}
           </p>
         </div>
       </header>
@@ -265,8 +265,8 @@ function AgentDetailPage() {
               </div>
             ) : (
               <p className="m-0 text-sm text-foreground-muted">
-                Keine Wissensbasis hinterlegt — der Agent arbeitet mit dem Modell und seinen
-                Werkzeugen.
+                Keine Wissensbasis hinterlegt — der Grünerator-Agent arbeitet mit dem Modell und
+                seinen Werkzeugen.
               </p>
             )}
           </div>

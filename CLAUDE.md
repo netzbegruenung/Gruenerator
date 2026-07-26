@@ -157,6 +157,8 @@ When changing column type via migration, grep all queries for that column and up
 
 ESLint (flat config), Prettier, Husky pre-commit (lint-staged), Knip (unused code). Don't add files to `allowDefaultProject` if already discovered by TS project service.
 
+**Knip** (`pnpm knip`, nicht in CI) findet toten Code — die Entry-Punkte in `knip.json` sind load-bearing: was knip nicht als Entry kennt, sieht es als „unbenutzt" und alles darunter gleich mit. Dynamisch geladene Dateien müssen deshalb explizit als Entry stehen (`apps/api/workers/aiWorker.ts` wird über einen berechneten Pfad in `new Worker()` geladen; `apps/mobile/app/**` kommt aus dem Expo Router; Web-Worker unter `apps/web/src/services/*.worker.ts`). Tests/Skripte gehören als **Entry** eingetragen, nicht in `ignore` — sonst zählen ihre Importe nicht als Nutzung und die Deps, die nur sie brauchen, gelten als unbenutzt. `apps/desktop` (Tauri-Wrapper) und `apps/wordpress` (Einstiege liegen in PHP) sind bewusst per `ignoreWorkspaces` ausgenommen.
+
 **Typecheck only when finished.** During a multi-file implementation, do NOT run `pnpm typecheck`/build after each change — keep editing and run a single consolidated typecheck (and lint) pass at the very end, fixing all surfaced errors together.
 
 ### Frontend component testing

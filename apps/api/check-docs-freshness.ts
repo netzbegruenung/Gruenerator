@@ -15,7 +15,7 @@
  *   --apply              Create / update / close GitHub issues. Default = dry-run
  *                        (prints verdicts, touches nothing).
  *   --doc <relpath>      Audit a single doc (relative to documentation/docs/),
- *                        e.g. --doc gruenerieren/ki-chat.md
+ *                        e.g. --doc chat/ki-chat.md
  *   --docs <a,b>         Audit an explicit comma-separated list of docs.
  *   --changed-files <f>  Reverse-map the newline-separated source paths in file <f>
  *                        (a PR's changed files) to the doc folders they affect, and
@@ -34,7 +34,7 @@
  *   GITHUB_STEP_SUMMARY      If set (CI), a markdown summary table is appended
  *
  * Examples:
- *   npx tsx check-docs-freshness.ts --doc gruenerieren/ki-chat.md   # one doc, dry-run
+ *   npx tsx check-docs-freshness.ts --doc chat/ki-chat.md   # one doc, dry-run
  *   npx tsx check-docs-freshness.ts                                 # full scope, dry-run
  *   npx tsx check-docs-freshness.ts --apply                         # full scope + issues
  */
@@ -57,17 +57,17 @@ const DOCS_ROOT = path.join(REPO_ROOT, 'documentation', 'docs');
 
 // ── Scope ───────────────────────────────────────────────────────────────────
 // Feature/tutorial docs only — folders that describe the app UI. Content archives
-// (newsletter, intern, landesverbaende) and concept docs (llm-basics,
-// Grundlagen) are intentionally excluded: they have nothing to verify against code.
+// (archiv, intern) and concept docs (grundlagen) are intentionally excluded: they
+// have nothing to verify against code.
 const SCOPE_FOLDERS = [
   'ueber-den-gruenerator',
-  'gruenerieren',
+  'chat',
+  'office',
+  'wissen',
+  'grueneratoren',
+  'konto',
   'integrationen',
-  'Profil',
-  'notebooks',
-  'agents',
-  'monitor',
-  'signal-nachrichten',
+  'experimente',
 ] as const;
 
 // Optional hints (doc folder → likely source dirs) to focus the agent's search and
@@ -75,13 +75,22 @@ const SCOPE_FOLDERS = [
 const AREA_HINTS: Record<string, string> = {
   // "Was kann ich fragen?" is verified against the chat's own registries, so the
   // backend classifier/router dirs count as source for this folder too.
-  gruenerieren:
-    'packages/chat, apps/web/src/features/chat, apps/web/src/features/models, apps/api/routes/chat, apps/api/agents/langgraph/ChatGraph, packages/contracts/src/schemas',
-  agents: 'apps/web/src/features/agents, packages/chat',
-  notebooks: 'apps/web/src/features/notebook',
-  monitor: 'apps/web/src/features/monitor',
-  Profil: 'apps/web/src/features/wolke, apps/web/src/features/user-defaults',
+  chat: 'packages/chat, apps/web/src/features/chat, apps/web/src/features/models, apps/api/routes/chat, apps/api/agents/langgraph/ChatGraph, packages/contracts/src/schemas',
+  grueneratoren: 'apps/web/src/features/agents, apps/web/src/features/agentura, packages/chat',
+  wissen: 'apps/web/src/features/notebook',
+  experimente: 'apps/web/src/features/monitor',
+  konto:
+    'apps/web/src/features/wolke, apps/web/src/features/user-defaults, apps/web/src/features/groups, apps/web/src/features/settings',
   integrationen: 'apps/web/src/features/connections, services/mcp',
+  // The Office articles describe four editors that share one document model, so
+  // the hint spans the feature dirs, their packages and the contracts the
+  // generated manifest reads. Without this entry no Office code change would
+  // ever trigger a docs check — AREA_HINTS is also the reverse map used by
+  // docs-freshness-pr.yml.
+  office:
+    'apps/web/src/features/docs, apps/web/src/features/sheets, apps/web/src/features/presentations, apps/web/src/features/boards, packages/sheets, packages/presentations, packages/docs, packages/chat/src/editor-surface, packages/contracts/src/schemas',
+  // Renamed twice (Gruppen → Spaces → Projekte); the code still says "groups"
+  // throughout, so the hint points at the old names on purpose.
 };
 
 const DEFAULT_MODEL = process.env.DOCS_CHECK_MODEL || 'claude-sonnet-4-6';
@@ -367,14 +376,16 @@ async function auditDoc(docPath: string, model: string): Promise<DocResult> {
       durationS: Math.round((Date.now() - start) / 1000),
     };
   } catch (err) {
+    // Kept raw on purpose: this DocResult feeds the run summary and a
+    // maintainer-facing GitHub issue, never a user response. A smoothed-over
+    // message would make a failed audit undebuggable.
+    const rawMessage = err instanceof Error ? err.message : String(err);
     return {
       ...base,
       status: 'error',
       upToDate: true,
       findings: [],
-
-      // eslint-disable-next-line gruenerator/no-raw-error-to-client -- CI report, not a user surface
-      error: err instanceof Error ? err.message : String(err),
+      error: rawMessage,
       durationS: Math.round((Date.now() - start) / 1000),
     };
   }
