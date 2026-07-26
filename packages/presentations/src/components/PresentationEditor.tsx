@@ -12,6 +12,7 @@ import * as Y from 'yjs';
 
 import { useSlides } from '../collab/useSlides.js';
 import { buildBlankDeckSlides } from '../lib/blankDeck.js';
+import { useEditorShortcuts } from '../lib/useEditorShortcuts.js';
 import { useIsMobile } from '../lib/useIsMobile.js';
 import { useSwipeNavigation } from '../lib/useSwipeNavigation.js';
 
@@ -40,6 +41,9 @@ export interface PresentationEditorProps {
   /** Slides to seed a fresh deck with (a template picked at creation). Falls
    * back to the blank two-slide deck. Ignored once the deck is seeded. */
   seedSlides?: Slide[] | null;
+  /** Suspends the editor's global keyboard shortcuts while another surface
+   * (present mode) is layered on top and owns the keys. */
+  shortcutsDisabled?: boolean;
 }
 
 /**
@@ -60,6 +64,7 @@ export function PresentationEditor({
   onCloseDesignPanel,
   onReady,
   seedSlides,
+  shortcutsDisabled,
 }: PresentationEditorProps) {
   const {
     slides,
@@ -103,6 +108,16 @@ export function PresentationEditor({
   useEffect(() => {
     onReadyRef.current?.({ undo, redo });
   }, [undo, redo]);
+
+  useEditorShortcuts({
+    disabled: shortcutsDisabled || gridOpen || textField !== null,
+    editable,
+    slideCount: slides.length,
+    activeIndex,
+    onSelect: setActiveIndex,
+    onUndo: undo,
+    onRedo: redo,
+  });
 
   const handleAdd = () => {
     const at = activeIndex + 1;
@@ -169,7 +184,7 @@ export function PresentationEditor({
                 onClick={() => goTo(activeIndex - 1)}
                 disabled={activeIndex === 0}
                 aria-label="Vorherige Folie"
-                title="Vorherige Folie"
+                title="Vorherige Folie (←)"
                 className={`flex items-center justify-center rounded-full border border-[#D4DDD7] dark:border-grey-600 bg-white dark:bg-grey-800 text-[#4A5A51] dark:text-grey-300 hover:bg-[#F4F7F5] dark:hover:bg-grey-700 disabled:opacity-40 ${
                   isMobile ? 'h-11 w-11' : 'h-8 w-8'
                 }`}
@@ -181,7 +196,7 @@ export function PresentationEditor({
                 onClick={() => goTo(activeIndex + 1)}
                 disabled={activeIndex === slides.length - 1}
                 aria-label="Nächste Folie"
-                title="Nächste Folie"
+                title="Nächste Folie (→)"
                 className={`flex items-center justify-center rounded-full border border-[#D4DDD7] dark:border-grey-600 bg-white dark:bg-grey-800 text-[#4A5A51] dark:text-grey-300 hover:bg-[#F4F7F5] dark:hover:bg-grey-700 disabled:opacity-40 ${
                   isMobile ? 'h-11 w-11' : 'h-8 w-8'
                 }`}
