@@ -302,7 +302,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/wissen/inhaltsdatenbank",
     "title": "Inhaltsdatenbank",
     "category": "Wissen",
-    "lead": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 0 Vektoren in der Datenbank gespeichert."
+    "lead": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 29.613 Vektoren in der Datenbank gespeichert."
   },
   {
     "url": "/docs/wissen/landesverbaende",
@@ -2767,7 +2767,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Landesverbände",
     "anchor": "#landesverbände",
     "category": "Wissen",
-    "text": "Die Landesverbände-Sammlung enthält 0 Vektoren aus 0 Quellen. Landesverband | Kürzel | Vektoren | ------------- | ------ | -------: | Gesamt | | 0 |"
+    "text": "Die Landesverbände-Sammlung enthält 13.196 Vektoren aus 9 Quellen. Landesverband | Kürzel | Vektoren | ------------------------------- | ------ | ---------: | Mecklenburg-Vorpommern Fraktion | MV-F | 2.411 | Berlin Fraktion | BE-F | 2.248 | Brandenburg | BB | 2.153 | Berlin | BE | 1.836 | Mecklenburg-Vorpommern | MV | 1.396 | Sachsen-Anhalt Fraktion | LSA-F | 1.377 | Thüringen | TH | 768 | Bayern | BY | 722 | Sachsen-Anhalt | LSA | 285 | Gesamt | | 13.196 |"
   },
   {
     "url": "/docs/wissen/inhaltsdatenbank",
@@ -2775,7 +2775,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Sammlungen",
     "anchor": "#sammlungen",
     "category": "Wissen",
-    "text": "Sammlung | Vektoren | -------- | -------: | Gesamt | 0 |"
+    "text": "Sammlung | Vektoren | -------------- | ---------: | Landesverbände | 19.585 | KommunalWiki | 6.739 | Bundestag | 3.289 | Gesamt | 29.613 |"
   },
   {
     "url": "/docs/wissen/inhaltsdatenbank",
@@ -2783,7 +2783,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Übersicht",
     "anchor": "#übersicht",
     "category": "Wissen",
-    "text": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 0 Vektoren in der Datenbank gespeichert."
+    "text": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 29.613 Vektoren in der Datenbank gespeichert."
   },
   {
     "url": "/docs/wissen/landesverbaende",
