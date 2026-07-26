@@ -54,6 +54,7 @@ FORMULARE ("kind":"form"): Erzeuge echte, am Rechner ausfüllbare Felder.
 REGELN:
 - Wähle den Aufbau passend zum Auftrag: ein Merkblatt braucht Überschriften und Listen, eine Übersicht eine Tabelle, ein Antrag Felder. Nutze NICHT immer dieselbe Struktur.
 - "letter" nur bei Brief/Anschreiben ausfüllen ("kind":"letter"); dann enthalten die blocks NUR den Brieftext (Anrede, Gruß und Signatur stehen im letter-Objekt) und KEINE Überschriften.
+- BRIEFE werden im Fensterkuvert versendet. "recipient" ist deshalb Pflicht und muss maschinenlesbar sein (DIN 5008 / Deutsche Post): höchstens 6 Zeilen, KEINE Leerzeile dazwischen, Reihenfolge Firma/Organisation → Person → Zusatz (z. B. Abteilung) → Straße und Hausnummer bzw. Postfach → PLZ und Ort in EINER Zeile. Kein Land bei Inlandspost, keine Sonderzeichen außer Umlauten, PLZ nie unterstreichen. Ist keine Anschrift bekannt, erzeuge KEINEN Brief, sondern "kind":"document".
 - Bei "kind":"document" KEINE H1 mit dem Dokumenttitel — der Titel wird separat gesetzt.
 - Barrierefreiheit: aussagekräftiger Titel, sprechende Überschriften in sinnvoller Reihenfolge (keine Ebene überspringen), Tabellen IMMER mit "columns" (Kopfzeile), jedes Feld mit klarem "label". Das System ergänzt daraus die technischen Tags.
 - NIEMALS ein Datum erfinden; "place" nur bei bekanntem Ort.
@@ -152,6 +153,14 @@ export async function createPdfDocument(
   if (rendered.appearanceFallback) {
     verification.problems.push(
       'Die Formularfelder werden erst vom PDF-Reader gezeichnet — in manchen Vorschauen wirken sie leer.'
+    );
+  }
+  // Ohne Anschrift bleibt das Anschriftfeld leer: im Fensterkuvert und für jeden
+  // digitalen Versanddienst ist der Brief damit nicht zustellbar. Das gehört zum
+  // Nutzer, nicht still ins Log.
+  if (effective.kind === 'letter' && !effective.letter?.recipient?.trim()) {
+    verification.problems.push(
+      'Dem Brief fehlt die Empfängeranschrift — ohne sie ist er nicht versandfähig. Frage nach Name, Straße und PLZ/Ort.'
     );
   }
 
