@@ -100,7 +100,7 @@ NUTZE WENN nach Aktivitäten, Reden, Abstimmungen oder Dokumenten des Deutschen 
       if (results.length === 0) {
         return { resultCount: 0, sources: '', error: 'Keine passenden Bundestags-Daten gefunden.' };
       }
-      const sources = sourceRegistry.register(results, { snippetChars: 700 });
+      const sources = sourceRegistry.register(results);
       return { resultCount: results.length, sources: sources ?? '' };
     },
   });

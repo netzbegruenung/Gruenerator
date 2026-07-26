@@ -73,14 +73,26 @@ describe('buildMcpOutcomeNote', () => {
     expect(note).toMatch(/NIEMALS „kein Zugriff"/);
   });
 
-  it('truncates oversized content', () => {
-    const big = 'x'.repeat(5000);
+  // A connector listing must survive intact: the note's own instruction tells the
+  // model to list the records completely, so a cap that cuts a 20-entry calendar
+  // after ~6 turns that instruction into a lie. The cap only guards runaways.
+  it('passes a realistic connector listing through untruncated', () => {
+    const listing = 'x'.repeat(5000);
     const note = buildMcpOutcomeNote([
-      step({ serverName: 'Sally', toolName: 'mb2__get_recordings', result: { content: big } }),
+      step({ serverName: 'Sally', toolName: 'mb2__get_recordings', result: { content: listing } }),
+    ]);
+    expect(note).not.toContain('…');
+    expect(note).toContain(listing);
+  });
+
+  it('still truncates a runaway payload', () => {
+    const runaway = 'x'.repeat(40_000);
+    const note = buildMcpOutcomeNote([
+      step({ serverName: 'Sally', toolName: 'mb2__get_recordings', result: { content: runaway } }),
     ]);
     expect(note).toContain('…');
-    // Content capped at 1500 (MCP_CONTENT_CAP); the rest is fixed rule text.
-    expect(note.length).toBeLessThan(2800);
+    // Content capped at MCP_CONTENT_CAP (25000); the rest is fixed rule text.
+    expect(note.length).toBeLessThan(27_000);
   });
 
   it('marks an empty-but-successful result as "no entries", not a connection problem', () => {
