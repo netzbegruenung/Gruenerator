@@ -36,6 +36,7 @@ export const UI_TOOL_NAMES = z.enum([
   'search_sources',
   'search_user_content',
   'web_search',
+  'bundestag',
   'research',
   'gruenerator_examples_search',
   'gruenerator_pressemitteilung_examples',
@@ -252,6 +253,13 @@ export const TOOL_REGISTRY: Record<UiToolName, ToolRegistryEntry> = {
   web_search: entry('web_search', 'citations', (_a, r) => ({
     kind: 'citations',
     citations: parseWebCitations(r),
+  })),
+  // Loop turns persist the lean { resultCount, sources } (no results array →
+  // empty citation list on expand, same as loop web_search); single-pass turns
+  // persist { results } which parses into a clickable Drucksachen list.
+  bundestag: entry('bundestag', 'citations', (_a, r) => ({
+    kind: 'citations',
+    citations: parseSearchCitations(r),
   })),
   research: entry('research', 'markdown-report', (_a, r) => ({
     kind: 'markdown-report',
