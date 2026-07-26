@@ -90,7 +90,7 @@ export const TOOL_NOTES: Record<string, ToolNote> = {
     platform: ['web', 'desktop', 'mobile'],
     readMore: { label: 'Agentura', href: '/docs/grueneratoren/agentura' },
   },
-  spaces: {
+  projekte: {
     note: 'Projekte bündeln Chats, Dokumente und Mitglieder zu einem Arbeitszusammenhang — etwa für eine Kampagne oder einen Ortsverband.',
     platform: ['web', 'desktop'],
     readMore: { label: 'Projekte', href: '/docs/konto/projekte' },
