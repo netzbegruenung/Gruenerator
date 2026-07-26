@@ -20,7 +20,7 @@ import {
   computeNode,
   buildCitations,
 } from '../../../agents/langgraph/ChatGraph/index.js';
-import { isSourceAvailabilityError } from '../../../agents/langgraph/ChatGraph/types.js';
+import { partitionSearchErrors } from '../../../agents/langgraph/ChatGraph/types.js';
 import { env } from '../../../config/env.js';
 import { type ExpressRequest as SharepicExpressRequest } from '../../../services/chat/sharepicGenerationService.js';
 import { createRecurringTask } from '../../../services/recurringTasks/recurringTasksRepository.js';
@@ -37,15 +37,17 @@ import {
 } from './artifactKinds.js';
 import { CONFIRM_ACTION_CONFIG } from './confirmActionService.js';
 import { runCreateTurn, type CreateTurnOpts } from './createTurn.js';
-import { rememberArtifact } from './createTurnHelpers.js';
+import { failCreation, rememberArtifact } from './createTurnHelpers.js';
 import { extractTextContent } from './messageHelpers.js';
 import {
   recallPastChats,
   recallOfficeDocuments,
+  recallReels,
   rerankRecall,
   getThreadRecallContext,
   formatPastChatsBlock,
   formatOfficeDocsBlock,
+  formatReelsBlock,
   getSpaceRecallScope,
 } from './pastChatRecallService.js';
 import { pendingActionStore } from './pendingActionStore.js';
@@ -57,7 +59,7 @@ import {
   type SharepicVariant,
 } from './sharepicVariantHelpers.js';
 import { generateSliderDeckVariant } from './sliderDeckService.js';
-import { PROGRESS_MESSAGES, sendSearchDegradedWarning } from './sseHelpers.js';
+import { PROGRESS_MESSAGES, sendChatWarning, sendSearchDegradedWarning } from './sseHelpers.js';
 import { createMessage, touchThread } from './threadPersistenceService.js';
 
 import type { SSEWriter, SearchResultPayload } from './sseHelpers.js';
@@ -74,6 +76,59 @@ import type { ModelMessage } from 'ai';
 import type { Request } from 'express';
 
 const log = createLogger('ChatGraphController');
+
+/** Human label for a `<kind>:<id>` source key, for user- and model-facing copy. */
+const SOURCE_KIND_LABELS: Record<string, string> = {
+  wolke: 'Wolke-Datei',
+  connect: 'verbundene Datei',
+  doc_mention: 'verlinktes Dokument',
+  notebook: 'Notizbuch',
+};
+
+function labelForSource(source: string): string {
+  const kind = source.split(':')[0] ?? '';
+  return SOURCE_KIND_LABELS[kind] ?? 'Quelle';
+}
+
+/**
+ * Report sources the user explicitly attached that could not be read.
+ *
+ * Feeds BOTH channels from one fact: the warning is the telemetry signal, the
+ * degradation note makes the answer itself say which source is missing —
+ * otherwise the model quietly answers as though the file had never existed.
+ */
+export function reportUnavailableSources(
+  sse: SSEWriter,
+  state: ChatGraphState,
+  sources: string[],
+  needsReauth = false
+): void {
+  const labels = [...new Set(sources.map(labelForSource))].join(', ');
+  // An expired connection is the one case the user can fix, so it gets its own
+  // code and an actionable message instead of "try again later".
+  if (needsReauth) {
+    sendChatWarning(
+      sse,
+      'connect_reauth_required',
+      `${labels}: Die Verbindung ist abgelaufen — bitte in den Einstellungen neu verbinden.`
+    );
+  } else {
+    sendChatWarning(
+      sse,
+      'source_unavailable',
+      `${labels} konnte nicht gelesen werden — die Antwort entstand ohne diese Quelle.`
+    );
+  }
+  state.degradationNotes = [
+    ...(state.degradationNotes ?? []),
+    {
+      code: needsReauth ? 'connect_reauth_required' : 'source_unavailable',
+      modelHint: needsReauth
+        ? `Die Verbindung zu dieser Quelle ist abgelaufen: ${labels}. Sag das ehrlich und weise darauf hin, dass sie in den Einstellungen neu verbunden werden muss.`
+        : `Diese vom Nutzer angegebene(n) Quelle(n) konnten NICHT gelesen werden: ${labels}. Sag das ehrlich und tu nicht so, als hättest du ihren Inhalt gesehen.`,
+    },
+  ];
+}
 
 // The generation cores moved to artifactGeneration.ts (so the per-kind table
 // can use them without an import cycle). Re-exported here because the loop's
@@ -140,6 +195,15 @@ const DELIVERY_LABELS_DE: Record<string, string> = {
   summary: 'als Zusammenfassung (Benachrichtigung/E-Mail)',
   thread: 'als neuer Chat',
 };
+
+/**
+ * Templated, like every other create failure (see failCreation): the previous
+ * fall-through handed the turn to the generic responder, which typically
+ * CONFIRMED the recurring task — while no row had been written.
+ */
+const RECURRING_TASK_FAILURE_TEXT =
+  'Ich konnte die wiederkehrende Aufgabe nicht einrichten. Sie wurde **nicht** gespeichert — ' +
+  'bitte formuliere sie noch einmal, zum Beispiel: „Erinnere mich jeden Montag um 9 Uhr an den Wochenbericht."';
 
 const RECURRING_EXTRACTION_PROMPT = `Du extrahierst aus einer Nutzeranfrage die Konfiguration für eine WIEDERKEHRENDE Aufgabe und gibst NUR ein JSON-Objekt zurück (keine Erklärung, kein Markdown).
 
@@ -211,7 +275,17 @@ export async function handleRecurringTaskCreation(opts: {
       },
       req as Express.Request & { user?: { id?: string }; sessionID?: string }
     );
-    if (!genResult.success || !genResult.content) return false;
+    if (!genResult.success || !genResult.content) {
+      log.warn(
+        `[ChatGraph] Recurring task extraction produced nothing: ${genResult.error ?? 'no content'}`
+      );
+      return failCreation(
+        sse,
+        actualThreadId,
+        'create_recurring_task',
+        RECURRING_TASK_FAILURE_TEXT
+      );
+    }
 
     const parsed = parseExtractedJson(genResult.content) as Record<string, unknown>;
     const candidate = {
@@ -227,7 +301,12 @@ export async function handleRecurringTaskCreation(opts: {
     const validated = createRecurringTaskBodySchema.safeParse(candidate);
     if (!validated.success) {
       log.warn(`[ChatGraph] Recurring task extraction invalid: ${validated.error.message}`);
-      return false;
+      return failCreation(
+        sse,
+        actualThreadId,
+        'create_recurring_task',
+        RECURRING_TASK_FAILURE_TEXT
+      );
     }
 
     const task = await createRecurringTask(userId, validated.data);
@@ -272,7 +351,7 @@ export async function handleRecurringTaskCreation(opts: {
     log.error(
       `[ChatGraph] Recurring task creation failed: ${err instanceof Error ? err.message : String(err)}`
     );
-    return false;
+    return failCreation(sse, actualThreadId, 'create_recurring_task', RECURRING_TASK_FAILURE_TEXT);
   }
 }
 
@@ -772,6 +851,15 @@ export async function executeIntentPipeline(opts: {
 
       if (variantsSettled.status === 'fulfilled') {
         sharepicVariants = variantsSettled.value;
+      } else {
+        // Mirror the text half below: without this the sharepic simply never
+        // arrived and the turn reported success with only the post text.
+        log.error('[ChatGraph] social_post sharepic generation failed:', variantsSettled.reason);
+        sse.send('sharepic_complete', {
+          message: 'Sharepic konnte nicht erstellt werden',
+          variants: [],
+          error: 'Das Sharepic konnte nicht erstellt werden — der Text steht trotzdem bereit.',
+        });
       }
       if (textSettled.status === 'fulfilled') {
         socialPost = textSettled.value.post;
@@ -817,7 +905,8 @@ export async function executeIntentPipeline(opts: {
       }
     } else if (currentIntent === 'chat_history') {
       // Recall the user's own past work — chat threads (deep-reading the top
-      // match) plus office documents (docs/presentations/sheets). Runs its own
+      // match), office documents (docs/presentations/sheets) and reels
+      // (subtitled videos, matched on their spoken transcript). Runs its own
       // retrieval (not searchNode, which targets party documents/web).
       const userId = finalState.agentConfig.userId;
       if (userId) {
@@ -835,7 +924,7 @@ export async function executeIntentPipeline(opts: {
         const spaceScope = opts.threadId
           ? await getSpaceRecallScope(opts.threadId, userId).catch(() => null)
           : null;
-        const [rawChats, rawOfficeDocs] = await Promise.all([
+        const [rawChats, rawOfficeDocs, rawReels] = await Promise.all([
           recallPastChats(userId, query, {
             limit: 5,
             ...(opts.threadId != null && { excludeThreadId: opts.threadId }),
@@ -844,10 +933,15 @@ export async function executeIntentPipeline(opts: {
             ...(spaceScope && { threadIds: spaceScope.threadIds }),
           }),
           recallOfficeDocuments(userId, query, 5),
+          recallReels(userId, query, 5),
         ]);
         // Cross-source rerank so the most relevant few survive across chats +
-        // office content, rather than 5 of each.
-        const { chats: hits, officeDocs } = await rerankRecall(query, rawChats, rawOfficeDocs, 6);
+        // office content + reels, rather than 5 of each.
+        const {
+          chats: hits,
+          officeDocs,
+          reels,
+        } = await rerankRecall(query, rawChats, rawOfficeDocs, 6, rawReels);
 
         const deepRead = hits[0] ? await getThreadRecallContext(hits[0].threadId, userId) : null;
 
@@ -864,12 +958,19 @@ export async function executeIntentPipeline(opts: {
             content: d.snippet || d.kind,
             url: d.url,
           })),
+          ...reels.map((r) => ({
+            source: 'reel',
+            title: r.title,
+            content: r.snippet || 'Reel',
+            url: r.url,
+          })),
         ];
 
         const contextBlocks = [
           spaceScope?.rosterBlock ?? '',
           hits.length ? formatPastChatsBlock(hits, deepRead) : '',
           formatOfficeDocsBlock(officeDocs),
+          formatReelsBlock(reels),
         ].filter(Boolean);
         finalState = {
           ...finalState,
@@ -912,6 +1013,12 @@ export async function executeIntentPipeline(opts: {
           });
           const briefResult = await briefGeneratorNode(finalState);
           searchInputState = { ...finalState, ...briefResult } as ChatGraphState;
+          // The flag was set all along but only read by runChatGraph, which has
+          // no callers — so a deep-research turn silently degraded to a flat
+          // search while the progress copy still promised deep research.
+          if (searchInputState.briefGenerationFailed) {
+            sendChatWarning(sse, 'research_plan_failed');
+          }
           sse.send('progress_step', {
             stepId: briefStepId,
             toolName: 'brief',
@@ -952,6 +1059,9 @@ export async function executeIntentPipeline(opts: {
           if (finalState.searchResults.length > 0) {
             finalState.citations = buildCitations(finalState.searchResults);
           }
+          // Same dead-flag story as briefGenerationFailed: without reranking the
+          // model grounds on input order, so the top sources may be the weakest.
+          if (finalState.rerankFailed) sendChatWarning(sse, 'rerank_degraded');
           sse.send('progress_step', {
             stepId: rerankStepId,
             toolName: 'rerank',
@@ -975,8 +1085,18 @@ export async function executeIntentPipeline(opts: {
         // Degraded search (Qdrant/web source unreachable) must be
         // distinguishable from a genuine zero-hit — both for the user
         // (warning toast + status copy) and for monitoring.
-        const searchDegraded = finalState.searchErrors?.some(isSourceAvailabilityError) ?? false;
+        const {
+          coreDegraded: searchDegraded,
+          unavailableSources,
+          needsReauth,
+        } = partitionSearchErrors(finalState.searchErrors);
         if (searchDegraded) sendSearchDegradedWarning(sse, resultCount);
+        // A file the user explicitly attached or @-mentioned that could not be
+        // read. These were collected but filtered away by the availability
+        // predicate, so the answer simply omitted the source without a word.
+        if (unavailableSources.length > 0) {
+          reportUnavailableSources(sse, finalState, unavailableSources, needsReauth);
+        }
         sse.send('search_complete', {
           message:
             searchDegraded && resultCount === 0

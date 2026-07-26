@@ -1,18 +1,15 @@
 {
-  "total": 28,
+  "total": 20,
   "files": {
     "apps/api/routes/chat/agents/domainTools.ts": 1,
     "apps/api/routes/chat/agents/pdfFormTools.ts": 1,
-    "apps/api/routes/chat/chatGraphContractRouter.ts": 6,
+    "apps/api/routes/chat/chatGraphContractRouter.ts": 5,
     "apps/api/routes/chat/services/intentExecutionService.ts": 1,
     "apps/api/routes/chat/services/responseStreamingService.ts": 1,
     "apps/api/routes/chat/services/resumePipeline.ts": 5,
     "apps/api/routes/chat/services/streamContext.ts": 1,
-    "apps/api/agents/langgraph/ChatGraph/nodes/classifierNode.ts": 1,
     "apps/api/agents/langgraph/FlyerToSiteGraph/nodes/extractNode.ts": 1,
     "apps/api/agents/langgraph/PRAgent/index.ts": 1,
-    "packages/chat/src/hooks/useSharepicArtifact.ts": 3,
-    "packages/chat/src/hooks/useSliderDeckArtifact.ts": 3,
     "packages/chat/src/lib/confirmAction.ts": 1,
     "packages/chat/src/runtime/GrueneratorAttachmentAdapter.ts": 1,
     "packages/chat/src/runtime/GrueneratorThreadListAdapter.ts": 1

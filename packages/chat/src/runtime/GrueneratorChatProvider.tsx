@@ -1,5 +1,6 @@
 'use client';
 
+import { isApiErrorWithStatus, isUnauthorizedError } from '@gruenerator/shared/api';
 import { type TextModelId } from '@gruenerator/shared/models';
 import { type ReactNode, lazy, Suspense, useEffect, useRef } from 'react';
 
@@ -81,10 +82,17 @@ export function GrueneratorChatProvider({
   useEffect(() => {
     const handler = (event: PromiseRejectionEvent) => {
       if (!(event.reason instanceof Error)) return;
-      const msg = event.reason.message;
-      if (msg === 'Thread not found' || msg === 'Unauthorized') {
+      // Narrowed from a bare message-string match: that suppressed ANY error
+      // whose text happened to read "Thread not found" or "Unauthorized",
+      // including future genuine ones, and hid them from monitoring too.
+      // Only the two typed cases this hook exists for are swallowed.
+      const isStaleThread = isApiErrorWithStatus(event.reason, 404);
+      if (isStaleThread || isUnauthorizedError(event.reason)) {
         event.preventDefault();
-        console.warn(`[ThreadList] Suppressed unhandled "${msg}" rejection`);
+        console.warn(
+          `[ThreadList] Suppressed unhandled "${event.reason.message}" rejection`,
+          event.reason
+        );
       }
     };
     window.addEventListener('unhandledrejection', handler);

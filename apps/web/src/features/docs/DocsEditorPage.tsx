@@ -76,8 +76,7 @@ import { webAppDocsAdapter } from './docsAdapter';
 import { GuestBadge, GUEST_ANIMALS } from './GuestBadge';
 import { getOrCreateGuestIdentity } from './guestIdentity';
 import { blockLines, detectLetterParts, stripDetectedBlocks } from './letterDetection';
-import { LetterExportDialog, type LetterExportSubmit } from './LetterExportDialog';
-import { LetterheadExportDialog } from './LetterheadExportDialog';
+import { PdfExportDialog, type PdfExportSubmit } from './PdfExportDialog';
 import { useDocsLiveWolkeSync } from './useDocsLiveWolkeSync';
 
 import type { LetterheadChoice } from './LetterheadChooser';
@@ -226,8 +225,7 @@ function EditorContent() {
   // The old export was local and instant; the server round-trip takes seconds,
   // so a second click has to be blocked rather than queueing another render.
   const [isExportingPdf, setIsExportingPdf] = useState(false);
-  const [showLetterDialog, setShowLetterDialog] = useState(false);
-  const [showLetterheadDialog, setShowLetterheadDialog] = useState(false);
+  const [showPdfDialog, setShowPdfDialog] = useState(false);
   const [activeSidebar, setActiveSidebar] = useState<SidebarPanel | null>(null);
   // Sticky: once the chat panel is opened, DocsChatPanel stays mounted to
   // preserve its runtime + Hocuspocus connection across close/reopen. Avoids
@@ -460,7 +458,7 @@ function EditorContent() {
     async (
       choice: LetterheadChoice,
       layout: 'letterhead' | 'letter',
-      letter?: LetterExportSubmit['letter'],
+      letter?: PdfExportSubmit['letter'],
       selectBlocks?: (blocks: Block[]) => Block[]
     ) => {
       let letterheadId = choice.letterheadId;
@@ -489,10 +487,10 @@ function EditorContent() {
     [runPdfExport, queryClient]
   );
 
-  const handleLetterSubmit = useCallback(
-    (result: LetterExportSubmit) => {
-      setShowLetterDialog(false);
-      void runWithChoice(result.letterhead, 'letter', result.letter, (blocks) =>
+  const handlePdfExportSubmit = useCallback(
+    (result: PdfExportSubmit) => {
+      setShowPdfDialog(false);
+      void runWithChoice(result.letterhead, result.layout, result.letter, (blocks) =>
         result.stripDetected
           ? stripDetectedBlocks(blocks, detectLetterParts(blockLines(blocks).join('\n')))
           : blocks
@@ -500,17 +498,6 @@ function EditorContent() {
     },
     [runWithChoice]
   );
-
-  // One saved letterhead means there is nothing to choose — export straight
-  // away. Zero or several open the chooser.
-  const handleExportLetterhead = useCallback(() => {
-    setShowActionsMenu(false);
-    if (letterheads.length === 1) {
-      void runWithChoice({ letterheadId: letterheads[0]!.id }, 'letterhead');
-      return;
-    }
-    setShowLetterheadDialog(true);
-  }, [letterheads, runWithChoice]);
 
   const handleExportODT = useCallback(async () => {
     if (!docData || !editor) return;
@@ -953,22 +940,18 @@ function EditorContent() {
                         >
                           Als PDF (.pdf)
                         </button>
-                        <button
-                          className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500 disabled:opacity-50 aria-disabled:opacity-50"
-                          onClick={handleExportLetterhead}
-                          disabled={isExportingPdf}
-                        >
-                          Als PDF mit Briefkopf
-                        </button>
+                        {/* One entry for both: the dialog decides between
+                            document and DIN letter from the recipient. Two
+                            entries let the shorter route quietly win. */}
                         <button
                           className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500 disabled:opacity-50 aria-disabled:opacity-50"
                           onClick={() => {
                             setShowActionsMenu(false);
-                            setShowLetterDialog(true);
+                            setShowPdfDialog(true);
                           }}
                           disabled={isExportingPdf}
                         >
-                          Als Brief (.pdf)
+                          Als PDF mit Briefkopf oder Brief …
                         </button>
                         <button
                           className="flex items-center gap-2.5 w-full py-2 max-sm:min-h-11 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
@@ -1145,27 +1128,16 @@ function EditorContent() {
         />
       )}
 
-      {showLetterheadDialog && (
-        <LetterheadExportDialog
-          letterheads={letterheads}
-          onCancel={() => setShowLetterheadDialog(false)}
-          onSubmit={(choice) => {
-            setShowLetterheadDialog(false);
-            void runWithChoice(choice, 'letterhead');
-          }}
-        />
-      )}
-
-      {showLetterDialog && editor && (
-        <LetterExportDialog
+      {showPdfDialog && editor && (
+        <PdfExportDialog
           documentTitle={docData?.title || 'Dokument'}
           // Plain text is enough for the prefill proposal — the detection works
           // line-wise, and the export itself uses the full HTML.
           documentText={blockLines(editor.document).join('\n')}
           defaultSignature={profile?.display_name ?? ''}
           letterheads={letterheads}
-          onCancel={() => setShowLetterDialog(false)}
-          onSubmit={handleLetterSubmit}
+          onCancel={() => setShowPdfDialog(false)}
+          onSubmit={handlePdfExportSubmit}
         />
       )}
     </div>

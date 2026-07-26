@@ -8,8 +8,9 @@ import { type GetUserUsageResponseDto } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 
-export function useUsageStats(days: number) {
-  return useQuery({
+/** Shared by the hook and the tab's preload, so both hit the same cache entry. */
+export function usageStatsQuery(days: number) {
+  return {
     queryKey: ['user-usage', days] as const,
     queryFn: async (): Promise<GetUserUsageResponseDto> => {
       const result = await getContractsClient().userUsage.getMyUsage({ query: { days } });
@@ -17,5 +18,9 @@ export function useUsageStats(days: number) {
       return result.body;
     },
     staleTime: 60 * 1000,
-  });
+  };
+}
+
+export function useUsageStats(days: number) {
+  return useQuery(usageStatsQuery(days));
 }

@@ -7,15 +7,22 @@
  * every notebook.
  */
 import { Button, Input, SectionHeader } from '@gruenerator/ui';
+import { type QueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { HiExclamation, HiGlobeAlt, HiRefresh, HiX } from 'react-icons/hi';
 
+import { SettingsCardsSkeleton } from '../components/SettingsSkeleton';
 import {
   useAddUserWebsite,
   useDeleteUserWebsite,
   useRefreshUserWebsite,
+  userWebsitesQuery,
   useUserWebsites,
 } from '../hooks/useUserWebsites';
+
+export const prefetch = (queryClient: QueryClient) => {
+  void queryClient.prefetchQuery(userWebsitesQuery);
+};
 
 function formatDiscovered(iso: string | null): string {
   if (!iso) return 'Noch nicht abgefragt';
@@ -103,7 +110,7 @@ export default function WebsitesTab() {
         />
 
         {isPending ? (
-          <p className="m-0 text-sm text-grey-500">Wird geladen…</p>
+          <SettingsCardsSkeleton cards={2} />
         ) : isError ? (
           <p className="m-0 text-sm text-grey-500">Websites konnten nicht geladen werden.</p>
         ) : !websites || websites.length === 0 ? (

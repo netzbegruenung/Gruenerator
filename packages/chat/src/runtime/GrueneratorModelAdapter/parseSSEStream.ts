@@ -11,7 +11,7 @@ import {
 } from '@gruenerator/contracts';
 
 import { coerceSharepicVariants } from '../../hooks/useChatGraphStream';
-import { notifyWarning } from '../../lib/notify';
+import { notifyError, notifyWarning } from '../../lib/notify';
 import { pickStageLabels } from '../../lib/progressLabels';
 import { parseSSELine } from '../../lib/sseParser';
 import { INTENT_TO_TOOL, DEEP_TOOL_MAP, formatNamespacedToolLabel } from '../../lib/toolMappings';
@@ -285,13 +285,20 @@ export async function* parseSSEStream(
 
     const isInterrupted = interruptPending && currentProgress.stage === 'complete';
 
-    return {
+    const result: ChatModelRunResult = {
       content,
       metadata: { custom },
       ...(isInterrupted
         ? { status: { type: 'requires-action' as const, reason: 'tool-calls' as const } }
         : {}),
     };
+    // Record every result, not just the final one. assistant-ui merges a
+    // yielded `content` by REPLACING the message content (initialContent is
+    // frozen at roundtrip start), so a caller that has to report a mid-stream
+    // failure must re-yield everything accumulated so far — and on a network
+    // drop the end of this function is never reached.
+    outcome.lastResult = result;
+    return result;
   }
 
   // Feed chunks: stream from reader, or single chunk from full text fallback
@@ -329,7 +336,11 @@ export async function* parseSSEStream(
         }
         continue;
       }
-      consecutiveParseErrors = 0;
+      // Reset only on a line that actually carried a parsed event. SSE framing
+      // puts an `event:` line and a blank line between any two `data:` lines,
+      // so resetting on every non-error line made the counter unreachable —
+      // it never got past 1.
+      if (event && rawData) consecutiveParseErrors = 0;
       if (!event || !rawData) continue;
 
       // Contract gate: every known event is validated against its wire
@@ -668,6 +679,7 @@ export async function* parseSSEStream(
         case 'social_post_edit_error': {
           const { error } = data as { postId?: string; error: string };
           console.warn('[GrueneratorModelAdapter] social_post_edit_error:', error);
+          notifyError('Post konnte nicht bearbeitet werden', error);
           break;
         }
 
@@ -696,6 +708,7 @@ export async function* parseSSEStream(
         case 'sharepic_edit_error': {
           const { error } = data as { variantId?: string; error: string };
           console.warn('[GrueneratorModelAdapter] sharepic_edit_error:', error);
+          notifyError('Sharepic konnte nicht bearbeitet werden', error);
           break;
         }
 
@@ -736,6 +749,7 @@ export async function* parseSSEStream(
         case 'reel_edit_error': {
           const { error } = data as { projectId?: string; error: string };
           console.warn('[GrueneratorModelAdapter] reel_edit_error:', error);
+          notifyError('Untertitel konnten nicht bearbeitet werden', error);
           break;
         }
 
@@ -1082,6 +1096,7 @@ export async function* parseSSEStream(
           const parsed = triggerDocEditSchema.safeParse(data);
           if (!parsed.success) {
             console.warn('[ChatAdapter] trigger_doc_edit payload failed validation', parsed.error);
+            notifyError('Dokument konnte nicht bearbeitet werden', 'Die Anweisung war ungültig.');
             break;
           }
           const payload = parsed.data;
@@ -1093,11 +1108,19 @@ export async function* parseSSEStream(
               await handler(payload);
             } catch (err) {
               console.warn('[ChatAdapter] documentEditHandler threw', err);
+              notifyError(
+                'Dokument konnte nicht bearbeitet werden',
+                'Die Änderung konnte nicht angewendet werden.'
+              );
             }
           } else {
             console.warn(
               '[ChatAdapter] trigger_doc_edit received but no handler registered for doc',
               payload.targetDocumentId
+            );
+            notifyWarning(
+              'Dokument nicht verbunden',
+              'Öffne die Datei, damit Änderungen angewendet werden können.'
             );
           }
           break;
@@ -1115,6 +1138,7 @@ export async function* parseSSEStream(
               '[ChatAdapter] trigger_board_action payload failed validation',
               parsed.error
             );
+            notifyError('Board konnte nicht bearbeitet werden', 'Die Anweisung war ungültig.');
             break;
           }
           const payload = parsed.data;
@@ -1126,11 +1150,19 @@ export async function* parseSSEStream(
               await handler(payload);
             } catch (err) {
               console.warn('[ChatAdapter] boardActionHandler threw', err);
+              notifyError(
+                'Board konnte nicht bearbeitet werden',
+                'Die Änderung konnte nicht angewendet werden.'
+              );
             }
           } else {
             console.warn(
               '[ChatAdapter] trigger_board_action received but no handler registered for board',
               payload.targetBoardId
+            );
+            notifyWarning(
+              'Board nicht verbunden',
+              'Öffne die Datei, damit Änderungen angewendet werden können.'
             );
           }
           break;
@@ -1145,6 +1177,10 @@ export async function* parseSSEStream(
           const parsed = editorOperationsEventSchema.safeParse(data);
           if (!parsed.success) {
             console.warn('[ChatAdapter] editor_operations payload failed validation', parsed.error);
+            notifyError(
+              'Editor-Inhalt konnte nicht bearbeitet werden',
+              'Die Anweisung war ungültig.'
+            );
             break;
           }
           const payload = parsed.data;
@@ -1154,11 +1190,19 @@ export async function* parseSSEStream(
               await handler(payload);
             } catch (err) {
               console.warn('[ChatAdapter] editorOpsHandler threw', err);
+              notifyError(
+                'Editor-Inhalt konnte nicht bearbeitet werden',
+                'Die Änderung konnte nicht angewendet werden.'
+              );
             }
           } else {
             console.warn(
               '[ChatAdapter] editor_operations received but no handler registered for target',
               payload.targetId
+            );
+            notifyWarning(
+              'Editor-Inhalt nicht verbunden',
+              'Öffne die Datei, damit Änderungen angewendet werden können.'
             );
           }
           break;

@@ -9,7 +9,8 @@ import {
   TabsTrigger,
   useIsMobile,
 } from '@gruenerator/ui';
-import { Suspense, lazy, type ComponentType, type LazyExoticComponent } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Suspense, useEffect } from 'react';
 import { type IconType } from 'react-icons';
 import {
   FiBarChart2,
@@ -25,9 +26,13 @@ import {
 import { IoAccessibilityOutline } from 'react-icons/io5';
 import { PiBrain, PiEnvelopeSimple, PiPencil, PiRobot } from 'react-icons/pi';
 
-import Spinner from '../../components/common/Spinner';
-
+import { SettingsTabSkeleton } from './components/SettingsSkeleton';
 import { useSettingsDialogStore, type SettingsTab } from './settingsDialogStore';
+import {
+  getSettingsTabComponent,
+  preloadRemainingSettingsTabs,
+  preloadSettingsTab,
+} from './settingsTabs';
 
 // hideHeading: the tab's content brings its own top-level heading.
 const NAV: { value: SettingsTab; label: string; icon: IconType; hideHeading?: boolean }[] = [
@@ -47,21 +52,20 @@ const NAV: { value: SettingsTab; label: string; icon: IconType; hideHeading?: bo
   { value: 'support', label: 'Support', icon: FiHelpCircle },
 ];
 
-const TAB_COMPONENTS: Record<SettingsTab, LazyExoticComponent<ComponentType>> = {
-  allgemein: lazy(() => import('./tabs/GeneralTab')),
-  barrierefreiheit: lazy(() => import('./tabs/AccessibilityTab')),
-  konto: lazy(() => import('./tabs/AccountTab')),
-  friends: lazy(() => import('./tabs/FriendsTab')),
-  personalisierung: lazy(() => import('./tabs/PersonalizationTab')),
-  briefkoepfe: lazy(() => import('./tabs/LetterheadsSection')),
-  'texte-anlernen': lazy(() => import('./tabs/TexteAnlernenTab')),
-  erinnerungen: lazy(() => import('./tabs/MemoriesSection')),
-  benachrichtigungen: lazy(() => import('./tabs/NotificationsTab')),
-  wolke: lazy(() => import('./tabs/WolkeTab')),
-  websites: lazy(() => import('./tabs/WebsitesTab')),
-  konnektoren: lazy(() => import('./tabs/ConnectorsTab')),
-  nutzung: lazy(() => import('./tabs/UsageTab')),
-  support: lazy(() => import('./tabs/SupportTab')),
+// Radix only renders the active tab's content, so resolving the component in
+// here rather than in the map below means a tab's lazy-vs-already-loaded choice
+// is only fixed when it actually renders — a hover that preloads it first still
+// gets the path that never suspends.
+const SettingsTabBody = ({ tab }: { tab: SettingsTab }) => {
+  const TabBody = getSettingsTabComponent(tab);
+  return (
+    <Suspense fallback={<SettingsTabSkeleton tab={tab} />}>
+      {/* Not created during render: getSettingsTabComponent hands back one
+          frozen component per tab, so the identity never changes. */}
+      {/* eslint-disable-next-line react-hooks/static-components */}
+      <TabBody />
+    </Suspense>
+  );
 };
 
 const SettingsDialog = () => {
@@ -70,6 +74,16 @@ const SettingsDialog = () => {
   const setTab = useSettingsDialogStore((s) => s.setTab);
   const close = useSettingsDialogStore((s) => s.close);
   const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
+
+  // The active tab is the one signal we have that this user is in settings at
+  // all: warm its data now, and pull the other tab chunks in during idle time
+  // so switching between them never waits on the network.
+  useEffect(() => {
+    if (!isOpen) return;
+    preloadSettingsTab(tab, queryClient);
+    return preloadRemainingSettingsTabs(tab);
+  }, [isOpen, tab, queryClient]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && close()}>
@@ -95,6 +109,11 @@ const SettingsDialog = () => {
                 <TabsTrigger
                   key={value}
                   value={value}
+                  // Pointing at or tabbing to a nav entry is enough intent to
+                  // fetch its chunk and data — by the time the click lands the
+                  // tab renders with content instead of a placeholder.
+                  onPointerEnter={() => preloadSettingsTab(value, queryClient)}
+                  onFocus={() => preloadSettingsTab(value, queryClient)}
                   // Active = bold text only: no indicator bar, no background pill.
                   className="shrink-0 justify-start gap-2 whitespace-nowrap text-foreground/70 after:hidden data-[state=active]:font-semibold data-[state=active]:text-foreground md:py-1.5"
                 >
@@ -105,31 +124,20 @@ const SettingsDialog = () => {
             </TabsList>
           </div>
 
-          {NAV.map(({ value, label, hideHeading }) => {
-            const TabBody = TAB_COMPONENTS[value];
-            return (
-              <TabsContent key={value} value={value} className="min-h-0 min-w-0 flex-1">
-                <div className="h-full overflow-y-auto">
-                  <div className="px-md py-lg sm:px-xl">
-                    {!hideHeading && (
-                      <h2 className="mt-0 mb-lg text-lg font-semibold text-foreground-heading">
-                        {label}
-                      </h2>
-                    )}
-                    <Suspense
-                      fallback={
-                        <div className="flex justify-center py-xl">
-                          <Spinner size="medium" />
-                        </div>
-                      }
-                    >
-                      <TabBody />
-                    </Suspense>
-                  </div>
+          {NAV.map(({ value, label, hideHeading }) => (
+            <TabsContent key={value} value={value} className="min-h-0 min-w-0 flex-1">
+              <div className="h-full overflow-y-auto">
+                <div className="px-md py-lg sm:px-xl">
+                  {!hideHeading && (
+                    <h2 className="mt-0 mb-lg text-lg font-semibold text-foreground-heading">
+                      {label}
+                    </h2>
+                  )}
+                  <SettingsTabBody tab={value} />
                 </div>
-              </TabsContent>
-            );
-          })}
+              </div>
+            </TabsContent>
+          ))}
         </Tabs>
       </DialogContent>
     </Dialog>
