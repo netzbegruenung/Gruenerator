@@ -49,7 +49,21 @@ const {
   getThreadRecallContext,
   formatPastChatsBlock,
   formatOfficeDocsBlock,
+  formatReelsBlock,
 } = await import('./pastChatRecallService.js');
+
+function makeReel(id: string, title: string) {
+  return {
+    id,
+    title,
+    snippet: '[00:00.0–00:02.5] Heute reden wir über Windkraft.',
+    matchedTranscript: true,
+    url: `/studio/video?project=${id}`,
+    status: 'exported',
+    hasThumbnail: true,
+    lastEditedAt: '2026-04-01T10:00:00Z',
+  };
+}
 
 function makeHit(id: string, title: string): ChatSearchResult {
   return {
@@ -311,5 +325,44 @@ describe('rerankRecall', () => {
     const out = await rerankRecall('query', [makeHit('c1', 'One')], [], 3);
     expect(out.chats.map((c) => c.threadId)).toEqual(['c1']);
     expect(mockRerankPipeline).not.toHaveBeenCalled();
+  });
+
+  it('ranks reels alongside chats and office docs', async () => {
+    // Candidate order is chats, then office, then reels → the reel is index 2.
+    mockRerankPipeline.mockResolvedValue({ rankedIndices: [2, 0], scores: new Map() });
+    const out = await rerankRecall(
+      'query',
+      [makeHit('c1', 'One')],
+      [makeOffice('o1', 'Doc A')],
+      2,
+      [makeReel('r1', 'Windkraft-Reel')]
+    );
+    expect(out.reels.map((r) => r.id)).toEqual(['r1']);
+    expect(out.chats.map((c) => c.threadId)).toEqual(['c1']);
+    expect(out.officeDocs).toEqual([]);
+  });
+
+  it('defaults reels to [] when the caller passes none', async () => {
+    const out = await rerankRecall('query', [makeHit('c1', 'One')], [], 3);
+    expect(out.reels).toEqual([]);
+  });
+});
+
+describe('formatReelsBlock', () => {
+  it('returns empty string for no reels', () => {
+    expect(formatReelsBlock([])).toBe('');
+  });
+
+  it('carries the transcript excerpt so a caption can be written from it', () => {
+    const block = formatReelsBlock([makeReel('r1', 'Windkraft-Reel')]);
+    expect(block).toContain('RELEVANTE EIGENE REELS');
+    expect(block).toContain('KEINE QUELLEN, NICHT ZITIEREN');
+    expect(block).toContain('„Windkraft-Reel"');
+    expect(block).toContain('[00:00.0–00:02.5] Heute reden wir über Windkraft.');
+  });
+
+  it('notes a reel that has no subtitles instead of emitting a blank line', () => {
+    const block = formatReelsBlock([{ ...makeReel('r1', 'Stumm'), snippet: '' }]);
+    expect(block).toContain('(keine Untertitel vorhanden)');
   });
 });
