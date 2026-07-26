@@ -179,7 +179,12 @@ const MCP_CAPABILITY_QUESTION =
  * This embeds each MCP step's real outcome AND its result content, and tells the
  * synth to relay it concretely. Pure — unit-tested in toolOutcome.vitest.ts.
  */
-const MCP_CONTENT_CAP = 1500;
+// 1500 could not coexist with the instruction three lines below, which tells
+// the model to list the connector's records COMPLETELY ("lass nichts Relevantes
+// weg"). A 20-entry calendar or Notion listing was cut after ~6 and the model
+// dutifully presented those 6 as the whole answer. 25000 matches LobeChat's
+// tool-result budget.
+const MCP_CONTENT_CAP = 25_000;
 
 /** The connector's text payload, length-capped for the synth prompt. */
 function capMcpContent(content: string): string {
