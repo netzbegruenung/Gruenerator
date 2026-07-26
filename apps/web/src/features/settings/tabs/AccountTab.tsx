@@ -1,18 +1,30 @@
 import { Button, toast } from '@gruenerator/ui';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useState, type ChangeEvent, type FormEvent } from 'react';
 
 import SettingsRow from '../components/SettingsRow';
+import { SettingsRowsSkeleton } from '../components/SettingsSkeleton';
 
 import TextInput from '@/components/common/Form/Input/TextInput';
 import Spinner from '@/components/common/Spinner';
-import { useProfile } from '@/features/auth/hooks/useProfileData';
+import { QUERY_KEYS, useProfile } from '@/features/auth/hooks/useProfileData';
 import {
   initializeProfileFormFields,
+  profileApiService,
   type Profile,
 } from '@/features/auth/services/profileApiService';
 import { useOptimizedAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/authStore';
+
+export const prefetch = (queryClient: QueryClient) => {
+  const userId = useAuthStore.getState().user?.id;
+  if (!userId) return;
+  void queryClient.prefetchQuery({
+    queryKey: QUERY_KEYS.profile(userId),
+    queryFn: profileApiService.getProfile,
+    staleTime: 15 * 60 * 1000,
+  });
+};
 
 const AccountTab = () => {
   const authUser = useAuthStore((s) => s.user);
@@ -80,9 +92,7 @@ const AccountTab = () => {
       )}
 
       {isLoadingProfile ? (
-        <div className="flex justify-center py-lg">
-          <Spinner size="medium" />
-        </div>
+        <SettingsRowsSkeleton rows={3} />
       ) : (
         <div className="-my-4 divide-y divide-grey-200 dark:divide-grey-800">
           <SettingsRow id="konto.anzeigename">
