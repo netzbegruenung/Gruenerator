@@ -18,6 +18,7 @@ import {
   getSourcesForIntent,
   SYSTEM_TOOL_INTENTS,
 } from '../../../../services/mcp/systemMcpServers.js';
+import { applyContextCap } from '../../../../utils/contextCap.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { loadMcpCatalog, type McpCatalog } from '../../agents/mcpCatalog.js';
 import {
@@ -188,7 +189,7 @@ const MCP_CONTENT_CAP = 25_000;
 
 /** The connector's text payload, length-capped for the synth prompt. */
 function capMcpContent(content: string): string {
-  return content.length > MCP_CONTENT_CAP ? `${content.slice(0, MCP_CONTENT_CAP)}…` : content;
+  return applyContextCap(content, MCP_CONTENT_CAP, 'agenticLoop:mcpContent');
 }
 
 export function buildMcpOutcomeNote(steps: PersistedStep[]): string {
