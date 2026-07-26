@@ -8,12 +8,11 @@ const SEL = {
   composer: '[data-tour="workplace-composer"]',
   tabs: '[data-tour="workplace-tabs"]',
   arbeitenCreate: '[data-tour="arbeiten-create"]',
-  arbeitenRecents: '[data-tour="arbeiten-recents"]',
   arbeitenTools: '[data-tour="arbeiten-tools"]',
-  studioTools: '[data-tour="studio-tools"]',
-  wissen: '[data-tour="wissen"]',
-  wissenNotebooks: '[data-tour="wissen-notebooks"]',
+  arbeitenRecents: '[data-tour="arbeiten-recents"]',
   sidebar: '[data-tour="app-sidebar"]',
+  sidebarNav: '[data-tour="sidebar-nav"]',
+  sidebarChats: '[data-tour="sidebar-chats"]',
 } as const;
 
 type NavigateFn = (path: string) => void;
@@ -53,7 +52,7 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
         popover: {
           title: 'Dein Chat-Einstieg',
           description:
-            'Stell Fragen, lass Texte schreiben oder wechsle unten in den Bild-Modus — alles startet hier.',
+            'Stell Fragen oder lass Texte schreiben — mit / startest du direkt einen Grünerator, die Vorschläge unterm Feld liefern fertige Beispiele. Beim Absenden geht es nahtlos im Chat weiter.',
           side: 'bottom',
         },
       },
@@ -72,9 +71,18 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
         popover: {
           title: 'Arbeiten: Neues erstellen',
           description:
-            'Dokumente, Präsentationen, Tabellen und Sharepics — beschreib einfach, was du brauchst, oder starte mit einer Vorlage.',
+            'Dokumente, Boards, Tabellen und Präsentationen — beschreib einfach, was du brauchst, oder starte mit einer Vorlage.',
           side: 'bottom',
           onPrevClick: crossTab('/workplace', SEL.tabs, (drv) => drv.movePrevious()),
+        },
+      },
+      {
+        element: SEL.arbeitenTools,
+        popover: {
+          title: 'Deine Werkzeuge',
+          description:
+            'Die Kacheln führen in alle Bereiche: Agentura, Office, Studio, Wissen und Projekte — unter „Weitere“ liegen Extras wie Scanner oder Transkription.',
+          side: 'top',
         },
       },
       {
@@ -84,61 +92,30 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
           description:
             'Alle deine Inhalte an einem Ort: Dokumente, Boards, Sharepics, Reels und Texte.',
           side: 'top',
-        },
-      },
-      {
-        element: SEL.arbeitenTools,
-        popover: {
-          title: 'Werkzeuge',
-          description: 'Alle Grüneratoren im Überblick — von Pressemitteilung bis Wahlprogramm.',
-          side: 'top',
-          onNextClick: crossTab('/studio', SEL.studioTools, (drv) => drv.moveNext()),
-        },
-      },
-      {
-        element: SEL.studioTools,
-        popover: {
-          title: 'Bilder & Videos',
-          description:
-            'KI-Bilder erstellen & bearbeiten, Sharepics gestalten und Reels untertiteln — alle visuellen Werkzeuge an einem Ort.',
-          side: 'top',
-          onPrevClick: crossTab('/workplace/arbeiten', SEL.arbeitenTools, (drv) =>
-            drv.movePrevious()
-          ),
-          onNextClick: crossTab('/wissen', SEL.wissen, (drv) => drv.moveNext()),
-        },
-      },
-      {
-        element: SEL.wissen,
-        popover: {
-          title: 'Wissen',
-          description:
-            'Stell Fragen zu grüner Politik — die KI antwortet mit Quellen aus Programmen und Beschlüssen.',
-          onPrevClick: crossTab('/studio', SEL.studioTools, (drv) => drv.movePrevious()),
-        },
-      },
-      {
-        element: SEL.wissenNotebooks,
-        popover: {
-          title: 'Notebooks',
-          description:
-            'Fertige Wissenssammlungen — vom Bundesverband bis zu deinem Landesverband. Oder leg ein eigenes Notebook mit deinen Dokumenten an und recherchiere darin.',
-          side: 'top',
           onNextClick: (_el, _step, opts) => {
             expandSidebar(() => opts.driver.moveNext());
           },
         },
       },
       {
-        element: SEL.sidebar,
+        element: SEL.sidebarNav,
         popover: {
           title: 'Die Seitenleiste',
           description:
-            'Von überall erreichbar: Suche (⌘K), Wissen, neue Inhalte anlegen, deine Chats und dein Konto.',
+            'Suche (⌘K), deine Grüneratoren und Projekte als Schnellzugriff — und über „Neu“ startest du von überall Chats, Dokumente oder Boards.',
           side: 'right',
           onPrevClick: (_el, _step, opts) => {
             collapseSidebar(() => opts.driver.movePrevious());
           },
+        },
+      },
+      {
+        element: SEL.sidebarChats,
+        popover: {
+          title: 'Deine Chats',
+          description:
+            'Alle bisherigen Unterhaltungen, von jeder Seite aus erreichbar — und ganz unten dein Konto mit den Einstellungen.',
+          side: 'right',
         },
       },
     ],
