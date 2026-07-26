@@ -29,6 +29,13 @@ end
 `;
 
 export async function tryAcquireVerdigadoSlot(requestId: string): Promise<boolean> {
+  // Without this guard an unreachable Redis doesn't reject — node-redis queues
+  // the SET and retries reconnecting forever, hanging every overflow-lane
+  // request (and the CI test run, which has no Redis).
+  if (!redisClient.isReady) {
+    log.warn('Redis not ready; falling through to overflow provider');
+    return false;
+  }
   try {
     const result = await redisClient.set(LOCK_KEY, requestId, {
       NX: true,
@@ -44,6 +51,7 @@ export async function tryAcquireVerdigadoSlot(requestId: string): Promise<boolea
 }
 
 export async function releaseVerdigadoSlot(requestId: string): Promise<void> {
+  if (!redisClient.isReady) return;
   try {
     await redisClient.eval(RELEASE_SCRIPT, {
       keys: [LOCK_KEY],
