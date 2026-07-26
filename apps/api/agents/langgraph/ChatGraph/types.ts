@@ -175,6 +175,33 @@ export function isSourceAvailabilityError(entry: { source: string }): boolean {
 }
 
 /**
+ * One degradation the answer must disclose.
+ *
+ * `code` doubles as the SSE warning code (telemetry); `modelHint` is the
+ * sentence handed to the model. Keeping both on one object is what stops the
+ * two channels from drifting — the user hears about exactly what was logged.
+ */
+export interface DegradationNote {
+  code: string;
+  modelHint: string;
+}
+
+/**
+ * Render the notes as a system-prompt block. Returns '' when nothing degraded,
+ * so callers can append unconditionally.
+ */
+export function renderDegradationNotes(notes: DegradationNote[] | undefined): string {
+  if (!notes || notes.length === 0) return '';
+  const lines = notes.map((n) => `- ${n.modelHint}`).join('\n');
+  return (
+    `\n\n## HINWEIS: EINGESCHRÄNKTER TURN\n\n` +
+    `Folgendes hat in diesem Durchgang NICHT funktioniert:\n${lines}\n\n` +
+    `Sag der*dem Nutzer*in in deiner Antwort transparent, was nicht geklappt hat. ` +
+    `Behaupte NICHT, etwas sei erledigt, das fehlgeschlagen ist, und erfinde keine Ergebnisse.`
+  );
+}
+
+/**
  * Unified search result structure from any tool.
  */
 export interface SearchResult {
@@ -622,6 +649,16 @@ export interface ChatGraphState {
   searchErrors: { source: string; message: string }[];
   briefGenerationFailed: boolean;
   rerankFailed: boolean;
+
+  /**
+   * Degradations the ANSWER must own up to.
+   *
+   * A warning event is telemetry; it does not stop the model from confidently
+   * presenting a degraded turn as a complete one. These notes are rendered into
+   * the system prompt so the reply itself says what was missing — the same
+   * mechanism the unreachable-sources block uses, generalised.
+   */
+  degradationNotes: DegradationNote[];
 
   // Image generation
   imagePrompt: string | null;
