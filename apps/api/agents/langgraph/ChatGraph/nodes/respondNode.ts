@@ -65,6 +65,11 @@ export function truncateDocument(
 ): string {
   if (!text || text.length <= limit) return text;
 
+  log.warn(
+    `[respondNode:attachment] cap hit: ${text.length} → ${limit} chars ` +
+      `(${text.length - limit} dropped from the middle)`
+  );
+
   // Smart truncation: keep intro (60%) + conclusion (40%)
   const introLength = Math.floor(limit * 0.6);
   const outroLength = limit - introLength - 60; // 60 chars for marker
