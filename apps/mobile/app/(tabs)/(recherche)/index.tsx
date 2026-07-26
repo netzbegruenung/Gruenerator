@@ -298,14 +298,14 @@ export default function NotebooksScreen() {
             style={({ pressed }) => [
               styles.fab,
               {
-                backgroundColor: fabTone.solid.background,
+                backgroundColor: fabTone.background,
                 bottom: insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.small,
                 opacity: pressed ? 0.9 : 1,
                 transform: [{ scale: pressed ? 0.96 : 1 }],
               },
             ]}
           >
-            <Ionicons name="search" size={24} color={fabTone.solid.icon} />
+            <Ionicons name="search" size={24} color={fabTone.icon} />
           </Pressable>
         )}
       </View>
