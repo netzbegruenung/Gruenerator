@@ -73,9 +73,11 @@ import { estimateRequestTokens, extractTextContent } from './services/messageHel
 import {
   recallPastChats,
   recallOfficeDocuments,
+  recallReels,
   rerankRecall,
   formatPastChatsBlock,
   formatOfficeDocsBlock,
+  formatReelsBlock,
   getSpaceRecallScope,
 } from './services/pastChatRecallService.js';
 import { createPendingAssistantWriter } from './services/pendingAssistantWriter.js';
@@ -1008,34 +1010,39 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               ? (extractTextContent(lastUserMessage.content) as string).slice(0, 200)
               : '');
           if (recallQuery.trim()) {
-            // Fetch chats + office content, then cross-source rerank to the few
-            // most relevant — all inside the best-effort timeout.
+            // Fetch chats + office content + reels, then cross-source rerank to
+            // the few most relevant — all inside the best-effort timeout.
             const recalled = await withTimeout(
               (async () => {
-                const [chatResults, officeDocs] = await Promise.all([
+                const [chatResults, officeDocs, reels] = await Promise.all([
                   recallPastChats(userId, recallQuery, {
                     ...(actualThreadId != null && { excludeThreadId: actualThreadId }),
                     limit: 3,
                     ...(spaceScope && { threadIds: spaceScope.threadIds }),
                   }),
                   recallOfficeDocuments(userId, recallQuery, 3),
+                  recallReels(userId, recallQuery, 3),
                 ]);
-                return rerankRecall(recallQuery, chatResults, officeDocs, 4);
+                return rerankRecall(recallQuery, chatResults, officeDocs, 4, reels);
               })(),
               EXTERNAL_CONTEXT_TIMEOUT_MS,
               'past-work recall'
             ).catch(
-              () => ({ chats: [], officeDocs: [] }) as Awaited<ReturnType<typeof rerankRecall>>
+              () =>
+                ({ chats: [], officeDocs: [], reels: [] }) as Awaited<
+                  ReturnType<typeof rerankRecall>
+                >
             );
             const blocks = [
               spaceScope?.rosterBlock ?? '',
               recalled.chats.length > 0 ? formatPastChatsBlock(recalled.chats) : '',
               formatOfficeDocsBlock(recalled.officeDocs),
+              formatReelsBlock(recalled.reels),
             ].filter(Boolean);
             if (blocks.length > 0) {
               classifiedState.chatHistoryContext = blocks.join('\n\n');
               log.info(
-                `[ChatGraph] Injected recall: ${recalled.chats.length} chats, ${recalled.officeDocs.length} docs for "${recallQuery}" (${explicitRecall ? 'explicit' : 'proactive'})`
+                `[ChatGraph] Injected recall: ${recalled.chats.length} chats, ${recalled.officeDocs.length} docs, ${recalled.reels.length} reels for "${recallQuery}" (${explicitRecall ? 'explicit' : 'proactive'})`
               );
             }
           }
