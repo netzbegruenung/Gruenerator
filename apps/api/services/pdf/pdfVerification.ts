@@ -20,6 +20,12 @@ export interface TypeAreaBounds {
   right: number;
   /** Baselines below this are inside the footer strip. */
   bottom: number;
+  /**
+   * A rectangle that may legitimately sit outside the type area — the DIN 5008
+   * Anschriftfeld, which by standard begins 5 mm left of the writing margin.
+   * Without it every dispatch-ready address would be reported as overflow.
+   */
+  exempt?: { left: number; right: number; top: number; bottom: number };
 }
 
 export interface PdfVerification {
@@ -84,6 +90,10 @@ async function scanTextLayer(
         const x = transform[4];
         const y = transform[5];
         const right = x + (item.width ?? 0);
+        const ex = bounds.exempt;
+        if (ex && x >= ex.left - 1 && right <= ex.right + 1 && y <= ex.top && y >= ex.bottom) {
+          continue;
+        }
         // 1pt of slack: glyph advance widths and pdfjs measurement differ
         // slightly, and a hairline is not a layout defect.
         if (right > bounds.right + 1 || x < bounds.left - 1 || y < bounds.bottom - 1) {
