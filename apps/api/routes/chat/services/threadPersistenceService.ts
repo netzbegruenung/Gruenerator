@@ -410,10 +410,18 @@ export async function getRecentToolSteps(threadId: string, limit = 6): Promise<P
  * this is the grounding the op-planner (sheets/presentations/boards edit) needs
  * when the user says "trag die recherchierten Zahlen ein" turns after the search.
  *
- * Only the MOST RECENT assistant message carrying sources is used (the latest
- * research), newest-first within it, capped — a tight recency window so a new
- * unrelated question doesn't inherit stale sources. Content is already snippet-
- * sized at persist time (SearchResult[] slice(0,10)), so this stays token-cheap.
+ * Accumulates newest-first across the recent assistant messages until `limit`
+ * is reached, deduped by URL+title.
+ *
+ * It used to return at the FIRST message carrying any sources at all, which
+ * made a single incidental lookup shadow the research before it: turn 5 does a
+ * 10-source deep dive, turn 6 happens to fire one `umfragen` call, and turn 7
+ * rehydrates exactly that one poll snippet while the deep dive is invisible.
+ * "Recency" is now measured in sources, not in whichever message happened to
+ * persist one.
+ *
+ * Still bounded: the SQL window caps how far back it looks, and `limit` caps the
+ * result. Content is already snippet-sized at persist time, so this stays cheap.
  */
 export async function getRecentThreadSources(
   threadId: string,
@@ -426,6 +434,8 @@ export async function getRecentThreadSources(
      ORDER BY created_at DESC LIMIT 12`,
     [threadId]
   );
+  const collected: SearchResult[] = [];
+  const seen = new Set<string>();
   for (const row of rows as Array<{ tool_results?: unknown }>) {
     const meta = row.tool_results;
     const results =
@@ -434,12 +444,17 @@ export async function getRecentThreadSources(
       Array.isArray((meta as { searchResults?: unknown }).searchResults)
         ? ((meta as { searchResults: unknown[] }).searchResults as SearchResult[])
         : [];
-    const valid = results.filter(
-      (r) => r && typeof r === 'object' && typeof r.content === 'string' && r.content.trim() !== ''
-    );
-    if (valid.length > 0) return valid.slice(0, limit);
+    for (const r of results) {
+      if (!r || typeof r !== 'object') continue;
+      if (typeof r.content !== 'string' || r.content.trim() === '') continue;
+      const key = `${r.url ?? ''}::${r.title ?? ''}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      collected.push(r);
+      if (collected.length >= limit) return collected;
+    }
   }
-  return [];
+  return collected;
 }
 
 export interface ThreadSettings {

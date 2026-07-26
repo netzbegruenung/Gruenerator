@@ -4,6 +4,8 @@ import { createSourceRegistry } from './sourceRegistry.js';
 
 import type { SearchResult } from '../../../../agents/langgraph/ChatGraph/types.js';
 
+const reg = () => createSourceRegistry();
+
 function result(over: Partial<SearchResult>): SearchResult {
   return { source: 'test', title: 't', content: 'c', ...over };
 }
@@ -18,6 +20,23 @@ describe('createSourceRegistry', () => {
     expect(reg.size).toBe(2);
   });
 
+  // Without the URL in the line, a generating model (PDF/deck/sheet) can cite
+  // [N] but cannot reproduce the link — "PDF mit den Originalquellen" then
+  // renders invented placeholder URLs.
+  it('puts the source URL in the snippet line the model reads', () => {
+    const reg = createSourceRegistry();
+    const block = reg.register([
+      result({ url: 'https://bfn.de/artenschutz', title: 'BfN', content: 'alpha' }),
+    ]);
+    expect(block).toBe('[1] BfN <https://bfn.de/artenschutz> — alpha');
+    expect(reg.renderAll()).toContain('https://bfn.de/artenschutz');
+  });
+
+  it('omits the URL segment for sources that have none', () => {
+    const reg = createSourceRegistry();
+    expect(reg.register([result({ title: 'A', content: 'alpha' })])).toBe('[1] A — alpha');
+  });
+
   it('collapses exact duplicates so numbering stays stable', () => {
     const reg = createSourceRegistry();
     reg.register([result({ url: 'https://x', title: 'A', content: 'alpha' })]);
@@ -26,16 +45,46 @@ describe('createSourceRegistry', () => {
     expect(reg.size).toBe(1);
   });
 
+  // Stufe 3: the default cap must cover a whole indexed chunk. Documents are
+  // chunked at 400-500 tokens (~1400-1750 chars); at the old 320 we embedded,
+  // stored and searched a chunk, then showed the model a quarter of it.
+  it('shows a whole retrieved chunk, not a quarter of it', () => {
+    const chunk = `ANFANG ${'x'.repeat(1200)} SCHLUSS`;
+    const block = reg().register([result({ title: 'Doc', content: chunk })]);
+    expect(block).toContain('ANFANG');
+    expect(block).toContain('SCHLUSS');
+  });
+
+  it('still truncates something far larger than a chunk', () => {
+    const huge = `ANFANG ${'x'.repeat(40_000)} ENDE`;
+    const block = reg().register([result({ title: 'Doc', content: huge })]);
+    expect(block).toContain('ANFANG');
+    expect(block).not.toContain('ENDE');
+  });
+
   it('honors a per-registration snippetChars override in the block and renderAll', () => {
-    const reg = createSourceRegistry();
-    const long = `Anfang ${'x'.repeat(400)} ENDE`;
-    reg.register([result({ title: 'Kurz', content: `k ${'y'.repeat(400)} SCHLUSS` })]);
-    const block = reg.register([result({ title: 'Lang', content: long })], { snippetChars: 700 });
-    // Default cap (320) truncates the first source; the override keeps the second intact.
+    const registry = createSourceRegistry();
+    const long = `Anfang ${'x'.repeat(3_000)} ENDE`;
+    registry.register([result({ title: 'Kurz', content: `k ${'y'.repeat(3_000)} SCHLUSS` })]);
+    const block = registry.register([result({ title: 'Lang', content: long })], {
+      snippetChars: 6_000,
+    });
+    // The default cap truncates the first source; the override keeps the second
+    // intact — and renderAll must honor the per-result cap, not re-apply the default.
     expect(block).toContain('ENDE');
-    const all = reg.renderAll();
+    const all = registry.renderAll();
     expect(all).not.toContain('SCHLUSS');
     expect(all).toContain('ENDE');
+  });
+
+  // scrape_url uses this to read a whole page; a search hit must not.
+  it('lets a crawl-sized override carry a full page', () => {
+    const page = `SEITENANFANG ${'x'.repeat(20_000)} SEITENENDE`;
+    const block = reg().register([result({ title: 'Artikel', content: page })], {
+      snippetChars: 25_000,
+    });
+    expect(block).toContain('SEITENANFANG');
+    expect(block).toContain('SEITENENDE');
   });
 
   it('builds citations over the accumulated results', () => {
@@ -114,7 +163,7 @@ describe('createSourceRegistry', () => {
       reg.seedCarried([result({ title: 'A', content: 'alpha', url: 'https://a' })]);
       reg.register([result({ title: 'A', content: 'alpha', url: 'https://a' })]);
       const ref = reg.renderReference();
-      expect(ref).toBe('[1] A — alpha');
+      expect(ref).toBe('[1] A <https://a> — alpha');
       // this-turn citation still counts the fresh registration (it was cited live)
       expect(reg.size).toBe(1);
     });

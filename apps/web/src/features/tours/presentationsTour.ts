@@ -24,7 +24,7 @@ export function startPresentationsTour(): void {
       element: SEL.slides,
       popover: {
         title: 'Folienübersicht',
-        description: 'Hier ordnest du Folien per Drag & Drop, duplizierst oder löschst sie.',
+        description: 'Hier ordnest du Folien per Drag & Drop, fügst neue hinzu oder löschst sie.',
         side: 'right',
       },
     },
@@ -41,7 +41,7 @@ export function startPresentationsTour(): void {
       popover: {
         title: 'Präsentieren',
         description:
-          'Startet den Vollbild-Modus. PDF- und PowerPoint-Export findest du direkt daneben.',
+          'Startet die Präsentationsansicht. PDF- und PowerPoint-Export findest du oben in der Leiste.',
         side: 'bottom',
       },
     },

@@ -620,7 +620,7 @@ function NotebooksIndexFooter() {
 
   return (
     <>
-      <section className="mt-xl" data-tour="wissen-notebooks">
+      <section className="mt-xl">
         <SectionHeader
           title="Notebooks"
           searchQuery={search}

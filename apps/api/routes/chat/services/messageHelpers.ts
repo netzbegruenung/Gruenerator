@@ -50,6 +50,61 @@ export function getPruningBudget(contextWindowTokens?: number): number {
   return Math.max(MIN_PRUNING_BUDGET, modelBudget);
 }
 
+/** Rough chars-per-token for German prose plus JSON scaffolding. */
+const CHARS_PER_TOKEN = 3.5;
+
+/**
+ * Size estimate for a whole request, used for LANE ROUTING (not for pruning).
+ *
+ * Deliberately serialises the entire message — unlike {@link extractTextContent}
+ * and the TokenCounter, which read only `type: 'text'` parts and therefore score
+ * replayed tool results, images and reasoning traces as zero. For "is this
+ * request too big for the small lane?" an over-estimate is the safe direction:
+ * it routes to the bigger window, which is never wrong, only occasionally
+ * generous.
+ */
+export function estimateRequestTokens(systemMessage: string, messages: readonly unknown[]): number {
+  let chars = systemMessage.length;
+  for (const m of messages) {
+    try {
+      chars += JSON.stringify(m)?.length ?? 0;
+    } catch {
+      // Unserialisable message (circular ref) — skip rather than fail routing.
+    }
+  }
+  return Math.ceil(chars / CHARS_PER_TOKEN);
+}
+
+/**
+ * Share of the model's window that retrieved material (search results,
+ * attachments, tool output) may occupy, expressed in CHARACTERS.
+ *
+ * Retrieval budgets used to be absolute character constants — identical on a
+ * 32k and a 262k lane, because they were sized for the smallest lane and never
+ * revisited. The effect on the big lane was stark: fresh research got 0.9% of
+ * the window while the conversation history got ~68%, i.e. the material the
+ * turn actually needed was the most tightly rationed thing in the request.
+ *
+ * Derived like {@link getPruningBudget}: a share, a floor, and deliberately NO
+ * ceiling — the window is the only real limit.
+ */
+const RETRIEVAL_WINDOW_SHARE = 0.15;
+
+/**
+ * Character budget for retrieved context on a given model.
+ *
+ * @param contextWindowTokens the resolved window; falls back to the floor when unknown
+ * @param floorChars          smallest sensible budget for the caller's material
+ */
+export function getRetrievalBudget(
+  contextWindowTokens: number | undefined,
+  floorChars: number
+): number {
+  if (!contextWindowTokens) return floorChars;
+  const budgetChars = Math.floor(contextWindowTokens * RETRIEVAL_WINDOW_SHARE * CHARS_PER_TOKEN);
+  return Math.max(floorChars, budgetChars);
+}
+
 /**
  * Extract text content from a ModelMessage content field.
  * Handles both string content and AI SDK v6 parts array format.
@@ -69,7 +124,16 @@ export function extractTextContent(content: ModelMessage['content']): string {
 
 /**
  * Convert an AI SDK ModelMessage to TokenCounter-compatible format.
- * Handles both string content and AI SDK v6 parts array format.
+ *
+ * Every part counts, not just `type: 'text'`. The text-only version made the
+ * counter blind to exactly the parts that dominate a research thread: replayed
+ * tool results, images and reasoning traces all scored 0 tokens. Pruning and
+ * compaction therefore under-measured a tool-heavy thread — the mirror image of
+ * the truncation bugs elsewhere, and the reason a long thread could be handed to
+ * a provider well over its window.
+ *
+ * Non-text parts are measured by their serialised length: it is an
+ * approximation, but a wrong-by-30% number beats a confidently-zero one.
  */
 export function toTokenCounterMessage(msg: ModelMessage): TokenCounterMessage {
   let content: string;
@@ -78,8 +142,15 @@ export function toTokenCounterMessage(msg: ModelMessage): TokenCounterMessage {
     content = msg.content;
   } else if (Array.isArray(msg.content)) {
     content = msg.content
-      .filter((part: ContentPart) => part && typeof part === 'object' && part.type === 'text')
-      .map((part: ContentPart) => part.text || '')
+      .map((part: ContentPart) => {
+        if (!part || typeof part !== 'object') return '';
+        if (part.type === 'text') return part.text || '';
+        try {
+          return JSON.stringify(part) ?? '';
+        } catch {
+          return '';
+        }
+      })
       .join('');
   } else {
     content = '';

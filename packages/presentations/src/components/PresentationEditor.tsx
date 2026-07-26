@@ -44,6 +44,9 @@ export interface PresentationEditorProps {
   /** Suspends the editor's global keyboard shortcuts while another surface
    * (present mode) is layered on top and owns the keys. */
   shortcutsDisabled?: boolean;
+  /** Profile locale of the current user ('de-DE' | 'de-AT'); writes the deck's
+   * country brand once on first editable open. Pass null for guests. */
+  userLocale?: string | null;
 }
 
 /**
@@ -65,6 +68,7 @@ export function PresentationEditor({
   onReady,
   seedSlides,
   shortcutsDisabled,
+  userLocale,
 }: PresentationEditorProps) {
   const {
     slides,
@@ -75,6 +79,7 @@ export function PresentationEditor({
     moveSlide,
     setDeckOption,
     seedIfNeeded,
+    ensureBrand,
     undo,
     redo,
   } = useSlides(ydoc);
@@ -88,8 +93,11 @@ export function PresentationEditor({
   // identity must not reseed.
   const seedSlidesRef = useRef(seedSlides);
   useEffect(() => {
-    if (editable) seedIfNeeded(seedSlidesRef.current ?? buildBlankDeckSlides());
-  }, [editable, seedIfNeeded]);
+    if (!editable) return;
+    seedIfNeeded(seedSlidesRef.current ?? buildBlankDeckSlides());
+    // Country brand: written on first editable open (fresh AND legacy decks).
+    ensureBrand(userLocale);
+  }, [editable, seedIfNeeded, ensureBrand, userLocale]);
 
   useEffect(() => {
     if (activeIndex >= slides.length && slides.length > 0) setActiveIndex(slides.length - 1);
@@ -154,6 +162,8 @@ export function PresentationEditor({
     activeIndex,
     editable,
     accent: deckOptions.accentColor,
+    brand: deckOptions.brand,
+    showLogo: deckOptions.showLogo,
     onSelect: setActiveIndex,
     onAdd: handleAdd,
     onDelete: handleDelete,
@@ -214,6 +224,8 @@ export function PresentationEditor({
                 <SlideSurface
                   slide={active}
                   accent={deckOptions.accentColor}
+                  brand={deckOptions.brand}
+                  showLogo={deckOptions.showLogo}
                   editable={editable}
                   ydoc={ydoc}
                   onChange={(patch) => updateSlide(activeIndex, patch)}

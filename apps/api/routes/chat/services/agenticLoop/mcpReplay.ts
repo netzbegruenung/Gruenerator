@@ -19,12 +19,28 @@
  * after execution), so — unlike OpenWebUI's separate call/result items — orphans
  * are impossible here; every replayed call has its result.
  */
+import { applyContextCap } from '../../../../utils/contextCap.js';
+
 import { type PersistedStep } from './types.js';
 
 import type { ModelMessage } from 'ai';
 
 const DEFAULT_MAX_STEPS = 6;
 const RESULT_PREVIEW_CHARS = 500;
+/**
+ * Search-family results are the thread's research memory, so they get a far
+ * larger replay budget than the 500-char preview that suits an action result.
+ * A 5-hit block is ~2–3k chars (title + URL + a 320-char snippet each); at 500
+ * the follow-up turn saw roughly one and a half sources and the conversation
+ * felt amnesiac ("welche Kennzahlen gab es nochmal?" → generic answer).
+ * The upstream snippet caps already bound this: ≤10 results × ~700 chars.
+ */
+const SOURCE_RESULT_CHARS = 4000;
+
+/** A result that carries a rendered `sources` block (search/web/domain tools). */
+function carriesSources(result: Record<string, unknown>): boolean {
+  return typeof result.sources === 'string' && result.sources.trim().length > 0;
+}
 
 // A prior search tool-result embeds its OWN numbered "[1] … [2] …" source block.
 // Replayed verbatim into this turn's context, those numbers collide with this
@@ -45,7 +61,8 @@ function shortValue(result: Record<string, unknown>): string {
   }
   if (!s) return '';
   s = stripReplayCitationMarkers(s);
-  return s.length > RESULT_PREVIEW_CHARS ? `${s.slice(0, RESULT_PREVIEW_CHARS)}…` : s;
+  const cap = carriesSources(result) ? SOURCE_RESULT_CHARS : RESULT_PREVIEW_CHARS;
+  return applyContextCap(s, cap, carriesSources(result) ? 'mcpReplay:sources' : 'mcpReplay:result');
 }
 
 /**
