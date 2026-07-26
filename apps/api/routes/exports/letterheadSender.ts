@@ -17,6 +17,7 @@
 import { createLogger } from '../../utils/logger.js';
 
 import type { PdfSender } from '../../services/pdf/pdfRenderer.js';
+import type { LetterheadDispatchMode } from '@gruenerator/contracts';
 
 const log = createLogger('LetterheadSender');
 
@@ -36,6 +37,62 @@ function senderName(profile: {
   const full = [profile.first_name, profile.last_name].filter(Boolean).join(' ').trim();
   // display_name is often an informal first name; the full name wins when set.
   return full || (profile.display_name ?? '').trim();
+}
+
+/**
+ * Der Absender UND die Versandoptionen, die an derselben Zeile hängen.
+ *
+ * Zusammen, weil beides aus einem Datensatz kommt: getrennt zu holen hieße, ihn
+ * zweimal zu lesen — und die Optionen dann irgendwo zu vergessen. Genau das war
+ * der Fehler, den das hier behebt: der Chat-Pfad kannte nur den Profilnamen und
+ * hat den gespeicherten Briefkopf nie gelesen.
+ *
+ * Inline-Angaben aus dem Export-Dialog tragen keine Optionen — dann gelten die
+ * Vorgaben.
+ */
+export interface LetterheadRenderOptions {
+  sender: PdfSender | null;
+  dispatchMode: LetterheadDispatchMode;
+  returnLine: boolean;
+  foldMarks: boolean;
+  stationery: { bytes: Buffer; type: 'pdf' | 'png' | 'jpg' } | null;
+}
+
+const DEFAULT_OPTIONS: Omit<LetterheadRenderOptions, 'sender'> = {
+  dispatchMode: 'fensterkuvert',
+  returnLine: true,
+  foldMarks: true,
+  stationery: null,
+};
+
+export async function resolveLetterheadOptions(
+  userId?: string,
+  selection: LetterheadSelection = {}
+): Promise<LetterheadRenderOptions> {
+  const sender = await resolveLetterheadSender(userId, selection);
+  if (!userId) return { ...DEFAULT_OPTIONS, sender };
+  try {
+    const { getDefaultLetterhead, getLetterhead } =
+      await import('../../services/user/letterheadRepository.js');
+    const row = selection.letterheadId
+      ? await getLetterhead(userId, selection.letterheadId)
+      : await getDefaultLetterhead(userId);
+    if (!row) return { ...DEFAULT_OPTIONS, sender };
+
+    const { readStationery } = await import('../../services/user/letterheadStationery.js');
+    return {
+      sender,
+      dispatchMode:
+        row.dispatch_mode === 'direktfrankierung' ? 'direktfrankierung' : 'fensterkuvert',
+      returnLine: row.show_return_line,
+      foldMarks: row.show_fold_marks,
+      stationery: row.stationery_file ? await readStationery(userId, row.stationery_file) : null,
+    };
+  } catch (err) {
+    // Gleiche Regel wie beim Absender: ein Lesefehler darf kein PDF verhindern.
+    log.warn(`Failed to resolve letterhead options for ${userId}:`, err);
+    return { ...DEFAULT_OPTIONS, sender };
+  }
 }
 
 export async function resolveLetterheadSender(
