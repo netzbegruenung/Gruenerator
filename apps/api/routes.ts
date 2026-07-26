@@ -129,6 +129,7 @@ import { mountItemUsageContractRouter } from './routes/usage/itemUsageContractRo
 import { mountUserUsageContractRouter } from './routes/usage/userUsageContractRouter.js';
 import { recentValuesRouter } from './routes/user/index.js';
 import { mountLetterheadsContractRouter } from './routes/user/letterheadsContractRouter.js';
+import letterheadStationeryRouter from './routes/user/letterheadStationeryRouter.js';
 import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
 import { mountUserWebsitesContractRouter } from './routes/user/userWebsitesContractRouter.js';
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
@@ -388,6 +389,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   // writes user-scoped data.
   app.use('/api/auth/letterheads', requireAuth);
   mountLetterheadsContractRouter(app);
+  // Eigenes Briefpapier: multipart, deshalb ein normaler Express-Router neben
+  // dem Contract statt durch ihn hindurch. Pfade kollidieren nicht — der
+  // Contract kennt kein /:id/stationery.
+  app.use('/api/auth', letterheadStationeryRouter);
   // Neutral "my groups" endpoint used by share dialogs across features. Must
   // be `.use`'d before the contract router mounts the GET /api/auth/groups/me
   // handler so the middleware actually runs.
