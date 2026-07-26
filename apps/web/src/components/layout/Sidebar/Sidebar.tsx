@@ -244,7 +244,10 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
         </button>
       )}
 
-      <nav className={cn('flex-none overflow-x-hidden pb-sm', isDesktop ? 'pt-3' : 'pt-12')}>
+      <nav
+        data-tour="sidebar-nav"
+        className={cn('flex-none overflow-x-hidden pb-sm', isDesktop ? 'pt-3' : 'pt-12')}
+      >
         {/* Direct menu items - main navigation */}
         {additionalItems.length > 0 && (
           <div className="flex flex-col gap-0 p-0">
@@ -372,6 +375,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
       {/* Scroll region: chat threads */}
       <div
+        data-tour="sidebar-chats"
         className={cn(
           'flex-1 min-h-0 overflow-y-auto scrollbar-thin',
           !sidebarExpanded && 'hidden'
