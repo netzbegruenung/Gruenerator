@@ -129,11 +129,11 @@ const SidebarAccount = memo(function SidebarAccount({
       sideOffset={8}
       className="w-80"
     >
-      {/* Profile header — avatar + name on top, opens the Konto tab. */}
+      {/* Profile header — avatar + name on top; das Konto steht in Allgemein. */}
       <DropdownMenuItem
-        onSelect={() => openSettingsDeferred('konto')}
-        onPointerEnter={() => warmSettingsTab('konto')}
-        onFocus={() => warmSettingsTab('konto')}
+        onSelect={() => openSettingsDeferred('allgemein')}
+        onPointerEnter={() => warmSettingsTab('allgemein')}
+        onFocus={() => warmSettingsTab('allgemein')}
         onPointerLeave={cancelSettingsHoverPreload}
         className="items-center gap-2 py-2"
       >

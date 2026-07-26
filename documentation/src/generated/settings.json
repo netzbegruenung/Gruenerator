@@ -9,10 +9,6 @@
       "label": "Barrierefreiheit"
     },
     {
-      "value": "konto",
-      "label": "Konto"
-    },
-    {
       "value": "friends",
       "label": "Friends"
     },
@@ -21,8 +17,8 @@
       "label": "Personalisierung"
     },
     {
-      "value": "briefkoepfe",
-      "label": "Briefköpfe"
+      "value": "briefe",
+      "label": "Briefe"
     },
     {
       "value": "texte-anlernen",
@@ -58,6 +54,11 @@
     }
   ],
   "rows": {
+    "allgemein.konto": {
+      "tab": "allgemein",
+      "title": "Konto",
+      "description": "Name, Benutzername und E-Mail stammen aus deinem Grünen Login und werden dort geändert"
+    },
     "allgemein.aussehen": {
       "tab": "allgemein",
       "title": "Aussehen",
@@ -102,18 +103,6 @@
       "tab": "allgemein",
       "title": "Einführungs-Touren zurücksetzen",
       "description": "Zeigt die Touren durch Workplace, Dokumente, Tabellen, Präsentationen und das Sharepic-Studio beim nächsten Öffnen wieder an."
-    },
-    "konto.anzeigename": {
-      "tab": "konto",
-      "title": "Anzeigename"
-    },
-    "konto.benutzername": {
-      "tab": "konto",
-      "title": "Benutzername"
-    },
-    "konto.email": {
-      "tab": "konto",
-      "title": "E-Mail"
     },
     "benachrichtigungen.testmail": {
       "tab": "benachrichtigungen",

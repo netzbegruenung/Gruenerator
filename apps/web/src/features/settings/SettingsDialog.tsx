@@ -21,7 +21,6 @@ import {
   FiServer,
   FiSettings,
   FiSliders,
-  FiUser,
 } from 'react-icons/fi';
 import { IoAccessibilityOutline } from 'react-icons/io5';
 import { PiBrain, PiEnvelopeSimple, PiPencil, PiRobot } from 'react-icons/pi';
@@ -40,10 +39,9 @@ import {
 const NAV: { value: SettingsTab; label: string; icon: IconType; hideHeading?: boolean }[] = [
   { value: 'allgemein', label: 'Allgemein', icon: FiSettings },
   { value: 'barrierefreiheit', label: 'Barrierefreiheit', icon: IoAccessibilityOutline },
-  { value: 'konto', label: 'Konto', icon: FiUser },
   { value: 'friends', label: 'Friends', icon: PiRobot },
   { value: 'personalisierung', label: 'Personalisierung', icon: FiSliders },
-  { value: 'briefkoepfe', label: 'Briefköpfe', icon: PiEnvelopeSimple },
+  { value: 'briefe', label: 'Briefe', icon: PiEnvelopeSimple },
   { value: 'texte-anlernen', label: 'Texte anlernen', icon: PiPencil },
   { value: 'erinnerungen', label: 'Erinnerungen', icon: PiBrain, hideHeading: true },
   { value: 'benachrichtigungen', label: 'Benachrichtigungen', icon: FiBell },

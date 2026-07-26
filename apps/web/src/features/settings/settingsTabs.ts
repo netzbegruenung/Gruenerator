@@ -26,10 +26,9 @@ interface SettingsTabModule {
 const LOADERS: Record<SettingsTab, () => Promise<SettingsTabModule>> = {
   allgemein: () => import('./tabs/GeneralTab'),
   barrierefreiheit: () => import('./tabs/AccessibilityTab'),
-  konto: () => import('./tabs/AccountTab'),
   friends: () => import('./tabs/FriendsTab'),
   personalisierung: () => import('./tabs/PersonalizationTab'),
-  briefkoepfe: () => import('./tabs/LetterheadsSection'),
+  briefe: () => import('./tabs/LetterheadsSection'),
   'texte-anlernen': () => import('./tabs/TexteAnlernenTab'),
   erinnerungen: () => import('./tabs/MemoriesSection'),
   benachrichtigungen: () => import('./tabs/NotificationsTab'),
