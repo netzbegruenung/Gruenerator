@@ -44,6 +44,45 @@ const CODE_FALLBACK_MESSAGES: Partial<Record<ChatErrorCode, string>> = {
   internal: 'Es ist ein interner Fehler aufgetreten. Bitte versuche es erneut.',
 };
 
+/**
+ * Copy for a stream that stopped before the backend said it was done.
+ * Exported so the adapter and the SSE parser mark interruptions identically.
+ */
+export const STREAM_INTERRUPTED_MESSAGE = CODE_FALLBACK_MESSAGES.stream_interrupted!;
+
+/**
+ * Message status marking an assistant turn as failed.
+ *
+ * assistant-ui renders `MessagePrimitive.Error` whenever a message carries
+ * this status, so yielding it from the adapter is what makes the error banner
+ * (and its retry button) appear. Deliberately built from the same curated
+ * German copy as `streamErrorMessage` — never `err.message`, which would put
+ * provider internals in front of the user.
+ */
+export function errorStatus(
+  error: unknown,
+  response?: Response
+): { type: 'incomplete'; reason: 'error'; error: string } {
+  return {
+    type: 'incomplete',
+    reason: 'error',
+    // Strip the markdown emphasis: the banner styles the text itself.
+    error: streamErrorMessage(error, response).replace(/^⚠️\s*\*\*|\*\*/g, ''),
+  };
+}
+
+/**
+ * Diagnostic context attached to unclassified stream failures. Without it a
+ * "something went wrong" report is unactionable; with it the console line says
+ * whether the tab was offline and how far into the stream it died.
+ */
+export function streamErrorContext(startedAt: number): Record<string, unknown> {
+  return {
+    elapsedMs: Date.now() - startedAt,
+    online: typeof navigator !== 'undefined' ? navigator.onLine : null,
+  };
+}
+
 function chatStreamErrorText(error: ChatStreamError): string {
   const base =
     error.message.trim() ||

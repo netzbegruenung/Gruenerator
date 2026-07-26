@@ -118,6 +118,7 @@ import {
   getIntentMessage,
   PROGRESS_MESSAGES,
   sseInternalError,
+  sendChatWarning,
 } from './services/sseHelpers.js';
 import { buildStreamContext } from './services/streamContext.js';
 import {
@@ -1885,8 +1886,13 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       });
 
       log.info(`[ChatGraph] Complete: ${fullText.length} chars in ${totalTimeMs}ms`);
+      // Await BEFORE ending the stream: the client keeps reading until the
+      // stream closes, so a warning emitted here still reaches it. Previously
+      // this ran after sse.end() and a failed persist had no way to be
+      // reported — the turn looked perfect live and was gone on reload.
+      const persistOutcome = await persistPromise;
+      if (!persistOutcome.ok) sendChatWarning(sse, 'persist_failed');
       sse.end();
-      await persistPromise;
       // Safety net: if persist finalized (or skipped) but the placeholder is
       // still an empty streaming row (e.g. persist bailed on its own guard),
       // drop it so it can't read as an interrupted turn.

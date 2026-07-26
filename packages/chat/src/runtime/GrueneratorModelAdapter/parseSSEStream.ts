@@ -11,6 +11,7 @@ import {
 } from '@gruenerator/contracts';
 
 import { coerceSharepicVariants } from '../../hooks/useChatGraphStream';
+import { notifyWarning } from '../../lib/notify';
 import { pickStageLabels } from '../../lib/progressLabels';
 import { parseSSELine } from '../../lib/sseParser';
 import { INTENT_TO_TOOL, DEEP_TOOL_MAP, formatNamespacedToolLabel } from '../../lib/toolMappings';
@@ -166,8 +167,13 @@ export async function* parseSSEStream(
   // clarification it must NOT flip the message to requires-action — the same
   // run() continues with the executed result via the resume endpoint.
   let clientToolPending = false;
+  // Whether the backend sent a terminal event. A stream that ends without one
+  // is a failure, not a short answer (see the tail of this function).
+  let sawTerminalEvent = false;
+  let consecutiveParseErrors = 0;
   let lastYieldTime = 0;
   const YIELD_INTERVAL = 50; // ms — max 20 yields/sec, matches NotebookModelAdapter
+  const MAX_CONSECUTIVE_PARSE_ERRORS = 5;
 
   // Push a NEW card into orderedContent (event order) and break the text run.
   // parentId run-grouping (for Stufe 3's collapsed summary row): a card that
@@ -310,7 +316,20 @@ export async function* parseSSEStream(
     buffer = lines.pop() || '';
 
     for (const line of lines) {
-      const { event, data: rawData } = parseSSELine(line, currentEvent);
+      const { event, data: rawData, parseError } = parseSSELine(line, currentEvent);
+      if (parseError) {
+        // A few unparseable frames can be tolerated; a run of them means the
+        // stream is corrupt and the user must not be shown a partial answer
+        // as if it were complete.
+        if (++consecutiveParseErrors >= MAX_CONSECUTIVE_PARSE_ERRORS) {
+          throw new ChatStreamError('Die Antwort des Servers war beschädigt.', {
+            code: 'stream_interrupted',
+            retryable: true,
+          });
+        }
+        continue;
+      }
+      consecutiveParseErrors = 0;
       if (!event || !rawData) continue;
 
       // Contract gate: every known event is validated against its wire
@@ -328,6 +347,18 @@ export async function* parseSSEStream(
             gate.error.issues[0],
             rawData
           );
+          // An `error` event must NEVER be dropped: schema drift on the fatal
+          // event would silently swallow the very failure it reports. Salvage
+          // whatever string the payload has, else fall back to generic copy.
+          if (event === 'error') {
+            const raw = rawData as { error?: unknown };
+            throw new ChatStreamError(
+              typeof raw?.error === 'string' && raw.error.trim()
+                ? raw.error
+                : 'Es ist ein Fehler aufgetreten. Bitte versuche es erneut.',
+              { code: 'internal' }
+            );
+          }
           continue;
         }
         data = gate.data;
@@ -970,19 +1001,13 @@ export async function* parseSSEStream(
         }
 
         case 'warning': {
-          // Non-fatal degradation the user should know about (model fell back to
-          // default, Wolke refs dropped, …). Carries a ready-made German message.
-          // Surface as a toast; fall back to console where sonner isn't installed
-          // (e.g. mobile host), mirroring dictationErrorHandler.
+          // Non-fatal degradation carrying a ready-made German message.
+          // Note: where the turn still has a model, the answer itself explains
+          // the degradation — this toast is the fallback for the paths where
+          // no answer can carry it (persistence, notebook streams).
           const { code, message } = data as { code: string; message: string };
           console.warn(`[GrueneratorModelAdapter] warning (${code}): ${message}`);
-          if (message) {
-            void import('sonner')
-              .then(({ toast }) => toast.warning(message))
-              .catch(() => {
-                // sonner not installed in host app — console-only above is enough.
-              });
-          }
+          if (message) notifyWarning(message);
           break;
         }
 
@@ -1008,6 +1033,7 @@ export async function* parseSSEStream(
         }
 
         case 'done': {
+          sawTerminalEvent = true;
           const {
             citations: cit,
             generatedImage: img,
@@ -1182,6 +1208,7 @@ export async function* parseSSEStream(
 
         // ── Notebook mode events ──
         case 'completion': {
+          sawTerminalEvent = true;
           const completionData = data as {
             text?: string;
             citations?: Array<{
@@ -1246,6 +1273,10 @@ export async function* parseSSEStream(
   yield finalResult;
 
   outcome.interrupted = interruptPending;
+  // Report whether the backend actually finished. Without this a stream that
+  // simply closed (proxy timeout, worker recycle) was indistinguishable from a
+  // completed turn — the adapter now marks those failed instead.
+  outcome.completed = sawTerminalEvent || interruptPending || clientToolPending;
 
   if (receivedMetadata && !interruptPending && !clientToolPending) {
     callbacks.onComplete?.(receivedMetadata);
