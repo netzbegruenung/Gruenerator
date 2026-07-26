@@ -13,7 +13,8 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 import {
   type SubcategoryFilters,
   SYSTEM_COLLECTIONS,
-  getSearchableSystemCollectionIds,
+  collectionMatchesLocale,
+  getSearchableSystemCollectionIdsForLocale,
   isAgentOnlyCollectionId,
   getSearchParams,
   getSystemCollectionConfig,
@@ -37,6 +38,7 @@ import {
 } from './researchController.js';
 
 import type { DocumentResult, TopChunk } from '../../services/BaseSearchService/types.js';
+import type { UserProfile } from '../../services/user/types.js';
 import type { Application } from 'express';
 
 const log = createLogger('researchContractRouter');
@@ -48,14 +50,25 @@ interface TaggedDocumentResult extends DocumentResult {
 
 const s = initServer();
 
+// Viewer locale for scoping the DEFAULT collection set (explicit ids stay
+// unfiltered — country is a discovery hint, not an access wall). Mirrors
+// getUserLocale in notebookCollectionsContractRouter.
+function getViewerLocale(req: { user?: unknown }): 'de-DE' | 'de-AT' {
+  const user = req.user as UserProfile | undefined;
+  return user?.locale === 'de-AT' ? 'de-AT' : 'de-DE';
+}
+
 export const researchContractRouter = s.router(researchContract, {
-  collections: async () => {
-    const collections = Object.values(SYSTEM_COLLECTIONS).map((config) => ({
-      id: config.id,
-      name: config.name,
-      description: config.description,
-      filterableFields: config.filterableFields.map((f) => f.field),
-    }));
+  collections: async (args) => {
+    const viewerLocale = getViewerLocale(args.req);
+    const collections = Object.values(SYSTEM_COLLECTIONS)
+      .filter((config) => collectionMatchesLocale(config, viewerLocale))
+      .map((config) => ({
+        id: config.id,
+        name: config.name,
+        description: config.description,
+        filterableFields: config.filterableFields.map((f) => f.field),
+      }));
 
     return { status: 200 as const, body: collections };
   },
@@ -68,7 +81,7 @@ export const researchContractRouter = s.router(researchContract, {
           ? collectionIdsParam
               .split(',')
               .filter((id) => id in SYSTEM_COLLECTIONS && !isAgentOnlyCollectionId(id))
-          : getSearchableSystemCollectionIds();
+          : getSearchableSystemCollectionIdsForLocale(getViewerLocale(args.req));
 
       if (requestedIds.length === 0) {
         return { status: 400 as const, body: { error: 'No valid collection IDs provided.' } };
@@ -106,7 +119,7 @@ export const researchContractRouter = s.router(researchContract, {
 
     const requestedIds = collectionIds?.length
       ? collectionIds.filter((id) => id in SYSTEM_COLLECTIONS && !isAgentOnlyCollectionId(id))
-      : getSearchableSystemCollectionIds();
+      : getSearchableSystemCollectionIdsForLocale(getViewerLocale(args.req));
 
     if (requestedIds.length === 0) {
       return { status: 400 as const, body: { error: 'No valid collection IDs provided.' } };

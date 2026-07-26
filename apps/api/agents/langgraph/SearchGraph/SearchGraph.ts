@@ -14,7 +14,7 @@
 
 import { StateGraph, Annotation } from '@langchain/langgraph';
 
-import { getAllCollectionIds } from '../../../config/notebookCollectionMap.js';
+import { getAllCollectionIdsForLocale } from '../../../config/notebookCollectionMap.js';
 import { getDefaultAgentId, getAgent } from '../../../routes/chat/agents/agentLoader.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -320,12 +320,14 @@ export async function initializeSearchState(input: SearchGraphInput): Promise<Se
   const query =
     input.query || (typeof lastMessage?.content === 'string' ? lastMessage.content : '');
 
+  const userLocale = (input.userLocale || input.locale || 'de-DE') as UserLocale;
+
   return {
     messages: input.messages || [{ role: 'user', content: query }],
     threadId: input.threadId || null,
     searchMode: input.searchMode,
     aiWorkerPool: input.aiWorkerPool,
-    userLocale: (input.userLocale || input.locale || 'de-DE') as UserLocale,
+    userLocale,
     agentConfig,
 
     searchQuery: query,
@@ -336,7 +338,7 @@ export async function initializeSearchState(input: SearchGraphInput): Promise<Se
 
     intent: 'search',
     searchSources: ['documents', 'web'],
-    notebookCollectionIds: getAllCollectionIds(),
+    notebookCollectionIds: getAllCollectionIdsForLocale(userLocale),
     defaultNotebookCollectionIds: [],
     detectedFilters: null,
     enabledTools: { search: true, web: true, research: true },

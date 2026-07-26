@@ -48,8 +48,10 @@ import {
   resolveNotebookCollections,
   isKnownNotebook,
   isDisabledNotebook,
+  getAllCollectionIdsForLocale,
   NOTEBOOK_COLLECTION_MAP,
 } from '../../../../config/notebookCollectionMap.js';
+import { getSearchableSystemCollectionIdsForLocale } from '../../../../config/systemCollectionsConfig.js';
 import {
   searchNode,
   getDefaultCollectionsForLocale,
@@ -225,6 +227,55 @@ describe('getDefaultCollectionsForLocale', () => {
     expect(getDefaultCollectionsForLocale('en-US')).toEqual(
       getDefaultCollectionsForLocale('de-DE')
     );
+  });
+});
+
+// ─── getAllCollectionIdsForLocale (SearchGraph "Suche" sweep) ────────────
+
+describe('getAllCollectionIdsForLocale', () => {
+  it('gives Austrian users no German collections', () => {
+    expect(getAllCollectionIdsForLocale('de-AT').sort()).toEqual(['gruene-at', 'oesterreich']);
+  });
+
+  it('gives German users no Austrian collections', () => {
+    const deIds = getAllCollectionIdsForLocale('de-DE');
+    expect(deIds).not.toContain('oesterreich');
+    expect(deIds).not.toContain('gruene-at');
+    expect(deIds).toContain('deutschland');
+    expect(deIds).toContain('bayern');
+  });
+
+  it('covers at least the locale default set (sweep ⊇ chat default)', () => {
+    for (const locale of ['de-DE', 'de-AT'] as const) {
+      const sweep = getAllCollectionIdsForLocale(locale);
+      for (const id of getDefaultCollectionsForLocale(locale)) {
+        expect(sweep).toContain(id);
+      }
+    }
+  });
+
+  it('never includes agent-only collections', () => {
+    expect(getAllCollectionIdsForLocale('de-DE')).not.toContain('ricarda-lang-tweets');
+    expect(getAllCollectionIdsForLocale('de-AT')).not.toContain('ricarda-lang-tweets');
+  });
+});
+
+// ─── getSearchableSystemCollectionIdsForLocale (research default set) ────
+
+describe('getSearchableSystemCollectionIdsForLocale', () => {
+  it('gives Austrian users only Austrian collections', () => {
+    expect(getSearchableSystemCollectionIdsForLocale('de-AT').sort()).toEqual([
+      'gruene-at-system',
+      'oesterreich-gruene-system',
+    ]);
+  });
+
+  it('gives German users no Austrian collections', () => {
+    const deIds = getSearchableSystemCollectionIdsForLocale('de-DE');
+    expect(deIds).not.toContain('oesterreich-gruene-system');
+    expect(deIds).not.toContain('gruene-at-system');
+    expect(deIds).toContain('grundsatz-system');
+    expect(deIds).toContain('kommunalwiki-system');
   });
 });
 
