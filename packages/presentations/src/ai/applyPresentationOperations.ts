@@ -88,6 +88,10 @@ export function applyPresentationOperations(
             if (op.hidden != null) m.set('hidden', op.hidden);
             if (op.codeLanguage != null) m.set('codeLanguage', op.codeLanguage);
             if (op.variant != null) m.set('variant', op.variant);
+            // 'auto' is the explicit reset literal — null would mean "no change".
+            if (op.fontSize != null) {
+              m.set('fontSize', op.fontSize === 'auto' ? null : op.fontSize);
+            }
             applied += 1;
             break;
           }
