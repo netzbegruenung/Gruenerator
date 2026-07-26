@@ -14,13 +14,17 @@
  * renderer drift apart — and it puts a vocabulary question ("Dokument oder
  * Brief?") in front of the one concrete thing the user actually knows.
  *
- * The preview banner carries that rule back: it flips the moment a recipient is
- * typed, so the outcome is visible before the file exists.
+ * And there is deliberately nothing else to fill in. The dialog once asked for
+ * Betreff, Anrede, Grußformel, Ort and Unterschrift; all five are ordinary
+ * letter text and belong in the document, where the user is already writing.
+ * The export has exactly one job the document cannot do itself: put Absender
+ * and Anschrift on the millimetre positions DIN 5008 prescribes. The Betreff
+ * comes from the document title, the date from the clock.
  */
 
 import { useMemo, useState } from 'react';
 
-import { detectLetterParts, hasDetectedParts } from './letterDetection';
+import { detectRecipient } from './letterDetection';
 import { isChoiceUsable, LetterheadChooser, type LetterheadChoice } from './LetterheadChooser';
 import { useModalDialog } from './useModalDialog';
 
@@ -35,14 +39,12 @@ export interface PdfExportSubmit {
   layout: 'letterhead' | 'letter';
   /** Which Absender goes on the page — saved, or typed here. */
   letterhead: LetterheadChoice;
-  /** Only set for a letter; the letterhead export has no DIN fields. */
+  /** Only set for a letter, and only ever the anschrift. */
   letter?: LetterFields;
-  /** Drop the recognised lines from the body so they do not appear twice. */
+  /** The address came from the body and moves into the Anschriftfeld — take it
+   *  out of the text so it is not printed twice. */
   stripDetected: boolean;
 }
-
-const DEFAULT_SALUTATION = 'Sehr geehrte Damen und Herren,';
-const DEFAULT_CLOSING = 'Mit freundlichen Grüßen';
 
 const FIELD =
   'w-full rounded-lg border border-black/10 dark:border-white/15 bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-grey-500 focus:outline-none focus:ring-2 focus:ring-primary/40';
@@ -114,31 +116,21 @@ function PagePreview({ isLetter }: { isLetter: boolean }) {
 export function PdfExportDialog({
   documentTitle,
   documentText,
-  defaultSignature,
   letterheads,
   onCancel,
   onSubmit,
 }: {
   documentTitle: string;
   letterheads: Letterhead[];
-  /** Plain text of the document — the source for the prefill proposal. */
+  /** Plain text of the document — searched for an address to prefill. */
   documentText: string;
-  /** Profile name, used when the document has no signature of its own. */
-  defaultSignature: string;
   onCancel: () => void;
   onSubmit: (result: PdfExportSubmit) => void;
 }) {
   const dialogRef = useModalDialog<HTMLDivElement>(onCancel);
-  const detected = useMemo(() => detectLetterParts(documentText), [documentText]);
-  const foundSomething = hasDetectedParts(detected);
+  const detected = useMemo(() => detectRecipient(documentText), [documentText]);
 
   const [recipient, setRecipient] = useState(detected.recipient ?? '');
-  const [subject, setSubject] = useState(detected.subject ?? documentTitle);
-  const [salutation, setSalutation] = useState(detected.salutation ?? DEFAULT_SALUTATION);
-  const [closing, setClosing] = useState(detected.closing ?? DEFAULT_CLOSING);
-  const [signature, setSignature] = useState(detected.signature ?? defaultSignature);
-  const [place, setPlace] = useState('');
-  const [stripDetected, setStripDetected] = useState(foundSomething);
   const [letterhead, setLetterhead] = useState<LetterheadChoice>(() => {
     const preselected = letterheads.find((l) => l.is_default) ?? letterheads[0];
     return preselected ? { letterheadId: preselected.id } : { inline: {} };
@@ -147,6 +139,9 @@ export function PdfExportDialog({
   // The same rule the renderer applies. A letter without an address is not
   // mailable, so there is nothing in between to represent.
   const isLetter = recipient.trim().length > 0;
+  // Only ever removes what was recognised as an address block, and only when
+  // that address is actually being reprinted in the Anschriftfeld.
+  const stripDetected = isLetter && Boolean(detected.recipient);
   const canSubmit = isChoiceUsable(letterhead);
 
   return (
@@ -179,8 +174,8 @@ export function PdfExportDialog({
             </p>
             <p className="mt-0.5 text-xs text-grey-500">
               {isLetter
-                ? 'Anschriftfeld im Sichtfenster, Betreff, Anrede, Grußformel und Falzmarken.'
-                : 'Dein Absender oben links — sonst bleibt es ein Dokument. Kein Empfänger, kein Betreff, keine Anrede.'}
+                ? `Absender und Anschrift millimetergenau im Sichtfenster-Raster, dazu Datum und Falzmarken. Betreff: „${documentTitle}“.`
+                : 'Dein Absender oben links — sonst bleibt es ein Dokument. Kein Anschriftfeld, keine Falzmarken.'}
             </p>
           </div>
         </div>
@@ -193,112 +188,25 @@ export function PdfExportDialog({
           />
         </div>
 
-        <div className="flex flex-col gap-3">
-          <div>
-            <label className={LABEL} htmlFor="letter-recipient">
-              Empfänger{' '}
-              <span className="font-normal text-grey-500">(macht daraus einen Brief)</span>
-            </label>
-            <textarea
-              id="letter-recipient"
-              className={FIELD}
-              rows={4}
-              value={recipient}
-              onChange={(e) => setRecipient(e.target.value)}
-              placeholder={'Name\nStraße und Hausnummer\nPLZ Ort'}
-              aria-describedby="letter-recipient-hint"
-            />
-            <p id="letter-recipient-hint" className="mt-1 text-xs text-grey-500">
-              Eine Zeile je Adresszeile. Leer lassen für ein Dokument ohne Anschrift.
-            </p>
-          </div>
-
-          {/* The DIN fields only exist for a letter — showing them next to an
-              empty recipient would suggest they change anything. */}
-          {isLetter && (
-            <>
-              {foundSomething && (
-                <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
-                  <p className="text-[0.8125rem] text-foreground">
-                    Aus dem Dokument übernommen — bitte prüfen.
-                  </p>
-                  <label className="mt-2 flex items-start gap-2 text-[0.8125rem] text-foreground">
-                    <input
-                      type="checkbox"
-                      className="mt-0.5"
-                      checked={stripDetected}
-                      onChange={(e) => setStripDetected(e.target.checked)}
-                    />
-                    <span>
-                      Erkannte Zeilen aus dem Dokumenttext entfernen, damit sie nicht doppelt
-                      erscheinen
-                    </span>
-                  </label>
-                </div>
-              )}
-
-              <div>
-                <label className={LABEL} htmlFor="letter-subject">
-                  Betreff
-                </label>
-                <input
-                  id="letter-subject"
-                  className={FIELD}
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label className={LABEL} htmlFor="letter-salutation">
-                  Anrede
-                </label>
-                <input
-                  id="letter-salutation"
-                  className={FIELD}
-                  value={salutation}
-                  onChange={(e) => setSalutation(e.target.value)}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={LABEL} htmlFor="letter-closing">
-                    Grußformel
-                  </label>
-                  <input
-                    id="letter-closing"
-                    className={FIELD}
-                    value={closing}
-                    onChange={(e) => setClosing(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className={LABEL} htmlFor="letter-place">
-                    Ort <span className="font-normal text-grey-500">(optional)</span>
-                  </label>
-                  <input
-                    id="letter-place"
-                    className={FIELD}
-                    value={place}
-                    onChange={(e) => setPlace(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className={LABEL} htmlFor="letter-signature">
-                  Unterschrift
-                </label>
-                <input
-                  id="letter-signature"
-                  className={FIELD}
-                  value={signature}
-                  onChange={(e) => setSignature(e.target.value)}
-                />
-              </div>
-            </>
-          )}
+        <div>
+          <label className={LABEL} htmlFor="letter-recipient">
+            Empfänger <span className="font-normal text-grey-500">(macht daraus einen Brief)</span>
+          </label>
+          <textarea
+            id="letter-recipient"
+            className={FIELD}
+            rows={4}
+            value={recipient}
+            onChange={(e) => setRecipient(e.target.value)}
+            placeholder={'Name\nStraße und Hausnummer\nPLZ Ort'}
+            aria-describedby="letter-recipient-hint"
+          />
+          <p id="letter-recipient-hint" className="mt-1 text-xs text-grey-500">
+            Eine Zeile je Adresszeile. Leer lassen für ein Dokument ohne Anschrift.
+            {stripDetected
+              ? ' Sie stammt aus dem Dokument und wird dort entfernt — im Brief steht sie im Anschriftfeld.'
+              : ' Anrede, Grußformel und Unterschrift schreibst du im Dokument.'}
+          </p>
         </div>
 
         <div className="mt-5 flex justify-end gap-2">
@@ -317,17 +225,8 @@ export function PdfExportDialog({
               onSubmit({
                 layout: isLetter ? 'letter' : 'letterhead',
                 letterhead,
-                stripDetected: isLetter && stripDetected,
-                ...(isLetter && {
-                  letter: {
-                    recipient: recipient.trim(),
-                    ...(subject.trim() && { subject: subject.trim() }),
-                    ...(salutation.trim() && { salutation: salutation.trim() }),
-                    ...(closing.trim() && { closing: closing.trim() }),
-                    ...(signature.trim() && { signature: signature.trim() }),
-                    ...(place.trim() && { place: place.trim() }),
-                  },
-                }),
+                stripDetected,
+                ...(isLetter && { letter: { recipient: recipient.trim() } }),
               })
             }
           >
