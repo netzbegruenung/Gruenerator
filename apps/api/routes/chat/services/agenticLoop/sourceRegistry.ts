@@ -61,10 +61,41 @@ function resultKey(r: SearchResult): string {
   return `${r.url ?? ''}::${r.title ?? ''}::${(r.content ?? '').slice(0, 80)}`;
 }
 
+/**
+ * Numbered source block for results that never went through a registry — the
+ * single-pass create turns, which have no loop and therefore no registry, read
+ * their prior research straight from the thread. Same line shape as the loop's
+ * blocks so the artifact prompts only ever have to recognise one format.
+ */
+export function renderSourceLines(results: SearchResult[], cap = SNIPPET_CHARS): string {
+  return results
+    .filter((r) => (r.content ?? '').trim())
+    .map((r, i) => snippetLine(i + 1, r, cap))
+    .join('\n');
+}
+
+/**
+ * Appends a numbered source block to a generation brief. The single place that
+ * phrases it, so the artifact prompts (PDF/deck/sheet) can match on the exact
+ * shape they're told to expect. Returns the brief unchanged when there is
+ * nothing to append.
+ */
+export function withResearchedSources(brief: string, sourcesBlock: string): string {
+  return sourcesBlock.trim()
+    ? `${brief}\n\nNutze diese recherchierten Quellen für die Inhalte:\n${sourcesBlock}`
+    : brief;
+}
+
+// The URL is part of the line because the snippet block is the ONLY view of a
+// source any writing model gets. Without it an artifact tool (PDF, deck, sheet)
+// can cite `[N]` but is structurally unable to reproduce the original link —
+// "erstelle ein PDF mit den Originalquellen" then yields placeholder URLs.
+// `[N]` stays the citation marker; the URL is the payload behind it.
 function snippetLine(index: number, r: SearchResult, cap = SNIPPET_CHARS): string {
   const title = (r.title || r.source || 'Quelle').trim();
   const body = (r.content ?? '').replace(/\s+/g, ' ').trim().slice(0, cap);
-  return `[${index}] ${title}${body ? ` — ${body}` : ''}`;
+  const url = typeof r.url === 'string' && r.url.trim() ? ` <${r.url.trim()}>` : '';
+  return `[${index}] ${title}${url}${body ? ` — ${body}` : ''}`;
 }
 
 export function createSourceRegistry(): SourceRegistry {

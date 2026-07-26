@@ -44,7 +44,7 @@ import { runAgenticLoop, type LoopMode } from './loopEngine.js';
 import { createToolLoopGuards } from './loopGuards.js';
 import { buildToolObservationReplay } from './mcpReplay.js';
 import { resolveEditorSurfaceKind } from './routing.js';
-import { createSourceRegistry } from './sourceRegistry.js';
+import { createSourceRegistry, withResearchedSources } from './sourceRegistry.js';
 import {
   DEFAULT_LOOP_BUDGET,
   readMcpResult,
@@ -412,18 +412,31 @@ export async function streamAgenticResponse(params: {
       }
     }
 
-    // Cross-turn source rehydration (editor surfaces only): seed the registry
-    // with the sources gathered in the last research turn so the edit op-planner
-    // grounds "trag die recherchierten Zahlen ein" even when the search ran turns
-    // ago. Feeds ONLY renderReference() (op-planner) — not this turn's citations/
-    // synth block. Gated to edit surfaces so normal chat never inherits stale
-    // sources. Defensive: a failed read just skips seeding.
-    if (threadId && finalState.editToolSurface) {
+    // Cross-turn source rehydration: seed the registry with the sources gathered
+    // in the last research turn so a follow-up grounds against research that ran
+    // turns ago — "trag die recherchierten Zahlen ein" (edit surfaces) and
+    // "erstelle ein PDF mit den Originalquellen aus der Recherche" (generation).
+    //
+    // Complements the structured tool replay (buildToolObservationReplay), which
+    // strips the [N] markers and only replays steps whose tool is mounted THIS
+    // turn. This reads the persisted SearchResult[] directly, so the research
+    // survives even when the search tool isn't in the current catalog.
+    //
+    // Feeds ONLY renderReference() — not this turn's citations/synth block — so
+    // carried sources ground the answer without producing dangling [N] chips for
+    // sources this turn never fetched.
+    //
+    // Deliberately UNGATED (was: edit surfaces only). A thread that just looked
+    // something up should still know it a few messages later — dropping the
+    // research the moment the turn ends is what makes a follow-up feel amnesiac.
+    // Bounded by getRecentThreadSources itself: only the most recent assistant
+    // message carrying sources, capped at 10, snippets already trimmed.
+    if (threadId) {
       try {
         const carried = await getRecentThreadSources(threadId);
         if (carried.length > 0) {
           sourceRegistry.seedCarried(carried);
-          log.info(`[Agentic] rehydrated ${carried.length} prior source(s) for edit grounding`);
+          log.info(`[Agentic] rehydrated ${carried.length} prior source(s) for grounding`);
         }
       } catch (err) {
         log.warn(
@@ -647,11 +660,15 @@ export async function streamAgenticResponse(params: {
         | { execute?: (input: unknown, opts: { toolCallId: string }) => Promise<unknown> }
         | undefined;
       if (!genTool?.execute) return;
+      // The brief stays the bare ask: the doc/PDF tools append the source block
+      // themselves (withResearchedSources), so enriching it here would emit the
+      // sources twice. `sharepic`/`board` have no registry of their own, so they
+      // still get the enriched form.
       const userAsk = lastUserAsk();
-      const sourcesBlock = sourceRegistry.renderAll();
-      const brief = sourcesBlock
-        ? `${userAsk}\n\nNutze diese recherchierten Quellen für die Inhalte:\n${sourcesBlock}`
-        : userAsk;
+      const selfSourcing = kind !== 'sharepic' && kind !== 'board';
+      const brief = selfSourcing
+        ? userAsk
+        : withResearchedSources(userAsk, sourceRegistry.renderAll());
       // Both arg shapes: doc/board tools read `prompt`, sharepic reads `text`.
       const args = { prompt: brief, text: brief };
       const stepId = 'forced-generation';
