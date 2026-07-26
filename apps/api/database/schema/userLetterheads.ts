@@ -15,6 +15,17 @@ export const userLetterheads = pgTable(
     organization: text('organization'),
     /** Multi-line free text — senderLines() splits it on '\n'. */
     address: text('address'),
+    /**
+     * 'fensterkuvert' | 'direktfrankierung' — steuert, ob oben rechts die
+     * Freimachungszone freibleibt. Kein pgEnum: der Check-Constraint steht in
+     * der Migration, die geschlossene Menge erzwingt das Zod-Schema am
+     * HTTP-Rand.
+     */
+    dispatch_mode: text('dispatch_mode').notNull().default('fensterkuvert'),
+    show_return_line: boolean('show_return_line').notNull().default(true),
+    show_fold_marks: boolean('show_fold_marks').notNull().default(true),
+    /** Dateiname des eigenen Briefbogens unter uploads/letterheads/<user_id>/. */
+    stationery_file: text('stationery_file'),
     is_default: boolean('is_default').notNull().default(false),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

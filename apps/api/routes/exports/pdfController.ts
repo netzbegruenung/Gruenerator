@@ -12,7 +12,12 @@
 import express, { type Request, type Response } from 'express';
 
 import { contentToBlocks } from '../../services/pdf/contentToBlocks.js';
-import { renderPdf, type PdfLocale, type PdfSender } from '../../services/pdf/pdfRenderer.js';
+import {
+  renderPdf,
+  type PdfLocale,
+  type PdfSender,
+  type RenderPdfOptions,
+} from '../../services/pdf/pdfRenderer.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
@@ -40,7 +45,10 @@ const sanitizeFilename = sanitizePdfFilename;
  * Core PDF generation logic, extracted so it can be reused by the
  * ts-rest contract router without duplicating the Express handler.
  */
-export interface PdfExportOptions {
+export interface PdfExportOptions extends Pick<
+  RenderPdfOptions,
+  'dispatchMode' | 'returnLine' | 'foldMarks' | 'stationery'
+> {
   /** See PdfExportLayout — 'letterhead' adds the Absender, 'letter' is DIN 5008. */
   layout?: PdfExportLayout;
   /** Resolved server-side from the caller's profile; never taken from the body. */
@@ -73,6 +81,10 @@ export async function generatePdfBuffer(
     locale,
     sender: options.sender ?? null,
     letterhead: layout === 'letterhead',
+    ...(options.dispatchMode !== undefined && { dispatchMode: options.dispatchMode }),
+    ...(options.returnLine !== undefined && { returnLine: options.returnLine }),
+    ...(options.foldMarks !== undefined && { foldMarks: options.foldMarks }),
+    ...(options.stationery !== undefined && { stationery: options.stationery }),
   });
   if (rendered.missingGlyphs.length) {
     log.warn(
