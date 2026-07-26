@@ -3,6 +3,8 @@ import { fetch as expoFetch } from 'expo/fetch';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 
+import { DEV_DOCUMENTS, DEV_FIXTURES_ENABLED } from '../devFixtures';
+
 const API_BASE_URL = process.env.EXPO_PUBLIC_DOCS_API_URL || 'https://gruenerator.eu/api';
 
 export interface Document {
@@ -104,11 +106,13 @@ export async function exportDocument(
 
 export const docsService = {
   async fetchDocuments(): Promise<Document[]> {
+    if (DEV_FIXTURES_ENABLED) return DEV_DOCUMENTS;
     const response = await apiRequest<Document[]>('get', ENDPOINTS.LIST);
     return response || [];
   },
 
   async fetchDocument(id: string): Promise<Document | null> {
+    if (DEV_FIXTURES_ENABLED) return DEV_DOCUMENTS.find((d) => d.id === id) ?? null;
     const response = await apiRequest<Document>('get', ENDPOINTS.GET(id));
     return response || null;
   },
