@@ -6,6 +6,7 @@ export type SettingsTab =
   | 'konto'
   | 'friends'
   | 'personalisierung'
+  | 'briefkoepfe'
   | 'texte-anlernen'
   | 'erinnerungen'
   | 'benachrichtigungen'

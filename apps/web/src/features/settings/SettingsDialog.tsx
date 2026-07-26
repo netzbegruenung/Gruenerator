@@ -23,7 +23,7 @@ import {
   FiUser,
 } from 'react-icons/fi';
 import { IoAccessibilityOutline } from 'react-icons/io5';
-import { PiBrain, PiPencil, PiRobot } from 'react-icons/pi';
+import { PiBrain, PiEnvelopeSimple, PiPencil, PiRobot } from 'react-icons/pi';
 
 import Spinner from '../../components/common/Spinner';
 
@@ -36,6 +36,7 @@ const NAV: { value: SettingsTab; label: string; icon: IconType; hideHeading?: bo
   { value: 'konto', label: 'Konto', icon: FiUser },
   { value: 'friends', label: 'Friends', icon: PiRobot },
   { value: 'personalisierung', label: 'Personalisierung', icon: FiSliders },
+  { value: 'briefkoepfe', label: 'Briefköpfe', icon: PiEnvelopeSimple },
   { value: 'texte-anlernen', label: 'Texte anlernen', icon: PiPencil },
   { value: 'erinnerungen', label: 'Erinnerungen', icon: PiBrain, hideHeading: true },
   { value: 'benachrichtigungen', label: 'Benachrichtigungen', icon: FiBell },
@@ -52,6 +53,7 @@ const TAB_COMPONENTS: Record<SettingsTab, LazyExoticComponent<ComponentType>> = 
   konto: lazy(() => import('./tabs/AccountTab')),
   friends: lazy(() => import('./tabs/FriendsTab')),
   personalisierung: lazy(() => import('./tabs/PersonalizationTab')),
+  briefkoepfe: lazy(() => import('./tabs/LetterheadsSection')),
   'texte-anlernen': lazy(() => import('./tabs/TexteAnlernenTab')),
   erinnerungen: lazy(() => import('./tabs/MemoriesSection')),
   benachrichtigungen: lazy(() => import('./tabs/NotificationsTab')),
