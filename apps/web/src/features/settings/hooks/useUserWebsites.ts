@@ -11,16 +11,19 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 const QUERY_KEY = ['user-websites'] as const;
 
+/** Shared by the hook and the tab's preload, so both hit the same cache entry. */
+export const userWebsitesQuery = {
+  queryKey: QUERY_KEY,
+  queryFn: async (): Promise<UserWebsite[]> => {
+    const result = await getContractsClient().userWebsites.listWebsites();
+    if (result.status !== 200) throw new Error('Websites konnten nicht geladen werden.');
+    return result.body.websites;
+  },
+  staleTime: 5 * 60 * 1000,
+};
+
 export function useUserWebsites() {
-  return useQuery({
-    queryKey: QUERY_KEY,
-    queryFn: async (): Promise<UserWebsite[]> => {
-      const result = await getContractsClient().userWebsites.listWebsites();
-      if (result.status !== 200) throw new Error('Websites konnten nicht geladen werden.');
-      return result.body.websites;
-    },
-    staleTime: 5 * 60 * 1000,
-  });
+  return useQuery(userWebsitesQuery);
 }
 
 export function useAddUserWebsite() {
