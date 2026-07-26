@@ -143,8 +143,8 @@ describe('convertToThreadMessageLike — reload reconstruction', () => {
     expect(custom.socialPostData).toBeUndefined();
   });
 
-  it('rehydrates a persisted bundestag tool result onto custom.bundestagData', () => {
-    const persisted = {
+  it('ignores a legacy persisted bundestag payload without crashing (card retired)', () => {
+    const legacyPayload = {
       kind: 'document',
       document: {
         drucksache: {
@@ -169,13 +169,9 @@ describe('convertToThreadMessageLike — reload reconstruction', () => {
       },
     };
     const custom = customOf({
-      toolCalls: [{ toolCallId: 'tc1', toolName: 'bundestag', args: {}, result: persisted }],
+      toolCalls: [{ toolCallId: 'tc1', toolName: 'bundestag', args: {}, result: legacyPayload }],
     });
-    expect((custom.bundestagData as { kind?: string })?.kind).toBe('document');
-    expect(
-      (custom.bundestagData as { document?: { drucksache?: { dokumentnummer?: string } } })
-        ?.document?.drucksache?.dokumentnummer
-    ).toBe('21/50');
+    expect('bundestagData' in custom).toBe(false);
   });
 
   it('rehydrates the LAST persisted bahn__* step onto custom.bahnData', () => {
@@ -271,15 +267,6 @@ describe('convertToThreadMessageLike — reload reconstruction', () => {
       ],
     });
     expect(custom.bahnData).toBeUndefined();
-  });
-
-  it('drops a malformed bundestag tool result', () => {
-    const custom = customOf({
-      toolCalls: [
-        { toolCallId: 'tc1', toolName: 'bundestag', args: {}, result: { kind: 'weird' } },
-      ],
-    });
-    expect(custom.bundestagData).toBeUndefined();
   });
 
   it('rehydrates reel_processing and reel_picker cards from persisted tool calls', () => {

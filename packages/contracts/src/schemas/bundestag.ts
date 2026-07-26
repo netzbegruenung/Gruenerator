@@ -1,8 +1,9 @@
 /**
- * Bundestag DIP wire payloads — the trimmed, LLM-safe shapes that leave the
- * `apps/api` Bundestag MCP client and travel over the chat SSE stream to the
- * `BundestagCard`. Canonical source of truth for the DTO types; `apps/api`
- * re-exports these (the RAW MCP schemas + cleaning helpers stay client-side).
+ * Bundestag DIP wire shapes — the trimmed, LLM-safe DTOs produced by the
+ * `apps/api` Bundestag MCP client. Canonical source of truth for the DTO
+ * types; `apps/api` re-exports these (the RAW MCP schemas + cleaning helpers
+ * stay client-side). Chat surfaces the results as standard SearchResults /
+ * citations — there is no bespoke wire payload anymore.
  *
  * Data originates from the "Bundestag Wrapped" MCP (DIP API + semantic layer).
  */
@@ -74,42 +75,7 @@ export const btVorgangSchema = z.object({
 });
 export type BtVorgang = z.infer<typeof btVorgangSchema>;
 
-// ── Composite chat payload (mirrors BtEnrichedResult, discriminated on `kind`) ─
-export const bundestagPersonBlockSchema = z.object({
-  person: btPersonSchema,
-  aktivitaeten: z.array(btAktivitaetSchema),
-  speeches: z.array(btSpeechSchema),
-});
-
-export const bundestagDocumentBlockSchema = z.object({
-  drucksache: btDrucksacheSchema,
-  siblings: z.array(btDrucksacheSchema),
-  vorgang: btVorgangSchema.nullable(),
-});
-
-export const bundestagTopicBlockSchema = z.object({
-  hits: z.array(btSemanticHitSchema),
-  speeches: z.array(btSpeechSchema),
-  documents: z.array(btDrucksacheSchema),
-  vorgaenge: z.array(btVorgangSchema),
-});
-
-export const bundestagPayloadSchema = z.object({
-  kind: z.enum(['person', 'document', 'topic', 'none']),
-  person: bundestagPersonBlockSchema.optional(),
-  document: bundestagDocumentBlockSchema.optional(),
-  topic: bundestagTopicBlockSchema.optional(),
-  notes: z.array(z.string()),
-  metadata: z.object({
-    query: z.string(),
-    extractedName: z.string().nullable(),
-    matchedDokumentnummer: z.string().nullable(),
-    fetchTimeMs: z.number(),
-  }),
-});
-export type BundestagPayload = z.infer<typeof bundestagPayloadSchema>;
-
-// ── Shared DIP link helpers (used by both the backend mapper and the card) ────
+// ── Shared DIP link helpers (used by the backend SearchResult mapper) ─────────
 /** DIP full-text search link — the never-404 fallback for any citation. */
 export function dipSearchUrl(term: string): string {
   return `https://dip.bundestag.de/suche?term=${encodeURIComponent(term)}`;

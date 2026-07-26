@@ -30,7 +30,6 @@ import type {
   SearchResultPayload,
   ThinkingStepPayload,
   SocialPostPayload,
-  BundestagPayload,
   BahnPayload,
   ChatErrorCode,
 } from '@gruenerator/contracts';
@@ -84,7 +83,6 @@ export type SSEEventType =
   | 'chart_data'
   | 'artifact'
   | 'compute'
-  | 'bundestag'
   | 'bahn'
   | 'memory_context'
   | 'completion'
@@ -278,9 +276,6 @@ export interface SSEEventPayloads {
   };
   compute: {
     compute: ComputeData;
-  };
-  bundestag: {
-    bundestag: BundestagPayload;
   };
   bahn: {
     bahn: BahnPayload;
