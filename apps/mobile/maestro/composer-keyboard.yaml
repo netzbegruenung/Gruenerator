@@ -6,11 +6,20 @@
 # renderer-level test, which has no keyboard and no safe area.
 appId: de.gruenerator.app
 ---
+# No clearState: these run against a local DEBUG build, where clearing state
+# also wipes the dev-launcher's saved Metro URL and the app relaunches into the
+# launcher instead of itself. The release APK EAS builds has no launcher, so
+# boot-to-login can and does clear state.
 - launchApp:
-    clearState: true
     stopApp: true
+- runFlow: _dev-client-preamble.yaml
 
-- assertVisible: 'Chat'
+# Wait rather than assert: a debug build pulls the bundle from Metro on first
+# launch (~10s), and the splash only hands over once fonts and the rehydrated
+# onboarding flag both settle.
+- extendedWaitUntil:
+    visible: 'Chat'
+    timeout: 60000
 - tapOn:
     id: 'chat-composer-input'
 

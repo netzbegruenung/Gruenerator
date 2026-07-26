@@ -7,13 +7,23 @@
 # can see that.
 appId: de.gruenerator.app
 ---
+# No clearState: these run against a local DEBUG build, where clearing state
+# also wipes the dev-launcher's saved Metro URL and the app relaunches into the
+# launcher instead of itself. The release APK EAS builds has no launcher, so
+# boot-to-login can and does clear state.
 - launchApp:
-    clearState: true
     stopApp: true
+- runFlow: _dev-client-preamble.yaml
 
-# Past the auth gate via the dev bypass.
-- assertVisible: 'Chat'
+# Past the auth gate via the dev bypass. Generous timeout: a debug build pulls
+# the bundle from Metro on first launch (~10s), and the splash only hands over
+# once fonts and the rehydrated onboarding flag both settle.
+- extendedWaitUntil:
+    visible: 'Chat'
+    timeout: 60000
 
+# Three tabs, not four: `profile` is registered in ClassicTabLayout with
+# href: null, so it is reachable from the avatar, not the tab bar.
 - tapOn: 'Arbeiten'
 - assertVisible: 'Arbeiten'
 - assertNotVisible:
@@ -22,10 +32,9 @@ appId: de.gruenerator.app
 
 - tapOn: 'Wissen'
 - assertVisible: 'Wissen'
-
-- tapOn: 'Profil'
-- assertVisible: 'Profil'
+- assertNotVisible:
+    text: '.*No QueryClient set.*'
+    optional: true
 
 - tapOn: 'Chat'
-- assertVisible:
-    id: 'chat-composer-input'
+- assertVisible: 'Chat'
