@@ -40,9 +40,17 @@ export const BoardCard = memo(function BoardCard({
         'group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border border-grey-200/80 bg-background',
         'transition-[box-shadow,border-color,transform] duration-150',
         'hover:-translate-y-0.5 hover:border-secondary-300 hover:shadow-md',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
         'dark:border-grey-700/60 dark:hover:border-secondary-700'
       )}
       onClick={handleClick}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return;
+        e.preventDefault();
+        handleClick();
+      }}
+      role="button"
+      tabIndex={0}
     >
       <div className="h-[210px] overflow-hidden border-b border-grey-100 bg-grey-50 p-4 dark:border-grey-700/60 dark:bg-grey-800/40">
         <BoardPreviewBody
