@@ -46,7 +46,10 @@ const RAW_RESULT_MAX_CHARS = 400_000;
  * bahn board mid-JSON and clip the news [N]-citation block. Staying below the
  * threshold means the model always sees the complete, untruncated result.
  */
-const MODEL_RESULT_MAX_CHARS = 5_000;
+// Raised with the retrieval caps: 5k truncated a news or timetable payload
+// mid-list. The numbered source block is protected separately below, so this
+// only bounds the raw remainder.
+const MODEL_RESULT_MAX_CHARS = 25_000;
 const ERROR_MAX_CHARS = 2_000;
 // ~15 entries ≈ 3-4k chars serialized — complete for the model AND more than
 // the card renders (8 rows + "+N weitere").
@@ -199,7 +202,9 @@ export function extractNewsResults(text: string): SearchResult[] {
       .replace(/^##\s+.+$/m, '')
       .replace(/\s+/g, ' ')
       .trim()
-      .slice(0, 400);
+      // 400 left a headline plus two sentences — a follow-up detail question
+      // then had nothing behind it.
+      .slice(0, 2_000);
     results.push({
       source: 'tagesschau',
       title,
