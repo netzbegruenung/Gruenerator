@@ -77,12 +77,13 @@ describe('AVAILABLE_MODELS', () => {
 describe('getContextWindow', () => {
   // Measured 2026-07-26, not copied from datasheets. Mistral reports its own
   // limit on overflow (`262144 maximum context length`); the Ollama-backed
-  // Verdigado lanes silently truncate instead of erroring, so they carry the
-  // largest size verified end-to-end rather than their nominal one.
+  // Verdigado lanes silently truncate instead of erroring, and the observed
+  // truncation point was 64Ki — so they stay below that rather than at the
+  // nominal window.
   it('returns correct context window for known models', () => {
     expect(getContextWindow('mistral-large')).toBe(262_144);
-    expect(getContextWindow('gpt-oss')).toBe(120_000);
-    expect(getContextWindow('gemma-4')).toBe(120_000);
+    expect(getContextWindow('gpt-oss')).toBe(64_000);
+    expect(getContextWindow('gemma-4')).toBe(64_000);
     expect(getContextWindow('regolo')).toBe(262_144);
   });
 
@@ -97,12 +98,12 @@ describe('getContextWindow', () => {
 
   it('uses provider fallback when model is unknown', () => {
     expect(getContextWindow('auto', 'mistral')).toBe(262_144);
-    expect(getContextWindow('auto', 'litellm')).toBe(120_000);
+    expect(getContextWindow('auto', 'litellm')).toBe(64_000);
     expect(getContextWindow('auto', 'regolo')).toBe(262_144);
   });
 
   it('legacy litellm ID resolves to overflow lane window', () => {
-    expect(getContextWindow('litellm', 'mistral')).toBe(120_000);
+    expect(getContextWindow('litellm', 'mistral')).toBe(64_000);
   });
 
   // The unknown-model fallback stays conservative on purpose: an unrecognised
@@ -130,7 +131,7 @@ describe('getModelConfig', () => {
     if (config!.kind === 'overflow') {
       expect(config.primary.provider).toBe('litellm');
       expect(config.overflow.provider).toBe('regolo');
-      expect(config.contextWindow).toBe(120_000);
+      expect(config.contextWindow).toBe(64_000);
     }
   });
 
