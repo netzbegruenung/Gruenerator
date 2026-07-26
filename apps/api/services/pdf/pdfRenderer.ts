@@ -28,6 +28,7 @@ import {
   PDFRef,
   rgb,
   type PDFDict,
+  type PDFEmbeddedPage,
   type PDFFont,
   type PDFForm,
   type PDFImage,
@@ -76,6 +77,24 @@ export interface RenderPdfOptions {
    * so a derived rule would silently give them a letterhead.
    */
   letterhead?: boolean;
+  /**
+   * Versandweg. Die DIN-5008-Geometrie ist für beide dieselbe — verschieden ist
+   * nur, ob oben rechts 74 × 40 mm für Freimachung und Matchcode freibleiben
+   * müssen. Kommt aus dem Briefkopf der Nutzer*in, weil es vom gewählten
+   * Versanddienst abhängt und nicht von uns.
+   */
+  dispatchMode?: 'fensterkuvert' | 'direktfrankierung';
+  /** Absenderzeile im Sichtfenster. Aus, wenn der Briefbogen sie schon trägt. */
+  returnLine?: boolean;
+  /** Falz- und Lochmarken — beim Selbstdruck nützlich, beim Dienstleister nicht. */
+  foldMarks?: boolean;
+  /**
+   * Eigener Briefbogen, der UNTER den Text gelegt wird: PDF (erste Seite auf
+   * Seite 1, zweite auf alle Folgeseiten — das klassische Briefbogen/Folgebogen-
+   * Paar) oder ein Bild. Trägt er Logo und Absender, zeichnet der Renderer
+   * beides nicht noch einmal darüber.
+   */
+  stationery?: { bytes: Buffer; type: 'pdf' | 'png' | 'jpg' } | null;
 }
 
 export interface RenderPdfResult {
@@ -165,6 +184,12 @@ const SUBJECT_TOP = ADDRESS_FIELD.top + ADDRESS_FIELD.height + 2 * ADDRESS_FIELD
  * the address side, so nothing of ours may be there. The reserve keeps body
  * text a further margin above it; the footer is drawn in between.
  */
+/**
+ * Freimachungszone: wird direkt aufs Blatt frankiert statt aufs Kuvert, muss
+ * oben rechts dieses Feld frei bleiben — dort sitzen Freimachungsvermerk und
+ * Matchcode. Im Fensterkuvert ist es belanglos, deshalb hängt es am Versandweg.
+ */
+const FRANKING_ZONE = { width: 74 * MM, height: 40 * MM };
 const CODING_ZONE = 15 * MM;
 const FOOTER_BASELINE = CODING_ZONE + 5;
 const MARGIN_L = 25 * MM;
@@ -509,6 +534,11 @@ interface TextStyle {
 
 type FieldBlock = Extract<PdfBlock, { type: 'field' }>;
 
+/** Eingebetteter Briefbogen: PDF-Seiten oder ein Bild, beides vollflächig. */
+type Stationery =
+  | { kind: 'page'; first: PDFEmbeddedPage; rest: PDFEmbeddedPage }
+  | { kind: 'image'; image: PDFImage };
+
 class PdfRenderer {
   private page: PDFPage;
   private y: number;
@@ -529,11 +559,13 @@ class PdfRenderer {
     private readonly theme: Theme,
     private readonly logo: PDFImage,
     private readonly spec: PdfDocumentSpec,
-    private readonly opts: RenderPdfOptions
+    private readonly opts: RenderPdfOptions,
+    private readonly stationery: Stationery | null = null
   ) {
     this.tagger = new PdfTagger(doc, { language: spec.language, title: spec.title });
     this.form = doc.getForm();
     this.page = doc.addPage([PAGE_W, PAGE_H]);
+    this.drawStationery();
     this.y = CONTINUATION_TOP;
   }
 
@@ -541,7 +573,25 @@ class PdfRenderer {
 
   private newPage(): void {
     this.page = this.doc.addPage([PAGE_W, PAGE_H]);
+    this.drawStationery();
     this.y = CONTINUATION_TOP;
+  }
+
+  /**
+   * Briefbogen unter den Inhalt legen. Muss direkt nach dem Anlegen der Seite
+   * laufen: der Inhaltsstrom wird in Zeichenreihenfolge gemalt, später gezogen
+   * läge der Bogen ÜBER dem Text.
+   */
+  private drawStationery(): void {
+    const stationery = this.stationery;
+    if (!stationery) return;
+    const page = this.page;
+    const first = this.doc.getPageCount() === 1;
+    this.tagger.artifact(page, () => {
+      const box = { x: 0, y: 0, width: PAGE_W, height: PAGE_H };
+      if (stationery.kind === 'image') page.drawImage(stationery.image, box);
+      else page.drawPage(first ? stationery.first : stationery.rest, box);
+    });
   }
 
   private ensureSpace(needed: number): void {
@@ -549,13 +599,20 @@ class PdfRenderer {
   }
 
   private drawLogo(): void {
+    // Der eigene Briefbogen trägt seine eigene Marke — unser Logo daraufzulegen
+    // ergäbe zwei Absender auf einem Blatt.
+    if (this.stationery) return;
     const height = this.theme.logoHeight;
     const width = (this.logo.width / this.logo.height) * height;
     const page = this.page;
+    // Bei Direktfrankierung gehören die oberen 40 mm rechts der Post: dort
+    // landen Freimachung und Matchcode. Das Logo rückt darunter, auf Höhe des
+    // Anschriftfelds, und bleibt rechts vom Sichtfenster.
+    const top = this.opts.dispatchMode === 'direktfrankierung' ? FRANKING_ZONE.height + 2 : 42;
     this.tagger.artifact(page, () =>
       page.drawImage(this.logo, {
         x: PAGE_W - MARGIN_R - width,
-        y: PAGE_H - 42 - height,
+        y: PAGE_H - top - height,
         width,
         height,
       })
@@ -1491,7 +1548,8 @@ class PdfRenderer {
    * artifact, so a screen reader can reach the sender's identity.
    */
   private drawSenderBlock(sender: string[]): void {
-    if (!sender.length) return;
+    // Auf eigenem Briefpapier steht der Absender schon im Kopf des Bogens.
+    if (!sender.length || this.stationery) return;
     this.tagger.open('Sect', { title: 'Absender' });
     let senderY = PAGE_H - 52;
     sender.slice(0, 5).forEach((line, i) => {
@@ -1516,6 +1574,7 @@ class PdfRenderer {
    * very left edge, drawn as artifacts so they never reach a screen reader.
    */
   private drawFoldMarks(): void {
+    if (this.opts.foldMarks === false) return;
     const page = this.page;
     this.tagger.artifact(page, () => {
       for (const [fromTop, length] of [
@@ -1576,7 +1635,7 @@ class PdfRenderer {
     // Rücksendeangabe — erste Zeile der Zusatz- und Vermerkzone, also INNERHALB
     // des Anschriftfelds. Sie ist die einzige Angabe außer der Anschrift, die
     // dort stehen darf.
-    const returnLine = this.fitReturnLine(sender);
+    const returnLine = this.opts.returnLine === false ? '' : this.fitReturnLine(sender);
     if (returnLine) {
       const ruleY = PAGE_H - ADDRESS_FIELD.top - ADDRESS_FIELD.lineHeight;
       this.tagger.artifact(page, () => {
@@ -1704,6 +1763,44 @@ class PdfRenderer {
   }
 }
 
+/**
+ * Den hochgeladenen Briefbogen einbetten.
+ *
+ * Ein zweiseitiges PDF wird als Briefbogen/Folgebogen gelesen — Seite 1 auf die
+ * erste, Seite 2 auf alle weiteren Seiten. Das ist die übliche Aufteilung und
+ * spart eine zweite Einstellung.
+ *
+ * Fehler sind hier nie fatal: ein unlesbarer Briefbogen darf den Brief nicht
+ * verhindern, er fällt auf das CI-Layout zurück.
+ */
+async function embedStationery(
+  doc: PDFDocument,
+  input: RenderPdfOptions['stationery']
+): Promise<Stationery | null> {
+  if (!input) return null;
+  try {
+    if (input.type === 'pdf') {
+      const source = await PDFDocument.load(input.bytes);
+      const count = source.getPageCount();
+      if (!count) return null;
+      const pages = await doc.embedPdf(source, count > 1 ? [0, 1] : [0]);
+      const first = pages[0];
+      if (!first) return null;
+      return { kind: 'page', first, rest: pages[1] ?? first };
+    }
+    const image =
+      input.type === 'png' ? await doc.embedPng(input.bytes) : await doc.embedJpg(input.bytes);
+    return { kind: 'image', image };
+  } catch (err) {
+    log.warn(
+      `[pdfRenderer] Briefbogen konnte nicht eingebettet werden, CI-Layout greift: ${
+        err instanceof Error ? err.message : String(err)
+      }`
+    );
+    return null;
+  }
+}
+
 export async function renderPdf(
   spec: PdfDocumentSpec,
   opts: RenderPdfOptions
@@ -1774,6 +1871,7 @@ export async function renderPdf(
     droppedCount: { value: 0 },
   };
   const logo = await doc.embedPng(logoBytes);
+  const stationery = await embedStationery(doc, opts.stationery ?? null);
 
-  return new PdfRenderer(doc, fonts, theme, logo, spec, opts).render();
+  return new PdfRenderer(doc, fonts, theme, logo, spec, opts, stationery).render();
 }
