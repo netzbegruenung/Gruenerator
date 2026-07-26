@@ -11,6 +11,7 @@ import { colors } from '../../theme';
 export function useTabTint(): string {
   const segments = useSegments() as string[];
   if (segments.includes('(arbeiten)')) return colors.primary[700]; // #285040
+  if (segments.includes('(studio)')) return '#3E3663'; // studio violet
   if (segments.includes('(recherche)')) return '#C4006A'; // notebook magenta
   return colors.primary[600]; // chat / start default (#316049)
 }

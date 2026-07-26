@@ -13,13 +13,13 @@ const ICON_SIZE = 21;
 const CAPSULE_HEIGHT = TAB_BAR_CAPSULE_HEIGHT;
 const CAPSULE_GAP = TAB_BAR_CAPSULE_GAP;
 /** Widest the capsule gets, and how much room it always leaves at the edges. */
-const CAPSULE_MAX_WIDTH = 210;
-const CAPSULE_MIN_MARGIN = 24;
+const CAPSULE_MAX_WIDTH = 380;
+const CAPSULE_MIN_MARGIN = 14;
 
 /**
  * The Android tab bar — iOS gets the real thing from NativeTabLayout, so this is
  * the only place the JS bottom tabs are styled. Shaped after the iOS 26 tab bar:
- * a floating capsule that hugs its two items instead of spanning the screen, with
+ * a floating capsule that hugs its items instead of spanning the screen, with
  * screen content running underneath.
  */
 export function ClassicTabLayout() {
@@ -30,8 +30,8 @@ export function ClassicTabLayout() {
   const { width } = useWindowDimensions();
   const tint = useTabTint();
 
-  // Two items need far less than the full width. Hug them, but never crowd the
-  // screen edges on a narrow phone.
+  // Hug the items rather than spanning the screen, but never crowd the edges on
+  // a narrow phone.
   const sideMargin = Math.max(CAPSULE_MIN_MARGIN, (width - CAPSULE_MAX_WIDTH) / 2);
 
   return (
@@ -100,11 +100,27 @@ export function ClassicTabLayout() {
           tabBarIcon: ({ color }) => <Ionicons name="briefcase" size={ICON_SIZE} color={color} />,
         }}
       />
-      {/* Wissen is a tool tile on the Arbeiten tab now, not a tab of its own —
-          same treatment as (office) and (tools) below. */}
-      <Tabs.Screen name="(recherche)" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen
+        name="(studio)"
+        options={{
+          title: 'Studio',
+          headerShown: false,
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="color-palette" size={ICON_SIZE} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="(recherche)"
+        options={{
+          title: 'Wissen',
+          headerShown: false,
+          tabBarIcon: ({ color }) => <Ionicons name="book" size={ICON_SIZE} color={color} />,
+        }}
+      />
+      {/* Reachable, but not from the bar: the individual Studio tools sit behind
+          the Studio tab, and the chat group behind the Chat tab. */}
       <Tabs.Screen name="(chat)" options={{ href: null, headerShown: false }} />
-      <Tabs.Screen name="(office)" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="(tools)" options={{ href: null, headerShown: false }} />
       <Tabs.Screen
         name="profile"

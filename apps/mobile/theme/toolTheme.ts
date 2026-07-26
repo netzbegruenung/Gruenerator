@@ -28,20 +28,6 @@ interface ToolThemePair {
 }
 
 const TOOL_THEME: Record<string, ToolThemePair> = {
-  office: {
-    light: { tile: '#DCEFE3', icon: '#2E6B49', title: '#1F4F35', desc: '#527B65' },
-    dark: { tile: '#14271D', icon: '#8FC9A9', title: '#B5DEC6', desc: '#7CA890' },
-  },
-  // Studio and its KI-Bild sub-tool share web's canvas violet, exactly as
-  // `canvas` and `canvas-ki` do there — they are never side by side.
-  studio: {
-    light: { tile: '#E9E7F2', icon: '#3E3663', title: '#332B54', desc: '#5F587E' },
-    dark: { tile: '#1F1B2E', icon: '#A99ED1', title: '#C6BCE4', desc: '#8E86AB' },
-  },
-  wissen: {
-    light: { tile: '#F5DEE9', icon: '#993D68', title: '#7A2E52', desc: '#9E6A84' },
-    dark: { tile: '#2B1620', icon: '#D69BB8', title: '#E9BCD2', desc: '#B0829A' },
-  },
   agents: {
     light: { tile: '#F5EFC9', icon: '#7C6A1E', title: '#5F5212', desc: '#84743C' },
     dark: { tile: '#26220F', icon: '#CDBB72', title: '#E1D296', desc: '#AC9C68' },
@@ -49,10 +35,6 @@ const TOOL_THEME: Record<string, ToolThemePair> = {
   projekte: {
     light: { tile: '#DCE6F2', icon: '#2E4E7A', title: '#1E3A5E', desc: '#56708F' },
     dark: { tile: '#14202E', icon: '#7CA2CB', title: '#A2C0E4', desc: '#6E88AB' },
-  },
-  suche: {
-    light: { tile: '#E7EAE6', icon: '#4A554C', title: '#313A34', desc: '#5F6A61' },
-    dark: { tile: '#1C211D', icon: '#9CA99F', title: '#C0CCC3', desc: '#8A968C' },
   },
   scanner: {
     light: { tile: '#E6F0D6', icon: '#3E5A1E', title: '#31471A', desc: '#5E7440' },

@@ -8,9 +8,9 @@ import { spacing } from '../../../theme';
 import { FLOATING_TAB_BAR_HEIGHT } from '../../../theme/layout';
 
 /**
- * The Studio area — Vorlagen, KI-Bild and Reel behind one tile, mirroring web's
- * /studio landing strip. Everything visual lives here so the Arbeiten tool grid
- * stays a short list of areas rather than a wall of individual tools.
+ * The Studio tab — Vorlagen, KI-Bild and Reel, mirroring web's /studio landing
+ * strip. The individual tools live in the (tools) group and are reached from
+ * here rather than from a tab of their own.
  */
 export default function StudioScreen() {
   const insets = useSafeAreaInsets();
