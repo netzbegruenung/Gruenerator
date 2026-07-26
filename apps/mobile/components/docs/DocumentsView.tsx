@@ -426,8 +426,8 @@ export function DocumentsView({
         onPress={() => setCreateOpen(true)}
         loading={isCreating}
         accessibilityLabel="Erstellen oder finden"
-        color={fabTones.solid.icon}
-        style={{ backgroundColor: fabTones.solid.background, bottom: fabBottom }}
+        color={fabTones.icon}
+        style={{ backgroundColor: fabTones.background, bottom: fabBottom }}
       />
 
       <CreateDocSheet

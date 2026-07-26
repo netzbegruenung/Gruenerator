@@ -70,9 +70,9 @@ export default function StudioScreen() {
         icon="add"
         accessibilityLabel="Neuen Inhalt erstellen"
         onPress={() => setCreateOpen(true)}
-        color={fabTone.solid.icon}
+        color={fabTone.icon}
         style={{
-          backgroundColor: fabTone.solid.background,
+          backgroundColor: fabTone.background,
           bottom: insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.small,
         }}
       />

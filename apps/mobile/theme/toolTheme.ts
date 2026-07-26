@@ -64,59 +64,38 @@ export function getToolTheme(toolId: string, isDark: boolean): ToolTheme {
   return isDark ? pair.dark : pair.light;
 }
 
-/** A tab's floating buttons, tuned to the hue that tab's backdrop is painted in. */
+/**
+ * A tab's floating button, tuned to the hue that tab's backdrop is painted in —
+ * pastel field with the hue's dark tone as the icon, the same weighting the tool
+ * tiles use, so a FAB reads as part of its surface rather than as a stamp on it.
+ */
 export interface FabTone {
   background: string;
   icon: string;
 }
 
-export interface SurfaceFabTones {
-  /** The tab's primary action (create). */
-  solid: FabTone;
-  /** A secondary action next to it (search) — same hue, tile-weight. */
-  soft: FabTone;
-}
-
 /** Tabs with a coloured backdrop; a plain-background tab keeps the default FAB. */
 export type FabSurface = 'arbeiten' | 'studio' | 'wissen';
 
-const SURFACE_FAB: Record<FabSurface, { light: SurfaceFabTones; dark: SurfaceFabTones }> = {
-  // Arbeiten is the near-white green tint (#F7FBF8) — the app green already is its hue.
+const SURFACE_FAB: Record<FabSurface, { light: FabTone; dark: FabTone }> = {
+  // Arbeiten is the near-white green tint (#F7FBF8) — the app green is its hue.
   arbeiten: {
-    light: {
-      solid: { background: '#316049', icon: '#FFFFFF' },
-      soft: { background: '#E3EFE8', icon: '#316049' },
-    },
-    dark: {
-      solid: { background: '#6BAA91', icon: '#13251B' },
-      soft: { background: '#1B2C23', icon: '#8AC9B0' },
-    },
+    light: { background: '#E3EFE8', icon: '#316049' },
+    dark: { background: '#1B2C23', icon: '#8AC9B0' },
   },
   // Studio: the violet canvas gradient.
   studio: {
-    light: {
-      solid: { background: '#3E3663', icon: '#FFFFFF' },
-      soft: { background: '#E9E7F2', icon: '#3E3663' },
-    },
-    dark: {
-      solid: { background: '#A99ED1', icon: '#191622' },
-      soft: { background: '#1F1B2E', icon: '#A99ED1' },
-    },
+    light: { background: '#E9E7F2', icon: '#3E3663' },
+    dark: { background: '#1F1B2E', icon: '#A99ED1' },
   },
   // Wissen: the notebook magenta.
   wissen: {
-    light: {
-      solid: { background: '#8A3E5C', icon: '#FFFFFF' },
-      soft: { background: '#F5DEE6', icon: '#8A3E5C' },
-    },
-    dark: {
-      solid: { background: '#CB8AA6', icon: '#2B1620' },
-      soft: { background: '#2B1620', icon: '#CB8AA6' },
-    },
+    light: { background: '#F5DEE6', icon: '#8A3E5C' },
+    dark: { background: '#2B1620', icon: '#CB8AA6' },
   },
 };
 
-export function getSurfaceFab(surface: FabSurface, isDark: boolean): SurfaceFabTones {
+export function getSurfaceFab(surface: FabSurface, isDark: boolean): FabTone {
   const pair = SURFACE_FAB[surface];
   return isDark ? pair.dark : pair.light;
 }
