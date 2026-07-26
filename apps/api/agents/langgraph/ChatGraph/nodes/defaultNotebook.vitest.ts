@@ -657,7 +657,9 @@ describe('buildCitations', () => {
     expect(citations[1].url).toBe('https://hamburg.de/1');
   });
 
-  it('limits to 8 citations', () => {
+  // See citations.vitest.ts: the cap is now the loop's gathering budget (20),
+  // so a 12-document notebook answer keeps all 12 instead of losing four.
+  it('keeps all 12 notebook sources (cap is 20, was 8)', () => {
     const results: SearchResult[] = Array.from({ length: 12 }, (_, i) => ({
       source: 'gruenerator:deutschland',
       title: `Result ${i}`,
@@ -667,6 +669,6 @@ describe('buildCitations', () => {
     }));
 
     const citations = buildCitations(results);
-    expect(citations).toHaveLength(8);
+    expect(citations).toHaveLength(12);
   });
 });
