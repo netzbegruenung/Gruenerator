@@ -48,12 +48,22 @@ describe('buildCitations', () => {
     expect(urls).toContain('');
   });
 
-  it('limits to 8 citations max', () => {
+  // The cap follows the loop's own gathering budget (loopGuards.MAX_SOURCES = 20),
+  // not the historical ceiling of 8. That 8 was applied AFTER the notebook path
+  // had widened its slice to 12, so retrieved documents were dropped again on
+  // the way to the prompt.
+  it('keeps every source up to the gathering budget', () => {
     const results = Array.from({ length: 12 }, (_, i) =>
       makeResult({ url: `https://gruene.de/page${i}`, title: `Page ${i}` })
     );
-    const citations = buildCitations(results);
-    expect(citations).toHaveLength(8);
+    expect(buildCitations(results)).toHaveLength(12);
+  });
+
+  it('still caps runaway result sets at 20', () => {
+    const results = Array.from({ length: 40 }, (_, i) =>
+      makeResult({ url: `https://gruene.de/page${i}`, title: `Page ${i}` })
+    );
+    expect(buildCitations(results)).toHaveLength(20);
   });
 
   it('assigns sequential IDs starting at 1', () => {

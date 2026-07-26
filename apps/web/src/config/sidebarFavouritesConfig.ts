@@ -1,12 +1,11 @@
 import { SYSTEM_NOTEBOOKS } from '../features/notebook/config/notebooksConfig';
 
-import { getIcon } from './icons';
 import {
-  CANVAS_TOOLS,
-  TOOL_MENUS,
-  WORKPLACE_TOOLS,
-  isFavouritableTool,
-} from './workplaceToolsConfig';
+  favouriteToolItems,
+  gridFavouriteItems,
+  legacyFavouriteItems,
+  menuFavouriteItems,
+} from './toolRegistry';
 
 import type { IconType } from './icons';
 
@@ -17,65 +16,14 @@ export interface FavouriteItemConfig {
   icon: IconType;
 }
 
-const TOOL_ITEMS: FavouriteItemConfig[] = [
-  { id: 'office', title: 'Office', path: '/office', icon: getIcon('navigation', 'desk')! },
-  {
-    id: 'canvas',
-    title: 'Bilder & Videos',
-    path: '/studio',
-    icon: getIcon('navigation', 'sharepic')!,
-  },
-  { id: 'wissen', title: 'Wissen', path: '/wissen', icon: getIcon('navigation', 'notebooks')! },
-  {
-    id: 'projekte',
-    title: 'Projekte',
-    path: '/projekte',
-    icon: getIcon('navigation', 'projekte')!,
-  },
-  { id: 'suche', title: 'Suche', path: '/suche', icon: getIcon('navigation', 'suche')! },
-  { id: 'scanner', title: 'Scanner', path: '/scanner', icon: getIcon('navigation', 'scanner')! },
-  {
-    id: 'transkription',
-    title: 'Transkription',
-    path: '/transkription',
-    icon: getIcon('navigation', 'transkription')!,
-  },
-];
+// All tool data derives from config/toolRegistry.ts — edit tools there.
 
-// Legacy ids kept ONLY so already-pinned favourites still resolve — they are
-// part of the resolution map but not of the default export, so the global
-// search never surfaces them (their paths are mere redirects to /office
-// respectively /wissen).
-const LEGACY_TOOL_ITEMS: FavouriteItemConfig[] = [
-  { id: 'docs', title: 'Dokumente', path: '/docs', icon: getIcon('navigation', 'docs')! },
-  { id: 'boards', title: 'Boards', path: '/boards', icon: getIcon('navigation', 'boards')! },
-  { id: 'sheets', title: 'Tabellen', path: '/sheets', icon: getIcon('navigation', 'sheets')! },
-  {
-    id: 'presentations',
-    title: 'Präsentationen',
-    path: '/presentations',
-    icon: getIcon('navigation', 'presentations')!,
-  },
-  {
-    id: 'notebooks',
-    title: 'Wissen',
-    path: '/wissen',
-    icon: getIcon('navigation', 'notebooks')!,
-  },
-  // Former ids of the /projekte tool (Gruppen → Spaces → Projekte renames).
-  {
-    id: 'gruppen',
-    title: 'Projekte',
-    path: '/projekte',
-    icon: getIcon('navigation', 'projekte')!,
-  },
-  {
-    id: 'spaces',
-    title: 'Projekte',
-    path: '/projekte',
-    icon: getIcon('navigation', 'projekte')!,
-  },
-];
+// The visible default set; its order feeds the global-search feature index.
+const TOOL_ITEMS: FavouriteItemConfig[] = favouriteToolItems();
+
+// Resolution-only entries for pinned favourites persisted under old tool ids —
+// see LEGACY_FAVOURITE_ITEMS / LEGACY_TOOL_ID_ALIASES in the registry.
+const LEGACY_TOOL_ITEMS: FavouriteItemConfig[] = legacyFavouriteItems();
 
 const NOTEBOOK_ITEMS: FavouriteItemConfig[] = SYSTEM_NOTEBOOKS.map((nb) => ({
   id: nb.id,
@@ -84,27 +32,12 @@ const NOTEBOOK_ITEMS: FavouriteItemConfig[] = SYSTEM_NOTEBOOKS.map((nb) => ({
   icon: nb.icon,
 }));
 
-// Workplace "Tools" tiles are favouritable straight from the grid. Only their
-// id/title/path/icon are needed to resolve a pinned favourite in the sidebar,
-// and only internal-route tools qualify (external-link tiles can't be pinned).
-const WORKPLACE_TOOL_ITEMS: FavouriteItemConfig[] = [...WORKPLACE_TOOLS, ...CANVAS_TOOLS]
-  .filter(isFavouritableTool)
-  .map((tool) => ({
-    id: tool.id,
-    title: tool.title,
-    path: tool.path,
-    icon: tool.icon,
-  }));
-
-// Dropdown-card tools are favouritable from within the menu; register their
-// internal-route entries so pinned ids resolve in the sidebar.
-const MENU_TOOL_ITEMS: FavouriteItemConfig[] = TOOL_MENUS.flatMap((menu) =>
-  menu.items.flatMap((item) =>
-    item.path && !item.href
-      ? [{ id: item.id, title: item.title, path: item.path, icon: item.icon }]
-      : []
-  )
-);
+// Workplace "Tools" tiles are favouritable straight from the grid, dropdown-card
+// tools from within the menu. Only id/title/path/icon are needed to resolve a
+// pinned favourite in the sidebar, and only internal-route tools qualify
+// (external-link tiles can't be pinned).
+const WORKPLACE_TOOL_ITEMS: FavouriteItemConfig[] = gridFavouriteItems();
+const MENU_TOOL_ITEMS: FavouriteItemConfig[] = menuFavouriteItems();
 
 const FAVOURITE_ITEMS: FavouriteItemConfig[] = [...TOOL_ITEMS, ...NOTEBOOK_ITEMS];
 

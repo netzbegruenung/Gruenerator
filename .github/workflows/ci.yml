@@ -43,6 +43,12 @@ jobs:
       - name: Singleton dependency versions
         run: node scripts/check-singleton-versions.mjs
 
+      # Tours target elements via [data-tour="..."] selectors; a refactor that
+      # renames or drops the attribute breaks the tour silently (waitForElement
+      # times out, the step never shows). Keep selectors and JSX anchors 1:1.
+      - name: Tour anchors in sync
+        run: node scripts/check-tour-anchors.mjs
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 

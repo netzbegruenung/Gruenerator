@@ -13,6 +13,9 @@ on:
       - 'packages/chat/**'
       - 'packages/shared/src/**'
       - 'packages/contracts/src/schemas/**'
+      # Toured editor surfaces (touren/ pseudo-docs in AREA_HINTS)
+      - 'packages/canvas-editor/**'
+      - 'packages/presentations/**'
       - 'apps/api/routes/chat/**'
       - 'apps/api/agents/langgraph/ChatGraph/**'
 

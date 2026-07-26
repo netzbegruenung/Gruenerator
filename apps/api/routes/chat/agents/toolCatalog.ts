@@ -98,6 +98,10 @@ const CATALOG_TOOLS = new Set([
 /** Tools whose results feed the citation registry and get the lean `sources` shape. */
 const SOURCE_HARVEST_TOOLS = new Set(['gruenerator_search', 'web_search']);
 
+/** Snippet budget for `scrape_url`. A deliberate page read deserves far more
+ *  than a search hit's snippet — see the call site. */
+const CRAWL_SNIPPET_CHARS = 25_000;
+
 type ExecuteFn = (input: unknown, options: { toolCallId: string }) => Promise<unknown>;
 
 export interface ChatToolCatalog {
@@ -213,7 +217,12 @@ NUTZE WENN:
           error: 'Konnte die Seite(n) nicht lesen (Timeout, Blockade oder kein Textinhalt).',
         };
       }
-      const sources = sourceRegistry.register(results);
+      // A crawl is an explicit "read THIS page" — the user named it or the model
+      // picked it out of search hits. Registering it at the ordinary snippet cap
+      // meant fetching a 20-80k-char article and showing the model its first few
+      // hundred characters, so "fass diesen Artikel zusammen" was answered from
+      // the headline. 25k matches LobeChat's crawl budget.
+      const sources = sourceRegistry.register(results, { snippetChars: CRAWL_SNIPPET_CHARS });
       return { resultCount: results.length, sources };
     },
   });
@@ -366,15 +375,28 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
           sse,
           state,
           req: loop.req,
+          sourceRegistry,
         });
       } else if (kind === 'sheet' && enabled('create_sheet')) {
-        tools.create_sheet = makeCreateDocTool({ kind: 'sheet', sse, state, req: loop.req });
+        tools.create_sheet = makeCreateDocTool({
+          kind: 'sheet',
+          sse,
+          state,
+          req: loop.req,
+          sourceRegistry,
+        });
       } else if (kind === 'document' && enabled('create_document')) {
-        tools.create_document = makeCreateDocTool({ kind: 'document', sse, state, req: loop.req });
+        tools.create_document = makeCreateDocTool({
+          kind: 'document',
+          sse,
+          state,
+          req: loop.req,
+          sourceRegistry,
+        });
       } else if (kind === 'board' && enabled('create_board')) {
         tools.create_board = makeCreateBoardTool({ state, req: loop.req });
       } else if (kind === 'pdf' && enabled('create_pdf')) {
-        tools.create_pdf = makeCreatePdfTool({ sse, state, req: loop.req });
+        tools.create_pdf = makeCreatePdfTool({ sse, state, req: loop.req, sourceRegistry });
       }
     }
   }
