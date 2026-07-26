@@ -366,15 +366,28 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
           sse,
           state,
           req: loop.req,
+          sourceRegistry,
         });
       } else if (kind === 'sheet' && enabled('create_sheet')) {
-        tools.create_sheet = makeCreateDocTool({ kind: 'sheet', sse, state, req: loop.req });
+        tools.create_sheet = makeCreateDocTool({
+          kind: 'sheet',
+          sse,
+          state,
+          req: loop.req,
+          sourceRegistry,
+        });
       } else if (kind === 'document' && enabled('create_document')) {
-        tools.create_document = makeCreateDocTool({ kind: 'document', sse, state, req: loop.req });
+        tools.create_document = makeCreateDocTool({
+          kind: 'document',
+          sse,
+          state,
+          req: loop.req,
+          sourceRegistry,
+        });
       } else if (kind === 'board' && enabled('create_board')) {
         tools.create_board = makeCreateBoardTool({ state, req: loop.req });
       } else if (kind === 'pdf' && enabled('create_pdf')) {
-        tools.create_pdf = makeCreatePdfTool({ sse, state, req: loop.req });
+        tools.create_pdf = makeCreatePdfTool({ sse, state, req: loop.req, sourceRegistry });
       }
     }
   }
