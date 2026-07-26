@@ -9,7 +9,7 @@ import { createLogger } from '../../../../utils/logger.js';
 
 import { extractFilters } from './classifierFilters.js';
 import { extractSearchTopic } from './classifierHeuristics.js';
-import { NON_SEARCH_INTENTS } from './classifierPrompt.js';
+import { CLASSIFIER_DOC_SUBTYPES, NON_SEARCH_INTENTS } from './classifierPrompt.js';
 
 import type { SearchIntent, SearchSource, ClassificationResult } from '../types.js';
 import type { ClassifierLLMResponse } from './classifierFilters.js';
@@ -256,6 +256,21 @@ export function parseClassifierResponse(
         log.info(`[Classifier] Secondary intent detected: ${validSecondary}`);
       }
 
+      // Validate documentSubtype like secondaryIntent above. The model invents
+      // values outside the prompt's enum ("brief"), and this one is passed
+      // downstream as `subtypeOverride`, which wins over the generator's own
+      // validated subtype — so an invalid value reaches the INSERT and only the
+      // DB check constraint stops it. Dropping it here lets the document
+      // generator pick a valid subtype itself.
+      let validDocumentSubtype: string | null = null;
+      if (typeof parsed.documentSubtype === 'string' && parsed.documentSubtype) {
+        if ((CLASSIFIER_DOC_SUBTYPES as readonly string[]).includes(parsed.documentSubtype)) {
+          validDocumentSubtype = parsed.documentSubtype;
+        } else {
+          log.warn(`[Classifier] Invalid documentSubtype "${parsed.documentSubtype}" — dropped`);
+        }
+      }
+
       const result: ClassificationResult = {
         intent: parsed.intent as SearchIntent,
         secondaryIntent: validSecondary,
@@ -265,7 +280,7 @@ export function parseClassifierResponse(
         filters,
         reasoning: (parsed.reasoning || 'LLM classification') + suffix,
         contentType: parsed.contentType || null,
-        documentSubtype: parsed.documentSubtype || null,
+        documentSubtype: validDocumentSubtype,
         targetGroupName: parsed.targetGroupName || null,
       };
 

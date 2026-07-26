@@ -25,6 +25,7 @@ import {
   type PropsWithChildren,
 } from 'react';
 import { useShallow } from 'zustand/shallow';
+import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 
 import { ChatThreadListPortal } from '../components/ChatThreadListPortal';
 import { grueneratorToolkit } from '../components/tool-ui/GrueneratorToolUIs';
@@ -34,6 +35,7 @@ import { ChatRuntimeReadyProvider } from '../context/ChatRuntimeReadyContext';
 import { ExternalThreadProvider } from '../context/ExternalThreadContext';
 import { useChatCollaboration } from '../hooks/useChatCollaboration';
 import { getDefaultAgent } from '../lib/agents';
+import { notifyError } from '../lib/notify';
 import { handleDictationError } from '../lib/dictationErrorHandler';
 import { chatSuggestions } from '../lib/suggestions';
 import { useChatConfigStore } from '../stores/chatConfigStore';
@@ -154,8 +156,20 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
             return ExportedMessageRepository.fromArray(converted);
           } catch (error) {
             console.error('Error loading messages:', error);
-            // Thread likely deleted — clear stale threadId to prevent FK violations on send
-            useAgentStore.getState().setCurrentThread(null);
+            if (isApiErrorWithStatus(error, 404)) {
+              // Thread really is gone — clear the stale id to prevent FK
+              // violations on the next send.
+              useAgentStore.getState().setCurrentThread(null);
+            } else {
+              // A server hiccup or offline blip. Clearing the id here rendered
+              // the thread empty AND made the next message fork a brand-new
+              // thread, so the conversation looked lost. Keep the binding and
+              // say what happened.
+              notifyError(
+                'Chatverlauf konnte nicht geladen werden',
+                'Deine Unterhaltung ist nicht verloren — lade die Seite neu.'
+              );
+            }
           }
         }
 

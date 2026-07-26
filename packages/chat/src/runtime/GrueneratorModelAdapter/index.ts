@@ -2,6 +2,7 @@ import { getSystemAgent } from '@gruenerator/shared/agents';
 import { buildMentionToken } from '@gruenerator/shared/utils';
 
 import { parseAllMentions } from '../../lib/mentionParser';
+import { notifyWarning } from '../../lib/notify';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
 import { useDocumentChatStore } from '../../stores/documentChatStore';
@@ -10,7 +11,13 @@ import { useSharepicLiveStore } from '../../stores/sharepicLiveStore';
 import { useSocialPostLiveStore } from '../../stores/socialPostLiveStore';
 import { getClientToolExecutor } from '../clientTools';
 import { REEL_UPLOAD_PART_NAME, type ReelUploadData } from '../GrueneratorAttachmentAdapter';
-import { streamErrorMessage } from '../streamErrorMessage';
+import {
+  ChatStreamError,
+  errorStatus,
+  streamErrorContext,
+  streamErrorMessage,
+  STREAM_INTERRUPTED_MESSAGE,
+} from '../streamErrorMessage';
 
 import {
   buildRequestBody,
@@ -56,6 +63,45 @@ const MAX_CLIENT_TOOL_ROUNDS = 3;
  * left in a half-logged-in editor with only an in-thread "Sitzung abgelaufen"
  * message and no way back to login until a manual reload.
  */
+/**
+ * Report a failure WITHOUT discarding what was already streamed.
+ *
+ * assistant-ui merges a yielded result as `[...initialContent, ...m.content]`
+ * where `initialContent` is frozen at roundtrip start (`[]` for a fresh
+ * message) — so any yield carrying `content` REPLACES the whole message. A
+ * naive `yield { content: [warning] }` therefore deletes the answer it was
+ * meant to annotate. Re-yield the accumulated parts and append the notice.
+ */
+function appendFailureText(
+  lastResult: ChatModelRunResult | undefined,
+  text: string,
+  status: ReturnType<typeof errorStatus>
+): ChatModelRunResult {
+  const previous = lastResult?.content ?? [];
+  return {
+    ...lastResult,
+    content: [
+      ...previous,
+      { type: 'text' as const, text: previous.length > 0 ? `\n\n${text}` : text },
+    ],
+    status,
+  };
+}
+
+/** Partial answer + "the connection dropped" — the answer stays readable. */
+function withInterruptionNotice(lastResult: ChatModelRunResult | undefined): ChatModelRunResult {
+  return appendFailureText(
+    lastResult,
+    `⚠️ **${STREAM_INTERRUPTED_MESSAGE}**`,
+    errorStatus(
+      new ChatStreamError(STREAM_INTERRUPTED_MESSAGE, {
+        code: 'stream_interrupted',
+        retryable: true,
+      })
+    )
+  );
+}
+
 function routeUnauthorized(response: Response): void {
   if (response.status === 401 || response.status === 403) {
     void useChatConfigStore.getState().onUnauthorized?.();
@@ -144,6 +190,9 @@ export function createGrueneratorModelAdapter(
   return {
     async *run(options: ChatModelRunOptions): AsyncGenerator<ChatModelRunResult, void> {
       const { messages, abortSignal } = options;
+      // Start of the turn — feeds `streamErrorContext` so an unclassified
+      // failure reports how far into the stream it died.
+      const runStartedAt = Date.now();
       const baseConfig = getConfig();
       // Per-run thread binding: the runtime passes the owning thread's remoteId.
       // Prefer it over the store's currentThreadId, which can lag on rapid
@@ -591,6 +640,10 @@ export function createGrueneratorModelAdapter(
               '[ChatAdapter] contextProvider threw, continuing without injected context',
               err
             );
+            notifyWarning(
+              'Dokumentkontext konnte nicht gelesen werden',
+              'Die Antwort bezieht sich möglicherweise nicht auf das Dokument.'
+            );
           }
         }
       }
@@ -704,19 +757,49 @@ export function createGrueneratorModelAdapter(
           });
         }
       } catch (err) {
-        // Mid-stream connection drop (proxy timeout, mobile blip, worker recycle)
-        // surfaces as TypeError; treat it as a graceful end so it doesn't reach Sentry.
-        if (
+        if (abortSignal?.aborted) return;
+        // Mid-stream connection drop (proxy timeout, mobile blip, worker
+        // recycle) surfaces as TypeError. It used to `return` silently, which
+        // left a half-written answer looking finished — the user could not
+        // tell a truncated reply from a short one. Mark the turn failed
+        // instead: the partial content stays, the banner explains it, and the
+        // retry button is right there.
+        const isNetworkDrop =
           err instanceof TypeError &&
-          /network error|failed to fetch|load failed|error in input stream/i.test(err.message)
-        ) {
+          /network error|failed to fetch|load failed|error in input stream/i.test(err.message);
+        if (isNetworkDrop) {
+          console.warn(
+            '[GrueneratorModelAdapter] Stream dropped mid-flight:',
+            streamErrorContext(runStartedAt)
+          );
+          yield withInterruptionNotice(streamOutcome.lastResult);
           return;
         }
         // Other mid-stream errors (e.g. backend SSE `error` event) — surface
         // as an assistant message so the user sees what went wrong in-thread,
-        // not just in the dev console.
-        if (abortSignal?.aborted) return;
-        yield { content: [{ type: 'text' as const, text: streamErrorMessage(err) }] };
+        // not just in the dev console. The status additionally gives the
+        // message a retry affordance.
+        yield appendFailureText(
+          streamOutcome.lastResult,
+          streamErrorMessage(err),
+          errorStatus(err)
+        );
+        return;
+      }
+
+      // A stream that ended without the backend's terminal event is a failure,
+      // not a short answer: `done`/`completion` never arrived, so whatever was
+      // rendered is incomplete. Interrupts are legitimate non-terminal endings.
+      if (
+        streamOutcome.completed === false &&
+        !streamOutcome.interrupted &&
+        !streamOutcome.clientToolInterrupt
+      ) {
+        console.warn(
+          '[GrueneratorModelAdapter] Stream closed without terminal event:',
+          streamErrorContext(runStartedAt)
+        );
+        yield withInterruptionNotice(streamOutcome.lastResult);
         return;
       }
 

@@ -41,13 +41,21 @@ const DEEP_READ_MAX_CHARS = 4_000;
 
 /**
  * Owned, regular thread ids filed into a Space (group_id) — the scope for
- * space-aware recall. Returns [] on error/empty so callers treat it as
- * "no threads in scope".
+ * space-aware recall.
+ *
+ * Discriminated on purpose: an empty result used to be indistinguishable from a
+ * DB error, and `recallPastChats` treats an empty scope as "search nothing" —
+ * so a transient failure answered "dazu finde ich nichts" for a Space full of
+ * chats. `ok: false` lets the caller fall back to unscoped recall instead of
+ * silently searching an empty set.
  */
+export type SpaceThreadIdsResult =
+  { ok: true; threads: { id: string; title: string | null }[] } | { ok: false };
+
 export async function resolveSpaceThreadIds(
   groupId: string,
   userId: string
-): Promise<{ id: string; title: string | null }[]> {
+): Promise<SpaceThreadIdsResult> {
   const db = getPostgresInstance();
   try {
     const rows = (await db.query(
@@ -57,10 +65,10 @@ export async function resolveSpaceThreadIds(
        ORDER BY updated_at DESC`,
       [groupId, userId]
     )) as Array<{ id: string; title: string | null }>;
-    return rows.map((r) => ({ id: r.id, title: r.title }));
+    return { ok: true, threads: rows.map((r) => ({ id: r.id, title: r.title })) };
   } catch (err) {
     log.warn(`[Recall] resolveSpaceThreadIds failed: ${err}`);
-    return [];
+    return { ok: false };
   }
 }
 
@@ -88,9 +96,11 @@ export async function getSpaceRecallScope(
     if (rows.length === 0) return null;
     const space = rows[0];
 
-    const siblings = (await resolveSpaceThreadIds(space.id, userId)).filter(
-      (s) => s.id !== threadId
-    );
+    const siblingResult = await resolveSpaceThreadIds(space.id, userId);
+    // Lookup failed (not "the Space is empty"): returning a scope of zero
+    // threads would silently search nothing. Fall back to unscoped recall.
+    if (!siblingResult.ok) return null;
+    const siblings = siblingResult.threads.filter((s) => s.id !== threadId);
     const threadIds = siblings.map((s) => s.id);
     const list =
       siblings.length > 0
@@ -237,6 +247,11 @@ export async function recallPastChats(
   // space with no chats doesn't fall through to an unscoped global recall.
   if (threadIds && threadIds.length === 0) return [];
 
+  // Best-effort like the semantic half below: `searchChatHistory` throws now
+  // (so the /chat/search ENDPOINT can answer 500 instead of "no hits"), but
+  // inside a chat turn a transient DB error must degrade recall, not abort the
+  // whole answer. The empty result then reads as "nothing recalled", which the
+  // router surfaces via recall_degraded.
   const keywordPromise = searchChatHistory(userId, query, {
     ownedOnly: true,
     limit,
@@ -244,6 +259,9 @@ export async function recallPastChats(
     ...(startDate != null && { startDate }),
     ...(endDate != null && { endDate }),
     ...(threadIds != null && { threadIds }),
+  }).catch((err: unknown) => {
+    log.warn(`[Recall] Keyword thread search failed (recall degraded): ${err}`);
+    return [] as Awaited<ReturnType<typeof searchChatHistory>>;
   });
 
   // Semantic is best-effort: a Qdrant/Mistral outage must never break recall.

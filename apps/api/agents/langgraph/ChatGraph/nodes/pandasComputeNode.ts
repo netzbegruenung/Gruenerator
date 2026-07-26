@@ -162,7 +162,7 @@ export { lastUserText } from './classifierHeuristics.js';
 export async function pandasComputeNode(
   state: ChatGraphState,
   opts?: { previousCode?: string; previousError?: string; mode?: 'analyze' | 'fill' }
-): Promise<{ pythonCode: string | null }> {
+): Promise<{ pythonCode: string | null; computeFailed?: boolean }> {
   const startTime = Date.now();
   const isFill = opts?.mode === 'fill';
   const question = lastUserText(state) || state.searchQuery || '';
@@ -227,7 +227,7 @@ Schreibe den Python-Code.`;
     }
     if (!code) {
       log.error('[PandasCompute] Empty codegen response');
-      return { pythonCode: null };
+      return { pythonCode: null, computeFailed: true };
     }
 
     log.info(`[PandasCompute] Generated ${code.length} chars in ${Date.now() - startTime}ms`);
@@ -235,6 +235,6 @@ Schreibe den Python-Code.`;
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : String(error);
     log.error(`[PandasCompute] Error: ${errMsg}`);
-    return { pythonCode: null };
+    return { pythonCode: null, computeFailed: true };
   }
 }

@@ -115,6 +115,9 @@ export function parseDocumentResponse(aiContent: string): GeneratedDocument {
  * Create a document in the database with optional content.
  * Reusable from controllers and chat tools.
  */
+/** The subtypes a generated text document may carry (see DOC_SUBTYPES). */
+export const GENERATED_DOC_SUBTYPES: readonly string[] = DOC_SUBTYPES;
+
 export async function createDocumentWithContent(
   title: string,
   content: string,
@@ -123,6 +126,17 @@ export async function createDocumentWithContent(
 ): Promise<CreatedDocument> {
   const db = getPostgresInstance();
   const htmlContent = ensureHtml(content);
+  // Last line before the DB check constraint. Callers pass subtypes that came
+  // from an LLM — the generator's own (validated) or the classifier's
+  // `subtypeOverride`, which bypasses that validation. An invalid value here
+  // would abort the INSERT; falling back keeps the document, and the warning
+  // names the caller so the real source gets fixed.
+  if (!DOC_SUBTYPES.includes(subtype)) {
+    log.warn(
+      `Invalid document subtype "${subtype}" — falling back to "blank". Valid: ${DOC_SUBTYPES.join(', ')}`
+    );
+    subtype = 'blank';
+  }
   const result = await db.query(
     `INSERT INTO collaborative_documents
       (title, content, created_by, last_edited_by, document_subtype, permissions, is_public)
