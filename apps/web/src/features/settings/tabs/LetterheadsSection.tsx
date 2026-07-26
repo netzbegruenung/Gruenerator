@@ -7,15 +7,21 @@
  */
 
 import { Button, toast, useConfirm } from '@gruenerator/ui';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
+import { SettingsCardsSkeleton } from '../components/SettingsSkeleton';
 import {
   letterheadApi,
+  letterheadsQuery,
   LETTERHEADS_QUERY_KEY,
   type Letterhead,
   type LetterheadInput,
 } from '../letterheadApi';
+
+export const prefetch = (queryClient: QueryClient) => {
+  void queryClient.prefetchQuery(letterheadsQuery);
+};
 
 const FIELD =
   'w-full rounded-md border border-grey-300 bg-input-bg p-sm text-sm text-foreground placeholder:text-grey-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-grey-600';
@@ -110,11 +116,7 @@ const LetterheadsSection = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
 
-  const { data: letterheads = [], isLoading } = useQuery({
-    queryKey: LETTERHEADS_QUERY_KEY,
-    queryFn: letterheadApi.list,
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: letterheads = [], isLoading } = useQuery(letterheadsQuery);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: LETTERHEADS_QUERY_KEY });
 
@@ -148,7 +150,7 @@ const LetterheadsSection = () => {
     onError: (error: Error) => toast.error(error.message),
   });
 
-  if (isLoading) return null;
+  if (isLoading) return <SettingsCardsSkeleton cards={2} />;
 
   return (
     <div className="flex flex-col gap-sm">
