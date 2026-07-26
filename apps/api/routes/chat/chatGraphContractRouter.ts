@@ -274,6 +274,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         ...(await classifierNode(initialState)),
       } as ChatGraphState;
       classifiedState.lastUserTextNoMentions = lastUserTextNoMentions;
+      // The heuristic fallback produces a materially worse turn (no
+      // multi-source search, no metadata filters) that used to look normal.
+      if (classifiedState.classifierDegraded) sendChatWarning(sse, 'classifier_degraded');
 
       let forcedTool: boolean = false;
       log.info(
@@ -997,7 +1000,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // Space scope: when the thread is filed in a Space, recall is restricted to
       // that Space's chats and the model is told which threads it can search.
       const spaceScope = actualThreadId
-        ? await getSpaceRecallScope(actualThreadId, userId).catch(() => null)
+        ? await getSpaceRecallScope(actualThreadId, userId).catch((err: unknown) => {
+            // Was a bare noop — the Space roster silently vanished and recall
+            // widened to all chats without anyone noticing.
+            log.warn(`[ChatGraph] Space recall scope failed: ${err}`);
+            return null;
+          })
         : null;
 
       if (explicitRecall || proactiveRecall) {
@@ -1040,7 +1048,11 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             }
           }
         } catch (err) {
+          // An EXPLICIT recall request ("was haben wir letzte Woche besprochen")
+          // that finds nothing because the search broke must not read as "there
+          // was nothing". Proactive recall is best-effort and stays quiet.
           log.warn(`[ChatGraph] Past-chat recall failed: ${err}`);
+          if (explicitRecall) sendChatWarning(sse, 'recall_degraded');
         }
       }
 
@@ -1171,10 +1183,25 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         args.body.clientTools?.includes('run_python') &&
         actualThreadId != null
       ) {
-        const { pythonCode } = await pandasComputeNode(
+        const { pythonCode, computeFailed } = await pandasComputeNode(
           classifiedState,
           isSheetFill ? { mode: 'fill' } : {}
         );
+        // Codegen failed (as opposed to the model judging the question
+        // unrelated to the table, which is a legitimate silent skip). Without
+        // telling the model, it answers the numeric question from the truncated
+        // table text — the hallucination this node exists to prevent.
+        if (computeFailed) {
+          sendChatWarning(sse, 'compute_failed');
+          classifiedState.degradationNotes = [
+            ...(classifiedState.degradationNotes ?? []),
+            {
+              code: 'compute_failed',
+              modelHint:
+                'Die Berechnung auf der Tabelle ist fehlgeschlagen. Rechne NICHT selbst und nenne keine Zahlen aus der Tabelle — sag ehrlich, dass die Auswertung gerade nicht möglich war.',
+            },
+          ];
+        }
         if (pythonCode) {
           log.info(
             `[ChatGraph] run_python interrupt (${pythonCode.length} chars ${isSheetFill ? 'openpyxl fill' : 'pandas'} code)`

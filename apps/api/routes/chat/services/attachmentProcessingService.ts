@@ -165,6 +165,20 @@ export async function processAttachments(
             ...(persistedData != null && { fileData: persistedData }),
           });
           log.info(`[${requestId}] Extracted ${result.text.length} chars from: ${attachment.name}`);
+        } else {
+          // OCR succeeded but found nothing (e.g. a scan without a text layer).
+          // Without this branch the file vanished from both the context and
+          // processedMeta — so it was never even persisted.
+          log.warn(`[${requestId}] No text extracted from: ${attachment.name}`);
+          documentTexts.push(`### ${attachment.name}\n\n[Kein Text erkannt]`);
+          processedMeta.push({
+            name: attachment.name,
+            mimeType: attachment.type,
+            sizeBytes: attachment.size,
+            isImage: false,
+            extractedText: null,
+            ...(persistedData != null && { fileData: persistedData }),
+          });
         }
       } catch (error) {
         log.error(`[${requestId}] Failed to extract text from ${attachment.name}:`, error);

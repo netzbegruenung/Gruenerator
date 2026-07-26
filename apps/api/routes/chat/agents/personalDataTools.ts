@@ -261,9 +261,11 @@ NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens
         const spaceId = await getCurrentSpaceId(threadId, userId);
         if (spaceId) {
           const siblings = await resolveSpaceThreadIds(spaceId, userId);
-          threadIds = siblings.map((s) => s.id);
+          // Only scope on a successful lookup — a failed one would restrict the
+          // search to zero threads and report "nothing found" for a full Space.
+          if (siblings.ok) threadIds = siblings.threads.map((s) => s.id);
         }
-        // No space → fall through to an unscoped (all-chats) recall.
+        // No space (or a failed lookup) → unscoped (all-chats) recall.
       }
 
       const hits = await recallPastChats(userId, q, {

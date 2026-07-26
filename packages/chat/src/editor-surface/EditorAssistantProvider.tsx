@@ -13,6 +13,7 @@ import {
   useLocalRuntime,
   type AssistantRuntime,
 } from '@assistant-ui/react';
+import { ApiError } from '@gruenerator/shared/api';
 import { loadedThreadMessagesSchema } from '@gruenerator/shared/chat';
 import { useQuery } from '@tanstack/react-query';
 import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
@@ -149,7 +150,10 @@ function EditorAssistantReadyHost({
     queryKey: ['chat-thread-messages', threadId],
     queryFn: async () => {
       const res = await fetchFn(`${endpoints.messages}?threadId=${threadId}`);
-      if (!res.ok) return [];
+      // Throw instead of returning []: an empty array is cached as a valid
+      // result, so a 500 rendered the editor sidebar as an empty chat for
+      // 30 seconds. A throw gives TanStack its retry and an error state.
+      if (!res.ok) throw new ApiError(res.status, 'Nachrichten konnten nicht geladen werden');
       const parsed = loadedThreadMessagesSchema.parse(await res.json());
       return convertToThreadMessageLike(parsed as Parameters<typeof convertToThreadMessageLike>[0]);
     },
