@@ -1,7 +1,8 @@
 import { type NextFunction, type Request, type Response } from 'express';
-import { type ZodType, type ZodError } from 'zod';
+import { type ZodType } from 'zod';
 
 import { type UserProfile } from '../services/user/types.js';
+import { formatZodIssuesForModel } from '../utils/errors/agentFacing.js';
 
 import type { ParamsDictionary } from 'express-serve-static-core';
 
@@ -23,15 +24,6 @@ interface TypedRequest<T, P = ParamsDictionary> extends Omit<Request<P>, 'body'>
   sessionID?: string | undefined;
 }
 
-function formatZodError(error: ZodError): string {
-  return error.issues
-    .map((issue) => {
-      const path = issue.path.join('.');
-      return path ? `${path}: ${issue.message}` : issue.message;
-    })
-    .join('; ');
-}
-
 export function validateBody<T>(schema: ZodType<T>) {
   return (req: Request, res: Response, next: NextFunction): void => {
     const result = schema.safeParse(req.body);
@@ -39,7 +31,7 @@ export function validateBody<T>(schema: ZodType<T>) {
     if (!result.success) {
       res.status(400).json({
         success: false,
-        error: formatZodError(result.error),
+        error: formatZodIssuesForModel(result.error),
         code: 'VALIDATION_ERROR',
       });
       return;

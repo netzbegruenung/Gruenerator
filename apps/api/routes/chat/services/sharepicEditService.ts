@@ -37,10 +37,12 @@ import {
   listCanvasVersions,
 } from '../../../services/canvas/canvasVersionRepository.js';
 import imagePickerService from '../../../services/image/ImageSelectionService.js';
+import { withRetry } from '../../../services/search/searchRetryStrategy.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { runSharepicEdit } from './sharepicEditLlm.js';
+import { sendChatWarning } from './sseHelpers.js';
 import { createMessage, touchThread } from './threadPersistenceService.js';
 
 import type { SharepicVariant } from './sharepicVariantHelpers.js';
@@ -574,13 +576,19 @@ async function finishWithText(
     },
   });
   try {
-    await createMessage(threadId, 'assistant', text, {
-      intent: 'sharepic_edit',
-      ...(toolCalls ? { toolCalls } : {}),
-    });
+    await withRetry(
+      () =>
+        createMessage(threadId, 'assistant', text, {
+          intent: 'sharepic_edit',
+          ...(toolCalls ? { toolCalls } : {}),
+        }),
+      { maxRetries: 1, delayMs: 300, isRecoverable: () => true, label: 'sharepicEdit:persist' }
+    );
     await touchThread(threadId);
   } catch (err) {
+    // Retry + Warnung: ein stiller Persist-Fehler lässt State und History divergieren.
     log.error('[SharepicEdit] Failed to persist message:', err);
+    sendChatWarning(sse, 'persist_failed');
   }
   sse.end();
 }

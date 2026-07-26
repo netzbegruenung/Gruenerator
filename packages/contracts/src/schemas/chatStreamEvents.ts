@@ -41,6 +41,55 @@ export const chatErrorCodeSchema = z.enum([
 ]);
 export type ChatErrorCode = z.infer<typeof chatErrorCodeSchema>;
 
+/**
+ * Machine-readable cause of a NON-FATAL degradation — travels on the SSE
+ * `warning` event. Codes are monitoring/telemetry vocabulary, never user
+ * vocabulary: wherever the turn still has a model available, the degradation
+ * is explained by the answer itself (see `degradationNotes` in the API); the
+ * warning only carries the machine signal plus a curated German fallback.
+ *
+ * To add a code: (1) add it here, (2) add its spec to CHAT_WARNINGS in
+ * apps/api/routes/chat/services/sseHelpers.ts (the compiler enforces the pair
+ * via `satisfies Record<ChatWarningCode, …>`), (3) decide whether the frontend
+ * should toast it or stay silent because the answer already explains it.
+ *
+ * Like `chatErrorCodeSchema`, the wire schema below keeps `code` as a plain
+ * string so an OLDER client never drops a warning it doesn't know yet.
+ */
+export const chatWarningCodeSchema = z.enum([
+  // Pre-existing codes (kept as-is — emitted before the taxonomy was introduced)
+  'search_degraded',
+  'wolke_refs_dropped',
+  'wolke_check_failed',
+  'doc_creation_failed',
+  // Persistence
+  'persist_failed',
+  // Artefact creation
+  'board_creation_failed',
+  'task_creation_failed',
+  'sheet_creation_failed',
+  'presentation_creation_failed',
+  'sharepic_failed',
+  'generation_failed',
+  'edit_failed',
+  // Retrieval / sources
+  'source_unavailable',
+  'rerank_degraded',
+  'research_plan_failed',
+  'classifier_degraded',
+  'summary_partial',
+  'recall_degraded',
+  'connect_reauth_required',
+  'mention_context_failed',
+  'extraction_failed',
+  'mcp_unreachable',
+  // Compute
+  'compute_failed',
+  // Provider / privacy
+  'privacy_mode_degraded',
+]);
+export type ChatWarningCode = z.infer<typeof chatWarningCodeSchema>;
+
 /** Wire payload of the SSE `error` event (see chatErrorCodeSchema for `code`). */
 export const chatErrorEventPayloadSchema = z
   .object({

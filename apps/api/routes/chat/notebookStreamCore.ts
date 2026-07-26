@@ -358,7 +358,10 @@ export async function handleNotebookStream(
         metadata: { totalResults: searchContext.sortedResults.length, leakageDetected: true },
       });
       if (options.closeStream !== false) sse.end();
-      return null;
+      // Return the fallback instead of null: the controller only persists when
+      // a result comes back, so returning null left the user's message in the
+      // thread without any assistant reply after reload.
+      return { answer: fallback, citations: [], sources: [], question };
     }
 
     const { renumberedDraft, newReferencesMap } = renumberCitationsInOrder(
