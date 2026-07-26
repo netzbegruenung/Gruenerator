@@ -19,6 +19,7 @@ import { getPostgresInstance } from '../../../database/services/PostgresService.
 import { chunkAndEmbedText } from '../../../services/document-services/DocumentProcessingService/index.js';
 import { getQdrantDocumentService } from '../../../services/document-services/DocumentSearchService/DocumentSearchService.js';
 import { visionService } from '../../../services/vision/VisionService.js';
+import { applyContextCap } from '../../../utils/contextCap.js';
 import { createLogger } from '../../../utils/logger.js';
 import { reportBackgroundError } from '../../../utils/reportBackgroundError.js';
 import { getIntermediateModel } from '../agents/providers.js';
@@ -188,7 +189,8 @@ Halte die Zusammenfassung sehr kompakt (max. 150 Wörter). Beginne direkt mit de
 
   const textToSummarize =
     extractedText.length > 15000
-      ? extractedText.slice(0, 15000) + '\n\n[... Text gekürzt ...]'
+      ? applyContextCap(extractedText, 15000, 'attachment:summaryInput', false) +
+        '\n\n[... Text gekürzt ...]'
       : extractedText;
 
   try {
