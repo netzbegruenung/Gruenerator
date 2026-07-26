@@ -287,10 +287,27 @@ function audit(manifest, manifestStale) {
   return { hasDrift, body: lines.join('\n') };
 }
 
+// A toolNotes key without a matching code tool is always a bug (a rename
+// slipped through — see issue #2049, spaces → projekte), so it fails --check
+// hard. Missing notes for NEW tools stay a soft audit finding: they need a
+// human to write prose, not a broken build.
+function checkStaleNotes(manifest) {
+  const documented = extractDocumentedTools();
+  const known = new Set(manifest.groups.flatMap((g) => g.tools.map((t) => t.id)));
+  return [...documented.keys()]
+    .filter((id) => !known.has(id))
+    .sort()
+    .map(
+      (id) =>
+        `${NOTES_FILE} beschreibt '${id}', das es im Code nicht (mehr) gibt — Eintrag entfernen oder auf die neue Id umbenennen.`
+    );
+}
+
 runGenerator({
   outFile: OUT_FILE,
   generate,
   audit,
+  check: checkStaleNotes,
   label: 'docs-freshness',
   issueTitle: 'Docs freshness: Werkzeuge ohne Beschreibung in der Übersicht',
   marker: ISSUE_MARKER,
