@@ -9,7 +9,6 @@ import { ChatSettingsSheet } from '../../components/chat/ChatSettingsSheet';
 import { BottomComposerBar } from '../../components/common/BottomComposerBar';
 import { SunriseBackground } from '../../components/common/SunriseBackground';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
-import { RecentlyCreatedSection } from '../../components/start/RecentlyCreatedSection';
 import { ALL_TOOLS } from '../../components/tools/toolsConfig';
 import { ToolSquareGrid } from '../../components/tools/ToolSquareGrid';
 import { useDrawerStore } from '../../hooks/useDrawerStore';
@@ -70,8 +69,6 @@ export default function StartScreen() {
                 </Text>
               )}
             </View>
-
-            <RecentlyCreatedSection theme={theme} />
 
             {favoriteTools.length > 0 && (
               <View style={styles.section}>

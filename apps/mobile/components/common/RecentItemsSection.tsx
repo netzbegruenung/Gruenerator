@@ -1,32 +1,25 @@
-import { getGlobalApiClient } from '@gruenerator/shared/api';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
-import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { useRouter, type Href } from 'expo-router';
-import { memo, useCallback, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, Linking } from 'react-native';
+import { useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useColorScheme,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
 import { useIsTablet } from '../../hooks/useIsTablet';
-import { colors, spacing, borderRadius, type Theme } from '../../theme';
-import { DocPreview } from '../common/DocPreview';
+import { type RecentItem, type RecentItemType } from '../../hooks/useRecentActivity';
+import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+
+import { DocPreview } from './DocPreview';
 
 const WEB_ORIGIN = 'https://gruenerator.eu';
 const dateFormat: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
-
-type RecentItemType = 'doc' | 'board' | 'image' | 'video' | 'presentation' | 'canvas';
-
-interface RecentItem {
-  id: string;
-  title: string;
-  date: string;
-  type: RecentItemType;
-  href: string;
-  thumbnailUrl?: string;
-  content?: string;
-  documentType?: string;
-  creatorName?: string;
-  accessType?: string;
-}
 
 const TYPE_ICONS: Record<RecentItemType, IoniconsIconName> = {
   doc: 'document-text-outline',
@@ -46,52 +39,34 @@ const FALLBACK_TITLES: Record<RecentItemType, string> = {
   canvas: 'Neuer Canvas',
 };
 
-const fetchRecentActivity = async (): Promise<RecentItem[]> => {
-  const res = await getGlobalApiClient().get<{ items?: RecentItem[] }>('/recent-activity', {
-    params: { limit: 12 },
-  });
-  return res.data?.items ?? [];
-};
-
-export const RecentlyCreatedSection = memo(({ theme }: { theme: Theme }) => {
-  const router = useRouter();
+/**
+ * A titled grid of `/recent-activity` items. Shared by the start page's "Zuletzt"
+ * strip and the Studio tab, which renders one instance per media kind. Renders
+ * nothing once loading has finished with an empty list, so a section never sits
+ * on the page as a bare heading.
+ */
+export function RecentItemsSection({
+  title,
+  items,
+  isLoading = false,
+  style,
+  onOpen,
+}: {
+  title: string;
+  items: RecentItem[];
+  isLoading?: boolean;
+  style?: StyleProp<ViewStyle>;
+  onOpen: (item: RecentItem) => void;
+}) {
+  const isDark = useColorScheme() === 'dark';
+  const theme = isDark ? darkTheme : lightTheme;
   const isTablet = useIsTablet();
   const [failedThumbs, setFailedThumbs] = useState<Set<string>>(new Set());
 
-  const { data: allItems = [], isLoading } = useQuery({
-    queryKey: ['recent-activity'],
-    queryFn: fetchRecentActivity,
-    staleTime: 30_000,
-  });
-
-  // Boards have their own section on the start page.
-  const items = allItems.filter((item) => item.type !== 'board').slice(0, 6);
-
-  const handleOpen = useCallback(
-    (item: RecentItem) => {
-      if (item.type === 'doc') {
-        router.push({ pathname: '/(fullscreen)/doc-editor', params: { id: item.id } } as Href);
-        return;
-      }
-      // Image shares (item.id is the share_token) open in the in-app viewer, which
-      // downloads the media, previews it, and offers save-to-gallery + native share —
-      // rather than bouncing to the web share link in an external browser.
-      if (item.type === 'image') {
-        router.push({
-          pathname: '/(fullscreen)/pushed-content',
-          params: { shareToken: item.id, mediaType: 'image', title: item.title },
-        } as Href);
-        return;
-      }
-      void Linking.openURL(`${WEB_ORIGIN}${item.href}`);
-    },
-    [router]
-  );
-
   if (isLoading) {
     return (
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Zuletzt</Text>
+      <View style={[styles.section, style]}>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
         <View style={styles.loadingRow}>
           <ActivityIndicator color={colors.primary[600]} />
         </View>
@@ -99,17 +74,15 @@ export const RecentlyCreatedSection = memo(({ theme }: { theme: Theme }) => {
     );
   }
 
-  if (items.length === 0) {
-    return null;
-  }
+  if (items.length === 0) return null;
 
   return (
-    <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: theme.text }]}>Zuletzt</Text>
+    <View style={[styles.section, style]}>
+      <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
       <View style={styles.grid}>
         {items.map((item) => {
           const key = `${item.type}-${item.id}`;
-          // Backend returns an origin-relative thumbnail path (e.g.
+          // The backend returns an origin-relative thumbnail path (e.g.
           // /api/share/<token>/thumbnail). That resolves against the origin on web,
           // but mobile has no base origin — prefix WEB_ORIGIN so <Image> can load it.
           const thumbUri = item.thumbnailUrl
@@ -125,7 +98,7 @@ export const RecentlyCreatedSection = memo(({ theme }: { theme: Theme }) => {
           return (
             <Pressable
               key={key}
-              onPress={() => handleOpen(item)}
+              onPress={() => onOpen(item)}
               style={({ pressed }) => [
                 styles.card,
                 { width: isTablet ? '31%' : '48%' },
@@ -172,13 +145,10 @@ export const RecentlyCreatedSection = memo(({ theme }: { theme: Theme }) => {
       </View>
     </View>
   );
-});
-RecentlyCreatedSection.displayName = 'RecentlyCreatedSection';
+}
 
 const styles = StyleSheet.create({
   section: {
-    paddingTop: spacing.xlarge,
-    paddingHorizontal: spacing.medium,
     gap: spacing.small,
   },
   sectionTitle: {
@@ -195,7 +165,8 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   card: {
-    flexGrow: 1,
+    // Deliberately not flexGrow: an odd item at the end of a row would stretch to
+    // full width and render a half-screen-tall 4:3 thumbnail.
     borderRadius: borderRadius.large,
     borderWidth: 1,
     overflow: 'hidden',
