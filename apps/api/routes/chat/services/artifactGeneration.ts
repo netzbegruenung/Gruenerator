@@ -149,7 +149,10 @@ export async function runDocGeneration(opts: {
   onCommit?: () => void;
 }): Promise<CreatedDocument | null> {
   const { kind, userContent, aiWorkerPool, req, userId, onCommit } = opts;
-  const reqWithUser = req as Express.Request & { user?: { id?: string }; sessionID?: string };
+  const reqWithUser = req as Express.Request & {
+    user?: { id?: string; locale?: string };
+    sessionID?: string;
+  };
   const { generateStructured, viaLaxParser, withContent } =
     await import('../../../services/ai/generateStructured.js');
 
@@ -179,7 +182,7 @@ export async function runDocGeneration(opts: {
       return null;
     }
     onCommit?.();
-    const doc = await createPresentationDocument(generated.data, userId);
+    const doc = await createPresentationDocument(generated.data, userId, reqWithUser.user?.locale);
     return {
       documentId: doc.id,
       title: doc.title,

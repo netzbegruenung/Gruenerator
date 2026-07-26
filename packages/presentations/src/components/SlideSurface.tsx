@@ -1,4 +1,4 @@
-import { PRESENTATION_DEFAULT_ACCENT, type Slide } from '@gruenerator/contracts';
+import { getPresentationBrandTheme, type Slide } from '@gruenerator/contracts';
 import { type ComponentProps, type CSSProperties } from 'react';
 import Markdown from 'react-markdown';
 import rehypeKatex from 'rehype-katex';
@@ -15,6 +15,10 @@ export interface SlideSurfaceProps {
   slide: Slide;
   /** Deck brand accent colour (drives default backgrounds, markers, bars). */
   accent?: string | null;
+  /** Country CI ('de-DE' | 'de-AT'); anything else renders the de-DE theme. */
+  brand?: string | null;
+  /** Render the party logo on title-layout slides (deck option, default on). */
+  showLogo?: boolean;
   /** Inline-edit the title/body (editor canvas). */
   editable?: boolean;
   /** The deck Y.Doc — required for WYSIWYG body editing (editor canvas only). */
@@ -96,6 +100,8 @@ function resolveBackground(slide: Slide, accent: string): { style: CSSProperties
 export function SlideSurface({
   slide,
   accent,
+  brand,
+  showLogo,
   editable,
   ydoc,
   onChange,
@@ -104,7 +110,8 @@ export function SlideSurface({
 }: SlideSurfaceProps) {
   const touchEdit = !!editable && !!onRequestEdit;
   const inlineEdit = !!editable && !touchEdit;
-  const deckAccent = accent?.trim() || PRESENTATION_DEFAULT_ACCENT;
+  const theme = getPresentationBrandTheme(brand);
+  const deckAccent = accent?.trim() || theme.defaultAccent;
   const variant = slide.variant ?? 0;
   const layoutClass = LAYOUT_CLASS[slide.layout];
   const fragmentClass = presenting && slide.fragments ? 'fragment' : undefined;
@@ -122,13 +129,30 @@ export function SlideSurface({
   const isCode = slide.layout === 'code';
   const isTitle = slide.layout === 'title';
 
+  // Variant 1 (Geteilt) puts the accent side panel bottom-right where the logo
+  // sits, so the logo needs its on-dark variant even on a light surface.
+  const logoOnDark = dark || (isTitle && variant === 1);
+
   return (
     <div
-      className={`gruene-slide ${layoutClass} variant-${variant}${dark ? ' is-dark' : ''}`}
+      className={`gruene-slide ${layoutClass} variant-${variant}${dark ? ' is-dark' : ''}${
+        theme.brand === 'de-AT' ? ' brand-at' : ''
+      }`}
       style={{ ...bgStyle, '--deck-accent': deckAccent } as CSSProperties}
     >
       {/* Title-variant decoration: Sand (v2) top bar, Geteilt (v1) side panel. */}
       {isTitle && variant === 2 && <span className="gruene-slide__bar" aria-hidden="true" />}
+
+      {isTitle && showLogo !== false && (
+        <img
+          className="gruene-slide__logo"
+          src={logoOnDark ? theme.logo.dark.webPath : theme.logo.light.webPath}
+          style={{ height: theme.logo.heightPx }}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+        />
+      )}
 
       {inlineEdit ? (
         <InlineEditable

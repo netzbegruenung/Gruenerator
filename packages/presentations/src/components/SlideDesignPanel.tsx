@@ -1,6 +1,5 @@
 import {
-  PRESENTATION_ACCENT_OPTIONS,
-  PRESENTATION_DEFAULT_ACCENT,
+  getPresentationBrandTheme,
   type Slide,
   type SlideLayout,
   type SlideTransition,
@@ -10,14 +9,7 @@ import { FiChevronDown, FiImage, FiX } from 'react-icons/fi';
 
 import { type DeckOptions } from '../collab/useSlides.js';
 
-import {
-  BACKGROUND_SWATCHES,
-  LAYOUTS,
-  LAYOUT_LABELS,
-  TRANSITIONS,
-  TRANSITION_LABELS,
-  VARIANT_NAMES,
-} from './labels.js';
+import { LAYOUTS, LAYOUT_LABELS, TRANSITIONS, TRANSITION_LABELS, VARIANT_NAMES } from './labels.js';
 import { ToggleSwitch } from './ToggleSwitch.js';
 import { VariantThumb } from './VariantThumb.js';
 
@@ -80,7 +72,8 @@ export function SlideDesignPanel({
   onClose,
   variant = 'rail',
 }: SlideDesignPanelProps) {
-  const accent = deckOptions.accentColor?.trim() || PRESENTATION_DEFAULT_ACCENT;
+  const theme = getPresentationBrandTheme(deckOptions.brand);
+  const accent = deckOptions.accentColor?.trim() || theme.defaultAccent;
   const isSheet = variant === 'sheet';
   return (
     <div
@@ -154,7 +147,7 @@ export function SlideDesignPanel({
         <div className="flex flex-col gap-2">
           <SectionLabel>Hintergrund</SectionLabel>
           <div className="flex flex-wrap items-center gap-2.5">
-            {BACKGROUND_SWATCHES.map((sw) => (
+            {theme.backgroundSwatches.map((sw) => (
               <button
                 key={sw.value}
                 type="button"
@@ -253,7 +246,7 @@ export function SlideDesignPanel({
           <div className="flex flex-col gap-2">
             <div className="text-xs text-[#6E7E74] dark:text-grey-400">Marke (Akzentfarbe)</div>
             <div className="flex items-center gap-2.5">
-              {PRESENTATION_ACCENT_OPTIONS.map((opt) => (
+              {theme.accentOptions.map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
@@ -285,6 +278,12 @@ export function SlideDesignPanel({
               ))}
             </select>
           </div>
+          <ToggleSwitch
+            checked={deckOptions.showLogo}
+            onChange={(v) => onDeckOption({ showLogo: v })}
+            label="Logo anzeigen"
+            hint="Logo auf der Titelfolie zeigen"
+          />
           <ToggleSwitch
             checked={deckOptions.slideNumber}
             onChange={(v) => onDeckOption({ slideNumber: v })}

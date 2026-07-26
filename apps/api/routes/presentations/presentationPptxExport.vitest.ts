@@ -43,6 +43,38 @@ describe('exportPresentationToPptx', () => {
     expect(buf.subarray(0, 2).toString('latin1')).toBe('PK');
   });
 
+  it.each(['de-DE', 'de-AT'] as const)('exports a valid deck with the %s brand', async (brand) => {
+    const buf = await exportPresentationToPptx(
+      [slide({ layout: 'title', title: 'Deck', body: 'Untertitel' }), slide({ title: 'Inhalt' })],
+      'T',
+      null,
+      { brand, showLogo: true }
+    );
+    expect(buf.length).toBeGreaterThan(0);
+    expect(buf.subarray(0, 2).toString('latin1')).toBe('PK');
+  });
+
+  it('produces different output for DE vs AT brands (fonts/colors/logo)', async () => {
+    const slides = [slide({ layout: 'title', title: 'Deck', body: 'Untertitel' })];
+    const de = await exportPresentationToPptx(slides, 'T', null, { brand: 'de-DE' });
+    const at = await exportPresentationToPptx(slides, 'T', null, { brand: 'de-AT' });
+    expect(de.equals(at)).toBe(false);
+  });
+
+  it('embeds the title-slide logo only when showLogo is on', async () => {
+    const slides = [slide({ layout: 'title', title: 'Deck' })];
+    const withLogo = await exportPresentationToPptx(slides, 'T', null, {
+      brand: 'de-DE',
+      showLogo: true,
+    });
+    const withoutLogo = await exportPresentationToPptx(slides, 'T', null, {
+      brand: 'de-DE',
+      showLogo: false,
+    });
+    // The embedded PNG dominates the archive size.
+    expect(withLogo.length).toBeGreaterThan(withoutLogo.length + 1000);
+  });
+
   it('omits hidden slides', async () => {
     const withHidden = await exportPresentationToPptx(
       [slide({ title: 'Sichtbar' }), slide({ title: 'Versteckt', hidden: true })],
