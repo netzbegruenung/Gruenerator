@@ -2,6 +2,7 @@ import { getSystemAgent } from '@gruenerator/shared/agents';
 import { buildMentionToken } from '@gruenerator/shared/utils';
 
 import { parseAllMentions } from '../../lib/mentionParser';
+import { notifyWarning } from '../../lib/notify';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
 import { useDocumentChatStore } from '../../stores/documentChatStore';
@@ -62,6 +63,45 @@ const MAX_CLIENT_TOOL_ROUNDS = 3;
  * left in a half-logged-in editor with only an in-thread "Sitzung abgelaufen"
  * message and no way back to login until a manual reload.
  */
+/**
+ * Report a failure WITHOUT discarding what was already streamed.
+ *
+ * assistant-ui merges a yielded result as `[...initialContent, ...m.content]`
+ * where `initialContent` is frozen at roundtrip start (`[]` for a fresh
+ * message) — so any yield carrying `content` REPLACES the whole message. A
+ * naive `yield { content: [warning] }` therefore deletes the answer it was
+ * meant to annotate. Re-yield the accumulated parts and append the notice.
+ */
+function appendFailureText(
+  lastResult: ChatModelRunResult | undefined,
+  text: string,
+  status: ReturnType<typeof errorStatus>
+): ChatModelRunResult {
+  const previous = lastResult?.content ?? [];
+  return {
+    ...lastResult,
+    content: [
+      ...previous,
+      { type: 'text' as const, text: previous.length > 0 ? `\n\n${text}` : text },
+    ],
+    status,
+  };
+}
+
+/** Partial answer + "the connection dropped" — the answer stays readable. */
+function withInterruptionNotice(lastResult: ChatModelRunResult | undefined): ChatModelRunResult {
+  return appendFailureText(
+    lastResult,
+    `⚠️ **${STREAM_INTERRUPTED_MESSAGE}**`,
+    errorStatus(
+      new ChatStreamError(STREAM_INTERRUPTED_MESSAGE, {
+        code: 'stream_interrupted',
+        retryable: true,
+      })
+    )
+  );
+}
+
 function routeUnauthorized(response: Response): void {
   if (response.status === 401 || response.status === 403) {
     void useChatConfigStore.getState().onUnauthorized?.();
@@ -600,6 +640,10 @@ export function createGrueneratorModelAdapter(
               '[ChatAdapter] contextProvider threw, continuing without injected context',
               err
             );
+            notifyWarning(
+              'Dokumentkontext konnte nicht gelesen werden',
+              'Die Antwort bezieht sich möglicherweise nicht auf das Dokument.'
+            );
           }
         }
       }
@@ -728,25 +772,18 @@ export function createGrueneratorModelAdapter(
             '[GrueneratorModelAdapter] Stream dropped mid-flight:',
             streamErrorContext(runStartedAt)
           );
-          yield {
-            content: [{ type: 'text' as const, text: `\n\n⚠️ **${STREAM_INTERRUPTED_MESSAGE}**` }],
-            status: errorStatus(
-              new ChatStreamError(STREAM_INTERRUPTED_MESSAGE, {
-                code: 'stream_interrupted',
-                retryable: true,
-              })
-            ),
-          };
+          yield withInterruptionNotice(streamOutcome.lastResult);
           return;
         }
         // Other mid-stream errors (e.g. backend SSE `error` event) — surface
         // as an assistant message so the user sees what went wrong in-thread,
         // not just in the dev console. The status additionally gives the
         // message a retry affordance.
-        yield {
-          content: [{ type: 'text' as const, text: streamErrorMessage(err) }],
-          status: errorStatus(err),
-        };
+        yield appendFailureText(
+          streamOutcome.lastResult,
+          streamErrorMessage(err),
+          errorStatus(err)
+        );
         return;
       }
 
@@ -762,15 +799,7 @@ export function createGrueneratorModelAdapter(
           '[GrueneratorModelAdapter] Stream closed without terminal event:',
           streamErrorContext(runStartedAt)
         );
-        yield {
-          content: [{ type: 'text' as const, text: `\n\n⚠️ **${STREAM_INTERRUPTED_MESSAGE}**` }],
-          status: errorStatus(
-            new ChatStreamError(STREAM_INTERRUPTED_MESSAGE, {
-              code: 'stream_interrupted',
-              retryable: true,
-            })
-          ),
-        };
+        yield withInterruptionNotice(streamOutcome.lastResult);
         return;
       }
 

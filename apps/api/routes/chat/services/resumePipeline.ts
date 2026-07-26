@@ -21,7 +21,7 @@ import {
   rerankNode,
   buildCitations,
 } from '../../../agents/langgraph/ChatGraph/index.js';
-import { isSourceAvailabilityError } from '../../../agents/langgraph/ChatGraph/types.js';
+import { partitionSearchErrors } from '../../../agents/langgraph/ChatGraph/types.js';
 import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../../utils/logger.js';
 import { getContextWindow } from '../agents/providers.js';
@@ -29,7 +29,7 @@ import { getContextWindow } from '../agents/providers.js';
 import { persistComputeAssets } from './computeAssetStorage.js';
 import { hasBrokenComputeValues } from './computeResultSanity.js';
 import { pruneMessages } from './contextPruningService.js';
-import { executeIntentPipeline } from './intentExecutionService.js';
+import { executeIntentPipeline, reportUnavailableSources } from './intentExecutionService.js';
 import { extractTextContent } from './messageHelpers.js';
 import { createPendingAssistantWriter } from './pendingAssistantWriter.js';
 import { pipelineStateStore } from './pipelineStateStore.js';
@@ -182,7 +182,7 @@ export async function runChatGraphResume({
         const retries = classifiedState.pandasComputeRetries ?? 0;
         if (retries >= 1) return false;
         classifiedState.aiWorkerPool = aiWorkerPool;
-        const { pythonCode } = await pandasComputeNode(classifiedState, {
+        const { pythonCode, computeFailed } = await pandasComputeNode(classifiedState, {
           ...(classifiedState.pandasLastCode != null && {
             previousCode: classifiedState.pandasLastCode,
           }),
@@ -191,6 +191,22 @@ export async function runChatGraphResume({
           }),
           previousError: errorText,
         });
+        // This is the path where the user's Python run ALREADY failed once. If
+        // the correction codegen also fails, the turn falls through to respond
+        // — and without this note the model answers the numeric question from
+        // the truncated table text, which is the hallucination this node exists
+        // to prevent.
+        if (computeFailed) {
+          sendChatWarning(sse, 'compute_failed');
+          classifiedState.degradationNotes = [
+            ...(classifiedState.degradationNotes ?? []),
+            {
+              code: 'compute_failed',
+              modelHint:
+                'Die Berechnung auf der Tabelle ist fehlgeschlagen. Rechne NICHT selbst und nenne keine Zahlen aus der Tabelle — sag ehrlich, dass die Auswertung gerade nicht möglich war.',
+            },
+          ];
+        }
         if (!pythonCode) return false;
 
         classifiedState.pandasComputeRetries = retries + 1;
@@ -400,8 +416,15 @@ export async function runChatGraphResume({
         }
 
         const resultCount = finalState.searchResults?.length || 0;
-        const searchDegraded = finalState.searchErrors?.some(isSourceAvailabilityError) ?? false;
+        const {
+          coreDegraded: searchDegraded,
+          unavailableSources,
+          needsReauth,
+        } = partitionSearchErrors(finalState.searchErrors);
         if (searchDegraded) sendSearchDegradedWarning(sse, resultCount);
+        if (unavailableSources.length > 0) {
+          reportUnavailableSources(sse, finalState, unavailableSources, needsReauth);
+        }
         sse.send('search_complete', {
           message:
             searchDegraded && resultCount === 0

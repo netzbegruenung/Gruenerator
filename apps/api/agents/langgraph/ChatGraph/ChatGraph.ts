@@ -41,6 +41,7 @@ import { socialMediaComposerNode } from './nodes/socialMediaComposerNode.js';
 import type {
   ChatGraphInput,
   ChatGraphOutput,
+  DegradationNote,
   SearchIntent,
   SearchSource,
   SearchResult,
@@ -362,6 +363,12 @@ const ChatStateAnnotation = Annotation.Root({
   // searchErrors uses APPEND reducer so errors persist across the qualityGate→search loop;
   // searchResults uses replace, so without append we'd lose failures from prior iterations.
   searchErrors: Annotation<{ source: string; message: string }[]>({
+    reducer: (x, y) => [...(x ?? []), ...(y ?? [])],
+    default: () => [],
+  }),
+  // Appending, like searchErrors: a degradation found in an early node must
+  // survive the quality-gate retry loop back to respond.
+  degradationNotes: Annotation<DegradationNote[]>({
     reducer: (x, y) => [...(x ?? []), ...(y ?? [])],
     default: () => [],
   }),
@@ -941,6 +948,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
 
     // Reliability flags & structured error log
     searchErrors: [],
+    degradationNotes: [],
     briefGenerationFailed: false,
     rerankFailed: false,
     topRerankScore: null,
