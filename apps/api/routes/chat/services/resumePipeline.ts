@@ -21,7 +21,7 @@ import {
   rerankNode,
   buildCitations,
 } from '../../../agents/langgraph/ChatGraph/index.js';
-import { isSourceAvailabilityError } from '../../../agents/langgraph/ChatGraph/types.js';
+import { partitionSearchErrors } from '../../../agents/langgraph/ChatGraph/types.js';
 import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../../utils/logger.js';
 import { getContextWindow } from '../agents/providers.js';
@@ -29,7 +29,7 @@ import { getContextWindow } from '../agents/providers.js';
 import { persistComputeAssets } from './computeAssetStorage.js';
 import { hasBrokenComputeValues } from './computeResultSanity.js';
 import { pruneMessages } from './contextPruningService.js';
-import { executeIntentPipeline } from './intentExecutionService.js';
+import { executeIntentPipeline, reportUnavailableSources } from './intentExecutionService.js';
 import { extractTextContent } from './messageHelpers.js';
 import { createPendingAssistantWriter } from './pendingAssistantWriter.js';
 import { pipelineStateStore } from './pipelineStateStore.js';
@@ -400,8 +400,13 @@ export async function runChatGraphResume({
         }
 
         const resultCount = finalState.searchResults?.length || 0;
-        const searchDegraded = finalState.searchErrors?.some(isSourceAvailabilityError) ?? false;
+        const { coreDegraded: searchDegraded, unavailableSources, needsReauth } = partitionSearchErrors(
+          finalState.searchErrors
+        );
         if (searchDegraded) sendSearchDegradedWarning(sse, resultCount);
+        if (unavailableSources.length > 0) {
+          reportUnavailableSources(sse, finalState, unavailableSources, needsReauth);
+        }
         sse.send('search_complete', {
           message:
             searchDegraded && resultCount === 0
