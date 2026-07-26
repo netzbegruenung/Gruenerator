@@ -83,7 +83,17 @@ export const MOBILE_SYSTEM_NOTEBOOKS: MobileNotebookEntry[] = NOTEBOOK_REGISTRY.
   }))
   .sort((a, b) => a.order - b.order);
 
-export const HIDDEN_NOTEBOOK_IDS = ['gruenerator-notebook', 'gruenblog-notebook'];
+/**
+ * Kept out of the gallery — mirrors HIDDEN_NOTEBOOK_IDS in apps/web's
+ * NotebooksIndexPage. They stay resolvable (chat mentions, existing links), they
+ * just get no tile.
+ */
+export const HIDDEN_NOTEBOOK_IDS = [
+  'gruenerator-notebook',
+  'gruenblog-notebook',
+  // Vorerst ausgeblendet — Kachel wieder einblenden = diese Zeile entfernen.
+  'abgeordnetenwatch-notebook',
+];
 
 /**
  * Maps each gallery notebook to the `*-system` collection id(s) the research backend

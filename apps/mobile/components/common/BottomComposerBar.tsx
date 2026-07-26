@@ -20,11 +20,17 @@ export function BottomComposerBar({
   onSend,
   onSettings,
   keyboardVerticalOffset = 0,
+  autoFocus = false,
+  onDismissEmpty,
+  onClose,
 }: {
   placeholder?: string;
   onSend: (text: string) => void;
   onSettings?: () => void;
   keyboardVerticalOffset?: number;
+  autoFocus?: boolean;
+  onDismissEmpty?: () => void;
+  onClose?: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -67,6 +73,9 @@ export function BottomComposerBar({
           placeholder={placeholder}
           onSend={onSend}
           onSettings={onSettings}
+          autoFocus={autoFocus}
+          onDismissEmpty={onDismissEmpty}
+          onClose={onClose}
         />
       </View>
     </KeyboardAvoidingView>

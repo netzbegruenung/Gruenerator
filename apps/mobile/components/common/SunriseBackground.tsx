@@ -3,12 +3,17 @@ import { AccessibilityInfo, Animated, StyleSheet, useColorScheme } from 'react-n
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 /**
- * Exact mobile port of the web Chat tab's `.workplace-chat-sunrise` background
- * (apps/web/src/features/workplace/workplace-sunrise.css): a warm cream base with a
- * soft sand-gold (#E9D696) elliptical glow centered slightly above middle. Purely
- * decorative, absolutely filled, behind content. The glow rises + fades in on mount
- * (honoring reduce-motion); the cream base is static. Dark mode: transparent base +
- * a much fainter glow.
+ * Mobile take on the web Chat tab's `.workplace-chat-sunrise` background
+ * (apps/web/src/features/workplace/workplace-sunrise.css): a warm base with a soft
+ * sand-gold (#E9D696) elliptical glow. Purely decorative, absolutely filled, behind
+ * content. The glow rises + fades in on mount (honoring reduce-motion); the base is
+ * static. Dark mode: transparent base + a much fainter glow.
+ *
+ * Shallower than the web original, on purpose. A phone is tall and narrow, so the
+ * web ellipse faded out well above the bottom-pinned composer, leaving it on bare
+ * cream — the yellow read as a patch in the middle rather than the tab's colour.
+ * The glow now reaches past the bottom edge and bottoms out short of zero, so the
+ * gradient still reads as one while the composer keeps warm ground under it.
  */
 const GLOW = '233, 214, 150'; // #E9D696
 
@@ -49,14 +54,16 @@ export function SunriseBackground() {
 
   const stops = isDark
     ? [
-        { offset: '0', opacity: '0.1' },
-        { offset: '0.42', opacity: '0.035' },
-        { offset: '0.74', opacity: '0' },
+        { offset: '0', opacity: '0.06' },
+        { offset: '0.45', opacity: '0.045' },
+        { offset: '0.8', opacity: '0.03' },
+        { offset: '1', opacity: '0.028' },
       ]
     : [
-        { offset: '0', opacity: '0.5' },
-        { offset: '0.4', opacity: '0.18' },
-        { offset: '0.74', opacity: '0' },
+        { offset: '0', opacity: '0.24' },
+        { offset: '0.45', opacity: '0.18' },
+        { offset: '0.8', opacity: '0.13' },
+        { offset: '1', opacity: '0.12' },
       ];
 
   return (
@@ -65,7 +72,10 @@ export function SunriseBackground() {
       <Animated.View style={[StyleSheet.absoluteFill, { opacity, transform: [{ translateY }] }]}>
         <Svg width="100%" height="100%">
           <Defs>
-            <RadialGradient id="chatSunrise" cx="50%" cy="52%" rx="88%" ry="58%">
+            {/* Sized so the falloff actually completes on screen — stretch the
+                ellipse much past the edges and everything sits in its core, which
+                flattens the gradient into a single wash. */}
+            <RadialGradient id="chatSunrise" cx="50%" cy="40%" rx="105%" ry="62%">
               {stops.map((s) => (
                 <Stop
                   key={s.offset}
