@@ -21,6 +21,10 @@
       "label": "Personalisierung"
     },
     {
+      "value": "briefkoepfe",
+      "label": "Briefköpfe"
+    },
+    {
       "value": "texte-anlernen",
       "label": "Texte anlernen"
     },
