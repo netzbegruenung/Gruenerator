@@ -42,10 +42,12 @@ import { extractTextContent } from './messageHelpers.js';
 import {
   recallPastChats,
   recallOfficeDocuments,
+  recallReels,
   rerankRecall,
   getThreadRecallContext,
   formatPastChatsBlock,
   formatOfficeDocsBlock,
+  formatReelsBlock,
   getSpaceRecallScope,
 } from './pastChatRecallService.js';
 import { pendingActionStore } from './pendingActionStore.js';
@@ -903,7 +905,8 @@ export async function executeIntentPipeline(opts: {
       }
     } else if (currentIntent === 'chat_history') {
       // Recall the user's own past work — chat threads (deep-reading the top
-      // match) plus office documents (docs/presentations/sheets). Runs its own
+      // match), office documents (docs/presentations/sheets) and reels
+      // (subtitled videos, matched on their spoken transcript). Runs its own
       // retrieval (not searchNode, which targets party documents/web).
       const userId = finalState.agentConfig.userId;
       if (userId) {
@@ -921,7 +924,7 @@ export async function executeIntentPipeline(opts: {
         const spaceScope = opts.threadId
           ? await getSpaceRecallScope(opts.threadId, userId).catch(() => null)
           : null;
-        const [rawChats, rawOfficeDocs] = await Promise.all([
+        const [rawChats, rawOfficeDocs, rawReels] = await Promise.all([
           recallPastChats(userId, query, {
             limit: 5,
             ...(opts.threadId != null && { excludeThreadId: opts.threadId }),
@@ -930,10 +933,15 @@ export async function executeIntentPipeline(opts: {
             ...(spaceScope && { threadIds: spaceScope.threadIds }),
           }),
           recallOfficeDocuments(userId, query, 5),
+          recallReels(userId, query, 5),
         ]);
         // Cross-source rerank so the most relevant few survive across chats +
-        // office content, rather than 5 of each.
-        const { chats: hits, officeDocs } = await rerankRecall(query, rawChats, rawOfficeDocs, 6);
+        // office content + reels, rather than 5 of each.
+        const {
+          chats: hits,
+          officeDocs,
+          reels,
+        } = await rerankRecall(query, rawChats, rawOfficeDocs, 6, rawReels);
 
         const deepRead = hits[0] ? await getThreadRecallContext(hits[0].threadId, userId) : null;
 
@@ -950,12 +958,19 @@ export async function executeIntentPipeline(opts: {
             content: d.snippet || d.kind,
             url: d.url,
           })),
+          ...reels.map((r) => ({
+            source: 'reel',
+            title: r.title,
+            content: r.snippet || 'Reel',
+            url: r.url,
+          })),
         ];
 
         const contextBlocks = [
           spaceScope?.rosterBlock ?? '',
           hits.length ? formatPastChatsBlock(hits, deepRead) : '',
           formatOfficeDocsBlock(officeDocs),
+          formatReelsBlock(reels),
         ].filter(Boolean);
         finalState = {
           ...finalState,
@@ -1070,9 +1085,11 @@ export async function executeIntentPipeline(opts: {
         // Degraded search (Qdrant/web source unreachable) must be
         // distinguishable from a genuine zero-hit — both for the user
         // (warning toast + status copy) and for monitoring.
-        const { coreDegraded: searchDegraded, unavailableSources, needsReauth } = partitionSearchErrors(
-          finalState.searchErrors
-        );
+        const {
+          coreDegraded: searchDegraded,
+          unavailableSources,
+          needsReauth,
+        } = partitionSearchErrors(finalState.searchErrors);
         if (searchDegraded) sendSearchDegradedWarning(sse, resultCount);
         // A file the user explicitly attached or @-mentioned that could not be
         // read. These were collected but filtered away by the availability

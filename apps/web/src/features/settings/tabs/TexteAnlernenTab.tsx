@@ -1,12 +1,19 @@
 import { type TextForm, type TextFormType } from '@gruenerator/contracts';
+import { type QueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { FiArrowLeft, FiChevronRight, FiPlus } from 'react-icons/fi';
 
-import TextFormEditor from './texteAnlernen/TextFormEditor';
-import { useTextForms } from './texteAnlernen/useTextForms';
+import { SettingsCardsSkeleton } from '../components/SettingsSkeleton';
 
-import Spinner from '@/components/common/Spinner';
+import TextFormEditor from './texteAnlernen/TextFormEditor';
+import { textFormsQuery, useTextForms } from './texteAnlernen/useTextForms';
+
 import { useAuthStore } from '@/stores/authStore';
+
+export const prefetch = (queryClient: QueryClient) => {
+  if (!useAuthStore.getState().user) return;
+  void queryClient.prefetchQuery(textFormsQuery);
+};
 
 const PRESETS: { textType: TextFormType; label: string; hint: string }[] = [
   { textType: 'instagram', label: 'Instagram', hint: 'Instagram-Posts' },
@@ -71,13 +78,7 @@ const TexteAnlernenTab = () => {
   const api = useTextForms(!!user);
   const [target, setTarget] = useState<EditorTarget | null>(null);
 
-  if (api.query.isLoading) {
-    return (
-      <div className="flex justify-center py-lg">
-        <Spinner size="medium" />
-      </div>
-    );
-  }
+  if (api.query.isLoading) return <SettingsCardsSkeleton cards={4} />;
 
   const forms = api.query.data ?? [];
   const byMention = (mention: string): TextForm | undefined =>
