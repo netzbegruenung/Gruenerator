@@ -25,6 +25,16 @@ export const slideTransitionSchema = z.enum(['none', 'fade', 'slide', 'convex', 
 export type SlideTransition = z.infer<typeof slideTransitionSchema>;
 
 /**
+ * Per-slide font-size preset. Absent/null = "Auto": the renderer shrinks the
+ * type scale step by step until the content fits the 960×540 surface
+ * (PowerPoint-style shrink-on-overflow). The px multiplier per preset lives in
+ * `PRESENTATION_FONT_SIZE_SCALE` (presentationsYdoc.ts).
+ */
+export const slideFontSizeSchema = z.enum(['xs', 's', 'm', 'l', 'xl']);
+
+export type SlideFontSize = z.infer<typeof slideFontSizeSchema>;
+
+/**
  * One slide. `body` is markdown (or source code for the `code` layout).
  * `background` is a CSS color, an image/video URL, or a `linear-gradient(...)`
  * string — the renderer picks the matching reveal `data-background-*`.
@@ -51,6 +61,8 @@ export const slideSchema = z.object({
    * 2 Nummeriert; quote → 0 Grün / 1 Sand; image → 0 Groß / 1 Geteilt.
    */
   variant: z.number().int().min(0).max(2).nullish(),
+  /** Font-size preset; null/absent = auto-fit (see slideFontSizeSchema). */
+  fontSize: slideFontSizeSchema.nullish(),
 });
 
 export type Slide = z.infer<typeof slideSchema>;
@@ -88,6 +100,11 @@ export const presentationOperationSchema = z.discriminatedUnion('type', [
     codeLanguage: z.string().nullish(),
     /** Design variant within the layout (0–2); see slideSchema.variant. */
     variant: z.number().int().min(0).max(2).nullish(),
+    /**
+     * Font-size preset. 'auto' resets the slide to auto-fit — an explicit
+     * literal because null means "no change" under patch semantics.
+     */
+    fontSize: z.enum(['auto', 'xs', 's', 'm', 'l', 'xl']).nullish(),
   }),
   z.object({
     type: z.literal('delete_slide'),

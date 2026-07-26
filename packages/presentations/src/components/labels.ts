@@ -1,4 +1,4 @@
-import { type SlideLayout, type SlideTransition } from '@gruenerator/contracts';
+import { type SlideFontSize, type SlideLayout, type SlideTransition } from '@gruenerator/contracts';
 
 export const LAYOUT_LABELS: Record<SlideLayout, string> = {
   title: 'Titel',
@@ -19,6 +19,16 @@ export const TRANSITION_LABELS: Record<SlideTransition, string> = {
   zoom: 'Zoom',
 };
 export const TRANSITIONS = Object.keys(TRANSITION_LABELS) as SlideTransition[];
+
+/** Font-size segments; null = auto-fit (shrink to fit the slide). */
+export const FONT_SIZE_OPTIONS: { value: SlideFontSize | null; label: string }[] = [
+  { value: null, label: 'Auto' },
+  { value: 'xs', label: 'XS' },
+  { value: 's', label: 'S' },
+  { value: 'm', label: 'M' },
+  { value: 'l', label: 'L' },
+  { value: 'xl', label: 'XL' },
+];
 
 /**
  * Design-variant names per layout (index = the slide's `variant`). Layouts not
