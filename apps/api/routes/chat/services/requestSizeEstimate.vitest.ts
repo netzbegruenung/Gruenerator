@@ -56,11 +56,11 @@ describe('estimateRequestTokens', () => {
 });
 
 describe('VERDIGADO_INPUT_LIMIT', () => {
-  // Verdigado is verified to 120k and prunes at 0.7*120k-3000 ≈ 81k. The limit
+  // Verdigado is declared at 64k and prunes at 0.7*64k-3000 ≈ 41.8k. The limit
   // must sit at or below that, otherwise a request would be pruned down on the
   // small lane while a 262k lane was available — the exact loss it prevents.
   it('sits at or below the Verdigado pruning budget', () => {
-    const verdigadoPruningBudget = Math.floor(120_000 * 0.7) - 3_000;
+    const verdigadoPruningBudget = Math.floor(64_000 * 0.7) - 3_000;
     expect(VERDIGADO_INPUT_LIMIT).toBeLessThanOrEqual(verdigadoPruningBudget);
   });
 

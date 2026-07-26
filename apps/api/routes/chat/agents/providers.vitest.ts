@@ -158,7 +158,7 @@ describe('resolveModelTuple — size-aware overflow routing', () => {
     // Either side may win depending on slot availability, but the window must
     // match the side that was chosen.
     if (tuple!.provider === 'litellm') {
-      expect(tuple!.contextWindow).toBe(120_000);
+      expect(tuple!.contextWindow).toBe(64_000);
     } else {
       expect(tuple!.contextWindow).toBe(262_144);
     }
