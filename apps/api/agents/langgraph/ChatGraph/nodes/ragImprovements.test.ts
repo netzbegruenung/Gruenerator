@@ -238,6 +238,7 @@ async function testExpandedContextWindow() {
     researchMeta: null,
     examplesResult: null,
     searchErrors: [],
+    degradationNotes: [],
     briefGenerationFailed: false,
     rerankFailed: false,
     topRerankScore: null,

@@ -7,6 +7,28 @@
  */
 
 /**
+ * Doc subtypes the classifier may emit as `documentSubtype`.
+ *
+ * Single source for the prompt's enum line AND the parser-side validation
+ * (classifierParsing.ts): the model occasionally invents a semantically
+ * plausible value outside this set ("brief"), which then travels as
+ * `subtypeOverride` past every downstream check straight into the DB, where
+ * the `collaborative_documents_document_subtype_check` constraint rejects it.
+ */
+export const CLASSIFIER_DOC_SUBTYPES = [
+  'antrag',
+  'pressemitteilung',
+  'protokoll',
+  'notizen',
+  'redaktionsplan',
+  'checkliste',
+  'einladung',
+  'tabelle',
+] as const;
+
+const DOC_SUBTYPE_ENUM_LINE = CLASSIFIER_DOC_SUBTYPES.map((s) => `"${s}"`).join(' | ');
+
+/**
  * System prompt for intent classification.
  * Uses Chain-of-Thought for typo detection and content-type awareness.
  */
@@ -192,7 +214,7 @@ Antworte NUR mit JSON:
   "needsResearch": true | false,
   "intent": "sharepic" | "social_post" | "image" | "image_edit" | "research" | "search" | "web" | "examples" | "abgeordnetenwatch" | "bundestag" | "bahn" | "reise" | "hotel" | "umfragen" | "wetter" | "news" | "summary" | "chart" | "artifact" | "compute" | "save_as_doc" | "create_sheet" | "create_presentation" | "create_pdf" | "create_recurring_task" | "modify_doc" | "modify_board" | "share_doc" | "chat_history" | "mcp" | "direct",
   "secondaryIntent": "image" | "examples" | "chart" | "save_as_doc" | null,
-  "documentSubtype": "antrag" | "pressemitteilung" | "protokoll" | "notizen" | "redaktionsplan" | "checkliste" | "einladung" | "tabelle" | null,
+  "documentSubtype": ${DOC_SUBTYPE_ENUM_LINE} | null,
   "searchQuery": "ORIGINALTEXT des Benutzers (KEINE Korrekturen an Eigennamen!)" | null,
   "optimizedSearchQuery": "nur das faktische Thema aus dem ORIGINALTEXT, ohne Aufgabenanweisung" | null,
   "subQueries": ["thema1", "thema2"] | null,

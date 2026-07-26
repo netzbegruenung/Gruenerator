@@ -1171,10 +1171,25 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         args.body.clientTools?.includes('run_python') &&
         actualThreadId != null
       ) {
-        const { pythonCode } = await pandasComputeNode(
+        const { pythonCode, computeFailed } = await pandasComputeNode(
           classifiedState,
           isSheetFill ? { mode: 'fill' } : {}
         );
+        // Codegen failed (as opposed to the model judging the question
+        // unrelated to the table, which is a legitimate silent skip). Without
+        // telling the model, it answers the numeric question from the truncated
+        // table text — the hallucination this node exists to prevent.
+        if (computeFailed) {
+          sendChatWarning(sse, 'compute_failed');
+          classifiedState.degradationNotes = [
+            ...(classifiedState.degradationNotes ?? []),
+            {
+              code: 'compute_failed',
+              modelHint:
+                'Die Berechnung auf der Tabelle ist fehlgeschlagen. Rechne NICHT selbst und nenne keine Zahlen aus der Tabelle — sag ehrlich, dass die Auswertung gerade nicht möglich war.',
+            },
+          ];
+        }
         if (pythonCode) {
           log.info(
             `[ChatGraph] run_python interrupt (${pythonCode.length} chars ${isSheetFill ? 'openpyxl fill' : 'pandas'} code)`
