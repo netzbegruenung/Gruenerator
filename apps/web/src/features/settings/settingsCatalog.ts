@@ -24,6 +24,13 @@ export interface SettingsCatalogEntry {
 
 export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
   {
+    id: 'allgemein.konto',
+    tab: 'allgemein',
+    title: 'Konto',
+    description:
+      'Name, Benutzername und E-Mail stammen aus deinem Grünen Login und werden dort geändert',
+  },
+  {
     id: 'allgemein.aussehen',
     tab: 'allgemein',
     title: 'Aussehen',
@@ -82,12 +89,6 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     description:
       'Zeigt die Touren durch Workplace, Dokumente, Tabellen, Präsentationen und das Sharepic-Studio beim nächsten Öffnen wieder an.',
   },
-  // No descriptions: these three are read-only mirrors of the Grüner Login and
-  // sit under the tab's own explanation. Adding a line to each would repeat it
-  // three times in a row.
-  { id: 'konto.anzeigename', tab: 'konto', title: 'Anzeigename' },
-  { id: 'konto.benutzername', tab: 'konto', title: 'Benutzername' },
-  { id: 'konto.email', tab: 'konto', title: 'E-Mail' },
   {
     id: 'benachrichtigungen.testmail',
     tab: 'benachrichtigungen',
