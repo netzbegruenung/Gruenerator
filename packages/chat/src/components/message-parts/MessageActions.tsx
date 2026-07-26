@@ -8,6 +8,7 @@ import { useExtraActions } from '../../context/ExtraActionsContext';
 import { useRegenerateMessage } from '../../hooks/useRegenerateMessage';
 // import { MessageTTSButton } from './MessageTTSButton';
 import { formatSourcesMarkdown } from '../../lib/formatSourcesMarkdown';
+import { notifyError } from '../../lib/notify';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 
 import { MessageBranchPicker } from './MessageBranchPicker';
@@ -71,6 +72,7 @@ export const MessageActions = memo(function MessageActions({
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Export error:', error);
+      notifyError('Export fehlgeschlagen', 'Die Nachricht konnte nicht heruntergeladen werden.');
     } finally {
       setIsExporting(false);
     }
@@ -122,6 +124,7 @@ export const MessageActions = memo(function MessageActions({
       }
     } catch (error) {
       console.error('Edit in Docs error:', error);
+      notifyError('Dokument konnte nicht erstellt werden', 'Bitte versuche es erneut.');
     } finally {
       setIsCreatingDoc(false);
     }
