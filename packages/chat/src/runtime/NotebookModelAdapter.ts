@@ -162,12 +162,20 @@ export function createNotebookModelAdapter(
           sharepicImage = (await config.sharepicContext.captureImage?.()) ?? null;
         } catch (err) {
           console.warn('[Notebook] Sharepic image capture failed:', err);
+          notifyWarning(
+            'Sharepic konnte nicht mitgeschickt werden',
+            'Die Antwort entsteht ohne das aktuelle Bild.'
+          );
         }
         try {
           const t = config.sharepicContext.getText?.();
           if (t && t.trim().length > 0) sharepicText = t;
         } catch (err) {
           console.warn('[Notebook] Sharepic getText failed:', err);
+          notifyWarning(
+            'Sharepic konnte nicht mitgeschickt werden',
+            'Die Antwort entsteht ohne das aktuelle Bild.'
+          );
         }
       }
       const sharepicSystemPrompt = config.sharepicContext?.systemPrompt;
