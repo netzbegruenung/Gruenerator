@@ -1,15 +1,10 @@
+import { PRESENTATION_MIN_SCALE, PRESENTATION_SCALE_LADDER } from '@gruenerator/contracts';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
-
-/** Discrete shrink steps — coarse on purpose so re-fits don't jitter while typing. */
-export const SCALE_LADDER: readonly number[] = [1, 0.9, 0.8, 0.7, 0.6, 0.5];
-
-/** Smallest step; also the safe degradation for an out-of-range index. */
-export const MIN_SCALE = 0.5;
 
 /** Ladder read that never yields undefined (indices are in range by
  * construction; the fallback just keeps the type honest). */
 function step(index: number): number {
-  return SCALE_LADDER[index] ?? MIN_SCALE;
+  return PRESENTATION_SCALE_LADDER[index] ?? PRESENTATION_MIN_SCALE;
 }
 
 /**
@@ -26,12 +21,12 @@ function step(index: number): number {
  * rejected step — callers must apply the returned value afterwards.
  */
 export function pickScale(fits: (scale: number) => boolean, from: number): number {
-  const start = SCALE_LADDER.indexOf(from);
+  const start = PRESENTATION_SCALE_LADDER.indexOf(from);
   let i = start === -1 ? 0 : start;
   if (fits(step(i))) {
     while (i > 0 && fits(step(i - 1))) i -= 1;
   } else {
-    while (i < SCALE_LADDER.length - 1) {
+    while (i < PRESENTATION_SCALE_LADDER.length - 1) {
       i += 1;
       if (fits(step(i))) break;
     }
