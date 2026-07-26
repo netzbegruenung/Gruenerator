@@ -15,15 +15,13 @@ export type AppRoute =
   | '/profile'
   // Arbeiten (merged Docs + Tools) tab
   | '/(tabs)/(arbeiten)'
-  // Office — reachable as a tool tile, not as a tab of its own
-  | '/(tabs)/(office)'
+  | '/(tabs)/(studio)'
   // Tools routes
   | '/(tabs)/(tools)'
   | '/(tabs)/(tools)/reel'
   | '/(tabs)/(tools)/ki-bildgenerierung'
   | '/(tabs)/(tools)/image-studio'
   | '/(tabs)/(tools)/scanner'
-  | '/(tabs)/(tools)/studio'
   | '/(tabs)/(tools)/vorlagen'
   // Recherche routes
   | '/(tabs)/(recherche)'

@@ -1,43 +1,31 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { View, StyleSheet, ScrollView, useColorScheme, Alert } from 'react-native';
+import { View, StyleSheet, useColorScheme, Alert } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomComposerBar } from '../../../components/common/BottomComposerBar';
 import { DocumentsView } from '../../../components/docs/DocumentsView';
-import { FloatingBadgeTabs, type TabDefinition } from '../../../components/navigation';
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
-import { TOOLS } from '../../../components/tools/toolsConfig';
-import { ToolSquareGrid } from '../../../components/tools/ToolSquareGrid';
+import { useOfficeExtraItems } from '../../../components/office/useOfficeExtraItems';
 import { useTabSwipe } from '../../../hooks/useTabSwipe';
 import { useDocsStore } from '../../../stores/docsStore';
-import { spacing } from '../../../theme';
-import { FLOATING_TAB_BAR_HEIGHT } from '../../../theme/layout';
 import { route } from '../../../types/routes';
 
-const SECTIONS: TabDefinition[] = [
-  { key: 'werkzeuge', label: 'Werkzeuge' },
-  { key: 'dokumente', label: 'Dokumente' },
-];
-
 /**
- * "Arbeiten": the work hub, split into two badge-tabbed sections — the coloured
- * tool tiles and the document list. They used to share one scroll with the tools
- * riding in as the list header, which buried the documents behind a full screen
- * of tiles once the tile grid went square.
+ * "Arbeiten": everything the user has made — documents, presentations, sheets,
+ * boards and canvases in one list, plus the bottom composer that generates a new
+ * document from a prompt (the web Arbeiten intelligent creator).
  *
- * The document composer (the web Arbeiten intelligent creator) belongs to the
- * Dokumente section only; on Werkzeuge a "Dokument beschreiben…" bar would be
- * noise, so that section pads for the floating tab bar itself instead.
+ * This screen absorbed the former Office tab. On mobile the two were the same
+ * list with different chrome, so Office is gone and its `extraItems` (boards +
+ * canvases, which the /docs endpoint does not return) are fetched here instead.
  */
 export default function ArbeitenScreen() {
   const isDark = useColorScheme() === 'dark';
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const generateDocument = useDocsStore((s) => s.generateDocument);
   const [isCreating, setIsCreating] = useState(false);
-  const [section, setSection] = useState<string>('werkzeuge');
+  const { items } = useOfficeExtraItems();
 
   // Flat near-white tint mirrors the web Arbeiten tab (bg-[#F7FBF8]); dark keeps the
   // app gradient.
@@ -73,32 +61,10 @@ export default function ArbeitenScreen() {
     <ScreenScaffold title="Arbeiten" backdrop={backdrop}>
       <GestureDetector gesture={swipe}>
         <View style={styles.flex}>
-          <FloatingBadgeTabs
-            inline
-            tabs={SECTIONS}
-            activeTab={section}
-            onTabPress={setSection}
-            style={styles.sectionTabs}
-          />
-
-          {section === 'werkzeuge' ? (
-            <ScrollView
-              contentContainerStyle={[
-                styles.toolsContent,
-                { paddingBottom: insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.medium },
-              ]}
-              showsVerticalScrollIndicator={false}
-            >
-              <ToolSquareGrid tools={TOOLS} />
-            </ScrollView>
-          ) : (
-            <>
-              <View style={styles.flex}>
-                <DocumentsView showSearch={false} showFab={false} />
-              </View>
-              <BottomComposerBar placeholder="Dokument beschreiben…" onSend={handleCreate} />
-            </>
-          )}
+          <View style={styles.flex}>
+            <DocumentsView extraItems={items} showFab={false} />
+          </View>
+          <BottomComposerBar placeholder="Dokument beschreiben…" onSend={handleCreate} />
         </View>
       </GestureDetector>
     </ScreenScaffold>
@@ -111,12 +77,5 @@ const styles = StyleSheet.create({
   },
   flatBg: {
     backgroundColor: '#F7FBF8',
-  },
-  sectionTabs: {
-    paddingTop: spacing.xsmall,
-  },
-  toolsContent: {
-    paddingHorizontal: spacing.medium,
-    paddingTop: spacing.small,
   },
 });

@@ -11,42 +11,20 @@ export interface ToolDef {
 }
 
 /**
- * Single source of truth for the app's tools. The Arbeiten tab's "Werkzeuge"
- * strip, the Start screen's favorites and the drawer all render from this list,
- * so a tool is defined once and favorited by `id` via `useToolFavoritesStore`.
+ * Tools that are NOT one of the four bottom tabs. Chat, Arbeiten, Studio and
+ * Wissen are everyday surfaces and live in the tab bar; what is left reaches the
+ * user through the drawer and the profile menu instead. The drawer renders this
+ * list, so a tool is defined once and favorited by `id` via
+ * `useToolFavoritesStore`.
  *
- * Order and wording mirror web's `apps/web/src/config/toolRegistry.ts` — the
- * entries web marks `favourite: true` plus the Studio tiles, minus the ones with
- * no mobile route (Transkription, Zeichenzähler, the /studio hub). Ids are F1
- * frozen: `useToolFavoritesStore` persists them, so the five original mobile ids
- * keep their spelling even where web calls the same tool something else
- * (`ki-bildgenerierung` vs. web's `canvas-ki`).
+ * Ids are F1 frozen: the favourites store persists them, so they keep their
+ * spelling even where the title changed (`agents` is titled "Agentura" now, and
+ * `ki-bildgenerierung` is web's `canvas-ki`).
  */
 export const TOOLS: ToolDef[] = [
   {
-    id: 'office',
-    title: 'Office',
-    description: 'Dokumente, Boards & Tabellen',
-    icon: 'desktop',
-    route: '/(tabs)/(office)',
-  },
-  {
-    id: 'studio',
-    title: 'Studio',
-    description: 'KI-Bilder, Vorlagen & Reels',
-    icon: 'color-palette',
-    route: '/(tabs)/(tools)/studio',
-  },
-  {
-    id: 'wissen',
-    title: 'Wissen',
-    description: 'Recherche & Notebooks',
-    icon: 'book',
-    route: '/(tabs)/(recherche)',
-  },
-  {
     id: 'agents',
-    title: 'Grüneratoren',
+    title: 'Agentura',
     description: 'Grüneratoren & Rezepte',
     icon: 'people',
     route: '/(focused)/agents',
@@ -58,15 +36,6 @@ export const TOOLS: ToolDef[] = [
     icon: 'people-circle',
     route: '/(focused)/gruppen',
   },
-  // Websuche is parked: `/(tabs)/(recherche)/research` is reachable from the
-  // Wissen screen, and a second entry point earned its own tile only on web.
-  // {
-  //   id: 'suche',
-  //   title: 'Websuche',
-  //   description: 'Recherche im Netz',
-  //   icon: 'search',
-  //   route: '/(tabs)/(recherche)/research',
-  // },
   {
     id: 'scanner',
     title: 'Scanner',
@@ -74,13 +43,21 @@ export const TOOLS: ToolDef[] = [
     icon: 'scan',
     route: '/(tabs)/(tools)/scanner',
   },
+  // Websuche is parked: `/(tabs)/(recherche)/research` is reachable from the
+  // Wissen tab, and a second entry point earned its own tile only on web.
+  // {
+  //   id: 'suche',
+  //   title: 'Websuche',
+  //   description: 'Recherche im Netz',
+  //   icon: 'search',
+  //   route: '/(tabs)/(recherche)/research',
+  // },
 ];
 
 /**
- * The Studio area's own tools, mirroring web's /studio landing strip. They are
- * deliberately NOT in `TOOLS`: the top level shows one "Studio" tile, and these
- * three live behind it — same split web makes between the `canvas` tool and its
- * `canvas-*` sub-tiles.
+ * The Studio tab's own tools, mirroring web's /studio landing strip. Separate
+ * from `TOOLS` because Studio is a tab: these are what its screen shows, not
+ * drawer entries.
  */
 export const STUDIO_TOOLS: ToolDef[] = [
   {
@@ -106,5 +83,5 @@ export const STUDIO_TOOLS: ToolDef[] = [
   },
 ];
 
-/** Every tool a favourite can point at — top level plus the Studio area. */
+/** Every tool a favourite can point at — drawer entries plus the Studio tab. */
 export const ALL_TOOLS: ToolDef[] = [...TOOLS, ...STUDIO_TOOLS];

@@ -3,7 +3,7 @@ import { useColorScheme } from 'react-native';
 
 import { lightTheme, darkTheme } from '../../../theme';
 
-export default function DocsLayout() {
+export default function StudioLayout() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 

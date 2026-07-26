@@ -25,9 +25,11 @@ interface MenuItem {
   href: Href;
 }
 
+// Projekte and Agentura live here and in the drawer only — the bottom bar is
+// reserved for the four everyday surfaces (Chat, Arbeiten, Studio, Wissen).
 const MENU_ITEMS: MenuItem[] = [
-  { key: 'gruppen', label: 'Gruppen', icon: 'people-outline', href: '/(focused)/gruppen' },
-  { key: 'inhalte', label: 'Office', icon: 'folder-outline', href: '/(tabs)/(office)' },
+  { key: 'projekte', label: 'Projekte', icon: 'people-circle-outline', href: '/(focused)/gruppen' },
+  { key: 'agentura', label: 'Agentura', icon: 'people-outline', href: '/(focused)/agents' },
   { key: 'einstellungen', label: 'Einstellungen', icon: 'settings-outline', href: '/profile' },
 ];
 
