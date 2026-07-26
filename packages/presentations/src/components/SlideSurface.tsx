@@ -1,10 +1,16 @@
-import { getPresentationBrandTheme, type Slide } from '@gruenerator/contracts';
+import {
+  getPresentationBrandTheme,
+  PRESENTATION_FONT_SIZE_SCALE,
+  type Slide,
+} from '@gruenerator/contracts';
 import { type ComponentProps, type CSSProperties } from 'react';
 import Markdown from 'react-markdown';
 import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import { type Doc as YDoc } from 'yjs';
+
+import { useAutoFitScale } from '../lib/useAutoFitScale.js';
 
 import { InlineEditable } from './InlineEditable.js';
 import { SlideBodyEditor } from './SlideBodyEditor.js';
@@ -129,16 +135,29 @@ export function SlideSurface({
   const isCode = slide.layout === 'code';
   const isTitle = slide.layout === 'title';
 
+  // Explicit preset scale, or auto-fit ("Auto"). Code slides are excluded from
+  // auto-fit: their body is its own scroll container, so the surface never
+  // overflows and a fit pass would be a no-op anyway.
+  const presetScale = slide.fontSize ? PRESENTATION_FONT_SIZE_SCALE[slide.fontSize] : null;
+  const { ref: surfaceRef, scale: autoScale } = useAutoFitScale(
+    presetScale == null && !isCode,
+    `${slide.layout}|${variant}|${theme.brand}|${slide.title}|${slide.body}`
+  );
+  const fontScale = presetScale ?? autoScale;
+
   // Variant 1 (Geteilt) puts the accent side panel bottom-right where the logo
   // sits, so the logo needs its on-dark variant even on a light surface.
   const logoOnDark = dark || (isTitle && variant === 1);
 
   return (
     <div
+      ref={surfaceRef}
       className={`gruene-slide ${layoutClass} variant-${variant}${dark ? ' is-dark' : ''}${
         theme.brand === 'de-AT' ? ' brand-at' : ''
       }`}
-      style={{ ...bgStyle, '--deck-accent': deckAccent } as CSSProperties}
+      style={
+        { ...bgStyle, '--deck-accent': deckAccent, '--gs-font-scale': fontScale } as CSSProperties
+      }
     >
       {/* Title-variant decoration: Sand (v2) top bar, Geteilt (v1) side panel. */}
       {isTitle && variant === 2 && <span className="gruene-slide__bar" aria-hidden="true" />}
