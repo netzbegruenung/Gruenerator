@@ -21,14 +21,16 @@ import type { Citation, SearchResult } from '../../../../agents/langgraph/ChatGr
 
 /** How much of each result's content the model sees per snippet line. It's the
  *  only grounding text the model gets (the tool return drops the raw content),
- *  so keep it generous. */
+ *  so keep it generous. Tools whose results carry longer prose (e.g. bundestag
+ *  speech excerpts) can raise it per registration via `snippetChars`. */
 const SNIPPET_CHARS = 320;
 
 export interface SourceRegistry {
   /** Add raw results (search/web/research/examples). Returns the numbered
    *  snippet block for exactly the newly-added results so the calling tool can
-   *  hand it back to the model. */
-  register(results: SearchResult[]): string;
+   *  hand it back to the model. `snippetChars` raises the per-line content cap
+   *  for these results (default 320) — honored in `renderAll` too. */
+  register(results: SearchResult[], opts?: { snippetChars?: number }): string;
   /**
    * Seed sources gathered in EARLIER turns (cross-turn rehydration). These feed
    * ONLY {@link renderReference} (the edit op-planner's grounding) — NOT
@@ -59,21 +61,24 @@ function resultKey(r: SearchResult): string {
   return `${r.url ?? ''}::${r.title ?? ''}::${(r.content ?? '').slice(0, 80)}`;
 }
 
-function snippetLine(index: number, r: SearchResult): string {
+function snippetLine(index: number, r: SearchResult, cap = SNIPPET_CHARS): string {
   const title = (r.title || r.source || 'Quelle').trim();
-  const body = (r.content ?? '').replace(/\s+/g, ' ').trim().slice(0, SNIPPET_CHARS);
+  const body = (r.content ?? '').replace(/\s+/g, ' ').trim().slice(0, cap);
   return `[${index}] ${title}${body ? ` — ${body}` : ''}`;
 }
 
 export function createSourceRegistry(): SourceRegistry {
   const ordered: SearchResult[] = [];
+  // Per-result snippet cap, parallel to `ordered` (register's snippetChars).
+  const caps: number[] = [];
   const seen = new Set<string>();
   // Prior-turn sources, kept OUT of `ordered` so they never affect this turn's
   // citations/persistence — they only ground the edit op-planner (renderReference).
   const carried: SearchResult[] = [];
 
   return {
-    register(results) {
+    register(results, opts) {
+      const cap = opts?.snippetChars ?? SNIPPET_CHARS;
       const lines: string[] = [];
       for (const r of results) {
         if (!r || typeof r !== 'object') continue;
@@ -84,7 +89,8 @@ export function createSourceRegistry(): SourceRegistry {
         if (seen.has(key)) continue;
         seen.add(key);
         ordered.push(r);
-        lines.push(snippetLine(ordered.length, r));
+        caps.push(cap);
+        lines.push(snippetLine(ordered.length, r, cap));
       }
       return lines.join('\n');
     },
@@ -103,7 +109,7 @@ export function createSourceRegistry(): SourceRegistry {
       return ordered.slice(0, limit);
     },
     renderAll() {
-      return ordered.map((r, i) => snippetLine(i + 1, r)).join('\n');
+      return ordered.map((r, i) => snippetLine(i + 1, r, caps[i])).join('\n');
     },
     renderReference() {
       // Carried (prior-turn) first, then this-turn's fresh sources not already
