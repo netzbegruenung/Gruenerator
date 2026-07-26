@@ -89,10 +89,14 @@ The testIDs the flows rely on:
 | `chat-composer-input`                          | [components/chat/AssistantComposer.tsx](../components/chat/AssistantComposer.tsx) |
 | `chat-composer-send`                           | send button (only mounted once the input has text)                                |
 
-Tab bar items are selected by their visible labels (`Chat`, `Arbeiten`,
-`Wissen`, `Profil`) — those come from `Tabs.Screen` `title` props in
+Tab bar items are selected by their visible labels — those come from
+`Tabs.Screen` `title` props in
 [components/navigation/ClassicTabLayout.tsx](../components/navigation/ClassicTabLayout.tsx)
 and are stable navigation anchors rather than body copy.
+
+There are exactly **three**: `Chat`, `Arbeiten`, `Wissen`. `profile` is also
+registered as a `Tabs.Screen` but with `href: null`, so it never appears in the
+tab bar — it opens from the avatar. Reading the layout file alone suggests four.
 
 ## Adding a flow
 
