@@ -36,17 +36,8 @@ export function NativeTabLayout() {
         })}
         <NativeTabs.Trigger.Label>Arbeiten</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="(recherche)">
-        {Platform.select({
-          ios: <NativeTabs.Trigger.Icon sf={{ default: 'book', selected: 'book.fill' }} />,
-          android: (
-            <NativeTabs.Trigger.Icon
-              src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name="book-outline" />}
-            />
-          ),
-        })}
-        <NativeTabs.Trigger.Label>Wissen</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
+      {/* Wissen is a tool tile on the Arbeiten tab now, not a tab of its own. */}
+      <NativeTabs.Trigger name="(recherche)" hidden />
       <NativeTabs.Trigger name="(chat)" hidden />
       <NativeTabs.Trigger name="(office)" hidden />
       <NativeTabs.Trigger name="(tools)" hidden />

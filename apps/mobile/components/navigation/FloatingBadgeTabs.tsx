@@ -27,15 +27,33 @@ interface FloatingBadgeTabsProps {
   activeTab: string;
   onTabPress: (tabKey: string) => void;
   style?: ViewStyle;
+  /**
+   * Render in the normal flow instead of floating over the screen. Use this below
+   * a `ScreenScaffold` header, where the default absolute placement would land on
+   * top of the title bar.
+   */
+  inline?: boolean;
 }
 
-export function FloatingBadgeTabs({ tabs, activeTab, onTabPress, style }: FloatingBadgeTabsProps) {
+export function FloatingBadgeTabs({
+  tabs,
+  activeTab,
+  onTabPress,
+  style,
+  inline = false,
+}: FloatingBadgeTabsProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.container, { top: insets.top + 8 }, style]}>
+    <View
+      style={[
+        styles.row,
+        inline ? styles.inline : [styles.floating, { top: insets.top + 8 }],
+        style,
+      ]}
+    >
       {tabs.map((tab) => {
         const isActive = tab.key === activeTab;
         return (
@@ -72,15 +90,20 @@ export function FloatingBadgeTabs({ tabs, activeTab, onTabPress, style }: Floati
 }
 
 const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
+  row: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 8,
-    zIndex: 100,
     paddingHorizontal: 16,
+  },
+  floating: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 100,
+  },
+  inline: {
+    paddingBottom: 8,
   },
   badge: {
     paddingHorizontal: 16,

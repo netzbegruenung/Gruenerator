@@ -5,16 +5,10 @@ import {
   useAui,
   useAuiState,
 } from '@assistant-ui/react-native';
-import {
-  getPinnedAgents,
-  useAgentStore,
-  type Mentionable,
-  type PinnedAgent,
-} from '@gruenerator/chat';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
-import { type ReactElement, memo, useCallback, useMemo, useState } from 'react';
+import { type ReactElement, memo, useCallback, useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -24,10 +18,7 @@ import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
 import { colors, spacing, borderRadius } from '../../theme';
 import { route, routeWithParams, type AppRoute } from '../../types/routes';
 import { ProfileAvatar } from '../common';
-import { TOOLS, type ToolDef } from '../tools/toolsConfig';
-
-import { NewChatSheet } from './NewChatSheet';
-import { agentIcon } from './sidebarIcons';
+import { STUDIO_TOOLS, TOOLS, type ToolDef } from '../tools/toolsConfig';
 
 import type { Theme } from '../../theme/colors';
 
@@ -112,71 +103,37 @@ const ThreadItem = memo(function ThreadItem({
   );
 });
 
+// One flat tool list instead of the old Favoriten + Schnellstart pair: the drawer
+// now mirrors web's sidebar, which lists tools rather than pinned agents (those
+// live on the Grüneratoren tool's own screen). Starred tools sort to the top so
+// the star still does something here. No heading above them — the rows read as
+// the menu they are, and the saved line goes to the thread list.
 function DrawerSections({
   theme,
-  agents,
-  favouriteTools,
-  onSelectAgent,
+  tools,
   onSelectTool,
-  onOpenSources,
 }: {
   theme: Theme;
-  agents: PinnedAgent[];
-  favouriteTools: ToolDef[];
-  onSelectAgent: (agentId: string) => void;
+  tools: ToolDef[];
   onSelectTool: (route: AppRoute) => void;
-  onOpenSources: () => void;
 }) {
   return (
     <View>
-      {favouriteTools.length > 0 && (
-        <>
-          <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Favoriten</Text>
-          {favouriteTools.map((tool) => (
-            <Pressable
-              key={tool.id}
-              onPress={() => onSelectTool(tool.route)}
-              style={({ pressed }) => [
-                styles.navRow,
-                { backgroundColor: pressed ? theme.surface : 'transparent' },
-              ]}
-            >
-              <Ionicons name={tool.icon} size={20} color={theme.text} />
-              <Text style={[styles.navLabel, { color: theme.text }]} numberOfLines={1}>
-                {tool.title}
-              </Text>
-            </Pressable>
-          ))}
-        </>
-      )}
-
-      <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Schnellstart</Text>
-      {agents.map((agent) => (
+      {tools.map((tool) => (
         <Pressable
-          key={agent.identifier}
-          onPress={() => onSelectAgent(agent.identifier)}
+          key={tool.id}
+          onPress={() => onSelectTool(tool.route)}
           style={({ pressed }) => [
             styles.navRow,
             { backgroundColor: pressed ? theme.surface : 'transparent' },
           ]}
         >
-          <Ionicons name={agentIcon(agent.iconKey)} size={20} color={theme.text} />
+          <Ionicons name={tool.icon} size={20} color={theme.text} />
           <Text style={[styles.navLabel, { color: theme.text }]} numberOfLines={1}>
-            {agent.title}
+            {tool.title}
           </Text>
         </Pressable>
       ))}
-      <Pressable
-        onPress={onOpenSources}
-        style={({ pressed }) => [
-          styles.navRow,
-          { backgroundColor: pressed ? theme.surface : 'transparent' },
-        ]}
-      >
-        <Ionicons name="ellipsis-horizontal" size={20} color={theme.text} />
-        <Text style={[styles.navLabel, { color: theme.text }]}>Mehr</Text>
-      </Pressable>
-
       <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Letzte</Text>
     </View>
   );
@@ -244,19 +201,19 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
   const theme = themeProp ?? resolvedTheme;
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [sheetVisible, setSheetVisible] = useState(false);
-  const { locale } = useAuth();
   const closeDrawer = useDrawerStore((s) => s.closeDrawer);
   const activeThreadId = useAuiState((s) => s.threadListItem.id);
-  const pinnedAgents = useMemo(() => getPinnedAgents(locale), [locale]);
   const favouriteIds = useToolFavoritesStore((s) => s.favorites);
-  const favouriteTools = useMemo(
-    () =>
-      favouriteIds
-        .map((id) => TOOLS.find((t) => t.id === id))
-        .filter((t): t is ToolDef => t !== undefined),
-    [favouriteIds]
-  );
+  // Top-level tools, plus any favourited Studio sub-tool so starring one does not
+  // make it disappear from here. Starred entries sort to the top.
+  const tools = useMemo(() => {
+    const rank = (t: ToolDef) => {
+      const i = favouriteIds.indexOf(t.id);
+      return i === -1 ? favouriteIds.length : i;
+    };
+    const studioFavourites = STUDIO_TOOLS.filter((t) => favouriteIds.includes(t.id));
+    return [...TOOLS, ...studioFavourites].sort((a, b) => rank(a) - rank(b));
+  }, [favouriteIds]);
 
   const handleNavigate = useCallback(
     (path: AppRoute) => {
@@ -271,42 +228,12 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
   // the agent/notebook store writes. The drawer's own `aui` runtime is NOT the
   // focused conversation's runtime (MobileChatProvider creates its own), so
   // manipulating composer/threads here would target the wrong surface.
-  const openNewConversation = useCallback(
-    (params: { agentId?: string; notebookId?: string; initialComposerText?: string }) => {
-      setSheetVisible(false);
-      // Push before closing the drawer to avoid flashing the screen underneath
-      // (see handlePress).
-      router.push(routeWithParams('/(focused)/chat-conversation', { threadId: 'new', ...params }));
-      closeDrawer();
-    },
-    [closeDrawer, router]
-  );
-
   const handleNewChat = useCallback(() => {
-    openNewConversation({});
-  }, [openNewConversation]);
-
-  const handleSelectNotebook = useCallback(
-    (notebookId: string) => {
-      openNewConversation({ notebookId });
-    },
-    [openNewConversation]
-  );
-
-  const handleSelectAgent = useCallback(
-    (agentId: string) => {
-      openNewConversation({ agentId });
-    },
-    [openNewConversation]
-  );
-
-  const handleInsertMention = useCallback(
-    (mentionable: Mentionable) => {
-      const trigger = mentionable.category === 'skill' ? '/' : '@';
-      openNewConversation({ initialComposerText: `${trigger}${mentionable.mention} ` });
-    },
-    [openNewConversation]
-  );
+    // Push before closing the drawer to avoid flashing the screen underneath
+    // (see handlePress).
+    router.push(routeWithParams('/(focused)/chat-conversation', { threadId: 'new' }));
+    closeDrawer();
+  }, [closeDrawer, router]);
 
   const renderItem = useCallback(
     ({ threadId, index }: { threadId: string; index: number }): ReactElement => (
@@ -321,17 +248,8 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
   );
 
   const listHeader = useMemo(
-    () => (
-      <DrawerSections
-        theme={theme}
-        agents={pinnedAgents}
-        favouriteTools={favouriteTools}
-        onSelectAgent={handleSelectAgent}
-        onSelectTool={handleNavigate}
-        onOpenSources={() => setSheetVisible(true)}
-      />
-    ),
-    [theme, pinnedAgents, favouriteTools, handleSelectAgent, handleNavigate]
+    () => <DrawerSections theme={theme} tools={tools} onSelectTool={handleNavigate} />,
+    [theme, tools, handleNavigate]
   );
 
   return (
@@ -355,16 +273,6 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
         theme={theme}
         insetBottom={insets.bottom}
         onPress={() => handleNavigate('/profile')}
-      />
-
-      <NewChatSheet
-        visible={sheetVisible}
-        onClose={() => setSheetVisible(false)}
-        onNewChat={handleNewChat}
-        onSelectNotebook={handleSelectNotebook}
-        onSelectAgent={handleSelectAgent}
-        onInsertMention={handleInsertMention}
-        onSeeAllAgents={() => handleNavigate('/(focused)/agents')}
       />
     </ThreadListPrimitive.Root>
   );

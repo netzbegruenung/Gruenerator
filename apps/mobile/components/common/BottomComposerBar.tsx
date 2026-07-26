@@ -4,6 +4,7 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { spacing } from '../../theme';
+import { FLOATING_TAB_BAR_HEIGHT } from '../../theme/layout';
 
 import { ComposerCard } from './ComposerCard';
 
@@ -40,10 +41,14 @@ export function BottomComposerBar({
   }, []);
 
   // iOS: the floating tab bar is already inside insets.bottom, so clearing that inset +
-  // a small gap sits the composer just above it. Android: content is laid out above the
-  // JS tab bar already, so only a small gap is needed. Keyboard open → collapse to a gap
-  // (the tab bar is covered) and let KeyboardAvoidingView lift the composer.
-  const idlePadding = Platform.OS === 'ios' ? insets.bottom + spacing.xsmall : spacing.small;
+  // a small gap sits the composer just above it. Android: the capsule tab bar is
+  // absolutely positioned (ClassicTabLayout), so the navigator reserves no space for it
+  // and the composer has to clear it itself. Keyboard open → collapse to a gap (the tab
+  // bar hides) and let KeyboardAvoidingView lift the composer.
+  const idlePadding =
+    Platform.OS === 'ios'
+      ? insets.bottom + spacing.xsmall
+      : insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.xsmall;
   const paddingBottom = keyboardVisible ? spacing.xsmall : idlePadding;
 
   return (
