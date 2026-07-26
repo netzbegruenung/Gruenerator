@@ -6,6 +6,7 @@ import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, useColorScheme, Pressable, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomComposerBar } from '../../../components/common/BottomComposerBar';
 import { NotebookGradientBackground } from '../../../components/common/NotebookGradientBackground';
@@ -14,7 +15,6 @@ import { CommunityNotebooksSection } from '../../../components/notebook/Communit
 import { NotebookCard, notebookGridStyles } from '../../../components/notebook/NotebookCard';
 import { NotebookCreator } from '../../../components/notebook/NotebookCreator';
 import { NotebookSection } from '../../../components/notebook/NotebookSection';
-import { NotebooksHero } from '../../../components/notebook/NotebooksHero';
 import {
   getMobileNotebooksByCategory,
   getVisibleNotebooks,
@@ -28,6 +28,7 @@ import {
 } from '../../../hooks/useNotebookCollections';
 import { useFavoritesStore } from '../../../stores/favoritesStore';
 import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../../theme';
+import { FLOATING_TAB_BAR_HEIGHT } from '../../../theme/layout';
 import { routeWithParams } from '../../../types/routes';
 
 /** "12 Dokumente · Beschreibung" line for a user's own notebook card. */
@@ -41,7 +42,11 @@ export default function NotebooksScreen() {
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
   const isTablet = useIsTablet();
+  const insets = useSafeAreaInsets();
   const [creatorVisible, setCreatorVisible] = useState(false);
+  // The ask-all-sources composer is opt-in: the gallery is what the tab is for,
+  // and a permanently pinned bar ate a sixth of the screen for it.
+  const [askVisible, setAskVisible] = useState(false);
   const { user } = useAuth();
   const locale: 'de-DE' | 'de-AT' = user?.locale === 'de-AT' ? 'de-AT' : 'de-DE';
   const { collections, isLoading, processingIds, createCollection, deleteCollection } =
@@ -181,7 +186,7 @@ export default function NotebooksScreen() {
   );
 
   return (
-    <ScreenScaffold title="Notebooks" backdrop={<NotebookGradientBackground />}>
+    <ScreenScaffold title="Wissen" backdrop={<NotebookGradientBackground />}>
       <View style={styles.container}>
         <ScrollView
           style={styles.container}
@@ -189,8 +194,6 @@ export default function NotebooksScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View>
-            <NotebooksHero />
-
             <NotebookSection
               title="Favoriten"
               notebooks={favouriteNotebooks}
@@ -277,7 +280,31 @@ export default function NotebooksScreen() {
           />
         </ScrollView>
 
-        <BottomComposerBar placeholder="Frage an alle Quellen…" onSend={handleHeroSend} />
+        {askVisible ? (
+          <BottomComposerBar
+            placeholder="Frage an alle Quellen…"
+            onSend={handleHeroSend}
+            autoFocus
+            onDismissEmpty={() => setAskVisible(false)}
+            onClose={() => setAskVisible(false)}
+          />
+        ) : (
+          <Pressable
+            onPress={() => setAskVisible(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Frage an alle Quellen stellen"
+            style={({ pressed }) => [
+              styles.fab,
+              {
+                bottom: insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.small,
+                opacity: pressed ? 0.9 : 1,
+                transform: [{ scale: pressed ? 0.96 : 1 }],
+              },
+            ]}
+          >
+            <Ionicons name="search" size={24} color={colors.primary[600]} />
+          </Pressable>
+        )}
       </View>
     </ScreenScaffold>
   );
@@ -287,8 +314,26 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  fab: {
+    position: 'absolute',
+    right: spacing.medium,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.white,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    elevation: 6,
+  },
   scrollContent: {
     padding: spacing.medium,
+    // The hero above the first section is gone, so the sections carry the top
+    // spacing themselves — without this the first heading sits on the header.
+    paddingTop: spacing.small,
     paddingBottom: spacing.xxlarge,
   },
   section: {

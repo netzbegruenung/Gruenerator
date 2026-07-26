@@ -1,6 +1,6 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useCallback, useState } from 'react';
-import { View, TextInput, Pressable, StyleSheet, useColorScheme } from 'react-native';
+import { View, TextInput, Pressable, StyleSheet, Keyboard, useColorScheme } from 'react-native';
 
 import { useSpeechToText, appendTranscript } from '../../hooks/useSpeechToText';
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
@@ -17,6 +17,19 @@ interface ComposerCardProps {
    * smaller web-style composer and the bottom-pinned composer bars.
    */
   variant?: ComposerVariant;
+  autoFocus?: boolean;
+  /**
+   * Called when the input loses focus while empty — for composers that are
+   * revealed on demand (the Wissen tab's FAB) and should fold away again when
+   * the user dismisses the keyboard without typing.
+   */
+  onDismissEmpty?: () => void;
+  /**
+   * Renders a close button in the left slot (where `onSettings` would sit) — for
+   * composers that are revealed on demand and need a way back that does not
+   * depend on the field being empty.
+   */
+  onClose?: () => void;
 }
 
 export function ComposerCard({
@@ -24,6 +37,9 @@ export function ComposerCard({
   onSend,
   onSettings,
   variant = 'card',
+  autoFocus = false,
+  onDismissEmpty,
+  onClose,
 }: ComposerCardProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
@@ -48,13 +64,30 @@ export function ComposerCard({
 
   const iconSize = compact ? 20 : 18;
 
-  const settingsButton = onSettings ? (
+  const handleClose = useCallback(() => {
+    Keyboard.dismiss();
+    onClose?.();
+  }, [onClose]);
+
+  // The left slot holds one or the other: a settings trigger for the permanent
+  // composers, a close button for the ones that fold away.
+  const leadingButton = onSettings ? (
     <Pressable
       onPress={onSettings}
       style={[styles.settingsButton, compact && styles.settingsButtonCompact]}
       hitSlop={6}
     >
       <Ionicons name="options-outline" size={iconSize} color={theme.textSecondary} />
+    </Pressable>
+  ) : onClose ? (
+    <Pressable
+      onPress={handleClose}
+      style={[styles.settingsButton, compact && styles.settingsButtonCompact]}
+      hitSlop={6}
+      accessibilityRole="button"
+      accessibilityLabel="Eingabe schließen"
+    >
+      <Ionicons name="close" size={iconSize} color={theme.textSecondary} />
     </Pressable>
   ) : null;
 
@@ -94,6 +127,10 @@ export function ComposerCard({
       value={text}
       onChangeText={setText}
       multiline
+      autoFocus={autoFocus}
+      onBlur={() => {
+        if (!text.trim()) onDismissEmpty?.();
+      }}
       returnKeyType={compact ? 'send' : 'default'}
       blurOnSubmit={compact}
       onSubmitEditing={compact ? handleSend : undefined}
@@ -104,7 +141,7 @@ export function ComposerCard({
   if (compact) {
     return (
       <View style={[styles.compactContainer, { backgroundColor: theme.surface }]}>
-        {settingsButton}
+        {leadingButton}
         {input}
         <View style={styles.actions}>{sendOrMic}</View>
       </View>
@@ -120,7 +157,7 @@ export function ComposerCard({
     >
       {input}
       <View style={[styles.actions, styles.actionsCard]}>
-        {settingsButton}
+        {leadingButton}
         {sendOrMic}
       </View>
     </View>
