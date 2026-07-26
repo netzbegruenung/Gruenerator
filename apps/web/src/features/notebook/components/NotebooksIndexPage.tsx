@@ -41,6 +41,7 @@ import {
   getAustrianNotebooks,
   getNotebookById,
   getNotebooksByCategory,
+  isNotebookVisibleForLocale,
   type NotebookConfigEntry,
 } from '../config/notebooksConfig';
 import { usePublicNotebookCollections } from '../hooks/usePublicNotebookCollections';
@@ -444,19 +445,26 @@ function NotebooksIndexFooter() {
 
   const allNotebooks = useMemo(
     () =>
-      isAustrian
+      (isAustrian
         ? getAustrianNotebooks()
         : [
             ...getNotebooksByCategory('bundesebene'),
             ...getNotebooksByCategory('landesebene'),
             ...getNotebooksByCategory('weitere'),
-          ],
-    [isAustrian]
+          ]
+      ).filter((nb) => isNotebookVisibleForLocale(nb, locale)),
+    [isAustrian, locale]
   );
 
   // Erste Reihe: Direkt-Notebooks + aufklappbare Sammel-Kategorien. Für AT ist
-  // es nur das eine Österreich-Notebook (+ Eigene, falls vorhanden).
-  const laenderNotebooks = useMemo(() => getNotebooksByCategory('landesebene'), []);
+  // es nur das eine Österreich-Notebook (+ Eigene, falls vorhanden) — deshalb
+  // muss auch die Landesverbände-Kachel audience-gefiltert sein, sonst sehen
+  // AT-User die deutschen LV-Notebooks.
+  const laenderNotebooks = useMemo(
+    () =>
+      getNotebooksByCategory('landesebene').filter((nb) => isNotebookVisibleForLocale(nb, locale)),
+    [locale]
+  );
   const directBefore = useMemo(
     () =>
       isAustrian
