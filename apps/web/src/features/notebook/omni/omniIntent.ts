@@ -1,6 +1,6 @@
 import { type IconType } from 'react-icons';
 
-import { getOrderedNotebooks } from '../config/notebooksConfig';
+import { getOrderedNotebooks, isNotebookVisibleForLocale } from '../config/notebooksConfig';
 
 /** A navigable ask/open target for the omni composer (system or user notebook). */
 export interface OmniTarget {
@@ -34,9 +34,9 @@ const EXTRA_ALIASES: Record<string, string[]> = {
 // The aggregate notebook IS the surface the composer sits on — never a routing target.
 const EXCLUDED_IDS = new Set(['gruenerator-notebook']);
 
-export function buildSystemTargets(): OmniTarget[] {
+export function buildSystemTargets(locale: 'de-DE' | 'de-AT'): OmniTarget[] {
   return getOrderedNotebooks()
-    .filter((nb) => !EXCLUDED_IDS.has(nb.id))
+    .filter((nb) => !EXCLUDED_IDS.has(nb.id) && isNotebookVisibleForLocale(nb, locale))
     .map((nb) => ({
       key: nb.id,
       title: nb.title,
