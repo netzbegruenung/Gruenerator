@@ -73,6 +73,40 @@ export interface PresentationStructure {
   }>;
 }
 
+/**
+ * Schema for the forced tool call. Loose on purpose: `parsePresentationStructure`
+ * stays the gate and NORMALIZES (unknown layout → 'content', missing body → '')
+ * rather than rejecting, so a strict wire schema would turn repairable output
+ * into a hard failure. The gain is completeness — fewer slides arriving without
+ * a body for the parser to paper over.
+ */
+export const PRESENTATION_TOOL_SCHEMA: Record<string, unknown> = {
+  type: 'object',
+  required: ['title', 'slides'],
+  additionalProperties: true,
+  properties: {
+    title: { type: 'string', description: 'Titel der Präsentation' },
+    slides: {
+      type: 'array',
+      minItems: 1,
+      items: {
+        type: 'object',
+        required: ['title', 'body'],
+        additionalProperties: true,
+        properties: {
+          layout: {
+            type: 'string',
+            enum: ['title', 'content', 'split', 'quote', 'image'],
+          },
+          title: { type: 'string', description: 'Folientitel' },
+          body: { type: 'string', description: 'Folieninhalt als Markdown, "- " für Aufzählungen' },
+          notes: { type: 'string', description: 'Sprechernotizen, darf leer sein' },
+        },
+      },
+    },
+  },
+};
+
 /** Parse the model's JSON (with a fenced-block fallback, like sheets/docs). */
 export function parsePresentationStructure(content: string): PresentationStructure | null {
   const tryParse = (raw: string): PresentationStructure | null => {

@@ -80,16 +80,36 @@ export interface CreatePdfResult {
   summary: string;
 }
 
+/**
+ * Validate an already-parsed object against the strict schema.
+ *
+ * The error carries the issue PATHS, not just the message: the old log read
+ * "structure rejected: Required", which named no field and left a production
+ * failure undiagnosable. The paths also drive the repair turn in
+ * generateStructured.
+ */
+export function validatePdfStructure(
+  input: unknown
+): { ok: true; value: PdfDocumentSpec } | { ok: false; error: string } {
+  const parsed = pdfDocumentSchema.safeParse(input);
+  if (parsed.success) return { ok: true, value: parsed.data };
+  const error = parsed.error.issues
+    .slice(0, 3)
+    .map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`)
+    .join('; ');
+  return { ok: false, error };
+}
+
 /** Parse the model's JSON (with fenced-block and brace fallbacks, like sheets/boards). */
 export function parsePdfStructure(content: string): PdfDocumentSpec | null {
   const tryParse = (raw: string): PdfDocumentSpec | null => {
     try {
-      const parsed = pdfDocumentSchema.safeParse(JSON.parse(raw));
-      if (!parsed.success) {
-        log.warn(`[PdfGeneration] structure rejected: ${parsed.error.issues[0]?.message ?? ''}`);
+      const validated = validatePdfStructure(JSON.parse(raw));
+      if (!validated.ok) {
+        log.warn(`[PdfGeneration] structure rejected: ${validated.error}`);
         return null;
       }
-      return parsed.data;
+      return validated.value;
     } catch {
       return null;
     }

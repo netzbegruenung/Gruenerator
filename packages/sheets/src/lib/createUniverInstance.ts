@@ -21,7 +21,7 @@ import { UniverSheetsTablePreset } from '@univerjs/preset-sheets-table';
 import UniverPresetSheetsTableDeDE from '@univerjs/preset-sheets-table/locales/de-DE';
 import { UniverSheetsThreadCommentPreset } from '@univerjs/preset-sheets-thread-comment';
 import UniverPresetSheetsThreadCommentDeDE from '@univerjs/preset-sheets-thread-comment/locales/de-DE';
-import { createUniver, defaultTheme, LocaleType, mergeLocales } from '@univerjs/presets';
+import { createUniver, LocaleType, mergeLocales } from '@univerjs/presets';
 import { UniverSheetsCrosshairHighlightPlugin } from '@univerjs/sheets-crosshair-highlight';
 import '@univerjs/sheets-crosshair-highlight/facade';
 import UniverSheetsCrosshairHighlightDeDE from '@univerjs/sheets-crosshair-highlight/locale/de-DE';
@@ -29,7 +29,17 @@ import { UniverSheetsZenEditorPlugin } from '@univerjs/sheets-zen-editor';
 import '@univerjs/sheets-zen-editor/facade';
 import UniverSheetsZenEditorDeDE from '@univerjs/sheets-zen-editor/locale/de-DE';
 
+import { gruenatorUniverTheme } from './univerTheme.js';
+
 import type { FUniver, Univer } from '@univerjs/presets';
+
+/**
+ * Below this viewport width the footer is trimmed to the sheet tabs. Matches
+ * the `useIsBreakpoint()` default (768) used elsewhere in the monorepo;
+ * inlined as a `matchMedia` query because `@gruenerator/sheets` does not depend
+ * on `@gruenerator/shared` and a single boolean does not justify adding it.
+ */
+const NARROW_VIEWPORT_QUERY = '(max-width: 767px)';
 
 /**
  * Hide Univer's "Bereich/Blatt schützen" menu entries (context menu + sheet-bar
@@ -70,10 +80,9 @@ export interface CreateUniverInstanceOptions {
 }
 
 /**
- * Creates a Univer sheets instance with our chrome decisions baked in: no
- * Univer header/toolbar (our EditorTopBar owns the top; feature entry points
- * live in the native right-click context menu, keyboard shortcuts, and the
- * compact `SheetFormatMenu` in the top bar), formula bar and sheet tabs kept,
+ * Creates a Univer sheets instance with our chrome decisions baked in: Univer's
+ * native collapsed ribbon owns formatting, our `EditorTopBar` owns identity
+ * (title, back, sharing, collaborators, chat); formula bar and sheet tabs kept,
  * footer menus hidden. No formula web worker in V1 — the main-thread engine is
  * fine for the sheet sizes we expect (see `sheets-no-worker` upstream example).
  *
@@ -94,6 +103,19 @@ export function createUniverInstance({
   /** Update the comment/note author after creation (e.g. once auth resolves). */
   setCurrentUser: (user: SheetCurrentUser) => void;
 } {
+  // Evaluated ONCE, at construction. Univer reads `footer` from the plugin
+  // config when the container mounts and the instance then outlives every
+  // resize — re-creating it on a breakpoint change would tear down the workbook
+  // and the Yjs collab binding, i.e. drop the user's editing state mid-session.
+  // A live switch would mean writing SHEETS_UI_PLUGIN_CONFIG_KEY through
+  // `univer.__getInjector().get(IConfigService)`; that key is not part of any
+  // public type export and `@univerjs/sheets-ui` is not a declared dependency
+  // here, so it is deliberately not done. Consequence: rotating a phone or
+  // resizing a desktop window across 768px keeps the footer it booted with
+  // until the document is reopened — usable either way, only denser/sparser.
+  const isNarrowViewport =
+    typeof window !== 'undefined' && window.matchMedia(NARROW_VIEWPORT_QUERY).matches;
+
   const { univer, univerAPI } = createUniver({
     locale: LocaleType.DE_DE,
     locales: {
@@ -113,20 +135,36 @@ export function createUniverInstance({
         UniverSheetsZenEditorDeDE
       ),
     },
-    theme: defaultTheme,
+    theme: gruenatorUniverTheme,
     darkMode,
     presets: [
       UniverSheetsCorePreset({
         container,
-        header: false,
-        toolbar: false,
+        // Univer's ribbon is the only entry point to cell formatting (bold,
+        // colours, number formats, borders, alignment, merge). With it off those
+        // were reachable through keyboard shortcuts and the right-click menu
+        // only — i.e. not at all on a phone. `header` and `toolbar` must BOTH be
+        // true: the ribbon does not render otherwise, and in sheets the header
+        // slot is simply where the formula bar lives — Univer contributes no
+        // filename or menu bar of its own, so nothing competes with our title.
+        header: true,
+        toolbar: true,
+        // 'collapsed' is the single 40px row (tabs behind a dropdown); 'classic'
+        // would stack another 36px tab strip on top, which we cannot afford
+        // next to our own top bar on a phone.
+        ribbonType: 'collapsed',
         menu: HIDDEN_PROTECTION_MENU,
         formulaBar: true,
+        // On a phone the 36px footer competes with our top bar, the ribbon and
+        // the formula bar for the little height there is. The sheet tabs are
+        // the only part without an alternative, so they always stay; the zoom
+        // slider is redundant next to native pinch-zoom and the statistics bar
+        // (sum/average of the selection) is a desktop convenience.
         footer: {
           sheetBar: true,
-          statisticBar: true,
+          statisticBar: !isNarrowViewport,
           menus: false,
-          zoomSlider: true,
+          zoomSlider: !isNarrowViewport,
         },
       }),
       // Float DOM support (embedded React charts anchored to a range). Univer's

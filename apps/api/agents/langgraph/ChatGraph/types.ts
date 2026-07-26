@@ -138,8 +138,11 @@ export interface ThreadToolContext {
     | 'presentation'
     | 'sheet'
     | 'document'
+    | 'pdf'
     | 'board';
-  /** Kind-specific reference (mcp: serverId, created docs: documentId). */
+  /** Kind-specific reference (mcp: serverId, created docs: documentId, pdf: the
+   *  stored `<uuid>.pdf` asset FILE NAME — deliberately not a collaborative-
+   *  document UUID, which is why 'pdf' must never reach a doc-edit gate). */
   ref?: string | null;
   /** Human-readable label for prompt injection (e.g. the MCP server name). */
   label?: string | null;

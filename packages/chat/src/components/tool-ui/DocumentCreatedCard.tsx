@@ -1,47 +1,66 @@
-import { FileText, Table2, ArrowRight, FileDown } from 'lucide-react';
+import { FileText, Table2, ArrowRight, FileDown, ExternalLink } from 'lucide-react';
 import { memo, useState } from 'react';
 
-import { downloadBlob } from '../../lib/downloadBlob';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 
 import type { DocumentCreatedData } from '../../types/messageMetadata';
 
+/** Keep the object URL alive long enough for the viewer to load it — revoking
+ *  right after navigation blanks the freshly opened tab. */
+const OBJECT_URL_TTL_MS = 60_000;
+
 /** PDF assets are AUTHENTICATED endpoints (cookies on web, Bearer on desktop),
- *  so the download goes through the injected config fetch → blob — a plain
- *  <a href download> carries no Bearer and fails on desktop. Same pattern as
- *  ComputeCard's asset downloads. Assets expire after 90 days → error state. */
-function PdfDownloadButton({ document }: { document: DocumentCreatedData }) {
+ *  so the bytes go through the injected config fetch → blob; a plain <a href>
+ *  carries no Bearer and fails on desktop. The blob then opens in a NEW TAB
+ *  rather than downloading: the server sends `Content-Disposition: inline`, so
+ *  the browser's PDF viewer renders it and offers its own download, instead of
+ *  dropping a file the user never asked for. Assets expire after 90 days →
+ *  error state. */
+function PdfOpenButton({ document }: { document: DocumentCreatedData }) {
   const [unavailable, setUnavailable] = useState(false);
 
-  const handleDownload = async () => {
+  const handleOpen = async () => {
+    // Opened synchronously on the click itself: a window.open AFTER an await is
+    // no longer user-initiated and gets popup-blocked. Deliberately WITHOUT
+    // 'noopener' — that would make window.open return null, and we need the
+    // handle to navigate it once the blob is ready (opener is cleared below).
+    const tab = window.open('', '_blank');
     try {
       const { fetch: configFetch } = useChatConfigStore.getState();
       const response = await configFetch(document.url, { method: 'GET' });
       if (!response.ok) {
+        tab?.close();
         setUnavailable(true);
         return;
       }
-      downloadBlob(await response.blob(), `${document.title}.pdf`);
+      const blobUrl = URL.createObjectURL(await response.blob());
+      if (tab) {
+        tab.opener = null;
+        tab.location.href = blobUrl;
+      } else {
+        // Blocked despite the synchronous open — best effort.
+        window.open(blobUrl, '_blank', 'noopener,noreferrer');
+      }
+      setTimeout(() => URL.revokeObjectURL(blobUrl), OBJECT_URL_TTL_MS);
     } catch {
+      tab?.close();
       setUnavailable(true);
     }
   };
 
   if (unavailable) {
     return (
-      <span className="text-xs text-foreground-muted flex-shrink-0">
-        Download nicht mehr verfügbar
-      </span>
+      <span className="text-xs text-foreground-muted flex-shrink-0">PDF nicht mehr verfügbar</span>
     );
   }
   return (
     <button
       type="button"
-      onClick={() => void handleDownload()}
+      onClick={() => void handleOpen()}
       className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full bg-primary text-white hover:bg-primary/90 transition-colors flex-shrink-0"
     >
-      PDF herunterladen
-      <FileDown className="h-3.5 w-3.5" />
+      PDF öffnen
+      <ExternalLink className="h-3.5 w-3.5" />
     </button>
   );
 }
@@ -65,7 +84,7 @@ export const DocumentCreatedCard = memo(function DocumentCreatedCard({
           </div>
         </div>
         {isPdf ? (
-          <PdfDownloadButton document={document} />
+          <PdfOpenButton document={document} />
         ) : (
           <a
             href={document.url}

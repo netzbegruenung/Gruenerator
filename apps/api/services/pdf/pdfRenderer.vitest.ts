@@ -1,4 +1,13 @@
-import { PDFArray, PDFDict, PDFDocument, PDFName, PDFRawStream, PDFRef } from 'pdf-lib';
+import {
+  PDFArray,
+  PDFDict,
+  PDFDocument,
+  PDFHexString,
+  PDFName,
+  PDFRawStream,
+  PDFRef,
+  PDFString,
+} from 'pdf-lib';
 import { describe, expect, it } from 'vitest';
 
 import { type PdfDocumentSpec } from './pdfDocument.js';
@@ -81,6 +90,43 @@ async function structRoles(bytes: Buffer): Promise<string[]> {
   walk(tree as { role?: string; children?: unknown[] } | null);
   await task.destroy();
   return roles;
+}
+
+/**
+ * Titles (/T) of the Sect elements. veraPDF cannot tell an Absender from an
+ * Empfänger — this is what makes "letterhead, but not a letter" assertable.
+ */
+async function sectTitles(bytes: Buffer): Promise<string[]> {
+  const doc = await PDFDocument.load(bytes);
+  const titles: string[] = [];
+  const seen = new Set<string>();
+  const visit = (node: unknown): void => {
+    const resolved = node instanceof PDFRef ? doc.context.lookup(node) : node;
+    if (resolved instanceof PDFArray) {
+      resolved.asArray().forEach(visit);
+      return;
+    }
+    if (!(resolved instanceof PDFDict)) return;
+    if (node instanceof PDFRef) {
+      if (seen.has(node.toString())) return;
+      seen.add(node.toString());
+    }
+    const title = resolved.get(PDFName.of('T'));
+    if (title && String(resolved.get(PDFName.of('S'))) === '/Sect') {
+      // Written as a PDFHexString (UTF-16BE) by pdfTagging — toString() would
+      // yield the raw <FEFF…> hex, so decode instead of string-munging.
+      titles.push(
+        title instanceof PDFHexString || title instanceof PDFString
+          ? title.decodeText()
+          : String(title)
+      );
+    }
+    const kids = resolved.get(PDFName.of('K'));
+    if (kids) visit(kids);
+  };
+  const root = doc.catalog.lookupMaybe(PDFName.of('StructTreeRoot'), PDFDict);
+  visit(root?.get(PDFName.of('K')));
+  return titles;
 }
 
 /** Count structure elements once over the whole document (not per page). */
@@ -571,6 +617,117 @@ describe('renderPdf', () => {
     const verification = await verifyPdf(result.bytes);
     expect(verification.problems).toEqual([]);
     expect(verification.extractedChars).toBeGreaterThan(50);
+    // The sender must actually reach the page — this test used to assert only
+    // "no problems", so the whole Absender block could vanish unnoticed.
+    expect(await extractText(result.bytes)).toContain('KV Test');
+    expect(await sectTitles(result.bytes)).toContain('Absender');
+  });
+
+  /**
+   * A letterhead is an additive band, not a layout: it must never drag in the
+   * DIN-5008 furniture that `kind: 'letter'` implies. That negative list is the
+   * feature requirement, so it is asserted rather than described.
+   */
+  describe('Briefkopf im Dokument-Layout', () => {
+    const SENDER = {
+      name: 'Maxi Mustermensch',
+      organization: 'KV Musterstadt',
+      address: 'Musterweg 1\n12345 Musterstadt',
+    };
+
+    it('zeichnet ohne die Option nichts — der Ausgangszustand bleibt unberührt', async () => {
+      const plain = await renderPdf(spec(), { locale: 'de-DE' });
+      const withSenderButOff = await renderPdf(spec(), { locale: 'de-DE', sender: SENDER });
+
+      expect(await extractText(withSenderButOff.bytes)).toBe(await extractText(plain.bytes));
+      expect(await countRoles(withSenderButOff.bytes)).toEqual(await countRoles(plain.bytes));
+    });
+
+    it('zeichnet den Absender, wenn die Option gesetzt ist', async () => {
+      const result = await renderPdf(spec(), {
+        locale: 'de-DE',
+        sender: SENDER,
+        letterhead: true,
+      });
+
+      const text = await extractText(result.bytes);
+      expect(text).toContain('KV Musterstadt');
+      expect(text).toContain('Musterweg 1');
+      expect((await verifyPdf(result.bytes, PDF_TYPE_AREA)).problems).toEqual([]);
+    });
+
+    it('bleibt ein Dokument — kein Empfänger, keine Unterschrift', async () => {
+      const result = await renderPdf(spec(), {
+        locale: 'de-DE',
+        sender: SENDER,
+        letterhead: true,
+      });
+
+      const titles = await sectTitles(result.bytes);
+      expect(titles).toContain('Absender');
+      expect(titles).not.toContain('Empfänger');
+      expect(titles).not.toContain('Unterschrift');
+    });
+
+    it('stellt den Absender vor die Titel-H1 und lässt genau eine H1 stehen', async () => {
+      const result = await renderPdf(spec(), {
+        locale: 'de-DE',
+        sender: SENDER,
+        letterhead: true,
+      });
+
+      const roles = await structRoles(result.bytes);
+      // Reading order: the sender is physically the topmost text on the page.
+      expect(roles.indexOf('Sect')).toBeLessThan(roles.indexOf('H1'));
+      expect((await countRoles(result.bytes))['/H1']).toBe(1);
+    });
+
+    it('öffnet bei leerem Absender kein leeres Sect', async () => {
+      const result = await renderPdf(spec(), { locale: 'de-DE', sender: null, letterhead: true });
+
+      expect(await sectTitles(result.bytes)).toEqual([]);
+      expect((await verifyPdf(result.bytes, PDF_TYPE_AREA)).problems).toEqual([]);
+    });
+
+    it('hält überlange Angaben im Satzspiegel', async () => {
+      const result = await renderPdf(spec(), {
+        locale: 'de-DE',
+        letterhead: true,
+        sender: {
+          organization: 'Kreisverband '.repeat(30),
+          name: 'Maxi Mustermensch',
+          address: Array.from({ length: 8 }, (_, i) => `Adresszeile ${i + 1}`).join('\n'),
+        },
+      });
+
+      const verification = await verifyPdf(result.bytes, PDF_TYPE_AREA);
+      expect(verification.overflowingText).toEqual([]);
+      expect(verification.problems).toEqual([]);
+    });
+
+    it('funktioniert im AT-Design mit dem kleineren Logo', async () => {
+      const result = await renderPdf(spec({ language: 'de-AT' }), {
+        locale: 'de-AT',
+        sender: SENDER,
+        letterhead: true,
+      });
+
+      expect(await extractText(result.bytes)).toContain('KV Musterstadt');
+      expect((await verifyPdf(result.bytes, PDF_TYPE_AREA)).problems).toEqual([]);
+    });
+
+    it('gilt auch für Formulare, die dasselbe Layout nutzen', async () => {
+      const result = await renderPdf(
+        spec({
+          kind: 'form',
+          blocks: [{ type: 'field', kind: 'text', label: 'Name' }],
+        }),
+        { locale: 'de-DE', sender: SENDER, letterhead: true }
+      );
+
+      expect(await sectTitles(result.bytes)).toContain('Absender');
+      expect((await verifyPdf(result.bytes, PDF_TYPE_AREA)).problems).toEqual([]);
+    });
   });
 
   describe('Gliederung der Überschriften', () => {
