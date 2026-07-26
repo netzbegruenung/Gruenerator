@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 
 import { parseSSEStream } from './parseSSEStream';
 
-import type { GrueneratorAdapterCallbacks } from './types';
+import type { GrueneratorAdapterCallbacks, StreamOutcome } from './types';
 
 /**
  * Terminal invariant: a stream that ends without the backend's terminal event
@@ -20,10 +20,9 @@ function sseBody(events: Array<{ event: string; data: unknown }>): string {
 const callbacks: GrueneratorAdapterCallbacks = {};
 
 async function drain(body: string) {
-  const outcome = {
+  const outcome: StreamOutcome = {
     interrupted: false,
-    indexedDocumentIds: [] as string[],
-    completed: undefined as boolean | undefined,
+    indexedDocumentIds: [],
   };
   const results = [];
   for await (const result of parseSSEStream(new Response(body), callbacks, outcome)) {
@@ -79,6 +78,29 @@ describe('stream termination detection', () => {
 
     expect(outcome.completed).toBe(true);
     expect(outcome.interrupted).toBe(true);
+  });
+});
+
+describe('lastResult tracking (so a failure can be reported without losing the answer)', () => {
+  it('records the accumulated content on every yield, not just the final one', async () => {
+    // assistant-ui merges a yielded `content` by REPLACING the message content
+    // (initialContent is frozen at roundtrip start). A caller that reports a
+    // mid-stream failure must therefore re-yield everything so far — which is
+    // only possible if outcome.lastResult is kept current. On a network drop
+    // the end of parseSSEStream is never reached.
+    const { outcome } = await drain(
+      sseBody([
+        { event: 'text_delta', data: { text: 'Erster Teil. ' } },
+        { event: 'text_delta', data: { text: 'Zweiter Teil.' } },
+      ])
+    );
+
+    const texts = (outcome.lastResult?.content ?? [])
+      .filter((p): p is { type: 'text'; text: string } => p.type === 'text')
+      .map((p) => p.text)
+      .join('');
+    expect(texts).toContain('Erster Teil.');
+    expect(texts).toContain('Zweiter Teil.');
   });
 });
 

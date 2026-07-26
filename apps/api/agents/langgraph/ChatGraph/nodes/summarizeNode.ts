@@ -385,7 +385,12 @@ export async function summarizeNode(state: ChatGraphState): Promise<Partial<Chat
       return {
         summaryContext: summary,
         summaryTimeMs,
+        // APPEND, never replace: the live router merges node results with a
+        // plain spread (the append reducer only runs inside the compiled graph,
+        // which has no callers), so returning a bare array would drop an
+        // earlier note — e.g. the @-mention that failed to load in the same turn.
         degradationNotes: [
+          ...(state.degradationNotes ?? []),
           {
             code: 'summary_partial',
             modelHint:

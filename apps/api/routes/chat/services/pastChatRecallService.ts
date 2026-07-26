@@ -50,8 +50,7 @@ const DEEP_READ_MAX_CHARS = 4_000;
  * silently searching an empty set.
  */
 export type SpaceThreadIdsResult =
-  | { ok: true; threads: { id: string; title: string | null }[] }
-  | { ok: false };
+  { ok: true; threads: { id: string; title: string | null }[] } | { ok: false };
 
 export async function resolveSpaceThreadIds(
   groupId: string,
@@ -248,6 +247,11 @@ export async function recallPastChats(
   // space with no chats doesn't fall through to an unscoped global recall.
   if (threadIds && threadIds.length === 0) return [];
 
+  // Best-effort like the semantic half below: `searchChatHistory` throws now
+  // (so the /chat/search ENDPOINT can answer 500 instead of "no hits"), but
+  // inside a chat turn a transient DB error must degrade recall, not abort the
+  // whole answer. The empty result then reads as "nothing recalled", which the
+  // router surfaces via recall_degraded.
   const keywordPromise = searchChatHistory(userId, query, {
     ownedOnly: true,
     limit,
@@ -255,6 +259,9 @@ export async function recallPastChats(
     ...(startDate != null && { startDate }),
     ...(endDate != null && { endDate }),
     ...(threadIds != null && { threadIds }),
+  }).catch((err: unknown) => {
+    log.warn(`[Recall] Keyword thread search failed (recall degraded): ${err}`);
+    return [] as Awaited<ReturnType<typeof searchChatHistory>>;
   });
 
   // Semantic is best-effort: a Qdrant/Mistral outage must never break recall.
