@@ -3,17 +3,20 @@ import { getGreeting } from '@gruenerator/shared/utils';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, useColorScheme, ScrollView } from 'react-native';
+import { GestureDetector } from 'react-native-gesture-handler';
 
 import { ChatSettingsSheet } from '../../components/chat/ChatSettingsSheet';
 import { BottomComposerBar } from '../../components/common/BottomComposerBar';
 import { SunriseBackground } from '../../components/common/SunriseBackground';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
 import { RecentlyCreatedSection } from '../../components/start/RecentlyCreatedSection';
-import { ToolGrid } from '../../components/tools/ToolGrid';
-import { TOOLS } from '../../components/tools/toolsConfig';
+import { ALL_TOOLS } from '../../components/tools/toolsConfig';
+import { ToolSquareGrid } from '../../components/tools/ToolSquareGrid';
+import { useDrawerStore } from '../../hooks/useDrawerStore';
+import { useTabSwipe } from '../../hooks/useTabSwipe';
 import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
 import { spacing, lightTheme, darkTheme } from '../../theme';
-import { routeWithParams } from '../../types/routes';
+import { route, routeWithParams } from '../../types/routes';
 
 export default function StartScreen() {
   const colorScheme = useColorScheme();
@@ -25,8 +28,9 @@ export default function StartScreen() {
   const showHelpSubtitle = !greeting.includes('?');
 
   const [settingsVisible, setSettingsVisible] = useState(false);
+  const openDrawer = useDrawerStore((s) => s.openDrawer);
   const favorites = useToolFavoritesStore((s) => s.favorites);
-  const favoriteTools = TOOLS.filter((tool) => favorites.includes(tool.id));
+  const favoriteTools = ALL_TOOLS.filter((tool) => favorites.includes(tool.id));
 
   const handleSend = useCallback(
     (text: string) => {
@@ -40,40 +44,50 @@ export default function StartScreen() {
     [router]
   );
 
+  // Swipe left → Arbeiten, swipe right → the drawer. Both live here rather than
+  // letting the Drawer handle its own open-swipe: its pan handler claims
+  // horizontal drags in both directions, so swipe-left would never reach us.
+  const swipe = useTabSwipe({
+    onSwipeLeft: () => router.navigate(route('/(tabs)/(arbeiten)')),
+    onSwipeRight: openDrawer,
+  });
+
   return (
     <ScreenScaffold title="Grünerator" backdrop={<SunriseBackground />}>
-      <View style={styles.flex}>
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.welcomeSection}>
-            <Text style={[styles.welcomeText, { color: theme.text }]}>{greeting}</Text>
-            {showHelpSubtitle && (
-              <Text style={[styles.welcomeSubtitle, { color: theme.textSecondary }]}>
-                wie kann ich dir helfen?
-              </Text>
-            )}
-          </View>
-
-          <RecentlyCreatedSection theme={theme} />
-
-          {favoriteTools.length > 0 && (
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>Werkzeuge</Text>
-              <ToolGrid tools={favoriteTools} />
+      <GestureDetector gesture={swipe}>
+        <View style={styles.flex}>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.welcomeSection}>
+              <Text style={[styles.welcomeText, { color: theme.text }]}>{greeting}</Text>
+              {showHelpSubtitle && (
+                <Text style={[styles.welcomeSubtitle, { color: theme.textSecondary }]}>
+                  wie kann ich dir helfen?
+                </Text>
+              )}
             </View>
-          )}
-        </ScrollView>
 
-        <BottomComposerBar
-          placeholder="Frage oder Aufgabe…"
-          onSend={handleSend}
-          onSettings={() => setSettingsVisible(true)}
-        />
-      </View>
+            <RecentlyCreatedSection theme={theme} />
+
+            {favoriteTools.length > 0 && (
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: theme.text }]}>Werkzeuge</Text>
+                <ToolSquareGrid tools={favoriteTools} />
+              </View>
+            )}
+          </ScrollView>
+
+          <BottomComposerBar
+            placeholder="Frage oder Aufgabe…"
+            onSend={handleSend}
+            onSettings={() => setSettingsVisible(true)}
+          />
+        </View>
+      </GestureDetector>
       <ChatSettingsSheet visible={settingsVisible} onDismiss={() => setSettingsVisible(false)} />
     </ScreenScaffold>
   );

@@ -1,39 +1,43 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { View, StyleSheet, useColorScheme, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, useColorScheme, Alert } from 'react-native';
+import { GestureDetector } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomComposerBar } from '../../../components/common/BottomComposerBar';
 import { DocumentsView } from '../../../components/docs/DocumentsView';
+import { FloatingBadgeTabs, type TabDefinition } from '../../../components/navigation';
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
 import { TOOLS } from '../../../components/tools/toolsConfig';
-import { ToolSectionHeading, ToolTileGrid } from '../../../components/tools/ToolTileGrid';
+import { ToolSquareGrid } from '../../../components/tools/ToolSquareGrid';
+import { useTabSwipe } from '../../../hooks/useTabSwipe';
 import { useDocsStore } from '../../../stores/docsStore';
 import { spacing } from '../../../theme';
+import { FLOATING_TAB_BAR_HEIGHT } from '../../../theme/layout';
+import { route } from '../../../types/routes';
+
+const SECTIONS: TabDefinition[] = [
+  { key: 'werkzeuge', label: 'Werkzeuge' },
+  { key: 'dokumente', label: 'Dokumente' },
+];
 
 /**
- * "Arbeiten": one scrolling work hub (no sub-tabs), mirroring the web ArbeitenTab
- * — the Werkzeuge tool grid on top, the document grid below — plus a bottom-pinned
- * composer that generates a document from a prompt (the web Arbeiten intelligent
- * creator). The tools ride in as the document list's header so it all scrolls as one
- * page.
+ * "Arbeiten": the work hub, split into two badge-tabbed sections — the coloured
+ * tool tiles and the document list. They used to share one scroll with the tools
+ * riding in as the list header, which buried the documents behind a full screen
+ * of tiles once the tile grid went square.
+ *
+ * The document composer (the web Arbeiten intelligent creator) belongs to the
+ * Dokumente section only; on Werkzeuge a "Dokument beschreiben…" bar would be
+ * noise, so that section pads for the floating tab bar itself instead.
  */
-function ArbeitenHeader() {
-  return (
-    <View style={styles.header}>
-      <ToolSectionHeading title="Werkzeuge" badge={`${TOOLS.length}`} />
-      <ToolTileGrid tools={TOOLS} />
-      <View style={styles.docsHeading}>
-        <ToolSectionHeading title="Dokumente" />
-      </View>
-    </View>
-  );
-}
-
 export default function ArbeitenScreen() {
   const isDark = useColorScheme() === 'dark';
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const generateDocument = useDocsStore((s) => s.generateDocument);
   const [isCreating, setIsCreating] = useState(false);
+  const [section, setSection] = useState<string>('werkzeuge');
 
   // Flat near-white tint mirrors the web Arbeiten tab (bg-[#F7FBF8]); dark keeps the
   // app gradient.
@@ -59,14 +63,44 @@ export default function ArbeitenScreen() {
     [generateDocument, isCreating, router]
   );
 
+  // Swipe right → back to Chat, the mirror of Chat's swipe-left. The drawer does
+  // not contend for it here (AppDrawer disables swipe-to-open outside Chat).
+  const swipe = useTabSwipe({
+    onSwipeRight: () => router.navigate(route('/start')),
+  });
+
   return (
     <ScreenScaffold title="Arbeiten" backdrop={backdrop}>
-      <View style={styles.flex}>
+      <GestureDetector gesture={swipe}>
         <View style={styles.flex}>
-          <DocumentsView header={<ArbeitenHeader />} showSearch={false} showFab={false} />
+          <FloatingBadgeTabs
+            inline
+            tabs={SECTIONS}
+            activeTab={section}
+            onTabPress={setSection}
+            style={styles.sectionTabs}
+          />
+
+          {section === 'werkzeuge' ? (
+            <ScrollView
+              contentContainerStyle={[
+                styles.toolsContent,
+                { paddingBottom: insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.medium },
+              ]}
+              showsVerticalScrollIndicator={false}
+            >
+              <ToolSquareGrid tools={TOOLS} />
+            </ScrollView>
+          ) : (
+            <>
+              <View style={styles.flex}>
+                <DocumentsView showSearch={false} showFab={false} />
+              </View>
+              <BottomComposerBar placeholder="Dokument beschreiben…" onSend={handleCreate} />
+            </>
+          )}
         </View>
-        <BottomComposerBar placeholder="Dokument beschreiben…" onSend={handleCreate} />
-      </View>
+      </GestureDetector>
     </ScreenScaffold>
   );
 }
@@ -78,10 +112,11 @@ const styles = StyleSheet.create({
   flatBg: {
     backgroundColor: '#F7FBF8',
   },
-  header: {
-    paddingTop: spacing.small,
+  sectionTabs: {
+    paddingTop: spacing.xsmall,
   },
-  docsHeading: {
-    marginTop: spacing.xlarge,
+  toolsContent: {
+    paddingHorizontal: spacing.medium,
+    paddingTop: spacing.small,
   },
 });

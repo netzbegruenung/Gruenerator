@@ -16,6 +16,7 @@ export default function ToolsLayout() {
       }}
     >
       <Stack.Screen name="index" options={{ title: 'Tools', headerShown: false }} />
+      <Stack.Screen name="studio" options={{ headerShown: false }} />
       <Stack.Screen name="reel" options={{ title: 'Reel' }} />
       <Stack.Screen name="ki-bildgenerierung" options={{ title: 'KI-Bildgenerierung' }} />
       <Stack.Screen name="scanner" options={{ title: 'Scanner' }} />
