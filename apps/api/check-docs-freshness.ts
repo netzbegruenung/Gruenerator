@@ -1,9 +1,10 @@
 /**
  * Weekly AI Documentation Freshness Check
  *
- * Audits each feature/tutorial documentation article (documentation/docs/) against
- * the *current* web-app source code and files a deduplicated GitHub issue per stale
- * article. Because the web app has no i18n layer (German UI strings are hardcoded in
+ * Audits each feature/tutorial documentation article (documentation/docs/) — plus
+ * the in-app tours (touren/) and the repo-root README (readme/README.md) as
+ * pseudo-docs — against the *current* web-app source code and files a deduplicated
+ * GitHub issue per stale article. Because the web app has no i18n layer (German UI strings are hardcoded in
  * JSX), a Claude agent can grep the source to confirm whether a documented button /
  * slash-command / modal / menu label still exists with the same name.
  *
@@ -59,6 +60,12 @@ const DOCS_ROOT = path.join(REPO_ROOT, 'documentation', 'docs');
 // prose, they just live in TS modules instead of markdown.
 const TOURS_ROOT = path.join(REPO_ROOT, 'apps', 'web', 'src', 'features', 'tours');
 const TOURS_FOLDER = 'touren';
+// The repo-root README is audited as a pseudo-doc under the virtual folder
+// "readme/": its feature list, workspace tables, command list and provider
+// claims drift against the code exactly like doc prose does.
+const README_FOLDER = 'readme';
+const README_DOC = `${README_FOLDER}/README.md`;
+const README_PATH = path.join(REPO_ROOT, 'README.md');
 
 // ── Scope ───────────────────────────────────────────────────────────────────
 // Feature/tutorial docs only — folders that describe the app UI. Content archives
@@ -101,6 +108,12 @@ const AREA_HINTS: Record<string, string> = {
     'apps/web/src/features/tours, apps/web/src/features/workplace, apps/web/src/components/layout/Sidebar, apps/web/src/features/docs, apps/web/src/features/sheets, apps/web/src/features/presentations, apps/web/src/features/image-studio, packages/canvas-editor, packages/presentations',
   // Renamed twice (Gruppen → Spaces → Projekte); the code still says "groups"
   // throughout, so the hint points at the old names on purpose.
+  // README claims are structural (workspace layout, commands, AI providers,
+  // env vars), so the reverse map triggers on structural files — a bare
+  // "package.json" prefix only matches the root manifest since changed paths
+  // are repo-relative.
+  [README_FOLDER]:
+    'pnpm-workspace.yaml, package.json, turbo.json, .env.example, apps/api/workers/providers, apps/api/services/ai',
 };
 
 const DEFAULT_MODEL = process.env.DOCS_CHECK_MODEL || 'claude-sonnet-4-6';
@@ -219,6 +232,10 @@ function docsInFolders(folders: readonly string[]): string[] {
       rel.push(...tourDocs());
       continue;
     }
+    if (folder === README_FOLDER) {
+      rel.push(README_DOC);
+      continue;
+    }
     collectMarkdown(path.join(DOCS_ROOT, folder), abs);
   }
   return [...abs.map((f) => path.relative(DOCS_ROOT, f)), ...rel].sort();
@@ -229,7 +246,16 @@ function discoverDocs(single?: string): string[] {
     const rel = single.replace(/^documentation\/docs\//, '');
     return [rel];
   }
-  return docsInFolders([...SCOPE_FOLDERS, TOURS_FOLDER]);
+  return docsInFolders([...SCOPE_FOLDERS, TOURS_FOLDER, README_FOLDER]);
+}
+
+// Where a (pseudo-)doc actually lives in the repo — for issue/comment display.
+function docSourcePath(docPath: string): string {
+  if (docPath.startsWith(`${TOURS_FOLDER}/`)) {
+    return `apps/web/src/features/tours/${docPath.slice(TOURS_FOLDER.length + 1)}`;
+  }
+  if (docPath === README_DOC) return 'README.md';
+  return `documentation/docs/${docPath}`;
 }
 
 // Reverse of AREA_HINTS: given the source files a PR changed, which doc folders
@@ -314,6 +340,26 @@ function buildUserPrompt(docPath: string, content: string): string {
       .filter((l) => l !== '')
       .join('\n');
   }
+  if (folder === README_FOLDER) {
+    return [
+      'Audit the repository README for freshness against the current codebase. Unlike the app docs, its verifiable claims are STRUCTURAL, not UI labels:',
+      '',
+      '- Workspace tables (apps / packages / services) and their counts — compare against the actual `apps/`, `packages/` and `services/` directories.',
+      '- Development commands — compare against the `scripts` in the root `package.json`.',
+      '- Framework/version claims and badges (React, Vite, Expo, Node, Express, Tailwind) — compare against the relevant `package.json` dependencies.',
+      '- AI provider claims — compare against `apps/api/workers/providers/` and `apps/api/services/ai/`. Providers documented as removed elsewhere must not be advertised.',
+      '- Environment variable names in the Configuration section — compare against `.env.example`.',
+      '- Feature claims that name concrete surfaces or packages — confirm the named feature dir/package exists.',
+      '',
+      'Ignore marketing prose, the problem/solution narrative, external URLs, and the roadmap. Report only high-confidence factual drift.',
+      '',
+      '--- README ---',
+      content,
+      '--- END README ---',
+      '',
+      'Search the codebase to verify the claims, then output the JSON verdict.',
+    ].join('\n');
+  }
   return [
     'Audit this documentation article for freshness against the current source code.',
     '',
@@ -353,7 +399,9 @@ async function auditDoc(docPath: string, model: string): Promise<DocResult> {
 
   const contentPath = docPath.startsWith(`${TOURS_FOLDER}/`)
     ? path.join(TOURS_ROOT, docPath.slice(TOURS_FOLDER.length + 1))
-    : path.join(DOCS_ROOT, docPath);
+    : docPath === README_DOC
+      ? README_PATH
+      : path.join(DOCS_ROOT, docPath);
 
   let content: string;
   try {
@@ -492,7 +540,7 @@ function buildIssueBody(result: DocResult, today: string): string {
   lines.push('');
   lines.push(
     `The weekly AI freshness check found **${result.findings.length}** likely mismatch(es) between ` +
-      `\`documentation/docs/${result.docPath}\` and the current app UI.`
+      `\`${docSourcePath(result.docPath)}\` and the current app UI.`
   );
   lines.push('');
   for (const [i, f] of result.findings.entries()) {
@@ -593,7 +641,7 @@ function buildPrCommentBody(results: DocResult[], today: string): string {
   lines.push('');
   for (const r of stale) {
     lines.push(
-      `<details><summary><code>documentation/docs/${r.docPath}</code> — ` +
+      `<details><summary><code>${docSourcePath(r.docPath)}</code> — ` +
         `${r.findings.length} mögliche Abweichung(en)</summary>`
     );
     lines.push('');
