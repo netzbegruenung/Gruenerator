@@ -992,12 +992,6 @@ export async function executeIntentPipeline(opts: {
             ? { examplesResult: finalState.examplesResult }
             : {}),
         });
-
-        // Dedicated Bundestag card: the structured DIP result rides alongside
-        // the flat search_complete results (which stay for grounding/citations).
-        if (currentIntent === 'bundestag' && finalState.bundestagResult) {
-          sse.send('bundestag', { bundestag: finalState.bundestagResult });
-        }
       }
     }
   }

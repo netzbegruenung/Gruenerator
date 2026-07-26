@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
 import { bahnPayloadSchema } from './bahn.js';
-import { bundestagPayloadSchema } from './bundestag.js';
 import { canvasTemplateTypeSchema } from './canvasTemplateDescriptors.js';
 import { socialPostPayloadSchema } from './socialPost.js';
 
@@ -415,7 +414,6 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
   chart_data: z.object({ chart: chartPayloadSchema.passthrough().optional() }).passthrough(),
   artifact: z.object({ artifact: artifactPayloadSchema.passthrough().optional() }).passthrough(),
   compute: z.object({ compute: computePayloadSchema.passthrough().optional() }).passthrough(),
-  bundestag: z.object({ bundestag: bundestagPayloadSchema.passthrough().optional() }).passthrough(),
   bahn: z.object({ bahn: bahnPayloadSchema.passthrough().optional() }).passthrough(),
   // variants stay unknown[] here: per-item validation (sharepicVariantSchema)
   // happens in coerceSharepicVariants so ONE malformed variant drops alone

@@ -61,7 +61,6 @@ import type {
   ComputeData,
   ResearchToolResult,
   ExamplesToolResult,
-  BtEnrichedResult,
   DocumentSource,
   SynthesisMode,
   WolkeFileRef,
@@ -318,10 +317,6 @@ const ChatStateAnnotation = Annotation.Root({
   }),
 
   examplesResult: Annotation<ExamplesToolResult | null>({
-    reducer: (x, y) => y ?? x,
-  }),
-
-  bundestagResult: Annotation<BtEnrichedResult | null>({
     reducer: (x, y) => y ?? x,
   }),
 
@@ -933,7 +928,6 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     researchBrief: null,
     researchMeta: null,
     examplesResult: null,
-    bundestagResult: null,
 
     // Search results (will be set by search node)
     searchResults: [],
