@@ -38,6 +38,9 @@ export interface SlideThumbnailListProps {
   editable: boolean;
   /** Deck brand accent, forwarded to each thumbnail's SlideSurface. */
   accent?: string | null;
+  /** Country CI + logo toggle, forwarded to each thumbnail's SlideSurface. */
+  brand?: string | null;
+  showLogo?: boolean;
   orientation?: ThumbnailOrientation;
   onSelect: (index: number) => void;
   onAdd: () => void;
@@ -51,6 +54,8 @@ interface SortableSlideCardProps {
   active: boolean;
   editable: boolean;
   accent?: string | null;
+  brand?: string | null;
+  showLogo?: boolean;
   slideCount: number;
   orientation: ThumbnailOrientation;
   onSelect: (index: number) => void;
@@ -64,6 +69,8 @@ function SortableSlideCard({
   active,
   editable,
   accent,
+  brand,
+  showLogo,
   slideCount,
   orientation,
   onSelect,
@@ -119,7 +126,7 @@ function SortableSlideCard({
       >
         <div className="pointer-events-none">
           <ScaledSlide>
-            <SlideSurface slide={slide} accent={accent} />
+            <SlideSurface slide={slide} accent={accent} brand={brand} showLogo={showLogo} />
           </ScaledSlide>
         </div>
         <div className="flex items-center gap-2 px-2.5 py-[7px]">
@@ -223,6 +230,8 @@ export function SlideThumbnailList({
   activeIndex,
   editable,
   accent,
+  brand,
+  showLogo,
   orientation = 'vertical',
   onSelect,
   onAdd,
@@ -268,6 +277,8 @@ export function SlideThumbnailList({
               active={index === activeIndex}
               editable={editable}
               accent={accent}
+              brand={brand}
+              showLogo={showLogo}
               slideCount={slides.length}
               orientation={orientation}
               onSelect={onSelect}
@@ -283,7 +294,12 @@ export function SlideThumbnailList({
           {draggingSlide ? (
             <div className="w-[132px] overflow-hidden rounded-[10px] bg-white shadow-lg dark:bg-grey-800">
               <ScaledSlide>
-                <SlideSurface slide={draggingSlide} accent={accent} />
+                <SlideSurface
+                  slide={draggingSlide}
+                  accent={accent}
+                  brand={brand}
+                  showLogo={showLogo}
+                />
               </ScaledSlide>
             </div>
           ) : null}
