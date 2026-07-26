@@ -20,6 +20,7 @@ import { fileURLToPath } from 'url';
 
 import {
   getPresentationBrandTheme,
+  PRESENTATION_FONT_SIZE_SCALE,
   type PresentationBrandTheme,
   type Slide,
 } from '@gruenerator/contracts';
@@ -106,6 +107,21 @@ function buildBrandCtx(theme: PresentationBrandTheme, logo: BrandCtx['logo']): B
     headingLine: theme.headingLineHeight,
     logo,
   };
+}
+
+/** Per-slide type scale, mirroring the CSS `--gs-font-scale`. `shrink` marks
+ * auto-fit slides: they export at scale 1 with PowerPoint's own
+ * shrink-on-overflow on the body boxes (applied by PowerPoint on first
+ * edit/resize of the box — pptxgenjs cannot pre-compute the factor). */
+interface TypeScale {
+  fs: number;
+  shrink: boolean;
+}
+
+function slideTypeScale(slide: Slide): TypeScale {
+  return slide.fontSize
+    ? { fs: PRESENTATION_FONT_SIZE_SCALE[slide.fontSize], shrink: false }
+    : { fs: 1, shrink: true };
 }
 
 // ── Colour helpers ──────────────────────────────────────────────────────────
@@ -348,7 +364,8 @@ function addTitleSlide(
   variant: number,
   accentHex: string,
   dark: boolean,
-  ctx: BrandCtx
+  ctx: BrandCtx,
+  ts: TypeScale
 ): void {
   const tColor = titleColor(dark, accentHex);
   const bColor = bodyColor(dark);
@@ -383,7 +400,7 @@ function addTitleSlide(
       text: data.title,
       options: {
         fontFace: ctx.fontHead,
-        fontSize: pt(56),
+        fontSize: pt(56 * ts.fs),
         bold: true,
         color: tColor,
         breakLine: true,
@@ -395,7 +412,7 @@ function addTitleSlide(
   }
   if (data.body.trim()) {
     for (const part of bodyToTextProps(data.body, bColor, ctx)) {
-      const size = part.options?.fontSize ?? pt(28);
+      const size = part.options?.fontSize ?? pt(28 * ts.fs);
       runs.push({ text: part.text ?? '', options: { ...part.options, fontSize: size } });
     }
   }
@@ -408,6 +425,7 @@ function addTitleSlide(
     align,
     valign: variant === 0 ? 'middle' : variant === 1 ? 'middle' : 'top',
     lineSpacingMultiple: 1.15,
+    ...(ts.shrink ? { fit: 'shrink' as const } : {}),
   });
 }
 
@@ -418,7 +436,8 @@ function addQuoteSlide(
   variant: number,
   accentHex: string,
   dark: boolean,
-  ctx: BrandCtx
+  ctx: BrandCtx,
+  ts: TypeScale
 ): void {
   const bColor = bodyColor(dark);
   const ruleColor = dark ? ctx.onDarkSoftHex : accentHex;
@@ -430,7 +449,7 @@ function addQuoteSlide(
       w: CONTENT_W,
       h: inch(80),
       fontFace: ctx.fontHead,
-      fontSize: pt(44),
+      fontSize: pt(44 * ts.fs),
       bold: true,
       lineSpacingMultiple: ctx.headingLine,
       color: titleColor(dark, accentHex),
@@ -456,9 +475,10 @@ function addQuoteSlide(
     h: inch(220),
     valign: 'middle',
     align: variant === 1 ? 'center' : 'left',
-    fontSize: pt(34),
+    fontSize: pt(34 * ts.fs),
     italic: true,
     lineSpacingMultiple: 1.2,
+    ...(ts.shrink ? { fit: 'shrink' as const } : {}),
   });
 }
 
@@ -468,7 +488,8 @@ function addCodeSlide(
   data: Slide,
   accentHex: string,
   dark: boolean,
-  ctx: BrandCtx
+  ctx: BrandCtx,
+  ts: TypeScale
 ): void {
   if (data.title.trim()) {
     slide.addText(data.title, {
@@ -477,7 +498,7 @@ function addCodeSlide(
       w: CONTENT_W,
       h: inch(70),
       fontFace: ctx.fontHead,
-      fontSize: pt(44),
+      fontSize: pt(44 * ts.fs),
       bold: true,
       lineSpacingMultiple: ctx.headingLine,
       color: titleColor(dark, accentHex),
@@ -499,10 +520,11 @@ function addCodeSlide(
     w: CONTENT_W - inch(48),
     h: panelH - inch(40),
     fontFace: FONT_MONO,
-    fontSize: pt(20),
+    fontSize: pt(20 * ts.fs),
     color: CODE_FG,
     valign: 'top',
     lineSpacingMultiple: 1.45,
+    ...(ts.shrink ? { fit: 'shrink' as const } : {}),
   });
 }
 
@@ -513,7 +535,8 @@ async function addImageSlide(
   variant: number,
   accentHex: string,
   dark: boolean,
-  ctx: BrandCtx
+  ctx: BrandCtx,
+  ts: TypeScale
 ): Promise<void> {
   const imgUrl = firstImageUrl(data.body);
   const imgData = imgUrl ? await fetchImageData(imgUrl) : null;
@@ -527,7 +550,7 @@ async function addImageSlide(
         w: inch(326),
         h: PAGE_H,
         fontFace: ctx.fontHead,
-        fontSize: pt(44),
+        fontSize: pt(44 * ts.fs),
         bold: true,
         color: tColor,
         valign: 'middle',
@@ -546,7 +569,7 @@ async function addImageSlide(
       w: CONTENT_W,
       h: inch(80),
       fontFace: ctx.fontHead,
-      fontSize: pt(44),
+      fontSize: pt(44 * ts.fs),
       bold: true,
       lineSpacingMultiple: ctx.headingLine,
       color: tColor,
@@ -565,7 +588,8 @@ function addContentSlide(
   accentHex: string,
   dark: boolean,
   split: boolean,
-  ctx: BrandCtx
+  ctx: BrandCtx,
+  ts: TypeScale
 ): void {
   const bColor = bodyColor(dark);
   if (data.title.trim()) {
@@ -575,7 +599,7 @@ function addContentSlide(
       w: CONTENT_W,
       h: inch(70),
       fontFace: ctx.fontHead,
-      fontSize: pt(44),
+      fontSize: pt(44 * ts.fs),
       bold: true,
       lineSpacingMultiple: ctx.headingLine,
       color: titleColor(dark, accentHex),
@@ -594,18 +618,20 @@ function addContentSlide(
       y: bodyY,
       w: colW,
       h: bodyH,
-      fontSize: pt(28),
+      fontSize: pt(28 * ts.fs),
       valign: 'top',
       lineSpacingMultiple: 1.15,
+      ...(ts.shrink ? { fit: 'shrink' as const } : {}),
     });
     slide.addText(runs.slice(mid).length ? runs.slice(mid) : [{ text: '' }], {
       x: MARGIN + colW + inch(48),
       y: bodyY,
       w: colW,
       h: bodyH,
-      fontSize: pt(28),
+      fontSize: pt(28 * ts.fs),
       valign: 'top',
       lineSpacingMultiple: 1.15,
+      ...(ts.shrink ? { fit: 'shrink' as const } : {}),
     });
     return;
   }
@@ -615,9 +641,10 @@ function addContentSlide(
     y: bodyY,
     w: CONTENT_W,
     h: bodyH,
-    fontSize: pt(28),
+    fontSize: pt(28 * ts.fs),
     valign: 'top',
     lineSpacingMultiple: 1.15,
+    ...(ts.shrink ? { fit: 'shrink' as const } : {}),
   });
 }
 
@@ -631,29 +658,30 @@ async function addSlide(
   const slide = pptx.addSlide();
   const accentHex = toHex(accent) ?? '316049';
   const variant = data.variant ?? 0;
+  const ts = slideTypeScale(data);
 
   const bg = await resolveBackground(data, accent);
   slide.background = bg.image ? { data: bg.image } : { color: bg.color ?? WHITE_HEX };
 
   switch (data.layout) {
     case 'title':
-      addTitleSlide(slide, data, variant, accentHex, bg.dark, ctx);
+      addTitleSlide(slide, data, variant, accentHex, bg.dark, ctx, ts);
       break;
     case 'quote':
-      addQuoteSlide(slide, data, variant, accentHex, bg.dark, ctx);
+      addQuoteSlide(slide, data, variant, accentHex, bg.dark, ctx, ts);
       break;
     case 'code':
-      addCodeSlide(slide, data, accentHex, bg.dark, ctx);
+      addCodeSlide(slide, data, accentHex, bg.dark, ctx, ts);
       break;
     case 'image':
-      await addImageSlide(slide, data, variant, accentHex, bg.dark, ctx);
+      await addImageSlide(slide, data, variant, accentHex, bg.dark, ctx, ts);
       break;
     case 'split':
-      addContentSlide(slide, data, variant, accentHex, bg.dark, true, ctx);
+      addContentSlide(slide, data, variant, accentHex, bg.dark, true, ctx, ts);
       break;
     case 'content':
     default:
-      addContentSlide(slide, data, variant, accentHex, bg.dark, false, ctx);
+      addContentSlide(slide, data, variant, accentHex, bg.dark, false, ctx, ts);
   }
 
   // Country logo, title slides only. Variant 1 (Geteilt) puts the accent side
