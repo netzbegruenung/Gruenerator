@@ -249,6 +249,7 @@ export {
   resolveMentionable,
   filterMentionables,
   agentMentionables,
+  mentionableKey,
   notebookMentionables,
   documentMentionables,
   getAllMentionables,

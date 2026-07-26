@@ -1,4 +1,4 @@
-import { filterMentionables, type Mentionable } from '@gruenerator/chat';
+import { filterMentionables, mentionableKey, type Mentionable } from '@gruenerator/chat';
 import { memo } from 'react';
 import { View, Text, Pressable, SectionList, StyleSheet } from 'react-native';
 
@@ -88,7 +88,7 @@ export const MentionSuggestions = memo(function MentionSuggestions({
     >
       <SectionList
         sections={sections}
-        keyExtractor={(item) => item.identifier}
+        keyExtractor={mentionableKey}
         keyboardShouldPersistTaps="handled"
         renderSectionHeader={({ section }) => (
           <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>
