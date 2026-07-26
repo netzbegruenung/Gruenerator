@@ -91,6 +91,9 @@ const EDIT_SURFACE_SPECS: Partial<Record<EditorSurfaceKind, EditSurfaceSpec>> = 
         userPrompt: instruction,
         presentationContext: `${state.currentDocument?.markdown ?? ''}${appliedNote}`,
         referenceContent,
+        // The loop context has no deck meta — the user's locale is the best
+        // proxy for the accent palette offered to the planner.
+        brand: state.userLocale ?? null,
       }),
   },
   board: {
