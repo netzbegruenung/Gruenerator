@@ -1,6 +1,11 @@
+import {
+  fitScaleForRatio,
+  PRESENTATION_MIN_SCALE,
+  PRESENTATION_SCALE_LADDER,
+} from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { MIN_SCALE, pickScale, SCALE_LADDER } from './useAutoFitScale.js';
+import { pickScale } from './useAutoFitScale.js';
 
 /**
  * A monotonic `fits` probe: the content needs `needed` px at scale 1 and the
@@ -18,10 +23,10 @@ function probe(needed: number, capacity = 540) {
 
 /** Reference implementation: the naive full top-down scan. */
 function scanFromTop(fits: (scale: number) => boolean): number {
-  for (const s of SCALE_LADDER) {
+  for (const s of PRESENTATION_SCALE_LADDER) {
     if (fits(s)) return s;
   }
-  return MIN_SCALE;
+  return PRESENTATION_MIN_SCALE;
 }
 
 describe('pickScale', () => {
@@ -38,7 +43,7 @@ describe('pickScale', () => {
 
   it('bottoms out at the smallest step when nothing fits', () => {
     const { fits } = probe(5000);
-    expect(pickScale(fits, 1)).toBe(0.5);
+    expect(pickScale(fits, 1)).toBe(PRESENTATION_MIN_SCALE);
   });
 
   it('grows back when the content shrinks again', () => {
@@ -49,7 +54,7 @@ describe('pickScale', () => {
   it('converges on the same step no matter where the search starts', () => {
     for (const needed of [300, 560, 620, 700, 900, 1400]) {
       const expected = scanFromTop(probe(needed).fits);
-      for (const from of SCALE_LADDER) {
+      for (const from of PRESENTATION_SCALE_LADDER) {
         expect(pickScale(probe(needed).fits, from)).toBe(expected);
       }
     }
@@ -65,5 +70,32 @@ describe('pickScale', () => {
   it('falls back to a full scan when the starting step is not on the ladder', () => {
     const { fits } = probe(700);
     expect(pickScale(fits, 0.42)).toBe(0.7);
+  });
+});
+
+describe('fitScaleForRatio', () => {
+  it('agrees with the measured ladder walk for the same content', () => {
+    // The mobile (compute-from-ratio) and web (probe-the-ladder) renderers must
+    // land on the same step, otherwise the same deck looks different per client.
+    for (const needed of [300, 540, 560, 620, 700, 900, 1400]) {
+      expect(fitScaleForRatio(540 / needed)).toBe(pickScale(probe(needed).fits, 1));
+    }
+  });
+
+  it('keeps full size when the content fits', () => {
+    expect(fitScaleForRatio(1)).toBe(1);
+    expect(fitScaleForRatio(3)).toBe(1);
+  });
+
+  it('bottoms out at the smallest step', () => {
+    expect(fitScaleForRatio(0.1)).toBe(PRESENTATION_MIN_SCALE);
+  });
+
+  it('degrades to full size on an unusable measurement', () => {
+    // A 0 / NaN ratio means the measurement failed — render as before rather
+    // than shrinking a slide for no reason.
+    expect(fitScaleForRatio(0)).toBe(1);
+    expect(fitScaleForRatio(Number.NaN)).toBe(1);
+    expect(fitScaleForRatio(Number.POSITIVE_INFINITY)).toBe(1);
   });
 });
