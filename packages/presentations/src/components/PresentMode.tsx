@@ -90,10 +90,17 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
       deck.on('overviewshown', () => setOverview(true));
       deck.on('overviewhidden', () => setOverview(false));
       if (printPdf) {
-        // Open the print dialog only once reveal signals its print layout is
-        // complete (`pdf-ready`). A fixed timer could beat that event on a
-        // non-trivial deck and capture a half-laid-out PDF. The fallback timer
-        // still fires the dialog if the event already fired or never does (a
+        // Open the print dialog only once BOTH signals have landed:
+        //   1. reveal's print layout is complete (`pdf-ready`) — a fixed timer
+        //      could beat it on a non-trivial deck and capture a half-laid-out
+        //      PDF;
+        //   2. the webfonts are loaded — auto-fit (useAutoFitScale) measures at
+        //      mount against the fallback metrics and re-fits on `fonts.ready`,
+        //      and the CI faces (GrueneType Neue / Gotham Narrow) are metrically
+        //      far from the fallbacks, so printing earlier can bake a type scale
+        //      one ladder step off into the PDF.
+        // Two frames of slack then let that rAF-scheduled re-fit paint. The
+        // fallback timer still fires the dialog if a signal never arrives (a
         // load-race), and `printed` dedups so we never print twice.
         let printed = false;
         const doPrint = () => {
@@ -101,8 +108,13 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
           printed = true;
           window.print();
         };
-        deck.on('pdf-ready', doPrint);
-        setTimeout(doPrint, 1500);
+        void Promise.all([
+          new Promise<void>((resolve) => deck.on('pdf-ready', () => resolve())),
+          document.fonts?.ready ?? Promise.resolve(),
+        ]).then(() => requestAnimationFrame(() => requestAnimationFrame(doPrint)));
+        // Only reached when a signal is lost; the happy path resolves well
+        // inside this, so the longer deadline costs nothing in normal exports.
+        setTimeout(doPrint, 3000);
       }
     });
     return () => {
