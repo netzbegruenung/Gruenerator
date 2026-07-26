@@ -245,7 +245,27 @@ export async function executeDirectSearch(params: {
         }
       }
 
-      if (!response.success || !response.results || response.results.length === 0) {
+      // A backend failure is NOT "nothing found": conflating them made the tool
+      // card render green and the model tell the user there is no such content,
+      // when in fact the search never ran. `error: true` is what wrapTools'
+      // isErrorResult reads, so the card turns red and the model sees a failure
+      // it can be honest about.
+      if (!response.success) {
+        log.warn(
+          `[Direct Search] Search failed for "${query}" in ${collection}: ${response.error ?? 'unknown error'}`
+        );
+        return {
+          collection,
+          query,
+          searchMode: 'hybrid',
+          resultsCount: 0,
+          results: [],
+          error: true,
+          message: 'Die Dokumentsuche ist momentan gestört — es konnte nicht gesucht werden.',
+        };
+      }
+
+      if (!response.results || response.results.length === 0) {
         log.info(`[Direct Search] No results found for query: "${query}" in ${collection}`);
         return {
           collection,
@@ -475,7 +495,21 @@ export async function executeDirectWebSearch(params: {
       { maxRetries: 1, delayMs: 500, label: 'DirectWebSearch' }
     );
 
-    if (!searchResults.success || !searchResults.results || searchResults.results.length === 0) {
+    // Same split as the document search above: a SearXNG outage must not read
+    // as "the web has nothing on this".
+    if (!searchResults.success) {
+      log.warn(`[Direct Web Search] Search failed for "${query}"`);
+      return {
+        query,
+        searchType,
+        resultsCount: 0,
+        results: [],
+        error: true,
+        message: 'Die Websuche ist momentan gestört — es konnte nicht gesucht werden.',
+      };
+    }
+
+    if (!searchResults.results || searchResults.results.length === 0) {
       log.info(`[Direct Web Search] No results found for: "${query}"`);
       return {
         query,
