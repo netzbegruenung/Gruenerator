@@ -96,8 +96,20 @@ export type ModelConfig = ModelConfigSingle | ModelConfigOverflow;
  * verified end-to-end (120k, needle retrieved, 32s cold / 3.6s warm).
  */
 const CTX_FULL = 262_144;
-/** Verified-safe ceiling for the Ollama-backed Verdigado lanes (see above). */
-const CTX_VERDIGADO = 120_000;
+/**
+ * Deliberately conservative ceiling for the Ollama-backed Verdigado lanes.
+ *
+ * 120k was verified working end-to-end, but the failure mode above it is silent
+ * truncation, and the observed truncation point was `prompt_tokens: 65538` —
+ * exactly 64Ki + 2. That is the signature of a runtime `num_ctx` of 65536,
+ * regardless of what the model tag advertises. Rather than sit just below a
+ * cliff whose position we infer from one data point, we stay below the value
+ * the backend itself fell back to. Costs headroom, buys the guarantee that a
+ * long thread is never answered from a fragment.
+ *
+ * Raise only alongside a fresh needle test AND an overflow probe on the lane.
+ */
+const CTX_VERDIGADO = 64_000;
 
 const GPT_OSS_OVERFLOW: ModelConfigOverflow = {
   kind: 'overflow',
