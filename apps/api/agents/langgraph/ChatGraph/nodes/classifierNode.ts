@@ -819,7 +819,14 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // overwhelmingly common no-action message never touches the servers table.
     const mcpUserId = state.agentConfig?.userId;
     if (mcpUserId && userContent.length >= 8 && MCP_ACTION_PATTERN.test(userContent)) {
-      const servers = await McpServerRegistry.getClassifierContext(mcpUserId).catch(() => []);
+      const servers = await McpServerRegistry.getClassifierContext(mcpUserId).catch(
+        (err: unknown) => {
+          // Was a bare noop: a registry outage made every connector invisible,
+          // so "erstelle eine Brevo-Kampagne" quietly became a chat answer.
+          log.warn(`[Classifier] MCP registry lookup failed: ${err}`);
+          return [];
+        }
+      );
       const scopedServerId = matchMcpServerByName(userContent, servers);
       if (scopedServerId) {
         log.info('[Classifier] MCP prose routing → mcp intent', { scope: scopedServerId });
@@ -1212,6 +1219,10 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       hasTemporal: false,
       complexity: 'moderate' as const,
       classificationTimeMs: Date.now() - startTime,
+      // The heuristic is a reasonable fallback, but it drops multi-source
+      // search and metadata filters — a materially worse turn that was
+      // previously indistinguishable from a normal one.
+      classifierDegraded: true,
     };
   }
 }
