@@ -3,10 +3,17 @@
  * so "video" or "untertitel" finds Reel, "ocr" finds the Scanner, etc. Many of
  * these have no sidebar entry, so the nav-derived index alone would never
  * surface them.
+ *
+ * LITERAL MIRROR of the `search` blocks in config/toolRegistry.ts — edit tools
+ * THERE first. The docs generators AST-parse this file and require a plain
+ * array literal, so CATALOG cannot be derived at runtime; `satisfies` pins the
+ * ids to the registry and toolRegistry.vitest.ts asserts the entries deep-equal
+ * the registry-derived catalog.
  */
 import { getIcon } from '../../config/icons';
 
 import type { IconType } from '../../config/icons';
+import type { ToolSearchId } from '../../config/toolRegistry';
 
 export interface ToolCatalogEntry {
   id: string;
@@ -19,6 +26,8 @@ export interface ToolCatalogEntry {
 }
 
 const nav = (name: string): IconType | null => getIcon('navigation', name) ?? null;
+
+type RegisteredEntry = ToolCatalogEntry & { id: ToolSearchId };
 
 const CATALOG: ToolCatalogEntry[] = [
   {
@@ -85,11 +94,8 @@ const CATALOG: ToolCatalogEntry[] = [
     icon: nav('vorlagen'),
     keywords: ['vorlagen', 'vorlage', 'template', 'design'],
   },
-  // Deliberately a bare id (not tool-office): it mirrors the favourites entry
-  // so featureIndex dedupes the two. The former per-type entries (docs, boards,
-  // sheets, presentations) are gone — their paths were mere redirects to
-  // /office, so a hit sent the user through a visible detour. Their synonyms
-  // live on here so "excel" or "kanban" still finds Office.
+  // Deliberately a bare id (not tool-office) so featureIndex dedupes it against
+  // the favourites entry — full rationale at the office entry in toolRegistry.
   {
     id: 'office',
     title: 'Office',
@@ -188,7 +194,7 @@ const CATALOG: ToolCatalogEntry[] = [
     keywords: ['transfer', 'datei', 'upload', 'senden', 'teilen'],
     devOnly: true,
   },
-];
+] satisfies RegisteredEntry[];
 
 export function getToolCatalog(includeDevOnly: boolean): ToolCatalogEntry[] {
   return includeDevOnly ? CATALOG : CATALOG.filter((entry) => !entry.devOnly);
