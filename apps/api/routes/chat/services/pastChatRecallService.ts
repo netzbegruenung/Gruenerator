@@ -9,7 +9,10 @@
  *    surface a topically related past thread even without shared keywords.
  *  - office content — docs, boards, sheets, presentations (`recallOfficeDocuments`):
  *    title + content-preview search over `collaborative_documents`, reusing
- *    `searchOfficeContent`. `rerankRecall` then cross-ranks both sources.
+ *    `searchOfficeContent`.
+ *  - reels — the user's subtitled videos (`recallReels`): title + spoken
+ *    subtitle content, reusing `searchReels`.
+ * `rerankRecall` then cross-ranks all three sources.
  *
  * This is deliberately separate from mem0 fact memory: mem0 stores distilled
  * facts about the user; this returns raw conversation excerpts and document
@@ -21,6 +24,7 @@ import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { searchThreadRecall } from '../../../services/chat/threadRecallEmbeddingService.js';
 import { rerankPipeline } from '../../../services/search/rerankPipeline.js';
+import { type ReelHit, searchReels } from '../../../services/subtitler/reelSearch.js';
 import { createLogger } from '../../../utils/logger.js';
 import { toIsoOrNull, toIsoString } from '../../../utils/toIsoString.js';
 import {
@@ -148,25 +152,41 @@ export async function recallOfficeDocuments(
   }
 }
 
+/**
+ * Search the user's own reels — subtitled videos — by title and by the spoken
+ * subtitle content. Reuses `searchReels`, which is scoped to `user_id`; reels
+ * have no group sharing, so ownership is the whole access rule.
+ */
+export async function recallReels(userId: string, query: string, limit = 3): Promise<ReelHit[]> {
+  if (!query.trim()) return [];
+  return searchReels(userId, query, limit);
+}
+
 const RERANK_SNIPPET_CHARS = 300;
 
 /**
- * Cross-source relevance ranking of recall candidates (chats + office content)
- * via the shared cross-encoder `rerankPipeline`, so the few most relevant items
- * survive regardless of source — instead of blindly injecting N of each. Returns
- * the kept subsets (rerank order preserved). Degrades to the inputs (truncated
- * to `keep`) when reranking is unavailable or the list is trivially small.
+ * Cross-source relevance ranking of recall candidates (chats + office content +
+ * reels) via the shared cross-encoder `rerankPipeline`, so the few most relevant
+ * items survive regardless of source — instead of blindly injecting N of each.
+ * Returns the kept subsets (rerank order preserved). Degrades to the inputs
+ * (truncated to `keep`) when reranking is unavailable or the list is trivially
+ * small.
  */
 export async function rerankRecall(
   query: string,
   chats: ChatSearchResult[],
   officeDocs: OfficeDocHit[],
-  keep: number
-): Promise<{ chats: ChatSearchResult[]; officeDocs: OfficeDocHit[] }> {
-  type Candidate = { kind: 'chat'; hit: ChatSearchResult } | { kind: 'office'; hit: OfficeDocHit };
+  keep: number,
+  reels: ReelHit[] = []
+): Promise<{ chats: ChatSearchResult[]; officeDocs: OfficeDocHit[]; reels: ReelHit[] }> {
+  type Candidate =
+    | { kind: 'chat'; hit: ChatSearchResult }
+    | { kind: 'office'; hit: OfficeDocHit }
+    | { kind: 'reel'; hit: ReelHit };
   const candidates: Candidate[] = [
     ...chats.map((hit) => ({ kind: 'chat' as const, hit })),
     ...officeDocs.map((hit) => ({ kind: 'office' as const, hit })),
+    ...reels.map((hit) => ({ kind: 'reel' as const, hit })),
   ];
 
   const splitKept = (kept: Candidate[]) => ({
@@ -176,25 +196,36 @@ export async function rerankRecall(
     officeDocs: kept
       .filter((c): c is Extract<Candidate, { kind: 'office' }> => c.kind === 'office')
       .map((c) => c.hit),
+    reels: kept
+      .filter((c): c is Extract<Candidate, { kind: 'reel' }> => c.kind === 'reel')
+      .map((c) => c.hit),
   });
 
   if (candidates.length <= 1 || !query.trim()) {
     return splitKept(candidates.slice(0, keep));
   }
 
-  const items = candidates.map((c) =>
-    c.kind === 'chat'
-      ? {
-          title: c.hit.threadTitle ?? 'Chat',
-          content: (c.hit.snippet ?? '').slice(0, RERANK_SNIPPET_CHARS),
-          source: 'chat',
-        }
-      : {
-          title: c.hit.title ?? c.hit.kind,
-          content: c.hit.snippet.slice(0, RERANK_SNIPPET_CHARS),
-          source: c.hit.subtype ?? 'office',
-        }
-  );
+  const items = candidates.map((c) => {
+    if (c.kind === 'chat') {
+      return {
+        title: c.hit.threadTitle ?? 'Chat',
+        content: (c.hit.snippet ?? '').slice(0, RERANK_SNIPPET_CHARS),
+        source: 'chat',
+      };
+    }
+    if (c.kind === 'reel') {
+      return {
+        title: c.hit.title,
+        content: c.hit.snippet.slice(0, RERANK_SNIPPET_CHARS),
+        source: 'reel',
+      };
+    }
+    return {
+      title: c.hit.title ?? c.hit.kind,
+      content: c.hit.snippet.slice(0, RERANK_SNIPPET_CHARS),
+      source: c.hit.subtype ?? 'office',
+    };
+  });
 
   try {
     const { rankedIndices } = await rerankPipeline({
@@ -202,7 +233,11 @@ export async function rerankRecall(
       items,
       outputLimit: keep,
       instruct: 'Finde die eigenen Inhalte des Nutzers, die zur Anfrage am relevantesten sind.',
-      sourceTagFn: (it) => (it.source === 'chat' ? 'Chat' : 'Eigener Inhalt'),
+      sourceTagFn: (it) => {
+        if (it.source === 'chat') return 'Chat';
+        if (it.source === 'reel') return 'Reel';
+        return 'Eigener Inhalt';
+      },
     });
     return splitKept(rankedIndices.map((i) => candidates[i]));
   } catch (err) {
@@ -388,6 +423,35 @@ export function formatOfficeDocsBlock(docs: OfficeDocHit[]): string {
     const title = d.title?.trim() || 'Unbenanntes Dokument';
     const meta = d.updatedAt ? `${d.kind}, ${formatGermanDate(d.updatedAt)}` : d.kind;
     lines.push(`- „${title}" (${meta})`);
+  }
+  return lines.join('\n').trimEnd();
+}
+
+/**
+ * German system-prompt block listing the user's own matching reels together
+ * with the transcript lines that matched. Unlike the docs block this carries
+ * actual spoken content, because the common follow-up ("schreib mir eine
+ * Caption dazu") has to work from what is said in the video — same framing
+ * though: context to work from, not a citable source. Returns '' when empty.
+ */
+export function formatReelsBlock(reels: ReelHit[]): string {
+  if (reels.length === 0) return '';
+  const lines: string[] = [
+    '## RELEVANTE EIGENE REELS (KONTEXT – KEINE QUELLEN, NICHT ZITIEREN)',
+    '',
+    'Das sind untertitelte Videos des Nutzers. Die Zeilen darunter sind Auszüge aus dem',
+    'gesprochenen Untertitel-Transkript (Zeitstempel in Klammern). Du darfst darauf',
+    'aufbauen — etwa für eine Caption — und dich auf Zeitmarken beziehen. Erfinde nichts,',
+    'was nicht im Transkript steht.',
+    '',
+  ];
+  for (const r of reels) {
+    const meta = r.lastEditedAt
+      ? `Reel, zuletzt bearbeitet ${formatGermanDate(r.lastEditedAt)}`
+      : 'Reel';
+    lines.push(`### „${r.title}" (${meta})`);
+    lines.push(r.snippet || '(keine Untertitel vorhanden)');
+    lines.push('');
   }
   return lines.join('\n').trimEnd();
 }
