@@ -143,6 +143,10 @@ router.post(
       userId: user.id,
       allowUserCollections: true,
       sse,
+      // Keep the stream open past the answer so the persistence step below can
+      // still report a failure — sendChatWarning no-ops once the stream ended,
+      // which made that warning unreachable on this path.
+      closeStream: false,
     });
 
     // Persist assistant message and update thread timestamp in parallel
@@ -179,6 +183,9 @@ router.post(
       }
       if (!userMessageOk) sendChatWarning(sse, 'persist_failed');
     }
+
+    // The controller owns the close now (closeStream: false above).
+    sse.end();
   }
 );
 
