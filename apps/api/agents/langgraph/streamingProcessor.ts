@@ -8,7 +8,7 @@
 
 import { streamText } from 'ai';
 
-import { createSSEStream } from '../../routes/chat/services/sseHelpers.js';
+import { createSSEStream, sseInternalError } from '../../routes/chat/services/sseHelpers.js';
 import { getModel, type ProviderName } from '../../services/ai/providers.js';
 import {
   localizePromptObject,
@@ -483,9 +483,13 @@ export async function processGraphRequestStreaming(
       success: false,
     });
 
-    if (!res.headersSent) {
-      sse.sendRaw('error', { error: errorMessage });
-    }
+    // NOT guarded on `res.headersSent`: SSE headers are flushed the moment the
+    // stream opens, so that check is always true here and used to swallow every
+    // mid-stream failure — the generation stopped mid-sentence and the client
+    // saw a stream that just closed. `sseInternalError` guards on `isEnded()`
+    // instead (the only state that actually makes an emit impossible) and
+    // classifies provider failures (rate limit → retryable) on the way out.
+    sseInternalError(sse, error);
     sse.end();
   }
 }

@@ -130,9 +130,46 @@ const THEMES: Record<PdfLocale, Theme> = {
 
 const PAGE_W = 595.28;
 const PAGE_H = 841.89;
-const MARGIN_L = 70;
-const MARGIN_R = 55;
-const FOOTER_RESERVE = 50;
+/** PDF user units per millimetre — every DIN measurement below is stated in mm. */
+const MM = 2.834645669;
+
+/**
+ * DIN 5008 Form B — the geometry a windowed DIN-lang envelope and every digital
+ * mail service (LetterXpress, Pingen, E-POST) validate against.
+ *
+ * Form B rather than Form A because the letter carries a letterhead band: the
+ * logo and the Absender block occupy the top 45 mm, which is exactly the space
+ * Form A would need for the Anschriftfeld.
+ *
+ * The field holds 9 lines over 40 mm: 3 lines Zusatz- und Vermerkzone (the
+ * Rücksendeangabe sits in the first) and 6 lines Anschriftzone for the address
+ * itself. Nothing else may be printed inside it — it is what shows through the
+ * envelope window.
+ */
+const ADDRESS_FIELD = {
+  left: 20 * MM,
+  width: 85 * MM,
+  top: 50 * MM,
+  height: 40 * MM,
+  lineHeight: (40 / 9) * MM,
+  zvzLines: 3,
+};
+/** Anschriftzone: where the recipient's own lines start. */
+const ADDRESS_ZONE_TOP = ADDRESS_FIELD.top + ADDRESS_FIELD.zvzLines * ADDRESS_FIELD.lineHeight;
+/** Left edge of the DIN Informationsblock — right of the envelope window. */
+const INFO_BLOCK_LEFT = 125 * MM;
+/** Two lines below the Anschriftfeld, per DIN 5008. */
+const SUBJECT_TOP = ADDRESS_FIELD.top + ADDRESS_FIELD.height + 2 * ADDRESS_FIELD.lineHeight;
+/**
+ * Codierzone: Deutsche Post prints the routing code into the bottom 15 mm of
+ * the address side, so nothing of ours may be there. The reserve keeps body
+ * text a further margin above it; the footer is drawn in between.
+ */
+const CODING_ZONE = 15 * MM;
+const FOOTER_BASELINE = CODING_ZONE + 5;
+const MARGIN_L = 25 * MM;
+const MARGIN_R = 20 * MM;
+const FOOTER_RESERVE = 62;
 const CONTENT_W = PAGE_W - MARGIN_L - MARGIN_R;
 const CONTINUATION_TOP = PAGE_H - 70;
 
@@ -147,8 +184,22 @@ const EMOJI_REGEX = /(\p{Emoji_Presentation}|\p{Extended_Pictographic})/gu;
 /**
  * The area body text may occupy. Exported so the self-check measures against the
  * real layout — the page box alone would not catch text printed over the footer.
+ *
+ * `exempt` is the DIN Anschriftfeld: it sits 5 mm LEFT of the writing margin by
+ * standard, so without the exemption every dispatch-ready address would be
+ * reported as overflow.
  */
-export const PDF_TYPE_AREA = { left: MARGIN_L, right: PAGE_W - MARGIN_R, bottom: 40 };
+export const PDF_TYPE_AREA = {
+  left: MARGIN_L,
+  right: PAGE_W - MARGIN_R,
+  bottom: FOOTER_RESERVE - 10,
+  exempt: {
+    left: ADDRESS_FIELD.left,
+    right: ADDRESS_FIELD.left + ADDRESS_FIELD.width,
+    top: PAGE_H - ADDRESS_FIELD.top,
+    bottom: PAGE_H - ADDRESS_FIELD.top - ADDRESS_FIELD.height,
+  },
+};
 
 interface FontRun {
   text: string;
@@ -519,11 +570,18 @@ class PdfRenderer {
     pages.forEach((page, i) => {
       this.tagger.artifact(page, () => {
         const titleRuns = splitIntoFontRuns(shortTitle, this.fonts.body, this.fonts);
-        drawRuns(page, titleRuns, MARGIN_L, 28, 8, MUTED_COLOR);
+        drawRuns(page, titleRuns, MARGIN_L, FOOTER_BASELINE, 8, MUTED_COLOR);
         if (pages.length > 1) {
           const label = `Seite ${i + 1} von ${pages.length}`;
           const runs = splitIntoFontRuns(label, this.fonts.body, this.fonts);
-          drawRuns(page, runs, PAGE_W - MARGIN_R - measureRuns(runs, 8), 28, 8, MUTED_COLOR);
+          drawRuns(
+            page,
+            runs,
+            PAGE_W - MARGIN_R - measureRuns(runs, 8),
+            FOOTER_BASELINE,
+            8,
+            MUTED_COLOR
+          );
         }
       });
     });
@@ -1452,31 +1510,91 @@ class PdfRenderer {
     this.tagger.close();
   }
 
+  /**
+   * Falz- und Lochmarken, DIN 5008 Form B: folded at 105 mm and 210 mm the
+   * Anschriftfeld lands in the window of a DIN-lang envelope. Hairlines at the
+   * very left edge, drawn as artifacts so they never reach a screen reader.
+   */
+  private drawFoldMarks(): void {
+    const page = this.page;
+    this.tagger.artifact(page, () => {
+      for (const [fromTop, length] of [
+        [105 * MM, 4 * MM],
+        [148.5 * MM, 6 * MM],
+        [210 * MM, 4 * MM],
+      ]) {
+        page.drawLine({
+          start: { x: 8 * MM, y: PAGE_H - fromTop },
+          end: { x: 8 * MM + length, y: PAGE_H - fromTop },
+          thickness: 0.4,
+          color: RULE_COLOR,
+        });
+      }
+    });
+  }
+
+  /**
+   * Rücksendeangabe für die erste Zeile des Anschriftfelds.
+   *
+   * Sie muss in EINE 85-mm-Zeile passen. Sie einfach zu kürzen wäre falsch:
+   * abgeschnitten wird zuerst der Ort, also genau die Angabe, die eine
+   * Rücksendung braucht. Stattdessen fallen die entbehrlichen Teile der Reihe
+   * nach weg — erst der Personenname neben der Organisation, dann die Straße —
+   * und die erste Fassung, die passt, wird gezeichnet.
+   */
+  private fitReturnLine(sender: string[]): string {
+    if (!sender.length) return '';
+    const head = sender[0];
+    const rest = sender.slice(1);
+    const city = rest.length ? rest[rest.length - 1] : '';
+    const candidates = [
+      sender,
+      // Ohne den Personennamen, sofern eine Organisation davorsteht.
+      rest.length > 1 ? [head, ...rest.slice(1)] : null,
+      city ? [head, city] : null,
+      [head],
+    ];
+
+    for (const candidate of candidates) {
+      if (!candidate) continue;
+      const text = candidate.join(' · ');
+      const runs = splitIntoFontRuns(text, this.fonts.body, this.fonts);
+      if (measureRuns(runs, 7) <= ADDRESS_FIELD.width) return text;
+    }
+    return head;
+  }
+
   private renderLetterHeader(): void {
     this.drawLogo();
+    this.drawFoldMarks();
     const letter = this.spec.letter ?? {};
     const sender = senderLines(this.opts.sender);
     const page = this.page;
 
     this.drawSenderBlock(sender);
 
-    // Rücksendeangabe über dem Adressfeld — DIN-5008-Lage, rein visuell.
-    const returnLine = sender.join(' · ');
+    // Rücksendeangabe — erste Zeile der Zusatz- und Vermerkzone, also INNERHALB
+    // des Anschriftfelds. Sie ist die einzige Angabe außer der Anschrift, die
+    // dort stehen darf.
+    const returnLine = this.fitReturnLine(sender);
     if (returnLine) {
+      const ruleY = PAGE_H - ADDRESS_FIELD.top - ADDRESS_FIELD.lineHeight;
       this.tagger.artifact(page, () => {
-        const [line] = this.boundedLines(returnLine, this.fonts.body, 6.5, 200, 1);
-        drawRuns(page, line ?? [], MARGIN_L, PAGE_H - 127, 6.5, MUTED_COLOR);
+        const [line] = this.boundedLines(returnLine, this.fonts.body, 7, ADDRESS_FIELD.width, 1);
+        drawRuns(page, line ?? [], ADDRESS_FIELD.left, ruleY + 3, 7, MUTED_COLOR);
         page.drawLine({
-          start: { x: MARGIN_L, y: PAGE_H - 131 },
-          end: { x: MARGIN_L + 200, y: PAGE_H - 131 },
+          start: { x: ADDRESS_FIELD.left, y: ruleY },
+          end: { x: ADDRESS_FIELD.left + ADDRESS_FIELD.width, y: ruleY },
           thickness: 0.5,
           color: MUTED_COLOR,
         });
       });
     }
 
+    // Anschriftzone: 6 Zeilen, keine Leerzeile dazwischen, linksbündig auf
+    // 20 mm — so liest die Sortieranlage der Post die Adresse.
     this.tagger.open('Sect', { title: 'Empfänger' });
-    let addrY = PAGE_H - 148;
+    let addrY = PAGE_H - ADDRESS_ZONE_TOP - ADDRESS_FIELD.lineHeight * 0.72;
     for (const line of (letter.recipient ?? '')
       .split('\n')
       .map((l) => l.trim())
@@ -1484,29 +1602,31 @@ class PdfRenderer {
       .slice(0, 6)) {
       // The DIN 5008 address window is narrow — an overlong line must be cut,
       // not printed across the page.
-      this.writeLineAt('P', line, MARGIN_L, addrY, 11, this.fonts.body, BODY_COLOR, {
-        maxWidth: 250,
+      this.writeLineAt('P', line, ADDRESS_FIELD.left, addrY, 10.5, this.fonts.body, BODY_COLOR, {
+        maxWidth: ADDRESS_FIELD.width,
       });
-      addrY -= 15;
+      addrY -= ADDRESS_FIELD.lineHeight;
     }
     this.tagger.close();
 
     const dateLine = letter.place
       ? `${letter.place}, ${formatDate(this.opts.locale)}`
       : formatDate(this.opts.locale);
-    // Measure what is actually drawn: since labels go through the font-run
-    // split, the raw-text width can differ (stand-in glyphs, emoji font) and a
-    // right-aligned line would then start past the right margin.
-    const [dateRuns] = this.boundedLines(dateLine, this.fonts.body, 10, CONTENT_W / 2, 1);
+    // Bounded to the Informationsblock, not to half the page: a long place name
+    // would otherwise push the right-aligned line left into the envelope window.
+    // And measure what is actually DRAWN — labels go through the font-run split,
+    // so the raw-text width can differ (stand-in glyphs, emoji font).
+    const infoWidth = PAGE_W - MARGIN_R - INFO_BLOCK_LEFT;
+    const [dateRuns] = this.boundedLines(dateLine, this.fonts.body, 10, infoWidth, 1);
     const dateWidth = measureRuns(dateRuns ?? [], 10);
-    const dateY = PAGE_H - 235;
+    const dateY = PAGE_H - ADDRESS_FIELD.top - ADDRESS_FIELD.height + 3;
     this.tagger.tag('P', () =>
       this.tagger.content(page, () =>
         drawRuns(page, dateRuns ?? [], PAGE_W - MARGIN_R - dateWidth, dateY, 10, BODY_COLOR)
       )
     );
 
-    this.y = PAGE_H - 270;
+    this.y = PAGE_H - SUBJECT_TOP;
 
     const subject = letter.subject || this.spec.title;
     if (subject) {
