@@ -1031,6 +1031,56 @@ describe('Brief: DIN 5008 Form B, versandfähig im Fensterkuvert', () => {
     expect(subject?.top).toBeLessThanOrEqual(102);
     expect(subject?.x).toBeCloseTo(25, 1);
   });
+
+  /**
+   * Der Docs-Export schickt seit dem Wegfall der Briefformularfelder genau
+   * diese Gestalt: `letter` enthält nur noch die Anschrift. Anrede, Grußformel
+   * und Unterschrift stehen als gewöhnlicher Text in den Blöcken, der Betreff
+   * ist der Dokumenttitel. Das Raster darf davon nicht abhängen.
+   */
+  it('setzt Absender, Anschrift und Betreff auch dann, wenn nur die Anschrift mitkommt', async () => {
+    const result = await renderPdf(
+      spec({
+        kind: 'letter',
+        title: 'Antrag auf Förderung des Radwegeausbaus',
+        letter: { recipient: 'Stadtverwaltung Musterstadt\nRathausplatz 1\n12345 Musterstadt' },
+        blocks: [
+          { type: 'paragraph', text: 'Sehr geehrte Damen und Herren,' },
+          { type: 'paragraph', text: 'wir beantragen den Ausbau des Radwegenetzes.' },
+          { type: 'paragraph', text: 'Mit freundlichen Grüßen' },
+          { type: 'paragraph', text: 'Max Beispiel' },
+        ],
+      }),
+      { locale: 'de-DE', sender: SENDER }
+    );
+    const lines = (await placedText(result.bytes)).filter((l) => l.page === 1);
+
+    const address = lines.filter((l) => l.top >= 63.3 && l.top <= 90 && l.x < 24);
+    expect(address.map((l) => l.text)).toEqual([
+      'Stadtverwaltung Musterstadt',
+      'Rathausplatz 1',
+      '12345 Musterstadt',
+    ]);
+    for (const line of address) {
+      expect(line.x).toBeCloseTo(20, 1);
+      expect(line.right).toBeLessThanOrEqual(105);
+    }
+
+    // Absenderblock über dem Fenster.
+    expect(lines.filter((l) => l.top < 45 && l.x < 100).length).toBeGreaterThan(0);
+
+    // Betreff aus dem Titel, weiterhin zwei Zeilen unter dem Anschriftfeld.
+    // Nur der Zeilenanfang, denn Umlaute laufen über eine eigene Font-Run.
+    const subject = lines.find((l) => l.text.startsWith('Antrag'));
+    expect(subject?.top).toBeGreaterThanOrEqual(98);
+    expect(subject?.top).toBeLessThanOrEqual(102);
+    expect(subject?.x).toBeCloseTo(25, 1);
+
+    // Die Anrede ist jetzt Fließtext — sie muss unter dem Betreff stehen und
+    // darf nicht ins Fenster rutschen.
+    const salutation = lines.find((l) => l.text.startsWith('Sehr geehrte'));
+    expect(salutation?.top).toBeGreaterThan(subject?.top ?? 0);
+  });
 });
 
 /**
