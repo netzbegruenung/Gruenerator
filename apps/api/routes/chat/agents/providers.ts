@@ -78,18 +78,48 @@ export interface ModelConfigOverflow {
 
 export type ModelConfig = ModelConfigSingle | ModelConfigOverflow;
 
+/**
+ * Context windows below are MEASURED, not copied from datasheets (2026-07-26).
+ *
+ * Probe: POST an oversized prompt and read the limit back. Mistral answers
+ * `too large for model with 262144 maximum context length` — a clean 400 before
+ * any tokens are billed. The self-hosted Verdigado lanes do NOT: at ~350k input
+ * they returned HTTP 200 with `prompt_tokens: 65538`, i.e. Ollama **silently
+ * truncated** the prompt and answered over the fragment. A too-high number there
+ * costs no error, it costs context — so those lanes stay at the largest size
+ * verified end-to-end (120k, needle retrieved, 32s cold / 3.6s warm).
+ */
+const CTX_FULL = 262_144;
+/**
+ * Deliberately conservative ceiling for the Ollama-backed Verdigado lanes.
+ *
+ * 120k was verified working end-to-end, but the failure mode above it is silent
+ * truncation, and the observed truncation point was `prompt_tokens: 65538` —
+ * exactly 64Ki + 2. That is the signature of a runtime `num_ctx` of 65536,
+ * regardless of what the model tag advertises. Rather than sit just below a
+ * cliff whose position we infer from one data point, we stay below the value
+ * the backend itself fell back to. Costs headroom, buys the guarantee that a
+ * long thread is never answered from a fragment.
+ *
+ * Raise only alongside a fresh needle test AND an overflow probe on the lane.
+ */
+const CTX_VERDIGADO = 64_000;
+
 const GPT_OSS_OVERFLOW: ModelConfigOverflow = {
   kind: 'overflow',
   primary: { provider: 'litellm', model: 'verdigado-pro' },
   overflow: { provider: 'regolo', model: 'gpt-oss-120b' },
-  contextWindow: 32768,
+  // Bounded by the Verdigado PRIMARY, not the Regolo overflow: one config
+  // serves both, and the primary truncates silently. Size-aware routing to the
+  // larger sibling is a follow-up.
+  contextWindow: CTX_VERDIGADO,
 };
 
 const GEMMA_4_OVERFLOW: ModelConfigOverflow = {
   kind: 'overflow',
   primary: { provider: 'litellm', model: 'verdigado-think' },
   overflow: { provider: 'regolo', model: 'gemma4-31b' },
-  contextWindow: 32768,
+  contextWindow: CTX_VERDIGADO,
 };
 
 export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
@@ -98,7 +128,7 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
     kind: 'single',
     provider: 'mistral',
     model: 'mistral-medium-2604',
-    contextWindow: 128000,
+    contextWindow: CTX_FULL,
     fallback: 'gemma-4',
   },
   // Legacy IDs — repointed to current Mistral generation (Medium 3.5)
@@ -106,25 +136,25 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
     kind: 'single',
     provider: 'mistral',
     model: 'mistral-medium-2604',
-    contextWindow: 128000,
+    contextWindow: CTX_FULL,
   },
   'mistral-medium': {
     kind: 'single',
     provider: 'mistral',
     model: 'mistral-medium-2604',
-    contextWindow: 128000,
+    contextWindow: CTX_FULL,
   },
   'pixtral-large': {
     kind: 'single',
     provider: 'mistral',
     model: 'pixtral-large-latest',
-    contextWindow: 128000,
+    contextWindow: CTX_FULL,
   },
   regolo: {
     kind: 'single',
     provider: 'regolo',
     model: env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b',
-    contextWindow: 32768,
+    contextWindow: CTX_FULL,
   },
   // Backend-only lane, reachable via the auto policy but NOT in the model
   // picker (that is driven by MODEL_OPTIONS in @gruenerator/core/models). Same
@@ -135,7 +165,7 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
     kind: 'single',
     provider: 'regolo',
     model: 'mistral-small-4-119b',
-    contextWindow: 32768,
+    contextWindow: CTX_FULL,
     fallback: 'gpt-oss',
   },
   // Registered but not wired into any default or auto-routing yet — the catalog
@@ -144,7 +174,7 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
     kind: 'single',
     provider: 'greenpt',
     model: env.GREENPT_DEFAULT_MODEL || GREENPT_DEFAULT_MODEL,
-    contextWindow: 32768,
+    contextWindow: CTX_FULL,
   },
 
   // Overflow lanes — Verdigado primary, Regolo on overflow when slot is busy.
@@ -254,11 +284,12 @@ export function getContextWindow(
   }
 
   // Provider-level defaults for agent configs that use 'auto' or unnamed models
-  if (provider === 'mistral') return 128000;
-  // Matches the declared 32768 of every named LiteLLM lane (verdigado-pro/-think).
-  if (provider === 'litellm') return 32768;
-  if (provider === 'regolo') return 32768;
-  if (provider === 'greenpt') return 32768;
+  if (provider === 'mistral') return CTX_FULL;
+  // Verdigado is Ollama-backed and truncates silently past its window, so its
+  // default stays at the end-to-end verified size rather than the nominal one.
+  if (provider === 'litellm') return CTX_VERDIGADO;
+  if (provider === 'regolo') return CTX_FULL;
+  if (provider === 'greenpt') return CTX_FULL;
 
   return DEFAULT_CONTEXT_WINDOW;
 }
