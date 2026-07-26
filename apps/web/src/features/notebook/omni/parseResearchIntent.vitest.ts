@@ -9,7 +9,7 @@ import {
   type ParseContext,
 } from './parseResearchIntent';
 
-const targets = buildSystemTargets();
+const targets = buildSystemTargets('de-DE');
 
 // Minimal facet vocabulary, shaped like what useResearchFilters delivers at runtime.
 const filterFields: Record<string, FilterFieldConfig> = {
