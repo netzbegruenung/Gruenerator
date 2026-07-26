@@ -63,3 +63,10 @@ export const letterheadApi = {
 };
 
 export const LETTERHEADS_QUERY_KEY = ['letterheads'] as const;
+
+/** Shared by the settings tab, the export dialog and the tab's preload. */
+export const letterheadsQuery = {
+  queryKey: LETTERHEADS_QUERY_KEY,
+  queryFn: letterheadApi.list,
+  staleTime: 5 * 60 * 1000,
+};

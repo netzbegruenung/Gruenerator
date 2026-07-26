@@ -1,14 +1,32 @@
 import { GRUENERATOR_FRIENDS, getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import { toast } from '@gruenerator/ui';
-import { useShareLinks } from '@gruenerator/wolke';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { fetchShareLinks, useShareLinks, wolkeKeys } from '@gruenerator/wolke';
+import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { Check, Lock } from 'lucide-react';
 
-import { useProfile } from '@/features/auth/hooks/useProfileData';
+import { QUERY_KEYS, useProfile } from '@/features/auth/hooks/useProfileData';
 import { profileApiService, type Profile } from '@/features/auth/services/profileApiService';
 import { useAuthStore } from '@/stores/authStore';
 import { useProfileStore } from '@/stores/profileStore';
 import { cn } from '@/utils/cn';
+
+export const prefetch = (queryClient: QueryClient) => {
+  const userId = useAuthStore.getState().user?.id;
+  if (userId) {
+    void queryClient.prefetchQuery({
+      queryKey: QUERY_KEYS.profile(userId),
+      queryFn: profileApiService.getProfile,
+      staleTime: 15 * 60 * 1000,
+    });
+  }
+  // Decides whether Wolki renders unlocked — without it the tab paints a lock
+  // it then has to take away again.
+  void queryClient.prefetchQuery({
+    queryKey: wolkeKeys.shareLinks(),
+    queryFn: () => fetchShareLinks(),
+    staleTime: 30_000,
+  });
+};
 
 const FriendsTab = () => {
   const userId = useAuthStore((s) => s.user?.id);

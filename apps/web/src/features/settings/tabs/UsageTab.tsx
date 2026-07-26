@@ -7,10 +7,18 @@
  * CSS bars — a charting library would be a lot of bundle for ten numbers.
  */
 import { type UsageFeature } from '@gruenerator/contracts';
+import { type QueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import Spinner from '../../../components/common/Spinner';
-import { useUsageStats } from '../hooks/useUsageStats';
+import { SettingsStatsSkeleton } from '../components/SettingsSkeleton';
+import { usageStatsQuery, useUsageStats } from '../hooks/useUsageStats';
+
+/** The range the tab opens on — also the one worth prefetching. */
+const DEFAULT_DAYS = 30;
+
+export const prefetch = (queryClient: QueryClient) => {
+  void queryClient.prefetchQuery(usageStatsQuery(DEFAULT_DAYS));
+};
 
 const RANGES = [
   { days: 7, label: '7 Tage' },
@@ -72,16 +80,10 @@ function StatTile({ label, value, hint }: { label: string; value: string; hint?:
 }
 
 export default function UsageTab() {
-  const [days, setDays] = useState<number>(30);
+  const [days, setDays] = useState<number>(DEFAULT_DAYS);
   const { data, isPending, isError } = useUsageStats(days);
 
-  if (isPending) {
-    return (
-      <div className="flex justify-center py-xl">
-        <Spinner size="medium" />
-      </div>
-    );
-  }
+  if (isPending) return <SettingsStatsSkeleton />;
 
   if (isError || !data) {
     return (

@@ -1,13 +1,28 @@
 import { Button, toast } from '@gruenerator/ui';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
+
+import { SettingsFormSkeleton } from '../components/SettingsSkeleton';
 
 import RolesSection from './RolesSection';
 
-import Spinner from '@/components/common/Spinner';
-import { useProfile } from '@/features/auth/hooks/useProfileData';
+import { QUERY_KEYS, useProfile } from '@/features/auth/hooks/useProfileData';
 import { profileApiService, type Profile } from '@/features/auth/services/profileApiService';
+import { userDefaultsQuery } from '@/features/user-defaults/userDefaultsQueries';
 import { useAuthStore } from '@/stores/authStore';
+
+export const prefetch = (queryClient: QueryClient) => {
+  const userId = useAuthStore.getState().user?.id;
+  if (userId) {
+    void queryClient.prefetchQuery({
+      queryKey: QUERY_KEYS.profile(userId),
+      queryFn: profileApiService.getProfile,
+      staleTime: 15 * 60 * 1000,
+    });
+  }
+  // RolesSection renders below the prompt and reads the same blob.
+  void queryClient.prefetchQuery(userDefaultsQuery);
+};
 
 const CustomPromptSection = () => {
   const user = useAuthStore((s) => s.user);
@@ -47,13 +62,7 @@ const CustomPromptSection = () => {
     },
   });
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-lg">
-        <Spinner size="medium" />
-      </div>
-    );
-  }
+  if (isLoading) return <SettingsFormSkeleton />;
 
   return (
     <div className="flex flex-col gap-sm">
