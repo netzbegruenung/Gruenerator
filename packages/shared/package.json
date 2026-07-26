@@ -15,6 +15,7 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./assets/*": "./assets/*",
     "./reisekosten": {
       "development": "./src/reisekosten/index.ts",
       "types": "./src/reisekosten/index.ts",
