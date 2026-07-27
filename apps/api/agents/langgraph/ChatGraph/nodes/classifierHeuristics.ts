@@ -11,7 +11,12 @@ import { escapeRegExp } from '../../../../services/BaseSearchService/textUtils.j
 import { createLogger } from '../../../../utils/logger.js';
 
 import { CLASSIFIER_CONTEXT_MESSAGES, CLASSIFIER_CONTEXT_MAX_CHARS } from './classifierPrompt.js';
-import { isMetaQuestionAbout, negatedOrMeta, stripQuotedSpans } from './fastPathGuards.js';
+import {
+  hasExplicitSharepicWord,
+  isMetaQuestionAbout,
+  negatedOrMeta,
+  stripQuotedSpans,
+} from './fastPathGuards.js';
 
 import type { SearchIntent, SocialTextPlatform, ClassificationResult } from '../types.js';
 import type { ModelMessage } from 'ai';
@@ -27,30 +32,11 @@ const log = createLogger('ChatGraph:Classifier');
 // escape hatches and platform detection can't drift between tiers.
 
 /**
- * "nur den Text" / "ohne Sharepic" / "nur der Wortlaut" — user wants the caption
- * only. Compound "-text" nouns ("Posttext", "Beitragstext", "Social-Media-Text")
- * and `wortlaut`/`bildunterschrift` are unambiguously text-only, so they escape
- * even without a "nur"; a bare "Text" stays combined (it often means the post's
- * text, not text-instead-of-graphic) and needs a "nur"/"reine" qualifier.
+ * A combined ask names BOTH a sharepic and a post noun ("Post mit Sharepic").
+ * Such a turn belongs to `social_post`, which now carries the sharepic half
+ * itself — the sharepic-only fast path must stand down for it.
  */
-export const SOCIAL_TEXT_ONLY_PATTERN =
-  /\b(nur|bloß|bloss|lediglich|reine[rn]?)\s+(den\s+|einen\s+|die\s+)?(post-?|caption-?)?(text|wortlaut|caption)\b|\b(post|beitrag|social[-\s]?media|caption)s{0,2}[-\s]?text\b|\b(wortlaut|bildunterschrift)\b|\bohne\s+(sharepic|grafik|bild)\b/i;
-
-/** "nur ein Sharepic" / "ohne Text" — user wants the graphic only. */
-export const SHAREPIC_ONLY_PATTERN =
-  /\bnur\s+(ein\s+)?(sharepic|spruchbild|zitatbild|grafik)\b|\bohne\s+(post-?|caption-?)?text\b/i;
-
-/** Explicit sharepic wording keeps routing to the shipped sharepic-only flow. */
-export const SHAREPIC_NOUN_PATTERN =
-  /\b(share[\s-]?pics?|sharepics?|spruchbild\w*|zitatbild\w*)\b/i;
-
-/**
- * "Post MIT Sharepic" / "inkl. Sharepic" is the explicit combined ask — the
- * sharepic noun here is inclusion, not exclusion, so it must NOT act as a
- * sharepic-only escape.
- */
-export const SHAREPIC_INCLUSION_PATTERN =
-  /\b(mit|inkl\w*\.?|und|plus|samt)\s+(dazu\s+)?(ein(em)?\s+)?(passende[mn]?\s+)?(share[\s-]?pics?|sharepics?|spruchbild\w*|zitatbild\w*|grafik)\b/i;
+export const POST_NOUN_PATTERN = /\b(post(ing)?|beitrag|tweet|caption)\b/i;
 
 const INSTAGRAM_PLATFORM_PATTERN = /\b(instagram|insta|reels?|story)\b/i;
 const FACEBOOK_PLATFORM_PATTERN = /\b(facebook|fb|fb-?post|fb-?beitrag)\b/i;
@@ -112,21 +98,6 @@ export function nounNearCreateVerb(text: string, nounPattern: RegExp, window = 1
 
 /** Trigger nouns for the heuristic social rules below (narrower than the classifier's SOCIAL_NOUN_PATTERN). */
 const SOCIAL_TRIGGER_NOUN_PATTERN = /\b(social\s*media|post|tweet|instagram)\b/i;
-
-/**
- * Escape hatches for a message that would otherwise route to `social_post`:
- * "nur Text" keeps today's examples-grounded text flow, "nur Sharepic" /
- * exclusionary sharepic wording keeps the shipped sharepic-only flow.
- * Inclusion phrasing ("Post mit Sharepic") stays combined — it is the most
- * explicit combined ask there is.
- */
-export function resolveSocialPostEscape(text: string): 'examples' | 'sharepic' | null {
-  if (SOCIAL_TEXT_ONLY_PATTERN.test(text)) return 'examples';
-  if (SHAREPIC_ONLY_PATTERN.test(text)) return 'sharepic';
-  if (SHAREPIC_INCLUSION_PATTERN.test(text)) return null;
-  if (SHAREPIC_NOUN_PATTERN.test(text)) return 'sharepic';
-  return null;
-}
 
 /**
  * Keywords for fuzzy matching in heuristic fallback.
@@ -659,14 +630,7 @@ export function heuristicClassify(
   // Beschluss) describes content, and even verb proximity is no signal there
   // ("… hilft beim Erstellen … Alt-Texte für Sharepics"). The LLM prompt
   // knows the sharepic intent, so genuine long sharepic asks still route.
-  const sharepicIsInclusion =
-    SHAREPIC_INCLUSION_PATTERN.test(qc) && /\b(post(ing)?|beitrag|tweet|caption)\b/i.test(qc);
-  if (
-    SHAREPIC_NOUN_PATTERN.test(qc) &&
-    !sharepicIsInclusion &&
-    !isLongPaste &&
-    !negatedOrMeta(qc, SHAREPIC_NOUN_PATTERN)
-  ) {
+  if (!isLongPaste && hasExplicitSharepicWord(qc) && !POST_NOUN_PATTERN.test(qc)) {
     return {
       intent: 'sharepic',
       searchQuery: null,
@@ -936,26 +900,22 @@ export function heuristicClassify(
   }
 
   // Medium confidence (0.80): social media requests. Creation verbs route to
-  // the EXPERIMENTAL combined post (text + sharepic) unless an escape hatch
-  // ("nur Text", "nur Sharepic") applies; browse verbs ("zeig mir Beispiele")
-  // keep the examples flow. Meta-questions never create. Verb and noun must
-  // sit close together — "schreibe eine Produktvorstellung … [Paste erwähnt
-  // Instagram]" is not a post ask.
+  // `social_post`, which is TEXT ONLY unless the message names a sharepic;
+  // browse verbs ("zeig mir Beispiele") keep the examples flow. Meta-questions
+  // never create. Verb and noun must sit close together — "schreibe eine
+  // Produktvorstellung … [Paste erwähnt Instagram]" is not a post ask.
+  // The "nur Text" / "ohne Sharepic" escape hatches are gone: text-only IS the
+  // default now, so there is nothing left to escape from.
   if (
     !isLongPaste &&
     nounNearCreateVerb(qc, SOCIAL_TRIGGER_NOUN_PATTERN) &&
     !/\b(beispiel|vorlage)\b/i.test(qc) &&
     !negatedOrMeta(qc, SOCIAL_TRIGGER_NOUN_PATTERN)
   ) {
-    // Escape hatches ("ohne Sharepic", "nur Text") run on the raw text so the
-    // negated-artifact word stays visible to resolveSocialPostEscape.
-    const escape = resolveSocialPostEscape(q);
     return {
-      intent: escape ?? 'social_post',
+      intent: 'social_post',
       searchQuery: userContent,
-      reasoning: escape
-        ? `Social media creation with "${escape}" escape hatch`
-        : 'Social media post creation (combined text + sharepic)',
+      reasoning: 'Social media post creation',
       confidence: 0.8,
     };
   }

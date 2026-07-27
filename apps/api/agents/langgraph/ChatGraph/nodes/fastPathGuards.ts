@@ -77,3 +77,31 @@ export function isMetaQuestionAbout(text: string, nounPattern: RegExp): boolean 
 export function negatedOrMeta(text: string, nounPattern: RegExp): boolean {
   return isNegatedArtifactRequest(text, nounPattern) || isMetaQuestionAbout(text, nounPattern);
 }
+
+/**
+ * The ONLY accepted sharepic vocabulary. A sharepic is a branded party template
+ * with text on it — "Grafik" and "Kachel" mean a chart or a tile just as often,
+ * and inferring one from them is what made sharepics appear unasked-for.
+ * Add words HERE; nothing else in the codebase may carry its own sharepic list.
+ */
+export const SHAREPIC_WORD_RE =
+  /\b(share[\s-]?pics?|sharepics?|spruchbild\w*|zitatbild\w*|drei[\s-]?zeiler\w*)\b/i;
+
+/**
+ * True when the user asked for a sharepic in so many words. Quotes, negation
+ * ("Post ohne Sharepic") and meta questions ("Was macht ein gutes Sharepic
+ * aus?") are excluded HERE rather than at each call site — nine call sites used
+ * to each remember their own guards, and the ones that forgot were the doors.
+ */
+export function hasExplicitSharepicWord(text: string): boolean {
+  const t = stripQuotedSpans(text ?? '');
+  if (!SHAREPIC_WORD_RE.test(t)) return false;
+  if (isNegatedArtifactRequest(t, SHAREPIC_WORD_RE)) return false;
+  // The meta guard is anchored to the START of the text, so it only speaks for
+  // the sentence it opens — scope it there. "Was ist unsere Position zur
+  // Mietpreisbremse? Mach ein Sharepic draus" opens with a question about the
+  // Mietpreisbremse, not about sharepics; judging the whole message by its
+  // first word would refuse a perfectly explicit ask.
+  const firstSentence = t.split(/[.!?]/)[0] ?? t;
+  return !isMetaQuestionAbout(firstSentence, SHAREPIC_WORD_RE);
+}

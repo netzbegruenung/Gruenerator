@@ -321,9 +321,9 @@ export function makeCreateSharepicTool(ctx: {
 }): Tool {
   const { sse, state, req, threadId } = ctx;
   return tool({
-    description: `Erstellt ein Sharepic (Social-Media-Grafik) aus einer Kernaussage.
+    description: `Erstellt ein Sharepic (gebrandete Social-Media-Grafik) aus einer Kernaussage.
 
-NUTZE WENN der*die Nutzer*in ein Sharepic/eine Grafik zum Thema möchte. Recherchiere ZUERST die Fakten (gruenerator_search), dann übergib die konkrete, belegte Kernaussage — kein Platzhaltertext.`,
+NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Sharepic/Spruchbild/Zitatbild/einen Dreizeiler verlangt hat — NICHT bei "Grafik", "Kachel" oder "Bild". Recherchiere ZUERST die Fakten (gruenerator_search), dann übergib die konkrete, belegte Kernaussage — kein Platzhaltertext.`,
     inputSchema: z.object({
       text: z
         .string()
