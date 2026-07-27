@@ -604,6 +604,41 @@ export function sseFail(
 }
 
 /**
+ * Heartbeat for a window where the server is working but emits nothing: the
+ * wait for a model's first content token. Some lanes spend many seconds there
+ * (cold reasoning starts, overflow lanes); without a ping the UI shows
+ * `response_start` and then nothing, which is indistinguishable from a hang.
+ *
+ * Shared by both answer paths — the single-pass streamer and the agentic loop's
+ * synth phase, which is silent from the last tool result until the answer
+ * begins. Returns the disarm function; call it on the first delta, on abort and
+ * on error.
+ */
+const HEARTBEAT_INTERVAL_MS = 3_000;
+
+export function startResponseHeartbeat(sse: SSEWriter): () => void {
+  const stepId = `generating_${Date.now()}`;
+  const handle = setInterval(() => {
+    if (sse.isEnded()) return;
+    sse.send('thinking_step', {
+      stepId,
+      toolName: 'generating',
+      title: 'Formuliere Antwort…',
+      status: 'in_progress',
+    });
+  }, HEARTBEAT_INTERVAL_MS);
+  // Don't keep the event loop alive solely on this timer if the response is
+  // aborted at the socket layer.
+  if (typeof handle.unref === 'function') handle.unref();
+  let cleared = false;
+  return () => {
+    if (cleared) return;
+    cleared = true;
+    clearInterval(handle);
+  };
+}
+
+/**
  * Non-fatal degradation warning when one or more search backends were
  * unreachable — shared by the primary and resume search pipelines so the
  * copy can't drift.
