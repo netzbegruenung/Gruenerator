@@ -1,7 +1,7 @@
 import { type ChatProgress, usePacedLabel } from '@gruenerator/chat';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors, spacing } from '../../theme';
+import { chatType, colors, spacing } from '../../theme';
 import { type Theme } from '../../theme/colors';
 
 import { GrueneratorLoadingIcon } from './GrueneratorLoadingIcon';
@@ -58,9 +58,15 @@ export function ChatProgressIndicator({ progress, theme }: ChatProgressIndicator
   return (
     <View style={styles.row}>
       <GrueneratorLoadingIcon size={18} color={theme.textGreen} loading />
-      {/* Matches the body size: this line stands where the answer will be and is
-          replaced by it, so a different size would show as a jump at handover. */}
-      <ShimmerText mutedColor={theme.textSecondary} brightColor={theme.text} fontSize={17}>
+      {/* chatBody, passed whole: this line stands where the answer will be and is
+          replaced by it, so face, size and leading all have to match or the
+          handover shows as a jump. ShimmerText spreads `style` last. */}
+      <ShimmerText
+        mutedColor={theme.textSecondary}
+        brightColor={theme.text}
+        fontSize={chatType.chatBody.fontSize}
+        style={chatType.chatBody}
+      >
         {label}
       </ShimmerText>
     </View>
@@ -75,9 +81,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xsmall,
   },
   // Not shimmering: the shimmer reads as "still working", which a failed step
-  // is not. Same size as the running label so the line does not jump.
+  // is not. Same tier as the running label so the line does not jump — and via
+  // chatType, so it cannot lose PT Sans the way a bare fontSize does.
   failed: {
-    fontSize: 17,
+    ...chatType.chatBody,
     fontWeight: '600',
   },
 });
