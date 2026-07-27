@@ -368,8 +368,6 @@ describe('looksLikeCompoundGeneration', () => {
       'recherchiere + sharepic',
       'Recherchiere die aktuelle Position der Grünen zum Tempolimit und mach ein Sharepic dazu',
     ],
-    ['zahlen + grafik', 'Such aktuelle Zahlen zur Windkraft und erstell daraus eine Grafik'],
-    ['fakten + kachel', 'Ich brauche eine Kachel mit Fakten zur Kindergrundsicherung'],
     ['position + sharepic', 'Was ist unsere Position zur Mietpreisbremse? Mach ein Sharepic draus'],
     [
       'statistik + sharepic',
@@ -397,6 +395,11 @@ describe('looksLikeCompoundGeneration', () => {
 
   const singlePass: [string, string][] = [
     ['topic-only sharepic', 'Mach mir ein Sharepic zu Solarenergie'],
+    // "Grafik"/"Kachel" are no longer sharepic nouns: they mean a chart or a
+    // tile at least as often, and this pair was the door through which
+    // "recherchiere X und mach eine Grafik" forced a sharepic nobody asked for.
+    ['zahlen + grafik', 'Such aktuelle Zahlen zur Windkraft und erstell daraus eine Grafik'],
+    ['fakten + kachel', 'Ich brauche eine Kachel mit Fakten zur Kindergrundsicherung'],
     ['platform-only', 'Sharepic für Instagram bitte'],
     ['quote sharepic', 'Erstell ein Zitat-Sharepic: Wir kämpfen für Klimaschutz'],
     ['style tweak', 'Mach das Sharepic bitte in Gelb'],
@@ -411,11 +414,13 @@ describe('looksLikeCompoundGeneration', () => {
     expect(looksLikeCompoundGeneration(q)).toBe(false);
   });
 
-  it('injection: a generation noun inside quoted search text still counts as compound (routing is safe either way)', () => {
-    // Worst case is benign: the loop runs search + sharepic — no privileged path.
+  it('injection: a sharepic noun inside quoted search text is a SEARCH STRING, not an ask', () => {
+    // The quoted words are what to look for, not what to build. Under the
+    // explicit-word rule this must not license a sharepic — which is also why
+    // hasExplicitSharepicWord strips quoted spans before testing.
     expect(
       looksLikeCompoundGeneration('Suche nach "Sharepic Vorlagen" und fasse die Fakten zusammen')
-    ).toBe(true);
+    ).toBe(false);
   });
 });
 

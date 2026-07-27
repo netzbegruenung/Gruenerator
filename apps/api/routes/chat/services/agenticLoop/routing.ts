@@ -2,7 +2,12 @@
  * Pure routing decision for the agentic loop — extracted from the 1300-line
  * contract router so the "does this turn enter the loop?" logic is unit-testable
  * in isolation (no Express/Qdrant/streamText deps). See routing.vitest.ts.
+ *
+ * The one import is deliberate: fastPathGuards is itself a zero-import leaf, so
+ * the "what counts as a sharepic ask" vocabulary can live in exactly one place
+ * without this module losing its purity.
  */
+import { hasExplicitSharepicWord } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 
 /**
  * The classifier drops many factual questions into `intent: 'direct'` ("no
@@ -75,8 +80,13 @@ export const COMPOUND_GENERATION_INTENTS: ReadonlySet<string> = new Set([
  * false — "zu X" alone is a topic, not a research ask — keeping the single-pass
  * fixed-text/direct-dispatch contract.
  */
+// Sharepic nouns are deliberately absent — they come in via
+// hasExplicitSharepicWord below, which knows the full vocabulary and its
+// negation/quote guards. "grafik"/"kachel" are gone entirely: they mean a chart
+// or a tile at least as often, and this pair was the quiet door through which
+// "recherchiere X und mach eine Grafik" forced a sharepic nobody asked for.
 const GENERATION_NOUN_RE =
-  /\b(sharepic|share-pic|grafik|kachel|pr[äa]sentation|presentation|folien?|slides?|tabelle|kalkulation|spreadsheet|sheet|dokument|schriftst[üu]ck|textdokument|entwurf|board|kanban|aufgabenboard|taskboard|pdf|briefkopf|antragsformular|anmeldeformular|fragebogen)\b/i;
+  /\b(pr[äa]sentation|presentation|folien?|slides?|tabelle|kalkulation|spreadsheet|sheet|dokument|schriftst[üu]ck|textdokument|entwurf|board|kanban|aufgabenboard|taskboard|pdf|briefkopf|antragsformular|anmeldeformular|fragebogen)\b/i;
 // `recherch\w*` (not `recherchier\w*`) so the NOUN "Recherche" counts too — a
 // follow-up like "erstelle ein PDF mit den Originalquellen aus der Recherche"
 // carries an unmistakable research signal but no research VERB, and used to
@@ -87,7 +97,7 @@ const RESEARCH_SIGNAL_RE =
 
 export function looksLikeCompoundGeneration(raw: string): boolean {
   const t = (raw ?? '').trim();
-  return GENERATION_NOUN_RE.test(t) && RESEARCH_SIGNAL_RE.test(t);
+  return (GENERATION_NOUN_RE.test(t) || hasExplicitSharepicWord(t)) && RESEARCH_SIGNAL_RE.test(t);
 }
 
 // An instruction to MODIFY the open document/board (editor sidebars). Catches
@@ -156,7 +166,6 @@ export type CompoundGenerationKind =
 
 // Per-artifact nouns, used to recover the generation KIND from the text when the
 // intent no longer names it (a demoted `agentic` turn, or a `direct` misroute).
-const SHAREPIC_NOUN_RE = /\b(sharepic|share-pic|grafik|kachel)\b/i;
 const PRESENTATION_NOUN_RE = /\b(pr[äa]sentation|presentation|folien?|slides?)\b/i;
 const SHEET_NOUN_RE = /\b(tabelle|kalkulation|spreadsheet|sheet)\b/i;
 const BOARD_NOUN_RE = /\b(board|kanban|aufgabenboard|taskboard)\b/i;
@@ -184,7 +193,7 @@ export function compoundGenerationKind(intent: string, raw: string): CompoundGen
     // Order = specificity: the concrete products first, the generic "Dokument"
     // last (it's the fallback artifact when nothing more specific matches).
     // pdf before document: "PDF-Dokument" names both nouns but means a PDF.
-    if (SHAREPIC_NOUN_RE.test(t)) return 'sharepic';
+    if (hasExplicitSharepicWord(t)) return 'sharepic';
     if (PRESENTATION_NOUN_RE.test(t)) return 'presentation';
     if (SHEET_NOUN_RE.test(t)) return 'sheet';
     if (BOARD_NOUN_RE.test(t)) return 'board';
