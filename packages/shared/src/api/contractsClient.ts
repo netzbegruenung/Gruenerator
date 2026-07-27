@@ -21,6 +21,7 @@ import {
   exportsContract,
   recentValuesContract,
   recentActivityContract,
+  contentContract,
   itemUsageContract,
   userUsageContract,
   searchContract,
@@ -186,6 +187,7 @@ const _threadsClient = () => initClient(threadsContract, CLIENT_OPTS);
 const _exportsClient = () => initClient(exportsContract, CLIENT_OPTS);
 const _recentValuesClient = () => initClient(recentValuesContract, CLIENT_OPTS);
 const _recentActivityClient = () => initClient(recentActivityContract, CLIENT_OPTS);
+const _contentClient = () => initClient(contentContract, CLIENT_OPTS);
 const _itemUsageClient = () => initClient(itemUsageContract, CLIENT_OPTS);
 const _userUsageClient = () => initClient(userUsageContract, CLIENT_OPTS);
 const _searchClient = () => initClient(searchContract, CLIENT_OPTS);
@@ -243,6 +245,7 @@ export interface ContractsClient {
   exports: ReturnType<typeof _exportsClient>;
   recentValues: ReturnType<typeof _recentValuesClient>;
   recentActivity: ReturnType<typeof _recentActivityClient>;
+  content: ReturnType<typeof _contentClient>;
   itemUsage: ReturnType<typeof _itemUsageClient>;
   userUsage: ReturnType<typeof _userUsageClient>;
   search: ReturnType<typeof _searchClient>;
@@ -317,6 +320,7 @@ export function getContractsClient(): ContractsClient {
     exports: _exportsClient(),
     recentValues: _recentValuesClient(),
     recentActivity: _recentActivityClient(),
+    content: _contentClient(),
     itemUsage: _itemUsageClient(),
     userUsage: _userUsageClient(),
     search: _searchClient(),
