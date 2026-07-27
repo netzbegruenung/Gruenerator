@@ -141,6 +141,18 @@ export function customAgentToMentionable(agent: CustomAgentMentionable): Mention
 
 export const agentMentionables: Mentionable[] = agentsList.map(agentToMentionable);
 
+/**
+ * React list key for a mentionable. `identifier` alone is NOT unique: a skill's
+ * identifier is its OWNING AGENT, so `gruenerator-oeffentlichkeitsarbeit` covers
+ * `@presse`, `@instagram`, `@facebook` and `@twitter` alike — 18 skills share 8
+ * identifiers. Keying a list by it silently drops the duplicates.
+ *
+ * `mention` is the unique key within skills; type and identifier are folded in so
+ * the key also holds across the mixed lists (notebooks, tools, files) the picker
+ * renders together.
+ */
+export const mentionableKey = (m: Mentionable): string => `${m.type}:${m.identifier}:${m.mention}`;
+
 // Locale for filtering agent/skill mentionables in the picker. Set by the host
 // app (mirrors `setCustomAgents`). Resolution stays locale-agnostic so existing
 // @mentions in old threads still resolve regardless of the current locale.
@@ -148,6 +160,10 @@ let mentionLocale = 'de-DE';
 
 export function setMentionLocale(locale: string): void {
   mentionLocale = locale;
+}
+
+export function getMentionLocale(): string {
+  return mentionLocale;
 }
 
 /** Agent/skill mentionables visible for the current locale (de-DE/de-AT/all). */

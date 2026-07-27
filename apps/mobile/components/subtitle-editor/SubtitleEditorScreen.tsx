@@ -30,7 +30,7 @@ import { useSubtitleEditor } from '../../hooks/useSubtitleEditor';
 import { useSubtitleExport } from '../../hooks/useSubtitleExport';
 import { secureStorage } from '../../services/storage';
 import { useSubtitleEditorStore } from '../../stores/subtitleEditorStore';
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 import { DraggableSplitView } from '../common/DraggableSplitView';
 import { CategoryBar, InlineBar } from '../common/editor-toolbar';
 
@@ -443,6 +443,7 @@ const styles = StyleSheet.create({
     gap: spacing.medium,
   },
   loadingText: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '500',
   },
@@ -456,6 +457,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: colors.error[500],
+    fontFamily: BODY_FONT,
     fontSize: 13,
     flex: 1,
   },
@@ -477,6 +479,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   timelineTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -487,6 +490,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.small,
   },
   unsavedBadgeText: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     fontWeight: '600',
     color: colors.white,
@@ -500,6 +504,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
   },
   shareChipText: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '500',
   },
@@ -528,10 +533,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modalOptionTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '600',
   },
   modalOptionDesc: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     marginTop: 2,
   },

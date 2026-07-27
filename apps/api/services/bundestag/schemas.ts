@@ -10,6 +10,7 @@
  *    each) and abstracts carry HTML entities — trimming/cleaning happens at
  *    the client boundary so oversized or dirty payloads never reach the LLM.
  */
+import { decodeHtmlEntities } from '@gruenerator/shared/utils';
 import { z } from 'zod';
 
 // ── Raw MCP tool results (only consumed fields; tolerate anything else) ─────
@@ -110,35 +111,16 @@ export {
 } from '@gruenerator/contracts';
 
 // ── Cleaning helpers ─────────────────────────────────────────────────────────
-const NAMED_ENTITIES: Record<string, string> = {
-  '&quot;': '"',
-  '&lt;': '<',
-  '&gt;': '>',
-  '&nbsp;': ' ',
-  '&ndash;': '–',
-  '&mdash;': '—',
-  '&sect;': '§',
-  '&auml;': 'ä',
-  '&ouml;': 'ö',
-  '&uuml;': 'ü',
-  '&Auml;': 'Ä',
-  '&Ouml;': 'Ö',
-  '&Uuml;': 'Ü',
-  '&szlig;': 'ß',
-};
 
 /**
  * DIP abstracts embed (sometimes double-encoded) HTML entities and tags.
- * Decode entities first so `&lt;br/&gt;` becomes a strippable tag, then strip
- * tags, collapse whitespace and truncate.
+ * Decode entities first (shared `decodeHtmlEntities` — the umlaut-aware
+ * table lives there so this is the only place that needs it) so
+ * `&lt;br/&gt;` becomes a strippable tag, then strip tags, collapse
+ * whitespace and truncate.
  */
 export function cleanDipText(html: string, max: number): string {
-  let text = html.replace(/&amp;/g, '&');
-  for (const [entity, char] of Object.entries(NAMED_ENTITIES)) {
-    text = text.split(entity).join(char);
-  }
-  text = text
-    .replace(/&#\d+;/g, ' ')
+  const text = decodeHtmlEntities(html)
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();

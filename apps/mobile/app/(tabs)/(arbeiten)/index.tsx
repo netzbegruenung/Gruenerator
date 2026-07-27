@@ -1,39 +1,25 @@
-import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { View, StyleSheet, useColorScheme, Alert } from 'react-native';
+import { useState } from 'react';
+import { View, StyleSheet, useColorScheme } from 'react-native';
+import { GestureDetector } from 'react-native-gesture-handler';
 
-import { BottomComposerBar } from '../../../components/common/BottomComposerBar';
+import { ViewModeToggle, type ViewMode } from '../../../components/common/ViewModeToggle';
 import { DocumentsView } from '../../../components/docs/DocumentsView';
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
-import { TOOLS } from '../../../components/tools/toolsConfig';
-import { ToolSectionHeading, ToolTileGrid } from '../../../components/tools/ToolTileGrid';
-import { useDocsStore } from '../../../stores/docsStore';
-import { spacing } from '../../../theme';
+import { useOfficeExtraItems } from '../../../components/office/useOfficeExtraItems';
+import { useTabNavigationSwipe } from '../../../hooks/useTabSwipe';
 
 /**
- * "Arbeiten": one scrolling work hub (no sub-tabs), mirroring the web ArbeitenTab
- * — the Werkzeuge tool grid on top, the document grid below — plus a bottom-pinned
- * composer that generates a document from a prompt (the web Arbeiten intelligent
- * creator). The tools ride in as the document list's header so it all scrolls as one
- * page.
+ * "Arbeiten": everything the user has made — documents, presentations, sheets,
+ * boards and canvases in one list. Creating and searching both hang off the FAB
+ * stack in `DocumentsView`, so the list itself starts at the top of the screen.
+ *
+ * This screen absorbed the former Office tab. On mobile the two were the same
+ * list with different chrome, so Office is gone and its `extraItems` (boards +
+ * canvases, which the /docs endpoint does not return) are fetched here instead.
  */
-function ArbeitenHeader() {
-  return (
-    <View style={styles.header}>
-      <ToolSectionHeading title="Werkzeuge" badge={`${TOOLS.length}`} />
-      <ToolTileGrid tools={TOOLS} />
-      <View style={styles.docsHeading}>
-        <ToolSectionHeading title="Dokumente" />
-      </View>
-    </View>
-  );
-}
-
 export default function ArbeitenScreen() {
   const isDark = useColorScheme() === 'dark';
-  const router = useRouter();
-  const generateDocument = useDocsStore((s) => s.generateDocument);
-  const [isCreating, setIsCreating] = useState(false);
+  const { items } = useOfficeExtraItems();
 
   // Flat near-white tint mirrors the web Arbeiten tab (bg-[#F7FBF8]); dark keeps the
   // app gradient.
@@ -41,32 +27,22 @@ export default function ArbeitenScreen() {
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.flatBg]} />
   );
 
-  const handleCreate = useCallback(
-    async (text: string) => {
-      if (isCreating) return;
-      setIsCreating(true);
-      try {
-        const doc = await generateDocument(text);
-        if (doc) {
-          router.push({ pathname: '/(fullscreen)/doc-editor', params: { id: doc.id } });
-        }
-      } catch {
-        Alert.alert('Fehler', 'Dokument konnte nicht generiert werden.');
-      } finally {
-        setIsCreating(false);
-      }
-    },
-    [generateDocument, isCreating, router]
-  );
+  const swipe = useTabNavigationSwipe('/(tabs)/(arbeiten)');
+  // Lifted out of DocumentsView: the switch now sits in the header bar, which the
+  // scaffold renders, so the screen has to be the one that holds the state.
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
   return (
-    <ScreenScaffold title="Arbeiten" backdrop={backdrop}>
-      <View style={styles.flex}>
+    <ScreenScaffold
+      title="Arbeiten"
+      backdrop={backdrop}
+      headerRight={<ViewModeToggle mode={viewMode} onChange={setViewMode} />}
+    >
+      <GestureDetector gesture={swipe}>
         <View style={styles.flex}>
-          <DocumentsView header={<ArbeitenHeader />} showSearch={false} showFab={false} />
+          <DocumentsView extraItems={items} viewMode={viewMode} />
         </View>
-        <BottomComposerBar placeholder="Dokument beschreiben…" onSend={handleCreate} />
-      </View>
+      </GestureDetector>
     </ScreenScaffold>
   );
 }
@@ -77,11 +53,5 @@ const styles = StyleSheet.create({
   },
   flatBg: {
     backgroundColor: '#F7FBF8',
-  },
-  header: {
-    paddingTop: spacing.small,
-  },
-  docsHeading: {
-    marginTop: spacing.xlarge,
   },
 });

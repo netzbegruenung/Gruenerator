@@ -1,7 +1,7 @@
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 
 export interface ChipOption {
   id: string;
@@ -91,6 +91,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   chipText: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '500',
   },

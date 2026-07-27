@@ -3,7 +3,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { type Theme } from '../../theme';
+import { type Theme, BODY_FONT } from '../../theme';
 
 import {
   FIELD_IDS,
@@ -131,11 +131,13 @@ const styles = StyleSheet.create({
     maxWidth: 140,
   },
   labelText: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     fontWeight: '600',
     color: '#ffffff',
   },
   title: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '500',
     lineHeight: 19,
@@ -152,6 +154,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   metaText: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
   },
 });

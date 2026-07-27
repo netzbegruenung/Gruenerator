@@ -12,7 +12,7 @@ import Animated, {
   interpolateColor,
 } from 'react-native-reanimated';
 
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../../theme';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -114,6 +114,7 @@ const styles = StyleSheet.create({
     minHeight: 40,
   },
   label: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '500',
   },
@@ -128,6 +129,7 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
   badgeText: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     fontWeight: '600',
     color: colors.white,
