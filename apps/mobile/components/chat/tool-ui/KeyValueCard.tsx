@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   label: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
   },
   query: {
@@ -122,8 +122,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.medium,
   },
   markdown: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 20,
   },
   row: {
     flexDirection: 'row',

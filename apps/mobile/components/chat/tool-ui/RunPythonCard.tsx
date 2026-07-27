@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xsmall,
   },
   label: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
   },
   status: {

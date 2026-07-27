@@ -51,8 +51,8 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   input: {
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 17,
+    lineHeight: 26,
     // Room for a couple of lines without the sheet jumping on every keystroke.
     minHeight: 72,
     textAlignVertical: 'top',
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   buttonText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
   },
   sendButton: {

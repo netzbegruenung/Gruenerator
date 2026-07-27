@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
     padding: CARD_PADDING,
   },
   title: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     marginBottom: spacing.xsmall,
   },

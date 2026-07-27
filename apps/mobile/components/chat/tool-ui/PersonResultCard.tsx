@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
   },
   name: {
     flexShrink: 1,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
   },
   meta: {

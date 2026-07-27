@@ -56,12 +56,12 @@ const styles = StyleSheet.create({
   },
   label: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
   },
   text: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 20,
     paddingHorizontal: spacing.small,
     paddingBottom: spacing.small,
   },

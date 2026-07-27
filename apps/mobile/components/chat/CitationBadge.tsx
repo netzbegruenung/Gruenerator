@@ -31,7 +31,7 @@ export function CitationBadge({
   );
 }
 
-const SIZE = 18;
+const SIZE = 20;
 
 const styles = StyleSheet.create({
   bubble: {
@@ -47,8 +47,8 @@ const styles = StyleSheet.create({
   },
   label: {
     color: colors.white,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
-    lineHeight: 14,
+    lineHeight: 15,
   },
 });

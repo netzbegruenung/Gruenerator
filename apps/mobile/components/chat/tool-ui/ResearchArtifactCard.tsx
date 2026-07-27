@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
   },
   confidence: {

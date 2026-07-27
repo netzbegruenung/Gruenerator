@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   title: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
   },
   lvSummary: {
@@ -202,9 +202,9 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   itemTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '500',
-    lineHeight: 18,
+    lineHeight: 20,
   },
   itemExpanded: {
     marginTop: spacing.xsmall,
@@ -212,8 +212,8 @@ const styles = StyleSheet.create({
     gap: spacing.xsmall,
   },
   itemText: {
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 14,
+    lineHeight: 21,
   },
   sourceLink: {
     flexDirection: 'row',

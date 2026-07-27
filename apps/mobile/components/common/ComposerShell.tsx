@@ -168,8 +168,8 @@ export const COMPOSER_ACTION_FILL = colors.primary[600];
 const inputStyles = StyleSheet.create({
   card: {
     flex: 1,
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 17,
+    lineHeight: 25,
     minHeight: 36,
     maxHeight: 120,
     paddingVertical: 0,

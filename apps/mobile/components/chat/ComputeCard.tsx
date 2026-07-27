@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   },
   operation: {
     flexShrink: 1,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
   },
   caption: {
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   rowValue: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
