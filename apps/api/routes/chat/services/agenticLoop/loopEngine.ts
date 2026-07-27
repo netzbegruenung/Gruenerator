@@ -26,6 +26,7 @@ import {
 } from 'ai';
 
 import { createLogger } from '../../../../utils/logger.js';
+import { looksLikeRefusal, refusalLanguage } from '../refusalDetection.js';
 
 import type { LanguageModel, ModelMessage, ToolSet } from 'ai';
 
@@ -339,8 +340,35 @@ const GERMAN_MARKER_RE =
 /** A fenced block, an HTML/XML tag, or a JSON object — content, not prose. */
 const MARKUP_OR_CODE_RE = /```|<\/?[a-z][\w-]*(?:\s[^>]*)?>|^\s*[[{]/i;
 
+/**
+ * What the user reads when the synth DECLINED the request. Distinct from the
+ * caller's no-answer fallback on purpose: that one says "ich konnte nichts
+ * finden … magst du die Frage anders formulieren?", which reads as a technical
+ * failure and coaches the retry of a request we deliberately refused (observed
+ * live on the fabricated-quote turn). A decline is an outcome, not an error.
+ */
+export const SYNTH_REFUSAL_TEXT =
+  'Diese Anfrage setze ich nicht um — sie widerspricht den inhaltlichen Regeln des Grünerators, etwa erfundene Zitate, erfundene Quellen oder ausgrenzende Aussagen. Für ein anderes Anliegen bin ich gern da.';
+
 export const SYNTH_RETRY_SYSTEM_SUFFIX =
   '\n\nWICHTIG: Schreibe JETZT die vollständige, ausformulierte Antwort für die*den Nutzer*in — auf Deutsch. Du hast KEINE Tools und kannst keine aufrufen; kündige KEINE Tool-Aufrufe, Suchen oder Arbeitsschritte an, sondern nutze ausschließlich die oben gelieferten Quellen. Beginne direkt mit dem Inhalt.';
+
+/**
+ * Whether the synth DECLINED rather than degenerated. Both look alike from the
+ * outside — short, and (when the model falls back to English boilerplate) devoid
+ * of German markers — but they need opposite handling: a degenerate answer is
+ * retried, a refusal must be surfaced as a refusal and never retried.
+ *
+ * Bounded by {@link DEGENERATE_MAX_CHARS} for two reasons. Precision: a long
+ * answer that merely contains a refusal-shaped clause is prose, not a decline.
+ * And correctness: past that length the emitter gate has already opened and the
+ * text is on the wire, so it can no longer be swapped for the German message.
+ */
+export function looksLikeSynthRefusal(text: string): boolean {
+  const trimmed = text.trim();
+  if (trimmed.length === 0 || trimmed.length > DEGENERATE_MAX_CHARS) return false;
+  return looksLikeRefusal(trimmed);
+}
 
 /**
  * Whether a synthesized answer is a degenerate non-answer rather than prose.
@@ -413,7 +441,9 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: 
   const baseSystem = p.buildSynthSystem(p.getSourcesBlock());
   const toolNames = Object.keys(p.tools);
 
-  const runPass = async (system: string): Promise<{ text: string; flush: () => void }> => {
+  const runPass = async (
+    system: string
+  ): Promise<{ text: string; flush: () => void; discard: () => void }> => {
     const gate = createGatedEmitter(p.onText, DEGENERATE_MAX_CHARS);
     const result = deps.streamText({
       model: p.synthModel,
@@ -425,7 +455,7 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: 
     });
     try {
       const { text } = await drain(result, gate.push, p.onReasoning);
-      return { text, flush: gate.flush };
+      return { text, flush: gate.flush, discard: gate.discard };
     } catch (err) {
       // Nothing buffered may leak on the error path — the caller's catch writes
       // its own user-facing message.
@@ -435,6 +465,18 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: 
   };
 
   const first = await runPass(baseSystem);
+  // A decline is checked BEFORE degeneracy: an English refusal trips the
+  // no-German-marker rule, so without this it would be retried (a second model
+  // call that refuses again) and then reported as "keine Antwort gefunden".
+  if (looksLikeSynthRefusal(first.text)) {
+    first.discard();
+    log.info(
+      `[Engine] synth declined the request (${refusalLanguage(first.text) ?? 'de'}) — ` +
+        'surfacing the German refusal instead of retrying'
+    );
+    p.onText(SYNTH_REFUSAL_TEXT);
+    return { text: SYNTH_REFUSAL_TEXT };
+  }
   if (!looksDegenerateSynth(first.text, toolNames)) {
     first.flush();
     return { text: first.text };
