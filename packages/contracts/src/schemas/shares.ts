@@ -11,6 +11,13 @@ import { z } from 'zod';
  */
 export const contentOriginSchema = z.enum(['ki', 'sharepic']);
 
+/**
+ * The full stored set, for reading. `'upload'` marks bytes that came through the
+ * upload endpoint; `'unknown'` marks rows written before the column existed whose
+ * origin could not be recovered, and is deliberately not laundered into a guess.
+ */
+export const storedContentOriginSchema = z.enum(['ki', 'sharepic', 'upload', 'unknown']);
+
 // ── Request bodies ──────────────────────────────────────────────────────────
 
 export const createImageShareBodySchema = z.object({

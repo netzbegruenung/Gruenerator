@@ -22,6 +22,7 @@ export {
   exportsContract,
   recentValuesContract,
   recentActivityContract,
+  contentContract,
   itemUsageContract,
   userUsageContract,
   searchContract,
@@ -89,6 +90,7 @@ export * from './schemas/textForm.js';
 export * from './schemas/exports.js';
 export * from './schemas/recentValues.js';
 export * from './schemas/recentActivity.js';
+export * from './schemas/content.js';
 export * from './schemas/itemUsage.js';
 export * from './schemas/userUsage.js';
 export * from './schemas/search.js';
