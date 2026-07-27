@@ -1,10 +1,38 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  asksForNewArtifact,
   isSharepicEditInstruction,
   hasSharepicEditVerb,
   isShortAffirmation,
 } from './sharepicEditHeuristics.js';
+
+describe('asksForNewArtifact', () => {
+  it('erkennt die live gescheiterte Multi-Intent-Anfrage als Erstellung', () => {
+    // Erzeugte KEINEN Inhalt: "Kürze" allein reichte dem Refinement-Muster,
+    // der Turn landete im Sharepic-Edit-Zweig und fragte "Welche Variante
+    // soll ich bearbeiten?" für Artefakte ohne Bezug zur Anfrage.
+    const prompt =
+      'Schreib einen Instagram-Post UND eine Pressemitteilung zum Thema Windkraft. Kürze danach nur die Pressemitteilung.';
+    expect(asksForNewArtifact(prompt)).toBe(true);
+    expect(isSharepicEditInstruction(prompt)).toBe(false);
+  });
+
+  it('erkennt weitere Dokument-Artefakte', () => {
+    expect(asksForNewArtifact('Mach mir eine Rede zum Thema Verkehr')).toBe(true);
+    expect(asksForNewArtifact('Erstell eine Präsentation dazu')).toBe(true);
+    expect(asksForNewArtifact('Schreib einen Beitrag über Wohnraum')).toBe(true);
+  });
+
+  it('lässt Sharepic-interne Felder editierbar', () => {
+    // Der bestimmte Artikel und die Layout-Felder duerfen NICHT als
+    // Neuerstellung gelten, sonst waere der Edit-Zweig tot.
+    expect(asksForNewArtifact('Mach ein anderes Bild rein')).toBe(false);
+    expect(asksForNewArtifact('Kürze Zeile 2')).toBe(false);
+    expect(asksForNewArtifact('Kürze den Post')).toBe(false);
+    expect(isSharepicEditInstruction('ändere die farbe')).toBe(true);
+  });
+});
 
 describe('isSharepicEditInstruction', () => {
   it('matches umlaut-initial verbs (the \\b bug: "ändere"/"änderungen" never matched)', () => {

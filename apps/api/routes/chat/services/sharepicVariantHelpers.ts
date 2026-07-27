@@ -9,6 +9,7 @@ import {
 import { createLogger } from '../../../utils/logger.js';
 
 import { errorText, isRefusalError } from './refusalDetection.js';
+import { asksForNewArtifact } from './sharepicEditHeuristics.js';
 
 const log = createLogger('SharepicVariants');
 
@@ -106,6 +107,10 @@ const REFINE_PATTERN =
  * Only meaningful when the previous assistant turn was a sharepic.
  */
 export function isSharepicRefinement(text: string): boolean {
+  // A turn that asks for a NEW artifact is a creation, whatever edit wording it
+  // also carries — "Schreib einen Post UND eine Pressemitteilung. Kürze danach
+  // nur die Pressemitteilung." matched on "Kürze" alone and produced nothing.
+  if (asksForNewArtifact(text)) return false;
   return REFINE_PATTERN.test(text);
 }
 
