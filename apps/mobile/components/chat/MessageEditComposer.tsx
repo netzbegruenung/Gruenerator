@@ -3,7 +3,7 @@ import { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 
 /**
  * The edit surface for a sent message, shown in place of the bubble while
@@ -51,8 +51,7 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   input: {
-    fontSize: 16,
-    lineHeight: 24,
+    ...chatType.chatBody,
     // Room for a couple of lines without the sheet jumping on every keystroke.
     minHeight: 72,
     textAlignVertical: 'top',
@@ -70,7 +69,7 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   buttonText: {
-    fontSize: 14,
+    ...chatType.chatTitle,
     fontWeight: '600',
   },
   sendButton: {
