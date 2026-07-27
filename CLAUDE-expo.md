@@ -110,6 +110,49 @@ const inputRef = useRef<TextInput>(null);
 inputRef.current?.clear();
 ```
 
+## OTA-Updates (`apps/mobile`)
+
+`expo-updates` + EAS Update. Channels hängen an den Build-Profilen in
+`eas.json`: `development` / `preview` / `production`. Das `e2e-test`-Profil hat
+**bewusst keinen** Channel — ein Maestro-Lauf soll den Build testen, den er
+gebaut hat, und nicht mitten im Test ein OTA-Bundle nachladen.
+
+```bash
+cd apps/mobile
+npx eas update --branch production --message "fix: …"
+npx eas update --branch preview --message "…"      # Testkreis
+npx eas update:rollback                            # Notausgang
+```
+
+> **Nur von `master` veröffentlichen — und erst, wenn das Backend-Deploy durch
+> ist.** Mobile spricht mit dem deployten Prod-Backend. Das ist dieselbe Falle
+> wie bei Desktop (siehe `CLAUDE.md`), nur schärfer: einen Desktop-Build muss
+> sich jemand aktiv holen, ein OTA-Push landet ungefragt auf jedem Gerät. JS,
+> das einen Endpunkt aufruft, den Prod noch nicht kennt, hängt in
+> Ladeskeletten. Für Riskantes: prozentualer Rollout statt Vollausrollung.
+
+**Was OTA nicht kann:** alles Native. Änderungen an den Config-Plugins in
+`plugins/` und `config/`, an `expo-build-properties`, an Permissions, jedes neue
+Native-Modul und jedes SDK-Upgrade brauchen weiter einen Store-Build.
+
+**`runtimeVersion` ist `{ "policy": "fingerprint" }`**, nicht `appVersion`. Die
+App hat vier handgeschriebene Config-Plugins; eine Änderung daran verändert den
+nativen Output, ohne `version` anzufassen — unter `appVersion` würde der Server
+bereitwillig ein Update an ein Binary ausliefern, zu dem es nicht mehr passt.
+Der Fingerprint hasht die tatsächlichen nativen Eingaben, inklusive
+Abhängigkeitsbaum. Wenn Updates plötzlich niemanden mehr erreichen, ist die
+erste Frage, ob eine Lockfile-Änderung die Runtime-Version geschoben hat —
+`npx expo-updates fingerprint:generate` vergleichen.
+
+`eas update` bündelt **lokal** mit Metro, nicht in der Cloud: der Zustand von
+`pnpm install` auf der Maschine ist der, der ausgeliefert wird. Nach jedem
+Dependency-Merge vorher root-`pnpm install`.
+
+Am Gerät sichtbar wird der Stand unter **Einstellungen → App-Version**: bei
+einem eingebetteten Start nur die Store-Version, bei einem laufenden Update
+zusätzlich das Bundle-Datum. Tippen prüft manuell. `Updates.isEnabled` ist in
+Dev-Builds `false`, dort ist die Zeile nicht antippbar.
+
 ## Docs Expo (Android APK)
 
 The `apps/docs-expo` Expo 55 app is built locally as a debug APK.
