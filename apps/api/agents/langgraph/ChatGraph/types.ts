@@ -517,6 +517,13 @@ export interface ChatGraphInput {
  */
 export interface ChatGraphState {
   /**
+   * The search query was inherited from a prior turn because this turn's ask was
+   * referential ("recherchiere das jetzt im Web"). Caps the research confidence:
+   * an inherited subject is an inference, not the user's literal question.
+   */
+  searchQueryInherited?: boolean | undefined;
+
+  /**
    * The material of this turn (pasted text, attachment, open document) contains
    * instruction-shaped markers. Set by the classifier, consumed by the answer
    * prompts to warn the model BEFORE it acts — the classifier already noticed

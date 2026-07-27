@@ -336,6 +336,9 @@ const DEGENERATE_MAX_CHARS = 200;
 const GERMAN_MARKER_RE =
   /[äöüßÄÖÜ]|\b(der|die|das|dass|und|oder|ich|du|dir|wir|hier|nicht|kein\w*|ist|sind|war\w*|wurde\w*|habe?n?|hat|eine?[nmrs]?|dem|den|mit|von|auf|aus|bei|zum|zur|es|sich)\b/i;
 
+/** A fenced block, an HTML/XML tag, or a JSON object — content, not prose. */
+const MARKUP_OR_CODE_RE = /```|<\/?[a-z][\w-]*(?:\s[^>]*)?>|^\s*[[{]/i;
+
 export const SYNTH_RETRY_SYSTEM_SUFFIX =
   '\n\nWICHTIG: Schreibe JETZT die vollständige, ausformulierte Antwort für die*den Nutzer*in — auf Deutsch. Du hast KEINE Tools und kannst keine aufrufen; kündige KEINE Tool-Aufrufe, Suchen oder Arbeitsschritte an, sondern nutze ausschließlich die oben gelieferten Quellen. Beginne direkt mit dem Inhalt.';
 
@@ -356,6 +359,10 @@ export function looksDegenerateSynth(text: string, toolNames: readonly string[])
   // Needs to read as a SENTENCE before we judge its language — a bare token
   // ("Erledigt", "Ja") is a legitimate answer, not a leaked plan.
   if (trimmed.split(/\s+/).filter(Boolean).length < 3) return false;
+  // Markup and code are legitimately un-German. "Gib mir den Absatz mit
+  // HTML-Tags" answers with `<p>…</p>`, which carries no German function word
+  // and was silently discarded — the user got the generic fallback and no error.
+  if (MARKUP_OR_CODE_RE.test(trimmed)) return false;
   if (toolNames.some((name) => name.length > 3 && trimmed.includes(name))) return true;
   return !GERMAN_MARKER_RE.test(trimmed);
 }

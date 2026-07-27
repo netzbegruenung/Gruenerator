@@ -48,6 +48,19 @@ const NEW_POST_PATTERN =
   /(?<!\p{L})(neuen?\s+(post|tweet|beitrag|caption)|noch\s+ein(en)?\s+(post|tweet|beitrag)|(post|tweet|beitrag|caption)\s+(zu[rm]?|über|ueber|für|fuer)(?!\p{L}))/iu;
 
 /**
+ * The message asks for OUTPUT, not for a change: "gib mir den Text mit
+ * HTML-Tags wörtlich aus", "zeig mir das als Markdown", "schreib den Code raus".
+ *
+ * Live failure this guards: "Text" plus a verb from TEXT_EDIT_VERB_PATTERN was
+ * enough to hijack ANY message in a thread that had ever produced a social
+ * post — the branch then answered with its hard-coded "Ich habe den Text
+ * angepasst." and the requested content went out only via `social_post_updated`,
+ * which the surface did not render. The user saw an empty answer and no error.
+ */
+const OUTPUT_REQUEST_PATTERN =
+  /(?<!\p{L})(gib|zeig|zeige|nenn|nenne|liste|drucke?|printe?|ausgeben|ausgabe|rendere?)(?!\p{L})|(?<!\p{L})(w(?:ö|oe)rtlich|unver(?:ä|ae)ndert|so\s+wie\s+es\s+ist|als\s+(?:code|markdown|html|json|klartext|plain\s*text))(?!\p{L})|<\/?[a-z][\w-]*>|```/iu;
+
+/**
  * True when the message reads like an edit instruction for the TEXT of an
  * existing social post. Only meaningful when the thread actually has a
  * social_post message — callers check target existence first.
@@ -55,6 +68,9 @@ const NEW_POST_PATTERN =
 export function isSocialTextEditInstruction(text: string): boolean {
   if (NEW_POST_PATTERN.test(text)) return false;
   if (SHAREPIC_SPECIFIC_NOUN_PATTERN.test(text)) return false;
+  // A request to SEE something is never a request to CHANGE it. Checked before
+  // the verb∧noun rule, which "schreib mir den Text mit HTML-Tags" satisfies.
+  if (OUTPUT_REQUEST_PATTERN.test(text)) return false;
   if (TEXT_EDIT_VERB_PATTERN.test(text) && TEXT_NOUN_PATTERN.test(text)) return true;
   return TONE_WORD_PATTERN.test(text);
 }

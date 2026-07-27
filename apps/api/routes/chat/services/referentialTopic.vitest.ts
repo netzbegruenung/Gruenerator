@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 
-import { isReferentialCreation, resolveReferentialTopic } from './referentialTopic.js';
+import {
+  isReferentialCreation,
+  resolveReferentialTopic,
+  isReferentialResearch,
+  resolveReferentialQuery,
+} from './referentialTopic.js';
 
 import type { ModelMessage } from 'ai';
 
@@ -86,5 +91,72 @@ describe('resolveReferentialTopic', () => {
       { role: 'user', content: 'visualisiere das' },
     ];
     expect(resolveReferentialTopic('visualisiere das', msgs).inherited).toBe(false);
+  });
+});
+
+describe('resolveReferentialQuery', () => {
+  const user = (text: string) => ({ role: 'user' as const, content: text });
+  const assistant = (text: string) => ({ role: 'assistant' as const, content: text });
+
+  it('inherits the prior topic for a bare research affirmation', () => {
+    // The live failure: this sentence became the Linkup query and produced
+    // "Die Grünen in Österreich" instead of the renewables question.
+    const messages = [
+      user(
+        'Wie hoch ist der Anteil erneuerbarer Energien in Österreich und wie haben sich die CO2-Emissionen entwickelt?'
+      ),
+      assistant('Dazu habe ich gerade keine belastbaren Zahlen zur Hand.'),
+      user('Ja, bitte recherchiere das jetzt im Web'),
+    ];
+    const result = resolveReferentialQuery('Ja, bitte recherchiere das jetzt im Web', messages);
+    expect(result.inherited).toBe(true);
+    expect(result.query).toContain('erneuerbarer Energien');
+    expect(result.query).not.toContain('bitte recherchiere');
+  });
+
+  it('leaves a self-contained research request untouched', () => {
+    const text = 'Recherchiere bitte mit Quellen zum Ausbau der Windkraft in Niederösterreich';
+    const result = resolveReferentialQuery(text, [user(text)]);
+    expect(result.inherited).toBe(false);
+    expect(result.query).toBe(text);
+  });
+
+  it('takes the USER phrasing, not the assistant prose, as the query', () => {
+    const messages = [
+      user('Wie steht die Partei zur Kindergrundsicherung?'),
+      assistant('Die Kindergrundsicherung ist ein zentrales Vorhaben. '.repeat(20)),
+      user('Such das bitte nochmal nach'),
+    ];
+    const result = resolveReferentialQuery('Such das bitte nochmal nach', messages);
+    expect(result.query).toBe('Wie steht die Partei zur Kindergrundsicherung?');
+  });
+
+  it('falls back to the raw text when no prior subject exists', () => {
+    const result = resolveReferentialQuery('Ja bitte recherchiere das', [
+      user('Ja bitte recherchiere das'),
+    ]);
+    expect(result.inherited).toBe(false);
+  });
+});
+
+describe('isReferentialResearch', () => {
+  it('recognises bare research asks', () => {
+    for (const text of [
+      'Ja, bitte recherchiere das jetzt im Web',
+      'Such bitte nochmal danach',
+      'Recherchiere das mit Quellen',
+    ]) {
+      expect(isReferentialResearch(text), text).toBe(true);
+    }
+  });
+
+  it('does not grab requests that name their own subject', () => {
+    for (const text of [
+      'Recherchiere den Ausbau der Windkraft in Niederösterreich',
+      'Such mir Zahlen zur Kindergrundsicherung',
+      'Wer ist Bundeskanzler?',
+    ]) {
+      expect(isReferentialResearch(text), text).toBe(false);
+    }
   });
 });

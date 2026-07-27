@@ -195,6 +195,29 @@ export async function finalizeAssistantMessage(
 }
 
 /**
+ * Keep the sources of a turn whose generation FAILED.
+ *
+ * Without this a deep-research turn that dies during synthesis loses all 20
+ * citations: the handler returns before `persistAssistantResponse`, and
+ * `discardPendingAssistantIfEmpty` then drops the still-empty placeholder. The
+ * retry pays for the whole Linkup run again and `getRecentThreadSources` has
+ * nothing to rehydrate.
+ *
+ * Deliberately finalized as a normal `complete` row carrying a short German
+ * note as its content: `status` only knows 'streaming' and 'complete', and
+ * inventing a third value would silently change what every reader sees. A row
+ * with text also survives the discard sweep, which is exactly what we need.
+ */
+export async function persistSourcesOnFailure(
+  messageId: string,
+  noticeText: string,
+  searchResults: SearchResult[]
+): Promise<boolean> {
+  if (searchResults.length === 0) return false;
+  return finalizeAssistantMessage(messageId, noticeText, { searchResults });
+}
+
+/**
  * Drop the placeholder iff it never received any text (still streaming + empty).
  * Used on abort/early-return paths: an empty streaming row would otherwise
  * render as a phantom interrupted assistant bubble. Rows WITH partial text are
