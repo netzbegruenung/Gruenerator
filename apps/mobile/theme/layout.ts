@@ -31,17 +31,28 @@ export const FLOATING_TAB_BAR_HEIGHT = TAB_BAR_CAPSULE_HEIGHT + TAB_BAR_CAPSULE_
 export const SCREEN_EDGE = 20;
 
 /**
- * What a bottom-pinned composer keeps under itself, *on top of* the safe-area
- * inset.
+ * What a bottom-pinned composer keeps under itself — two numbers, because the
+ * right answer is not the same with the keyboard up and down.
  *
- * The inset alone is the system's requirement, not a design: it clears the
- * gesture bar and nothing more, which leaves the composer looking dropped onto
- * the bottom edge. Measured against ChatGPT on the same handset (S24, 3.0 px/dp,
- * 360dp wide): its pill's underside sits 34.2dp above the screen edge, and the
- * navigation inset there is 15dp — so 19dp of that is its own.
+ * Measured against ChatGPT on the same handset (S24, 3.0 px/dp, 360dp wide),
+ * and the pair of measurements is the whole point:
  *
- * Rounded to 20 so it reads as one step of the spacing scale rather than as a
- * measurement, and passed through `typeScale` at the call site so a narrow phone
- * gives up a little of it and a wide one gains a little.
+ * - **Keyboard down**, its pill sits 34.2dp above the screen edge. The
+ *   navigation inset is 15dp of that, so 19dp is its own.
+ * - **Keyboard up**, 12.0dp — and no inset at all.
+ *
+ * Two things follow. The safe-area inset is dropped once the keyboard is up:
+ * the gesture bar is behind the keyboard, so there is nothing left to clear, and
+ * keeping it would hold the composer 15dp off the keys for no reason. And the
+ * composer's own breathing room shrinks too — floating over content it needs
+ * separation from the screen edge, docked onto the keyboard it only needs a
+ * seam.
+ *
+ * Ours came out at 34dp in *both* states before this, because it added inset
+ * plus padding unconditionally — 22dp too high while typing.
+ *
+ * `RAISED` is 12 rather than 12.0-to-the-decimal: through `typeScale` it lands
+ * at 11.5dp here, half a point tighter than ChatGPT and 1.5 physical pixels off.
  */
 export const COMPOSER_BOTTOM_INSET = 20;
+export const COMPOSER_BOTTOM_INSET_RAISED = 12;

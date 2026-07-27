@@ -234,10 +234,135 @@ export const COMPOSER_GLOW: MeshPreset = {
 export const COMPOSER_GLOW_HEIGHT = 260;
 
 /**
- * What the conversation drawer wears: `nebel` unchanged.
+ * What the conversation drawer wears: `nebel`'s palette, rearranged.
  *
- * A constant rather than a lookup at the call site, so the drawer never has to
- * handle a mesh that might be missing — and so that "the drawer is nebel" is
- * written down once, next to the meshes, rather than as a string in a JSX prop.
+ * Same colours, same radii, same alphas, same white haze — only the four clouds
+ * trade places, so that **green sits top left** instead of the peach. That
+ * corner is where the Grünerator wordmark is; peach arriving under it read as a
+ * warning tone rather than as the brand.
+ *
+ * Rearranged rather than recoloured on purpose: it stays recognisably the same
+ * background as the start screen, which is what makes the drawer feel like part
+ * of the same surface sliding out rather than a second one.
+ *
+ * The other three follow from that move: peach takes the bottom left, lilac the
+ * right edge, and the yellow keeps the foot of the panel, where it sits under
+ * the profile row.
  */
-export const DRAWER_MESH: MeshPreset = CHAT_BACKGROUND_MESHES.nebel as MeshPreset;
+export const DRAWER_MESH: MeshPreset = {
+  base: '#FDFBF7',
+  layers: [
+    cloud('#FDF8F0', 0.5, -0.04, 1.3, 0.62, 1, 0.64),
+    cloud('#DCDAF4', 1.0, 0.42, 1.2, 0.75, 0.5, 0.66),
+    cloud('#F4EFC7', 0.6, 1.02, 1.4, 0.9, 0.5, 0.68),
+    cloud('#F8D6CF', 0.08, 0.92, 1.5, 1.0, 0.6, 0.7),
+    cloud('#CEE6DB', 0.05, 0.12, 1.3, 0.85, 0.55, 0.7),
+    {
+      color: '#FFFFFF',
+      cx: 0.5,
+      cy: 0.5,
+      rx: 1.3,
+      ry: 0.78,
+      stops: [
+        { offset: 0, opacity: 0.82 },
+        { offset: 0.38, opacity: 0.45 },
+        { offset: 0.68, opacity: 0.08 },
+        { offset: 0.88, opacity: 0 },
+      ],
+    },
+  ],
+};
+
+/** Sets a colour's lightness while keeping its hue and saturation. */
+function relight(hex: string, lightness: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => v / 255) as [
+    number,
+    number,
+    number,
+  ];
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  const d = max - min;
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  let h = 0;
+  if (d !== 0) {
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+
+  const c = (1 - Math.abs(2 * lightness - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = lightness - c / 2;
+  const seg = Math.floor(h / 60) % 6;
+  const rgb = [
+    [c, x, 0],
+    [x, c, 0],
+    [0, c, x],
+    [0, x, c],
+    [x, 0, c],
+    [c, 0, x],
+  ][seg] as [number, number, number];
+  return (
+    '#' +
+    rgb
+      .map((v) =>
+        Math.round((v + m) * 255)
+          .toString(16)
+          .padStart(2, '0')
+      )
+      .join('')
+      .toUpperCase()
+  );
+}
+
+/** The page colour a dark mesh sits on — the same one the dark theme uses. */
+const DARK_BASE = colors.grey[950];
+
+/**
+ * The dark-mode reading of a mesh.
+ *
+ * Not the same operation for both kinds, because the two kinds mean different
+ * things:
+ *
+ * - **A background** (it has a `base`) *is* the page. Dimming its pastels over
+ *   black turns them into grey smudges — the hue survives, the colour does not.
+ *   So the base becomes the dark page colour and each cloud keeps its hue and
+ *   saturation at a low lightness, which reads as coloured depth rather than as
+ *   a washed-out light theme. The white veil becomes the page colour: its job is
+ *   to pull the middle back to the ground it sits on, and in the dark that
+ *   ground is dark.
+ * - **A glow** (no `base`) is light laid over whatever is behind it. Light stays
+ *   light — darkening it would make it disappear against a dark page. It only
+ *   gets quieter.
+ */
+export function darkMesh(mesh: MeshPreset): MeshPreset {
+  if (!mesh.base) {
+    return {
+      layers: mesh.layers.map((layer) => ({
+        ...layer,
+        stops: layer.stops.map((stop) => ({ ...stop, opacity: stop.opacity * DARK_GLOW_STRENGTH })),
+      })),
+    };
+  }
+
+  return {
+    base: DARK_BASE,
+    layers: mesh.layers.map((layer) => ({
+      ...layer,
+      color: layer.color === '#FFFFFF' ? DARK_BASE : relight(layer.color, DARK_CLOUD_LIGHTNESS),
+      stops: layer.stops.map((stop) => ({ ...stop, opacity: stop.opacity * DARK_CLOUD_ALPHA })),
+    })),
+  };
+}
+
+/** How light a cloud is in dark mode. Above ~0.28 it starts to glare. */
+const DARK_CLOUD_LIGHTNESS = 0.19;
+/** Dark clouds need no damping to stay readable, only a little restraint. */
+const DARK_CLOUD_ALPHA = 0.85;
+/** A glow is light on a dark page, so it survives only as a hint. */
+const DARK_GLOW_STRENGTH = 0.3;

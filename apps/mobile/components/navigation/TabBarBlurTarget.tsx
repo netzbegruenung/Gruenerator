@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { useReduceTransparency } from '../../hooks/useAccessibilityPreferences';
 import { usePreferencesStore } from '../../stores/preferencesStore';
 
-import type { ReactNode, RefObject } from 'react';
+import type { Dispatch, ReactNode, RefObject, SetStateAction } from 'react';
 import type { View } from 'react-native';
 
 /**
@@ -28,7 +28,10 @@ import type { View } from 'react-native';
  */
 
 const TabBarBlurTargetContext = createContext<View | null>(null);
-const TabBarBlurSetterContext = createContext<((target: View | null) => void) | null>(null);
+// `Dispatch<SetStateAction<…>>` rather than a plain setter: the unmount cleanup
+// below has to clear the target *only if it is still its own*, which needs the
+// functional form.
+const TabBarBlurSetterContext = createContext<Dispatch<SetStateAction<View | null>> | null>(null);
 
 /**
  * Whether the tab bar should blur at all — the one answer both halves of this
@@ -77,14 +80,42 @@ export function useRegisterTabBarBlurTarget(enabled: boolean): RefObject<View | 
   // Refs are attached before effects run, so `.current` is the mounted view by
   // the time the registration below fires.
   const ref = useRef<View | null>(null);
+  // What this screen actually published, remembered separately: by the time the
+  // unmount cleanup runs, React may already have detached `ref`.
+  const published = useRef<View | null>(null);
 
   useEffect(() => {
     if (!enabled || !setTarget || !isFocused) return;
+    published.current = ref.current;
     setTarget(ref.current);
-    // Deliberately no cleanup that nulls the target: blurring the outgoing
-    // screen for the duration of a tab transition looks better than the bar
-    // dropping to a flat fill mid-animation. The incoming screen overwrites it.
+    // Deliberately no cleanup that nulls the target on *focus* changes: blurring
+    // the outgoing screen for the duration of a tab transition looks better than
+    // the bar dropping to a flat fill mid-animation. The incoming screen
+    // overwrites it. Unmount is a different matter — see below.
   }, [enabled, setTarget, isFocused]);
+
+  /**
+   * Clears the target when this screen goes away for good.
+   *
+   * Keeping a target belonging to a screen that merely lost focus is the point
+   * of the effect above. Keeping one belonging to a screen that was *unmounted*
+   * is a dangling reference to a destroyed native view, and `BlurView` calls
+   * `findNodeHandle` on whatever it is handed — which throws "Unable to find
+   * node on an unmounted component" and takes the tab bar down with it.
+   *
+   * Turning the performance mode on is exactly that case: `ScreenScaffold` stops
+   * rendering `BlurTargetView`, so the element type changes and the subtree is
+   * torn down while the bar is still holding its view.
+   *
+   * Conditional, because by then another screen may have published its own — and
+   * clearing that one would blank a target that is perfectly alive.
+   */
+  useEffect(() => {
+    if (!setTarget) return;
+    return () => {
+      setTarget((current) => (current === published.current ? null : current));
+    };
+  }, [setTarget]);
 
   return ref;
 }

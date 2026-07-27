@@ -1,9 +1,8 @@
-import { resolveChatBackground } from '@gruenerator/shared/settings';
-import { useAuthStore } from '@gruenerator/shared/stores';
 import { useEffect, useState } from 'react';
 import { Animated, StyleSheet, useColorScheme } from 'react-native';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
+import { useChatBackground } from '../../hooks/useChatBackground';
 import { useReduceMotion } from '../../hooks/useAccessibilityPreferences';
 import { chatBackgroundColor, chatBackgroundMesh } from '../../theme/chatBackgrounds';
 
@@ -25,12 +24,9 @@ import { MeshSurface } from './MeshSurface';
 export function SunriseBackground() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  // Which preset is a server-side profile setting, shared with web; the colour
-  // it maps to is mobile's own (see theme/chatBackgrounds.ts).
-  const preset = resolveChatBackground(
-    useAuthStore((s) => s.user?.chat_background),
-    'mobile'
-  );
+  // The device's choice, else the profile's — see useChatBackground. The colour
+  // or mesh it maps to is mobile's own (see theme/chatBackgrounds.ts).
+  const preset = useChatBackground();
   const glow = chatBackgroundColor(preset.key);
   const mesh = chatBackgroundMesh(preset.key);
 

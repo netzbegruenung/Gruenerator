@@ -2,11 +2,7 @@ import { type ChatBackground } from '@gruenerator/contracts';
 import { getAllRobotIds, getRobotAvatarUrl } from '@gruenerator/shared/avatar';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { AT_EBENEN, DE_EBENEN, type UserRole } from '@gruenerator/shared/roles';
-import {
-  chatBackgroundsFor,
-  getSettingsEntry,
-  resolveChatBackground,
-} from '@gruenerator/shared/settings';
+import { chatBackgroundsFor, getSettingsEntry } from '@gruenerator/shared/settings';
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
@@ -21,6 +17,7 @@ import {
   Switch,
   Alert,
   Platform,
+  useColorScheme,
 } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
@@ -30,8 +27,9 @@ import { fetchRoles } from '../../services/roles';
 import { usePreferencesStore, type ThemeMode } from '../../stores/preferencesStore';
 import { useSettingsSheetStore, type SettingsDetail } from '../../stores/settingsSheetStore';
 import { spacing, colors, borderRadius, BODY_FONT } from '../../theme';
-import { chatBackgroundColor, chatBackgroundMesh } from '../../theme/chatBackgrounds';
+import { chatBackgroundColor, chatBackgroundMesh, darkMesh } from '../../theme/chatBackgrounds';
 import { route } from '../../types/routes';
+import { useChatBackground } from '../../hooks/useChatBackground';
 import { BottomSheet } from '../common/BottomSheet';
 import { ListGroup, ListRow } from '../common/ListRow';
 import { MeshGradient } from '../common/MeshGradient';
@@ -108,6 +106,8 @@ const SHOWS_PERFORMANCE_MODE = Platform.OS === 'android';
 
 export function SettingsSheet() {
   const theme = useTheme();
+  const isDark = useColorScheme() === 'dark';
+  const chatBackgroundPreset = useChatBackground();
   const { user, isLoggingOut } = useAuth();
 
   const isOpen = useSettingsSheetStore((s) => s.isOpen);
@@ -149,7 +149,7 @@ export function SettingsSheet() {
   if (!user) return null;
 
   const locale = (user.locale ?? 'de-DE') as Locale;
-  const chatBackground = resolveChatBackground(user.chat_background, 'mobile');
+  const chatBackground = chatBackgroundPreset;
   const hasRoles = roles !== null && roles.length > 0;
   const ebenen = locale === 'de-AT' ? AT_EBENEN : DE_EBENEN;
 
@@ -209,7 +209,11 @@ export function SettingsSheet() {
           <View style={styles.swatches}>
             {chatBackgroundsFor('mobile').map((preset) => {
               const color = chatBackgroundColor(preset.key);
-              const mesh = chatBackgroundMesh(preset.key);
+              // The swatch previews what the screen will look like, so it follows
+              // the colour scheme too — a light mesh in a dark picker would promise
+              // the wrong thing.
+              const light = chatBackgroundMesh(preset.key);
+              const mesh = light && isDark ? darkMesh(light) : light;
               const active = preset.key === chatBackground.key;
               return (
                 <Pressable
