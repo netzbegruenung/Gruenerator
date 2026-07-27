@@ -18,12 +18,14 @@ import {
 } from '@gruenerator/chat';
 import { isModelEnabledByDefault } from '@gruenerator/shared/models';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
+import { useRouter } from 'expo-router';
 import { memo, useCallback, useState, type ReactNode } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet, useColorScheme } from 'react-native';
 import { useShallow } from 'zustand/shallow';
 
 import { useTheme } from '../../hooks/useTheme';
 import { colors, spacing, borderRadius } from '../../theme';
+import { route } from '../../types/routes';
 import { BottomSheet } from '../common/BottomSheet';
 
 // Presentation only: labels and keys come from the shared COMPOSER_MODES /
@@ -95,6 +97,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
   onInsertMention,
 }: Props) {
   const theme = useTheme();
+  const router = useRouter();
   const isDark = useColorScheme() === 'dark';
   const [detail, setDetail] = useState<Detail | null>(null);
 
@@ -263,7 +266,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
     }
     if (detail === 'skills' || detail === 'functions') {
       const list = detail === 'skills' ? skills : functions;
-      return list.map((item, i) =>
+      const rows = list.map((item, i) =>
         row({
           // `mention`, not `identifier`: eighteen recipes share eight owning-agent
           // identifiers, so keying on those collides.
@@ -272,9 +275,24 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
           title: item.title,
           value: item.description,
           onPress: () => runAction(() => onInsertMention?.(item)),
-          last: i === list.length - 1,
+          last: detail === 'skills' ? false : i === list.length - 1,
         })
       );
+      if (detail === 'functions') return rows;
+      // Web closes its recipe submenu with two entries — a search across all
+      // recipes and a link to the library. On mobile the Agentura screen is both,
+      // so it is one row.
+      return [
+        ...rows,
+        row({
+          key: 'all-recipes',
+          icon: 'library-outline',
+          title: 'Alle Rezepte',
+          value: 'In der Agentura durchsuchen',
+          onPress: () => runAction(() => router.push(route('/(focused)/agents'))),
+          last: true,
+        }),
+      ];
     }
     if (detail === 'depth') {
       return SEARCH_DEPTHS.map((depth, i) =>
