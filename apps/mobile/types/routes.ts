@@ -28,6 +28,7 @@ export type AppRoute =
   | '/(tabs)/(recherche)/research'
   // Auth routes
   | '/(auth)/login'
+  | '/(auth)/onboarding'
   | '/auth/callback'
   // Focused routes
   | '/(focused)/chat-conversation'
@@ -40,6 +41,9 @@ export type AppRoute =
   | '/(focused)/image-studio-create/ki-input'
   | '/(focused)/image-studio-create/template-input'
   | '/(focused)/image-studio-create/result'
+  // Settings detail screens; the root lives on the hidden /profile tab
+  | '/(focused)/settings/konto'
+  | '/(focused)/settings/rollen'
   // Fullscreen routes
   | '/(fullscreen)/subtitle-editor'
   | '/(fullscreen)/image-studio-editor'

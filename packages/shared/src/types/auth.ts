@@ -5,6 +5,8 @@ export interface User {
   id: string;
   email: string;
   display_name?: string;
+  /** Mirrors the Grüner Login; read-only in both apps. */
+  username?: string;
   avatar_robot_id?: string;
   locale?: 'de-DE' | 'de-AT';
   user_metadata?: {
