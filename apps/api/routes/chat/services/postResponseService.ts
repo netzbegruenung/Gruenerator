@@ -282,6 +282,9 @@ export interface PersistParams {
    *  as-is (they already carry the per-tool result shapes the UI cards read),
    *  replacing the intent-fabricated tool calls. */
   agenticSteps?: PersistedStep[];
+  /** Langfuse trace id for this turn; persisted so the thumbs feedback button
+   *  still targets the right trace after a reload. */
+  traceId?: string;
   /** Placeholder assistant row minted before streaming (WP-B). When present the
    *  final content+metadata are written by flipping THIS row to 'complete'
    *  instead of inserting a new one. Null/omitted → insert as before. */
@@ -381,6 +384,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
     memoryEnabled,
     agentId,
     agenticSteps,
+    traceId,
     pendingMessageId,
   } = params;
 
@@ -407,6 +411,9 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
     const metadata: Record<string, unknown> = {
       intent: finalState.intent,
       searchCount: finalState.searchCount,
+      // Persisted so the thumbs feedback button survives a reload (it targets
+      // this trace id).
+      ...(traceId && { traceId }),
       // Only stamp a real agent — the universal default carries no badge, so
       // reload matches the live stream (which sets agentInfo only for agents).
       ...(agentId && agentId !== 'gruenerator-universal' ? { agentId } : {}),
@@ -648,6 +655,8 @@ export async function persistResumedResponse(params: {
   sharepicVariants?: SharepicVariant[];
   /** Text half of a resumed social_post turn. */
   socialPost?: SocialPostPayload | null;
+  /** Langfuse trace id — persisted so the thumbs feedback button survives reload. */
+  traceId?: string;
   /** Artifact created on the resumed turn. Without it the DocumentCreatedCard
    *  vanishes on reload and the thread's tool context stays stale — the resume
    *  path used to drop it while the normal path persisted it. */
@@ -665,6 +674,7 @@ export async function persistResumedResponse(params: {
     classifiedState,
     userId,
     processedMeta,
+    traceId,
     pendingMessageId,
   } = params;
 
@@ -681,6 +691,7 @@ export async function persistResumedResponse(params: {
     const metadata: Record<string, unknown> = {
       intent: finalState.intent,
       searchCount: finalState.searchCount,
+      ...(traceId && { traceId }),
       citations: finalState.citations,
       searchResults: finalState.searchResults?.slice(0, MAX_SOURCES) || [],
       resumed: true,
