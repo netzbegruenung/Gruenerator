@@ -283,20 +283,34 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
   );
 });
 
+/** The drawer's single text edge, measured from the panel's left border. */
+const DRAWER_EDGE = 20;
+
+/** One row height for both lists — navigation and conversations. */
+const ROW_HEIGHT = 52;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  // ── Drawer geometry ──────────────────────────────────────────────────────
+  // Two vertical edges, not four. Everything without an icon — the title, the
+  // "Letzte" label, the conversation rows — starts at DRAWER_EDGE; rows with an
+  // icon put their LABEL at DRAWER_EDGE + icon + gap, and the icon itself on the
+  // same edge as the text above it. Before this the four were 16, 20, 24 and 60,
+  // three of which were nobody's decision — they fell out of a container padding
+  // plus a row padding.
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.medium,
+    paddingLeft: DRAWER_EDGE,
+    paddingRight: spacing.small,
     paddingBottom: spacing.small,
   },
   headerTitle: {
     fontFamily: BODY_FONT,
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
   },
   newButton: {
@@ -308,10 +322,12 @@ const styles = StyleSheet.create({
   navRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.small,
+    gap: spacing.medium,
     marginHorizontal: spacing.xsmall,
-    paddingHorizontal: spacing.small,
-    paddingVertical: spacing.small,
+    // 8 (list) + 8 (margin) + 4 = 20: the icon sits on the same edge as the text
+    // of every row without one.
+    paddingHorizontal: spacing.xxsmall,
+    minHeight: ROW_HEIGHT,
     borderRadius: borderRadius.medium,
   },
   navLabel: {
@@ -321,8 +337,10 @@ const styles = StyleSheet.create({
   sectionLabel: {
     ...chatType.chatLabel,
     fontWeight: '700',
-    paddingHorizontal: spacing.medium,
-    marginTop: spacing.medium,
+    paddingHorizontal: spacing.small,
+    // The turn from navigation to content. At the old 16 it read as one more
+    // row gap instead of a change of subject.
+    marginTop: spacing.xlarge + spacing.xsmall,
     marginBottom: spacing.xsmall,
   },
   list: {
@@ -337,8 +355,11 @@ const styles = StyleSheet.create({
   },
   itemTrigger: {
     flex: 1,
+    justifyContent: 'center',
     paddingHorizontal: spacing.small,
-    paddingVertical: 14,
+    // Same height as a nav row: the two lists used 45 and 49dp, which is not a
+    // distinction anybody can see — only one they can feel as unevenness.
+    minHeight: ROW_HEIGHT,
     borderRadius: borderRadius.medium,
   },
   activeDot: {
@@ -387,7 +408,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.small,
-    paddingHorizontal: spacing.medium,
+    paddingHorizontal: DRAWER_EDGE,
     paddingTop: spacing.small,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
