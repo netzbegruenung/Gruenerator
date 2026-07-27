@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 
 import { useDocsEditorBridgeStore } from '../../stores/docsEditorBridgeStore';
-import { colors, lightTheme, darkTheme } from '../../theme';
+import { colors, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 
 export function GuestBanner() {
   const colorScheme = useColorScheme();
@@ -35,6 +35,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   text: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
   },
 });
