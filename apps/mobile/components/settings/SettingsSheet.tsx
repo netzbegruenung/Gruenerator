@@ -30,7 +30,7 @@ import { fetchRoles } from '../../services/roles';
 import { usePreferencesStore, type ThemeMode } from '../../stores/preferencesStore';
 import { useSettingsSheetStore, type SettingsDetail } from '../../stores/settingsSheetStore';
 import { spacing, colors, borderRadius, BODY_FONT } from '../../theme';
-import { chatBackgroundColor } from '../../theme/chatBackgrounds';
+import { chatBackgroundColor, chatBackgroundMesh } from '../../theme/chatBackgrounds';
 import { route } from '../../types/routes';
 import { BottomSheet } from '../common/BottomSheet';
 import { ListGroup, ListRow } from '../common/ListRow';
@@ -209,6 +209,7 @@ export function SettingsSheet() {
           <View style={styles.swatches}>
             {chatBackgroundsFor('mobile').map((preset) => {
               const color = chatBackgroundColor(preset.key);
+              const mesh = chatBackgroundMesh(preset.key);
               const active = preset.key === chatBackground.key;
               return (
                 <Pressable
@@ -231,15 +232,15 @@ export function SettingsSheet() {
                     },
                   ]}
                 >
-                  {/* The mesh has no single colour to reduce to, so its swatch
-                      draws the real thing. Without this it and "Neutral" would
-                      be the same empty ring. */}
-                  {preset.key === 'mesh' && <MeshGradient />}
+                  {/* A mesh has no single colour to reduce to, so its swatch
+                      draws the real thing. Without this the three of them and
+                      "Neutral" would all be the same empty ring. */}
+                  {mesh && <MeshGradient mesh={mesh} id={`swatch-${preset.key}`} />}
                   {active && (
                     <Ionicons
                       name="checkmark"
                       size={18}
-                      color={color || preset.key === 'mesh' ? colors.grey[900] : theme.text}
+                      color={color || mesh ? colors.grey[900] : theme.text}
                     />
                   )}
                 </Pressable>

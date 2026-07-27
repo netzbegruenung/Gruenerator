@@ -25,14 +25,17 @@ describe('resolveChatBackground', () => {
   it('keeps a stored preset the platform can draw', () => {
     expect(resolveChatBackground('tanne', 'mobile').key).toBe('tanne');
     expect(resolveChatBackground('tanne', 'web').key).toBe('tanne');
-    expect(resolveChatBackground('mesh', 'mobile').key).toBe('mesh');
+    expect(resolveChatBackground('nebel', 'mobile').key).toBe('nebel');
+    expect(resolveChatBackground('dunst', 'mobile').key).toBe('dunst');
   });
 
   it('substitutes a preset the platform does not draw', () => {
-    // Chosen in the app, opened in the browser: web has no class for `mesh`, so
-    // showing it would mean rendering the previous preset's look under this
-    // name. It resolves to web's own default instead.
-    expect(resolveChatBackground('mesh', 'web').key).toBe(DEFAULT_CHAT_BACKGROUND);
+    // Chosen in the app, opened in the browser: web has no class for the mesh
+    // presets, so showing one would mean rendering another preset's look under
+    // its name. They resolve to web's own default instead.
+    for (const key of ['mesh', 'nebel', 'dunst']) {
+      expect(resolveChatBackground(key, 'web').key).toBe(DEFAULT_CHAT_BACKGROUND);
+    }
   });
 
   it('falls back for values outside the schema', () => {
@@ -43,9 +46,11 @@ describe('resolveChatBackground', () => {
 });
 
 describe('chatBackgroundsFor', () => {
-  it('offers the app-only preset to the app and not to the browser', () => {
-    expect(chatBackgroundsFor('mobile').map((p) => p.key)).toContain('mesh');
-    expect(chatBackgroundsFor('web').map((p) => p.key)).not.toContain('mesh');
+  it('offers the app-only presets to the app and not to the browser', () => {
+    for (const key of ['mesh', 'nebel', 'dunst']) {
+      expect(chatBackgroundsFor('mobile').map((p) => p.key)).toContain(key);
+      expect(chatBackgroundsFor('web').map((p) => p.key)).not.toContain(key);
+    }
   });
 
   it('offers every unmarked preset to both', () => {

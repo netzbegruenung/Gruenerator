@@ -5,9 +5,9 @@ import { Animated, StyleSheet, useColorScheme } from 'react-native';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { useReduceMotion } from '../../hooks/useAccessibilityPreferences';
-import { chatBackgroundColor } from '../../theme/chatBackgrounds';
+import { chatBackgroundColor, chatBackgroundMesh } from '../../theme/chatBackgrounds';
 
-import { MESH_DARK_STRENGTH, MeshGradient } from './MeshGradient';
+import { MeshSurface } from './MeshSurface';
 
 /**
  * Mobile take on the web Chat tab's `.workplace-chat-sunrise` background
@@ -32,6 +32,7 @@ export function SunriseBackground() {
     'mobile'
   );
   const glow = chatBackgroundColor(preset.key);
+  const mesh = chatBackgroundMesh(preset.key);
 
   const [progress] = useState(() => new Animated.Value(0));
   // Combines the OS setting with the profile override, so "Animationen
@@ -70,18 +71,14 @@ export function SunriseBackground() {
         { offset: '1', opacity: '0.12' },
       ];
 
-  // No rise for the mesh. The single-glow presets lift into place because they
-  // are one shape moving; a composition of five clouds pinned to their corners
-  // would slide as a whole and read as the screen settling, not as light.
-  if (preset.key === 'mesh') {
+  // No rise for a mesh. The single-glow presets lift into place because they are
+  // one shape moving; a composition of clouds pinned to their corners would
+  // slide as a whole and read as the screen settling, not as light.
+  if (mesh) {
     return (
       <Animated.View pointerEvents="none" style={styles.container}>
         <Animated.View style={[StyleSheet.absoluteFill, { opacity }]}>
-          <MeshGradient
-            strength={isDark ? MESH_DARK_STRENGTH : 1}
-            withBase={!isDark}
-            style={StyleSheet.absoluteFill}
-          />
+          <MeshSurface mesh={mesh} id={`bg-${preset.key}`} />
         </Animated.View>
       </Animated.View>
     );

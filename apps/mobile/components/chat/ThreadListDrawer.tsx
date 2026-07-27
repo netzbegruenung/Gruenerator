@@ -17,6 +17,8 @@ import { useTheme } from '../../hooks/useTheme';
 import { useSettingsSheetStore } from '../../stores/settingsSheetStore';
 import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
 import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
+import { DRAWER_MESH } from '../../theme/chatBackgrounds';
+import { MeshSurface } from '../common/MeshSurface';
 import { route, routeWithParams, type AppRoute } from '../../types/routes';
 import { ProfileAvatar } from '../common';
 import { MenuIcon } from '../icons/WebMirrorIcons';
@@ -418,7 +420,13 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
   );
 
   return (
-    <ThreadListPrimitive.Root style={[styles.container, { backgroundColor: theme.background }]}>
+    <ThreadListPrimitive.Root style={styles.container}>
+      {/* Behind everything, not as the Root's backgroundColor: the mesh has to
+          paint its own base, and a fill underneath it would show through the
+          transparent parts of the clouds. `MeshSurface` handles dark mode, where
+          the base is dropped and the page shows through instead. */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.background }]} />
+      <MeshSurface mesh={DRAWER_MESH} id="drawer" />
       <View style={[styles.header, { paddingTop: insets.top + spacing.small }]}>
         {/* The wordmark is the way home, the way it is on web. */}
         <Pressable

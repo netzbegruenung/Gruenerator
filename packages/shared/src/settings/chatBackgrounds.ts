@@ -54,19 +54,37 @@ const BOTH: readonly ChatBackgroundPlatform[] = ['web', 'mobile'];
 export const DEFAULT_CHAT_BACKGROUND: ChatBackground = 'sunrise';
 
 /**
- * The app's default since 2026-07-27.
+ * The app's default since 2026-07-27 — `nebel`, the variant being tried next.
  *
- * It differs from the one above because `mesh` is app-only for now. Resolving
- * through `resolveChatBackground(value, 'mobile')` is what applies it; a
- * profile that already names a preset keeps that preset either way.
+ * It differs from the one above because the mesh presets are app-only for now.
+ * Resolving through `resolveChatBackground(value, 'mobile')` is what applies
+ * it; a profile that already names a preset keeps that preset either way.
  */
-export const DEFAULT_CHAT_BACKGROUND_MOBILE: ChatBackground = 'mesh';
+export const DEFAULT_CHAT_BACKGROUND_MOBILE: ChatBackground = 'nebel';
 
 export const CHAT_BACKGROUND_PRESETS: readonly ChatBackgroundPreset[] = [
+  // The three mesh presets are the same four colours — peach, yellow, green,
+  // lilac — at three strengths. The distinction worth carrying in the label is
+  // how much of the screen keeps colour, because that is what a person is
+  // actually choosing between; the names come from the design document.
+  {
+    key: 'nebel',
+    label: 'Nebel',
+    description: 'Farbwolken hinter weißem Dunst — der Composer steht frei.',
+    accent: '#52907A',
+    platforms: ['mobile'],
+  },
+  {
+    key: 'dunst',
+    label: 'Dunst von unten',
+    description: 'Farbe sammelt sich am unteren Rand, oben bleibt es klar.',
+    accent: '#52907A',
+    platforms: ['mobile'],
+  },
   {
     key: 'mesh',
-    label: 'Mesh',
-    description: 'Fünf weiche Farbwolken — Pfirsich, Gelb, Grün und Flieder.',
+    label: 'Farbwolken',
+    description: 'Dieselben Farben ohne Schleier — die kräftigste Fassung.',
     accent: '#52907A',
     platforms: ['mobile'],
   },

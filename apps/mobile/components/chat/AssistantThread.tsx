@@ -6,8 +6,8 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../hooks/useTheme';
-import { spacing, BODY_FONT } from '../../theme';
-import { SCREEN_EDGE } from '../../theme/layout';
+import { spacing, BODY_FONT, typeScale } from '../../theme';
+import { COMPOSER_BOTTOM_INSET, SCREEN_EDGE } from '../../theme/layout';
 import { mobileGreeting } from '../../utils/greeting';
 import { Composer, composerEdgeStyle, type ComposerAccessory } from '../common/Composer';
 
@@ -134,7 +134,10 @@ export const AssistantThread = memo(function AssistantThread({
             composerEdgeStyle,
             {
               backgroundColor: transparent ? 'transparent' : theme.background,
-              paddingBottom: insets.bottom,
+              // The inset alone only clears the gesture bar; the extra step is
+              // what keeps the pill from sitting on the screen edge. See
+              // COMPOSER_BOTTOM_INSET for where the number comes from.
+              paddingBottom: insets.bottom + typeScale(COMPOSER_BOTTOM_INSET),
             },
           ]}
           testIDPrefix="chat-composer"
