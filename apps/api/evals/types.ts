@@ -74,6 +74,10 @@ export interface EvalExpect {
   toolsMustNotInclude?: string[];
   maxToolCalls?: number;
   generatesSharepic?: boolean;
+  /** The turn asks the user a clarifying question instead of guessing. `false`
+   *  is the load-bearing case: it states "this ask was unambiguous, do not
+   *  interrupt". */
+  asksClarification?: boolean;
   /** No web_search/scrape if an internal search returned results. */
   internalOnly?: boolean;
   /** Answer has `[N]` markers, all within source count, none as bare numbers. */
