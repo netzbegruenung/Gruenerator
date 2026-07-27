@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 
 import { secureStorage } from '../../services/storage';
-import { colors, lightTheme, darkTheme } from '../../theme';
+import { colors, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 
 const WEB_BASE = 'https://gruenerator.eu';
 
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { fontSize: 16, fontWeight: '600' },
+  title: { fontFamily: BODY_FONT, fontSize: 16, fontWeight: '600' },
   webview: { flex: 1 },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   loadingOverlay: {

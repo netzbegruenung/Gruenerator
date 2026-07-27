@@ -193,3 +193,24 @@ export const LANDESVERBAENDE = [
 export const LV_NOTEBOOK_BY_PR_AGENT_ID: ReadonlyMap<string, NotebookId> = new Map(
   LANDESVERBAENDE.map((lv) => [lv.prAgentId, lv.notebookId])
 );
+
+/** Per-Landesverband agents and skills share this identifier prefix family. */
+export function isLandesverbandIdentifier(identifier: string): boolean {
+  return (
+    identifier.startsWith('gruenerator-oeffentlichkeitsarbeit-') ||
+    identifier.startsWith('gruenerator-buergeranfragen-')
+  );
+}
+
+/** The Landesverband slug from an LV identifier (e.g. `…-berlin` → `berlin`). */
+export function landesverbandRegion(identifier: string): string {
+  return identifier.replace(/^gruenerator-(oeffentlichkeitsarbeit|buergeranfragen)-/, '');
+}
+
+/** Title-case an LV region slug for display (`berlin` → `Berlin`). */
+export function landesverbandLabel(identifier: string): string {
+  return landesverbandRegion(identifier)
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}

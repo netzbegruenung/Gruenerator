@@ -94,6 +94,11 @@
       "title": "Transparenz reduzieren",
       "description": "Entfernt durchscheinende Flächen und Unschärfe-Effekte — folgt sonst automatisch der Einstellung deines Betriebssystems"
     },
+    "barrierefreiheit.leistung": {
+      "tab": "barrierefreiheit",
+      "title": "Leistungsmodus",
+      "description": "Schaltet den Blur hinter der Tab-Leiste ab. Hilft auf älteren Geräten, gilt nur auf diesem"
+    },
     "barrierefreiheit.sprunglink": {
       "tab": "barrierefreiheit",
       "title": "Sprung-Link zum Inhalt",
@@ -104,10 +109,40 @@
       "title": "Einführungs-Touren zurücksetzen",
       "description": "Zeigt die Touren durch Workplace, Dokumente, Tabellen, Präsentationen und das Sharepic-Studio beim nächsten Öffnen wieder an."
     },
+    "friends.avatar": {
+      "tab": "friends",
+      "title": "Dein Friend",
+      "description": "Das Profilbild, das dich in Chats, Projekten und Kommentaren vertritt"
+    },
+    "personalisierung.rollen": {
+      "tab": "personalisierung",
+      "title": "Rollen",
+      "description": "Deine Ämter und Ebenen — der Grünerator richtet Ansprache und Inhalte danach aus. Anlegen und Ändern am Rechner."
+    },
+    "benachrichtigungen.stufe": {
+      "tab": "benachrichtigungen",
+      "title": "Wie viel wir melden",
+      "description": "Wenig meldet nur Kritisches und Persönliches, Mittel die wichtigen Ereignisse, Viele alles."
+    },
     "benachrichtigungen.testmail": {
       "tab": "benachrichtigungen",
       "title": "E-Mail-Zustellung testen",
       "description": "Sendet dir sofort eine Test-E-Mail an deine Profil-Adresse, um die Zustellung zu prüfen."
+    },
+    "konnektoren.server": {
+      "tab": "konnektoren",
+      "title": "Konnektoren",
+      "description": "Verbundene Dienste, die im Chat als eigene Quelle ansprechbar sind. Neue verbindest du am Rechner."
+    },
+    "nutzung.uebersicht": {
+      "tab": "nutzung",
+      "title": "Nutzung",
+      "description": "Wie viele Anfragen, Tokens, Bilder und Recherchen auf dein Konto gehen"
+    },
+    "support.kontakt": {
+      "tab": "support",
+      "title": "Support",
+      "description": "Wo du Hilfe bekommst und Rückmeldung loswirst"
     }
   },
   "choices": {

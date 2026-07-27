@@ -1,3 +1,4 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useAuthStore, setAuthStoreConfig } from '@gruenerator/shared/stores';
 import { isAxiosError } from 'axios';
 import { makeRedirectUri } from 'expo-auth-session';
@@ -8,6 +9,7 @@ import { getErrorMessage } from '../utils/errors';
 import { getGlobalApiClient, API_ENDPOINTS } from './api';
 import { secureStorage } from './storage';
 
+import type { ProfileUpdateBody } from '@gruenerator/contracts';
 import type { User } from '@gruenerator/shared';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -40,16 +42,28 @@ export function configureAuthStore(): void {
       await secureStorage.clearAll();
     },
 
+    // Both go through the contracts client rather than raw axios. Two things
+    // were wrong with the hand-rolled versions: they read `response.data.user`
+    // while the endpoints answer with `profile`, so the store spread `undefined`
+    // and never picked up the server's canonical row; and the avatar id went out
+    // as a string although the schema types it as an integer — unnoticed only
+    // because raw axios skips the contract.
     updateProfileApi: async (data: Partial<User>) => {
-      const response = await apiClient.put<{ user: User }>(API_ENDPOINTS.AUTH_PROFILE, data);
-      return response.data.user;
+      const res = await getContractsClient().userProfile.updateProfile({
+        // `Partial<User>` is the looser shape (it carries an index signature);
+        // the contract body is the authoritative one and the server validates.
+        body: data as ProfileUpdateBody,
+      });
+      if (res.status !== 200) throw new Error('Profil konnte nicht gespeichert werden.');
+      return res.body.profile as unknown as User;
     },
 
     updateAvatarApi: async (avatarRobotId: string) => {
-      const response = await apiClient.patch<{ user: User }>(API_ENDPOINTS.AUTH_PROFILE_AVATAR, {
-        avatar_robot_id: avatarRobotId,
+      const res = await getContractsClient().userProfile.updateAvatar({
+        body: { avatar_robot_id: Number(avatarRobotId) },
       });
-      return response.data.user;
+      if (res.status !== 200) throw new Error('Avatar konnte nicht gespeichert werden.');
+      return res.body.profile as unknown as User;
     },
 
     updateMessageColorApi: async (color: string) => {

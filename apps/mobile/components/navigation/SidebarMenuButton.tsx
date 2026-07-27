@@ -1,7 +1,7 @@
-import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Pressable } from 'react-native';
 
 import { useDrawerStore } from '../../hooks/useDrawerStore';
+import { MenuAlt2Icon } from '../icons/WebMirrorIcons';
 
 interface Props {
   color: string;
@@ -19,7 +19,7 @@ export function SidebarMenuButton({ color, size = 26 }: Props) {
       accessibilityRole="button"
       style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
     >
-      <Ionicons name="menu" size={size} color={color} />
+      <MenuAlt2Icon size={size} color={color} />
     </Pressable>
   );
 }

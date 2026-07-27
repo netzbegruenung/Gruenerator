@@ -25,7 +25,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { login, type AuthSource } from '../../services/auth';
-import { darkTheme, lightTheme, spacing, typography, colors, borderRadius } from '../../theme';
+import {
+  darkTheme,
+  lightTheme,
+  spacing,
+  typography,
+  colors,
+  borderRadius,
+  BODY_FONT,
+} from '../../theme';
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const BRAND_LOGO = require('../../assets/images/sonnenblume.png') as ImageSourcePropType;
@@ -155,18 +163,21 @@ export default function LoginScreen() {
           {loginOpen ? (
             <View style={styles.cta}>
               <PillButton
+                testID="login-source-detected"
                 label={`Ja, ${COUNTRY_LABEL[detected]}`}
                 loading={loadingSource === COUNTRY_SOURCE[detected]}
                 disabled={isLoading}
                 onPress={() => startLogin(COUNTRY_SOURCE[detected])}
               />
               <PillButton
+                testID="login-source-other"
                 label={`Nein, ${COUNTRY_LABEL[other(detected)]}`}
                 loading={loadingSource === COUNTRY_SOURCE[other(detected)]}
                 disabled={isLoading}
                 onPress={() => startLogin(COUNTRY_SOURCE[other(detected)])}
               />
               <Pressable
+                testID="login-source-netzbegruenung"
                 onPress={() => startLogin('netzbegruenung-login')}
                 disabled={isLoading}
                 style={styles.ghost}
@@ -191,6 +202,7 @@ export default function LoginScreen() {
           ) : (
             <View style={styles.cta}>
               <PillButton
+                testID="login-open"
                 label="Login"
                 icon="lock-closed"
                 disabled={isLoading}
@@ -230,15 +242,18 @@ function PillButton({
   loading = false,
   disabled = false,
   onPress,
+  testID,
 }: {
   label: string;
   icon?: 'lock-closed';
   loading?: boolean;
   disabled?: boolean;
   onPress: () => void;
+  testID?: string;
 }) {
   return (
     <Pressable
+      testID={testID}
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
@@ -308,6 +323,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   pillText: {
+    fontFamily: BODY_FONT,
     fontSize: 17,
     fontWeight: '700',
     color: '#111111',
@@ -324,6 +340,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xsmall,
   },
   ghostText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -332,6 +349,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.small,
   },
   backText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
     opacity: 0.8,

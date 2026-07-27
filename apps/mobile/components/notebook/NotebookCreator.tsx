@@ -18,7 +18,15 @@ import {
   type PickedDocument,
   type UploadedDocument,
 } from '../../services/documentPicker';
-import { colors, spacing, borderRadius, typography, lightTheme, darkTheme } from '../../theme';
+import {
+  colors,
+  spacing,
+  borderRadius,
+  typography,
+  lightTheme,
+  darkTheme,
+  BODY_FONT,
+} from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
 
 interface Props {
@@ -299,6 +307,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   pickHint: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
   },
   filePreview: {
@@ -314,6 +323,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   fileName: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '500',
   },
@@ -323,6 +333,7 @@ const styles = StyleSheet.create({
     gap: spacing.xsmall,
   },
   statusText: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -334,10 +345,12 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   buttonText: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '600',
   },
   label: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
     marginBottom: spacing.xxsmall,
@@ -347,6 +360,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.medium,
     paddingHorizontal: spacing.small,
     paddingVertical: spacing.xsmall,
+    fontFamily: BODY_FONT,
     fontSize: 15,
   },
   multilineInput: {

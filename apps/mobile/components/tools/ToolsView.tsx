@@ -3,7 +3,8 @@ import { View, StyleSheet, ScrollView } from 'react-native';
 import { spacing } from '../../theme';
 
 import { TOOLS } from './toolsConfig';
-import { ToolSectionHeading, ToolTileGrid } from './ToolTileGrid';
+import { ToolSquareGrid } from './ToolSquareGrid';
+import { ToolSectionHeading } from './ToolTileGrid';
 
 /**
  * Tools body without the surrounding ScreenScaffold, so it can render both
@@ -14,7 +15,7 @@ export function ToolsView() {
     <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       <View style={styles.section}>
         <ToolSectionHeading title="Werkzeuge" badge={`${TOOLS.length}`} />
-        <ToolTileGrid tools={TOOLS} />
+        <ToolSquareGrid tools={TOOLS} />
       </View>
     </ScrollView>
   );

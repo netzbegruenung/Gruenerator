@@ -102,6 +102,9 @@ RECHERCHE NUR WENN:
 needsResearch = true genau dann, wenn du die Anfrage NICHT wahrheitsgemäß beantworten kannst, ohne etwas nachzuschlagen (aktuelle Ereignisse, Zahlen, Positionen, Personen, Zitate).
 KONSISTENZ (verbindlich): Setzt du needsResearch auf true, darf der intent NICHT "direct" sein — wähle search, web oder research. "direct" heißt: alles Nötige steht bereits in der Nachricht oder es ist eine rein kreative/umformulierende Aufgabe.
 
+FALSCHE PRÄMISSEN ERKENNEN:
+Wenn eine Anfrage ein konkretes Ereignis mit einer Zeit-/Jahresangabe nennt, die so nicht stattgefunden haben könnte (z.B. eine Wahl, Abstimmung oder ein Termin, den es in dieser Form nicht gibt) — verlasse dich NICHT darauf, dass die genannte Zeitangabe stimmt. Wähle trotzdem intent web (oder news/umfragen je nach Ereignisart), NICHT direct, damit eine echte Suche die tatsächlichen Fakten liefert. Nur mit echten Suchergebnissen kann eine falsche Prämisse im Antwortschritt richtiggestellt werden, statt unwidersprochen zu bleiben oder mit "dazu habe ich keine Informationen" abgetan zu werden.
+
 SCHRITT 3 - TOOL WÄHLEN:
 0. Sharepic/Spruchbild/Zitat-Sharepic/Dreizeiler/Info-Sharepic? → sharepic (VOR image prüfen!)
 1. Bildgenerierung (freies KI-Bild)? → image

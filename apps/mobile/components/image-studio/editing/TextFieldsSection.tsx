@@ -5,7 +5,7 @@
 
 import { View, Text, TextInput, StyleSheet, useColorScheme } from 'react-native';
 
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../../theme';
 
 import type { EditFieldConfig } from '../../../config/editSheetConfig';
 import type { ImageStudioFormData, FormFieldValue } from '@gruenerator/shared/image-studio';
@@ -83,6 +83,7 @@ const styles = StyleSheet.create({
     gap: spacing.medium,
   },
   sectionTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '700',
     marginBottom: spacing.xsmall,
@@ -96,10 +97,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   label: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '500',
   },
   charCount: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontVariant: ['tabular-nums'],
   },
@@ -108,6 +111,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.medium,
     paddingHorizontal: spacing.medium,
     paddingVertical: spacing.small,
+    fontFamily: BODY_FONT,
     fontSize: 16,
     minHeight: 48,
   },

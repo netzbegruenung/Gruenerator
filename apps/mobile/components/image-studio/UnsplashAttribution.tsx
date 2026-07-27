@@ -1,6 +1,6 @@
 import { Pressable, Text, StyleSheet, View, Linking } from 'react-native';
 
-import { spacing, typography } from '../../theme';
+import { spacing, typography, BODY_FONT } from '../../theme';
 
 import type { StockImageAttribution } from '@gruenerator/shared/image-studio';
 
@@ -63,6 +63,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xxsmall,
   },
   compactText: {
+    fontFamily: BODY_FONT,
     fontSize: 9,
     color: '#ffffff',
     textAlign: 'center',
