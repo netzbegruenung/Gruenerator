@@ -24,7 +24,7 @@ import {
   type SortOption,
 } from '../../hooks/notebook/useNotebookResearch';
 import { useNotebookFilterStore } from '../../stores/notebookFilterStore';
-import { colors, spacing, typography, borderRadius } from '../../theme';
+import { colors, spacing, typography, borderRadius, BODY_FONT } from '../../theme';
 import { getSurfaceFab } from '../../theme/toolTheme';
 import { routeWithParams } from '../../types/routes';
 import { CitationDetailSheet } from '../chat/CitationDetailSheet';
@@ -599,6 +599,7 @@ const styles = StyleSheet.create({
   },
   filterBadgeText: {
     color: colors.white,
+    fontFamily: BODY_FONT,
     fontSize: 10,
     fontWeight: '700',
   },
@@ -651,6 +652,7 @@ const styles = StyleSheet.create({
   },
   sheetTitle: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 18,
     fontWeight: '700',
   },
@@ -658,6 +660,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xsmall,
   },
   resetText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -668,6 +671,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.medium,
   },
   filterSectionTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
     marginBottom: spacing.xsmall,
@@ -684,6 +688,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   optionChipText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '500',
   },
@@ -697,9 +702,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   valueText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
   },
   valueCount: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
   },
   applyButton: {
@@ -709,6 +716,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   applyButtonText: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '600',
   },

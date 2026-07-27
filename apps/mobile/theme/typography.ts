@@ -1,22 +1,23 @@
 import { type TextStyle } from 'react-native';
 
 /**
- * Typography system for React Native.
- * Raleway for headings (brand consistency with web), PT Sans for body text.
- *
- * PT Sans is loaded from `assets/fonts/*.ttf` in `app/_layout.tsx` — two files,
- * Regular and Bold. That is why nothing here sets `fontWeight`: on Android a
- * custom family does not synthesise weights, so a weight next to
- * `fontFamily: 'PTSans-Regular'` is silently ignored (and on iOS it fakes a
- * stroke the family does not have). Bold text picks the Bold FAMILY instead.
- *
- * Sizes are one point above the former system-font scale: PT Sans has a smaller
- * x-height than Roboto/SF at the same point size, so 16 pt read visibly smaller
- * than the Roboto 16 pt it replaced.
+ * Typography system for React Native
+ * Raleway for headings, PT Sans for body — the same pairing the web app uses.
  */
 
-export const BODY_FONT = 'PTSans-Regular';
-export const BODY_FONT_BOLD = 'PTSans-Bold';
+/**
+ * Body copy, matching the brand's web font.
+ *
+ * The two faces are linked into the native projects by the `expo-font` config
+ * plugin (see `app.json`) as one family with weights 400 and 700, which is why
+ * `fontWeight` works here — the platform picks the face. Raleway takes the other
+ * route: `useFonts` loads it at runtime, one family name per weight
+ * (`Raleway_700Bold`), and setting `fontWeight` on it does nothing.
+ *
+ * Because it is linked rather than loaded, PT Sans needs a native rebuild to
+ * appear, and it is available before the first render — no splash-screen gate.
+ */
+export const BODY_FONT = 'PT Sans';
 
 export const typography = {
   // Headings - Raleway (matches web)
@@ -47,48 +48,55 @@ export const typography = {
     lineHeight: 24,
   } as TextStyle,
 
-  // Body text - PT Sans
+  // Body text
   body: {
     fontFamily: BODY_FONT,
-    fontSize: 17,
-    lineHeight: 25,
+    fontSize: 16,
+    fontWeight: '400',
+    lineHeight: 24,
   } as TextStyle,
 
   bodyBold: {
-    fontFamily: BODY_FONT_BOLD,
-    fontSize: 17,
-    lineHeight: 25,
+    fontFamily: BODY_FONT,
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 24,
   } as TextStyle,
 
   bodySmall: {
     fontFamily: BODY_FONT,
-    fontSize: 15,
-    lineHeight: 21,
+    fontSize: 14,
+    fontWeight: '400',
+    lineHeight: 20,
   } as TextStyle,
 
   // Labels and captions
   label: {
     fontFamily: BODY_FONT,
-    fontSize: 15,
-    lineHeight: 21,
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 20,
   } as TextStyle,
 
   caption: {
     fontFamily: BODY_FONT,
-    fontSize: 13,
-    lineHeight: 17,
+    fontSize: 12,
+    fontWeight: '400',
+    lineHeight: 16,
   } as TextStyle,
 
   // Buttons
   button: {
-    fontFamily: BODY_FONT_BOLD,
-    fontSize: 17,
-    lineHeight: 25,
+    fontFamily: BODY_FONT,
+    fontSize: 16,
+    fontWeight: '600',
+    lineHeight: 24,
   } as TextStyle,
 
   buttonSmall: {
-    fontFamily: BODY_FONT_BOLD,
-    fontSize: 15,
-    lineHeight: 21,
+    fontFamily: BODY_FONT,
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
   } as TextStyle,
 } as const;

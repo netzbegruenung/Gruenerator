@@ -11,7 +11,7 @@ import {
 
 import { useIsTablet } from '../../hooks/useIsTablet';
 import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
-import { spacing, borderRadius, colors } from '../../theme';
+import { spacing, borderRadius, colors, BODY_FONT } from '../../theme';
 import { getToolTheme } from '../../theme/toolTheme';
 
 import { type ToolDef } from './toolsConfig';
@@ -118,6 +118,7 @@ const styles = StyleSheet.create({
     lineHeight: 21,
   },
   desc: {
+    fontFamily: BODY_FONT,
     fontSize: 12.5,
     lineHeight: 16,
   },

@@ -8,8 +8,3 @@ declare module '*.webp' {
   const asset: number;
   export default asset;
 }
-
-declare module '*.ttf' {
-  const font: number;
-  export default font;
-}

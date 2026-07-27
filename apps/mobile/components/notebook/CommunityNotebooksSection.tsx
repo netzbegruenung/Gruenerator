@@ -13,7 +13,15 @@ import {
 import { useNotebookLikes } from '../../hooks/notebook/useNotebookLikes';
 import { usePublicNotebookCollections } from '../../hooks/notebook/usePublicNotebookCollections';
 import { useIsTablet } from '../../hooks/useIsTablet';
-import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../theme';
+import {
+  colors,
+  spacing,
+  typography,
+  borderRadius,
+  lightTheme,
+  darkTheme,
+  BODY_FONT,
+} from '../../theme';
 
 import { NotebookCard, notebookGridStyles } from './NotebookCard';
 
@@ -125,6 +133,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 14,
     paddingVertical: spacing.xxsmall,
   },
@@ -134,6 +143,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   likeCount: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '500',
   },

@@ -24,6 +24,7 @@ import {
   borderRadius,
   lightTheme,
   darkTheme,
+  BODY_FONT,
 } from '../../../../theme';
 
 export default function EditGroupScreen() {
@@ -160,7 +161,13 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: spacing.medium, gap: spacing.large },
   field: { gap: spacing.xsmall },
-  label: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  label: {
+    fontFamily: BODY_FONT,
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   input: {
     borderWidth: 1,
     borderRadius: borderRadius.medium,

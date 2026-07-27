@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 
 import { TOPIC_COLORS, TOPIC_LABELS, isTopicCategory } from '../../config/topicConfig';
 import { useNotebookStats, type TopicCount } from '../../hooks/notebook/useNotebookStats';
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
 
@@ -196,9 +196,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   statLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
   },
   statValue: {
+    fontFamily: BODY_FONT,
     fontSize: 18,
     fontWeight: '700',
   },
@@ -209,6 +211,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   cardLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
   },
   bar: {
@@ -236,9 +239,11 @@ const styles = StyleSheet.create({
   },
   legendLabel: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 13,
   },
   legendCount: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
   },
   footer: {
@@ -252,6 +257,7 @@ const styles = StyleSheet.create({
     gap: spacing.xsmall,
   },
   tagText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     lineHeight: 20,
   },

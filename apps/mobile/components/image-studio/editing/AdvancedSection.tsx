@@ -8,7 +8,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../../theme';
 import {
   BalkenOffsetControl,
   BalkenGruppeControl,
@@ -91,6 +91,7 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   sectionTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '600',
   },
