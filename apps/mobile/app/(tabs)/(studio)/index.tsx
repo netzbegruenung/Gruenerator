@@ -1,4 +1,4 @@
-import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useRouter, type Href } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
@@ -6,6 +6,7 @@ import { GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomSheet } from '../../../components/common/BottomSheet';
+import { EmptyState } from '../../../components/common/EmptyState';
 import { Fab } from '../../../components/common/Fab';
 import { RecentItemsSection } from '../../../components/common/RecentItemsSection';
 import { StudioGradientBackground } from '../../../components/common/StudioGradientBackground';
@@ -20,6 +21,18 @@ import { FLOATING_TAB_BAR_HEIGHT } from '../../../theme/layout';
 import { getSurfaceFab, getToolTheme } from '../../../theme/toolTheme';
 
 const SECTION_LIMIT = 6;
+
+/**
+ * Ionicons equivalents of the studio tools' shared glyph keys. The create sheet
+ * draws them through `MenuIcon`, which speaks `@gruenerator/shared/icons`;
+ * `EmptyState` speaks Ionicons like the rest of the app's list rows, so the
+ * three tools need a name in that set too.
+ */
+const STUDIO_TILE_GLYPHS: Record<string, IoniconsIconName> = {
+  vorlagen: 'albums',
+  'ki-bildgenerierung': 'sparkles',
+  reel: 'videocam',
+};
 
 /**
  * The Studio tab — what the user has made with Vorlagen, KI-Bild and Reel, in one
@@ -48,6 +61,10 @@ export default function StudioScreen() {
   const swipe = useTabNavigationSwipe('/(tabs)/(studio)');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
+  // Each section hides itself when it has nothing, so a brand-new account used
+  // to get a blank page under the header — no explanation, only the FAB.
+  const isEmpty = !isLoading && reels.length === 0 && images.length === 0;
+
   return (
     <ScreenScaffold
       title="Studio"
@@ -55,34 +72,64 @@ export default function StudioScreen() {
       headerRight={<ViewModeToggle mode={viewMode} onChange={setViewMode} />}
     >
       <GestureDetector gesture={swipe}>
-        <ScrollView
-          contentContainerStyle={[
-            styles.content,
-            { paddingBottom: insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.xxlarge },
-          ]}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Each section borrows the hue of the tool that produced it, so nothing on
-            this page falls back to the app green. */}
-          <RecentItemsSection
-            title="Reels"
-            items={reels}
-            isLoading={isLoading}
-            accent={getToolTheme('reel', isDark).icon}
-            style={styles.section}
-            viewMode={viewMode}
-            onOpen={openItem}
-          />
-          <RecentItemsSection
-            title="KI-Bilder"
-            items={images}
-            isLoading={isLoading}
-            accent={getToolTheme('ki-bildgenerierung', isDark).icon}
-            style={styles.section}
-            viewMode={viewMode}
-            onOpen={openItem}
-          />
-        </ScrollView>
+        {isEmpty ? (
+          <View
+            style={[
+              styles.empty,
+              { paddingBottom: insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.xxlarge },
+            ]}
+          >
+            <EmptyState
+              tiles={STUDIO_TOOLS.map((tool) => ({
+                glyph: STUDIO_TILE_GLYPHS[tool.id] ?? 'sparkles',
+                ...getToolTheme(tool.id, isDark),
+              }))}
+              title="Dein Studio ist noch leer"
+              description="Sharepics, KI-Bilder und Reels landen hier, sobald du das erste erstellt hast."
+              // Deliberately the same three entries as the FAB's create sheet: an
+              // empty page is the one moment where those belong on the page
+              // itself, and inventing different wording for them would make two
+              // routes to the same tool look like two tools.
+              actions={STUDIO_TOOLS.map((tool) => ({
+                key: tool.id,
+                glyph: STUDIO_TILE_GLYPHS[tool.id] ?? 'sparkles',
+                title: tool.title,
+                description: tool.description,
+                tone: getToolTheme(tool.id, isDark),
+                onPress: () => router.push(tool.route as Href),
+              }))}
+            />
+          </View>
+        ) : (
+          <ScrollView
+            contentContainerStyle={[
+              styles.content,
+              { paddingBottom: insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.xxlarge },
+            ]}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Each section borrows the hue of the tool that produced it, so nothing on
+              this page falls back to the app green. */}
+            <RecentItemsSection
+              title="Reels"
+              items={reels}
+              isLoading={isLoading}
+              accent={getToolTheme('reel', isDark).icon}
+              style={styles.section}
+              viewMode={viewMode}
+              onOpen={openItem}
+            />
+            <RecentItemsSection
+              title="KI-Bilder"
+              items={images}
+              isLoading={isLoading}
+              accent={getToolTheme('ki-bildgenerierung', isDark).icon}
+              style={styles.section}
+              viewMode={viewMode}
+              onOpen={openItem}
+            />
+          </ScrollView>
+        )}
       </GestureDetector>
 
       <Fab
@@ -133,6 +180,11 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.medium,
     paddingTop: spacing.small,
+  },
+  // Fills the scaffold so the empty state centres against the gradient rather
+  // than sitting under the header.
+  empty: {
+    flex: 1,
   },
   section: {
     paddingTop: spacing.large,

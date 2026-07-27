@@ -1,4 +1,4 @@
-import { type DocumentTemplate } from '@gruenerator/docs/templates';
+import { templates, type DocumentTemplate } from '@gruenerator/docs/templates';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
@@ -25,9 +25,16 @@ import { FLOATING_TAB_BAR_HEIGHT } from '../../theme/layout';
 import { officeTypeColor } from '../../theme/officeColors';
 import { getSurfaceFab } from '../../theme/toolTheme';
 import { DocPreview } from '../common/DocPreview';
+import { EmptyState, type EmptyStateAction } from '../common/EmptyState';
 import { Fab } from '../common/Fab';
 import { type ViewMode } from '../common/ViewModeToggle';
-import { isDocFamily, officeIconFor, pushOfficeItem, type OfficeItem } from '../office/officeItem';
+import {
+  isDocFamily,
+  officeIconFor,
+  pushOfficeItem,
+  type OfficeItem,
+  type OfficeKind,
+} from '../office/officeItem';
 
 import { CreateDocSheet } from './CreateDocSheet';
 import { toDocListItems } from './docListItems';
@@ -59,6 +66,9 @@ const GRID_WINDOWING = {
   windowSize: 9,
   removeClippedSubviews: true,
 } as const;
+
+/** The empty state's fanned stack — doc in the middle, the tab's centre of gravity. */
+const EMPTY_TILE_KINDS: OfficeKind[] = ['presentation', 'doc', 'sheet'];
 
 /** Theme slice the cards need — narrow so their props stay comparable. */
 interface CardTheme {
@@ -241,6 +251,7 @@ export function DocumentsView({
       ? insets.bottom + spacing.medium
       : insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.small;
   const [createOpen, setCreateOpen] = useState(false);
+  const [createTemplates, setCreateTemplates] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [activeDoc, setActiveDoc] = useState<{ id: string; title: string } | null>(null);
 
@@ -353,14 +364,59 @@ export function DocumentsView({
     [isDark, theme, handleOpenItem, handleOpenActions]
   );
 
+  // Three rows, three destinations: straight into a blank document, into the
+  // sheet's KI input, into the template catalogue. The tiles above them wear the
+  // office hues, so the empty tab already shows the palette it will fill with.
+  //
+  // Not memoised, unlike the card renderers: this one renders only while the
+  // list is empty, so there is nothing underneath it that a fresh identity could
+  // make re-render.
+  const emptyActions: EmptyStateAction[] = [
+    {
+      key: 'blank',
+      glyph: 'document-outline',
+      title: 'Leeres Dokument',
+      description: 'Sofort losschreiben',
+      tone: officeTypeColor('doc', isDark),
+      onPress: () => {
+        const blank = templates.find((t) => t.id === 'blank');
+        if (blank) void handleSelectTemplate(blank);
+      },
+    },
+    {
+      key: 'ai',
+      glyph: 'sparkles-outline',
+      title: 'Mit KI erstellen',
+      description: 'Beschreiben, den Entwurf schreibt die KI',
+      tone: officeTypeColor('canvas', isDark),
+      onPress: () => {
+        setCreateTemplates(false);
+        setCreateOpen(true);
+      },
+    },
+    {
+      key: 'templates',
+      glyph: 'albums-outline',
+      title: 'Vorlage wählen',
+      description: 'Antrag, Pressemitteilung, Protokoll und mehr',
+      tone: officeTypeColor('sheet', isDark),
+      onPress: () => {
+        setCreateTemplates(true);
+        setCreateOpen(true);
+      },
+    },
+  ];
+
   const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <Ionicons name="document-text-outline" size={64} color={theme.textSecondary} />
-      <Text style={[styles.emptyTitle, { color: theme.text }]}>Keine Dokumente</Text>
-      <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
-        Erstelle ein neues Dokument, um loszulegen.
-      </Text>
-    </View>
+    <EmptyState
+      tiles={EMPTY_TILE_KINDS.map((kind) => ({
+        glyph: officeIconFor(kind),
+        ...officeTypeColor(kind, isDark),
+      }))}
+      title="Noch nichts erstellt"
+      description="Dokumente, Präsentationen, Tabellen, Boards und Sharepics sammeln sich hier — alles an einem Ort."
+      actions={emptyActions}
+    />
   );
 
   // Only a failed *load* takes over the screen; with items on hand the list wins
@@ -508,7 +564,10 @@ export function DocumentsView({
 
       <Fab
         icon="add"
-        onPress={() => setCreateOpen(true)}
+        onPress={() => {
+          setCreateTemplates(false);
+          setCreateOpen(true);
+        }}
         loading={isCreating}
         accessibilityLabel="Erstellen oder finden"
         color={fabTones.icon}
@@ -520,6 +579,7 @@ export function DocumentsView({
         onClose={() => setCreateOpen(false)}
         items={officeItems}
         isCreating={isCreating}
+        expandTemplates={createTemplates}
         onGenerate={(description) => void handleGenerate(description)}
         onSelectTemplate={(template) => void handleSelectTemplate(template)}
         onOpenItem={(item) => {
@@ -639,24 +699,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 
-  // Empty / Loading / Error
-  emptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-  },
-  emptyTitle: {
-    fontFamily: 'Raleway_600SemiBold',
-    fontSize: 18,
-    marginTop: 16,
-  },
-  emptySubtitle: {
-    fontFamily: BODY_FONT,
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 8,
-  },
+  // Loading / Error — the empty state is `components/common/EmptyState`.
   errorState: {
     flex: 1,
     alignItems: 'center',
