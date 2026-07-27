@@ -334,8 +334,8 @@ const LetterheadsSection = () => {
   return (
     <div className="flex flex-col gap-sm">
       <p className="m-0 text-xs text-grey-500 dark:text-grey-400">
-        Absenderangaben für den PDF-Export. Beim Export wählst du aus, welcher Briefkopf oben links
-        erscheint.
+        Briefköpfe für den PDF-Export: Absenderangaben, Versandweg und eigener Briefbogen. Beim
+        Export wählst du aus, welcher davon oben links erscheint.
       </p>
 
       {letterheads.length === 0 && !isAdding && (

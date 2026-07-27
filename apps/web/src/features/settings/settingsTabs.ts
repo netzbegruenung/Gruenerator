@@ -23,19 +23,22 @@ interface SettingsTabModule {
   prefetch?: (queryClient: QueryClient) => void;
 }
 
+// In der Reihenfolge der Seitenleiste (SettingsDialog.tsx, NAV) — sie ist nach
+// Nutzungshäufigkeit sortiert, und preloadRemainingSettingsTabs arbeitet diese
+// Tabelle von oben nach unten ab. Was am ehesten gebraucht wird, liegt damit
+// als Erstes im Speicher.
 const LOADERS: Record<SettingsTab, () => Promise<SettingsTabModule>> = {
   allgemein: () => import('./tabs/GeneralTab'),
-  barrierefreiheit: () => import('./tabs/AccessibilityTab'),
-  konto: () => import('./tabs/AccountTab'),
-  friends: () => import('./tabs/FriendsTab'),
   personalisierung: () => import('./tabs/PersonalizationTab'),
-  briefkoepfe: () => import('./tabs/LetterheadsSection'),
-  'texte-anlernen': () => import('./tabs/TexteAnlernenTab'),
   erinnerungen: () => import('./tabs/MemoriesSection'),
+  'texte-anlernen': () => import('./tabs/TexteAnlernenTab'),
+  friends: () => import('./tabs/FriendsTab'),
   benachrichtigungen: () => import('./tabs/NotificationsTab'),
+  briefe: () => import('./tabs/LetterheadsSection'),
+  konnektoren: () => import('./tabs/ConnectorsTab'),
   wolke: () => import('./tabs/WolkeTab'),
   websites: () => import('./tabs/WebsitesTab'),
-  konnektoren: () => import('./tabs/ConnectorsTab'),
+  barrierefreiheit: () => import('./tabs/AccessibilityTab'),
   nutzung: () => import('./tabs/UsageTab'),
   support: () => import('./tabs/SupportTab'),
 };
@@ -81,6 +84,32 @@ export function preloadSettingsTab(tab: SettingsTab, queryClient?: QueryClient):
     // and reports the failure there, so there is nothing to surface from here.
     () => {}
   );
+}
+
+/**
+ * Preload only once the pointer has settled on an entry.
+ *
+ * Nav entries sit directly above one another, so a pointer travelling to the
+ * bottom of the list crosses every one of them. Firing on each would turn one
+ * mouse movement into fourteen chunk requests and nine API calls. One shared
+ * timer means the entry the pointer is merely passing over gets cancelled by
+ * the next, and only where it comes to rest actually loads.
+ */
+const HOVER_INTENT_MS = 120;
+let hoverTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function preloadSettingsTabOnHover(tab: SettingsTab, queryClient?: QueryClient): void {
+  cancelSettingsHoverPreload();
+  hoverTimer = setTimeout(() => {
+    hoverTimer = null;
+    preloadSettingsTab(tab, queryClient);
+  }, HOVER_INTENT_MS);
+}
+
+export function cancelSettingsHoverPreload(): void {
+  if (hoverTimer === null) return;
+  clearTimeout(hoverTimer);
+  hoverTimer = null;
 }
 
 /**
