@@ -221,6 +221,23 @@ export function runAssertions(
     }
   }
 
+  if (expect.asksClarification !== undefined) {
+    const asked = trace.interrupts.some((i) => i.interruptType === 'clarification');
+    if (expect.asksClarification) {
+      results.push(
+        asked
+          ? ok('asksClarification', trace.interrupts[0]?.question?.slice(0, 60) ?? '')
+          : fail('asksClarification', 'no clarification interrupt — the turn guessed instead')
+      );
+    } else {
+      results.push(
+        asked
+          ? fail('asksClarification', 'interrupted with a question where the ask was unambiguous')
+          : ok('asksClarification', 'answered without asking, as required')
+      );
+    }
+  }
+
   if (expect.internalOnly) {
     const internalReturned = trace.toolCalls.some(
       (t) => t.toolName === INTERNAL_TOOL && t.ok && !/0 Ergebnisse/i.test(t.summary ?? '')
