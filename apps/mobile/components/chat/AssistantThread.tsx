@@ -1,7 +1,7 @@
 import { ThreadPrimitive } from '@assistant-ui/react-native';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { getGreeting } from '@gruenerator/shared/utils';
-import { memo, useMemo, useRef } from 'react';
+import { memo, useRef } from 'react';
 import { View, Text, type TextInput, StyleSheet } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -74,6 +74,13 @@ const EmptyState = memo(function EmptyState({
 
 const messagesContentStyle = { paddingTop: spacing.small };
 
+/**
+ * Module-level so the memoized row sees a stable reference — the primitive
+ * re-renders every row when this identity changes. `MessageBubble` picks its own
+ * shape from message state, so the row needs nothing passed in.
+ */
+const renderMessage = () => <MessageBubble />;
+
 /** The in-thread composer is snug rather than the landings' focal box, so the
  *  message list keeps the space. */
 const THREAD_COMPOSER_MIN_HEIGHT = 92;
@@ -89,8 +96,6 @@ export const AssistantThread = memo(function AssistantThread({
   const theme: Theme = themeProp ?? resolvedTheme;
   const insets = useSafeAreaInsets();
   const composerInputRef = useRef<TextInput>(null);
-
-  const messageComponents = useMemo(() => ({ Message: MessageBubble }), []);
 
   return (
     <KeyboardAvoidingView
@@ -108,10 +113,11 @@ export const AssistantThread = memo(function AssistantThread({
           <EmptyState theme={theme} welcome={welcome} />
         </ThreadPrimitive.Empty>
         <ThreadPrimitive.Messages
-          components={messageComponents}
           contentContainerStyle={messagesContentStyle}
           keyboardDismissMode="interactive"
-        />
+        >
+          {renderMessage}
+        </ThreadPrimitive.Messages>
         <Composer
           binding="runtime"
           showActionSheet

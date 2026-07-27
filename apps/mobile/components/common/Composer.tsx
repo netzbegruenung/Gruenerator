@@ -51,6 +51,9 @@ import {
   type ComposerVariant,
 } from './ComposerShell';
 
+/** Module-level so the memoized primitive sees a stable children reference. */
+const renderComposerAttachment = () => <ComposerAttachmentUI />;
+
 import type { Theme } from '../../theme/colors';
 import type {
   NativeSyntheticEvent,
@@ -593,7 +596,7 @@ function RuntimeComposer(props: ComposerProps) {
       addAttachment={(attachment) => void aui.composer().addAttachment(attachment)}
       attachments={
         <View style={styles.attachmentsRow}>
-          <ComposerPrimitive.Attachments components={{ Attachment: ComposerAttachmentUI }} />
+          <ComposerPrimitive.Attachments>{renderComposerAttachment}</ComposerPrimitive.Attachments>
         </View>
       }
       cancelButton={

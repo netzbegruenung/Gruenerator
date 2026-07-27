@@ -2,7 +2,7 @@ import { filterMentionables, mentionableKey, type Mentionable } from '@gruenerat
 import { memo } from 'react';
 import { View, Text, Pressable, SectionList, StyleSheet } from 'react-native';
 
-import { spacing, borderRadius, BODY_FONT } from '../../theme';
+import { spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
 
@@ -115,8 +115,7 @@ const styles = StyleSheet.create({
     flexGrow: 0,
   },
   sectionHeader: {
-    fontFamily: BODY_FONT,
-    fontSize: 10,
+    ...chatType.chatMicro,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -139,20 +138,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarEmoji: {
-    fontFamily: BODY_FONT,
-    fontSize: 14,
+    ...chatType.chatSecondary,
   },
   textCol: {
     flex: 1,
     gap: 1,
   },
   title: {
-    fontFamily: BODY_FONT,
-    fontSize: 14,
+    ...chatType.chatSecondary,
     fontWeight: '600',
   },
   subtitle: {
-    fontFamily: BODY_FONT,
-    fontSize: 12,
+    ...chatType.chatMeta,
   },
 });
