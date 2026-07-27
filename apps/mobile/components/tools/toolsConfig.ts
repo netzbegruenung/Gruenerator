@@ -1,4 +1,4 @@
-import { type IoniconsIconName } from '@react-native-vector-icons/ionicons';
+import { toolIconKey, type ToolIconKey } from '@gruenerator/shared/icons';
 
 import { type AppRoute } from '../../types/routes';
 
@@ -6,7 +6,9 @@ export interface ToolDef {
   id: string;
   title: string;
   description: string;
-  icon: IoniconsIconName;
+  /** Shared glyph key — which icon a tool wears is decided in
+   *  `@gruenerator/shared/icons`, so web and mobile cannot drift. */
+  icon: ToolIconKey;
   route: AppRoute;
 }
 
@@ -26,21 +28,21 @@ export const TOOLS: ToolDef[] = [
     id: 'agents',
     title: 'Agentura',
     description: 'Grüneratoren & Rezepte',
-    icon: 'people',
+    icon: toolIconKey('agents'),
     route: '/(focused)/agents',
   },
   {
     id: 'projekte',
     title: 'Projekte',
     description: 'Chats & Inhalte bündeln',
-    icon: 'people-circle',
+    icon: toolIconKey('projekte'),
     route: '/(focused)/projekte',
   },
   {
     id: 'scanner',
     title: 'Scanner',
     description: 'Fotos zu Text',
-    icon: 'scan',
+    icon: toolIconKey('scanner'),
     route: '/(tabs)/(tools)/scanner',
   },
   // Websuche is parked: `/(tabs)/(recherche)/research` is reachable from the
@@ -64,21 +66,21 @@ export const STUDIO_TOOLS: ToolDef[] = [
     id: 'vorlagen',
     title: 'Vorlagen',
     description: 'Design-Vorlagen',
-    icon: 'albums',
+    icon: toolIconKey('vorlagen'),
     route: '/(tabs)/(tools)/vorlagen',
   },
   {
     id: 'ki-bildgenerierung',
     title: 'KI-Bild',
     description: 'KI-Bilder erstellen',
-    icon: 'sparkles',
+    icon: toolIconKey('ki-bildgenerierung'),
     route: '/(focused)/bild-editor',
   },
   {
     id: 'reel',
     title: 'Reel',
     description: 'Untertitel für Clips',
-    icon: 'videocam',
+    icon: toolIconKey('reel'),
     route: '/(tabs)/(tools)/reel',
   },
 ];
