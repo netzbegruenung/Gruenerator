@@ -112,7 +112,7 @@ export function ComputeCard({ data }: { data: ComputeData }) {
         </span>
         <span className="text-sm font-medium text-foreground">{data.operation}</span>
         <span className="ml-auto text-[11px] uppercase tracking-wide text-foreground-muted">
-          exakt berechnet
+          berechnet
         </span>
       </div>
       {/* Server-stored figures (URL, small metadata) — the normal path. */}
