@@ -1,7 +1,7 @@
 import { useFetchFullText } from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,9 @@ import {
   Keyboard,
   useColorScheme,
 } from 'react-native';
+import { useShallow } from 'zustand/shallow';
 
+import { getResearchCollectionIds } from '../../config/notebooksConfig';
 import { useNotebookFilters } from '../../hooks/notebook/useNotebookFilters';
 import {
   useNotebookResearch,
@@ -21,6 +23,7 @@ import {
   type SearchMode,
   type SortOption,
 } from '../../hooks/notebook/useNotebookResearch';
+import { useNotebookFilterStore } from '../../stores/notebookFilterStore';
 import { colors, spacing, typography, borderRadius } from '../../theme';
 import { getSurfaceFab } from '../../theme/toolTheme';
 import { routeWithParams } from '../../types/routes';
@@ -56,6 +59,20 @@ const SORT_LABELS: Record<SortOption, string> = {
   date_asc: 'Älteste',
 };
 const MODE_CYCLE: SearchMode[] = ['hybrid', 'vector', 'text'];
+const DEPTH_LABELS: Record<'fast' | 'deep', string> = {
+  fast: 'Schnell',
+  deep: 'Tiefenrecherche',
+};
+const DEPTH_CYCLE: ('fast' | 'deep')[] = ['fast', 'deep'];
+
+/** Readable names for the aggregate notebook's `*-system` collections. */
+const COLLECTION_LABELS: Record<string, string> = {
+  'grundsatz-system': 'Grundsatzprogramm',
+  'bundestagsfraktion-system': 'Bundestagsfraktion',
+  'gruene-de-system': 'gruene.de',
+  'kommunalwiki-system': 'KommunalWiki',
+  'gruenblog-system': 'Grünblog',
+};
 const SORT_CYCLE: SortOption[] = ['relevance', 'date_desc', 'date_asc'];
 
 const KEYWORD_FILTER_LABELS: Record<string, string> = {
@@ -87,11 +104,17 @@ function OptionChip({
   active,
   onPress,
   theme,
+  accent,
+  onAccent,
 }: {
   label: string;
   active: boolean;
   onPress: () => void;
   theme: Theme;
+  /** Fill of the selected state — the notebook magenta, not the app green. */
+  accent: string;
+  /** Readable colour on top of `accent`. */
+  onAccent: string;
 }) {
   return (
     <Pressable
@@ -99,12 +122,12 @@ function OptionChip({
       style={[
         styles.optionChip,
         {
-          backgroundColor: active ? colors.primary[600] : theme.surface,
-          borderColor: active ? colors.primary[600] : theme.border,
+          backgroundColor: active ? accent : theme.surface,
+          borderColor: active ? accent : theme.border,
         },
       ]}
     >
-      <Text style={[styles.optionChipText, { color: active ? colors.white : theme.text }]}>
+      <Text style={[styles.optionChipText, { color: active ? onAccent : theme.text }]}>
         {label}
       </Text>
     </Pressable>
@@ -115,7 +138,6 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<SearchMode>('hybrid');
   const [sortBy, setSortBy] = useState<SortOption>('relevance');
-  const [keywordFilters, setKeywordFilters] = useState<Record<string, string[]>>({});
   const [selected, setSelected] = useState<ResearchResult | null>(null);
   const [filtersSheetVisible, setFiltersSheetVisible] = useState(false);
   // Chat is the default input (a composer that hands off to the chat screen, like
@@ -124,7 +146,31 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
 
   const router = useRouter();
   const fetchFullText = useFetchFullText();
+  // Facets, sources and depth live in a store, not in this component: asking hands
+  // the question to another screen, and the chat runtime builds the request body
+  // from outside the panel.
+  const { keywordFilters, collectionIds, depth } = useNotebookFilterStore(
+    useShallow((st) => ({
+      keywordFilters: st.keywordFilters,
+      collectionIds: st.collectionIds,
+      depth: st.depth,
+    }))
+  );
+  const setNotebook = useNotebookFilterStore((st) => st.setNotebook);
+  const toggleValue = useNotebookFilterStore((st) => st.toggleValue);
+  const toggleCollection = useNotebookFilterStore((st) => st.toggleCollection);
+  const resetStoreFilters = useNotebookFilterStore((st) => st.reset);
+  const setDepth = useNotebookFilterStore((st) => st.setDepth);
+  const availableCollections = getResearchCollectionIds(notebookId);
+
+  useEffect(() => {
+    setNotebook(notebookId);
+  }, [notebookId, setNotebook]);
   const fabTone = getSurfaceFab('wissen', useColorScheme() === 'dark');
+  // Selected chips, badges and the send button carry the notebook's own hue; the
+  // pastel side of the pair doubles as the readable colour on top of it.
+  const accent = fabTone.icon;
+  const onAccent = fabTone.background;
 
   const handleChatSend = useCallback(
     (text: string) => {
@@ -156,7 +202,11 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
   // One number across mode, sort, and keyword facets — the single Filter control
   // shows this so the whole search configuration lives behind one element.
   const activeCount =
-    (mode !== 'hybrid' ? 1 : 0) + (sortBy !== 'relevance' ? 1 : 0) + keywordFilterCount;
+    (mode !== 'hybrid' ? 1 : 0) +
+    (sortBy !== 'relevance' ? 1 : 0) +
+    (depth !== 'fast' ? 1 : 0) +
+    (collectionIds ? 1 : 0) +
+    keywordFilterCount;
 
   const runSearch = useCallback(
     (overrides?: {
@@ -177,24 +227,10 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
     [query, mode, sortBy, keywordFilters, search]
   );
 
-  const toggleFilterValue = (field: string, value: string) => {
-    setKeywordFilters((prev) => {
-      const current = prev[field] ?? [];
-      const updated = current.includes(value)
-        ? current.filter((v) => v !== value)
-        : [...current, value];
-      if (updated.length === 0) {
-        const { [field]: _drop, ...rest } = prev;
-        return rest;
-      }
-      return { ...prev, [field]: updated };
-    });
-  };
-
   const resetFilters = () => {
     setMode('hybrid');
     setSortBy('relevance');
-    setKeywordFilters({});
+    resetStoreFilters();
   };
 
   const canSearch = query.trim().length >= 2;
@@ -227,6 +263,9 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
               variant="compact"
               placeholder={`Frag ${notebookTitle ?? 'dieses Notebook'}…`}
               onSend={handleChatSend}
+              // Same sheet as manuelle Recherche — depth, sources and categories
+              // shape the KI answer too, so it has to be reachable from here.
+              onSettings={() => setFiltersSheetVisible(true)}
             />
           </View>
         ) : (
@@ -252,23 +291,20 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
                 <Ionicons
                   name="options-outline"
                   size={22}
-                  color={activeCount > 0 ? colors.primary[600] : theme.textSecondary}
+                  color={activeCount > 0 ? accent : theme.textSecondary}
                 />
                 {activeCount > 0 && (
-                  <View style={[styles.filterBadge, { backgroundColor: colors.primary[600] }]}>
+                  <View style={[styles.filterBadge, { backgroundColor: accent }]}>
                     <Text style={styles.filterBadgeText}>{activeCount}</Text>
                   </View>
                 )}
               </Pressable>
               <Pressable
                 onPress={() => runSearch()}
-                style={[
-                  styles.sendButton,
-                  { backgroundColor: canSearch ? colors.primary[600] : theme.border },
-                ]}
+                style={[styles.sendButton, { backgroundColor: canSearch ? accent : theme.border }]}
                 disabled={!canSearch}
               >
-                <Ionicons name="arrow-forward" size={20} color={colors.white} />
+                <Ionicons name="arrow-forward" size={20} color={onAccent} />
               </Pressable>
             </View>
           </View>
@@ -279,7 +315,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
             <>
               {isLoading && (
                 <View style={styles.centerState}>
-                  <ActivityIndicator size="large" color={theme.textGreen} />
+                  <ActivityIndicator size="large" color={accent} />
                   <Text style={[styles.stateText, { color: theme.textSecondary }]}>
                     Suche läuft…
                   </Text>
@@ -342,7 +378,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
           <Text style={[styles.sheetTitle, { color: theme.text }]}>Filter & Sortierung</Text>
           {activeCount > 0 && (
             <Pressable onPress={resetFilters} hitSlop={8} style={styles.resetButton}>
-              <Text style={[styles.resetText, { color: theme.textGreen }]}>Zurücksetzen</Text>
+              <Text style={[styles.resetText, { color: accent }]}>Zurücksetzen</Text>
             </Pressable>
           )}
           <Pressable onPress={() => setFiltersSheetVisible(false)} hitSlop={8}>
@@ -350,6 +386,45 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
           </Pressable>
         </View>
         <ScrollView style={styles.sheetScroll}>
+          {/* KI-side setting: web's fast/deep toggle on the notebook page. The
+              Suchmodus/Sortierung below only shape the manual research query. */}
+          <View style={styles.filterSection}>
+            <Text style={[styles.filterSectionTitle, { color: theme.text }]}>KI-Recherche</Text>
+            <View style={styles.filterValues}>
+              {DEPTH_CYCLE.map((d) => (
+                <OptionChip
+                  key={d}
+                  label={DEPTH_LABELS[d]}
+                  active={depth === d}
+                  onPress={() => setDepth(d)}
+                  theme={theme}
+                  accent={accent}
+                  onAccent={onAccent}
+                />
+              ))}
+            </View>
+          </View>
+
+          {/* Only an aggregate notebook has something to pick from. */}
+          {availableCollections.length > 1 && (
+            <View style={styles.filterSection}>
+              <Text style={[styles.filterSectionTitle, { color: theme.text }]}>Quellen</Text>
+              <View style={styles.filterValues}>
+                {availableCollections.map((id) => (
+                  <OptionChip
+                    key={id}
+                    label={COLLECTION_LABELS[id] ?? id.replace(/-system$/, '')}
+                    active={(collectionIds ?? availableCollections).includes(id)}
+                    onPress={() => toggleCollection(id, availableCollections)}
+                    theme={theme}
+                    accent={accent}
+                    onAccent={onAccent}
+                  />
+                ))}
+              </View>
+            </View>
+          )}
+
           <View style={styles.filterSection}>
             <Text style={[styles.filterSectionTitle, { color: theme.text }]}>Suchmodus</Text>
             <View style={styles.filterValues}>
@@ -360,6 +435,8 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
                   active={mode === m}
                   onPress={() => setMode(m)}
                   theme={theme}
+                  accent={accent}
+                  onAccent={onAccent}
                 />
               ))}
             </View>
@@ -375,6 +452,8 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
                   active={sortBy === s}
                   onPress={() => setSortBy(s)}
                   theme={theme}
+                  accent={accent}
+                  onAccent={onAccent}
                 />
               ))}
             </View>
@@ -391,17 +470,17 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
                   return (
                     <Pressable
                       key={v.value}
-                      onPress={() => toggleFilterValue(field.field, v.value)}
+                      onPress={() => toggleValue(field.field, v.value)}
                       style={[
                         styles.valueChip,
                         {
-                          backgroundColor: isActive ? colors.primary[600] : theme.surface,
-                          borderColor: isActive ? colors.primary[600] : theme.border,
+                          backgroundColor: isActive ? accent : theme.surface,
+                          borderColor: isActive ? accent : theme.border,
                         },
                       ]}
                     >
                       <Text
-                        style={[styles.valueText, { color: isActive ? colors.white : theme.text }]}
+                        style={[styles.valueText, { color: isActive ? onAccent : theme.text }]}
                         numberOfLines={1}
                       >
                         {v.value}
@@ -409,7 +488,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
                       <Text
                         style={[
                           styles.valueCount,
-                          { color: isActive ? colors.primary[200] : theme.textSecondary },
+                          { color: isActive ? onAccent : theme.textSecondary },
                         ]}
                       >
                         {v.count}
@@ -426,9 +505,9 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
             setFiltersSheetVisible(false);
             runSearch();
           }}
-          style={[styles.applyButton, { backgroundColor: colors.primary[600] }]}
+          style={[styles.applyButton, { backgroundColor: accent }]}
         >
-          <Text style={styles.applyButtonText}>
+          <Text style={[styles.applyButtonText, { color: onAccent }]}>
             {activeCount > 0 ? `${activeCount} aktiv · Anwenden` : 'Anwenden'}
           </Text>
         </Pressable>
@@ -630,7 +709,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   applyButtonText: {
-    color: colors.white,
     fontSize: 15,
     fontWeight: '600',
   },
