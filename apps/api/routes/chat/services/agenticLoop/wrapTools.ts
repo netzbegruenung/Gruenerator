@@ -36,6 +36,9 @@ export interface WrapToolsContext {
   recordStep: (step: PersistedStep) => void;
   /** Per tool-call execution timeout (ms). */
   perCallTimeoutMs: number;
+  /** Per-tool overrides for tools whose honest runtime exceeds the generic
+   *  budget — see TOOL_TIMEOUT_OVERRIDES_MS. */
+  perCallTimeoutOverridesMs?: Record<string, number>;
   /** Optional display title for the tool card (else the tool name is shown). */
   titleFor?: (toolName: string) => string | undefined;
   /** Optional MCP/connector server label for the tool card. */
@@ -205,7 +208,8 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
 
       let output: unknown;
       try {
-        output = await withTimeout(Promise.resolve(original(input, options)), ctx.perCallTimeoutMs);
+        const timeoutMs = ctx.perCallTimeoutOverridesMs?.[toolName] ?? ctx.perCallTimeoutMs;
+        output = await withTimeout(Promise.resolve(original(input, options)), timeoutMs);
       } catch (err) {
         output = { error: err instanceof Error ? err.message : String(err) };
       }
