@@ -174,6 +174,15 @@ export function parseClassifierResponse(
       );
     }
 
+    // The model contradicting itself: it answered "yes, this needs research"
+    // and then picked the one intent under which nothing is ever looked up.
+    // Loud on purpose — for the field's whole lifetime this was invisible.
+    if (parsed.needsResearch === true && parsed.intent === 'direct') {
+      log.warn(
+        `[Classifier] needsResearch=true but intent=direct — the turn will be forced to call a tool. Reasoning: ${parsed.reasoning}`
+      );
+    }
+
     // Defensive upgrade: the LLM sometimes calls a clear past-conversation
     // reference "direct". If the text plainly points at an earlier chat, route
     // it to the chat_history tool instead.
@@ -311,6 +320,7 @@ export function parseClassifierResponse(
         filters,
         reasoning: (parsed.reasoning || 'LLM classification') + suffix,
         contentType: parsed.contentType || null,
+        needsResearch: parsed.needsResearch === true,
         documentSubtype: validDocumentSubtype,
         targetGroupName: parsed.targetGroupName || null,
       };

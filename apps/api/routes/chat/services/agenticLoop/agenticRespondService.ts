@@ -31,7 +31,11 @@ import {
 import { loadSystemMcpCatalog } from '../../agents/systemMcpCatalog.js';
 import { buildChatToolCatalog } from '../../agents/toolCatalog.js';
 import { extractTextContent } from '../messageHelpers.js';
-import { defersToSearchDespiteSources, stripFabricatedSystemClaims } from '../outputSanity.js';
+import {
+  defersToSearchDespiteSources,
+  looksCutOff,
+  stripFabricatedSystemClaims,
+} from '../outputSanity.js';
 import { resolveModel, type ResolvedModelTuple } from '../responseStreamingService.js';
 import { PROGRESS_MESSAGES, startResponseHeartbeat, type SSEWriter } from '../sseHelpers.js';
 import {
@@ -271,6 +275,7 @@ export async function streamAgenticResponse(params: {
     internalFirst: {
       requiredTool: 'gruenerator_search',
       gatedTools: new Set(['web_search', 'scrape_url']),
+      emptyResultFallbackTool: 'web_search',
       // Explicit web intent or a user-pasted URL may go to the web/scrape
       // directly. `hasTemporal` was REMOVED: "aktuelle Position der Grünen"
       // trips it but is answerable from internal docs — it over-opened the web.
@@ -786,7 +791,11 @@ ANTWORTE KONKRET: Steht die Antwort in einer Quelle, dann NENNE SIE im Klartext 
       // answered with the honesty note instead of a lookup. The classifier's
       // verdict is the signal; a `direct` question that merely looked toolable
       // does NOT set this, so follow-ups on carried sources stay tool-free.
-      finalState.loopDemotedFromRetrieval === true;
+      finalState.loopDemotedFromRetrieval === true ||
+      // Third route to the same failure: the LLM classifier said the turn needs
+      // research and labelled it `direct` in the same breath. Its own reasoning
+      // named the search it then never ran, and the answer was invented whole.
+      finalState.classifierContradictedResearch === true;
 
     // The synth phase emits nothing between the last tool result and the first
     // answer token. Until this guard existed a lane that stalled there took the
@@ -814,6 +823,17 @@ ANTWORTE KONKRET: Steht die Antwort in einer Quelle, dann NENNE SIE im Klartext 
       tools: wrapped,
       toolSystem,
       forceFirstToolCall,
+      // Turns "the web is now allowed" into "the web runs". Only when the tool
+      // is actually mounted — a restricted agent without web_search must not be
+      // forced into a tool it doesn't have.
+      forcedToolForStep: () => {
+        const toolName = guards.emptyResultFallback();
+        if (!toolName || !(toolName in wrapped)) return null;
+        log.info(
+          `[Agentic] internal search returned nothing — forcing ${toolName} instead of leaving it to the planner`
+        );
+        return toolName;
+      },
       buildSynthSystem,
       getSourcesBlock: () => sourceRegistry.renderAll(),
       // Prepend the reconstructed tool-call/result history just before the
@@ -917,6 +937,17 @@ ANTWORTE KONKRET: Steht die Antwort in einer Quelle, dann NENNE SIE im Klartext 
   ) {
     log.warn(
       `[Agentic] Answer recommends a search although ${sourceRegistry.size} source(s) were gathered in ${steps.length} step(s) — synth ignored its source block`
+    );
+  }
+
+  // The server half of the truncation cross-check (see looksCutOff). Logged
+  // with the LAST 60 chars, because "where does it end" is the only question a
+  // truncation report ever asks, and matching that tail against the screenshot
+  // settles server-vs-client immediately.
+  if (text.length > 0 && looksCutOff(text)) {
+    log.warn(
+      `[Agentic] answer ends mid-sentence after ${text.length} chars — ` +
+        `tail: ${JSON.stringify(text.slice(-60))}`
     );
   }
 

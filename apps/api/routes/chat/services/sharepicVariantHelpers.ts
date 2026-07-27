@@ -9,6 +9,7 @@ import {
 import { createLogger } from '../../../utils/logger.js';
 
 import { errorText, isRefusalError } from './refusalDetection.js';
+import { asksForNewArtifact, isVerificationQuestion } from './sharepicEditHeuristics.js';
 
 const log = createLogger('SharepicVariants');
 
@@ -106,6 +107,14 @@ const REFINE_PATTERN =
  * Only meaningful when the previous assistant turn was a sharepic.
  */
 export function isSharepicRefinement(text: string): boolean {
+  // A turn that asks for a NEW artifact is a creation, whatever edit wording it
+  // also carries — "Schreib einen Post UND eine Pressemitteilung. Kürze danach
+  // nur die Pressemitteilung." matched on "Kürze" alone and produced nothing.
+  if (asksForNewArtifact(text)) return false;
+  // REFINE_PATTERN fires on a single everyday word, so it swallows questions
+  // that merely contain one: "Ist das sachlich korrekt?" matched on "sachlich"
+  // and was answered as an edit command.
+  if (isVerificationQuestion(text)) return false;
   return REFINE_PATTERN.test(text);
 }
 

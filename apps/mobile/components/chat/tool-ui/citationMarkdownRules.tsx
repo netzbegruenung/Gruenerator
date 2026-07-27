@@ -6,8 +6,11 @@ import type { ReactNode } from 'react';
 import type { StyleProp, TextStyle } from 'react-native';
 import type { RenderRules } from 'react-native-markdown-display';
 
-// Same marker grammar as web's processTextWithCitations.
-const CITATION_REGEX = /\[(\d+)\]/g;
+// Same marker grammar as web's processTextWithCitations — single `[3]` AND
+// grouped `[3, 7]`. Keep the two in step: the backend emits groups (its clamp
+// even rewrites them in place), and a renderer that only knows the single form
+// leaves them on screen as literal brackets beside real chips.
+const CITATION_REGEX = /\[(\d+(?:\s*,\s*\d+)*)\]/g;
 
 /** Minimal shape an inline citation chip needs — satisfied by both the chat
  *  `Citation` and the tool-result `ResearchCitation` from `@gruenerator/chat`. */
@@ -51,29 +54,37 @@ export function makeCitationMarkdownRules<C extends ChipCitation>(
       let match: RegExpExecArray | null;
       CITATION_REGEX.lastIndex = 0;
       while ((match = CITATION_REGEX.exec(text)) !== null) {
-        const citation = citations.get(parseInt(match[1], 10));
-        if (!citation) continue;
-        if (match.index > lastIndex) {
-          parts.push(text.slice(lastIndex, match.index));
+        // A group renders one chip per backed id; a group whose ids are all
+        // unknown stays literal text, exactly as a single unknown marker does.
+        const matched = match[1]
+          .split(',')
+          .map((n) => citations.get(parseInt(n, 10)))
+          .filter((c): c is C => c !== undefined);
+        if (matched.length === 0) continue;
+        const matchIndex = match.index;
+        if (matchIndex > lastIndex) {
+          parts.push(text.slice(lastIndex, matchIndex));
         }
-        const url = citation.url;
-        const handlePress = onPress
-          ? () => onPress(citation)
-          : url
-            ? () => void Linking.openURL(url)
-            : undefined;
-        // Plain space before the badge so the bubble doesn't sit flush against
-        // the preceding word.
-        parts.push(' ');
-        parts.push(
-          <CitationBadge
-            key={`cite-${match.index}`}
-            label={citation.id}
-            onPress={handlePress}
-            accessibilityLabel={`Quelle ${citation.id}: ${citation.title ?? ''}`}
-          />
-        );
-        lastIndex = match.index + match[0].length;
+        for (const citation of matched) {
+          const url = citation.url;
+          const handlePress = onPress
+            ? () => onPress(citation)
+            : url
+              ? () => void Linking.openURL(url)
+              : undefined;
+          // Plain space before the badge so the bubble doesn't sit flush against
+          // the preceding word.
+          parts.push(' ');
+          parts.push(
+            <CitationBadge
+              key={`cite-${matchIndex}-${citation.id}`}
+              label={citation.id}
+              onPress={handlePress}
+              accessibilityLabel={`Quelle ${citation.id}: ${citation.title ?? ''}`}
+            />
+          );
+        }
+        lastIndex = matchIndex + match[0].length;
       }
       if (parts.length === 0) {
         return (

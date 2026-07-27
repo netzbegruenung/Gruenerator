@@ -102,13 +102,43 @@ export const PRESENTATION_TOOL_SCHEMA: Record<string, unknown> = {
             enum: ['title', 'content', 'split', 'quote', 'image'],
           },
           title: { type: 'string', description: 'Folientitel' },
-          body: { type: 'string', description: 'Folieninhalt als Markdown, "- " für Aufzählungen' },
+          // minLength, like DOCUMENT_TOOL_SCHEMA.content and the sheet's
+          // required columns: stop a content-less slide at the model boundary
+          // instead of shipping a deck with a blank page in it.
+          body: {
+            type: 'string',
+            minLength: 1,
+            description: 'Folieninhalt als Markdown, "- " für Aufzählungen',
+          },
           notes: { type: 'string', description: 'Sprechernotizen, darf leer sein' },
         },
       },
     },
   },
 };
+
+/**
+ * Layouts whose `body` IS the slide's content — empty means the audience sees a
+ * headline over white space. `title` (title + optional subtitle) and `image`
+ * (the picture carries it) legitimately have none, and `code` is handled as a
+ * plain string elsewhere.
+ */
+const LAYOUTS_REQUIRING_BODY: ReadonlySet<SlideLayout> = new Set(['content', 'split', 'quote']);
+
+/**
+ * Titles of slides that were announced but left blank.
+ *
+ * Live failure this exists for: a deck shipped with an empty comparison slide
+ * and reported plain success. The generator KNEW — it wrote the gap into the
+ * speaker notes, where nobody looks until they are on stage. Feeding this back
+ * as a validation error instead makes the model fill the slide on the repair
+ * attempt, and an unfixable one fails the turn honestly.
+ */
+export function findEmptySlides(structure: PresentationStructure): string[] {
+  return structure.slides
+    .filter((s) => LAYOUTS_REQUIRING_BODY.has(s.layout) && s.body.trim().length === 0)
+    .map((s) => s.title);
+}
 
 /** Parse the model's JSON (with a fenced-block fallback, like sheets/docs). */
 export function parsePresentationStructure(content: string): PresentationStructure | null {

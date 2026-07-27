@@ -219,6 +219,36 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   // downgrade would run the web search on the empty string.
   let downgradedSearchQuery: string | null = null;
 
+  // `summary` is not a wording, it is a STATE: material is already here, so skip
+  // the search node (ChatGraph routes it straight to respond), drop the product
+  // persona and use the cheap lane. Tier 2 derives it correctly — it fires only
+  // with documents attached. The LLM tier derives it from the word "zusammen"
+  // and cannot see whether anything is actually attached.
+  //
+  // Live: "Fass den aktuellen Stand der Debatte um das Klimageld zusammen" was
+  // routed to `summary` with nothing to read, and answered with a confident,
+  // fluent, entirely source-free essay — zero citations, zero tool calls. A
+  // summary of nothing is the most convincing kind of invention.
+  //
+  // The exception the Tier-2 comment already names: a summary of THIS
+  // conversation legitimately has no documents — the history is in context.
+  //
+  // "Material" is deliberately WIDER than documentSources: an uploaded file
+  // arrives as extracted text in `attachmentContext` and has no document row at
+  // all. Reading it too narrowly downgraded "fasse die Datei zusammen" — with
+  // the file right there — to a web search. Err toward keeping `summary`: a
+  // false keep is the old behaviour, a false downgrade breaks a working feature.
+  const hasMaterialToSummarise =
+    documentSources.length > 0 ||
+    !!state.attachmentContext ||
+    (state.imageAttachments?.length ?? 0) > 0 ||
+    (state.pdfFormAttachments?.length ?? 0) > 0;
+  if (intent === 'summary' && !hasMaterialToSummarise && !CURRENT_THREAD_REFERENCE.test(userText)) {
+    log.info('[Classifier] summary without any document source → web (nothing to summarise)');
+    intent = 'web';
+    downgradedSearchQuery = userText;
+  }
+
   // DE-only system sources (DB IRIS timetables, tagesschau) — de-AT users get
   // the web fallback, mirroring the abgeordnetenwatch/bundestag rule above.
   if (intent && DE_ONLY_SYSTEM_INTENTS.has(intent) && state.userLocale === 'de-AT') {
@@ -1224,6 +1254,12 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       subQueries: classification.subQueries || null,
       detectedFilters: classification.filters || null,
       reasoning: classification.reasoning,
+      // The model said research is needed and picked `direct` anyway. Carried
+      // so the loop can force a tool call — the heuristic path has had this
+      // safety net (loopDemotedFromRetrieval) for a while; the LLM path, which
+      // is the one that actually produces the self-contradiction, had none.
+      classifierContradictedResearch:
+        classification.needsResearch === true && classification.intent === 'direct',
       contentType: classification.contentType || null,
       documentSubtype: classification.documentSubtype || null,
       targetGroupName: classification.targetGroupName || null,

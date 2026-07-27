@@ -116,9 +116,13 @@ export function buildPrepareStep(
   finishSuffix: string,
   maxSteps: number,
   forceFinish: () => boolean,
-  forceFirstToolCall: boolean
+  forceFirstToolCall: boolean,
+  /** Names a tool the NEXT step must call (see guards.emptyResultFallback), or
+   *  null to leave the choice to the model. Consulted on every step but the
+   *  first — step 0 has no tool result to react to yet. */
+  forcedTool: () => string | null = () => null
 ): ({ stepNumber }: { stepNumber: number }) => {
-  toolChoice?: 'none' | 'required';
+  toolChoice?: 'none' | 'required' | { type: 'tool'; toolName: string };
   system?: string;
 } {
   return ({ stepNumber }) => {
@@ -132,6 +136,12 @@ export function buildPrepareStep(
     // scope turn (clarification allowed) and meta questions by the caller.
     if (forceFirstToolCall && stepNumber === 0) {
       return { toolChoice: 'required' as const };
+    }
+    if (stepNumber > 0) {
+      const toolName = forcedTool();
+      // `required` would only guarantee SOME call — the model would happily
+      // re-run the internal search that just came back empty. Name the tool.
+      if (toolName) return { toolChoice: { type: 'tool' as const, toolName } };
     }
     return {};
   };
@@ -248,6 +258,10 @@ export interface LoopEngineParams {
   forceFinish: () => boolean;
   /** Force a tool call on the first step (explicit-scope MCP follow-ups). */
   forceFirstToolCall?: boolean;
+  /** Names a specific tool the next step must call — used to turn the "web is
+   *  now allowed" permission after an empty internal search into an actual
+   *  fallback. Evaluated per step; null leaves the choice to the model. */
+  forcedToolForStep?: () => string | null;
   onText: (delta: string) => void;
   onReasoning: (delta: string) => void;
   /** Split mode: fires when the synth phase begins — i.e. tools are done and
@@ -307,7 +321,8 @@ async function streamWithTools(
       FORCE_FINISH_SYSTEM_SUFFIX,
       p.maxSteps,
       p.forceFinish,
-      p.forceFirstToolCall ?? false
+      p.forceFirstToolCall ?? false,
+      p.forcedToolForStep
     ),
     experimental_repairToolCall: repairToolCall,
   });
@@ -336,7 +351,8 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
         FORCE_FINISH_GATHER_SUFFIX,
         p.maxSteps,
         p.forceFinish,
-        p.forceFirstToolCall ?? false
+        p.forceFirstToolCall ?? false,
+        p.forcedToolForStep
       ),
       experimental_repairToolCall: repairToolCall,
     });
@@ -578,6 +594,7 @@ async function drain(
   idle?: { deadline: Promise<never>; clear: () => void; touch: () => void }
 ): Promise<{ text: string }> {
   let text = '';
+  let finishReason: string | null = null;
   const iterator = result.stream[Symbol.asyncIterator]();
   try {
     while (true) {
@@ -595,17 +612,22 @@ async function drain(
       } else if (part.type === 'text-delta' && part.text != null && part.text.length > 0) {
         text += part.text;
         onText(part.text);
-      } else if (part.type === 'finish' && part.finishReason === 'length') {
-        // Only reachable when a caller sets maxOutputTokens (answer paths omit
-        // it) or the provider enforces its own cap — surface it instead of
-        // persisting a silently truncated answer.
-        log.warn(
-          `[Engine] output budget exhausted (finishReason=length) after ${text.length} chars — answer is truncated`
-        );
+      } else if (part.type === 'finish') {
+        finishReason = part.finishReason ?? null;
       }
     }
   } finally {
     idle?.clear();
+  }
+  // Anything but a clean stop means the upstream cut the generation short:
+  // `length` (an output cap — the answer paths set none, so this would be the
+  // provider's own), `content-filter`, `error` or `other`. Previously only
+  // `length` was checked, so an abnormally terminated stream was persisted and
+  // shipped as a finished answer with nothing in the logs to say otherwise.
+  if (finishReason != null && finishReason !== 'stop' && finishReason !== 'tool-calls') {
+    log.warn(
+      `[Engine] stream ended with finishReason=${finishReason} after ${text.length} chars — the answer is likely truncated`
+    );
   }
   return { text };
 }

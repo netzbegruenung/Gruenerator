@@ -411,6 +411,67 @@ describe('createToolLoopGuards — internal-first', () => {
     expect(guards.checkInternalFirst('scrape_url')).not.toBeNull();
   });
 
+  /**
+   * `checkInternalFirst` only stops BLOCKING the web once internal comes back
+   * empty — permission the planner was free to ignore, and did: the same
+   * question researched properly in one session and was answered ungrounded in
+   * the next, decided by nothing but sampling. These pin the promotion from
+   * "allowed" to "forced".
+   */
+  describe('emptyResultFallback', () => {
+    const forcing = { ...policy, emptyResultFallbackTool: 'web_search' };
+
+    it('forces the web only after the internal search COMPLETED with nothing', () => {
+      const guards = createToolLoopGuards({ internalFirst: forcing, getSourceCount: () => 0 });
+      // Never called — internal must go first, nothing to fall back from.
+      expect(guards.emptyResultFallback()).toBeNull();
+      guards.noteCall('gruenerator_search');
+      // In flight: the result may still land. Forcing here would race.
+      expect(guards.emptyResultFallback()).toBeNull();
+      guards.noteCompletion('gruenerator_search');
+      expect(guards.emptyResultFallback()).toBe('web_search');
+    });
+
+    it('stays quiet when the internal search actually found something', () => {
+      let sources = 0;
+      const guards = createToolLoopGuards({
+        internalFirst: forcing,
+        getSourceCount: () => sources,
+      });
+      guards.noteCall('gruenerator_search');
+      guards.noteCompletion('gruenerator_search');
+      sources = 1;
+      expect(guards.emptyResultFallback()).toBeNull();
+    });
+
+    it('does not force a second time once the web has run', () => {
+      const guards = createToolLoopGuards({ internalFirst: forcing, getSourceCount: () => 0 });
+      guards.noteCall('gruenerator_search');
+      guards.noteCompletion('gruenerator_search');
+      expect(guards.emptyResultFallback()).toBe('web_search');
+      guards.noteCall('web_search');
+      // Otherwise an empty web search would be forced over and over until the
+      // step budget ran out.
+      expect(guards.emptyResultFallback()).toBeNull();
+    });
+
+    it('respects the exemption and the opt-in', () => {
+      const exempt = createToolLoopGuards({
+        internalFirst: { ...forcing, exempt: true },
+        getSourceCount: () => 0,
+      });
+      exempt.noteCall('gruenerator_search');
+      exempt.noteCompletion('gruenerator_search');
+      expect(exempt.emptyResultFallback()).toBeNull();
+
+      // No tool named = previous behaviour, nothing is forced.
+      const optedOut = createToolLoopGuards({ internalFirst: policy, getSourceCount: () => 0 });
+      optedOut.noteCall('gruenerator_search');
+      optedOut.noteCompletion('gruenerator_search');
+      expect(optedOut.emptyResultFallback()).toBeNull();
+    });
+  });
+
   it('never blocks non-gated tools', () => {
     const guards = createToolLoopGuards({ internalFirst: policy });
     expect(guards.checkInternalFirst('gruenerator_search')).toBeNull();

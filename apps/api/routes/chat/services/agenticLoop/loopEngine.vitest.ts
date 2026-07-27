@@ -37,6 +37,50 @@ describe('buildPrepareStep — forceFirstToolCall', () => {
   });
 });
 
+describe('buildPrepareStep — forced fallback tool', () => {
+  const never = () => false;
+
+  it('names the tool instead of merely requiring one', () => {
+    // `required` would let the planner re-run the internal search that just
+    // came back empty — which is exactly the loop the fallback has to break.
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, false, () => 'web_search');
+    expect(prep({ stepNumber: 1 })).toEqual({
+      toolChoice: { type: 'tool', toolName: 'web_search' },
+    });
+  });
+
+  it('never forces on step 0 — there is no tool result to react to yet', () => {
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, false, () => 'web_search');
+    expect(prep({ stepNumber: 0 })).toEqual({});
+  });
+
+  it('leaves the choice to the model when the guard returns null', () => {
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, false, () => null);
+    expect(prep({ stepNumber: 1 })).toEqual({});
+  });
+
+  it('is re-evaluated per step, not captured once', () => {
+    let forced: string | null = null;
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, false, () => forced);
+    expect(prep({ stepNumber: 1 })).toEqual({});
+    forced = 'web_search';
+    expect(prep({ stepNumber: 2 })).toEqual({
+      toolChoice: { type: 'tool', toolName: 'web_search' },
+    });
+  });
+
+  it('force-finish beats the fallback on the last step', () => {
+    // Otherwise the turn would end on a tool call with no answer written.
+    const prep = buildPrepareStep('sys', 'SUFF', 2, never, false, () => 'web_search');
+    expect(prep({ stepNumber: 1 })).toEqual({ toolChoice: 'none', system: 'sysSUFF' });
+  });
+
+  it('stays inert when no fallback is wired (default arg)', () => {
+    const prep = buildPrepareStep('sys', 'suffix', 5, never, false);
+    expect(prep({ stepNumber: 1 })).toEqual({});
+  });
+});
+
 // Fake models are opaque tags — the engine only forwards them to
 // streamText/generateText, and the injected fakes read `.id` to assert which
 // model drove which phase.
