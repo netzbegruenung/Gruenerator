@@ -26,6 +26,7 @@ import { officeTypeColor } from '../../theme/officeColors';
 import { getSurfaceFab } from '../../theme/toolTheme';
 import { DocPreview } from '../common/DocPreview';
 import { Fab } from '../common/Fab';
+import { type ViewMode } from '../common/ViewModeToggle';
 import {
   isDocFamily,
   kindFromSubtype,
@@ -48,12 +49,18 @@ import { NativeShareModal } from './NativeShareModal';
  */
 export function DocumentsView({
   extraItems,
+  viewMode = 'grid',
 }: {
   /**
    * Non-doc Office items (boards + canvas) merged into the list — they have their
    * own endpoints and are fetched by the screen, not by the docs store.
    */
   extraItems?: OfficeItem[];
+  /**
+   * Grid or list. Owned by the screen because the switch now sits in the header
+   * bar, which the screen renders — this view only reads it.
+   */
+  viewMode?: ViewMode;
 } = {}) {
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -82,7 +89,6 @@ export function DocumentsView({
       : insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.small;
   const [createOpen, setCreateOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [activeDoc, setActiveDoc] = useState<{ id: string; title: string } | null>(null);
 
   // Normalize docs (+ merged boards/canvas) into one type-tagged list, newest
@@ -291,21 +297,9 @@ export function DocumentsView({
     <>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
 
-      {/* Search moved into the create sheet (web parity), so the only chrome left
-          above the list is the grid/list switch. */}
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          onPress={() => setViewMode((v) => (v === 'grid' ? 'list' : 'grid'))}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityLabel={viewMode === 'grid' ? 'Als Liste anzeigen' : 'Als Raster anzeigen'}
-        >
-          <Ionicons
-            name={viewMode === 'grid' ? 'list-outline' : 'grid-outline'}
-            size={20}
-            color={theme.textSecondary}
-          />
-        </TouchableOpacity>
-      </View>
+      {/* No chrome of its own any more: search moved into the create sheet (web
+          parity), and the grid/list switch moved up into the header bar, where it
+          is the screen's one trailing control. */}
 
       {/* Document Grid */}
       {isLoading && officeItems.length === 0 ? (
@@ -462,14 +456,6 @@ const CARD_GAP = 16;
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-
-  topBar: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-  },
 
   // Grid
   gridContent: {

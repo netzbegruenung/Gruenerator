@@ -17,6 +17,7 @@ import { type RecentItem, type RecentItemType } from '../../hooks/useRecentActiv
 import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 
 import { DocPreview } from './DocPreview';
+import { type ViewMode } from './ViewModeToggle';
 
 const WEB_ORIGIN = 'https://gruenerator.eu';
 const dateFormat: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
@@ -40,9 +41,14 @@ const FALLBACK_TITLES: Record<RecentItemType, string> = {
 };
 
 /**
- * A titled grid of `/recent-activity` items — the Studio tab renders one instance
- * per media kind. Renders nothing once loading has finished with an empty list, so
- * a section never sits on the page as a bare heading.
+ * A titled section of `/recent-activity` items — the Studio tab renders one
+ * instance per media kind. Renders nothing once loading has finished with an
+ * empty list, so a section never sits on the page as a bare heading.
+ *
+ * `viewMode` picks the layout, driven by the switch in the header bar: `grid` is
+ * cards with a 4:3 thumbnail, `list` is one row per item. The list keeps the
+ * thumbnail — for reels and generated images the picture IS the title, and a row
+ * of identical "Ohne Titel" strings would be unusable.
  */
 export function RecentItemsSection({
   title,
@@ -50,6 +56,7 @@ export function RecentItemsSection({
   isLoading = false,
   accent = colors.primary[600],
   style,
+  viewMode = 'grid',
   onOpen,
 }: {
   title: string;
@@ -58,6 +65,7 @@ export function RecentItemsSection({
   /** Hue for the thumbnail placeholders and the spinner — pass the tab's own. */
   accent?: string;
   style?: StyleProp<ViewStyle>;
+  viewMode?: ViewMode;
   onOpen: (item: RecentItem) => void;
 }) {
   const isDark = useColorScheme() === 'dark';
@@ -78,10 +86,12 @@ export function RecentItemsSection({
 
   if (items.length === 0) return null;
 
+  const isList = viewMode === 'list';
+
   return (
     <View style={[styles.section, style]}>
       <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
-      <View style={styles.grid}>
+      <View style={isList ? styles.list : styles.grid}>
         {items.map((item) => {
           const key = `${item.type}-${item.id}`;
           // The backend returns an origin-relative thumbnail path (e.g.
@@ -97,7 +107,54 @@ export function RecentItemsSection({
             (item.type === 'image' || item.type === 'video' || item.type === 'canvas') &&
             !failedThumbs.has(key);
           const docContent = item.type === 'doc' && item.content ? item.content : null;
-          return (
+          const thumbStyle = isList ? styles.rowThumb : styles.thumb;
+          const thumbnail =
+            hasThumb && thumbUri ? (
+              <Image
+                source={{ uri: thumbUri }}
+                style={thumbStyle}
+                contentFit="cover"
+                onError={() => setFailedThumbs((prev) => new Set(prev).add(key))}
+              />
+            ) : docContent ? (
+              <DocPreview content={docContent} style={thumbStyle} />
+            ) : (
+              <View
+                style={[thumbStyle, styles.thumbPlaceholder, { backgroundColor: theme.surface }]}
+              >
+                <Ionicons name={TYPE_ICONS[item.type]} size={isList ? 20 : 24} color={accent} />
+              </View>
+            );
+          const label = (
+            <>
+              <Text
+                style={[styles.cardTitle, { color: theme.text }]}
+                numberOfLines={isList ? 1 : 2}
+              >
+                {item.title || FALLBACK_TITLES[item.type]}
+              </Text>
+              <Text style={[styles.cardMeta, { color: theme.textSecondary }]} numberOfLines={1}>
+                {item.accessType && item.accessType !== 'owner' && item.creatorName
+                  ? `Von ${item.creatorName} · `
+                  : ''}
+                {new Date(item.date).toLocaleDateString('de-DE', dateFormat)}
+              </Text>
+            </>
+          );
+
+          return isList ? (
+            <Pressable
+              key={key}
+              onPress={() => onOpen(item)}
+              style={({ pressed }) => [
+                styles.row,
+                { backgroundColor: pressed ? theme.surface : 'transparent' },
+              ]}
+            >
+              {thumbnail}
+              <View style={styles.rowBody}>{label}</View>
+            </Pressable>
+          ) : (
             <Pressable
               key={key}
               onPress={() => onOpen(item)}
@@ -110,37 +167,8 @@ export function RecentItemsSection({
                 },
               ]}
             >
-              {hasThumb && thumbUri ? (
-                <Image
-                  source={{ uri: thumbUri }}
-                  style={styles.thumb}
-                  contentFit="cover"
-                  onError={() => setFailedThumbs((prev) => new Set(prev).add(key))}
-                />
-              ) : docContent ? (
-                <DocPreview content={docContent} style={styles.thumb} />
-              ) : (
-                <View
-                  style={[
-                    styles.thumb,
-                    styles.thumbPlaceholder,
-                    { backgroundColor: theme.surface },
-                  ]}
-                >
-                  <Ionicons name={TYPE_ICONS[item.type]} size={24} color={accent} />
-                </View>
-              )}
-              <View style={styles.cardBody}>
-                <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={2}>
-                  {item.title || FALLBACK_TITLES[item.type]}
-                </Text>
-                <Text style={[styles.cardMeta, { color: theme.textSecondary }]} numberOfLines={1}>
-                  {item.accessType && item.accessType !== 'owner' && item.creatorName
-                    ? `Von ${item.creatorName} · `
-                    : ''}
-                  {new Date(item.date).toLocaleDateString('de-DE', dateFormat)}
-                </Text>
-              </View>
+              {thumbnail}
+              <View style={styles.cardBody}>{label}</View>
             </Pressable>
           );
         })}
@@ -166,6 +194,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.small,
+  },
+  // No card chrome in list mode: a border around every full-width row turns the
+  // section into a stack of boxes. The thumbnail carries the separation.
+  list: {
+    gap: spacing.xxsmall,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.small,
+    paddingVertical: spacing.xsmall,
+    paddingHorizontal: spacing.xsmall,
+    borderRadius: borderRadius.medium,
+  },
+  rowThumb: {
+    width: 48,
+    height: 48,
+    borderRadius: borderRadius.medium,
+    overflow: 'hidden',
+  },
+  rowBody: {
+    flex: 1,
+    gap: spacing.xxsmall,
   },
   card: {
     // Deliberately not flexGrow: an odd item at the end of a row would stretch to

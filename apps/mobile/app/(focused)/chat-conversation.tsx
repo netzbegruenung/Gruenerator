@@ -170,7 +170,7 @@ export default function ChatConversationScreen() {
       }
       // No "+" and no profile menu: both are a tap away in the drawer, and the
       // bar is needed for the agent's name — they run to 45 characters.
-      showProfile={false}
+      headerRight={null}
     >
       <MobileChatProvider threadId={isNewChat ? null : threadId}>
         <AssistantThread theme={theme} welcome={welcome} transparent />
