@@ -48,13 +48,11 @@ import {
   DOC_MODIFY_PATTERN,
   HEURISTIC_CONFIDENCE_THRESHOLD,
   detectSocialPlatform,
-  resolveSocialPostEscape,
   nounNearCreateVerb,
   NOUN_TRIGGER_MAX_LENGTH,
   SOCIAL_BARE_NOUN_PATTERN,
   SOCIAL_META_QUESTION_PATTERN,
-  SHAREPIC_NOUN_PATTERN,
-  SHAREPIC_INCLUSION_PATTERN,
+  POST_NOUN_PATTERN,
 } from './classifierHeuristics.js';
 import {
   parseClassifierResponse,
@@ -67,7 +65,11 @@ import {
 } from './classifierParsing.js';
 import { CLASSIFIER_PROMPT, NON_SEARCH_INTENTS } from './classifierPrompt.js';
 import { classifyDocsIntentTiebreak } from './docsIntentTiebreak.js';
-import { isNegatedArtifactRequest, stripQuotedSpans } from './fastPathGuards.js';
+import {
+  hasExplicitSharepicWord,
+  isNegatedArtifactRequest,
+  stripQuotedSpans,
+} from './fastPathGuards.js';
 
 import type { ChatGraphState, GatherSource, SearchIntent } from '../types.js';
 
@@ -810,11 +812,10 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       const wantsPm = PM_NOUN_PATTERN.test(userContent);
       const wantsSocial = SOCIAL_NOUN_PATTERN.test(userContent);
       if (wantsPm || wantsSocial) {
-        // Social-only prompts route to the EXPERIMENTAL combined post (text +
-        // sharepic) unless an escape hatch ("nur Text", "nur Sharepic")
-        // applies. Mixed PM+social prompts keep the dual-search behavior.
-        const socialIntent: SearchIntent = resolveSocialPostEscape(userContent) ?? 'social_post';
-        const primary: SearchIntent = wantsPm ? 'pressemitteilung_examples' : socialIntent;
+        // Social-only prompts route to `social_post` (text; a sharepic half
+        // only when the message names one). Mixed PM+social prompts keep the
+        // dual-search behavior.
+        const primary: SearchIntent = wantsPm ? 'pressemitteilung_examples' : 'social_post';
         const secondary: SearchIntent | null = wantsPm && wantsSocial ? 'examples' : null;
         // Platform hint for the social composer/generator. Null when
         // unspecified → generic rubric.
@@ -927,20 +928,18 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       }
     }
 
-    // EXPERIMENTAL combined social post — for ALL users, not just
-    // content-creation agents: a social-post creation request yields text +
-    // sharepic variants in one turn. Requires a bare noun-phrase shape
-    // ("Instagram-Post zu Tempo 30", ^-anchored, so valid even before a long
-    // paste) or a creation verb NEAR a social noun in a short message —
-    // "schreibe eine Produktvorstellung … [Paste erwähnt Instagram]" must not
-    // pair the instruction's verb with a noun inside pasted material.
-    // Questions and example-browsing never create. Explicit sharepic wording
-    // ("Sharepic für Instagram") keeps the shipped sharepic-only flow, "nur
-    // Text" the examples flow — both via resolveSocialPostEscape. PM prompts
-    // keep their own routes (handled above for agents, LLM tier otherwise).
+    // Social post creation — for ALL users, not just content-creation agents.
+    // Requires a bare noun-phrase shape ("Instagram-Post zu Tempo 30",
+    // ^-anchored, so valid even before a long paste) or a creation verb NEAR a
+    // social noun in a short message — "schreibe eine Produktvorstellung …
+    // [Paste erwähnt Instagram]" must not pair the instruction's verb with a
+    // noun inside pasted material. Questions and example-browsing never create.
+    // A sharepic-only ask ("Sharepic für Instagram" — sharepic word, no post
+    // noun) is deferred to the sharepic route. PM prompts keep their own routes
+    // (handled above for agents, LLM tier otherwise).
     const isLongPaste = userContent.length > NOUN_TRIGGER_MAX_LENGTH;
     // Quoted spans are reported speech; a negated noun ("mach keinen Post daraus")
-    // must not create. Escape-hatch resolution below still runs on the raw text.
+    // must not create.
     const ucStripped = stripQuotedSpans(userContent);
     const looksLikeSocialCreation =
       SOCIAL_NOUN_PATTERN.test(ucStripped) &&
@@ -951,30 +950,23 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       (SOCIAL_BARE_NOUN_PATTERN.test(ucStripped) ||
         (!isLongPaste && nounNearCreateVerb(ucStripped, SOCIAL_NOUN_PATTERN)));
     if (looksLikeSocialCreation && userContent.length >= 10) {
-      if (
-        SHAREPIC_NOUN_PATTERN.test(userContent) &&
-        !SHAREPIC_INCLUSION_PATTERN.test(userContent)
-      ) {
-        // "Sharepic für Instagram" — let the heuristic/LLM tiers route to the
-        // sharepic intent as before this feature. Inclusion phrasing
-        // ("Post mit Sharepic") stays here: it's the explicit combined ask.
-        log.info('[Classifier] Social creation with explicit sharepic wording — deferring');
+      if (hasExplicitSharepicWord(userContent) && !POST_NOUN_PATTERN.test(userContent)) {
+        // "Sharepic für Instagram" — a sharepic ask that merely names a
+        // platform. Defer to the sharepic route. Naming both ("Post mit
+        // Sharepic") stays here: social_post carries the sharepic half itself.
+        log.info('[Classifier] Sharepic-only ask with a platform hint — deferring');
       } else {
-        const escape = resolveSocialPostEscape(userContent);
-        const intent: SearchIntent = escape ?? 'social_post';
         const platform = detectSocialPlatform(userContent);
         log.info(
-          `[Classifier] Social post creation → ${intent}${platform ? ` (platform=${platform})` : ''}${escape ? ' via escape hatch' : ''}`
+          `[Classifier] Social post creation → social_post${platform ? ` (platform=${platform})` : ''}`
         );
         return {
-          intent,
+          intent: 'social_post',
           platform,
           searchSources: [],
           searchQuery: extractSearchTopic(userContent) || userContent,
           detectedFilters: null,
-          reasoning: escape
-            ? `Social post request with "${escape}" escape hatch`
-            : 'Social post creation — combined text + sharepic (experimental)',
+          reasoning: 'Social post creation',
           hasTemporal: temporal.hasTemporal,
           complexity,
           classificationTimeMs: Date.now() - startTime,
