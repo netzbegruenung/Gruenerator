@@ -143,6 +143,38 @@ describe('decideRunAgentic', () => {
     expect(decide({ ...fill, isPdfFillRequest: true, hasImageAttachments: true })).toBe(false);
   });
 
+  it('rescues a research turn the classifier contradicted itself about (B7)', () => {
+    // A statement, not a question: no question mark, no interrogative, so the
+    // `direct` rescue by phrasing cannot see it. The classifier CAN — it
+    // answered needsResearch=true and then labelled the turn `direct` anyway,
+    // which is how an invented answer reached the user with zero searches.
+    const statement = {
+      intent: 'direct',
+      lastUserText: 'Erklär mir die aktuellen Vorwürfe gegen die Partei',
+    };
+    expect(decide(statement)).toBe(false);
+    expect(decide({ ...statement, classifierContradictedResearch: true })).toBe(true);
+
+    // Kill-switches still win, exactly as for the PDF rescue above.
+    expect(decide({ ...statement, classifierContradictedResearch: true, loopEnabled: false })).toBe(
+      false
+    );
+    expect(decide({ ...statement, classifierContradictedResearch: true, forcedTool: true })).toBe(
+      false
+    );
+    expect(
+      decide({ ...statement, classifierContradictedResearch: true, hasImageAttachments: true })
+    ).toBe(false);
+  });
+
+  it('leaves a creative direct turn alone when the flag is absent', () => {
+    // The rescue must not widen `direct` in general — a creative ask carries no
+    // contradiction and stays single-pass.
+    expect(
+      decide({ intent: 'direct', lastUserText: 'Schreib eine Rede über den Klimaschutz' })
+    ).toBe(false);
+  });
+
   it('enters the loop regardless of the selected model (planner does the tools)', () => {
     // No tool-capability gate: the split lets any model into the loop.
     expect(decide({ intent: 'search' })).toBe(true);

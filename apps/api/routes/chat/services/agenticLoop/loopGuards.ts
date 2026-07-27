@@ -42,6 +42,10 @@ export interface InternalFirstPolicy {
    *  scrape tools are refused — internal is PREFERRED, not merely FIRST. The web
    *  stays available only when internal came up short (or empty). Default 3. */
   minSourcesToSkipWeb?: number;
+  /** Which gated tool to FORCE when the internal search comes back empty. The
+   *  caller names it (and only when it is actually mounted) so this module keeps
+   *  no tool-catalog knowledge. Unset = no forcing, previous behaviour. */
+  emptyResultFallbackTool?: string;
 }
 
 export const MIN_INTERNAL_SOURCES_TO_SKIP_WEB = 3;
@@ -90,6 +94,16 @@ export interface ToolLoopGuards {
   /** Records a model turn that produced neither text nor a tool call; returns the running count. */
   noteEmptyCompletion(): number;
   readonly emptyCompletions: number;
+  /**
+   * The tool the next step must be forced into, or null.
+   *
+   * Non-null exactly when the internal search has COMPLETED and registered
+   * nothing, and no gated tool has run yet. `checkInternalFirst` merely stops
+   * blocking the web in that situation — permission the model was free to
+   * ignore, and did: the same question researched properly in one session and
+   * answered ungrounded in the next, decided by nothing but sampling.
+   */
+  emptyResultFallback(): string | null;
 }
 
 /** Normalizes string values so re-phrasings of the same query collide:
@@ -302,6 +316,21 @@ export function createToolLoopGuards(options: ToolLoopGuardOptions = {}): ToolLo
     },
     noteCompletion(toolName) {
       completedCounts.set(toolName, (completedCounts.get(toolName) ?? 0) + 1);
+    },
+    emptyResultFallback() {
+      const policy = options.internalFirst;
+      if (!policy || policy.exempt || !policy.emptyResultFallbackTool) return null;
+      // Same three states checkInternalFirst distinguishes — never called, in
+      // flight, completed. Only the third one can be judged empty.
+      const internalCalls = callCounts.get(policy.requiredTool) ?? 0;
+      const internalCompleted = completedCounts.get(policy.requiredTool) ?? 0;
+      if (internalCalls === 0 || internalCalls > internalCompleted) return null;
+      if ((options.getSourceCount?.() ?? 0) > 0) return null;
+      // Already went to the web (or scraped) on its own — nothing to force.
+      for (const gated of policy.gatedTools) {
+        if ((callCounts.get(gated) ?? 0) > 0) return null;
+      }
+      return policy.emptyResultFallbackTool;
     },
     noteEmptyCompletion() {
       emptyCompletions += 1;
