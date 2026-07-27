@@ -23,18 +23,22 @@ interface SettingsTabModule {
   prefetch?: (queryClient: QueryClient) => void;
 }
 
+// In der Reihenfolge der Seitenleiste (SettingsDialog.tsx, NAV) — sie ist nach
+// Nutzungshäufigkeit sortiert, und preloadRemainingSettingsTabs arbeitet diese
+// Tabelle von oben nach unten ab. Was am ehesten gebraucht wird, liegt damit
+// als Erstes im Speicher.
 const LOADERS: Record<SettingsTab, () => Promise<SettingsTabModule>> = {
   allgemein: () => import('./tabs/GeneralTab'),
-  barrierefreiheit: () => import('./tabs/AccessibilityTab'),
-  friends: () => import('./tabs/FriendsTab'),
   personalisierung: () => import('./tabs/PersonalizationTab'),
-  briefe: () => import('./tabs/LetterheadsSection'),
-  'texte-anlernen': () => import('./tabs/TexteAnlernenTab'),
   erinnerungen: () => import('./tabs/MemoriesSection'),
+  'texte-anlernen': () => import('./tabs/TexteAnlernenTab'),
+  friends: () => import('./tabs/FriendsTab'),
   benachrichtigungen: () => import('./tabs/NotificationsTab'),
+  briefe: () => import('./tabs/LetterheadsSection'),
+  konnektoren: () => import('./tabs/ConnectorsTab'),
   wolke: () => import('./tabs/WolkeTab'),
   websites: () => import('./tabs/WebsitesTab'),
-  konnektoren: () => import('./tabs/ConnectorsTab'),
+  barrierefreiheit: () => import('./tabs/AccessibilityTab'),
   nutzung: () => import('./tabs/UsageTab'),
   support: () => import('./tabs/SupportTab'),
 };
