@@ -765,3 +765,5 @@ export function MdDiversity1(props: IconBaseProps): JSX.Element {
     ],
   })(props);
 }
+
+export { TOOL_ICON_KEYS, toolIconKey, type ToolIconId, type ToolIconKey } from './toolIcons.js';

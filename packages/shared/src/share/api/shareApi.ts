@@ -25,6 +25,7 @@ export const SHARE_ENDPOINTS = {
   CREATE_VIDEO: '/share/video',
   CREATE_VIDEO_FROM_PROJECT: '/share/video/from-project',
   USER_SHARES: '/share/my',
+  RECENT_SHARES: '/share/recent',
   SHARE_INFO: (token: string) => `/share/${token}`,
   SHARE_THUMBNAIL: (token: string) => `/share/${token}/thumbnail`,
   SHARE_PREVIEW: (token: string) => `/share/${token}/preview`,
@@ -87,6 +88,17 @@ export async function getUserShares(
   const query = params.toString();
   const url = query ? `${SHARE_ENDPOINTS.USER_SHARES}?${query}` : SHARE_ENDPOINTS.USER_SHARES;
   return apiRequest<ShareListResponse>('get', url);
+}
+
+/**
+ * The newest image shares, capped server-side at 20.
+ *
+ * The bounded counterpart to `getUserShares`, which has no `limit` parameter and
+ * falls back to the service default of 100 rows — more than any recents strip can
+ * show, over mobile data. Images only; the endpoint hardcodes the media type.
+ */
+export async function getRecentShares(limit = 20): Promise<ShareListResponse> {
+  return apiRequest<ShareListResponse>('get', `${SHARE_ENDPOINTS.RECENT_SHARES}?limit=${limit}`);
 }
 
 /**
@@ -170,6 +182,7 @@ export const shareApi = {
   createImageShare,
   updateImageShare,
   getUserShares,
+  getRecentShares,
   getShareInfo,
   deleteShare,
   publishShare,

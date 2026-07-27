@@ -4,7 +4,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, useColorScheme } 
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 
 import { useDocsEditorBridgeStore } from '../../stores/docsEditorBridgeStore';
-import { lightTheme, darkTheme, colors } from '../../theme';
+import { lightTheme, darkTheme, colors, BODY_FONT } from '../../theme';
 
 interface SlashItem {
   label: string;
@@ -128,6 +128,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   chipText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '500',
   },

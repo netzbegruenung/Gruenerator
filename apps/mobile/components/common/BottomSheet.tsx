@@ -17,6 +17,12 @@ interface BottomSheetProps {
    * full-width buttons, chips) would otherwise sit flush against the edges.
    */
   padded?: boolean;
+  /**
+   * Sheet fill. Defaults to `theme.background`; pass the darker `theme.surface`
+   * for sheets built out of grouped cards, which need the cards to read as
+   * raised against the sheet rather than melting into it.
+   */
+  backgroundColor?: string;
 }
 
 export function BottomSheet({
@@ -26,6 +32,7 @@ export function BottomSheet({
   maxHeight = '85%',
   keyboardAvoiding,
   padded,
+  backgroundColor,
 }: BottomSheetProps) {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
@@ -43,7 +50,7 @@ export function BottomSheet({
             // inset (often 0 inside a RN Modal) plus a fixed cushion.
             paddingBottom: Math.max(insets.bottom, spacing.medium) + spacing.medium,
             paddingHorizontal: padded ? spacing.medium : undefined,
-            backgroundColor: theme.background,
+            backgroundColor: backgroundColor ?? theme.background,
             borderColor: theme.border,
             maxHeight,
           },
@@ -87,9 +94,18 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
   },
+  // No dim at all. It was 0.4 — a modal scrim, right for something that demands
+  // an answer, wrong for a picker you open, tap once and leave. The sheet is its
+  // own surface with a border and a radius, so what is behind it does not need
+  // to be pushed back to read as inactive; darkening it mainly hid the page.
+  //
+  // Still a Pressable, and still the whole area above the sheet: React Native
+  // hit-tests by layout rather than by painted pixels, so tap-to-close works
+  // exactly as before. This style is what makes the region invisible, not
+  // intangible.
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'transparent',
   },
   sheet: {
     borderTopLeftRadius: 20,
