@@ -1,4 +1,5 @@
 export { Button } from './Button';
+export { Text } from './Text';
 export { ChipGroup, type ChipOption } from './ChipGroup';
 export { TextInput } from './TextInput';
 export { ImagePicker } from './ImagePicker';
