@@ -23,6 +23,7 @@ import { createLogger } from '../../../../utils/logger.js';
 import { loadMcpCatalog, type McpCatalog } from '../../agents/mcpCatalog.js';
 import {
   getLoopPlannerModel,
+  getLoopSynthFallbackModel,
   getLoopSynthModel,
   loopPlannerModelName,
   prefersUnifiedLoop,
@@ -32,7 +33,7 @@ import { buildChatToolCatalog } from '../../agents/toolCatalog.js';
 import { extractTextContent } from '../messageHelpers.js';
 import { defersToSearchDespiteSources, stripFabricatedSystemClaims } from '../outputSanity.js';
 import { resolveModel, type ResolvedModelTuple } from '../responseStreamingService.js';
-import { PROGRESS_MESSAGES, type SSEWriter } from '../sseHelpers.js';
+import { PROGRESS_MESSAGES, startResponseHeartbeat, type SSEWriter } from '../sseHelpers.js';
 import {
   getRecentThreadSources,
   getRecentToolSteps,
@@ -49,6 +50,7 @@ import { looksLikeExplicitResearchOrder, resolveEditorSurfaceKind } from './rout
 import { createSourceRegistry, withResearchedSources } from './sourceRegistry.js';
 import {
   DEFAULT_LOOP_BUDGET,
+  TOOL_TIMEOUT_OVERRIDES_MS,
   readMcpResult,
   type LoopBudget,
   type PersistedStep,
@@ -302,6 +304,12 @@ export async function streamAgenticResponse(params: {
   let toolReplayMessages: ModelMessage[] = [];
   let mode: LoopMode = 'unified';
   let synthName = '';
+  // Declared out here so the finally can disarm it on every exit path.
+  let stopSynthHeartbeat: (() => void) | null = null;
+  const endSynthHeartbeat = (): void => {
+    stopSynthHeartbeat?.();
+    stopSynthHeartbeat = null;
+  };
   // Time the (un-budgeted) MCP tool-mount so a slow connector shows up in the
   // end-of-turn line instead of looking like an unexplained multi-second hang.
   let mcpMountMs = 0;
@@ -457,6 +465,7 @@ export async function streamAgenticResponse(params: {
       guards,
       recordStep: (s) => steps.push(s),
       perCallTimeoutMs: budget.perCallTimeoutMs,
+      perCallTimeoutOverridesMs: TOOL_TIMEOUT_OVERRIDES_MS,
       // Only unified mode streams answer text WHILE tools run, so its `text`
       // length is a meaningful per-tool offset. In split mode `text` stays empty
       // through the whole gather phase → return null so no (all-0) offsets are
@@ -779,10 +788,29 @@ ANTWORTE KONKRET: Steht die Antwort in einer Quelle, dann NENNE SIE im Klartext 
       // does NOT set this, so follow-ups on carried sources stay tool-free.
       finalState.loopDemotedFromRetrieval === true;
 
+    // The synth phase emits nothing between the last tool result and the first
+    // answer token. Until this guard existed a lane that stalled there took the
+    // whole turn down: no text, no error, no heartbeat, for the full 120s wall
+    // clock — users read that as "it just aborts".
+    const synthFallback = mode === 'split' ? getLoopSynthFallbackModel(synth.name) : null;
+
     await runAgenticLoop({
       mode,
       plannerModel: mode === 'split' ? getLoopPlannerModel() : resolution.model,
       synthModel: synth.model,
+      ...(synthFallback && { synthFallbackModel: synthFallback.model }),
+      onSynthStart: () => {
+        stopSynthHeartbeat = startResponseHeartbeat(sse);
+      },
+      onSynthFallback: () => {
+        if (!synthFallback) return;
+        log.warn(`[Agentic] synth ${synth.name} stalled → falling back to ${synthFallback.name}`);
+        sse.send('fallback', {
+          from: { id: synth.name, name: synth.name },
+          to: { id: synthFallback.name, name: synthFallback.name },
+          reason: 'first_token_timeout',
+        });
+      },
       tools: wrapped,
       toolSystem,
       forceFirstToolCall,
@@ -810,6 +838,8 @@ ANTWORTE KONKRET: Steht die Antwort in einer Quelle, dann NENNE SIE im Klartext 
         finalState.createdDocument != null ||
         finalState.createdBoard != null,
       onText: (delta) => {
+        // Real content replaces the heartbeat as the UI's proof of progress.
+        endSynthHeartbeat();
         startResponse();
         text += delta;
         sse.send('text_delta', { text: delta });
@@ -857,6 +887,7 @@ ANTWORTE KONKRET: Steht die Antwort in einer Quelle, dann NENNE SIE im Klartext 
       sse.send('text_delta', { text });
     }
   } finally {
+    endSynthHeartbeat();
     if (mcpCatalog) await mcpCatalog.close();
     if (systemCatalog) await systemCatalog.close();
     if (resolution?.releaseSlot) await resolution.releaseSlot();

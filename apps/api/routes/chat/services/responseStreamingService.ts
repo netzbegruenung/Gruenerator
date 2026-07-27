@@ -31,7 +31,13 @@ import {
 } from '../agents/providers.js';
 
 import { sanitizeContentPartsForModel, stripEmptyAssistantMessages } from './messageHelpers.js';
-import { PROGRESS_MESSAGES, type FallbackReason, type SSEWriter } from './sseHelpers.js';
+import {
+  PROGRESS_MESSAGES,
+  startResponseHeartbeat,
+  type FallbackReason,
+  type SSEWriter,
+} from './sseHelpers.js';
+import { createIdleDeadline, type IdleDeadline } from './streamIdleDeadline.js';
 
 const log = createLogger('ResponseStreaming');
 
@@ -357,94 +363,16 @@ export function isStreamFailure(err: unknown): err is StreamFailure {
 }
 
 /**
- * Heartbeat while we wait for the first content token. Some primary models
- * spend several seconds in TTFB (especially overflow lanes / cold reasoning
- * starts); without a ping the UI shows `response_start` and nothing else,
- * which looks like a hang. Cleared on first delta, abort, or error.
- */
-const HEARTBEAT_INTERVAL_MS = 3_000;
-
-function startResponseHeartbeat(sse: SSEWriter): () => void {
-  const stepId = `generating_${Date.now()}`;
-  const handle = setInterval(() => {
-    if (sse.isEnded()) return;
-    sse.send('thinking_step', {
-      stepId,
-      toolName: 'generating',
-      title: 'Formuliere Antwort…',
-      status: 'in_progress',
-    });
-  }, HEARTBEAT_INTERVAL_MS);
-  // Don't keep the event loop alive solely on this timer if the response is
-  // aborted at the socket layer.
-  if (typeof handle.unref === 'function') handle.unref();
-  let cleared = false;
-  return () => {
-    if (cleared) return;
-    cleared = true;
-    clearInterval(handle);
-  };
-}
-
-/**
- * Set up the first-token deadline: rejects with FirstTokenTimeoutError once the
- * model has been SILENT for `deadlineMs`, aborts the stream at the same moment,
- * and `clear()` disarms both when the first real text chunk arrives.
+ * The first-token deadline: rejects with FirstTokenTimeoutError once the model
+ * has been SILENT for `deadlineMs`, aborts the stream at the same moment, and
+ * `clear()` disarms both when the first real text chunk arrives.
  *
- * Idle-based, not one-shot, and that distinction is the whole point. The
- * deadline exists to catch a HANG, but a reasoning model holds its answer back
- * until thinking completes — it can stream reasoning deltas for well past 20s
- * and still be perfectly healthy. As a fixed one-shot timer this killed every
- * such turn: a research turn died on `verdigado-think` at exactly 20s, fell
- * back to `regolo/gemma4-31b` (also a reasoning lane, same reasoning=medium)
- * and died at exactly 20s again — the fallback could not help because both
- * lanes hit the same structural limit, not a fault of either host.
- *
- * `touch()` marks liveness (called on every reasoning delta) and rearms the
- * timer. A model emitting NOTHING for the full window is still declared hung
- * and still falls back; the turn-level wall clock remains the outer bound.
+ * The idle semantics (and why they are idle rather than one-shot) live in
+ * {@link createIdleDeadline}, which the agentic loop's synth phase shares — one
+ * definition of "stalled" for both answer paths.
  */
-function createFirstTokenDeadline(deadlineMs: number): {
-  deadline: Promise<never>;
-  signal: AbortSignal;
-  clear: () => void;
-  touch: () => void;
-} {
-  const controller = new AbortController();
-  let timeoutHandle: NodeJS.Timeout | undefined;
-  let lastActivity = Date.now();
-  let settled = false;
-
-  const deadline = new Promise<never>((_, reject) => {
-    const arm = (ms: number): void => {
-      timeoutHandle = setTimeout(() => {
-        const idleFor = Date.now() - lastActivity;
-        if (idleFor >= deadlineMs) {
-          settled = true;
-          controller.abort();
-          reject(new FirstTokenTimeoutError(deadlineMs));
-          return;
-        }
-        // Activity landed since this timer was armed — wait out the remainder.
-        arm(deadlineMs - idleFor);
-      }, ms);
-    };
-    arm(deadlineMs);
-  });
-  // Suppress unhandled-rejection if cleared before resolution.
-  deadline.catch(() => {});
-
-  return {
-    deadline,
-    signal: controller.signal,
-    clear: () => {
-      settled = true;
-      if (timeoutHandle) clearTimeout(timeoutHandle);
-    },
-    touch: () => {
-      if (!settled) lastActivity = Date.now();
-    },
-  };
+function createFirstTokenDeadline(deadlineMs: number): IdleDeadline {
+  return createIdleDeadline(deadlineMs, () => new FirstTokenTimeoutError(deadlineMs));
 }
 
 /** A plain abort-after-ms timer (setTimeout-backed so fake timers drive it,
