@@ -39,7 +39,7 @@ import {
   type DocSuggestionItem,
 } from '../../stores/docsEditorBridgeStore';
 import { useDocsStore } from '../../stores/docsStore';
-import { lightTheme, darkTheme, colors } from '../../theme';
+import { lightTheme, darkTheme, colors, BODY_FONT } from '../../theme';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_DOCS_API_URL || 'https://gruenerator.eu/api';
 const HOCUSPOCUS_URL = process.env.EXPO_PUBLIC_HOCUSPOCUS_URL || 'wss://gruenerator.eu/ws';
@@ -615,6 +615,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   errorTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 18,
     fontWeight: '600',
     marginTop: 16,
@@ -645,6 +646,7 @@ const styles = StyleSheet.create({
   },
   errorBannerText: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '500',
   },
@@ -655,6 +657,7 @@ const styles = StyleSheet.create({
   },
   retryButtonText: {
     color: 'white',
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -705,6 +708,7 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     color: 'white',
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '600',
   },

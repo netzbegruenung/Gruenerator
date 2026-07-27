@@ -1,7 +1,7 @@
 import { View, StyleSheet, useColorScheme } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
 import type { StyleProp, ViewStyle, TextStyle } from 'react-native';
@@ -169,7 +169,7 @@ const inputStyles = StyleSheet.create({
   // system default sizes this used to carry (16/17 → 19/20).
   card: {
     flex: 1,
-    fontFamily: 'PTSans-Regular',
+    fontFamily: BODY_FONT,
     fontSize: 19,
     lineHeight: 26,
     minHeight: 40,
@@ -179,7 +179,7 @@ const inputStyles = StyleSheet.create({
   },
   bar: {
     flex: 1,
-    fontFamily: 'PTSans-Regular',
+    fontFamily: BODY_FONT,
     fontSize: 20,
     lineHeight: 29,
     maxHeight: 145,

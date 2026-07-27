@@ -13,7 +13,7 @@ import { useCallback } from 'react';
 import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 
 import { useImageStudioStore } from '../../stores/imageStudioStore';
-import { spacing, lightTheme, darkTheme } from '../../theme';
+import { spacing, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 import { OffsetStepper } from '../ui/controls';
 
 const LINE_LABELS = [
@@ -79,10 +79,12 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   label: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },
   description: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
   },
   rowsContainer: {

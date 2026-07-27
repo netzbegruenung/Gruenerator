@@ -19,7 +19,7 @@ import { WelcomeIllustration } from '../../components/onboarding/illustrations/W
 import { OnboardingDots } from '../../components/onboarding/OnboardingDots';
 import { OnboardingSlide } from '../../components/onboarding/OnboardingSlide';
 import { useOnboardingStore } from '../../stores/onboardingStore';
-import { colors, spacing, lightTheme, darkTheme } from '../../theme';
+import { colors, spacing, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 
 interface Slide {
   title: string;
@@ -157,6 +157,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.large,
   },
   skipText: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '600',
   },

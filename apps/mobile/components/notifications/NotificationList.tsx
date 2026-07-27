@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 
 import { useNotifications, type AppNotification } from '../../hooks/useNotifications';
-import { colors, spacing, lightTheme, darkTheme } from '../../theme';
+import { colors, spacing, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 import { actionUrlToRoute } from '../../utils/actionUrl';
 
 const TYPE_ICONS: Record<string, IoniconsIconName> = {
@@ -194,12 +194,14 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxsmall,
   },
   sectionTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   readAll: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -208,6 +210,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
   },
   item: {
@@ -227,9 +230,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   itemContent: { flex: 1, gap: 2 },
-  itemTitle: { fontSize: 13, fontWeight: '600' },
-  itemBody: { fontSize: 12, lineHeight: 17 },
-  itemTime: { fontSize: 10, marginTop: 2 },
+  itemTitle: { fontFamily: BODY_FONT, fontSize: 13, fontWeight: '600' },
+  itemBody: { fontFamily: BODY_FONT, fontSize: 12, lineHeight: 17 },
+  itemTime: { fontFamily: BODY_FONT, fontSize: 10, marginTop: 2 },
   dismissBtn: { paddingTop: 4 },
   footer: { paddingVertical: spacing.medium, alignItems: 'center' },
 });

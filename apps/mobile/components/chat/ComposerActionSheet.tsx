@@ -24,7 +24,7 @@ import { View, Text, Pressable, ScrollView, StyleSheet, useColorScheme } from 'r
 import { useShallow } from 'zustand/shallow';
 
 import { useTheme } from '../../hooks/useTheme';
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT } from '../../theme';
 import { route } from '../../types/routes';
 import { BottomSheet } from '../common/BottomSheet';
 
@@ -175,7 +175,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
       accessibilityLabel={label}
     >
       <View style={[styles.tileBadge, badgeStyle]}>
-        <Ionicons name={icon} size={26} color={theme.text} />
+        <Ionicons name={icon} size={22} color={theme.text} />
       </View>
       <Text style={[styles.tileLabel, { color: theme.text }]}>{label}</Text>
     </Pressable>
@@ -345,7 +345,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
     });
   };
 
-  const hasAttachments = !!(onTakePhoto || onPickImage || onPickFile);
+  const hasAttachments = !!(onTakePhoto || onPickImage || onPickFile || onOpenDocBrowser);
 
   return (
     <BottomSheet
@@ -378,19 +378,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
                 {onTakePhoto && tile('camera-outline', 'Kamera', onTakePhoto)}
                 {onPickImage && tile('image-outline', 'Fotos', onPickImage)}
                 {onPickFile && tile('document-attach-outline', 'Dateien', onPickFile)}
-              </View>
-            )}
-
-            {onOpenDocBrowser && (
-              <View style={[styles.group, cardStyle]}>
-                {row({
-                  key: 'docs',
-                  icon: 'document-text-outline',
-                  title: 'Dokument',
-                  value: 'Aus deinen Grünerator-Dokumenten',
-                  onPress: () => runAction(onOpenDocBrowser),
-                  last: true,
-                })}
+                {onOpenDocBrowser && tile('folder-open-outline', 'Dokumente', onOpenDocBrowser)}
               </View>
             )}
 
@@ -495,19 +483,20 @@ const styles = StyleSheet.create({
   tile: {
     flex: 1,
     alignItems: 'center',
-    gap: spacing.small,
-    paddingVertical: spacing.medium,
+    gap: spacing.xsmall,
+    paddingVertical: spacing.small + 2,
     borderRadius: borderRadius.large,
   },
   tileBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
   },
   tileLabel: {
-    fontSize: 16,
+    fontFamily: BODY_FONT,
+    fontSize: 14,
   },
   group: {
     borderRadius: borderRadius.large,
@@ -531,9 +520,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   rowTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 17,
   },
   rowValue: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     marginTop: 1,
   },

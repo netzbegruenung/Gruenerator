@@ -7,7 +7,7 @@ import { AssistantThread } from '../../../components/chat/AssistantThread';
 import { ChatDrawerHeader } from '../../../components/chat/ChatDrawerHeader';
 import { Composer } from '../../../components/common';
 import { useDrawerStore } from '../../../hooks/useDrawerStore';
-import { spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
+import { spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../../theme';
 
 const CHAT_EXAMPLES = [
   { label: 'Pressemitteilung', text: 'Schreibe eine Pressemitteilung zum Thema Klimaschutz' },
@@ -107,10 +107,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.large,
   },
   greetingText: {
+    fontFamily: BODY_FONT,
     fontSize: 26,
     fontWeight: '700',
   },
   greetingSubtitle: {
+    fontFamily: BODY_FONT,
     fontSize: 26,
     fontWeight: '700',
     marginTop: 2,
@@ -128,6 +130,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   promptLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '500',
   },
