@@ -525,6 +525,24 @@ export function getLoopPlannerModel(): LanguageModel {
 }
 
 /**
+ * Sibling lane for the split's WRITE phase, tried once when the chosen synth
+ * lane accepts the request and then goes silent.
+ *
+ * The planner lane is the deliberate pick: it is already resolved for this
+ * turn, it is the confirmed fast responder, and it has just read every gathered
+ * source — so it can answer over them without any new configuration or a second
+ * slot. Returns null when the synth already IS that lane, since falling back
+ * onto the stalled host would only repeat the stall.
+ */
+export function getLoopSynthFallbackModel(
+  synthName: string
+): { model: LanguageModel; name: string } | null {
+  const p = loopPlannerChoice();
+  if (p.model === synthName) return null;
+  return { model: getModel(p.provider, p.model), name: p.model };
+}
+
+/**
  * Synthesizer for the split's write phase. Pure DECISION (no model
  * instantiation) — env-free & unit-testable. `null` provider means "honor the
  * resolved model as-is".
