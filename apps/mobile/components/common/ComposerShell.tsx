@@ -1,7 +1,7 @@
 import { View, StyleSheet, useColorScheme } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
-import { colors, spacing, borderRadius, BODY_FONT } from '../../theme';
+import { colors, spacing, borderRadius, chatType } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
 import type { StyleProp, ViewStyle, TextStyle } from 'react-native';
@@ -22,6 +22,41 @@ export type ComposerVariant = 'card' | 'bar';
 
 /** Default height of the `card` box — the landing heroes' focal input. */
 export const COMPOSER_CARD_MIN_HEIGHT = 130;
+
+/**
+ * The composer types in `chatBody` — the same tier as the answers above it.
+ *
+ * It carried its own 19/20 before, a fifth above the system default, and that
+ * was a size rather than a decision: nothing else in the app was that big, so
+ * the thing you type in read louder than the conversation it joins. Measured
+ * against Claude's Android composer on the same handset (x-height 28px against
+ * our 32px, i.e. ≈17.5dp against our 20), ours was ~14% larger.
+ *
+ * `chatBody` rather than a literal 17: it is the tier that means "a sentence
+ * someone reads", which is what a draft is, and it moves with the screen
+ * through `typeScale` instead of being fitted to one handset.
+ */
+const LINE_HEIGHT = Number(chatType.chatBody.lineHeight);
+
+const BAR_INPUT_PADDING_V = 12;
+const BAR_PADDING_V = 5;
+const BAR_ICON_SIZE = 38;
+const BAR_ACTION_SIZE = 42;
+const BAR_MAX_LINES = 4;
+const CARD_MAX_LINES = 5;
+
+/**
+ * Where the last text line's centre sits above the bar's content bottom.
+ *
+ * Everything the bar is made of follows from this, because the row is
+ * `alignItems: 'flex-end'` and the input is taller than either button. Derived
+ * rather than written down: these were literals until the type moved under
+ * them, and the comment explaining them had been quoting a line height two
+ * revisions out of date while the arithmetic used the current one. A formula
+ * cannot fall out of step with itself.
+ */
+const BAR_TEXT_CENTRE = BAR_INPUT_PADDING_V + LINE_HEIGHT / 2;
+const BAR_INPUT_HEIGHT = LINE_HEIGHT + BAR_INPUT_PADDING_V * 2;
 
 interface ComposerShellProps {
   variant?: ComposerVariant;
@@ -112,37 +147,38 @@ const buttonStyles = StyleSheet.create({
 
   // Bar-only. The row is `alignItems: 'flex-end'` so the buttons stay beside the
   // LAST line once the input grows — but that bottom-aligns them against the
-  // input, which is taller than either button (lineHeight 24 + 12/12 padding =
-  // 48). Without compensation both sit below the text they belong to, and 2dp
-  // apart from each other, since they are not the same size.
+  // input, which is taller than either button. Without compensation both sit
+  // below the text they belong to, and 2dp apart from each other, since they are
+  // not the same size.
   //
-  // marginBottom lifts each button's centre onto the text line's centre, which
-  // sits paddingBottom(12) + lineHeight/2(14.5) = 26.5dp above the content bottom:
-  //   icon: 26.5 - 38/2 = 7.5    action: 26.5 - 42/2 = 5.5
-  // Correct for the multi-line case too — the target is the last line, not the
-  // input's outer box.
+  // `BAR_TEXT_CENTRE` minus half the button lifts each one's centre onto the
+  // text line's centre. Correct for the multi-line case too — the target is the
+  // last line, not the input's outer box.
   //
-  // The halves are not cosmetic. Rounded to 7 and 5 both glyphs sat a measured
-  // ~1dp below the pill's centre line — small, but on a 64dp capsule with
-  // nothing else to reference, the eye catches it. And while the input is one
-  // line the text-line centre IS the pill's centre (content box = input height
-  // 53, padding 5/5), so exact here means exact against the capsule too.
+  // The fractions the arithmetic produces are not cosmetic. Rounded to whole
+  // points both glyphs sat a measured ~1dp below the pill's centre line — small,
+  // but on a capsule with nothing else to reference, the eye catches it. And
+  // while the input is one line the text-line centre IS the pill's centre, so
+  // exact here means exact against the capsule too.
+  //
+  // The sizes stay fixed while the type scales: a touch target is set by the
+  // finger, not by the screen it sits on.
   //
   // The `card` variant centres its toolbar in a row of its own and needs none of
   // this, which is why these are separate styles rather than edits above.
   barIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    marginBottom: 7.5,
+    width: BAR_ICON_SIZE,
+    height: BAR_ICON_SIZE,
+    borderRadius: BAR_ICON_SIZE / 2,
+    marginBottom: BAR_TEXT_CENTRE - BAR_ICON_SIZE / 2,
     justifyContent: 'center',
     alignItems: 'center',
   },
   barAction: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    marginBottom: 5.5,
+    width: BAR_ACTION_SIZE,
+    height: BAR_ACTION_SIZE,
+    borderRadius: BAR_ACTION_SIZE / 2,
+    marginBottom: BAR_TEXT_CENTRE - BAR_ACTION_SIZE / 2,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -171,26 +207,20 @@ export function composerIconSize(variant: ComposerVariant): number {
 export const COMPOSER_ACTION_FILL = colors.primary[600];
 
 const inputStyles = StyleSheet.create({
-  // PT Sans, the body face web sets after Raleway, one fifth larger than the
-  // system default sizes this used to carry (16/17 → 19/20).
   card: {
     flex: 1,
-    fontFamily: BODY_FONT,
-    fontSize: 19,
-    lineHeight: 26,
+    ...chatType.chatBody,
     minHeight: 40,
-    maxHeight: 132,
+    maxHeight: LINE_HEIGHT * CARD_MAX_LINES,
     paddingVertical: 0,
     textAlignVertical: 'top',
   },
   bar: {
     flex: 1,
-    fontFamily: BODY_FONT,
-    fontSize: 20,
-    lineHeight: 29,
-    maxHeight: 145,
-    paddingTop: 12,
-    paddingBottom: 12,
+    ...chatType.chatBody,
+    maxHeight: LINE_HEIGHT * BAR_MAX_LINES + BAR_INPUT_PADDING_V * 2,
+    paddingTop: BAR_INPUT_PADDING_V,
+    paddingBottom: BAR_INPUT_PADDING_V,
     paddingLeft: spacing.xxsmall,
   },
 });
@@ -220,10 +250,10 @@ const styles = StyleSheet.create({
   spacer: {
     flex: 1,
   },
-  // Sizing is ~10% up from the original 52dp bar. minHeight is deliberately the
-  // natural content height (input 48 + 5/5 padding), not a round number above
-  // it: the row is `alignItems: 'flex-end'`, so any minHeight in excess of the
-  // content becomes slack that lands on TOP and pushes everything down.
+  // minHeight is deliberately the natural content height, not a round number
+  // above it: the row is `alignItems: 'flex-end'`, so any minHeight in excess of
+  // the content becomes slack that lands on TOP and pushes everything down.
+  // Computed, so the capsule keeps hugging the text when the type scales.
   bar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -235,8 +265,8 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     paddingLeft: spacing.xsmall,
     paddingRight: spacing.xxsmall,
-    paddingVertical: 5,
-    minHeight: 64,
+    paddingVertical: BAR_PADDING_V,
+    minHeight: BAR_INPUT_HEIGHT + BAR_PADDING_V * 2,
     gap: spacing.xxsmall,
   },
 });
