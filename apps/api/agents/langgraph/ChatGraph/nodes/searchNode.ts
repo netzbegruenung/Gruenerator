@@ -44,6 +44,7 @@ import {
   type Citation,
   type ResearchToolResult,
   type ExamplesToolResult,
+  type SearchErrorEntry,
 } from '../types.js';
 
 import {
@@ -71,6 +72,18 @@ export {
 };
 
 const log = createLogger('ChatGraph:Search');
+
+/**
+ * How many candidates a fan-in hands downstream, BEFORE reranking.
+ *
+ * This used to be 8 — below the reranker's own input budget
+ * (RERANK_INPUT_LIMIT = 16, or 20 when notebook-scoped), so the cross-encoder
+ * could only reorder what the weaker retrieval score had already picked. Its
+ * entire value is promoting a result that scored low on the cheap metric, which
+ * a pre-cut of 8 makes impossible. Sized above the largest rerank input so the
+ * reranker is the thing that decides, not the fan-in.
+ */
+const FANIN_CANDIDATE_LIMIT = 24;
 
 // ── Abgeordnetenwatch → SearchResult mapping ──────────────────────────────────
 const AW_VOTE_LABELS: Record<string, string> = {
@@ -193,8 +206,9 @@ function buildAbgeordnetenwatchResults(enriched: AwEnrichedResult): SearchResult
 }
 
 // ── Bundestag (DIP) → SearchResult mapping ────────────────────────────────────
-// dipSearchUrl / btpPdfUrl link helpers are shared with the BundestagCard via
-// @gruenerator/contracts (imported at the top of this file).
+// dipSearchUrl / btpPdfUrl link helpers live in @gruenerator/contracts
+// (imported at the top of this file). Titles double as citation labels
+// ("Drucksache 21/123 · Antrag") in the standard sources footer.
 function btDrucksacheResult(d: BtDrucksache, relevance: number): SearchResult {
   const content =
     [d.titel, d.datum, d.urheber.length > 0 ? `Urheber: ${d.urheber.join(', ')}` : null]
@@ -355,7 +369,7 @@ export function getSupplementaryCollectionsForLocale(locale: string | undefined)
 export interface DocumentSearchParallelResult {
   results: SearchResult[];
   searchedCollections: string[];
-  errors: { source: string; message: string }[];
+  errors: SearchErrorEntry[];
 }
 
 export async function executeDocumentSearchParallel(
@@ -391,7 +405,7 @@ export async function executeDocumentSearchParallel(
   // (the collection's defaultFilter already handles this)
   const searchFilters = filters || undefined;
 
-  const collectedErrors: { source: string; message: string }[] = [];
+  const collectedErrors: SearchErrorEntry[] = [];
   const searchPromises = uniqueCollections.flatMap((collection) =>
     queries.map((sq) => {
       const params: Parameters<typeof executeDirectSearch>[0] = {
@@ -418,6 +432,17 @@ export async function executeDocumentSearchParallel(
 
   for (const searchResult of searchResults) {
     if (!searchResult?.results) continue;
+    // The search service does NOT throw on a backend failure — it resolves with
+    // `{ error: true, results: [] }`. The .catch above therefore never fires,
+    // and an empty array is truthy, so a Qdrant outage used to slip through
+    // here as "no hits" with no error recorded anywhere.
+    if (searchResult.error) {
+      collectedErrors.push({
+        source: `documents:${searchResult.collection}`,
+        message: searchResult.message ?? 'Suche fehlgeschlagen',
+      });
+      continue;
+    }
     for (const r of searchResult.results) {
       if (r.url && seenUrls.has(r.url)) continue;
       if (r.url) seenUrls.add(r.url);
@@ -438,11 +463,24 @@ export async function executeDocumentSearchParallel(
   }
 
   allResults.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
-  // Only surface errors when the source produced zero usable results.
-  // Partial failures (some collections OK, some failed) are already logged as warns.
-  const errors = allResults.length === 0 ? collectedErrors : [];
+  // Report a collection only when EVERY one of its queries failed — that
+  // corpus contributed nothing and the answer is missing it entirely.
+  // Previously all partial failures were dropped as soon as any other
+  // collection returned something, so an answer built on a quarter of the
+  // corpus looked complete. Per-query failures within a still-working
+  // collection stay warns: the corpus was reached, one phrasing missed.
+  const failuresPerCollection = new Map<string, number>();
+  for (const err of collectedErrors) {
+    failuresPerCollection.set(err.source, (failuresPerCollection.get(err.source) ?? 0) + 1);
+  }
+  const errors =
+    allResults.length === 0
+      ? collectedErrors
+      : collectedErrors.filter(
+          (err) => (failuresPerCollection.get(err.source) ?? 0) >= queries.length
+        );
   return {
-    results: allResults.slice(0, 8),
+    results: allResults.slice(0, FANIN_CANDIDATE_LIMIT),
     searchedCollections: uniqueCollections,
     errors,
   };
@@ -453,14 +491,14 @@ export async function executeDocumentSearchParallel(
  */
 export interface WebSearchParallelResult {
   results: SearchResult[];
-  errors: { source: string; message: string }[];
+  errors: SearchErrorEntry[];
 }
 
 export async function executeWebSearchParallel(
   query: string,
   aiWorkerPool: AIWorkerPool
 ): Promise<WebSearchParallelResult> {
-  const collectedErrors: { source: string; message: string }[] = [];
+  const collectedErrors: SearchErrorEntry[] = [];
   let allWebQueries = [query];
   try {
     const expanded = await expandQuery(query, aiWorkerPool);
@@ -493,6 +531,14 @@ export async function executeWebSearchParallel(
 
   for (const webResult of webResults) {
     if (!webResult?.results) continue;
+    // Same resolved-not-thrown failure shape as the document search above.
+    if (webResult.error) {
+      collectedErrors.push({
+        source: 'web',
+        message: webResult.message ?? 'Websuche fehlgeschlagen',
+      });
+      continue;
+    }
     for (const r of webResult.results) {
       if (r.url && seenWebUrls.has(r.url)) continue;
       if (r.url) seenWebUrls.add(r.url);
@@ -509,7 +555,7 @@ export async function executeWebSearchParallel(
   allWebResults.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
   // Only surface when zero usable results — partial variant failures are normal.
   const errors = allWebResults.length === 0 ? collectedErrors : [];
-  return { results: allWebResults.slice(0, 8), errors };
+  return { results: allWebResults.slice(0, FANIN_CANDIDATE_LIMIT), errors };
 }
 
 /**
@@ -576,7 +622,7 @@ export function mergeSearchResults(...resultSets: SearchResult[][]): SearchResul
 export interface MultiDocFanoutResult {
   perSourceResults: Record<string, SearchResult[]>;
   searchedCollections: string[];
-  errors: { source: string; message: string }[];
+  errors: SearchErrorEntry[];
 }
 
 export async function executeMultiDocFanout(
@@ -585,7 +631,7 @@ export async function executeMultiDocFanout(
   agentConfig: AgentConfig
 ): Promise<MultiDocFanoutResult> {
   const perSourceLimit = Math.max(3, Math.floor(12 / sources.length));
-  const errors: { source: string; message: string }[] = [];
+  const errors: SearchErrorEntry[] = [];
   const collections = new Set<string>();
 
   const documentSearchService = (
@@ -631,8 +677,14 @@ export async function executeMultiDocFanout(
           log.warn(`[Search] Skipping wolke source ${src.id}: no userId on agentConfig`);
           return [src.id, []];
         }
-        const results = await retrieveWolkeFile(src, perSourceLimit, agentConfig.userId);
-        return [src.id, results];
+        const wolkeResult = await retrieveWolkeFile(src, perSourceLimit, agentConfig.userId);
+        if (wolkeResult.error) {
+          errors.push({
+            source: `${SOURCE_PREFIX.WOLKE}${src.id}`,
+            message: wolkeResult.error.message,
+          });
+        }
+        return [src.id, wolkeResult.results];
       }
 
       if (src.kind === 'connect') {
@@ -641,8 +693,18 @@ export async function executeMultiDocFanout(
           log.warn(`[Search] Skipping connect source ${src.id}: no userId on agentConfig`);
           return [src.id, []];
         }
-        const results = await retrieveConnectFile(src, perSourceLimit, agentConfig.userId);
-        return [src.id, results];
+        const connectResult = await retrieveConnectFile(src, perSourceLimit, agentConfig.userId);
+        if (connectResult.error) {
+          errors.push({
+            source: `${SOURCE_PREFIX.CONNECT}${src.id}`,
+            message: connectResult.error.message,
+            // Expired OAuth grant: the user can fix this one, so it must stay
+            // distinguishable all the way to the emitter (which picks
+            // connect_reauth_required over the generic source_unavailable).
+            ...(connectResult.error.reauth === true && { reauth: true }),
+          });
+        }
+        return [src.id, connectResult.results];
       }
 
       if (src.kind === 'notebook' && src.collectionIds && src.collectionIds.length > 0) {
@@ -738,7 +800,11 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     let searchedCollections: string[] = [];
     let researchMeta: ResearchToolResult | null = null;
     let examplesResult: ExamplesToolResult | null = null;
-    let bundestagResult: BtEnrichedResult | null = null;
+    // Backend failures on the single-source paths. The multi-source paths have
+    // collected these all along; here they were only logged, so a Qdrant or
+    // SearXNG outage reached the user as "0 Treffer" — and the model then
+    // confidently said there is nothing on the topic.
+    const singleSourceErrors: SearchErrorEntry[] = [];
 
     const searchSources = state.searchSources || [];
     const documentSources = state.documentSources || [];
@@ -796,7 +862,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       type SourceResult = {
         results: SearchResult[];
         collections: string[];
-        errors: { source: string; message: string }[];
+        errors: SearchErrorEntry[];
       };
       const sourcePromises: Promise<SourceResult>[] = [];
 
@@ -1029,9 +1095,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             }
             searchedCollections.push('documentchat');
           } catch (err: unknown) {
-            log.warn(
-              `[Search] Document-chat search failed: ${err instanceof Error ? err.message : String(err)}`
-            );
+            const msg = err instanceof Error ? err.message : String(err);
+            log.warn(`[Search] Document-chat search failed: ${msg}`);
+            singleSourceErrors.push({ source: 'documents:documentchat', message: msg });
           }
           break;
         }
@@ -1090,9 +1156,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             }
             searchedCollections.push(fromUserNotebook ? 'user-notebook' : 'user-documents');
           } catch (err: unknown) {
-            log.warn(
-              `[Search] Document-scoped search failed: ${err instanceof Error ? err.message : String(err)}`
-            );
+            const msg = err instanceof Error ? err.message : String(err);
+            log.warn(`[Search] Document-scoped search failed: ${msg}`);
+            singleSourceErrors.push({ source: 'documents:scoped', message: msg });
           }
           break;
         }
@@ -1164,9 +1230,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
               params.filters = detectedFilters;
             }
             return executeDirectSearch(params).catch((err: unknown) => {
-              log.warn(
-                `[Search] Collection ${collection} failed for query "${sq}": ${err instanceof Error ? err.message : String(err)}`
-              );
+              const msg = err instanceof Error ? err.message : String(err);
+              log.warn(`[Search] Collection ${collection} failed for query "${sq}": ${msg}`);
+              singleSourceErrors.push({ source: `documents:${collection}`, message: msg });
               return null;
             });
           })
@@ -1180,6 +1246,14 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
         for (const searchResult of searchResults) {
           if (!searchResult?.results) continue;
+          // Resolved-not-thrown failure (see executeDocumentSearchParallel).
+          if (searchResult.error) {
+            singleSourceErrors.push({
+              source: `documents:${searchResult.collection}`,
+              message: searchResult.message ?? 'Suche fehlgeschlagen',
+            });
+            continue;
+          }
           for (const r of searchResult.results) {
             // Deduplicate by URL
             if (r.url && seenUrls.has(r.url)) continue;
@@ -1296,9 +1370,6 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           break;
         }
         const enriched = await getBundestagEnrichedService().search(searchQuery || '');
-        // Stash the structured result for the dedicated BundestagCard; the flat
-        // `results` below stay for text grounding + inline citations.
-        bundestagResult = enriched;
         results = buildBundestagResults(enriched);
         log.info(
           `[Search] Bundestag (${enriched.kind}): ${results.length} results in ${Date.now() - startTime}ms`
@@ -1332,9 +1403,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             searchType: 'general',
             maxResults: 5,
           }).catch((err: unknown) => {
-            log.warn(
-              `[Search] Web search failed for variant "${q}": ${err instanceof Error ? err.message : String(err)}`
-            );
+            const msg = err instanceof Error ? err.message : String(err);
+            log.warn(`[Search] Web search failed for variant "${q}": ${msg}`);
+            singleSourceErrors.push({ source: 'web', message: msg });
             return null;
           })
         );
@@ -1346,6 +1417,13 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
         for (const webResult of webResults) {
           if (!webResult?.results) continue;
+          if (webResult.error) {
+            singleSourceErrors.push({
+              source: 'web',
+              message: webResult.message ?? 'Websuche fehlgeschlagen',
+            });
+            continue;
+          }
           for (const r of webResult.results) {
             if (r.url && seenWebUrls.has(r.url)) continue;
             if (r.url) seenWebUrls.add(r.url);
@@ -1361,7 +1439,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
         // Sort by relevance and limit
         allWebResults.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
-        results = allWebResults.slice(0, 8);
+        results = allWebResults.slice(0, FANIN_CANDIDATE_LIMIT);
 
         // A1: Crawl top 2 web results for full content
         try {
@@ -1561,8 +1639,13 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       searchTimeMs,
       researchMeta,
       examplesResult,
-      bundestagResult,
       ...(searchedCollections.length > 0 && { searchedCollections }),
+      // Only when the turn ends up with nothing: a backend failure that still
+      // left usable results is a warn, not a user-facing degradation. With
+      // zero results the distinction is exactly what the user needs — "there
+      // is nothing on this" versus "the search never ran".
+      ...(results.length === 0 &&
+        singleSourceErrors.length > 0 && { searchErrors: singleSourceErrors }),
     };
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : String(error);

@@ -9,7 +9,10 @@
  *    surface a topically related past thread even without shared keywords.
  *  - office content — docs, boards, sheets, presentations (`recallOfficeDocuments`):
  *    title + content-preview search over `collaborative_documents`, reusing
- *    `searchOfficeContent`. `rerankRecall` then cross-ranks both sources.
+ *    `searchOfficeContent`.
+ *  - reels — the user's subtitled videos (`recallReels`): title + spoken
+ *    subtitle content, reusing `searchReels`.
+ * `rerankRecall` then cross-ranks all three sources.
  *
  * This is deliberately separate from mem0 fact memory: mem0 stores distilled
  * facts about the user; this returns raw conversation excerpts and document
@@ -21,6 +24,7 @@ import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { searchThreadRecall } from '../../../services/chat/threadRecallEmbeddingService.js';
 import { rerankPipeline } from '../../../services/search/rerankPipeline.js';
+import { type ReelHit, searchReels } from '../../../services/subtitler/reelSearch.js';
 import { createLogger } from '../../../utils/logger.js';
 import { toIsoOrNull, toIsoString } from '../../../utils/toIsoString.js';
 import {
@@ -41,13 +45,21 @@ const DEEP_READ_MAX_CHARS = 4_000;
 
 /**
  * Owned, regular thread ids filed into a Space (group_id) — the scope for
- * space-aware recall. Returns [] on error/empty so callers treat it as
- * "no threads in scope".
+ * space-aware recall.
+ *
+ * Discriminated on purpose: an empty result used to be indistinguishable from a
+ * DB error, and `recallPastChats` treats an empty scope as "search nothing" —
+ * so a transient failure answered "dazu finde ich nichts" for a Space full of
+ * chats. `ok: false` lets the caller fall back to unscoped recall instead of
+ * silently searching an empty set.
  */
+export type SpaceThreadIdsResult =
+  { ok: true; threads: { id: string; title: string | null }[] } | { ok: false };
+
 export async function resolveSpaceThreadIds(
   groupId: string,
   userId: string
-): Promise<{ id: string; title: string | null }[]> {
+): Promise<SpaceThreadIdsResult> {
   const db = getPostgresInstance();
   try {
     const rows = (await db.query(
@@ -57,10 +69,10 @@ export async function resolveSpaceThreadIds(
        ORDER BY updated_at DESC`,
       [groupId, userId]
     )) as Array<{ id: string; title: string | null }>;
-    return rows.map((r) => ({ id: r.id, title: r.title }));
+    return { ok: true, threads: rows.map((r) => ({ id: r.id, title: r.title })) };
   } catch (err) {
     log.warn(`[Recall] resolveSpaceThreadIds failed: ${err}`);
-    return [];
+    return { ok: false };
   }
 }
 
@@ -88,9 +100,11 @@ export async function getSpaceRecallScope(
     if (rows.length === 0) return null;
     const space = rows[0];
 
-    const siblings = (await resolveSpaceThreadIds(space.id, userId)).filter(
-      (s) => s.id !== threadId
-    );
+    const siblingResult = await resolveSpaceThreadIds(space.id, userId);
+    // Lookup failed (not "the Space is empty"): returning a scope of zero
+    // threads would silently search nothing. Fall back to unscoped recall.
+    if (!siblingResult.ok) return null;
+    const siblings = siblingResult.threads.filter((s) => s.id !== threadId);
     const threadIds = siblings.map((s) => s.id);
     const list =
       siblings.length > 0
@@ -148,25 +162,41 @@ export async function recallOfficeDocuments(
   }
 }
 
+/**
+ * Search the user's own reels — subtitled videos — by title and by the spoken
+ * subtitle content. Reuses `searchReels`, which is scoped to `user_id`; reels
+ * have no group sharing, so ownership is the whole access rule.
+ */
+export async function recallReels(userId: string, query: string, limit = 3): Promise<ReelHit[]> {
+  if (!query.trim()) return [];
+  return searchReels(userId, query, limit);
+}
+
 const RERANK_SNIPPET_CHARS = 300;
 
 /**
- * Cross-source relevance ranking of recall candidates (chats + office content)
- * via the shared cross-encoder `rerankPipeline`, so the few most relevant items
- * survive regardless of source — instead of blindly injecting N of each. Returns
- * the kept subsets (rerank order preserved). Degrades to the inputs (truncated
- * to `keep`) when reranking is unavailable or the list is trivially small.
+ * Cross-source relevance ranking of recall candidates (chats + office content +
+ * reels) via the shared cross-encoder `rerankPipeline`, so the few most relevant
+ * items survive regardless of source — instead of blindly injecting N of each.
+ * Returns the kept subsets (rerank order preserved). Degrades to the inputs
+ * (truncated to `keep`) when reranking is unavailable or the list is trivially
+ * small.
  */
 export async function rerankRecall(
   query: string,
   chats: ChatSearchResult[],
   officeDocs: OfficeDocHit[],
-  keep: number
-): Promise<{ chats: ChatSearchResult[]; officeDocs: OfficeDocHit[] }> {
-  type Candidate = { kind: 'chat'; hit: ChatSearchResult } | { kind: 'office'; hit: OfficeDocHit };
+  keep: number,
+  reels: ReelHit[] = []
+): Promise<{ chats: ChatSearchResult[]; officeDocs: OfficeDocHit[]; reels: ReelHit[] }> {
+  type Candidate =
+    | { kind: 'chat'; hit: ChatSearchResult }
+    | { kind: 'office'; hit: OfficeDocHit }
+    | { kind: 'reel'; hit: ReelHit };
   const candidates: Candidate[] = [
     ...chats.map((hit) => ({ kind: 'chat' as const, hit })),
     ...officeDocs.map((hit) => ({ kind: 'office' as const, hit })),
+    ...reels.map((hit) => ({ kind: 'reel' as const, hit })),
   ];
 
   const splitKept = (kept: Candidate[]) => ({
@@ -176,25 +206,36 @@ export async function rerankRecall(
     officeDocs: kept
       .filter((c): c is Extract<Candidate, { kind: 'office' }> => c.kind === 'office')
       .map((c) => c.hit),
+    reels: kept
+      .filter((c): c is Extract<Candidate, { kind: 'reel' }> => c.kind === 'reel')
+      .map((c) => c.hit),
   });
 
   if (candidates.length <= 1 || !query.trim()) {
     return splitKept(candidates.slice(0, keep));
   }
 
-  const items = candidates.map((c) =>
-    c.kind === 'chat'
-      ? {
-          title: c.hit.threadTitle ?? 'Chat',
-          content: (c.hit.snippet ?? '').slice(0, RERANK_SNIPPET_CHARS),
-          source: 'chat',
-        }
-      : {
-          title: c.hit.title ?? c.hit.kind,
-          content: c.hit.snippet.slice(0, RERANK_SNIPPET_CHARS),
-          source: c.hit.subtype ?? 'office',
-        }
-  );
+  const items = candidates.map((c) => {
+    if (c.kind === 'chat') {
+      return {
+        title: c.hit.threadTitle ?? 'Chat',
+        content: (c.hit.snippet ?? '').slice(0, RERANK_SNIPPET_CHARS),
+        source: 'chat',
+      };
+    }
+    if (c.kind === 'reel') {
+      return {
+        title: c.hit.title,
+        content: c.hit.snippet.slice(0, RERANK_SNIPPET_CHARS),
+        source: 'reel',
+      };
+    }
+    return {
+      title: c.hit.title ?? c.hit.kind,
+      content: c.hit.snippet.slice(0, RERANK_SNIPPET_CHARS),
+      source: c.hit.subtype ?? 'office',
+    };
+  });
 
   try {
     const { rankedIndices } = await rerankPipeline({
@@ -202,7 +243,11 @@ export async function rerankRecall(
       items,
       outputLimit: keep,
       instruct: 'Finde die eigenen Inhalte des Nutzers, die zur Anfrage am relevantesten sind.',
-      sourceTagFn: (it) => (it.source === 'chat' ? 'Chat' : 'Eigener Inhalt'),
+      sourceTagFn: (it) => {
+        if (it.source === 'chat') return 'Chat';
+        if (it.source === 'reel') return 'Reel';
+        return 'Eigener Inhalt';
+      },
     });
     return splitKept(rankedIndices.map((i) => candidates[i]));
   } catch (err) {
@@ -237,6 +282,11 @@ export async function recallPastChats(
   // space with no chats doesn't fall through to an unscoped global recall.
   if (threadIds && threadIds.length === 0) return [];
 
+  // Best-effort like the semantic half below: `searchChatHistory` throws now
+  // (so the /chat/search ENDPOINT can answer 500 instead of "no hits"), but
+  // inside a chat turn a transient DB error must degrade recall, not abort the
+  // whole answer. The empty result then reads as "nothing recalled", which the
+  // router surfaces via recall_degraded.
   const keywordPromise = searchChatHistory(userId, query, {
     ownedOnly: true,
     limit,
@@ -244,6 +294,9 @@ export async function recallPastChats(
     ...(startDate != null && { startDate }),
     ...(endDate != null && { endDate }),
     ...(threadIds != null && { threadIds }),
+  }).catch((err: unknown) => {
+    log.warn(`[Recall] Keyword thread search failed (recall degraded): ${err}`);
+    return [] as Awaited<ReturnType<typeof searchChatHistory>>;
   });
 
   // Semantic is best-effort: a Qdrant/Mistral outage must never break recall.
@@ -311,11 +364,16 @@ export async function getThreadRecallContext(
         [threadId, maxMessages]
       )) as Array<{ role: string; content: string }>;
 
-      transcript = messageRows
+      // The rows arrive newest-first; `.reverse()` restores reading order, so a
+      // head-slice would keep the OLDEST part of the excerpt and drop the most
+      // recent exchange — the exact opposite of what "was hatten wir zuletzt
+      // beschlossen?" needs. Keep the TAIL instead.
+      const ordered = messageRows
         .reverse()
         .map((m) => `[${m.role}] ${m.content}`)
-        .join('\n')
-        .slice(0, maxChars);
+        .join('\n');
+      transcript =
+        ordered.length > maxChars ? `…\n${ordered.slice(ordered.length - maxChars)}` : ordered;
     }
 
     return {
@@ -383,6 +441,35 @@ export function formatOfficeDocsBlock(docs: OfficeDocHit[]): string {
     const title = d.title?.trim() || 'Unbenanntes Dokument';
     const meta = d.updatedAt ? `${d.kind}, ${formatGermanDate(d.updatedAt)}` : d.kind;
     lines.push(`- „${title}" (${meta})`);
+  }
+  return lines.join('\n').trimEnd();
+}
+
+/**
+ * German system-prompt block listing the user's own matching reels together
+ * with the transcript lines that matched. Unlike the docs block this carries
+ * actual spoken content, because the common follow-up ("schreib mir eine
+ * Caption dazu") has to work from what is said in the video — same framing
+ * though: context to work from, not a citable source. Returns '' when empty.
+ */
+export function formatReelsBlock(reels: ReelHit[]): string {
+  if (reels.length === 0) return '';
+  const lines: string[] = [
+    '## RELEVANTE EIGENE REELS (KONTEXT – KEINE QUELLEN, NICHT ZITIEREN)',
+    '',
+    'Das sind untertitelte Videos des Nutzers. Die Zeilen darunter sind Auszüge aus dem',
+    'gesprochenen Untertitel-Transkript (Zeitstempel in Klammern). Du darfst darauf',
+    'aufbauen — etwa für eine Caption — und dich auf Zeitmarken beziehen. Erfinde nichts,',
+    'was nicht im Transkript steht.',
+    '',
+  ];
+  for (const r of reels) {
+    const meta = r.lastEditedAt
+      ? `Reel, zuletzt bearbeitet ${formatGermanDate(r.lastEditedAt)}`
+      : 'Reel';
+    lines.push(`### „${r.title}" (${meta})`);
+    lines.push(r.snippet || '(keine Untertitel vorhanden)');
+    lines.push('');
   }
   return lines.join('\n').trimEnd();
 }

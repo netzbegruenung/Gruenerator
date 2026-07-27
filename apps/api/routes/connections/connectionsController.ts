@@ -5,6 +5,7 @@ import * as atlassianClient from '../../services/api-clients/atlassianClient.js'
 import * as googleDriveClient from '../../services/api-clients/googleDriveClient.js';
 import * as microsoftGraphClient from '../../services/api-clients/microsoftGraphClient.js';
 import { ConnectionService } from '../../services/connections/ConnectionService.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { getParam } from '../../utils/params.js';
 
@@ -185,7 +186,7 @@ router.post(
       return res.json({
         ok: false,
         tools: [],
-        error: error instanceof Error ? error.message : 'Verbindung fehlgeschlagen',
+        error: toUserFacingMessage(error, 'Verbindung fehlgeschlagen'),
       });
     }
   }

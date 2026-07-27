@@ -1,9 +1,11 @@
-import { type SubtitleSegment } from '@gruenerator/contracts';
+import { type JobErrorCode, type SubtitleSegment } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { ProcessingState } from '@gruenerator/ui';
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MdCheck, MdError } from 'react-icons/md';
+
+import JobErrorNotice from '../../../components/common/JobErrorNotice';
 
 const POLL_INTERVAL = 2000;
 const POLL_INTERVAL_EXTENDED = 5000;
@@ -38,6 +40,9 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [overallProgress, setOverallProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<JobErrorCode | null>(null);
+  const [errorId, setErrorId] = useState<string | null>(null);
+  const [retryable, setRetryable] = useState<boolean | null>(null);
 
   const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startTimeRef = useRef<number>(Date.now());
@@ -79,7 +84,10 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
 
       if (data.status === 'error') {
         setStatus('error');
-        setError(data.error ?? 'Verarbeitung fehlgeschlagen');
+        setError(data.error ?? 'Die Verarbeitung ist fehlgeschlagen.');
+        setErrorCode(data.errorCode ?? null);
+        setErrorId(data.errorId ?? null);
+        setRetryable(data.retryable ?? null);
 
         if (pollingRef.current) {
           clearTimeout(pollingRef.current);
@@ -119,6 +127,7 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
       }, interval);
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- setState runs inside the async poll callback (post-mount, network-driven), not synchronously during render
     void pollProgress().then(() => scheduleNextPoll());
 
     return () => {
@@ -132,7 +141,7 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
 
   if (status === 'error') {
     return (
-      <div className="flex flex-col items-center gap-md py-xl text-center">
+      <div className="flex flex-col items-center gap-md py-xl">
         <motion.div
           className="flex size-16 items-center justify-center rounded-full bg-red-100 text-3xl text-red-600 dark:bg-red-900/30"
           initial={{ scale: 0 }}
@@ -141,7 +150,13 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
         >
           <MdError />
         </motion.div>
-        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        <JobErrorNotice
+          className="w-full max-w-md"
+          message={error}
+          code={errorCode}
+          retryable={retryable}
+          errorId={errorId}
+        />
       </div>
     );
   }

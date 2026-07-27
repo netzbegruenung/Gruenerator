@@ -3,7 +3,7 @@
  *
  * Scrolls landesverbaende_documents per (landesverband, source_type), deduplicates
  * by URL (Qdrant stores chunked PMs as multiple points), sorts by published_at DESC,
- * writes the top 20 as JSON to docs/landesverbaende/_raw/.
+ * writes the top 20 as JSON to docs/wissen/landesverbaende/_raw/.
  *
  * Usage: npx tsx apps/api/scripts/extract-lv-pms.ts
  *
@@ -21,7 +21,7 @@ const QDRANT_API_KEY = process.env.QDRANT_API_KEY ?? '';
 const BASIC_USER = process.env.QDRANT_BASIC_AUTH_USERNAME;
 const BASIC_PASS = process.env.QDRANT_BASIC_AUTH_PASSWORD;
 const COLLECTION = 'landesverbaende_documents';
-const OUTPUT_DIR = path.resolve(process.cwd(), 'documentation/docs/landesverbaende/_raw');
+const OUTPUT_DIR = path.resolve(process.cwd(), 'documentation/docs/wissen/landesverbaende/_raw');
 const TOP_N = 20;
 
 type SourceType = 'landesverband' | 'fraktion';

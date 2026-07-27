@@ -95,6 +95,9 @@ const envSchema = z.object({
   LITELLM_BASE_URL: z.string().optional(),
   REGOLO_API_KEY: z.string().optional(),
   REGOLO_DEFAULT_MODEL: z.string().optional(),
+  // GreenPT — OpenAI-compatible, https://api.greenpt.ai/v1
+  GREENPT_API_KEY: z.string().optional(),
+  GREENPT_DEFAULT_MODEL: z.string().optional(),
   BFL_API_KEY: z.string().optional(),
 
   // ── Web Search Providers ───────────────────────────────────────────────

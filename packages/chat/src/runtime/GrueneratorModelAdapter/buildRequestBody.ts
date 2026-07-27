@@ -3,8 +3,8 @@ import { useLastComputeStore } from '../../stores/lastComputeStore';
 import { getAvailableClientTools } from '../clientTools';
 
 import type { GrueneratorAdapterConfig } from './types';
-import type { ThreadMode } from '../../stores/chatStore';
 import type { parseAllMentions } from '../../lib/mentionParser';
+import type { ThreadMode } from '../../stores/chatStore';
 import type { CurrentBoard } from '@gruenerator/contracts';
 
 export type FormattedMessagePart =

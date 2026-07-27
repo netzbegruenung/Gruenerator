@@ -143,8 +143,7 @@ export function useFloatingModuleState<
         : textElement.opacity !== undefined
           ? resolveValue<number | undefined, TState>(
               textElement.opacity as
-                | number
-                | ((state: TState, layout: LayoutResult) => number | undefined),
+                number | ((state: TState, layout: LayoutResult) => number | undefined),
               state,
               layout
             )
@@ -154,8 +153,7 @@ export function useFloatingModuleState<
         : textElement.fill !== undefined
           ? resolveValue<string | undefined, TState>(
               textElement.fill as
-                | string
-                | ((state: TState, layout: LayoutResult) => string | undefined),
+                string | ((state: TState, layout: LayoutResult) => string | undefined),
               state,
               layout
             )
@@ -185,8 +183,7 @@ export function useFloatingModuleState<
         : imageElement.opacity !== undefined
           ? resolveValue<number | undefined, TState>(
               imageElement.opacity as
-                | number
-                | ((state: TState, layout: LayoutResult) => number | undefined),
+                number | ((state: TState, layout: LayoutResult) => number | undefined),
               state,
               layout
             )
@@ -227,8 +224,7 @@ export function useFloatingModuleState<
         : backgroundElement.opacity !== undefined
           ? resolveValue<number | undefined, TState>(
               backgroundElement.opacity as
-                | number
-                | ((state: TState, layout: LayoutResult) => number | undefined),
+                number | ((state: TState, layout: LayoutResult) => number | undefined),
               state,
               layout
             )

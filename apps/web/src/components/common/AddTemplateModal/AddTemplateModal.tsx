@@ -130,7 +130,10 @@ const AddTemplateModal = ({
   const isValidTemplate = canvaValidation.isValid && canvaValidation.isTemplate;
 
   useEffect(() => {
+    // Reset/prefill on modal open-close toggle; setState here is the intended
+    // reaction to the isOpen prop, not a render-derived value.
     if (!isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowFileUpload(false);
       setTemplateUrl('');
       setPreviewData(null);
@@ -158,6 +161,9 @@ const AddTemplateModal = ({
         setContactEmail(user.email || '');
       }
     }
+    // tagAutocomplete is recreated each render; only its stable reset() is used
+    // and only on the isOpen toggle, so it must stay out of the dep array.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   // Fetch preview when validation passes — form only shows after fetch completes
@@ -172,6 +178,9 @@ const AddTemplateModal = ({
         void fetchCanvaPreview(templateUrl, canvaValidation.title);
       }, 400);
     }
+    // fetchCanvaPreview is a stable useCallback([]) declared below this effect;
+    // adding it to deps would reference it in its temporal dead zone.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isValidTemplate, canvaValidation.designId, canvaValidation.title, templateUrl]);
 
   const fetchCanvaPreview = useCallback(async (url: string, fallbackTitle?: string) => {

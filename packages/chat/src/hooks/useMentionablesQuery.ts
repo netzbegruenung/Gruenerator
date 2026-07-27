@@ -12,7 +12,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
-import { useChatConfigStore } from '../stores/chatConfigStore';
 import { createChatApiClient } from '../context/ChatContext';
 import {
   setBoardMentionables,
@@ -26,6 +25,7 @@ import {
   type Mentionable,
   type TextformMentionable,
 } from '../lib/mentionables';
+import { useChatConfigStore } from '../stores/chatConfigStore';
 
 interface BoardListItem {
   id: string;

@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import {
   MessagePrimitive,
   useMessage,
@@ -8,11 +7,14 @@ import {
   useMessageRuntime,
 } from '@assistant-ui/react';
 import { Pencil } from 'lucide-react';
-import { UserMessageAttachments } from '../assistant-ui/attachment';
-import { useAgentStore } from '../../stores/chatStore';
+import { useState } from 'react';
+
 import { useChatConfigStore } from '../../stores/chatConfigStore';
+import { useAgentStore } from '../../stores/chatStore';
+import { UserMessageAttachments } from '../assistant-ui/attachment';
 import { MessageBranchPicker } from '../message-parts/MessageBranchPicker';
 import { UserMessageText } from '../message-parts/UserMessageText';
+
 import { useChatDensity } from './chatDensityContext';
 
 function QuoteBlock() {
@@ -97,8 +99,7 @@ export function UserMessage() {
   const isCompact = density === 'compact';
   const [editing, setEditing] = useState(false);
   const custom = message.metadata?.custom as
-    | { senderId?: string; senderName?: string; roleName?: string }
-    | undefined;
+    { senderId?: string; senderName?: string; roleName?: string } | undefined;
   const senderId = custom?.senderId;
   const storeRoleName = useAgentStore((s) =>
     s.threadMode === 'eigener' ? s.customRoleName : null

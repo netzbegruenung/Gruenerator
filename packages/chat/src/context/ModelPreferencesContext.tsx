@@ -1,7 +1,7 @@
 'use client';
 
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { type TextModelId } from '@gruenerator/shared/models';
+import { createContext, useContext, useMemo, type ReactNode } from 'react';
 
 export interface ModelPreferencesContextValue {
   enabledModelIds: ReadonlySet<TextModelId> | null;

@@ -8,7 +8,7 @@
  * direct generator.
  */
 
-import { presentationsContract } from '@gruenerator/contracts';
+import { isPresentationBrand, presentationsContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
@@ -38,6 +38,7 @@ export const presentationsContractRouter = s.router(presentationsContract, {
       if (!state) {
         return { status: 404 as const, body: { error: 'Presentation not found' } };
       }
+      const requesterLocale = getAuthedUser(args.req).locale;
 
       return {
         status: 200 as const,
@@ -46,6 +47,9 @@ export const presentationsContractRouter = s.router(presentationsContract, {
           title: state.title,
           slides: state.slides,
           accentColor: state.accentColor,
+          // Legacy decks without a stamped brand render in the requester's CI.
+          brand: state.brand ?? (isPresentationBrand(requesterLocale) ? requesterLocale : null),
+          showLogo: state.showLogo,
         },
       };
     } catch (error) {
@@ -64,7 +68,7 @@ export const presentationsContractRouter = s.router(presentationsContract, {
     try {
       const { id } = args.params;
       const userId = getAuthedUser(args.req).id;
-      const { userPrompt, presentationContext, referenceContent } = args.body;
+      const { userPrompt, presentationContext, referenceContent, brand } = args.body;
 
       // Re-enforce write access server-side — never trust the client.
       const canEdit = await checkDocumentWriteAccess(id, userId);
@@ -76,6 +80,7 @@ export const presentationsContractRouter = s.router(presentationsContract, {
         userPrompt,
         presentationContext,
         referenceContent: referenceContent ?? null,
+        brand: brand ?? getAuthedUser(args.req).locale ?? null,
       });
 
       return { status: 200 as const, body: { operations } };
@@ -113,7 +118,7 @@ export const presentationsContractRouter = s.router(presentationsContract, {
           type: 'doc_generation',
           systemPrompt: PRESENTATION_GENERATION_PROMPT,
           messages: [{ role: 'user', content: description }],
-          options: { temperature: 0.4, max_tokens: 4000 },
+          options: { temperature: 0.4 },
         },
         args.req
       );
@@ -126,7 +131,11 @@ export const presentationsContractRouter = s.router(presentationsContract, {
         return { status: 500 as const, body: { error: 'Failed to generate presentation' } };
       }
 
-      const presentation = await createPresentationDocument(structure, userId);
+      const presentation = await createPresentationDocument(
+        structure,
+        userId,
+        getAuthedUser(args.req).locale
+      );
       return { status: 201 as const, body: { id: presentation.id, title: presentation.title } };
     } catch (error) {
       log.error('[Presentations Contract] Error generating presentation:', error);

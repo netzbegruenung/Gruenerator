@@ -75,6 +75,9 @@ const WolkeTreeBrowser = ({ shareLinkId, shareLinkUrl, onFolderSelect }: WolkeTr
 
   useEffect(() => {
     fetchedRef.current = new Set();
+    // Reset the tree as a reaction to the share link changing (loadChildren
+    // identity), then reload the root; not a render-derived value.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setChildrenMap(new Map());
     setLoadingPaths(new Set());
     void loadChildren('');

@@ -101,6 +101,7 @@ const DOCS_AI_MODELS: Record<AgentConfig['provider'], string> = {
   regolo: 'mistral-small-4-119b',
   mistral: 'mistral-medium-2604',
   anthropic: 'mistral-medium-2604',
+  greenpt: 'mistral-medium-3.5-128b',
 };
 
 /**
@@ -196,7 +197,6 @@ ${referenceContent.trim()}
       // applyDocumentOperations args, can run several thousand tokens). 32k
       // leaves comfortable headroom even for very long documents; you only
       // pay for tokens actually generated.
-      maxOutputTokens: 32768,
       maxRetries: 1,
       temperature: 0.3,
       onEnd: ({ toolCalls, text, finishReason, usage }) => {

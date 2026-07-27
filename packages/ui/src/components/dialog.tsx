@@ -44,13 +44,19 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  overlayProps,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
+  // Radix portals overlay + content as direct <body> children (no wrapper
+  // element), so consumers that need to identify the whole dialog in the DOM
+  // (e.g. screenshot capture) must tag the overlay separately from the content.
+  overlayProps?: React.ComponentProps<typeof DialogPrimitive.Overlay> &
+    Record<`data-${string}`, string>;
 }) {
   return (
     <DialogPortal data-slot="dialog-portal">
-      <DialogOverlay />
+      <DialogOverlay {...overlayProps} />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
@@ -63,7 +69,9 @@ function DialogContent({
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            className="absolute top-4 right-4 rounded-xs opacity-70 ring-offset-background-pure transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-hover-alt [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+            // 44px hit area on touch (WCAG 2.2 "Target Size"); the icon stays
+            // 16px, only the tappable box grows.
+            className="absolute top-2 right-2 flex size-11 items-center justify-center rounded-md opacity-70 ring-offset-background-pure transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-hover-alt sm:top-3 sm:right-3 sm:size-9 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
           >
             <XIcon />
             <span className="sr-only">Close</span>

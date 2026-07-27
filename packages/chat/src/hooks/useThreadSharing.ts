@@ -1,6 +1,8 @@
+import { ApiError } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 
+import { notifyError } from '../lib/notify';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 
 interface GroupShare {
@@ -18,8 +20,8 @@ interface UserGroup {
 export function useThreadSharing(threadId: string | null) {
   const fetchFn = useChatConfigStore((s) => s.fetch);
   const queryClient = useQueryClient();
-  const sharesKey = ['thread-shares', threadId] as const;
-  const userGroupsKey = ['thread-user-groups'] as const;
+  const sharesKey = useMemo(() => ['thread-shares', threadId] as const, [threadId]);
+  const userGroupsKey = useMemo(() => ['thread-user-groups'] as const, []);
 
   const sharesQuery = useQuery<GroupShare[]>({
     queryKey: sharesKey,
@@ -47,26 +49,35 @@ export function useThreadSharing(threadId: string | null) {
     void queryClient.invalidateQueries({ queryKey: sharesKey });
   }, [queryClient, sharesKey]);
 
+  // Both mutations used to ignore the response status. `fetch` resolves on 4xx
+  // and 5xx, so a rejected share ran onSuccess, refetched an unchanged list and
+  // reported nothing — the user clicked "Teilen" and simply saw no effect.
   const shareMutation = useMutation({
     mutationFn: async (groupId: string) => {
       if (!threadId) return;
-      await fetchFn(`/api/chat-service/threads/${threadId}/groups`, {
+      const r = await fetchFn(`/api/chat-service/threads/${threadId}/groups`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ group_id: groupId }),
       });
+      if (!r.ok) throw new ApiError(r.status, 'Teilen fehlgeschlagen');
     },
     onSuccess: invalidateShares,
+    onError: () =>
+      notifyError('Chat konnte nicht geteilt werden', 'Bitte versuche es noch einmal.'),
   });
 
   const unshareMutation = useMutation({
     mutationFn: async (groupId: string) => {
       if (!threadId) return;
-      await fetchFn(`/api/chat-service/threads/${threadId}/groups/${groupId}`, {
+      const r = await fetchFn(`/api/chat-service/threads/${threadId}/groups/${groupId}`, {
         method: 'DELETE',
       });
+      if (!r.ok) throw new ApiError(r.status, 'Freigabe konnte nicht entfernt werden');
     },
     onSuccess: invalidateShares,
+    onError: () =>
+      notifyError('Freigabe konnte nicht entfernt werden', 'Bitte versuche es noch einmal.'),
   });
 
   const shareWithGroup = useCallback(

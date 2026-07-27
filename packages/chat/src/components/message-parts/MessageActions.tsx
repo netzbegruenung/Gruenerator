@@ -1,17 +1,21 @@
 'use client';
 
-import { memo, useState } from 'react';
+import { ActionBarPrimitive } from '@assistant-ui/react';
 import { Copy, Check, Download, Loader2, RefreshCw, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { memo, useState } from 'react';
 import { HiOutlineDocumentText } from 'react-icons/hi';
-import { useMessageRuntime, ActionBarPrimitive } from '@assistant-ui/react';
-import type { ExportToDocsBody, ExportToDocsResponse } from '@gruenerator/contracts';
-import { useChatConfigStore } from '../../stores/chatConfigStore';
-import { useAgentStore } from '../../stores/chatStore';
+
 import { useExtraActions } from '../../context/ExtraActionsContext';
+import { useRegenerateMessage } from '../../hooks/useRegenerateMessage';
 // import { MessageTTSButton } from './MessageTTSButton';
 import { formatSourcesMarkdown } from '../../lib/formatSourcesMarkdown';
+import { notifyError } from '../../lib/notify';
+import { useChatConfigStore } from '../../stores/chatConfigStore';
+
 import { MessageBranchPicker } from './MessageBranchPicker';
+
 import type { ChatMessage } from '../../hooks/useChatGraphStream';
+import type { ExportToDocsBody, ExportToDocsResponse } from '@gruenerator/contracts';
 
 interface MessageActionsProps {
   content: string;
@@ -26,19 +30,11 @@ export const MessageActions = memo(function MessageActions({
   showFeedback = false,
 }: MessageActionsProps) {
   const extraActions = useExtraActions();
-  const messageRuntime = useMessageRuntime();
+  const handleRegenerate = useRegenerateMessage();
   const [copied, setCopied] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isCreatingDoc, setIsCreatingDoc] = useState(false);
   const [linkedDocId, setLinkedDocId] = useState<string | null>(null);
-
-  const handleRegenerate = () => {
-    // Signal the backend to replace (not append) the last turn, then let
-    // assistant-ui re-run the adapter for this message.
-    const threadId = useAgentStore.getState().currentThreadId;
-    if (threadId) useChatConfigStore.getState().signalRegenerate(threadId);
-    messageRuntime.reload();
-  };
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content);
@@ -80,6 +76,7 @@ export const MessageActions = memo(function MessageActions({
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Export error:', error);
+      notifyError('Export fehlgeschlagen', 'Die Nachricht konnte nicht heruntergeladen werden.');
     } finally {
       setIsExporting(false);
     }
@@ -131,6 +128,7 @@ export const MessageActions = memo(function MessageActions({
       }
     } catch (error) {
       console.error('Edit in Docs error:', error);
+      notifyError('Dokument konnte nicht erstellt werden', 'Bitte versuche es erneut.');
     } finally {
       setIsCreatingDoc(false);
     }

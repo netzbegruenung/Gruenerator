@@ -1,6 +1,6 @@
 import { type UserProfile } from '@gruenerator/contracts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import apiClient, { notifyAuthConfirmed } from '../components/utils/apiClient';
 import {
@@ -273,6 +273,7 @@ const useServerAvailability = (skipCheck = false) => {
     const isDevelopment = import.meta.env.DEV;
 
     if (!isDevelopment || skipCheck) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-time gate keyed on env/skipCheck; sets state to its already-optimistic defaults
       setIsServerAvailable(true);
       setIsChecking(false);
       return;
@@ -425,6 +426,10 @@ const buildE2EBypassAuthData = (): AuthData => {
       user_defaults: {},
       locale: 'de-DE',
       default_startpage: 'chat',
+      feedback_button: 'text',
+      reduce_motion: false,
+      reduce_transparency: false,
+      show_skip_link: false,
       groups_enabled: true,
       custom_generators: true,
       database_access: true,
@@ -661,12 +666,15 @@ export const useAuth = (options: AuthOptions = {}) => {
     (!isChecking && !isQueryLoading && (authData !== undefined || queryError) && !isLoggingOut);
 
   // Helper function to update message color
-  const updateUserMessageColor = async (newColor: string) => {
-    if (!user) {
-      return;
-    }
-    await updateMessageColor(newColor);
-  };
+  const updateUserMessageColor = useCallback(
+    async (newColor: string) => {
+      if (!user) {
+        return;
+      }
+      await updateMessageColor(newColor);
+    },
+    [user, updateMessageColor]
+  );
 
   const isInitialLoad = useMemo(
     () => !hasCachedData && (isChecking || (isQueryLoading && !authData)),

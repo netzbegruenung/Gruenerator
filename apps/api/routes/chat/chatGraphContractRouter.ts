@@ -27,8 +27,10 @@ import {
   pandasComputeNode,
   buildSystemMessage,
 } from '../../agents/langgraph/ChatGraph/index.js';
-import { isTabularComputeQuestion } from '../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
-import { isReasoningStreamModel } from '../../services/ai/regoloReasoningStream.js';
+import {
+  isSheetFillRequest,
+  isTabularComputeQuestion,
+} from '../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import {
   SYSTEM_TOOL_INTENTS,
   isSystemIntentAvailable,
@@ -62,20 +64,24 @@ import {
   handleBoardCreation,
   handleSheetCreation,
   handlePresentationCreation,
+  handlePdfCreation,
   handleRecurringTaskCreation,
   generateAndCreateDocument,
   handleShareDoc,
   executeIntentPipeline,
 } from './services/intentExecutionService.js';
-import { extractTextContent } from './services/messageHelpers.js';
+import { estimateRequestTokens, extractTextContent } from './services/messageHelpers.js';
 import {
   recallPastChats,
   recallOfficeDocuments,
+  recallReels,
   rerankRecall,
   formatPastChatsBlock,
   formatOfficeDocsBlock,
+  formatReelsBlock,
   getSpaceRecallScope,
 } from './services/pastChatRecallService.js';
+import { createPendingAssistantWriter } from './services/pendingAssistantWriter.js';
 import { pipelineStateStore } from './services/pipelineStateStore.js';
 import { APP_REDIRECT_TEXTS } from './services/platformGating.js';
 import { persistAssistantResponse } from './services/postResponseService.js';
@@ -115,10 +121,12 @@ import {
   getIntentMessage,
   PROGRESS_MESSAGES,
   sseInternalError,
+  sendChatWarning,
 } from './services/sseHelpers.js';
 import { buildStreamContext } from './services/streamContext.js';
 import {
   createMessage,
+  discardPendingAssistantIfEmpty,
   getLastGeneratedImageUrl,
   touchThread,
 } from './services/threadPersistenceService.js';
@@ -182,6 +190,22 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
     const requestId = `req_${Date.now()}`;
     log.info('[chatGraphContract] stream handler entered, request_id=%s', requestId);
 
+    // Turn persistence (WP-B): the placeholder assistant row + its streaming
+    // writer. Declared in the handler scope (not inside the try) so the outer
+    // catch can run cleanupPending too. Assigned once the context is built.
+    let pendingId: string | null = null;
+    let pendingWriter: ReturnType<typeof createPendingAssistantWriter> | null = null;
+    // Must run on EVERY return path after the placeholder is created:
+    //  - discard=false before the main persist (stop the writer so its last
+    //    throttle write can't race the finalize UPDATE);
+    //  - discard=true on aborts/handler-takeovers/catch (drops the row only if
+    //    it stayed empty; a row with partial text survives as an aborted turn).
+    const cleanupPending = async (discard: boolean): Promise<void> => {
+      sse.setTextListener(undefined);
+      await pendingWriter?.stop().catch(() => {});
+      if (discard && pendingId) await discardPendingAssistantIfEmpty(pendingId).catch(() => {});
+    };
+
     try {
       const ctxResult = await buildStreamContext({ req, body: args.body, sse, requestId });
       if (ctxResult.done) {
@@ -208,7 +232,17 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         contextWindowTokens,
         mentionTokenFields,
         lastUserTextRaw,
+        pendingAssistantMessageId,
       } = ctxResult.ctx;
+
+      // A placeholder assistant row was minted in buildStreamContext. Its writer
+      // accumulates the streamed reply so an aborted/crashed turn keeps whatever
+      // streamed. The SSE text listener is registered LATER — right before the
+      // main respond stage — so the many handler branches below (sharepic/reel/
+      // board/… which stream their own text_delta AND persist their own rows)
+      // never pollute the placeholder.
+      pendingId = pendingAssistantMessageId;
+      pendingWriter = pendingId ? createPendingAssistantWriter(pendingId) : null;
 
       const {
         agentId,
@@ -243,6 +277,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         ...(await classifierNode(initialState)),
       } as ChatGraphState;
       classifiedState.lastUserTextNoMentions = lastUserTextNoMentions;
+      // The heuristic fallback produces a materially worse turn (no
+      // multi-source search, no metadata filters) that used to look normal.
+      if (classifiedState.classifierDegraded) sendChatWarning(sse, 'classifier_degraded');
 
       let forcedTool: boolean = false;
       log.info(
@@ -319,6 +356,25 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           if (userText) classifiedState.searchQuery = userText;
         }
         log.info('[ChatGraph] Intent forced to "bundestag" via @bundestag mention');
+      }
+
+      // @doku hard-pins the documentation intent. Not in TOOL_PRIORITY (that
+      // list is the search/image/sharepic family), so it is resolved here. Not
+      // locale-gated: the docs describe the product itself and apply to DE and
+      // AT alike. The searchQuery backfill matters more here than for the
+      // sources above — the docs tool searches the user's text verbatim, so an
+      // empty query would search nothing at all.
+      if (forcedTools?.includes('hilfe')) {
+        classifiedState.intent = 'hilfe';
+        forcedTool = true;
+        if (
+          (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
+          lastUserMessage
+        ) {
+          const userText = lastUserTextNoMentions.trim();
+          if (userText) classifiedState.searchQuery = userText;
+        }
+        log.info('[ChatGraph] Intent forced to "hilfe" via @doku mention');
       }
 
       // A per-server mention (@notion/@brevo) arrives as `mcp:<serverId>` and
@@ -463,7 +519,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             classificationTimeMs: classifiedState.classificationTimeMs,
           }),
         });
-        if (handled) return { status: 200 as const, body: undefined };
+        if (handled) {
+          await cleanupPending(true);
+          return { status: 200 as const, body: undefined };
+        }
       }
 
       // === Reel edit: chat subtitle editing of subtitler projects ===
@@ -500,7 +559,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               classificationTimeMs: classifiedState.classificationTimeMs,
             }),
           });
-          if (handled) return { status: 200 as const, body: undefined };
+          if (handled) {
+            await cleanupPending(true);
+            return { status: 200 as const, body: undefined };
+          }
         }
       }
 
@@ -549,6 +611,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               log.error('[ChatGraph] Failed to persist app sharepic redirect:', err);
             }
           }
+          await cleanupPending(true);
           sse.end();
           return { status: 200 as const, body: undefined };
         }
@@ -612,7 +675,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               classificationTimeMs: classifiedState.classificationTimeMs,
             }),
           });
-          if (handled) return { status: 200 as const, body: undefined };
+          if (handled) {
+            await cleanupPending(true);
+            return { status: 200 as const, body: undefined };
+          }
         }
       }
 
@@ -668,7 +734,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               classificationTimeMs: classifiedState.classificationTimeMs,
             }),
           });
-          if (handled) return { status: 200 as const, body: undefined };
+          if (handled) {
+            await cleanupPending(true);
+            return { status: 200 as const, body: undefined };
+          }
         }
       }
 
@@ -722,11 +791,16 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // so it may still enter the loop, which mounts that server's MCP tools.
       // System MCP intents (bahn/wetter/news) force the gate the same way: the
       // legacy pipeline has no executor for them, the loop mounts their tools.
-      // `umfragen` is a native domain tool (PolitPro service) — always
-      // available, so it forces the gate unconditionally.
+      // `umfragen` (PolitPro) and `hilfe` (in-process docs index) are native
+      // domain tools — always available, so they force the gate unconditionally.
+      // `hilfe` MUST be here: @doku sets forcedTool, and without this escape
+      // decideRunAgentic would keep the turn single-pass, where
+      // `gruenerator_docs_search` does not exist — the mention would silently
+      // do nothing.
       const isMcpTurn =
         classifiedState.intent === 'mcp' ||
         classifiedState.intent === 'umfragen' ||
+        classifiedState.intent === 'hilfe' ||
         (classifiedState.intent != null && isSystemIntentAvailable(classifiedState.intent));
       const isSystemToolIntent =
         classifiedState.intent != null && SYSTEM_TOOL_INTENTS.has(classifiedState.intent);
@@ -843,6 +917,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           secondaryIntent: classifiedState.secondaryIntent ?? null,
           compoundGeneration,
           hasImageAttachments: imageAttachments.length > 0,
+          isPdfFillRequest:
+            ((classifiedState.pdfFormAttachments?.length ?? 0) > 0 ||
+              (classifiedState.threadAttachments ?? []).some(
+                (a) => a.mimeType === 'application/pdf'
+              )) &&
+            isSheetFillRequest(lastUserText),
         });
 
       // A demoted turn that a kill-switch (compound, forced tool, ...) kept out
@@ -900,7 +980,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             '',
           startTime: Date.now(),
         });
-        if (handled) return { status: 200 as const, body: undefined };
+        if (handled) {
+          await cleanupPending(true);
+          return { status: 200 as const, body: undefined };
+        }
       }
 
       // === Chat history context enrichment ===
@@ -920,7 +1003,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // Space scope: when the thread is filed in a Space, recall is restricted to
       // that Space's chats and the model is told which threads it can search.
       const spaceScope = actualThreadId
-        ? await getSpaceRecallScope(actualThreadId, userId).catch(() => null)
+        ? await getSpaceRecallScope(actualThreadId, userId).catch((err: unknown) => {
+            // Was a bare noop — the Space roster silently vanished and recall
+            // widened to all chats without anyone noticing.
+            log.warn(`[ChatGraph] Space recall scope failed: ${err}`);
+            return null;
+          })
         : null;
 
       if (explicitRecall || proactiveRecall) {
@@ -931,39 +1019,48 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               ? (extractTextContent(lastUserMessage.content) as string).slice(0, 200)
               : '');
           if (recallQuery.trim()) {
-            // Fetch chats + office content, then cross-source rerank to the few
-            // most relevant — all inside the best-effort timeout.
+            // Fetch chats + office content + reels, then cross-source rerank to
+            // the few most relevant — all inside the best-effort timeout.
             const recalled = await withTimeout(
               (async () => {
-                const [chatResults, officeDocs] = await Promise.all([
+                const [chatResults, officeDocs, reels] = await Promise.all([
                   recallPastChats(userId, recallQuery, {
                     ...(actualThreadId != null && { excludeThreadId: actualThreadId }),
                     limit: 3,
                     ...(spaceScope && { threadIds: spaceScope.threadIds }),
                   }),
                   recallOfficeDocuments(userId, recallQuery, 3),
+                  recallReels(userId, recallQuery, 3),
                 ]);
-                return rerankRecall(recallQuery, chatResults, officeDocs, 4);
+                return rerankRecall(recallQuery, chatResults, officeDocs, 4, reels);
               })(),
               EXTERNAL_CONTEXT_TIMEOUT_MS,
               'past-work recall'
             ).catch(
-              () => ({ chats: [], officeDocs: [] }) as Awaited<ReturnType<typeof rerankRecall>>
+              () =>
+                ({ chats: [], officeDocs: [], reels: [] }) as Awaited<
+                  ReturnType<typeof rerankRecall>
+                >
             );
             const blocks = [
               spaceScope?.rosterBlock ?? '',
               recalled.chats.length > 0 ? formatPastChatsBlock(recalled.chats) : '',
               formatOfficeDocsBlock(recalled.officeDocs),
+              formatReelsBlock(recalled.reels),
             ].filter(Boolean);
             if (blocks.length > 0) {
               classifiedState.chatHistoryContext = blocks.join('\n\n');
               log.info(
-                `[ChatGraph] Injected recall: ${recalled.chats.length} chats, ${recalled.officeDocs.length} docs for "${recallQuery}" (${explicitRecall ? 'explicit' : 'proactive'})`
+                `[ChatGraph] Injected recall: ${recalled.chats.length} chats, ${recalled.officeDocs.length} docs, ${recalled.reels.length} reels for "${recallQuery}" (${explicitRecall ? 'explicit' : 'proactive'})`
               );
             }
           }
         } catch (err) {
+          // An EXPLICIT recall request ("was haben wir letzte Woche besprochen")
+          // that finds nothing because the search broke must not read as "there
+          // was nothing". Proactive recall is best-effort and stays quiet.
           log.warn(`[ChatGraph] Past-chat recall failed: ${err}`);
+          if (explicitRecall) sendChatWarning(sse, 'recall_degraded');
         }
       }
 
@@ -1041,6 +1138,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             searchTimeMs: 0,
           },
         });
+        // Interrupt turn — nothing streamed; drop the empty placeholder (the
+        // resume path persists its own message).
+        await cleanupPending(true);
         sse.end();
         return { status: 200 as const, body: undefined };
       }
@@ -1069,7 +1169,14 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         'summary',
         'compare',
       ]);
+      // "Fill this in" takes precedence over the aggregation match: "trag die
+      // Summe ein" is both, and writing the value into the sheet is the
+      // stronger ask. Same interrupt, but codegen switches to openpyxl so the
+      // template's formatting and formulas survive.
+      const isSheetFill =
+        computeOverridableIntents.has(classifiedState.intent) && isSheetFillRequest(lastUserText);
       const isTabularCompute =
+        !isSheetFill &&
         computeOverridableIntents.has(classifiedState.intent) &&
         isTabularComputeQuestion(lastUserText);
       // Chart requests over an attached table compute their values FIRST —
@@ -1078,15 +1185,35 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // resumed respond step builds the chart JSON from BERECHNUNGSERGEBNIS.
       const isTabularChart = classifiedState.intent === 'chart';
       if (
-        (isTabularCompute || isTabularChart) &&
+        (isSheetFill || isTabularCompute || isTabularChart) &&
         classifiedState.hasTabularAttachment &&
         !forcedTools?.length &&
         args.body.clientTools?.includes('run_python') &&
         actualThreadId != null
       ) {
-        const { pythonCode } = await pandasComputeNode(classifiedState);
+        const { pythonCode, computeFailed } = await pandasComputeNode(
+          classifiedState,
+          isSheetFill ? { mode: 'fill' } : {}
+        );
+        // Codegen failed (as opposed to the model judging the question
+        // unrelated to the table, which is a legitimate silent skip). Without
+        // telling the model, it answers the numeric question from the truncated
+        // table text — the hallucination this node exists to prevent.
+        if (computeFailed) {
+          sendChatWarning(sse, 'compute_failed');
+          classifiedState.degradationNotes = [
+            ...(classifiedState.degradationNotes ?? []),
+            {
+              code: 'compute_failed',
+              modelHint:
+                'Die Berechnung auf der Tabelle ist fehlgeschlagen. Rechne NICHT selbst und nenne keine Zahlen aus der Tabelle — sag ehrlich, dass die Auswertung gerade nicht möglich war.',
+            },
+          ];
+        }
         if (pythonCode) {
-          log.info(`[ChatGraph] run_python interrupt (${pythonCode.length} chars pandas code)`);
+          log.info(
+            `[ChatGraph] run_python interrupt (${pythonCode.length} chars ${isSheetFill ? 'openpyxl fill' : 'pandas'} code)`
+          );
           if (!isTabularChart) {
             // The resumed respond step should use the compute-mode guidance
             // even when the classifier had picked a different intent — and the
@@ -1096,19 +1223,20 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             sse.send('intent', {
               intent: 'compute',
               message: getIntentMessage('compute'),
-              reasoning: 'Tabellen-Berechnung erkannt',
+              reasoning: isSheetFill ? 'Formular-Ausfüllen erkannt' : 'Tabellen-Berechnung erkannt',
             });
           }
           // Stashed for the error-correction round: if the client reports a
           // failed execution, the resume handler regenerates with this code +
           // the error message in context.
           classifiedState.pandasLastCode = pythonCode;
+          classifiedState.pandasComputeMode = isSheetFill ? 'fill' : 'analyze';
 
           const stepId = `run_python_${Date.now()}`;
           sse.sendRaw('thinking_step', {
             stepId,
             toolName: 'run_python',
-            title: 'Berechne mit pandas…',
+            title: isSheetFill ? 'Fülle Vorlage aus…' : 'Berechne mit pandas…',
             status: 'in_progress',
             args: { code: pythonCode },
           });
@@ -1151,6 +1279,8 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               searchTimeMs: 0,
             },
           });
+          // Interrupt turn — nothing streamed; drop the empty placeholder.
+          await cleanupPending(true);
           sse.end();
           return { status: 200 as const, body: undefined };
         }
@@ -1158,85 +1288,88 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         // still steers the model toward an auto-run code block).
       }
 
-      // === Handle @board-erstellen tool ===
-      if (forcedTools?.includes('board-erstellen')) {
-        const created = await handleBoardCreation({
-          sse,
-          classifiedState,
-          lastUserMessage,
-          aiWorkerPool,
-          req,
-          ...(actualThreadId != null && { actualThreadId }),
-          userId,
-        });
-        if (created) return { status: 200 as const, body: undefined };
-      }
+      // === Artifact-creating turns (@board/dokument/sheet/praesentation/pdf) ===
+      // Every branch had the same shape — gate on the forced tool or the
+      // classified intent, resolve the referential topic, call the handler,
+      // discard the placeholder row, return. Five copies of that is how the pdf
+      // branch ended up as the only one missing `await cleanupPending(true)`.
+      const createTurnBase = {
+        sse,
+        classifiedState,
+        aiWorkerPool,
+        req,
+        ...(actualThreadId != null && { actualThreadId }),
+        userId,
+      };
+      /** A referential follow-up ("mach eine Tabelle dazu") inherits the prior
+       *  turn's subject instead of building the artifact about the bare
+       *  instruction. */
+      const createTopic = (): string =>
+        resolveReferentialTopic(
+          lastUserMessage ? extractTextContent(lastUserMessage.content) : '',
+          classifiedState.messages ?? []
+        ).text;
 
-      // === Handle @dokument-erstellen tool ===
-      if (forcedTools?.includes('dokument-erstellen')) {
-        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
-        const created = await generateAndCreateDocument({
-          sse,
-          classifiedState,
-          aiWorkerPool,
-          req,
-          ...(actualThreadId != null && { actualThreadId }),
-          userId,
-          userContent: lastUserText as string,
-          intent: 'direct',
-        });
-        if (created) return { status: 200 as const, body: undefined };
-      }
+      const createRoutes: Array<{
+        forcedTool: string;
+        /** Classifier intent that also triggers it (the @-tool-only branches
+         *  predate the create_* intents and have none). */
+        intent?: string;
+        /** Compound turns let the loop call the fat tool instead. */
+        skipOnAgentic: boolean;
+        run: () => Promise<boolean>;
+      }> = [
+        {
+          forcedTool: 'board-erstellen',
+          skipOnAgentic: false,
+          // Board still takes the raw message: it resolves the topic itself.
+          run: () => handleBoardCreation({ ...createTurnBase, lastUserMessage }),
+        },
+        {
+          forcedTool: 'dokument-erstellen',
+          skipOnAgentic: false,
+          run: () =>
+            generateAndCreateDocument({
+              ...createTurnBase,
+              userContent: createTopic(),
+              intent: 'direct',
+            }),
+        },
+        {
+          forcedTool: 'sheet-erstellen',
+          intent: 'create_sheet',
+          skipOnAgentic: true,
+          run: () => handleSheetCreation({ ...createTurnBase, userContent: createTopic() }),
+        },
+        {
+          forcedTool: 'praesentation-erstellen',
+          intent: 'create_presentation',
+          skipOnAgentic: true,
+          run: () => handlePresentationCreation({ ...createTurnBase, userContent: createTopic() }),
+        },
+        {
+          forcedTool: 'pdf-erstellen',
+          intent: 'create_pdf',
+          skipOnAgentic: true,
+          run: () =>
+            handlePdfCreation({
+              ...createTurnBase,
+              userContent: createTopic(),
+              userLocale: classifiedState.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
+            }),
+        },
+      ];
 
-      // === Handle @sheet-erstellen tool / create_sheet intent ===
-      // Skipped on a compound turn (runAgentic): there the loop researches first
-      // and calls the create_sheet fat tool itself.
-      if (
-        !runAgentic &&
-        (forcedTools?.includes('sheet-erstellen') || classifiedState.intent === 'create_sheet')
-      ) {
-        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
-        const created = await handleSheetCreation({
-          sse,
-          classifiedState,
-          aiWorkerPool,
-          req,
-          ...(actualThreadId != null && { actualThreadId }),
-          userId,
-          // A referential follow-up ("mach eine Tabelle dazu") inherits the prior
-          // turn's subject instead of building a sheet about the bare instruction.
-          userContent: resolveReferentialTopic(
-            lastUserText as string,
-            classifiedState.messages ?? []
-          ).text,
-        });
-        if (created) return { status: 200 as const, body: undefined };
-      }
-
-      // === Handle @praesentation-erstellen tool / create_presentation intent ===
-      // Skipped on a compound turn (runAgentic): the loop researches first and
-      // calls the create_presentation fat tool itself.
-      if (
-        !runAgentic &&
-        (forcedTools?.includes('praesentation-erstellen') ||
-          classifiedState.intent === 'create_presentation')
-      ) {
-        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
-        const created = await handlePresentationCreation({
-          sse,
-          classifiedState,
-          aiWorkerPool,
-          req,
-          ...(actualThreadId != null && { actualThreadId }),
-          userId,
-          // A referential follow-up ("mach eine Präsentation dazu") inherits the
-          // prior turn's subject instead of the bare instruction.
-          userContent: resolveReferentialTopic(
-            lastUserText as string,
-            classifiedState.messages ?? []
-          ).text,
-        });
-        if (created) return { status: 200 as const, body: undefined };
+      for (const route of createRoutes) {
+        if (route.skipOnAgentic && runAgentic) continue;
+        const triggered =
+          forcedTools?.includes(route.forcedTool) === true ||
+          (route.intent != null && classifiedState.intent === route.intent);
+        if (!triggered) continue;
+        if (await route.run()) {
+          await cleanupPending(true);
+          return { status: 200 as const, body: undefined };
+        }
       }
 
       // === EXPERIMENTAL: create_recurring_task intent ===
@@ -1254,7 +1387,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           agentId: agentId ?? null,
           userLocale: classifiedState.userLocale === 'de-AT' ? 'de-AT' : 'de-DE',
         });
-        if (created) return { status: 200 as const, body: undefined };
+        if (created) {
+          await cleanupPending(true);
+          return { status: 200 as const, body: undefined };
+        }
       }
 
       // === Handle share_doc intent ===
@@ -1268,7 +1404,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           ...(rawDocMentionIds != null && { rawDocMentionIds }),
           ...(rawDocumentChatIds != null && { rawDocumentChatIds }),
         });
-        if (handled) return { status: 200 as const, body: undefined };
+        if (handled) {
+          await cleanupPending(true);
+          return { status: 200 as const, body: undefined };
+        }
       }
 
       // === HITL: Sharepic without a topic → ask before generating ===
@@ -1329,6 +1468,8 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               searchTimeMs: 0,
             },
           });
+          // Interrupt turn — nothing streamed; drop the empty placeholder.
+          await cleanupPending(true);
           sse.end();
           return { status: 200 as const, body: undefined };
         }
@@ -1354,6 +1495,14 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // chat-turn trace id to the client for feedback scoring. undefined when
       // Langfuse is disabled or this turn skips the respond LLM call.
       let langfuseTraceId: string | undefined;
+
+      // From here on the reply streams into the placeholder row. Registering the
+      // listener only now keeps the earlier handler branches (which stream their
+      // own text and persist their own rows) out of the placeholder.
+      const activeWriter = pendingWriter;
+      if (activeWriter) {
+        sse.setTextListener((kind, text) => activeWriter.onText(kind, text));
+      }
 
       if (runAgentic) {
         // Agentic path: the model holds the search tools and loops until it can
@@ -1476,6 +1625,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               hasImages: imageAttachments.length > 0,
               intent: finalState.intent,
               agentId: finalState.agentConfig.identifier,
+              // Measured BEFORE pruning on purpose: the question is "does this
+              // turn need a bigger lane", and pruning is exactly the loss we
+              // want to avoid by answering it.
+              estimatedInputTokens: estimateRequestTokens(systemMessage, validMessages),
               ...(finalState.complexity != null && { complexity: finalState.complexity }),
             }
           );
@@ -1486,15 +1639,20 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             });
           }
 
-          const prunedValidMessages = pruneMessages(
-            validMessages as Parameters<typeof pruneMessages>[0],
-            contextWindowTokens
-          );
           // contextWindowTokens was computed before the classifier ran, when
           // `auto` had no concrete model yet (→ conservative 32k default). Now
           // that the policy has picked a lane, use its real window so a
           // long-context model isn't compacted as if it were a short one.
+          //
+          // This MUST be resolved before pruning, not just before compaction:
+          // pruneMessages physically drops the oldest turns, so running it on
+          // the stale 32k default trimmed a 128k lane to ~20k tokens and
+          // compaction then only ever saw the survivors.
           const resolvedContextWindow = resolution.contextWindow ?? contextWindowTokens;
+          const prunedValidMessages = pruneMessages(
+            validMessages as Parameters<typeof pruneMessages>[0],
+            resolvedContextWindow
+          );
           const { systemMessage: finalSystemMessage, messages: contextMessages } = actualThreadId
             ? await applyCompaction(
                 actualThreadId,
@@ -1519,8 +1677,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               requestId
             );
           }
-
-          const baseMaxTokens = finalState.agentConfig.params.max_tokens;
 
           const respondTelemetry = buildAiTelemetry('chat-graph.respond', {
             requestId,
@@ -1551,22 +1707,20 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
                   primary: resolution,
                   sse,
                   logPrefix: '[ChatGraph]',
-                  buildStream: async (r) => {
-                    const isReasoning = isReasoningStreamModel(r.provider, r.modelName);
-                    return streamForResolution({
+                  buildStream: async (r) =>
+                    // No output cap (OpenWebUI-style): the provider/model window is
+                    // the backstop; agentConfig.params.max_tokens is deliberately
+                    // ignored here so answers are never cut mid-sentence.
+                    streamForResolution({
                       resolution: r,
                       messages: messagesForAI as Parameters<
                         typeof streamForResolution
                       >[0]['messages'],
-                      maxTokens: isReasoning
-                        ? Math.max(baseMaxTokens, 16000)
-                        : Math.max(baseMaxTokens, 8000),
                       temperature: finalState.agentConfig.params.temperature,
                       sse,
                       logPrefix: '[ChatGraph]',
                       ...(respondTelemetry && { telemetry: respondTelemetry }),
-                    });
-                  },
+                    }),
                 });
               }
             );
@@ -1574,7 +1728,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             if (resolution.releaseSlot) await resolution.releaseSlot();
           }
 
-          if (fullText === null) return { status: 200 as const, body: undefined };
+          if (fullText === null) {
+            await cleanupPending(true);
+            return { status: 200 as const, body: undefined };
+          }
 
           // The single-pass synth model cites numbers the registry can't back —
           // out-of-range ("[5]" with 3 sources) or, worst, [N] placeholders when
@@ -1592,7 +1749,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
 
       // Narrow fullText for the extraction/persist stages: the agentic path
       // always yields text; the pipeline path already returned above on null.
-      if (fullText === null) return { status: 200 as const, body: undefined };
+      if (fullText === null) {
+        await cleanupPending(true);
+        return { status: 200 as const, body: undefined };
+      }
 
       // === Stage 3b: Extract chart data from response (if chart intent) ===
       if (finalState.intent === 'chart') {
@@ -1701,6 +1861,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       }
 
       // === Stage 4: Persist & complete ===
+      // Stop the placeholder writer BEFORE persist: its final throttle write
+      // must not race the finalize UPDATE (both write the same row).
+      await cleanupPending(false);
       // Kicked off here but awaited only after sse.end(): the client already
       // has the full response, so a slow Postgres write must not delay the
       // done event. persistAssistantResponse catches its own errors.
@@ -1723,6 +1886,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         ...(agentId != null && { agentId }),
         ...(agenticSteps != null && { agenticSteps }),
         ...(langfuseTraceId != null && { traceId: langfuseTraceId }),
+        ...(pendingId != null && { pendingMessageId: pendingId }),
       });
 
       // === Stage 4b: Emit confirm_action for intents that need user approval ===
@@ -1792,8 +1956,17 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       });
 
       log.info(`[ChatGraph] Complete: ${fullText.length} chars in ${totalTimeMs}ms`);
+      // Await BEFORE ending the stream: the client keeps reading until the
+      // stream closes, so a warning emitted here still reaches it. Previously
+      // this ran after sse.end() and a failed persist had no way to be
+      // reported — the turn looked perfect live and was gone on reload.
+      const persistOutcome = await persistPromise;
+      if (!persistOutcome.ok) sendChatWarning(sse, 'persist_failed');
       sse.end();
-      await persistPromise;
+      // Safety net: if persist finalized (or skipped) but the placeholder is
+      // still an empty streaming row (e.g. persist bailed on its own guard),
+      // drop it so it can't read as an interrupted turn.
+      if (pendingId) await discardPendingAssistantIfEmpty(pendingId).catch(() => {});
       return { status: 200 as const, body: undefined };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -1806,6 +1979,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (errorStack) log.error(`[ChatGraph] Stack: ${errorStack}`);
       if (!(error instanceof Error))
         log.error(`[ChatGraph] Raw error: ${JSON.stringify(error)?.slice(0, 500)}`);
+      // Best-effort: stop the writer and drop the placeholder only if empty. A
+      // row that already streamed partial text stays 'streaming' → renders as an
+      // aborted turn; discard clears just the empty one.
+      await cleanupPending(true).catch(() => {});
       sseInternalError(sse, error);
       return { status: 200 as const, body: undefined };
     }

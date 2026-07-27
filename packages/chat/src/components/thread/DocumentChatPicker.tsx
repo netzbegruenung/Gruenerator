@@ -1,7 +1,5 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Check } from 'lucide-react';
 import {
   Badge,
   Command,
@@ -13,7 +11,11 @@ import {
   ScrollArea,
   Skeleton,
 } from '@gruenerator/ui';
+import { Check } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+
 import { useCombinedContentQuery } from '../../hooks/useFileMentionData';
+
 import type { UserDocumentItem, UserTextItem } from '../../lib/documentMentionables';
 
 interface DocumentChatPickerProps {
@@ -30,6 +32,7 @@ export function DocumentChatPicker({ visible, onConfirm, onDismiss }: DocumentCh
 
   useEffect(() => {
     if (visible) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets selection when the picker opens (visibility transition), not a render-derived value
       setSelectedIds(new Set());
     }
   }, [visible]);

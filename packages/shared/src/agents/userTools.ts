@@ -86,6 +86,12 @@ export const USER_SELECTABLE_TOOLS: readonly UserSelectableTool[] = [
     description:
       'Durchsucht frühere Unterhaltungen — im aktuellen Projekt oder über alle Chats hinweg.',
   },
+  {
+    key: 'pdf_form',
+    label: 'Formulare ausfüllen',
+    description:
+      'Liest die Felder eines angehängten PDF-Formulars und füllt sie aus; die fertige Datei steht zum Download bereit.',
+  },
 ] as const;
 
 /**

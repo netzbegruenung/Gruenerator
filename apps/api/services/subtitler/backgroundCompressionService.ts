@@ -8,6 +8,9 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import { toJobErrorStatus } from '@gruenerator/contracts';
+
+import { toJobError, toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
@@ -277,6 +280,7 @@ async function compressVideoInBackground(
           settings.crf.toString(),
           '-tune',
           settings.tune,
+          ...hwaccel.getCpuPixelFormatOptions(),
           '-c:a',
           'aac',
           '-b:a',
@@ -436,16 +440,15 @@ async function compressVideoInBackground(
       spaceSaved: originalSizeMB - compressedSizeMB,
     };
   } catch (error: unknown) {
-    log.error(`[BackgroundCompression] Error compressing ${uploadId}:`, error);
+    const jobError = toJobError(error, {
+      scope: 'background-compression',
+      meta: { uploadId },
+    });
 
     try {
       await redisClient.set(
         compressionKey,
-        JSON.stringify({
-          status: 'error',
-          error: error instanceof Error ? error.message : String(error),
-          progress: 0,
-        }),
+        JSON.stringify({ ...toJobErrorStatus(jobError), progress: 0 }),
         { EX: COMPRESSION_CONFIG.REDIS_TTL }
       );
     } catch (redisError) {
@@ -469,7 +472,7 @@ async function getCompressionStatus(uploadId: string): Promise<CompressionStatus
     return status;
   } catch (error: unknown) {
     log.error(`[BackgroundCompression] Error getting status for ${uploadId}:`, error);
-    return { status: 'error', error: error instanceof Error ? error.message : String(error) };
+    return { status: 'error', error: toUserFacingMessage(error) };
   }
 }
 

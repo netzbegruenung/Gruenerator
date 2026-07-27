@@ -1,8 +1,10 @@
 'use client';
 
-import { memo } from 'react';
 import { ExternalLink } from 'lucide-react';
+import { memo } from 'react';
+
 import { getCollectionStyle } from '../../../lib/collectionStyles';
+
 import type { CitationProps } from './projectSchema';
 
 function getFaviconUrl(domain: string | undefined): string | null {

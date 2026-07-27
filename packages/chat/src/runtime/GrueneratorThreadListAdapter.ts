@@ -1,10 +1,13 @@
 'use client';
 
-import type { ChatApiClient } from '../context/ChatContext';
 import { isUnauthorizedError } from '@gruenerator/shared/api';
-import type { RemoteThreadListAdapter } from '@assistant-ui/react';
 import { createAssistantStream } from 'assistant-stream';
+
+import { notifyWarning } from '../lib/notify';
 import { useAgentStore } from '../stores/chatStore';
+
+import type { ChatApiClient } from '../context/ChatContext';
+import type { RemoteThreadListAdapter } from '@assistant-ui/react';
 
 interface ApiThread {
   id: string;
@@ -208,6 +211,12 @@ export function createGrueneratorThreadListAdapter(
         // failures (offline, 5xx) so the sidebar degrades gracefully there.
         if (isUnauthorizedError(error)) throw error;
         console.warn('[ThreadList] Failed to fetch threads:', error);
+        // An empty sidebar is indistinguishable from "you have no chats", so
+        // say which one it is before falling back.
+        notifyWarning(
+          'Chatliste konnte nicht geladen werden',
+          'Deine Chats sind nicht verloren — lade die Seite neu.'
+        );
         return { threads: [] };
       }
     },

@@ -14,9 +14,12 @@ import { SOCIAL_PLATFORM_INFO, type SocialPostToolResult } from '@gruenerator/co
 
 import { rubricForPlatform } from '../../../agents/langgraph/ChatGraph/nodes/socialMediaComposerNode.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import { withRetry } from '../../../services/search/searchRetryStrategy.js';
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { parseSocialPostText } from './socialPostService.js';
+import { sendChatWarning } from './sseHelpers.js';
 import { createMessage, touchThread } from './threadPersistenceService.js';
 
 import type { SSEWriter } from './sseHelpers.js';
@@ -71,8 +74,7 @@ export async function findSocialPost(
     // A text-edit turn re-targets its post explicitly (one-level recursion).
     const editedPostId = (
       meta?.toolCalls?.find((tc) => tc?.toolName === 'social_post_edit')?.result as
-        | { postId?: string }
-        | undefined
+        { postId?: string } | undefined
     )?.postId;
     if (editedPostId) return findSocialPost(threadId, editedPostId);
     // Newer sharepic-only artifact shadows older posts (see doc comment).
@@ -154,13 +156,19 @@ async function finishWithText(
     },
   });
   try {
-    await createMessage(threadId, 'assistant', text, {
-      intent: 'social_post_edit',
-      ...(toolCalls ? { toolCalls } : {}),
-    });
+    await withRetry(
+      () =>
+        createMessage(threadId, 'assistant', text, {
+          intent: 'social_post_edit',
+          ...(toolCalls ? { toolCalls } : {}),
+        }),
+      { maxRetries: 1, delayMs: 300, isRecoverable: () => true, label: 'socialPostEdit:persist' }
+    );
     await touchThread(threadId);
   } catch (err) {
+    // Retry + Warnung: ein stiller Persist-Fehler lässt State und History divergieren.
     log.error('[SocialPostEdit] Failed to persist message:', err);
+    sendChatWarning(sse, 'persist_failed');
   }
   sse.end();
 }
@@ -207,7 +215,7 @@ Ziel: ~${info.recommendedChars} Zeichen. Hartes Maximum: ${info.maxChars} Zeiche
         type: 'social_post_edit',
         systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
-        options: { temperature: 0.5, max_tokens: 1200 },
+        options: { temperature: 0.5 },
       },
       req as (Request & { user?: { id?: string }; sessionID?: string }) | null
     );
@@ -267,7 +275,7 @@ Ziel: ~${info.recommendedChars} Zeichen. Hartes Maximum: ${info.maxChars} Zeiche
     log.error('[SocialPostEdit] Edit turn failed:', error);
     if (!sse.isEnded()) {
       sse.send('social_post_edit_error', {
-        error: error instanceof Error ? error.message : 'Unbekannter Fehler',
+        error: toUserFacingMessage(error, 'Unbekannter Fehler'),
       });
       await finishWithText(
         args,

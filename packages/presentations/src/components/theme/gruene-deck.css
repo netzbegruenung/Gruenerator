@@ -17,6 +17,13 @@
   --deck-accent: var(--deck-green);
   --deck-ink: var(--grey-800, #262a28);
   --deck-paper: #ffffff;
+  /* Country-CI tokens (de-DE defaults; overridden by `.brand-at` below).
+   * Values mirror PRESENTATION_BRANDS in @gruenerator/contracts. */
+  --deck-heading-font: 'GrueneTypeNeue', 'Raleway', 'PT Sans', system-ui, sans-serif;
+  --deck-body-font: 'PT Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --deck-heading-lh: 1.1;
+  --deck-quote-font: inherit;
+  --deck-on-dark-soft: #a9d3be;
 
   position: relative;
   box-sizing: border-box;
@@ -25,40 +32,57 @@
   padding: 64px 72px;
   background: var(--deck-paper);
   color: var(--deck-ink);
-  font-family:
-    'PT Sans',
-    'Raleway',
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    sans-serif;
-  font-size: 26px;
+  font-family: var(--deck-body-font);
+  /* --gs-font-scale: per-slide type scale (preset or auto-fit), set inline by
+   * SlideSurface. Scales type + list rhythm; frame geometry (padding, panels,
+   * bars, images) stays fixed so decorations match the PPTX export 1:1. */
+  font-size: calc(26px * var(--gs-font-scale, 1));
   line-height: 1.4;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: calc(20px * var(--gs-font-scale, 1));
   overflow: hidden;
   text-align: left;
+}
+
+/* AT CI ("The Odd"): Gotham Narrow, tighter headline leading, Vollkorn quotes. */
+.gruene-slide.brand-at {
+  --deck-heading-font: 'GothamNarrow-Ultra', 'Raleway', system-ui, sans-serif;
+  --deck-body-font: 'GothamNarrow-Book', 'PT Sans', system-ui, sans-serif;
+  --deck-heading-lh: 0.9;
+  --deck-quote-font: 'Vollkorn', Georgia, serif;
+  --deck-on-dark-soft: #a4d78f;
 }
 
 .gruene-slide h1,
 .gruene-slide h2,
 .gruene-slide .gruene-slide__title {
-  font-family: 'Raleway', 'PT Sans', system-ui, sans-serif;
+  font-family: var(--deck-heading-font);
   font-weight: 700;
   color: var(--deck-accent);
   margin: 0;
-  line-height: 1.15;
+  line-height: var(--deck-heading-lh);
+}
+
+.gruene-slide__logo {
+  position: absolute;
+  right: 40px;
+  bottom: 36px;
+  width: auto;
+  z-index: 1; /* above the variant-1 accent side panel */
+  opacity: 0.95;
+  pointer-events: none;
+  user-select: none;
 }
 
 .gruene-slide__title {
-  font-size: 44px;
+  font-size: calc(44px * var(--gs-font-scale, 1));
 }
 
 .gruene-slide__body {
   flex: 1 1 auto;
   min-height: 0;
-  font-size: 28px;
+  font-size: calc(28px * var(--gs-font-scale, 1));
 }
 
 .gruene-slide__body ul {
@@ -69,8 +93,8 @@
 
 .gruene-slide__body ul li {
   position: relative;
-  padding-left: 26px;
-  margin-bottom: 14px;
+  padding-left: calc(26px * var(--gs-font-scale, 1));
+  margin-bottom: calc(14px * var(--gs-font-scale, 1));
 }
 
 /* Accent dot bullet (matches the Präsentations-Editor design). */
@@ -79,8 +103,8 @@
   position: absolute;
   left: 0;
   top: 0.55em;
-  width: 10px;
-  height: 10px;
+  width: calc(10px * var(--gs-font-scale, 1));
+  height: calc(10px * var(--gs-font-scale, 1));
   border-radius: 999px;
   background: var(--deck-accent);
 }
@@ -91,7 +115,7 @@
 }
 
 .gruene-slide__body ol li {
-  margin-bottom: 12px;
+  margin-bottom: calc(12px * var(--gs-font-scale, 1));
 }
 
 .gruene-slide__body p {
@@ -123,7 +147,7 @@
   color: rgba(255, 255, 255, 0.92);
 }
 .gruene-slide.is-dark .gruene-slide__body ul li::before {
-  background: #a9d3be;
+  background: var(--deck-on-dark-soft);
 }
 .gruene-slide.is-dark .gruene-slide__body a,
 .gruene-slide.is-dark .gruene-slide__input::placeholder {
@@ -135,7 +159,7 @@
 /* Title. v0 Klassisch = centered; v1 Geteilt = left text + accent side panel;
  * v2 Sand = left text with a short accent bar on top. */
 .gruene-slide.layout-title .gruene-slide__title {
-  font-size: 56px;
+  font-size: calc(56px * var(--gs-font-scale, 1));
 }
 .gruene-slide.layout-title .gruene-slide__body {
   flex: 0 0 auto;
@@ -181,13 +205,19 @@
 }
 .gruene-slide.layout-quote .gruene-slide__body {
   flex: 0 0 auto;
-  font-size: 34px;
+  font-family: var(--deck-quote-font);
+  font-size: calc(34px * var(--gs-font-scale, 1));
   font-style: italic;
   border-left: 6px solid var(--deck-accent);
-  padding-left: 28px;
+  padding-left: calc(28px * var(--gs-font-scale, 1));
+}
+/* The web app ships Vollkorn only as Bold/BlackItalic faces — force 700 so the
+ * browser doesn't synthesize a faux italic from a missing regular. */
+.gruene-slide.brand-at.layout-quote .gruene-slide__body {
+  font-weight: 700;
 }
 .gruene-slide.layout-quote.is-dark .gruene-slide__body {
-  border-left-color: #a9d3be;
+  border-left-color: var(--deck-on-dark-soft);
 }
 .gruene-slide.layout-quote.variant-1 .gruene-slide__body {
   border-left: none;
@@ -199,12 +229,12 @@
 .gruene-slide.layout-content.variant-1 .gruene-slide__body ul {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: calc(16px * var(--gs-font-scale, 1));
   align-content: start;
 }
 .gruene-slide.layout-content.variant-1 .gruene-slide__body ul li {
   margin: 0;
-  padding: 18px 20px;
+  padding: calc(18px * var(--gs-font-scale, 1)) calc(20px * var(--gs-font-scale, 1));
   background: #f0f5f2;
   border-radius: 12px;
 }
@@ -220,22 +250,22 @@
 }
 .gruene-slide.layout-content.variant-2 .gruene-slide__body ul li {
   counter-increment: gs-num;
-  padding-left: 46px;
-  min-height: 30px;
+  padding-left: calc(46px * var(--gs-font-scale, 1));
+  min-height: calc(30px * var(--gs-font-scale, 1));
   display: flex;
   align-items: center;
 }
 .gruene-slide.layout-content.variant-2 .gruene-slide__body ul li::before {
   content: counter(gs-num);
-  width: 30px;
-  height: 30px;
+  width: calc(30px * var(--gs-font-scale, 1));
+  height: calc(30px * var(--gs-font-scale, 1));
   top: 0;
   border-radius: 999px;
   background: #eaf2ee;
   color: var(--deck-accent);
-  font-family: 'Raleway', sans-serif;
+  font-family: var(--deck-heading-font);
   font-weight: 700;
-  font-size: 16px;
+  font-size: calc(16px * var(--gs-font-scale, 1));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -281,7 +311,7 @@
   flex: 1 1 auto;
   min-height: 0;
   font-family: 'JetBrains Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
-  font-size: 20px;
+  font-size: calc(20px * var(--gs-font-scale, 1));
   line-height: 1.45;
   background: #1e2420;
   color: #e8efe9;
@@ -333,6 +363,48 @@
 .gruene-slide.layout-title .gruene-slide__title[contenteditable]:empty::before,
 .gruene-slide.is-dark .gruene-slide__title[contenteditable]:empty::before {
   color: rgba(255, 255, 255, 0.5);
+}
+
+/* ── Touch editing (phone canvas) ─────────────────────────────────────────
+ * The canvas is scaled to ~0.35 on a phone, so a tapped region gets a visible
+ * affordance instead of a caret; the actual editing happens in a focus sheet. */
+
+/* Padding + matching negative margin grows the hit area without moving the text:
+ * the canvas is scaled to ~0.4 on a phone, so 24px of slide-space padding is
+ * only ~10 device px per side — that is what lifts these to a finger-sized
+ * target while the slide still renders identically to present mode. */
+.gruene-slide__tappable {
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 32px;
+  margin: -32px;
+  outline: 2px dashed transparent;
+  outline-offset: 2px;
+  transition:
+    outline-color 0.15s ease,
+    background 0.15s ease;
+}
+.gruene-slide__tappable:active,
+.gruene-slide__tappable:focus-visible {
+  outline-color: var(--deck-accent, #316049);
+  background: rgba(255, 255, 255, 0.14);
+}
+.gruene-slide.is-dark .gruene-slide__tappable:active,
+.gruene-slide.is-dark .gruene-slide__tappable:focus-visible {
+  outline-color: rgba(255, 255, 255, 0.85);
+}
+.gruene-slide__placeholder {
+  color: rgba(0, 0, 0, 0.3);
+  font-style: italic;
+}
+.gruene-slide.is-dark .gruene-slide__placeholder {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gruene-slide__tappable {
+    transition: none;
+  }
 }
 
 /* ── reveal.js chrome (present mode only) ────────────────────────────────── */

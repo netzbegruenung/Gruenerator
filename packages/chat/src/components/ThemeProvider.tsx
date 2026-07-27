@@ -33,6 +33,7 @@ export function ThemeProvider({
   useEffect(() => {
     const stored = localStorage.getItem(storageKey) as Theme | null;
     if (stored) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration of persisted theme after mount (localStorage unavailable during render/SSR)
       setTheme(stored);
     }
   }, [storageKey]);

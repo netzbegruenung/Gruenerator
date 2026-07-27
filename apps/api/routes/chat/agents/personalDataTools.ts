@@ -44,6 +44,8 @@ import {
   USER_VISIBLE_SHARE_STATUSES,
 } from '../../../services/sharedMediaService.js';
 import { getSubtitlerProjectService } from '../../../services/subtitler/ProjectService.js';
+import { getReelTranscript, reelUrl, searchReels } from '../../../services/subtitler/reelSearch.js';
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import {
   listUserDocuments,
   officeKindLabel,
@@ -90,14 +92,12 @@ function ground(
 ): void {
   if (items.length === 0) return;
   reg.register(
-    items.map(
-      (i): SearchResult => ({
-        source: 'eigene-inhalte',
-        title: i.title,
-        content: i.content,
-        ...(i.url ? { url: i.url } : {}),
-      })
-    )
+    items.map((i): SearchResult => ({
+      source: 'eigene-inhalte',
+      title: i.title,
+      content: i.content,
+      ...(i.url ? { url: i.url } : {}),
+    }))
   );
 }
 
@@ -165,9 +165,9 @@ function notebookHelper(): NotebookQdrantHelper {
 export function makeFindContentTool(ctx: PersonalToolCtx): Tool {
   const { state, sourceRegistry } = ctx;
   return tool({
-    description: `Durchsucht die EIGENEN Inhalte der angemeldeten Person (Dokumente, Boards, Tabellen, Präsentationen, Notizbücher) oder listet die zuletzt bearbeiteten.
+    description: `Durchsucht die EIGENEN Inhalte der angemeldeten Person (Dokumente, Boards, Tabellen, Präsentationen, Notizbücher sowie Reels/untertitelte Videos) oder listet die zuletzt bearbeiteten. Reels werden dabei auch nach ihrem gesprochenen Untertitel-Inhalt durchsucht.
 
-NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "finde mein Klima-Board", "woran habe ich zuletzt gearbeitet"). Für Detailfragen zu EINEM Board/Dokument nutze 'documents' oder 'boards_tasks'.`,
+NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "finde mein Klima-Board", "woran habe ich zuletzt gearbeitet"). Für Detailfragen zu EINEM Board/Dokument nutze 'documents' oder 'boards_tasks'. Für das VOLLE Transkript eines Reels (z. B. um eine Caption zu schreiben) nutze 'media' mit action="transcript".`,
     inputSchema: z.object({
       action: z.enum(['search', 'recent']),
       query: z.string().optional().describe('Suchbegriff (nur bei action="search")'),
@@ -180,15 +180,21 @@ NUTZE WENN nach eigenen Inhalten gefragt wird ("zeig mir meine Dokumente", "find
       if (action === 'search') {
         const q = (query ?? '').trim();
         if (!q) return { error: 'Für die Suche wird ein Suchbegriff benötigt.' };
-        const hits = await searchOfficeContent(userId, q, { limit });
-        const results = hits.map((h) =>
-          makeRow(
-            h.title,
-            officeUrl(h.document_subtype, h.id),
-            officeKindLabel(h.document_subtype),
-            officeSnippet(h.document_subtype, h.content)
-          )
-        );
+        const [hits, reelHits] = await Promise.all([
+          searchOfficeContent(userId, q, { limit }),
+          searchReels(userId, q, Math.min(limit, 5)),
+        ]);
+        const results = [
+          ...hits.map((h) =>
+            makeRow(
+              h.title,
+              officeUrl(h.document_subtype, h.id),
+              officeKindLabel(h.document_subtype),
+              officeSnippet(h.document_subtype, h.content)
+            )
+          ),
+          ...reelHits.map((r) => makeRow(r.title, r.url, 'Reel', r.snippet, `reel:${r.id}`)),
+        ];
         groundRows(sourceRegistry, results);
         return { resultCount: results.length, results };
       }
@@ -262,9 +268,11 @@ NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens
         const spaceId = await getCurrentSpaceId(threadId, userId);
         if (spaceId) {
           const siblings = await resolveSpaceThreadIds(spaceId, userId);
-          threadIds = siblings.map((s) => s.id);
+          // Only scope on a successful lookup — a failed one would restrict the
+          // search to zero threads and report "nothing found" for a full Space.
+          if (siblings.ok) threadIds = siblings.threads.map((s) => s.id);
         }
-        // No space → fall through to an unscoped (all-chats) recall.
+        // No space (or a failed lookup) → unscoped (all-chats) recall.
       }
 
       const hits = await recallPastChats(userId, q, {
@@ -600,7 +608,7 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
         return { ok: true, note };
       } catch (err) {
         return {
-          error: err instanceof Error ? err.message : 'Karte konnte nicht bearbeitet werden.',
+          error: toUserFacingMessage(err, 'Karte konnte nicht bearbeitet werden.'),
         };
       }
     },
@@ -714,10 +722,17 @@ export function makeMediaTool(ctx: PersonalToolCtx): Tool {
   return tool({
     description: `Zugriff auf die EIGENEN Medien der Person: Reels (untertitelte Videos) und Sharepics (Social-Grafiken).
 
-NUTZE FÜR: eigene Medien auflisten (list, optional type="reel"|"sharepic"), löschen (delete mit ref aus der Liste + confirm=true nach Zustimmung).`,
+NUTZE FÜR:
+- auflisten (list, optional type="reel"|"sharepic")
+- Reels nach INHALT suchen (search mit query) — durchsucht Titel UND das gesprochene Untertitel-Transkript, z. B. "das Reel über Windkraft"
+- das volle Transkript eines Reels holen (transcript mit ref="reel:<id>") — nötig, bevor du eine Caption, einen Social-Post oder eine Zusammenfassung zum Video schreibst
+- löschen (delete mit ref aus der Liste + confirm=true nach Zustimmung)
+
+TYPISCHER ABLAUF für "such das Reel zu Thema X und schreib eine Caption": erst search, dann transcript für den besten Treffer, dann die Caption aus dem Transkript formulieren.`,
     inputSchema: z.object({
-      action: z.enum(['list', 'delete']),
+      action: z.enum(['list', 'search', 'transcript', 'delete']),
       type: z.enum(['all', 'reel', 'sharepic']).default('all'),
+      query: z.string().optional().describe('Suchbegriff (nur bei action="search")'),
       ref: z
         .string()
         .optional()
@@ -725,9 +740,57 @@ NUTZE FÜR: eigene Medien auflisten (list, optional type="reel"|"sharepic"), lö
       confirm: z.boolean().default(false),
       limit: z.number().int().min(1).max(30).default(15),
     }),
-    execute: async ({ action, type, ref, confirm, limit }) => {
+    execute: async ({ action, type, query, ref, confirm, limit }) => {
       const userId = requireUserId(state);
       if (!userId) return { error: NO_SESSION };
+
+      if (action === 'search') {
+        const q = (query ?? '').trim();
+        if (!q) return { error: 'search braucht query.' };
+        const hits = await searchReels(userId, q, Math.min(limit, 10));
+        const results = hits.map((h) =>
+          makeRow(
+            h.title,
+            h.url,
+            'Reel',
+            h.snippet || (h.matchedTranscript ? null : 'Titeltreffer'),
+            `reel:${h.id}`
+          )
+        );
+        groundRows(sourceRegistry, results);
+        return {
+          resultCount: results.length,
+          results,
+          ...(results.length > 0 && {
+            note: 'Für eine Caption/Zusammenfassung zuerst action="transcript" mit dem ref des passenden Reels aufrufen.',
+          }),
+        };
+      }
+
+      if (action === 'transcript') {
+        if (!ref) return { error: 'transcript braucht ref (z. B. "reel:<id>").' };
+        const [kind, handle] = ref.split(':', 2);
+        if (kind !== 'reel' || !handle) {
+          return { error: 'transcript gibt es nur für Reels (ref="reel:<id>").' };
+        }
+        const found = await getReelTranscript(userId, handle);
+        if (!found) {
+          return { error: 'Reel nicht gefunden, kein Zugriff, oder es hat keine Untertitel.' };
+        }
+        ground(sourceRegistry, [
+          {
+            title: found.title,
+            content: `Untertitel-Transkript des Reels „${found.title}" (gesprochener Videoinhalt):\n${found.transcript}`,
+            url: reelUrl(handle),
+          },
+        ]);
+        return {
+          title: found.title,
+          url: reelUrl(handle),
+          segmentCount: found.segmentCount,
+          transcript: found.transcript,
+        };
+      }
 
       if (action === 'list') {
         const results: ResultRow[] = [];

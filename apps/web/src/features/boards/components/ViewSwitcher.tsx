@@ -73,7 +73,9 @@ export const ViewSwitcher = memo(function ViewSwitcher({
                   e.stopPropagation();
                   onDeleteView(view.id);
                 }}
-                className="ml-0.5 -mr-1 hidden group-hover:inline-flex items-center justify-center w-4 h-4 rounded hover:bg-grey-200 dark:hover:bg-grey-700 text-grey-400 hover:text-foreground transition-colors"
+                // Touch has no hover: without the max-sm escape this was the only
+                // way to delete a view and it was unreachable on a phone.
+                className="ml-0.5 -mr-1 hidden max-sm:inline-flex group-hover:inline-flex items-center justify-center w-4 h-4 max-sm:w-7 max-sm:h-7 rounded hover:bg-grey-200 dark:hover:bg-grey-700 text-grey-400 hover:text-foreground transition-colors"
               >
                 <FiX size={10} />
               </span>

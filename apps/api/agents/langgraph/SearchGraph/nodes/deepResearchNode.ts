@@ -8,6 +8,7 @@
  */
 
 import { getLinkupService } from '../../../../services/search/LinkupService.js';
+import { toUserFacingMessage } from '../../../../utils/errors/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { buildCitations } from '../../ChatGraph/nodes/searchNode.js';
 import { aggregatorNode } from '../../WebSearchGraph/nodes/AggregatorNode.js';
@@ -78,7 +79,7 @@ async function searchViaLinkup(state: WebSearchState): Promise<Partial<WebSearch
           success: false,
           provider: 'linkup',
           results: [],
-          error: err instanceof Error ? err.message : String(err),
+          error: toUserFacingMessage(err),
         };
       }
     })

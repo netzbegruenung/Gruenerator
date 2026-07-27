@@ -13,16 +13,16 @@ describe('getPruningBudget', () => {
   });
 
   it('stays below the window on the 32k lanes (verdigado-pro, gemma4-31b)', () => {
-    // The regression this function exists for: the flat 40k ceiling pruned
+    // The regression this function exists for: a flat global budget pruned
     // these lanes to more than their model can accept.
     const budget = getPruningBudget(32768);
     expect(budget).toBeLessThan(32768);
-    expect(budget).toBe(17660);
+    expect(budget).toBe(19937); // floor(32768 * 0.7) - 3000
   });
 
-  it('caps large windows at the ceiling rather than filling them', () => {
-    // Deliberate cost decision — see the comment on getPruningBudget.
-    expect(getPruningBudget(128000)).toBe(CONTEXT_CONFIG.MAX_CONTEXT_TOKENS);
+  it('scales with large windows instead of capping at a global ceiling', () => {
+    // No ceiling anymore: 128k Mistral lanes may use their share of the window.
+    expect(getPruningBudget(128000)).toBe(86600); // floor(128000 * 0.7) - 3000
   });
 
   it('never prunes below the floor for tiny declared windows', () => {

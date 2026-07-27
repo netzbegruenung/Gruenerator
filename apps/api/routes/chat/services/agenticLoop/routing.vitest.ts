@@ -92,6 +92,7 @@ describe('decideRunAgentic', () => {
     secondaryIntent: null as string | null,
     compoundGeneration: false,
     hasImageAttachments: false,
+    isPdfFillRequest: false,
   };
   const decide = (o: Partial<typeof base>) => decideRunAgentic({ ...base, ...o });
 
@@ -129,6 +130,17 @@ describe('decideRunAgentic', () => {
 
   it('respects the flag', () => {
     expect(decide({ loopEnabled: false })).toBe(false);
+  });
+
+  it('lets a PDF fill ask into the loop, though it is no "toolable question"', () => {
+    const fill = { intent: 'direct', lastUserText: 'Füll mir bitte das Formular aus' };
+    // Without the PDF signal the imperative stays on the fast path by design.
+    expect(decide(fill)).toBe(false);
+    expect(decide({ ...fill, isPdfFillRequest: true })).toBe(true);
+    // Kill-switches still win — the PDF tools are not worth a broken contract.
+    expect(decide({ ...fill, isPdfFillRequest: true, loopEnabled: false })).toBe(false);
+    expect(decide({ ...fill, isPdfFillRequest: true, forcedTool: true })).toBe(false);
+    expect(decide({ ...fill, isPdfFillRequest: true, hasImageAttachments: true })).toBe(false);
   });
 
   it('enters the loop regardless of the selected model (planner does the tools)', () => {
@@ -340,6 +352,12 @@ describe('looksLikeCompoundGeneration', () => {
     ['zahlen + folien', 'Such aktuelle Zahlen zur Windkraft und mach Folien daraus'],
     ['position + tabelle', 'Vergleiche die Positionen zum Tempolimit in einer Tabelle'],
     ['fakten + sheet', 'Ich brauche ein Sheet mit den Fakten zur Kindergrundsicherung'],
+    // The research signal used to require the VERB stem `recherchier`, so these
+    // follow-ups fell through to the single-pass generator with no sources at
+    // all and produced placeholder documents ("Beispielautor*in", example.com).
+    ['recherche as a NOUN + pdf', 'erstelle nun ein pdf mit originalquellen aus der recherche'],
+    ['quellen + pdf', 'Mach mir daraus ein PDF mit den Quellen'],
+    ['belege + tabelle', 'Erstelle eine Tabelle mit Belegen zum Radverkehr'],
   ];
   it.each(compound)('routes compound research+generation into the loop: %s', (_l, q) => {
     expect(looksLikeCompoundGeneration(q)).toBe(true);
@@ -383,6 +401,9 @@ describe('compoundGenerationKind', () => {
     expect(compoundGenerationKind('create_sheet', 'Such Zahlen und mach eine Tabelle')).toBe(
       'sheet'
     );
+    expect(compoundGenerationKind('create_pdf', 'Recherchiere X und mach ein PDF daraus')).toBe(
+      'pdf'
+    );
   });
 
   it('recovers the kind from the text noun on a DEMOTED `agentic` turn (the sheet bug)', () => {
@@ -402,6 +423,19 @@ describe('compoundGenerationKind', () => {
       'presentation'
     );
     expect(compoundGenerationKind('direct', 'Such Fakten und mach ein Sharepic')).toBe('sharepic');
+    // pdf wins over the generic document noun: "PDF-Dokument" names both.
+    expect(
+      compoundGenerationKind('agentic', 'Recherchiere X und erstelle ein PDF-Dokument dazu')
+    ).toBe('pdf');
+    expect(
+      compoundGenerationKind(
+        'agentic',
+        'Such die Fakten und mach einen Brief mit Briefkopf als PDF'
+      )
+    ).toBe('pdf');
+    expect(
+      compoundGenerationKind('agentic', 'Recherchiere die Regeln und bau ein Anmeldeformular')
+    ).toBe('pdf');
   });
 
   it('returns null without a research signal (pure generation stays single-pass)', () => {

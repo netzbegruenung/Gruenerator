@@ -1,0 +1,64 @@
+---
+sidebar_position: 4
+---
+
+import UiLabel from '@site/src/components/UiLabel';
+import OfficeOps, { OfficeFact } from '@site/src/components/OfficeOps';
+
+# Präsentationen
+
+Eine Präsentation ist eine Folge von Folien mit eigenem Vortragsmodus. Du legst sie über **<UiLabel id="workplace.presentations" />** an — oder lässt sie dir im Chat aus einem Thema erzeugen.
+
+{/* SCREENSHOT: /office/<id> einer Präsentation, Folienübersicht links, Folie in der Mitte. Bildunterschrift: „Die Folienübersicht links, die aktuelle Folie in der Mitte." */}
+
+## Aus einem Thema wird ein Foliensatz
+
+Das ist der eigentliche Nutzen — du fängst nicht mit einer leeren Folie an:
+
+> „Mach mir eine Präsentation über unsere Verkehrspolitik für die Mitgliederversammlung, etwa zehn Folien."
+
+Der Grünerator recherchiert, gliedert und legt die Folien an — mit Titeln, Inhalten und Notizen für den Vortrag. Danach überarbeitest du einzelne Folien ganz normal weiter.
+
+Genauso funktioniert der Anschluss an eine Recherche: Wenn du vorher etwas nachgeschlagen hast, genügt „Mach eine Präsentation daraus".
+
+## Folien aufbauen
+
+Jede Folie hat ein **Layout**, das bestimmt, wie Titel und Inhalt angeordnet sind — insgesamt gibt es <OfficeFact name="slideLayoutCount" /> davon, von der Titelfolie über zweispaltige Folien bis zum Zitat und zum Codebeispiel. Dazu kommen pro Folie:
+
+- **Notizen** — dein Text zum Vortrag, für das Publikum unsichtbar
+- **Hintergrund** — eine Farbe, ein Bild oder ein Verlauf
+- **Schriftgröße** — normalerweise „Auto": der Text verkleinert sich so weit, dass er auf die Folie passt, statt abgeschnitten zu werden. Wird es dir zu klein oder zu groß, legst du die Größe von XS bis XL selbst fest
+- **Schrittweises Einblenden** — Aufzählungspunkte erscheinen nacheinander statt auf einmal
+- **Übergang** — wie die Folie die vorherige ablöst
+
+Was für die ganze Präsentation gilt — Standardübergang, Akzentfarbe, Foliennummern, automatisches Weiterschalten — stellst du einmal zentral ein.
+
+## Vortragen
+
+Im Präsentationsmodus läuft die Präsentation bildschirmfüllend. Du blätterst mit den Pfeiltasten; deine Notizen bleiben dabei für das Publikum unsichtbar.
+
+## Exportieren
+
+Es gibt zwei Wege heraus:
+
+**Als PDF** — öffnet die Präsentation in einer druckfertigen Ansicht, aus der du über den Druckdialog ein PDF erzeugst. Das klappt immer und sieht aus wie im Vortragsmodus.
+
+**Als PowerPoint (`.pptx`)** — erzeugt eine Datei, die sich in PowerPoint und LibreOffice öffnen lässt.
+
+:::caution[PowerPoint-Export ist nicht überall verfügbar]
+Der `.pptx`-Export braucht ein Zusatzprogramm auf dem Server. Fehlt es in der Umgebung, in der du arbeitest, bekommst du eine entsprechende Meldung statt einer Datei — nimm dann den PDF-Weg.
+:::
+
+## Was der Grünerator an der Präsentation ändern kann
+
+Schreib in der Chat-Seitenleiste, was passieren soll. Folien sprichst du dabei über ihre Nummer an („Folie 3") oder über ihren Inhalt („die Folie mit den Zahlen"). Pro Auftrag führt der Grünerator bis zu <OfficeFact name="presentationMaxOperations" /> Änderungen aus.
+
+<OfficeOps surface="presentations" />
+
+:::tip[Beim Ändern zählt, was du weglässt]
+Wenn du „mach den Titel von Folie 2 kürzer" sagst, bleibt alles andere an dieser Folie unangetastet — Inhalt, Notizen, Hintergrund. Du musst nie die ganze Folie neu beschreiben, nur weil du eine Kleinigkeit ändern willst.
+:::
+
+:::note[Diese Liste hält sich selbst aktuell]
+Welche Änderungen möglich sind, stammt direkt aus dem Programmcode. Kommt eine neue Fähigkeit dazu, meldet sich die Doku-Prüfung automatisch, bis sie hier mit einem Beispielsatz beschrieben ist.
+:::

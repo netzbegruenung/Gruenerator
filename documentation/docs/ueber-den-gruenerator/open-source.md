@@ -1,5 +1,5 @@
 ---
-sidebar_position: 4
+sidebar_position: 5
 title: Worauf der Grünerator aufbaut
 ---
 
@@ -84,6 +84,6 @@ Unter all diesen Funktionen liegt ein Fundament aus bewährten Open-Source-Baust
 
 [GitHub](https://github.com/microsoft/TypeScript) · [NPM](https://www.npmjs.com/package/typescript)
 
-:::info Offenheit als Prinzip
+:::info[Offenheit als Prinzip]
 All diese Projekte werden offen und gemeinschaftlich entwickelt und stehen damit allen zur Verfügung. Genau wie bei der [europäischen Infrastruktur](./gruenerator-pro-eu) setzt der Grünerator damit bewusst auf Transparenz statt Blackbox.
 :::

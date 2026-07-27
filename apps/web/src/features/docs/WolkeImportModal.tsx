@@ -292,7 +292,7 @@ function WolkeFileBrowser({
                 key={item.name}
                 type="button"
                 onClick={() => navigateTo(relativePath)}
-                className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-left hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                className="flex items-center gap-2.5 px-2 py-2 max-sm:min-h-11 rounded-lg text-sm text-left hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
               >
                 <FiFolder className="w-4 h-4 text-primary-500 shrink-0" />
                 <span className="truncate text-foreground">{item.name}</span>
@@ -311,7 +311,7 @@ function WolkeFileBrowser({
               }
               disabled={!isImportable || disabled}
               className={cn(
-                'flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm text-left transition-colors',
+                'flex items-center gap-2.5 px-2 py-2 max-sm:min-h-11 rounded-lg text-sm text-left transition-colors',
                 isImportable && !disabled
                   ? 'hover:bg-primary-50 dark:hover:bg-primary-900/20 cursor-pointer'
                   : 'opacity-40 cursor-not-allowed'

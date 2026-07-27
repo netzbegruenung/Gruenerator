@@ -18,6 +18,7 @@ import {
   getSourcesForIntent,
   SYSTEM_TOOL_INTENTS,
 } from '../../../../services/mcp/systemMcpServers.js';
+import { applyContextCap } from '../../../../utils/contextCap.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { loadMcpCatalog, type McpCatalog } from '../../agents/mcpCatalog.js';
 import {
@@ -41,10 +42,10 @@ import {
 import { stripOutOfRangeCitations } from './citationStrip.js';
 import { isMcpReplayEnabled } from './flags.js';
 import { runAgenticLoop, type LoopMode } from './loopEngine.js';
-import { createToolLoopGuards } from './loopGuards.js';
+import { createToolLoopGuards, MAX_SOURCES } from './loopGuards.js';
 import { buildToolObservationReplay } from './mcpReplay.js';
 import { resolveEditorSurfaceKind } from './routing.js';
-import { createSourceRegistry } from './sourceRegistry.js';
+import { createSourceRegistry, withResearchedSources } from './sourceRegistry.js';
 import {
   DEFAULT_LOOP_BUDGET,
   readMcpResult,
@@ -91,6 +92,7 @@ export const AGENTIC_INTENTS: ReadonlySet<string> = new Set([
   'wetter',
   'news',
   'umfragen',
+  'hilfe',
   'image',
   // Loop demotion (classifier Tier 3.5): low-confidence toolable turns that
   // skipped the LLM classifier entirely.
@@ -107,6 +109,7 @@ const COMPOUND_TOOL_FOR: Record<string, string> = {
   sheet: 'create_sheet',
   document: 'create_document',
   board: 'create_board',
+  pdf: 'create_pdf',
 };
 
 /** Tools counted against the per-turn search budget (loopGuards). */
@@ -132,6 +135,7 @@ const NON_REPLAYABLE_ACTION_TOOLS: ReadonlySet<string> = new Set([
   'create_board',
   'create_sheet',
   'create_presentation',
+  'create_pdf',
   'generate_image',
   'sharepic',
 ]);
@@ -176,11 +180,16 @@ const MCP_CAPABILITY_QUESTION =
  * This embeds each MCP step's real outcome AND its result content, and tells the
  * synth to relay it concretely. Pure — unit-tested in toolOutcome.vitest.ts.
  */
-const MCP_CONTENT_CAP = 1500;
+// 1500 could not coexist with the instruction three lines below, which tells
+// the model to list the connector's records COMPLETELY ("lass nichts Relevantes
+// weg"). A 20-entry calendar or Notion listing was cut after ~6 and the model
+// dutifully presented those 6 as the whole answer. 25000 matches LobeChat's
+// tool-result budget.
+const MCP_CONTENT_CAP = 25_000;
 
 /** The connector's text payload, length-capped for the synth prompt. */
 function capMcpContent(content: string): string {
-  return content.length > MCP_CONTENT_CAP ? `${content.slice(0, MCP_CONTENT_CAP)}…` : content;
+  return applyContextCap(content, MCP_CONTENT_CAP, 'agenticLoop:mcpContent');
 }
 
 export function buildMcpOutcomeNote(steps: PersistedStep[]): string {
@@ -275,6 +284,16 @@ export async function streamAgenticResponse(params: {
   });
   const steps: PersistedStep[] = [];
   let text = '';
+  // Planner narration sentences buffered since the last tool call started, so
+  // wrapTools can drain + associate them with the tool they announced. Split
+  // mode only; unified narration flows through the answer text via onText.
+  const narrationBuffer: string[] = [];
+  const takeNarration = (): string | null => {
+    if (narrationBuffer.length === 0) return null;
+    const joined = narrationBuffer.join(' ').trim();
+    narrationBuffer.length = 0;
+    return joined || null;
+  };
   let responseStarted = false;
   let resolution: Awaited<ReturnType<typeof resolveModel>> | null = null;
   let mcpCatalog: McpCatalog | null = null;
@@ -399,18 +418,31 @@ export async function streamAgenticResponse(params: {
       }
     }
 
-    // Cross-turn source rehydration (editor surfaces only): seed the registry
-    // with the sources gathered in the last research turn so the edit op-planner
-    // grounds "trag die recherchierten Zahlen ein" even when the search ran turns
-    // ago. Feeds ONLY renderReference() (op-planner) — not this turn's citations/
-    // synth block. Gated to edit surfaces so normal chat never inherits stale
-    // sources. Defensive: a failed read just skips seeding.
-    if (threadId && finalState.editToolSurface) {
+    // Cross-turn source rehydration: seed the registry with the sources gathered
+    // in the last research turn so a follow-up grounds against research that ran
+    // turns ago — "trag die recherchierten Zahlen ein" (edit surfaces) and
+    // "erstelle ein PDF mit den Originalquellen aus der Recherche" (generation).
+    //
+    // Complements the structured tool replay (buildToolObservationReplay), which
+    // strips the [N] markers and only replays steps whose tool is mounted THIS
+    // turn. This reads the persisted SearchResult[] directly, so the research
+    // survives even when the search tool isn't in the current catalog.
+    //
+    // Feeds ONLY renderReference() — not this turn's citations/synth block — so
+    // carried sources ground the answer without producing dangling [N] chips for
+    // sources this turn never fetched.
+    //
+    // Deliberately UNGATED (was: edit surfaces only). A thread that just looked
+    // something up should still know it a few messages later — dropping the
+    // research the moment the turn ends is what makes a follow-up feel amnesiac.
+    // Bounded by getRecentThreadSources itself: only the most recent assistant
+    // message carrying sources, capped at 10, snippets already trimmed.
+    if (threadId) {
       try {
         const carried = await getRecentThreadSources(threadId);
         if (carried.length > 0) {
           sourceRegistry.seedCarried(carried);
-          log.info(`[Agentic] rehydrated ${carried.length} prior source(s) for edit grounding`);
+          log.info(`[Agentic] rehydrated ${carried.length} prior source(s) for grounding`);
         }
       } catch (err) {
         log.warn(
@@ -424,6 +456,13 @@ export async function streamAgenticResponse(params: {
       guards,
       recordStep: (s) => steps.push(s),
       perCallTimeoutMs: budget.perCallTimeoutMs,
+      // Only unified mode streams answer text WHILE tools run, so its `text`
+      // length is a meaningful per-tool offset. In split mode `text` stays empty
+      // through the whole gather phase → return null so no (all-0) offsets are
+      // recorded, and reload falls back to the legacy cards-first layout.
+      // Reads `mode` lazily: it's finalized (line below) before the loop runs.
+      getTextOffset: () => (mode === 'unified' ? text.length : null),
+      takeNarration,
       ...(toolLabels.size > 0
         ? {
             titleFor: (name: string) => {
@@ -627,11 +666,15 @@ export async function streamAgenticResponse(params: {
         | { execute?: (input: unknown, opts: { toolCallId: string }) => Promise<unknown> }
         | undefined;
       if (!genTool?.execute) return;
+      // The brief stays the bare ask: the doc/PDF tools append the source block
+      // themselves (withResearchedSources), so enriching it here would emit the
+      // sources twice. `sharepic`/`board` have no registry of their own, so they
+      // still get the enriched form.
       const userAsk = lastUserAsk();
-      const sourcesBlock = sourceRegistry.renderAll();
-      const brief = sourcesBlock
-        ? `${userAsk}\n\nNutze diese recherchierten Quellen für die Inhalte:\n${sourcesBlock}`
-        : userAsk;
+      const selfSourcing = kind !== 'sharepic' && kind !== 'board';
+      const brief = selfSourcing
+        ? userAsk
+        : withResearchedSources(userAsk, sourceRegistry.renderAll());
       // Both arg shapes: doc/board tools read `prompt`, sharepic reads `text`.
       const args = { prompt: brief, text: brief };
       const stepId = 'forced-generation';
@@ -728,9 +771,14 @@ export async function streamAgenticResponse(params: {
         toolReplayMessages.length > 0 && messages.length > 0
           ? [...messages.slice(0, -1), ...toolReplayMessages, messages[messages.length - 1]]
           : messages,
+      // The synth phase runs WITHOUT tools — it gets the plain history. Feeding
+      // it the replay made it imitate the tool-call pattern in prose instead of
+      // answering (live: the entire answer was "Let's perform web_search.").
+      synthMessages: messages,
       maxSteps: budget.maxSteps,
       temperature: agentConfig.params.temperature ?? 0.3,
-      maxOutputTokens: Math.max(agentConfig.params.max_tokens ?? 2000, 4000),
+      // No output cap (OpenWebUI-style): the model window is the backstop.
+      // The old 4000-token floor truncated think-lane answers mid-sentence.
       abortSignal,
       afterGather,
       forceFinish: () =>
@@ -744,6 +792,14 @@ export async function streamAgenticResponse(params: {
         sse.send('text_delta', { text: delta });
       },
       onReasoning: (delta) => sse.send('reasoning_delta', { text: delta }),
+      // Split-gather narration: the planner's inter-tool prose, sentence-wise.
+      // NOT routed through onText — that starts the response + persists it as
+      // answer text. Sent live on its own SSE channel AND buffered so the next
+      // tool_step_start can stamp it onto the card for durable rendering.
+      onNarration: (s) => {
+        narrationBuffer.push(s);
+        sse.send('gather_narration', { text: s });
+      },
     });
 
     // Edit + compound-generation guarantees now run inside afterGather in BOTH
@@ -758,6 +814,9 @@ export async function streamAgenticResponse(params: {
       text = finalState.editorEditsSummary
         ? `Erledigt — ${finalState.editorEditsSummary}.`
         : 'Ich konnte dazu leider keine passende Antwort finden. Magst du deine Frage anders formulieren?';
+      // Replacement text invalidates offsets recorded against the streamed
+      // (whitespace-only) text — drop them so reload keeps cards-first.
+      for (const s of steps) delete s.textOffset;
       startResponse();
       sse.send('text_delta', { text });
     }
@@ -770,6 +829,7 @@ export async function streamAgenticResponse(params: {
       text = aborted
         ? 'Das hat leider zu lange gedauert. Magst du es noch einmal versuchen oder die Frage eingrenzen?'
         : 'Bei der Antwort ist etwas schiefgelaufen. Versuch es bitte gleich noch einmal.';
+      for (const s of steps) delete s.textOffset;
       startResponse();
       sse.send('text_delta', { text });
     }
@@ -786,6 +846,10 @@ export async function streamAgenticResponse(params: {
   const clamp = stripOutOfRangeCitations(text, sourceRegistry.size);
   if (clamp.changed) {
     text = clamp.text;
+    // Offset-drift protection: the clamp rewrote the answer text, so every
+    // recorded textOffset now points into a stale position. Drop them — reload
+    // then falls back to the cards-first layout instead of mis-interleaving.
+    for (const s of steps) delete s.textOffset;
     sse.send('completion', { text, citations: sourceRegistry.getCitations() });
   }
 
@@ -825,7 +889,10 @@ export async function streamAgenticResponse(params: {
     fullText: text,
     steps,
     citations: sourceRegistry.getCitations(),
-    sources: sourceRegistry.getResults(10),
+    // MAX_SOURCES, not 10: this is what gets persisted and what a later turn
+    // rehydrates. Capping here below the loop's own gathering budget silently
+    // threw away half the research of a thorough turn.
+    sources: sourceRegistry.getResults(MAX_SOURCES),
     modelName: resolution?.modelName ?? agentConfig.model,
   };
 }

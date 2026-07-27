@@ -11,6 +11,7 @@ export default [
       'apps/desktop/**/*.{ts,tsx,js,jsx}',
       'apps/gruen-o-mat/**/*.{ts,tsx,js,jsx}',
       'packages/sites/**/*.{ts,tsx,js,jsx}',
+      'packages/chat/**/*.{ts,tsx,js,jsx}',
     ],
     ...reactConfig[0],
   },
@@ -22,6 +23,7 @@ export default [
       'apps/desktop/**/*.{ts,tsx,js,jsx}',
       'apps/gruen-o-mat/**/*.{ts,tsx,js,jsx}',
       'packages/sites/**/*.{ts,tsx,js,jsx}',
+      'packages/chat/**/*.{ts,tsx,js,jsx}',
     ],
   })),
 

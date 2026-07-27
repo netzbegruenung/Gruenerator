@@ -13,6 +13,7 @@ import { fileURLToPath } from 'url';
 import { type ExportRequest, type ProcessRequest } from '@gruenerator/contracts';
 import { v4 as uuidv4 } from 'uuid';
 
+import { toJobError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
@@ -114,9 +115,21 @@ export async function startTranscriptionJob(
       .catch(async (error: Error) => {
         reportBackgroundError(error, { job: 'subtitler-transcription', uploadId });
         void scheduleImmediateCleanup(uploadId, 'transcription error');
-        await redisClient.set(jobKey, JSON.stringify({ status: 'error', data: error.message }), {
-          EX: 86400,
+        const jobError = toJobError(error, {
+          scope: 'subtitler-transcription',
+          meta: { uploadId },
         });
+        await redisClient.set(
+          jobKey,
+          JSON.stringify({
+            status: 'error',
+            data: jobError.message,
+            errorCode: jobError.code,
+            retryable: jobError.retryable,
+            errorId: jobError.errorId,
+          }),
+          { EX: 86400 }
+        );
       })
       // Terminal catch: if the error handler itself fails (e.g. Redis
       // down), the job would silently stay "processing" for 24h.
@@ -126,17 +139,24 @@ export async function startTranscriptionJob(
 
     return { ok: true };
   } catch (error: unknown) {
-    const errMsg = error instanceof Error ? error.message : String(error);
-    await redisClient.set(jobKey, JSON.stringify({ status: 'error', data: errMsg }), {
-      EX: 86400,
-    });
-    return { ok: false, code: 500, error: errMsg };
+    const jobError = toJobError(error, { scope: 'subtitler-transcription', meta: { uploadId } });
+    await redisClient.set(
+      jobKey,
+      JSON.stringify({
+        status: 'error',
+        data: jobError.message,
+        errorCode: jobError.code,
+        retryable: jobError.retryable,
+        errorId: jobError.errorId,
+      }),
+      { EX: 86400 }
+    );
+    return { ok: false, code: 500, error: jobError.message };
   }
 }
 
 export type StartExportResult =
-  | { ok: true; exportToken: string }
-  | { ok: false; code: 400 | 404 | 500; error: string };
+  { ok: true; exportToken: string } | { ok: false; code: 400 | 404 | 500; error: string };
 
 /**
  * Start a subtitled-video export render. Resolves the input video (project
@@ -322,6 +342,7 @@ export async function startSubtitledVideoExport(body: ExportRequest): Promise<St
 
     return { ok: true, exportToken };
   } catch (e: unknown) {
-    return { ok: false, code: 500, error: e instanceof Error ? e.message : String(e) };
+    const jobError = toJobError(e, { scope: 'subtitler-export', meta: { exportToken } });
+    return { ok: false, code: 500, error: jobError.message };
   }
 }

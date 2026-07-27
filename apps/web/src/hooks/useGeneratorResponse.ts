@@ -50,7 +50,7 @@ export interface ResponseParserReturn {
    *
    * @example
    * ```typescript
-   * const result = parseResponse(apiResponse, '/claude_social');
+   * const result = parseResponse(apiResponse, '/texte/social');
    * if (result.success) {
    *   console.log(result.content); // string
    *   console.log(result.metadata); // Record<string, unknown> | undefined
@@ -225,6 +225,7 @@ export function useGeneratorResponse(config: ResponseParserConfig): ResponsePars
         config.onSuccess(content, metadata);
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- depend on the specific config fields, not the (often inline/unstable) config object
     [config.componentName, config.onSuccess, setGeneratedText]
   );
 

@@ -38,12 +38,7 @@ export const SKILL_CATEGORY_ICONS: Record<SkillCategory, IconType> = {
 /** Every category key the market can show. Skills + Landesverbände no longer have
  *  their own aisles — they live as sub-sections inside `gruenerator`. */
 export type AgenturaCategoryKey =
-  | 'empfohlen'
-  | 'meine'
-  | 'gruppen'
-  | 'community'
-  | 'gruenerator'
-  | 'favoriten';
+  'empfohlen' | 'meine' | 'gruppen' | 'community' | 'gruenerator' | 'favoriten';
 
 export interface AgenturaCategory {
   key: AgenturaCategoryKey;
@@ -75,7 +70,7 @@ export const AGENTURA_CATEGORIES: AgenturaCategory[] = [
     icon: PiSparkle,
     description: 'Deine selbst erstellten Grüneratoren und wiederkehrenden Aufgaben.',
     emptyText:
-      'Du hast noch keine eigenen Grüneratoren erstellt. Leg deinen ersten über „Neuer Grünerator" an.',
+      'Du hast noch keine eigenen Grüneratoren erstellt. Leg deinen ersten über „Neuer Grünerator-Agent" an.',
     emptyIcon: PiSparkle,
   },
   {
@@ -97,13 +92,14 @@ export const AGENTURA_CATEGORIES: AgenturaCategory[] = [
     key: 'gruenerator',
     label: 'Offizielle Grüneratoren',
     icon: PiStorefront,
-    description: 'Fertige Grüneratoren, Presse- & Social-Skills und Landesverbände von Grünerator.',
+    description:
+      'Fertige Grüneratoren, Presse- & Social-Rezepte und Landesverbände von Grünerator.',
   },
   {
     key: 'favoriten',
     label: 'Favoriten',
     icon: PiStarFill,
-    description: 'Deine gemerkten Grüneratoren und Skills.',
+    description: 'Deine gemerkten Grüneratoren und Rezepte.',
   },
 ];
 

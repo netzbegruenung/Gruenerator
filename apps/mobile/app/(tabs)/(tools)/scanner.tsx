@@ -168,7 +168,7 @@ export default function ScannerScreen() {
       try {
         const apiClient = getGlobalApiClient();
         const response = await apiClient.post<{ result?: string; text?: string }>(
-          '/claude_text_adjustment',
+          '/texte/adjustment',
           {
             originalText: extractedText,
             modification: TRANSFORM_PROMPTS[presetId],

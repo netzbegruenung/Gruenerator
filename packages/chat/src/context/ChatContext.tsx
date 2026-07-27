@@ -6,7 +6,7 @@
  * use the config store's current values for backwards compatibility.
  */
 
-import { UnauthorizedError } from '@gruenerator/shared/api';
+import { ApiError, UnauthorizedError } from '@gruenerator/shared/api';
 
 import { useChatConfigStore } from '../stores/chatConfigStore';
 
@@ -47,18 +47,24 @@ export function createChatApiClient(
     }
 
     if (!response.ok) {
-      let errorData;
+      let errorData: { message?: unknown; error?: unknown };
       try {
-        errorData = await response.json();
+        errorData = (await response.json()) as { message?: unknown; error?: unknown };
       } catch {
         errorData = { message: response.statusText };
       }
-      throw new Error(errorData.message || errorData.error || 'Request failed');
+      // Typed with its status so callers can tell a deleted resource (404)
+      // from a server hiccup (5xx) — collapsing both into a generic Error is
+      // what made a transient outage look like missing data.
+      throw new ApiError(
+        response.status,
+        String(errorData.message || errorData.error || 'Request failed')
+      );
     }
 
     const contentType = response.headers.get('content-type');
     if (contentType?.includes('application/json')) {
-      return await response.json();
+      return (await response.json()) as T;
     }
 
     return response as unknown as T;

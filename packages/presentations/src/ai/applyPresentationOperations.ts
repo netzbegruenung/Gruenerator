@@ -52,6 +52,7 @@ export function applyPresentationOperations(
               background: null,
               transition: null,
               fragments: false,
+              fontSize: op.fontSize && op.fontSize !== 'auto' ? op.fontSize : null,
             };
             const idx = op.at != null ? clampInsert(op.at - 1, arr.length) : arr.length;
             arr.insert(idx, [slideToYMap(slide)]);
@@ -88,6 +89,10 @@ export function applyPresentationOperations(
             if (op.hidden != null) m.set('hidden', op.hidden);
             if (op.codeLanguage != null) m.set('codeLanguage', op.codeLanguage);
             if (op.variant != null) m.set('variant', op.variant);
+            // 'auto' is the explicit reset literal — null would mean "no change".
+            if (op.fontSize != null) {
+              m.set('fontSize', op.fontSize === 'auto' ? null : op.fontSize);
+            }
             applied += 1;
             break;
           }

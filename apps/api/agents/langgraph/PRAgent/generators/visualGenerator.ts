@@ -59,7 +59,6 @@ Entwickle visuelle Empfehlungen und Timing-Strategie für diese Kampagne.`;
       systemPrompt: promptResult.system,
       messages: promptResult.messages,
       options: {
-        max_tokens: 600,
         temperature: 0.8,
         top_p: 0.9,
       },

@@ -1,11 +1,11 @@
 'use client';
 
-import { type KeyboardEvent, memo, useEffect, useState } from 'react';
-import { Dialog as DialogPrimitive } from 'radix-ui';
 import { Tag, X } from 'lucide-react';
+import { Dialog as DialogPrimitive } from 'radix-ui';
+import { type KeyboardEvent, memo, useEffect, useState } from 'react';
 
-import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { setThreadTagsCache } from '../../runtime/GrueneratorThreadListAdapter';
+import { useChatConfigStore } from '../../stores/chatConfigStore';
 
 interface EditTagsDialogProps {
   threadId: string | null;
@@ -40,10 +40,14 @@ export const EditTagsDialog = memo(function EditTagsDialog({
   const [tags, setTags] = useState<string[]>(initialTags);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Re-sync when opening for a different thread.
   useEffect(() => {
-    if (open) setTags(initialTags);
+    if (open) {
+      setTags(initialTags);
+      setErrorMsg(null);
+    }
   }, [open, initialTags]);
 
   const addTag = (value: string) => {
@@ -67,6 +71,7 @@ export const EditTagsDialog = memo(function EditTagsDialog({
   const handleSave = async () => {
     if (!threadId) return;
     setSaving(true);
+    setErrorMsg(null);
     try {
       const res = await fetchFn('/api/chat-service/threads', {
         method: 'PATCH',
@@ -77,12 +82,14 @@ export const EditTagsDialog = memo(function EditTagsDialog({
       // if the server actually accepted the update, else surface the failure.
       if (!res.ok) {
         console.error('[EditTags] PATCH rejected:', res.status);
+        setErrorMsg('Tags konnten nicht gespeichert werden.');
         return;
       }
       setThreadTagsCache(threadId, tags);
       onOpenChange(false);
     } catch (err) {
       console.error('[EditTags] PATCH failed:', err);
+      setErrorMsg('Tags konnten nicht gespeichert werden. Bitte prüfe deine Verbindung.');
     } finally {
       setSaving(false);
     }
@@ -131,6 +138,8 @@ export const EditTagsDialog = memo(function EditTagsDialog({
             placeholder="Tag eingeben, Enter zum Hinzufügen"
             className="w-full rounded-lg border border-grey-200 dark:border-grey-700 bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-grey-400 focus:border-primary-500/50 focus:outline-none"
           />
+
+          {errorMsg && <p className="mt-2 text-sm text-red-700 dark:text-red-400">{errorMsg}</p>}
 
           <div className="mt-4 flex justify-end gap-2">
             <button

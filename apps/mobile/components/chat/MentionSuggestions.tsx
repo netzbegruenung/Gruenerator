@@ -7,7 +7,6 @@ import { spacing, borderRadius } from '../../theme';
 import type { Theme } from '../../theme/colors';
 
 interface MentionSuggestionsProps {
-  mode: 'functions' | 'skills';
   query: string;
   visible: boolean;
   theme: Theme;
@@ -20,18 +19,22 @@ interface Section {
   data: Mentionable[];
 }
 
-function buildSections(mode: 'functions' | 'skills', query: string): Section[] {
+/** One list behind '@' — recipes no longer have their own trigger. */
+function buildSections(query: string): Section[] {
   const { agents, customAgents, notebooks, tools, documents } = filterMentionables(query);
   const sections: Section[] = [];
 
-  if (mode === 'skills') {
-    if (agents.length > 0) sections.push({ title: 'Assistenten', data: agents });
-    if (customAgents.length > 0) sections.push({ title: 'Meine Agenten', data: customAgents });
-  } else {
-    if (tools.length > 0) sections.push({ title: 'Werkzeuge', data: tools });
-    if (documents.length > 0) sections.push({ title: 'Dateien', data: documents });
-    if (notebooks.length > 0) sections.push({ title: 'Notizbücher', data: notebooks });
+  const ownRecipes = customAgents.filter((m) => !m.sharedFromGroup);
+  const sharedRecipes = customAgents.filter((m) => m.sharedFromGroup);
+
+  if (agents.length > 0) sections.push({ title: 'Rezepte', data: agents });
+  if (ownRecipes.length > 0) sections.push({ title: 'Meine Rezepte', data: ownRecipes });
+  if (sharedRecipes.length > 0) {
+    sections.push({ title: 'Rezepte aus deinen Gruppen', data: sharedRecipes });
   }
+  if (tools.length > 0) sections.push({ title: 'Werkzeuge', data: tools });
+  if (documents.length > 0) sections.push({ title: 'Dateien', data: documents });
+  if (notebooks.length > 0) sections.push({ title: 'Notizbücher', data: notebooks });
 
   return sections;
 }
@@ -70,13 +73,12 @@ const MentionRow = memo(function MentionRow({
 });
 
 export const MentionSuggestions = memo(function MentionSuggestions({
-  mode,
   query,
   visible,
   theme,
   onSelect,
 }: MentionSuggestionsProps) {
-  const sections = buildSections(mode, query);
+  const sections = buildSections(query);
 
   if (!visible || sections.length === 0) return null;
 

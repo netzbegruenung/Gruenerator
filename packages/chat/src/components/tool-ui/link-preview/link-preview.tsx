@@ -1,7 +1,6 @@
 'use client';
 
 import { Globe } from 'lucide-react';
-import { cn } from './_adapter';
 
 import {
   RATIO_CLASS_MAP,
@@ -9,6 +8,9 @@ import {
   openSafeNavigationHref,
   sanitizeHref,
 } from '../shared/media';
+
+import { cn } from './_adapter';
+
 import type { SerializableLinkPreview } from './schema';
 
 const FALLBACK_LOCALE = 'en-US';

@@ -1,8 +1,8 @@
 'use client';
 
-import { memo, useEffect, useState } from 'react';
-import { Dialog as DialogPrimitive } from 'radix-ui';
 import { Users, FolderPlus, X } from 'lucide-react';
+import { Dialog as DialogPrimitive } from 'radix-ui';
+import { memo, useEffect, useState } from 'react';
 
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 
@@ -33,20 +33,26 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
   // New Spaces created from a chat default to personal (solo organizing); the
   // user can opt into a team Space.
   const [newIsTeam, setNewIsTeam] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setLoading(true);
+    setErrorMsg(null);
     fetchFn('/api/chat-service/threads/user-groups')
       .then((res) => (res.ok ? res.json() : []))
       .then((data: Space[]) => setSpaces(Array.isArray(data) ? data : []))
-      .catch(() => setSpaces([]))
+      .catch(() => {
+        setSpaces([]);
+        setErrorMsg('Projekte konnten nicht geladen werden.');
+      })
       .finally(() => setLoading(false));
   }, [open, fetchFn]);
 
   const file = async (groupId: string | null) => {
     if (!threadId) return;
     setSaving(true);
+    setErrorMsg(null);
     try {
       const res = await fetchFn('/api/chat-service/threads', {
         method: 'PATCH',
@@ -55,6 +61,7 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
       });
       if (!res.ok) {
         console.error('[MoveToSpace] PATCH rejected:', res.status);
+        setErrorMsg('Chat konnte nicht verschoben werden.');
         return;
       }
       // Let the web Space page / sidebar refresh their filed-chats lists.
@@ -66,6 +73,7 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
       onOpenChange(false);
     } catch (err) {
       console.error('[MoveToSpace] PATCH failed:', err);
+      setErrorMsg('Chat konnte nicht verschoben werden. Bitte prüfe deine Verbindung.');
     } finally {
       setSaving(false);
     }
@@ -75,6 +83,7 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
     const name = newName.trim();
     if (!name) return;
     setSaving(true);
+    setErrorMsg(null);
     try {
       const res = await fetchFn('/api/auth/groups', {
         method: 'POST',
@@ -83,6 +92,7 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
       });
       if (!res.ok) {
         console.error('[MoveToSpace] create rejected:', res.status);
+        setErrorMsg('Projekt konnte nicht angelegt werden.');
         setSaving(false);
         return;
       }
@@ -93,6 +103,7 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
       else setSaving(false);
     } catch (err) {
       console.error('[MoveToSpace] create failed:', err);
+      setErrorMsg('Projekt konnte nicht angelegt werden. Bitte prüfe deine Verbindung.');
       setSaving(false);
     }
   };
@@ -113,6 +124,8 @@ export const MoveToSpaceDialog = memo(function MoveToSpaceDialog({
               <X className="h-4 w-4" />
             </DialogPrimitive.Close>
           </div>
+
+          {errorMsg && <p className="mb-3 text-sm text-red-700 dark:text-red-400">{errorMsg}</p>}
 
           <div className="mb-3 flex max-h-64 flex-col gap-0.5 overflow-y-auto">
             {loading && <span className="px-1 text-sm text-grey-400">Wird geladen…</span>}

@@ -3,10 +3,17 @@
  * so "video" or "untertitel" finds Reel, "ocr" finds the Scanner, etc. Many of
  * these have no sidebar entry, so the nav-derived index alone would never
  * surface them.
+ *
+ * LITERAL MIRROR of the `search` blocks in config/toolRegistry.ts — edit tools
+ * THERE first. The docs generators AST-parse this file and require a plain
+ * array literal, so CATALOG cannot be derived at runtime; `satisfies` pins the
+ * ids to the registry and toolRegistry.vitest.ts asserts the entries deep-equal
+ * the registry-derived catalog.
  */
 import { getIcon } from '../../config/icons';
 
 import type { IconType } from '../../config/icons';
+import type { ToolSearchId } from '../../config/toolRegistry';
 
 export interface ToolCatalogEntry {
   id: string;
@@ -19,6 +26,8 @@ export interface ToolCatalogEntry {
 }
 
 const nav = (name: string): IconType | null => getIcon('navigation', name) ?? null;
+
+type RegisteredEntry = ToolCatalogEntry & { id: ToolSearchId };
 
 const CATALOG: ToolCatalogEntry[] = [
   {
@@ -85,48 +94,46 @@ const CATALOG: ToolCatalogEntry[] = [
     icon: nav('vorlagen'),
     keywords: ['vorlagen', 'vorlage', 'template', 'design'],
   },
+  // Deliberately a bare id (not tool-office) so featureIndex dedupes it against
+  // the favourites entry — full rationale at the office entry in toolRegistry.
   {
     id: 'office',
     title: 'Office',
-    subtitle: 'Dokumente, Boards, Tabellen & Slides',
+    subtitle: 'Dokumente, Boards, Tabellen & Präsentationen',
     path: '/office',
     icon: nav('desk'),
-    keywords: ['office', 'dokumente', 'boards', 'tabellen', 'slides', 'praesentationen'],
-  },
-  // ids/paths mirror the getDirectMenuItems() nav entries so featureIndex
-  // dedupes them (catalog is indexed first → its richer keywords win), while
-  // each type gets its own synonym set for search. Paths now redirect to /office.
-  {
-    id: 'docs',
-    title: 'Dokumente',
-    subtitle: 'Texte schreiben',
-    path: '/docs',
-    icon: nav('docs'),
-    keywords: ['docs', 'dokument', 'text', 'schreiben', 'brief', 'antrag'],
-  },
-  {
-    id: 'boards',
-    title: 'Boards',
-    subtitle: 'Planen & organisieren',
-    path: '/boards',
-    icon: nav('boards'),
-    keywords: ['boards', 'board', 'kanban', 'planen', 'aufgaben', 'todo', 'whiteboard'],
-  },
-  {
-    id: 'sheets',
-    title: 'Tabellen',
-    subtitle: 'Daten & Kalkulationen',
-    path: '/sheets',
-    icon: nav('sheets'),
-    keywords: ['tabellen', 'tabelle', 'sheet', 'excel', 'kalkulation', 'budget', 'daten'],
-  },
-  {
-    id: 'presentations',
-    title: 'Präsentationen',
-    subtitle: 'Folien & Vorträge',
-    path: '/presentations',
-    icon: nav('presentations'),
-    keywords: ['praesentation', 'praesi', 'folien', 'slides', 'vortrag', 'pitch', 'deck'],
+    keywords: [
+      'office',
+      'docs',
+      'dokumente',
+      'dokument',
+      'text',
+      'schreiben',
+      'brief',
+      'antrag',
+      'boards',
+      'board',
+      'kanban',
+      'planen',
+      'aufgaben',
+      'todo',
+      'whiteboard',
+      'tabellen',
+      'tabelle',
+      'sheet',
+      'excel',
+      'kalkulation',
+      'budget',
+      'daten',
+      'praesentationen',
+      'praesentation',
+      'praesi',
+      'folien',
+      'slides',
+      'vortrag',
+      'pitch',
+      'deck',
+    ],
   },
   {
     id: 'tool-notebooks',
@@ -155,17 +162,17 @@ const CATALOG: ToolCatalogEntry[] = [
   {
     id: 'tool-agentura',
     title: 'Agentura',
-    subtitle: 'KI-Grüneratoren & Skills entdecken',
+    subtitle: 'KI-Grüneratoren & Rezepte entdecken',
     path: '/agentura',
     icon: nav('desk'),
     keywords: ['agentura', 'agent', 'agenten', 'grünerator', 'grueneratoren', 'skills', 'ki'],
   },
   {
-    id: 'tool-gruppen',
+    id: 'tool-projekte',
     title: 'Projekte',
     subtitle: 'Chats & Inhalte bündeln, Zusammenarbeit im Team',
     path: '/projekte',
-    icon: nav('gruppen'),
+    icon: nav('projekte'),
     keywords: [
       'projekte',
       'projekt',
@@ -187,7 +194,7 @@ const CATALOG: ToolCatalogEntry[] = [
     keywords: ['transfer', 'datei', 'upload', 'senden', 'teilen'],
     devOnly: true,
   },
-];
+] satisfies RegisteredEntry[];
 
 export function getToolCatalog(includeDevOnly: boolean): ToolCatalogEntry[] {
   return includeDevOnly ? CATALOG : CATALOG.filter((entry) => !entry.devOnly);

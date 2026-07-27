@@ -1,11 +1,14 @@
-import type { ChatModelRunResult } from '@assistant-ui/react';
 import type {
   GeneratedImage,
   ChatProgress,
   Citation,
   SearchResult,
   StreamMetadata,
+  SharepicData,
+  ChartData,
+  ComputeData,
 } from '../../hooks/useChatGraphStream';
+import type { ActiveArtifact } from '../../stores/artifactLiveStore';
 import type { ToolKey, ThreadMode, SearchMode } from '../../stores/chatStore';
 import type {
   ConfirmActionData,
@@ -13,18 +16,19 @@ import type {
   ReelPickerData,
   ReelProcessingData,
 } from '../../types/messageMetadata';
+import type { ChatModelRunResult } from '@assistant-ui/react';
+import type { BahnPayload } from '@gruenerator/contracts';
 
 export type GrueneratorMessageMetadata = {
   progress?: ChatProgress;
   searchResults?: SearchResult[];
   citations?: Citation[];
   generatedImage?: GeneratedImage;
-  sharepicData?: import('../../hooks/useChatGraphStream').SharepicData;
-  chartData?: import('../../hooks/useChatGraphStream').ChartData;
-  artifactData?: import('../../stores/artifactLiveStore').ActiveArtifact;
-  computeData?: import('../../hooks/useChatGraphStream').ComputeData;
-  bundestagData?: import('@gruenerator/contracts').BundestagPayload;
-  bahnData?: import('@gruenerator/contracts').BahnPayload;
+  sharepicData?: SharepicData;
+  chartData?: ChartData;
+  artifactData?: ActiveArtifact;
+  computeData?: ComputeData;
+  bahnData?: BahnPayload;
   streamMetadata?: StreamMetadata;
   threadId?: string;
   followUpSuggestions?: string[];
@@ -80,6 +84,15 @@ export interface ToolCallPart {
    *  `ui://` resourceUri, assistant-ui's `mcpApp` renderer mounts the widget
    *  iframe instead of the normal tool card (see GrueneratorChatRuntime). */
   mcp?: { app?: { resourceUri: string; mimeType?: string } };
+  /** Run grouping for the collapsed tool summary row: the `toolCallId` of the
+   *  first card in a contiguous card run (cards separated by text segments
+   *  form separate runs). Consumed by assistant-ui's PartsGrouped rendering;
+   *  absent on messages predating the interleaving rollout. */
+  parentId?: string;
+  /** Planner announcement sentence(s) that preceded this tool call (split-gather
+   *  mode). Rendered as muted text above the card and persisted with the turn;
+   *  the durable form of the live `gather_narration` status line. */
+  narration?: string;
 }
 
 export interface SourcePart {
@@ -95,6 +108,10 @@ export interface StreamOutcome {
   interrupted: boolean;
   lastResult?: ChatModelRunResult;
   indexedDocumentIds: string[];
+  /** Whether the backend's terminal event (`done`/`completion`) arrived. False
+   *  means the stream just closed — the rendered answer is incomplete even
+   *  though it looks finished, so the adapter marks the turn failed. */
+  completed?: boolean;
   /** A client_tool interrupt the ModelAdapter must auto-execute (clientTools
    *  registry) and resume with — set instead of `interrupted`, which is
    *  reserved for manual human-in-the-loop interrupts (ask_human). threadId is

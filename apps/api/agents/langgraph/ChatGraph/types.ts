@@ -12,7 +12,6 @@
 
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
-import type { BtEnrichedResult } from '../../../services/bundestag/types.js';
 import type { AIWorkerPool } from '../../../workers/types.js';
 import type {
   WolkeFileRef,
@@ -30,7 +29,6 @@ import type {
 import type { ModelMessage } from 'ai';
 
 export type { WolkeFileRef, ConnectFileRef, CurrentBoard, SocialPostPayload };
-export type { BtEnrichedResult };
 
 /**
  * Search source backends that can be queried in parallel.
@@ -138,8 +136,11 @@ export interface ThreadToolContext {
     | 'presentation'
     | 'sheet'
     | 'document'
+    | 'pdf'
     | 'board';
-  /** Kind-specific reference (mcp: serverId, created docs: documentId). */
+  /** Kind-specific reference (mcp: serverId, created docs: documentId, pdf: the
+   *  stored `<uuid>.pdf` asset FILE NAME — deliberately not a collaborative-
+   *  document UUID, which is why 'pdf' must never reach a doc-edit gate). */
   ref?: string | null;
   /** Human-readable label for prompt injection (e.g. the MCP server name). */
   label?: string | null;
@@ -162,6 +163,18 @@ export const SOURCE_PREFIX = {
 } as const;
 
 /**
+ * One retrieval failure. `reauth` marks the subset the user can actually fix
+ * (an expired OAuth connection) — that needs a different message than "try
+ * again later", so it must survive the trip to the emitter rather than being
+ * folded into the message text.
+ */
+export interface SearchErrorEntry {
+  source: string;
+  message: string;
+  reauth?: boolean;
+}
+
+/**
  * True when a searchErrors entry means a search backend was unreachable
  * (Qdrant collection, web search, whole-search catch) — as opposed to soft
  * LLM-stage failures (briefGenerator/qualityGate/rerank) that also append to
@@ -170,6 +183,71 @@ export const SOURCE_PREFIX = {
 export function isSourceAvailabilityError(entry: { source: string }): boolean {
   return (
     entry.source === 'web' || entry.source === 'search' || entry.source.startsWith('documents:')
+  );
+}
+
+/**
+ * Prefixes used for per-source failures in the multi-doc fan-out — a file the
+ * user explicitly attached or @-mentioned that could not be read.
+ *
+ * Deliberately NOT folded into isSourceAvailabilityError: that one drives the
+ * generic "die Quellensuche ist gestört" copy, while these name a specific
+ * source and belong in a message that says WHICH one was missing. They were
+ * collected all along and then filtered out by that predicate, so nobody ever
+ * heard about them.
+ */
+const UNAVAILABLE_SOURCE_PREFIXES = ['wolke:', 'connect:', 'doc_mention:', 'notebook:'] as const;
+
+export function isNamedSourceUnavailable(entry: { source: string }): boolean {
+  return UNAVAILABLE_SOURCE_PREFIXES.some((p) => entry.source.startsWith(p));
+}
+
+/**
+ * Split search failures into the kinds that need different wording:
+ * `coreDegraded` — the search backends themselves were unreachable;
+ * `unavailableSources` — specific attached/mentioned files could not be read;
+ * `needsReauth` — of those, the ones the user can fix by reconnecting.
+ */
+export function partitionSearchErrors(errors: SearchErrorEntry[] | undefined): {
+  coreDegraded: boolean;
+  unavailableSources: string[];
+  needsReauth: boolean;
+} {
+  if (!errors || errors.length === 0) {
+    return { coreDegraded: false, unavailableSources: [], needsReauth: false };
+  }
+  const named = errors.filter(isNamedSourceUnavailable);
+  return {
+    coreDegraded: errors.some(isSourceAvailabilityError),
+    unavailableSources: [...new Set(named.map((e) => e.source))],
+    needsReauth: named.some((e) => e.reauth === true),
+  };
+}
+
+/**
+ * One degradation the answer must disclose.
+ *
+ * `code` doubles as the SSE warning code (telemetry); `modelHint` is the
+ * sentence handed to the model. Keeping both on one object is what stops the
+ * two channels from drifting — the user hears about exactly what was logged.
+ */
+export interface DegradationNote {
+  code: string;
+  modelHint: string;
+}
+
+/**
+ * Render the notes as a system-prompt block. Returns '' when nothing degraded,
+ * so callers can append unconditionally.
+ */
+export function renderDegradationNotes(notes: DegradationNote[] | undefined): string {
+  if (!notes || notes.length === 0) return '';
+  const lines = notes.map((n) => `- ${n.modelHint}`).join('\n');
+  return (
+    `\n\n## HINWEIS: EINGESCHRÄNKTER TURN\n\n` +
+    `Folgendes hat in diesem Durchgang NICHT funktioniert:\n${lines}\n\n` +
+    `Sag der*dem Nutzer*in in deiner Antwort transparent, was nicht geklappt hat. ` +
+    `Behaupte NICHT, etwas sei erledigt, das fehlgeschlagen ist, und erfinde keine Ergebnisse.`
   );
 }
 
@@ -369,6 +447,11 @@ export interface ChatGraphInput {
    * pandas interpreter (`df`) instead of doing arithmetic in its head.
    */
   hasTabularAttachment?: boolean | undefined;
+  /** THIS turn's fillable-PDF attachments (name + base64), for the PDF form
+   *  tools. Needed separately from `threadAttachments`, which carries no bytes
+   *  and is only written after the turn completes — on the very first turn
+   *  ("here is my form, fill it in") the DB has nothing yet. */
+  pdfFormAttachments?: Array<{ name: string; data: string }> | undefined;
   /**
    * True when the requesting client declared the run_python client tool
    * (clientTools includes 'run_python') — i.e. it can execute the pandas code
@@ -459,6 +542,8 @@ export interface ChatGraphState {
   imageAttachments: ImageAttachment[];
   threadAttachments: ThreadAttachment[];
   hasTabularAttachment: boolean;
+  /** See the input-side field: this turn's fillable PDFs, name + base64. */
+  pdfFormAttachments: Array<{ name: string; data: string }>;
   clientCanRunPython: boolean;
 
   // Notebook scoping (from @notebook mentions)
@@ -601,12 +686,6 @@ export interface ChatGraphState {
   // /url; the generic ToolCallUI also reads `examples`.
   examplesResult: ExamplesToolResult | null;
 
-  // Structured Bundestag/DIP result (set by search node for the `bundestag`
-  // intent). Emitted as its own `bundestag` SSE event and persisted into the
-  // `bundestag` tool-call result so BundestagCard can render Drucksachen,
-  // Verfahrensstand, Reden and PDF links on stream + reload.
-  bundestagResult: BtEnrichedResult | null;
-
   // Quality gate (iterative search)
   qualityScore: number;
   qualityAssessmentTimeMs: number;
@@ -617,9 +696,22 @@ export interface ChatGraphState {
   // failures (briefGenerator, qualityGate, rerank) also append here but say
   // nothing about source availability — filter with isSourceAvailabilityError
   // before telling anyone the sources were down.
-  searchErrors: { source: string; message: string }[];
+  searchErrors: SearchErrorEntry[];
   briefGenerationFailed: boolean;
   rerankFailed: boolean;
+  /** LLM classification failed and the heuristic took over — same turn, worse
+   *  routing (no multi-source search, no metadata filters). */
+  classifierDegraded?: boolean;
+
+  /**
+   * Degradations the ANSWER must own up to.
+   *
+   * A warning event is telemetry; it does not stop the model from confidently
+   * presenting a degraded turn as a complete one. These notes are rendered into
+   * the system prompt so the reply itself says what was missing — the same
+   * mechanism the unreachable-sources block uses, generalised.
+   */
+  degradationNotes: DegradationNote[];
 
   // Image generation
   imagePrompt: string | null;
@@ -635,7 +727,8 @@ export interface ChatGraphState {
   // Which generation fat tool to mount — derived from intent OR (for a demoted
   // `agentic` turn) the text noun, so "mach mir eine Tabelle draus" still mounts
   // create_sheet even though the intent is `agentic`, not `create_sheet`.
-  compoundGenerationKind?: 'sharepic' | 'presentation' | 'sheet' | 'document' | 'board' | null;
+  compoundGenerationKind?:
+    'sharepic' | 'presentation' | 'sheet' | 'document' | 'board' | 'pdf' | null;
   // Compound "research + edit the OPEN doc/board" (editor sidebars): runs the
   // research loop, then emits trigger_doc_edit/trigger_board_action with the
   // gathered sources as reference material. Synth writes only a short confirm.
@@ -681,6 +774,10 @@ export interface ChatGraphState {
    *  handler can regenerate with the failure in context. */
   pandasComputeRetries?: number | undefined;
   pandasLastCode?: string | undefined;
+  /** Which codegen prompt produced `pandasLastCode` — survives the Redis
+   *  round-trip so a correction round regenerates openpyxl fill code for a fill
+   *  request instead of silently falling back to pandas analysis code. */
+  pandasComputeMode?: 'analyze' | 'fill' | undefined;
   /** Successful result stashed before a verifier-triggered correction round —
    *  if the "corrected" code then fails, the turn falls back to this instead
    *  of ending with no computation at all. */

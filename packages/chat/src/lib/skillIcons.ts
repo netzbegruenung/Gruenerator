@@ -19,6 +19,7 @@ import {
   PiWaves,
   PiXLogo,
 } from '@gruenerator/shared/icons';
+
 import type { SkillIcon } from '@gruenerator/shared/agents';
 
 export const SKILL_ICONS: Record<string, SkillIcon> = {

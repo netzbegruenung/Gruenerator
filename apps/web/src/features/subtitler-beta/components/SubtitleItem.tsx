@@ -1,7 +1,7 @@
 // Untertitel-Element-Komponente
 
 import { Play, Clock, Edit2, Save, X } from 'lucide-react';
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState } from 'react';
 
 import { useUpdateChunkText } from '../stores/historyStore';
 import { formatTime } from '../utils/timeUtils';
@@ -35,10 +35,12 @@ export function SubtitleItem({
   const [editText, setEditText] = useState(chunk.text);
   const updateChunkText = useUpdateChunkText();
 
-  // Bearbeitungstext aktualisieren, wenn sich der Chunk-Text ändert
-  useEffect(() => {
+  // Bearbeitungstext aktualisieren, wenn sich der Chunk-Text ändert (during-render derive)
+  const [prevChunkText, setPrevChunkText] = useState(chunk.text);
+  if (chunk.text !== prevChunkText) {
+    setPrevChunkText(chunk.text);
     setEditText(chunk.text);
-  }, [chunk.text]);
+  }
 
   const handleToggleSelection = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {

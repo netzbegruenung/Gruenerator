@@ -33,6 +33,8 @@ import {
   insertCanvasVersion,
   listCanvasVersions,
 } from '../../../services/canvas/canvasVersionRepository.js';
+import { withRetry } from '../../../services/search/searchRetryStrategy.js';
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { getModel } from '../agents/providers.js';
 
@@ -54,6 +56,7 @@ import {
   resolveTarget,
   type HandleSharepicEditArgs,
 } from './sharepicEditService.js';
+import { sendChatWarning } from './sseHelpers.js';
 import { createMessage, touchThread } from './threadPersistenceService.js';
 
 const log = createLogger('SharepicAgentic');
@@ -576,7 +579,7 @@ export async function handleSharepicAgenticEdit(args: HandleSharepicEditArgs): P
     log.error('[Agentic] Turn failed:', error);
     if (!sse.isEnded()) {
       sse.send('sharepic_edit_error', {
-        error: error instanceof Error ? error.message : 'Unbekannter Fehler',
+        error: toUserFacingMessage(error, 'Unbekannter Fehler'),
       });
       await endTurn(
         args,
@@ -614,13 +617,19 @@ async function endTurn(
     },
   });
   try {
-    await createMessage(threadId, 'assistant', text, {
-      intent: 'sharepic_edit',
-      ...(steps.length > 0 ? { toolCalls: steps as unknown as Record<string, unknown>[] } : {}),
-    });
+    await withRetry(
+      () =>
+        createMessage(threadId, 'assistant', text, {
+          intent: 'sharepic_edit',
+          ...(steps.length > 0 ? { toolCalls: steps as unknown as Record<string, unknown>[] } : {}),
+        }),
+      { maxRetries: 1, delayMs: 300, isRecoverable: () => true, label: 'sharepicAgentic:persist' }
+    );
     await touchThread(threadId);
   } catch (err) {
+    // Retry + Warnung: ein stiller Persist-Fehler lässt State und History divergieren.
     log.error('[Agentic] Failed to persist message:', err);
+    sendChatWarning(sse, 'persist_failed');
   }
   sse.end();
 }

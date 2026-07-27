@@ -387,6 +387,9 @@ function BoardViewContent({
   // PlannerKanban (via the deepLinkRow prop below).
   useEffect(() => {
     if (layout !== 'kanban' && deepLinkRow) {
+      // Reacts to a URL deep-link to open the detail panel, then consumes it —
+      // a one-shot navigation side effect, not derived render state.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedRow(deepLinkRow);
       setDetailOpen(true);
       consumeDeepLink();
@@ -522,6 +525,7 @@ function BoardViewContent({
           rows={filteredRows}
           activeView={activeView}
           onRowClick={handleRowClick}
+          onCellUpdate={boardState.updateRowCell}
         />
       )}
 

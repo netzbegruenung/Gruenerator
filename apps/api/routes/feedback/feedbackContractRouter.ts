@@ -73,8 +73,7 @@ export const feedbackContractRouter = s.router(feedbackContract, {
       const textLines = ['Neues Feedback', '', message, '', ...rows.map(([k, v]) => `${k}: ${v}`)];
 
       let attachments:
-        | Array<{ filename: string; content: Buffer; contentType: string }>
-        | undefined;
+        Array<{ filename: string; content: Buffer; contentType: string }> | undefined;
       if (screenshot) {
         const match = /^data:(image\/[a-zA-Z+]+);base64,(.+)$/s.exec(screenshot);
         if (match) {

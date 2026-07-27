@@ -38,6 +38,7 @@ export function useGroupPresence(
     p.awareness?.setLocalStateField('user', { id: user.id, name: user.name, color });
 
     providerRef.current = p;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- publishes the freshly-created Hocuspocus provider resource post-mount
     setProvider(p);
 
     return () => {
@@ -46,6 +47,7 @@ export function useGroupPresence(
       providerRef.current = null;
       setProvider(null);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally re-connect only on user identity (user?.id), not on new user object refs
   }, [groupId, user?.id]);
 
   const onlineMembers = useCollaborators(provider);

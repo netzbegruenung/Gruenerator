@@ -1,12 +1,15 @@
-import { describe, it, expect } from 'vitest';
-
 import {
   chatStreamEventSchemas,
   searchIntentSchema,
   sharepicVariantSchema,
 } from '@gruenerator/contracts';
+import { describe, it, expect } from 'vitest';
 
 import { coerceSharepicVariants } from '../../hooks/useChatGraphStream';
+
+import { parseSSEStream } from './parseSSEStream';
+
+import type { GrueneratorAdapterCallbacks } from './types';
 
 /**
  * The parser validates every known SSE event against
@@ -93,6 +96,39 @@ describe('chatStreamEventSchemas gate', () => {
     expect(schema.safeParse({ postId: 'p1', summary: 'kürzer' }).success).toBe(false);
   });
 
+  it('accepts a real gather_narration payload and keeps extra fields', () => {
+    const schema = chatStreamEventSchemas['gather_narration']!;
+    const result = schema.safeParse({ text: 'Ich suche jetzt …', futureField: 'kept' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect((result.data as Record<string, unknown>).futureField).toBe('kept');
+    }
+  });
+
+  it('rejects gather_narration without text or with a non-string text', () => {
+    const schema = chatStreamEventSchemas['gather_narration']!;
+    expect(schema.safeParse({}).success).toBe(false);
+    expect(schema.safeParse({ text: 42 }).success).toBe(false);
+  });
+
+  it('tool_step_start accepts optional narration and stays valid without it (back-compat)', () => {
+    const schema = chatStreamEventSchemas['tool_step_start']!;
+    // Old payload (no narration) still validates.
+    expect(schema.safeParse({ stepId: 's1', toolName: 'gruenerator_search' }).success).toBe(true);
+    // New payload with narration validates and keeps the field.
+    const withNarration = schema.safeParse({
+      stepId: 's1',
+      toolName: 'gruenerator_search',
+      narration: 'Ich suche jetzt danach.',
+    });
+    expect(withNarration.success).toBe(true);
+    if (withNarration.success) {
+      expect((withNarration.data as Record<string, unknown>).narration).toBe(
+        'Ich suche jetzt danach.'
+      );
+    }
+  });
+
   it('reel_updated pins the segment shape', () => {
     const schema = chatStreamEventSchemas['reel_updated']!;
     const base = { projectId: 'p', title: 't', summary: 's', changedIndices: [0] };
@@ -137,5 +173,53 @@ describe('coerceSharepicVariants (schema-based)', () => {
       expect(parsed.data.pages?.length).toBe(2);
       expect((parsed.data as Record<string, unknown>).newField).toBe(true);
     }
+  });
+});
+
+describe('parseSSEStream gather_narration handling', () => {
+  function sseResponse(events: Array<{ event: string; data: unknown }>): Response {
+    const body = events
+      .map(({ event, data }) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+      .join('');
+    return new Response(body);
+  }
+
+  const callbacks: GrueneratorAdapterCallbacks = {};
+
+  it('sets custom.progress.message and accumulates pendingNarration', async () => {
+    const response = sseResponse([
+      { event: 'intent', data: { intent: 'search', message: 'Suche läuft…' } },
+      { event: 'gather_narration', data: { text: 'Ich durchsuche gerade die Beschlüsse…' } },
+    ]);
+    const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
+
+    let last: unknown;
+    for await (const result of parseSSEStream(response, callbacks, outcome)) {
+      last = result;
+    }
+
+    const custom = (last as { metadata: { custom: Record<string, unknown> } }).metadata.custom as {
+      progress: { message: string; pendingNarration?: string[] };
+    };
+    expect(custom.progress.message).toBe('Ich durchsuche gerade die Beschlüsse…');
+    expect(custom.progress.pendingNarration).toEqual(['Ich durchsuche gerade die Beschlüsse…']);
+  });
+
+  it('drops a malformed gather_narration event before it reaches the switch', async () => {
+    const response = sseResponse([
+      { event: 'intent', data: { intent: 'search', message: 'Suche läuft…' } },
+      { event: 'gather_narration', data: {} },
+    ]);
+    const outcome = { interrupted: false, indexedDocumentIds: [] as string[] };
+
+    let last: unknown;
+    for await (const result of parseSSEStream(response, callbacks, outcome)) {
+      last = result;
+    }
+
+    const custom = (last as { metadata: { custom: Record<string, unknown> } }).metadata.custom as {
+      progress: { message: string };
+    };
+    expect(custom.progress.message).toBe('Suche läuft…');
   });
 });

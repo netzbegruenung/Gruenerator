@@ -1,13 +1,15 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+
 import {
   useUserShareLinksQuery,
   useWolkeBrowseQuery,
   type ChatWolkeFile,
 } from '../../hooks/useMentionablesQuery';
-import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { type WolkeFileToken } from '../../lib/mentionables';
+import { useChatConfigStore } from '../../stores/chatConfigStore';
+
 import { MentionFloatingPanel } from './MentionFloatingPanel';
 
 interface WolkeMentionPopoverProps {
@@ -46,12 +48,14 @@ export function WolkeMentionPopover({ visible, onSelect, onDismiss }: WolkeMenti
   useEffect(() => {
     if (!visible) return;
     if (!activeShareId && shareLinks && shareLinks.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- defaults to the first share once the async query resolves post-mount
       setActiveShareId(shareLinks[0].id);
     }
   }, [visible, shareLinks, activeShareId]);
 
   useEffect(() => {
     if (!visible) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets panel state on close (visibility transition), not a render-derived value
       setSelection(new Map());
       setFolderPath('');
       setFilter('');

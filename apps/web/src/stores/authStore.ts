@@ -1,5 +1,10 @@
 import { useUserProfileStore } from '@gruenerator/chat/stores';
-import { type StartPage, type UserProfile } from '@gruenerator/contracts';
+import {
+  type ChatBackground,
+  type FeedbackButtonMode,
+  type StartPage,
+  type UserProfile,
+} from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { toast } from '@gruenerator/ui';
 import { create } from 'zustand';
@@ -79,7 +84,13 @@ export interface AuthStore {
   canManageAccount: () => boolean;
   signup: () => void;
   updateLocale: (newLocale: SupportedLocale) => Promise<boolean>;
+  updateChatBackground: (background: ChatBackground) => Promise<boolean>;
   updateStartPage: (page: StartPage) => Promise<boolean>;
+  updateFeedbackButton: (mode: FeedbackButtonMode) => Promise<boolean>;
+  updateA11yPreference: (
+    field: 'reduce_motion' | 'reduce_transparency' | 'show_skip_link',
+    enabled: boolean
+  ) => Promise<boolean>;
 }
 
 // Detect browser locale for unauthenticated default
@@ -633,6 +644,35 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
   },
 
+  // Chat-start background preset. Applied optimistically so the workplace hero
+  // re-tints on the same frame as the click, then reverted if the write fails.
+  updateChatBackground: async (background: ChatBackground): Promise<boolean> => {
+    const previous = get().user?.chat_background ?? 'sunrise';
+    set((state) => ({
+      user: state.user ? { ...state.user, chat_background: background } : null,
+    }));
+
+    try {
+      const result = await getContractsClient().userProfile.updateChatBackground({
+        body: { background },
+      });
+      if (result.status !== 200) {
+        throw new Error(`HTTP ${result.status}`);
+      }
+      return true;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[AuthStore] Error updating chat background:', errorMessage);
+      // An unset field resolves to `sunrise` everywhere, so reverting to it is
+      // the same pixels as reverting to "absent".
+      set((state) => ({
+        user: state.user ? { ...state.user, chat_background: previous } : null,
+      }));
+      toast.error('Hintergrund konnte nicht gespeichert werden.');
+      return false;
+    }
+  },
+
   // Default start page — which Workplace surface the sidebar start icon and
   // the root/login redirect open. Persisted via the profile update contract.
   updateStartPage: async (page: StartPage): Promise<boolean> => {
@@ -655,6 +695,62 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('[AuthStore] Error updating start page:', errorMessage);
       toast.error('Startseite konnte nicht gespeichert werden.');
+      return false;
+    }
+  },
+
+  // Darstellung des schwebenden Feedback-Buttons (Text/Icon/aus). Persisted
+  // via the profile update contract.
+  updateFeedbackButton: async (mode: FeedbackButtonMode): Promise<boolean> => {
+    try {
+      const result = await getContractsClient().userProfile.updateProfile({
+        body: { feedback_button: mode },
+      });
+      if (result.status !== 200) {
+        console.error('[AuthStore] Error updating feedback visibility:', result.status);
+        toast.error('Einstellung konnte nicht gespeichert werden.');
+        return false;
+      }
+
+      set((state) => ({
+        user: state.user ? { ...state.user, ...result.body.profile } : null,
+      }));
+
+      return true;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[AuthStore] Error updating feedback visibility:', errorMessage);
+      toast.error('Einstellung konnte nicht gespeichert werden.');
+      return false;
+    }
+  },
+
+  // Visual-accessibility preferences (Animationen/Transparenz reduzieren).
+  // Optimistic so App.tsx flips the <html> data attribute on the same frame.
+  updateA11yPreference: async (
+    field: 'reduce_motion' | 'reduce_transparency' | 'show_skip_link',
+    enabled: boolean
+  ): Promise<boolean> => {
+    const previous = get().user?.[field] ?? false;
+    set((state) => ({
+      user: state.user ? { ...state.user, [field]: enabled } : null,
+    }));
+
+    try {
+      const result = await getContractsClient().userProfile.updateProfile({
+        body: { [field]: enabled },
+      });
+      if (result.status !== 200) {
+        throw new Error(`HTTP ${result.status}`);
+      }
+      return true;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[AuthStore] Error updating a11y preference:', errorMessage);
+      set((state) => ({
+        user: state.user ? { ...state.user, [field]: previous } : null,
+      }));
+      toast.error('Einstellung konnte nicht gespeichert werden.');
       return false;
     }
   },

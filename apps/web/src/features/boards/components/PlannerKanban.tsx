@@ -310,6 +310,9 @@ export function PlannerKanban({
   // resolved it, then clear the link so closing the panel won't re-trigger.
   useEffect(() => {
     if (deepLinkRow) {
+      // One-shot: open the panel for the deep-linked card, then clear the link.
+      // A navigation side effect, not derived render state.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedRow(deepLinkRow);
       setDetailOpen(true);
       broadcastActivity({ selectedCardId: deepLinkRow.id });

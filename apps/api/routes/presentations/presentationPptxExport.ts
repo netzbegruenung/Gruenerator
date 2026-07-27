@@ -3,7 +3,8 @@
  *
  * Builds editable PowerPoint with pptxgenjs, mirroring the on-screen deck theme
  * (`packages/presentations/src/components/theme/gruene-deck.css` +
- * `SlideSurface.tsx`): brand fonts (Raleway/PT Sans/JetBrains Mono), the deck
+ * `SlideSurface.tsx`): the country-brand fonts (DE: GrueneType Neue/PT Sans, AT:
+ * Gotham Narrow; JetBrains Mono for code), the deck
  * accent colour, per-layout + per-variant treatments (title side panel / top
  * bar, quote rule, numbered/card content, split columns, dark code panel) and
  * the light/dark text inversion derived from each slide's resolved background.
@@ -13,8 +14,16 @@
  */
 
 import { Buffer } from 'buffer';
+import { readFile } from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-import { type Slide } from '@gruenerator/contracts';
+import {
+  getPresentationBrandTheme,
+  PRESENTATION_FONT_SIZE_SCALE,
+  type PresentationBrandTheme,
+  type Slide,
+} from '@gruenerator/contracts';
 import { marked, type Token } from 'marked';
 
 import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
@@ -43,17 +52,77 @@ const PAD_X = 72; // .gruene-slide padding-left/right
 const MARGIN = inch(PAD_X);
 const CONTENT_W = inch(960 - PAD_X * 2); // 8.5in
 
-// ── Brand palette (mirrors gruene-deck.css) ─────────────────────────────────
+// ── Palette (brand-neutral values; country CI comes from PRESENTATION_BRANDS) ─
 const INK = '262A28';
 const WHITE = 'FFFFFF';
 const SAND = 'F5F1E9';
 const CODE_BG = '1E2420';
 const CODE_FG = 'E8EFE9';
-const KLEE = '52907A';
 
-const FONT_HEAD = 'Raleway';
-const FONT_BODY = 'PT Sans';
 const FONT_MONO = 'JetBrains Mono';
+
+/** Per-export brand context: resolved once, threaded through the builders so
+ * concurrent exports with different brands never share state. */
+interface BrandCtx {
+  fontHead: string;
+  fontBody: string;
+  /** Hyperlink colour (brand accent), hex without #. */
+  linkHex: string;
+  /** Rule/bullet tint on dark surfaces, hex without #. */
+  onDarkSoftHex: string;
+  /** Headline line spacing (AT CI: 0.9). */
+  headingLine: number;
+  /** Preloaded title-slide logo (per background darkness), or null. */
+  logo: { light: string; dark: string; w: number; h: number } | null;
+}
+
+const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../public');
+
+async function loadLogo(
+  theme: PresentationBrandTheme,
+  showLogo: boolean
+): Promise<BrandCtx['logo']> {
+  if (!showLogo) return null;
+  try {
+    const [light, dark] = await Promise.all(
+      [theme.logo.light.apiFile, theme.logo.dark.apiFile].map(async (file) => {
+        const buf = await readFile(path.join(PUBLIC_DIR, file));
+        return `data:image/png;base64,${buf.toString('base64')}`;
+      })
+    );
+    const h = inch(theme.logo.heightPx);
+    return { light, dark, w: h * theme.logo.aspect, h };
+  } catch {
+    // Missing asset must never break the export — just omit the logo.
+    return null;
+  }
+}
+
+function buildBrandCtx(theme: PresentationBrandTheme, logo: BrandCtx['logo']): BrandCtx {
+  return {
+    fontHead: theme.pptxFonts.heading,
+    fontBody: theme.pptxFonts.body,
+    linkHex: toHex(theme.colors.accent) ?? '52907A',
+    onDarkSoftHex: toHex(theme.colors.onDarkSoft) ?? 'A9D3BE',
+    headingLine: theme.headingLineHeight,
+    logo,
+  };
+}
+
+/** Per-slide type scale, mirroring the CSS `--gs-font-scale`. `shrink` marks
+ * auto-fit slides: they export at scale 1 with PowerPoint's own
+ * shrink-on-overflow on the body boxes (applied by PowerPoint on first
+ * edit/resize of the box — pptxgenjs cannot pre-compute the factor). */
+interface TypeScale {
+  fs: number;
+  shrink: boolean;
+}
+
+function slideTypeScale(slide: Slide): TypeScale {
+  return slide.fontSize
+    ? { fs: PRESENTATION_FONT_SIZE_SCALE[slide.fontSize], shrink: false }
+    : { fs: 1, shrink: true };
+}
 
 // ── Colour helpers ──────────────────────────────────────────────────────────
 /** Normalise a CSS hex colour to a 6-digit uppercase string (no #), else null. */
@@ -189,12 +258,18 @@ interface LineOpts {
 }
 
 /** Emit one paragraph (a run of text objects terminated by breakLine). */
-function emitLine(out: PptxTextProps[], runs: Run[], color: string, lineOpts: LineOpts): void {
+function emitLine(
+  out: PptxTextProps[],
+  runs: Run[],
+  color: string,
+  lineOpts: LineOpts,
+  ctx: BrandCtx
+): void {
   const effective = runs.length ? runs : [{ text: '' }];
   effective.forEach((run, idx) => {
     const options: PptxTextOptions = {
-      color: run.link ? KLEE : color,
-      fontFace: run.mono ? FONT_MONO : FONT_BODY,
+      color: run.link ? ctx.linkHex : color,
+      fontFace: run.mono ? FONT_MONO : ctx.fontBody,
       breakLine: idx === effective.length - 1,
     };
     if (run.bold) options.bold = true;
@@ -215,6 +290,7 @@ function emitLine(out: PptxTextProps[], runs: Run[], color: string, lineOpts: Li
 function bodyToTextProps(
   markdown: string,
   color: string,
+  ctx: BrandCtx,
   opts: { italic?: boolean; numbered?: boolean } = {}
 ): PptxTextProps[] {
   const tokens = marked.lexer(markdown);
@@ -232,20 +308,26 @@ function bodyToTextProps(
       tok.items.forEach((item) => {
         const runs: Run[] = [];
         collectRuns(item.tokens, {}, runs);
-        emitLine(out, runs, color, {
-          bullet: ordered ? { type: 'number' } : { code: '2022' },
-          indentLevel: 0,
-          italic: opts.italic,
-        });
+        emitLine(
+          out,
+          runs,
+          color,
+          {
+            bullet: ordered ? { type: 'number' } : { code: '2022' },
+            indentLevel: 0,
+            italic: opts.italic,
+          },
+          ctx
+        );
       });
     } else if (tok.type === 'blockquote') {
       const runs: Run[] = [];
       collectRuns(tok.tokens, {}, runs);
-      emitLine(out, runs, color, { italic: true });
+      emitLine(out, runs, color, { italic: true }, ctx);
     } else if (tok.type === 'heading') {
       const runs: Run[] = [];
       collectRuns(tok.tokens, { bold: true }, runs);
-      emitLine(out, runs, color, { italic: opts.italic });
+      emitLine(out, runs, color, { italic: opts.italic }, ctx);
     } else if (tok.type === 'code') {
       out.push({
         text: tok.text ?? '',
@@ -254,7 +336,7 @@ function bodyToTextProps(
     } else if (tok.type === 'paragraph') {
       const runs: Run[] = [];
       collectRuns(tok.tokens, {}, runs);
-      emitLine(out, runs, color, { italic: opts.italic });
+      emitLine(out, runs, color, { italic: opts.italic }, ctx);
     }
   }
 
@@ -281,7 +363,9 @@ function addTitleSlide(
   data: Slide,
   variant: number,
   accentHex: string,
-  dark: boolean
+  dark: boolean,
+  ctx: BrandCtx,
+  ts: TypeScale
 ): void {
   const tColor = titleColor(dark, accentHex);
   const bColor = bodyColor(dark);
@@ -315,17 +399,20 @@ function addTitleSlide(
     runs.push({
       text: data.title,
       options: {
-        fontFace: FONT_HEAD,
-        fontSize: pt(56),
+        fontFace: ctx.fontHead,
+        fontSize: pt(56 * ts.fs),
         bold: true,
         color: tColor,
         breakLine: true,
+        // Headline leading is a CI property (AT: 0.9 × size); paragraph-level
+        // so the subtitle below keeps the default block spacing.
+        lineSpacingMultiple: ctx.headingLine,
       },
     });
   }
   if (data.body.trim()) {
-    for (const part of bodyToTextProps(data.body, bColor)) {
-      const size = part.options?.fontSize ?? pt(28);
+    for (const part of bodyToTextProps(data.body, bColor, ctx)) {
+      const size = part.options?.fontSize ?? pt(28 * ts.fs);
       runs.push({ text: part.text ?? '', options: { ...part.options, fontSize: size } });
     }
   }
@@ -338,6 +425,7 @@ function addTitleSlide(
     align,
     valign: variant === 0 ? 'middle' : variant === 1 ? 'middle' : 'top',
     lineSpacingMultiple: 1.15,
+    ...(ts.shrink ? { fit: 'shrink' as const } : {}),
   });
 }
 
@@ -347,10 +435,12 @@ function addQuoteSlide(
   data: Slide,
   variant: number,
   accentHex: string,
-  dark: boolean
+  dark: boolean,
+  ctx: BrandCtx,
+  ts: TypeScale
 ): void {
   const bColor = bodyColor(dark);
-  const ruleColor = dark ? 'A9D3BE' : accentHex;
+  const ruleColor = dark ? ctx.onDarkSoftHex : accentHex;
 
   if (data.title.trim()) {
     slide.addText(data.title, {
@@ -358,9 +448,10 @@ function addQuoteSlide(
       y: inch(64),
       w: CONTENT_W,
       h: inch(80),
-      fontFace: FONT_HEAD,
-      fontSize: pt(44),
+      fontFace: ctx.fontHead,
+      fontSize: pt(44 * ts.fs),
       bold: true,
+      lineSpacingMultiple: ctx.headingLine,
       color: titleColor(dark, accentHex),
       align: variant === 1 ? 'center' : 'left',
     });
@@ -377,30 +468,39 @@ function addQuoteSlide(
   }
 
   const bodyX = variant === 0 ? inch(PAD_X + 34) : MARGIN;
-  slide.addText(bodyToTextProps(data.body, bColor, { italic: true }), {
+  slide.addText(bodyToTextProps(data.body, bColor, ctx, { italic: true }), {
     x: bodyX,
     y: inch(180),
     w: variant === 0 ? CONTENT_W - inch(34) : CONTENT_W,
     h: inch(220),
     valign: 'middle',
     align: variant === 1 ? 'center' : 'left',
-    fontSize: pt(34),
+    fontSize: pt(34 * ts.fs),
     italic: true,
     lineSpacingMultiple: 1.2,
+    ...(ts.shrink ? { fit: 'shrink' as const } : {}),
   });
 }
 
 /** Code layout: dark monospace panel. */
-function addCodeSlide(slide: PptxSlide, data: Slide, accentHex: string, dark: boolean): void {
+function addCodeSlide(
+  slide: PptxSlide,
+  data: Slide,
+  accentHex: string,
+  dark: boolean,
+  ctx: BrandCtx,
+  ts: TypeScale
+): void {
   if (data.title.trim()) {
     slide.addText(data.title, {
       x: MARGIN,
       y: inch(64),
       w: CONTENT_W,
       h: inch(70),
-      fontFace: FONT_HEAD,
-      fontSize: pt(44),
+      fontFace: ctx.fontHead,
+      fontSize: pt(44 * ts.fs),
       bold: true,
+      lineSpacingMultiple: ctx.headingLine,
       color: titleColor(dark, accentHex),
     });
   }
@@ -420,10 +520,11 @@ function addCodeSlide(slide: PptxSlide, data: Slide, accentHex: string, dark: bo
     w: CONTENT_W - inch(48),
     h: panelH - inch(40),
     fontFace: FONT_MONO,
-    fontSize: pt(20),
+    fontSize: pt(20 * ts.fs),
     color: CODE_FG,
     valign: 'top',
     lineSpacingMultiple: 1.45,
+    ...(ts.shrink ? { fit: 'shrink' as const } : {}),
   });
 }
 
@@ -433,7 +534,9 @@ async function addImageSlide(
   data: Slide,
   variant: number,
   accentHex: string,
-  dark: boolean
+  dark: boolean,
+  ctx: BrandCtx,
+  ts: TypeScale
 ): Promise<void> {
   const imgUrl = firstImageUrl(data.body);
   const imgData = imgUrl ? await fetchImageData(imgUrl) : null;
@@ -446,8 +549,8 @@ async function addImageSlide(
         y: 0,
         w: inch(326),
         h: PAGE_H,
-        fontFace: FONT_HEAD,
-        fontSize: pt(44),
+        fontFace: ctx.fontHead,
+        fontSize: pt(44 * ts.fs),
         bold: true,
         color: tColor,
         valign: 'middle',
@@ -465,9 +568,10 @@ async function addImageSlide(
       y: inch(64),
       w: CONTENT_W,
       h: inch(80),
-      fontFace: FONT_HEAD,
-      fontSize: pt(44),
+      fontFace: ctx.fontHead,
+      fontSize: pt(44 * ts.fs),
       bold: true,
+      lineSpacingMultiple: ctx.headingLine,
       color: tColor,
     });
   }
@@ -483,7 +587,9 @@ function addContentSlide(
   variant: number,
   accentHex: string,
   dark: boolean,
-  split: boolean
+  split: boolean,
+  ctx: BrandCtx,
+  ts: TypeScale
 ): void {
   const bColor = bodyColor(dark);
   if (data.title.trim()) {
@@ -492,16 +598,17 @@ function addContentSlide(
       y: inch(64),
       w: CONTENT_W,
       h: inch(70),
-      fontFace: FONT_HEAD,
-      fontSize: pt(44),
+      fontFace: ctx.fontHead,
+      fontSize: pt(44 * ts.fs),
       bold: true,
+      lineSpacingMultiple: ctx.headingLine,
       color: titleColor(dark, accentHex),
     });
   }
 
   const bodyY = inch(160);
   const bodyH = PAGE_H - bodyY - inch(48);
-  const runs = bodyToTextProps(data.body, bColor, { numbered: variant === 2 });
+  const runs = bodyToTextProps(data.body, bColor, ctx, { numbered: variant === 2 });
 
   if (split) {
     const mid = Math.ceil(runs.length / 2);
@@ -511,18 +618,20 @@ function addContentSlide(
       y: bodyY,
       w: colW,
       h: bodyH,
-      fontSize: pt(28),
+      fontSize: pt(28 * ts.fs),
       valign: 'top',
       lineSpacingMultiple: 1.15,
+      ...(ts.shrink ? { fit: 'shrink' as const } : {}),
     });
     slide.addText(runs.slice(mid).length ? runs.slice(mid) : [{ text: '' }], {
       x: MARGIN + colW + inch(48),
       y: bodyY,
       w: colW,
       h: bodyH,
-      fontSize: pt(28),
+      fontSize: pt(28 * ts.fs),
       valign: 'top',
       lineSpacingMultiple: 1.15,
+      ...(ts.shrink ? { fit: 'shrink' as const } : {}),
     });
     return;
   }
@@ -532,9 +641,10 @@ function addContentSlide(
     y: bodyY,
     w: CONTENT_W,
     h: bodyH,
-    fontSize: pt(28),
+    fontSize: pt(28 * ts.fs),
     valign: 'top',
     lineSpacingMultiple: 1.15,
+    ...(ts.shrink ? { fit: 'shrink' as const } : {}),
   });
 }
 
@@ -542,47 +652,71 @@ async function addSlide(
   pptx: PptxInstance,
   data: Slide,
   accent: string,
-  showNotes: boolean
+  showNotes: boolean,
+  ctx: BrandCtx
 ): Promise<void> {
   const slide = pptx.addSlide();
   const accentHex = toHex(accent) ?? '316049';
   const variant = data.variant ?? 0;
+  const ts = slideTypeScale(data);
 
   const bg = await resolveBackground(data, accent);
   slide.background = bg.image ? { data: bg.image } : { color: bg.color ?? WHITE_HEX };
 
   switch (data.layout) {
     case 'title':
-      addTitleSlide(slide, data, variant, accentHex, bg.dark);
+      addTitleSlide(slide, data, variant, accentHex, bg.dark, ctx, ts);
       break;
     case 'quote':
-      addQuoteSlide(slide, data, variant, accentHex, bg.dark);
+      addQuoteSlide(slide, data, variant, accentHex, bg.dark, ctx, ts);
       break;
     case 'code':
-      addCodeSlide(slide, data, accentHex, bg.dark);
+      addCodeSlide(slide, data, accentHex, bg.dark, ctx, ts);
       break;
     case 'image':
-      await addImageSlide(slide, data, variant, accentHex, bg.dark);
+      await addImageSlide(slide, data, variant, accentHex, bg.dark, ctx, ts);
       break;
     case 'split':
-      addContentSlide(slide, data, variant, accentHex, bg.dark, true);
+      addContentSlide(slide, data, variant, accentHex, bg.dark, true, ctx, ts);
       break;
     case 'content':
     default:
-      addContentSlide(slide, data, variant, accentHex, bg.dark, false);
+      addContentSlide(slide, data, variant, accentHex, bg.dark, false, ctx, ts);
+  }
+
+  // Country logo, title slides only. Variant 1 (Geteilt) puts the accent side
+  // panel bottom-right where the logo sits → on-dark variant even on light bg.
+  if (data.layout === 'title' && ctx.logo) {
+    const onDark = bg.dark || variant === 1;
+    slide.addImage({
+      data: onDark ? ctx.logo.dark : ctx.logo.light,
+      x: PAGE_W - inch(40) - ctx.logo.w,
+      y: PAGE_H - inch(36) - ctx.logo.h,
+      w: ctx.logo.w,
+      h: ctx.logo.h,
+    });
   }
 
   if (showNotes && data.notes.trim()) slide.addNotes(data.notes.trim());
 }
 
+export interface PptxExportOptions {
+  /** Country CI ('de-DE' | 'de-AT'); anything else exports the de-DE theme. */
+  brand?: string | null;
+  /** Render the party logo on title-layout slides (default true). */
+  showLogo?: boolean;
+}
+
 /**
  * Build a themed, editable PPTX buffer from a deck. Hidden slides are omitted;
  * `accent` drives titles, panels and markers (defaults to the brand green).
+ * Fonts/palette/logo follow the deck's country brand (DE ↔ AT CI).
  */
 export async function exportPresentationToPptx(
   slides: readonly Slide[],
   title: string,
-  accent?: string | null
+  accent?: string | null,
+  opts?: PptxExportOptions
 ): Promise<Buffer> {
   const pptxModule = await import('pptxgenjs');
   const PptxGenJS = (pptxModule.default ?? pptxModule) as unknown as PptxCtor;
@@ -594,10 +728,12 @@ export async function exportPresentationToPptx(
   pptx.defineLayout({ name: 'GRUENE_16x9', width: PAGE_W, height: PAGE_H });
   pptx.layout = 'GRUENE_16x9';
 
-  const deckAccent = accent?.trim() || '#316049';
+  const theme = getPresentationBrandTheme(opts?.brand);
+  const ctx = buildBrandCtx(theme, await loadLogo(theme, opts?.showLogo !== false));
+  const deckAccent = accent?.trim() || theme.defaultAccent;
   for (const slide of slides) {
     if (slide.hidden) continue;
-    await addSlide(pptx, slide, deckAccent, true);
+    await addSlide(pptx, slide, deckAccent, true, ctx);
   }
 
   const out = (await pptx.write({ outputType: 'nodebuffer' })) as Buffer;

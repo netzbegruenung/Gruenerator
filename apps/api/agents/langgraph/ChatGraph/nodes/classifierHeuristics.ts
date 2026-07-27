@@ -141,6 +141,7 @@ export const INTENT_KEYWORDS: Record<
     | 'save_as_doc'
     | 'create_sheet'
     | 'create_presentation'
+    | 'create_pdf'
     // create_recurring_task is LLM-classified (needs a schedule); no keyword heuristic.
     | 'create_recurring_task'
     | 'modify_doc'
@@ -173,6 +174,10 @@ export const INTENT_KEYWORDS: Record<
     | 'wetter'
     | 'news'
     | 'umfragen'
+    // hilfe is detected by the dedicated instructional-question gate
+    // (looksLikeDocsHelpQuestion, classifier Tier 2.9). Bare keywords like
+    // "hilfe"/"anleitung" would hijack content queries ("hilf mir bei ...").
+    | 'hilfe'
   >,
   string[]
 > = {
@@ -530,6 +535,44 @@ export function isTabularComputeQuestion(text: string): boolean {
   return wordStart.test(text) || nounStem.test(text);
 }
 
+// Words that contain a fill verb but mean something else. Checked before the
+// verb patterns because both split forms below would otherwise match
+// "Füllwörter aus dem Text entfernen" (füll… + …aus).
+const FILL_FALSE_FRIENDS = /(f(?:ü|ue)llw(?:ö|oe)rt|f(?:ü|ue)llmaterial|f(?:ü|ue)lltext)/i;
+
+// Closed fill verbs. Word-start bound (JS \b is ASCII-only) so 'erfüllen',
+// 'auffüllen', 'Betrag', 'Beitrag', 'Antrag' and 'Auftrag' never match.
+const FILL_VERB =
+  /(?:^|[^a-zäöüß])(ausf(?:ü|ue)ll|auszuf(?:ü|ue)ll|ausgef(?:ü|ue)llt|bef(?:ü|ue)ll|eintrag|einzutragen|eingetragen|einsetz|einzusetzen|(?:ü|ue)bertrag(?:e|en|)\b|erg(?:ä|ae)nz|vervollst(?:ä|ae)ndig)/i;
+
+// "schreib die Werte in die Tabelle" — a write ask that names its target. The
+// target noun is required: "schreib einen Text über die Tabelle" is prose.
+const FILL_WRITE_INTO =
+  /(?:^|[^a-zäöüß])schreib\w*\b[\s\S]{0,60}?\bin\s+(?:die|das|der|den)\s+(tabelle|spalte|zelle|vorlage|formular|liste|felder?)\b/i;
+
+// Split verb forms: "füll das Formular aus", "trag die Werte ein", "setz die
+// Zahlen ein". The particle must follow within a short window so a fill verb
+// early in a long paste can't pair with an unrelated 'aus' much later.
+const FILL_SPLIT =
+  /(?:^|[^a-zäöüß])(f(?:ü|ue)ll\w*|trag\w*|setz\w*)\b[\s\S]{0,60}?(?:^|[^a-zäöüß])(aus|ein)\b/i;
+
+/**
+ * "Fill this in for me" over an attached spreadsheet — the write counterpart to
+ * `isTabularComputeQuestion`. Shared by the classifier fast path AND the
+ * contract router's run_python gate, which picks the openpyxl codegen mode from
+ * it. Checked BEFORE the aggregation heuristic so "trag die Summe ein" writes
+ * the value into the sheet instead of only reporting it.
+ */
+export function isSheetFillRequest(text: string): boolean {
+  if (FILL_FALSE_FRIENDS.test(text)) return false;
+  // Visualization requests keep their own intents even when phrased as "trag
+  // die Werte in ein Diagramm ein".
+  if (/(diagramm|\bchart|\bgraph|visualisier|sharepic|spruchbild|zitatbild)/i.test(text)) {
+    return false;
+  }
+  return FILL_VERB.test(text) || FILL_SPLIT.test(text) || FILL_WRITE_INTO.test(text);
+}
+
 export function heuristicClassify(
   userContent: string,
   opts?: { hasTabularAttachment?: boolean }
@@ -573,6 +616,20 @@ export function heuristicClassify(
     // is case-stable, so the same offset applies to the original-cased text. The
     // `+` in the prefix consumes all leading greetings, so this terminates.
     return heuristicClassify(userContent.trim().slice(greet[0].length).trim(), opts);
+  }
+
+  // High confidence (0.92): "fill this in" over an attached spreadsheet. Routes
+  // to `compute` like the aggregation case — same run_python interrupt, but the
+  // router picks the openpyxl codegen mode so the original workbook's formatting
+  // and formulas survive. Checked FIRST so "trag die Summe ein" writes the value
+  // instead of only reporting it.
+  if (opts?.hasTabularAttachment && isSheetFillRequest(q)) {
+    return {
+      intent: 'compute',
+      searchQuery: userContent,
+      reasoning: 'Fill request with attached spreadsheet',
+      confidence: 0.92,
+    };
   }
 
   // High confidence (0.92): Aggregation/calculation question about an attached
@@ -639,6 +696,23 @@ export function heuristicClassify(
   }
 
   // High confidence (0.90): Save as document requests.
+  // High confidence (0.9): Finished-PDF creation, including fillable forms.
+  // Checked BEFORE save_as_doc so "mach ein PDF-Dokument daraus" isn't stolen by
+  // machDarausPattern. Requires a creation verb, so reading an attachment ("fass
+  // das PDF zusammen") and filling one in ("füll das Formular aus") never match;
+  // deck nouns are excluded — "Präsentation als PDF" still builds a deck.
+  const pdfCreatePattern =
+    /\b(erstell|mach|generier|bau|entwirf|erzeug|schreib)[a-zäöü]*\b.{0,60}\b(als\s+pdf|ein\s+pdf|pdf[\s-]?(dokument|datei|formular|vorlage)|briefkopf|offiziell[a-zäöü]*\s+(brief|schreiben|anschreiben)|(ausfüllbar|ausfuellbar)[a-zäöü]*\s+(formular|vorlage|dokument)|formular\s+zum\s+ausfüllen|fragebogen|anmeldebogen|antragsformular|anmeldeformular)\b/i;
+  const deckNounPattern = /\b(präsentation|foliensatz|folien|slides?|pitch[\s-]?deck)\b/i;
+  if (!isLongPaste && pdfCreatePattern.test(q) && !deckNounPattern.test(q)) {
+    return {
+      intent: 'create_pdf',
+      searchQuery: null,
+      reasoning: 'PDF creation request detected',
+      confidence: 0.9,
+    };
+  }
+
   // Bare "als Dokument/Protokoll/Notiz/Checkliste" must be paired with an explicit
   // save imperative — otherwise prose mentions like "Pressemitteilung über das Dokument"
   // or "gilt als Protokoll" would falsely trigger document creation.

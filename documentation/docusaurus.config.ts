@@ -1,8 +1,17 @@
 import { themes as prismThemes } from 'prism-react-renderer';
 import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+import { SECTIONS, EXTRA_LINKS } from './src/nav/sections';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
+
+// Navbar, footer and the startpage grid all come from src/nav/sections.ts —
+// edit the structure there, not here.
+function section(id: string) {
+  const found = SECTIONS.find((s) => s.id === id);
+  if (!found) throw new Error(`sections.ts has no section '${id}'`);
+  return found;
+}
 
 const config: Config = {
   title: 'Grünerator Doku',
@@ -14,8 +23,9 @@ const config: Config = {
     v4: true, // Improve compatibility with the upcoming Docusaurus v4
   },
 
-  // Set the production url of your site here
-  url: 'https://xgwok08o0ccgo4g4cgcoksc8.services.moritz-waechter.de',
+  // Production URL. Was a dead Coolify placeholder hostname, which put that
+  // hostname into every <loc> of sitemap.xml and into the canonical tags.
+  url: 'https://doku.gruenerator.eu',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/',
@@ -59,8 +69,8 @@ const config: Config = {
           sidebarPath: './sidebars.ts',
           // Hidden until ready — remove entries to re-enable in the sidebar.
           // intern: dev-only LV-Korpus analysis pages, internal.
-          // monitor: Themen-Monitor not online yet.
-          exclude: ['intern/**', 'monitor/**'],
+          // experimente: Themen-Monitor (now /experiments/monitor) not published yet.
+          exclude: ['intern/**', 'experimente/**'],
           // "Edit this page" points at the docs in the monorepo.
           editUrl: 'https://github.com/netzbegruenung/Gruenerator/tree/master/documentation/',
         },
@@ -86,7 +96,105 @@ const config: Config = {
     ],
   ],
 
+  // Every page that moved in the structure rebuild keeps its old address. The
+  // chat has already cited doc URLs to users, and the app deep-links into the
+  // docs — without these, those links would 404.
+  plugins: [
+    [
+      '@docusaurus/plugin-client-redirects',
+      {
+        redirects: [
+          // gruenerieren/* → chat/*
+          { from: '/docs/gruenerieren/ki-chat', to: '/docs/chat/ki-chat' },
+          { from: '/docs/gruenerieren/was-kann-ich-fragen', to: '/docs/chat/was-kann-ich-fragen' },
+          { from: '/docs/gruenerieren/dateien-hinzufuegen', to: '/docs/chat/dateien-hinzufuegen' },
+          { from: '/docs/gruenerieren/ki-modelle', to: '/docs/chat/ki-modelle' },
+          { from: '/docs/gruenerieren/social-media-post', to: '/docs/chat/social-media-post' },
+          // websuche.md was removed — its topic now lives in "Was kann ich fragen?".
+          { from: '/docs/gruenerieren/websuche', to: '/docs/chat/was-kann-ich-fragen' },
+          // agents/* → grueneratoren/*
+          { from: '/docs/agents/agentura', to: '/docs/grueneratoren/agentura' },
+          {
+            from: '/docs/agents/eigene-agentinnen-erstellen',
+            to: '/docs/grueneratoren/eigene-agentinnen-erstellen',
+          },
+          // notebooks + landesverbaende + inhaltsdatenbank → wissen/*
+          {
+            from: '/docs/notebooks/eigenes-notebook-erstellen',
+            to: '/docs/wissen/eigenes-notebook-erstellen',
+          },
+          { from: '/docs/landesverbaende', to: '/docs/wissen/landesverbaende' },
+          {
+            from: '/docs/ueber-den-gruenerator/inhaltsdatenbank',
+            to: '/docs/wissen/inhaltsdatenbank',
+          },
+          // projekte + Profil → konto/*
+          { from: '/docs/projekte/intro', to: '/docs/konto/projekte' },
+          { from: '/docs/Profil/einstellungen', to: '/docs/konto/einstellungen' },
+          { from: '/docs/Profil/gruene-wolke-tutorial', to: '/docs/konto/gruene-wolke' },
+          // llm-basics → grundlagen/*
+          //
+          // The two pages that merely changed case (/docs/Grundlagen/* →
+          // /docs/grundlagen/*) get NO redirect on purpose: macOS' filesystem
+          // can't hold both spellings, so the plugin would try to overwrite the
+          // real page and every local build would fail. Those two URLs are
+          // low-traffic concept pages; a build that only works on Linux costs
+          // more than the two dead links.
+          { from: '/docs/llm-basics/finetuning', to: '/docs/grundlagen/finetuning' },
+          {
+            from: '/docs/llm-basics/risiken-und-gefahren-von-llms',
+            to: '/docs/grundlagen/risiken-und-gefahren-von-llms',
+          },
+          {
+            from: '/docs/llm-basics/wie-llms-funktionieren',
+            to: '/docs/grundlagen/wie-llms-funktionieren',
+          },
+          // The top-level /docs/category/… index pages disappeared with the
+          // per-area sidebars (a category page only exists while a category
+          // node sits in a sidebar). Their slugs came from the old labels —
+          // umlauts and all — so they are spelled out here, not computed.
+          // newsletter/ and signal-nachrichten/ keep their category pages
+          // (still categories inside archivSidebar) and need no rule.
+          {
+            from: '/docs/category/über-den-grünerator',
+            to: section('ueber-den-gruenerator').intro,
+          },
+          { from: '/docs/category/chat', to: section('chat').intro },
+          { from: '/docs/category/office', to: section('office').intro },
+          { from: '/docs/category/wissen', to: section('wissen').intro },
+          { from: '/docs/category/grüneratoren', to: section('grueneratoren').intro },
+          { from: '/docs/category/konto--projekte', to: section('konto').intro },
+          { from: '/docs/category/integrationen', to: section('integrationen').intro },
+          { from: '/docs/category/grundlagen', to: section('grundlagen').intro },
+          { from: '/docs/category/archiv', to: EXTRA_LINKS.archiv.to },
+        ],
+        // The dated newsletter and Signal posts moved into archiv/ as a whole —
+        // one rule beats twelve hand-written entries.
+        createRedirects(existingPath: string) {
+          if (existingPath.startsWith('/docs/archiv/newsletter/')) {
+            return [existingPath.replace('/docs/archiv/newsletter/', '/docs/newsletter/')];
+          }
+          if (existingPath.startsWith('/docs/archiv/signal-nachrichten/')) {
+            return [
+              existingPath.replace('/docs/archiv/signal-nachrichten/', '/docs/signal-nachrichten/'),
+            ];
+          }
+          return undefined;
+        },
+      },
+    ],
+  ],
+
   themeConfig: {
+    // The navbar toggle is replaced by a three-way (hell/dunkel/system)
+    // switcher in the footer — see src/theme/Footer/index.tsx. The navbar
+    // button itself is emptied via src/theme/Navbar/ColorModeToggle;
+    // disableSwitch must stay off, it would wipe the persisted choice on
+    // every page load (theme-common calls ColorModeStorage.del() then).
+    colorMode: {
+      defaultMode: 'light',
+      respectPrefersColorScheme: true,
+    },
     // Replace with your project's social card
     image: 'img/docusaurus-social-card.jpg',
     // algolia: {
@@ -125,44 +233,28 @@ const config: Config = {
         src: 'img/GRÜNERATOR_Doku_Logo_Grün.svg',
       },
       items: [
-        {
-          to: '/docs/ueber-den-gruenerator/intro',
-          label: 'Über den Grünerator',
-          position: 'left',
-        },
-        {
-          type: 'dropdown',
-          label: 'Wissen',
-          position: 'left',
-          items: [
-            { to: '/docs/category/grundlagen', label: 'Grundlagen' },
-            {
-              to: '/docs/category/wie-funktionieren-large-language-models-wie-chatgpt',
-              label: 'LLM Basics',
-            },
-          ],
-        },
+        // The main areas mirror the app; docSidebar items highlight the
+        // active area and swap the sidebar to it.
+        ...SECTIONS.filter((s) => s.navbar === 'direct').map((s) => ({
+          type: 'docSidebar' as const,
+          sidebarId: s.sidebarId,
+          label: s.label,
+          position: 'left' as const,
+        })),
         {
           type: 'dropdown',
-          label: 'Anleitung',
+          label: 'Mehr',
           position: 'left',
           items: [
-            { to: '/docs/category/grünerieren', label: 'Grünerieren' },
-            // { to: '/docs/monitor/intro', label: 'Themen-Monitor' }, // hidden — Themen-Monitor not online yet
-            { to: '/docs/category/notebooks', label: 'Notebooks' },
-            { to: '/docs/category/profil', label: 'Profil' },
-            { to: '/docs/category/integrationen', label: 'Integrationen' },
+            ...SECTIONS.filter((s) => s.navbar === 'more').map((s) => ({
+              type: 'docSidebar' as const,
+              sidebarId: s.sidebarId,
+              label: s.label,
+            })),
+            { to: EXTRA_LINKS.webinare.to, label: EXTRA_LINKS.webinare.label },
+            { type: 'docSidebar' as const, sidebarId: 'archivSidebar', label: 'Archiv' },
+            // { to: '/docs/experimente/intro', label: 'Experimente' }, // hidden — Themen-Monitor not published yet
           ],
-        },
-        {
-          to: '/docs/webinare',
-          label: 'Webinare',
-          position: 'right',
-        },
-        {
-          to: '/docs/category/newsletter-archiv',
-          label: 'Newsletter',
-          position: 'right',
         },
       ],
     },
@@ -170,75 +262,27 @@ const config: Config = {
       style: 'light',
       links: [
         {
-          title: 'Über den Grünerator',
-          items: [
-            {
-              label: 'Einführung',
-              to: '/docs/ueber-den-gruenerator/intro',
-            },
-            {
-              label: 'Pro EU',
-              to: '/docs/ueber-den-gruenerator/gruenerator-pro-eu',
-            },
-            {
-              label: 'Deine Daten im Grünerator',
-              to: '/docs/ueber-den-gruenerator/notebook',
-            },
-          ],
+          title: 'Bereiche',
+          items: SECTIONS.map((s) => ({ label: s.label, to: s.intro })),
         },
         {
-          title: 'Wissen',
-          items: [
-            {
-              label: 'Kennzeichnungs-Guide',
-              to: '/docs/Grundlagen/Kennzeichnungs-Guide',
-            },
-            {
-              label: 'Welches KI-Tool wofür?',
-              to: '/docs/Grundlagen/welches-ki-tool-wofuer',
-            },
-            {
-              label: 'Wie LLMs funktionieren',
-              to: '/docs/llm-basics/wie-llms-funktionieren',
-            },
-          ],
+          title: 'Verstehen',
+          items: [...section('grundlagen').topPages, ...section('ueber-den-gruenerator').topPages],
         },
         {
-          title: 'Anleitung',
+          title: 'Mehr',
           items: [
-            {
-              label: 'KI-Modelle',
-              to: '/docs/gruenerieren/ki-modelle',
-            },
-            {
-              label: 'Grüne Wolke Tutorial',
-              to: '/docs/Profil/gruene-wolke-tutorial',
-            },
-            {
-              label: 'KI-Chat einrichten',
-              to: '/docs/integrationen/ki-chat-einrichten',
-            },
-            {
-              label: 'Was kann ich fragen?',
-              to: '/docs/integrationen/mcp-was-kann-ich-fragen',
-            },
-            // {
-            //   label: 'Themen-Monitor',
-            //   to: '/docs/monitor/intro',
-            // }, // hidden — Themen-Monitor not online yet
-          ],
-        },
-        {
-          title: 'Newsletter',
-          items: [
-            {
-              label: 'Newsletter-Archiv',
-              to: '/docs/category/newsletter-archiv',
-            },
+            EXTRA_LINKS.webinare,
+            { label: 'Newsletter-Archiv', to: EXTRA_LINKS.archiv.to },
+            EXTRA_LINKS.bildnachweise,
             {
               label: 'Newsletter abonnieren',
               href: 'https://fax.gruenerator.de',
             },
+            // {
+            //   label: 'Themen-Monitor',
+            //   to: '/docs/experimente/intro',
+            // }, // hidden — Themen-Monitor not online yet
           ],
         },
         {

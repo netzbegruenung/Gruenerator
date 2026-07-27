@@ -12,6 +12,19 @@ on:
       - 'apps/web/src/**'
       - 'packages/chat/**'
       - 'packages/shared/src/**'
+      - 'packages/contracts/src/schemas/**'
+      # Toured editor surfaces (touren/ pseudo-docs in AREA_HINTS)
+      - 'packages/canvas-editor/**'
+      - 'packages/presentations/**'
+      - 'apps/api/routes/chat/**'
+      - 'apps/api/agents/langgraph/ChatGraph/**'
+      # Structural files audited against the root README (readme/ pseudo-doc)
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - 'turbo.json'
+      - '.env.example'
+      - 'apps/api/workers/providers/**'
+      - 'apps/api/services/ai/**'
 
 permissions:
   contents: read

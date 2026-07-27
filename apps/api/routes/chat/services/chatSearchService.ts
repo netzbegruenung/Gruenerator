@@ -216,7 +216,10 @@ export async function searchChatHistory(
     log.info(`[ChatSearch] Found ${results.length} threads for "${query}" (user: ${userId})`);
     return results;
   } catch (err) {
+    // Rethrow: swallowing this turned a DB outage into HTTP 200 with zero
+    // results, so the search UI said "keine Treffer". The controller already
+    // maps a throw to 500, which the client can tell apart from an empty set.
     log.error(`[ChatSearch] Search failed for "${query}":`, err);
-    return [];
+    throw err;
   }
 }

@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 
-import { useAgentStore } from '../stores/chatStore';
+import { notifyError } from '../lib/notify';
 import { useChatConfigStore } from '../stores/chatConfigStore';
+import { useAgentStore } from '../stores/chatStore';
 import { useSharepicLiveStore } from '../stores/sharepicLiveStore';
 
 import { getCachedSharepicRender, seedThumbnailCache } from './useSharepicThumbnail';
@@ -93,6 +94,7 @@ export function useSharepicArtifact(variant: SharepicVariant) {
     if (viewState == null) {
       const cached = getCachedSharepicRender(variant.id, headVersion);
       if (cached) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- reads a module-level render cache that only exists post-mount; paints the cached image without a Konva re-render
         setImageBase64(cached);
         setRenderError(false);
         setIsRendering(false);
@@ -151,6 +153,7 @@ export function useSharepicArtifact(variant: SharepicVariant) {
 
   // New head version (chat edit applied) → drop any stale version preview.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resets version-preview state when a new head lands (SSE edit); must not run during render
     setViewVersion(null);
     setViewState(null);
     setVersions(null);
@@ -160,7 +163,11 @@ export function useSharepicArtifact(variant: SharepicVariant) {
     if (versions) return versions;
     const fetchVersions = useChatConfigStore.getState().fetchSharepicVersions;
     if (!canvasId || !fetchVersions) return [];
-    const list = await fetchVersions(canvasId).catch(() => []);
+    const list = await fetchVersions(canvasId).catch((err) => {
+      console.warn('[useSharepicArtifact] Versionen laden fehlgeschlagen:', err);
+      notifyError('Versionen konnten nicht geladen werden');
+      return [];
+    });
     const entries = list.map((v) => ({ version: v.version, summary: v.summary }));
     setVersions(entries);
     return entries;
@@ -192,7 +199,11 @@ export function useSharepicArtifact(variant: SharepicVariant) {
       }
       const fetchVersionState = useChatConfigStore.getState().fetchSharepicVersionState;
       if (!fetchVersionState) return;
-      const state = await fetchVersionState(canvasId, target.version).catch(() => null);
+      const state = await fetchVersionState(canvasId, target.version).catch((err) => {
+        console.warn('[useSharepicArtifact] Version anzeigen fehlgeschlagen:', err);
+        notifyError('Version konnte nicht angezeigt werden');
+        return null;
+      });
       if (state) {
         versionStateCache.current.set(target.version, state);
         setViewVersion(target.version);
@@ -206,7 +217,11 @@ export function useSharepicArtifact(variant: SharepicVariant) {
     if (!canvasId || viewVersion == null) return;
     const restore = useChatConfigStore.getState().restoreSharepicVersion;
     if (!restore) return;
-    const result = await restore(canvasId, viewVersion).catch(() => null);
+    const result = await restore(canvasId, viewVersion).catch((err) => {
+      console.warn('[useSharepicArtifact] Version wiederherstellen fehlgeschlagen:', err);
+      notifyError('Version konnte nicht wiederhergestellt werden');
+      return null;
+    });
     if (result) {
       useSharepicLiveStore.getState().upsertEntry(variant.id, {
         canvasId,

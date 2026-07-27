@@ -14,6 +14,7 @@ import {
   tryAcquireVerdigadoSlot,
   releaseVerdigadoSlot,
 } from '../../../services/providers/verdigadoSlot.js';
+import { withUsageTracking } from '../../../services/usage/usageModelMiddleware.js';
 
 import {
   AVOID_AS_SYNTH,
@@ -49,7 +50,9 @@ export { isVisionCapable };
  * sees an explicit warning before selecting them; auto-routing in or out
  * would break that informed-consent boundary.
  */
-export type Provider = 'mistral' | 'litellm' | 'regolo';
+export type Provider = 'mistral' | 'litellm' | 'regolo' | 'greenpt';
+
+const GREENPT_DEFAULT_MODEL = 'mistral-medium-3.5-128b';
 
 export interface ModelConfigSingle {
   kind: 'single';
@@ -70,23 +73,60 @@ export interface ModelConfigOverflow {
   kind: 'overflow';
   primary: { provider: 'litellm'; model: string };
   overflow: { provider: 'regolo'; model: string };
+  /** Window of the PRIMARY (Verdigado) side — the conservative one. */
   contextWindow: number;
+  /** Window of the OVERFLOW (Regolo) side, which is hosted and serves the full
+   *  model context. Kept separate because one config drives two very differently
+   *  sized backends: reporting the primary's window while actually running on
+   *  Regolo would prune away context the request could have carried. */
+  overflowContextWindow: number;
 }
 
 export type ModelConfig = ModelConfigSingle | ModelConfigOverflow;
+
+/**
+ * Context windows below are MEASURED, not copied from datasheets (2026-07-26).
+ *
+ * Probe: POST an oversized prompt and read the limit back. Mistral answers
+ * `too large for model with 262144 maximum context length` — a clean 400 before
+ * any tokens are billed. The self-hosted Verdigado lanes do NOT: at ~350k input
+ * they returned HTTP 200 with `prompt_tokens: 65538`, i.e. Ollama **silently
+ * truncated** the prompt and answered over the fragment. A too-high number there
+ * costs no error, it costs context — so those lanes stay at the largest size
+ * verified end-to-end (120k, needle retrieved, 32s cold / 3.6s warm).
+ */
+const CTX_FULL = 262_144;
+/**
+ * Deliberately conservative ceiling for the Ollama-backed Verdigado lanes.
+ *
+ * 120k was verified working end-to-end, but the failure mode above it is silent
+ * truncation, and the observed truncation point was `prompt_tokens: 65538` —
+ * exactly 64Ki + 2. That is the signature of a runtime `num_ctx` of 65536,
+ * regardless of what the model tag advertises. Rather than sit just below a
+ * cliff whose position we infer from one data point, we stay below the value
+ * the backend itself fell back to. Costs headroom, buys the guarantee that a
+ * long thread is never answered from a fragment.
+ *
+ * Raise only alongside a fresh needle test AND an overflow probe on the lane.
+ */
+const CTX_VERDIGADO = 64_000;
 
 const GPT_OSS_OVERFLOW: ModelConfigOverflow = {
   kind: 'overflow',
   primary: { provider: 'litellm', model: 'verdigado-pro' },
   overflow: { provider: 'regolo', model: 'gpt-oss-120b' },
-  contextWindow: 32768,
+  // Bounded by the Verdigado PRIMARY, not the Regolo overflow: one config
+  // serves both, and the primary truncates silently.
+  contextWindow: CTX_VERDIGADO,
+  overflowContextWindow: CTX_FULL,
 };
 
 const GEMMA_4_OVERFLOW: ModelConfigOverflow = {
   kind: 'overflow',
   primary: { provider: 'litellm', model: 'verdigado-think' },
   overflow: { provider: 'regolo', model: 'gemma4-31b' },
-  contextWindow: 32768,
+  contextWindow: CTX_VERDIGADO,
+  overflowContextWindow: CTX_FULL,
 };
 
 export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
@@ -95,7 +135,7 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
     kind: 'single',
     provider: 'mistral',
     model: 'mistral-medium-2604',
-    contextWindow: 128000,
+    contextWindow: CTX_FULL,
     fallback: 'gemma-4',
   },
   // Legacy IDs — repointed to current Mistral generation (Medium 3.5)
@@ -103,25 +143,25 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
     kind: 'single',
     provider: 'mistral',
     model: 'mistral-medium-2604',
-    contextWindow: 128000,
+    contextWindow: CTX_FULL,
   },
   'mistral-medium': {
     kind: 'single',
     provider: 'mistral',
     model: 'mistral-medium-2604',
-    contextWindow: 128000,
+    contextWindow: CTX_FULL,
   },
   'pixtral-large': {
     kind: 'single',
     provider: 'mistral',
     model: 'pixtral-large-latest',
-    contextWindow: 128000,
+    contextWindow: CTX_FULL,
   },
   regolo: {
     kind: 'single',
     provider: 'regolo',
     model: env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b',
-    contextWindow: 32768,
+    contextWindow: CTX_FULL,
   },
   // Backend-only lane, reachable via the auto policy but NOT in the model
   // picker (that is driven by MODEL_OPTIONS in @gruenerator/core/models). Same
@@ -132,8 +172,16 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
     kind: 'single',
     provider: 'regolo',
     model: 'mistral-small-4-119b',
-    contextWindow: 32768,
+    contextWindow: CTX_FULL,
     fallback: 'gpt-oss',
+  },
+  // Registered but not wired into any default or auto-routing yet — the catalog
+  // entry is offByDefault, so nothing selects this lane unless asked for by id.
+  greenpt: {
+    kind: 'single',
+    provider: 'greenpt',
+    model: env.GREENPT_DEFAULT_MODEL || GREENPT_DEFAULT_MODEL,
+    contextWindow: CTX_FULL,
   },
 
   // Overflow lanes — Verdigado primary, Regolo on overflow when slot is busy.
@@ -179,7 +227,14 @@ export interface ResolvedModelTuple {
  */
 export async function resolveModelTuple(
   modelId: string,
-  requestId: string
+  requestId: string,
+  opts?: {
+    /** Skip the Verdigado slot and go straight to the hosted Regolo side.
+     *  Set for turns whose input is too large for the primary's window — see
+     *  {@link VERDIGADO_INPUT_LIMIT}. Without this the request would be pruned
+     *  down to the small lane's budget even though a bigger lane was free. */
+    preferOverflow?: boolean;
+  }
 ): Promise<ResolvedModelTuple | null> {
   const config = AVAILABLE_MODELS[modelId];
   if (!config) return null;
@@ -206,6 +261,15 @@ export async function resolveModelTuple(
     return result;
   }
 
+  if (opts?.preferOverflow) {
+    return {
+      provider: config.overflow.provider,
+      model: config.overflow.model,
+      contextWindow: config.overflowContextWindow,
+      sibling: { provider: config.primary.provider, model: config.primary.model },
+    };
+  }
+
   const acquired = await tryAcquireVerdigadoSlot(requestId);
   if (acquired) {
     return {
@@ -219,7 +283,7 @@ export async function resolveModelTuple(
   return {
     provider: config.overflow.provider,
     model: config.overflow.model,
-    contextWindow: config.contextWindow,
+    contextWindow: config.overflowContextWindow,
     sibling: { provider: config.primary.provider, model: config.primary.model },
   };
 }
@@ -236,16 +300,19 @@ const DEFAULT_CONTEXT_WINDOW = 32768;
  */
 export function getContextWindow(
   modelId: string | null | undefined,
-  provider?: 'mistral' | 'litellm' | 'regolo' | 'anthropic'
+  provider?: 'mistral' | 'litellm' | 'regolo' | 'greenpt' | 'anthropic'
 ): number {
   if (modelId && AVAILABLE_MODELS[modelId]) {
     return AVAILABLE_MODELS[modelId].contextWindow;
   }
 
   // Provider-level defaults for agent configs that use 'auto' or unnamed models
-  if (provider === 'mistral') return 128000;
-  if (provider === 'litellm') return 16384;
-  if (provider === 'regolo') return 32768;
+  if (provider === 'mistral') return CTX_FULL;
+  // Verdigado is Ollama-backed and truncates silently past its window, so its
+  // default stays at the end-to-end verified size rather than the nominal one.
+  if (provider === 'litellm') return CTX_VERDIGADO;
+  if (provider === 'regolo') return CTX_FULL;
+  if (provider === 'greenpt') return CTX_FULL;
 
   return DEFAULT_CONTEXT_WINDOW;
 }
@@ -253,6 +320,7 @@ export function getContextWindow(
 let mistralInstance: ReturnType<typeof createMistral> | null = null;
 let litellmInstance: ReturnType<typeof createOpenAI> | null = null;
 let regoloInstance: ReturnType<typeof createOpenAI> | null = null;
+let greenptInstance: ReturnType<typeof createOpenAI> | null = null;
 
 function getMistralProvider() {
   if (!mistralInstance) {
@@ -295,6 +363,21 @@ function getRegoloProvider() {
   return regoloInstance;
 }
 
+function getGreenPTProvider() {
+  if (!greenptInstance) {
+    const apiKey = env.GREENPT_API_KEY;
+    if (!apiKey) {
+      throw new Error('GREENPT_API_KEY is not configured');
+    }
+    greenptInstance = createOpenAI({
+      baseURL: 'https://api.greenpt.ai/v1',
+      apiKey,
+      name: 'greenpt',
+    });
+  }
+  return greenptInstance;
+}
+
 export function isProviderConfigured(provider: string): boolean {
   let configured = false;
   switch (provider) {
@@ -317,6 +400,12 @@ export function isProviderConfigured(provider: string): boolean {
       configured = !!env.REGOLO_API_KEY;
       console.log(`[providers] Checking regolo: REGOLO_API_KEY=${configured ? 'set' : 'NOT SET'}`);
       return configured;
+    case 'greenpt':
+      configured = !!env.GREENPT_API_KEY;
+      console.log(
+        `[providers] Checking greenpt: GREENPT_API_KEY=${configured ? 'set' : 'NOT SET'}`
+      );
+      return configured;
     case 'anthropic':
       return false;
     default:
@@ -325,6 +414,10 @@ export function isProviderConfigured(provider: string): boolean {
 }
 
 export function getModel(provider: string, modelId: string): LanguageModel {
+  return withUsageTracking(resolveModel(provider, modelId), provider);
+}
+
+function resolveModel(provider: string, modelId: string): LanguageModel {
   console.log(`[providers] getModel called: provider=${provider}, modelId=${modelId}`);
   switch (provider) {
     case 'mistral': {
@@ -354,6 +447,11 @@ export function getModel(provider: string, modelId: string): LanguageModel {
       const model = regolo.chat(modelId || regoloDefault);
       console.log(`[providers] Regolo model created successfully`);
       return model;
+    }
+    case 'greenpt': {
+      const resolvedModel = modelId || env.GREENPT_DEFAULT_MODEL || GREENPT_DEFAULT_MODEL;
+      console.log(`[providers] Creating GreenPT model: ${resolvedModel}`);
+      return getGreenPTProvider().chat(resolvedModel);
     }
     case 'anthropic':
       throw new Error('Anthropic provider is not yet implemented');
@@ -476,7 +574,7 @@ export function selectionIsToolCapable(agentProvider: string, modelId?: string):
   return isAgenticToolCapable(agentProvider, '');
 }
 
-export function getProviderName(provider: AgentConfig['provider']): string {
+export function getProviderName(provider: AgentConfig['provider'] | Provider): string {
   switch (provider) {
     case 'mistral':
       return 'Mistral AI';
@@ -484,6 +582,8 @@ export function getProviderName(provider: AgentConfig['provider']): string {
       return 'Verdigado';
     case 'regolo':
       return 'Regolo AI';
+    case 'greenpt':
+      return 'GreenPT';
     case 'anthropic':
       return 'Anthropic Claude';
     default:

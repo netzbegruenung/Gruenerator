@@ -91,6 +91,7 @@ export function SubtitleOverlay({
 
   // Status der tatsächlichen Videoanzeigeabmessungen aktualisieren
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirrors a memoized derived size into state for the canvas-render path; kept as an effect to avoid altering render/paint timing of subtitle sync
     setActualVideoDisplaySize(actualVideoSize);
   }, [actualVideoSize]);
 
@@ -303,7 +304,7 @@ export function SubtitleOverlay({
       ctx.fillStyle = style.color;
       ctx.fillText(line, textX, y);
     });
-  }, [currentSubtitle, style, scaleSize, scaleFactor, actualVideoDisplaySize, canvasSize]);
+  }, [currentSubtitle, style, scaleSize, actualVideoDisplaySize, canvasSize]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

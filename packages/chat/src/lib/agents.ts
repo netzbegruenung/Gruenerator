@@ -7,6 +7,7 @@ import {
   type Skill,
   type SkillIcon,
 } from '@gruenerator/shared/agents';
+
 import { resolveSkillIcon } from './skillIcons';
 
 export {

@@ -221,38 +221,68 @@ const SubtitlerPage = (): React.ReactElement => {
     };
   }, [uploadInfo?.uploadId, baseURL, exportStatus, exportToken]);
 
-  const handleUploadComplete = (uploadData: UploadData): void => {
-    // Überprüfe, ob ein gültiges File-Objekt übergeben wurde
-    if (uploadData.originalFile instanceof File) {
-      // Speichere das originale File-Objekt direkt
-      setOriginalVideoFile(uploadData.originalFile);
-      console.log('[SubtitlerPage] Original video file stored:', uploadData.originalFile);
-    } else {
-      console.error(
-        '[SubtitlerPage] Did not receive a valid File object in uploadData',
-        uploadData
-      );
-      setError('Fehler beim Empfangen der Videodatei vom Uploader.');
-      return;
-    }
+  const handleStartAutoProcessing = useCallback(
+    async (uploadId: string): Promise<void> => {
+      try {
+        const res = await getContractsClient().subtitler.postProcessAuto({
+          body: { uploadId, locale, userId: user?.id || null },
+        });
+        if (res.status === 202) {
+          console.log('[SubtitlerPage] Auto processing started for:', uploadId);
+        } else {
+          const msg =
+            (res.body as { error?: string })?.error ||
+            'Fehler beim Starten der automatischen Verarbeitung.';
+          setError(msg);
+          goToStep('upload');
+        }
+      } catch (error) {
+        console.error('[SubtitlerPage] Error starting auto processing:', error);
+        const axiosError = error as AxiosError<{ error?: string }>;
+        setError(
+          axiosError.response?.data?.error || 'Fehler beim Starten der automatischen Verarbeitung.'
+        );
+        goToStep('upload');
+      }
+    },
+    [user?.id, locale, goToStep]
+  );
 
-    // Speichere andere Upload-Infos separat
-    const newUploadInfo = {
-      uploadId: uploadData.uploadId,
-      metadata: uploadData.metadata,
-      name: uploadData.name,
-      size: uploadData.size,
-      type: uploadData.type,
-    };
-    setUploadInfo(newUploadInfo);
-    setError(null);
+  const handleUploadComplete = useCallback(
+    (uploadData: UploadData): void => {
+      // Überprüfe, ob ein gültiges File-Objekt übergeben wurde
+      if (uploadData.originalFile instanceof File) {
+        // Speichere das originale File-Objekt direkt
+        setOriginalVideoFile(uploadData.originalFile);
+        console.log('[SubtitlerPage] Original video file stored:', uploadData.originalFile);
+      } else {
+        console.error(
+          '[SubtitlerPage] Did not receive a valid File object in uploadData',
+          uploadData
+        );
+        setError('Fehler beim Empfangen der Videodatei vom Uploader.');
+        return;
+      }
 
-    // Step transition + auto-processing kickoff are one logical action,
-    // triggered by the same user event. Pass the fresh uploadId explicitly
-    // to dodge the stale-closure risk on `uploadInfo`.
-    goToStep('auto-processing');
-    void handleStartAutoProcessing(uploadData.uploadId);
-  };
+      // Speichere andere Upload-Infos separat
+      const newUploadInfo = {
+        uploadId: uploadData.uploadId,
+        metadata: uploadData.metadata,
+        name: uploadData.name,
+        size: uploadData.size,
+        type: uploadData.type,
+      };
+      setUploadInfo(newUploadInfo);
+      setError(null);
+
+      // Step transition + auto-processing kickoff are one logical action,
+      // triggered by the same user event. Pass the fresh uploadId explicitly
+      // to dodge the stale-closure risk on `uploadInfo`.
+      goToStep('auto-processing');
+      void handleStartAutoProcessing(uploadData.uploadId);
+    },
+    [goToStep, handleStartAutoProcessing]
+  );
 
   // Start tus upload when user selects a file
   const handleFileSelected = useCallback(
@@ -417,33 +447,6 @@ const SubtitlerPage = (): React.ReactElement => {
   // + ref-based one-shot guard translated the step transition into a
   // call to this function; doing it directly in the step-transition
   // handler is both simpler and correct.
-  const handleStartAutoProcessing = useCallback(
-    async (uploadId: string): Promise<void> => {
-      try {
-        const res = await getContractsClient().subtitler.postProcessAuto({
-          body: { uploadId, locale, userId: user?.id || null },
-        });
-        if (res.status === 202) {
-          console.log('[SubtitlerPage] Auto processing started for:', uploadId);
-        } else {
-          const msg =
-            (res.body as { error?: string })?.error ||
-            'Fehler beim Starten der automatischen Verarbeitung.';
-          setError(msg);
-          goToStep('upload');
-        }
-      } catch (error) {
-        console.error('[SubtitlerPage] Error starting auto processing:', error);
-        const axiosError = error as AxiosError<{ error?: string }>;
-        setError(
-          axiosError.response?.data?.error || 'Fehler beim Starten der automatischen Verarbeitung.'
-        );
-        goToStep('upload');
-      }
-    },
-    [user?.id, locale, goToStep]
-  );
-
   // Handler for automatic processing completion
   const handleAutoProcessingComplete = useCallback(
     (result: AutoProcessingResult) => {
