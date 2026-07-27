@@ -107,6 +107,11 @@ export const useDraftAutoSave = (): void => {
           imageData: imageSrc,
           title,
           imageType: refs.typeConfig?.legacyType || refs.type || '',
+          // Declared rather than left to be inferred from `imageType`: this hook
+          // only runs in the template flow, and the expression above yields ''
+          // whenever the draft fires before the type is set — which is exactly
+          // how images ended up in the wrong gallery section.
+          contentOrigin: 'sharepic',
           metadata: metadata,
           originalImage: originalImage ?? undefined,
           status: 'draft',
