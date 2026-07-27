@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle, Line as SvgLine, Path, Rect, Text as SvgText } from 'react-native-svg';
 
-import { spacing, borderRadius } from '../../theme';
+import { spacing, borderRadius, BODY_FONT } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
 import type { ChartData } from '@gruenerator/chat';
@@ -287,6 +287,7 @@ const styles = StyleSheet.create({
     padding: CARD_PADDING,
   },
   title: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '600',
     marginBottom: spacing.xsmall,
@@ -304,6 +305,7 @@ const styles = StyleSheet.create({
     maxWidth: '48%',
   },
   legendLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     flexShrink: 1,
   },

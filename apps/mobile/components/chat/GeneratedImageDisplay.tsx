@@ -6,7 +6,7 @@ import { View, Text, Pressable, StyleSheet, Modal, useColorScheme } from 'react-
 
 import { saveImageToGallery } from '../../services/imageStudio';
 import { shareBase64Image } from '../../services/share';
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
 
@@ -161,6 +161,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   saveText: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     fontWeight: '600',
   },
@@ -173,10 +174,12 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
   },
   badgeText: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     fontWeight: '600',
   },
   time: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
   },
   lightbox: {

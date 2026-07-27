@@ -5,7 +5,7 @@ import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator } from 'react-native';
 
 import { base64ToBytes, shareBytesAsFile } from '../../services/share';
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
 import type { ComputeData } from '@gruenerator/chat';
@@ -165,11 +165,13 @@ const styles = StyleSheet.create({
   },
   operation: {
     flexShrink: 1,
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '600',
   },
   caption: {
     marginLeft: 'auto',
+    fontFamily: BODY_FONT,
     fontSize: 10,
     letterSpacing: 0.8,
   },
@@ -198,6 +200,7 @@ const styles = StyleSheet.create({
   },
   chipLabel: {
     flexShrink: 1,
+    fontFamily: BODY_FONT,
     fontSize: 12,
   },
   row: {
@@ -215,12 +218,14 @@ const styles = StyleSheet.create({
     borderTopColor: 'transparent',
   },
   rowLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
   },
   rowLabelInline: {
     flexShrink: 1,
   },
   rowValue: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '600',
     fontVariant: ['tabular-nums'],

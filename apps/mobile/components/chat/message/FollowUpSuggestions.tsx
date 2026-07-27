@@ -4,7 +4,7 @@ import { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
 import { useTheme } from '../../../hooks/useTheme';
-import { spacing, borderRadius } from '../../../theme';
+import { spacing, borderRadius, BODY_FONT } from '../../../theme';
 
 /**
  * Follow-up prompts under the last answer. These ride on message metadata
@@ -57,6 +57,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xsmall,
   },
   text: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
   },
 });

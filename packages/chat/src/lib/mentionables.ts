@@ -162,6 +162,10 @@ export function setMentionLocale(locale: string): void {
   mentionLocale = locale;
 }
 
+export function getMentionLocale(): string {
+  return mentionLocale;
+}
+
 /** Agent/skill mentionables visible for the current locale (de-DE/de-AT/all). */
 export function getAgentMentionables(): Mentionable[] {
   return agentMentionables.filter(

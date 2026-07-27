@@ -56,6 +56,9 @@ function RootLayout() {
     Raleway_500Medium,
     Raleway_600SemiBold,
     Raleway_700Bold,
+    // PT Sans is NOT loaded here: it is linked natively by the expo-font config
+    // plugin (app.json) as one family with weights, which is what makes
+    // `fontWeight` select a real face instead of being ignored.
   });
 
   useEffect(() => {

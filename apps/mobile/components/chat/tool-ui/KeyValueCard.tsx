@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 
-import { colors, spacing, borderRadius } from '../../../theme';
+import { colors, spacing, borderRadius, BODY_FONT } from '../../../theme';
 
 import { ToolCitationList } from './ToolCitationList';
 import { toolIonicon } from './toolIcons';
@@ -102,11 +102,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   label: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },
   query: {
     flexShrink: 1,
+    fontFamily: BODY_FONT,
     fontSize: 12,
   },
   details: {
@@ -122,6 +124,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.medium,
   },
   markdown: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     lineHeight: 20,
   },
@@ -130,11 +133,13 @@ const styles = StyleSheet.create({
     gap: spacing.xsmall,
   },
   rowLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     minWidth: 90,
   },
   rowValue: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 12,
   },
 });

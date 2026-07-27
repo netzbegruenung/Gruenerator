@@ -3,7 +3,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useCallback } from 'react';
 import { View, Text, Pressable, StyleSheet, Linking } from 'react-native';
 
-import { colors, spacing, borderRadius } from '../../../theme';
+import { colors, spacing, borderRadius, BODY_FONT } from '../../../theme';
 
 import type { Theme } from '../../../theme/colors';
 
@@ -65,10 +65,12 @@ const styles = StyleSheet.create({
   },
   domain: {
     flexShrink: 1,
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },
   snippet: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     lineHeight: 17,
   },
