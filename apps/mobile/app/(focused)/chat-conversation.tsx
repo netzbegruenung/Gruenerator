@@ -175,6 +175,7 @@ export default function ChatConversationScreen() {
             id="composer-glow"
             style={styles.composerGlow}
             followsKeyboard
+            hideInDark
           />
         </>
       }
