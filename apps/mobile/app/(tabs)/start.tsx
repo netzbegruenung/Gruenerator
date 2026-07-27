@@ -1,6 +1,5 @@
 import { type CreateAttachment } from '@assistant-ui/react-native';
 import { useAuth } from '@gruenerator/shared/hooks';
-import { getGreeting } from '@gruenerator/shared/utils';
 import { useRouter } from 'expo-router';
 import { useCallback } from 'react';
 import { View, Text, StyleSheet, useColorScheme, ScrollView, Platform } from 'react-native';
@@ -20,6 +19,7 @@ import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
 import { spacing, lightTheme, darkTheme } from '../../theme';
 import { FLOATING_TAB_BAR_HEIGHT, SCREEN_EDGE } from '../../theme/layout';
 import { route, routeWithParams } from '../../types/routes';
+import { mobileGreeting } from '../../utils/greeting';
 
 export default function StartScreen() {
   const colorScheme = useColorScheme();
@@ -27,8 +27,7 @@ export default function StartScreen() {
   const router = useRouter();
   const { user, locale } = useAuth();
   const firstName = user?.display_name?.split(' ')[0] ?? null;
-  const greeting = getGreeting(locale, firstName, { short: true });
-  const showHelpSubtitle = !greeting.includes('?');
+  const greeting = mobileGreeting(locale, firstName);
 
   const insets = useSafeAreaInsets();
   // The Android tab bar is absolutely positioned (ClassicTabLayout), so the
@@ -86,15 +85,11 @@ export default function StartScreen() {
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
+              {/* The greeting alone. The "wie kann ich dir helfen?" line below it
+                  was web's, where the composer sits further away; here it stands
+                  directly under the greeting and asks the same thing. */}
               <View style={styles.welcomeSection}>
-                <View>
-                  <Text style={[styles.welcomeText, { color: theme.text }]}>{greeting}</Text>
-                  {showHelpSubtitle && (
-                    <Text style={[styles.welcomeSubtitle, { color: theme.textSecondary }]}>
-                      wie kann ich dir helfen?
-                    </Text>
-                  )}
-                </View>
+                <Text style={[styles.welcomeText, { color: theme.text }]}>{greeting}</Text>
               </View>
 
               <Composer
@@ -132,13 +127,13 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
   },
-  // The block is centred, the text inside it stays left-aligned: the two lines
-  // keep one shared left edge, that edge just no longer sits on the screen
-  // border. Flush at SCREEN_EDGE the heading read as hugging the left, because
-  // the composer's own text starts ~74dp in — the heading was the only thing on
-  // the screen touching the margin. Centring the text itself would break the
-  // ragged-right rhythm of a two-line greeting, so only the box moves.
-  // Long enough to wrap, the block fills the width and this degrades to flush.
+  // The block is centred, the text inside it stays left-aligned. On one line the
+  // two look identical; it matters when a long name wraps the greeting, where
+  // the lines keep one shared left edge instead of each centring on its own.
+  // Flush at SCREEN_EDGE the heading read as hugging the left, because the
+  // composer's own text starts ~74dp in — the heading was the only thing on the
+  // screen touching the margin. Wrapped, the block fills the width and this
+  // degrades to flush.
   welcomeSection: {
     paddingHorizontal: SCREEN_EDGE,
     paddingVertical: spacing.small,
@@ -153,11 +148,6 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontFamily: 'Raleway_700Bold',
     fontSize: 28,
-  },
-  welcomeSubtitle: {
-    fontFamily: 'Raleway_700Bold',
-    fontSize: 28,
-    marginTop: 2,
   },
   section: {
     paddingTop: spacing.xlarge,

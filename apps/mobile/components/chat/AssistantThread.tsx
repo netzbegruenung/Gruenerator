@@ -1,6 +1,5 @@
 import { ThreadPrimitive } from '@assistant-ui/react-native';
 import { useAuth } from '@gruenerator/shared/hooks';
-import { getGreeting } from '@gruenerator/shared/utils';
 import { memo, useRef } from 'react';
 import { View, Text, type TextInput, StyleSheet } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
@@ -9,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
 import { spacing, BODY_FONT } from '../../theme';
 import { SCREEN_EDGE } from '../../theme/layout';
+import { mobileGreeting } from '../../utils/greeting';
 import { Composer, composerEdgeStyle, type ComposerAccessory } from '../common/Composer';
 
 import { CompactionIndicator } from './CompactionIndicator';
@@ -60,27 +60,20 @@ const EmptyState = memo(function EmptyState({
   // left-aligned text, no icon plate. An empty thread and the tab are the same
   // moment; they used to look like two different products, which is why this
   // has to move whenever the tab does.
-  const greeting = welcome?.title ?? getGreeting(locale ?? 'de-DE', firstName, { short: true });
-  const subtitle =
-    welcome?.subtitle ?? (greeting.includes('?') ? null : 'wie kann ich dir helfen?');
+  const greeting = welcome?.title ?? mobileGreeting(locale ?? 'de-DE', firstName);
+  // Only an agent brings a second line, and that line is its description. The
+  // generic "wie kann ich dir helfen?" is gone: the composer sits right below
+  // and asks it already.
+  const subtitle = welcome?.subtitle ?? null;
 
   return (
     <View style={styles.emptyContainer} pointerEvents="none">
       <View>
         <Text style={[styles.emptyTitle, { color: theme.text }]}>{greeting}</Text>
         {subtitle ? (
-          <Text
-            style={[
-              // The generic greeting is one two-line statement, so both lines carry
-              // the same hero weight. An agent's subtitle is its description — a
-              // sentence of explanatory prose, which at 28/bold shouted over the
-              // question it was meant to support.
-              welcome ? styles.emptyDescription : styles.emptySubtitle,
-              { color: theme.textSecondary },
-            ]}
-          >
-            {subtitle}
-          </Text>
+          // An agent's description — explanatory prose, which at the title's
+          // 28/bold shouted over the question it is meant to support.
+          <Text style={[styles.emptyDescription, { color: theme.textSecondary }]}>{subtitle}</Text>
         ) : null}
       </View>
     </View>
@@ -95,10 +88,6 @@ const messagesContentStyle = { paddingTop: spacing.small };
  * shape from message state, so the row needs nothing passed in.
  */
 const renderMessage = () => <MessageBubble />;
-
-/** The in-thread composer is snug rather than the landings' focal box, so the
- *  message list keeps the space. */
-const THREAD_COMPOSER_MIN_HEIGHT = 92;
 
 export const AssistantThread = memo(function AssistantThread({
   theme: themeProp,
@@ -138,8 +127,8 @@ export const AssistantThread = memo(function AssistantThread({
         </ThreadPrimitive.Messages>
         <Composer
           binding="runtime"
+          variant="bar"
           showActionSheet
-          minHeight={THREAD_COMPOSER_MIN_HEIGHT}
           theme={theme}
           style={[
             composerEdgeStyle,
@@ -176,11 +165,6 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontFamily: 'Raleway_700Bold',
     fontSize: 28,
-  },
-  emptySubtitle: {
-    fontFamily: 'Raleway_700Bold',
-    fontSize: 28,
-    marginTop: 2,
   },
   emptyDescription: {
     fontFamily: BODY_FONT,
