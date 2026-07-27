@@ -36,6 +36,7 @@ import canvasChatEditRouter from './routes/canvas/canvasChatEditController.js';
 import { mountCanvasContractRouter } from './routes/canvas/canvasContractRouter.js';
 import { mountChatGraphContractRouter } from './routes/chat/chatGraphContractRouter.js';
 import { mountThreadsContractRouter } from './routes/chat/threadsContractRouter.js';
+import { mountContentContractRouter } from './routes/content/contentContractRouter.js';
 import { mountDocsContractRouter } from './routes/docs/docsContractRouter.js';
 import { mountDocumentsContractRouter } from './routes/documents/documentsContractRouter.js';
 import { mountEmailContractRouter } from './routes/email/emailContractRouter.js';
@@ -776,6 +777,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/recent-activity', requireAuth);
   mountRecentActivityContractRouter(app);
   app.use('/api/recent-activity', publicReadLimiter, recentActivityRouter);
+  // ts-rest contract router for /api/content — the typed read surface over the
+  // user's own content, filterable by kind before the limit and paginated by
+  // cursor. Additive: /api/recent-activity, /api/share/* and /api/media/* stay.
+  app.use('/api/content', requireAuth, publicReadLimiter);
+  mountContentContractRouter(app);
   // ts-rest contract router for notifications — mounts BEFORE the legacy router
   // so contract-modeled routes match first; /stream SSE falls through to legacy.
   // requireAuth applied at prefix; notification-preferences also handled here.
