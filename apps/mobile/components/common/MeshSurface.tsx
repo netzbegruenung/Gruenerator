@@ -3,9 +3,9 @@ import { StyleSheet, View, useColorScheme } from 'react-native';
 import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
-import { MeshGradient } from './MeshGradient';
-
 import { darkMesh } from '../../theme/chatBackgrounds';
+
+import { MeshGradient } from './MeshGradient';
 
 import type { MeshPreset } from '../../theme/chatBackgrounds';
 import type { StyleProp, ViewStyle } from 'react-native';
@@ -28,6 +28,18 @@ export const MeshSurface = memo(function MeshSurface({
   /** Rides up with the keyboard, so the light stays under the composer. */
   followsKeyboard = false,
   /**
+   * Paint nothing at all in dark mode, leaving whatever fill sits behind.
+   *
+   * For decoration the person did not ask for. `darkMesh` can re-hue a mesh so
+   * it belongs on a dark page, but "belongs" is not the same as "wanted": the
+   * drawer and the composer glow are chrome, and on a dark page chrome that
+   * carries colour reads as a stain rather than as light. A background the
+   * person picked themselves is a different matter — that one keeps its dark
+   * treatment, because switching the OS to dark is not a retraction of the
+   * choice.
+   */
+  hideInDark = false,
+  /**
    * Where the mesh is laid. Defaults to the whole surface; a bottom-anchored
    * box with a height turns it into a band, and the mesh's fractions are then
    * of that box rather than of the screen.
@@ -37,6 +49,7 @@ export const MeshSurface = memo(function MeshSurface({
   mesh: MeshPreset;
   id: string;
   followsKeyboard?: boolean;
+  hideInDark?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const isDark = useColorScheme() === 'dark';
@@ -51,6 +64,10 @@ export const MeshSurface = memo(function MeshSurface({
   const lift = useAnimatedStyle(() => ({
     transform: [{ translateY: followsKeyboard ? keyboard.height.value : 0 }],
   }));
+
+  // After the hooks, never before them — the flag can change under us when the
+  // OS flips theme mid-session, and an early return above would reorder them.
+  if (isDark && hideInDark) return null;
 
   const gradient = (
     <MeshGradient
