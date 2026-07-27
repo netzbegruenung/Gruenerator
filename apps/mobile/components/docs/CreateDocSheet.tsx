@@ -55,6 +55,7 @@ export function CreateDocSheet({
   onClose,
   items,
   isCreating,
+  expandTemplates = false,
   onGenerate,
   onSelectTemplate,
   onOpenItem,
@@ -64,6 +65,12 @@ export function CreateDocSheet({
   /** Everything already in the Arbeiten list, searched by title. */
   items: OfficeItem[];
   isCreating: boolean;
+  /**
+   * Open with the template catalogue already unfolded. The empty state's
+   * "Vorlagen" row uses it — otherwise that row and the KI row would open the
+   * identical sheet and the choice between them would be decorative.
+   */
+  expandTemplates?: boolean;
   onGenerate: (description: string) => void;
   onSelectTemplate: (template: DocumentTemplate) => void;
   onOpenItem: (item: OfficeItem) => void;
@@ -71,14 +78,20 @@ export function CreateDocSheet({
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const [query, setQuery] = useState('');
-  const [templatesExpanded, setTemplatesExpanded] = useState(false);
+  // Derived, not synced: the sheet stays mounted behind the Modal, so plain
+  // `useState(expandTemplates)` would honour only the first opening, and an
+  // effect that re-set it on every open would be a cascading render. `null`
+  // means "the caller decides"; a tap on the row takes over from there, and
+  // `exit()` hands control back.
+  const [templatesToggled, setTemplatesToggled] = useState<boolean | null>(null);
+  const templatesExpanded = templatesToggled ?? expandTemplates;
 
   // A reopened sheet starts fresh — a stale query from last time would show
   // results for something the user has long since stopped looking for. The sheet
   // stays mounted behind the Modal, so every exit resets on its way out.
   const exit = (action?: () => void) => {
     setQuery('');
-    setTemplatesExpanded(false);
+    setTemplatesToggled(null);
     (action ?? onClose)();
   };
 
@@ -230,7 +243,7 @@ export function CreateDocSheet({
 
             <TouchableOpacity
               style={[styles.row, { borderBottomColor: theme.border }]}
-              onPress={() => setTemplatesExpanded((v) => !v)}
+              onPress={() => setTemplatesToggled(!templatesExpanded)}
               activeOpacity={0.7}
             >
               <View
