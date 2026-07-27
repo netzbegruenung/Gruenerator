@@ -7,8 +7,6 @@ export { PulseLoader } from './PulseLoader';
 export { MicButton } from './MicButton';
 export { Composer, composerEdgeStyle, type ComposerAccessory } from './Composer';
 export { ComposerShell, type ComposerVariant } from './ComposerShell';
-/** @deprecated Fallback during the `Composer` rollout — see the file header. */
-export { ComposerCard } from './ComposerCard';
 export { BottomSheet } from './BottomSheet';
 export { OverviewLanding } from './OverviewLanding';
 
