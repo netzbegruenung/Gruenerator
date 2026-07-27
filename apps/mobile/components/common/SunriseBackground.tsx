@@ -7,6 +7,8 @@ import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useReduceMotion } from '../../hooks/useAccessibilityPreferences';
 import { chatBackgroundColor } from '../../theme/chatBackgrounds';
 
+import { MESH_DARK_STRENGTH, MeshGradient } from './MeshGradient';
+
 /**
  * Mobile take on the web Chat tab's `.workplace-chat-sunrise` background
  * (apps/web/src/features/workplace/workplace-sunrise.css): a warm base with a soft
@@ -25,7 +27,10 @@ export function SunriseBackground() {
   const isDark = colorScheme === 'dark';
   // Which preset is a server-side profile setting, shared with web; the colour
   // it maps to is mobile's own (see theme/chatBackgrounds.ts).
-  const preset = resolveChatBackground(useAuthStore((s) => s.user?.chat_background));
+  const preset = resolveChatBackground(
+    useAuthStore((s) => s.user?.chat_background),
+    'mobile'
+  );
   const glow = chatBackgroundColor(preset.key);
 
   const [progress] = useState(() => new Animated.Value(0));
@@ -65,10 +70,27 @@ export function SunriseBackground() {
         { offset: '1', opacity: '0.12' },
       ];
 
+  // No rise for the mesh. The single-glow presets lift into place because they
+  // are one shape moving; a composition of five clouds pinned to their corners
+  // would slide as a whole and read as the screen settling, not as light.
+  if (preset.key === 'mesh') {
+    return (
+      <Animated.View pointerEvents="none" style={styles.container}>
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity }]}>
+          <MeshGradient
+            strength={isDark ? MESH_DARK_STRENGTH : 1}
+            withBase={!isDark}
+            style={StyleSheet.absoluteFill}
+          />
+        </Animated.View>
+      </Animated.View>
+    );
+  }
+
   return (
     <Animated.View pointerEvents="none" style={styles.container}>
-      {/* The warm base belongs to the default preset. Any other choice would be
-          tinted by it, and "Neutral" would not be neutral at all. */}
+      {/* The warm base belongs to the `sunrise` preset. Any other choice would
+          be tinted by it, and "Neutral" would not be neutral at all. */}
       {!isDark && preset.key === 'sunrise' && (
         <Animated.View style={[StyleSheet.absoluteFill, styles.creamBase]} />
       )}

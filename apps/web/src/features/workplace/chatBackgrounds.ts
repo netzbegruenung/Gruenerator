@@ -1,7 +1,7 @@
 import { chatBackgroundSchema, type ChatBackground } from '@gruenerator/contracts';
 import {
-  CHAT_BACKGROUND_PRESETS as SHARED_PRESETS,
   DEFAULT_CHAT_BACKGROUND,
+  chatBackgroundsFor,
   type ChatBackgroundPreset as SharedPreset,
 } from '@gruenerator/shared/settings';
 
@@ -26,6 +26,21 @@ export { DEFAULT_CHAT_BACKGROUND };
 
 /** Web-only rendering details, keyed by the shared preset key. */
 const RENDERING: Record<ChatBackground, { className: string; swatch: string }> = {
+  // App-only for now — filtered out of the list this file exports, so this entry
+  // exists to satisfy the exhaustive Record and is never rendered. The swatch is
+  // the real gradient rather than a placeholder so that whoever brings the
+  // preset to web finds the values already here; what is still missing is the
+  // `.workplace-chat-bg--mesh` class in workplace-sunrise.css.
+  mesh: {
+    className: 'workplace-chat-bg--mesh',
+    swatch:
+      'radial-gradient(120% 80% at 12% 24%, rgb(248 205 197 / 0.95) 0%, rgb(248 205 197 / 0) 62%),' +
+      'radial-gradient(100% 70% at 44% 82%, rgb(244 238 186 / 0.85) 0%, rgb(244 238 186 / 0) 60%),' +
+      'radial-gradient(95% 65% at 92% 58%, rgb(199 228 215 / 0.95) 0%, rgb(199 228 215 / 0) 62%),' +
+      'radial-gradient(85% 55% at 82% 100%, rgb(215 213 243 / 0.9) 0%, rgb(215 213 243 / 0) 58%),' +
+      'radial-gradient(110% 55% at 50% 0%, rgb(253 247 237 / 1) 0%, rgb(253 247 237 / 0) 60%),' +
+      '#fcf9f4',
+  },
   sunrise: {
     className: '',
     swatch: 'radial-gradient(circle at 50% 60%, #e9d696 0%, #f7efd8 45%, #fefcf5 100%)',
@@ -57,11 +72,14 @@ const RENDERING: Record<ChatBackground, { className: string; swatch: string }> =
   },
 };
 
-export const CHAT_BACKGROUND_PRESETS: readonly ChatBackgroundPreset[] = SHARED_PRESETS.map(
-  (preset) => ({ ...preset, ...RENDERING[preset.key] })
-);
+// `chatBackgroundsFor('web')` rather than every shared preset: a preset can be
+// drawn on one platform before the other, and offering one the browser has no
+// class for would show the previous preset's look under a different name.
+export const CHAT_BACKGROUND_PRESETS: readonly ChatBackgroundPreset[] = chatBackgroundsFor(
+  'web'
+).map((preset) => ({ ...preset, ...RENDERING[preset.key] }));
 
-/** Falls back to `sunrise` for unset, unknown or legacy values. */
+/** Falls back to `sunrise` for unset, unknown, legacy or app-only values. */
 export const resolveChatBackground = (value: unknown): ChatBackgroundPreset => {
   const parsed = chatBackgroundSchema.safeParse(value);
   const key = parsed.success ? parsed.data : DEFAULT_CHAT_BACKGROUND;

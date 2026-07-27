@@ -9,6 +9,9 @@ export {
 export {
   CHAT_BACKGROUND_PRESETS,
   DEFAULT_CHAT_BACKGROUND,
+  DEFAULT_CHAT_BACKGROUND_MOBILE,
+  chatBackgroundsFor,
   resolveChatBackground,
+  type ChatBackgroundPlatform,
   type ChatBackgroundPreset,
 } from './chatBackgrounds';
