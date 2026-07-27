@@ -28,6 +28,7 @@ import { createRecurringTask } from '../../../services/recurringTasks/recurringT
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { needsThreadGrounding } from './agenticLoop/routing.js';
 import { resolveSharepicAuthorName } from './artifactGeneration.js';
 import {
   BOARD_SPEC,
@@ -67,7 +68,12 @@ import {
   sendChatWarning,
   sendSearchDegradedWarning,
 } from './sseHelpers.js';
-import { createMessage, getKeptResearchForRetry, touchThread } from './threadPersistenceService.js';
+import {
+  createMessage,
+  getKeptResearchForRetry,
+  getRecentThreadSources,
+  touchThread,
+} from './threadPersistenceService.js';
 
 import type { SSEEmitter, SSEWriter, SearchResultPayload } from './sseHelpers.js';
 import type {
@@ -680,6 +686,54 @@ export async function runSharepicGeneration(opts: {
   }
 }
 
+/**
+ * Ground a vague continuation on the research this thread already paid for.
+ *
+ * A `direct` turn skips the whole retrieval block in executeIntentPipeline, so
+ * "Mehr dazu bitte" after a sourced answer arrived with NO sources — and the
+ * model regenerated from its own previous prose: ungrounded, uncitable, and to
+ * the reader indistinguishable from research. Same helper and same reasoning
+ * the agentic loop (agenticRespondService) and the artifact-creating turns
+ * (createTurn) already use.
+ *
+ * Called AFTER the intent loop, never as a branch inside it: a `direct` turn
+ * with a secondaryIntent runs two iterations, and a branch would carry sources
+ * on the first only to have the real search overwrite them on the second.
+ *
+ * Self-limiting: a thread with no prior research returns [] and this is a
+ * no-op, so the extra query only ever buys something on turns that were about
+ * those sources. Never throws — an ungrounded answer beats a 500.
+ *
+ * Note the carried sources are re-persisted as THIS turn's searchResults, which
+ * extends how far back getRecentThreadSources reaches in a long continuation
+ * thread. That is a memory horizon, not a correctness bug, but it is why the
+ * predicate demands an anaphor: topical continuity is the licence.
+ */
+export async function carryThreadSourcesIfNeeded(
+  state: ChatGraphState,
+  threadId: string | null
+): Promise<ChatGraphState> {
+  if (state.intent !== 'direct' || state.searchResults.length > 0 || !threadId) return state;
+  const lastUser = [...state.messages].reverse().find((m) => m.role === 'user');
+  if (!needsThreadGrounding(lastUser ? extractTextContent(lastUser.content) : '')) return state;
+  try {
+    // 6, not the default 10: a continuation asks for depth on a known topic,
+    // not a fresh dossier.
+    const carried = await getRecentThreadSources(threadId, 6);
+    if (carried.length === 0) return state;
+    log.info(`[Direct] grounded on ${carried.length} prior source(s) from this thread`);
+    return {
+      ...state,
+      searchResults: carried,
+      citations: buildCitations(carried),
+      sourcesCarriedFromThread: true,
+    };
+  } catch (err) {
+    log.warn(`[Direct] source carry skipped: ${err instanceof Error ? err.message : err}`);
+    return state;
+  }
+}
+
 export async function executeIntentPipeline(opts: {
   classifiedState: ChatGraphState;
   sse: SSEWriter;
@@ -1236,6 +1290,8 @@ export async function executeIntentPipeline(opts: {
       }
     }
   }
+
+  finalState = await carryThreadSourcesIfNeeded(finalState, opts.threadId ?? null);
 
   return {
     finalState,

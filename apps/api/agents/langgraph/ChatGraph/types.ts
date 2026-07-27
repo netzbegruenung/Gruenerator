@@ -712,6 +712,16 @@ export interface ChatGraphState {
   searchCount: number;
   maxSearches: number;
 
+  /**
+   * The sources on this turn were REHYDRATED from earlier turns of this thread
+   * (getRecentThreadSources) — nothing was searched now. Discriminates the one
+   * case where a `direct` turn may cite [N] at all, and swaps the "claim no
+   * research" honesty note for the carried-source variant. Without it the
+   * prompt would hand the model a source block and a citation instruction next
+   * to an order not to mention any sources.
+   */
+  sourcesCarriedFromThread?: boolean;
+
   // Research brief (compressed research intent for complex queries)
   researchBrief: string | null;
 
