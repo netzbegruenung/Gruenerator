@@ -1,0 +1,94 @@
+import { type CanvasListItem } from '@gruenerator/contracts';
+import { type Project } from '@gruenerator/shared';
+import { type Share } from '@gruenerator/shared/share';
+
+import { type RecentItem } from './useRecentActivity';
+
+/**
+ * KI image types, mirrored from web's `IMAGE_STUDIO_TYPES` KI block plus the two
+ * legacy `image_type` values the Bilder tab wrote before it emitted canonical
+ * ids. Web classifies through its whole `typeConfig` registry, which lives in
+ * `apps/web` and cannot be imported here — but only the KI side of that registry
+ * decides this split, and it is four ids long.
+ *
+ * Unknown values count as sharepics, exactly as web's `isKiImage` defaults. A new
+ * KI type missing here lands in the wrong section; it never disappears.
+ */
+const KI_IMAGE_TYPES = new Set([
+  'green-edit',
+  'universal-edit',
+  'pure-create',
+  'ai-editor',
+  'imagine',
+  'edit',
+]);
+
+export function isKiImage(imageType?: string): boolean {
+  return imageType != null && KI_IMAGE_TYPES.has(imageType);
+}
+
+function shareToItem(share: Share): RecentItem {
+  return {
+    // The share token, not a row id — `useOpenRecentItem` hands this straight to
+    // the in-app viewer as `shareToken`.
+    id: share.shareToken,
+    title: share.title || 'Ohne Titel',
+    date: share.createdAt,
+    type: 'image',
+    href: `/share/${share.shareToken}`,
+    // A fresh share has no thumbnail until the variants pass finishes; the
+    // preview route renders one on demand. Same fallback the web feed uses —
+    // without it a just-created sharepic shows as a blank plate.
+    thumbnailUrl: share.thumbnailUrl ?? `/api/share/${share.shareToken}/preview?w=400&fmt=webp`,
+  };
+}
+
+function byDateDesc(a: RecentItem, b: RecentItem): number {
+  // ISO strings from Postgres: lexicographic order is chronological order.
+  return b.date.localeCompare(a.date);
+}
+
+/**
+ * Published image shares that are not KI output, merged with the canvases still
+ * open for editing — web groups the two the same way.
+ *
+ * No dedup: an exported share and the canvas it came from are two artifacts with
+ * no linking key between them.
+ */
+export function toSharepicItems(shares: Share[], canvases: CanvasListItem[]): RecentItem[] {
+  const shareItems = shares.filter((share) => !isKiImage(share.imageType)).map(shareToItem);
+  const canvasItems = canvases.map((canvas): RecentItem => ({
+    id: canvas.id,
+    title: canvas.title || 'Neuer Canvas',
+    date: canvas.updated_at,
+    type: 'canvas',
+    href: `/studio/canvas/${canvas.id}`,
+    // Omitted rather than null: `exactOptionalPropertyTypes` is on, and
+    // RecentItemsSection falls back to a tinted icon plate when it is absent.
+    ...(canvas.thumbnail_url ? { thumbnailUrl: canvas.thumbnail_url } : {}),
+  }));
+  return [...shareItems, ...canvasItems].sort(byDateDesc);
+}
+
+export function toKiImageItems(shares: Share[]): RecentItem[] {
+  return shares
+    .filter((share) => isKiImage(share.imageType))
+    .map(shareToItem)
+    .sort(byDateDesc);
+}
+
+export function toReelItems(projects: Project[]): RecentItem[] {
+  return projects
+    .map((project): RecentItem => ({
+      id: project.id,
+      title: project.title || 'Ohne Titel',
+      // The ordering key the backend feed uses for reels, too.
+      date: project.last_edited_at || project.created_at,
+      type: 'video',
+      href: `/studio/video?project=${project.id}`,
+      ...(project.thumbnail_path
+        ? { thumbnailUrl: `/api/subtitler/projects/${project.id}/thumbnail` }
+        : {}),
+    }))
+    .sort(byDateDesc);
+}

@@ -23,9 +23,12 @@ export const TAB_NOTES: TabNote[] = [
   {
     tab: 'allgemein',
     intro:
-      'Aussehen und Grundverhalten der Oberfläche. Änderungen greifen sofort und gelten auf allen Geräten, an denen du angemeldet bist.',
+      'Aussehen und Grundverhalten der Oberfläche — und ganz oben, wer du bist. Änderungen greifen sofort und gelten auf allen Geräten, an denen du angemeldet bist.',
     extras: [
+      'Die Zeile **Konto** zeigt Anzeigename, Benutzername und E-Mail. Die drei kommen aus deinem Grünen Login und lassen sich nur dort ändern, wo du dich anmeldest.',
+      'Dein Profilbild ist ein Grünerator Friend — ausgewählt wird er im Bereich „Friends".',
       'Die Sprachwahl entscheidet nicht nur über Wortwahl, sondern auch über Inhalte: Mit „Deutsch (Österreich)" bekommst du österreichische Quellen und Begriffe statt deutscher.',
+      'Ganz unten kannst du dein Konto endgültig löschen. Das entfernt deine Inhalte und lässt sich nicht rückgängig machen.',
     ],
   },
   {
@@ -35,15 +38,6 @@ export const TAB_NOTES: TabNote[] = [
     extras: [
       '**Animationen reduzieren** und **Transparenz reduzieren** schalten dekorative Bewegung bzw. durchscheinende Flächen und Unschärfe ab — hilfreich bei Reizempfindlichkeit oder auf schwächerer Hardware.',
       '**Sprung-Link zum Inhalt** blendet ganz oben einen Link ein, mit dem du beim Tabben die Navigation überspringst und direkt zum Hauptinhalt springst. Standardmäßig aus.',
-    ],
-  },
-  {
-    tab: 'konto',
-    intro:
-      'Wer du bist. Name, Benutzername und E-Mail kommen aus deinem Grünen Login und lassen sich hier nur ansehen — ändern kannst du sie dort, wo du dich anmeldest.',
-    extras: [
-      'Dein Profilbild ist ein Grünerator Friend — ausgewählt wird er im Bereich „Friends".',
-      'Ganz unten kannst du dein Konto endgültig löschen. Das entfernt deine Inhalte und lässt sich nicht rückgängig machen.',
     ],
   },
   {
@@ -65,7 +59,7 @@ export const TAB_NOTES: TabNote[] = [
     ],
   },
   {
-    tab: 'briefkoepfe',
+    tab: 'briefe',
     intro:
       'Absenderangaben für den PDF-Export von Briefen. Du kannst mehrere Briefköpfe anlegen — etwa einen für den Kreisverband und einen für die Fraktion — und beim Export auswählen, welcher oben links erscheint.',
     extras: [

@@ -53,6 +53,15 @@ Production deployment is owned outside this repo (no `deploy-prod.yml` here). Co
 
 The Deutsche-Bahn / Open-Meteo / ARD-Tagesschau / trivago chat sources are env-gated: set `SYSTEM_MCP_DB_URL`, `SYSTEM_MCP_WEATHER_URL`, `SYSTEM_MCP_ARD_URL`, `SYSTEM_MCP_TRIVAGO_URL` (+ optional `…_TOKEN` for shared bearer auth) in the API's deploy env to activate them. The `reise` umbrella intent mounts bahn + hotel + wetter together. Unset URL = intent degrades gracefully (web/direct fallback). The first-party endpoints live only in deploy env — never commit them; users never see them (trivago's hosted URL is public: `https://mcp.trivago.com/mcp`).
 
+## Langfuse LLM observability (optional, env-gated)
+
+The API traces the chat flow to a self-hosted Langfuse when **all three** vars are set (in the API app's Coolify env); absence of any is a clean no-op, so unsetting them is the kill switch:
+
+- `LANGFUSE_PUBLIC_KEY` (`pk-lf-…`), `LANGFUSE_SECRET_KEY` (`sk-lf-…`) — from the Langfuse project settings.
+- `LANGFUSE_BASE_URL` — the instance URL (must be **HTTPS**; chat prompts/completions travel over it).
+
+One trace per chat turn (`chat-turn`), grouped by user + thread. Thumbs up/down in the chat UI post to `POST /api/chat-service/feedback`, which writes a `user-feedback` score onto the turn's trace (also a no-op when the vars are unset). Set the project's **data retention to 30 days** in the Langfuse UI to match the Datenschutzerklärung. Init lives in `apps/api/instrument.ts` (runs in every cluster worker via `--import`); worker-thread LLM calls (classifier etc.) are not yet traced.
+
 ## Docs Expo (Android APK)
 
 See `CLAUDE-expo.md` for build, install, and debug instructions.

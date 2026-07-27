@@ -28,6 +28,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "build:android": "EAS_NO_VCS=1 eas build -p android --profile production",
+    "build:ios": "EAS_NO_VCS=1 eas build -p ios --profile production",
+    "build:all": "EAS_NO_VCS=1 eas build -p all --profile production",
     "build:android:preview": "EAS_NO_VCS=1 eas build -p android --profile preview"
   },
   "dependencies": {
@@ -77,6 +79,7 @@
     "expo-splash-screen": "^57.0.5",
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.1",
+    "expo-updates": "~57.0.10",
     "expo-video": "~57.0.2",
     "expo-web-browser": "~57.0.2",
     "katex": "^0.18.1",

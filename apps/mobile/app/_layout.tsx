@@ -17,6 +17,7 @@ import { View, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { enableFreeze } from 'react-native-screens';
 
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { AppDrawer } from '../components/navigation';
@@ -27,6 +28,25 @@ import { useOnboardingStore } from '../stores/onboardingStore';
 import { lightTheme, darkTheme } from '../theme';
 
 void SplashScreen.preventAutoHideAsync();
+
+/**
+ * Stop re-rendering screens nobody is looking at.
+ *
+ * `react-native-screens` ships this OFF (`ENABLE_FREEZE = false` in its `core`),
+ * so until now all four tab screens re-rendered on every store write, every
+ * query settle and every theme read — the Wissen tab alone is 19 cover tiles
+ * plus the user's collections in a plain `ScrollView`, and it paid that price
+ * while sitting behind the Chat tab.
+ *
+ * Must run at module scope: `Screen` reads `freezeEnabled()` at render time, so
+ * a call from inside a component would come too late for the first mount.
+ *
+ * Frozen means *not re-rendered*, not unmounted — effects, timers and requests
+ * keep running, their state updates just land when the screen comes back. A
+ * background export still finishes; only its progress bar stops repainting
+ * while off screen.
+ */
+enableFreeze(true);
 
 function RootLayout() {
   const colorScheme = useColorScheme();

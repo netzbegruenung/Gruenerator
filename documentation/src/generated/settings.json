@@ -5,36 +5,32 @@
       "label": "Allgemein"
     },
     {
-      "value": "barrierefreiheit",
-      "label": "Barrierefreiheit"
-    },
-    {
-      "value": "konto",
-      "label": "Konto"
-    },
-    {
-      "value": "friends",
-      "label": "Friends"
-    },
-    {
       "value": "personalisierung",
       "label": "Personalisierung"
-    },
-    {
-      "value": "briefkoepfe",
-      "label": "Briefköpfe"
-    },
-    {
-      "value": "texte-anlernen",
-      "label": "Texte anlernen"
     },
     {
       "value": "erinnerungen",
       "label": "Erinnerungen"
     },
     {
+      "value": "texte-anlernen",
+      "label": "Texte anlernen"
+    },
+    {
+      "value": "friends",
+      "label": "Friends"
+    },
+    {
       "value": "benachrichtigungen",
       "label": "Benachrichtigungen"
+    },
+    {
+      "value": "briefe",
+      "label": "Briefe"
+    },
+    {
+      "value": "konnektoren",
+      "label": "Konnektoren"
     },
     {
       "value": "wolke",
@@ -45,8 +41,8 @@
       "label": "Meine Websites"
     },
     {
-      "value": "konnektoren",
-      "label": "Konnektoren"
+      "value": "barrierefreiheit",
+      "label": "Barrierefreiheit"
     },
     {
       "value": "nutzung",
@@ -58,6 +54,11 @@
     }
   ],
   "rows": {
+    "allgemein.konto": {
+      "tab": "allgemein",
+      "title": "Konto",
+      "description": "Name, Benutzername und E-Mail stammen aus deinem Grünen Login und werden dort geändert"
+    },
     "allgemein.aussehen": {
       "tab": "allgemein",
       "title": "Aussehen",
@@ -93,6 +94,11 @@
       "title": "Transparenz reduzieren",
       "description": "Entfernt durchscheinende Flächen und Unschärfe-Effekte — folgt sonst automatisch der Einstellung deines Betriebssystems"
     },
+    "barrierefreiheit.leistung": {
+      "tab": "barrierefreiheit",
+      "title": "Leistungsmodus",
+      "description": "Schaltet den Blur hinter der Tab-Leiste ab. Hilft auf älteren Geräten, gilt nur auf diesem"
+    },
     "barrierefreiheit.sprunglink": {
       "tab": "barrierefreiheit",
       "title": "Sprung-Link zum Inhalt",
@@ -102,23 +108,6 @@
       "tab": "allgemein",
       "title": "Einführungs-Touren zurücksetzen",
       "description": "Zeigt die Touren durch Workplace, Dokumente, Tabellen, Präsentationen und das Sharepic-Studio beim nächsten Öffnen wieder an."
-    },
-    "konto.anzeigename": {
-      "tab": "konto",
-      "title": "Anzeigename"
-    },
-    "konto.benutzername": {
-      "tab": "konto",
-      "title": "Benutzername"
-    },
-    "konto.email": {
-      "tab": "konto",
-      "title": "E-Mail"
-    },
-    "konto.loeschen": {
-      "tab": "konto",
-      "title": "Konto löschen",
-      "description": "Entfernt Profil, gespeicherte Inhalte und den Zugang endgültig — das lässt sich nicht rückgängig machen."
     },
     "friends.avatar": {
       "tab": "friends",
