@@ -21,6 +21,7 @@ import { buildSocialMediaSystemPrompt } from '../../../agents/langgraph/ChatGrap
 import { createLogger } from '../../../utils/logger.js';
 
 import { extractTextContent } from './messageHelpers.js';
+import { looksLikeToolCallLeak } from './outputSanity.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { Request } from 'express';
@@ -146,6 +147,18 @@ Setze nur Hashtags, die zum Thema gehören. Erfinde KEINE Orts-, Regional- oder 
   }
 
   const parsed = parseSocialPostText(result.content);
+
+  // A leaked tool call is worse than no post: it ships internal prompt
+  // structure into a widget the user is meant to publish from. Throwing puts
+  // the turn on the existing "text half failed" path instead of rendering it.
+  if (looksLikeToolCallLeak(parsed.text)) {
+    log.warn(
+      `[SocialPost] ${platform} composer returned a tool-call fragment instead of a post: ` +
+        `${JSON.stringify(parsed.text.slice(0, 120))}`
+    );
+    throw new Error('Social post generation returned a tool-call fragment instead of post text');
+  }
+
   log.info(
     `[SocialPost] Generated ${platform} post: ${parsed.charCount} chars, ` +
       `${parsed.hashtags.length} hashtags in ${Date.now() - startTime}ms`

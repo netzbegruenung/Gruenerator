@@ -655,6 +655,11 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       ) {
         const editText = lastUserTextNoMentions.trim();
         if (editText && isSocialTextEditInstruction(editText)) {
+          // Sibling of the sharepic-branch log below: the two edit branches are
+          // where a follow-up either lands correctly or is silently misread.
+          log.info(
+            `[ChatGraph] social post text-edit branch: ${JSON.stringify(editText.slice(0, 80))}`
+          );
           const handled = await handleSocialPostTextEdit({
             sse,
             req,
@@ -702,12 +707,25 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           rawCurrentSharepic != null &&
           !!editText &&
           (hasSharepicEditVerb(editText) || isShortAffirmation(editText));
-        if (
-          editText &&
-          (isSharepicEditInstruction(editText) ||
-            isSharepicRefinement(editText) ||
-            sharepicModeRelaxed)
-        ) {
+        const sharepicTrigger = !editText
+          ? null
+          : isSharepicEditInstruction(editText)
+            ? 'edit-instruction'
+            : isSharepicRefinement(editText)
+              ? 'refinement'
+              : sharepicModeRelaxed
+                ? 'sharepic-mode-relaxed'
+                : null;
+        if (sharepicTrigger) {
+          // WHICH rule captured the turn, and on what text. This branch can end
+          // a turn early (e.g. the "Welche Variante soll ich bearbeiten?"
+          // clarification) without any other log line, so a message that was
+          // never meant as a sharepic edit vanished into it leaving no trace —
+          // a QA report of "my question was answered as an edit command" was
+          // not diagnosable from the backend at all.
+          log.info(
+            `[ChatGraph] sharepic edit branch via ${sharepicTrigger}: ${JSON.stringify(editText.slice(0, 80))}`
+          );
           // CHAT_TOOL_LOOP swaps the executor, not the routing: same entry
           // condition and fallthrough semantics, but the edit runs as a small
           // agentic tool loop instead of one structured call.
@@ -1463,6 +1481,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       let sharepicVariants: PipelineResult['sharepicVariants'];
       let socialPost: PipelineResult['socialPost'];
       let socialPostRefused: PipelineResult['socialPostRefused'] = false;
+      let socialPostRefusalIsPolicy: PipelineResult['socialPostRefusalIsPolicy'] = false;
       let fullText: string | null;
       let agenticSteps: PersistedStep[] | undefined;
       // Presentation/sheet created by a compound loop tool — lifted from the
@@ -1537,17 +1556,23 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         agenticSteps = outcome.steps;
       } else {
         // === Stage 2: Search or Image Generation ===
-        ({ finalState, generatedImage, sharepicVariants, socialPost, socialPostRefused } =
-          await executeIntentPipeline({
-            classifiedState,
-            sse,
-            forcedTool,
-            ...(enabledTools != null && { enabledTools }),
-            imageAttachments,
-            req,
-            threadId: actualThreadId ?? null,
-            ...(sharepicRefinement && { sharepicRefinement }),
-          }));
+        ({
+          finalState,
+          generatedImage,
+          sharepicVariants,
+          socialPost,
+          socialPostRefused,
+          socialPostRefusalIsPolicy,
+        } = await executeIntentPipeline({
+          classifiedState,
+          sse,
+          forcedTool,
+          ...(enabledTools != null && { enabledTools }),
+          imageAttachments,
+          req,
+          threadId: actualThreadId ?? null,
+          ...(sharepicRefinement && { sharepicRefinement }),
+        }));
 
         // === Stage 3: Response generation ===
         if (finalState.intent === 'social_post') {
@@ -1560,9 +1585,18 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             ? // The text model refused, so both halves were discarded. Say so
               // plainly — the old copy promised "dein Post mit N Varianten"
               // because it only checked that SOME text came back.
-              `Diese Anfrage kann ich nicht umsetzen: Dabei entstünde ein erfundenes Zitat oder eine ` +
-              `irreführende Aussage im Namen der Partei. Wenn du mir ein echtes Zitat mit Quelle gibst, ` +
-              `gestalte ich dir daraus gern einen Post.`
+              //
+              // Only name the POLICY reason when the sharepic half declined on
+              // the same request; otherwise all we know is that no usable post
+              // came back, and asserting the fabricated-quote reason accused
+              // the user of something they never asked for (live: a plain
+              // request for an English version of their own post).
+              socialPostRefusalIsPolicy
+              ? `Diese Anfrage kann ich nicht umsetzen: Dabei entstünde ein erfundenes Zitat oder eine ` +
+                `irreführende Aussage im Namen der Partei. Wenn du mir ein echtes Zitat mit Quelle gibst, ` +
+                `gestalte ich dir daraus gern einen Post.`
+              : `Daraus konnte ich keinen Post erzeugen. Sag mir bitte konkret, worum es gehen soll — ` +
+                `oder, wenn du dich auf einen vorhandenen Post beziehst, was ich damit machen soll.`
             : hasText && n > 0
               ? `Hier ist dein Post mit ${n} passenden Sharepic-${n === 1 ? 'Variante' : 'Varianten'}. ` +
                 `Sag mir, was ich am Text oder an der Grafik anpassen soll.`
