@@ -1,7 +1,7 @@
 import { useAuiState, AttachmentPrimitive } from '@assistant-ui/react-native';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { View, StyleSheet, useColorScheme } from 'react-native';
 
 import { colors, borderRadius } from '../../theme';
 
@@ -24,7 +24,7 @@ export function ComposerAttachmentUI() {
   });
 
   return (
-    <View
+    <AttachmentPrimitive.Root
       style={[
         styles.composerBadge,
         {
@@ -49,18 +49,16 @@ export function ComposerAttachmentUI() {
           />
         </View>
       )}
-      <Text
+      <AttachmentPrimitive.Name
         style={[styles.composerName, { color: isDark ? colors.grey[100] : colors.grey[700] }]}
         numberOfLines={1}
-      >
-        {name}
-      </Text>
+      />
       <AttachmentPrimitive.Remove style={styles.removeHitArea} hitSlop={8}>
         <View style={styles.removeCircle}>
           <Ionicons name="close" size={10} color={colors.white} />
         </View>
       </AttachmentPrimitive.Remove>
-    </View>
+    </AttachmentPrimitive.Root>
   );
 }
 
@@ -80,7 +78,7 @@ export function MessageAttachmentUI() {
   });
 
   return (
-    <View style={styles.messageBadge}>
+    <AttachmentPrimitive.Root style={styles.messageBadge}>
       {type === 'image' && imageUri ? (
         <Image source={{ uri: imageUri }} style={styles.messageThumb} contentFit="cover" />
       ) : (
@@ -88,10 +86,8 @@ export function MessageAttachmentUI() {
           <Ionicons name={getFileIcon(name)} size={14} color={colors.white} />
         </View>
       )}
-      <Text style={styles.messageName} numberOfLines={1}>
-        {name}
-      </Text>
-    </View>
+      <AttachmentPrimitive.Name style={styles.messageName} numberOfLines={1} />
+    </AttachmentPrimitive.Root>
   );
 }
 
