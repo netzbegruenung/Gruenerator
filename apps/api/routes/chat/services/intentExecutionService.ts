@@ -698,6 +698,10 @@ export async function executeIntentPipeline(opts: {
   socialPost: SocialPostPayload | null;
   /** The text model refused: no post, no sharepic, and no success copy. */
   socialPostRefused: boolean;
+  /** Whether that refusal is backed by a POLICY decline (the sharepic half
+   *  declined too) rather than only by the text half failing. Drives which
+   *  explanation the turn's answer gives — see the gate for the reasoning. */
+  socialPostRefusalIsPolicy: boolean;
 }> {
   const { classifiedState, sse, forcedTool, enabledTools, imageAttachments } = opts;
 
@@ -706,6 +710,7 @@ export async function executeIntentPipeline(opts: {
   let sharepicVariants: SharepicVariant[] = [];
   let socialPost: SocialPostPayload | null = null;
   let socialPostRefused = false;
+  let socialPostRefusalIsPolicy = false;
 
   // Build ordered list of intents to execute (primary first, then secondary).
   // social_post handles pasted URLs inline BEFORE text generation — a
@@ -879,17 +884,36 @@ export async function executeIntentPipeline(opts: {
       // button and no success copy survive the refusal.
       const refusedText =
         textSettled.status === 'fulfilled' && looksLikeRefusal(textSettled.value.post.text);
+      // WHY the text model declined is not something `looksLikeRefusal` can
+      // tell us — it only sees that it declined. The sharepic half ran the SAME
+      // request through its own ABLEHNUNG channel, so its outcome is the one
+      // piece of evidence available: both halves declining is a policy problem,
+      // while a text-only decline beside working variants is usually a broken
+      // task (live: an unresolvable "Jetzt eine Version davon auf Englisch."
+      // made the composer answer "ich kann keinen Post erstellen …", which was
+      // then shown to the user as a refusal about FABRICATED QUOTES — a reason
+      // that had nothing to do with the request).
+      //
+      // The gate itself does NOT change: both halves are discarded either way,
+      // because a text refusal beside a rendered sharepic is exactly the
+      // disinformation case this was built for. Only the explanation adapts to
+      // what is actually known.
+      const sharepicAlsoDeclined =
+        variantsSettled.status !== 'fulfilled' || variantsSettled.value.length === 0;
       if (refusedText) {
         log.warn(
-          '[ChatGraph] social_post: text model refused — discarding sharepic variants and post'
+          `[ChatGraph] social_post: text model refused — discarding sharepic variants and post ` +
+            `(sharepicAlsoDeclined=${sharepicAlsoDeclined})`
         );
         sharepicBuffer.discard();
         postBuffer.discard();
         socialPostRefused = true;
+        socialPostRefusalIsPolicy = sharepicAlsoDeclined;
         sse.send('social_post_complete', {
-          message: 'Anfrage abgelehnt',
-          error:
-            'Diese Anfrage kann ich nicht umsetzen — dabei entstünde ein erfundenes Zitat oder eine irreführende Aussage im Namen der Partei.',
+          message: sharepicAlsoDeclined ? 'Anfrage abgelehnt' : 'Post nicht erstellt',
+          error: sharepicAlsoDeclined
+            ? 'Diese Anfrage kann ich nicht umsetzen — dabei entstünde ein erfundenes Zitat oder eine irreführende Aussage im Namen der Partei.'
+            : 'Daraus konnte ich keinen Post erzeugen. Sag mir bitte konkret, worum es gehen soll — oder worauf du dich beziehst.',
         });
       } else {
         sharepicBuffer.flush(sse);
@@ -1196,5 +1220,12 @@ export async function executeIntentPipeline(opts: {
     }
   }
 
-  return { finalState, generatedImage, sharepicVariants, socialPost, socialPostRefused };
+  return {
+    finalState,
+    generatedImage,
+    sharepicVariants,
+    socialPost,
+    socialPostRefused,
+    socialPostRefusalIsPolicy,
+  };
 }
