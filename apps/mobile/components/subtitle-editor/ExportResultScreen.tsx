@@ -105,7 +105,7 @@ export function ExportScreen({
 
   const mdStyles = useMemo(
     () => ({
-      body: { color: theme.text, fontSize: 14, lineHeight: 20 },
+      body: { color: theme.text, fontFamily: BODY_FONT, fontSize: 14, lineHeight: 20 },
       paragraph: { marginTop: 0, marginBottom: 6 },
       strong: { fontWeight: '700' as const },
       bullet_list: { marginVertical: 4 },

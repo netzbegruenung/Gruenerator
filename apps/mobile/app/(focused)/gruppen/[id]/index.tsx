@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: borderRadius.small,
   },
-  roleBadgeText: { fontSize: 12, fontWeight: '600' },
+  roleBadgeText: { fontFamily: BODY_FONT, fontSize: 12, fontWeight: '600' },
   description: {
     ...typography.body,
     textAlign: 'center',

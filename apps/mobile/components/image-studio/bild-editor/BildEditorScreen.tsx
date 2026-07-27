@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 34,
   },
-  loadingSub: { fontSize: 14 },
+  loadingSub: { fontFamily: BODY_FONT, fontSize: 14 },
   startContent: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  uploadHint: { fontSize: 13 },
+  uploadHint: { fontFamily: BODY_FONT, fontSize: 13 },
   uploadRow: { flexDirection: 'row', gap: 12 },
   uploadBtn: {
     flexDirection: 'row',
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 11,
   },
-  uploadBtnText: { fontSize: 14, fontWeight: '600' },
+  uploadBtnText: { fontFamily: BODY_FONT, fontSize: 14, fontWeight: '600' },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 8,
   },
-  restart: { fontSize: 13, fontWeight: '600' },
+  restart: { fontFamily: BODY_FONT, fontSize: 13, fontWeight: '600' },
   captionWrap: { flex: 1, alignItems: 'center' },
   caption: {
     fontFamily: BODY_FONT,
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
   },
   topActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   downloadBtn: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 },
-  downloadText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  downloadText: { color: '#fff', fontFamily: BODY_FONT, fontSize: 13, fontWeight: '700' },
   imageArea: {
     flex: 1,
     alignItems: 'center',

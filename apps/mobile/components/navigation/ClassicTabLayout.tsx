@@ -3,7 +3,7 @@ import { Tabs } from 'expo-router';
 import { StyleSheet, useColorScheme, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { lightTheme, darkTheme, colors } from '../../theme';
+import { lightTheme, darkTheme, colors, BODY_FONT } from '../../theme';
 import { TAB_BAR_CAPSULE_HEIGHT, TAB_BAR_CAPSULE_GAP } from '../../theme/layout';
 import { GrueneratorLoadingIcon } from '../chat/GrueneratorLoadingIcon';
 
@@ -73,6 +73,7 @@ export function ClassicTabLayout() {
           marginBottom: -2,
         },
         tabBarLabelStyle: {
+          fontFamily: BODY_FONT,
           fontSize: 11,
           fontWeight: '600',
         },
