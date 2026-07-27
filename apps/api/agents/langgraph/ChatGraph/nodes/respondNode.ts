@@ -1057,7 +1057,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
     citationInstruction = `
 5. Du hast genau ${sourceCount} Quelle(n). Verwende NUR [1] bis [${sourceCount}] als Quellenverweise. Höhere Nummern existieren NICHT.
 6. Zitiere 1-2 Quellen pro Kernaussage — nicht jeder Satz braucht eine Referenz.
-7. Setze die Referenz direkt nach der Aussage, z.B.: "Die Grünen fordern ein Tempolimit [1]."
+7. Setze die Referenz direkt nach der Aussage, z.B.: "Die Grünen fordern ein Tempolimit [1]." Stützen mehrere Quellen dieselbe Aussage, fasse sie in EINER Klammer zusammen: [1, 3].
 8. Erfinde KEINE zusätzlichen Quellen oder Quellenverweise über [${sourceCount}] hinaus.`;
   }
 

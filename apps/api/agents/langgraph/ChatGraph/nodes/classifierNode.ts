@@ -249,6 +249,30 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     downgradedSearchQuery = userText;
   }
 
+  // A follow-up on a SHAREPIC is not a raster-image edit. The LLM tier answers
+  // `image_edit` for "Mach den Text größer" after a sharepic — its own reasoning
+  // says the user wants to edit „ein bereits erstelltes **Sharepic**" and it
+  // picks the image intent anyway (same shape as classifierContradictedResearch,
+  // one level up). The router's ENTIRE sharepic edit block is gated on
+  // `intent !== 'image_edit'`, so the turn loses its target and answers about
+  // nothing. Live proof that this is phrasing lottery, not intent: in the same
+  // run "Text größer bitte" classified as `sharepic` and edited correctly.
+  //
+  // Deliberately narrow on two counts. With an image ATTACHED, image_edit is
+  // simply right. And when the user names an image ("bearbeite das Foto"), take
+  // them at their word — they may well mean the sharepic's background picture.
+  // What is left is the case that has no other reading: an edit request after a
+  // sharepic that mentions no image at all.
+  if (
+    intent === 'image_edit' &&
+    (state.imageAttachments?.length ?? 0) === 0 &&
+    !mentionsImageNoun(userText) &&
+    state.lastToolContext?.kind === 'sharepic'
+  ) {
+    log.info('[Classifier] image_edit → sharepic (no attachment, last artifact was a sharepic)');
+    intent = 'sharepic';
+  }
+
   // DE-only system sources (DB IRIS timetables, tagesschau) — de-AT users get
   // the web fallback, mirroring the abgeordnetenwatch/bundestag rule above.
   if (intent && DE_ONLY_SYSTEM_INTENTS.has(intent) && state.userLocale === 'de-AT') {

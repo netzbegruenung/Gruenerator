@@ -1300,6 +1300,26 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
         // Track which collections were searched for observability
         searchedCollections = uniqueCollections;
+
+        // Empty internal search → go to the web, same rule the loop path got
+        // (loopGuards.emptyResultFallback). This path could not follow it:
+        // `search` is an exclusive, one-time intent choice, so a turn that
+        // found nothing internally answered from the model's memory — ungrounded
+        // and, to the reader, indistinguishable from a researched answer.
+        //
+        // NOT for a notebook-scoped turn: "search MY documents" is an explicit
+        // scope, and silently widening it to the open web would answer a
+        // different question than the one asked. There, empty means empty.
+        if (results.length === 0 && !isNotebookScoped && query.length > 0) {
+          log.info('[Search] internal collections returned nothing — falling back to the web');
+          const webFallback = await executeWebSearchParallel(query, state.aiWorkerPool);
+          if (webFallback.results.length > 0) {
+            results = webFallback.results;
+            citations = buildCitations(results);
+            searchedCollections = [...uniqueCollections, 'web'];
+          }
+          singleSourceErrors.push(...webFallback.errors);
+        }
         break;
       }
 
