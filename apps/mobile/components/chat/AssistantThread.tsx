@@ -56,30 +56,33 @@ const EmptyState = memo(function EmptyState({
   const { user, locale } = useAuth();
   const firstName = user?.display_name?.split(' ')[0] ?? null;
 
-  // The same greeting the Chat tab opens with, set the same way — left-aligned,
-  // no icon plate. An empty thread and the tab are the same moment; they used to
-  // look like two different products.
-  const greeting = welcome?.title ?? getGreeting(locale ?? 'de-DE', firstName);
+  // The same greeting the Chat tab opens with, set the same way — centred block,
+  // left-aligned text, no icon plate. An empty thread and the tab are the same
+  // moment; they used to look like two different products, which is why this
+  // has to move whenever the tab does.
+  const greeting = welcome?.title ?? getGreeting(locale ?? 'de-DE', firstName, { short: true });
   const subtitle =
     welcome?.subtitle ?? (greeting.includes('?') ? null : 'wie kann ich dir helfen?');
 
   return (
     <View style={styles.emptyContainer} pointerEvents="none">
-      <Text style={[styles.emptyTitle, { color: theme.text }]}>{greeting}</Text>
-      {subtitle ? (
-        <Text
-          style={[
-            // The generic greeting is one two-line statement, so both lines carry
-            // the same hero weight. An agent's subtitle is its description — a
-            // sentence of explanatory prose, which at 28/bold shouted over the
-            // question it was meant to support.
-            welcome ? styles.emptyDescription : styles.emptySubtitle,
-            { color: theme.textSecondary },
-          ]}
-        >
-          {subtitle}
-        </Text>
-      ) : null}
+      <View>
+        <Text style={[styles.emptyTitle, { color: theme.text }]}>{greeting}</Text>
+        {subtitle ? (
+          <Text
+            style={[
+              // The generic greeting is one two-line statement, so both lines carry
+              // the same hero weight. An agent's subtitle is its description — a
+              // sentence of explanatory prose, which at 28/bold shouted over the
+              // question it was meant to support.
+              welcome ? styles.emptyDescription : styles.emptySubtitle,
+              { color: theme.textSecondary },
+            ]}
+          >
+            {subtitle}
+          </Text>
+        ) : null}
+      </View>
     </View>
   );
 });
@@ -158,6 +161,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  // `alignItems: center` centres the BLOCK; the text inside keeps its left
+  // edge. Same treatment as the Chat tab's hero — see the note there.
   emptyContainer: {
     position: 'absolute',
     top: 0,
@@ -165,6 +170,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: SCREEN_EDGE,
   },
   emptyTitle: {
