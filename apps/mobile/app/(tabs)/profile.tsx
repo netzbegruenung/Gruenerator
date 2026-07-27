@@ -23,7 +23,15 @@ import { BottomSheet } from '../../components/common/BottomSheet';
 import { AppSettingsSection } from '../../components/profile/AppSettingsSection';
 import { RolesSection } from '../../components/profile/RolesSection';
 import { logout } from '../../services/auth';
-import { lightTheme, darkTheme, typography, spacing, colors, borderRadius } from '../../theme';
+import {
+  lightTheme,
+  darkTheme,
+  typography,
+  spacing,
+  colors,
+  borderRadius,
+  BODY_FONT,
+} from '../../theme';
 
 // Robot avatar 10 ("Wolki") is unlocked via a Wolke connection, which isn't
 // available on mobile — so the picker offers 1–9.
@@ -288,6 +296,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   nameInput: {
+    fontFamily: BODY_FONT,
     fontSize: 20,
     fontWeight: '700',
     textAlign: 'center',
@@ -295,6 +304,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   email: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
   },
   localeSwitch: {
@@ -312,10 +322,12 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
   },
   localeText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '600',
   },
   sheetTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '700',
     paddingHorizontal: spacing.medium,

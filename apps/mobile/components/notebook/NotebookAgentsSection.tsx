@@ -9,7 +9,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 
-import { spacing, borderRadius } from '../../theme';
+import { spacing, borderRadius, BODY_FONT } from '../../theme';
 import { getSurfaceFab } from '../../theme/toolTheme';
 import { routeWithParams } from '../../types/routes';
 import { agentIcon } from '../chat/sidebarIcons';
@@ -102,6 +102,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xsmall,
   },
   toggleText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -123,6 +124,7 @@ const styles = StyleSheet.create({
   },
   name: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '600',
   },

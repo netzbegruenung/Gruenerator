@@ -2,28 +2,41 @@ import { useAui } from '@assistant-ui/react-native';
 import { useAgentStore } from '@gruenerator/chat';
 import { getSystemAgent, isAgentVisibleForPlatform } from '@gruenerator/shared/agents';
 import { useAuth } from '@gruenerator/shared/hooks';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect } from 'react';
-import { StyleSheet, useColorScheme } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, View, useColorScheme } from 'react-native';
 
 import { AssistantThread } from '../../components/chat';
-import { ChatDrawerHeader } from '../../components/chat/ChatDrawerHeader';
-import { useDrawerStore } from '../../hooks/useDrawerStore';
+import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
 import { MobileChatProvider } from '../../providers/MobileChatProvider';
+import { usePendingAttachmentStore } from '../../stores/pendingAttachmentStore';
 import { lightTheme, darkTheme } from '../../theme';
 import { routeWithParams } from '../../types/routes';
 
 const AT_DEFAULT_NOTEBOOK_ID = 'oesterreich-notebook';
 
-function InitialMessageSender({ message }: { message: string }) {
+/**
+ * Drains anything the start screen queued (a file or a document reference picked
+ * before this thread existed), then sends the message it was opened with.
+ *
+ * One component for both because the order matters: `addAttachment` is async,
+ * and a send that fires first would leave the attachment behind on a thread the
+ * user has already moved past.
+ */
+function InitialTurnSender({ message }: { message: string }) {
   const aui = useAui();
 
   useEffect(() => {
-    if (message) {
-      aui.composer().setText(message);
-      aui.composer().send();
-    }
+    void (async () => {
+      for (const attachment of usePendingAttachmentStore.getState().drain()) {
+        await aui.composer().addAttachment(attachment);
+      }
+      if (message) {
+        aui.composer().setText(message);
+        aui.composer().send();
+      }
+    })();
     // Only run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -60,7 +73,6 @@ export default function ChatConversationScreen() {
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const { locale } = useAuth();
   const router = useRouter();
-  const openDrawer = useDrawerStore((s) => s.openDrawer);
 
   const handleNewChat = useCallback(() => {
     router.push(routeWithParams('/(focused)/chat-conversation', { threadId: 'new' }));
@@ -108,19 +120,37 @@ export default function ChatConversationScreen() {
   const isNewChat = threadId === 'new';
 
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: theme.background }]}
-      edges={['bottom']}
+    // The same chrome as every tab — drawer button, centred title, profile menu —
+    // instead of a header of the chat's own. Vanilla, not the tab's sunrise: the
+    // gold glow read as yellow behind a wall of message bubbles.
+    <ScreenScaffold
+      title="Chat"
+      backdrop={
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: colorScheme === 'dark' ? theme.background : CHAT_VANILLA },
+          ]}
+        />
+      }
+      action={
+        <Pressable onPress={handleNewChat} hitSlop={8} accessibilityLabel="Neue Unterhaltung">
+          <Ionicons name="add-circle-outline" size={24} color={theme.text} />
+        </Pressable>
+      }
     >
       <MobileChatProvider threadId={isNewChat ? null : threadId}>
-        <ChatDrawerHeader onOpenDrawer={openDrawer} onNewChat={handleNewChat} theme={theme} />
-        <AssistantThread theme={theme} />
-        {isNewChat && initialMessage && <InitialMessageSender message={initialMessage} />}
+        <AssistantThread theme={theme} transparent />
+        {isNewChat && <InitialTurnSender message={initialMessage ?? ''} />}
         {isNewChat && initialComposerText && <ComposerPrefiller text={initialComposerText} />}
       </MobileChatProvider>
-    </SafeAreaView>
+    </ScreenScaffold>
   );
 }
+
+/** The sunrise's cream base without its gold glow — the chat page tint. */
+const CHAT_VANILLA = '#FEFCF5';
 
 const styles = StyleSheet.create({
   container: {

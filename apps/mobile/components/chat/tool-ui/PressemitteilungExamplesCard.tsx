@@ -8,7 +8,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Linking } from 'react-native';
 
-import { colors, spacing, borderRadius } from '../../../theme';
+import { colors, spacing, borderRadius, BODY_FONT } from '../../../theme';
 
 import type { Theme } from '../../../theme/colors';
 
@@ -157,13 +157,16 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   title: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },
   lvSummary: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
   },
   empty: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     paddingHorizontal: spacing.small,
     paddingBottom: spacing.small,
@@ -194,14 +197,17 @@ const styles = StyleSheet.create({
     gap: spacing.xsmall,
   },
   lvBadge: {
+    fontFamily: BODY_FONT,
     fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
   },
   date: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
   },
   itemTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '500',
     lineHeight: 18,
@@ -212,6 +218,7 @@ const styles = StyleSheet.create({
     gap: spacing.xsmall,
   },
   itemText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     lineHeight: 19,
   },
@@ -221,6 +228,7 @@ const styles = StyleSheet.create({
     gap: spacing.xxsmall,
   },
   sourceLinkText: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '500',
   },

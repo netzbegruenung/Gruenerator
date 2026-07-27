@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { StyleSheet, Text, View, Pressable, useColorScheme } from 'react-native';
 
 import { usePreferencesStore, type ThemeMode } from '../../stores/preferencesStore';
-import { lightTheme, darkTheme, spacing, colors, borderRadius } from '../../theme';
+import { lightTheme, darkTheme, spacing, colors, borderRadius, BODY_FONT } from '../../theme';
 
 const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
   { value: 'system', label: 'Automatisch' },
@@ -75,10 +75,12 @@ const styles = StyleSheet.create({
     gap: spacing.xxsmall,
   },
   title: {
+    fontFamily: BODY_FONT,
     fontSize: 18,
     fontWeight: '700',
   },
   description: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     lineHeight: 18,
   },
@@ -86,6 +88,7 @@ const styles = StyleSheet.create({
     gap: spacing.xsmall,
   },
   rowLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -104,6 +107,7 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
   },
   optionText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -115,6 +119,7 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
   },
   replayText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '600',
     color: colors.white,

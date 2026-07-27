@@ -11,7 +11,7 @@ import {
   useColorScheme,
 } from 'react-native';
 
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
 
 import type { Theme } from '../../theme/colors';
@@ -173,6 +173,7 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '600',
     lineHeight: 22,
@@ -189,10 +190,12 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.small,
   },
   badgeText: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     fontWeight: '600',
   },
   metaText: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
   },
   divider: {
@@ -203,10 +206,12 @@ const styles = StyleSheet.create({
     maxHeight: 360,
   },
   body: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     lineHeight: 21,
   },
   errorText: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     color: '#ef4444',
     marginTop: spacing.xsmall,
@@ -224,6 +229,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.medium,
   },
   actionText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '500',
   },

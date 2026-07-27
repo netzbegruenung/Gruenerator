@@ -1,7 +1,7 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
 
@@ -69,10 +69,12 @@ const styles = StyleSheet.create({
   },
   label: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '500',
   },
   query: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     marginTop: 2,
     marginLeft: spacing.medium + spacing.xsmall,

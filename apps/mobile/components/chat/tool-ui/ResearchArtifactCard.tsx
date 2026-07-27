@@ -13,7 +13,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 
-import { colors, spacing, borderRadius } from '../../../theme';
+import { colors, spacing, borderRadius, BODY_FONT } from '../../../theme';
 import { GrueneratorLoadingIcon } from '../GrueneratorLoadingIcon';
 import { getMarkdownStyles } from '../markdownStyles';
 
@@ -211,6 +211,7 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -225,20 +226,24 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   confidenceText: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     fontWeight: '500',
   },
   query: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontStyle: 'italic',
     marginTop: 2,
   },
   loadingHint: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     marginTop: spacing.xsmall,
     lineHeight: 17,
   },
   toc: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     marginTop: spacing.xsmall,
   },
@@ -254,6 +259,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   actionText: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -269,6 +275,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xxsmall,
   },
   sourcesLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '600',
   },

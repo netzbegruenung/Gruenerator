@@ -1,11 +1,11 @@
+import { type CreateAttachment } from '@assistant-ui/react-native';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { getGreeting } from '@gruenerator/shared/utils';
 import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { View, Text, StyleSheet, useColorScheme, ScrollView } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 
-import { ChatSettingsSheet } from '../../components/chat/ChatSettingsSheet';
 import { BottomComposerBar } from '../../components/common/BottomComposerBar';
 import { SunriseBackground } from '../../components/common/SunriseBackground';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
@@ -13,8 +13,10 @@ import { ALL_TOOLS } from '../../components/tools/toolsConfig';
 import { ToolSquareGrid } from '../../components/tools/ToolSquareGrid';
 import { useDrawerStore } from '../../hooks/useDrawerStore';
 import { useTabSwipe } from '../../hooks/useTabSwipe';
+import { usePendingAttachmentStore } from '../../stores/pendingAttachmentStore';
 import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
 import { spacing, lightTheme, darkTheme } from '../../theme';
+import { SCREEN_EDGE } from '../../theme/layout';
 import { route, routeWithParams } from '../../types/routes';
 
 export default function StartScreen() {
@@ -26,10 +28,20 @@ export default function StartScreen() {
   const greeting = getGreeting(locale, firstName);
   const showHelpSubtitle = !greeting.includes('?');
 
-  const [settingsVisible, setSettingsVisible] = useState(false);
   const openDrawer = useDrawerStore((s) => s.openDrawer);
   const favorites = useToolFavoritesStore((s) => s.favorites);
   const favoriteTools = ALL_TOOLS.filter((tool) => favorites.includes(tool.id));
+
+  // This composer starts a conversation rather than posting into one, so a
+  // picked file cannot be attached here — it is queued and the new thread's
+  // composer picks it up on mount.
+  const handleAttach = useCallback(
+    (attachment: CreateAttachment) => {
+      usePendingAttachmentStore.getState().add(attachment);
+      router.push(routeWithParams('/(focused)/chat-conversation', { threadId: 'new' }));
+    },
+    [router]
+  );
 
   const handleSend = useCallback(
     (text: string) => {
@@ -73,7 +85,7 @@ export default function StartScreen() {
             {favoriteTools.length > 0 && (
               <View style={styles.section}>
                 <Text style={[styles.sectionTitle, { color: theme.text }]}>Werkzeuge</Text>
-                <ToolSquareGrid tools={favoriteTools} />
+                <ToolSquareGrid tools={favoriteTools} horizontalPadding={SCREEN_EDGE * 2} />
               </View>
             )}
           </ScrollView>
@@ -81,11 +93,11 @@ export default function StartScreen() {
           <BottomComposerBar
             placeholder="Frage oder Aufgabe…"
             onSend={handleSend}
-            onSettings={() => setSettingsVisible(true)}
+            showActionSheet
+            onAttach={handleAttach}
           />
         </View>
       </GestureDetector>
-      <ChatSettingsSheet visible={settingsVisible} onDismiss={() => setSettingsVisible(false)} />
     </ScreenScaffold>
   );
 }
@@ -103,7 +115,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.medium,
   },
   welcomeSection: {
-    paddingHorizontal: spacing.medium,
+    paddingHorizontal: SCREEN_EDGE,
     paddingVertical: spacing.small,
   },
   welcomeText: {
@@ -117,7 +129,7 @@ const styles = StyleSheet.create({
   },
   section: {
     paddingTop: spacing.xlarge,
-    paddingHorizontal: spacing.medium,
+    paddingHorizontal: SCREEN_EDGE,
     gap: spacing.small,
   },
   sectionTitle: {

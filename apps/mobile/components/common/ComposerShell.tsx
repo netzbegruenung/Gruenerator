@@ -1,7 +1,7 @@
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, useColorScheme } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
 import type { StyleProp, ViewStyle, TextStyle } from 'react-native';
@@ -62,6 +62,10 @@ export function ComposerShell({
   const resolvedTheme = useTheme();
   const theme = themeProp ?? resolvedTheme;
   const isBar = variant === 'bar';
+  // The composer is the plate, not another shade of the page: white on light,
+  // the card tone on dark. Both surfaces it sits on (chat vanilla, notebook
+  // magenta) are tinted, so `theme.surface` washed into them.
+  const fill = useColorScheme() === 'dark' ? theme.card : colors.white;
 
   return (
     <View style={style}>
@@ -69,19 +73,14 @@ export function ComposerShell({
       {isBar ? (
         // No border and no shadow: the bar sits on the sunrise gradient, and the
         // surface fill alone carries enough contrast to read as a distinct surface.
-        <View style={[styles.bar, { backgroundColor: theme.surface }]}>
+        <View style={[styles.bar, { backgroundColor: fill }]}>
           {leading}
           {toolbarExtra}
           {input}
           {action}
         </View>
       ) : (
-        <View
-          style={[
-            styles.card,
-            { backgroundColor: theme.surface, borderColor: theme.border, minHeight },
-          ]}
-        >
+        <View style={[styles.card, { backgroundColor: fill, minHeight }]}>
           {input}
           <View style={styles.toolbar}>
             {leading}
@@ -118,8 +117,8 @@ const buttonStyles = StyleSheet.create({
   // apart from each other, since they are not the same size.
   //
   // marginBottom lifts each button's centre onto the text line's centre, which
-  // sits paddingBottom(12) + lineHeight/2(12) = 24dp above the content bottom:
-  //   icon: 24 - 38/2 = 5      action: 24 - 42/2 = 3
+  // sits paddingBottom(12) + lineHeight/2(14.5) = 26.5dp above the content bottom:
+  //   icon: 26.5 - 38/2 = 7    action: 26.5 - 42/2 = 5
   // Correct for the multi-line case too — the target is the last line, not the
   // input's outer box.
   //
@@ -129,7 +128,7 @@ const buttonStyles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    marginBottom: 5,
+    marginBottom: 7,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -137,7 +136,7 @@ const buttonStyles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    marginBottom: 3,
+    marginBottom: 5,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -166,20 +165,24 @@ export function composerIconSize(variant: ComposerVariant): number {
 export const COMPOSER_ACTION_FILL = colors.primary[600];
 
 const inputStyles = StyleSheet.create({
+  // PT Sans, the body face web sets after Raleway, one fifth larger than the
+  // system default sizes this used to carry (16/17 → 19/20).
   card: {
     flex: 1,
-    fontSize: 16,
-    lineHeight: 22,
-    minHeight: 36,
-    maxHeight: 120,
+    fontFamily: BODY_FONT,
+    fontSize: 19,
+    lineHeight: 26,
+    minHeight: 40,
+    maxHeight: 132,
     paddingVertical: 0,
     textAlignVertical: 'top',
   },
   bar: {
     flex: 1,
-    fontSize: 17,
-    lineHeight: 24,
-    maxHeight: 132,
+    fontFamily: BODY_FONT,
+    fontSize: 20,
+    lineHeight: 29,
+    maxHeight: 145,
     paddingTop: 12,
     paddingBottom: 12,
     paddingLeft: spacing.xxsmall,
@@ -195,17 +198,12 @@ const styles = StyleSheet.create({
   // Elevation is what separates the card from what sits behind it — the landing
   // hero's page background, the chat thread's message list. The in-thread
   // composer had none before this shell and now picks it up.
+  // No border, no shadow — the fill alone separates it from the page.
   card: {
     borderRadius: borderRadius.xlarge,
-    borderWidth: 1,
     paddingHorizontal: spacing.medium,
     paddingTop: spacing.small,
     paddingBottom: spacing.xsmall,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
   },
   toolbar: {
     flexDirection: 'row',
@@ -227,7 +225,7 @@ const styles = StyleSheet.create({
     paddingLeft: spacing.xsmall,
     paddingRight: spacing.xxsmall,
     paddingVertical: 5,
-    minHeight: 58,
+    minHeight: 64,
     gap: spacing.xxsmall,
   },
 });
