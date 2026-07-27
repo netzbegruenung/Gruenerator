@@ -13,6 +13,7 @@ import { useChatConfigStore } from '../stores/chatConfigStore';
 
 import type { ProcessedFile } from '../lib/fileUtils';
 import type {
+  ChatCitation,
   GeneratedImagePayload,
   SearchResultPayload,
   ChartPayload,
@@ -124,22 +125,13 @@ export interface ChatProgress {
   pendingNarration?: string[];
 }
 
-export interface Citation {
-  id: number;
-  title: string;
-  url: string;
-  snippet: string;
-  citedText?: string;
-  source: string;
-  collectionName?: string;
-  domain?: string;
-  relevance?: number;
-  contentType?: string;
-  documentId?: string;
-  chunkIndex?: number;
-  similarityScore?: number;
-  collectionId?: string;
-}
+/**
+ * Derived from the wire schema, not written alongside it. The hand-kept twin
+ * this replaces had silently fallen behind by one field (`documentSourceId`,
+ * which carries the per-document fan-out grouping for multi-document chats) —
+ * the exact drift a duplicated shape invites.
+ */
+export type Citation = ChatCitation;
 
 // Wire shape shared with apps/api sseHelpers via @gruenerator/contracts.
 export type SearchResult = SearchResultPayload;
