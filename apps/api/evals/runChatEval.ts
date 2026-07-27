@@ -245,6 +245,7 @@ async function runTurn(
     scenarioCtx.lastSharepicVariant = trace.sharepicVariants[0];
   }
   if (scenarioCtx.firstThreadId == null) scenarioCtx.firstThreadId = trace.threadId;
+  scenarioCtx.priorSourceCount += trace.sources;
 
   return {
     turnIndex: turnIdx,
@@ -280,6 +281,7 @@ async function runScenario(scenario: EvalScenario): Promise<CaseResult> {
     firstThreadId: null,
     priorArtifactIds: [],
     lastSharepicVariant: null,
+    priorSourceCount: 0,
   };
   const turns: TurnResult[] = [];
 
