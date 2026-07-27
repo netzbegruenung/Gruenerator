@@ -8,7 +8,7 @@ import {
 import { useAuth } from '@gruenerator/shared/hooks';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
-import { type ReactElement, memo, useCallback, useMemo } from 'react';
+import { type ReactElement, memo, useCallback, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -21,6 +21,9 @@ import { route, routeWithParams, type AppRoute } from '../../types/routes';
 import { ProfileAvatar } from '../common';
 import { MenuIcon } from '../icons/WebMirrorIcons';
 import { STUDIO_TOOLS, TOOLS, type ToolDef } from '../tools/toolsConfig';
+
+import { ThreadActionsSheet } from './ThreadActionsSheet';
+import { ThreadShareSheet } from './ThreadShareSheet';
 
 import type { Theme } from '../../theme/colors';
 
@@ -35,10 +38,12 @@ interface Props {
 const ThreadItemBody = memo(function ThreadItemBody({
   theme,
   onSelect,
+  onOpenActions,
   isActive,
 }: {
   theme: Theme;
   onSelect: () => void;
+  onOpenActions: () => void;
   isActive: boolean;
 }) {
   const aui = useAui();
@@ -55,23 +60,14 @@ const ThreadItemBody = memo(function ThreadItemBody({
     onSelect();
   }, [aui, onSelect, router]);
 
-  const handleDelete = useCallback(() => {
-    const title = aui.threadListItem().getState().title;
-    Alert.alert('Unterhaltung löschen', `"${title || 'Neue Unterhaltung'}" wirklich löschen?`, [
-      { text: 'Abbrechen', style: 'cancel' },
-      {
-        text: 'Löschen',
-        style: 'destructive',
-        onPress: () => aui.threadListItem().delete(),
-      },
-    ]);
-  }, [aui]);
-
   return (
     <ThreadListItemPrimitive.Root style={styles.itemRoot}>
       <Pressable
         onPress={handlePress}
-        onLongPress={handleDelete}
+        // Long-press used to delete outright. That put the one irreversible
+        // action behind the one gesture you can trigger by accident, and left
+        // renaming, sharing and archiving unreachable.
+        onLongPress={onOpenActions}
         delayLongPress={350}
         style={({ pressed }) => [
           styles.itemTrigger,
@@ -82,8 +78,84 @@ const ThreadItemBody = memo(function ThreadItemBody({
           <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
         </Text>
       </Pressable>
+      <Pressable
+        onPress={onOpenActions}
+        hitSlop={8}
+        style={styles.itemMore}
+        accessibilityLabel="Optionen für diese Unterhaltung"
+      >
+        <Ionicons name="ellipsis-horizontal" size={18} color={theme.textSecondary} />
+      </Pressable>
       {isActive && <View style={[styles.activeDot, { backgroundColor: colors.primary[500] }]} />}
     </ThreadListItemPrimitive.Root>
+  );
+});
+
+/** Which row the action sheet is acting on. */
+interface SelectedThread {
+  index: number;
+  archived: boolean;
+}
+
+/**
+ * Host for the two sheets. Sits inside a `ThreadListItemByIndexProvider` for the
+ * selected row, so `aui.threadListItem()` resolves to that thread — the same
+ * reason `ThreadItemBody` reads `aui` from inside the provider rather than above
+ * it. One host for the whole drawer instead of a sheet per row.
+ */
+const ThreadActionsHost = memo(function ThreadActionsHost({
+  theme,
+  archived,
+  onClose,
+}: {
+  theme: Theme;
+  archived: boolean;
+  onClose: () => void;
+}) {
+  const aui = useAui();
+  const [shareOpen, setShareOpen] = useState(false);
+  const state = aui.threadListItem().getState();
+
+  const actions = useMemo(
+    () => ({
+      rename: (title: string) => aui.threadListItem().rename(title),
+      archive: () => aui.threadListItem().archive(),
+      unarchive: () => aui.threadListItem().unarchive(),
+      delete: () => aui.threadListItem().delete(),
+    }),
+    [aui]
+  );
+
+  const confirmDelete = useCallback(() => {
+    const title = aui.threadListItem().getState().title;
+    Alert.alert('Unterhaltung löschen', `"${title || 'Neue Unterhaltung'}" wirklich löschen?`, [
+      { text: 'Abbrechen', style: 'cancel' },
+      { text: 'Löschen', style: 'destructive', onPress: () => aui.threadListItem().delete() },
+    ]);
+  }, [aui]);
+
+  return (
+    <>
+      <ThreadActionsSheet
+        visible={!shareOpen}
+        theme={theme}
+        title={state.title}
+        archived={archived}
+        actions={actions}
+        onClose={onClose}
+        onShare={() => setShareOpen(true)}
+        onDelete={confirmDelete}
+      />
+      <ThreadShareSheet
+        visible={shareOpen}
+        threadId={state.remoteId ?? null}
+        theme={theme}
+        onClose={() => {
+          setShareOpen(false);
+          onClose();
+        }}
+      />
+    </>
   );
 });
 
@@ -91,17 +163,87 @@ const ThreadItem = memo(function ThreadItem({
   index,
   theme,
   onSelect,
+  onOpenActions,
   isActive,
+  archived = false,
 }: {
   index: number;
   theme: Theme;
   onSelect: () => void;
+  onOpenActions: (selected: SelectedThread) => void;
   isActive: boolean;
+  archived?: boolean;
 }) {
+  const openActions = useCallback(
+    () => onOpenActions({ index, archived }),
+    [onOpenActions, index, archived]
+  );
   return (
-    <ThreadListItemByIndexProvider index={index} archived={false}>
-      <ThreadItemBody theme={theme} onSelect={onSelect} isActive={isActive} />
+    <ThreadListItemByIndexProvider index={index} archived={archived}>
+      <ThreadItemBody
+        theme={theme}
+        onSelect={onSelect}
+        onOpenActions={openActions}
+        isActive={isActive}
+      />
     </ThreadListItemByIndexProvider>
+  );
+});
+
+/**
+ * The archived conversations, collapsed. `ThreadListPrimitive.Items` renders
+ * only the live list on React Native — unlike web's, it takes no `archived`
+ * prop — so this reads `threads.archivedThreadIds` directly and addresses each
+ * row by its index in that list.
+ *
+ * Without it, archiving would be a one-way door.
+ */
+const ArchivedSection = memo(function ArchivedSection({
+  theme,
+  onSelect,
+  onOpenActions,
+}: {
+  theme: Theme;
+  onSelect: () => void;
+  onOpenActions: (selected: SelectedThread) => void;
+}) {
+  const archivedIds = useAuiState((s) => s.threads.archivedThreadIds);
+  const [expanded, setExpanded] = useState(false);
+
+  if (archivedIds.length === 0) return null;
+
+  return (
+    <View style={styles.archiveSection}>
+      <Pressable
+        onPress={() => setExpanded((e) => !e)}
+        style={styles.archiveToggle}
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+      >
+        <Ionicons name="archive-outline" size={16} color={theme.textSecondary} />
+        <Text style={[styles.archiveLabel, { color: theme.textSecondary }]}>
+          Archiviert ({archivedIds.length})
+        </Text>
+        <Ionicons
+          name={expanded ? 'chevron-up' : 'chevron-down'}
+          size={14}
+          color={theme.textSecondary}
+        />
+      </Pressable>
+      {expanded
+        ? archivedIds.map((threadId, index) => (
+            <ThreadItem
+              key={threadId}
+              index={index}
+              archived
+              theme={theme}
+              onSelect={onSelect}
+              onOpenActions={onOpenActions}
+              isActive={false}
+            />
+          ))
+        : null}
+    </View>
   );
 });
 
@@ -238,12 +380,16 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
     closeDrawer();
   }, [closeDrawer, router]);
 
+  const [selected, setSelected] = useState<SelectedThread | null>(null);
+  const closeActions = useCallback(() => setSelected(null), []);
+
   const renderItem = useCallback(
     ({ threadId, index }: { threadId: string; index: number }): ReactElement => (
       <ThreadItem
         index={index}
         theme={theme}
         onSelect={closeDrawer}
+        onOpenActions={setSelected}
         isActive={threadId === activeThreadId}
       />
     ),
@@ -253,6 +399,11 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
   const listHeader = useMemo(
     () => <DrawerSections theme={theme} tools={tools} onSelectTool={handleNavigate} />,
     [theme, tools, handleNavigate]
+  );
+
+  const listFooter = useMemo(
+    () => <ArchivedSection theme={theme} onSelect={closeDrawer} onOpenActions={setSelected} />,
+    [theme, closeDrawer]
   );
 
   return (
@@ -289,8 +440,15 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
         style={styles.list}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={listHeader}
+        ListFooterComponent={listFooter}
         ListEmptyComponent={<EmptyThreads theme={theme} onNewChat={handleNewChat} />}
       />
+
+      {selected && (
+        <ThreadListItemByIndexProvider index={selected.index} archived={selected.archived}>
+          <ThreadActionsHost theme={theme} archived={selected.archived} onClose={closeActions} />
+        </ThreadListItemByIndexProvider>
+      )}
 
       <ProfileFooter
         theme={theme}
@@ -379,9 +537,28 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: spacing.xsmall,
   },
+  archiveSection: {
+    marginTop: spacing.small,
+  },
+  archiveToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xsmall,
+    paddingHorizontal: spacing.small,
+    paddingVertical: spacing.small,
+  },
+  archiveLabel: {
+    ...chatType.chatLabel,
+    flex: 1,
+    fontWeight: '700',
+  },
   itemRoot: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  itemMore: {
+    paddingHorizontal: spacing.xsmall,
+    paddingVertical: spacing.xsmall,
   },
   itemTrigger: {
     flex: 1,
