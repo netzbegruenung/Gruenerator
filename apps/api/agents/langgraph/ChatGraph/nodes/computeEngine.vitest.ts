@@ -74,11 +74,24 @@ describe('evaluateArithmetic', () => {
   it('formats German output', () => {
     expect(computeArithmetic('1000 * 1000')?.summary).toContain('1.000.000');
   });
+  it('rounds non-integer results to 2 decimals instead of false precision', () => {
+    // Regression: (11.2-8.4)/8.4*100 used to render "33,333333" next to an
+    // "exakt berechnet" badge — misleadingly precise for a rounded figure.
+    const summary = computeArithmetic('(11.2 - 8.4) / 8.4 * 100')?.summary;
+    expect(summary).toContain('33,33');
+    expect(summary).not.toContain('33,333333');
+  });
+  it('keeps very small results visible via a significance rule', () => {
+    // A flat 2-decimal round would collapse this to "0,00" — significance
+    // (3 sig figs) keeps the value meaningful instead.
+    const summary = computeArithmetic('0.0001234')?.summary;
+    expect(summary).toContain('0,000123');
+  });
 });
 
 describe('computeUnitConvert', () => {
   it('converts length', () => {
-    expect(computeUnitConvert(5, 'km', 'mi')?.summary).toContain('3,106856');
+    expect(computeUnitConvert(5, 'km', 'mi')?.summary).toContain('3,11');
   });
   it('converts temperature (affine)', () => {
     expect(computeUnitConvert(100, 'C', 'F')?.summary).toContain('212');

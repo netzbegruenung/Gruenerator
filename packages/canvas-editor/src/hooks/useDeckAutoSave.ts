@@ -175,6 +175,9 @@ export function useDeckAutoSave({
             imageData: image,
             title,
             imageType: r.deckType,
+            // Same reasoning as useCanvasAutoSave: `deckType` is a canvas id, not
+            // one of the legacy names the fallback classifier recognises.
+            contentOrigin: 'sharepic',
             metadata,
             status: 'draft',
             ...(originalImageBase64 ? { originalImage: originalImageBase64 } : {}),

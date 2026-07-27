@@ -83,6 +83,7 @@ function transformMediaItem(item: SharedMediaRow) {
     imageMetadata: item.image_metadata,
     altText: item.alt_text,
     uploadSource: item.upload_source,
+    contentOrigin: item.content_origin,
     originalFilename: item.original_filename,
     status: item.status,
     downloadCount: item.download_count,

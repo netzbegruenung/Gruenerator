@@ -6,6 +6,8 @@
  * DocumentSearchService infrastructure.
  */
 
+import { decodeHtmlEntities } from '@gruenerator/shared/utils';
+
 import { COLLECTION_MAP } from '../../../config/collectionMap.js';
 import { trailingSlugKey } from '../../../config/landesverbaendeConfig.js';
 import {
@@ -464,9 +466,10 @@ export async function executeDirectWebSearch(params: {
       });
       const linkupFormatted = linkupRes.results.slice(0, maxResults).map((r, i) => ({
         rank: i + 1,
-        title: r.name || 'Unbekannt',
+        // Linkup returns raw HTML-entity-encoded titles/snippets (e.g. "&Ouml;sterreich").
+        title: decodeHtmlEntities(r.name) || 'Unbekannt',
         url: r.url,
-        snippet: truncateText(r.content || '', 300),
+        snippet: truncateText(decodeHtmlEntities(r.content), 300),
         domain: extractDomain(r.url),
         publishedDate: null as string | null,
       }));

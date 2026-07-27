@@ -3,7 +3,7 @@ import { memo } from 'react';
 import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 
 import { useDocsEditorBridgeStore } from '../../stores/docsEditorBridgeStore';
-import { lightTheme, darkTheme, colors, spacing, borderRadius } from '../../theme';
+import { lightTheme, darkTheme, colors, spacing, borderRadius, BODY_FONT } from '../../theme';
 
 /**
  * Native AI review bar — shown while an AI suggestion awaits accept/reject.
@@ -63,6 +63,7 @@ const styles = StyleSheet.create({
     gap: spacing.xxsmall,
   },
   label: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -80,10 +81,12 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   rejectLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '500',
   },
   acceptLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
     color: 'white',
