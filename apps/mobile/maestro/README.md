@@ -54,6 +54,7 @@ is **not** relaxed for tests. The `e2e-test` profile produces a release APK, so
 | `login-persists`    | yes              | yes               | ⏳ blocked locally, see below             |
 | `composer-keyboard` | yes              | no                | ⏳ unrun                                  |
 | `chat-send`         | yes + backend    | no                | ⏳ needs `EXPO_PUBLIC_API_URL`            |
+| `chat-edit-message` | yes + backend    | no                | ⏳ needs `EXPO_PUBLIC_API_URL`, unrun     |
 
 **Any flow that restarts the app cannot run against a local debug build.**
 `stopApp` + `launchApp` drops the dev client's Metro connection; it relaunches
@@ -80,14 +81,17 @@ data.
 Prefer `id:` over visible text — the UI is German and copy changes are routine.
 The testIDs the flows rely on:
 
-| testID                                         | Where                                                                            |
-| ---------------------------------------------- | -------------------------------------------------------------------------------- |
-| `onboarding-skip`                              | [app/(auth)/onboarding.tsx](<../app/(auth)/onboarding.tsx>) — skips the carousel |
-| `login-open`                                   | [app/(auth)/login.tsx](<../app/(auth)/login.tsx>) — opens the source picker      |
-| `login-source-detected` / `login-source-other` | locale-based login source (DE/AT)                                                |
-| `login-source-netzbegruenung`                  | Netzbegrünung login                                                              |
-| `chat-composer-input`                          | [components/common/Composer.tsx](../components/common/Composer.tsx)              |
-| `chat-composer-send`                           | send button (only mounted once the input has text)                               |
+| testID                                                    | Where                                                                                                            |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `onboarding-skip`                                         | [app/(auth)/onboarding.tsx](<../app/(auth)/onboarding.tsx>) — skips the carousel                                 |
+| `login-open`                                              | [app/(auth)/login.tsx](<../app/(auth)/login.tsx>) — opens the source picker                                      |
+| `login-source-detected` / `login-source-other`            | locale-based login source (DE/AT)                                                                                |
+| `login-source-netzbegruenung`                             | Netzbegrünung login                                                                                              |
+| `chat-composer-input`                                     | [components/common/Composer.tsx](../components/common/Composer.tsx)                                              |
+| `chat-composer-send`                                      | send button (only mounted once the input has text)                                                               |
+| `chat-message-edit`                                       | [components/chat/message/UserMessage.tsx](../components/chat/message/UserMessage.tsx) — pencil on an own message |
+| `chat-edit-input` / `chat-edit-send` / `chat-edit-cancel` | [components/chat/MessageEditComposer.tsx](../components/chat/MessageEditComposer.tsx)                            |
+| `chat-message-reload`                                     | [components/chat/message/AssistantActionBar.tsx](../components/chat/message/AssistantActionBar.tsx)              |
 
 Tab bar items are selected by their visible labels — those come from
 `Tabs.Screen` `title` props in

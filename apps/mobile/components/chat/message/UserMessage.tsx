@@ -45,6 +45,7 @@ export const UserMessage = memo(function UserMessage() {
       <View style={styles.actionBar}>
         <BranchPicker theme={theme} />
         <ActionBarPrimitive.Edit
+          testID="chat-message-edit"
           style={styles.editButton}
           accessibilityLabel="Nachricht bearbeiten"
         >
