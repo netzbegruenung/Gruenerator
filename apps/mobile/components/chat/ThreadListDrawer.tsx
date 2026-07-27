@@ -5,7 +5,6 @@ import {
   useAui,
   useAuiState,
 } from '@assistant-ui/react-native';
-import { MenuView } from '@expo/ui/community/menu';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
@@ -24,6 +23,7 @@ import { MenuIcon } from '../icons/WebMirrorIcons';
 import { STUDIO_TOOLS, TOOLS, type ToolDef } from '../tools/toolsConfig';
 
 import { asThreadMenuId, buildThreadMenuActions } from './menuActions';
+import { MenuActionSheet } from './MenuActionSheet';
 import { ThreadRenameSheet } from './ThreadRenameSheet';
 import { ThreadShareSheet } from './ThreadShareSheet';
 
@@ -54,15 +54,15 @@ const ThreadItemBody = memo(function ThreadItemBody({
   const aui = useAui();
   const router = useRouter();
 
-  const menuActions = useMemo(() => buildThreadMenuActions(archived), [archived]);
+  const [actionsOpen, setActionsOpen] = useState(false);
 
   // Archiving and deleting run right here rather than travelling up to a host:
   // this component already sits inside the row's `ThreadListItemByIndexProvider`,
   // so `aui.threadListItem()` is the right thread. Only renaming and sharing
   // need a surface, and those are what `onOpenSheet` is for.
   const handleMenuAction = useCallback(
-    ({ nativeEvent }: { nativeEvent: { event: string } }) => {
-      const id = asThreadMenuId(nativeEvent.event);
+    (event: string) => {
+      const id = asThreadMenuId(event);
       if (id === 'rename' || id === 'share') {
         onOpenSheet(id);
         return;
@@ -93,32 +93,34 @@ const ThreadItemBody = memo(function ThreadItemBody({
 
   return (
     <ThreadListItemPrimitive.Root style={styles.itemRoot}>
-      {/* The whole row IS the menu trigger, opened by holding it — there is no
-          three-dot button beside the title. `shouldOpenOnLongPress` is what makes
-          those two compatible: the native menu that replaced the bottom sheet
-          keeps its platform look, and the gesture stays the one the platform
-          reserves for a context menu. Tapping falls through to the Pressable and
-          opens the thread. */}
-      <MenuView
-        actions={menuActions}
-        onPressAction={handleMenuAction}
-        shouldOpenOnLongPress
-        style={styles.itemMenu}
-        testID="thread-item-more"
+      {/* Hold the row to act on it — there is no three-dot button beside the
+          title. The menu is our own sheet, not `MenuView`: wrapped around a row,
+          the native menu rendered to NOTHING on the device, so every
+          conversation disappeared from the list with no error in either log. The
+          entries still come from `buildThreadMenuActions`, so the assistant
+          menus and this one cannot drift apart. */}
+      <Pressable
+        onPress={handlePress}
+        onLongPress={() => setActionsOpen(true)}
+        delayLongPress={350}
+        style={({ pressed }) => [
+          styles.itemTrigger,
+          { backgroundColor: pressed ? theme.surface : 'transparent' },
+        ]}
       >
-        <Pressable
-          onPress={handlePress}
-          style={({ pressed }) => [
-            styles.itemTrigger,
-            { backgroundColor: pressed ? theme.surface : 'transparent' },
-          ]}
-        >
-          <Text style={[styles.itemTitle, { color: theme.text }]} numberOfLines={1}>
-            <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
-          </Text>
-        </Pressable>
-      </MenuView>
+        <Text style={[styles.itemTitle, { color: theme.text }]} numberOfLines={1}>
+          <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
+        </Text>
+      </Pressable>
       {isActive && <View style={[styles.activeDot, { backgroundColor: colors.primary[500] }]} />}
+      <MenuActionSheet
+        visible={actionsOpen}
+        theme={theme}
+        heading={aui.threadListItem().getState().title}
+        actions={buildThreadMenuActions(archived)}
+        onSelect={handleMenuAction}
+        onClose={() => setActionsOpen(false)}
+      />
     </ThreadListItemPrimitive.Root>
   );
 });

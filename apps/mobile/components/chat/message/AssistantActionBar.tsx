@@ -1,8 +1,7 @@
 import { ActionBarPrimitive, useAui } from '@assistant-ui/react-native';
-import { MenuView } from '@expo/ui/community/menu';
 import { type ChatMessageMetadata } from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 
 import { useMessageActions } from '../../../hooks/useMessageActions';
@@ -10,6 +9,7 @@ import { useNativeTTS } from '../../../hooks/useNativeTTS';
 import { copyToClipboard } from '../../../services/share';
 import { colors, spacing } from '../../../theme';
 import { asMessageMenuId, buildMessageMenuActions } from '../menuActions';
+import { MenuActionSheet } from '../MenuActionSheet';
 
 import { flagRegenerate } from './threadRunSignals';
 
@@ -61,6 +61,7 @@ export const AssistantActionBar = memo(function AssistantActionBar({
     [messageText, metadata]
   );
   const { exporting, exportDocx, openInDocs } = useMessageActions(target);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   // Same shape as the edit composer's Send: the run has to be flagged as a
   // regenerate before it starts, and ActionBarPrimitive.Reload takes no
@@ -81,8 +82,8 @@ export const AssistantActionBar = memo(function AssistantActionBar({
   const menuActions = useMemo(() => buildMessageMenuActions(!!exporting), [exporting]);
 
   const handleMenuAction = useCallback(
-    ({ nativeEvent }: { nativeEvent: { event: string } }) => {
-      const id = asMessageMenuId(nativeEvent.event);
+    (event: string) => {
+      const id = asMessageMenuId(event);
       if (id === 'export-docx') void exportDocx();
       else if (id === 'open-in-docs') void openInDocs();
     },
@@ -123,19 +124,28 @@ export const AssistantActionBar = memo(function AssistantActionBar({
         <Ionicons name="refresh-outline" size={ICON_SIZE} color={theme.textSecondary} />
       </Pressable>
       {messageText ? (
-        <MenuView
-          actions={menuActions}
-          onPressAction={handleMenuAction}
+        <Pressable
+          onPress={() => setMoreOpen(true)}
           style={styles.button}
           testID="chat-message-more"
+          accessibilityLabel="Weitere Optionen"
         >
           <Ionicons
             name={exporting ? 'hourglass-outline' : 'ellipsis-vertical'}
             size={ICON_SIZE}
             color={theme.textSecondary}
           />
-        </MenuView>
+        </Pressable>
       ) : null}
+      {/* Same reason as the drawer rows: `MenuView` did not render on the
+          device. See MenuActionSheet. */}
+      <MenuActionSheet
+        visible={moreOpen}
+        theme={theme}
+        actions={menuActions}
+        onSelect={handleMenuAction}
+        onClose={() => setMoreOpen(false)}
+      />
     </View>
   );
 });
