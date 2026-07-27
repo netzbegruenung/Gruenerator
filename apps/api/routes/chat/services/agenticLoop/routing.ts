@@ -384,7 +384,12 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   const inLoopSet =
     p.agenticIntents.has(p.intent) ||
     (p.intent === 'direct' &&
-      (looksLikeToolableQuestion(p.lastUserText) || p.classifierContradictedResearch === true)) ||
+      // needsThreadGrounding, not looksLikeToolableQuestion: a vague
+      // continuation ("Mehr dazu bitte") carries no question word and no verb
+      // the toolable net catches, so it fell through to a single-pass `direct`
+      // turn. Inside the loop it gets the cross-turn source rehydration and the
+      // rule that a factual follow-up demands a fresh tool call.
+      (needsThreadGrounding(p.lastUserText) || p.classifierContradictedResearch === true)) ||
     p.isPdfFillRequest ||
     compoundGen;
   const secondaryAllowed =
