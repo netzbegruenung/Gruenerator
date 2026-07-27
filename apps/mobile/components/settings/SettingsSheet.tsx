@@ -26,6 +26,8 @@ import { route } from '../../types/routes';
 import { BottomSheet } from '../common/BottomSheet';
 import { ListGroup, ListRow } from '../common/ListRow';
 
+import { AppUpdateRow } from './AppUpdateRow';
+
 /**
  * The settings surface, whole.
  *
@@ -406,8 +408,8 @@ export function SettingsSheet() {
                 icon="school-outline"
                 title="Einführung erneut ansehen"
                 onPress={() => leave(() => router.push(route('/(auth)/onboarding')))}
-                last
               />
+              <AppUpdateRow />
             </ListGroup>
 
             {/* Plain text, not a card row: logging out is rare, it already sits
