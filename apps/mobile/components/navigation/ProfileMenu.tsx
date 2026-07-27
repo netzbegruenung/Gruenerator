@@ -14,7 +14,8 @@ import {
 
 import { useUnreadCount } from '../../hooks/useNotifications';
 import { logout } from '../../services/auth';
-import { lightTheme, darkTheme, colors, spacing, borderRadius } from '../../theme';
+import { useSettingsSheetStore } from '../../stores/settingsSheetStore';
+import { lightTheme, darkTheme, colors, spacing, borderRadius, BODY_FONT } from '../../theme';
 import { ProfileAvatar } from '../common';
 import { NotificationList } from '../notifications/NotificationList';
 
@@ -25,10 +26,17 @@ interface MenuItem {
   href: Href;
 }
 
+// Projekte and Agentura live here and in the drawer only — the bottom bar is
+// reserved for the four everyday surfaces (Chat, Arbeiten, Studio, Wissen).
+// Einstellungen is not in this list: it is a sheet, not a destination.
 const MENU_ITEMS: MenuItem[] = [
-  { key: 'gruppen', label: 'Gruppen', icon: 'people-outline', href: '/(focused)/gruppen' },
-  { key: 'inhalte', label: 'Office', icon: 'folder-outline', href: '/(tabs)/(office)' },
-  { key: 'einstellungen', label: 'Einstellungen', icon: 'settings-outline', href: '/profile' },
+  {
+    key: 'projekte',
+    label: 'Projekte',
+    icon: 'people-circle-outline',
+    href: '/(focused)/projekte',
+  },
+  { key: 'agentura', label: 'Agentura', icon: 'people-outline', href: '/(focused)/agents' },
 ];
 
 const getPossessiveForm = (name: string | undefined): string => {
@@ -53,6 +61,7 @@ export function ProfileMenu() {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const { user, isLoggingOut } = useAuth();
   const { count: unreadCount } = useUnreadCount();
+  const openSettings = useSettingsSheetStore((s) => s.open);
 
   const triggerRef = useRef<View>(null);
   const [open, setOpen] = useState(false);
@@ -128,7 +137,10 @@ export function ProfileMenu() {
             ]}
           >
             <Pressable
-              onPress={() => navigateTo('/profile')}
+              onPress={() => {
+                setOpen(false);
+                openSettings();
+              }}
               style={({ pressed }) => [
                 styles.header,
                 { backgroundColor: pressed ? theme.surface : 'transparent' },
@@ -169,8 +181,22 @@ export function ProfileMenu() {
               </Pressable>
             ))}
 
-            <View style={[styles.separator, { backgroundColor: theme.border }]} />
+            <Pressable
+              onPress={() => {
+                setOpen(false);
+                openSettings();
+              }}
+              style={({ pressed }) => [
+                styles.row,
+                { backgroundColor: pressed ? theme.surface : 'transparent' },
+              ]}
+            >
+              <Ionicons name="settings-outline" size={20} color={theme.textSecondary} />
+              <Text style={[styles.rowLabel, { color: theme.text }]}>Einstellungen</Text>
+            </Pressable>
 
+            {/* Brings its own leading separator, and renders nothing at all when
+                there are no notifications — so an empty feed costs no space. */}
             <NotificationList onNavigate={() => setOpen(false)} />
 
             <View style={[styles.separator, { backgroundColor: theme.border }]} />
@@ -217,6 +243,7 @@ const styles = StyleSheet.create({
   },
   triggerBadgeText: {
     color: 'white',
+    fontFamily: BODY_FONT,
     fontSize: 9,
     fontWeight: '700',
   },
@@ -249,10 +276,12 @@ const styles = StyleSheet.create({
     gap: 1,
   },
   headerName: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '700',
   },
   headerEmail: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
   },
   separator: {
@@ -272,6 +301,7 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '500',
   },

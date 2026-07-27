@@ -12,6 +12,7 @@ export { searchContract } from './searchContract.js';
 export { globalSearchContract } from './globalSearchContract.js';
 export { researchContract } from './researchContract.js';
 export { chatGraphContract } from './chatGraphContract.js';
+export { searchGraphContract } from './searchGraphContract.js';
 export { boardsContract } from './boardsContract.js';
 export { sheetsContract } from './sheetsContract.js';
 export { presentationsContract } from './presentationsContract.js';

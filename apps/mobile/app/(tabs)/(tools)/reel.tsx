@@ -19,7 +19,7 @@ import { PulseLoader } from '../../../components/common';
 import { VideoUploader, ProjectList, ReelReadyScreen } from '../../../components/reel';
 import { useReelProcessing } from '../../../hooks/useReelProcessing';
 import { shareService } from '../../../services/share';
-import { lightTheme, darkTheme, colors, spacing } from '../../../theme';
+import { lightTheme, darkTheme, colors, spacing, BODY_FONT } from '../../../theme';
 
 type ScreenMode = 'projects' | 'creating' | 'transcribing' | 'ready';
 
@@ -319,10 +319,12 @@ const styles = StyleSheet.create<{
     gap: spacing.medium,
   },
   loadingText: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '500',
   },
   loadingSubtext: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     marginTop: -spacing.xsmall,
   },
@@ -340,6 +342,7 @@ const styles = StyleSheet.create<{
   errorDetailText: {
     color: colors.error[500],
     textAlign: 'center',
+    fontFamily: BODY_FONT,
     fontSize: 12,
     opacity: 0.75,
     marginTop: spacing.xxsmall,

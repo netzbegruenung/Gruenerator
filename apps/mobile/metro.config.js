@@ -25,10 +25,20 @@ config.watcher = {
 // Exclude .claude/worktrees (sibling git worktrees, multi-GB with their own
 // node_modules) — watching them blows past metro-file-map's 240s watch-start
 // timeout ("Failed to start watch mode") on large checkouts.
+//
+// But skip that rule when the project we are building from IS itself inside
+// .claude/worktrees: the pattern matches every path containing `/.claude/`, so
+// there it blocks the app's own sources. Metro then cannot resolve the entry
+// from package.json "main" and every JS path fails at once — `expo export` and
+// `:app:createBundleReleaseJsAndAssets` die with "Unable to resolve module
+// ./node_modules/expo-router/entry", and the dev client exits the moment it
+// connects. Inside such a worktree there are no sibling worktrees to skip
+// anyway, so nothing is lost.
+const CLAUDE_DIR = /[/\\]\.claude([/\\]|$)/;
 config.resolver.blockList = [
   ...(config.resolver.blockList || []),
   /_tmp_\d+/,
-  /[/\\]\.claude([/\\]|$)/,
+  ...(CLAUDE_DIR.test(projectRoot) ? [] : [CLAUDE_DIR]),
 ];
 
 // Handle pnpm's symlinked node_modules structure

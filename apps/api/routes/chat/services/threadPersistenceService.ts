@@ -266,16 +266,11 @@ export async function deleteTrailingAssistant(threadId: string): Promise<number>
   return result.length;
 }
 
-/**
- * Check if a thread exists.
- */
-export async function threadExists(threadId: string): Promise<boolean> {
-  const postgres = getPostgresInstance();
-  const result = (await postgres.query(`SELECT 1 FROM chat_threads WHERE id = $1`, [
-    threadId,
-  ])) as unknown[];
-  return result.length > 0;
-}
+// Removed: `threadExists()` — an existence-only check with no user_id predicate.
+// Its sole caller (the search-graph stream) used it to decide whether to reuse a
+// client-supplied threadId, which let any authenticated caller append messages to
+// another user's thread. Use `canAccessThread()` from ./threadAccessService.js
+// instead: it enforces owner/permissions/public AND rejects non-UUID ids.
 
 /**
  * Update thread timestamp.
