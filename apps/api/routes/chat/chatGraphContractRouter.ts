@@ -32,6 +32,7 @@ import {
   isSheetFillRequest,
   isTabularComputeQuestion,
 } from '../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
+import { hasExplicitSharepicWord } from '../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import {
   SYSTEM_TOOL_INTENTS,
   isSystemIntentAvailable,
@@ -86,7 +87,7 @@ import {
 } from './services/pastChatRecallService.js';
 import { createPendingAssistantWriter } from './services/pendingAssistantWriter.js';
 import { pipelineStateStore } from './services/pipelineStateStore.js';
-import { APP_REDIRECT_TEXTS } from './services/platformGating.js';
+import { APP_REDIRECT_TEXTS, NO_SHAREPIC_TO_EDIT_TEXT } from './services/platformGating.js';
 import { persistAssistantResponse } from './services/postResponseService.js';
 import { handleRecallToolLoop, isChatRecallLoopEnabled } from './services/recallToolLoopService.js';
 import {
@@ -108,7 +109,11 @@ import {
   isChatToolLoopEnabled,
 } from './services/sharepicAgenticService.js';
 import { hasSharepicEditVerb, isShortAffirmation } from './services/sharepicEditHeuristics.js';
-import { handleSharepicEdit, isSharepicEditInstruction } from './services/sharepicEditService.js';
+import {
+  handleSharepicEdit,
+  isSharepicEditInstruction,
+  threadHasSharepic,
+} from './services/sharepicEditService.js';
 import {
   getLastSharepicVariant,
   isSharepicRefinement,
@@ -300,6 +305,42 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       log.info(
         `[ChatGraph] forcedTools received: ${JSON.stringify(forcedTools)}, classifier intent: ${classifiedState.intent}`
       );
+
+      /**
+       * End the turn with a fixed sentence — no model call. For the cases where
+       * the honest answer is known in advance (this surface can't do it; there
+       * is nothing here to edit), so paying a generation to phrase it would
+       * only add latency and a chance to phrase it wrongly.
+       */
+      const finishTurnWithFixedText = async (
+        text: string,
+        intent: NonNullable<ChatGraphState['intent']>
+      ): Promise<{ status: 200; body: undefined }> => {
+        sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
+        sse.send('text_delta', { text });
+        sse.send('done', {
+          threadId: actualThreadId ?? null,
+          citations: [],
+          metadata: {
+            intent,
+            searchCount: 0,
+            totalTimeMs: Date.now() - initialState.startTime,
+            classificationTimeMs: classifiedState.classificationTimeMs,
+            searchTimeMs: 0,
+          },
+        });
+        if (actualThreadId) {
+          try {
+            await createMessage(actualThreadId, 'assistant', text, { intent });
+            await touchThread(actualThreadId);
+          } catch (err) {
+            log.error('[ChatGraph] Failed to persist fixed-text turn:', err);
+          }
+        }
+        await cleanupPending(true);
+        sse.end();
+        return { status: 200 as const, body: undefined };
+      };
 
       // === Compound query detection ===
       const isCompound = notebookIds.length > 0 && !!agentId && agentId !== 'gruenerator-universal';
@@ -609,33 +650,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         }
         if (classifiedState.intent === 'sharepic') {
           log.info('[ChatGraph] Sharepic intent on app — redirecting to web');
-          const redirectText = APP_REDIRECT_TEXTS.sharepic;
-          sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
-          sse.send('text_delta', { text: redirectText });
-          sse.send('done', {
-            threadId: actualThreadId ?? null,
-            citations: [],
-            metadata: {
-              intent: classifiedState.intent,
-              searchCount: 0,
-              totalTimeMs: Date.now() - initialState.startTime,
-              classificationTimeMs: classifiedState.classificationTimeMs,
-              searchTimeMs: 0,
-            },
-          });
-          if (actualThreadId) {
-            try {
-              await createMessage(actualThreadId, 'assistant', redirectText, {
-                intent: 'sharepic',
-              });
-              await touchThread(actualThreadId);
-            } catch (err) {
-              log.error('[ChatGraph] Failed to persist app sharepic redirect:', err);
-            }
-          }
-          await cleanupPending(true);
-          sse.end();
-          return { status: 200 as const, body: undefined };
+          return await finishTurnWithFixedText(APP_REDIRECT_TEXTS.sharepic, 'sharepic');
         }
       }
 
@@ -736,27 +751,28 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           rawCurrentSharepic != null &&
           !!editText &&
           (hasSharepicEditVerb(editText) || isShortAffirmation(editText));
-        // The refinement rule fires on ONE everyday word ("anders", "mach es",
-        // "sachlich"), where the edit-instruction rule needs verb AND noun. A
-        // rule that broad has to prove there IS a sharepic to refine — the
-        // fallback branch below (getLastSharepicVariant) always did, this one
-        // never did, and the same function therefore meant two different things
-        // sixty lines apart. Without the proof a stray "mach das mal anders"
-        // could end the turn with "Welche Variante soll ich bearbeiten?" on a
-        // thread whose sharepic was many turns and topics ago.
-        const refinementCandidate = !!editText && isSharepicRefinement(editText);
-        const refinementHasTarget =
-          refinementCandidate &&
-          (rawCurrentSharepic != null || (await getLastSharepicVariant(actualThreadId)) !== null);
-        const sharepicTrigger = !editText
+        const candidate = !editText
           ? null
           : isSharepicEditInstruction(editText)
             ? 'edit-instruction'
-            : refinementHasTarget
+            : isSharepicRefinement(editText)
               ? 'refinement'
               : sharepicModeRelaxed
                 ? 'sharepic-mode-relaxed'
                 : null;
+        // EVERY lane must prove there is something to edit. `refinement` always
+        // did; `edit-instruction` never did, and that asymmetry was a hole, not
+        // a nuance: on a thread with no sharepic the handler declined, the turn
+        // fell through, and the pipeline then CREATED a sharepic about the edit
+        // instruction ("Mach den Text im Sharepic größer" became a sharepic
+        // whose topic was that sentence). One check, all three lanes.
+        // sharepicModeRelaxed keeps its own rawCurrentSharepic requirement —
+        // an explicitly activated sharepic is stronger evidence than "the
+        // thread has one somewhere".
+        const sharepicTrigger =
+          candidate && (rawCurrentSharepic != null || (await threadHasSharepic(actualThreadId)))
+            ? candidate
+            : null;
         if (sharepicTrigger) {
           // WHICH rule captured the turn, and on what text. This branch can end
           // a turn early (e.g. the "Welche Variante soll ich bearbeiten?"
@@ -824,6 +840,37 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               `[ChatGraph] Sharepic refinement: "${sharepicRefinement.instruction}" on ${prior.canvasType}`
             );
           }
+        }
+      }
+
+      // === Sharepic licence: the single gate for "may this turn make one?" ===
+      // A sharepic is legitimate in exactly two situations: the user named one,
+      // or the thread already has one to edit — and both edit lanes above have
+      // had their chance at the second. Enforcing it HERE, once, is what let the
+      // classifier lose five regexes: every door (Tier-3 heuristic, Tier-4 LLM,
+      // the malformed-JSON recovery in classifierParsing, secondaryIntent) ends
+      // up passing through this line, so none of them needs its own gate.
+      // Placed before compoundKind so an unlicensed turn cannot mount the fat
+      // tool either.
+      const sharepicLicensed =
+        forcedTool || // @sharepic mention — an explicit pick
+        initialState.agentConfig?.identifier === 'gruenerator-sharepic' ||
+        hasExplicitSharepicWord(lastUserTextNoMentions);
+
+      if (classifiedState.secondaryIntent === 'sharepic' && !sharepicLicensed) {
+        log.info('[ChatGraph] Dropping unlicensed sharepic secondaryIntent');
+        classifiedState.secondaryIntent = null;
+      }
+      if (classifiedState.intent === 'sharepic' && !sharepicLicensed) {
+        if (actualThreadId && (await threadHasSharepic(actualThreadId))) {
+          // Sharepic-shaped, and there IS one — but the edit lanes declined it
+          // (wrong template, ambiguous, not actually an edit). Answering
+          // normally beats minting a surprise second sharepic.
+          log.info('[ChatGraph] Unlicensed sharepic intent, thread has one → direct');
+          classifiedState.intent = 'direct';
+        } else {
+          log.info('[ChatGraph] Unlicensed sharepic intent, nothing to edit → fixed reply');
+          return await finishTurnWithFixedText(NO_SHAREPIC_TO_EDIT_TEXT, 'sharepic');
         }
       }
 
@@ -1654,13 +1701,19 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             : hasText && n > 0
               ? `Hier ist dein Post mit ${n} passenden Sharepic-${n === 1 ? 'Variante' : 'Varianten'}. ` +
                 `Sag mir, was ich am Text oder an der Grafik anpassen soll.`
-              : hasText
-                ? `Hier ist dein Post. Die Sharepic-Erstellung hat leider nicht geklappt — ` +
-                  `sag mir, was ich am Text anpassen soll, oder versuch es für die Grafik noch einmal.`
-                : n > 0
-                  ? `Ich habe dir ${n} Sharepic-${n === 1 ? 'Variante' : 'Varianten'} erstellt. ` +
-                    `Der Post-Text hat leider nicht geklappt — magst du es noch einmal versuchen?`
-                  : `Das hat leider nicht geklappt. Magst du es mit einem anderen Thema noch einmal versuchen?`;
+              : // A post is text-only unless the user named a sharepic. Without
+                // this split, every ordinary post reported a FAILED sharepic
+                // that was never requested.
+                hasText && !sharepicLicensed
+                ? `Hier ist dein Post. Sag mir, was ich am Text anpassen soll — oder ob ich ` +
+                  `dir ein Sharepic dazu gestalten soll.`
+                : hasText
+                  ? `Hier ist dein Post. Die Sharepic-Erstellung hat leider nicht geklappt — ` +
+                    `sag mir, was ich am Text anpassen soll, oder versuch es für die Grafik noch einmal.`
+                  : n > 0
+                    ? `Ich habe dir ${n} Sharepic-${n === 1 ? 'Variante' : 'Varianten'} erstellt. ` +
+                      `Der Post-Text hat leider nicht geklappt — magst du es noch einmal versuchen?`
+                    : `Das hat leider nicht geklappt. Magst du es mit einem anderen Thema noch einmal versuchen?`;
           sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
           sse.send('text_delta', { text: fullText });
         } else if (finalState.intent === 'sharepic') {
