@@ -80,14 +80,14 @@ data.
 Prefer `id:` over visible text — the UI is German and copy changes are routine.
 The testIDs the flows rely on:
 
-| testID                                         | Where                                                                             |
-| ---------------------------------------------- | --------------------------------------------------------------------------------- |
-| `onboarding-skip`                              | [app/(auth)/onboarding.tsx](<../app/(auth)/onboarding.tsx>) — skips the carousel  |
-| `login-open`                                   | [app/(auth)/login.tsx](<../app/(auth)/login.tsx>) — opens the source picker       |
-| `login-source-detected` / `login-source-other` | locale-based login source (DE/AT)                                                 |
-| `login-source-netzbegruenung`                  | Netzbegrünung login                                                               |
-| `chat-composer-input`                          | [components/chat/AssistantComposer.tsx](../components/chat/AssistantComposer.tsx) |
-| `chat-composer-send`                           | send button (only mounted once the input has text)                                |
+| testID                                         | Where                                                                            |
+| ---------------------------------------------- | -------------------------------------------------------------------------------- |
+| `onboarding-skip`                              | [app/(auth)/onboarding.tsx](<../app/(auth)/onboarding.tsx>) — skips the carousel |
+| `login-open`                                   | [app/(auth)/login.tsx](<../app/(auth)/login.tsx>) — opens the source picker      |
+| `login-source-detected` / `login-source-other` | locale-based login source (DE/AT)                                                |
+| `login-source-netzbegruenung`                  | Netzbegrünung login                                                              |
+| `chat-composer-input`                          | [components/common/Composer.tsx](../components/common/Composer.tsx)              |
+| `chat-composer-send`                           | send button (only mounted once the input has text)                               |
 
 Tab bar items are selected by their visible labels — those come from
 `Tabs.Screen` `title` props in
