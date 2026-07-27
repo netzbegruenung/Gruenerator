@@ -34,6 +34,8 @@ vi.mock('./messageHelpers.js', () => ({
 
 vi.mock('./sseHelpers.js', () => ({
   PROGRESS_MESSAGES: { streamInterrupted: 'stream interrupted' },
+  // Real timers would keep pinging under the fake clock these tests drive.
+  startResponseHeartbeat: () => () => {},
 }));
 
 vi.mock('../../../utils/logger.js', () => ({
