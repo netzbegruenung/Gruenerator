@@ -707,11 +707,23 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           rawCurrentSharepic != null &&
           !!editText &&
           (hasSharepicEditVerb(editText) || isShortAffirmation(editText));
+        // The refinement rule fires on ONE everyday word ("anders", "mach es",
+        // "sachlich"), where the edit-instruction rule needs verb AND noun. A
+        // rule that broad has to prove there IS a sharepic to refine — the
+        // fallback branch below (getLastSharepicVariant) always did, this one
+        // never did, and the same function therefore meant two different things
+        // sixty lines apart. Without the proof a stray "mach das mal anders"
+        // could end the turn with "Welche Variante soll ich bearbeiten?" on a
+        // thread whose sharepic was many turns and topics ago.
+        const refinementCandidate = !!editText && isSharepicRefinement(editText);
+        const refinementHasTarget =
+          refinementCandidate &&
+          (rawCurrentSharepic != null || (await getLastSharepicVariant(actualThreadId)) !== null);
         const sharepicTrigger = !editText
           ? null
           : isSharepicEditInstruction(editText)
             ? 'edit-instruction'
-            : isSharepicRefinement(editText)
+            : refinementHasTarget
               ? 'refinement'
               : sharepicModeRelaxed
                 ? 'sharepic-mode-relaxed'
@@ -922,6 +934,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
                 (a) => a.mimeType === 'application/pdf'
               )) &&
             isSheetFillRequest(lastUserText),
+          classifierContradictedResearch: classifiedState.classifierContradictedResearch === true,
         });
 
       // A demoted turn that a kill-switch (compound, forced tool, ...) kept out
