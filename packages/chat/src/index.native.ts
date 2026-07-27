@@ -65,6 +65,7 @@ export {
   type SearchIntent,
   type GeneratedImage,
   type ChatProgress,
+  type MemoryContextInfo,
   type Citation,
   type SearchResult,
   type StreamMetadata,
