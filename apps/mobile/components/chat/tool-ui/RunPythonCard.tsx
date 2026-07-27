@@ -2,7 +2,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, StyleSheet, ScrollView } from 'react-native';
 
-import { colors, spacing, borderRadius } from '../../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../../theme';
 
 import type { Theme } from '../../../theme/colors';
 
@@ -85,12 +85,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xsmall,
   },
   label: {
-    fontSize: 13,
+    ...chatType.chatSecondary,
     fontWeight: '600',
   },
   status: {
+    ...chatType.chatMeta,
     flexShrink: 1,
-    fontSize: 12,
+    fontFamily: BODY_FONT,
   },
   toggle: {
     flexDirection: 'row',
@@ -99,10 +100,10 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   toggleLabel: {
-    fontSize: 11,
+    ...chatType.chatMicro,
   },
   error: {
-    fontSize: 12,
+    ...chatType.chatMeta,
     color: '#d97706',
     paddingHorizontal: spacing.small,
     paddingVertical: spacing.xxsmall,
@@ -112,8 +113,8 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   code: {
+    ...chatType.chatMeta,
     fontFamily: 'monospace',
-    fontSize: 12,
     padding: spacing.small,
   },
 });

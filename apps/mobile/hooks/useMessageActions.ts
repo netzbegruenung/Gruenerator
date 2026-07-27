@@ -1,4 +1,3 @@
-import * as Clipboard from 'expo-clipboard';
 import { File, Paths } from 'expo-file-system';
 import { useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
@@ -17,22 +16,14 @@ export interface MessageActionTarget {
 export type MessageExportKind = 'docx' | 'docs';
 
 /**
- * Copy / download-as-Word / open-in-editor for an assistant message — the
+ * Download-as-Word / open-in-editor for an assistant message — the
  * mobile counterpart of web's MessageActions handlers. Shared so the inline
  * action bar (and any other surface) drive identical behaviour instead of
  * each re-implementing the export fetch.
  */
 export function useMessageActions(message: MessageActionTarget | null) {
   const router = useRouter();
-  const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState<MessageExportKind | null>(null);
-
-  const copy = useCallback(async () => {
-    if (!message?.text) return;
-    await Clipboard.setStringAsync(message.text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, [message]);
 
   const exportDocx = useCallback(async () => {
     if (!message?.text || exporting) return;
@@ -92,5 +83,5 @@ export function useMessageActions(message: MessageActionTarget | null) {
     }
   }, [message, exporting, router]);
 
-  return { copied, exporting, copy, exportDocx, openInDocs };
+  return { exporting, exportDocx, openInDocs };
 }

@@ -10,6 +10,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { BODY_FONT } from '../../theme';
+
 // Native analog of web's `.shimmer-text` (packages/chat ShimmerText). Web uses a
 // `background-clip: text` gradient that animates `background-position`; React
 // Native can't clip a gradient to glyphs, so we mask an animated LinearGradient
@@ -50,7 +52,14 @@ export function ShimmerText({
     transform: [{ translateX: -width + progress.value * (2 * width) }],
   }));
 
-  const textStyle: TextStyle = { fontSize, lineHeight: fontSize * 1.4, ...style };
+  // BODY_FONT first, so a caller that passes only a size still gets PT Sans —
+  // `style` spreads last and can still override face and leading.
+  const textStyle: TextStyle = {
+    fontFamily: BODY_FONT,
+    fontSize,
+    lineHeight: fontSize * 1.4,
+    ...style,
+  };
 
   // Before layout is measured, render plain muted text so there's no flash.
   if (width === 0) {

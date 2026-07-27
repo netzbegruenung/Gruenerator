@@ -9,7 +9,7 @@ import { officeWebUrl } from '../../components/office/officeItem';
 import { ReadOnlyTopBar } from '../../components/office/ReadOnlyTopBar';
 import { ViewerError, ViewerLoading } from '../../components/office/ViewerStates';
 import { officeApi } from '../../services/office/officeApi';
-import { darkTheme, lightTheme } from '../../theme';
+import { darkTheme, lightTheme, BODY_FONT } from '../../theme';
 import { officeTypeColor } from '../../theme/officeColors';
 
 export default function BoardViewerScreen() {
@@ -83,10 +83,12 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   noteText: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     lineHeight: 21,
   },
   emptyText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     textAlign: 'center',
     marginTop: 24,

@@ -8,6 +8,7 @@ import {
   type ChatWolkeFile,
 } from '../../hooks/useMentionablesQuery';
 import { type WolkeFileToken } from '../../lib/mentionables';
+import { joinWolkePath, wolkeParentPath } from '../../lib/wolkePath';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 
 import { MentionFloatingPanel } from './MentionFloatingPanel';
@@ -24,17 +25,11 @@ interface SelectedFile {
   name: string;
 }
 
-function joinPath(parent: string, name: string): string {
-  if (!parent || parent === '/') return `/${name}`;
-  return `${parent.replace(/\/$/, '')}/${name}`;
-}
-
-function parentOf(p: string): string {
-  if (!p || p === '/') return '';
-  const trimmed = p.replace(/\/$/, '');
-  const idx = trimmed.lastIndexOf('/');
-  return idx <= 0 ? '' : trimmed.slice(0, idx);
-}
+// Shared with mobile's picker: both navigate the same tree, and a disagreement
+// about what the parent of the root is traps the user in a folder they cannot
+// leave. See lib/wolkePath.ts.
+const joinPath = joinWolkePath;
+const parentOf = wolkeParentPath;
 
 export function WolkeMentionPopover({ visible, onSelect, onDismiss }: WolkeMentionPopoverProps) {
   const wolkeConnectUrl = useChatConfigStore((s) => s.wolkeConnectUrl);

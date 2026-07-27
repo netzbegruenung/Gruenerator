@@ -6,6 +6,8 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useBildEditorMobile } from '../../../hooks/image-studio/useBildEditorMobile';
+import { BODY_FONT } from '../../../theme';
+import { BackButton } from '../../common/BackButton';
 
 import { BevComposer } from './BevComposer';
 import { BevGradientBackdrop, BevLoadingCard } from './BevGradientBackdrop';
@@ -52,6 +54,9 @@ export function BildEditorScreen() {
     <View style={[styles.root, { backgroundColor: palette.base }]}>
       <BevGradientBackdrop palette={palette} generating={generating} />
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        {/* Start only: the result screen's top bar already owns that corner, and
+            "Neu starten" leads back here anyway. */}
+        {screen === 'start' && <BackButton color={palette.ink} background={palette.overlayPill} />}
         <KeyboardAvoidingView behavior="padding" style={styles.flex}>
           {screen === 'start' ? (
             generating ? (
@@ -225,12 +230,13 @@ const styles = StyleSheet.create({
     padding: 32,
   },
   loadingHeadline: {
+    fontFamily: BODY_FONT,
     fontSize: 28,
     fontWeight: '700',
     textAlign: 'center',
     lineHeight: 34,
   },
-  loadingSub: { fontSize: 14 },
+  loadingSub: { fontFamily: BODY_FONT, fontSize: 14 },
   startContent: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -239,6 +245,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   headline: {
+    fontFamily: BODY_FONT,
     fontSize: 30,
     fontWeight: '700',
     textAlign: 'center',
@@ -249,7 +256,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  uploadHint: { fontSize: 13 },
+  uploadHint: { fontFamily: BODY_FONT, fontSize: 13 },
   uploadRow: { flexDirection: 'row', gap: 12 },
   uploadBtn: {
     flexDirection: 'row',
@@ -260,7 +267,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 11,
   },
-  uploadBtnText: { fontSize: 14, fontWeight: '600' },
+  uploadBtnText: { fontFamily: BODY_FONT, fontSize: 14, fontWeight: '600' },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -268,9 +275,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 8,
   },
-  restart: { fontSize: 13, fontWeight: '600' },
+  restart: { fontFamily: BODY_FONT, fontSize: 13, fontWeight: '600' },
   captionWrap: { flex: 1, alignItems: 'center' },
   caption: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '700',
     borderWidth: 1,
@@ -281,7 +289,7 @@ const styles = StyleSheet.create({
   },
   topActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   downloadBtn: { borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 },
-  downloadText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  downloadText: { color: '#fff', fontFamily: BODY_FONT, fontSize: 13, fontWeight: '700' },
   imageArea: {
     flex: 1,
     alignItems: 'center',
@@ -323,6 +331,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 7,
     bottom: 6,
+    fontFamily: BODY_FONT,
     fontSize: 9,
     fontWeight: '700',
     color: '#fff',
@@ -333,6 +342,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   branchHint: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '600',
     borderWidth: 1,

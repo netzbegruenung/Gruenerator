@@ -6,7 +6,7 @@ import { View, Text, Pressable, StyleSheet, Modal, useColorScheme } from 'react-
 
 import { saveImageToGallery } from '../../services/imageStudio';
 import { shareBase64Image } from '../../services/share';
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
 
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   saveText: {
-    fontSize: 11,
+    ...chatType.chatMicro,
     fontWeight: '600',
   },
   badge: {
@@ -173,11 +173,11 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
   },
   badgeText: {
-    fontSize: 11,
+    ...chatType.chatMicro,
     fontWeight: '600',
   },
   time: {
-    fontSize: 11,
+    ...chatType.chatMicro,
   },
   lightbox: {
     flex: 1,
