@@ -9,7 +9,7 @@ import {
   useColorScheme,
 } from 'react-native';
 
-import { darkTheme, lightTheme } from '../../theme';
+import { darkTheme, lightTheme, BODY_FONT } from '../../theme';
 
 import {
   alignFor,
@@ -209,21 +209,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
   },
-  emptyText: { fontSize: 14 },
+  emptyText: { fontFamily: BODY_FONT, fontSize: 14 },
   gutterCell: {
     alignItems: 'center',
     justifyContent: 'center',
     borderRightWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  gutterText: { fontSize: 11, fontWeight: '600' },
+  gutterText: { fontFamily: BODY_FONT, fontSize: 11, fontWeight: '600' },
   headerCell: {
     alignItems: 'center',
     justifyContent: 'center',
     borderRightWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerText: { fontSize: 11, fontWeight: '700' },
+  headerText: { fontFamily: BODY_FONT, fontSize: 11, fontWeight: '700' },
   tabBar: {
     maxHeight: 44,
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -238,5 +238,5 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 8,
   },
-  tabText: { fontSize: 13, fontWeight: '600', maxWidth: 160 },
+  tabText: { fontFamily: BODY_FONT, fontSize: 13, fontWeight: '600', maxWidth: 160 },
 });

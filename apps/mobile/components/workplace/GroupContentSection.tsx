@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
   },
   rowBody: { flex: 1, gap: 2 },
   rowTitle: { ...typography.body, fontWeight: '600' },
-  rowSubtitle: { fontSize: 12 },
+  rowSubtitle: { fontFamily: BODY_FONT, fontSize: 12 },
   loadingRow: {
     flexDirection: 'row',
     alignItems: 'center',

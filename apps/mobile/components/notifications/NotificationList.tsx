@@ -230,9 +230,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   itemContent: { flex: 1, gap: 2 },
-  itemTitle: { fontSize: 13, fontWeight: '600' },
-  itemBody: { fontSize: 12, lineHeight: 17 },
-  itemTime: { fontSize: 10, marginTop: 2 },
+  itemTitle: { fontFamily: BODY_FONT, fontSize: 13, fontWeight: '600' },
+  itemBody: { fontFamily: BODY_FONT, fontSize: 12, lineHeight: 17 },
+  itemTime: { fontFamily: BODY_FONT, fontSize: 10, marginTop: 2 },
   dismissBtn: { paddingTop: 4 },
   footer: { paddingVertical: spacing.medium, alignItems: 'center' },
 });
