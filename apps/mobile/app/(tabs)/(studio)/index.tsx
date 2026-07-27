@@ -50,10 +50,13 @@ export default function StudioScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
+        {/* Each section borrows the hue of the tool that produced it, so nothing on
+            this page falls back to the app green. */}
         <RecentItemsSection
           title="Reels"
           items={reels}
           isLoading={isLoading}
+          accent={getToolTheme('reel', isDark).icon}
           style={styles.section}
           onOpen={openItem}
         />
@@ -61,6 +64,7 @@ export default function StudioScreen() {
           title="KI-Bilder"
           items={images}
           isLoading={isLoading}
+          accent={getToolTheme('ki-bildgenerierung', isDark).icon}
           style={styles.section}
           onOpen={openItem}
         />
