@@ -135,8 +135,15 @@ export function NotificationList({ onNavigate }: Props) {
 
   const hasUnread = notifications.some((n) => !n.is_read);
 
+  // Nothing to report means nothing to show. A heading over the words "Keine
+  // Benachrichtigungen" is two lines spent saying there is no news, in a menu
+  // whose job is to be short. The separator belongs to this block, so dropping
+  // out takes it along instead of leaving a double rule behind.
+  if (notifications.length === 0) return null;
+
   return (
     <View style={styles.container}>
+      <View style={[styles.separator, { backgroundColor: theme.border }]} />
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
           Benachrichtigungen
@@ -151,12 +158,6 @@ export function NotificationList({ onNavigate }: Props) {
       {isLoading && notifications.length === 0 ? (
         <View style={styles.centered}>
           <ActivityIndicator size="small" color={colors.primary[600]} />
-        </View>
-      ) : notifications.length === 0 ? (
-        <View style={styles.centered}>
-          <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-            Keine Benachrichtigungen
-          </Text>
         </View>
       ) : (
         <FlatList
@@ -184,6 +185,11 @@ export function NotificationList({ onNavigate }: Props) {
 const styles = StyleSheet.create({
   container: {
     flexShrink: 1,
+  },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: spacing.medium,
+    marginVertical: spacing.xxsmall,
   },
   sectionHeader: {
     flexDirection: 'row',

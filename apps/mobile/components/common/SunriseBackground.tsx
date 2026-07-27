@@ -1,6 +1,11 @@
+import { resolveChatBackground } from '@gruenerator/shared/settings';
+import { useAuthStore } from '@gruenerator/shared/stores';
 import { useEffect, useState } from 'react';
-import { AccessibilityInfo, Animated, StyleSheet, useColorScheme } from 'react-native';
+import { Animated, StyleSheet, useColorScheme } from 'react-native';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
+
+import { useReduceMotion } from '../../hooks/useAccessibilityPreferences';
+import { chatBackgroundColor } from '../../theme/chatBackgrounds';
 
 /**
  * Mobile take on the web Chat tab's `.workplace-chat-sunrise` background
@@ -15,24 +20,18 @@ import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
  * The glow now reaches past the bottom edge and bottoms out short of zero, so the
  * gradient still reads as one while the composer keeps warm ground under it.
  */
-const GLOW = '233, 214, 150'; // #E9D696
-
 export function SunriseBackground() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  // Which preset is a server-side profile setting, shared with web; the colour
+  // it maps to is mobile's own (see theme/chatBackgrounds.ts).
+  const preset = resolveChatBackground(useAuthStore((s) => s.user?.chat_background));
+  const glow = chatBackgroundColor(preset.key);
 
   const [progress] = useState(() => new Animated.Value(0));
-  const [reduceMotion, setReduceMotion] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
-      if (mounted) setReduceMotion(enabled);
-    });
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  // Combines the OS setting with the profile override, so "Animationen
+  // reduzieren" in the app's settings reaches this too.
+  const reduceMotion = useReduceMotion();
 
   useEffect(() => {
     if (reduceMotion) {
@@ -68,27 +67,28 @@ export function SunriseBackground() {
 
   return (
     <Animated.View pointerEvents="none" style={styles.container}>
-      {!isDark && <Animated.View style={[StyleSheet.absoluteFill, styles.creamBase]} />}
-      <Animated.View style={[StyleSheet.absoluteFill, { opacity, transform: [{ translateY }] }]}>
-        <Svg width="100%" height="100%">
-          <Defs>
-            {/* Sized so the falloff actually completes on screen — stretch the
-                ellipse much past the edges and everything sits in its core, which
-                flattens the gradient into a single wash. */}
-            <RadialGradient id="chatSunrise" cx="50%" cy="40%" rx="105%" ry="62%">
-              {stops.map((s) => (
-                <Stop
-                  key={s.offset}
-                  offset={s.offset}
-                  stopColor={`rgb(${GLOW})`}
-                  stopOpacity={s.opacity}
-                />
-              ))}
-            </RadialGradient>
-          </Defs>
-          <Rect x="0" y="0" width="100%" height="100%" fill="url(#chatSunrise)" />
-        </Svg>
-      </Animated.View>
+      {/* The warm base belongs to the default preset. Any other choice would be
+          tinted by it, and "Neutral" would not be neutral at all. */}
+      {!isDark && preset.key === 'sunrise' && (
+        <Animated.View style={[StyleSheet.absoluteFill, styles.creamBase]} />
+      )}
+      {glow && (
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity, transform: [{ translateY }] }]}>
+          <Svg width="100%" height="100%">
+            <Defs>
+              {/* Sized so the falloff actually completes on screen — stretch the
+                  ellipse much past the edges and everything sits in its core, which
+                  flattens the gradient into a single wash. */}
+              <RadialGradient id="chatSunrise" cx="50%" cy="40%" rx="105%" ry="62%">
+                {stops.map((s) => (
+                  <Stop key={s.offset} offset={s.offset} stopColor={glow} stopOpacity={s.opacity} />
+                ))}
+              </RadialGradient>
+            </Defs>
+            <Rect x="0" y="0" width="100%" height="100%" fill="url(#chatSunrise)" />
+          </Svg>
+        </Animated.View>
+      )}
     </Animated.View>
   );
 }

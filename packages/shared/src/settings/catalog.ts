@@ -71,6 +71,7 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     tab: 'allgemein',
     title: 'Chat-Hintergrund',
     description: 'Färbt den Schimmer hinter dem Chat-Start und den Senden-Button',
+    platforms: BOTH,
   },
   {
     id: 'allgemein.sprache',
@@ -80,11 +81,13 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     platforms: BOTH,
   },
   {
+    // Web-only until mobile actually acts on `default_startpage`. Nothing in the
+    // app reads it today, so offering the row would be a control that visibly
+    // does nothing on the device you set it on.
     id: 'allgemein.startseite',
     tab: 'allgemein',
     title: 'Startseite',
     description: 'Was das Start-Symbol in der Seitenleiste öffnet',
-    platforms: BOTH,
   },
   {
     id: 'allgemein.feedbackButton',
@@ -133,12 +136,14 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
   { id: 'konto.benutzername', tab: 'konto', title: 'Benutzername', platforms: BOTH },
   { id: 'konto.email', tab: 'konto', title: 'E-Mail', platforms: BOTH },
   {
+    // Web-only: deleting an account is irreversible and takes a typed
+    // confirmation, so it stays on the surface the user sits down at. Mobile
+    // points at it in prose rather than offering the row.
     id: 'konto.loeschen',
     tab: 'konto',
     title: 'Konto löschen',
     description:
       'Entfernt Profil, gespeicherte Inhalte und den Zugang endgültig — das lässt sich nicht rückgängig machen.',
-    platforms: BOTH,
   },
   {
     id: 'friends.avatar',

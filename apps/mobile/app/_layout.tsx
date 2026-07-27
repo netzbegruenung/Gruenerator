@@ -20,6 +20,7 @@ import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-c
 
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { AppDrawer } from '../components/navigation';
+import { SettingsSheet } from '../components/settings';
 import { useAppInitialization } from '../hooks/useAppInitialization';
 import { queryClient } from '../services/queryClient';
 import { useOnboardingStore } from '../stores/onboardingStore';
@@ -153,6 +154,10 @@ function RootLayout() {
                     conversation. Gated on `user` to avoid an unauthenticated
                     thread-list fetch during the login flow. */}
                 {user ? <AppDrawer>{appContent}</AppDrawer> : appContent}
+                {/* Settings are a sheet, not a route, so they open over whatever
+                    is on screen. Mounted here — once — because the drawer and the
+                    profile menu both reach for them from different screens. */}
+                {user ? <SettingsSheet /> : null}
               </ErrorBoundary>
             </ActionSheetProvider>
           </KeyboardProvider>

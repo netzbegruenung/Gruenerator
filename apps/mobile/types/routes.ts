@@ -12,7 +12,6 @@ export type AppRoute =
   // Tab routes
   | '/'
   | '/start'
-  | '/profile'
   // Arbeiten (merged Docs + Tools) tab
   | '/(tabs)/(arbeiten)'
   | '/(tabs)/(studio)'
@@ -41,9 +40,6 @@ export type AppRoute =
   | '/(focused)/image-studio-create/ki-input'
   | '/(focused)/image-studio-create/template-input'
   | '/(focused)/image-studio-create/result'
-  // Settings detail screens; the root lives on the hidden /profile tab
-  | '/(focused)/settings/konto'
-  | '/(focused)/settings/rollen'
   // Fullscreen routes
   | '/(fullscreen)/subtitle-editor'
   | '/(fullscreen)/image-studio-editor'

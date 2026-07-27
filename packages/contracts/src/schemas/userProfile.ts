@@ -57,6 +57,9 @@ export const profileUpdateBodySchema = z.object({
   show_skip_link: z.boolean().optional(),
 });
 
+/** The exact set of profile columns a client may write. */
+export type ProfileUpdateBody = z.infer<typeof profileUpdateBodySchema>;
+
 export const avatarUpdateBodySchema = z.object({
   avatar_robot_id: z.number().int().min(ROBOT_ID_MIN).max(ROBOT_ID_MAX),
 });
