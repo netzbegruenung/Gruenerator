@@ -67,7 +67,6 @@ import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { useExportStore, type PdfExportOptions } from '../../stores/core/exportStore';
 import { isDesktopApp } from '../../utils/platform';
 import { platformFetch } from '../../utils/platformFetch';
-import { useProfile } from '../auth/hooks/useProfileData';
 import { letterheadApi, LETTERHEADS_QUERY_KEY } from '../settings/letterheadApi';
 import { useTourAutostart } from '../tours/useTourAutostart';
 
@@ -75,7 +74,7 @@ import { DocAiReviewBar } from './DocAiReviewBar';
 import { webAppDocsAdapter } from './docsAdapter';
 import { GuestBadge, GUEST_ANIMALS } from './GuestBadge';
 import { getOrCreateGuestIdentity } from './guestIdentity';
-import { blockLines, detectLetterParts, stripDetectedBlocks } from './letterDetection';
+import { blockLines, detectRecipient, stripDetectedBlocks } from './letterDetection';
 import { PdfExportDialog, type PdfExportSubmit } from './PdfExportDialog';
 import { useDocsLiveWolkeSync } from './useDocsLiveWolkeSync';
 
@@ -135,7 +134,6 @@ function EditorContent() {
   const adapter = useDocsAdapter();
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
   const { user, isAuthResolved } = useAuth({ lazy: true });
-  const { data: profile } = useProfile();
   // Drives both the menu's availability hint and the chooser's options.
   const { data: letterheads = [] } = useQuery({
     queryKey: LETTERHEADS_QUERY_KEY,
@@ -492,7 +490,7 @@ function EditorContent() {
       setShowPdfDialog(false);
       void runWithChoice(result.letterhead, result.layout, result.letter, (blocks) =>
         result.stripDetected
-          ? stripDetectedBlocks(blocks, detectLetterParts(blockLines(blocks).join('\n')))
+          ? stripDetectedBlocks(blocks, detectRecipient(blockLines(blocks).join('\n')))
           : blocks
       );
     },
@@ -1134,7 +1132,6 @@ function EditorContent() {
           // Plain text is enough for the prefill proposal — the detection works
           // line-wise, and the export itself uses the full HTML.
           documentText={blockLines(editor.document).join('\n')}
-          defaultSignature={profile?.display_name ?? ''}
           letterheads={letterheads}
           onCancel={() => setShowPdfDialog(false)}
           onSubmit={handlePdfExportSubmit}
