@@ -8,6 +8,8 @@ import {
 } from '../../../services/chat/sharepicGenerationService.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { errorText, isRefusalError } from './refusalDetection.js';
+
 const log = createLogger('SharepicVariants');
 
 export const SHAREPIC_VARIANT_TYPES = ['dreizeilen', 'zitat', 'info'] as const;
@@ -413,6 +415,14 @@ export async function generateSharepicVariants(
   settled.forEach((result, idx) => {
     const requestedType = requests[idx].type;
     if (result.status !== 'fulfilled') {
+      // A refusal is the safety rules working, not a fault: log the reason,
+      // not an Error object whose stack points at the generator.
+      if (isRefusalError(result.reason)) {
+        log.info(
+          `[SharepicVariants] ${requestedType} variant declined — ${errorText(result.reason)}`
+        );
+        return;
+      }
       log.warn(`[SharepicVariants] ${requestedType} variant rejected:`, result.reason);
       return;
     }
