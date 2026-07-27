@@ -35,19 +35,24 @@ import {
   preloadSettingsTabOnHover,
 } from './settingsTabs';
 
+// Reihenfolge = wie oft ein Bereich angefasst wird, nicht wie er sich
+// thematisch einsortieren ließe. Oben stehen die Bereiche, an denen man
+// laufend nachjustiert; nach unten wird es Einmal-Einrichtung, ganz unten das
+// reine Nachschlagen (Nutzung und Support stellen nichts ein).
+//
 // hideHeading: the tab's content brings its own top-level heading.
 const NAV: { value: SettingsTab; label: string; icon: IconType; hideHeading?: boolean }[] = [
   { value: 'allgemein', label: 'Allgemein', icon: FiSettings },
-  { value: 'barrierefreiheit', label: 'Barrierefreiheit', icon: IoAccessibilityOutline },
-  { value: 'friends', label: 'Friends', icon: PiRobot },
   { value: 'personalisierung', label: 'Personalisierung', icon: FiSliders },
-  { value: 'briefe', label: 'Briefe', icon: PiEnvelopeSimple },
-  { value: 'texte-anlernen', label: 'Texte anlernen', icon: PiPencil },
   { value: 'erinnerungen', label: 'Erinnerungen', icon: PiBrain, hideHeading: true },
+  { value: 'texte-anlernen', label: 'Texte anlernen', icon: PiPencil },
+  { value: 'friends', label: 'Friends', icon: PiRobot },
   { value: 'benachrichtigungen', label: 'Benachrichtigungen', icon: FiBell },
+  { value: 'briefe', label: 'Briefe', icon: PiEnvelopeSimple },
+  { value: 'konnektoren', label: 'Konnektoren', icon: FiServer, hideHeading: true },
   { value: 'wolke', label: 'Wolke', icon: FiCloud },
   { value: 'websites', label: 'Meine Websites', icon: FiGlobe },
-  { value: 'konnektoren', label: 'Konnektoren', icon: FiServer, hideHeading: true },
+  { value: 'barrierefreiheit', label: 'Barrierefreiheit', icon: IoAccessibilityOutline },
   { value: 'nutzung', label: 'Nutzung', icon: FiBarChart2 },
   { value: 'support', label: 'Support', icon: FiHelpCircle },
 ];
