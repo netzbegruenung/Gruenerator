@@ -1,8 +1,7 @@
-import { ActionBarPrimitive, MessagePrimitive } from '@assistant-ui/react-native';
+import { MessagePrimitive, useAui, useAuiState } from '@assistant-ui/react-native';
 import { parseMentionTokens } from '@gruenerator/shared/utils';
-import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { memo, type ReactNode } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { memo, useCallback, type ReactNode } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 
 import { useTheme } from '../../../hooks/useTheme';
 import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../../theme';
@@ -36,21 +35,39 @@ const renderAttachment = () => <MessageAttachmentUI />;
 
 export const UserMessage = memo(function UserMessage() {
   const theme = useTheme();
+  const aui = useAui();
+  const isEditing = useAuiState((s) => s.composer.isEditing);
+
+  // Long-press the bubble to edit — there is no pencil beside it any more. This
+  // is what `ActionBarPrimitive.Edit` did (`useActionBarEdit` is two lines:
+  // `aui.composer().beginEdit()`, disabled while already editing); inside a
+  // message scope `aui.composer()` is that message's edit composer, not the
+  // thread's. Same gesture as the thread rows in the drawer, so "hold to act on
+  // this thing" means one thing across the app.
+  const handleLongPress = useCallback(() => {
+    if (isEditing) return;
+    aui.composer().beginEdit();
+  }, [aui, isEditing]);
+
   return (
     <MessagePrimitive.Root style={[messageLayout.row, messageLayout.userRow]}>
-      <View style={[styles.bubble, styles.bubbleWidth, styles.bubbleFill]}>
+      <Pressable
+        onLongPress={handleLongPress}
+        delayLongPress={350}
+        testID="chat-message-edit"
+        accessibilityLabel="Nachricht bearbeiten"
+        style={({ pressed }) => [
+          styles.bubble,
+          styles.bubbleWidth,
+          styles.bubbleFill,
+          pressed && styles.bubblePressed,
+        ]}
+      >
         <MessagePrimitive.Attachments>{renderAttachment}</MessagePrimitive.Attachments>
         <MessagePrimitive.Content renderText={({ part }) => <UserBubbleText text={part.text} />} />
-      </View>
+      </Pressable>
       <View style={styles.actionBar}>
         <BranchPicker theme={theme} />
-        <ActionBarPrimitive.Edit
-          testID="chat-message-edit"
-          style={styles.editButton}
-          accessibilityLabel="Nachricht bearbeiten"
-        >
-          <Ionicons name="pencil-outline" size={18} color={theme.textSecondary} />
-        </ActionBarPrimitive.Edit>
       </View>
     </MessagePrimitive.Root>
   );
@@ -69,6 +86,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.eucalyptus,
     borderBottomRightRadius: borderRadius.small,
   },
+  // The only feedback that the bubble is now something you can hold.
+  bubblePressed: {
+    opacity: 0.85,
+  },
   text: {
     ...chatType.chatBody,
     color: colors.white,
@@ -86,11 +107,5 @@ const styles = StyleSheet.create({
     marginTop: spacing.xxsmall,
     // Same optical pull-in as the assistant row, mirrored to the right edge.
     marginRight: -7,
-  },
-  editButton: {
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 });

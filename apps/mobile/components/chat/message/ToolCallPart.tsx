@@ -1,5 +1,6 @@
 import { useAuiState } from '@assistant-ui/react-native';
 import {
+  getToolMeta,
   parseGenericFallback,
   resolveToolEntry,
   selectNarration,
@@ -9,6 +10,7 @@ import { Text, StyleSheet } from 'react-native';
 
 import { useTheme } from '../../../hooks/useTheme';
 import { spacing, BODY_FONT, chatType } from '../../../theme';
+import { ShimmerStatusLine } from '../ShimmerStatusLine';
 import { AskHumanCard } from '../tool-ui/AskHumanCard';
 import { ExampleResultsCard } from '../tool-ui/ExampleResultsCard';
 import { ImageResultCard } from '../tool-ui/ImageResultCard';
@@ -19,7 +21,6 @@ import { ResearchArtifactCard } from '../tool-ui/ResearchArtifactCard';
 import { RunPythonCard } from '../tool-ui/RunPythonCard';
 import { ScrapeUrlCard } from '../tool-ui/ScrapeUrlCard';
 import { ToolResultCard } from '../tool-ui/ToolResultCard';
-import { ToolCallProgress } from '../ToolCallProgress';
 
 interface ToolCallProps {
   toolCallId: string;
@@ -74,9 +75,13 @@ function AssistantToolCallPart(props: ToolCallProps) {
   if (toolName === 'run_python') {
     return <RunPythonCard args={args} result={result} theme={theme} />;
   }
-  // Still running: a compact progress pill.
+  // Still running: the same shimmering line the streaming stage uses. It was a
+  // bordered card with a spinner, a sparkle and its own label table whose
+  // fallback was the RAW tool name — which is how an internal stage id ended up
+  // on screen as "generating". `getToolMeta` is the shared source web reads and
+  // never yields an internal name.
   if (result === undefined) {
-    return <ToolCallProgress part={props} theme={theme} />;
+    return <ShimmerStatusLine label={getToolMeta(toolName).label} theme={theme} />;
   }
   // Completed — the shared registry parses the result to a platform-neutral
   // view-model; this switch only maps its kind to the native component.

@@ -1,6 +1,6 @@
 export { AssistantThread, type ThreadWelcome } from './AssistantThread';
 export { MessageBubble } from './MessageBubble';
-export { ToolCallProgress } from './ToolCallProgress';
+export { ShimmerStatusLine } from './ShimmerStatusLine';
 export { CitationsFooter } from './CitationsFooter';
 export { CitationDetailSheet } from './CitationDetailSheet';
 export { MentionSuggestions } from './MentionSuggestions';

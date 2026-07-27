@@ -37,7 +37,10 @@ appId: de.gruenerator.app
     timeout: 60000
 
 # --- edit it ---------------------------------------------------------------
-- tapOn:
+# Long press, not tap: the pencil button is gone and holding the bubble is the
+# only way in. A tap here would just do nothing and the assert below would fail
+# on a timeout rather than on the thing under test.
+- longPressOn:
     id: 'chat-message-edit'
 
 - assertVisible:
