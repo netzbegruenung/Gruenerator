@@ -1,4 +1,7 @@
 import { getContractsClient } from '@gruenerator/shared/api';
+import coverEigene from '@gruenerator/shared/assets/notebook-covers/eigene.webp';
+import coverLaenderverbaende from '@gruenerator/shared/assets/notebook-covers/landesverbaende.webp';
+import coverNeu from '@gruenerator/shared/assets/notebook-covers/notebook-neu.webp';
 import { buildNotebookSlug } from '@gruenerator/shared/utils';
 import {
   DropdownMenu,
@@ -76,11 +79,12 @@ const HIDDEN_NOTEBOOK_IDS = [
   'abgeordnetenwatch-notebook',
 ];
 
-// Branded Cover für die aufklappbaren Sammel-Kategorien. Die webp-Dateien
-// liegen (wie die übrigen Notebook-Cover) unter apps/web/public/notebook-covers/.
-const LAENDER_COVER = '/notebook-covers/landesverbaende.webp';
-const EIGENE_COVER = '/notebook-covers/eigene.webp';
-const NEU_COVER = '/notebook-covers/notebook-neu.webp';
+// Branded Cover für die aufklappbaren Sammel-Kategorien. Die webp-Dateien liegen
+// (wie die übrigen Notebook-Cover) unter packages/shared/assets/notebook-covers/,
+// damit Web und Mobile dieselbe Datei nutzen.
+const LAENDER_COVER = coverLaenderverbaende;
+const EIGENE_COVER = coverEigene;
+const NEU_COVER = coverNeu;
 
 const NotebookCard = memo(({ notebook }: { notebook: NotebookConfigEntry }) => {
   const navigate = useNavigate();

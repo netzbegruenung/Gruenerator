@@ -19,7 +19,15 @@ import {
 
 import { ContentDisplay } from '../../../components/content';
 import { pickDocumentForScanner, uploadDocumentToScanner } from '../../../services/documentPicker';
-import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../../theme';
+import {
+  colors,
+  spacing,
+  typography,
+  borderRadius,
+  lightTheme,
+  darkTheme,
+  BODY_FONT,
+} from '../../../theme';
 
 const COMPONENT_NAME = 'scanner-mobile';
 
@@ -454,11 +462,13 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   pickButtonDesc: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     color: 'rgba(255,255,255,0.8)',
     marginTop: 2,
   },
   pickHint: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     textAlign: 'center',
   },
@@ -489,6 +499,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   fileDetails: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     marginTop: 2,
   },
@@ -503,6 +514,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   previewLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -513,6 +525,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   charCount: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     textAlign: 'right',
   },
@@ -543,6 +556,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.small,
   },
   resetButtonText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
   },
 });

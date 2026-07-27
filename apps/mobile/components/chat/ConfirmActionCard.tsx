@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 import { documentIdFromUrl } from '../../utils/actionUrl';
 
 import type { Theme } from '../../theme/colors';
@@ -179,12 +179,11 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   title: {
-    fontSize: 14,
+    ...chatType.chatTitle,
     fontWeight: '600',
   },
   description: {
-    fontSize: 12,
-    lineHeight: 17,
+    ...chatType.chatSecondary,
   },
   metaRow: {
     flexDirection: 'row',
@@ -193,7 +192,7 @@ const styles = StyleSheet.create({
     marginLeft: spacing.large,
   },
   metaItem: {
-    fontSize: 12,
+    ...chatType.chatMeta,
   },
   buttons: {
     flexDirection: 'row',
@@ -209,8 +208,9 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
   },
   confirmLabel: {
+    ...chatType.chatSecondary,
     color: colors.white,
-    fontSize: 13,
+    fontFamily: BODY_FONT,
     fontWeight: '600',
   },
   cancelButton: {
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   cancelLabel: {
-    fontSize: 13,
+    ...chatType.chatSecondary,
   },
   badge: {
     flexDirection: 'row',
@@ -235,14 +235,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   badgeText: {
-    fontSize: 13,
+    ...chatType.chatSecondary,
     fontWeight: '600',
   },
   badgeLink: {
-    fontSize: 13,
+    ...chatType.chatSecondary,
     fontWeight: '600',
   },
   errorText: {
-    fontSize: 13,
+    ...chatType.chatSecondary,
   },
 });

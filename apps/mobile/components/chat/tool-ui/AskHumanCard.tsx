@@ -3,7 +3,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useState } from 'react';
 import { View, Text, Pressable, TextInput, StyleSheet, useColorScheme } from 'react-native';
 
-import { colors, spacing, borderRadius } from '../../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../../theme';
 
 import type { Theme } from '../../../theme/colors';
 
@@ -118,10 +118,10 @@ const styles = StyleSheet.create({
     gap: spacing.xxsmall,
   },
   question: {
+    ...chatType.chatTitle,
     flex: 1,
-    fontSize: 14,
+    fontFamily: BODY_FONT,
     fontWeight: '600',
-    lineHeight: 19,
   },
   options: {
     flexDirection: 'row',
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   optionText: {
-    fontSize: 13,
+    ...chatType.chatSecondary,
   },
   inputRow: {
     flexDirection: 'row',
@@ -143,12 +143,13 @@ const styles = StyleSheet.create({
     gap: spacing.xsmall,
   },
   input: {
+    ...chatType.chatTitle,
     flex: 1,
     paddingHorizontal: spacing.small,
     paddingVertical: spacing.xsmall,
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    fontSize: 14,
+    fontFamily: BODY_FONT,
   },
   sendButton: {
     padding: spacing.xsmall,
@@ -165,11 +166,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   answeredLabel: {
-    fontSize: 13,
+    ...chatType.chatSecondary,
     fontWeight: '600',
   },
   answeredValue: {
+    ...chatType.chatSecondary,
     flexShrink: 1,
-    fontSize: 12,
+    fontFamily: BODY_FONT,
   },
 });

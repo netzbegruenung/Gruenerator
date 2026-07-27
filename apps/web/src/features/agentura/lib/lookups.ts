@@ -1,28 +1,19 @@
 import { agentsList, type AgentListItem } from '@gruenerator/chat';
-import { getSystemAgent, resolveAgentSlug, type Agent } from '@gruenerator/shared/agents';
+import {
+  getSystemAgent,
+  isLandesverbandIdentifier,
+  landesverbandLabel,
+  landesverbandRegion,
+  resolveAgentSlug,
+  type Agent,
+} from '@gruenerator/shared/agents';
 
 import { useUserAgents } from '../../agents/api';
 
-/** Per-Landesverband agents and skills share this identifier prefix family. */
-export function isLandesverbandIdentifier(identifier: string): boolean {
-  return (
-    identifier.startsWith('gruenerator-oeffentlichkeitsarbeit-') ||
-    identifier.startsWith('gruenerator-buergeranfragen-')
-  );
-}
-
-/** The Landesverband slug from an LV identifier (e.g. `…-berlin` → `berlin`). */
-export function landesverbandRegion(identifier: string): string {
-  return identifier.replace(/^gruenerator-(oeffentlichkeitsarbeit|buergeranfragen)-/, '');
-}
-
-/** Title-case an LV region slug for display (`berlin` → `Berlin`). */
-export function landesverbandLabel(identifier: string): string {
-  return landesverbandRegion(identifier)
-    .split('-')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-}
+// The three LV identifier helpers moved to `@gruenerator/shared/agents` when
+// mobile grew its own Agentura — they are pure string work on identifiers, so
+// there was no reason for web to own the only copy.
+export { isLandesverbandIdentifier, landesverbandLabel, landesverbandRegion };
 
 export interface AgentLookup {
   agent: Agent | null;

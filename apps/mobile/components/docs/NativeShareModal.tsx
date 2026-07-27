@@ -25,7 +25,7 @@ import {
 } from '../../services/docs/docsShareApi';
 import { secureStorage } from '../../services/storage';
 import { useDocsEditorBridgeStore } from '../../stores/docsEditorBridgeStore';
-import { lightTheme, darkTheme, colors } from '../../theme';
+import { lightTheme, darkTheme, colors, BODY_FONT } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
 
 import type { Theme } from '../../theme/colors';
@@ -649,7 +649,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 12,
   },
-  title: { fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center' },
+  title: { fontFamily: BODY_FONT, fontSize: 18, fontWeight: '700', flex: 1, textAlign: 'center' },
   loadingContainer: { padding: 40, alignItems: 'center' },
 
   grid: {
@@ -676,7 +676,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  quickLabel: { fontSize: 13, fontWeight: '500', flexShrink: 1 },
+  quickLabel: { fontFamily: BODY_FONT, fontSize: 13, fontWeight: '500', flexShrink: 1 },
 
   downloadRow: {
     flexDirection: 'row',
@@ -686,11 +686,12 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   downloadRowContent: { flex: 1 },
-  downloadRowTitle: { fontSize: 15, fontWeight: '600' },
-  downloadRowSub: { fontSize: 12 },
+  downloadRowTitle: { fontFamily: BODY_FONT, fontSize: 15, fontWeight: '600' },
+  downloadRowSub: { fontFamily: BODY_FONT, fontSize: 12 },
 
   permSection: { paddingHorizontal: 20, paddingVertical: 8 },
   permSectionLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -707,8 +708,8 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   permOptionContent: { flex: 1 },
-  permOptionLabel: { fontSize: 14, fontWeight: '500' },
-  permOptionDesc: { fontSize: 12 },
+  permOptionLabel: { fontFamily: BODY_FONT, fontSize: 14, fontWeight: '500' },
+  permOptionDesc: { fontFamily: BODY_FONT, fontSize: 12 },
   permToggle: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -718,8 +719,8 @@ const styles = StyleSheet.create({
   },
   permRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
   permRowContent: { flex: 1 },
-  permRowName: { fontSize: 14, fontWeight: '500' },
-  permRowSub: { fontSize: 11 },
+  permRowName: { fontFamily: BODY_FONT, fontSize: 14, fontWeight: '500' },
+  permRowSub: { fontFamily: BODY_FONT, fontSize: 11 },
   permAvatar: {
     width: 28,
     height: 28,
@@ -727,7 +728,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  permAvatarText: { fontSize: 11, fontWeight: '700', color: colors.primary[600] },
+  permAvatarText: {
+    fontFamily: BODY_FONT,
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary[600],
+  },
   permGroupIcon: { marginRight: 10 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
   addChip: {
@@ -739,16 +745,18 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
   },
-  addChipText: { fontSize: 12, color: colors.primary[600] },
+  addChipText: { fontFamily: BODY_FONT, fontSize: 12, color: colors.primary[600] },
 
   templateBody: { paddingHorizontal: 20, paddingBottom: 12, gap: 8 },
   templateLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   templateInput: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -762,5 +770,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginTop: 4,
   },
-  templateSaveBtnText: { fontSize: 15, fontWeight: '600', color: colors.white },
+  templateSaveBtnText: {
+    fontFamily: BODY_FONT,
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.white,
+  },
 });
