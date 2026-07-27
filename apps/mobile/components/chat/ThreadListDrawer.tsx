@@ -129,7 +129,7 @@ function DrawerSections({
             { backgroundColor: pressed ? theme.surface : 'transparent' },
           ]}
         >
-          <Ionicons name={tool.icon} size={20} color={theme.text} />
+          <Ionicons name={tool.icon} size={DRAWER_ICON} color={theme.text} />
           <Text style={[styles.navLabel, { color: theme.text }]} numberOfLines={1}>
             {tool.title}
           </Text>
@@ -257,9 +257,18 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
   return (
     <ThreadListPrimitive.Root style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + spacing.small }]}>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Grünerator</Text>
+        {/* The wordmark is the way home, the way it is on web. */}
+        <Pressable
+          onPress={() => handleNavigate('/start')}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Zur Startseite"
+          style={({ pressed }) => (pressed ? styles.pressed : null)}
+        >
+          <Text style={[styles.headerTitle, { color: theme.text }]}>Grünerator</Text>
+        </Pressable>
         <ThreadListPrimitive.New style={styles.newButton}>
-          <Ionicons name="add-circle-outline" size={26} color={colors.primary[600]} />
+          <Ionicons name="add" size={26} color={colors.primary[600]} />
         </ThreadListPrimitive.New>
       </View>
 
@@ -288,6 +297,9 @@ const DRAWER_EDGE = 20;
 
 /** One row height for both lists — navigation and conversations. */
 const ROW_HEIGHT = 52;
+
+/** Paired with the row text: a 20dp glyph read undersized beside 17pt. */
+const DRAWER_ICON = 22;
 
 const styles = StyleSheet.create({
   container: {
@@ -319,6 +331,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  pressed: {
+    opacity: 0.6,
+  },
   navRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -330,8 +345,11 @@ const styles = StyleSheet.create({
     minHeight: ROW_HEIGHT,
     borderRadius: borderRadius.medium,
   },
+  // chatBody, not chatTitle: in the drawer these rows ARE the content, not the
+  // heading of a card sitting inside it. At chatTitle's 15 they read as captions
+  // next to a 24pt wordmark in a 52dp row — the reference sits at ~17.
   navLabel: {
-    ...chatType.chatTitle,
+    ...chatType.chatBody,
     fontWeight: '500',
   },
   sectionLabel: {
@@ -369,7 +387,7 @@ const styles = StyleSheet.create({
     marginRight: spacing.small,
   },
   itemTitle: {
-    ...chatType.chatTitle,
+    ...chatType.chatBody,
     flex: 1,
     fontFamily: BODY_FONT,
   },
