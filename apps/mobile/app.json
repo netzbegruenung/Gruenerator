@@ -7,6 +7,12 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "gruenerator",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/86989c3a-549f-47fe-b141-df891ff6e075"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "de.gruenerator.app",
