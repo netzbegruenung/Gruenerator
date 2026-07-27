@@ -3,7 +3,7 @@ import { memo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 
 import { useTheme } from '../../../hooks/useTheme';
-import { colors, spacing, borderRadius, chatType } from '../../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../../theme';
 
 import type { Theme } from '../../../theme/colors';
 
@@ -57,6 +57,7 @@ const styles = StyleSheet.create({
   label: {
     ...chatType.chatLabel,
     flex: 1,
+    fontFamily: BODY_FONT,
     fontWeight: '600',
   },
   text: {

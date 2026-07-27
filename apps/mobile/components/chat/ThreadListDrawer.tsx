@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDrawerStore } from '../../hooks/useDrawerStore';
 import { useTheme } from '../../hooks/useTheme';
 import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
-import { colors, spacing, borderRadius, chatType } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 import { route, routeWithParams, type AppRoute } from '../../types/routes';
 import { ProfileAvatar } from '../common';
 import { STUDIO_TOOLS, TOOLS, type ToolDef } from '../tools/toolsConfig';
@@ -290,6 +290,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.small,
   },
   headerTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 20,
     fontWeight: '700',
   },
@@ -344,6 +345,7 @@ const styles = StyleSheet.create({
   itemTitle: {
     ...chatType.chatTitle,
     flex: 1,
+    fontFamily: BODY_FONT,
   },
   empty: {
     alignItems: 'center',
@@ -352,6 +354,7 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   emptyTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '600',
     marginTop: spacing.xsmall,
@@ -386,6 +389,7 @@ const styles = StyleSheet.create({
   footerName: {
     ...chatType.chatTitle,
     flex: 1,
+    fontFamily: BODY_FONT,
     fontWeight: '500',
   },
 });

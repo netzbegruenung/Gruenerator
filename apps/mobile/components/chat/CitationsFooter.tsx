@@ -2,7 +2,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useState, useCallback } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 
-import { spacing, borderRadius, chatType } from '../../theme';
+import { spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 
 import { CitationDetailSheet } from './CitationDetailSheet';
 
@@ -111,6 +111,7 @@ const styles = StyleSheet.create({
   title: {
     ...chatType.chatLabel,
     flex: 1,
+    fontFamily: BODY_FONT,
     fontWeight: '500',
   },
 });

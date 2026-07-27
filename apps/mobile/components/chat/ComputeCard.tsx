@@ -5,7 +5,7 @@ import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator } from 'react-native';
 
 import { base64ToBytes, shareBytesAsFile } from '../../services/share';
-import { colors, spacing, borderRadius, chatType } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
 import type { ComputeData } from '@gruenerator/chat';
@@ -166,11 +166,13 @@ const styles = StyleSheet.create({
   operation: {
     ...chatType.chatTitle,
     flexShrink: 1,
+    fontFamily: BODY_FONT,
     fontWeight: '600',
   },
   caption: {
     ...chatType.chatMicro,
     marginLeft: 'auto',
+    fontFamily: BODY_FONT,
     letterSpacing: 0.8,
   },
   figure: {
@@ -199,6 +201,7 @@ const styles = StyleSheet.create({
   chipLabel: {
     ...chatType.chatMeta,
     flexShrink: 1,
+    fontFamily: BODY_FONT,
   },
   row: {
     flexDirection: 'row',

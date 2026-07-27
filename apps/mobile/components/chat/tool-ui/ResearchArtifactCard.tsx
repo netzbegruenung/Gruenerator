@@ -13,7 +13,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 
-import { colors, spacing, borderRadius, chatType } from '../../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../../theme';
 import { GrueneratorLoadingIcon } from '../GrueneratorLoadingIcon';
 import { getMarkdownStyles } from '../markdownStyles';
 
@@ -212,6 +212,7 @@ const styles = StyleSheet.create({
   title: {
     ...chatType.chatTitle,
     flex: 1,
+    fontFamily: BODY_FONT,
     fontWeight: '600',
   },
   confidence: {

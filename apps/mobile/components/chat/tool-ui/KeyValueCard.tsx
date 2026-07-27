@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 
-import { colors, spacing, borderRadius, chatType } from '../../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../../theme';
 
 import { ToolCitationList } from './ToolCitationList';
 import { toolIonicon } from './toolIcons';
@@ -108,6 +108,7 @@ const styles = StyleSheet.create({
   query: {
     ...chatType.chatMeta,
     flexShrink: 1,
+    fontFamily: BODY_FONT,
   },
   details: {
     marginTop: spacing.xsmall,
@@ -135,5 +136,6 @@ const styles = StyleSheet.create({
   rowValue: {
     ...chatType.chatMeta,
     flex: 1,
+    fontFamily: BODY_FONT,
   },
 });

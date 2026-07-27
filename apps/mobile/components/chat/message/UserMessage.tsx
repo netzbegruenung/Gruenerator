@@ -5,7 +5,7 @@ import { memo, type ReactNode } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
 import { useTheme } from '../../../hooks/useTheme';
-import { colors, spacing, borderRadius, chatType } from '../../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../../theme';
 import { MessageAttachmentUI } from '../AttachmentUI';
 
 import { BranchPicker } from './BranchPicker';
@@ -71,6 +71,7 @@ const styles = StyleSheet.create({
   text: {
     ...chatType.chatBody,
     color: colors.white,
+    fontFamily: BODY_FONT,
   },
   mentionChip: {
     backgroundColor: 'rgba(255, 255, 255, 0.22)',

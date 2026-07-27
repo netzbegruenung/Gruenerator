@@ -6,7 +6,7 @@ import { useCallback, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Linking, Alert } from 'react-native';
 
 import { secureStorage } from '../../services/storage';
-import { colors, spacing, borderRadius, chatType } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
 import type { ChatMessageMetadata } from '@gruenerator/chat';
@@ -140,6 +140,7 @@ const styles = StyleSheet.create({
   openLabel: {
     ...chatType.chatSecondary,
     color: colors.white,
+    fontFamily: BODY_FONT,
     fontWeight: '600',
   },
 });

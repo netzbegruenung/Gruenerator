@@ -3,7 +3,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useState } from 'react';
 import { View, Text, Pressable, TextInput, StyleSheet, useColorScheme } from 'react-native';
 
-import { colors, spacing, borderRadius, chatType } from '../../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../../theme';
 
 import type { Theme } from '../../../theme/colors';
 
@@ -120,6 +120,7 @@ const styles = StyleSheet.create({
   question: {
     ...chatType.chatTitle,
     flex: 1,
+    fontFamily: BODY_FONT,
     fontWeight: '600',
   },
   options: {
@@ -148,6 +149,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xsmall,
     borderRadius: borderRadius.full,
     borderWidth: 1,
+    fontFamily: BODY_FONT,
   },
   sendButton: {
     padding: spacing.xsmall,
@@ -170,5 +172,6 @@ const styles = StyleSheet.create({
   answeredValue: {
     ...chatType.chatSecondary,
     flexShrink: 1,
+    fontFamily: BODY_FONT,
   },
 });

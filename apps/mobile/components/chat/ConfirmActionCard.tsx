@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 
-import { colors, spacing, borderRadius, chatType } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 import { documentIdFromUrl } from '../../utils/actionUrl';
 
 import type { Theme } from '../../theme/colors';
@@ -210,6 +210,7 @@ const styles = StyleSheet.create({
   confirmLabel: {
     ...chatType.chatSecondary,
     color: colors.white,
+    fontFamily: BODY_FONT,
     fontWeight: '600',
   },
   cancelButton: {

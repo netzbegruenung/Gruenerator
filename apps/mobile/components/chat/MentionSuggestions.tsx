@@ -2,7 +2,7 @@ import { filterMentionables, mentionableKey, type Mentionable } from '@gruenerat
 import { memo } from 'react';
 import { View, Text, Pressable, SectionList, StyleSheet } from 'react-native';
 
-import { spacing, borderRadius, chatType } from '../../theme';
+import { spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
 

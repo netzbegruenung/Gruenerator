@@ -3,7 +3,7 @@ import { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
-import { colors, spacing, borderRadius, chatType } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 
 /**
  * The edit surface for a sent message, shown in place of the bubble while

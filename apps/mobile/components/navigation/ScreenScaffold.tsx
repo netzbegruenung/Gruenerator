@@ -1,3 +1,4 @@
+import { BlurTargetView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { type ReactNode } from 'react';
 import { View, Text, StyleSheet, useColorScheme } from 'react-native';
@@ -7,6 +8,7 @@ import { colors, spacing, lightTheme, darkTheme } from '../../theme';
 
 import { ProfileMenu } from './ProfileMenu';
 import { SidebarMenuButton } from './SidebarMenuButton';
+import { useRegisterTabBarBlurTarget } from './TabBarBlurTarget';
 
 /**
  * Shared tab-screen chrome: top-safe area + the app gradient background + the standard
@@ -16,43 +18,54 @@ import { SidebarMenuButton } from './SidebarMenuButton';
  * Pass `backdrop` to layer a per-tab background behind the content (the mobile echoes of
  * the web workplace's per-tab tints: Chat sunrise, Wissen pink, Arbeiten flat). It renders
  * above the default app gradient but below the header + content.
+ *
+ * `action` puts one screen-specific control left of the profile menu (the chat's
+ * "new conversation"), so a screen never needs a header of its own.
  */
 export function ScreenScaffold({
   title,
   children,
   backdrop,
+  action,
 }: {
   title: string;
   children: ReactNode;
   backdrop?: ReactNode;
+  action?: ReactNode;
 }) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  // What the Android tab bar blurs: the whole screen, gradient included. On iOS
+  // `BlurTargetView` is a plain View, so this costs nothing there.
+  const blurTargetRef = useRegisterTabBarBlurTarget();
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <LinearGradient
-        colors={
-          colorScheme === 'dark'
-            ? [colors.grey[950], colors.grey[950]]
-            : [colors.white, 'rgba(95, 133, 117, 0.05)']
-        }
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      />
-      {backdrop}
-      <View style={styles.header}>
-        <View style={styles.headerSide}>
-          <SidebarMenuButton color={theme.text} size={24} />
+    <BlurTargetView ref={blurTargetRef} style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+        <LinearGradient
+          colors={
+            colorScheme === 'dark'
+              ? [colors.grey[950], colors.grey[950]]
+              : [colors.white, 'rgba(95, 133, 117, 0.05)']
+          }
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+        />
+        {backdrop}
+        <View style={styles.header}>
+          <View style={styles.headerSide}>
+            <SidebarMenuButton color={theme.text} size={24} />
+          </View>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>{title}</Text>
+          <View style={[styles.headerSide, styles.headerSideRight]}>
+            {action}
+            <ProfileMenu />
+          </View>
         </View>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>{title}</Text>
-        <View style={[styles.headerSide, styles.headerSideRight]}>
-          <ProfileMenu />
-        </View>
-      </View>
-      {children}
-    </SafeAreaView>
+        {children}
+      </SafeAreaView>
+    </BlurTargetView>
   );
 }
 
@@ -64,7 +77,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.medium,
     paddingVertical: spacing.small,
   },
-  headerSide: { flex: 1, flexDirection: 'row', alignItems: 'center' },
+  headerSide: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.small },
   headerSideRight: { justifyContent: 'flex-end' },
   headerTitle: { fontFamily: 'Raleway_700Bold', fontSize: 20, textAlign: 'center' },
 });

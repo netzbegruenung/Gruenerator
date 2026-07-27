@@ -8,7 +8,7 @@ import {
 import { Text, StyleSheet } from 'react-native';
 
 import { useTheme } from '../../../hooks/useTheme';
-import { spacing, chatType } from '../../../theme';
+import { spacing, BODY_FONT, chatType } from '../../../theme';
 import { AskHumanCard } from '../tool-ui/AskHumanCard';
 import { ExampleResultsCard } from '../tool-ui/ExampleResultsCard';
 import { ImageResultCard } from '../tool-ui/ImageResultCard';

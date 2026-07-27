@@ -2,7 +2,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, StyleSheet, ScrollView } from 'react-native';
 
-import { colors, spacing, borderRadius, chatType } from '../../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../../theme';
 
 import type { Theme } from '../../../theme/colors';
 
@@ -91,6 +91,7 @@ const styles = StyleSheet.create({
   status: {
     ...chatType.chatMeta,
     flexShrink: 1,
+    fontFamily: BODY_FONT,
   },
   toggle: {
     flexDirection: 'row',

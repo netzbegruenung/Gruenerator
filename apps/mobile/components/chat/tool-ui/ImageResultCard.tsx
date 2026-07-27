@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { View, Text, StyleSheet } from 'react-native';
 
-import { spacing, borderRadius, chatType } from '../../../theme';
+import { spacing, borderRadius, BODY_FONT, chatType } from '../../../theme';
 
 import type { Theme } from '../../../theme/colors';
 import type { ImageResultVM } from '@gruenerator/chat';
