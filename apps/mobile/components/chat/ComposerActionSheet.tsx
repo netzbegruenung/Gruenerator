@@ -24,7 +24,7 @@ import { View, Text, Pressable, ScrollView, StyleSheet, useColorScheme } from 'r
 import { useShallow } from 'zustand/shallow';
 
 import { useTheme } from '../../hooks/useTheme';
-import { spacing, borderRadius, BODY_FONT } from '../../theme';
+import { spacing, borderRadius, chatType } from '../../theme';
 import { route } from '../../types/routes';
 import { BottomSheet } from '../common/BottomSheet';
 import { SettingsGroup, SettingsRow, useSurfaceStyles } from '../settings/SettingsRow';
@@ -441,8 +441,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tileLabel: {
-    fontFamily: BODY_FONT,
-    fontSize: 14,
+    ...chatType.chatSecondary,
   },
   pressed: {
     opacity: 0.6,

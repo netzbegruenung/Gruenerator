@@ -3,7 +3,7 @@ import { type ReactNode } from 'react';
 import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
-import { colors, spacing, borderRadius, BODY_FONT } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 
 /**
  * One row of a grouped settings card: badge icon, title, and the current value
@@ -149,8 +149,10 @@ const styles = StyleSheet.create({
     fontSize: 17,
   },
   value: {
-    fontFamily: BODY_FONT,
-    fontSize: 14,
+    // Carried over from ComposerActionSheet when these styles moved here (#2104
+    // put the row's value on the chat scale; the title it deliberately left raw
+    // at 17). Each step carries its own fontFamily, so the row cannot lose it.
+    ...chatType.chatSecondary,
     marginTop: 1,
   },
   trailingSpacer: {
