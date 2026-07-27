@@ -28,15 +28,8 @@ import {
 } from 'lucide-react';
 import { memo, useState } from 'react';
 
-import {
-  getAgentMentionables,
-  getCustomAgentMentionables,
-  getTextformMentionables,
-  getMcpServerMentionables,
-  toolMentionables,
-  notebookMentionables,
-  type Mentionable,
-} from '../../lib/mentionables';
+import { toolMentionables, notebookMentionables, type Mentionable } from '../../lib/mentionables';
+import { connectorId, connectorMentionables, quickSkillMentionables } from '../../lib/plusMenu';
 import {
   useScopedThreadMode,
   useScopedSelectedNotebookId,
@@ -94,23 +87,18 @@ export const PlusMenu = memo(function PlusMenu({
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const isCompact = useChatDensity() === 'compact';
-  const customAgents = getCustomAgentMentionables();
-  // Own learned recipes were reachable only via typeahead before.
-  const textforms = getTextformMentionables();
   const favorites = useSkillFavoritesStore((s) => s.favorites);
-  const quickSkills = getAgentMentionables().filter(
-    (a) => a.isSystemDefault || favorites.includes(a.mention.toLowerCase())
-  );
-  const allQuickSkills = [...quickSkills, ...customAgents, ...textforms];
+  // Own agents and learned recipes were reachable only via typeahead before.
+  const allQuickSkills = quickSkillMentionables(favorites);
 
-  const mcpConnectors = getMcpServerMentionables();
+  const mcpConnectors = connectorMentionables();
   const pinnedConnector = useAgentStore((s) => s.pinnedConnector);
   const setPinnedConnector = useAgentStore((s) => s.setPinnedConnector);
 
   // Pin (not one-off insert) a connector so its MCP scope holds across
   // follow-ups; selecting the pinned one again unpins.
   const togglePinnedConnector = (connector: Mentionable) => {
-    const id = connector.identifier.slice(4); // strip 'mcp:'
+    const id = connectorId(connector);
     if (pinnedConnector?.id === id) {
       setPinnedConnector(null);
       return;
@@ -344,7 +332,7 @@ export const PlusMenu = memo(function PlusMenu({
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="max-h-[24rem] overflow-y-auto">
             {mcpConnectors.map((connector) => {
-              const isActive = pinnedConnector?.id === connector.identifier.slice(4);
+              const isActive = pinnedConnector?.id === connectorId(connector);
               return (
                 <DropdownMenuItem
                   key={connector.identifier}
@@ -530,7 +518,7 @@ export const PlusMenu = memo(function PlusMenu({
             <ResponsiveMenuItem
               key={connector.identifier}
               icon={<Plug />}
-              active={pinnedConnector?.id === connector.identifier.slice(4)}
+              active={pinnedConnector?.id === connectorId(connector)}
               onClick={() => handleMobileAction(() => togglePinnedConnector(connector))}
             >
               {connector.title}

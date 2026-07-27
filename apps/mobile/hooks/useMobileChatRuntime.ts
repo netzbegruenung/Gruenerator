@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/shallow';
 
 import { getResearchCollectionIds } from '../config/notebooksConfig';
+import { useNotebookFilterStore } from '../stores/notebookFilterStore';
 
 interface MobileChatRuntimeOptions {
   adapters?: LocalRuntimeOptions['adapters'];
@@ -27,6 +28,8 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
     customSystemPrompt,
     customRoleName,
     customEnabledTools,
+    pinnedConnector,
+    activeSkillMention,
   } = useAgentStore(
     useShallow((s) => ({
       selectedAgentId: s.selectedAgentId,
@@ -38,8 +41,25 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
       customSystemPrompt: s.customSystemPrompt,
       customRoleName: s.customRoleName,
       customEnabledTools: s.customEnabledTools,
+      pinnedConnector: s.pinnedConnector,
+      activeSkillMention: s.activeSkillMention,
     }))
   );
+  // Notebook filter selection (facets, sources, depth) — only honoured while it
+  // belongs to the notebook being asked, so it can't leak between notebooks.
+  const notebookFilterState = useNotebookFilterStore(
+    useShallow((s) => ({
+      notebookId: s.notebookId,
+      keywordFilters: s.keywordFilters,
+      collectionIds: s.collectionIds,
+      depth: s.depth,
+    }))
+  );
+  const notebookScope =
+    selectedNotebookId && notebookFilterState.notebookId === selectedNotebookId
+      ? notebookFilterState
+      : null;
+
   const incrementMessageCount = useAgentStore((s) => s.incrementMessageCount);
   const needsCompaction = useAgentStore((s) => s.needsCompaction);
   const compactionState = useAgentStore((s) => s.compactionState);
@@ -58,26 +78,39 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
       // their `*-system` ids via the research map; user notebooks (UUIDs) return
       // [] there, so pass the UUID itself as the single collection.
       selectedNotebookCollectionIds: selectedNotebookId
-        ? getResearchCollectionIds(selectedNotebookId).length > 0
-          ? getResearchCollectionIds(selectedNotebookId)
-          : [selectedNotebookId]
+        ? (notebookScope?.collectionIds ??
+          (getResearchCollectionIds(selectedNotebookId).length > 0
+            ? getResearchCollectionIds(selectedNotebookId)
+            : [selectedNotebookId]))
         : undefined,
+      notebookFilters: notebookScope?.keywordFilters,
+      notebookMode: notebookScope?.depth,
       threadMode,
       searchMode,
       customSystemPrompt,
       customRoleName,
       customEnabledTools,
+      // Without this the "+" sheet's Konnektoren section is decoration: the
+      // adapter injects the connector's mention token and its forcedTool from
+      // exactly this field, and mobile never sent it.
+      pinnedConnector,
+      // Likewise for recipes: the `/mention` is stripped from the text, so this
+      // is what carries the recipe's prompt fragment and scoping to the server.
+      activeSkillMention,
     }),
     [
       selectedAgentId,
       selectedModel,
       enabledTools,
       selectedNotebookId,
+      notebookScope,
       threadMode,
       searchMode,
       customSystemPrompt,
       customRoleName,
       customEnabledTools,
+      pinnedConnector,
+      activeSkillMention,
     ]
   );
 

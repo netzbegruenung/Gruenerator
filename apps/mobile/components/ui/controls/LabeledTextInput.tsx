@@ -12,7 +12,15 @@ import {
   type KeyboardTypeOptions,
 } from 'react-native';
 
-import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../../theme';
+import {
+  colors,
+  spacing,
+  borderRadius,
+  lightTheme,
+  darkTheme,
+  typography,
+  BODY_FONT,
+} from '../../../theme';
 
 interface LabeledTextInputProps {
   value: string;
@@ -73,6 +81,7 @@ const styles = StyleSheet.create({
     gap: spacing.xsmall,
   },
   label: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },

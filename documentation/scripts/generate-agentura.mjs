@@ -2,9 +2,9 @@
  * Generate documentation/src/generated/agentura.json — the market's own shelf
  * structure, derived from the code:
  *
- *   - AGENTURA_CATEGORIES (apps/web … agentura/lib/categories.ts) — the file
- *     calls itself the single source of truth for the market's categories and
- *     drives both the sidebar and the page header,
+ *   - AGENTURA_CATEGORIES (packages/shared … agents/agenturaCategories.ts) — the
+ *     single source of truth for the market's categories; it drives web's
+ *     sidebar and page header as well as the mobile shelves,
  *   - SORT_LABELS (same file) — the sort options offered in the header,
  *   - SKILL_CATEGORY_LABELS (packages/shared … agents/types.ts) — the recipe
  *     sections inside the official shelf.
@@ -37,7 +37,7 @@ import {
 import { runGenerator } from './lib/audit.mjs';
 
 const SRC = {
-  categories: 'apps/web/src/features/agentura/lib/categories.ts',
+  categories: 'packages/shared/src/agents/agenturaCategories.ts',
   skillTypes: 'packages/shared/src/agents/types.ts',
 };
 
