@@ -83,10 +83,9 @@ export default function ProjektDetailScreen() {
     return scaffold(
       <View style={styles.centered}>
         <Ionicons name="alert-circle" size={44} color={colors.semantic.error} />
+        {/* Same reason as the list: the shared hook's message says "Gruppe". */}
         <Text style={[styles.centeredText, { color: colors.semantic.error }]}>
-          {detailsQuery.error instanceof Error
-            ? detailsQuery.error.message
-            : 'Projekt konnte nicht geladen werden.'}
+          Projekt konnte nicht geladen werden.
         </Text>
         <Pressable
           onPress={() => void detailsQuery.refetch()}

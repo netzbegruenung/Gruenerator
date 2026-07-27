@@ -59,7 +59,11 @@ export default function AgentsScreen() {
   const query = search.trim().toLowerCase();
 
   const { data: userAgents = [], isLoading, error } = useUserAgents();
-  const { data: publicAgents = [] } = usePublicUserAgents();
+  const {
+    data: publicAgents = [],
+    isLoading: publicLoading,
+    error: publicError,
+  } = usePublicUserAgents();
 
   const systemAgents = useMemo(
     () =>
@@ -213,26 +217,36 @@ export default function AgentsScreen() {
             )}
         </View>
       );
-  } else if (isLoading) {
-    body = <ActivityIndicator color={colors.primary[600]} style={styles.loader} />;
-  } else if (error) {
-    body = emptyNote(
-      error instanceof Error ? error.message : 'Die Agentura konnte nicht geladen werden.'
-    );
   } else if (shelf === 'empfohlen') {
+    // No loading or error branch here on purpose: "Empfohlen" comes from the
+    // bundled system-agent registry, so it is complete before any request
+    // finishes. Blocking it on the user-agents call put a network error in front
+    // of a shelf that never needed the network.
     body = agentGroup(featuredAgents);
   } else if (shelf === 'meine') {
-    body =
-      userAgents.length > 0
-        ? agentGroup(userAgents)
-        : emptyNote(
-            'Du hast noch keine eigenen Grüneratoren. Anlegen geht am Rechner — hier findest du sie danach wieder.'
-          );
+    body = isLoading ? (
+      <ActivityIndicator color={colors.primary[600]} style={styles.loader} />
+    ) : error ? (
+      emptyNote('Deine Grüneratoren konnten nicht geladen werden.')
+    ) : userAgents.length > 0 ? (
+      agentGroup(userAgents)
+    ) : (
+      emptyNote(
+        'Du hast noch keine eigenen Grüneratoren. Anlegen geht am Rechner — hier findest du sie danach wieder.'
+      )
+    );
   } else if (shelf === 'community') {
-    body =
-      communityAgents.length > 0
-        ? agentGroup(communityAgents)
-        : emptyNote('Noch keine öffentlich geteilten Grüneratoren von der Basis.');
+    body = publicLoading ? (
+      <ActivityIndicator color={colors.primary[600]} style={styles.loader} />
+    ) : publicError ? (
+      emptyNote('Die Grüneratoren von der Basis konnten nicht geladen werden.')
+    ) : communityAgents.length > 0 ? (
+      agentGroup(communityAgents)
+    ) : (
+      // Only says "none yet" once we know: a request still in flight or a failed
+      // one is not an empty shelf.
+      emptyNote('Noch keine öffentlich geteilten Grüneratoren von der Basis.')
+    );
   } else {
     // "Offizielle": the flat 30-item list this screen used to be, now split into
     // the sub-sections web has — general agents, Landesverbände, then recipes.

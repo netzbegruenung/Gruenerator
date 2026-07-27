@@ -76,8 +76,10 @@ export default function ProjekteScreen() {
     body = (
       <View style={styles.centered}>
         <Ionicons name="alert-circle" size={44} color={colors.semantic.error} />
+        {/* Deliberately not the hook's own message: it comes from the shared
+            groups client and still says "Gruppen", web's word for this. */}
         <Text style={[styles.centeredText, { color: colors.semantic.error }]}>
-          {error instanceof Error ? error.message : 'Projekte konnten nicht geladen werden.'}
+          Projekte konnten nicht geladen werden.
         </Text>
         <Pressable
           onPress={() => void refetch()}
