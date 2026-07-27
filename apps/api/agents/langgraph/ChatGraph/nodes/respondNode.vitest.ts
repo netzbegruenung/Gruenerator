@@ -5,6 +5,7 @@ import {
   formatSearchContext,
   formatTabularComputeGuidance,
   getModeGuidance,
+  citableSourcesAvailable,
 } from './respondNode.js';
 
 import type { ChatGraphState, ComputeData, ResearchToolResult, SearchResult } from '../types.js';
@@ -117,6 +118,62 @@ describe('getModeGuidance turn-outcome honesty (direct path)', () => {
   it('a search turn does not get the direct honesty note', () => {
     const out = getModeGuidance(makeState({ intent: 'search' }));
     expect(out).not.toContain('NICHTS recherchiert');
+  });
+});
+
+/**
+ * "Mehr dazu bitte" after a sourced answer classifies `direct`, and a `direct`
+ * turn used to carry no sources at all — so the model rewrote its own previous
+ * answer from that answer's prose. Carrying the thread's research fixes the
+ * grounding; these two suites keep the fix from leaking into every other
+ * `direct` turn.
+ */
+describe('citableSourcesAvailable', () => {
+  const SRC = [{ source: 'x', content: 'c', url: 'https://e.org' }] as unknown as SearchResult[];
+
+  it('opens for a direct turn whose sources were carried in', () => {
+    expect(
+      citableSourcesAvailable(
+        makeState({ intent: 'direct', searchResults: SRC, sourcesCarriedFromThread: true })
+      )
+    ).toBe(true);
+  });
+
+  it('stays SHUT for an ordinary direct turn that happens to have sources', () => {
+    // The regression guard the whole design rests on: without the flag a
+    // direct turn must never be told it may cite.
+    expect(citableSourcesAvailable(makeState({ intent: 'direct', searchResults: SRC }))).toBe(
+      false
+    );
+  });
+
+  it('needs actual sources, not just the flag', () => {
+    expect(
+      citableSourcesAvailable(
+        makeState({ intent: 'direct', searchResults: [], sourcesCarriedFromThread: true })
+      )
+    ).toBe(false);
+  });
+
+  it('is unchanged for retrieval intents', () => {
+    expect(citableSourcesAvailable(makeState({ intent: 'search', searchResults: SRC }))).toBe(true);
+  });
+});
+
+describe('getModeGuidance on a carried-source direct turn', () => {
+  it('permits [N] but forbids claiming fresh research', () => {
+    // Without this branch the prompt would carry a source block, "cite [1]-[6]"
+    // AND "claim no sources/[N] citations" all at once.
+    const out = getModeGuidance(makeState({ intent: 'direct', sourcesCarriedFromThread: true }));
+    expect(out).toContain('FRÜHEREN Recherche');
+    expect(out).toContain('[N]');
+    expect(out).not.toMatch(/keine Quellen\/\[N\]-Belege/);
+  });
+
+  it('an ordinary direct turn keeps the citation ban', () => {
+    const out = getModeGuidance(makeState({ intent: 'direct', searchResults: [] }));
+    expect(out).toMatch(/keine Quellen\/\[N\]-Belege/);
+    expect(out).not.toContain('FRÜHEREN Recherche');
   });
 });
 
