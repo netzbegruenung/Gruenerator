@@ -6,7 +6,7 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../../theme';
 
 export interface ColorOption<T extends string = string> {
   id: T;
@@ -82,6 +82,7 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   label: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },

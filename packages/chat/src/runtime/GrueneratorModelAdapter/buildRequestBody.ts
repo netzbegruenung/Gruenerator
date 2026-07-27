@@ -179,11 +179,17 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     // notebook→collection map into `selectedNotebookCollectionIds`; fall back to
     // the raw notebook id as a single collection (covers user-notebook UUIDs).
     const collectionIds = config.selectedNotebookCollectionIds;
+    const notebookFilters = config.notebookFilters;
     return {
       messages: formattedMessages,
       ...(collectionIds && collectionIds.length > 0
         ? { collectionIds }
         : { collectionId: config.selectedNotebookId || 'gruenerator-notebook' }),
+      // Omitted when empty: `filters: {}` would still travel the wire and read as
+      // a deliberate (empty) scope downstream.
+      ...(notebookFilters && Object.keys(notebookFilters).length > 0
+        ? { filters: notebookFilters }
+        : {}),
       mode: config.notebookMode || 'fast',
       threadId: config.threadId,
     };

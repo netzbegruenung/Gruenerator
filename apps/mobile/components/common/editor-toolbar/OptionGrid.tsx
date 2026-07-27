@@ -7,7 +7,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { type ReactNode } from 'react';
 import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native';
 
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../../theme';
 
 export interface OptionItem<T = string> {
   id: T;
@@ -154,14 +154,17 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   optionLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '500',
     textAlign: 'center',
   },
   optionLabelCompact: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
   },
   optionDescription: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     textAlign: 'center',
     marginTop: 2,

@@ -17,15 +17,36 @@ import { View, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
+import { enableFreeze } from 'react-native-screens';
 
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { AppDrawer } from '../components/navigation';
+import { SettingsSheet } from '../components/settings';
 import { useAppInitialization } from '../hooks/useAppInitialization';
 import { queryClient } from '../services/queryClient';
 import { useOnboardingStore } from '../stores/onboardingStore';
 import { lightTheme, darkTheme } from '../theme';
 
 void SplashScreen.preventAutoHideAsync();
+
+/**
+ * Stop re-rendering screens nobody is looking at.
+ *
+ * `react-native-screens` ships this OFF (`ENABLE_FREEZE = false` in its `core`),
+ * so until now all four tab screens re-rendered on every store write, every
+ * query settle and every theme read — the Wissen tab alone is 19 cover tiles
+ * plus the user's collections in a plain `ScrollView`, and it paid that price
+ * while sitting behind the Chat tab.
+ *
+ * Must run at module scope: `Screen` reads `freezeEnabled()` at render time, so
+ * a call from inside a component would come too late for the first mount.
+ *
+ * Frozen means *not re-rendered*, not unmounted — effects, timers and requests
+ * keep running, their state updates just land when the screen comes back. A
+ * background export still finishes; only its progress bar stops repainting
+ * while off screen.
+ */
+enableFreeze(true);
 
 function RootLayout() {
   const colorScheme = useColorScheme();
@@ -56,6 +77,9 @@ function RootLayout() {
     Raleway_500Medium,
     Raleway_600SemiBold,
     Raleway_700Bold,
+    // PT Sans is NOT loaded here: it is linked natively by the expo-font config
+    // plugin (app.json) as one family with weights, which is what makes
+    // `fontWeight` select a real face instead of being ignored.
   });
 
   useEffect(() => {
@@ -150,6 +174,10 @@ function RootLayout() {
                     conversation. Gated on `user` to avoid an unauthenticated
                     thread-list fetch during the login flow. */}
                 {user ? <AppDrawer>{appContent}</AppDrawer> : appContent}
+                {/* Settings are a sheet, not a route, so they open over whatever
+                    is on screen. Mounted here — once — because the drawer and the
+                    profile menu both reach for them from different screens. */}
+                {user ? <SettingsSheet /> : null}
               </ErrorBoundary>
             </ActionSheetProvider>
           </KeyboardProvider>

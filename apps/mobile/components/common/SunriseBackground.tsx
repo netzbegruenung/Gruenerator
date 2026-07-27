@@ -1,33 +1,39 @@
 import { useEffect, useState } from 'react';
-import { AccessibilityInfo, Animated, StyleSheet, useColorScheme } from 'react-native';
+import { Animated, StyleSheet, useColorScheme } from 'react-native';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
-/**
- * Exact mobile port of the web Chat tab's `.workplace-chat-sunrise` background
- * (apps/web/src/features/workplace/workplace-sunrise.css): a warm cream base with a
- * soft sand-gold (#E9D696) elliptical glow centered slightly above middle. Purely
- * decorative, absolutely filled, behind content. The glow rises + fades in on mount
- * (honoring reduce-motion); the cream base is static. Dark mode: transparent base +
- * a much fainter glow.
- */
-const GLOW = '233, 214, 150'; // #E9D696
+import { useChatBackground } from '../../hooks/useChatBackground';
+import { useReduceMotion } from '../../hooks/useAccessibilityPreferences';
+import { chatBackgroundColor, chatBackgroundMesh } from '../../theme/chatBackgrounds';
 
+import { MeshSurface } from './MeshSurface';
+
+/**
+ * Mobile take on the web Chat tab's `.workplace-chat-sunrise` background
+ * (apps/web/src/features/workplace/workplace-sunrise.css): a warm base with a soft
+ * sand-gold (#E9D696) elliptical glow. Purely decorative, absolutely filled, behind
+ * content. The glow rises + fades in on mount (honoring reduce-motion); the base is
+ * static. Dark mode: transparent base + a much fainter glow.
+ *
+ * Shallower than the web original, on purpose. A phone is tall and narrow, so the
+ * web ellipse faded out well above the bottom-pinned composer, leaving it on bare
+ * cream — the yellow read as a patch in the middle rather than the tab's colour.
+ * The glow now reaches past the bottom edge and bottoms out short of zero, so the
+ * gradient still reads as one while the composer keeps warm ground under it.
+ */
 export function SunriseBackground() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  // The device's choice, else the profile's — see useChatBackground. The colour
+  // or mesh it maps to is mobile's own (see theme/chatBackgrounds.ts).
+  const preset = useChatBackground();
+  const glow = chatBackgroundColor(preset.key);
+  const mesh = chatBackgroundMesh(preset.key);
 
   const [progress] = useState(() => new Animated.Value(0));
-  const [reduceMotion, setReduceMotion] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
-      if (mounted) setReduceMotion(enabled);
-    });
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  // Combines the OS setting with the profile override, so "Animationen
+  // reduzieren" in the app's settings reaches this too.
+  const reduceMotion = useReduceMotion();
 
   useEffect(() => {
     if (reduceMotion) {
@@ -49,36 +55,55 @@ export function SunriseBackground() {
 
   const stops = isDark
     ? [
-        { offset: '0', opacity: '0.1' },
-        { offset: '0.42', opacity: '0.035' },
-        { offset: '0.74', opacity: '0' },
+        { offset: '0', opacity: '0.06' },
+        { offset: '0.45', opacity: '0.045' },
+        { offset: '0.8', opacity: '0.03' },
+        { offset: '1', opacity: '0.028' },
       ]
     : [
-        { offset: '0', opacity: '0.5' },
-        { offset: '0.4', opacity: '0.18' },
-        { offset: '0.74', opacity: '0' },
+        { offset: '0', opacity: '0.24' },
+        { offset: '0.45', opacity: '0.18' },
+        { offset: '0.8', opacity: '0.13' },
+        { offset: '1', opacity: '0.12' },
       ];
+
+  // No rise for a mesh. The single-glow presets lift into place because they are
+  // one shape moving; a composition of clouds pinned to their corners would
+  // slide as a whole and read as the screen settling, not as light.
+  if (mesh) {
+    return (
+      <Animated.View pointerEvents="none" style={styles.container}>
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity }]}>
+          <MeshSurface mesh={mesh} id={`bg-${preset.key}`} />
+        </Animated.View>
+      </Animated.View>
+    );
+  }
 
   return (
     <Animated.View pointerEvents="none" style={styles.container}>
-      {!isDark && <Animated.View style={[StyleSheet.absoluteFill, styles.creamBase]} />}
-      <Animated.View style={[StyleSheet.absoluteFill, { opacity, transform: [{ translateY }] }]}>
-        <Svg width="100%" height="100%">
-          <Defs>
-            <RadialGradient id="chatSunrise" cx="50%" cy="52%" rx="88%" ry="58%">
-              {stops.map((s) => (
-                <Stop
-                  key={s.offset}
-                  offset={s.offset}
-                  stopColor={`rgb(${GLOW})`}
-                  stopOpacity={s.opacity}
-                />
-              ))}
-            </RadialGradient>
-          </Defs>
-          <Rect x="0" y="0" width="100%" height="100%" fill="url(#chatSunrise)" />
-        </Svg>
-      </Animated.View>
+      {/* The warm base belongs to the `sunrise` preset. Any other choice would
+          be tinted by it, and "Neutral" would not be neutral at all. */}
+      {!isDark && preset.key === 'sunrise' && (
+        <Animated.View style={[StyleSheet.absoluteFill, styles.creamBase]} />
+      )}
+      {glow && (
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity, transform: [{ translateY }] }]}>
+          <Svg width="100%" height="100%">
+            <Defs>
+              {/* Sized so the falloff actually completes on screen — stretch the
+                  ellipse much past the edges and everything sits in its core, which
+                  flattens the gradient into a single wash. */}
+              <RadialGradient id="chatSunrise" cx="50%" cy="40%" rx="105%" ry="62%">
+                {stops.map((s) => (
+                  <Stop key={s.offset} offset={s.offset} stopColor={glow} stopOpacity={s.opacity} />
+                ))}
+              </RadialGradient>
+            </Defs>
+            <Rect x="0" y="0" width="100%" height="100%" fill="url(#chatSunrise)" />
+          </Svg>
+        </Animated.View>
+      )}
     </Animated.View>
   );
 }
