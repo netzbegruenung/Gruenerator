@@ -48,8 +48,9 @@ export function useRecentActivity(): { items: RecentItem[]; isLoading: boolean }
 
 /**
  * Opens a recent item where mobile can actually render it: docs in the native
- * editor, image shares in the in-app viewer (which downloads, previews and offers
- * save/share). Everything else has no native surface yet and opens on the web.
+ * editor, canvases in the read-only viewer, image shares in the in-app viewer
+ * (which downloads, previews and offers save/share). Everything else has no
+ * native surface yet and opens on the web.
  */
 export function useOpenRecentItem(): (item: RecentItem) => void {
   const router = useRouter();
@@ -58,6 +59,15 @@ export function useOpenRecentItem(): (item: RecentItem) => void {
     (item: RecentItem) => {
       if (item.type === 'doc') {
         router.push({ pathname: '/(fullscreen)/doc-editor', params: { id: item.id } } as Href);
+        return;
+      }
+      // Canvases have a native read-only viewer — the one the Arbeiten list
+      // already pushes to. Without this branch a sharepic opened in the browser.
+      if (item.type === 'canvas') {
+        router.push({
+          pathname: '/(fullscreen)/canvas-viewer',
+          params: { id: item.id, title: item.title || 'Unbenannt' },
+        } as Href);
         return;
       }
       // `item.id` is the share_token for image shares.

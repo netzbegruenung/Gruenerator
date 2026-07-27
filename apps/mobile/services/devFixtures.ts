@@ -1,4 +1,6 @@
 import { type BoardDocument, type CanvasListItem } from '@gruenerator/contracts';
+import { type Project } from '@gruenerator/shared';
+import { type Share } from '@gruenerator/shared/share';
 
 import { DEV_AUTH_BYPASS, DEV_BYPASS_USER } from './devAuth';
 import { type Document } from './docs/docsApi';
@@ -103,6 +105,88 @@ export const DEV_CANVASES: CanvasListItem[] = [
     thumbnail_url: null,
     page_count: 1,
     format: 'square',
+  },
+];
+
+/**
+ * Image shares and reel projects as their own endpoints return them.
+ *
+ * The Studio tab reads `/share/my` and `/subtitler/projects` directly rather than
+ * the merged `/recent-activity` feed, so it needs fixtures in those two shapes —
+ * `DEV_RECENT_ACTIVITY` below still covers the start page's "Zuletzt" strip.
+ * `imageType` is what splits Sharepics from KI-Bilder, so both kinds appear here.
+ */
+export const DEV_SHARES: Share[] = [
+  {
+    shareToken: 'dev-image-sonnenblumenfeld',
+    mediaType: 'image',
+    title: 'Sonnenblumenfeld bei Sonnenaufgang',
+    status: 'ready',
+    createdAt: ago(5),
+    imageType: 'pure-create',
+  },
+  {
+    shareToken: 'dev-image-lastenrad',
+    mediaType: 'image',
+    title: 'Lastenrad in der Innenstadt',
+    status: 'ready',
+    createdAt: ago(21),
+    imageType: 'universal-edit',
+  },
+  {
+    shareToken: 'dev-image-windpark',
+    mediaType: 'image',
+    title: 'Windpark im Abendlicht',
+    status: 'ready',
+    createdAt: ago(70),
+    imageType: 'dreizeilen',
+  },
+  {
+    shareToken: 'dev-image-portrait',
+    mediaType: 'image',
+    title: 'Porträt für Kandidat:innenseite',
+    status: 'ready',
+    createdAt: ago(94),
+    imageType: 'profilbild',
+  },
+];
+
+export const DEV_REEL_PROJECTS: Project[] = [
+  {
+    id: 'dev-reel-buergerdialog',
+    user_id: OWNER,
+    title: 'Bürgerdialog — Kurzfassung',
+    upload_id: null,
+    thumbnail_path: null,
+    video_path: null,
+    video_metadata: null,
+    video_size: 0,
+    video_filename: null,
+    style_preference: 'default',
+    height_preference: 'default',
+    mode_preference: null,
+    subtitles: null,
+    export_count: 1,
+    last_edited_at: ago(3),
+    created_at: ago(30),
+  },
+  {
+    id: 'dev-reel-rede-haushalt',
+    user_id: OWNER,
+    title: 'Rede zum Haushalt (Untertitel)',
+    upload_id: null,
+    thumbnail_path: null,
+    video_path: null,
+    video_metadata: null,
+    video_size: 0,
+    video_filename: null,
+    style_preference: 'default',
+    height_preference: 'default',
+    mode_preference: null,
+    subtitles: null,
+    export_count: 2,
+    last_edited_at: ago(28),
+    created_at: ago(60),
   },
 ];
 

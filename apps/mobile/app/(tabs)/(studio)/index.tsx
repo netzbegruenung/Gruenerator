@@ -14,7 +14,8 @@ import { ViewModeToggle, type ViewMode } from '../../../components/common/ViewMo
 import { MenuIcon } from '../../../components/icons/WebMirrorIcons';
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
 import { STUDIO_TOOLS } from '../../../components/tools/toolsConfig';
-import { useOpenRecentItem, useRecentActivity } from '../../../hooks/useRecentActivity';
+import { useOpenRecentItem } from '../../../hooks/useRecentActivity';
+import { useStudioMedia } from '../../../hooks/useStudioMedia';
 import { useTabNavigationSwipe } from '../../../hooks/useTabSwipe';
 import { spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../../theme';
 import { FLOATING_TAB_BAR_HEIGHT } from '../../../theme/layout';
@@ -35,10 +36,14 @@ const STUDIO_TILE_GLYPHS: Record<string, IoniconsIconName> = {
 };
 
 /**
- * The Studio tab — what the user has made with Vorlagen, KI-Bild and Reel, in one
- * section per media kind, filtered out of the shared `/recent-activity` feed.
- * Creating is the FAB's job: the three studio tools are a create menu rather than
- * a tile grid, so the page leads with content instead of entry points.
+ * The Studio tab — what the user has made with Vorlagen, KI-Bild und Reel, one
+ * section per media kind. Creating is the FAB's job: the three studio tools are a
+ * create menu rather than a tile grid, so the page leads with content instead of
+ * entry points.
+ *
+ * The data comes from `useStudioMedia`, not from `/recent-activity`. That feed
+ * truncates a merged five-kind list, so a busy documents week emptied this whole
+ * page; the reasoning is written out at the hook.
  */
 export default function StudioScreen() {
   const insets = useSafeAreaInsets();
@@ -46,24 +51,34 @@ export default function StudioScreen() {
   const isDark = useColorScheme() === 'dark';
   const theme = isDark ? darkTheme : lightTheme;
   const fabTone = getSurfaceFab('studio', isDark);
-  const { items, isLoading } = useRecentActivity();
+  const { sharepics, kiImages, reels, isLoading, isError, refetch } = useStudioMedia();
   const openItem = useOpenRecentItem();
   const [createOpen, setCreateOpen] = useState(false);
 
-  const { reels, images } = useMemo(
+  const sections = useMemo(
     () => ({
-      reels: items.filter((item) => item.type === 'video').slice(0, SECTION_LIMIT),
-      images: items.filter((item) => item.type === 'image').slice(0, SECTION_LIMIT),
+      sharepics: sharepics.slice(0, SECTION_LIMIT),
+      kiImages: kiImages.slice(0, SECTION_LIMIT),
+      reels: reels.slice(0, SECTION_LIMIT),
     }),
-    [items]
+    [sharepics, kiImages, reels]
   );
 
   const swipe = useTabNavigationSwipe('/(tabs)/(studio)');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
-  // Each section hides itself when it has nothing, so a brand-new account used
-  // to get a blank page under the header — no explanation, only the FAB.
-  const isEmpty = !isLoading && reels.length === 0 && images.length === 0;
+  const hasNothing =
+    !isLoading &&
+    sections.sharepics.length === 0 &&
+    sections.kiImages.length === 0 &&
+    sections.reels.length === 0;
+
+  // A failed request used to be indistinguishable from an empty account: each
+  // section hides itself when it has no items, and the fetch swallowed its own
+  // error. Offering "erstelle dein erstes Sharepic" to someone whose media just
+  // failed to load is the one thing this page must not do.
+  const showError = hasNothing && isError;
+  const isEmpty = hasNothing && !isError;
 
   return (
     <ScreenScaffold
@@ -72,7 +87,35 @@ export default function StudioScreen() {
       headerRight={<ViewModeToggle mode={viewMode} onChange={setViewMode} />}
     >
       <GestureDetector gesture={swipe}>
-        {isEmpty ? (
+        {showError ? (
+          <View
+            style={[
+              styles.empty,
+              { paddingBottom: insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.xxlarge },
+            ]}
+          >
+            <EmptyState
+              tiles={[
+                {
+                  glyph: 'cloud-offline-outline',
+                  ...getToolTheme('reel', isDark),
+                },
+              ]}
+              title="Deine Medien konnten nicht geladen werden"
+              description="Sharepics, KI-Bilder und Reels liegen weiterhin auf dem Server — hier fehlt nur die Verbindung."
+              actions={[
+                {
+                  key: 'retry',
+                  glyph: 'refresh-outline',
+                  title: 'Erneut versuchen',
+                  description: 'Lädt alle drei Quellen neu',
+                  tone: getToolTheme('vorlagen', isDark),
+                  onPress: refetch,
+                },
+              ]}
+            />
+          </View>
+        ) : isEmpty ? (
           <View
             style={[
               styles.empty,
@@ -109,21 +152,32 @@ export default function StudioScreen() {
             showsVerticalScrollIndicator={false}
           >
             {/* Each section borrows the hue of the tool that produced it, so nothing on
-              this page falls back to the app green. */}
+              this page falls back to the app green. Sharepics come first: they
+              merge published image shares with the canvases still open for
+              editing, which is the same grouping web uses. */}
             <RecentItemsSection
-              title="Reels"
-              items={reels}
+              title="Sharepics"
+              items={sections.sharepics}
               isLoading={isLoading}
-              accent={getToolTheme('reel', isDark).icon}
+              accent={getToolTheme('vorlagen', isDark).icon}
               style={styles.section}
               viewMode={viewMode}
               onOpen={openItem}
             />
             <RecentItemsSection
               title="KI-Bilder"
-              items={images}
+              items={sections.kiImages}
               isLoading={isLoading}
               accent={getToolTheme('ki-bildgenerierung', isDark).icon}
+              style={styles.section}
+              viewMode={viewMode}
+              onOpen={openItem}
+            />
+            <RecentItemsSection
+              title="Reels"
+              items={sections.reels}
+              isLoading={isLoading}
+              accent={getToolTheme('reel', isDark).icon}
               style={styles.section}
               viewMode={viewMode}
               onOpen={openItem}
