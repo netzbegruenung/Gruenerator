@@ -67,3 +67,24 @@ export function stripFabricatedSystemClaims(
     fabricated,
   };
 }
+
+/**
+ * The answer tells the user to go and search, although this turn already
+ * searched and got sources. Observed live: two web searches + a document search
+ * returned three sources naming the chancellor, and the answer closed with
+ * "empfehle ich eine kurze Websuche" without ever naming him.
+ *
+ * Telemetry only for now — rewriting an answer on this signal alone would be
+ * guesswork. It tells us how often the synth ignores its source block, which is
+ * the number that decides whether the writer lane needs to change.
+ */
+const DEFERS_TO_SEARCH_RE =
+  /\b(?:empfehle?\s+ich\s+(?:dir\s+)?eine?\s+(?:kurze\s+)?(?:web)?(?:such|recherche)|schau\s+(?:am\s+besten\s+)?(?:kurz\s+)?(?:im\s+netz|online|auf\s+der\s+offiziellen)|bitte\s+(?:selbst\s+)?nachschlagen|solltest\s+du\s+(?:kurz\s+)?(?:googeln|nachschlagen|recherchieren))\b/i;
+
+export function defersToSearchDespiteSources(
+  text: string,
+  opts: { sources: number; toolCalls: number }
+): boolean {
+  if (opts.sources === 0 || opts.toolCalls === 0) return false;
+  return DEFERS_TO_SEARCH_RE.test(text);
+}

@@ -72,3 +72,74 @@ export function resolveReferentialTopic(
   if (!prior) return { text: rawText, inherited: false };
   return { text: `${prior}\n\nAufgabe: ${rawText.trim()}`, inherited: true };
 }
+
+// ── Referential RESEARCH follow-ups ───────────────────────────────────────────
+
+/**
+ * Research/lookup verbs plus the affirmations that carry a research request
+ * ("ja bitte", "mach das"). Sibling of CREATE_VERB for the search path.
+ */
+const RESEARCH_VERB =
+  /\b(recherchier\w*|such\w*|google\w*|nachschlag\w*|nachschau\w*|schau\w*\s+nach|find\w*\s+heraus|pr(?:ü|ue)f\w*|check\w*|verifizier\w*|belege?|beleg\w*)\b/giu;
+/** Filler specific to research asks — the medium, not the subject. */
+const RESEARCH_FILLER =
+  /\b(ja|nein|ok|okay|gerne|gern|unbedingt|web|internet|netz|online|quelle\w*|beleg\w*|studie\w*|aktuell\w*|genau\w*|nochmal|nochmals|weiter|dar(?:ü|ue)ber|dazu|danach|dann|mit|f(?:ü|ue)r|(?:ü|ue)ber|auf|an|am|im|ins|beim?|nach|zum|zur|des|den|doch|du|dir|dich|uns|unser\w*)\b/giu;
+
+/**
+ * True when the message asks for research but names no subject of its own —
+ * "Ja, bitte recherchiere das jetzt im Web".
+ */
+export function isReferentialResearch(text: string): boolean {
+  if (text.trim().length === 0) return false;
+  if (!RESEARCH_VERB.test(text)) {
+    RESEARCH_VERB.lastIndex = 0;
+    return false;
+  }
+  RESEARCH_VERB.lastIndex = 0;
+  const residual = text
+    .replace(RESEARCH_VERB, ' ')
+    .replace(RESEARCH_FILLER, ' ')
+    .replace(ARTIFACT_FILLER, ' ')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return residual.length < 3;
+}
+
+/**
+ * The most recent prior USER message that states a subject.
+ *
+ * Deliberately the USER's wording, not the assistant's prose: this feeds a
+ * SEARCH QUERY, and the user's own phrasing of the question is a far better
+ * query than 2000 characters of answer text.
+ */
+function findPriorQuerySubject(messages: ModelMessage[]): string | null {
+  for (let i = messages.length - 2; i >= 0; i--) {
+    const message = messages[i];
+    if (message?.role !== 'user') continue;
+    const text = extractTextContent(message.content ?? '').trim();
+    if (text.length < 8) continue;
+    if (isReferentialResearch(text) || isReferentialCreation(text)) continue;
+    return text.slice(0, 300);
+  }
+  return null;
+}
+
+/**
+ * Query a search/research turn should actually run.
+ *
+ * The bug this fixes: "Ja, bitte recherchiere das jetzt im Web" was passed to
+ * Linkup verbatim, so a deep research run about renewables and CO2 came back
+ * with "Die Grünen in Österreich" — and still carried the label "Hohe Konfidenz,
+ * 20 Quellen". `resolveReferentialTopic` existed but was wired only into the
+ * create_* paths, never into search.
+ */
+export function resolveReferentialQuery(
+  rawText: string,
+  messages: ModelMessage[]
+): { query: string; inherited: boolean } {
+  if (!isReferentialResearch(rawText)) return { query: rawText, inherited: false };
+  const prior = findPriorQuerySubject(messages);
+  if (!prior) return { query: rawText, inherited: false };
+  return { query: prior, inherited: true };
+}

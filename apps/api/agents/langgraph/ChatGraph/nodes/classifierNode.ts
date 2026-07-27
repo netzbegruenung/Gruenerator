@@ -61,6 +61,7 @@ import {
   detectComplexity,
   detectSearchSources,
   CHAT_HISTORY_KEYWORDS,
+  CURRENT_THREAD_REFERENCE,
   SYSTEM_MCP_PHRASING,
   looksLikeDocsHelpQuestion,
 } from './classifierParsing.js';
@@ -268,6 +269,18 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     log.info(
       `[Classifier] Detected ${detectedUrls.length} URL(s) → scrape_url (intent=${intent}, secondary=${secondaryIntent ?? 'none'})`
     );
+  }
+
+  // A question about THIS conversation needs no retrieval — the messages are in
+  // context already. Routing it to chat_history sent it through a Qdrant recall
+  // over PAST threads, which returned nothing, and the turn then reported having
+  // no sources for an answer that stood a few messages above.
+  if (intent === 'chat_history' && CURRENT_THREAD_REFERENCE.test(userText)) {
+    const hasPastReference = CHAT_HISTORY_KEYWORDS.test(userText);
+    if (!hasPastReference) {
+      log.info('[Classifier] chat_history → direct (refers to the CURRENT thread, not a past one)');
+      intent = 'direct';
+    }
   }
 
   const synthesisMode = pickSynthesisMode(intent ?? 'direct', documentSources.length);

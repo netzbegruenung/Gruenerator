@@ -57,7 +57,7 @@ vi.mock('../../../services/search/QueryExpansionService.js', () => ({
 
 // ─── Import after mocks ──────────────────────────────────────
 
-const { executeResearch, localeToSearchScope, DeepPlanSchema } =
+const { executeResearch, localeToSearchScope, DeepPlanSchema, linkupConfidence } =
   await import('./researchOrchestrator.js');
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -460,5 +460,33 @@ describe('executeResearch — deep path (complex)', () => {
       prompt: string;
     };
     expect(plannerCall.prompt).toContain('Default-Land: at');
+  });
+});
+
+describe('linkupConfidence', () => {
+  const base = { sources: 12, domains: 6, answerLength: 800, queryInherited: false };
+
+  it('reports high only for a broad, multi-domain run on the user own question', () => {
+    expect(linkupConfidence(base)).toBe('high');
+  });
+
+  it('caps an inherited query at medium — exhaustive research into the WRONG question is not high confidence', () => {
+    // The live failure: "Ja, bitte recherchiere das jetzt im Web" produced 20
+    // sources about the wrong topic and still shipped "Hohe Konfidenz".
+    expect(linkupConfidence({ ...base, queryInherited: true })).toBe('medium');
+  });
+
+  it('drops to low when nothing came back', () => {
+    expect(linkupConfidence({ ...base, sources: 0 })).toBe('low');
+    expect(linkupConfidence({ ...base, answerLength: 20 })).toBe('low');
+  });
+
+  it('drops to medium for a thin single-domain run', () => {
+    expect(linkupConfidence({ ...base, sources: 4, domains: 2 })).toBe('medium');
+    expect(linkupConfidence({ ...base, sources: 4, domains: 1 })).toBe('low');
+  });
+
+  it('an inherited query with a thin run is low, not medium', () => {
+    expect(linkupConfidence({ ...base, sources: 2, domains: 1, queryInherited: true })).toBe('low');
   });
 });
