@@ -40,21 +40,23 @@ const FALLBACK_TITLES: Record<RecentItemType, string> = {
 };
 
 /**
- * A titled grid of `/recent-activity` items. Shared by the start page's "Zuletzt"
- * strip and the Studio tab, which renders one instance per media kind. Renders
- * nothing once loading has finished with an empty list, so a section never sits
- * on the page as a bare heading.
+ * A titled grid of `/recent-activity` items — the Studio tab renders one instance
+ * per media kind. Renders nothing once loading has finished with an empty list, so
+ * a section never sits on the page as a bare heading.
  */
 export function RecentItemsSection({
   title,
   items,
   isLoading = false,
+  accent = colors.primary[600],
   style,
   onOpen,
 }: {
   title: string;
   items: RecentItem[];
   isLoading?: boolean;
+  /** Hue for the thumbnail placeholders and the spinner — pass the tab's own. */
+  accent?: string;
   style?: StyleProp<ViewStyle>;
   onOpen: (item: RecentItem) => void;
 }) {
@@ -68,7 +70,7 @@ export function RecentItemsSection({
       <View style={[styles.section, style]}>
         <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
         <View style={styles.loadingRow}>
-          <ActivityIndicator color={colors.primary[600]} />
+          <ActivityIndicator color={accent} />
         </View>
       </View>
     );
@@ -125,7 +127,7 @@ export function RecentItemsSection({
                     { backgroundColor: theme.surface },
                   ]}
                 >
-                  <Ionicons name={TYPE_ICONS[item.type]} size={24} color={colors.primary[600]} />
+                  <Ionicons name={TYPE_ICONS[item.type]} size={24} color={accent} />
                 </View>
               )}
               <View style={styles.cardBody}>
