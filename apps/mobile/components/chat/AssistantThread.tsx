@@ -7,7 +7,7 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../hooks/useTheme';
-import { spacing } from '../../theme';
+import { spacing, BODY_FONT } from '../../theme';
 import { SCREEN_EDGE } from '../../theme/layout';
 import { Composer, composerEdgeStyle, type ComposerAccessory } from '../common/Composer';
 
@@ -66,7 +66,18 @@ const EmptyState = memo(function EmptyState({
     <View style={styles.emptyContainer} pointerEvents="none">
       <Text style={[styles.emptyTitle, { color: theme.text }]}>{greeting}</Text>
       {subtitle ? (
-        <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>{subtitle}</Text>
+        <Text
+          style={[
+            // The generic greeting is one two-line statement, so both lines carry
+            // the same hero weight. An agent's subtitle is its description — a
+            // sentence of explanatory prose, which at 28/bold shouted over the
+            // question it was meant to support.
+            welcome ? styles.emptyDescription : styles.emptySubtitle,
+            { color: theme.textSecondary },
+          ]}
+        >
+          {subtitle}
+        </Text>
       ) : null}
     </View>
   );
@@ -160,5 +171,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Raleway_700Bold',
     fontSize: 28,
     marginTop: 2,
+  },
+  emptyDescription: {
+    fontFamily: BODY_FONT,
+    fontSize: 15,
+    lineHeight: 21,
+    marginTop: spacing.xsmall,
   },
 });

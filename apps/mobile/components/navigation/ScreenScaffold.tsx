@@ -27,6 +27,11 @@ import { useRegisterTabBarBlurTarget } from './TabBarBlurTarget';
  * screens (Agentura, Projekte) use: same chrome as the tabs, but the leading
  * control has to lead somewhere — a hamburger on a screen you arrived at by
  * pushing offers the wrong way out.
+ *
+ * `showProfile={false}` gives the title the whole bar. The chat uses it: agent
+ * names run to 45 characters ("Bürger*innenanfragen (Mecklenburg-Vorpommern)"),
+ * and naming the agent matters more there than two controls that are one tap
+ * away through the drawer anyway.
  */
 export function ScreenScaffold({
   title,
@@ -34,12 +39,14 @@ export function ScreenScaffold({
   backdrop,
   action,
   onBack,
+  showProfile = true,
 }: {
   title: string;
   children: ReactNode;
   backdrop?: ReactNode;
   action?: ReactNode;
   onBack?: () => void;
+  showProfile?: boolean;
 }) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
@@ -77,10 +84,14 @@ export function ScreenScaffold({
               <SidebarMenuButton color={theme.text} size={24} />
             )}
           </View>
-          <Text style={[styles.headerTitle, { color: theme.text }]}>{title}</Text>
+          {/* Agent names run longer than the tab titles this header was built
+              for — without this a long one wraps and grows the whole bar. */}
+          <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
+            {title}
+          </Text>
           <View style={[styles.headerSide, styles.headerSideRight]}>
             {action}
-            <ProfileMenu />
+            {showProfile ? <ProfileMenu /> : null}
           </View>
         </View>
         {children}
@@ -97,9 +108,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.medium,
     paddingVertical: spacing.small,
   },
-  headerSide: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.small },
+  // flex:1 on both sides keeps a short title exactly centred. `minWidth` is what
+  // stops a long one from collapsing them: with a zero flex-basis they shrank to
+  // nothing and the title drew straight over the drawer button.
+  headerSide: {
+    flex: 1,
+    minWidth: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.small,
+  },
   headerSideRight: { justifyContent: 'flex-end' },
-  headerTitle: { fontFamily: 'Raleway_700Bold', fontSize: 20, textAlign: 'center' },
+  // flexShrink lets the title give way to the sides instead of overrunning them.
+  headerTitle: {
+    fontFamily: 'Raleway_700Bold',
+    fontSize: 20,
+    textAlign: 'center',
+    flexShrink: 1,
+  },
   // Same 40x40 hit area as SidebarMenuButton, so swapping the two does not
   // shift the title.
   backButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
