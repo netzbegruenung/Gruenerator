@@ -13,4 +13,4 @@ export { summarizeNode } from './summarizeNode.js';
 export { computeNode } from './computeNode.js';
 export { pandasComputeNode } from './pandasComputeNode.js';
 export { computeVerifierNode } from './computeVerifierNode.js';
-export { respondNode, buildSystemMessage } from './respondNode.js';
+export { respondNode, buildSystemMessage, usesResearchWrapper } from './respondNode.js';
