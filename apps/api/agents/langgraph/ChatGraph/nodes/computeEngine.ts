@@ -15,10 +15,32 @@ import type { ComputePayload, ComputeEntry } from '@gruenerator/contracts';
 
 export type ComputeResult = ComputePayload;
 
-const nf = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 6 });
-/** German-formatted integer/decimal, e.g. 1234.5 → "1.234,5". */
+const nfInt = new Intl.NumberFormat('de-DE');
+const nfDecimal = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 });
+
+/**
+ * German-formatted number: integers stay exact, everything else rounds to at
+ * most 2 decimals (e.g. 1234.5 → "1.234,5") — 6 fraction digits like
+ * `33,333333` reads as false precision next to an "exakt berechnet" badge.
+ * Below 0.01 a flat 2-decimal round would erase the value to "0,00", so a
+ * significance rule takes over instead: keep 3 significant digits regardless
+ * of magnitude, so e.g. 0.0001234 stays visible as "0,000123".
+ */
 function fmt(n: number): string {
-  return Number.isInteger(n) ? nf.format(n) : nf.format(Math.round(n * 1e6) / 1e6);
+  if (Number.isInteger(n)) return nfInt.format(n);
+  const abs = Math.abs(n);
+  if (abs > 0 && abs < 0.01) return formatSignificant(n);
+  return nfDecimal.format(Math.round(n * 100) / 100);
+}
+
+function formatSignificant(n: number): string {
+  const exponent = Math.floor(Math.log10(Math.abs(n)));
+  const decimals = -exponent + 2; // 3 significant digits
+  const fixed = n
+    .toFixed(decimals)
+    .replace(/(\.\d*?)0+$/, '$1')
+    .replace(/\.$/, '');
+  return fixed.replace('.', ',');
 }
 
 // ── Text metrics ────────────────────────────────────────────────────────────
