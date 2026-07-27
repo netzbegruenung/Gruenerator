@@ -24,7 +24,7 @@ import { View, Text, Pressable, ScrollView, StyleSheet, useColorScheme } from 'r
 import { useShallow } from 'zustand/shallow';
 
 import { useTheme } from '../../hooks/useTheme';
-import { colors, spacing, borderRadius, BODY_FONT } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 import { route } from '../../types/routes';
 import { BottomSheet } from '../common/BottomSheet';
 
@@ -495,8 +495,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tileLabel: {
-    fontFamily: BODY_FONT,
-    fontSize: 14,
+    ...chatType.chatSecondary,
   },
   group: {
     borderRadius: borderRadius.large,
@@ -524,8 +523,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
   },
   rowValue: {
-    fontFamily: BODY_FONT,
-    fontSize: 14,
+    ...chatType.chatSecondary,
     marginTop: 1,
   },
   trailingSpacer: {
