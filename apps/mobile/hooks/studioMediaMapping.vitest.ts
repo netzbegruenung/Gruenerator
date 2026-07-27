@@ -3,7 +3,7 @@ import { type Project } from '@gruenerator/shared';
 import { type Share } from '@gruenerator/shared/share';
 import { describe, expect, it } from 'vitest';
 
-import { isKiImage, toKiImageItems, toReelItems, toSharepicItems } from './studioMediaMapping';
+import { toKiImageItems, toReelItems, toSharepicItems } from './studioMediaMapping';
 
 /**
  * The Studio tab reads three endpoints and folds them into one item shape. Three
@@ -55,25 +55,56 @@ const project = (over: Partial<Project> & Pick<Project, 'id'>): Project => ({
   ...over,
 });
 
-describe('isKiImage', () => {
-  it('recognises the canonical KI ids', () => {
-    for (const type of ['green-edit', 'universal-edit', 'pure-create', 'ai-editor']) {
-      expect(isKiImage(type)).toBe(true);
-    }
+describe('the split between the two image sections', () => {
+  // The classification itself is tested in `@gruenerator/shared`. What matters
+  // here is that both mappers ask the same question and split the same list
+  // without dropping or duplicating a row.
+
+  it('sorts by contentOrigin when the backend sent one', () => {
+    const shares = [
+      share({ shareToken: 'ki', contentOrigin: 'ki' }),
+      share({ shareToken: 'pic', contentOrigin: 'sharepic' }),
+    ];
+
+    expect(toKiImageItems(shares).map((i) => i.id)).toEqual(['ki']);
+    expect(toSharepicItems(shares, []).map((i) => i.id)).toEqual(['pic']);
   });
 
-  it('recognises the two legacy aliases still sitting in old rows', () => {
-    expect(isKiImage('imagine')).toBe(true);
-    expect(isKiImage('edit')).toBe(true);
+  it('lets contentOrigin overrule the image_type that was wrong to begin with', () => {
+    // Mobile's share modal used to file every link as 'sharepic', KI results
+    // included. A row the server has since labelled must not be re-guessed.
+    const shares = [share({ shareToken: 'ki', contentOrigin: 'ki', imageType: 'sharepic' })];
+
+    expect(toKiImageItems(shares).map((i) => i.id)).toEqual(['ki']);
+    expect(toSharepicItems(shares, [])).toHaveLength(0);
   });
 
-  it('treats template types and unknown values as sharepics', () => {
-    // Web's classifier defaults the same way, so an id neither side knows shows
-    // up in the wrong section rather than vanishing from the page.
-    expect(isKiImage('dreizeilen')).toBe(false);
-    expect(isKiImage('zitat-at')).toBe(false);
-    expect(isKiImage('was-auch-immer')).toBe(false);
-    expect(isKiImage(undefined)).toBe(false);
+  it('falls back to image_type against a backend without the column', () => {
+    const shares = [
+      share({ shareToken: 'ki', imageType: 'pure-create' }),
+      share({ shareToken: 'pic', imageType: 'dreizeilen' }),
+      share({ shareToken: 'weiss-nicht' }),
+    ];
+
+    expect(toKiImageItems(shares).map((i) => i.id)).toEqual(['ki']);
+    // An unclassifiable row shows up among the sharepics rather than vanishing.
+    expect(
+      toSharepicItems(shares, [])
+        .map((i) => i.id)
+        .sort()
+    ).toEqual(['pic', 'weiss-nicht']);
+  });
+
+  it('puts every share in exactly one of the two sections', () => {
+    const shares = [
+      share({ shareToken: 'a', contentOrigin: 'ki' }),
+      share({ shareToken: 'b', imageType: 'imagine' }),
+      share({ shareToken: 'c', imageType: 'zitat-at' }),
+      share({ shareToken: 'd', contentOrigin: 'unknown' }),
+    ];
+
+    const ids = [...toKiImageItems(shares), ...toSharepicItems(shares, [])].map((i) => i.id);
+    expect(ids.sort()).toEqual(['a', 'b', 'c', 'd']);
   });
 });
 
