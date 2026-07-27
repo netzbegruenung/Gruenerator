@@ -1,31 +1,9 @@
 import { type CanvasListItem } from '@gruenerator/contracts';
 import { type Project } from '@gruenerator/shared';
+import { isKiImage } from '@gruenerator/shared/media-library/contentOrigin';
 import { type Share } from '@gruenerator/shared/share';
 
 import { type RecentItem } from './useRecentActivity';
-
-/**
- * KI image types, mirrored from web's `IMAGE_STUDIO_TYPES` KI block plus the two
- * legacy `image_type` values the Bilder tab wrote before it emitted canonical
- * ids. Web classifies through its whole `typeConfig` registry, which lives in
- * `apps/web` and cannot be imported here — but only the KI side of that registry
- * decides this split, and it is four ids long.
- *
- * Unknown values count as sharepics, exactly as web's `isKiImage` defaults. A new
- * KI type missing here lands in the wrong section; it never disappears.
- */
-const KI_IMAGE_TYPES = new Set([
-  'green-edit',
-  'universal-edit',
-  'pure-create',
-  'ai-editor',
-  'imagine',
-  'edit',
-]);
-
-export function isKiImage(imageType?: string): boolean {
-  return imageType != null && KI_IMAGE_TYPES.has(imageType);
-}
 
 function shareToItem(share: Share): RecentItem {
   return {
@@ -56,7 +34,7 @@ function byDateDesc(a: RecentItem, b: RecentItem): number {
  * no linking key between them.
  */
 export function toSharepicItems(shares: Share[], canvases: CanvasListItem[]): RecentItem[] {
-  const shareItems = shares.filter((share) => !isKiImage(share.imageType)).map(shareToItem);
+  const shareItems = shares.filter((share) => !isKiImage(share)).map(shareToItem);
   const canvasItems = canvases.map((canvas): RecentItem => ({
     id: canvas.id,
     title: canvas.title || 'Neuer Canvas',
@@ -72,7 +50,7 @@ export function toSharepicItems(shares: Share[], canvases: CanvasListItem[]): Re
 
 export function toKiImageItems(shares: Share[]): RecentItem[] {
   return shares
-    .filter((share) => isKiImage(share.imageType))
+    .filter((share) => isKiImage(share))
     .map(shareToItem)
     .sort(byDateDesc);
 }
