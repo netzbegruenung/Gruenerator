@@ -22,6 +22,10 @@ import {
   buildCitations,
 } from '../../../agents/langgraph/ChatGraph/index.js';
 import { partitionSearchErrors } from '../../../agents/langgraph/ChatGraph/types.js';
+import {
+  buildAiTelemetry,
+  withLangfuseTrace,
+} from '../../../services/telemetry/langfuseTelemetry.js';
 import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../../utils/logger.js';
 import { getContextWindow } from '../agents/providers.js';
@@ -510,21 +514,41 @@ export async function runChatGraphResume({
     const messagesForAI = buildMessagesForAI(systemMessage, prunedValidMessages);
 
     let fullText: string | null;
+    let resumeTraceId: string | undefined;
+    const resumeTelemetry = buildAiTelemetry('chat-graph.resume', {
+      ...(requestContext.userId && { userId: requestContext.userId }),
+      ...(requestContext.actualThreadId && { sessionId: requestContext.actualThreadId }),
+    });
     try {
-      fullText = await streamWithFallback({
-        primary: resolution2,
-        sse,
-        logPrefix: '[ChatGraph:Resume]',
-        buildStream: async (r) =>
-          // No output cap (OpenWebUI-style) — see chatGraphContractRouter.
-          streamForResolution({
-            resolution: r,
-            messages: messagesForAI,
-            temperature: finalState.agentConfig.params.temperature,
+      // One trace per resumed turn — propagateAttributes sets trace-level
+      // user/session (plain metadata keys aren't hoisted by Langfuse) and the
+      // traceId feeds the feedback button.
+      fullText = await withLangfuseTrace(
+        {
+          name: 'chat-turn',
+          ...(requestContext.userId && { userId: requestContext.userId }),
+          ...(requestContext.actualThreadId && { sessionId: requestContext.actualThreadId }),
+          metadata: { requestId: resumeRequestId, intent: finalState.intent },
+        },
+        async (traceId) => {
+          resumeTraceId = traceId;
+          return streamWithFallback({
+            primary: resolution2,
             sse,
             logPrefix: '[ChatGraph:Resume]',
-          }),
-      });
+            buildStream: async (r) =>
+              // No output cap (OpenWebUI-style) — see chatGraphContractRouter.
+              streamForResolution({
+                resolution: r,
+                messages: messagesForAI,
+                temperature: finalState.agentConfig.params.temperature,
+                sse,
+                logPrefix: '[ChatGraph:Resume]',
+                ...(resumeTelemetry && { telemetry: resumeTelemetry }),
+              }),
+          });
+        }
+      );
     } finally {
       if (resolution2.releaseSlot) await resolution2.releaseSlot();
     }
@@ -545,6 +569,7 @@ export async function runChatGraphResume({
       classifiedState,
       userId: requestContext.userId,
       processedMeta: requestContext.processedMeta,
+      ...(resumeTraceId != null && { traceId: resumeTraceId }),
       pendingMessageId: pendingId,
     });
     if (!persistOutcome.ok) sendChatWarning(sse, 'persist_failed');
@@ -561,6 +586,7 @@ export async function runChatGraphResume({
           classificationTimeMs: classifiedState.classificationTimeMs,
         }),
         ...(finalState.searchTimeMs != null && { searchTimeMs: finalState.searchTimeMs }),
+        ...(resumeTraceId != null && { traceId: resumeTraceId }),
       },
     });
 
