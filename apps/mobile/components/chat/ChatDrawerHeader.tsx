@@ -13,12 +13,15 @@ interface Props {
   onOpenDrawer: () => void;
   onNewChat?: () => void;
   theme?: Theme;
+  /** Let a screen-level background through instead of painting the theme's. */
+  transparent?: boolean;
 }
 
 export const ChatDrawerHeader = memo(function ChatDrawerHeader({
   onOpenDrawer,
   onNewChat,
   theme: themeProp,
+  transparent,
 }: Props) {
   const resolvedTheme = useTheme();
   const theme = themeProp ?? resolvedTheme;
@@ -26,7 +29,12 @@ export const ChatDrawerHeader = memo(function ChatDrawerHeader({
   const isRunning = useAuiState((s) => s.thread.isRunning);
 
   return (
-    <View style={[styles.header, { paddingTop: insets.top, backgroundColor: theme.background }]}>
+    <View
+      style={[
+        styles.header,
+        { paddingTop: insets.top, backgroundColor: transparent ? 'transparent' : theme.background },
+      ]}
+    >
       <Pressable
         onPress={onOpenDrawer}
         style={styles.menuButton}

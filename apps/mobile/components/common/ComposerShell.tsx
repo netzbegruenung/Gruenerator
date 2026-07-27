@@ -1,4 +1,4 @@
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, useColorScheme } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
 import { colors, spacing, borderRadius } from '../../theme';
@@ -62,6 +62,10 @@ export function ComposerShell({
   const resolvedTheme = useTheme();
   const theme = themeProp ?? resolvedTheme;
   const isBar = variant === 'bar';
+  // The composer is the plate, not another shade of the page: white on light,
+  // the card tone on dark. Both surfaces it sits on (chat vanilla, notebook
+  // magenta) are tinted, so `theme.surface` washed into them.
+  const fill = useColorScheme() === 'dark' ? theme.card : colors.white;
 
   return (
     <View style={style}>
@@ -69,19 +73,14 @@ export function ComposerShell({
       {isBar ? (
         // No border and no shadow: the bar sits on the sunrise gradient, and the
         // surface fill alone carries enough contrast to read as a distinct surface.
-        <View style={[styles.bar, { backgroundColor: theme.surface }]}>
+        <View style={[styles.bar, { backgroundColor: fill }]}>
           {leading}
           {toolbarExtra}
           {input}
           {action}
         </View>
       ) : (
-        <View
-          style={[
-            styles.card,
-            { backgroundColor: theme.surface, borderColor: theme.border, minHeight },
-          ]}
-        >
+        <View style={[styles.card, { backgroundColor: fill, minHeight }]}>
           {input}
           <View style={styles.toolbar}>
             {leading}
@@ -195,17 +194,12 @@ const styles = StyleSheet.create({
   // Elevation is what separates the card from what sits behind it — the landing
   // hero's page background, the chat thread's message list. The in-thread
   // composer had none before this shell and now picks it up.
+  // No border, no shadow — the fill alone separates it from the page.
   card: {
     borderRadius: borderRadius.xlarge,
-    borderWidth: 1,
     paddingHorizontal: spacing.medium,
     paddingTop: spacing.small,
     paddingBottom: spacing.xsmall,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
   },
   toolbar: {
     flexDirection: 'row',

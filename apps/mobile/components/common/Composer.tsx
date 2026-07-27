@@ -24,6 +24,7 @@ import {
   type PickedDocument,
 } from '../../services/documentPicker';
 import { colors, spacing } from '../../theme';
+import { SCREEN_EDGE } from '../../theme/layout';
 import { ComposerAttachmentUI } from '../chat/AttachmentUI';
 import { ComposerActionSheet } from '../chat/ComposerActionSheet';
 import { MentionSuggestions } from '../chat/MentionSuggestions';
@@ -583,7 +584,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xsmall,
   },
   edge: {
-    paddingHorizontal: spacing.medium,
+    paddingHorizontal: SCREEN_EDGE,
     paddingTop: spacing.xsmall,
   },
 });

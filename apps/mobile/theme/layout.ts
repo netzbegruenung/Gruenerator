@@ -22,3 +22,10 @@ export const TAB_BAR_CAPSULE_GAP = 8;
  * already part of `insets.bottom`.
  */
 export const FLOATING_TAB_BAR_HEIGHT = TAB_BAR_CAPSULE_HEIGHT + TAB_BAR_CAPSULE_GAP;
+
+/**
+ * Horizontal screen margin for edge-pinned content — composers, hero greetings,
+ * the tab landings. One number so a headline and the composer below it share an
+ * optical edge; 16 (spacing.medium) read tight under a 28pt greeting.
+ */
+export const SCREEN_EDGE = 20;
