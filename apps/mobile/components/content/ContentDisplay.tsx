@@ -24,7 +24,15 @@ import Markdown from 'react-native-markdown-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { secureStorage } from '../../services/storage';
-import { colors, typography, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+import {
+  colors,
+  typography,
+  spacing,
+  borderRadius,
+  lightTheme,
+  darkTheme,
+  BODY_FONT,
+} from '../../theme';
 import { routeWithParams } from '../../types/routes';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
@@ -132,23 +140,27 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
   const markdownStyles = StyleSheet.create({
     body: {
       color: theme.text,
+      fontFamily: BODY_FONT,
       fontSize: 16,
       lineHeight: 24,
     },
     heading1: {
       color: theme.text,
+      fontFamily: BODY_FONT,
       fontSize: 24,
       fontWeight: '700',
       marginBottom: spacing.small,
     },
     heading2: {
       color: theme.text,
+      fontFamily: BODY_FONT,
       fontSize: 20,
       fontWeight: '600',
       marginBottom: spacing.xsmall,
     },
     heading3: {
       color: theme.text,
+      fontFamily: BODY_FONT,
       fontSize: 18,
       fontWeight: '600',
       marginBottom: spacing.xsmall,
@@ -439,6 +451,7 @@ const styles = StyleSheet.create({
     marginVertical: spacing.xxsmall,
   },
   menuItemText: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
   },
   menuDivider: {

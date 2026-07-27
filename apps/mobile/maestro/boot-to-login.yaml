@@ -1,0 +1,51 @@
+# Cold boot → onboarding → login, on a plain release APK.
+#
+# This is the one flow that needs no auth, so it is the one EAS can run against
+# the `e2e-test` build profile. It is not a trivial smoke test: it covers splash
+# dismissal (gated on fonts AND the rehydrated onboarding flag — `app/_layout.tsx`
+# returns null until both settle, so a regression there hangs on a blank screen),
+# PagerView mount, the onboarding→login redirect, and safe-area layout on two
+# screens.
+appId: de.gruenerator.app
+---
+- launchApp:
+    clearState: true
+    stopApp: true
+
+# Splash must actually hand over. A blank screen here means fontsLoaded /
+# hasHydratedOnboarding never resolved.
+- extendedWaitUntil:
+    visible: 'Willkommen in der Grünerator App'
+    timeout: 30000
+
+- tapOn:
+    id: 'onboarding-skip'
+
+# Skipping persists the onboarding flag, so the root layout redirects to login.
+- extendedWaitUntil:
+    visible:
+      id: 'login-open'
+    timeout: 10000
+- assertVisible: 'KI, die die Welt nicht brennen sehen will.'
+
+- tapOn:
+    id: 'login-open'
+- assertVisible:
+    id: 'login-source-detected'
+- assertVisible:
+    id: 'login-source-other'
+- assertVisible:
+    id: 'login-source-netzbegruenung'
+
+- tapOn: 'Zurück'
+- assertVisible:
+    id: 'login-open'
+
+# Onboarding is done for good — a relaunch goes straight to login.
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible:
+      id: 'login-open'
+    timeout: 30000
+- assertNotVisible: 'Willkommen in der Grünerator App'

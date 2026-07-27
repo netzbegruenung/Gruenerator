@@ -36,6 +36,7 @@ import canvasChatEditRouter from './routes/canvas/canvasChatEditController.js';
 import { mountCanvasContractRouter } from './routes/canvas/canvasContractRouter.js';
 import { mountChatGraphContractRouter } from './routes/chat/chatGraphContractRouter.js';
 import { mountThreadsContractRouter } from './routes/chat/threadsContractRouter.js';
+import { mountContentContractRouter } from './routes/content/contentContractRouter.js';
 import { mountDocsContractRouter } from './routes/docs/docsContractRouter.js';
 import { mountDocumentsContractRouter } from './routes/documents/documentsContractRouter.js';
 import { mountEmailContractRouter } from './routes/email/emailContractRouter.js';
@@ -83,7 +84,7 @@ import {
   searchController as searchRouter,
   webSearchController as webSearchRouter,
 } from './routes/search/index.js';
-import searchGraphRouter from './routes/search/searchGraphController.js';
+import { mountSearchGraphContractRouter } from './routes/search/searchGraphContractRouter.js';
 import { mountShareContractRouter } from './routes/share/shareContractRouter.js';
 import shareFileRouter from './routes/share/shareFileRouter.js';
 import { mountShareReadContractRouter } from './routes/share/shareReadContractRouter.js';
@@ -776,6 +777,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/recent-activity', requireAuth);
   mountRecentActivityContractRouter(app);
   app.use('/api/recent-activity', publicReadLimiter, recentActivityRouter);
+  // ts-rest contract router for /api/content — the typed read surface over the
+  // user's own content, filterable by kind before the limit and paginated by
+  // cursor. Additive: /api/recent-activity, /api/share/* and /api/media/* stay.
+  app.use('/api/content', requireAuth, publicReadLimiter);
+  mountContentContractRouter(app);
   // ts-rest contract router for notifications — mounts BEFORE the legacy router
   // so contract-modeled routes match first; /stream SSE falls through to legacy.
   // requireAuth applied at prefix; notification-preferences also handled here.
@@ -861,7 +867,12 @@ export async function setupRoutes(app: Application): Promise<void> {
   // createExpressEndpoints registers handlers directly on the app.
   app.use('/api/global-search', requireAuth, authenticatedReadLimiter);
   mountGlobalSearchContractRouter(app);
-  app.use('/api/search-graph', requireAuth, standardMutationLimiter, searchGraphRouter);
+  // Auth + rate-limiting run on the prefix because createExpressEndpoints
+  // registers the contract handlers directly on `app`, bypassing any middleware
+  // passed to app.use() alongside a router.
+  app.use('/api/search-graph', requireAuth);
+  app.use('/api/search-graph', standardMutationLimiter);
+  mountSearchGraphContractRouter(app);
   // ts-rest contract router — mount before legacy imagePickerRoute
   mountImagePickerContractRouter(app);
   app.use('/api/image-picker', publicReadLimiter, imagePickerRoute);

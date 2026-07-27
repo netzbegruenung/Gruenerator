@@ -51,7 +51,7 @@ export type { UsageStat, UsageMap } from './usageRanking.js';
 export { mcpBrandColor } from './mcpBrand.js';
 
 // Time-of-day + locale-aware greeting (web Workplace + mobile Chat home)
-export { getGreeting, isPrideMonth } from './greeting.js';
+export { getGreeting, isPrideMonth, type GreetingOptions } from './greeting.js';
 
 // Natural-language notebook/research query parser (region/date/topic)
 export { parseNotebookQuery } from './notebookQuery.js';
