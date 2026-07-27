@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { View, StyleSheet, useColorScheme } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 
+import { ViewModeToggle, type ViewMode } from '../../../components/common/ViewModeToggle';
 import { DocumentsView } from '../../../components/docs/DocumentsView';
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
 import { useOfficeExtraItems } from '../../../components/office/useOfficeExtraItems';
@@ -26,12 +28,19 @@ export default function ArbeitenScreen() {
   );
 
   const swipe = useTabNavigationSwipe('/(tabs)/(arbeiten)');
+  // Lifted out of DocumentsView: the switch now sits in the header bar, which the
+  // scaffold renders, so the screen has to be the one that holds the state.
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
   return (
-    <ScreenScaffold title="Arbeiten" backdrop={backdrop}>
+    <ScreenScaffold
+      title="Arbeiten"
+      backdrop={backdrop}
+      headerRight={<ViewModeToggle mode={viewMode} onChange={setViewMode} />}
+    >
       <GestureDetector gesture={swipe}>
         <View style={styles.flex}>
-          <DocumentsView extraItems={items} />
+          <DocumentsView extraItems={items} viewMode={viewMode} />
         </View>
       </GestureDetector>
     </ScreenScaffold>

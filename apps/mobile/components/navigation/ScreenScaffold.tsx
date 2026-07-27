@@ -1,7 +1,7 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { BlurTargetView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { type ReactNode } from 'react';
+import { type ReactElement, type ReactNode } from 'react';
 import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -20,33 +20,36 @@ import { useRegisterTabBarBlurTarget } from './TabBarBlurTarget';
  * the web workplace's per-tab tints: Chat sunrise, Wissen pink, Arbeiten flat). It renders
  * above the default app gradient but below the header + content.
  *
- * `action` puts one screen-specific control left of the profile menu (the chat's
- * "new conversation"), so a screen never needs a header of its own.
+ * `headerRight` is the trailing slot, and it holds exactly ONE control. It
+ * defaults to the profile menu; a screen that has something more useful to put
+ * there replaces it (Arbeiten and Studio: the grid/list switch). It used to be
+ * two props — a free `action` slot AND a `showProfile` flag — which let a screen
+ * put two controls side by side and squeeze the title between them. One slot
+ * makes that impossible rather than merely discouraged. `ReactElement` rather
+ * than `ReactNode` for the same reason: an array does not typecheck.
+ *
+ * Pass `headerRight={null}` to give the title the whole bar. The chat does: agent
+ * names run to 45 characters ("Bürger*innenanfragen (Mecklenburg-Vorpommern)"),
+ * and naming the agent matters more there than a control that is one tap away
+ * through the drawer anyway.
  *
  * `onBack` swaps the drawer button for a back arrow. That is what the pushed
  * screens (Agentura, Projekte) use: same chrome as the tabs, but the leading
  * control has to lead somewhere — a hamburger on a screen you arrived at by
  * pushing offers the wrong way out.
- *
- * `showProfile={false}` gives the title the whole bar. The chat uses it: agent
- * names run to 45 characters ("Bürger*innenanfragen (Mecklenburg-Vorpommern)"),
- * and naming the agent matters more there than two controls that are one tap
- * away through the drawer anyway.
  */
 export function ScreenScaffold({
   title,
   children,
   backdrop,
-  action,
   onBack,
-  showProfile = true,
+  headerRight = <ProfileMenu />,
 }: {
   title: string;
   children: ReactNode;
   backdrop?: ReactNode;
-  action?: ReactNode;
   onBack?: () => void;
-  showProfile?: boolean;
+  headerRight?: ReactElement | null;
 }) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
@@ -89,10 +92,7 @@ export function ScreenScaffold({
           <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
             {title}
           </Text>
-          <View style={[styles.headerSide, styles.headerSideRight]}>
-            {action}
-            {showProfile ? <ProfileMenu /> : null}
-          </View>
+          <View style={[styles.headerSide, styles.headerSideRight]}>{headerRight}</View>
         </View>
         {children}
       </SafeAreaView>

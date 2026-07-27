@@ -9,6 +9,7 @@ import { BottomSheet } from '../../../components/common/BottomSheet';
 import { Fab } from '../../../components/common/Fab';
 import { RecentItemsSection } from '../../../components/common/RecentItemsSection';
 import { StudioGradientBackground } from '../../../components/common/StudioGradientBackground';
+import { ViewModeToggle, type ViewMode } from '../../../components/common/ViewModeToggle';
 import { MenuIcon } from '../../../components/icons/WebMirrorIcons';
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
 import { STUDIO_TOOLS } from '../../../components/tools/toolsConfig';
@@ -45,9 +46,14 @@ export default function StudioScreen() {
   );
 
   const swipe = useTabNavigationSwipe('/(tabs)/(studio)');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
   return (
-    <ScreenScaffold title="Studio" backdrop={<StudioGradientBackground />}>
+    <ScreenScaffold
+      title="Studio"
+      backdrop={<StudioGradientBackground />}
+      headerRight={<ViewModeToggle mode={viewMode} onChange={setViewMode} />}
+    >
       <GestureDetector gesture={swipe}>
         <ScrollView
           contentContainerStyle={[
@@ -64,6 +70,7 @@ export default function StudioScreen() {
             isLoading={isLoading}
             accent={getToolTheme('reel', isDark).icon}
             style={styles.section}
+            viewMode={viewMode}
             onOpen={openItem}
           />
           <RecentItemsSection
@@ -72,6 +79,7 @@ export default function StudioScreen() {
             isLoading={isLoading}
             accent={getToolTheme('ki-bildgenerierung', isDark).icon}
             style={styles.section}
+            viewMode={viewMode}
             onOpen={openItem}
           />
         </ScrollView>
