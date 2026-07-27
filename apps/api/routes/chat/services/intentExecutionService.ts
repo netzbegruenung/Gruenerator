@@ -66,7 +66,7 @@ import {
   sendChatWarning,
   sendSearchDegradedWarning,
 } from './sseHelpers.js';
-import { createMessage, touchThread } from './threadPersistenceService.js';
+import { createMessage, getKeptResearchForRetry, touchThread } from './threadPersistenceService.js';
 
 import type { SSEEmitter, SSEWriter, SearchResultPayload } from './sseHelpers.js';
 import type {
@@ -1048,8 +1048,35 @@ export async function executeIntentPipeline(opts: {
       const toolEnabled = forcedTool || enabledTools?.[currentIntent] !== false;
       if (toolEnabled) {
         let searchInputState = finalState;
+
+        // A retry of a research turn whose GENERATION failed: the sources are
+        // already on the thread. Re-running Linkup costs ~17s and a paid call
+        // to answer the identical question a second time (observed live, 36s
+        // after the sources had been persisted). Checked before the brief
+        // generator so the whole retrieval half is skipped, not just the search.
+        const reused =
+          currentIntent === 'research' && finalState.threadId
+            ? await getKeptResearchForRetry(
+                finalState.threadId,
+                finalState.searchQuery ?? ''
+              ).catch(() => null)
+            : null;
+        if (reused) {
+          log.info(
+            `[Research] Reusing ${reused.searchResults.length} source(s) kept from the failed attempt — skipping the repeat Linkup run`
+          );
+          searchInputState = {
+            ...finalState,
+            searchResults: reused.searchResults,
+            citations: buildCitations(reused.searchResults),
+            ...(reused.researchMeta && { researchMeta: reused.researchMeta }),
+          } as ChatGraphState;
+        }
+
         const willGenerateBrief =
-          ['complex', 'moderate'].includes(finalState.complexity) && currentIntent === 'research';
+          !reused &&
+          ['complex', 'moderate'].includes(finalState.complexity) &&
+          currentIntent === 'research';
         const briefStepId = willGenerateBrief ? `brief_${Date.now()}` : null;
         if (willGenerateBrief && briefStepId) {
           // brief generator is a silent LLM call (~1–3s); ping so the UI doesn't
@@ -1077,14 +1104,16 @@ export async function executeIntentPipeline(opts: {
         }
 
         const isDeepResearch = currentIntent === 'research';
-        sse.send('search_start', {
-          message: isDeepResearch
-            ? 'Tiefgehende Recherche läuft (mehrere Quellen, dauert ca. 15–20s)…'
-            : PROGRESS_MESSAGES.searchStart,
-          ...(finalState.subQueries?.length && { subQueries: finalState.subQueries }),
-        });
+        if (!reused) {
+          sse.send('search_start', {
+            message: isDeepResearch
+              ? 'Tiefgehende Recherche läuft (mehrere Quellen, dauert ca. 15–20s)…'
+              : PROGRESS_MESSAGES.searchStart,
+            ...(finalState.subQueries?.length && { subQueries: finalState.subQueries }),
+          });
+        }
 
-        if (isDeepResearch) {
+        if (isDeepResearch && !reused) {
           searchInputState = {
             ...searchInputState,
             onResearchProgress: (message: string) => {
@@ -1092,7 +1121,9 @@ export async function executeIntentPipeline(opts: {
             },
           } as ChatGraphState;
         }
-        const searchResult = await searchNode(searchInputState);
+        // Reused sources ARE the search result — running the node would issue the
+        // very Linkup call this branch exists to avoid.
+        const searchResult = reused ? {} : await searchNode(searchInputState);
         finalState = { ...searchInputState, ...searchResult } as ChatGraphState;
 
         if (finalState.searchResults?.length > 2) {
