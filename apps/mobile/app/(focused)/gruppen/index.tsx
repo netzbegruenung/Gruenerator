@@ -16,7 +16,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useUserGroups, type GroupSummary } from '../../../hooks/useGroups';
-import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../../theme';
+import {
+  colors,
+  spacing,
+  typography,
+  borderRadius,
+  lightTheme,
+  darkTheme,
+  BODY_FONT,
+} from '../../../theme';
 
 export default function GruppenScreen() {
   const colorScheme = useColorScheme();
@@ -244,7 +252,7 @@ const styles = StyleSheet.create({
   groupInfo: { flex: 1, gap: 2 },
   groupName: { ...typography.bodyBold },
   groupMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  groupMetaText: { fontSize: 12 },
-  groupMetaDot: { fontSize: 12 },
+  groupMetaText: { fontFamily: BODY_FONT, fontSize: 12 },
+  groupMetaDot: { fontFamily: BODY_FONT, fontSize: 12 },
   groupDescription: { ...typography.bodySmall, paddingLeft: 44 + spacing.medium },
 });

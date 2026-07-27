@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MobileDocsChatProvider } from '../../providers/MobileDocsChatProvider';
 import { useDocsEditorBridgeStore } from '../../stores/docsEditorBridgeStore';
-import { lightTheme, darkTheme, colors } from '../../theme';
+import { lightTheme, darkTheme, colors, BODY_FONT } from '../../theme';
 import { AssistantThread, type ThreadWelcome } from '../chat/AssistantThread';
 
 export function NativeChatSidebar({ documentId }: { documentId: string }) {
@@ -95,6 +95,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   headerTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '700',
     flexShrink: 1,

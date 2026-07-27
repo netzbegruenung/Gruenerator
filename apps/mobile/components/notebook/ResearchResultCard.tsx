@@ -2,7 +2,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { memo } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 
-import { colors, spacing, typography, borderRadius } from '../../theme';
+import { colors, spacing, typography, borderRadius, BODY_FONT } from '../../theme';
 
 import type { ResearchResult } from '../../hooks/notebook/useNotebookResearch';
 import type { Theme } from '../../theme/colors';
@@ -108,6 +108,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.small,
   },
   scoreText: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -125,6 +126,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.small,
   },
   badgeText: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     fontWeight: '500',
   },

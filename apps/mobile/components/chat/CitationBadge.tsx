@@ -1,6 +1,6 @@
 import { Pressable, Text, StyleSheet } from 'react-native';
 
-import { colors } from '../../theme';
+import { colors, BODY_FONT } from '../../theme';
 
 /**
  * Inline citation badge — the native counterpart of web's circular superscript
@@ -47,6 +47,7 @@ const styles = StyleSheet.create({
   },
   label: {
     color: colors.white,
+    fontFamily: BODY_FONT,
     fontSize: 11,
     fontWeight: '700',
     lineHeight: 14,

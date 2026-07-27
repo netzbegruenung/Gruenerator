@@ -16,6 +16,7 @@ import {
   moderateScale,
   verticalScale,
   scale,
+  BODY_FONT,
 } from '../../theme';
 
 import type { SubtitleSegment } from '@gruenerator/shared/subtitle-editor';
@@ -149,6 +150,7 @@ const styles = StyleSheet.create({
     gap: scale(4),
   },
   time: {
+    fontFamily: BODY_FONT,
     fontSize: moderateScale(11),
     fontWeight: '500',
     fontVariant: ['tabular-nums'],
@@ -161,11 +163,13 @@ const styles = StyleSheet.create({
   },
   text: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: moderateScale(14),
     lineHeight: moderateScale(19),
   },
   input: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: moderateScale(14),
     lineHeight: moderateScale(19),
     padding: scale(8),

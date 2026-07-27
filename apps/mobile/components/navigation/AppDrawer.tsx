@@ -1,6 +1,6 @@
 import { AssistantRuntimeProvider } from '@assistant-ui/react-native';
-import { type ReactNode } from 'react';
-import { useColorScheme, useWindowDimensions } from 'react-native';
+import { useEffect, type ReactNode } from 'react';
+import { BackHandler, useColorScheme, useWindowDimensions } from 'react-native';
 import { Drawer } from 'react-native-drawer-layout';
 
 import { useChatDrawerRuntime } from '../../hooks/useChatDrawerRuntime';
@@ -20,6 +20,19 @@ export function AppDrawer({ children }: { children: ReactNode }) {
   const open = useDrawerStore((s) => s.open);
   const openDrawer = useDrawerStore((s) => s.openDrawer);
   const closeDrawer = useDrawerStore((s) => s.closeDrawer);
+
+  // react-native-drawer-layout installs no back handler of its own (react-navigation's
+  // drawer does). Without this, Android's back button navigated the stack *behind* an
+  // open drawer instead of closing it — and if the overlay is ever unreachable, that
+  // leaves no way out at all.
+  useEffect(() => {
+    if (!open) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      closeDrawer();
+      return true;
+    });
+    return () => sub.remove();
+  }, [open, closeDrawer]);
 
   // Swipe only ever CLOSES the drawer here. Opening is the screens' job (see
   // `useTabSwipe` in start.tsx), because this drawer's own pan handler claims

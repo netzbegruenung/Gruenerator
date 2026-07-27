@@ -1,15 +1,16 @@
-import { ThreadPrimitive, useAui } from '@assistant-ui/react-native';
-import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
-import { memo, useCallback, useRef, useState } from 'react';
+import { ThreadPrimitive } from '@assistant-ui/react-native';
+import { useAuth } from '@gruenerator/shared/hooks';
+import { getGreeting } from '@gruenerator/shared/utils';
+import { memo, useRef } from 'react';
 import { View, Text, type TextInput, StyleSheet } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../hooks/useTheme';
 import { spacing } from '../../theme';
+import { SCREEN_EDGE } from '../../theme/layout';
 import { Composer, composerEdgeStyle, type ComposerAccessory } from '../common/Composer';
 
-import { DocumentBrowserSheet } from './DocumentBrowserSheet';
 import { MessageBubble } from './MessageBubble';
 
 import type { Theme } from '../../theme/colors';
@@ -23,8 +24,6 @@ import type { Theme } from '../../theme/colors';
 export interface ThreadWelcome {
   title: string;
   subtitle?: string;
-  /** Icon shown above the greeting — e.g. the notebook's own icon. */
-  icon?: IoniconsIconName;
   suggestions: readonly string[];
 }
 
@@ -53,16 +52,19 @@ const EmptyState = memo(function EmptyState({
   theme: Theme;
   welcome?: ThreadWelcome;
 }) {
-  // One calm, centered greeting — no suggestion chips. The notebook passes its own
-  // icon; the main chat falls back to the brand spark.
-  const icon: IoniconsIconName = welcome?.icon ?? 'sparkles';
-  const title = welcome?.title ?? 'Was möchtest du wissen?';
-  const subtitle = welcome?.subtitle;
+  const { user, locale } = useAuth();
+  const firstName = user?.display_name?.split(' ')[0] ?? null;
+
+  // The same greeting the Chat tab opens with, set the same way — left-aligned,
+  // no icon plate. An empty thread and the tab are the same moment; they used to
+  // look like two different products.
+  const greeting = welcome?.title ?? getGreeting(locale ?? 'de-DE', firstName);
+  const subtitle =
+    welcome?.subtitle ?? (greeting.includes('?') ? null : 'wie kann ich dir helfen?');
 
   return (
     <View style={styles.emptyContainer} pointerEvents="none">
-      <Ionicons name={icon} size={48} color={theme.textGreen} />
-      <Text style={[styles.emptyTitle, { color: theme.text }]}>{title}</Text>
+      <Text style={[styles.emptyTitle, { color: theme.text }]}>{greeting}</Text>
       {subtitle ? (
         <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>{subtitle}</Text>
       ) : null}
@@ -93,24 +95,7 @@ export const AssistantThread = memo(function AssistantThread({
   const resolvedTheme = useTheme();
   const theme: Theme = themeProp ?? resolvedTheme;
   const insets = useSafeAreaInsets();
-  const aui = useAui();
   const composerInputRef = useRef<TextInput>(null);
-  const [docBrowserVisible, setDocBrowserVisible] = useState(false);
-
-  const handleOpenDocBrowser = useCallback(() => setDocBrowserVisible(true), []);
-
-  const handleDocumentSelect = useCallback(
-    (slug: string) => {
-      const mentionText = `@datei:${slug} `;
-      const currentText = aui.composer().getState().text;
-      const separator = currentText.length > 0 && !currentText.endsWith(' ') ? ' ' : '';
-      const newText = `${currentText}${separator}${mentionText}`;
-      aui.composer().setText(newText);
-      composerInputRef.current?.setNativeProps({ text: newText });
-      setDocBrowserVisible(false);
-    },
-    [aui]
-  );
 
   return (
     <KeyboardAvoidingView
@@ -146,15 +131,8 @@ export const AssistantThread = memo(function AssistantThread({
             },
           ]}
           testIDPrefix="chat-composer"
-          onOpenDocBrowser={handleOpenDocBrowser}
           inputRef={composerInputRef}
           accessory={composerAccessory}
-        />
-        <DocumentBrowserSheet
-          visible={docBrowserVisible}
-          theme={theme}
-          onSelect={handleDocumentSelect}
-          onDismiss={() => setDocBrowserVisible(false)}
         />
       </ThreadPrimitive.Root>
     </KeyboardAvoidingView>
@@ -172,18 +150,15 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xlarge,
-    gap: spacing.medium,
+    paddingHorizontal: SCREEN_EDGE,
   },
   emptyTitle: {
     fontFamily: 'Raleway_700Bold',
-    fontSize: 26,
-    textAlign: 'center',
+    fontSize: 28,
   },
   emptySubtitle: {
-    fontSize: 15,
-    textAlign: 'center',
-    lineHeight: 22,
+    fontFamily: 'Raleway_700Bold',
+    fontSize: 28,
+    marginTop: 2,
   },
 });

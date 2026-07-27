@@ -11,7 +11,15 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../theme';
+import {
+  colors,
+  spacing,
+  typography,
+  borderRadius,
+  lightTheme,
+  darkTheme,
+  BODY_FONT,
+} from '../../theme';
 
 /**
  * The notebook gallery card. One component for both system and user notebooks —
@@ -99,6 +107,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   cardMeta: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     marginTop: 1,
   },

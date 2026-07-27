@@ -17,16 +17,21 @@ import {
   validatePickedDocument,
   uploadDocumentToChat,
 } from '../../services/documentPicker';
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
 
 import type { Theme } from '../../theme/colors';
-import type { DocumentSearchResult, NotebookCollectionItem } from '@gruenerator/chat';
+import type {
+  DocumentMention,
+  DocumentSearchResult,
+  NotebookCollectionItem,
+} from '@gruenerator/chat';
 
 interface DocumentBrowserSheetProps {
   visible: boolean;
   theme: Theme;
-  onSelect: (slug: string) => void;
+  /** The whole reference, not a slug: the caller attaches it by its real id. */
+  onSelect: (doc: DocumentMention) => void;
   onDismiss: () => void;
 }
 
@@ -82,15 +87,18 @@ export function DocumentBrowserSheet({
       collectionName?: string
     ) => {
       const slug = documentToSlug(doc.title);
-      registerDocumentSlug(slug, {
+      const mention: DocumentMention = {
         documentId: doc.id,
         documentTitle: doc.title,
         collectionId: collectionId ?? '',
         collectionName: collectionName ?? '',
         slug,
-        sourceType: (doc.sourceType as 'notebook' | 'document' | 'text') ?? 'document',
-      });
-      onSelect(slug);
+        sourceType: (doc.sourceType as DocumentMention['sourceType']) ?? 'document',
+      };
+      // Still registered: the slug map backs mention previews and the re-parse of
+      // text that older clients persisted. It is no longer the transport.
+      registerDocumentSlug(slug, mention);
+      onSelect(mention);
     },
     [onSelect]
   );
@@ -417,6 +425,7 @@ const styles = StyleSheet.create({
     gap: spacing.xxsmall,
   },
   headerTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 17,
     fontWeight: '600',
     flex: 1,
@@ -433,6 +442,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 15,
     paddingVertical: spacing.xxsmall,
   },
@@ -441,6 +451,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sectionHeader: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -461,18 +472,22 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   rowTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '500',
   },
   rowSubtitle: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
   },
   badge: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
   },
   emptyText: {
     textAlign: 'center',
     paddingVertical: spacing.xlarge,
+    fontFamily: BODY_FONT,
     fontSize: 14,
   },
   emptyState: {
@@ -482,11 +497,13 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   emptyTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '600',
     marginTop: spacing.small,
   },
   emptySubtitle: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     textAlign: 'center',
     maxWidth: 260,
@@ -501,6 +518,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.small,
   },
   uploadButtonText: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '600',
     color: colors.white,
@@ -514,10 +532,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   uploadRowText: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '500',
   },
   loadingLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     marginTop: spacing.small,
   },
