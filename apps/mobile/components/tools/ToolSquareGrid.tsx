@@ -13,6 +13,7 @@ import { useIsTablet } from '../../hooks/useIsTablet';
 import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
 import { spacing, borderRadius, colors, BODY_FONT } from '../../theme';
 import { getToolTheme } from '../../theme/toolTheme';
+import { MenuIcon } from '../icons/WebMirrorIcons';
 
 import { type ToolDef } from './toolsConfig';
 
@@ -63,7 +64,7 @@ export function ToolSquareGrid({
                 },
               ]}
             >
-              <Ionicons name={tool.icon} size={28} color={tone.icon} />
+              <MenuIcon name={tool.icon} size={28} color={tone.icon} />
               <View style={styles.caption}>
                 <Text style={[styles.title, { color: tone.title }]} numberOfLines={2}>
                   {tool.title}

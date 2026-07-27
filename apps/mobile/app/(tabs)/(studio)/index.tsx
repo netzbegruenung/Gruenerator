@@ -8,6 +8,7 @@ import { BottomSheet } from '../../../components/common/BottomSheet';
 import { Fab } from '../../../components/common/Fab';
 import { RecentItemsSection } from '../../../components/common/RecentItemsSection';
 import { StudioGradientBackground } from '../../../components/common/StudioGradientBackground';
+import { MenuIcon } from '../../../components/icons/WebMirrorIcons';
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
 import { STUDIO_TOOLS } from '../../../components/tools/toolsConfig';
 import { useOpenRecentItem, useRecentActivity } from '../../../hooks/useRecentActivity';
@@ -98,7 +99,7 @@ export default function StudioScreen() {
               ]}
             >
               <View style={[styles.rowIcon, { backgroundColor: tone.tile }]}>
-                <Ionicons name={tool.icon} size={22} color={tone.icon} />
+                <MenuIcon name={tool.icon} size={22} color={tone.icon} />
               </View>
               <View style={styles.rowText}>
                 <Text style={[styles.rowTitle, { color: theme.text }]}>{tool.title}</Text>
