@@ -90,6 +90,30 @@ describe('wrapToolsForLoop', () => {
     expect(out.error).toMatch(/Zeitüberschreitung/);
   });
 
+  it('gives a named tool its own, longer budget', async () => {
+    // Deep research measured 16.5s live against the generic 20s cap — 3.5s of
+    // headroom, so under load the cap killed a legitimate call and the turn
+    // saw only "tool failed". The override buys that call its honest runtime
+    // without loosening the cap that protects every other tool.
+    const { ctx } = makeCtx({
+      perCallTimeoutMs: 20,
+      perCallTimeoutOverridesMs: { research: 400 },
+    });
+    const tools = wrapToolsForLoop(
+      {
+        research: { execute: () => new Promise((r) => setTimeout(() => r('tief'), 60)) },
+        web_search: { execute: () => new Promise((r) => setTimeout(() => r('flach'), 60)) },
+      } as unknown as ToolSet,
+      ctx
+    );
+
+    // Same 60ms of work: the override survives it, the generic budget does not.
+    expect(await run(tools, 'research', {})).toBe('tief');
+    expect((await run(tools, 'web_search', {})) as { error: string }).toMatchObject({
+      error: expect.stringMatching(/Zeitüberschreitung/) as unknown as string,
+    });
+  });
+
   it('short-circuits when the per-tool failure cap is already reached', async () => {
     const { ctx, steps } = makeCtx();
     ctx.guards.noteFailure('search');
