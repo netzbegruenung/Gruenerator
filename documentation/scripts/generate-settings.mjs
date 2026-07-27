@@ -18,6 +18,11 @@
  * `--apply`, files or updates one deduplicated GitHub issue. A new setting never
  * breaks anyone's build — it shows up as a task.
  *
+ * The audit also checks the catalog's `platforms` field against apps/mobile in
+ * both directions: marked as an app setting but never referenced there, and
+ * referenced there but still marked web-only. Both stay on the soft side — a
+ * row that is planned for mobile but not built yet is a task, not a broken build.
+ *
  * Extraction is AST-based (TypeScript compiler API), never an import: these
  * modules pull in react-icons and Vite aliases that don't resolve under plain
  * Node. We only read string literals, so the app is never executed.
@@ -30,7 +35,7 @@
  *   node scripts/generate-settings.mjs --audit --pr-comment  # …and post a sticky PR comment
  */
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { appendFileSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -272,15 +277,77 @@ function extractDocumented() {
   return tabs;
 }
 
+/**
+ * `SETTINGS_CATALOG` → id → the platforms it claims to exist on.
+ *
+ * Kept out of the manifest on purpose: the JSON describes what a *reader* of the
+ * docs sees, and "which app ships this row" is a fact about the codebase.
+ */
+function catalogPlatforms() {
+  const platforms = {};
+  for (const el of requireArray(SRC.catalog, 'SETTINGS_CATALOG')) {
+    const id = stringProp(el, 'id');
+    if (!id) continue;
+    const prop = el.properties.find(
+      (p) => ts.isPropertyAssignment(p) && p.name && ts.isIdentifier(p.name) && p.name.text === 'platforms'
+    );
+    const init = prop ? unwrap(prop.initializer) : null;
+    if (!init) {
+      // Absent means web-only — the catalog's own default.
+      platforms[id] = ['web'];
+    } else if (ts.isArrayLiteralExpression(init)) {
+      platforms[id] = init.elements.filter(ts.isStringLiteral).map((e) => e.text);
+    } else {
+      // `platforms: BOTH` and friends: an identifier we can't evaluate without
+      // running the module. Resolve the alias from its own declaration.
+      const alias = ts.isIdentifier(init) ? unwrap(findDeclaration(parse(SRC.catalog), init.text)) : null;
+      platforms[id] =
+        alias && ts.isArrayLiteralExpression(alias)
+          ? alias.elements.filter(ts.isStringLiteral).map((e) => e.text)
+          : ['web'];
+    }
+  }
+  return platforms;
+}
+
+/** Every `getSettingsEntry('<id>')` the mobile app actually references. */
+function mobileReferencedIds() {
+  const root = path.join(REPO_ROOT, 'apps/mobile');
+  const ids = new Set();
+  for (const rel of readdirSync(root, { recursive: true })) {
+    const name = String(rel);
+    if (!/\.tsx?$/.test(name) || name.includes('node_modules')) continue;
+    const text = readFileSync(path.join(root, name), 'utf-8');
+    for (const m of text.matchAll(/getSettingsEntry\(\s*['"]([^'"]+)['"]\s*\)/g)) ids.add(m[1]);
+  }
+  return ids;
+}
+
 function auditDrift(manifest) {
   const documented = new Set(extractDocumented());
   const known = new Set(manifest.tabs.map((t) => t.value));
+
+  // Mobile is the deliberate subset, so both directions of the mismatch matter.
+  // This checks *referencing*, not visibility: a row behind a condition that is
+  // never true still counts as present — the same blind spot the UiLabel
+  // manifest has.
+  const platforms = catalogPlatforms();
+  const mobileIds = mobileReferencedIds();
+  const claimsMobile = (id) => (platforms[id] ?? ['web']).includes('mobile');
+
   return {
     undocumented: manifest.tabs.filter((t) => !documented.has(t.value)),
     obsolete: [...documented].filter((t) => !known.has(t)).sort(),
     rowsWithoutDescription: Object.entries(manifest.rows)
       .filter(([, row]) => !row.description)
       .map(([id]) => id),
+    // Marked as shipping on mobile, but no mobile file asks for it.
+    mobileMissing: Object.keys(manifest.rows)
+      .filter((id) => claimsMobile(id) && !mobileIds.has(id))
+      .sort(),
+    // The quieter direction, and the one that rots unnoticed: mobile renders the
+    // row, but the catalog still calls it web-only — so the docs undersell it.
+    mobileUnmarked: [...mobileIds].filter((id) => !claimsMobile(id)).sort(),
   };
 }
 
@@ -304,6 +371,24 @@ function buildReport(drift, manifestStale) {
     lines.push('### Beschrieben, aber im Dialog nicht mehr vorhanden', '');
     for (const tab of drift.obsolete) lines.push(`- \`${tab}\``);
     lines.push('', `Eintrag aus \`${EXAMPLES_FILE}\` entfernen.`, '');
+  }
+  if (drift.mobileMissing.length > 0) {
+    lines.push('### Als App-Einstellung markiert, aber in der App nicht vorhanden', '');
+    for (const id of drift.mobileMissing) lines.push(`- \`${id}\``);
+    lines.push(
+      '',
+      'Entweder die Zeile in `apps/mobile` bauen (über `getSettingsEntry` beschriften) oder das `platforms`-Feld im Katalog wieder auf Web-only setzen.',
+      ''
+    );
+  }
+  if (drift.mobileUnmarked.length > 0) {
+    lines.push('### In der App vorhanden, im Katalog aber nicht als App-Einstellung markiert', '');
+    for (const id of drift.mobileUnmarked) lines.push(`- \`${id}\``);
+    lines.push(
+      '',
+      `\`platforms: BOTH\` im Katalog (\`${SRC.catalog}\`) ergänzen — sonst zählt die Doku die Einstellung weiter als Web-only.`,
+      ''
+    );
   }
   if (manifestStale) {
     lines.push(
@@ -410,7 +495,12 @@ if (audit) {
   }
   const manifestStale = committed !== json;
   const drift = auditDrift(manifest);
-  const hasDrift = manifestStale || drift.undocumented.length > 0 || drift.obsolete.length > 0;
+  const hasDrift =
+    manifestStale ||
+    drift.undocumented.length > 0 ||
+    drift.obsolete.length > 0 ||
+    drift.mobileMissing.length > 0 ||
+    drift.mobileUnmarked.length > 0;
 
   const body = buildReport(drift, manifestStale);
   console.log(

@@ -122,19 +122,26 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
       'Blendet ganz oben einen Link ein, der beim Tabben den Fokus direkt auf den Hauptinhalt setzt — standardmäßig aus',
   },
   {
+    // Web-only: this resets the driver.js tours through Workplace, Dokumente,
+    // Tabellen, Präsentationen und Sharepic-Studio — surfaces the app doesn't
+    // have. The app's "Einführung erneut ansehen" opens its own onboarding and is
+    // a different thing, not this row.
     id: 'allgemein.touren',
     tab: 'allgemein',
     title: 'Einführungs-Touren zurücksetzen',
     description:
       'Zeigt die Touren durch Workplace, Dokumente, Tabellen, Präsentationen und das Sharepic-Studio beim nächsten Öffnen wieder an.',
-    platforms: BOTH,
   },
   // No descriptions: these three are read-only mirrors of the Grüner Login and
   // sit under the tab's own explanation. Adding a line to each would repeat it
   // three times in a row.
-  { id: 'konto.anzeigename', tab: 'konto', title: 'Anzeigename', platforms: BOTH },
-  { id: 'konto.benutzername', tab: 'konto', title: 'Benutzername', platforms: BOTH },
-  { id: 'konto.email', tab: 'konto', title: 'E-Mail', platforms: BOTH },
+  //
+  // Web-only: the app dropped its Konto overview. Three rows the user cannot
+  // change, restating what the Grüner Login already shows, earned no space on a
+  // surface built for reading state at a glance.
+  { id: 'konto.anzeigename', tab: 'konto', title: 'Anzeigename' },
+  { id: 'konto.benutzername', tab: 'konto', title: 'Benutzername' },
+  { id: 'konto.email', tab: 'konto', title: 'E-Mail' },
   {
     // Web-only: deleting an account is irreversible and takes a typed
     // confirmation, so it stays on the surface the user sits down at. Mobile
