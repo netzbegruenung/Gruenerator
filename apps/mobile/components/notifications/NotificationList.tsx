@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 
 import { useNotifications, type AppNotification } from '../../hooks/useNotifications';
-import { colors, spacing, lightTheme, darkTheme } from '../../theme';
+import { colors, spacing, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 import { actionUrlToRoute } from '../../utils/actionUrl';
 
 const TYPE_ICONS: Record<string, IoniconsIconName> = {
@@ -194,12 +194,14 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxsmall,
   },
   sectionTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   readAll: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -208,6 +210,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
   },
   item: {

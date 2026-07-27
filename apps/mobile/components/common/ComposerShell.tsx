@@ -1,7 +1,7 @@
 import { View, StyleSheet } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
 import type { StyleProp, ViewStyle, TextStyle } from 'react-native';
@@ -168,6 +168,7 @@ export const COMPOSER_ACTION_FILL = colors.primary[600];
 const inputStyles = StyleSheet.create({
   card: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 16,
     lineHeight: 22,
     minHeight: 36,
@@ -177,6 +178,7 @@ const inputStyles = StyleSheet.create({
   },
   bar: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 17,
     lineHeight: 24,
     maxHeight: 132,

@@ -39,7 +39,7 @@ import Animated, {
 import { useMessageActions } from '../../hooks/useMessageActions';
 import { useNativeTTS } from '../../hooks/useNativeTTS';
 import { useTheme } from '../../hooks/useTheme';
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT } from '../../theme';
 
 import { MessageAttachmentUI } from './AttachmentUI';
 import { ChatChartCard } from './ChatChartCard';
@@ -569,6 +569,7 @@ const styles = StyleSheet.create({
   },
   userText: {
     color: colors.white,
+    fontFamily: BODY_FONT,
     fontSize: 16,
     lineHeight: 24,
   },
@@ -605,6 +606,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   branchText: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     fontWeight: '500',
   },
@@ -623,16 +625,19 @@ const styles = StyleSheet.create({
   },
   reasoningLabel: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '600',
   },
   reasoningText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     lineHeight: 18,
     paddingHorizontal: spacing.small,
     paddingBottom: spacing.small,
   },
   toolNarration: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     lineHeight: 18,
     paddingHorizontal: spacing.small,
@@ -651,6 +656,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xsmall,
   },
   followUpText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
   },
   typingContainer: {

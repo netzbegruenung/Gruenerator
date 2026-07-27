@@ -11,7 +11,7 @@ import { StudioGradientBackground } from '../../../components/common/StudioGradi
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
 import { STUDIO_TOOLS } from '../../../components/tools/toolsConfig';
 import { useOpenRecentItem, useRecentActivity } from '../../../hooks/useRecentActivity';
-import { spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
+import { spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../../theme';
 import { FLOATING_TAB_BAR_HEIGHT } from '../../../theme/layout';
 import { getSurfaceFab, getToolTheme } from '../../../theme/toolTheme';
 
@@ -150,6 +150,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   rowDesc: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     marginTop: 1,
   },

@@ -6,7 +6,7 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../hooks/useTheme';
-import { spacing } from '../../theme';
+import { spacing, BODY_FONT } from '../../theme';
 import { Composer, composerEdgeStyle, type ComposerAccessory } from '../common/Composer';
 
 import { DocumentBrowserSheet } from './DocumentBrowserSheet';
@@ -176,6 +176,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   emptySubtitle: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     textAlign: 'center',
     lineHeight: 22,

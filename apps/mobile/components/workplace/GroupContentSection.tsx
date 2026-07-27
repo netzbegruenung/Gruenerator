@@ -12,6 +12,7 @@ import {
   lightTheme,
   darkTheme,
   type Theme,
+  BODY_FONT,
 } from '../../theme';
 
 interface GroupContentSectionProps {
@@ -224,6 +225,7 @@ const styles = StyleSheet.create({
   container: { gap: spacing.large },
   section: { gap: spacing.xsmall },
   sectionTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     fontWeight: '600',
     textTransform: 'uppercase',

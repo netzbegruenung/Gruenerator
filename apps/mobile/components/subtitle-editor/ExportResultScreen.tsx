@@ -21,7 +21,15 @@ import Markdown from 'react-native-markdown-display';
 
 import { copyToClipboard } from '../../services/share';
 import { useSubtitleEditorStore } from '../../stores/subtitleEditorStore';
-import { colors, spacing, borderRadius, typography, lightTheme, darkTheme } from '../../theme';
+import {
+  colors,
+  spacing,
+  borderRadius,
+  typography,
+  lightTheme,
+  darkTheme,
+  BODY_FONT,
+} from '../../theme';
 import { Button } from '../common/Button';
 
 import type { ExportStatus } from '../../hooks/useSubtitleExport';
@@ -333,6 +341,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xlarge,
   },
   progressTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 17,
     fontWeight: '600',
     textAlign: 'center',
@@ -355,6 +364,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   progressPercent: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
   },
   errorIdText: {
@@ -364,6 +374,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   errorText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     color: colors.error[500],
     textAlign: 'center',
@@ -480,6 +491,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.small,
   },
   socialTextTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },

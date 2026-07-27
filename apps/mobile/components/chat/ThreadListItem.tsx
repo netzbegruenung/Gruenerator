@@ -2,7 +2,7 @@ import { formatRelativeTime } from '@gruenerator/shared/utils';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
 
@@ -79,14 +79,17 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '600',
     marginRight: spacing.small,
   },
   time: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
   },
   preview: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     lineHeight: 18,
   },
