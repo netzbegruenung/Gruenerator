@@ -868,6 +868,15 @@ const DIRECT_GUIDANCE =
 const DIRECT_HONESTY_NOTE =
   '\nWICHTIG: In diesem Turn wurde NICHTS recherchiert und KEIN Bild/Dokument/Sharepic erstellt. Behaupte daher keine Recherche, keine Quellen/[N]-Belege und kein soeben erzeugtes Bild oder Dokument. Beziehst du dich auf etwas aus einem früheren Turn, mach das explizit ("vorhin"); für neue sachliche Angaben sag ehrlich, dass du sie nachschlagen müsstest.';
 
+// Same turn-outcome honesty, minus the citation ban: on a carried-source turn
+// the sources ARE real, persisted and chip-backed, so [N] is not a lie — only
+// "I just researched this" would be. Shipping DIRECT_HONESTY_NOTE here would
+// put "claim no sources" next to a source block and "cite [1]–[6]" in one
+// prompt. The last sentence is what keeps "Mehr dazu bitte" from being answered
+// by inventing past the carried snippets.
+const CARRIED_SOURCES_NOTE =
+  '\nWICHTIG: In diesem Turn wurde NICHTS NEU recherchiert und KEIN Bild/Dokument/Sharepic erstellt. Die Quellen unten stammen aus einer FRÜHEREN Recherche in diesem Gespräch — du darfst sie mit [N] belegen. Behaupte NICHT, gerade recherchiert zu haben ("ich habe recherchiert", "meine Recherche ergab"); sag stattdessen, dass sich die Angaben auf die Recherche von vorhin stützen. Brauchst du für eine sachliche Angabe etwas, das NICHT in diesen Quellen steht, sag ehrlich, dass du das neu nachschlagen müsstest.';
+
 const SEARCH_GUIDANCE =
   '\nDu hast Recherche-Ergebnisse erhalten. Beantworte die Frage primär aus diesen Ergebnissen und zitiere sie inline.';
 
@@ -915,6 +924,23 @@ function getSynthesisGuidance(state: ChatGraphState): string {
   return `\n\n## MEHR-DOKUMENT-KONTEXT\n\nDer*die Nutzer*in hat ${sources.length} Dokumente referenziert:\n${docList}\n\nAntworte als zusammenhängende Prosa, aber:\n1. Stütze jede Kernaussage durch eine Inline-Quellenreferenz [N].\n2. Wenn ein Dokument zur Frage relevant ist, muss es mindestens einmal zitiert werden — sonst kennzeichne explizit, dass es im jeweiligen Punkt schweigt.\n3. Mische nicht stillschweigend Quellen — der*die Leser*in soll erkennen können, welches Dokument welche Aussage stützt.\n4. Genderstern verwenden.`;
 }
 
+/**
+ * May the model emit [N] markers this turn?
+ *
+ * A `direct` turn normally has no sources at all, so the intent doubled as the
+ * gate. The ONE exception is a turn whose sources were carried in from earlier
+ * in the thread — those are real, persisted and already shown as chips, so
+ * suppressing citations for them produced an answer that looked researched but
+ * pointed at nothing. Every other `direct` turn stays closed; that is the
+ * regression guard this whole design rests on.
+ */
+export function citableSourcesAvailable(state: ChatGraphState): boolean {
+  return (
+    state.searchResults.length > 0 &&
+    (state.intent !== 'direct' || state.sourcesCarriedFromThread === true)
+  );
+}
+
 export function getModeGuidance(state: ChatGraphState): string {
   switch (state.intent) {
     case 'edit_current_doc':
@@ -934,7 +960,10 @@ export function getModeGuidance(state: ChatGraphState): string {
     case 'image_edit':
       return state.generatedImage ? IMAGE_EDIT_SUCCESS_GUIDANCE : IMAGE_EDIT_FAILED_GUIDANCE;
     case 'direct':
-      return DIRECT_GUIDANCE + DIRECT_HONESTY_NOTE;
+      return (
+        DIRECT_GUIDANCE +
+        (state.sourcesCarriedFromThread ? CARRIED_SOURCES_NOTE : DIRECT_HONESTY_NOTE)
+      );
     case 'save_as_doc':
       return DIRECT_GUIDANCE + ARTEFACT_ACTION_GUIDANCE;
     case 'modify_doc':
@@ -1037,7 +1066,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   const intentGuidance =
     getModeGuidance(state) + getAnchorAdjuncts(state) + getSynthesisGuidance(state);
 
-  const hasSources = state.searchResults.length > 0 && intent !== 'direct';
+  const hasSources = citableSourcesAvailable(state);
   // Citations are the canonical "what the model can cite as [N]" — derived
   // from the same CitableSource ordering the prompt block uses. Don't
   // recompute or filter independently here, or the model's [N] markers can

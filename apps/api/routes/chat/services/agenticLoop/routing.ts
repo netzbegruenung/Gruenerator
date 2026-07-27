@@ -2,7 +2,12 @@
  * Pure routing decision for the agentic loop — extracted from the 1300-line
  * contract router so the "does this turn enter the loop?" logic is unit-testable
  * in isolation (no Express/Qdrant/streamText deps). See routing.vitest.ts.
+ *
+ * The one import is deliberate: fastPathGuards is itself a zero-import leaf, so
+ * the "what counts as a sharepic ask" vocabulary can live in exactly one place
+ * without this module losing its purity.
  */
+import { hasExplicitSharepicWord } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 
 /**
  * The classifier drops many factual questions into `intent: 'direct'` ("no
@@ -54,6 +59,52 @@ export function looksLikeToolableQuestion(raw: string): boolean {
   );
 }
 
+// Anaphors and expansion words — the two ways German asks for "more of what we
+// were just talking about". The da-compounds point back at the topic; the
+// expansion words ask for depth. Clause-final `das`/`es` counts too ("erzähl
+// mir mehr davon", "was gibt es noch dazu").
+//
+// `nochmal`/`erneut` are deliberately OUT (unlike MCP_CONTINUATION_REFERENTIAL,
+// where "do it again" IS the signal): here they are regenerate verbs with no
+// topical content — "Nochmal auf Englisch" wants a rewrite, not research.
+const CONTINUATION_MARKER_RE =
+  /\b(dazu|dar[üu]ber|davon|daraus|damit|daran|darauf|dabei|hierzu|mehr|weitere?[snmr]?|genauer|n[äa]her|ausf[üu]hrlicher|details?|vertief\w*|sonst\s+noch|noch\s+(mehr|was|etwas))\b/i;
+
+// Anchored: the WHOLE message is pleasantry. "Danke, und was sagt die Studie
+// dazu?" must not match.
+const CHITCHAT_ONLY_RE =
+  /^(danke\w*|dank\s+dir|thx|ok(ay)?|alles\s+klar|super|top|passt|perfekt|prima|cool|ja|nein|gut)\b[\s,.!?–—-]*$/i;
+
+/**
+ * A vague CONTINUATION of the running conversation ("Mehr dazu bitte") rather
+ * than a new topic or a pleasantry.
+ *
+ * Such a turn classifies as `direct` — it carries no question word, no verb the
+ * toolable net catches, nothing. On the single-pass path that used to mean the
+ * previous turn's sources were neither carried nor citable, so the model
+ * rewrote its own last answer from that answer's prose: ungrounded,
+ * uncitable, and to the reader indistinguishable from research.
+ *
+ * The word cap is the discriminator that matters: a message long enough to
+ * carry its own subject is not leaning on the thread for one.
+ */
+export function looksLikeGroundedFollowup(raw: string): boolean {
+  const t = (raw ?? '').trim().replace(GREETING_PREFIX_RE, '');
+  if (t.length === 0) return false;
+  if (CHITCHAT_ONLY_RE.test(t)) return false;
+  if (t.split(/\s+/).filter(Boolean).length > 12) return false;
+  return CONTINUATION_MARKER_RE.test(t);
+}
+
+/**
+ * "Does this turn need the thread's research behind it?" — the union both the
+ * loop gate and the single-pass source carry consult, so a turn cannot be
+ * grounded on one path and amnesiac on the other.
+ */
+export function needsThreadGrounding(raw: string): boolean {
+  return looksLikeToolableQuestion(raw) || looksLikeGroundedFollowup(raw);
+}
+
 /**
  * Generation intents that can enter the loop as a COMPOUND turn (research +
  * generation composed in one turn via an opaque fat tool). Each keeps its
@@ -75,8 +126,13 @@ export const COMPOUND_GENERATION_INTENTS: ReadonlySet<string> = new Set([
  * false — "zu X" alone is a topic, not a research ask — keeping the single-pass
  * fixed-text/direct-dispatch contract.
  */
+// Sharepic nouns are deliberately absent — they come in via
+// hasExplicitSharepicWord below, which knows the full vocabulary and its
+// negation/quote guards. "grafik"/"kachel" are gone entirely: they mean a chart
+// or a tile at least as often, and this pair was the quiet door through which
+// "recherchiere X und mach eine Grafik" forced a sharepic nobody asked for.
 const GENERATION_NOUN_RE =
-  /\b(sharepic|share-pic|grafik|kachel|pr[äa]sentation|presentation|folien?|slides?|tabelle|kalkulation|spreadsheet|sheet|dokument|schriftst[üu]ck|textdokument|entwurf|board|kanban|aufgabenboard|taskboard|pdf|briefkopf|antragsformular|anmeldeformular|fragebogen)\b/i;
+  /\b(pr[äa]sentation|presentation|folien?|slides?|tabelle|kalkulation|spreadsheet|sheet|dokument|schriftst[üu]ck|textdokument|entwurf|board|kanban|aufgabenboard|taskboard|pdf|briefkopf|antragsformular|anmeldeformular|fragebogen)\b/i;
 // `recherch\w*` (not `recherchier\w*`) so the NOUN "Recherche" counts too — a
 // follow-up like "erstelle ein PDF mit den Originalquellen aus der Recherche"
 // carries an unmistakable research signal but no research VERB, and used to
@@ -87,7 +143,7 @@ const RESEARCH_SIGNAL_RE =
 
 export function looksLikeCompoundGeneration(raw: string): boolean {
   const t = (raw ?? '').trim();
-  return GENERATION_NOUN_RE.test(t) && RESEARCH_SIGNAL_RE.test(t);
+  return (GENERATION_NOUN_RE.test(t) || hasExplicitSharepicWord(t)) && RESEARCH_SIGNAL_RE.test(t);
 }
 
 // An instruction to MODIFY the open document/board (editor sidebars). Catches
@@ -156,7 +212,6 @@ export type CompoundGenerationKind =
 
 // Per-artifact nouns, used to recover the generation KIND from the text when the
 // intent no longer names it (a demoted `agentic` turn, or a `direct` misroute).
-const SHAREPIC_NOUN_RE = /\b(sharepic|share-pic|grafik|kachel)\b/i;
 const PRESENTATION_NOUN_RE = /\b(pr[äa]sentation|presentation|folien?|slides?)\b/i;
 const SHEET_NOUN_RE = /\b(tabelle|kalkulation|spreadsheet|sheet)\b/i;
 const BOARD_NOUN_RE = /\b(board|kanban|aufgabenboard|taskboard)\b/i;
@@ -184,7 +239,7 @@ export function compoundGenerationKind(intent: string, raw: string): CompoundGen
     // Order = specificity: the concrete products first, the generic "Dokument"
     // last (it's the fallback artifact when nothing more specific matches).
     // pdf before document: "PDF-Dokument" names both nouns but means a PDF.
-    if (SHAREPIC_NOUN_RE.test(t)) return 'sharepic';
+    if (hasExplicitSharepicWord(t)) return 'sharepic';
     if (PRESENTATION_NOUN_RE.test(t)) return 'presentation';
     if (SHEET_NOUN_RE.test(t)) return 'sheet';
     if (BOARD_NOUN_RE.test(t)) return 'board';

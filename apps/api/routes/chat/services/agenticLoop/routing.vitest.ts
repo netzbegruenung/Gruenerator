@@ -10,6 +10,8 @@ import {
   resolveEditorSurfaceKind,
   decideEditToolLoop,
   type EditToolLoopInput,
+  looksLikeGroundedFollowup,
+  needsThreadGrounding,
 } from './routing.js';
 
 describe('looksLikeToolableQuestion', () => {
@@ -368,8 +370,6 @@ describe('looksLikeCompoundGeneration', () => {
       'recherchiere + sharepic',
       'Recherchiere die aktuelle Position der Grünen zum Tempolimit und mach ein Sharepic dazu',
     ],
-    ['zahlen + grafik', 'Such aktuelle Zahlen zur Windkraft und erstell daraus eine Grafik'],
-    ['fakten + kachel', 'Ich brauche eine Kachel mit Fakten zur Kindergrundsicherung'],
     ['position + sharepic', 'Was ist unsere Position zur Mietpreisbremse? Mach ein Sharepic draus'],
     [
       'statistik + sharepic',
@@ -397,6 +397,11 @@ describe('looksLikeCompoundGeneration', () => {
 
   const singlePass: [string, string][] = [
     ['topic-only sharepic', 'Mach mir ein Sharepic zu Solarenergie'],
+    // "Grafik"/"Kachel" are no longer sharepic nouns: they mean a chart or a
+    // tile at least as often, and this pair was the door through which
+    // "recherchiere X und mach eine Grafik" forced a sharepic nobody asked for.
+    ['zahlen + grafik', 'Such aktuelle Zahlen zur Windkraft und erstell daraus eine Grafik'],
+    ['fakten + kachel', 'Ich brauche eine Kachel mit Fakten zur Kindergrundsicherung'],
     ['platform-only', 'Sharepic für Instagram bitte'],
     ['quote sharepic', 'Erstell ein Zitat-Sharepic: Wir kämpfen für Klimaschutz'],
     ['style tweak', 'Mach das Sharepic bitte in Gelb'],
@@ -411,11 +416,13 @@ describe('looksLikeCompoundGeneration', () => {
     expect(looksLikeCompoundGeneration(q)).toBe(false);
   });
 
-  it('injection: a generation noun inside quoted search text still counts as compound (routing is safe either way)', () => {
-    // Worst case is benign: the loop runs search + sharepic — no privileged path.
+  it('injection: a sharepic noun inside quoted search text is a SEARCH STRING, not an ask', () => {
+    // The quoted words are what to look for, not what to build. Under the
+    // explicit-word rule this must not license a sharepic — which is also why
+    // hasExplicitSharepicWord strips quoted spans before testing.
     expect(
       looksLikeCompoundGeneration('Suche nach "Sharepic Vorlagen" und fasse die Fakten zusammen')
-    ).toBe(true);
+    ).toBe(false);
   });
 });
 
@@ -617,5 +624,69 @@ describe('decideEditToolLoop', () => {
 
   it('rejects a null surface', () => {
     expect(decideEditToolLoop({ ...base, surfaceKind: null })).toBe(false);
+  });
+});
+
+/**
+ * "Mehr dazu bitte" after a sourced research answer used to classify `direct`,
+ * and a `direct` turn carries no sources at all — so the model rewrote its own
+ * previous answer from that answer's prose. Ungrounded, uncitable, and
+ * indistinguishable from research to the reader.
+ */
+describe('looksLikeGroundedFollowup', () => {
+  const yes: [string, string][] = [
+    ['the live failure', 'Mehr dazu bitte'],
+    ['expansion + anaphor', 'Und sonst noch was Wichtiges dazu?'],
+    ['bare expansion', 'Erzähl mir mehr darüber'],
+    ['depth ask', 'Hast du Details dazu'],
+    ['comparative', 'Kannst du das genauer ausführen'],
+    ['greeting prefix is strippable', 'Danke! Und was gibt es sonst noch dazu?'],
+  ];
+  it.each(yes)('is a continuation: %s', (_l, q) => {
+    expect(looksLikeGroundedFollowup(q)).toBe(true);
+  });
+
+  const no: [string, string][] = [
+    ['pure thanks', 'Danke!'],
+    ['pure thanks, longer', 'Danke dir, super gemacht.'],
+    ['acknowledgement', 'Passt, danke'],
+    ['rewrite instruction', 'Mach das kürzer'],
+    // "nochmal" is a regenerate verb, not a topic anaphor — deliberately out.
+    ['regenerate', 'Nochmal auf Englisch'],
+    ['new topic', 'Schreib eine Pressemitteilung zur Wärmewende'],
+    ['empty', '   '],
+  ];
+  it.each(no)('is not a continuation: %s', (_l, q) => {
+    expect(looksLikeGroundedFollowup(q)).toBe(false);
+  });
+
+  it('a message long enough to carry its own subject is not leaning on the thread', () => {
+    // The word cap is the discriminator. Without it any long message that
+    // happens to contain "mehr" would drag the thread's sources in.
+    expect(
+      looksLikeGroundedFollowup(
+        'Ich brauche mehr Kontext zur Kindergrundsicherung und zwar konkret zu den Zahlen von 2025'
+      )
+    ).toBe(false);
+  });
+});
+
+describe('needsThreadGrounding', () => {
+  it('unions both nets', () => {
+    expect(needsThreadGrounding('Mehr dazu bitte')).toBe(true); // continuation only
+    expect(needsThreadGrounding('Wie hat die Fraktion abgestimmt?')).toBe(true); // toolable only
+    expect(needsThreadGrounding('Danke!')).toBe(false);
+  });
+
+  it('leaves the fast-path turns alone', () => {
+    // Same list the loop gate keeps out — widening the gate must not quietly
+    // pull creative generation into it.
+    for (const q of [
+      'Schreib mir ein Gedicht über den Frühling',
+      'Mach das kürzer',
+      'Nochmal auf Englisch',
+    ]) {
+      expect(needsThreadGrounding(q), q).toBe(false);
+    }
   });
 });
