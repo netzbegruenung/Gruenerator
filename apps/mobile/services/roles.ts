@@ -1,7 +1,14 @@
-import { getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
-import { generateProfilePrompt, type UserRole } from '@gruenerator/shared/roles';
+import { getContractsClient } from '@gruenerator/shared/api';
+import { type UserRole } from '@gruenerator/shared/roles';
 
-/** Read the user's saved roles (profile.roles user-default). */
+/**
+ * Read the user's saved roles (profile.roles user-default).
+ *
+ * Read-only on purpose. Creating a role is a five-step wizard over four
+ * vocabularies plus an MdB lookup, and saving one also has to re-derive
+ * `custom_prompt` from the whole list — desk work, not phone work. Mobile shows
+ * what is set (`app/(focused)/settings/rollen.tsx`) and sends editing to web.
+ */
 export async function fetchRoles(): Promise<UserRole[]> {
   const res = await getContractsClient().userProfile.getUserDefaults();
   if (res.status === 200) {
@@ -9,34 +16,4 @@ export async function fetchRoles(): Promise<UserRole[]> {
     return Array.isArray(roles) ? (roles as UserRole[]) : [];
   }
   return [];
-}
-
-/**
- * Persist the role list and re-derive the chat system prompt from it. Mirrors the
- * web flow (apps/web RolesSection.persistRoles): save roles, then update custom_prompt.
- */
-export async function persistRoles(roles: UserRole[], isAustrian: boolean): Promise<void> {
-  const client = getContractsClient();
-  await client.userProfile.updateUserDefaults({
-    body: { generator: 'profile', key: 'roles', value: roles },
-  });
-  const prompt = generateProfilePrompt(roles, isAustrian);
-  // Empty prompt clears the field; the contract body types custom_prompt as string.
-  await client.userProfile.updateProfile({ body: { custom_prompt: prompt || '' } });
-}
-
-/**
- * Best-effort system-prompt enrichment for a single role. Returns null if the
- * chat-service endpoint is unavailable — the role is still saved without it.
- */
-export async function generateRoleSystemPrompt(description: string): Promise<string | null> {
-  try {
-    const res = await getGlobalApiClient().post<{ systemPrompt?: string }>(
-      '/chat-service/generate-system-prompt',
-      { description }
-    );
-    return res.data?.systemPrompt ?? null;
-  } catch {
-    return null;
-  }
 }

@@ -1,4 +1,5 @@
 import { getGlobalApiClient } from '@gruenerator/shared/api';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
@@ -15,45 +16,76 @@ interface CreateCollectionParams {
   documentId: string;
 }
 
+const QUERY_KEY = ['notebook-collections'] as const;
 const POLL_INTERVAL = 3000;
 const TERMINAL_STATUSES = ['completed', 'error', 'failed'];
 
+/** Stable empty identity, so an errored fetch never churns consumers. */
+const EMPTY: MobileNotebookCollection[] = [];
+
+async function fetchCollections(): Promise<MobileNotebookCollection[]> {
+  const client = getGlobalApiClient();
+  interface NotebookCollectionsResponse {
+    collections?: MobileNotebookCollection[];
+  }
+  const response = await client.get<NotebookCollectionsResponse>('/auth/notebook-collections');
+  return response.data.collections ?? [];
+}
+
+/**
+ * The user's own notebooks, on the Wissen tab.
+ *
+ * Through TanStack Query rather than `useState` + `useEffect`: the hook used to
+ * refetch on every mount and start each time with `isLoading: true`, so the
+ * "Meine Notebooks" section flashed its three skeleton rows on every visit even
+ * though the answer had not changed. Same fix, same reason as
+ * `useOfficeExtraItems` on the Arbeiten tab.
+ *
+ * The failure shape is kept from before — an error resolves to an empty list
+ * rather than surfacing, because the section sits under five other sections that
+ * are perfectly usable without it.
+ */
 export function useNotebookCollections() {
-  const [collections, setCollections] = useState<MobileNotebookCollection[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const pollTimers = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
 
-  const fetchCollections = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const client = getGlobalApiClient();
-      interface NotebookCollectionsResponse {
-        collections?: MobileNotebookCollection[];
-      }
-      const response = await client.get<NotebookCollectionsResponse>('/auth/notebook-collections');
-      setCollections(response.data.collections ?? []);
-    } catch {
-      setCollections([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const { data, isLoading } = useQuery({
+    queryKey: QUERY_KEY,
+    queryFn: () => fetchCollections().catch(() => EMPTY),
+  });
 
+  const refetch = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+  }, [queryClient]);
+
+  // Timers outlive a single render but not the screen; clearing them on unmount
+  // is what stops a deleted notebook from being polled forever.
   useEffect(() => {
-    void fetchCollections();
     const timers = pollTimers.current;
     return () => {
       timers.forEach((timer) => clearInterval(timer));
       timers.clear();
     };
-  }, [fetchCollections]);
+  }, []);
 
   const startPolling = useCallback(
     (collectionId: string, documentId: string) => {
       if (pollTimers.current.has(collectionId)) return;
 
       setProcessingIds((prev) => new Set([...prev, collectionId]));
+
+      const stop = (refresh: boolean) => {
+        const timer = pollTimers.current.get(collectionId);
+        if (timer) clearInterval(timer);
+        pollTimers.current.delete(collectionId);
+        setProcessingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(collectionId);
+          return next;
+        });
+        if (refresh) void refetch();
+      };
 
       const timer = setInterval(async () => {
         try {
@@ -66,30 +98,15 @@ export function useNotebookCollections() {
           );
           const status = response.data?.data?.status ?? '';
 
-          if (TERMINAL_STATUSES.includes(status)) {
-            clearInterval(timer);
-            pollTimers.current.delete(collectionId);
-            setProcessingIds((prev) => {
-              const next = new Set(prev);
-              next.delete(collectionId);
-              return next;
-            });
-            await fetchCollections();
-          }
+          if (TERMINAL_STATUSES.includes(status)) stop(true);
         } catch {
-          clearInterval(timer);
-          pollTimers.current.delete(collectionId);
-          setProcessingIds((prev) => {
-            const next = new Set(prev);
-            next.delete(collectionId);
-            return next;
-          });
+          stop(false);
         }
       }, POLL_INTERVAL);
 
       pollTimers.current.set(collectionId, timer);
     },
-    [fetchCollections]
+    [refetch]
   );
 
   const createCollection = useCallback(
@@ -110,7 +127,7 @@ export function useNotebookCollections() {
 
         if (response.data.success) {
           const collectionId = response.data.collection.id;
-          await fetchCollections();
+          await refetch();
           startPolling(collectionId, params.documentId);
           return { id: collectionId };
         }
@@ -122,7 +139,7 @@ export function useNotebookCollections() {
         return null;
       }
     },
-    [fetchCollections, startPolling]
+    [refetch, startPolling]
   );
 
   const deleteCollection = useCallback(
@@ -130,7 +147,7 @@ export function useNotebookCollections() {
       try {
         const client = getGlobalApiClient();
         await client.delete(`/auth/notebook-collections/${id}`);
-        await fetchCollections();
+        await refetch();
         return true;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Fehler beim Löschen';
@@ -138,14 +155,14 @@ export function useNotebookCollections() {
         return false;
       }
     },
-    [fetchCollections]
+    [refetch]
   );
 
   return {
-    collections,
+    collections: data ?? EMPTY,
     isLoading,
     processingIds,
-    refetch: fetchCollections,
+    refetch,
     createCollection,
     deleteCollection,
   };

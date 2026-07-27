@@ -3,12 +3,21 @@ import { fetch as expoFetch } from 'expo/fetch';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 
+import { DEV_DOCUMENTS, DEV_FIXTURES_ENABLED } from '../devFixtures';
+
 const API_BASE_URL = process.env.EXPO_PUBLIC_DOCS_API_URL || 'https://gruenerator.eu/api';
 
 export interface Document {
   id: string;
   title: string;
+  /**
+   * Absent on rows that came from the list (`?preview=true`) — those carry
+   * `content_excerpt` instead. Treat "has content" as the test for a fully
+   * loaded document, never "is in the store".
+   */
   content?: string;
+  /** Truncated HTML, list rows only. Enough for a card preview, nothing else. */
+  content_excerpt?: string;
   owner_id: string;
   created_at: string;
   updated_at: string;
@@ -103,12 +112,20 @@ export async function exportDocument(
 }
 
 export const docsService = {
+  /**
+   * The Arbeiten list. `preview=true` swaps every document's full HTML for a
+   * short excerpt — the list renders a two-line preview per card and has no use
+   * for the rest, and without the flag this response grows with the size of
+   * everything the user has ever written.
+   */
   async fetchDocuments(): Promise<Document[]> {
-    const response = await apiRequest<Document[]>('get', ENDPOINTS.LIST);
+    if (DEV_FIXTURES_ENABLED) return DEV_DOCUMENTS;
+    const response = await apiRequest<Document[]>('get', `${ENDPOINTS.LIST}?preview=true`);
     return response || [];
   },
 
   async fetchDocument(id: string): Promise<Document | null> {
+    if (DEV_FIXTURES_ENABLED) return DEV_DOCUMENTS.find((d) => d.id === id) ?? null;
     const response = await apiRequest<Document>('get', ENDPOINTS.GET(id));
     return response || null;
   },
