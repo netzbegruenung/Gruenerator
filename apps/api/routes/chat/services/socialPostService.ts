@@ -50,6 +50,35 @@ export function parseSocialPostText(raw: string): {
 }
 
 /**
+ * Format limits the user typed into their own request ("max. 500 Zeichen,
+ * maximal 3 Hashtags").
+ *
+ * Without these the system prompt pinned the PLATFORM budget and thereby
+ * CONTRADICTED the user: an Instagram request for 500 characters was answered
+ * with "Hartes Maximum: 2200 Zeichen" in the system role, and the model
+ * followed the system role (observed live: 765 chars, 5 hashtags for a
+ * "max. 500 Zeichen, 3 Hashtags" prompt). A user limit is only accepted when it
+ * is TIGHTER than the platform's — nobody may raise Twitter's 280 by asking.
+ */
+export function extractPostConstraints(
+  userText: string,
+  platformMaxChars: number
+): { maxChars: number | null; maxHashtags: number | null } {
+  const charMatch = userText.match(/(\d{2,4})\s*zeichen/i);
+  const parsedChars = charMatch ? parseInt(charMatch[1], 10) : NaN;
+  const maxChars =
+    Number.isFinite(parsedChars) && parsedChars >= 50 && parsedChars < platformMaxChars
+      ? parsedChars
+      : null;
+
+  const tagMatch = userText.match(/(\d{1,2})\s*hashtags?/i);
+  const parsedTags = tagMatch ? parseInt(tagMatch[1], 10) : NaN;
+  const maxHashtags = Number.isFinite(parsedTags) && parsedTags <= 30 ? parsedTags : null;
+
+  return { maxChars, maxHashtags };
+}
+
+/**
  * Generate the post text for the combined social post. Expects `state` to
  * already carry the examples retrieval (examplesResult) and platform hint.
  * Throws on worker failure — the caller degrades to sharepic-only behavior.
@@ -80,11 +109,26 @@ export async function generateSocialPostText(opts: {
 
   // Reuse the examples-grounded prompt (rubric + up to 6 worked examples),
   // then pin the shared character budget so backend prompt and frontend
-  // meter can't drift.
+  // meter can't drift. A limit from the request itself wins over the platform
+  // default — otherwise the system role tells the model the opposite of what
+  // the user just asked for.
+  const constraints = extractPostConstraints(userText, info.maxChars);
+  const hardMax = constraints.maxChars ?? info.maxChars;
+  const target = constraints.maxChars ?? info.recommendedChars;
+  const userLimits = [
+    constraints.maxChars != null ? `höchstens ${constraints.maxChars} Zeichen` : null,
+    constraints.maxHashtags != null ? `höchstens ${constraints.maxHashtags} Hashtags` : null,
+  ].filter((v): v is string => v !== null);
+  const userLimitBlock =
+    userLimits.length > 0
+      ? `\nDie*der Nutzer*in hat ausdrücklich ${userLimits.join(' und ')} verlangt. Das ist BINDEND und geht dem Plattform-Budget vor — zähle nach, bevor du antwortest.`
+      : '';
+
   const systemPrompt = `${buildSocialMediaSystemPrompt(state)}${urlBlock}
 
 ## ZEICHENBUDGET
-Ziel: ~${info.recommendedChars} Zeichen. Hartes Maximum: ${info.maxChars} Zeichen (inklusive Hashtags).`;
+Ziel: ~${target} Zeichen. Hartes Maximum: ${hardMax} Zeichen (inklusive Hashtags).${userLimitBlock}
+Setze nur Hashtags, die zum Thema gehören. Erfinde KEINE Orts-, Regional- oder Gliederungs-Hashtags (etwa #GrüneBerlin), wenn die Anfrage keinen Ort nennt.`;
 
   const startTime = Date.now();
   const result = await state.aiWorkerPool.processRequest(
@@ -106,6 +150,19 @@ Ziel: ~${info.recommendedChars} Zeichen. Hartes Maximum: ${info.maxChars} Zeiche
     `[SocialPost] Generated ${platform} post: ${parsed.charCount} chars, ` +
       `${parsed.hashtags.length} hashtags in ${Date.now() - startTime}ms`
   );
+
+  // A format the user explicitly asked for and did NOT get is a quality signal,
+  // not a fatal error — the post still ships. Logged so it is countable instead
+  // of only surfacing when someone counts characters by hand in a QA pass.
+  const missed = [
+    parsed.charCount > hardMax ? `${parsed.charCount}/${hardMax} Zeichen` : null,
+    constraints.maxHashtags != null && parsed.hashtags.length > constraints.maxHashtags
+      ? `${parsed.hashtags.length}/${constraints.maxHashtags} Hashtags`
+      : null,
+  ].filter((v): v is string => v !== null);
+  if (missed.length > 0) {
+    log.warn(`[SocialPost] ${platform} post missed the requested format: ${missed.join(', ')}`);
+  }
 
   return {
     postId: randomUUID(),

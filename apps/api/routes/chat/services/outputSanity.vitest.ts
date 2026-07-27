@@ -1,6 +1,22 @@
 import { describe, it, expect } from 'vitest';
 
-import { stripFabricatedSystemClaims } from './outputSanity.js';
+import { looksCutOff, stripFabricatedSystemClaims } from './outputSanity.js';
+
+describe('looksCutOff', () => {
+  it('flags the live truncated answer', () => {
+    expect(looksCutOff('Im Vergleich zu anderen rechtspopulistischen Pa')).toBe(true);
+  });
+
+  it('accepts a finished sentence, also with a trailing citation or newline', () => {
+    expect(looksCutOff('Die Partei gilt als gesichert rechtsextremistisch.')).toBe(false);
+    expect(looksCutOff('Mehr dazu steht in der Quelle [3].')).toBe(false);
+    expect(looksCutOff('Erledigt — die Spalte wurde ergänzt.\n')).toBe(false);
+  });
+
+  it('flags an answer that stops after a number', () => {
+    expect(looksCutOff('Der Anteil erneuerbarer Energien lag 2025 bei 87')).toBe(true);
+  });
+});
 
 describe('stripFabricatedSystemClaims', () => {
   it('removes the invented access documents from the injection turn', () => {
