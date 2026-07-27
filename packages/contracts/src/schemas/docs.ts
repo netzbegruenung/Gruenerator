@@ -94,8 +94,16 @@ export type CollaborativeDocument = z.infer<typeof collaborativeDocumentSchema>;
 /**
  * Response for GET /api/docs (listDocuments).
  * Same as collaborativeDocumentSchema but adds list-only computed columns.
+ *
+ * `content_excerpt` appears only under `?preview=true`, and in exchange
+ * `content` is absent — the two are alternatives, never both. Modelled as two
+ * optional fields rather than a union because `.passthrough()` already makes
+ * this schema a loose superset, and a union here would force every existing
+ * caller to narrow for a variant it never asks for.
  */
-export const collaborativeDocumentListItemSchema = collaborativeDocumentSchema;
+export const collaborativeDocumentListItemSchema = collaborativeDocumentSchema.extend({
+  content_excerpt: z.string().nullish(),
+});
 
 export const collaborativeDocumentListSchema = z.array(collaborativeDocumentListItemSchema);
 
@@ -184,6 +192,13 @@ export const listDocumentsQuerySchema = z.object({
   // `.nullish()`. Using `.nullish()` triggers TS errors against Express's
   // ParsedQs (which forbids null) under exactOptionalPropertyTypes.
   limit: z.string().optional(),
+  /**
+   * `'true'` swaps every document's full `content` for a short
+   * `content_excerpt`. Opt-in rather than the default so existing callers keep
+   * the payload they already rely on; mobile asks for it because it renders a
+   * two-line preview per card and was downloading whole documents to do it.
+   */
+  preview: z.string().optional(),
 });
 
 // ── groupShareController schemas ─────────────────────────────────────────────

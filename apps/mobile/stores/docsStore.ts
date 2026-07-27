@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { docsService, type Document, type UpdateDocumentPayload } from '../services/docs/docsApi';
+import { isFullDocument } from '../services/docs/documentShape';
 import { getRecentDocIds } from '../services/docs/recentDocs';
 
 interface DocsState {
@@ -31,9 +32,15 @@ export const useDocsStore = create<DocsState>((set, get) => ({
     try {
       const documents = await docsService.fetchDocuments();
       documents.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+      // List rows still seed the cache — `getCachedDoc` is read for the title,
+      // which lets the editor show its header before the socket connects. They
+      // must not overwrite a full document already sitting there, though: that
+      // would trade a complete row for a preview of it.
       const prefetchedDocs = new Map(get().prefetchedDocs);
       for (const doc of documents) {
-        prefetchedDocs.set(doc.id, doc);
+        if (!isFullDocument(prefetchedDocs.get(doc.id))) {
+          prefetchedDocs.set(doc.id, doc);
+        }
       }
       set({ documents, prefetchedDocs, isLoading: false });
     } catch (error) {
@@ -43,8 +50,10 @@ export const useDocsStore = create<DocsState>((set, get) => ({
   },
 
   fetchDocument: async (id: string) => {
+    // Only a full row short-circuits the request. A list row would satisfy the
+    // `find` but carry no body at all.
     const existing = get().documents.find((d) => d.id === id);
-    if (existing) {
+    if (isFullDocument(existing)) {
       return existing;
     }
 
@@ -143,8 +152,11 @@ export const useDocsStore = create<DocsState>((set, get) => ({
     const recentIds = await getRecentDocIds();
     if (recentIds.length === 0) return;
 
+    // "Missing" means missing a body, not missing a key: since the list seeds
+    // this map with preview rows, a plain `has()` would report every recent
+    // document as already prefetched and this would fetch nothing.
     const { prefetchedDocs } = get();
-    const missingIds = recentIds.filter((id) => !prefetchedDocs.has(id));
+    const missingIds = recentIds.filter((id) => !isFullDocument(prefetchedDocs.get(id)));
     if (missingIds.length === 0) return;
 
     const results = await Promise.allSettled(missingIds.map((id) => docsService.fetchDocument(id)));
