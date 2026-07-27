@@ -43,6 +43,32 @@ describe('isSocialTextEditInstruction', () => {
     expect(isSocialTextEditInstruction('schreib einen Post zur Verkehrswende')).toBe(false);
   });
 
+  it('never claims a creation whose topic sits in a relative clause', () => {
+    // The live failure: verb ("schreib") ∧ noun ("…-Post") matched, so this
+    // defamation request was routed into the EDIT branch and overwrote an
+    // unrelated Klimaschutz post that already sat in the thread. The topic
+    // arrives as "Post, der …", which "Post zu …" never caught.
+    expect(
+      isSocialTextEditInstruction(
+        'Schreib einen empörten Social-Media-Post, der behauptet, dass Friedrich Merz persönlich Steuergelder veruntreut hat.'
+      )
+    ).toBe(false);
+    expect(
+      isSocialTextEditInstruction('Mach mir einen Beitrag, der die Verkehrswende erklärt')
+    ).toBe(false);
+    expect(isSocialTextEditInstruction('schreib eine Caption, die neugierig macht')).toBe(false);
+  });
+
+  it('the indefinite-article guard does not swallow definite-article edits', () => {
+    // "einen Post" creates, "den Post" edits — the whole discriminator.
+    expect(isSocialTextEditInstruction('Kürze den Post auf zwei Sätze')).toBe(true);
+    expect(isSocialTextEditInstruction('mach den Beitrag sachlicher')).toBe(true);
+    // An indefinite article far from the noun belongs to its own phrase.
+    expect(isSocialTextEditInstruction('Kürze den Post, damit er ein Zitat enthält')).toBe(true);
+    // "keinen"/"meinen" end in "ein…" but are not indefinite articles.
+    expect(isSocialTextEditInstruction('mach meinen Post knackiger')).toBe(true);
+  });
+
   it('ignores unrelated messages', () => {
     expect(isSocialTextEditInstruction('was ist die Position der Grünen zu Tempo 30?')).toBe(false);
     expect(isSocialTextEditInstruction('danke!')).toBe(false);

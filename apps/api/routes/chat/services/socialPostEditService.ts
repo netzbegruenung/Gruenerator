@@ -18,6 +18,7 @@ import { withRetry } from '../../../services/search/searchRetryStrategy.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { looksLikeRefusal } from './refusalDetection.js';
 import { parseSocialPostText } from './socialPostService.js';
 import { sendChatWarning } from './sseHelpers.js';
 import { createMessage, touchThread } from './threadPersistenceService.js';
@@ -27,6 +28,19 @@ import type { AIWorkerPool } from '../../../workers/types.js';
 import type { Request } from 'express';
 
 const log = createLogger('SocialPostEdit');
+
+/**
+ * Shown when the edit model declines the instruction. Says WHY and states that
+ * the existing post survived — the decline is the system working, and the user
+ * needs to know their artifact is intact.
+ *
+ * Deliberately does NOT invite a rephrasing: the requests that land here are
+ * fabricated claims about real people, and "magst du das anders formulieren?"
+ * coaches the retry of something we just refused.
+ */
+export const SOCIAL_EDIT_REFUSAL_TEXT =
+  'Diese Änderung setze ich nicht um — sie widerspricht den inhaltlichen Regeln des Grünerators, ' +
+  'etwa erfundene Behauptungen über real existierende Personen. Dein bestehender Post bleibt unverändert.';
 
 export { isSocialTextEditInstruction } from './socialPostEditHeuristics.js';
 
@@ -233,6 +247,21 @@ Ziel: ~${info.recommendedChars} Zeichen. Hartes Maximum: ${info.maxChars} Zeiche
     }
 
     const parsed = parseSocialPostText(result.content);
+
+    // A decline is not an edit. Without this the refusal string itself was
+    // persisted as the new version — "I'm sorry, but I can't help with that."
+    // replaced a perfectly good post, and the chat still reported success.
+    // Checked on the raw content too: a refusal ending in a stray hashtag
+    // would otherwise reach the gate already stripped.
+    if (looksLikeRefusal(result.content) || looksLikeRefusal(parsed.text)) {
+      log.info(
+        `[SocialPostEdit] ${post.postId} — model declined the instruction; ` +
+          `post left at v${post.version ?? 1}, no version written`
+      );
+      await finishWithText(args, SOCIAL_EDIT_REFUSAL_TEXT);
+      return true;
+    }
+
     const newVersion = (post.version ?? 1) + 1;
     const summary = instruction.length > 120 ? `${instruction.slice(0, 117)}…` : instruction;
     const head = {
