@@ -13,6 +13,7 @@
 
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
 import { looksLikeToolableQuestion } from '../../../../routes/chat/services/agenticLoop/routing.js';
+import { containsInstructionMarkers } from '../../../../routes/chat/services/untrustedContent.js';
 import { escapeRegExp } from '../../../../services/BaseSearchService/textUtils.js';
 import {
   McpServerRegistry,
@@ -271,9 +272,24 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
 
   const synthesisMode = pickSynthesisMode(intent ?? 'direct', documentSources.length);
 
+  // Injection early-warning. The classifier ALREADY notices these payloads and
+  // reasons about them ("enthält einen Jailbreak-Versuch, aber die Aufgabe ist
+  // die Zusammenfassung") — and then passes them on unflagged. Here the signal
+  // is kept so the answer prompt can warn the model before it acts. Deliberately
+  // NOT a rejection: pasted mails and citizen inquiries legitimately contain
+  // instruction-shaped language, and blocking them would break summarisation.
+  const injectionSuspected =
+    containsInstructionMarkers(userText) ||
+    containsInstructionMarkers(state.attachmentContext ?? '') ||
+    containsInstructionMarkers(state.currentDocument?.markdown ?? '');
+  if (injectionSuspected) {
+    log.warn('[Classifier] Instruction-shaped markers in this turn material — warning the model');
+  }
+
   return {
     ...result,
     intent: intent ?? result.intent,
+    injectionSuspected,
     ...(downgradedSearchQuery != null && !result.searchQuery
       ? { searchQuery: downgradedSearchQuery }
       : {}),
