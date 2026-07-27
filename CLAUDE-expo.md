@@ -135,14 +135,35 @@ npx eas update:rollback                            # Notausgang
 `plugins/` und `config/`, an `expo-build-properties`, an Permissions, jedes neue
 Native-Modul und jedes SDK-Upgrade brauchen weiter einen Store-Build.
 
-**`runtimeVersion` ist `{ "policy": "fingerprint" }`**, nicht `appVersion`. Die
-App hat vier handgeschriebene Config-Plugins; eine Änderung daran verändert den
-nativen Output, ohne `version` anzufassen — unter `appVersion` würde der Server
-bereitwillig ein Update an ein Binary ausliefern, zu dem es nicht mehr passt.
-Der Fingerprint hasht die tatsächlichen nativen Eingaben, inklusive
-Abhängigkeitsbaum. Wenn Updates plötzlich niemanden mehr erreichen, ist die
-erste Frage, ob eine Lockfile-Änderung die Runtime-Version geschoben hat —
-`npx expo-updates fingerprint:generate` vergleichen.
+**`runtimeVersion` ist `{ "policy": "appVersion" }`** — und das ist eine
+Notlösung mit einer Pflicht daran, keine freie Wahl.
+
+`fingerprint` wäre das bessere Verfahren und stand hier auch: die App hat vier
+handgeschriebene Config-Plugins, eine Änderung daran verändert den nativen
+Output, ohne `version` anzufassen. Nur lässt sich der Fingerprint in diesem
+Repo nicht verifizieren. EAS berechnet ihn zweimal — auf der Maschine, die
+`eas build` startet, und noch einmal auf dem Worker — und bricht bei
+Abweichung ab (`Runtime version calculated on local machine not equal to
+runtime version calculated during build`). Der Vergleich setzt voraus, dass
+beide Seiten denselben `node_modules`-Baum haben; der EAS-Upload lässt
+`node_modules` und die meisten Workspace-Mitglieder bewusst weg (siehe
+`.easignore`), der Worker installiert selbst. Gemessen an drei Builds
+(2026-07-27) unterschied sich genau eine Quelle:
+`node_modules/@react-native-masked-view/masked-view`, Grund
+`rncoreAutolinkingAndroid` — lokal `8cdd4a86`, auf EAS `b7bc27de`. Weder das
+lokale `android/`-Prebuild-Verzeichnis noch verschachtelte `node_modules`
+erklären es (beide stehen in den Default-Ignore-Paths, nachgerechnet). Wer den
+Fingerprint zurückholen will, fängt bei dieser einen Zeile an — die
+Fehlermeldung enthält seit eas-cli 21 den vollständigen Quellen-Diff im
+Build-Log unter `CONFIGURE_EXPO_UPDATES`.
+
+**Die Pflicht:** Unter `appVersion` verteilt der Server jedes Update an jedes
+Binary derselben `version`. Jede native Änderung — Config-Plugin, Permission,
+neues Native-Modul, SDK-Upgrade — braucht deshalb **zwingend** eine Erhöhung
+von `expo.version` in `app.json` im selben PR. `autoIncrement` erhöht nur
+`versionCode`/`buildNumber`, nicht `version`; das genügt nicht. Wird das
+vergessen, lädt ein altes Binary JS nach, das ein Modul erwartet, das es nicht
+hat — und stürzt beim ersten Aufruf ab.
 
 `eas update` bündelt **lokal** mit Metro, nicht in der Cloud: der Zustand von
 `pnpm install` auf der Maschine ist der, der ausgeliefert wird. Nach jedem

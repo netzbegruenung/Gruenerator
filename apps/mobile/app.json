@@ -2,13 +2,13 @@
   "expo": {
     "name": "Grünerator",
     "slug": "gruenerator",
-    "version": "1.2.1",
+    "version": "1.3.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "gruenerator",
     "runtimeVersion": {
-      "policy": "fingerprint"
+      "policy": "appVersion"
     },
     "updates": {
       "url": "https://u.expo.dev/86989c3a-549f-47fe-b141-df891ff6e075"
