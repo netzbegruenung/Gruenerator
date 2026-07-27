@@ -6,11 +6,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { spacing } from '../../theme';
 import { FLOATING_TAB_BAR_HEIGHT } from '../../theme/layout';
 
-import { ComposerCard } from './ComposerCard';
+import { Composer } from './Composer';
 
 /**
  * Bottom-pinned, keyboard-aware composer bar (ChatGPT-style) for the tab screens.
- * Wraps the compact `ComposerCard` in the same `KeyboardAvoidingView` mechanism the
+ * Wraps the `Composer`'s `bar` variant in the same `KeyboardAvoidingView` mechanism the
  * chat thread uses (react-native-keyboard-controller; `KeyboardProvider` is mounted in
  * app/_layout.tsx). Place it as the last child of a `flex: 1` column beneath the
  * scrollable content.
@@ -62,10 +62,11 @@ export function BottomComposerBar({
       keyboardVerticalOffset={keyboardVerticalOffset}
     >
       <View style={[styles.wrap, { paddingBottom }]}>
-        <ComposerCard
-          variant="compact"
+        <Composer
+          variant="bar"
+          testIDPrefix="tab-composer"
           placeholder={placeholder}
-          onSend={onSend}
+          onSubmit={onSend}
           onSettings={onSettings}
         />
       </View>

@@ -10,7 +10,7 @@ import { AssistantThread } from '../../../components/chat/AssistantThread';
 import { ChatDrawerHeader } from '../../../components/chat/ChatDrawerHeader';
 import { ChatSettingsSheet } from '../../../components/chat/ChatSettingsSheet';
 import { TOOL_KEYS } from '../../../components/chat/ComposerActionSheet';
-import { ComposerCard } from '../../../components/common';
+import { Composer } from '../../../components/common';
 import { useDrawerStore } from '../../../hooks/useDrawerStore';
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
 
@@ -135,9 +135,11 @@ export default function ChatScreen() {
             </Text>
           </View>
 
-          <ComposerCard
+          <Composer
+            binding="runtime"
+            showActionSheet
             placeholder="Stelle eine Frage oder gib eine Aufgabe..."
-            onSend={handleSend}
+            onSubmit={handleSend}
           />
 
           <SettingsBar onOpen={() => setSettingsVisible(true)} />

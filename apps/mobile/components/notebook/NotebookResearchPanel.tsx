@@ -30,7 +30,7 @@ import { colors, spacing, typography, borderRadius } from '../../theme';
 import { routeWithParams } from '../../types/routes';
 import { CitationDetailSheet } from '../chat/CitationDetailSheet';
 import { BottomSheet } from '../common/BottomSheet';
-import { ComposerCard } from '../common/ComposerCard';
+import { Composer } from '../common/Composer';
 import { Fab } from '../common/Fab';
 
 import { NotebookOverview } from './NotebookOverview';
@@ -249,9 +249,9 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
             screen) by default, manuelle Recherche (inline search) via the FAB. */}
         {inputMode === 'chat' ? (
           <View style={styles.chatComposer}>
-            <ComposerCard
+            <Composer
               placeholder={`Frag ${notebookTitle ?? 'dieses Notebook'}…`}
-              onSend={handleChatSend}
+              onSubmit={handleChatSend}
             />
           </View>
         ) : (
