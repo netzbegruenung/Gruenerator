@@ -12,9 +12,9 @@ import {
   Linking,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ListGroup, ListRow } from '../../../../components/common';
+import { ScreenScaffold } from '../../../../components/navigation/ScreenScaffold';
 import { GroupAvatar } from '../../../../components/workplace/GroupAvatar';
 import { GroupContentSection } from '../../../../components/workplace/GroupContentSection';
 import { useGroupDetails, useGroupMembers } from '../../../../hooks/useGroups';
@@ -64,56 +64,40 @@ export default function ProjektDetailScreen() {
   const members = membersQuery.data ?? [];
   const links = group?.links ?? [];
 
-  const header = (
-    <View style={styles.header}>
-      <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backButton}>
-        <Ionicons name="chevron-back" size={26} color={theme.text} />
-      </Pressable>
-      <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
-        {group?.name ?? 'Projekt'}
-      </Text>
-    </View>
+  // Title falls back until the details land, so the header does not pop in.
+  const scaffold = (children: ReactNode): ReactNode => (
+    <ScreenScaffold title={group?.name ?? 'Projekt'} onBack={() => router.back()}>
+      {children}
+    </ScreenScaffold>
   );
 
   if (detailsQuery.isPending) {
-    return (
-      <SafeAreaView
-        style={[styles.container, { backgroundColor: theme.background }]}
-        edges={['top']}
-      >
-        {header}
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary[600]} />
-        </View>
-      </SafeAreaView>
+    return scaffold(
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={colors.primary[600]} />
+      </View>
     );
   }
 
   if (detailsQuery.error || !group) {
-    return (
-      <SafeAreaView
-        style={[styles.container, { backgroundColor: theme.background }]}
-        edges={['top']}
-      >
-        {header}
-        <View style={styles.centered}>
-          <Ionicons name="alert-circle" size={44} color={colors.semantic.error} />
-          <Text style={[styles.centeredText, { color: colors.semantic.error }]}>
-            {detailsQuery.error instanceof Error
-              ? detailsQuery.error.message
-              : 'Projekt konnte nicht geladen werden.'}
-          </Text>
-          <Pressable
-            onPress={() => void detailsQuery.refetch()}
-            style={({ pressed }) => [
-              styles.retryButton,
-              { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
-            ]}
-          >
-            <Text style={styles.retryButtonText}>Erneut versuchen</Text>
-          </Pressable>
-        </View>
-      </SafeAreaView>
+    return scaffold(
+      <View style={styles.centered}>
+        <Ionicons name="alert-circle" size={44} color={colors.semantic.error} />
+        <Text style={[styles.centeredText, { color: colors.semantic.error }]}>
+          {detailsQuery.error instanceof Error
+            ? detailsQuery.error.message
+            : 'Projekt konnte nicht geladen werden.'}
+        </Text>
+        <Pressable
+          onPress={() => void detailsQuery.refetch()}
+          style={({ pressed }) => [
+            styles.retryButton,
+            { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
+          ]}
+        >
+          <Text style={styles.retryButtonText}>Erneut versuchen</Text>
+        </Pressable>
+      </View>
     );
   }
 
@@ -124,103 +108,91 @@ export default function ProjektDetailScreen() {
     </View>
   );
 
-  return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
-      {header}
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={detailsQuery.isRefetching}
-            onRefresh={() => {
-              void detailsQuery.refetch();
-              void membersQuery.refetch();
-            }}
-          />
-        }
-      >
-        <View style={styles.hero}>
-          <GroupAvatar name={group.name} avatarUrl={group.avatar_url} size={88} />
-          <Text style={[styles.groupName, { color: theme.text }]}>{group.name}</Text>
-          <View style={[styles.roleBadge, { backgroundColor: colors.primary[600] + '18' }]}>
-            <Text style={[styles.roleBadgeText, { color: colors.primary[600] }]}>
-              {roleLabel(membership?.isAdmin ? 'admin' : (membership?.role ?? 'member'))}
-            </Text>
-          </View>
-          {group.description ? (
-            <Text style={[styles.description, { color: theme.textSecondary }]}>
-              {group.description}
-            </Text>
-          ) : null}
+  return scaffold(
+    <ScrollView
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={detailsQuery.isRefetching}
+          onRefresh={() => {
+            void detailsQuery.refetch();
+            void membersQuery.refetch();
+          }}
+        />
+      }
+    >
+      <View style={styles.hero}>
+        <GroupAvatar name={group.name} avatarUrl={group.avatar_url} size={88} />
+        <Text style={[styles.groupName, { color: theme.text }]}>{group.name}</Text>
+        <View style={[styles.roleBadge, { backgroundColor: colors.primary[600] + '18' }]}>
+          <Text style={[styles.roleBadgeText, { color: colors.primary[600] }]}>
+            {roleLabel(membership?.isAdmin ? 'admin' : (membership?.role ?? 'member'))}
+          </Text>
         </View>
+        {group.description ? (
+          <Text style={[styles.description, { color: theme.textSecondary }]}>
+            {group.description}
+          </Text>
+        ) : null}
+      </View>
 
-        {section(
-          `Mitglieder${members.length ? ` (${members.length})` : ''}`,
-          membersQuery.isPending ? (
-            <ActivityIndicator color={colors.primary[600]} />
-          ) : members.length === 0 ? (
-            <Text style={[styles.emptyLine, { color: theme.textSecondary }]}>
-              Keine Mitglieder gefunden.
-            </Text>
-          ) : (
-            <ListGroup>
-              {members.map((member, i) => (
-                <ListRow
-                  key={member.user_id}
-                  icon="person-outline"
-                  title={member.display_name ?? member.first_name ?? member.email ?? 'Mitglied'}
-                  value={roleLabel(member.role)}
-                  last={i === members.length - 1}
-                />
-              ))}
-            </ListGroup>
-          )
+      {section(
+        `Mitglieder${members.length ? ` (${members.length})` : ''}`,
+        membersQuery.isPending ? (
+          <ActivityIndicator color={colors.primary[600]} />
+        ) : members.length === 0 ? (
+          <Text style={[styles.emptyLine, { color: theme.textSecondary }]}>
+            Keine Mitglieder gefunden.
+          </Text>
+        ) : (
+          <ListGroup>
+            {members.map((member, i) => (
+              <ListRow
+                key={member.user_id}
+                icon="person-outline"
+                title={member.display_name ?? member.first_name ?? member.email ?? 'Mitglied'}
+                value={roleLabel(member.role)}
+                last={i === members.length - 1}
+              />
+            ))}
+          </ListGroup>
+        )
+      )}
+
+      {links.length > 0 &&
+        section(
+          'Links',
+          <ListGroup>
+            {links.map((link, i) => (
+              <ListRow
+                key={link.id}
+                icon={LINK_ICONS[link.icon] ?? 'link'}
+                title={link.title}
+                value={link.description ?? link.url}
+                onPress={() => void Linking.openURL(link.url)}
+                last={i === links.length - 1}
+              />
+            ))}
+          </ListGroup>
         )}
 
-        {links.length > 0 &&
-          section(
-            'Links',
-            <ListGroup>
-              {links.map((link, i) => (
-                <ListRow
-                  key={link.id}
-                  icon={LINK_ICONS[link.icon] ?? 'link'}
-                  title={link.title}
-                  value={link.description ?? link.url}
-                  onPress={() => void Linking.openURL(link.url)}
-                  last={i === links.length - 1}
-                />
-              ))}
-            </ListGroup>
-          )}
-
-        {id ? <GroupContentSection groupId={id} /> : null}
-      </ScrollView>
-    </SafeAreaView>
+      {id ? <GroupContentSection groupId={id} /> : null}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xsmall,
-    paddingHorizontal: spacing.small,
-    paddingVertical: spacing.small,
-  },
-  backButton: { padding: 2 },
-  headerTitle: { ...typography.bodyBold, fontSize: 17, flex: 1 },
   scrollContent: {
     paddingHorizontal: spacing.medium,
-    paddingBottom: spacing.xxlarge,
-    gap: spacing.large,
+    paddingBottom: spacing.xxlarge * 2,
+    gap: spacing.xlarge,
   },
   hero: {
     alignItems: 'center',
-    gap: spacing.xsmall,
-    paddingTop: spacing.small,
+    gap: spacing.small,
+    paddingTop: spacing.medium,
+    paddingBottom: spacing.xsmall,
   },
   groupName: { ...typography.h2, textAlign: 'center' },
   roleBadge: {
@@ -236,7 +208,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingTop: 2,
   },
-  section: { gap: spacing.xsmall },
+  section: { gap: spacing.small },
   sectionTitle: {
     fontFamily: BODY_FONT,
     fontSize: 12,

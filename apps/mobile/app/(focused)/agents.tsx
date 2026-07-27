@@ -26,21 +26,13 @@ import {
   TextInput,
   useColorScheme,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { agentIcon } from '../../components/chat/sidebarIcons';
 import { ChipGroup, ListGroup, ListRow } from '../../components/common';
+import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
 import { usePublicUserAgents } from '../../hooks/agents/usePublicUserAgents';
 import { useUserAgents } from '../../hooks/agents/useUserAgents';
-import {
-  colors,
-  spacing,
-  typography,
-  borderRadius,
-  lightTheme,
-  darkTheme,
-  BODY_FONT,
-} from '../../theme';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 import { routeWithParams } from '../../types/routes';
 
 /** How many agents the "Empfohlen" shelf shows before it stops being a shortcut. */
@@ -292,16 +284,7 @@ export default function AgentsScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={26} color={theme.text} />
-        </Pressable>
-        <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>
-          Agentura
-        </Text>
-      </View>
-
+    <ScreenScaffold title="Agentura" onBack={() => router.back()}>
       <View style={styles.controls}>
         <View
           style={[
@@ -350,39 +333,23 @@ export default function AgentsScreen() {
         ) : null}
         {body}
       </ScrollView>
-    </SafeAreaView>
+    </ScreenScaffold>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xsmall,
-    paddingHorizontal: spacing.small,
-    paddingVertical: spacing.small,
-  },
-  backButton: {
-    padding: 2,
-  },
-  title: {
-    ...typography.h2,
-    flex: 1,
-  },
   controls: {
     paddingHorizontal: spacing.medium,
-    paddingBottom: spacing.small,
+    paddingTop: spacing.xsmall,
+    paddingBottom: spacing.medium,
     gap: spacing.small,
   },
   searchField: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xsmall,
-    paddingHorizontal: spacing.small,
-    height: 40,
+    paddingHorizontal: spacing.medium,
+    height: 44,
     borderRadius: borderRadius.full,
     borderWidth: StyleSheet.hairlineWidth,
   },
@@ -397,19 +364,21 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: spacing.medium,
-    paddingBottom: spacing.xxlarge,
+    // Clears the floating tab capsule and leaves the last row room to breathe
+    // rather than ending flush against the bottom edge.
+    paddingBottom: spacing.xxlarge * 2,
   },
   blurb: {
     fontFamily: BODY_FONT,
     fontSize: 13,
     lineHeight: 18,
-    paddingBottom: spacing.small,
+    paddingBottom: spacing.medium,
   },
   sections: {
-    gap: spacing.large,
+    gap: spacing.xlarge,
   },
   section: {
-    gap: spacing.xsmall,
+    gap: spacing.small,
   },
   sectionTitle: {
     fontFamily: BODY_FONT,
@@ -424,8 +393,9 @@ const styles = StyleSheet.create({
   },
   empty: {
     alignItems: 'center',
-    gap: spacing.small,
+    gap: spacing.medium,
     paddingVertical: spacing.xxlarge,
+    paddingHorizontal: spacing.large,
   },
   emptyText: {
     fontFamily: BODY_FONT,
