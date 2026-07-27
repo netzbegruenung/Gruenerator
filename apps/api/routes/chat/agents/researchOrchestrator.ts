@@ -221,8 +221,11 @@ export function localeToSearchScope(locale: ResearchLocale): {
  * ResearchResult shape so the frontend ResearchArtifactCard works unchanged.
  *
  * Notes:
- * - confidence is set to 'high': Linkup deep is exhaustive by design (up to
- *   10 retrieval iterations with cross-pass context).
+ * - confidence is DERIVED (see below). It used to be hardcoded 'high' on the
+ *   grounds that Linkup deep is exhaustive by design — but exhaustive research
+ *   into the WRONG question is not high confidence, and the label is not
+ *   cosmetic: respondNode injects it into the system prompt and forbids the
+ *   model to say it found nothing.
  * - searchSteps is synthesized as a single entry so the toolCall chip's
  *   expand panel still has something to show.
  * - followUpQuestions is empty: Linkup doesn't return them; the UI handles
@@ -232,6 +235,8 @@ async function executeResearchViaLinkup(args: {
   linkup: NonNullable<ReturnType<typeof getLinkupService>>;
   question: string;
   locale: ResearchLocale;
+  /** The question was inherited from an earlier turn, not stated by the user. */
+  queryInherited?: boolean;
   onProgress?: (message: string) => void;
 }): Promise<ResearchResult> {
   const { linkup, question, locale, onProgress } = args;
@@ -264,8 +269,34 @@ async function executeResearchViaLinkup(args: {
         resultsCount: citations.length,
       },
     ],
-    confidence: 'high',
+    confidence: linkupConfidence({
+      sources: citations.length,
+      domains: new Set(citations.map((c) => c.domain)).size,
+      answerLength: res.answer.trim().length,
+      queryInherited: args.queryInherited === true,
+    }),
   };
+}
+
+/**
+ * Confidence from what the run actually produced, instead of a constant.
+ *
+ * An inherited query caps at 'medium': the subject was inferred from the
+ * conversation, so even a perfect retrieval may have researched the wrong
+ * thing — which is exactly the failure that made this label misleading.
+ */
+export function linkupConfidence(signals: {
+  sources: number;
+  domains: number;
+  answerLength: number;
+  queryInherited: boolean;
+}): 'high' | 'medium' | 'low' {
+  const { sources, domains, answerLength, queryInherited } = signals;
+  if (sources === 0 || answerLength < 80) return 'low';
+  if (queryInherited) return sources >= 3 && domains >= 2 ? 'medium' : 'low';
+  if (sources >= 8 && domains >= 4) return 'high';
+  if (sources >= 3 && domains >= 2) return 'medium';
+  return 'low';
 }
 
 /**
@@ -776,6 +807,8 @@ async function synthesizeWithFallback(
 export async function executeResearch(params: {
   question: string;
   brief?: string | null;
+  /** The question was inherited from an earlier turn — caps confidence. */
+  queryInherited?: boolean;
   aiWorkerPool?: AIWorkerPool;
   depth?: 'quick' | 'thorough';
   maxSources?: number;
@@ -787,6 +820,7 @@ export async function executeResearch(params: {
   const {
     question,
     brief,
+    queryInherited,
     aiWorkerPool,
     depth = 'quick',
     maxSources = 8,
@@ -832,6 +866,7 @@ export async function executeResearch(params: {
       linkup,
       question: question.trim(),
       locale: defaultLocale,
+      queryInherited: queryInherited === true,
       ...(onProgress ? { onProgress } : {}),
     });
   }

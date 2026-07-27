@@ -137,16 +137,41 @@ describe('createSourceRegistry', () => {
   });
 
   describe('cross-turn carried sources (seedCarried / renderReference)', () => {
-    it('carried sources appear in renderReference but NOT in renderAll/getCitations/getResults', () => {
+    it('carried sources reach the synth block but never the citation channels', () => {
       const reg = createSourceRegistry();
       reg.seedCarried([result({ title: 'PRIOR', content: 'prior-fact', url: 'https://p' })]);
       // renderReference exposes the carried source to the op-planner...
       expect(reg.renderReference()).toMatch(/\[1\] PRIOR/);
+      // ...and the synth sees it too, or it would deny having sources that are
+      // visibly attached to the same conversation.
+      expect(reg.renderAll()).toContain('PRIOR');
+      expect(reg.renderAll()).toContain('prior-fact');
       // ...but this-turn channels stay empty (no dangling citation, no push-out).
-      expect(reg.renderAll()).toBe('');
       expect(reg.getCitations()).toEqual([]);
       expect(reg.getResults()).toEqual([]);
       expect(reg.size).toBe(0);
+      expect(reg.carriedSize).toBe(1);
+    });
+
+    it('renders carried sources UNNUMBERED so no [N] can dangle', () => {
+      const reg = createSourceRegistry();
+      reg.seedCarried([result({ title: 'PRIOR', content: 'prior-fact', url: 'https://p' })]);
+      const block = reg.renderAll();
+      // The citation clamp keys off `size`; a [1] here would survive it and
+      // point at a chip the UI never rendered.
+      expect(block).not.toMatch(/\[\d+\]/);
+      expect(block).toContain('FRÜHERE QUELLEN');
+    });
+
+    it('puts this-turn sources first and keeps their numbering independent', () => {
+      const reg = createSourceRegistry();
+      reg.seedCarried([result({ title: 'PRIOR', content: 'prior', url: 'https://p' })]);
+      reg.register([result({ title: 'FRESH', content: 'fresh', url: 'https://f' })]);
+      const block = reg.renderAll();
+      expect(block.indexOf('[1] FRESH')).toBeGreaterThanOrEqual(0);
+      expect(block.indexOf('[1] FRESH')).toBeLessThan(block.indexOf('FRÜHERE QUELLEN'));
+      // Carried must not shift this turn's numbering or inflate the clamp bound.
+      expect(reg.size).toBe(1);
     });
 
     it('renderReference lists carried first, then this-turn sources, sequentially numbered', () => {

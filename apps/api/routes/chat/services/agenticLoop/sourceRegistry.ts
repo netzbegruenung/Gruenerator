@@ -46,18 +46,25 @@ export interface SourceRegistry {
    *  for these results (default 320) — honored in `renderAll` too. */
   register(results: SearchResult[], opts?: { snippetChars?: number }): string;
   /**
-   * Seed sources gathered in EARLIER turns (cross-turn rehydration). These feed
-   * ONLY {@link renderReference} (the edit op-planner's grounding) — NOT
-   * `renderAll`/`getCitations`/`getResults`, so the synth's `[N]` block, the
-   * citation UI, and persistence stay this-turn-only (no dangling citations, no
-   * fresh sources pushed out of the capped persistence slice).
+   * Seed sources gathered in EARLIER turns (cross-turn rehydration).
+   *
+   * These stay out of `getCitations`/`getResults`/`size` — the citation UI and
+   * persistence remain this-turn-only, so no `[N]` chip can dangle and no fresh
+   * source is pushed out of the capped persistence slice. They DO reach
+   * `renderAll` as a separate, UNNUMBERED block: excluding them there meant the
+   * log said "rehydrated 3 prior source(s) for grounding" while the synth got
+   * nothing and was then told by the honesty note that it had researched
+   * nothing — which is exactly what it repeated to the user.
    */
   seedCarried(results: SearchResult[]): void;
+  /** Prior-turn sources currently seeded (drives the honesty note). */
+  readonly carriedSize: number;
   /** All accumulated results in stable order (capped), for persistence/UI. */
   getResults(limit?: number): SearchResult[];
   /** The full numbered snippet block for ALL accumulated results — injected into
    *  the synthesizer's context in the planner/executor split (the synth model
-   *  has no tools, so it can't see results via tool returns). */
+   *  has no tools, so it can't see results via tool returns). Carried
+   *  (prior-turn) sources follow in an unnumbered block. */
   renderAll(): string;
   /**
    * Numbered snippet block of carried (prior-turn) + this-turn sources, deduped —
@@ -159,7 +166,26 @@ export function createSourceRegistry(): SourceRegistry {
       return ordered.slice(0, limit);
     },
     renderAll() {
-      return ordered.map((r, i) => snippetLine(i + 1, r, caps[i])).join('\n');
+      const current = ordered.map((r, i) => snippetLine(i + 1, r, caps[i])).join('\n');
+      if (carried.length === 0) return current;
+      // Deliberately unnumbered: a `[N]` here would be a citation the UI and the
+      // persisted turn cannot back. The model may still USE the content — it
+      // just cannot cite it as one of this turn's sources.
+      const prior = carried
+        .map((r) => {
+          const title = (r.title || r.source || 'Quelle').trim();
+          const url = typeof r.url === 'string' && r.url.trim() ? ` <${r.url.trim()}>` : '';
+          const body = applyContextCap(
+            (r.content ?? '').replace(/\s+/g, ' ').trim(),
+            SNIPPET_CHARS,
+            'sourceRegistry:carried',
+            false
+          );
+          return `- ${title}${url}${body ? ` — ${body}` : ''}`;
+        })
+        .join('\n');
+      const priorBlock = `FRÜHERE QUELLEN (aus vorherigen Turns dieses Gesprächs — inhaltlich nutzbar, aber NICHT mit [N] zitierbar):\n${prior}`;
+      return current ? `${current}\n\n${priorBlock}` : priorBlock;
     },
     renderReference() {
       // Carried (prior-turn) first, then this-turn's fresh sources not already
@@ -185,6 +211,9 @@ export function createSourceRegistry(): SourceRegistry {
     },
     get size() {
       return ordered.length;
+    },
+    get carriedSize() {
+      return carried.length;
     },
   };
 }

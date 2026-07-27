@@ -28,6 +28,20 @@ const log = createLogger('ChatGraph:Classifier');
  * dem ich") on purpose: a bare "reel"/"video" would grab reel CREATION and the
  * reel_edit turns, which are separate branches.
  */
+/**
+ * References to THIS conversation rather than an earlier one ("vorhin", "in
+ * diesem Chat", "deine letzte Antwort"). Those need no retrieval at all — the
+ * messages are already in context.
+ *
+ * Live failure this guards: "Du hast meine Frage nach dem Bundeskanzler vorhin
+ * nicht beantwortet … was war meine allererste Frage in diesem Chat?" was
+ * classified `chat_history`, ran a Qdrant recall over PAST threads, got 0 hits
+ * and answered that no sources were available — while the answer sat a few
+ * messages above.
+ */
+export const CURRENT_THREAD_REFERENCE =
+  /\b(?:vorhin|eben\s+gerade|gerade\s+eben|weiter\s+oben|hier\s+im\s+chat|in\s+diesem\s+(?:chat|gespräch|thread|verlauf)|dieses\s+gespräch[s]?|deine[rn]?\s+(?:letzte|vorherige|obige)[rn]?\s+antwort|meine\s+(?:erste|allererste|letzte)\s+frage)\b/i;
+
 export const CHAT_HISTORY_KEYWORDS =
   /\b(letzte[sn]?\s+gespräch|vorher\s+besprochen|letzte\s+woche|gestern\s+besprochen|was\s+haben\s+wir|erinnere?\s+dich|wir\s+hatten|früheres?\s+chat|voriges?\s+gespräch|damals\s+besprochen|da\s+weiter|wo\s+wir\s+aufgehört|mein(e|en)?\s+(dokument|präsentation|tabelle|notiz|antrag|board|kanban|tafel|reel|video|clip)|meine\s+(dokumente|präsentationen|tabellen|notizen|boards|reels|videos|clips)|die\s+tabelle\s+die\s+ich|das\s+dokument\s+das\s+ich|das\s+board\s+das\s+ich|das\s+(reel|video)\s+(das\s+ich|zu(m)?\s|über)|welches\s+(reel|video)|in\s+welchem\s+(reel|video))\b/i;
 
