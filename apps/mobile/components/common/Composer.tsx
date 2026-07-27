@@ -149,12 +149,11 @@ interface MentionState {
   mentionStart: number;
 }
 
-/**
- * Everything about the composer that does not depend on where the text lives:
- * draft tracking, `@`-mention detection and insertion, dictation, and the
- * has-text flag driving the mic/send merge. Both bindings drive their store
- * through the `setText` they pass in.
- */
+/** The mention types that open a source picker instead of inserting text. */
+function asPickerSource(type: Mentionable['type']): MentionPickerSource | null {
+  return type === 'wolke' || type === 'connect' || type === 'canva' ? type : null;
+}
+
 /**
  * A picked recipe has to be remembered, not just typed: the `/mention` token is
  * stripped from the message on the way out, and everything the recipe actually
@@ -163,17 +162,18 @@ interface MentionState {
  * Web does this in its composer (`GrueneratorComposer`); without it a recipe
  * only swapped the agent id here, and a text form did nothing at all.
  */
-/** The mention types that open a source picker instead of inserting text. */
-function asPickerSource(type: Mentionable['type']): MentionPickerSource | null {
-  return type === 'wolke' || type === 'connect' || type === 'canva' ? type : null;
-}
-
 function rememberSkill(mentionable: Mentionable): void {
   if (mentionable.category === 'skill') {
     useAgentStore.getState().setActiveSkillMention(mentionable.mention);
   }
 }
 
+/**
+ * Everything about the composer that does not depend on where the text lives:
+ * draft tracking, `@`-mention detection and insertion, dictation, and the
+ * has-text flag driving the mic/send merge. Both bindings drive their store
+ * through the `setText` they pass in.
+ */
 function useComposerInput({
   setText,
   inputRef,

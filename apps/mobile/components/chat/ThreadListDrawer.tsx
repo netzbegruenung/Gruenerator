@@ -78,6 +78,9 @@ const ThreadItemBody = memo(function ThreadItemBody({
           <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
         </Text>
       </Pressable>
+      {/* The dot marks the row, so it stays with the title. Behind the menu
+          button it read as one more control rather than as state. */}
+      {isActive && <View style={[styles.activeDot, { backgroundColor: colors.primary[500] }]} />}
       <Pressable
         onPress={onOpenActions}
         hitSlop={8}
@@ -86,7 +89,6 @@ const ThreadItemBody = memo(function ThreadItemBody({
       >
         <Ionicons name="ellipsis-horizontal" size={18} color={theme.textSecondary} />
       </Pressable>
-      {isActive && <View style={[styles.activeDot, { backgroundColor: colors.primary[500] }]} />}
     </ThreadListItemPrimitive.Root>
   );
 });
