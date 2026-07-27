@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 
-import { truncateAtSentence, truncateField } from './textParser.js';
+import {
+  isAttributionLine,
+  parseLabeledText,
+  truncateAtSentence,
+  truncateField,
+} from './textParser.js';
 
 describe('truncateField', () => {
   it('returns the value unchanged when within the limit', () => {
@@ -49,5 +54,64 @@ describe('truncateAtSentence', () => {
     expect(result.length).toBeLessThanOrEqual(30);
     expect(/[.!?]$/.test(result)).toBe(false);
     expect(value.startsWith(result)).toBe(true);
+  });
+});
+
+describe('parseLabeledText — attribution lines never enter a field', () => {
+  it('drops the fabricated source line the Kickl sharepic shipped', () => {
+    // Live bug: zitat_pure declares only a ZITAT label, so every following line
+    // was appended to the quote — including an invented "ORF-Interview" source
+    // that the template has no field for and that read as a real citation.
+    const raw = [
+      'ZITAT: "Ich verachte den Rechtsstaat."',
+      '— Herbert Kickl, ORF-Interview, 3.3.2026',
+    ].join('\n');
+    const result = parseLabeledText(raw, ['zitat']);
+    expect(result.success).toBe(true);
+    expect(result.data['zitat']).toBe('"Ich verachte den Rechtsstaat."');
+    expect(result.data['zitat']).not.toContain('ORF');
+    expect(result.data['zitat']).not.toContain('Kickl');
+  });
+
+  it('drops an explicit Quelle: line', () => {
+    const raw = 'ZITAT: Klimaschutz ist Menschenschutz.\nQuelle: Umweltbundesamt 2026';
+    const result = parseLabeledText(raw, ['zitat']);
+    expect(result.data['zitat']).toBe('Klimaschutz ist Menschenschutz.');
+  });
+
+  it('keeps a genuine multi-line quote intact', () => {
+    const raw = [
+      'ZITAT: Wir haben es in der Hand.',
+      'Jede Tonne CO2 zählt, und jede Entscheidung auch.',
+    ].join('\n');
+    const result = parseLabeledText(raw, ['zitat']);
+    expect(result.data['zitat']).toBe(
+      'Wir haben es in der Hand.\nJede Tonne CO2 zählt, und jede Entscheidung auch.'
+    );
+  });
+});
+
+describe('isAttributionLine', () => {
+  it('matches attribution shapes', () => {
+    for (const line of [
+      '— Herbert Kickl, ORF-Interview, 3.3.2026',
+      '– Studie des Umweltbundesamts, 2026',
+      'Quelle: ORF',
+      '(Quelle: Der Standard, 2026)',
+      'Foto: Anna Muster',
+    ]) {
+      expect(isAttributionLine(line), line).toBe(true);
+    }
+  });
+
+  it('does not match ordinary content', () => {
+    for (const line of [
+      'Jede Tonne CO2 zählt, und jede Entscheidung auch.',
+      'Wir handeln jetzt.',
+      '— und genau deshalb brauchen wir endlich eine echte Verkehrswende in diesem Land',
+      'Klimaschutz, Gerechtigkeit und Demokratie gehören zusammen, das ist unser Kompass.',
+    ]) {
+      expect(isAttributionLine(line), line).toBe(false);
+    }
   });
 });

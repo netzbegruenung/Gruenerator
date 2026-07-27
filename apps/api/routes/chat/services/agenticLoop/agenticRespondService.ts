@@ -30,6 +30,7 @@ import {
 import { loadSystemMcpCatalog } from '../../agents/systemMcpCatalog.js';
 import { buildChatToolCatalog } from '../../agents/toolCatalog.js';
 import { extractTextContent } from '../messageHelpers.js';
+import { stripFabricatedSystemClaims } from '../outputSanity.js';
 import { resolveModel, type ResolvedModelTuple } from '../responseStreamingService.js';
 import { PROGRESS_MESSAGES, type SSEWriter } from '../sseHelpers.js';
 import {
@@ -843,8 +844,23 @@ export async function streamAgenticResponse(params: {
   // with 3 sources). Strip out-of-range markers and, if anything changed, push
   // the corrected answer via `completion` — the frontend replaces the streamed
   // deltas with it (same channel the notebook flow uses).
+  // Invented internal filenames ("SecureComms_Override.log") must not survive
+  // into the answer — they read as a leak. Checked against everything the model
+  // legitimately saw, so real attachment names pass through.
+  const sanity = stripFabricatedSystemClaims(text, [
+    sourceRegistry.renderAll(),
+    finalState.attachmentContext ?? '',
+    finalState.currentDocument?.title ?? '',
+  ]);
+  if (sanity.fabricated.length > 0) {
+    log.warn(
+      `[Agentic] Removed fabricated internal file claim(s): ${sanity.fabricated.join(', ')}`
+    );
+    text = sanity.text;
+  }
+
   const clamp = stripOutOfRangeCitations(text, sourceRegistry.size);
-  if (clamp.changed) {
+  if (clamp.changed || sanity.fabricated.length > 0) {
     text = clamp.text;
     // Offset-drift protection: the clamp rewrote the answer text, so every
     // recorded textOffset now points into a stale position. Drop them — reload

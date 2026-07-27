@@ -80,6 +80,22 @@ export interface EvalExpect {
   cited?: boolean;
   /** Answer must not claim it can't create images/sharepics. */
   noCapabilityRefusal?: boolean;
+  /**
+   * Minimum answer length. Guards the "ghost answer" class: the turn reports
+   * success and streams a one-line confirmation while the requested content
+   * never appears (no error, no content).
+   */
+  minAnswerChars?: number;
+  /**
+   * If the answer IS a refusal, it must be written in this language. A German
+   * product refusing in English is a defect even when the refusal is correct.
+   */
+  refusalLanguage?: 'de';
+  /**
+   * Turn 2+: sources retrieved in an earlier turn must still be usable. Fails
+   * when the answer denies having sources while the thread has them.
+   */
+  retainsPriorSources?: boolean;
   /** No scrape_url call errored (model-invented / dead URL). */
   noInventedUrls?: boolean;
   /** done surfaced ≥1 citation (grounded). */
@@ -155,6 +171,8 @@ export interface ScenarioContext {
   priorArtifactIds: string[];
   /** Raw first variant of the last sharepic_complete (for useCreatedSharepic). */
   lastSharepicVariant: Record<string, unknown> | null;
+  /** Citations surfaced across all earlier turns (retainsPriorSources). */
+  priorSourceCount: number;
 }
 
 /** One executed turn — enriched so the LLM judge can consume last-run.json. */
