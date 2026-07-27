@@ -136,6 +136,39 @@ export { computeMentionInsertion, type MentionInsertionResult } from './lib/ment
 // File mention data hook
 export { useFileMentionData } from './hooks/useFileMentionData';
 
+// Data sources for the typed-mention pickers (Nextcloud share links, connected
+// accounts, Canva). RN-safe: react-query over the configured chat fetch.
+export {
+  useUserShareLinksQuery,
+  useWolkeBrowseQuery,
+  useConnectProvidersQuery,
+  useConnectBrowseQuery,
+  useCanvaDesignsQuery,
+  type ChatShareLink,
+  type ChatWolkeFile,
+  type ChatConnectProvider,
+  type ChatConnectFile,
+  type ChatCanvaDesign,
+} from './hooks/useMentionablesQuery';
+export {
+  type WolkeFileToken,
+  type ConnectFileToken,
+  type CanvaDesignToken,
+} from './lib/mentionables';
+
+// Typed-mention attachments (Wolke / Connect / web page) and the Canva draft
+// insertion. Shared so the recognition triple the backend keys on cannot drift
+// between platforms — see lib/mentionAttachments.ts.
+export {
+  buildWolkeAttachment,
+  buildConnectAttachment,
+  buildWebpageAttachment,
+  canvaDesignsMarkdown,
+  appendToDraft,
+  type MentionAttachment,
+} from './lib/mentionAttachments';
+export { joinWolkePath, wolkeParentPath, isWolkeRoot } from './lib/wolkePath';
+
 // useMessageTTS excluded — imports @gruenerator/voice (web-only)
 
 // Citation Utils
