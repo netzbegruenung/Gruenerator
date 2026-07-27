@@ -9,11 +9,13 @@ import {
   Suggestions,
   useRemoteThreadListRuntime,
   type RemoteThreadListAdapter,
+  type FeedbackAdapter,
   RuntimeAdapterProvider,
   ExportedMessageRepository,
   McpAppRenderer,
   McpAppsRemoteHost,
 } from '@assistant-ui/react';
+import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 import { GrueneratorRealtimeVoiceAdapter, VoxtralDictationAdapter } from '@gruenerator/voice';
 import {
   type ReactNode,
@@ -24,7 +26,6 @@ import {
   type PropsWithChildren,
 } from 'react';
 import { useShallow } from 'zustand/shallow';
-import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 
 import { ChatThreadListPortal } from '../components/ChatThreadListPortal';
 import { grueneratorToolkit } from '../components/tool-ui/GrueneratorToolUIs';
@@ -34,8 +35,8 @@ import { ChatRuntimeReadyProvider } from '../context/ChatRuntimeReadyContext';
 import { ExternalThreadProvider } from '../context/ExternalThreadContext';
 import { useChatCollaboration } from '../hooks/useChatCollaboration';
 import { getDefaultAgent } from '../lib/agents';
-import { notifyError } from '../lib/notify';
 import { handleDictationError } from '../lib/dictationErrorHandler';
+import { notifyError } from '../lib/notify';
 import { chatSuggestions } from '../lib/suggestions';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { useAgentStore } from '../stores/chatStore';
@@ -316,9 +317,34 @@ function useGrueneratorThreadRuntime() {
     []
   );
 
+  // Thumbs up/down → Langfuse score on this turn's trace. The backend put the
+  // trace id into the `done` metadata, which parseSSEStream stored on
+  // custom.streamMetadata. No traceId (Langfuse off) → no-op. A per-trace guard
+  // skips re-POSTing the same rating when the user toggles/double-clicks.
+  const lastFeedbackRef = useRef(new Map<string, 'positive' | 'negative'>());
+  const feedbackAdapter = useMemo<FeedbackAdapter>(
+    () => ({
+      submit: ({ message, type }) => {
+        const custom = message.metadata?.custom as
+          { streamMetadata?: { traceId?: string } } | undefined;
+        const traceId = custom?.streamMetadata?.traceId;
+        if (!traceId) return;
+        if (lastFeedbackRef.current.get(traceId) === type) return;
+        lastFeedbackRef.current.set(traceId, type);
+        const { fetch: configFetch, endpoints } = useChatConfigStore.getState();
+        void configFetch(endpoints.feedback, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ traceId, value: type }),
+        }).catch((err) => console.warn('[Feedback] submit failed', err));
+      },
+    }),
+    []
+  );
+
   return useLocalRuntime(modelAdapter, {
     unstable_humanToolNames: ['ask_human'],
-    adapters: { dictation: dictationAdapter, voice: voiceAdapter },
+    adapters: { dictation: dictationAdapter, voice: voiceAdapter, feedback: feedbackAdapter },
   });
 }
 
