@@ -22,9 +22,13 @@ const ENGLISH_REFUSAL_RE =
  * German: `ich kann/darf` + negation + a HELP/PRODUCE verb, all within one
  * sentence. The verb list is the discriminator — "Ich kann nicht zusehen, wie …"
  * is a stance, "Ich kann dir dabei nicht helfen" is a refusal.
+ *
+ * Both word orders count. German inverts after a leading adverb, and that is the
+ * form models reach for most ("Leider kann ich dabei nicht helfen"); matching
+ * only `ich kann` missed the majority of real German declines.
  */
 const GERMAN_REFUSAL_RE =
-  /\bich\s+(?:kann|darf)\b[^.!?]{0,70}?\b(?:nicht|kein\w*)\b[^.!?]{0,45}?\b(?:helfen|weiterhelfen|behilflich|unterstützen|erstellen|erzeugen|generieren|verfassen|schreiben|anfertigen|liefern|bereitstellen|mitwirken)\b/i;
+  /\b(?:ich\s+(?:kann|darf)|(?:kann|darf)\s+ich)\b[^.!?]{0,70}?\b(?:nicht|kein\w*)\b[^.!?]{0,45}?\b(?:helfen|weiterhelfen|behilflich|unterstützen|erstellen|erzeugen|generieren|verfassen|schreiben|anfertigen|liefern|bereitstellen|mitwirken)\b/i;
 
 export type RefusalLanguage = 'de' | 'en';
 

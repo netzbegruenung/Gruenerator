@@ -141,6 +141,13 @@ import type { Application } from 'express';
 
 const log = createLogger('chatGraphContractRouter');
 
+/**
+ * Framing for a wrapper-mode research answer that had to be delivered without a
+ * model: honest that the formulation failed, but the recherche itself did not.
+ */
+const RESEARCH_SALVAGE_PREFIX =
+  'Die Formulierung der Antwort hat gerade nicht geklappt — hier ist das Rechercheergebnis unverändert:';
+
 /** Content of the row that keeps a failed turn's sources for the retry. */
 const RESEARCH_KEPT_ON_FAILURE_TEXT =
   'Die Antwort konnte nicht erzeugt werden. Die recherchierten Quellen sind gespeichert — ein erneuter Versuch nutzt sie weiter.';
@@ -1730,6 +1737,14 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
                   primary: resolution,
                   sse,
                   logPrefix: '[ChatGraph]',
+                  // In wrapper mode the retrieved synthesis IS the answer and
+                  // the card is already on screen — the model only frames it.
+                  // If no lane can write those two sentences, ship the answer
+                  // itself rather than an error over finished work.
+                  salvage: () =>
+                    usesResearchWrapper(finalState) && finalState.researchMeta
+                      ? `${RESEARCH_SALVAGE_PREFIX}\n\n${finalState.researchMeta.answer}`
+                      : null,
                   buildStream: async (r) =>
                     // No output cap (OpenWebUI-style): the provider/model window is
                     // the backstop; agentConfig.params.max_tokens is deliberately
@@ -1759,7 +1774,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               const kept = await persistSourcesOnFailure(
                 pendingId,
                 RESEARCH_KEPT_ON_FAILURE_TEXT,
-                finalState.searchResults.slice(0, MAX_SOURCES)
+                finalState.searchResults.slice(0, MAX_SOURCES),
+                finalState.searchQuery ?? undefined,
+                finalState.researchMeta ?? undefined
               ).catch(() => false);
               if (kept) {
                 log.info(
