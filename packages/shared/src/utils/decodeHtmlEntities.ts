@@ -1,9 +1,16 @@
 /**
  * Decode HTML entities in plain text: named entities (including German
  * umlauts — the gap `stripHtmlTags` doesn't cover), decimal (`&#34;`) and hex
- * (`&#x27;`) numeric references. Entities are decoded exactly once — enough
- * to unwrap the double-encoding some search providers emit
- * (`&amp;quot;` → `&quot;` → `"`) without recursing into user-controlled input.
+ * (`&#x27;`) numeric references.
+ *
+ * Decoding runs exactly TWICE, not in a loop: search providers routinely emit
+ * one level of double-encoding (`&amp;quot;` → `&quot;` → `"`), while an
+ * unbounded loop over attacker-controlled text would keep unwrapping
+ * (`&amp;amp;lt;` → … → `<`) and could reconstitute markup the source had
+ * escaped on purpose. Two passes cover the real-world case with a fixed bound.
+ * Output is plain text for React (which escapes it) and for model prompts —
+ * never inject it as HTML.
+ *
  * Unknown named entities are left untouched.
  */
 const NAMED_ENTITIES: Record<string, string> = {
