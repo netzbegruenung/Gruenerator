@@ -6,19 +6,22 @@ import { useTheme } from '../../hooks/useTheme';
 import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 
 /**
- * One row of a grouped settings card: badge icon, title, and the current value
- * as a subtitle.
+ * One row of a grouped card: a leading badge, a title, and the current value as
+ * a subtitle.
  *
- * The value-as-subtitle is the load-bearing part. It is what lets the settings
- * screen be read without tapping anything — "5 verbunden", "Mittel", "System" —
- * which is the whole point of the mobile surface: show state, don't ask the user
- * to go hunting for it.
+ * The value-as-subtitle is the load-bearing part. It is what lets a surface be
+ * read without tapping anything — "5 verbunden", "Mittel", "3 Mitglieder" —
+ * which is the point of these screens: show state, don't make the user go
+ * hunting for it.
  *
- * Lifted out of `ComposerActionSheet`, which invented this look and now consumes
- * it from here. Two copies of the same card would have drifted within a release.
+ * Invented by `ComposerActionSheet`, then wanted by the settings sheet, the
+ * Agentura and Projekte. It lives under `common/` rather than `settings/`
+ * because four surfaces share it and two copies would have drifted within a
+ * release.
  */
 
-/** Card and badge fills. Both surfaces need them, and they must not diverge. */
+/** Card and badge fills. Every surface using these rows needs them, and they
+ *  must not diverge. */
 export function useSurfaceStyles(): {
   card: { backgroundColor: string };
   badge: { backgroundColor: string };
@@ -31,11 +34,16 @@ export function useSurfaceStyles(): {
   };
 }
 
-interface SettingsRowProps {
-  icon: IoniconsIconName;
+interface ListRowProps {
+  /** Badge icon. Ignored when `leading` is given. */
+  icon?: IoniconsIconName;
+  /** Replaces the icon badge outright — an avatar or an initials circle. */
+  leading?: ReactNode;
   title: string;
-  /** Current value, shown under the title. */
+  /** Current value or subtitle, shown under the title. */
   value?: string | null;
+  /** How many lines the value may take. Agent blurbs need two. */
+  valueLines?: number;
   onPress?: () => void;
   /**
    * Picker rows show a check instead of the chevron. Leave undefined for
@@ -52,17 +60,19 @@ interface SettingsRowProps {
   disabled?: boolean;
 }
 
-export function SettingsRow({
+export function ListRow({
   icon,
+  leading,
   title,
   value,
+  valueLines = 1,
   onPress,
   selected,
   last,
   destructive,
   accessory,
   disabled,
-}: SettingsRowProps) {
+}: ListRowProps) {
   const theme = useTheme();
   const { badge } = useSurfaceStyles();
   const tint = destructive ? colors.error[600] : theme.text;
@@ -97,15 +107,17 @@ export function SettingsRow({
       accessibilityRole="button"
       accessibilityLabel={value ? `${title}, ${value}` : title}
     >
-      <View style={[styles.badge, badge]}>
-        <Ionicons name={icon} size={22} color={tint} />
-      </View>
+      {leading ?? (
+        <View style={[styles.badge, badge]}>
+          {icon ? <Ionicons name={icon} size={22} color={tint} /> : null}
+        </View>
+      )}
       <View style={styles.text}>
         <Text style={[styles.title, { color: tint }]} numberOfLines={1}>
           {title}
         </Text>
         {value ? (
-          <Text style={[styles.value, { color: theme.textSecondary }]} numberOfLines={1}>
+          <Text style={[styles.value, { color: theme.textSecondary }]} numberOfLines={valueLines}>
             {value}
           </Text>
         ) : null}
@@ -116,7 +128,7 @@ export function SettingsRow({
 }
 
 /** A rounded card grouping consecutive rows, as in the reference layouts. */
-export function SettingsGroup({ children }: { children: ReactNode }) {
+export function ListGroup({ children }: { children: ReactNode }) {
   const { card } = useSurfaceStyles();
   return <View style={[styles.group, card]}>{children}</View>;
 }
@@ -149,9 +161,9 @@ const styles = StyleSheet.create({
     fontSize: 17,
   },
   value: {
-    // Carried over from ComposerActionSheet when these styles moved here (#2104
-    // put the row's value on the chat scale; the title it deliberately left raw
-    // at 17). Each step carries its own fontFamily, so the row cannot lose it.
+    // #2104 put the row's value on the chat scale and deliberately left the
+    // title raw at 17. Each step carries its own fontFamily, so the row cannot
+    // lose the font.
     ...chatType.chatSecondary,
     marginTop: 1,
   },
