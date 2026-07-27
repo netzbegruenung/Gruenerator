@@ -39,6 +39,7 @@ import { SCREEN_EDGE } from '../../theme/layout';
 import { ComposerAttachmentUI } from '../chat/AttachmentUI';
 import { ComposerActionSheet } from '../chat/ComposerActionSheet';
 import { DocumentBrowserSheet } from '../chat/DocumentBrowserSheet';
+import { MentionPickerSheet, type MentionPickerSource } from '../chat/MentionPickerSheet';
 import { MentionSuggestions } from '../chat/MentionSuggestions';
 
 import {
@@ -162,6 +163,11 @@ interface MentionState {
  * Web does this in its composer (`GrueneratorComposer`); without it a recipe
  * only swapped the agent id here, and a text form did nothing at all.
  */
+/** The mention types that open a source picker instead of inserting text. */
+function asPickerSource(type: Mentionable['type']): MentionPickerSource | null {
+  return type === 'wolke' || type === 'connect' || type === 'canva' ? type : null;
+}
+
 function rememberSkill(mentionable: Mentionable): void {
   if (mentionable.category === 'skill') {
     useAgentStore.getState().setActiveSkillMention(mentionable.mention);
@@ -338,6 +344,25 @@ function ComposerBody({
   const showMentions = props.showMentions ?? true;
   const [actionSheetVisible, setActionSheetVisible] = useState(false);
   const [docBrowserVisible, setDocBrowserVisible] = useState(false);
+  const [pickerSource, setPickerSource] = useState<MentionPickerSource | null>(null);
+
+  // Three mention types are not text to insert but a source to browse. Web
+  // opens a separate floating popover per type; on a phone they are the same
+  // gesture and the same list, so one sheet serves all three. Without an
+  // `addAttachment` there is nothing to attach to, and the mention falls back
+  // to being plain text.
+  const handleMentionSelect = useCallback(
+    (mentionable: Mentionable) => {
+      const source = asPickerSource(mentionable.type);
+      if (source && addAttachment) {
+        input.dismissMention();
+        setPickerSource(source);
+        return;
+      }
+      input.onMentionSelect(mentionable);
+    },
+    [input, addAttachment]
+  );
 
   const attachPicked = useCallback(
     async (pending: Promise<PickedDocument | null>) => {
@@ -406,7 +431,7 @@ function ComposerBody({
                 query={input.mention.query}
                 visible={input.mention.visible}
                 theme={theme}
-                onSelect={input.onMentionSelect}
+                onSelect={handleMentionSelect}
                 onDismiss={input.dismissMention}
               />
             )}
@@ -508,6 +533,13 @@ function ComposerBody({
               setDocBrowserVisible(false);
             }}
             onDismiss={() => setDocBrowserVisible(false)}
+          />
+          <MentionPickerSheet
+            source={pickerSource}
+            theme={theme}
+            onClose={() => setPickerSource(null)}
+            onAttach={(attachment) => addAttachment?.(attachment)}
+            onInsertText={input.appendText}
           />
         </>
       )}

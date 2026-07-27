@@ -301,6 +301,19 @@ export { computeMentionInsertion, type MentionInsertionResult } from './lib/ment
 // File mention data hook
 export { useFileMentionData } from './hooks/useFileMentionData';
 
+// Typed-mention attachments (Wolke / Connect / web page) and the Canva draft
+// insertion. Shared so the recognition triple the backend keys on cannot drift
+// between platforms — see lib/mentionAttachments.ts.
+export {
+  buildWolkeAttachment,
+  buildConnectAttachment,
+  buildWebpageAttachment,
+  canvaDesignsMarkdown,
+  appendToDraft,
+  type MentionAttachment,
+} from './lib/mentionAttachments';
+export { joinWolkePath, wolkeParentPath, isWolkeRoot } from './lib/wolkePath';
+
 // Citation Utils
 export { mapRawCitationsToChat, resolveCitations } from './lib/citationUtils';
 
