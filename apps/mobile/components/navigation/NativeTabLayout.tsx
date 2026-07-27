@@ -64,7 +64,6 @@ export function NativeTabLayout() {
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="(chat)" hidden />
       <NativeTabs.Trigger name="(tools)" hidden />
-      <NativeTabs.Trigger name="profile" hidden />
     </NativeTabs>
   );
 }

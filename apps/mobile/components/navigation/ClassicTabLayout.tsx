@@ -4,6 +4,7 @@ import { Tabs } from 'expo-router';
 import { StyleSheet, useColorScheme, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useReduceTransparency } from '../../hooks/useAccessibilityPreferences';
 import { lightTheme, darkTheme, colors, BODY_FONT } from '../../theme';
 import { TAB_BAR_CAPSULE_HEIGHT, TAB_BAR_CAPSULE_GAP } from '../../theme/layout';
 import { GrueneratorLoadingIcon } from '../chat/GrueneratorLoadingIcon';
@@ -28,6 +29,10 @@ const CAPSULE_MIN_MARGIN = 14;
 const CAPSULE_FILL_LIGHT = 'rgba(255, 255, 255, 0.55)';
 const CAPSULE_FILL_DARK = 'rgba(10, 12, 11, 0.5)';
 
+/** Opaque counterparts, used when the user asked for less transparency. */
+const CAPSULE_SOLID_LIGHT = 'rgb(250, 250, 249)';
+const CAPSULE_SOLID_DARK = 'rgb(10, 12, 11)';
+
 /**
  * The capsule's translucent backdrop. Lives in its own component so it renders
  * inside the navigator — and therefore inside `TabBarBlurTargetProvider`, where
@@ -35,6 +40,18 @@ const CAPSULE_FILL_DARK = 'rgba(10, 12, 11, 0.5)';
  */
 function TabBarBackground({ isDark }: { isDark: boolean }) {
   const blurTarget = useTabBarBlurTarget();
+  // "Transparenz reduzieren" takes the same path the blur already falls back to
+  // below Android 12 — intensity 0 over the fill — only with the fill turned
+  // opaque, so nothing shows through at all.
+  const reduceTransparency = useReduceTransparency();
+
+  const fill = reduceTransparency
+    ? isDark
+      ? CAPSULE_SOLID_DARK
+      : CAPSULE_SOLID_LIGHT
+    : isDark
+      ? CAPSULE_FILL_DARK
+      : CAPSULE_FILL_LIGHT;
 
   return (
     <BlurView
@@ -43,13 +60,9 @@ function TabBarBackground({ isDark }: { isDark: boolean }) {
       // a view that is on screen the whole time.
       blurMethod="dimezisBlurViewSdk31Plus"
       blurTarget={blurTarget}
-      intensity={60}
+      intensity={reduceTransparency ? 0 : 60}
       tint={isDark ? 'dark' : 'light'}
-      style={[
-        StyleSheet.absoluteFill,
-        styles.capsuleBackground,
-        { backgroundColor: isDark ? CAPSULE_FILL_DARK : CAPSULE_FILL_LIGHT },
-      ]}
+      style={[StyleSheet.absoluteFill, styles.capsuleBackground, { backgroundColor: fill }]}
     />
   );
 }
@@ -167,13 +180,6 @@ export function ClassicTabLayout() {
           the Studio tab, and the chat group behind the Chat tab. */}
         <Tabs.Screen name="(chat)" options={{ href: null, headerShown: false }} />
         <Tabs.Screen name="(tools)" options={{ href: null, headerShown: false }} />
-        <Tabs.Screen
-          name="profile"
-          options={{
-            href: null,
-            headerShown: false,
-          }}
-        />
       </Tabs>
     </TabBarBlurTargetProvider>
   );

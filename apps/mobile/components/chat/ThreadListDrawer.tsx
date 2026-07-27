@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDrawerStore } from '../../hooks/useDrawerStore';
 import { useTheme } from '../../hooks/useTheme';
+import { useSettingsSheetStore } from '../../stores/settingsSheetStore';
 import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
 import { colors, spacing, borderRadius, BODY_FONT } from '../../theme';
 import { route, routeWithParams, type AppRoute } from '../../types/routes';
@@ -202,6 +203,7 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const closeDrawer = useDrawerStore((s) => s.closeDrawer);
+  const openSettings = useSettingsSheetStore((s) => s.open);
   const activeThreadId = useAuiState((s) => s.threadListItem.id);
   const favouriteIds = useToolFavoritesStore((s) => s.favorites);
   // Top-level tools, plus any favourited Studio sub-tool so starring one does not
@@ -272,7 +274,10 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
       <ProfileFooter
         theme={theme}
         insetBottom={insets.bottom}
-        onPress={() => handleNavigate('/profile')}
+        onPress={() => {
+          closeDrawer();
+          openSettings();
+        }}
       />
     </ThreadListPrimitive.Root>
   );
