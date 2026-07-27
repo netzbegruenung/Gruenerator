@@ -4,7 +4,13 @@
  * nodes → import cycle).
  */
 export function isAgenticLoopEnabled(): boolean {
-  return process.env.CHAT_AGENT_LOOP === 'true';
+  // Default ON. The loop is the path where a factual turn actually calls a
+  // tool; single-pass is the fallback, not the norm. It was opt-in while it
+  // stabilised, but the variable then appeared in neither `.env` nor
+  // `.env.example` — so "the loop is on" was an assumption nothing in the repo
+  // supported, and every fix written for the loop was dead where it mattered.
+  // Opt out with CHAT_AGENT_LOOP=false (no redeploy needed).
+  return process.env.CHAT_AGENT_LOOP !== 'false';
 }
 
 /**

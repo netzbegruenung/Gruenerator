@@ -46,13 +46,19 @@ EVAL_FILTER=multiturn EVAL_BYPASS_TOKEN=<token> pnpm --filter @gruenerator/api e
 ```
 
 The backend needs `ALLOW_DEV_AUTH_BYPASS=true` + a matching `DEV_AUTH_BYPASS_TOKEN`
-(never in prod) **and `CHAT_AGENT_LOOP=true`** — most of the corpus asserts tool
-calls, and without the loop those turns take the single-pass path, which emits
-no `tool_step` events at all. The result is a run that looks catastrophic
-(`tools=[]` everywhere) while nothing is actually broken. Note that
-`pnpm dev:backend` goes through turbo, which does NOT forward an ad-hoc
-`CHAT_AGENT_LOOP=true` on the command line: put it in `.env`, or start the
-backend directly with `cd apps/api && CHAT_AGENT_LOOP=true pnpm dev`. Run **both lanes** — the sharepic-in-split bug was invisible on
+(never in prod). The agentic loop is now ON by default, so no flag ritual is
+needed for a normal run — but know the failure mode: with `CHAT_AGENT_LOOP=false`
+most of the corpus takes the single-pass path, which emits no `tool_step` events
+at all, and the run looks catastrophic (`tools=[]` everywhere) while nothing is
+broken. Note also that `pnpm dev:backend` goes through turbo, which does NOT
+forward an ad-hoc env var on the command line: put it in `.env`, or start the
+backend directly with `cd apps/api && pnpm dev`.
+
+Do run the suite **once with `CHAT_AGENT_LOOP=false`** when you touch the
+single-pass path (source carry, respondNode gating, searchNode fallbacks) — the
+path-independent assertions (`grounded`, `cited`, `retainsPriorSources`) are the
+ones that hold in both configurations, and that lane is otherwise never
+exercised. Run **both lanes** — the sharepic-in-split bug was invisible on
 Mistral (unified); use `EVAL_MODEL_ID=mistral` and a split lane (e.g. `gemma-4`).
 Nightly, `.github/workflows/nightly-eval.yml` does exactly this against the
 deployed test env (matrix over both lanes, judge blocking, per-lane baselines).
