@@ -30,7 +30,12 @@ interface MenuItem {
 // reserved for the four everyday surfaces (Chat, Arbeiten, Studio, Wissen).
 // Einstellungen is not in this list: it is a sheet, not a destination.
 const MENU_ITEMS: MenuItem[] = [
-  { key: 'projekte', label: 'Projekte', icon: 'people-circle-outline', href: '/(focused)/gruppen' },
+  {
+    key: 'projekte',
+    label: 'Projekte',
+    icon: 'people-circle-outline',
+    href: '/(focused)/projekte',
+  },
   { key: 'agentura', label: 'Agentura', icon: 'people-outline', href: '/(focused)/agents' },
 ];
 

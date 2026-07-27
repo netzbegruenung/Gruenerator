@@ -34,7 +34,7 @@ export const TOOLS: ToolDef[] = [
     title: 'Projekte',
     description: 'Chats & Inhalte bündeln',
     icon: 'people-circle',
-    route: '/(focused)/gruppen',
+    route: '/(focused)/projekte',
   },
   {
     id: 'scanner',
