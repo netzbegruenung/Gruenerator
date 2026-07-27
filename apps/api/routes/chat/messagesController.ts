@@ -102,6 +102,7 @@ router.get('/', async (req, res) => {
         | {
             intent?: string;
             searchCount?: number;
+            traceId?: string;
             citations?: unknown[];
             searchResults?: unknown[];
             roleName?: string;
@@ -133,6 +134,7 @@ router.get('/', async (req, res) => {
           metadata = {
             ...(typeof meta.intent === 'string' && { intent: meta.intent }),
             ...(typeof meta.searchCount === 'number' && { searchCount: meta.searchCount }),
+            ...(typeof meta.traceId === 'string' && { traceId: meta.traceId }),
             ...(Array.isArray(meta.citations) && { citations: meta.citations }),
             ...(Array.isArray(meta.searchResults) && { searchResults: meta.searchResults }),
             ...(typeof meta.roleName === 'string' && { roleName: meta.roleName }),
