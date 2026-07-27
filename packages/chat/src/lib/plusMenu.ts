@@ -14,6 +14,7 @@ import {
   getCustomAgentMentionables,
   getMcpServerMentionables,
   getTextformMentionables,
+  getMentionLocale,
   toolMentionables,
   type Mentionable,
 } from './mentionables';
@@ -28,17 +29,27 @@ export function quickSkillMentionables(favorites: readonly string[]): Mentionabl
   const agents = getAgentMentionables().filter(
     (a) => a.isSystemDefault || favorites.includes(a.mention.toLowerCase())
   );
-  // Deduplicated by identifier: a saved copy of a system agent appears in both
-  // lists, and both platforms key their rows by it.
+  // Deduplicated by `mention`, which is the unique key — `identifier` is the
+  // OWNING AGENT and eighteen skills share eight of them, so deduping on it
+  // silently drops every recipe but the first of each agent (Instagram behind
+  // Presse, say). A saved copy of a system agent is what actually needs
+  // removing, and that collides on the mention.
   const seen = new Set<string>();
   return [...agents, ...getCustomAgentMentionables(), ...getTextformMentionables()].filter(
-    (item) => !seen.has(item.identifier) && seen.add(item.identifier)
+    (item) => !seen.has(item.mention) && seen.add(item.mention)
   );
 }
 
-/** Built-in chat functions (`@bild`, `@tabelle`, …). */
+/**
+ * Built-in chat functions (`@recherche`, `@bildgenerieren`, …), filtered for the
+ * current locale like the recipes are — `@abgeordnetenwatch` and `@bundestag`
+ * are `audience: 'de-DE'` and have no meaning for an Austrian user.
+ */
 export function functionMentionables(): Mentionable[] {
-  return toolMentionables;
+  const locale = getMentionLocale();
+  return toolMentionables.filter(
+    (m) => m.audience === undefined || m.audience === 'all' || m.audience === locale
+  );
 }
 
 /** Connected MCP servers, pinnable to hold their scope across follow-ups. */

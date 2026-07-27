@@ -341,6 +341,7 @@ export {
   getAllMentionables,
   getAgentMentionables,
   setMentionLocale,
+  getMentionLocale,
   setCustomAgents,
   getCustomAgentMentionables,
   customAgentToMentionable,

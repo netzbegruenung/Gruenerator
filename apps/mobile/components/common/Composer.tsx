@@ -8,6 +8,7 @@ import {
   buildDocumentMentionAttachment,
   computeMentionInsertion,
   detectMention,
+  useAgentStore,
   type Mentionable,
 } from '@gruenerator/chat';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
@@ -150,6 +151,20 @@ interface MentionState {
  * has-text flag driving the mic/send merge. Both bindings drive their store
  * through the `setText` they pass in.
  */
+/**
+ * A picked recipe has to be remembered, not just typed: the `/mention` token is
+ * stripped from the message on the way out, and everything the recipe actually
+ * does downstream — its `skillSystemPrompt`, a learned text form, the owning
+ * agent's filter and tool restrictions — hangs off `activeSkillMention` instead.
+ * Web does this in its composer (`GrueneratorComposer`); without it a recipe
+ * only swapped the agent id here, and a text form did nothing at all.
+ */
+function rememberSkill(mentionable: Mentionable): void {
+  if (mentionable.category === 'skill') {
+    useAgentStore.getState().setActiveSkillMention(mentionable.mention);
+  }
+}
+
 function useComposerInput({
   setText,
   inputRef,
@@ -203,6 +218,7 @@ function useComposerInput({
   const onMentionSelect = useCallback(
     (mentionable: Mentionable) => {
       if (!mention) return;
+      rememberSkill(mentionable);
       const { newText, cursorPosition } = computeMentionInsertion(
         textRef.current,
         mentionable,
@@ -220,6 +236,7 @@ function useComposerInput({
   // at the end of the draft.
   const insertMention = useCallback(
     (mentionable: Mentionable) => {
+      rememberSkill(mentionable);
       const { newText, cursorPosition } = computeMentionInsertion(
         textRef.current,
         mentionable,
