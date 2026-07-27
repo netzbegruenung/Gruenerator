@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDrawerStore } from '../../hooks/useDrawerStore';
 import { useTheme } from '../../hooks/useTheme';
 import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
-import { colors, spacing, borderRadius, BODY_FONT } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 import { route, routeWithParams, type AppRoute } from '../../types/routes';
 import { ProfileAvatar } from '../common';
 import { STUDIO_TOOLS, TOOLS, type ToolDef } from '../tools/toolsConfig';
@@ -310,13 +310,11 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.medium,
   },
   navLabel: {
-    fontFamily: BODY_FONT,
-    fontSize: 15,
+    ...chatType.chatTitle,
     fontWeight: '500',
   },
   sectionLabel: {
-    fontFamily: BODY_FONT,
-    fontSize: 13,
+    ...chatType.chatLabel,
     fontWeight: '700',
     paddingHorizontal: spacing.medium,
     marginTop: spacing.medium,
@@ -345,9 +343,9 @@ const styles = StyleSheet.create({
     marginRight: spacing.small,
   },
   itemTitle: {
+    ...chatType.chatTitle,
     flex: 1,
     fontFamily: BODY_FONT,
-    fontSize: 15,
   },
   empty: {
     alignItems: 'center',
@@ -362,8 +360,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xsmall,
   },
   emptyText: {
-    fontFamily: BODY_FONT,
-    fontSize: 14,
+    ...chatType.chatSecondary,
     textAlign: 'center',
   },
   emptyButton: {
@@ -377,8 +374,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[600],
   },
   emptyButtonText: {
-    fontFamily: BODY_FONT,
-    fontSize: 14,
+    ...chatType.chatSecondary,
     fontWeight: '600',
     color: colors.white,
   },
@@ -391,9 +387,9 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   footerName: {
+    ...chatType.chatTitle,
     flex: 1,
     fontFamily: BODY_FONT,
-    fontSize: 15,
     fontWeight: '500',
   },
 });
