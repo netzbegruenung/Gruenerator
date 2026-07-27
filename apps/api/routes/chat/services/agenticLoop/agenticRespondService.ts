@@ -31,7 +31,11 @@ import {
 import { loadSystemMcpCatalog } from '../../agents/systemMcpCatalog.js';
 import { buildChatToolCatalog } from '../../agents/toolCatalog.js';
 import { extractTextContent } from '../messageHelpers.js';
-import { defersToSearchDespiteSources, stripFabricatedSystemClaims } from '../outputSanity.js';
+import {
+  defersToSearchDespiteSources,
+  looksCutOff,
+  stripFabricatedSystemClaims,
+} from '../outputSanity.js';
 import { resolveModel, type ResolvedModelTuple } from '../responseStreamingService.js';
 import { PROGRESS_MESSAGES, startResponseHeartbeat, type SSEWriter } from '../sseHelpers.js';
 import {
@@ -917,6 +921,17 @@ ANTWORTE KONKRET: Steht die Antwort in einer Quelle, dann NENNE SIE im Klartext 
   ) {
     log.warn(
       `[Agentic] Answer recommends a search although ${sourceRegistry.size} source(s) were gathered in ${steps.length} step(s) — synth ignored its source block`
+    );
+  }
+
+  // The server half of the truncation cross-check (see looksCutOff). Logged
+  // with the LAST 60 chars, because "where does it end" is the only question a
+  // truncation report ever asks, and matching that tail against the screenshot
+  // settles server-vs-client immediately.
+  if (text.length > 0 && looksCutOff(text)) {
+    log.warn(
+      `[Agentic] answer ends mid-sentence after ${text.length} chars — ` +
+        `tail: ${JSON.stringify(text.slice(-60))}`
     );
   }
 
