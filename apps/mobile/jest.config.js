@@ -24,6 +24,26 @@ module.exports = {
     '^react/(.*)$': '<rootDir>/node_modules/react/$1',
     '^react-dom$': '<rootDir>/node_modules/react-dom',
     '^react-dom/(.*)$': '<rootDir>/node_modules/react-dom/$1',
+
+    // The TS sources in packages/* use ESM-style relative specifiers
+    // (`export * from './client.js'`) that actually point at `./client.ts`.
+    // Metro and tsc follow that convention; jest-resolve takes the extension
+    // literally and dies with "Cannot find module './client.js'" on the first
+    // import that reaches @gruenerator/shared — which is every import of
+    // @gruenerator/chat, since chatStore pulls in shared/api.
+    //
+    // Dropping the extension lets the normal resolver find either .ts or .js,
+    // so real JavaScript files (inside node_modules) still resolve unchanged.
+    // Without this, a test can only reach the chat stores by mocking the whole
+    // package, which is the opposite of what a store test is for.
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+
+    // nanoid 6 is ESM-only and jest-expo's transformIgnorePatterns does not
+    // allowlist it — and that pattern must not be overridden (see
+    // CLAUDE-testing.md). `@gruenerator/shared/utils` pulls it in through
+    // `slug.ts`, so without this every test touching the chat tree dies on
+    // "Cannot use import statement outside a module".
+    '^nanoid$': '<rootDir>/test/stubs/nanoid.ts',
   },
 
   // NOTE: transformIgnorePatterns is deliberately NOT set. jest-expo's preset
