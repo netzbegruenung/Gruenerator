@@ -11,6 +11,7 @@ import { spacing } from '../../theme';
 import { SCREEN_EDGE } from '../../theme/layout';
 import { Composer, composerEdgeStyle, type ComposerAccessory } from '../common/Composer';
 
+import { CompactionIndicator } from './CompactionIndicator';
 import { MessageBubble } from './MessageBubble';
 
 import type { Theme } from '../../theme/colors';
@@ -112,6 +113,9 @@ export const AssistantThread = memo(function AssistantThread({
         <ThreadPrimitive.Empty>
           <EmptyState theme={theme} welcome={welcome} />
         </ThreadPrimitive.Empty>
+        {/* Above the list rather than inside it, like web: the summary covers
+            the whole thread, not one message. */}
+        <CompactionIndicator theme={theme} />
         <ThreadPrimitive.Messages
           contentContainerStyle={messagesContentStyle}
           keyboardDismissMode="interactive"
