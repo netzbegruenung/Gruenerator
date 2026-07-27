@@ -78,9 +78,9 @@
   --color-hover-overlay: rgba(0,0,0,0.05);
   --color-user-bubble: var(--color-primary-50);
 
-  /* Code Blocks */
-  --color-code-block-bg: #111827;
-  --color-code-block-fg: #e5e7eb;
+  /* Code Blocks — matches Shiki's github-light background (see shikiHighlight.ts) */
+  --color-code-block-bg: #f6f8fa;
+  --color-code-block-fg: #24292e;
   --color-code-inline-bg: #f3f4f6;
 
   /* Error */
@@ -190,7 +190,9 @@
   --color-hover-overlay: rgba(255,255,255,0.05);
   --color-user-bubble: rgba(255,255,255,0.1);
 
-  /* Code Blocks (block bg/fg stay the same in dark) */
+  /* Code Blocks — dark-mode override (light-mode value lives in @theme above) */
+  --color-code-block-bg: #111827;
+  --color-code-block-fg: #e5e7eb;
   --color-code-inline-bg: #1f2937;
 
   /* Error */
