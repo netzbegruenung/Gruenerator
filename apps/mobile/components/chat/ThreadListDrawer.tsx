@@ -19,6 +19,7 @@ import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
 import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 import { route, routeWithParams, type AppRoute } from '../../types/routes';
 import { ProfileAvatar } from '../common';
+import { MenuIcon } from '../icons/WebMirrorIcons';
 import { STUDIO_TOOLS, TOOLS, type ToolDef } from '../tools/toolsConfig';
 
 import type { Theme } from '../../theme/colors';
@@ -129,7 +130,7 @@ function DrawerSections({
             { backgroundColor: pressed ? theme.surface : 'transparent' },
           ]}
         >
-          <Ionicons name={tool.icon} size={DRAWER_ICON} color={theme.text} />
+          <MenuIcon name={tool.icon} size={DRAWER_ICON} color={theme.text} />
           <Text style={[styles.navLabel, { color: theme.text }]} numberOfLines={1}>
             {tool.title}
           </Text>
@@ -267,9 +268,20 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
         >
           <Text style={[styles.headerTitle, { color: theme.text }]}>Grünerator</Text>
         </Pressable>
-        <ThreadListPrimitive.New style={styles.newButton}>
+        {/* Not ThreadListPrimitive.New: that calls switchToNewThread() on the
+            drawer's own ambient runtime, which is not the one the focused
+            conversation creates — so it changed nothing and never navigated.
+            Measured on device: the button was dead. Same path as the empty
+            state's button, which is the one that worked. */}
+        <Pressable
+          onPress={handleNewChat}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Neue Unterhaltung"
+          style={({ pressed }) => [styles.newButton, pressed && styles.pressed]}
+        >
           <Ionicons name="add" size={26} color={colors.primary[600]} />
-        </ThreadListPrimitive.New>
+        </Pressable>
       </View>
 
       <ThreadListPrimitive.Items
