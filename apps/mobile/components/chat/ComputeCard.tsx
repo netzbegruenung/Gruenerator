@@ -87,7 +87,7 @@ export function ComputeCard({ data, theme }: { data: ComputeData; theme: Theme }
         <Text style={[styles.operation, { color: theme.text }]} numberOfLines={1}>
           {data.operation}
         </Text>
-        <Text style={[styles.caption, { color: theme.textSecondary }]}>EXAKT BERECHNET</Text>
+        <Text style={[styles.caption, { color: theme.textSecondary }]}>BERECHNET</Text>
       </View>
       {data.figures?.map((figure, index) => (
         <Image

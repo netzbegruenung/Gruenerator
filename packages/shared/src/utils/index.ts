@@ -23,6 +23,9 @@ export { cn } from './cn.js';
 // HTML tag stripping with entity decoding
 export { stripHtmlTags } from './stripHtmlTags.js';
 
+// HTML entity decoding (named incl. umlauts, decimal, hex) — no tag stripping
+export { decodeHtmlEntities } from './decodeHtmlEntities.js';
+
 // HTML entity escaping for safe markup embedding
 export { escapeHtml } from './escapeHtml.js';
 
