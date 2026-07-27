@@ -38,6 +38,9 @@ import {
   type ComposerVariant,
 } from './ComposerShell';
 
+/** Module-level so the memoized primitive sees a stable children reference. */
+const renderComposerAttachment = () => <ComposerAttachmentUI />;
+
 import type { Theme } from '../../theme/colors';
 import type {
   NativeSyntheticEvent,
@@ -519,7 +522,7 @@ function RuntimeComposer(props: ComposerProps) {
       onSubmitEditing={onSubmit ? handleIntercept : () => aui.composer().send()}
       attachments={
         <View style={styles.attachmentsRow}>
-          <ComposerPrimitive.Attachments components={{ Attachment: ComposerAttachmentUI }} />
+          <ComposerPrimitive.Attachments>{renderComposerAttachment}</ComposerPrimitive.Attachments>
         </View>
       }
       cancelButton={

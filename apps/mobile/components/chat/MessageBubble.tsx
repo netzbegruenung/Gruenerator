@@ -39,6 +39,7 @@ import Animated, {
 import { useMessageActions } from '../../hooks/useMessageActions';
 import { useNativeTTS } from '../../hooks/useNativeTTS';
 import { useTheme } from '../../hooks/useTheme';
+import { copyToClipboard } from '../../services/share';
 import { colors, spacing, borderRadius } from '../../theme';
 
 import { MessageAttachmentUI } from './AttachmentUI';
@@ -52,6 +53,7 @@ import { DocumentCreatedCard } from './DocumentCreatedCard';
 import { GeneratedImageDisplay } from './GeneratedImageDisplay';
 import { getMarkdownStyles } from './markdownStyles';
 import { MathText } from './math/MathText';
+import { MessageEditComposer } from './MessageEditComposer';
 import { AskHumanCard } from './tool-ui/AskHumanCard';
 import { makeCitationMarkdownRules } from './tool-ui/citationMarkdownRules';
 import { ExampleResultsCard } from './tool-ui/ExampleResultsCard';
@@ -66,6 +68,16 @@ import { ToolResultCard } from './tool-ui/ToolResultCard';
 import { ToolCallProgress } from './ToolCallProgress';
 
 import type { Theme } from '../../theme/colors';
+
+/**
+ * Clipboard writer for ActionBarPrimitive.Copy. The primitive drives its own
+ * `isCopied` state off this promise, so a failed write has to reject rather than
+ * resolve — otherwise the checkmark would lie.
+ */
+async function writeToClipboard(text: string): Promise<void> {
+  const ok = await copyToClipboard(text);
+  if (!ok) throw new Error('Clipboard write failed');
+}
 
 /** Durable mention tokens (@[Label](type:id)) render as chips; plain text passes through. */
 function UserBubbleText({ text }: { text: string }) {
@@ -87,12 +99,25 @@ function UserBubbleText({ text }: { text: string }) {
   return <Text style={styles.userText}>{runs}</Text>;
 }
 
+/** Module-level so the memoized primitive sees a stable children reference. */
+const renderMessageAttachment = () => <MessageAttachmentUI />;
+
 export const UserMessageComponent = memo(function UserMessageComponent() {
+  const theme = useTheme();
   return (
     <MessagePrimitive.Root style={[styles.messageRow, styles.userRow]}>
       <View style={[styles.bubble, styles.userBubbleWidth, styles.userBubble]}>
-        <MessagePrimitive.Attachments components={{ Attachment: MessageAttachmentUI }} />
+        <MessagePrimitive.Attachments>{renderMessageAttachment}</MessagePrimitive.Attachments>
         <MessagePrimitive.Content renderText={({ part }) => <UserBubbleText text={part.text} />} />
+      </View>
+      <View style={styles.userActionBar}>
+        <BranchPicker theme={theme} />
+        <ActionBarPrimitive.Edit
+          style={[styles.actionButton, { backgroundColor: theme.surface }]}
+          accessibilityLabel="Nachricht bearbeiten"
+        >
+          <Ionicons name="pencil-outline" size={14} color={theme.textSecondary} />
+        </ActionBarPrimitive.Edit>
       </View>
     </MessagePrimitive.Root>
   );
@@ -201,7 +226,7 @@ const AssistantActionBar = memo(function AssistantActionBar({
         : null,
     [messageText, metadata]
   );
-  const { copied, exporting, copy, exportDocx, openInDocs } = useMessageActions(target);
+  const { exporting, exportDocx, openInDocs } = useMessageActions(target);
 
   const handleTTS = useCallback(() => {
     if (ttsState === 'playing') {
@@ -216,13 +241,20 @@ const AssistantActionBar = memo(function AssistantActionBar({
   return (
     <View style={styles.actionBar}>
       {messageText ? (
-        <Pressable onPress={() => void copy()} style={pill} accessibilityLabel="Kopieren">
-          <Ionicons
-            name={copied ? 'checkmark' : 'copy-outline'}
-            size={14}
-            color={copied ? colors.primary[500] : theme.textSecondary}
-          />
-        </Pressable>
+        <ActionBarPrimitive.Copy
+          copiedDuration={2000}
+          copyToClipboard={writeToClipboard}
+          style={pill}
+          accessibilityLabel="Kopieren"
+        >
+          {({ isCopied }) => (
+            <Ionicons
+              name={isCopied ? 'checkmark' : 'copy-outline'}
+              size={14}
+              color={isCopied ? colors.primary[500] : theme.textSecondary}
+            />
+          )}
+        </ActionBarPrimitive.Copy>
       ) : null}
       <Pressable onPress={handleTTS} style={pill} accessibilityLabel="Vorlesen">
         <Ionicons
@@ -527,6 +559,13 @@ const FollowUpSuggestions = memo(function FollowUpSuggestions() {
 });
 
 export const MessageBubble = memo(function MessageBubble() {
+  // The edit branch lives here rather than in ThreadPrimitive.Messages'
+  // `EditComposer` slot: that slot only exists on the deprecated `components`
+  // prop, and the children render function this thread now uses does not switch
+  // on editing state at all.
+  const isEditing = useAuiState((s) => s.message.composer.isEditing);
+  if (isEditing) return <MessageEditComposer />;
+
   return (
     <>
       <MessagePrimitive.If user>
@@ -581,6 +620,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.xxsmall,
     marginTop: spacing.xxsmall,
+  },
+  userActionBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: spacing.xxsmall,
   },
   actionButton: {
     width: 28,
