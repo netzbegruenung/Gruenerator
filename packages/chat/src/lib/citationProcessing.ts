@@ -4,7 +4,14 @@ import { CitationBadge } from '../components/message-parts/CitationPopover';
 
 import type { Citation } from '../hooks/useChatGraphStream';
 
-const CITATION_REGEX = /\[(\d+)\]/g;
+/**
+ * A single marker (`[3]`) OR a grouped one (`[3, 7]`). Groups are not a
+ * hypothetical: the backend's citation clamp emits them verbatim
+ * (`stripOutOfRangeCitations`, "[2, 7]" → "[2]"), and models write them
+ * unprompted. Matching only the single form left `[1, 2]` on screen as literal
+ * brackets beside real ① badges in the SAME answer.
+ */
+const CITATION_REGEX = /\[(\d+(?:\s*,\s*\d+)*)\]/g;
 const MAX_CITATION_ID = 999;
 
 export function processTextWithCitations(
@@ -19,28 +26,35 @@ export function processTextWithCitations(
 
   CITATION_REGEX.lastIndex = 0;
   while ((match = CITATION_REGEX.exec(text)) !== null) {
-    const citationId = parseInt(match[1], 10);
-    const citation = citationMap.get(citationId);
-
     // Reserve the same inline box during streaming so the final text→badge
     // swap at completion does not reflow paragraph line wrapping.
-    const shouldRenderBadge =
-      citation !== undefined ||
-      (allowPlaceholders && citationId >= 1 && citationId <= MAX_CITATION_ID);
+    const renderable = match[1]
+      .split(',')
+      .map((n) => parseInt(n, 10))
+      .filter(
+        (id) =>
+          citationMap.get(id) !== undefined ||
+          (allowPlaceholders && id >= 1 && id <= MAX_CITATION_ID)
+      );
 
-    if (!shouldRenderBadge) continue;
+    // A group whose ids are ALL unbacked stays literal text, exactly as a
+    // single unbacked marker does. A partly-backed group renders the ids it can
+    // and drops the rest — the same rule the backend clamp applies.
+    if (renderable.length === 0) continue;
 
     if (match.index > lastIndex) {
       parts.push(text.slice(lastIndex, match.index));
     }
 
-    parts.push(
-      createElement(CitationBadge, {
-        key: `cite-${match.index}`,
-        citationId,
-        citation,
-      })
-    );
+    for (const citationId of renderable) {
+      parts.push(
+        createElement(CitationBadge, {
+          key: `cite-${match.index}-${citationId}`,
+          citationId,
+          citation: citationMap.get(citationId),
+        })
+      );
+    }
     lastIndex = match.index + match[0].length;
     replacedAny = true;
   }
@@ -82,5 +96,5 @@ export function processChildren(
 }
 
 export function escapeCitationMarkers(text: string): string {
-  return text.replace(/\[(\d+)\]/g, '\\[$1\\]');
+  return text.replace(/\[(\d+(?:\s*,\s*\d+)*)\]/g, '\\[$1\\]');
 }
