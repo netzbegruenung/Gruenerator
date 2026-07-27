@@ -3,28 +3,37 @@ import {
   MODEL_OPTIONS,
   AUTO_MODEL_ID,
   AUTO_MODEL_OPTION,
-  COMPOSER_TOOLS,
+  COMPOSER_MODES,
   SEARCH_DEPTHS,
-  type ComposerToolIconKey,
+  showsSearchDepth,
+  quickSkillMentionables,
+  functionMentionables,
+  connectorMentionables,
+  connectorId,
+  notebookMentionables,
+  useSkillFavoritesStore,
+  type ComposerIconKey,
+  type Mentionable,
   type SearchDepthIconKey,
 } from '@gruenerator/chat';
+import { isModelEnabledByDefault } from '@gruenerator/shared/models';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
-import { memo, useCallback } from 'react';
-import { View, Text, Pressable, Switch, ScrollView, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import { memo, useCallback, useState, type ReactNode } from 'react';
+import { View, Text, Pressable, ScrollView, StyleSheet, useColorScheme } from 'react-native';
 import { useShallow } from 'zustand/shallow';
 
 import { useTheme } from '../../hooks/useTheme';
-import { colors, spacing, borderRadius, chatType } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
+import { route } from '../../types/routes';
 import { BottomSheet } from '../common/BottomSheet';
 
-// Presentation only: keys/labels come from the shared COMPOSER_TOOLS /
-// SEARCH_DEPTHS lists; these map the semantic icon keys → Ionicons names.
-const TOOL_ICONS: Record<ComposerToolIconKey, IoniconsIconName> = {
-  document: 'document-text-outline',
-  globe: 'globe-outline',
-  idea: 'bulb-outline',
-  newspaper: 'newspaper-outline',
-  research: 'flask-outline',
+// Presentation only: labels and keys come from the shared COMPOSER_MODES /
+// SEARCH_DEPTHS lists; these map the semantic icon keys → Ionicons.
+const MODE_ICONS: Record<ComposerIconKey, IoniconsIconName> = {
+  chat: 'chatbubble-outline',
+  notebook: 'book-outline',
+  custom: 'settings-outline',
 };
 
 const DEPTH_ICONS: Record<SearchDepthIconKey, IoniconsIconName> = {
@@ -32,23 +41,52 @@ const DEPTH_ICONS: Record<SearchDepthIconKey, IoniconsIconName> = {
   deep: 'telescope-outline',
 };
 
-// Web search is removed from the mobile app (runtimes force `web: false`), so
-// the Websuche toggle is filtered out of the shared composer tool list rather
-// than redefining the list locally.
-const MOBILE_TOOLS = COMPOSER_TOOLS.filter((tool) => tool.key !== 'web');
+/** Which detail list the sheet is showing; `null` is the root. */
+type Detail = 'mode' | 'notebook' | 'skills' | 'functions' | 'depth' | 'model' | 'connectors';
 
-// Consumed by the chat tab's "N/M Tools" badge.
-export const TOOL_KEYS = MOBILE_TOOLS.map((tool) => tool.key);
+const DETAIL_TITLES: Record<Detail, string> = {
+  mode: 'Modus',
+  notebook: 'Notebook',
+  skills: 'Rezepte',
+  functions: 'Funktionen',
+  depth: 'Recherchetiefe',
+  model: 'Modell',
+  connectors: 'Konnektoren',
+};
 
 interface Props {
   visible: boolean;
   onClose: () => void;
-  onPickFile: () => void;
+  /** Attach actions. Omitted on composers without a runtime to attach to (the
+   * start screen only hands its text to a new thread), which drops the tile row. */
+  onPickFile?: () => void;
   onPickImage?: () => void;
   onTakePhoto?: () => void;
   onOpenDocBrowser?: () => void;
+  /** Writes a picked recipe/function into the draft as an `@mention`. */
+  onInsertMention?: (mentionable: Mentionable) => void;
 }
 
+/**
+ * The composer's "+" sheet: what you can add to the chat, and every setting that
+ * changes how the turn is answered — the mobile counterpart of web's `PlusMenu`,
+ * and like it the composer's ONLY menu. The former separate gear sheet
+ * (`ChatSettingsSheet`) split mode/notebook/model off into a second surface that
+ * web never had, and left the model list filtered differently in each.
+ *
+ * Content follows web section for section. The per-tool switches this sheet used
+ * to show ("Dokumentensuche", "Beispiele", …) are gone: `GrueneratorComposer`
+ * has no such toggles — web configures `enabledTools` per agent, not per message
+ * — so they were mobile-only drift. Recherchetiefe follows the shared
+ * `showsSearchDepth` rule instead of being always visible, and the model list
+ * web's own `isModelEnabledByDefault` filter, which mobile skipped and so
+ * offered models web hides. Konnektoren is the opposite gap: web pins an MCP
+ * server from this menu, mobile had no way to at all.
+ *
+ * Layout is the platform convention for a sheet like this: a row of large tiles
+ * for the attach actions, then grouped cards whose rows carry their current
+ * value and open a detail list in place.
+ */
 export const ComposerActionSheet = memo(function ComposerActionSheet({
   visible,
   onClose,
@@ -56,288 +94,442 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
   onPickImage,
   onTakePhoto,
   onOpenDocBrowser,
+  onInsertMention,
 }: Props) {
   const theme = useTheme();
+  const router = useRouter();
+  const isDark = useColorScheme() === 'dark';
+  const [detail, setDetail] = useState<Detail | null>(null);
 
-  const { enabledTools, selectedModel, searchMode } = useAgentStore(
+  const {
+    selectedAgentId,
+    selectedModel,
+    searchMode,
+    threadMode,
+    selectedNotebookId,
+    pinnedConnector,
+    customSystemPrompt,
+  } = useAgentStore(
     useShallow((s) => ({
-      enabledTools: s.enabledTools,
+      selectedAgentId: s.selectedAgentId,
       selectedModel: s.selectedModel,
       searchMode: s.searchMode,
+      threadMode: s.threadMode,
+      selectedNotebookId: s.selectedNotebookId,
+      pinnedConnector: s.pinnedConnector,
+      customSystemPrompt: s.customSystemPrompt,
     }))
   );
-
-  const toggleTool = useAgentStore((s) => s.toggleTool);
   const setSelectedModel = useAgentStore((s) => s.setSelectedModel);
   const setSearchMode = useAgentStore((s) => s.setSearchMode);
+  const setThreadMode = useAgentStore((s) => s.setThreadMode);
+  const setSelectedNotebook = useAgentStore((s) => s.setSelectedNotebook);
+  const setPinnedConnector = useAgentStore((s) => s.setPinnedConnector);
 
-  const handlePickFile = useCallback(() => {
-    onClose();
-    onPickFile();
-  }, [onClose, onPickFile]);
+  // Module-level list, filled by `useMentionablesSync` on the composer that owns
+  // this sheet. Read during the render that opens the sheet, exactly as web's
+  // PlusMenu does, so it is current by the time anyone can see it.
+  const connectors = connectorMentionables();
+  const favorites = useSkillFavoritesStore((s) => s.favorites);
+  const skills = quickSkillMentionables(favorites);
+  const functions = functionMentionables();
 
-  const handlePickImage = useCallback(() => {
-    onClose();
-    onPickImage?.();
-  }, [onClose, onPickImage]);
+  const models = MODEL_OPTIONS.filter((model) => isModelEnabledByDefault(model.id));
+  const activeModel =
+    !selectedModel || selectedModel === AUTO_MODEL_ID
+      ? AUTO_MODEL_OPTION.name
+      : (models.find((m) => m.id === selectedModel)?.name ?? AUTO_MODEL_OPTION.name);
+  const activeDepth = SEARCH_DEPTHS.find((d) => d.mode === searchMode) ?? SEARCH_DEPTHS[0];
+  // Web disables "Eigener Chat" without a custom prompt to fall back on; mobile
+  // never populates one (`useUserProfileStore` is hydrated web-only), so the
+  // entry would produce a body with `agentId: null` and no prompt — which the
+  // server answers with the universal agent, silently. Hidden until mobile
+  // actually carries roles.
+  const modes = COMPOSER_MODES.filter((m) => m.mode !== 'eigener' || customSystemPrompt);
+  const activeMode = modes.find((m) => m.mode === threadMode) ?? modes[0];
+  const activeNotebook = notebookMentionables.find((nb) => nb.identifier === selectedNotebookId);
 
-  const handleTakePhoto = useCallback(() => {
+  // Every way out returns the sheet to its root, so reopening never lands in the
+  // detail list the user left behind.
+  const close = useCallback(() => {
+    setDetail(null);
     onClose();
-    onTakePhoto?.();
-  }, [onClose, onTakePhoto]);
+  }, [onClose]);
 
-  const handleOpenDocBrowser = useCallback(() => {
-    onClose();
-    onOpenDocBrowser?.();
-  }, [onClose, onOpenDocBrowser]);
+  const runAction = useCallback(
+    (action: () => void) => {
+      close();
+      action();
+    },
+    [close]
+  );
+
+  const cardStyle = { backgroundColor: isDark ? theme.surface : colors.white };
+  const badgeStyle = { backgroundColor: isDark ? colors.grey[800] : colors.grey[100] };
+
+  const tile = (icon: IoniconsIconName, label: string, onPress: () => void) => (
+    <Pressable
+      onPress={() => runAction(onPress)}
+      style={({ pressed }) => [styles.tile, cardStyle, pressed && styles.pressed]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <View style={[styles.tileBadge, badgeStyle]}>
+        <Ionicons name={icon} size={22} color={theme.text} />
+      </View>
+      <Text style={[styles.tileLabel, { color: theme.text }]}>{label}</Text>
+    </Pressable>
+  );
+
+  const row = ({
+    key,
+    icon,
+    title,
+    value,
+    onPress,
+    selected,
+    last,
+  }: {
+    key: string;
+    icon: IoniconsIconName;
+    title: string;
+    value?: string | null;
+    onPress: () => void;
+    /** Detail rows show a check instead of the chevron. */
+    selected?: boolean;
+    last?: boolean;
+  }) => (
+    <Pressable
+      key={key}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.row,
+        !last && { borderBottomColor: theme.border, borderBottomWidth: StyleSheet.hairlineWidth },
+        pressed && styles.pressed,
+      ]}
+      accessibilityRole="button"
+    >
+      <View style={[styles.rowBadge, badgeStyle]}>
+        <Ionicons name={icon} size={22} color={theme.text} />
+      </View>
+      <View style={styles.rowText}>
+        <Text style={[styles.rowTitle, { color: theme.text }]} numberOfLines={1}>
+          {title}
+        </Text>
+        {value ? (
+          <Text style={[styles.rowValue, { color: theme.textSecondary }]} numberOfLines={1}>
+            {value}
+          </Text>
+        ) : null}
+      </View>
+      {selected === undefined ? (
+        <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+      ) : selected ? (
+        <Ionicons name="checkmark" size={22} color={colors.primary[600]} />
+      ) : (
+        <View style={styles.trailingSpacer} />
+      )}
+    </Pressable>
+  );
+
+  const detailRows = (): ReactNode => {
+    if (detail === 'mode') {
+      return modes.map((mode, i) =>
+        row({
+          key: mode.mode,
+          icon: MODE_ICONS[mode.icon],
+          title: mode.label,
+          onPress: () => {
+            setThreadMode(mode.mode);
+            setDetail(mode.mode === 'notebook' ? 'notebook' : null);
+          },
+          selected: threadMode === mode.mode,
+          last: i === modes.length - 1,
+        })
+      );
+    }
+    if (detail === 'notebook') {
+      return notebookMentionables.map((notebook, i) =>
+        row({
+          key: notebook.identifier,
+          icon: 'book-outline',
+          title: notebook.title,
+          onPress: () => {
+            setSelectedNotebook(notebook.identifier);
+            setThreadMode('notebook');
+            setDetail(null);
+          },
+          selected: selectedNotebookId === notebook.identifier,
+          last: i === notebookMentionables.length - 1,
+        })
+      );
+    }
+    if (detail === 'skills' || detail === 'functions') {
+      const list = detail === 'skills' ? skills : functions;
+      const rows = list.map((item, i) =>
+        row({
+          // `mention`, not `identifier`: eighteen recipes share eight owning-agent
+          // identifiers, so keying on those collides.
+          key: item.mention,
+          icon: detail === 'skills' ? 'color-wand-outline' : 'flash-outline',
+          title: item.title,
+          value: item.description,
+          onPress: () => runAction(() => onInsertMention?.(item)),
+          last: detail === 'skills' ? false : i === list.length - 1,
+        })
+      );
+      if (detail === 'functions') return rows;
+      // Web closes its recipe submenu with two entries — a search across all
+      // recipes and a link to the library. On mobile the Agentura screen is both,
+      // so it is one row.
+      return [
+        ...rows,
+        row({
+          key: 'all-recipes',
+          icon: 'library-outline',
+          title: 'Alle Rezepte',
+          value: 'In der Agentura durchsuchen',
+          onPress: () => runAction(() => router.push(route('/(focused)/agents'))),
+          last: true,
+        }),
+      ];
+    }
+    if (detail === 'depth') {
+      return SEARCH_DEPTHS.map((depth, i) =>
+        row({
+          key: depth.mode,
+          icon: DEPTH_ICONS[depth.icon],
+          title: depth.label,
+          value: depth.description,
+          onPress: () => {
+            setSearchMode(depth.mode);
+            setDetail(null);
+          },
+          selected: searchMode === depth.mode,
+          last: i === SEARCH_DEPTHS.length - 1,
+        })
+      );
+    }
+    if (detail === 'model') {
+      const options = [AUTO_MODEL_OPTION, ...models];
+      return options.map((model, i) =>
+        row({
+          key: model.id,
+          icon: model.id === AUTO_MODEL_ID ? 'sparkles-outline' : 'hardware-chip-outline',
+          title: model.name,
+          value: model.description,
+          onPress: () => {
+            setSelectedModel(model.id);
+            setDetail(null);
+          },
+          selected: (selectedModel ?? AUTO_MODEL_ID) === model.id,
+          last: i === options.length - 1,
+        })
+      );
+    }
+    // Connectors: picking the pinned one again unpins it, as on web.
+    return connectors.map((connector, i) => {
+      const id = connectorId(connector);
+      const isPinned = pinnedConnector?.id === id;
+      return row({
+        key: connector.identifier,
+        icon: 'link-outline',
+        title: connector.title,
+        onPress: () => {
+          setPinnedConnector(isPinned ? null : { id, label: connector.title });
+          setDetail(null);
+        },
+        selected: isPinned,
+        last: i === connectors.length - 1,
+      });
+    });
+  };
+
+  const hasAttachments = !!(onTakePhoto || onPickImage || onPickFile || onOpenDocBrowser);
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} maxHeight="70%">
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollContent}>
-        {/* Actions */}
-        <View style={styles.actionsRow}>
-          <Pressable
-            onPress={handlePickFile}
-            style={({ pressed }) => [
-              styles.actionCard,
-              { backgroundColor: pressed ? theme.border : theme.surface },
-            ]}
-          >
-            <Ionicons name="attach-outline" size={22} color={colors.primary[600]} />
-            <Text style={[styles.actionLabel, { color: theme.text }]}>Datei</Text>
-          </Pressable>
-          {onPickImage && (
-            <Pressable
-              onPress={handlePickImage}
-              style={({ pressed }) => [
-                styles.actionCard,
-                { backgroundColor: pressed ? theme.border : theme.surface },
-              ]}
-            >
-              <Ionicons name="image-outline" size={22} color={colors.primary[600]} />
-              <Text style={[styles.actionLabel, { color: theme.text }]}>Foto</Text>
-            </Pressable>
-          )}
-          {onTakePhoto && (
-            <Pressable
-              onPress={handleTakePhoto}
-              style={({ pressed }) => [
-                styles.actionCard,
-                { backgroundColor: pressed ? theme.border : theme.surface },
-              ]}
-            >
-              <Ionicons name="camera-outline" size={22} color={colors.primary[600]} />
-              <Text style={[styles.actionLabel, { color: theme.text }]}>Kamera</Text>
-            </Pressable>
-          )}
-          {onOpenDocBrowser && (
-            <Pressable
-              onPress={handleOpenDocBrowser}
-              style={({ pressed }) => [
-                styles.actionCard,
-                { backgroundColor: pressed ? theme.border : theme.surface },
-              ]}
-            >
-              <Ionicons name="search-outline" size={22} color={colors.primary[600]} />
-              <Text style={[styles.actionLabel, { color: theme.text }]}>Dokument</Text>
-            </Pressable>
-          )}
-        </View>
+    <BottomSheet
+      visible={visible}
+      onClose={close}
+      backgroundColor={isDark ? theme.background : theme.surface}
+    >
+      <View style={styles.header}>
+        <Pressable
+          onPress={() => (detail ? setDetail(null) : close())}
+          hitSlop={10}
+          style={styles.headerButton}
+          accessibilityLabel={detail ? 'Zurück' : 'Schließen'}
+        >
+          <Ionicons name={detail ? 'chevron-back' : 'close'} size={24} color={theme.text} />
+        </Pressable>
+        <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
+          {detail ? DETAIL_TITLES[detail] : 'Zum Chat hinzufügen'}
+        </Text>
+        <View style={styles.headerButton} />
+      </View>
 
-        {/* Tools */}
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Werkzeuge</Text>
-        {MOBILE_TOOLS.map((tool) => (
-          <View key={tool.key} style={[styles.toolRow, { borderBottomColor: theme.border }]}>
-            <View style={styles.toolLabel}>
-              <Ionicons name={TOOL_ICONS[tool.icon]} size={18} color={theme.textSecondary} />
-              <Text style={[styles.toolText, { color: theme.text }]}>{tool.label}</Text>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        {detail ? (
+          <View style={[styles.group, cardStyle]}>{detailRows()}</View>
+        ) : (
+          <>
+            {hasAttachments && (
+              <View style={styles.tiles}>
+                {onTakePhoto && tile('camera-outline', 'Kamera', onTakePhoto)}
+                {onPickImage && tile('image-outline', 'Fotos', onPickImage)}
+                {onPickFile && tile('document-attach-outline', 'Dateien', onPickFile)}
+                {onOpenDocBrowser && tile('folder-open-outline', 'Dokumente', onOpenDocBrowser)}
+              </View>
+            )}
+
+            {onInsertMention && (
+              <View style={[styles.group, cardStyle]}>
+                {row({
+                  key: 'skills',
+                  icon: 'color-wand-outline',
+                  title: 'Rezepte',
+                  value: skills.map((s) => s.title).join(' · '),
+                  onPress: () => setDetail('skills'),
+                })}
+                {row({
+                  key: 'functions',
+                  icon: 'flash-outline',
+                  title: 'Funktionen',
+                  value: functions.map((f) => f.title).join(' · '),
+                  onPress: () => setDetail('functions'),
+                  last: true,
+                })}
+              </View>
+            )}
+
+            <View style={[styles.group, cardStyle]}>
+              {row({
+                key: 'mode',
+                icon: MODE_ICONS[activeMode.icon],
+                title: 'Modus',
+                value: activeMode.label,
+                onPress: () => setDetail('mode'),
+              })}
+              {threadMode === 'notebook' &&
+                row({
+                  key: 'notebook',
+                  icon: 'book-outline',
+                  title: 'Notebook',
+                  value: activeNotebook?.title ?? 'Auswählen',
+                  onPress: () => setDetail('notebook'),
+                })}
+              {showsSearchDepth(selectedAgentId) &&
+                row({
+                  key: 'depth',
+                  icon: DEPTH_ICONS[activeDepth.icon],
+                  title: 'Recherchetiefe',
+                  value: activeDepth.label,
+                  onPress: () => setDetail('depth'),
+                })}
+              {row({
+                key: 'model',
+                icon: 'hardware-chip-outline',
+                title: 'Modell',
+                value: activeModel,
+                onPress: () => setDetail('model'),
+                last: true,
+              })}
             </View>
-            <Switch
-              value={enabledTools[tool.key] !== false}
-              onValueChange={() => toggleTool(tool.key)}
-              trackColor={{ false: theme.border, true: colors.primary[400] }}
-              thumbColor={enabledTools[tool.key] !== false ? colors.primary[600] : theme.surface}
-            />
-          </View>
-        ))}
 
-        {/* Search depth */}
-        <Text style={[styles.sectionTitle, { color: theme.text, marginTop: spacing.large }]}>
-          Recherchetiefe
-        </Text>
-        <View style={styles.chipRow}>
-          {SEARCH_DEPTHS.map((depth) => {
-            const active = searchMode === depth.mode;
-            return (
-              <Pressable
-                key={depth.mode}
-                onPress={() => setSearchMode(depth.mode)}
-                style={[
-                  styles.modelChip,
-                  {
-                    backgroundColor: active ? colors.primary[600] : theme.surface,
-                    borderColor: active ? colors.primary[600] : theme.border,
-                  },
-                ]}
-              >
-                <View style={styles.depthHeader}>
-                  <Ionicons
-                    name={DEPTH_ICONS[depth.icon]}
-                    size={14}
-                    color={active ? colors.white : theme.textSecondary}
-                  />
-                  <Text
-                    style={[styles.modelChipText, { color: active ? colors.white : theme.text }]}
-                  >
-                    {depth.label}
-                  </Text>
-                </View>
-                <Text
-                  style={[
-                    styles.modelChipDesc,
-                    { color: active ? colors.primary[200] : theme.textSecondary },
-                  ]}
-                >
-                  {depth.description}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {/* Model */}
-        <Text style={[styles.sectionTitle, { color: theme.text, marginTop: spacing.large }]}>
-          Modell
-        </Text>
-        <View style={styles.chipRow}>
-          <Pressable
-            onPress={() => setSelectedModel(AUTO_MODEL_ID)}
-            style={[
-              styles.modelChip,
-              {
-                backgroundColor:
-                  selectedModel === AUTO_MODEL_ID ? colors.primary[600] : theme.surface,
-                borderColor: selectedModel === AUTO_MODEL_ID ? colors.primary[600] : theme.border,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.modelChipText,
-                { color: selectedModel === AUTO_MODEL_ID ? colors.white : theme.text },
-              ]}
-            >
-              {AUTO_MODEL_OPTION.name}
-            </Text>
-            <Text
-              style={[
-                styles.modelChipDesc,
-                {
-                  color:
-                    selectedModel === AUTO_MODEL_ID ? colors.primary[200] : theme.textSecondary,
-                },
-              ]}
-            >
-              {AUTO_MODEL_OPTION.description}
-            </Text>
-          </Pressable>
-          {MODEL_OPTIONS.map((model) => {
-            const active = selectedModel === model.id;
-            return (
-              <Pressable
-                key={model.id}
-                onPress={() => setSelectedModel(model.id)}
-                style={[
-                  styles.modelChip,
-                  {
-                    backgroundColor: active ? colors.primary[600] : theme.surface,
-                    borderColor: active ? colors.primary[600] : theme.border,
-                  },
-                ]}
-              >
-                <Text style={[styles.modelChipText, { color: active ? colors.white : theme.text }]}>
-                  {model.name}
-                </Text>
-                <Text
-                  style={[
-                    styles.modelChipDesc,
-                    { color: active ? colors.primary[200] : theme.textSecondary },
-                  ]}
-                >
-                  {model.description}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+            {connectors.length > 0 && (
+              <View style={[styles.group, cardStyle]}>
+                {row({
+                  key: 'connectors',
+                  icon: 'link-outline',
+                  title: 'Konnektoren',
+                  value: pinnedConnector?.label ?? 'Keiner angeheftet',
+                  onPress: () => setDetail('connectors'),
+                  last: true,
+                })}
+              </View>
+            )}
+          </>
+        )}
       </ScrollView>
     </BottomSheet>
   );
 });
 
 const styles = StyleSheet.create({
-  scrollContent: {
-    paddingHorizontal: spacing.medium,
-  },
-  actionsRow: {
+  header: {
     flexDirection: 'row',
-    gap: spacing.small,
-    marginBottom: spacing.large,
+    alignItems: 'center',
+    paddingHorizontal: spacing.medium,
+    paddingBottom: spacing.medium,
   },
-  actionCard: {
+  headerButton: {
+    width: 32,
+    alignItems: 'flex-start',
+  },
+  headerTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontFamily: 'Raleway_700Bold',
+    fontSize: 22,
+  },
+  content: {
+    paddingHorizontal: spacing.medium,
+    gap: spacing.medium,
+  },
+  tiles: {
+    flexDirection: 'row',
+    gap: spacing.xsmall,
+  },
+  tile: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
     gap: spacing.xsmall,
-    paddingVertical: spacing.medium,
+    paddingVertical: spacing.small + 2,
     borderRadius: borderRadius.large,
   },
-  actionLabel: {
-    ...chatType.chatLabel,
-    fontWeight: '600',
-  },
-  sectionTitle: {
-    ...chatType.chatSecondary,
-    fontWeight: '700',
-    marginBottom: spacing.small,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xsmall,
-  },
-  toolRow: {
-    flexDirection: 'row',
+  tileBadge: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    justifyContent: 'center',
   },
-  toolLabel: {
+  tileLabel: {
+    ...chatType.chatSecondary,
+  },
+  group: {
+    borderRadius: borderRadius.large,
+    overflow: 'hidden',
+  },
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.small,
-  },
-  toolText: {
-    ...chatType.chatSecondary,
-  },
-  depthHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xxsmall,
-  },
-  modelChip: {
     paddingHorizontal: spacing.small,
-    paddingVertical: 8,
-    borderRadius: borderRadius.large,
-    borderWidth: 1,
-    gap: 2,
+    paddingVertical: 12,
   },
-  modelChipText: {
-    ...chatType.chatLabel,
-    fontWeight: '600',
+  rowBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  modelChipDesc: {
-    ...chatType.chatMicro,
+  rowText: {
+    flex: 1,
+  },
+  rowTitle: {
+    fontFamily: BODY_FONT,
+    fontSize: 17,
+  },
+  rowValue: {
+    ...chatType.chatSecondary,
+    marginTop: 1,
+  },
+  trailingSpacer: {
+    width: 22,
+  },
+  pressed: {
+    opacity: 0.6,
   },
 });

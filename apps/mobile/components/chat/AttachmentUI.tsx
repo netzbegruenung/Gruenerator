@@ -3,7 +3,7 @@ import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ioni
 import { Image } from 'expo-image';
 import { View, StyleSheet, useColorScheme } from 'react-native';
 
-import { colors, borderRadius, chatType } from '../../theme';
+import { colors, borderRadius, BODY_FONT, chatType } from '../../theme';
 
 /**
  * Renders a single attachment as a horizontal badge/chip in the composer.

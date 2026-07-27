@@ -1,3 +1,5 @@
+import { getSystemAgent } from '@gruenerator/shared/agents';
+
 import { type SearchMode, type ThreadMode, type ToolKey } from '../stores/chatStore';
 
 /**
@@ -61,6 +63,23 @@ export interface SearchDepthDef {
   label: string;
   description: string;
   icon: SearchDepthIconKey;
+}
+
+/**
+ * Whether the Recherchetiefe control applies at all.
+ *
+ * It does not belong to the composer in general: `buildRequestBody` puts
+ * `searchMode` on the wire ONLY on the search route, so anywhere else the
+ * control is decoration that silently does nothing. The rule therefore is the
+ * agent's `routeTo`, and it lives here rather than in either platform's
+ * component so web and mobile cannot answer it differently — mobile showed the
+ * section unconditionally for exactly as long as the rule was web-local.
+ *
+ * Notebook depth ("Tiefenrecherche", fast/deep) is a *different* control on a
+ * different endpoint; it belongs to the notebook page, not to this one.
+ */
+export function showsSearchDepth(agentId: string | null | undefined): boolean {
+  return (agentId ? getSystemAgent(agentId)?.routeTo : null) === 'search';
 }
 
 /** Search depth (Recherchetiefe) options — shared copy for web + mobile. */

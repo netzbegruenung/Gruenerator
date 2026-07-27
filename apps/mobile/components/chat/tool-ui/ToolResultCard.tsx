@@ -3,7 +3,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 
-import { colors, spacing, borderRadius, chatType } from '../../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../../theme';
 
 import { ToolCitationList } from './ToolCitationList';
 import { toolIonicon } from './toolIcons';
@@ -105,6 +105,7 @@ const styles = StyleSheet.create({
   query: {
     ...chatType.chatMeta,
     flexShrink: 1,
+    fontFamily: BODY_FONT,
   },
   count: {
     ...chatType.chatMeta,

@@ -1,4 +1,5 @@
 import {
+  setMentionLocale,
   syncBoards,
   syncCustomAgents,
   syncDocs,
@@ -11,7 +12,7 @@ import {
 import { getGlobalApiClient } from '@gruenerator/shared/api';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 /**
  * Mobile counterpart to web's `useMentionablesQuery`.
@@ -52,7 +53,15 @@ function useMentionableFetch(): MentionableFetch {
  */
 export function useMentionablesSync(): void {
   const get = useMentionableFetch();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, locale } = useAuth();
+
+  // Locale-filter the recipe and function lists (de-DE / de-AT / all), matching
+  // web's ChatPage. Mobile never set this, so the module default pinned every
+  // user to de-DE and Austrian users were offered German-only recipes and the
+  // Bundestag/Abgeordnetenwatch functions.
+  useEffect(() => {
+    if (locale) setMentionLocale(locale);
+  }, [locale]);
 
   const common = { staleTime: STALE_TIME, retry: 1, enabled: isAuthenticated } as const;
 

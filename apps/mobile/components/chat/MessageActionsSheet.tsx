@@ -2,7 +2,7 @@ import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ioni
 import { memo } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 
-import { spacing, borderRadius } from '../../theme';
+import { spacing, borderRadius, BODY_FONT } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
 
 import type { MessageExportKind } from '../../hooks/useMessageActions';
@@ -100,6 +100,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   rowLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
   },
 });

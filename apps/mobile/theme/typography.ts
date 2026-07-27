@@ -1,16 +1,23 @@
-import { Platform, type TextStyle } from 'react-native';
+import { type TextStyle } from 'react-native';
 
 /**
  * Typography system for React Native
- * Raleway for headings (brand consistency with web)
- * System fonts for body text (native feel)
+ * Raleway for headings, PT Sans for body — the same pairing the web app uses.
  */
 
-const systemFont = Platform.select({
-  ios: 'System',
-  android: 'Roboto',
-  default: 'System',
-});
+/**
+ * Body copy, matching the brand's web font.
+ *
+ * The two faces are linked into the native projects by the `expo-font` config
+ * plugin (see `app.json`) as one family with weights 400 and 700, which is why
+ * `fontWeight` works here — the platform picks the face. Raleway takes the other
+ * route: `useFonts` loads it at runtime, one family name per weight
+ * (`Raleway_700Bold`), and setting `fontWeight` on it does nothing.
+ *
+ * Because it is linked rather than loaded, PT Sans needs a native rebuild to
+ * appear, and it is available before the first render — no splash-screen gate.
+ */
+export const BODY_FONT = 'PT Sans';
 
 export const typography = {
   // Headings - Raleway (matches web)
@@ -41,23 +48,23 @@ export const typography = {
     lineHeight: 24,
   } as TextStyle,
 
-  // Body text - System fonts
+  // Body text
   body: {
-    fontFamily: systemFont,
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '400',
     lineHeight: 24,
   } as TextStyle,
 
   bodyBold: {
-    fontFamily: systemFont,
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '600',
     lineHeight: 24,
   } as TextStyle,
 
   bodySmall: {
-    fontFamily: systemFont,
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '400',
     lineHeight: 20,
@@ -65,29 +72,29 @@ export const typography = {
 
   // Labels and captions
   label: {
-    fontFamily: systemFont,
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '500',
     lineHeight: 20,
   } as TextStyle,
 
   caption: {
-    fontFamily: systemFont,
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '400',
     lineHeight: 16,
   } as TextStyle,
 
-  // Buttons - System fonts
+  // Buttons
   button: {
-    fontFamily: systemFont,
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '600',
     lineHeight: 24,
   } as TextStyle,
 
   buttonSmall: {
-    fontFamily: systemFont,
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
     lineHeight: 20,
@@ -112,40 +119,50 @@ export const typography = {
  * labels, facts and code. Changing "how airy is the chat" meant a search rather
  * than an edit. Each tier carries its own leading on purpose: consistent line
  * spacing is half of what reads as airy.
+ *
+ * Each tier carries the body face as well. A style that opts into the scale
+ * must never have to remember the font separately — that split is exactly how
+ * three styles silently lost PT Sans while these branches were merged.
  */
 export const chatType = {
   /** The conversation itself: answers, the user's message, what you type. */
   chatBody: {
+    fontFamily: BODY_FONT,
     fontSize: 17,
     lineHeight: 27,
   } as TextStyle,
 
   /** The heading of a card or a list row. */
   chatTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     lineHeight: 21,
   } as TextStyle,
 
   /** Prose inside a card — summaries, snippets, answers to a tool question. */
   chatSecondary: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     lineHeight: 20,
   } as TextStyle,
 
   /** The name of a control, chip or column. */
   chatLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     lineHeight: 18,
   } as TextStyle,
 
   /** A fact about something: count, date, domain, query, status. */
   chatMeta: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     lineHeight: 16,
   } as TextStyle,
 
   /** A marker: badge text, ordinal, legend. Nothing is smaller than this. */
   chatMicro: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     lineHeight: 14,
   } as TextStyle,

@@ -4,7 +4,7 @@ import { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
 import { useTheme } from '../../../hooks/useTheme';
-import { spacing, borderRadius, chatType } from '../../../theme';
+import { spacing, borderRadius, BODY_FONT, chatType } from '../../../theme';
 
 /**
  * Follow-up prompts under the last answer. These ride on message metadata

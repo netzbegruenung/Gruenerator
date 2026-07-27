@@ -6,7 +6,7 @@ import { View, Text, Pressable, StyleSheet, Modal, useColorScheme } from 'react-
 
 import { saveImageToGallery } from '../../services/imageStudio';
 import { shareBase64Image } from '../../services/share';
-import { colors, spacing, borderRadius, chatType } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
 
