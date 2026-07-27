@@ -77,9 +77,17 @@ export const messageColorUpdateBodySchema = z.object({
  * Closed set of chat-start backgrounds. The values are preset *keys*, not raw
  * colours — the actual gradients live in the frontend CSS
  * (`apps/web/src/features/workplace/workplace-sunrise.css`), so a redesign
- * never needs a data migration. `sunrise` is the historical default.
+ * never needs a data migration. `sunrise` was the historical default; `mesh` is
+ * the current one.
+ *
+ * Adding a key is the only safe direction here. A shipped mobile binary parses
+ * this enum from the profile it fetches, so a key it has never heard of has to
+ * degrade rather than fail — `resolveChatBackground` in
+ * `@gruenerator/shared/settings` does that by falling back to the default. That
+ * is also why no key is ever removed: rows in the database still carry it.
  */
 export const chatBackgroundSchema = z.enum([
+  'mesh',
   'sunrise',
   'tanne',
   'himmel',

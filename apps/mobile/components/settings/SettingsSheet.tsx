@@ -3,7 +3,7 @@ import { getAllRobotIds, getRobotAvatarUrl } from '@gruenerator/shared/avatar';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { AT_EBENEN, DE_EBENEN, type UserRole } from '@gruenerator/shared/roles';
 import {
-  CHAT_BACKGROUND_PRESETS,
+  chatBackgroundsFor,
   getSettingsEntry,
   resolveChatBackground,
 } from '@gruenerator/shared/settings';
@@ -34,6 +34,7 @@ import { chatBackgroundColor } from '../../theme/chatBackgrounds';
 import { route } from '../../types/routes';
 import { BottomSheet } from '../common/BottomSheet';
 import { ListGroup, ListRow } from '../common/ListRow';
+import { MeshGradient } from '../common/MeshGradient';
 
 import { AppUpdateRow } from './AppUpdateRow';
 
@@ -148,7 +149,7 @@ export function SettingsSheet() {
   if (!user) return null;
 
   const locale = (user.locale ?? 'de-DE') as Locale;
-  const chatBackground = resolveChatBackground(user.chat_background);
+  const chatBackground = resolveChatBackground(user.chat_background, 'mobile');
   const hasRoles = roles !== null && roles.length > 0;
   const ebenen = locale === 'de-AT' ? AT_EBENEN : DE_EBENEN;
 
@@ -206,7 +207,7 @@ export function SettingsSheet() {
         <>
           {note(getSettingsEntry('allgemein.chatHintergrund').description ?? '')}
           <View style={styles.swatches}>
-            {CHAT_BACKGROUND_PRESETS.map((preset) => {
+            {chatBackgroundsFor('mobile').map((preset) => {
               const color = chatBackgroundColor(preset.key);
               const active = preset.key === chatBackground.key;
               return (
@@ -230,11 +231,15 @@ export function SettingsSheet() {
                     },
                   ]}
                 >
+                  {/* The mesh has no single colour to reduce to, so its swatch
+                      draws the real thing. Without this it and "Neutral" would
+                      be the same empty ring. */}
+                  {preset.key === 'mesh' && <MeshGradient />}
                   {active && (
                     <Ionicons
                       name="checkmark"
                       size={18}
-                      color={color ? colors.grey[900] : theme.text}
+                      color={color || preset.key === 'mesh' ? colors.grey[900] : theme.text}
                     />
                   )}
                 </Pressable>
@@ -503,6 +508,9 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
+    // The mesh swatch fills its ring with an absolutely positioned gradient,
+    // which would otherwise square off the corners.
+    overflow: 'hidden',
   },
   grid: {
     flexDirection: 'row',
