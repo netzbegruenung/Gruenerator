@@ -6,6 +6,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useBildEditorMobile } from '../../../hooks/image-studio/useBildEditorMobile';
+import { BackButton } from '../../common/BackButton';
 
 import { BevComposer } from './BevComposer';
 import { BevGradientBackdrop, BevLoadingCard } from './BevGradientBackdrop';
@@ -52,6 +53,9 @@ export function BildEditorScreen() {
     <View style={[styles.root, { backgroundColor: palette.base }]}>
       <BevGradientBackdrop palette={palette} generating={generating} />
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        {/* Start only: the result screen's top bar already owns that corner, and
+            "Neu starten" leads back here anyway. */}
+        {screen === 'start' && <BackButton color={palette.ink} background={palette.overlayPill} />}
         <KeyboardAvoidingView behavior="padding" style={styles.flex}>
           {screen === 'start' ? (
             generating ? (
