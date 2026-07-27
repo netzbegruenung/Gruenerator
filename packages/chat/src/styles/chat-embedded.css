@@ -28,6 +28,8 @@
   --color-surface-hover: rgba(255,255,255,0.1);
   --color-hover-overlay: rgba(255,255,255,0.05);
   --color-user-bubble: rgba(255,255,255,0.1);
+  --color-code-block-bg: #111827;
+  --color-code-block-fg: #e5e7eb;
   --color-code-inline-bg: #1f2937;
   --color-error-bg: rgba(153,27,27,0.2);
   --color-badge-platform: #A0BBB0;

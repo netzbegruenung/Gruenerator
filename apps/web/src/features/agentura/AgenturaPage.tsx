@@ -44,6 +44,8 @@ import { MarketCard } from './components/MarketCard';
 import { RecurringTaskCard } from './components/RecurringTaskCard';
 import {
   AGENTURA_CATEGORIES,
+  AGENTURA_CATEGORY_ICONS,
+  AGENTURA_EMPTY_ICONS,
   DEFAULT_CATEGORY,
   SKILL_CATEGORY_ICONS,
   SKILL_CATEGORY_LABELS,
@@ -484,7 +486,7 @@ function AgenturaPage() {
   const navItems: AisleNavItem[] = visibleCategories.map((c) => ({
     key: c.key,
     label: c.label,
-    icon: c.icon,
+    icon: AGENTURA_CATEGORY_ICONS[c.key],
     count: countFor(c.key),
   }));
 
@@ -518,7 +520,7 @@ function AgenturaPage() {
 
   const EmptyIcon = searching
     ? PiMagnifyingGlass
-    : (activeCategory?.emptyIcon ?? PiMagnifyingGlass);
+    : (AGENTURA_EMPTY_ICONS[activeCat] ?? PiMagnifyingGlass);
   const emptyText = searching
     ? 'Keine Treffer für deine Suche. Versuch ein anderes Stichwort.'
     : (activeCategory?.emptyText ?? 'Hier ist gerade nichts vorhanden.');

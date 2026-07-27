@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useRecentThreads, type RecentThread } from '../../hooks/useRecentThreads';
 import { getMobileChatApiClient } from '../../services/chatConfig';
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 import { routeWithParams } from '../../types/routes';
 
 function formatTimeAgo(dateString: string): string {
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.medium,
     paddingVertical: spacing.small,
   },
-  headerTitle: { fontSize: 18, fontWeight: '700' },
+  headerTitle: { fontFamily: BODY_FONT, fontSize: 18, fontWeight: '700' },
   item: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -163,9 +163,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   content: { flex: 1, gap: 2 },
-  title: { fontSize: 15, fontWeight: '500' },
-  preview: { fontSize: 13 },
-  time: { fontSize: 12 },
+  title: { fontFamily: BODY_FONT, fontSize: 15, fontWeight: '500' },
+  preview: { fontFamily: BODY_FONT, fontSize: 13 },
+  time: { fontFamily: BODY_FONT, fontSize: 12 },
   empty: { paddingTop: 80, alignItems: 'center', gap: spacing.small },
-  emptyText: { fontSize: 15 },
+  emptyText: { fontFamily: BODY_FONT, fontSize: 15 },
 });

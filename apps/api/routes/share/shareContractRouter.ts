@@ -252,13 +252,17 @@ export const shareContractRouter = s.router(sharesContract, {
     try {
       const userId = getUserId(args.req);
       if (!userId) return UNAUTHORIZED;
-      const { imageData, title, imageType, metadata, originalImage, status } = args.body;
+      const { imageData, title, imageType, contentOrigin, metadata, originalImage, status } =
+        args.body;
 
       const service = await getSharedMediaService();
       const share = await service.createImageShare(userId, {
         imageBase64: imageData,
         title: title || 'Geteiltes Bild',
         imageType: imageType || null,
+        // Omitted rather than passed as undefined: the service distinguishes
+        // "caller declared nothing" (derive it) from a declared value.
+        ...(contentOrigin ? { contentOrigin } : {}),
         metadata: metadata || {},
         originalImage: originalImage || null,
         status: status === 'draft' ? 'draft' : 'ready',

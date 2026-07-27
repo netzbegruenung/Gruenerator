@@ -4,6 +4,7 @@
  */
 
 import { getShareUrl, useShareStore } from '@gruenerator/shared';
+import { type DeclarableContentOrigin } from '@gruenerator/shared/media-library/contentOrigin';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useState, useEffect } from 'react';
 import {
@@ -32,6 +33,15 @@ interface ImageShareModalProps {
   imageBase64: string;
   shareToken?: string | null;
   defaultTitle?: string;
+  /**
+   * Which flow produced the image. The modal cannot know by itself — its caller
+   * renders results from the template flow and the KI flow alike, and until now
+   * the row it created was filed as a sharepic either way. That is one of the
+   * ways KI images ended up in the Sharepics section.
+   */
+  contentOrigin?: DeclarableContentOrigin;
+  /** Which editor reopens the image; mirrors what the autosave wrote. */
+  imageType?: string;
 }
 
 export function ImageShareModal({
@@ -40,6 +50,8 @@ export function ImageShareModal({
   imageBase64,
   shareToken: existingShareToken,
   defaultTitle = 'Mein Sharepic',
+  contentOrigin = 'sharepic',
+  imageType = 'sharepic',
 }: ImageShareModalProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
@@ -96,7 +108,8 @@ export function ImageShareModal({
       const share = await createImageShare({
         imageData: imageBase64,
         title: defaultTitle,
-        imageType: 'sharepic',
+        imageType,
+        contentOrigin,
         metadata: { generatedAt: new Date().toISOString() },
       });
       if (share?.shareToken) {

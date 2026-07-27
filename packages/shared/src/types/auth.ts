@@ -5,8 +5,18 @@ export interface User {
   id: string;
   email: string;
   display_name?: string;
+  /** Mirrors the Grüner Login; read-only in both apps. */
+  username?: string;
   avatar_robot_id?: string;
   locale?: 'de-DE' | 'de-AT';
+  /**
+   * Accessibility overrides. Each one sits *on top of* the OS setting rather
+   * than replacing it: unset means "follow the system", true means "reduce
+   * regardless". Never read them directly — go through the platform's hook, so
+   * the OS value is part of the answer.
+   */
+  reduce_motion?: boolean;
+  reduce_transparency?: boolean;
   user_metadata?: {
     chat_color?: string;
     [key: string]: unknown;

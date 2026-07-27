@@ -43,6 +43,7 @@ import {
   DOCS_ONLY_SUBTYPES,
   DOCS_SUBTYPES,
   GRANTED_BY_SHARE_LINK,
+  docListColumns,
   docsAccessWhere,
 } from './constants.js';
 import { checkDocumentAccess, autoGrantSharePermission } from './documentAccess.js';
@@ -731,9 +732,11 @@ export const docsContractRouter = s.router(docsContract, {
       const params: unknown[] = [userId, userId, DOCS_ONLY_SUBTYPES];
       const limitClause = limit ? `LIMIT $${params.push(limit)}` : '';
 
+      const docColumns = docListColumns(args.query.preview === 'true');
+
       const result = (await db.query(
         `SELECT
-          cd.*,
+          ${docColumns},
           p.display_name as creator_name,
           le.display_name as last_editor_name,
           CASE

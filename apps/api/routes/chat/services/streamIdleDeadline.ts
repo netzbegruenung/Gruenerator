@@ -55,7 +55,8 @@ export function createIdleDeadline(deadlineMs: number, makeError: () => Error): 
     };
     arm(deadlineMs);
   });
-  // Suppress unhandled-rejection if cleared before resolution.
+  // Kein Fehler geht verloren — wer `deadline` awaitet, sieht die Ablehnung.
+  // swallow-ok: nur Unterdrückung der unhandled-rejection, wenn der Stream vorher sauber geklärt wurde
   deadline.catch(() => {});
 
   return {

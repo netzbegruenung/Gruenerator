@@ -1,8 +1,8 @@
-import { filterMentionables, type Mentionable } from '@gruenerator/chat';
+import { filterMentionables, mentionableKey, type Mentionable } from '@gruenerator/chat';
 import { memo } from 'react';
 import { View, Text, Pressable, SectionList, StyleSheet } from 'react-native';
 
-import { spacing, borderRadius } from '../../theme';
+import { spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
 
@@ -88,7 +88,7 @@ export const MentionSuggestions = memo(function MentionSuggestions({
     >
       <SectionList
         sections={sections}
-        keyExtractor={(item) => item.identifier}
+        keyExtractor={mentionableKey}
         keyboardShouldPersistTaps="handled"
         renderSectionHeader={({ section }) => (
           <Text style={[styles.sectionHeader, { color: theme.textSecondary }]}>
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     flexGrow: 0,
   },
   sectionHeader: {
-    fontSize: 10,
+    ...chatType.chatMicro,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -138,17 +138,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarEmoji: {
-    fontSize: 14,
+    ...chatType.chatSecondary,
   },
   textCol: {
     flex: 1,
     gap: 1,
   },
   title: {
-    fontSize: 14,
+    ...chatType.chatSecondary,
     fontWeight: '600',
   },
   subtitle: {
-    fontSize: 12,
+    ...chatType.chatMeta,
   },
 });
