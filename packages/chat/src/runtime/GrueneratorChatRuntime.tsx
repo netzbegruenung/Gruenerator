@@ -326,8 +326,7 @@ function useGrueneratorThreadRuntime() {
     () => ({
       submit: ({ message, type }) => {
         const custom = message.metadata?.custom as
-          | { streamMetadata?: { traceId?: string } }
-          | undefined;
+          { streamMetadata?: { traceId?: string } } | undefined;
         const traceId = custom?.streamMetadata?.traceId;
         if (!traceId) return;
         if (lastFeedbackRef.current.get(traceId) === type) return;
