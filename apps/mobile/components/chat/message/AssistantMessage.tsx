@@ -4,6 +4,7 @@ import { memo, useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 import { useTheme } from '../../../hooks/useTheme';
+import { BahnCard } from '../BahnCard';
 import { ChatChartCard } from '../ChatChartCard';
 import { ChatProgressIndicator } from '../ChatProgressIndicator';
 import { CitationDetailSheet } from '../CitationDetailSheet';
@@ -12,6 +13,7 @@ import { ComputeCard } from '../ComputeCard';
 import { ConfirmActionCard } from '../ConfirmActionCard';
 import { DocumentCreatedCard } from '../DocumentCreatedCard';
 import { GeneratedImageDisplay } from '../GeneratedImageDisplay';
+import { SocialPostCard } from '../SocialPostCard';
 
 import { AssistantActionBar } from './AssistantActionBar';
 import { AssistantTextPart } from './AssistantTextPart';
@@ -40,6 +42,8 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const createdDocument = metadata.createdDocument;
   const computeData = metadata.computeData;
   const chartData = metadata.chartData;
+  const socialPostData = metadata.socialPostData;
+  const bahnData = metadata.bahnData;
 
   // While this (last) message is still streaming, surface the cycling stage word
   // + spinning cog the same way web does — the label rides on metadata.progress,
@@ -77,6 +81,9 @@ export const AssistantMessage = memo(function AssistantMessage() {
         {isStreaming && !hasToolCall && progress && (
           <ChatProgressIndicator progress={progress} theme={theme} />
         )}
+        {/* Above the prose, like web: when a turn produced a post, the post is
+            the answer and the surrounding text is commentary on it. */}
+        {socialPostData && <SocialPostCard post={socialPostData} theme={theme} />}
         <MessageCitationsContext.Provider value={citationCtx}>
           <MessagePrimitive.Parts components={partsComponents} />
         </MessageCitationsContext.Provider>
@@ -85,6 +92,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
             space and the metadata may still be partial. */}
         {!isStreaming && computeData && <ComputeCard data={computeData} theme={theme} />}
         {!isStreaming && chartData && <ChatChartCard data={chartData} theme={theme} />}
+        {!isStreaming && bahnData && <BahnCard data={bahnData} theme={theme} />}
         {generatedImage && <GeneratedImageDisplay image={generatedImage} theme={theme} />}
         {confirmAction && <ConfirmActionCard action={confirmAction} theme={theme} />}
         {createdDocument && <DocumentCreatedCard document={createdDocument} theme={theme} />}

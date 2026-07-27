@@ -125,6 +125,12 @@ export {
 export { useDocumentChatStore } from './stores/documentChatStore';
 export { useSkillFavoritesStore } from './stores/skillFavoritesStore';
 
+// Live head of the combined social post's text half. The shared SSE parser
+// already writes here on `social_post_complete` / `social_post_updated`, so a
+// card rendering only its own message payload would go stale the moment the
+// user asks the chat to shorten the post.
+export { useSocialPostLiveStore, type ActiveSocialPost } from './stores/socialPostLiveStore';
+
 // Mention detection & insertion (shared logic for web + mobile)
 export {
   detectMention,
