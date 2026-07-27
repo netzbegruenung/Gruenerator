@@ -1147,6 +1147,13 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       );
       return {
         intent: 'agentic',
+        // The heuristic named a retrieval intent outright (web/search/examples/
+        // bundestag/…), as opposed to the `direct` + toolable-question case.
+        // Recorded because demotion otherwise DISCARDS that verdict: the turn
+        // goes to a planner that may call no tool at all, and "wer ist aktuell
+        // Bundeskanzler in Österreich" (heuristic web@0.80) came back with
+        // steps=0 and the honesty note itself as the user-facing answer.
+        loopDemotedFromRetrieval: DEMOTABLE_HEURISTIC_INTENTS.has(heuristic.intent),
         searchSources: detectSearchSources(userContent, heuristic.intent),
         searchQuery: (heuristic.searchQuery ?? userContent).slice(0, 500),
         detectedFilters: heuristicExtractFilters(userContent),

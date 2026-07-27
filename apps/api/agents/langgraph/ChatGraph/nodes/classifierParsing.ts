@@ -200,29 +200,41 @@ export function parseClassifierResponse(
         ? parsed.optimizedSearchQuery || parsed.searchQuery || userContent
         : null;
 
-      // Defense-in-depth: detect if typoAnalysis corrupted the search query
-      // If >40% of original significant words were lost, the LLM likely hallucinated
-      // a "correction" for proper nouns it didn't recognize
+      // Defense-in-depth: detect if typoAnalysis corrupted the search query.
+      // The LLM sometimes "corrects" a proper noun it doesn't recognise —
+      // "Stocker" → "Stocher" — and the search then looks for a person who
+      // doesn't exist.
+      //
+      // Measured as PRECISION (how much of the QUERY is backed by the original),
+      // not recall (how much of the original survived). Recall punished exactly
+      // what query optimisation is supposed to do: a good query drops the
+      // filler. Live, "Recherchiere bitte mit Quellen: Wie hoch war 2025 der
+      // Anteil erneuerbarer Energien …" distilled to a clean 12-word query,
+      // scored 36% recall, was thrown away — and the raw sentence, preamble and
+      // all, went to Linkup instead. A corrupted word has no counterpart in the
+      // original and therefore shows up here; a dropped word does not.
       if (effectiveSearchQuery && parsed.typoAnalysis && isSearchIntent) {
-        const originalWords = userContent
-          .toLowerCase()
-          .split(/\s+/)
-          .filter((w) => w.length > 3);
-        const queryWords = effectiveSearchQuery
-          .toLowerCase()
-          .split(/\s+/)
-          .filter((w) => w.length > 3);
-        const preserved = originalWords.filter((w) =>
-          queryWords.some((qw) => qw.includes(w) || w.includes(qw))
+        const significant = (s: string): string[] =>
+          s
+            .toLowerCase()
+            .split(/\s+/)
+            .map((w) => w.replace(/[^\p{L}\p{N}]/gu, ''))
+            .filter((w) => w.length > 3);
+        const originalWords = significant(userContent);
+        const queryWords = significant(effectiveSearchQuery);
+        const backed = queryWords.filter((qw) =>
+          originalWords.some((w) => qw.includes(w) || w.includes(qw))
         );
-        const preservedRatio =
-          originalWords.length > 0 ? preserved.length / originalWords.length : 1;
+        const backedRatio = queryWords.length > 0 ? backed.length / queryWords.length : 1;
 
-        if (preservedRatio < 0.6) {
+        // Same 0.6 bar as before — only what it measures changed. Keeping the
+        // number means a single corrected proper noun in a three-word query
+        // (0.67) still passes, exactly as it did under the old ratio.
+        if (backedRatio < 0.6) {
           const fallback = extractSearchTopic(userContent);
           log.warn(
             `[Classifier] Typo correction may have corrupted query: "${effectiveSearchQuery}" ` +
-              `(only ${Math.round(preservedRatio * 100)}% words preserved). ` +
+              `(only ${Math.round(backedRatio * 100)}% of its words appear in the question). ` +
               `Falling back to: "${fallback}"`
           );
           effectiveSearchQuery = fallback;
