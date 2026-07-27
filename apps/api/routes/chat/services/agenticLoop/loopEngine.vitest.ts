@@ -624,3 +624,30 @@ describe('createSentenceChunker', () => {
     expect(out).toEqual(['Ohne Ende']);
   });
 });
+
+describe('looksDegenerateSynth — markup is not degeneration', () => {
+  it('keeps a short HTML answer the user explicitly asked for', () => {
+    // Live symptom: "gib mir den Text mit HTML-Tags" produced markup with no
+    // German function word, the gate discarded it, and the turn reported the
+    // generic fallback instead — no content, no error.
+    expect(looksDegenerateSynth('<p>Klimaschutz jetzt</p>', ['web_search'])).toBe(false);
+  });
+
+  it('keeps a short fenced code answer', () => {
+    expect(looksDegenerateSynth('```js\nconst a = 1;\n```', ['web_search'])).toBe(false);
+  });
+
+  it('still catches the leaked tool plan', () => {
+    expect(looksDegenerateSynth("Let's perform web_search now.", ['web_search'])).toBe(true);
+  });
+
+  it('still catches a short non-German non-answer', () => {
+    expect(looksDegenerateSynth('I will now look this up.', ['web_search'])).toBe(true);
+  });
+
+  it('passes normal short German prose', () => {
+    expect(looksDegenerateSynth('Erledigt — die Spalte wurde ergänzt.', ['web_search'])).toBe(
+      false
+    );
+  });
+});

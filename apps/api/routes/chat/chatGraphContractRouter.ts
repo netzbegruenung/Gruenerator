@@ -46,6 +46,7 @@ import {
   AGENTIC_INTENTS,
 } from './services/agenticLoop/agenticRespondService.js';
 import { stripOutOfRangeCitations } from './services/agenticLoop/citationStrip.js';
+import { MAX_SOURCES } from './services/agenticLoop/loopGuards.js';
 import {
   compoundGenerationKind,
   looksLikeCompoundEdit,
@@ -93,7 +94,7 @@ import {
   hasReelEditVerb,
   isReelEditInstruction,
 } from './services/reelEditService.js';
-import { resolveReferentialTopic } from './services/referentialTopic.js';
+import { resolveReferentialQuery, resolveReferentialTopic } from './services/referentialTopic.js';
 import {
   resolveModel,
   buildMessagesForAI,
@@ -129,6 +130,7 @@ import {
   createMessage,
   discardPendingAssistantIfEmpty,
   getLastGeneratedImageUrl,
+  persistSourcesOnFailure,
   touchThread,
 } from './services/threadPersistenceService.js';
 
@@ -137,6 +139,10 @@ import type { ModelMessage } from 'ai';
 import type { Application } from 'express';
 
 const log = createLogger('chatGraphContractRouter');
+
+/** Content of the row that keeps a failed turn's sources for the retry. */
+const RESEARCH_KEPT_ON_FAILURE_TEXT =
+  'Die Antwort konnte nicht erzeugt werden. Die recherchierten Quellen sind gespeichert — ein erneuter Versuch nutzt sie weiter.';
 
 /** Cap best-effort past-chat recall so it never delays the user-facing stream. */
 const EXTERNAL_CONTEXT_TIMEOUT_MS = 3_000;
@@ -444,9 +450,16 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           ) {
             const userText = lastUserTextNoMentions.trim();
             if (userText) {
-              classifiedState.searchQuery = userText;
+              // A referential ask ("Ja, bitte recherchiere das jetzt im Web")
+              // carries no subject: taken verbatim it BECAME the research query
+              // and Linkup answered about the sentence, not the topic.
+              const resolved = resolveReferentialQuery(userText, classifiedState.messages ?? []);
+              classifiedState.searchQuery = resolved.query;
+              classifiedState.searchQueryInherited = resolved.inherited;
               log.info(
-                `[ChatGraph] searchQuery populated from last user message for forced ${forced}: "${userText.slice(0, 60)}"`
+                `[ChatGraph] searchQuery populated from last user message for forced ${forced}${
+                  resolved.inherited ? ' (topic inherited from prior turn)' : ''
+                }: "${resolved.query.slice(0, 60)}"`
               );
             }
           }
@@ -1736,6 +1749,23 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           }
 
           if (fullText === null) {
+            // Generation failed, but the retrieval that preceded it was real and
+            // expensive. Keep its sources on the thread so the retry rehydrates
+            // them instead of paying for the whole deep-research run again.
+            if (pendingId && (finalState.searchResults?.length ?? 0) > 0) {
+              const kept = await persistSourcesOnFailure(
+                pendingId,
+                RESEARCH_KEPT_ON_FAILURE_TEXT,
+                finalState.searchResults.slice(0, MAX_SOURCES)
+              ).catch(() => false);
+              if (kept) {
+                log.info(
+                  `[ChatGraph] Generation failed — kept ${finalState.searchResults.length} researched source(s) for the retry`
+                );
+                await cleanupPending(false);
+                return { status: 200 as const, body: undefined };
+              }
+            }
             await cleanupPending(true);
             return { status: 200 as const, body: undefined };
           }
