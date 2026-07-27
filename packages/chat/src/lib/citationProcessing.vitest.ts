@@ -56,6 +56,16 @@ describe('processTextWithCitations', () => {
   });
 });
 
+describe('reload normalisation', () => {
+  // The reload path is what persists `[cite:N]`; the badge layer only knows
+  // `[N]`. Guarding the pairing here keeps the two from drifting apart again.
+  it('renders a marker that arrived as [cite:N] once normalised', () => {
+    const normalised = 'Laut Quelle [cite:1] stimmt das.'.replace(/\[cite:(\d+)\]/g, '[$1]');
+    const parts = processTextWithCitations(normalised, new Map([[1, citation(1)]]));
+    expect(badgeIds(parts)).toEqual([1]);
+  });
+});
+
 describe('escapeCitationMarkers', () => {
   it('escapes single and grouped markers alike', () => {
     expect(escapeCitationMarkers('a [1] b [2, 3] c')).toBe('a \\[1\\] b \\[2, 3\\] c');
