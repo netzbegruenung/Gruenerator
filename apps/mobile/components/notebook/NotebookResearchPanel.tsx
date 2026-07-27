@@ -29,7 +29,7 @@ import { getSurfaceFab } from '../../theme/toolTheme';
 import { routeWithParams } from '../../types/routes';
 import { CitationDetailSheet } from '../chat/CitationDetailSheet';
 import { BottomSheet } from '../common/BottomSheet';
-import { ComposerCard } from '../common/ComposerCard';
+import { Composer } from '../common/Composer';
 import { Fab } from '../common/Fab';
 
 import { NotebookOverview } from './NotebookOverview';
@@ -259,10 +259,10 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
             screen) by default, manuelle Recherche (inline search) via the FAB. */}
         {inputMode === 'chat' ? (
           <View style={styles.chatComposer}>
-            <ComposerCard
-              variant="compact"
+            <Composer
+              variant="bar"
               placeholder={`Frag ${notebookTitle ?? 'dieses Notebook'}…`}
-              onSend={handleChatSend}
+              onSubmit={handleChatSend}
               // Same sheet as manuelle Recherche — depth, sources and categories
               // shape the KI answer too, so it has to be reachable from here.
               onSettings={() => setFiltersSheetVisible(true)}

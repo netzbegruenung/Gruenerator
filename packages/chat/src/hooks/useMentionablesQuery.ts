@@ -14,47 +14,28 @@ import { useMemo } from 'react';
 
 import { createChatApiClient } from '../context/ChatContext';
 import {
-  setBoardMentionables,
-  setCustomAgents,
-  setDocMentionables,
-  setMcpServerMentionables,
-  setSheetMentionables,
-  setTextforms,
-  setUserNotebookMentionables,
-  type CustomAgentMentionable,
   type Mentionable,
+  type CustomAgentMentionable,
   type TextformMentionable,
 } from '../lib/mentionables';
+import {
+  slugifyMention as slugify,
+  syncBoards,
+  syncCustomAgents,
+  syncDocs,
+  syncMcpServers,
+  syncSheets,
+  syncTextforms,
+  syncUserNotebooks,
+  type BoardListItem,
+  type DocListItem,
+  type McpServerListItem,
+  type MentionableFetch,
+  type UserNotebookListItem,
+} from '../lib/mentionableSync';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 
-interface BoardListItem {
-  id: string;
-  title: string;
-}
-
-interface DocListItem {
-  id: string;
-  title: string;
-  document_subtype?: string;
-}
-
-interface UserNotebookListItem {
-  id: string;
-  name: string;
-}
-
 const STALE_TIME = 60_000;
-
-function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[äÄ]/g, 'ae')
-    .replace(/[öÖ]/g, 'oe')
-    .replace(/[üÜ]/g, 'ue')
-    .replace(/ß/g, 'ss')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
-}
 
 function useApiClient() {
   const fetchFn = useChatConfigStore((s) => s.fetch);
@@ -62,35 +43,25 @@ function useApiClient() {
   return useMemo(() => createChatApiClient(fetchFn, onUnauthorized), [fetchFn, onUnauthorized]);
 }
 
-export function useCustomAgentsQuery() {
+/** The sync layer's `get` contract, backed by the chat ApiClient. */
+function useMentionableFetch(): MentionableFetch {
   const apiClient = useApiClient();
+  return useMemo(
+    () =>
+      <T>(path: string) =>
+        apiClient.get<T>(path),
+    [apiClient]
+  );
+}
+
+export function useCustomAgentsQuery() {
+  const get = useMentionableFetch();
   return useQuery<CustomAgentMentionable[]>({
     queryKey: ['mention-custom-agents'],
-    queryFn: async () => {
-      const [ownPrompts, savedPrompts] = await Promise.all([
-        apiClient.get<{ prompts?: CustomAgentMentionable[] }>('/auth/custom_prompts'),
-        apiClient.get<{ prompts?: CustomAgentMentionable[] }>('/auth/saved_prompts'),
-      ]);
-      const seenIds = new Set<string>();
-      const merged: CustomAgentMentionable[] = [];
-      for (const p of [...(ownPrompts?.prompts ?? []), ...(savedPrompts?.prompts ?? [])]) {
-        if (!seenIds.has(p.id)) {
-          seenIds.add(p.id);
-          merged.push(p);
-        }
-      }
-      setCustomAgents(merged);
-      return merged;
-    },
+    queryFn: () => syncCustomAgents(get),
     staleTime: STALE_TIME,
     retry: 1,
   });
-}
-
-interface TextFormListItem {
-  kind: 'preset' | 'custom';
-  mention: string;
-  title: string;
 }
 
 /**
@@ -99,98 +70,53 @@ interface TextFormListItem {
  * here. Anonymous users / no forms resolve to an empty list.
  */
 export function useTextformsQuery() {
-  const apiClient = useApiClient();
+  const get = useMentionableFetch();
   return useQuery<TextformMentionable[]>({
     queryKey: ['mention-textforms'],
-    queryFn: async () => {
-      const res = await apiClient
-        .get<{ forms?: TextFormListItem[] }>('/api/text-forms')
-        .catch(() => ({ forms: [] }));
-      const list = Array.isArray(res?.forms)
-        ? res.forms
-            .filter((f) => f.kind === 'custom')
-            .map((f) => ({ mention: f.mention, title: f.title }))
-        : [];
-      setTextforms(list);
-      return list;
-    },
+    queryFn: () => syncTextforms(get),
     staleTime: STALE_TIME,
     retry: 1,
   });
 }
 
 export function useBoardsQuery() {
-  const apiClient = useApiClient();
+  const get = useMentionableFetch();
   return useQuery<BoardListItem[]>({
     queryKey: ['mention-boards'],
-    queryFn: async () => {
-      const boards = await apiClient.get<BoardListItem[]>('/api/boards');
-      const list = Array.isArray(boards) ? boards : [];
-      setBoardMentionables(list.map((b) => ({ id: b.id, title: b.title, slug: slugify(b.title) })));
-      return list;
-    },
+    queryFn: () => syncBoards(get),
     staleTime: STALE_TIME,
     retry: 1,
   });
 }
 
 export function useSheetsQuery() {
-  const apiClient = useApiClient();
+  const get = useMentionableFetch();
   return useQuery<DocListItem[]>({
     queryKey: ['mention-sheets'],
-    queryFn: async () => {
-      const docs = await apiClient.get<DocListItem[]>('/api/docs');
-      const list = Array.isArray(docs) ? docs.filter((d) => d.document_subtype === 'sheets') : [];
-      setSheetMentionables(list.map((d) => ({ id: d.id, title: d.title, slug: slugify(d.title) })));
-      return list;
-    },
+    queryFn: () => syncSheets(get),
     staleTime: STALE_TIME,
     retry: 1,
   });
 }
 
 export function useDocsQuery() {
-  const apiClient = useApiClient();
+  const get = useMentionableFetch();
   return useQuery<DocListItem[]>({
     queryKey: ['mention-docs'],
-    queryFn: async () => {
-      const docs = await apiClient.get<DocListItem[]>('/api/docs');
-      // Boards and sheets are separate mention kinds with their own context loaders.
-      const list = Array.isArray(docs)
-        ? docs.filter((d) => d.document_subtype !== 'boards' && d.document_subtype !== 'sheets')
-        : [];
-      setDocMentionables(list.map((d) => ({ id: d.id, title: d.title, slug: slugify(d.title) })));
-      return list;
-    },
+    queryFn: () => syncDocs(get),
     staleTime: STALE_TIME,
     retry: 1,
   });
 }
 
 export function useUserNotebooksQuery() {
-  const apiClient = useApiClient();
+  const get = useMentionableFetch();
   return useQuery<UserNotebookListItem[]>({
     queryKey: ['mention-user-notebooks'],
-    queryFn: async () => {
-      const res = await apiClient
-        .get<{ collections?: UserNotebookListItem[] }>('/auth/notebook-collections')
-        .catch(() => ({ collections: [] }));
-      const list = Array.isArray(res?.collections) ? res.collections : [];
-      setUserNotebookMentionables(
-        list.map((n) => ({ id: n.id, title: n.name, slug: slugify(n.name) }))
-      );
-      return list;
-    },
+    queryFn: () => syncUserNotebooks(get),
     staleTime: STALE_TIME,
     retry: 1,
   });
-}
-
-interface McpServerListItem {
-  id: string;
-  name: string;
-  enabled: boolean;
-  description?: string | null;
 }
 
 /**
@@ -199,19 +125,10 @@ interface McpServerListItem {
  * servers resolve to an empty list.
  */
 export function useMcpServersQuery() {
-  const apiClient = useApiClient();
+  const get = useMentionableFetch();
   return useQuery<McpServerListItem[]>({
     queryKey: ['mention-mcp-servers'],
-    queryFn: async () => {
-      const res = await apiClient
-        .get<{ servers?: McpServerListItem[] }>('/api/mcp/servers')
-        .catch(() => ({ servers: [] }));
-      const list = Array.isArray(res?.servers) ? res.servers.filter((s) => s.enabled) : [];
-      setMcpServerMentionables(
-        list.map((s) => ({ id: s.id, name: s.name, description: s.description }))
-      );
-      return list;
-    },
+    queryFn: () => syncMcpServers(get),
     staleTime: STALE_TIME,
     retry: 1,
   });
