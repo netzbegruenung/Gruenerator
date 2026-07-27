@@ -9,6 +9,23 @@ export interface ParseResult {
 }
 
 /**
+ * A source/attribution line the model appended to a field on its own initiative
+ * — "— Herbert Kickl, ORF-Interview, 3.3.2026", "(Quelle: ORF, 2026)",
+ * "– Studie des Umweltbundesamts".
+ *
+ * Matched narrowly so real content survives: either an explicit source keyword,
+ * or a dash-led line that looks like `Name, Kontext[, Datum]` rather than prose.
+ * A dash-led line that reads as a sentence (has a finite verb's worth of words
+ * without commas) is kept.
+ */
+const ATTRIBUTION_LINE_RE =
+  /^\s*(?:[—–-]{1,2}\s*)?\(?\s*(?:quelle|source|foto|bild|credit|nach)\s*:.*$|^\s*[—–-]{1,2}\s*[^,\n]{2,60}(?:,\s*[^,\n]{2,60}){1,3}\s*\.?\s*$/iu;
+
+export function isAttributionLine(line: string): boolean {
+  return ATTRIBUTION_LINE_RE.test(line);
+}
+
+/**
  * Parse labeled text format from AI response.
  *
  * Expected format:
@@ -67,6 +84,12 @@ export function parseLabeledText(
       const valueAfterLabel = line.substring(match[0].length).trim();
       currentValue = valueAfterLabel ? [valueAfterLabel] : [];
     } else if (currentLabel) {
+      // An attribution line is NOT part of the field. The templates render no
+      // source field at all, so a trailing "— Herbert Kickl, ORF-Interview,
+      // 3.3.2026" used to be swallowed INTO the quote and shipped as if the
+      // graphic cited a real source. Dropping it here is the last line of
+      // defense behind the prompt rules.
+      if (isAttributionLine(line)) continue;
       currentValue.push(line);
     }
   }

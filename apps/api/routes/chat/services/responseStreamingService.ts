@@ -31,15 +31,21 @@ import {
 } from '../agents/providers.js';
 
 import { sanitizeContentPartsForModel, stripEmptyAssistantMessages } from './messageHelpers.js';
-import { PROGRESS_MESSAGES, type FallbackReason, type SSEWriter } from './sseHelpers.js';
+import {
+  PROGRESS_MESSAGES,
+  startResponseHeartbeat,
+  type FallbackReason,
+  type SSEWriter,
+} from './sseHelpers.js';
+import { createIdleDeadline, type IdleDeadline } from './streamIdleDeadline.js';
 
 const log = createLogger('ResponseStreaming');
 
 /**
- * How long to wait for the first content token before declaring the upstream
- * model dead and triggering fallback. Set generously enough to accommodate
- * gemma's reasoning preamble on LiteLLM (~10s observed), with headroom for
- * production load.
+ * How long the upstream model may stay SILENT before it is declared dead and
+ * the fallback fires. Generous enough for gemma's reasoning preamble on LiteLLM
+ * (~10s observed), with headroom for production load. Idle-based: any output
+ * rearms it — see createFirstTokenDeadline.
  */
 const FIRST_TOKEN_DEADLINE_MS = 20_000;
 
@@ -57,13 +63,15 @@ const SINGLE_PASS_WALL_CLOCK_MS = (() => {
 const LITELLM_FIRST_TOKEN_DEADLINE_MS = 30_000;
 /**
  * Reasoning models (Regolo vLLM, Verdigado/LiteLLM Gemma) hold back answer text
- * until thinking completes — reasoning deltas don't satisfy the deadline (see
- * the reasoning streamer), so the wait for the first TEXT token is legitimately
- * longer. But 45s was far too long: when verdigado-think HANGS (observed live
- * — first_token_timeout, then an 86s turn), the user waited the full 45s before
- * the sibling fallback (gemma) even started. 20s still covers a genuine thinking
- * phase (reasoning deltas stream meanwhile) while recovering from a hang ~2x
- * faster; the fallback answer is fine, so an occasional early cutover is cheap.
+ * until thinking completes, so the wait for the first TEXT token is legitimately
+ * longer than on a plain lane.
+ *
+ * This is an IDLE window, not a total budget: reasoning deltas rearm it (see
+ * createFirstTokenDeadline), so a genuine 60s thinking phase runs to completion
+ * as long as the model keeps emitting. It only trips on true silence — which is
+ * what "hung" actually means. Before that fix the same 20s was a hard ceiling
+ * on thinking, and a research turn died on verdigado-think at exactly 20s, then
+ * on its regolo/gemma4-31b sibling at exactly 20s again.
  */
 const REASONING_FIRST_TOKEN_DEADLINE_MS = 20_000;
 
@@ -355,63 +363,16 @@ export function isStreamFailure(err: unknown): err is StreamFailure {
 }
 
 /**
- * Heartbeat while we wait for the first content token. Some primary models
- * spend several seconds in TTFB (especially overflow lanes / cold reasoning
- * starts); without a ping the UI shows `response_start` and nothing else,
- * which looks like a hang. Cleared on first delta, abort, or error.
+ * The first-token deadline: rejects with FirstTokenTimeoutError once the model
+ * has been SILENT for `deadlineMs`, aborts the stream at the same moment, and
+ * `clear()` disarms both when the first real text chunk arrives.
+ *
+ * The idle semantics (and why they are idle rather than one-shot) live in
+ * {@link createIdleDeadline}, which the agentic loop's synth phase shares — one
+ * definition of "stalled" for both answer paths.
  */
-const HEARTBEAT_INTERVAL_MS = 3_000;
-
-function startResponseHeartbeat(sse: SSEWriter): () => void {
-  const stepId = `generating_${Date.now()}`;
-  const handle = setInterval(() => {
-    if (sse.isEnded()) return;
-    sse.send('thinking_step', {
-      stepId,
-      toolName: 'generating',
-      title: 'Formuliere Antwort…',
-      status: 'in_progress',
-    });
-  }, HEARTBEAT_INTERVAL_MS);
-  // Don't keep the event loop alive solely on this timer if the response is
-  // aborted at the socket layer.
-  if (typeof handle.unref === 'function') handle.unref();
-  let cleared = false;
-  return () => {
-    if (cleared) return;
-    cleared = true;
-    clearInterval(handle);
-  };
-}
-
-/**
- * Set up a one-shot first-token deadline. Returns the deadline promise (which
- * rejects with FirstTokenTimeoutError after `deadlineMs`), an abort signal
- * that fires at the same time, and a clear() to disarm both once the first
- * real text chunk arrives.
- */
-function createFirstTokenDeadline(deadlineMs: number): {
-  deadline: Promise<never>;
-  signal: AbortSignal;
-  clear: () => void;
-} {
-  const controller = new AbortController();
-  let timeoutHandle: NodeJS.Timeout | undefined;
-  const deadline = new Promise<never>((_, reject) => {
-    timeoutHandle = setTimeout(() => {
-      controller.abort();
-      reject(new FirstTokenTimeoutError(deadlineMs));
-    }, deadlineMs);
-  });
-  // Suppress unhandled-rejection if cleared before resolution.
-  deadline.catch(() => {});
-  return {
-    deadline,
-    signal: controller.signal,
-    clear: () => {
-      if (timeoutHandle) clearTimeout(timeoutHandle);
-    },
-  };
+function createFirstTokenDeadline(deadlineMs: number): IdleDeadline {
+  return createIdleDeadline(deadlineMs, () => new FirstTokenTimeoutError(deadlineMs));
 }
 
 /** A plain abort-after-ms timer (setTimeout-backed so fake timers drive it,
@@ -455,6 +416,7 @@ async function streamAndAccumulateOrThrow(params: {
     deadline,
     signal: deadlineSignal,
     clear,
+    touch,
   } = createFirstTokenDeadline(firstTokenDeadlineMs);
   // Turn wall-clock: bounds BOTH phases (the first-token deadline is cleared
   // after phase 1, leaving the drain uncapped). Cleared on normal completion.
@@ -477,14 +439,15 @@ async function streamAndAccumulateOrThrow(params: {
   });
 
   // fullStream (not textStream) so reasoning models surface their thinking as
-  // `reasoning_delta` SSE events alongside the answer. A reasoning delta clears
-  // the first-token deadline (the model is demonstrably alive), but only a
-  // `text-delta` ends phase 1 — until visible answer text is on the wire we
+  // `reasoning_delta` SSE events alongside the answer. A reasoning delta REARMS
+  // the first-token deadline (the model is demonstrably alive) rather than
+  // disarming it — disarming gave up the clean fallback at the very first
+  // reasoning token, after which only the 180s wall clock bounded a hang. Only
+  // a `text-delta` ends phase 1; until visible answer text is on the wire we
   // can still fall back cleanly.
   const iterator = result.stream[Symbol.asyncIterator]();
   let fullText = '';
   let textStarted = false;
-  let deadlineCleared = false;
   const stopHeartbeat = startResponseHeartbeat(sse);
 
   // Phase 1 — race the shared deadline until the first visible text delta.
@@ -493,25 +456,19 @@ async function streamAndAccumulateOrThrow(params: {
   // text arrives or the deadline fires.
   try {
     while (!textStarted) {
-      const next = deadlineCleared
-        ? await iterator.next()
-        : await Promise.race([iterator.next(), deadline]);
+      const next = await Promise.race([iterator.next(), deadline]);
       if (next.done) throw new EmptyCompletionError();
       const part = next.value;
       if (part.type === 'error') throw part.error;
       if (part.type === 'reasoning-delta' && part.text.length > 0) {
-        if (!deadlineCleared) {
-          clear();
-          stopHeartbeat();
-          deadlineCleared = true;
-        }
+        // Alive, but not answering yet: rearm the idle window and let the real
+        // reasoning deltas replace the heartbeat as the UI's proof of progress.
+        touch();
+        stopHeartbeat();
         sse.send('reasoning_delta', { text: part.text });
       } else if (part.type === 'text-delta' && part.text.length > 0) {
-        if (!deadlineCleared) {
-          clear();
-          stopHeartbeat();
-          deadlineCleared = true;
-        }
+        clear();
+        stopHeartbeat();
         fullText += part.text;
         sse.send('text_delta', { text: part.text });
         textStarted = true;
@@ -594,6 +551,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
     deadline,
     signal: deadlineSignal,
     clear,
+    touch,
   } = createFirstTokenDeadline(firstTokenDeadlineMs);
   // Turn wall-clock: bounds BOTH phases (the first-token deadline is cleared
   // after phase 1, leaving the drain uncapped). Cleared on normal completion.
@@ -629,6 +587,8 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
         sse.send('text_delta', { text: chunk.delta });
         break;
       }
+      // Thinking out loud is proof of life — rearm rather than time out.
+      touch();
       sse.send('reasoning_delta', { text: chunk.delta });
     }
   } catch (err) {
@@ -718,9 +678,29 @@ export async function streamWithFallback(params: {
   buildStream: (resolution: ModelResolution) => Promise<string | null>;
   sse: SSEWriter;
   logPrefix?: string;
+  /**
+   * Last resort when BOTH lanes are dead: a caller that already holds a usable
+   * answer returns it here and the turn completes normally instead of erroring.
+   * Research wrapper-mode is the case that motivates it — the retrieved
+   * synthesis IS the answer and is already on screen as a card, so failing the
+   * turn discards work the user can see and we already paid for.
+   *
+   * Returning null (or omitting this) keeps the plain error.
+   */
+  salvage?: () => string | null;
 }): Promise<string | null> {
-  const { primary, buildStream, sse, logPrefix = '[ChatGraph]' } = params;
+  const { primary, buildStream, sse, logPrefix = '[ChatGraph]', salvage } = params;
   const primaryLabel = primary.modelId ?? primary.modelName;
+
+  /** Emit the salvaged answer on the normal text channel so the caller's
+   *  persistence, citation clamp and reload path all treat it as a real turn. */
+  const salvageOrFail = (kind: StreamFailure['kind']): string | null => {
+    const rescued = salvage?.() ?? null;
+    if (rescued == null || rescued.trim().length === 0) return failStream(sse, kind);
+    log.warn(`${logPrefix} both lanes failed (${kind}) — salvaging the answer already retrieved`);
+    sse.send('text_delta', { text: rescued });
+    return rescued;
+  };
 
   try {
     return await buildStream(primary);
@@ -730,7 +710,7 @@ export async function streamWithFallback(params: {
     const sibling = primary.sibling;
     if (!sibling) {
       log.warn(`${logPrefix} ${primaryLabel} failed (${err.kind}) — no sibling configured`);
-      return failStream(sse, err.kind);
+      return salvageOrFail(err.kind);
     }
 
     log.warn(
@@ -761,7 +741,7 @@ export async function streamWithFallback(params: {
     } catch (fallbackErr) {
       if (isStreamFailure(fallbackErr)) {
         log.error(`${logPrefix} Fallback ${fallbackLabel} also failed (${fallbackErr.kind})`);
-        return failStream(sse, fallbackErr.kind);
+        return salvageOrFail(fallbackErr.kind);
       }
       throw fallbackErr;
     }

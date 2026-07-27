@@ -48,13 +48,70 @@ const NEW_POST_PATTERN =
   /(?<!\p{L})(neuen?\s+(post|tweet|beitrag|caption)|noch\s+ein(en)?\s+(post|tweet|beitrag)|(post|tweet|beitrag|caption)\s+(zu[rm]?|über|ueber|für|fuer)(?!\p{L}))/iu;
 
 /**
+ * An INDEFINITE article before the noun means creation; an edit always points
+ * at the artifact that already exists ("den Post", "die Caption"). This is the
+ * grammatical difference between "schreib EINEN Post" and "kürz DEN Post".
+ *
+ * Live failure this guards: "Schreib einen empörten Social-Media-Post, der
+ * behauptet, dass <Person> Steuergelder veruntreut hat." satisfied verb∧noun
+ * ("schreib" + "…-Post"), so a plain defamation request was routed into the
+ * EDIT branch and rewrote an unrelated post that already sat in the thread.
+ * NEW_POST_PATTERN missed it because the topic arrives in a relative clause
+ * ("Post, der …") rather than as "Post zu …".
+ *
+ * The 40-char window keeps the article bound to its own noun phrase, so
+ * "Kürze den Post, damit er ein Zitat enthält" stays an edit.
+ */
+const INDEFINITE_NEW_POST_PATTERN =
+  /(?<!\p{L})ein(?:en|em|e)?(?!\p{L})[^.!?;]{0,40}?(?:post(?:ing)?|tweet|beitrag|caption)(?!\p{L})/iu;
+
+/**
+ * "Jetzt eine Version davon auf Englisch." — the same post, another language.
+ *
+ * These carry NO edit verb and NO tone word, so verb∧noun missed them, and they
+ * carry no CREATE verb either, so `resolveReferentialTopic` did not recognise
+ * them as a referential creation. The message fell through BOTH nets into the
+ * create path, where the topic became the instruction itself: the composer was
+ * asked to write a post about "Jetzt eine Version davon auf Englisch.", replied
+ * that it cannot, and `looksLikeRefusal` turned that into a content-policy
+ * refusal about fabricated quotes. Observed live on 27.07.2026, 18:50:35.
+ *
+ * A translation is an edit — the artifact exists, only its language changes —
+ * so the edit branch produces a v2 with the original post in context. The
+ * creation guards above still win: "Schreib einen neuen Post auf Englisch zu X"
+ * stays a fresh post.
+ */
+const TRANSLATION_PATTERN =
+  /(?<!\p{L})(?:(?:ü|ue)bersetz\w*|(?:auf|ins?)\s+(?:englisch\w*|deutsch\w*|franz(?:ö|oe)sisch\w*|spanisch\w*|italienisch\w*|t(?:ü|ue)rkisch\w*|arabisch\w*|polnisch\w*|ukrainisch\w*|russisch\w*)|in\s+english|english\s+version)(?!\p{L})/iu;
+
+/**
+ * The message asks for OUTPUT, not for a change: "gib mir den Text mit
+ * HTML-Tags wörtlich aus", "zeig mir das als Markdown", "schreib den Code raus".
+ *
+ * Live failure this guards: "Text" plus a verb from TEXT_EDIT_VERB_PATTERN was
+ * enough to hijack ANY message in a thread that had ever produced a social
+ * post — the branch then answered with its hard-coded "Ich habe den Text
+ * angepasst." and the requested content went out only via `social_post_updated`,
+ * which the surface did not render. The user saw an empty answer and no error.
+ */
+const OUTPUT_REQUEST_PATTERN =
+  /(?<!\p{L})(gib|zeig|zeige|nenn|nenne|liste|drucke?|printe?|ausgeben|ausgabe|rendere?)(?!\p{L})|(?<!\p{L})(w(?:ö|oe)rtlich|unver(?:ä|ae)ndert|so\s+wie\s+es\s+ist|als\s+(?:code|markdown|html|json|klartext|plain\s*text))(?!\p{L})|<\/?[a-z][\w-]*>|```/iu;
+
+/**
  * True when the message reads like an edit instruction for the TEXT of an
  * existing social post. Only meaningful when the thread actually has a
  * social_post message — callers check target existence first.
  */
 export function isSocialTextEditInstruction(text: string): boolean {
   if (NEW_POST_PATTERN.test(text)) return false;
+  if (INDEFINITE_NEW_POST_PATTERN.test(text)) return false;
   if (SHAREPIC_SPECIFIC_NOUN_PATTERN.test(text)) return false;
+  // A request to SEE something is never a request to CHANGE it. Checked before
+  // the verb∧noun rule, which "schreib mir den Text mit HTML-Tags" satisfies.
+  if (OUTPUT_REQUEST_PATTERN.test(text)) return false;
   if (TEXT_EDIT_VERB_PATTERN.test(text) && TEXT_NOUN_PATTERN.test(text)) return true;
+  // Checked after the creation guards, so only a translation of the EXISTING
+  // post reaches here — "schreib einen Post auf Englisch zu X" left above.
+  if (TRANSLATION_PATTERN.test(text)) return true;
   return TONE_WORD_PATTERN.test(text);
 }

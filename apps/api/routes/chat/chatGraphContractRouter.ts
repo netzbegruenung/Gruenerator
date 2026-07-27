@@ -26,11 +26,13 @@ import {
   classifierNode,
   pandasComputeNode,
   buildSystemMessage,
+  usesResearchWrapper,
 } from '../../agents/langgraph/ChatGraph/index.js';
 import {
   isSheetFillRequest,
   isTabularComputeQuestion,
 } from '../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
+import { hasExplicitSharepicWord } from '../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import {
   SYSTEM_TOOL_INTENTS,
   isSystemIntentAvailable,
@@ -46,6 +48,7 @@ import {
   AGENTIC_INTENTS,
 } from './services/agenticLoop/agenticRespondService.js';
 import { stripOutOfRangeCitations } from './services/agenticLoop/citationStrip.js';
+import { MAX_SOURCES } from './services/agenticLoop/loopGuards.js';
 import {
   compoundGenerationKind,
   looksLikeCompoundEdit,
@@ -71,6 +74,7 @@ import {
   executeIntentPipeline,
 } from './services/intentExecutionService.js';
 import { estimateRequestTokens, extractTextContent } from './services/messageHelpers.js';
+import { stripFabricatedSystemClaims } from './services/outputSanity.js';
 import {
   recallPastChats,
   recallOfficeDocuments,
@@ -83,7 +87,7 @@ import {
 } from './services/pastChatRecallService.js';
 import { createPendingAssistantWriter } from './services/pendingAssistantWriter.js';
 import { pipelineStateStore } from './services/pipelineStateStore.js';
-import { APP_REDIRECT_TEXTS } from './services/platformGating.js';
+import { APP_REDIRECT_TEXTS, NO_SHAREPIC_TO_EDIT_TEXT } from './services/platformGating.js';
 import { persistAssistantResponse } from './services/postResponseService.js';
 import { handleRecallToolLoop, isChatRecallLoopEnabled } from './services/recallToolLoopService.js';
 import {
@@ -92,7 +96,7 @@ import {
   hasReelEditVerb,
   isReelEditInstruction,
 } from './services/reelEditService.js';
-import { resolveReferentialTopic } from './services/referentialTopic.js';
+import { resolveReferentialQuery, resolveReferentialTopic } from './services/referentialTopic.js';
 import {
   resolveModel,
   buildMessagesForAI,
@@ -105,7 +109,11 @@ import {
   isChatToolLoopEnabled,
 } from './services/sharepicAgenticService.js';
 import { hasSharepicEditVerb, isShortAffirmation } from './services/sharepicEditHeuristics.js';
-import { handleSharepicEdit, isSharepicEditInstruction } from './services/sharepicEditService.js';
+import {
+  handleSharepicEdit,
+  isSharepicEditInstruction,
+  threadHasSharepic,
+} from './services/sharepicEditService.js';
 import {
   getLastSharepicVariant,
   isSharepicRefinement,
@@ -128,6 +136,7 @@ import {
   createMessage,
   discardPendingAssistantIfEmpty,
   getLastGeneratedImageUrl,
+  persistSourcesOnFailure,
   touchThread,
 } from './services/threadPersistenceService.js';
 
@@ -136,6 +145,17 @@ import type { ModelMessage } from 'ai';
 import type { Application } from 'express';
 
 const log = createLogger('chatGraphContractRouter');
+
+/**
+ * Framing for a wrapper-mode research answer that had to be delivered without a
+ * model: honest that the formulation failed, but the recherche itself did not.
+ */
+const RESEARCH_SALVAGE_PREFIX =
+  'Die Formulierung der Antwort hat gerade nicht geklappt — hier ist das Rechercheergebnis unverändert:';
+
+/** Content of the row that keeps a failed turn's sources for the retry. */
+const RESEARCH_KEPT_ON_FAILURE_TEXT =
+  'Die Antwort konnte nicht erzeugt werden. Die recherchierten Quellen sind gespeichert — ein erneuter Versuch nutzt sie weiter.';
 
 /** Cap best-effort past-chat recall so it never delays the user-facing stream. */
 const EXTERNAL_CONTEXT_TIMEOUT_MS = 3_000;
@@ -285,6 +305,42 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       log.info(
         `[ChatGraph] forcedTools received: ${JSON.stringify(forcedTools)}, classifier intent: ${classifiedState.intent}`
       );
+
+      /**
+       * End the turn with a fixed sentence — no model call. For the cases where
+       * the honest answer is known in advance (this surface can't do it; there
+       * is nothing here to edit), so paying a generation to phrase it would
+       * only add latency and a chance to phrase it wrongly.
+       */
+      const finishTurnWithFixedText = async (
+        text: string,
+        intent: NonNullable<ChatGraphState['intent']>
+      ): Promise<{ status: 200; body: undefined }> => {
+        sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
+        sse.send('text_delta', { text });
+        sse.send('done', {
+          threadId: actualThreadId ?? null,
+          citations: [],
+          metadata: {
+            intent,
+            searchCount: 0,
+            totalTimeMs: Date.now() - initialState.startTime,
+            classificationTimeMs: classifiedState.classificationTimeMs,
+            searchTimeMs: 0,
+          },
+        });
+        if (actualThreadId) {
+          try {
+            await createMessage(actualThreadId, 'assistant', text, { intent });
+            await touchThread(actualThreadId);
+          } catch (err) {
+            log.error('[ChatGraph] Failed to persist fixed-text turn:', err);
+          }
+        }
+        await cleanupPending(true);
+        sse.end();
+        return { status: 200 as const, body: undefined };
+      };
 
       // === Compound query detection ===
       const isCompound = notebookIds.length > 0 && !!agentId && agentId !== 'gruenerator-universal';
@@ -443,9 +499,16 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           ) {
             const userText = lastUserTextNoMentions.trim();
             if (userText) {
-              classifiedState.searchQuery = userText;
+              // A referential ask ("Ja, bitte recherchiere das jetzt im Web")
+              // carries no subject: taken verbatim it BECAME the research query
+              // and Linkup answered about the sentence, not the topic.
+              const resolved = resolveReferentialQuery(userText, classifiedState.messages ?? []);
+              classifiedState.searchQuery = resolved.query;
+              classifiedState.searchQueryInherited = resolved.inherited;
               log.info(
-                `[ChatGraph] searchQuery populated from last user message for forced ${forced}: "${userText.slice(0, 60)}"`
+                `[ChatGraph] searchQuery populated from last user message for forced ${forced}${
+                  resolved.inherited ? ' (topic inherited from prior turn)' : ''
+                }: "${resolved.query.slice(0, 60)}"`
               );
             }
           }
@@ -587,33 +650,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         }
         if (classifiedState.intent === 'sharepic') {
           log.info('[ChatGraph] Sharepic intent on app — redirecting to web');
-          const redirectText = APP_REDIRECT_TEXTS.sharepic;
-          sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
-          sse.send('text_delta', { text: redirectText });
-          sse.send('done', {
-            threadId: actualThreadId ?? null,
-            citations: [],
-            metadata: {
-              intent: classifiedState.intent,
-              searchCount: 0,
-              totalTimeMs: Date.now() - initialState.startTime,
-              classificationTimeMs: classifiedState.classificationTimeMs,
-              searchTimeMs: 0,
-            },
-          });
-          if (actualThreadId) {
-            try {
-              await createMessage(actualThreadId, 'assistant', redirectText, {
-                intent: 'sharepic',
-              });
-              await touchThread(actualThreadId);
-            } catch (err) {
-              log.error('[ChatGraph] Failed to persist app sharepic redirect:', err);
-            }
-          }
-          await cleanupPending(true);
-          sse.end();
-          return { status: 200 as const, body: undefined };
+          return await finishTurnWithFixedText(APP_REDIRECT_TEXTS.sharepic, 'sharepic');
         }
       }
 
@@ -662,6 +699,11 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       ) {
         const editText = lastUserTextNoMentions.trim();
         if (editText && isSocialTextEditInstruction(editText)) {
+          // Sibling of the sharepic-branch log below: the two edit branches are
+          // where a follow-up either lands correctly or is silently misread.
+          log.info(
+            `[ChatGraph] social post text-edit branch: ${JSON.stringify(editText.slice(0, 80))}`
+          );
           const handled = await handleSocialPostTextEdit({
             sse,
             req,
@@ -709,12 +751,38 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           rawCurrentSharepic != null &&
           !!editText &&
           (hasSharepicEditVerb(editText) || isShortAffirmation(editText));
-        if (
-          editText &&
-          (isSharepicEditInstruction(editText) ||
-            isSharepicRefinement(editText) ||
-            sharepicModeRelaxed)
-        ) {
+        const candidate = !editText
+          ? null
+          : isSharepicEditInstruction(editText)
+            ? 'edit-instruction'
+            : isSharepicRefinement(editText)
+              ? 'refinement'
+              : sharepicModeRelaxed
+                ? 'sharepic-mode-relaxed'
+                : null;
+        // EVERY lane must prove there is something to edit. `refinement` always
+        // did; `edit-instruction` never did, and that asymmetry was a hole, not
+        // a nuance: on a thread with no sharepic the handler declined, the turn
+        // fell through, and the pipeline then CREATED a sharepic about the edit
+        // instruction ("Mach den Text im Sharepic größer" became a sharepic
+        // whose topic was that sentence). One check, all three lanes.
+        // sharepicModeRelaxed keeps its own rawCurrentSharepic requirement —
+        // an explicitly activated sharepic is stronger evidence than "the
+        // thread has one somewhere".
+        const sharepicTrigger =
+          candidate && (rawCurrentSharepic != null || (await threadHasSharepic(actualThreadId)))
+            ? candidate
+            : null;
+        if (sharepicTrigger) {
+          // WHICH rule captured the turn, and on what text. This branch can end
+          // a turn early (e.g. the "Welche Variante soll ich bearbeiten?"
+          // clarification) without any other log line, so a message that was
+          // never meant as a sharepic edit vanished into it leaving no trace —
+          // a QA report of "my question was answered as an edit command" was
+          // not diagnosable from the backend at all.
+          log.info(
+            `[ChatGraph] sharepic edit branch via ${sharepicTrigger}: ${JSON.stringify(editText.slice(0, 80))}`
+          );
           // CHAT_TOOL_LOOP swaps the executor, not the routing: same entry
           // condition and fallthrough semantics, but the edit runs as a small
           // agentic tool loop instead of one structured call.
@@ -772,6 +840,37 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               `[ChatGraph] Sharepic refinement: "${sharepicRefinement.instruction}" on ${prior.canvasType}`
             );
           }
+        }
+      }
+
+      // === Sharepic licence: the single gate for "may this turn make one?" ===
+      // A sharepic is legitimate in exactly two situations: the user named one,
+      // or the thread already has one to edit — and both edit lanes above have
+      // had their chance at the second. Enforcing it HERE, once, is what let the
+      // classifier lose five regexes: every door (Tier-3 heuristic, Tier-4 LLM,
+      // the malformed-JSON recovery in classifierParsing, secondaryIntent) ends
+      // up passing through this line, so none of them needs its own gate.
+      // Placed before compoundKind so an unlicensed turn cannot mount the fat
+      // tool either.
+      const sharepicLicensed =
+        forcedTool || // @sharepic mention — an explicit pick
+        initialState.agentConfig?.identifier === 'gruenerator-sharepic' ||
+        hasExplicitSharepicWord(lastUserTextNoMentions);
+
+      if (classifiedState.secondaryIntent === 'sharepic' && !sharepicLicensed) {
+        log.info('[ChatGraph] Dropping unlicensed sharepic secondaryIntent');
+        classifiedState.secondaryIntent = null;
+      }
+      if (classifiedState.intent === 'sharepic' && !sharepicLicensed) {
+        if (actualThreadId && (await threadHasSharepic(actualThreadId))) {
+          // Sharepic-shaped, and there IS one — but the edit lanes declined it
+          // (wrong template, ambiguous, not actually an edit). Answering
+          // normally beats minting a surprise second sharepic.
+          log.info('[ChatGraph] Unlicensed sharepic intent, thread has one → direct');
+          classifiedState.intent = 'direct';
+        } else {
+          log.info('[ChatGraph] Unlicensed sharepic intent, nothing to edit → fixed reply');
+          return await finishTurnWithFixedText(NO_SHAREPIC_TO_EDIT_TEXT, 'sharepic');
         }
       }
 
@@ -923,6 +1022,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
                 (a) => a.mimeType === 'application/pdf'
               )) &&
             isSheetFillRequest(lastUserText),
+          classifierContradictedResearch: classifiedState.classifierContradictedResearch === true,
         });
 
       // A demoted turn that a kill-switch (compound, forced tool, ...) kept out
@@ -1481,6 +1581,8 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       let generatedImage: PipelineResult['generatedImage'];
       let sharepicVariants: PipelineResult['sharepicVariants'];
       let socialPost: PipelineResult['socialPost'];
+      let socialPostRefused: PipelineResult['socialPostRefused'] = false;
+      let socialPostRefusalIsPolicy: PipelineResult['socialPostRefusalIsPolicy'] = false;
       let fullText: string | null;
       let agenticSteps: PersistedStep[] | undefined;
       // Presentation/sheet created by a compound loop tool — lifted from the
@@ -1555,18 +1657,23 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         agenticSteps = outcome.steps;
       } else {
         // === Stage 2: Search or Image Generation ===
-        ({ finalState, generatedImage, sharepicVariants, socialPost } = await executeIntentPipeline(
-          {
-            classifiedState,
-            sse,
-            forcedTool,
-            ...(enabledTools != null && { enabledTools }),
-            imageAttachments,
-            req,
-            threadId: actualThreadId ?? null,
-            ...(sharepicRefinement && { sharepicRefinement }),
-          }
-        ));
+        ({
+          finalState,
+          generatedImage,
+          sharepicVariants,
+          socialPost,
+          socialPostRefused,
+          socialPostRefusalIsPolicy,
+        } = await executeIntentPipeline({
+          classifiedState,
+          sse,
+          forcedTool,
+          ...(enabledTools != null && { enabledTools }),
+          imageAttachments,
+          req,
+          threadId: actualThreadId ?? null,
+          ...(sharepicRefinement && { sharepicRefinement }),
+        }));
 
         // === Stage 3: Response generation ===
         if (finalState.intent === 'social_post') {
@@ -1575,17 +1682,38 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           // Fixed confirmation like the sharepic branch — no extra LLM call.
           const hasText = socialPost != null;
           const n = sharepicVariants.length;
-          fullText =
-            hasText && n > 0
+          fullText = socialPostRefused
+            ? // The text model refused, so both halves were discarded. Say so
+              // plainly — the old copy promised "dein Post mit N Varianten"
+              // because it only checked that SOME text came back.
+              //
+              // Only name the POLICY reason when the sharepic half declined on
+              // the same request; otherwise all we know is that no usable post
+              // came back, and asserting the fabricated-quote reason accused
+              // the user of something they never asked for (live: a plain
+              // request for an English version of their own post).
+              socialPostRefusalIsPolicy
+              ? `Diese Anfrage kann ich nicht umsetzen: Dabei entstünde ein erfundenes Zitat oder eine ` +
+                `irreführende Aussage im Namen der Partei. Wenn du mir ein echtes Zitat mit Quelle gibst, ` +
+                `gestalte ich dir daraus gern einen Post.`
+              : `Daraus konnte ich keinen Post erzeugen. Sag mir bitte konkret, worum es gehen soll — ` +
+                `oder, wenn du dich auf einen vorhandenen Post beziehst, was ich damit machen soll.`
+            : hasText && n > 0
               ? `Hier ist dein Post mit ${n} passenden Sharepic-${n === 1 ? 'Variante' : 'Varianten'}. ` +
                 `Sag mir, was ich am Text oder an der Grafik anpassen soll.`
-              : hasText
-                ? `Hier ist dein Post. Die Sharepic-Erstellung hat leider nicht geklappt — ` +
-                  `sag mir, was ich am Text anpassen soll, oder versuch es für die Grafik noch einmal.`
-                : n > 0
-                  ? `Ich habe dir ${n} Sharepic-${n === 1 ? 'Variante' : 'Varianten'} erstellt. ` +
-                    `Der Post-Text hat leider nicht geklappt — magst du es noch einmal versuchen?`
-                  : `Das hat leider nicht geklappt. Magst du es mit einem anderen Thema noch einmal versuchen?`;
+              : // A post is text-only unless the user named a sharepic. Without
+                // this split, every ordinary post reported a FAILED sharepic
+                // that was never requested.
+                hasText && !sharepicLicensed
+                ? `Hier ist dein Post. Sag mir, was ich am Text anpassen soll — oder ob ich ` +
+                  `dir ein Sharepic dazu gestalten soll.`
+                : hasText
+                  ? `Hier ist dein Post. Die Sharepic-Erstellung hat leider nicht geklappt — ` +
+                    `sag mir, was ich am Text anpassen soll, oder versuch es für die Grafik noch einmal.`
+                  : n > 0
+                    ? `Ich habe dir ${n} Sharepic-${n === 1 ? 'Variante' : 'Varianten'} erstellt. ` +
+                      `Der Post-Text hat leider nicht geklappt — magst du es noch einmal versuchen?`
+                    : `Das hat leider nicht geklappt. Magst du es mit einem anderen Thema noch einmal versuchen?`;
           sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
           sse.send('text_delta', { text: fullText });
         } else if (finalState.intent === 'sharepic') {
@@ -1623,7 +1751,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             requestId,
             {
               hasImages: imageAttachments.length > 0,
-              intent: finalState.intent,
+              // Wrapper-mode research only frames an answer that already
+              // exists — a different lane than synthesising one from chunks.
+              intent: usesResearchWrapper(finalState) ? 'research_wrapper' : finalState.intent,
               agentId: finalState.agentConfig.identifier,
               // Measured BEFORE pruning on purpose: the question is "does this
               // turn need a bigger lane", and pruning is exactly the loss we
@@ -1707,6 +1837,14 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
                   primary: resolution,
                   sse,
                   logPrefix: '[ChatGraph]',
+                  // In wrapper mode the retrieved synthesis IS the answer and
+                  // the card is already on screen — the model only frames it.
+                  // If no lane can write those two sentences, ship the answer
+                  // itself rather than an error over finished work.
+                  salvage: () =>
+                    usesResearchWrapper(finalState) && finalState.researchMeta
+                      ? `${RESEARCH_SALVAGE_PREFIX}\n\n${finalState.researchMeta.answer}`
+                      : null,
                   buildStream: async (r) =>
                     // No output cap (OpenWebUI-style): the provider/model window is
                     // the backstop; agentConfig.params.max_tokens is deliberately
@@ -1729,6 +1867,25 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           }
 
           if (fullText === null) {
+            // Generation failed, but the retrieval that preceded it was real and
+            // expensive. Keep its sources on the thread so the retry rehydrates
+            // them instead of paying for the whole deep-research run again.
+            if (pendingId && (finalState.searchResults?.length ?? 0) > 0) {
+              const kept = await persistSourcesOnFailure(
+                pendingId,
+                RESEARCH_KEPT_ON_FAILURE_TEXT,
+                finalState.searchResults.slice(0, MAX_SOURCES),
+                finalState.searchQuery ?? undefined,
+                finalState.researchMeta ?? undefined
+              ).catch(() => false);
+              if (kept) {
+                log.info(
+                  `[ChatGraph] Generation failed — kept ${finalState.searchResults.length} researched source(s) for the retry`
+                );
+                await cleanupPending(false);
+                return { status: 200 as const, body: undefined };
+              }
+            }
             await cleanupPending(true);
             return { status: 200 as const, body: undefined };
           }
@@ -1739,8 +1896,19 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           // agentic loop already clamps; this is its single-pass equivalent. When
           // anything changes, push the corrected text via `completion` so the
           // frontend replaces the streamed deltas (same channel as the notebook flow).
+          const sanity = stripFabricatedSystemClaims(fullText, [
+            finalState.attachmentContext ?? '',
+            finalState.currentDocument?.title ?? '',
+            ...finalState.searchResults.map((r) => `${r.title ?? ''} ${r.content ?? ''}`),
+          ]);
+          if (sanity.fabricated.length > 0) {
+            log.warn(
+              `[ChatGraph] Removed fabricated internal file claim(s): ${sanity.fabricated.join(', ')}`
+            );
+            fullText = sanity.text;
+          }
           const citeClamp = stripOutOfRangeCitations(fullText, finalState.citations.length);
-          if (citeClamp.changed) {
+          if (citeClamp.changed || sanity.fabricated.length > 0) {
             fullText = citeClamp.text;
             sse.send('completion', { text: fullText, citations: finalState.citations });
           }

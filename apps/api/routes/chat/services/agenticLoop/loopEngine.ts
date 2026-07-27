@@ -26,10 +26,39 @@ import {
 } from 'ai';
 
 import { createLogger } from '../../../../utils/logger.js';
+import { looksLikeRefusal, refusalLanguage } from '../refusalDetection.js';
+import { createIdleDeadline } from '../streamIdleDeadline.js';
 
 import type { LanguageModel, ModelMessage, ToolSet } from 'ai';
 
 const log = createLogger('AgenticLoopEngine');
+
+/**
+ * How long the SYNTH stream may be completely silent before it counts as hung.
+ * Matches the single-pass reasoning lane's window, since it guards the same
+ * thing: a lane that accepted the request and then produced nothing.
+ *
+ * Only the synth phase is guarded. In the tool phases a legitimate tool call
+ * blocks the iterator for as long as it runs (a deep research call was measured
+ * at 16.5s), so silence there does not mean "hung" and would need its own,
+ * larger budget — separate work. Synthesis runs WITHOUT tools, so any silence
+ * is the model thinking or stalling, and reasoning deltas keep it alive.
+ */
+const SYNTH_IDLE_DEADLINE_MS = 20_000;
+
+/** The synth lane accepted the request and then went silent. Named
+ *  `TimeoutError` so the caller's existing abort branch surfaces its friendly
+ *  "das hat zu lange gedauert" text rather than the generic failure line. */
+export class SynthStallError extends Error {
+  constructor(idleMs: number) {
+    super(`Synth stream idle for ${idleMs}ms`);
+    this.name = 'TimeoutError';
+  }
+}
+
+export function isSynthStall(err: unknown): err is SynthStallError {
+  return err instanceof SynthStallError;
+}
 
 export type LoopMode = 'unified' | 'split';
 
@@ -87,9 +116,13 @@ export function buildPrepareStep(
   finishSuffix: string,
   maxSteps: number,
   forceFinish: () => boolean,
-  forceFirstToolCall: boolean
+  forceFirstToolCall: boolean,
+  /** Names a tool the NEXT step must call (see guards.emptyResultFallback), or
+   *  null to leave the choice to the model. Consulted on every step but the
+   *  first — step 0 has no tool result to react to yet. */
+  forcedTool: () => string | null = () => null
 ): ({ stepNumber }: { stepNumber: number }) => {
-  toolChoice?: 'none' | 'required';
+  toolChoice?: 'none' | 'required' | { type: 'tool'; toolName: string };
   system?: string;
 } {
   return ({ stepNumber }) => {
@@ -103,6 +136,12 @@ export function buildPrepareStep(
     // scope turn (clarification allowed) and meta questions by the caller.
     if (forceFirstToolCall && stepNumber === 0) {
       return { toolChoice: 'required' as const };
+    }
+    if (stepNumber > 0) {
+      const toolName = forcedTool();
+      // `required` would only guarantee SOME call — the model would happily
+      // re-run the internal search that just came back empty. Name the tool.
+      if (toolName) return { toolChoice: { type: 'tool' as const, toolName } };
     }
     return {};
   };
@@ -190,6 +229,9 @@ export interface LoopEngineParams {
   plannerModel: LanguageModel;
   /** Writes the user-facing answer. */
   synthModel: LanguageModel;
+  /** Split mode: sibling lane, tried once when `synthModel` goes silent. Omit
+   *  and a stall simply surfaces as the turn's timeout message. */
+  synthFallbackModel?: LanguageModel;
   /** Already wrapped by wrapToolsForLoop. */
   tools: ToolSet;
   /** System for the tool phase: base + tool-usage block (+ mcp note). */
@@ -216,8 +258,19 @@ export interface LoopEngineParams {
   forceFinish: () => boolean;
   /** Force a tool call on the first step (explicit-scope MCP follow-ups). */
   forceFirstToolCall?: boolean;
+  /** Names a specific tool the next step must call — used to turn the "web is
+   *  now allowed" permission after an empty internal search into an actual
+   *  fallback. Evaluated per step; null leaves the choice to the model. */
+  forcedToolForStep?: () => string | null;
   onText: (delta: string) => void;
   onReasoning: (delta: string) => void;
+  /** Split mode: fires when the synth phase begins — i.e. tools are done and
+   *  the silent wait for the answer starts. The caller uses it to show progress
+   *  during a window that otherwise emits nothing at all. */
+  onSynthStart?: () => void;
+  /** Fires when the synth stalled and the sibling lane takes over, so the
+   *  client can surface the switch the same way the single-pass path does. */
+  onSynthFallback?: () => void;
   /** Split-gather only: the planner's inter-tool prose, delivered ONE sentence
    *  at a time (via createSentenceChunker) so the client can show "Ich suche
    *  jetzt …" narration. Never fires in unified mode. */
@@ -268,7 +321,8 @@ async function streamWithTools(
       FORCE_FINISH_SYSTEM_SUFFIX,
       p.maxSteps,
       p.forceFinish,
-      p.forceFirstToolCall ?? false
+      p.forceFirstToolCall ?? false,
+      p.forcedToolForStep
     ),
     experimental_repairToolCall: repairToolCall,
   });
@@ -297,7 +351,8 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
         FORCE_FINISH_GATHER_SUFFIX,
         p.maxSteps,
         p.forceFinish,
-        p.forceFirstToolCall ?? false
+        p.forceFirstToolCall ?? false,
+        p.forcedToolForStep
       ),
       experimental_repairToolCall: repairToolCall,
     });
@@ -336,8 +391,38 @@ const DEGENERATE_MAX_CHARS = 200;
 const GERMAN_MARKER_RE =
   /[äöüßÄÖÜ]|\b(der|die|das|dass|und|oder|ich|du|dir|wir|hier|nicht|kein\w*|ist|sind|war\w*|wurde\w*|habe?n?|hat|eine?[nmrs]?|dem|den|mit|von|auf|aus|bei|zum|zur|es|sich)\b/i;
 
+/** A fenced block, an HTML/XML tag, or a JSON object — content, not prose. */
+const MARKUP_OR_CODE_RE = /```|<\/?[a-z][\w-]*(?:\s[^>]*)?>|^\s*[[{]/i;
+
+/**
+ * What the user reads when the synth DECLINED the request. Distinct from the
+ * caller's no-answer fallback on purpose: that one says "ich konnte nichts
+ * finden … magst du die Frage anders formulieren?", which reads as a technical
+ * failure and coaches the retry of a request we deliberately refused (observed
+ * live on the fabricated-quote turn). A decline is an outcome, not an error.
+ */
+export const SYNTH_REFUSAL_TEXT =
+  'Diese Anfrage setze ich nicht um — sie widerspricht den inhaltlichen Regeln des Grünerators, etwa erfundene Zitate, erfundene Quellen oder ausgrenzende Aussagen. Für ein anderes Anliegen bin ich gern da.';
+
 export const SYNTH_RETRY_SYSTEM_SUFFIX =
   '\n\nWICHTIG: Schreibe JETZT die vollständige, ausformulierte Antwort für die*den Nutzer*in — auf Deutsch. Du hast KEINE Tools und kannst keine aufrufen; kündige KEINE Tool-Aufrufe, Suchen oder Arbeitsschritte an, sondern nutze ausschließlich die oben gelieferten Quellen. Beginne direkt mit dem Inhalt.';
+
+/**
+ * Whether the synth DECLINED rather than degenerated. Both look alike from the
+ * outside — short, and (when the model falls back to English boilerplate) devoid
+ * of German markers — but they need opposite handling: a degenerate answer is
+ * retried, a refusal must be surfaced as a refusal and never retried.
+ *
+ * Bounded by {@link DEGENERATE_MAX_CHARS} for two reasons. Precision: a long
+ * answer that merely contains a refusal-shaped clause is prose, not a decline.
+ * And correctness: past that length the emitter gate has already opened and the
+ * text is on the wire, so it can no longer be swapped for the German message.
+ */
+export function looksLikeSynthRefusal(text: string): boolean {
+  const trimmed = text.trim();
+  if (trimmed.length === 0 || trimmed.length > DEGENERATE_MAX_CHARS) return false;
+  return looksLikeRefusal(trimmed);
+}
 
 /**
  * Whether a synthesized answer is a degenerate non-answer rather than prose.
@@ -356,6 +441,10 @@ export function looksDegenerateSynth(text: string, toolNames: readonly string[])
   // Needs to read as a SENTENCE before we judge its language — a bare token
   // ("Erledigt", "Ja") is a legitimate answer, not a leaked plan.
   if (trimmed.split(/\s+/).filter(Boolean).length < 3) return false;
+  // Markup and code are legitimately un-German. "Gib mir den Absatz mit
+  // HTML-Tags" answers with `<p>…</p>`, which carries no German function word
+  // and was silently discarded — the user got the generic fallback and no error.
+  if (MARKUP_OR_CODE_RE.test(trimmed)) return false;
   if (toolNames.some((name) => name.length > 3 && trimmed.includes(name))) return true;
   return !GERMAN_MARKER_RE.test(trimmed);
 }
@@ -406,19 +495,27 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: 
   const baseSystem = p.buildSynthSystem(p.getSourcesBlock());
   const toolNames = Object.keys(p.tools);
 
-  const runPass = async (system: string): Promise<{ text: string; flush: () => void }> => {
+  const runPass = async (
+    system: string,
+    model: LanguageModel
+  ): Promise<{ text: string; flush: () => void; discard: () => void }> => {
     const gate = createGatedEmitter(p.onText, DEGENERATE_MAX_CHARS);
+    const idle = createIdleDeadline(
+      SYNTH_IDLE_DEADLINE_MS,
+      () => new SynthStallError(SYNTH_IDLE_DEADLINE_MS)
+    );
     const result = deps.streamText({
-      model: p.synthModel,
+      model,
       system,
       messages,
       temperature: p.temperature,
       ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
-      abortSignal: p.abortSignal,
+      // Combined so a stalled provider call is torn down, not just abandoned.
+      abortSignal: AbortSignal.any([p.abortSignal, idle.signal]),
     });
     try {
-      const { text } = await drain(result, gate.push, p.onReasoning);
-      return { text, flush: gate.flush };
+      const { text } = await drain(result, gate.push, p.onReasoning, idle);
+      return { text, flush: gate.flush, discard: gate.discard };
     } catch (err) {
       // Nothing buffered may leak on the error path — the caller's catch writes
       // its own user-facing message.
@@ -427,7 +524,41 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: 
     }
   };
 
-  const first = await runPass(baseSystem);
+  /**
+   * A stalled lane costs the user the whole turn, so try the sibling once —
+   * the same move `streamWithFallback` makes on the single-pass path. Safe to
+   * restart rather than resume because the gated emitter has held everything
+   * back: the client has seen nothing from the dead pass.
+   */
+  const runPassWithFallback = async (
+    system: string
+  ): Promise<{ text: string; flush: () => void; discard: () => void }> => {
+    try {
+      return await runPass(system, p.synthModel);
+    } catch (err) {
+      if (!isSynthStall(err) || !p.synthFallbackModel) throw err;
+      log.warn(
+        `[Engine] synth lane silent for ${SYNTH_IDLE_DEADLINE_MS}ms — retrying once on the fallback lane`
+      );
+      p.onSynthFallback?.();
+      return runPass(system, p.synthFallbackModel);
+    }
+  };
+
+  p.onSynthStart?.();
+  const first = await runPassWithFallback(baseSystem);
+  // A decline is checked BEFORE degeneracy: an English refusal trips the
+  // no-German-marker rule, so without this it would be retried (a second model
+  // call that refuses again) and then reported as "keine Antwort gefunden".
+  if (looksLikeSynthRefusal(first.text)) {
+    first.discard();
+    log.info(
+      `[Engine] synth declined the request (${refusalLanguage(first.text) ?? 'de'}) — ` +
+        'surfacing the German refusal instead of retrying'
+    );
+    p.onText(SYNTH_REFUSAL_TEXT);
+    return { text: SYNTH_REFUSAL_TEXT };
+  }
   if (!looksDegenerateSynth(first.text, toolNames)) {
     first.flush();
     return { text: first.text };
@@ -438,7 +569,7 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: 
       first.text.trim().slice(0, 80)
     )}) — retrying once`
   );
-  const retry = await runPass(`${baseSystem}${SYNTH_RETRY_SYSTEM_SUFFIX}`);
+  const retry = await runPassWithFallback(`${baseSystem}${SYNTH_RETRY_SYSTEM_SUFFIX}`);
   if (retry.text.trim().length === 0 || looksDegenerateSynth(retry.text, toolNames)) {
     // Neither pass produced an answer — emit NEITHER (both are still buffered)
     // and return empty, so the caller's honest no-answer fallback fires instead
@@ -457,28 +588,46 @@ interface Drainable {
 async function drain(
   result: Drainable,
   onText: (d: string) => void,
-  onReasoning: (d: string) => void
+  onReasoning: (d: string) => void,
+  /** Optional stall guard. Every chunk — text OR reasoning — counts as liveness,
+   *  so a thinking model is never mistaken for a hung one. */
+  idle?: { deadline: Promise<never>; clear: () => void; touch: () => void }
 ): Promise<{ text: string }> {
   let text = '';
+  let finishReason: string | null = null;
   const iterator = result.stream[Symbol.asyncIterator]();
-  while (true) {
-    const next = await iterator.next();
-    if (next.done) break;
-    const part = next.value;
-    if (part.type === 'error') throw part.error;
-    if (part.type === 'reasoning-delta' && part.text != null && part.text.length > 0) {
-      onReasoning(part.text);
-    } else if (part.type === 'text-delta' && part.text != null && part.text.length > 0) {
-      text += part.text;
-      onText(part.text);
-    } else if (part.type === 'finish' && part.finishReason === 'length') {
-      // Only reachable when a caller sets maxOutputTokens (answer paths omit
-      // it) or the provider enforces its own cap — surface it instead of
-      // persisting a silently truncated answer.
-      log.warn(
-        `[Engine] output budget exhausted (finishReason=length) after ${text.length} chars — answer is truncated`
-      );
+  try {
+    while (true) {
+      // Racing the deadline is what makes a stall observable: awaiting `next()`
+      // alone parks here until the turn's wall clock fires two minutes later.
+      const next = idle
+        ? await Promise.race([iterator.next(), idle.deadline])
+        : await iterator.next();
+      if (next.done) break;
+      idle?.touch();
+      const part = next.value;
+      if (part.type === 'error') throw part.error;
+      if (part.type === 'reasoning-delta' && part.text != null && part.text.length > 0) {
+        onReasoning(part.text);
+      } else if (part.type === 'text-delta' && part.text != null && part.text.length > 0) {
+        text += part.text;
+        onText(part.text);
+      } else if (part.type === 'finish') {
+        finishReason = part.finishReason ?? null;
+      }
     }
+  } finally {
+    idle?.clear();
+  }
+  // Anything but a clean stop means the upstream cut the generation short:
+  // `length` (an output cap — the answer paths set none, so this would be the
+  // provider's own), `content-filter`, `error` or `other`. Previously only
+  // `length` was checked, so an abnormally terminated stream was persisted and
+  // shipped as a finished answer with nothing in the logs to say otherwise.
+  if (finishReason != null && finishReason !== 'stop' && finishReason !== 'tool-calls') {
+    log.warn(
+      `[Engine] stream ended with finishReason=${finishReason} after ${text.length} chars — the answer is likely truncated`
+    );
   }
   return { text };
 }

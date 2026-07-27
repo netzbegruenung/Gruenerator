@@ -13,6 +13,7 @@
 
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
 import { looksLikeToolableQuestion } from '../../../../routes/chat/services/agenticLoop/routing.js';
+import { containsInstructionMarkers } from '../../../../routes/chat/services/untrustedContent.js';
 import { escapeRegExp } from '../../../../services/BaseSearchService/textUtils.js';
 import {
   McpServerRegistry,
@@ -47,25 +48,29 @@ import {
   DOC_MODIFY_PATTERN,
   HEURISTIC_CONFIDENCE_THRESHOLD,
   detectSocialPlatform,
-  resolveSocialPostEscape,
   nounNearCreateVerb,
   NOUN_TRIGGER_MAX_LENGTH,
   SOCIAL_BARE_NOUN_PATTERN,
   SOCIAL_META_QUESTION_PATTERN,
-  SHAREPIC_NOUN_PATTERN,
-  SHAREPIC_INCLUSION_PATTERN,
+  POST_NOUN_PATTERN,
+  isAmbiguousGraphicRequest,
 } from './classifierHeuristics.js';
 import {
   parseClassifierResponse,
   detectComplexity,
   detectSearchSources,
   CHAT_HISTORY_KEYWORDS,
+  CURRENT_THREAD_REFERENCE,
   SYSTEM_MCP_PHRASING,
   looksLikeDocsHelpQuestion,
 } from './classifierParsing.js';
 import { CLASSIFIER_PROMPT, NON_SEARCH_INTENTS } from './classifierPrompt.js';
 import { classifyDocsIntentTiebreak } from './docsIntentTiebreak.js';
-import { isNegatedArtifactRequest, stripQuotedSpans } from './fastPathGuards.js';
+import {
+  hasExplicitSharepicWord,
+  isNegatedArtifactRequest,
+  stripQuotedSpans,
+} from './fastPathGuards.js';
 
 import type { ChatGraphState, GatherSource, SearchIntent } from '../types.js';
 
@@ -217,6 +222,60 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   // downgrade would run the web search on the empty string.
   let downgradedSearchQuery: string | null = null;
 
+  // `summary` is not a wording, it is a STATE: material is already here, so skip
+  // the search node (ChatGraph routes it straight to respond), drop the product
+  // persona and use the cheap lane. Tier 2 derives it correctly — it fires only
+  // with documents attached. The LLM tier derives it from the word "zusammen"
+  // and cannot see whether anything is actually attached.
+  //
+  // Live: "Fass den aktuellen Stand der Debatte um das Klimageld zusammen" was
+  // routed to `summary` with nothing to read, and answered with a confident,
+  // fluent, entirely source-free essay — zero citations, zero tool calls. A
+  // summary of nothing is the most convincing kind of invention.
+  //
+  // The exception the Tier-2 comment already names: a summary of THIS
+  // conversation legitimately has no documents — the history is in context.
+  //
+  // "Material" is deliberately WIDER than documentSources: an uploaded file
+  // arrives as extracted text in `attachmentContext` and has no document row at
+  // all. Reading it too narrowly downgraded "fasse die Datei zusammen" — with
+  // the file right there — to a web search. Err toward keeping `summary`: a
+  // false keep is the old behaviour, a false downgrade breaks a working feature.
+  const hasMaterialToSummarise =
+    documentSources.length > 0 ||
+    !!state.attachmentContext ||
+    (state.imageAttachments?.length ?? 0) > 0 ||
+    (state.pdfFormAttachments?.length ?? 0) > 0;
+  if (intent === 'summary' && !hasMaterialToSummarise && !CURRENT_THREAD_REFERENCE.test(userText)) {
+    log.info('[Classifier] summary without any document source → web (nothing to summarise)');
+    intent = 'web';
+    downgradedSearchQuery = userText;
+  }
+
+  // A follow-up on a SHAREPIC is not a raster-image edit. The LLM tier answers
+  // `image_edit` for "Mach den Text größer" after a sharepic — its own reasoning
+  // says the user wants to edit „ein bereits erstelltes **Sharepic**" and it
+  // picks the image intent anyway (same shape as classifierContradictedResearch,
+  // one level up). The router's ENTIRE sharepic edit block is gated on
+  // `intent !== 'image_edit'`, so the turn loses its target and answers about
+  // nothing. Live proof that this is phrasing lottery, not intent: in the same
+  // run "Text größer bitte" classified as `sharepic` and edited correctly.
+  //
+  // Deliberately narrow on two counts. With an image ATTACHED, image_edit is
+  // simply right. And when the user names an image ("bearbeite das Foto"), take
+  // them at their word — they may well mean the sharepic's background picture.
+  // What is left is the case that has no other reading: an edit request after a
+  // sharepic that mentions no image at all.
+  if (
+    intent === 'image_edit' &&
+    (state.imageAttachments?.length ?? 0) === 0 &&
+    !mentionsImageNoun(userText) &&
+    state.lastToolContext?.kind === 'sharepic'
+  ) {
+    log.info('[Classifier] image_edit → sharepic (no attachment, last artifact was a sharepic)');
+    intent = 'sharepic';
+  }
+
   // DE-only system sources (DB IRIS timetables, tagesschau) — de-AT users get
   // the web fallback, mirroring the abgeordnetenwatch/bundestag rule above.
   if (intent && DE_ONLY_SYSTEM_INTENTS.has(intent) && state.userLocale === 'de-AT') {
@@ -269,11 +328,38 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     );
   }
 
+  // A question about THIS conversation needs no retrieval — the messages are in
+  // context already. Routing it to chat_history sent it through a Qdrant recall
+  // over PAST threads, which returned nothing, and the turn then reported having
+  // no sources for an answer that stood a few messages above.
+  if (intent === 'chat_history' && CURRENT_THREAD_REFERENCE.test(userText)) {
+    const hasPastReference = CHAT_HISTORY_KEYWORDS.test(userText);
+    if (!hasPastReference) {
+      log.info('[Classifier] chat_history → direct (refers to the CURRENT thread, not a past one)');
+      intent = 'direct';
+    }
+  }
+
   const synthesisMode = pickSynthesisMode(intent ?? 'direct', documentSources.length);
+
+  // Injection early-warning. The classifier ALREADY notices these payloads and
+  // reasons about them ("enthält einen Jailbreak-Versuch, aber die Aufgabe ist
+  // die Zusammenfassung") — and then passes them on unflagged. Here the signal
+  // is kept so the answer prompt can warn the model before it acts. Deliberately
+  // NOT a rejection: pasted mails and citizen inquiries legitimately contain
+  // instruction-shaped language, and blocking them would break summarisation.
+  const injectionSuspected =
+    containsInstructionMarkers(userText) ||
+    containsInstructionMarkers(state.attachmentContext ?? '') ||
+    containsInstructionMarkers(state.currentDocument?.markdown ?? '');
+  if (injectionSuspected) {
+    log.warn('[Classifier] Instruction-shaped markers in this turn material — warning the model');
+  }
 
   return {
     ...result,
     intent: intent ?? result.intent,
+    injectionSuspected,
     ...(downgradedSearchQuery != null && !result.searchQuery
       ? { searchQuery: downgradedSearchQuery }
       : {}),
@@ -727,11 +813,10 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       const wantsPm = PM_NOUN_PATTERN.test(userContent);
       const wantsSocial = SOCIAL_NOUN_PATTERN.test(userContent);
       if (wantsPm || wantsSocial) {
-        // Social-only prompts route to the EXPERIMENTAL combined post (text +
-        // sharepic) unless an escape hatch ("nur Text", "nur Sharepic")
-        // applies. Mixed PM+social prompts keep the dual-search behavior.
-        const socialIntent: SearchIntent = resolveSocialPostEscape(userContent) ?? 'social_post';
-        const primary: SearchIntent = wantsPm ? 'pressemitteilung_examples' : socialIntent;
+        // Social-only prompts route to `social_post` (text; a sharepic half
+        // only when the message names one). Mixed PM+social prompts keep the
+        // dual-search behavior.
+        const primary: SearchIntent = wantsPm ? 'pressemitteilung_examples' : 'social_post';
         const secondary: SearchIntent | null = wantsPm && wantsSocial ? 'examples' : null;
         // Platform hint for the social composer/generator. Null when
         // unspecified → generic rubric.
@@ -844,20 +929,18 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       }
     }
 
-    // EXPERIMENTAL combined social post — for ALL users, not just
-    // content-creation agents: a social-post creation request yields text +
-    // sharepic variants in one turn. Requires a bare noun-phrase shape
-    // ("Instagram-Post zu Tempo 30", ^-anchored, so valid even before a long
-    // paste) or a creation verb NEAR a social noun in a short message —
-    // "schreibe eine Produktvorstellung … [Paste erwähnt Instagram]" must not
-    // pair the instruction's verb with a noun inside pasted material.
-    // Questions and example-browsing never create. Explicit sharepic wording
-    // ("Sharepic für Instagram") keeps the shipped sharepic-only flow, "nur
-    // Text" the examples flow — both via resolveSocialPostEscape. PM prompts
-    // keep their own routes (handled above for agents, LLM tier otherwise).
+    // Social post creation — for ALL users, not just content-creation agents.
+    // Requires a bare noun-phrase shape ("Instagram-Post zu Tempo 30",
+    // ^-anchored, so valid even before a long paste) or a creation verb NEAR a
+    // social noun in a short message — "schreibe eine Produktvorstellung …
+    // [Paste erwähnt Instagram]" must not pair the instruction's verb with a
+    // noun inside pasted material. Questions and example-browsing never create.
+    // A sharepic-only ask ("Sharepic für Instagram" — sharepic word, no post
+    // noun) is deferred to the sharepic route. PM prompts keep their own routes
+    // (handled above for agents, LLM tier otherwise).
     const isLongPaste = userContent.length > NOUN_TRIGGER_MAX_LENGTH;
     // Quoted spans are reported speech; a negated noun ("mach keinen Post daraus")
-    // must not create. Escape-hatch resolution below still runs on the raw text.
+    // must not create.
     const ucStripped = stripQuotedSpans(userContent);
     const looksLikeSocialCreation =
       SOCIAL_NOUN_PATTERN.test(ucStripped) &&
@@ -868,30 +951,23 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       (SOCIAL_BARE_NOUN_PATTERN.test(ucStripped) ||
         (!isLongPaste && nounNearCreateVerb(ucStripped, SOCIAL_NOUN_PATTERN)));
     if (looksLikeSocialCreation && userContent.length >= 10) {
-      if (
-        SHAREPIC_NOUN_PATTERN.test(userContent) &&
-        !SHAREPIC_INCLUSION_PATTERN.test(userContent)
-      ) {
-        // "Sharepic für Instagram" — let the heuristic/LLM tiers route to the
-        // sharepic intent as before this feature. Inclusion phrasing
-        // ("Post mit Sharepic") stays here: it's the explicit combined ask.
-        log.info('[Classifier] Social creation with explicit sharepic wording — deferring');
+      if (hasExplicitSharepicWord(userContent) && !POST_NOUN_PATTERN.test(userContent)) {
+        // "Sharepic für Instagram" — a sharepic ask that merely names a
+        // platform. Defer to the sharepic route. Naming both ("Post mit
+        // Sharepic") stays here: social_post carries the sharepic half itself.
+        log.info('[Classifier] Sharepic-only ask with a platform hint — deferring');
       } else {
-        const escape = resolveSocialPostEscape(userContent);
-        const intent: SearchIntent = escape ?? 'social_post';
         const platform = detectSocialPlatform(userContent);
         log.info(
-          `[Classifier] Social post creation → ${intent}${platform ? ` (platform=${platform})` : ''}${escape ? ' via escape hatch' : ''}`
+          `[Classifier] Social post creation → social_post${platform ? ` (platform=${platform})` : ''}`
         );
         return {
-          intent,
+          intent: 'social_post',
           platform,
           searchSources: [],
           searchQuery: extractSearchTopic(userContent) || userContent,
           detectedFilters: null,
-          reasoning: escape
-            ? `Social post request with "${escape}" escape hatch`
-            : 'Social post creation — combined text + sharepic (experimental)',
+          reasoning: 'Social post creation',
           hasTemporal: temporal.hasTemporal,
           complexity,
           classificationTimeMs: Date.now() - startTime,
@@ -1012,6 +1088,39 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       };
     }
 
+    // ── TIER 2.95: "Grafik" is three different products ────────────────────
+    // MUST run before Tier 3, which would swallow it: `imageKeywords` contains
+    // `grafik`, so "erstelle eine Grafik zur Windkraft" silently became a free
+    // AI image. It could equally mean a branded sharepic or a data chart — and
+    // all three cost a generation. Guessing produces the wrong artifact two
+    // times out of three, so ask instead.
+    //
+    // Only fires when the word is genuinely ambiguous: naming a sharepic, a
+    // chart type or a drawing verb already answers the question, and those
+    // paths stay untouched.
+    if (
+      !isLongPaste &&
+      (state.imageAttachments?.length ?? 0) === 0 &&
+      isAmbiguousGraphicRequest(userContent)
+    ) {
+      log.info(`[Classifier] Ambiguous "Grafik" ask — asking which kind`);
+      return {
+        intent: 'direct',
+        needsClarification: true,
+        clarificationQuestion:
+          'Was für eine Grafik soll es werden? Ein Sharepic ist eine gebrandete Vorlage mit Text, ein KI-Bild ein frei generiertes Motiv, ein Diagramm stellt Zahlen dar.',
+        clarificationOptions: ['Sharepic', 'KI-Bild', 'Diagramm'],
+        clarificationKind: 'graphic_kind',
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: 'Ambiguous graphic request — asking which artifact is meant',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
     // ── TIER 3: Heuristic pre-check ──
     // Short messages: always use heuristics (likely greetings)
     if (userContent.length < 10) {
@@ -1118,6 +1227,13 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       );
       return {
         intent: 'agentic',
+        // The heuristic named a retrieval intent outright (web/search/examples/
+        // bundestag/…), as opposed to the `direct` + toolable-question case.
+        // Recorded because demotion otherwise DISCARDS that verdict: the turn
+        // goes to a planner that may call no tool at all, and "wer ist aktuell
+        // Bundeskanzler in Österreich" (heuristic web@0.80) came back with
+        // steps=0 and the honesty note itself as the user-facing answer.
+        loopDemotedFromRetrieval: DEMOTABLE_HEURISTIC_INTENTS.has(heuristic.intent),
         searchSources: detectSearchSources(userContent, heuristic.intent),
         searchQuery: (heuristic.searchQuery ?? userContent).slice(0, 500),
         detectedFilters: heuristicExtractFilters(userContent),
@@ -1188,6 +1304,12 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       subQueries: classification.subQueries || null,
       detectedFilters: classification.filters || null,
       reasoning: classification.reasoning,
+      // The model said research is needed and picked `direct` anyway. Carried
+      // so the loop can force a tool call — the heuristic path has had this
+      // safety net (loopDemotedFromRetrieval) for a while; the LLM path, which
+      // is the one that actually produces the self-contradiction, had none.
+      classifierContradictedResearch:
+        classification.needsResearch === true && classification.intent === 'direct',
       contentType: classification.contentType || null,
       documentSubtype: classification.documentSubtype || null,
       targetGroupName: classification.targetGroupName || null,

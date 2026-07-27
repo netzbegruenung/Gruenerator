@@ -8,6 +8,9 @@ import {
 } from '../../../services/chat/sharepicGenerationService.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { errorText, isRefusalError } from './refusalDetection.js';
+import { asksForNewArtifact, isVerificationQuestion } from './sharepicEditHeuristics.js';
+
 const log = createLogger('SharepicVariants');
 
 export const SHAREPIC_VARIANT_TYPES = ['dreizeilen', 'zitat', 'info'] as const;
@@ -104,6 +107,14 @@ const REFINE_PATTERN =
  * Only meaningful when the previous assistant turn was a sharepic.
  */
 export function isSharepicRefinement(text: string): boolean {
+  // A turn that asks for a NEW artifact is a creation, whatever edit wording it
+  // also carries — "Schreib einen Post UND eine Pressemitteilung. Kürze danach
+  // nur die Pressemitteilung." matched on "Kürze" alone and produced nothing.
+  if (asksForNewArtifact(text)) return false;
+  // REFINE_PATTERN fires on a single everyday word, so it swallows questions
+  // that merely contain one: "Ist das sachlich korrekt?" matched on "sachlich"
+  // and was answered as an edit command.
+  if (isVerificationQuestion(text)) return false;
   return REFINE_PATTERN.test(text);
 }
 
@@ -114,9 +125,15 @@ export interface PriorSharepic {
 }
 
 /**
- * Load the most recent assistant message in the thread and, if it was a sharepic,
- * return its first variant (canvasType + the text props). Used to seed a refined
- * regeneration ("verlängern" → lengthen the existing quote, same topic).
+ * Find the thread's most recent sharepic and return its first variant
+ * (canvasType + the text props). Used to seed a refined regeneration
+ * ("verlängern" → lengthen the existing quote, same topic).
+ *
+ * Scans the last 30 assistant messages, not just the newest one. With LIMIT 1 a
+ * single intervening reply — one question answered between building the sharepic
+ * and refining it — made the sharepic invisible and the refinement silently
+ * became a fresh creation. 30 matches findVariants (sharepicEditService) so the
+ * two agree on what "the thread has a sharepic" means.
  */
 export async function getLastSharepicVariant(threadId: string): Promise<PriorSharepic | null> {
   try {
@@ -125,21 +142,25 @@ export async function getLastSharepicVariant(threadId: string): Promise<PriorSha
     // pg.query resolves to the rows array directly (not a { rows } wrapper).
     const rows = (await pg.query(
       `SELECT tool_results FROM chat_messages
-       WHERE thread_id = $1 AND role = 'assistant'
-       ORDER BY created_at DESC LIMIT 1`,
+       WHERE thread_id = $1 AND role = 'assistant' AND tool_results IS NOT NULL
+       ORDER BY created_at DESC LIMIT 30`,
       [threadId]
     )) as Array<{ tool_results?: unknown }>;
 
-    const raw = rows?.[0]?.tool_results;
-    if (!raw) return null;
-    const meta = (typeof raw === 'string' ? JSON.parse(raw) : raw) as {
-      toolCalls?: Array<{ toolName?: string; result?: { variants?: unknown[] } }>;
-    };
-    const sharepicCall = meta.toolCalls?.find((tc) => tc?.toolName === 'sharepic');
-    const first = sharepicCall?.result?.variants?.[0] as
-      { canvasType?: string; initialProps?: Record<string, unknown> } | undefined;
-    if (!first?.canvasType) return null;
-    return { canvasType: first.canvasType, props: first.initialProps ?? {} };
+    for (const row of rows ?? []) {
+      const raw = row?.tool_results;
+      if (!raw) continue;
+      const meta = (typeof raw === 'string' ? JSON.parse(raw) : raw) as {
+        toolCalls?: Array<{ toolName?: string; result?: { variants?: unknown[] } }>;
+      };
+      const sharepicCall = meta.toolCalls?.find((tc) => tc?.toolName === 'sharepic');
+      const first = sharepicCall?.result?.variants?.[0] as
+        { canvasType?: string; initialProps?: Record<string, unknown> } | undefined;
+      if (first?.canvasType) {
+        return { canvasType: first.canvasType, props: first.initialProps ?? {} };
+      }
+    }
+    return null;
   } catch (err) {
     log.warn(`[SharepicVariants] Could not load prior sharepic: ${err}`);
     return null;
@@ -413,6 +434,14 @@ export async function generateSharepicVariants(
   settled.forEach((result, idx) => {
     const requestedType = requests[idx].type;
     if (result.status !== 'fulfilled') {
+      // A refusal is the safety rules working, not a fault: log the reason,
+      // not an Error object whose stack points at the generator.
+      if (isRefusalError(result.reason)) {
+        log.info(
+          `[SharepicVariants] ${requestedType} variant declined — ${errorText(result.reason)}`
+        );
+        return;
+      }
       log.warn(`[SharepicVariants] ${requestedType} variant rejected:`, result.reason);
       return;
     }

@@ -11,7 +11,11 @@ import { getPostgresInstance } from '../../../database/services/PostgresService.
 
 import { type PersistedStep } from './agenticLoop/types.js';
 
-import type { SearchResult, ThreadToolContext } from '../../../agents/langgraph/ChatGraph/types.js';
+import type {
+  ResearchToolResult,
+  SearchResult,
+  ThreadToolContext,
+} from '../../../agents/langgraph/ChatGraph/types.js';
 import type { UserProfile } from '../../../services/user/types.js';
 import type { AuthRequest } from '../../auth/types.js';
 import type express from 'express';
@@ -195,6 +199,91 @@ export async function finalizeAssistantMessage(
 }
 
 /**
+ * Keep the sources of a turn whose generation FAILED.
+ *
+ * Without this a deep-research turn that dies during synthesis loses all 20
+ * citations: the handler returns before `persistAssistantResponse`, and
+ * `discardPendingAssistantIfEmpty` then drops the still-empty placeholder. The
+ * retry pays for the whole Linkup run again and `getRecentThreadSources` has
+ * nothing to rehydrate.
+ *
+ * Deliberately finalized as a normal `complete` row carrying a short German
+ * note as its content: `status` only knows 'streaming' and 'complete', and
+ * inventing a third value would silently change what every reader sees. A row
+ * with text also survives the discard sweep, which is exactly what we need.
+ */
+export async function persistSourcesOnFailure(
+  messageId: string,
+  noticeText: string,
+  searchResults: SearchResult[],
+  /** Query that produced them — the key {@link getKeptResearchForRetry} matches
+   *  on, so a retry of the SAME question can skip the Linkup run entirely. */
+  researchQuery?: string,
+  researchMeta?: ResearchToolResult
+): Promise<boolean> {
+  if (searchResults.length === 0) return false;
+  return finalizeAssistantMessage(messageId, noticeText, {
+    searchResults,
+    keptOnFailure: true,
+    ...(researchQuery && { researchQuery }),
+    ...(researchMeta && { researchMeta }),
+  });
+}
+
+/** Same question modulo case, punctuation and whitespace. */
+function normalizeResearchQuery(q: string): string {
+  return q
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * The research a FAILED turn already paid for, if the newest assistant message
+ * kept it and the user is asking the very same thing again.
+ *
+ * A deep-research run costs ~17s and a Linkup call; the retry after a generation
+ * failure re-ran the whole thing (observed live) although the sources were on
+ * the thread 36 seconds earlier. Deliberately only the NEWEST assistant row:
+ * once a normal answer follows, the retry window is over and a fresh question
+ * deserves a fresh search.
+ */
+export async function getKeptResearchForRetry(
+  threadId: string,
+  query: string
+): Promise<{ searchResults: SearchResult[]; researchMeta: ResearchToolResult | null } | null> {
+  const normalized = normalizeResearchQuery(query);
+  if (normalized.length === 0) return null;
+
+  const postgres = getPostgresInstance();
+  const rows = (await postgres.query(
+    `SELECT tool_results FROM chat_messages
+     WHERE thread_id = $1 AND role = 'assistant'
+     ORDER BY created_at DESC LIMIT 1`,
+    [threadId]
+  )) as Array<{ tool_results?: unknown }>;
+
+  const meta = rows[0]?.tool_results;
+  if (!meta || typeof meta !== 'object') return null;
+  const kept = meta as {
+    keptOnFailure?: unknown;
+    researchQuery?: unknown;
+    searchResults?: unknown;
+    researchMeta?: unknown;
+  };
+  if (kept.keptOnFailure !== true) return null;
+  if (typeof kept.researchQuery !== 'string') return null;
+  if (normalizeResearchQuery(kept.researchQuery) !== normalized) return null;
+  if (!Array.isArray(kept.searchResults) || kept.searchResults.length === 0) return null;
+
+  return {
+    searchResults: kept.searchResults as SearchResult[],
+    researchMeta: (kept.researchMeta as ResearchToolResult | undefined) ?? null,
+  };
+}
+
+/**
  * Drop the placeholder iff it never received any text (still streaming + empty).
  * Used on abort/early-return paths: an empty streaming row would otherwise
  * render as a phantom interrupted assistant bubble. Rows WITH partial text are
@@ -266,16 +355,11 @@ export async function deleteTrailingAssistant(threadId: string): Promise<number>
   return result.length;
 }
 
-/**
- * Check if a thread exists.
- */
-export async function threadExists(threadId: string): Promise<boolean> {
-  const postgres = getPostgresInstance();
-  const result = (await postgres.query(`SELECT 1 FROM chat_threads WHERE id = $1`, [
-    threadId,
-  ])) as unknown[];
-  return result.length > 0;
-}
+// Removed: `threadExists()` — an existence-only check with no user_id predicate.
+// Its sole caller (the search-graph stream) used it to decide whether to reuse a
+// client-supplied threadId, which let any authenticated caller append messages to
+// another user's thread. Use `canAccessThread()` from ./threadAccessService.js
+// instead: it enforces owner/permissions/public AND rejects non-UUID ids.
 
 /**
  * Update thread timestamp.

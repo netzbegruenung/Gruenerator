@@ -532,6 +532,54 @@ export function getIntentMessage(intent: SearchIntent): string {
 }
 
 /**
+ * Anything that can receive a typed SSE event — the real writer or a buffer.
+ * Producers take this instead of `SSEWriter` when their output may need to be
+ * held back and reviewed before it reaches the client.
+ */
+export interface SSEEmitter {
+  send<T extends SSEEventType>(event: T, data: SSEEventPayloads[T]): void;
+}
+
+/**
+ * Buffers events instead of writing them, so a caller can decide AFTER the fact
+ * whether they may be sent.
+ *
+ * Why: the social-post sharepic half and text half run in parallel, and the
+ * sharepic half streams `sharepic_complete` itself. A safety gate at the join
+ * would arrive after the graphic was already on screen. Buffering keeps both
+ * halves parallel (no added latency) while making the emit revocable.
+ */
+export interface DeferredSSE extends SSEEmitter {
+  /** Write everything buffered so far to the real stream, then clear. */
+  flush(sse: SSEWriter): void;
+  /** Drop everything buffered — the events must never reach the client. */
+  discard(): void;
+  /** Number of events currently held. */
+  readonly size: number;
+}
+
+export function createDeferredSSE(): DeferredSSE {
+  const buffered: { event: SSEEventType; data: unknown }[] = [];
+  return {
+    send(event, data) {
+      buffered.push({ event, data });
+    },
+    flush(sse) {
+      for (const { event, data } of buffered) {
+        sse.send(event, data as SSEEventPayloads[typeof event]);
+      }
+      buffered.length = 0;
+    },
+    discard() {
+      buffered.length = 0;
+    },
+    get size() {
+      return buffered.length;
+    },
+  };
+}
+
+/**
  * Create an SSE writer with initialized headers.
  */
 export function createSSEStream(res: Response): SSEWriter {
@@ -553,6 +601,41 @@ export function sseFail(
   sse.send('error', { error, ...meta });
   sse.end();
   return { status: 200 as const, body: undefined };
+}
+
+/**
+ * Heartbeat for a window where the server is working but emits nothing: the
+ * wait for a model's first content token. Some lanes spend many seconds there
+ * (cold reasoning starts, overflow lanes); without a ping the UI shows
+ * `response_start` and then nothing, which is indistinguishable from a hang.
+ *
+ * Shared by both answer paths — the single-pass streamer and the agentic loop's
+ * synth phase, which is silent from the last tool result until the answer
+ * begins. Returns the disarm function; call it on the first delta, on abort and
+ * on error.
+ */
+const HEARTBEAT_INTERVAL_MS = 3_000;
+
+export function startResponseHeartbeat(sse: SSEWriter): () => void {
+  const stepId = `generating_${Date.now()}`;
+  const handle = setInterval(() => {
+    if (sse.isEnded()) return;
+    sse.send('thinking_step', {
+      stepId,
+      toolName: 'generating',
+      title: 'Formuliere Antwort…',
+      status: 'in_progress',
+    });
+  }, HEARTBEAT_INTERVAL_MS);
+  // Don't keep the event loop alive solely on this timer if the response is
+  // aborted at the socket layer.
+  if (typeof handle.unref === 'function') handle.unref();
+  let cleared = false;
+  return () => {
+    if (cleared) return;
+    cleared = true;
+    clearInterval(handle);
+  };
 }
 
 /**

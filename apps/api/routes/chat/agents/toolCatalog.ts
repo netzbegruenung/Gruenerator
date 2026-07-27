@@ -123,7 +123,9 @@ export function buildChatToolCatalog(params: {
 
   // No `direct_response` — the loop simply answers without a tool call when no
   // tool is needed (toolChoice stays 'auto').
-  const base = createSearchTools(agentConfig);
+  const base = createSearchTools(agentConfig, {
+    ...(loop?.state.userLocale != null && { userLocale: loop.state.userLocale }),
+  });
 
   const tools: ToolSet = {};
   for (const [name, def] of Object.entries(base)) {
