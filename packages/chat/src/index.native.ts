@@ -65,6 +65,7 @@ export {
   type SearchIntent,
   type GeneratedImage,
   type ChatProgress,
+  type MemoryContextInfo,
   type Citation,
   type SearchResult,
   type StreamMetadata,
@@ -113,6 +114,7 @@ export {
   COMPOSER_MODES,
   COMPOSER_TOOLS,
   SEARCH_DEPTHS,
+  showsSearchDepth,
   type ComposerModeDef,
   type ComposerIconKey,
   type ComposerToolDef,
@@ -124,6 +126,12 @@ export {
 export { useDocumentChatStore } from './stores/documentChatStore';
 export { useSkillFavoritesStore } from './stores/skillFavoritesStore';
 
+// Live head of the combined social post's text half. The shared SSE parser
+// already writes here on `social_post_complete` / `social_post_updated`, so a
+// card rendering only its own message payload would go stale the moment the
+// user asks the chat to shorten the post.
+export { useSocialPostLiveStore, type ActiveSocialPost } from './stores/socialPostLiveStore';
+
 // Mention detection & insertion (shared logic for web + mobile)
 export {
   detectMention,
@@ -134,6 +142,44 @@ export { computeMentionInsertion, type MentionInsertionResult } from './lib/ment
 
 // File mention data hook
 export { useFileMentionData } from './hooks/useFileMentionData';
+
+// Group-level thread sharing. RN-safe: react-query plus `notify`, which imports
+// sonner dynamically and falls back to the console line in hosts that do not
+// ship it (mobile).
+export { useThreadSharing } from './hooks/useThreadSharing';
+
+// Data sources for the typed-mention pickers (Nextcloud share links, connected
+// accounts, Canva). RN-safe: react-query over the configured chat fetch.
+export {
+  useUserShareLinksQuery,
+  useWolkeBrowseQuery,
+  useConnectProvidersQuery,
+  useConnectBrowseQuery,
+  useCanvaDesignsQuery,
+  type ChatShareLink,
+  type ChatWolkeFile,
+  type ChatConnectProvider,
+  type ChatConnectFile,
+  type ChatCanvaDesign,
+} from './hooks/useMentionablesQuery';
+export {
+  type WolkeFileToken,
+  type ConnectFileToken,
+  type CanvaDesignToken,
+} from './lib/mentionables';
+
+// Typed-mention attachments (Wolke / Connect / web page) and the Canva draft
+// insertion. Shared so the recognition triple the backend keys on cannot drift
+// between platforms — see lib/mentionAttachments.ts.
+export {
+  buildWolkeAttachment,
+  buildConnectAttachment,
+  buildWebpageAttachment,
+  canvaDesignsMarkdown,
+  appendToDraft,
+  type MentionAttachment,
+} from './lib/mentionAttachments';
+export { joinWolkePath, wolkeParentPath, isWolkeRoot } from './lib/wolkePath';
 
 // useMessageTTS excluded — imports @gruenerator/voice (web-only)
 
@@ -249,11 +295,13 @@ export {
   resolveMentionable,
   filterMentionables,
   agentMentionables,
+  mentionableKey,
   notebookMentionables,
   documentMentionables,
   getAllMentionables,
   getAgentMentionables,
   setMentionLocale,
+  getMentionLocale,
   setCustomAgents,
   getCustomAgentMentionables,
   customAgentToMentionable,
@@ -263,6 +311,7 @@ export {
   setDocMentionables,
   getDocMentionables,
   toolMentionables,
+  getMcpServerMentionables,
   filterMentionablesByCategory,
   type Mentionable,
   type MentionableType,
@@ -271,6 +320,17 @@ export {
   type BoardMentionable,
   type DocMentionable,
 } from './lib/mentionables';
+export {
+  slugifyMention,
+  syncBoards,
+  syncCustomAgents,
+  syncDocs,
+  syncMcpServers,
+  syncSheets,
+  syncTextforms,
+  syncUserNotebooks,
+  type MentionableFetch,
+} from './lib/mentionableSync';
 export { INTENT_TO_TOOL, DEEP_TOOL_MAP } from './lib/toolMappings';
 
 // Thread History Adapter (shared between drawer + provider on mobile)
@@ -287,6 +347,8 @@ export {
 export { extractContent } from './adapters/messageConversion';
 export {
   registerDocumentSlug,
+  buildDocumentMentionAttachment,
+  buildCollabDocAttachment,
   resolveDocumentSlug,
   clearDocumentSlugs,
   documentToSlug,
@@ -314,3 +376,11 @@ export {
   type ProcessedFile,
   type FileSummary,
 } from './lib/fileUtils';
+
+// Composer plus-menu assembly — shared by web's PlusMenu and mobile's ComposerActionSheet
+export {
+  quickSkillMentionables,
+  functionMentionables,
+  connectorMentionables,
+  connectorId,
+} from './lib/plusMenu';

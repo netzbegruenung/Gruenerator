@@ -13,7 +13,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 
-import { colors, spacing, borderRadius } from '../../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../../theme';
 import { GrueneratorLoadingIcon } from '../GrueneratorLoadingIcon';
 import { getMarkdownStyles } from '../markdownStyles';
 
@@ -210,8 +210,9 @@ const styles = StyleSheet.create({
     gap: spacing.xsmall,
   },
   title: {
+    ...chatType.chatTitle,
     flex: 1,
-    fontSize: 14,
+    fontFamily: BODY_FONT,
     fontWeight: '600',
   },
   confidence: {
@@ -225,21 +226,20 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   confidenceText: {
-    fontSize: 11,
+    ...chatType.chatMicro,
     fontWeight: '500',
   },
   query: {
-    fontSize: 12,
+    ...chatType.chatMeta,
     fontStyle: 'italic',
     marginTop: 2,
   },
   loadingHint: {
-    fontSize: 12,
+    ...chatType.chatSecondary,
     marginTop: spacing.xsmall,
-    lineHeight: 17,
   },
   toc: {
-    fontSize: 12,
+    ...chatType.chatMeta,
     marginTop: spacing.xsmall,
   },
   actions: {
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   actionText: {
-    fontSize: 12,
+    ...chatType.chatMeta,
     fontWeight: '600',
   },
   sources: {
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xxsmall,
   },
   sourcesLabel: {
-    fontSize: 12,
+    ...chatType.chatMeta,
     fontWeight: '600',
   },
 });

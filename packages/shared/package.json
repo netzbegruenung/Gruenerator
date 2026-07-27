@@ -15,6 +15,7 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./assets/*": "./assets/*",
     "./reisekosten": {
       "development": "./src/reisekosten/index.ts",
       "types": "./src/reisekosten/index.ts",
@@ -98,6 +99,12 @@
       "types": "./src/roles/index.ts",
       "import": "./dist/roles/index.js",
       "default": "./dist/roles/index.js"
+    },
+    "./settings": {
+      "development": "./src/settings/index.ts",
+      "types": "./src/settings/index.ts",
+      "import": "./dist/settings/index.js",
+      "default": "./dist/settings/index.js"
     },
     "./sharepic": {
       "development": "./src/sharepic/index.ts",

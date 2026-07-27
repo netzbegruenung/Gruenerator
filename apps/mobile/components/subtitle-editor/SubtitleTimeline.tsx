@@ -7,7 +7,7 @@ import { SUBTITLE_EDITOR_LABELS } from '@gruenerator/shared/subtitle-editor';
 import { forwardRef, useCallback } from 'react';
 import { FlatList, View, Text, StyleSheet, useColorScheme } from 'react-native';
 
-import { colors, spacing, lightTheme, darkTheme, verticalScale } from '../../theme';
+import { colors, spacing, lightTheme, darkTheme, verticalScale, BODY_FONT } from '../../theme';
 
 import { SubtitleSegmentItem } from './SubtitleSegmentItem';
 
@@ -127,6 +127,7 @@ const styles = StyleSheet.create({
     padding: spacing.xlarge,
   },
   emptyText: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     textAlign: 'center',
   },

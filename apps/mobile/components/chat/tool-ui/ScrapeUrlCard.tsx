@@ -3,7 +3,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useCallback } from 'react';
 import { View, Text, Pressable, StyleSheet, Linking } from 'react-native';
 
-import { colors, spacing, borderRadius } from '../../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../../theme';
 
 import type { Theme } from '../../../theme/colors';
 
@@ -64,12 +64,12 @@ const styles = StyleSheet.create({
     gap: spacing.xxsmall,
   },
   domain: {
+    ...chatType.chatSecondary,
     flexShrink: 1,
-    fontSize: 13,
+    fontFamily: BODY_FONT,
     fontWeight: '600',
   },
   snippet: {
-    fontSize: 12,
-    lineHeight: 17,
+    ...chatType.chatSecondary,
   },
 });

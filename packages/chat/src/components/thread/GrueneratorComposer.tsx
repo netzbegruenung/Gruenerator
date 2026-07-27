@@ -8,11 +8,11 @@ import {
   useVoiceState,
 } from '@assistant-ui/react';
 import { useAuiState } from '@assistant-ui/store';
-import { getSystemAgent } from '@gruenerator/shared/agents';
 import { mcpBrandColor } from '@gruenerator/shared/utils';
 import { cn, useIsMobile } from '@gruenerator/ui';
 import { ArrowUp, Mic, Plug, Square, X } from 'lucide-react';
 import { memo, useRef, useState, useCallback, useEffect } from 'react';
+import { type IconType } from 'react-icons';
 import { RiVoiceAiFill } from 'react-icons/ri';
 import {
   SiGithub,
@@ -30,13 +30,17 @@ import {
   SiConfluence,
 } from 'react-icons/si';
 
+import { useMentionablesQuery } from '../../hooks/useMentionablesQuery';
+import { handleAttachmentAddError } from '../../lib/attachmentErrorHandler';
+import { getCaretCoords } from '../../lib/caretPosition';
+import { showsSearchDepth } from '../../lib/composerControls';
 import {
   registerDocumentSlug,
+  buildDocumentMentionAttachment,
+  buildCollabDocAttachment,
   type DocumentMention,
   type CollabDocSelection,
 } from '../../lib/documentMentionables';
-import { useMentionablesQuery } from '../../hooks/useMentionablesQuery';
-import { useChatDensity } from './chatDensityContext';
 import {
   type Mentionable,
   type WolkeFileToken,
@@ -44,17 +48,23 @@ import {
   type CanvaDesignToken,
   type VorlageToken,
 } from '../../lib/mentionables';
-import { useUserProfileStore } from '../../stores/userProfileStore';
-import { handleAttachmentAddError } from '../../lib/attachmentErrorHandler';
-import { getCaretCoords } from '../../lib/caretPosition';
+import {
+  appendToDraft,
+  buildConnectAttachment,
+  buildWebpageAttachment,
+  buildWolkeAttachment,
+  canvaDesignsMarkdown,
+} from '../../lib/mentionAttachments';
 import { getFilteredMentionables, detectMention } from '../../lib/mentionDetection';
 import { computeMentionInsertion } from '../../lib/mentionInsertion';
 import { useScopedAgentId } from '../../lib/useScopedAgentState';
 import { useAgentStore } from '../../stores/chatStore';
+import { useUserProfileStore } from '../../stores/userProfileStore';
 import { ComposerAttachments } from '../assistant-ui/attachment';
 import { SearchDepthToggle } from '../SearchDepthToggle';
 
 import { CanvaMentionPopover } from './CanvaMentionPopover';
+import { useChatDensity } from './chatDensityContext';
 import { ConnectMentionPopover } from './ConnectMentionPopover';
 import { FileMentionPopover } from './FileMentionPopover';
 import { MentionPopover } from './MentionPopover';
@@ -63,8 +73,6 @@ import { PlusMenu, type ComposerPreset } from './PlusMenu';
 import { VorlagenMentionPopover } from './VorlagenMentionPopover';
 import { WebMentionPopover } from './WebMentionPopover';
 import { WolkeMentionPopover } from './WolkeMentionPopover';
-
-import { type IconType } from 'react-icons';
 
 // Real vendor logo for the pinned-connector chip, keyword-matched on the
 // connector name/host (mirrors apps/web McpSection). No match → generic Plug.
@@ -138,9 +146,10 @@ const ROUND_BTN_BASE =
 const roundBtnSize = (isCompact: boolean) => (isCompact ? 'm-1.5 h-7 w-7' : 'm-2 h-8 w-8');
 
 function SearchDepthToggleSlot() {
+  // The rule lives in `showsSearchDepth` (shared with mobile), not here — see
+  // the note there on why the control is search-route only.
   const selectedAgentId = useScopedAgentId();
-  const agent = selectedAgentId ? getSystemAgent(selectedAgentId) : null;
-  if (agent?.routeTo !== 'search') return null;
+  if (!showsSearchDepth(selectedAgentId)) return null;
   return <SearchDepthToggle />;
 }
 
@@ -459,27 +468,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     (doc: DocumentMention) => {
       registerDocumentSlug(doc.slug, doc);
 
-      void composerRuntime.addAttachment({
-        id: `gruenerator-datei-${doc.documentId}`,
-        type: 'document',
-        name: doc.documentTitle,
-        contentType: `application/x-gruenerator-datei-${doc.sourceType}`,
-        content: [
-          {
-            type: 'data',
-            name: 'gruenerator-mention',
-            data: {
-              kind: 'document',
-              documentId: doc.documentId,
-              documentTitle: doc.documentTitle,
-              collectionId: doc.collectionId,
-              collectionName: doc.collectionName,
-              slug: doc.slug,
-              sourceType: doc.sourceType,
-            },
-          },
-        ],
-      });
+      void composerRuntime.addAttachment(buildDocumentMentionAttachment(doc));
 
       stripTriggerText();
       dismissPopover();
@@ -490,19 +479,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
 
   const handleCollabDocSelect = useCallback(
     (doc: CollabDocSelection) => {
-      void composerRuntime.addAttachment({
-        id: `gruenerator-collab-${doc.id}`,
-        type: 'document',
-        name: doc.title,
-        contentType: 'application/x-gruenerator-collab-doc',
-        content: [
-          {
-            type: 'data',
-            name: 'gruenerator-mention',
-            data: { kind: 'collab', id: doc.id, slug: doc.slug, title: doc.title },
-          },
-        ],
-      });
+      void composerRuntime.addAttachment(buildCollabDocAttachment(doc));
 
       stripTriggerText();
       dismissPopover();
@@ -515,24 +492,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     (files: WolkeFileToken[]) => {
       if (files.length === 0) return;
       for (const f of files) {
-        void composerRuntime.addAttachment({
-          id: `gruenerator-wolke-${f.shareLinkId}:${f.path}`,
-          type: 'document',
-          name: f.name,
-          contentType: 'application/x-gruenerator-wolke',
-          content: [
-            {
-              type: 'data',
-              name: 'gruenerator-mention',
-              data: {
-                kind: 'wolke',
-                shareLinkId: f.shareLinkId,
-                path: f.path,
-                name: f.name,
-              },
-            },
-          ],
-        });
+        void composerRuntime.addAttachment(buildWolkeAttachment(f));
       }
       dismissPopover();
       requestAnimationFrame(() => textareaRef.current?.focus());
@@ -544,25 +504,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     (files: ConnectFileToken[]) => {
       if (files.length === 0) return;
       for (const f of files) {
-        void composerRuntime.addAttachment({
-          id: `gruenerator-connect-${f.provider}:${f.fileId}`,
-          type: 'document',
-          name: f.name,
-          contentType: 'application/x-gruenerator-connect',
-          content: [
-            {
-              type: 'data',
-              name: 'gruenerator-mention',
-              data: {
-                kind: 'connect',
-                provider: f.provider,
-                fileId: f.fileId,
-                name: f.name,
-                ...(f.mimeType ? { mimeType: f.mimeType } : {}),
-              },
-            },
-          ],
-        });
+        void composerRuntime.addAttachment(buildConnectAttachment(f));
       }
       dismissPopover();
       requestAnimationFrame(() => textareaRef.current?.focus());
@@ -572,26 +514,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
 
   const handleWebSelect = useCallback(
     (url: string) => {
-      const hostname = (() => {
-        try {
-          return new URL(url).hostname;
-        } catch {
-          return url;
-        }
-      })();
-      void composerRuntime.addAttachment({
-        id: `gruenerator-webpage-${url}`,
-        type: 'document',
-        name: hostname,
-        contentType: 'application/x-gruenerator-webpage',
-        content: [
-          {
-            type: 'data',
-            name: 'gruenerator-mention',
-            data: { kind: 'webpage', url, name: hostname },
-          },
-        ],
-      });
+      void composerRuntime.addAttachment(buildWebpageAttachment(url));
       dismissPopover();
       requestAnimationFrame(() => textareaRef.current?.focus());
     },
@@ -603,10 +526,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       if (designs.length === 0) return;
       // Insert each chosen design as a markdown link — a direct, durable
       // reference (view URLs are valid 30 days) the user/agent can act on.
-      const links = designs.map((d) => `[🎨 ${d.title}](${d.viewUrl})`).join(' ');
-      const currentText = composerRuntime.getState().text;
-      const needsSpace = currentText.length > 0 && !currentText.endsWith(' ');
-      const newText = `${currentText}${needsSpace ? ' ' : ''}${links} `;
+      const newText = appendToDraft(composerRuntime.getState().text, canvaDesignsMarkdown(designs));
       composerRuntime.setText(newText);
       dismissPopover();
       requestAnimationFrame(() => {
