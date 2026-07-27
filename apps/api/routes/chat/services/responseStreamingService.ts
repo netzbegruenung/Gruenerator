@@ -385,31 +385,62 @@ function startResponseHeartbeat(sse: SSEWriter): () => void {
 }
 
 /**
- * Set up a one-shot first-token deadline. Returns the deadline promise (which
- * rejects with FirstTokenTimeoutError after `deadlineMs`), an abort signal
- * that fires at the same time, and a clear() to disarm both once the first
- * real text chunk arrives.
+ * Set up the first-token deadline: rejects with FirstTokenTimeoutError once the
+ * model has been SILENT for `deadlineMs`, aborts the stream at the same moment,
+ * and `clear()` disarms both when the first real text chunk arrives.
+ *
+ * Idle-based, not one-shot, and that distinction is the whole point. The
+ * deadline exists to catch a HANG, but a reasoning model holds its answer back
+ * until thinking completes — it can stream reasoning deltas for well past 20s
+ * and still be perfectly healthy. As a fixed one-shot timer this killed every
+ * such turn: a research turn died on `verdigado-think` at exactly 20s, fell
+ * back to `regolo/gemma4-31b` (also a reasoning lane, same reasoning=medium)
+ * and died at exactly 20s again — the fallback could not help because both
+ * lanes hit the same structural limit, not a fault of either host.
+ *
+ * `touch()` marks liveness (called on every reasoning delta) and rearms the
+ * timer. A model emitting NOTHING for the full window is still declared hung
+ * and still falls back; the turn-level wall clock remains the outer bound.
  */
 function createFirstTokenDeadline(deadlineMs: number): {
   deadline: Promise<never>;
   signal: AbortSignal;
   clear: () => void;
+  touch: () => void;
 } {
   const controller = new AbortController();
   let timeoutHandle: NodeJS.Timeout | undefined;
+  let lastActivity = Date.now();
+  let settled = false;
+
   const deadline = new Promise<never>((_, reject) => {
-    timeoutHandle = setTimeout(() => {
-      controller.abort();
-      reject(new FirstTokenTimeoutError(deadlineMs));
-    }, deadlineMs);
+    const arm = (ms: number): void => {
+      timeoutHandle = setTimeout(() => {
+        const idleFor = Date.now() - lastActivity;
+        if (idleFor >= deadlineMs) {
+          settled = true;
+          controller.abort();
+          reject(new FirstTokenTimeoutError(deadlineMs));
+          return;
+        }
+        // Activity landed since this timer was armed — wait out the remainder.
+        arm(deadlineMs - idleFor);
+      }, ms);
+    };
+    arm(deadlineMs);
   });
   // Suppress unhandled-rejection if cleared before resolution.
   deadline.catch(() => {});
+
   return {
     deadline,
     signal: controller.signal,
     clear: () => {
+      settled = true;
       if (timeoutHandle) clearTimeout(timeoutHandle);
+    },
+    touch: () => {
+      if (!settled) lastActivity = Date.now();
     },
   };
 }
@@ -455,6 +486,7 @@ async function streamAndAccumulateOrThrow(params: {
     deadline,
     signal: deadlineSignal,
     clear,
+    touch,
   } = createFirstTokenDeadline(firstTokenDeadlineMs);
   // Turn wall-clock: bounds BOTH phases (the first-token deadline is cleared
   // after phase 1, leaving the drain uncapped). Cleared on normal completion.
@@ -477,14 +509,15 @@ async function streamAndAccumulateOrThrow(params: {
   });
 
   // fullStream (not textStream) so reasoning models surface their thinking as
-  // `reasoning_delta` SSE events alongside the answer. A reasoning delta clears
-  // the first-token deadline (the model is demonstrably alive), but only a
-  // `text-delta` ends phase 1 — until visible answer text is on the wire we
+  // `reasoning_delta` SSE events alongside the answer. A reasoning delta REARMS
+  // the first-token deadline (the model is demonstrably alive) rather than
+  // disarming it — disarming gave up the clean fallback at the very first
+  // reasoning token, after which only the 180s wall clock bounded a hang. Only
+  // a `text-delta` ends phase 1; until visible answer text is on the wire we
   // can still fall back cleanly.
   const iterator = result.stream[Symbol.asyncIterator]();
   let fullText = '';
   let textStarted = false;
-  let deadlineCleared = false;
   const stopHeartbeat = startResponseHeartbeat(sse);
 
   // Phase 1 — race the shared deadline until the first visible text delta.
@@ -493,25 +526,19 @@ async function streamAndAccumulateOrThrow(params: {
   // text arrives or the deadline fires.
   try {
     while (!textStarted) {
-      const next = deadlineCleared
-        ? await iterator.next()
-        : await Promise.race([iterator.next(), deadline]);
+      const next = await Promise.race([iterator.next(), deadline]);
       if (next.done) throw new EmptyCompletionError();
       const part = next.value;
       if (part.type === 'error') throw part.error;
       if (part.type === 'reasoning-delta' && part.text.length > 0) {
-        if (!deadlineCleared) {
-          clear();
-          stopHeartbeat();
-          deadlineCleared = true;
-        }
+        // Alive, but not answering yet: rearm the idle window and let the real
+        // reasoning deltas replace the heartbeat as the UI's proof of progress.
+        touch();
+        stopHeartbeat();
         sse.send('reasoning_delta', { text: part.text });
       } else if (part.type === 'text-delta' && part.text.length > 0) {
-        if (!deadlineCleared) {
-          clear();
-          stopHeartbeat();
-          deadlineCleared = true;
-        }
+        clear();
+        stopHeartbeat();
         fullText += part.text;
         sse.send('text_delta', { text: part.text });
         textStarted = true;
@@ -594,6 +621,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
     deadline,
     signal: deadlineSignal,
     clear,
+    touch,
   } = createFirstTokenDeadline(firstTokenDeadlineMs);
   // Turn wall-clock: bounds BOTH phases (the first-token deadline is cleared
   // after phase 1, leaving the drain uncapped). Cleared on normal completion.
@@ -629,6 +657,8 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
         sse.send('text_delta', { text: chunk.delta });
         break;
       }
+      // Thinking out loud is proof of life — rearm rather than time out.
+      touch();
       sse.send('reasoning_delta', { text: chunk.delta });
     }
   } catch (err) {
@@ -718,9 +748,29 @@ export async function streamWithFallback(params: {
   buildStream: (resolution: ModelResolution) => Promise<string | null>;
   sse: SSEWriter;
   logPrefix?: string;
+  /**
+   * Last resort when BOTH lanes are dead: a caller that already holds a usable
+   * answer returns it here and the turn completes normally instead of erroring.
+   * Research wrapper-mode is the case that motivates it — the retrieved
+   * synthesis IS the answer and is already on screen as a card, so failing the
+   * turn discards work the user can see and we already paid for.
+   *
+   * Returning null (or omitting this) keeps the plain error.
+   */
+  salvage?: () => string | null;
 }): Promise<string | null> {
-  const { primary, buildStream, sse, logPrefix = '[ChatGraph]' } = params;
+  const { primary, buildStream, sse, logPrefix = '[ChatGraph]', salvage } = params;
   const primaryLabel = primary.modelId ?? primary.modelName;
+
+  /** Emit the salvaged answer on the normal text channel so the caller's
+   *  persistence, citation clamp and reload path all treat it as a real turn. */
+  const salvageOrFail = (kind: StreamFailure['kind']): string | null => {
+    const rescued = salvage?.() ?? null;
+    if (rescued == null || rescued.trim().length === 0) return failStream(sse, kind);
+    log.warn(`${logPrefix} both lanes failed (${kind}) — salvaging the answer already retrieved`);
+    sse.send('text_delta', { text: rescued });
+    return rescued;
+  };
 
   try {
     return await buildStream(primary);
@@ -730,7 +780,7 @@ export async function streamWithFallback(params: {
     const sibling = primary.sibling;
     if (!sibling) {
       log.warn(`${logPrefix} ${primaryLabel} failed (${err.kind}) — no sibling configured`);
-      return failStream(sse, err.kind);
+      return salvageOrFail(err.kind);
     }
 
     log.warn(
@@ -761,7 +811,7 @@ export async function streamWithFallback(params: {
     } catch (fallbackErr) {
       if (isStreamFailure(fallbackErr)) {
         log.error(`${logPrefix} Fallback ${fallbackLabel} also failed (${fallbackErr.kind})`);
-        return failStream(sse, fallbackErr.kind);
+        return salvageOrFail(fallbackErr.kind);
       }
       throw fallbackErr;
     }

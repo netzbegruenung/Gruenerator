@@ -5,9 +5,11 @@ import {
   buildPrepareStep,
   createSentenceChunker,
   looksDegenerateSynth,
+  looksLikeSynthRefusal,
   FORCE_FINISH_SYSTEM_SUFFIX,
   FORCE_FINISH_GATHER_SUFFIX,
   SYNTH_RETRY_SYSTEM_SUFFIX,
+  SYNTH_REFUSAL_TEXT,
   type LoopDeps,
   type LoopEngineParams,
 } from './loopEngine.js';
@@ -293,6 +295,29 @@ describe('looksDegenerateSynth', () => {
   });
 });
 
+describe('looksLikeSynthRefusal', () => {
+  it('catches the English boilerplate the synth actually produced', () => {
+    expect(looksLikeSynthRefusal("I'm sorry, but I can't help with that.")).toBe(true);
+  });
+
+  it('catches a German refusal too', () => {
+    expect(looksLikeSynthRefusal('Dabei kann ich dir leider nicht helfen.')).toBe(true);
+  });
+
+  it('leaves a normal short answer alone', () => {
+    expect(looksLikeSynthRefusal('Erledigt — die Spalte wurde ergänzt.')).toBe(false);
+    expect(looksLikeSynthRefusal('')).toBe(false);
+  });
+
+  it('ignores a refusal-shaped clause inside real prose', () => {
+    // Past the gate threshold the text is already streamed and cannot be
+    // swapped — and a long answer mentioning helping is prose, not a decline.
+    const long = `Wir dürfen nicht schweigen. ${'Ich kann dir dabei nicht helfen. '.repeat(9)}`;
+    expect(long.length).toBeGreaterThan(200);
+    expect(looksLikeSynthRefusal(long)).toBe(false);
+  });
+});
+
 describe('split synthesis — degenerate answer is retried, never streamed', () => {
   function synthDeps(answers: string[]): { deps: LoopDeps; systems: string[] } {
     const systems: string[] = [];
@@ -349,6 +374,39 @@ describe('split synthesis — degenerate answer is retried, never streamed', () 
     expect(out.text).toBe('Die Antwort steht hier und ist auf Deutsch.');
     expect(systems).toHaveLength(1);
     expect(onText).toHaveBeenCalledWith('Die Antwort steht hier und ist auf Deutsch.');
+  });
+
+  it('surfaces a REFUSAL as a German refusal and never retries it', async () => {
+    const onText = vi.fn();
+    const { deps, systems } = synthDeps([
+      "I'm sorry, but I can't help with that.",
+      'Diese zweite Antwort darf gar nicht erst angefordert werden.',
+    ]);
+
+    const out = await runAgenticLoop(baseParams({ mode: 'split', tools, onText }), deps);
+
+    // One synth call only — a decline is an answer, not a failure to retry.
+    expect(systems).toHaveLength(1);
+    expect(out.text).toBe(SYNTH_REFUSAL_TEXT);
+    expect(onText).toHaveBeenCalledWith(SYNTH_REFUSAL_TEXT);
+    // The English boilerplate stayed buffered and never reached the client.
+    const streamed = onText.mock.calls.map((c) => c[0] as string).join('');
+    expect(streamed).not.toMatch(/i'?m sorry/i);
+    // And it must NOT read as "nothing found, try rephrasing".
+    expect(out.text).not.toMatch(/anders formulieren/i);
+  });
+
+  it('still retries a leaked tool plan — the refusal path must not swallow it', async () => {
+    const onText = vi.fn();
+    const { deps, systems } = synthDeps([
+      "Let's perform web_search.",
+      'Die Antwort steht hier und ist auf Deutsch.',
+    ]);
+
+    const out = await runAgenticLoop(baseParams({ mode: 'split', tools, onText }), deps);
+
+    expect(systems).toHaveLength(2);
+    expect(out.text).toBe('Die Antwort steht hier und ist auf Deutsch.');
   });
 
   it('opens the gate mid-stream for a long answer (no full-answer buffering)', async () => {

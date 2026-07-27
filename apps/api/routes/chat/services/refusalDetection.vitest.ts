@@ -27,6 +27,10 @@ describe('looksLikeRefusal', () => {
       'Ich kann bei der Erstellung eines erfundenen Zitats nicht behilflich sein.',
       'Ich darf keine erfundenen Zitate erstellen.',
       'Tut mir leid, ich kann diesen Post nicht verfassen.',
+      // Inverted word order after a leading adverb — the form models reach for
+      // most often, and the one the original pattern missed entirely.
+      'Dabei kann ich dir leider nicht helfen.',
+      'Leider darf ich solche Zitate nicht erstellen.',
     ]) {
       expect(looksLikeRefusal(text), text).toBe(true);
       expect(refusalLanguage(text), text).toBe('de');
