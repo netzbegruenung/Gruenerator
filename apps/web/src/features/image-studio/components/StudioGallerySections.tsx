@@ -1,6 +1,7 @@
 import { isCanvasTemplateType, type CanvasListItem } from '@gruenerator/contracts';
 import { useShareStore } from '@gruenerator/shared';
 import { getContractsClient } from '@gruenerator/shared/api';
+import { isKiImage } from '@gruenerator/shared/media-library';
 import { CardActionsMenu, CardGrid, DropdownMenuItem, SectionHeader } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { Download, Pencil, Share2 } from 'lucide-react';
@@ -18,7 +19,7 @@ import ReelsSection from '../../workplace/components/ReelsSection';
 import { useRecentCanvases } from '../hooks/useRecentCanvases';
 import { useRecentGalleryItems, type RecentGalleryItem } from '../hooks/useRecentGalleryItems';
 import { getSharepicRoute } from '../utils/sharepicRoutes';
-import { IMAGE_STUDIO_CATEGORIES, getTypeConfig, getTypeFromLegacy } from '../utils/typeConfig';
+import { IMAGE_STUDIO_CATEGORIES } from '../utils/typeConfig';
 
 import { Lightbox } from './Lightbox';
 import { buildStudioQuickStarts, QuickStartTiles } from './QuickStartTiles';
@@ -34,25 +35,12 @@ type SharepicCard =
   | { kind: 'share'; date: string; item: RecentGalleryItem }
   | { kind: 'canvas'; date: string; item: CanvasListItem };
 
-// Legacy `image_type` values written by the Bilder tab before it emitted
-// canonical KI ids (`pure-create`/`universal-edit`/`green-edit`). Existing rows
-// still carry these, so the classifier maps them to KI without a backfill.
-const KI_LEGACY_ALIASES = new Set(['imagine', 'edit']);
-
-/**
- * Classifies a stored `image_type` value as a KI ("Imagine") image.
- * KI type ids (e.g. `pure-create`) resolve directly; template legacy types
- * (e.g. `Dreizeilen`) resolve via `getTypeFromLegacy`. Unknown/empty defaults to false
- * so legacy images fall back into the Sharepics bucket.
- */
-const isKiImage = (imageType?: string): boolean => {
-  if (!imageType) return false;
-  if (KI_LEGACY_ALIASES.has(imageType)) return true;
-  const direct = getTypeConfig(imageType);
-  const legacyId = direct ? null : getTypeFromLegacy(imageType);
-  const config = direct ?? (legacyId ? getTypeConfig(legacyId) : null);
-  return config?.category === IMAGE_STUDIO_CATEGORIES.KI;
-};
+// The Sharepics/Imagine split used to be guessed here from `image_type`, a free
+// text column the client supplied — which is how KI images ended up under
+// Sharepics whenever that string was empty or unrecognised. It is a server-set
+// column now. `isKiImage` reads it and only falls back to the legacy
+// classification against a backend that predates the column; that fallback lives
+// in @gruenerator/shared so web and mobile cannot drift apart on it again.
 
 const PreviewCard = ({
   title,
@@ -213,7 +201,7 @@ const StudioGallerySections = () => {
     const sharepics: SharepicCard[] = [];
     const imagine: RecentGalleryItem[] = [];
     for (const item of recentGalleryItems) {
-      if (isKiImage(item.imageType)) {
+      if (isKiImage(item)) {
         imagine.push(item);
       } else {
         sharepics.push({ kind: 'share', date: item.createdAt, item });

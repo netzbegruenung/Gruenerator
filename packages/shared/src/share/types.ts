@@ -13,6 +13,13 @@ export type ShareMediaType = 'video' | 'image';
 export type ShareStatus = 'processing' | 'ready' | 'failed' | 'draft';
 
 /**
+ * Which product made an image — the Studio gallery's Sharepic/KI split.
+ * The classification helpers live in `../media-library/contentOrigin.js`; the
+ * union is restated here so the share types keep no dependency on that module.
+ */
+export type ShareContentOrigin = 'ki' | 'sharepic' | 'upload' | 'unknown';
+
+/**
  * Share record from backend
  */
 export interface Share {
@@ -28,6 +35,11 @@ export interface Share {
   fileName?: string;
   mimeType?: string;
   imageType?: string;
+  /**
+   * Absent against a backend older than the column — callers must fall back to
+   * `classifyLegacyImageType(imageType)` rather than assuming a value.
+   */
+  contentOrigin?: ShareContentOrigin;
   imageMetadata?: ShareImageMetadata;
 }
 
@@ -60,6 +72,12 @@ export interface CreateImageShareParams {
   imageData: string; // base64
   title?: string;
   imageType?: string;
+  /**
+   * Declare which product produced this image. Callers that know their own
+   * context should always pass it — the server's fallback derivation exists only
+   * for clients too old to send it.
+   */
+  contentOrigin?: 'ki' | 'sharepic';
   metadata?: Record<string, unknown>;
   originalImage?: string;
   status?: ShareStatus;

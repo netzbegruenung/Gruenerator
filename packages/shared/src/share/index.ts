@@ -8,6 +8,7 @@ export type {
   SharePlatform,
   ShareMediaType,
   ShareStatus,
+  ShareContentOrigin,
   Share,
   ShareImageMetadata,
   CreateVideoShareParams,

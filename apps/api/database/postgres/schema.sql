@@ -640,6 +640,15 @@ CREATE TABLE IF NOT EXISTS shared_media (
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS is_library_item BOOLEAN DEFAULT TRUE;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS alt_text TEXT;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS upload_source TEXT DEFAULT 'upload';
+-- Which product made this image — the Studio gallery splits Sharepics from
+-- KI-Bilder on it. Server-set, unlike the client-supplied `image_type`.
+-- NOT NULL on purpose: a NULL would be indistinguishable from "backend too old
+-- to have the column", which is how the read side decides to fall back.
+-- The same definition is repeated in
+-- migrations/20260727_shared_media_content_origin.sql for databases that already
+-- have the table — this line only reaches a freshly created one.
+ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS content_origin TEXT NOT NULL DEFAULT 'unknown'
+    CHECK (content_origin IN ('ki', 'sharepic', 'upload', 'unknown'));
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS original_filename TEXT;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS is_template BOOLEAN DEFAULT FALSE;
 ALTER TABLE shared_media ADD COLUMN IF NOT EXISTS template_visibility TEXT DEFAULT 'private'

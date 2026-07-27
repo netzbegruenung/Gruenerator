@@ -136,6 +136,12 @@
       "import": "./dist/media-library/constants.js",
       "default": "./dist/media-library/constants.js"
     },
+    "./media-library/contentOrigin": {
+      "development": "./src/media-library/contentOrigin.ts",
+      "types": "./src/media-library/contentOrigin.ts",
+      "import": "./dist/media-library/contentOrigin.js",
+      "default": "./dist/media-library/contentOrigin.js"
+    },
     "./components/EditorTopBar": {
       "development": "./src/components/EditorTopBar/index.ts",
       "types": "./src/components/EditorTopBar/index.ts",
