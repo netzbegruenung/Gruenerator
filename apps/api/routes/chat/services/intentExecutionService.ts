@@ -52,6 +52,7 @@ import {
 } from './pastChatRecallService.js';
 import { pendingActionStore } from './pendingActionStore.js';
 import { resolveReferentialTopic } from './referentialTopic.js';
+import { looksLikeRefusal } from './refusalDetection.js';
 import {
   detectPreferredVariant,
   generateSharepicVariants,
@@ -59,10 +60,15 @@ import {
   type SharepicVariant,
 } from './sharepicVariantHelpers.js';
 import { generateSliderDeckVariant } from './sliderDeckService.js';
-import { PROGRESS_MESSAGES, sendChatWarning, sendSearchDegradedWarning } from './sseHelpers.js';
+import {
+  createDeferredSSE,
+  PROGRESS_MESSAGES,
+  sendChatWarning,
+  sendSearchDegradedWarning,
+} from './sseHelpers.js';
 import { createMessage, touchThread } from './threadPersistenceService.js';
 
-import type { SSEWriter, SearchResultPayload } from './sseHelpers.js';
+import type { SSEEmitter, SSEWriter, SearchResultPayload } from './sseHelpers.js';
 import type {
   ChatGraphState,
   GeneratedImageResult,
@@ -589,8 +595,15 @@ export async function runSharepicGeneration(opts: {
   req?: Request | undefined;
   threadId?: string | null;
   sharepicRefinement?: { instruction: string; prior: PriorSharepic };
+  /**
+   * Receives `sharepic_complete` instead of the live stream. The social_post
+   * branch passes a buffer so the graphic can still be revoked if the text half
+   * turns out to be a refusal (fabricated-quote gate).
+   */
+  emitTo?: SSEEmitter;
 }): Promise<SharepicVariant[]> {
   const { state, sse } = opts;
+  const emit = opts.emitTo ?? sse;
   try {
     const lastMsg = state.messages?.[state.messages.length - 1];
     const rawText = lastMsg ? extractTextContent(lastMsg.content) : '';
@@ -643,21 +656,21 @@ export async function runSharepicGeneration(opts: {
     }
 
     if (variants.length === 0) {
-      sse.send('sharepic_complete', {
+      emit.send('sharepic_complete', {
         message: 'Sharepic-Erstellung fehlgeschlagen',
         variants: [],
         error: 'All variant generations failed',
       });
       return [];
     }
-    sse.send('sharepic_complete', {
+    emit.send('sharepic_complete', {
       message: `${variants.length} Sharepic-Varianten erstellt`,
       variants,
     });
     return variants;
   } catch (error) {
     log.error('[ChatGraph] Sharepic variant generation failed:', error);
-    sse.send('sharepic_complete', {
+    emit.send('sharepic_complete', {
       message: 'Sharepic-Erstellung fehlgeschlagen',
       variants: [],
       error: toUserFacingMessage(error, 'Unknown error'),
@@ -683,6 +696,8 @@ export async function executeIntentPipeline(opts: {
   sharepicVariants: SharepicVariant[];
   /** Text half of the EXPERIMENTAL social_post intent; null otherwise. */
   socialPost: SocialPostPayload | null;
+  /** The text model refused: no post, no sharepic, and no success copy. */
+  socialPostRefused: boolean;
 }> {
   const { classifiedState, sse, forcedTool, enabledTools, imageAttachments } = opts;
 
@@ -690,6 +705,7 @@ export async function executeIntentPipeline(opts: {
   let generatedImage: GeneratedImageResult | null = null;
   let sharepicVariants: SharepicVariant[] = [];
   let socialPost: SocialPostPayload | null = null;
+  let socialPostRefused = false;
 
   // Build ordered list of intents to execute (primary first, then secondary).
   // social_post handles pasted URLs inline BEFORE text generation — a
@@ -782,12 +798,21 @@ export async function executeIntentPipeline(opts: {
         message: sharepicEnabled ? 'Texte und gestalte deinen Post...' : 'Texte deinen Post...',
       });
 
+      // The sharepic half streams `sharepic_complete` itself, so its output is
+      // buffered until the text half is known: a graphic must never ship when
+      // the text model refused the request (live: an invented Kickl quote with
+      // an invented ORF source rendered in party design while the text said
+      // "I'm sorry, but I can't help with that"). Buffering keeps both halves
+      // parallel — the gate costs no latency, only revocability.
+      const sharepicBuffer = createDeferredSSE();
+      const postBuffer = createDeferredSSE();
       const sharepicHalf: Promise<SharepicVariant[]> = sharepicEnabled
         ? runSharepicGeneration({
             state: finalState,
             sse,
             req: opts.req,
             threadId: opts.threadId ?? null,
+            emitTo: sharepicBuffer,
           })
         : Promise.resolve([]);
 
@@ -840,7 +865,7 @@ export async function executeIntentPipeline(opts: {
           urlContext,
           ...(opts.req && { req: opts.req }),
         });
-        sse.send('social_post_complete', {
+        postBuffer.send('social_post_complete', {
           message: `${post.platform === 'generic' ? 'Social-Media' : post.platform}-Post erstellt`,
           post,
         });
@@ -849,9 +874,31 @@ export async function executeIntentPipeline(opts: {
 
       const [variantsSettled, textSettled] = await Promise.allSettled([sharepicHalf, textHalf]);
 
-      if (variantsSettled.status === 'fulfilled') {
-        sharepicVariants = variantsSettled.value;
+      // The gate: a refusal from the text model invalidates the whole turn, not
+      // just its own half. Both buffers are dropped so no graphic, no download
+      // button and no success copy survive the refusal.
+      const refusedText =
+        textSettled.status === 'fulfilled' && looksLikeRefusal(textSettled.value.post.text);
+      if (refusedText) {
+        log.warn(
+          '[ChatGraph] social_post: text model refused — discarding sharepic variants and post'
+        );
+        sharepicBuffer.discard();
+        postBuffer.discard();
+        socialPostRefused = true;
+        sse.send('social_post_complete', {
+          message: 'Anfrage abgelehnt',
+          error:
+            'Diese Anfrage kann ich nicht umsetzen — dabei entstünde ein erfundenes Zitat oder eine irreführende Aussage im Namen der Partei.',
+        });
       } else {
+        sharepicBuffer.flush(sse);
+        postBuffer.flush(sse);
+      }
+
+      if (variantsSettled.status === 'fulfilled') {
+        sharepicVariants = refusedText ? [] : variantsSettled.value;
+      } else if (!refusedText) {
         // Mirror the text half below: without this the sharepic simply never
         // arrived and the turn reported success with only the post text.
         log.error('[ChatGraph] social_post sharepic generation failed:', variantsSettled.reason);
@@ -862,12 +909,14 @@ export async function executeIntentPipeline(opts: {
         });
       }
       if (textSettled.status === 'fulfilled') {
-        socialPost = textSettled.value.post;
+        // A refusal is not a post: leaving it on state would persist it as one
+        // and make the router's confirmation line promise a post that isn't there.
+        socialPost = refusedText ? null : textSettled.value.post;
         // Keep the examples retrieval on state so persistence/citations work
         // like the examples flow.
         finalState = {
           ...textSettled.value.state,
-          socialPostResult: socialPost,
+          ...(socialPost && { socialPostResult: socialPost }),
         } as ChatGraphState;
       } else {
         log.error('[ChatGraph] social_post text generation failed:', textSettled.reason);
@@ -1116,5 +1165,5 @@ export async function executeIntentPipeline(opts: {
     }
   }
 
-  return { finalState, generatedImage, sharepicVariants, socialPost };
+  return { finalState, generatedImage, sharepicVariants, socialPost, socialPostRefused };
 }

@@ -4,6 +4,8 @@
  * Subjective quality (groundedness, honesty nuance) is left to the optional LLM
  * judge; these are the mechanical checks the SSE trace can prove on its own.
  */
+import { refusalLanguage } from '../routes/chat/services/refusalDetection.js';
+
 import {
   type AssertionResult,
   type ChatTrace,
@@ -19,6 +21,9 @@ const CAPABILITY_REFUSAL_RE =
 /** Text denies an action (edit/change) — must not appear when ops were applied. */
 const ACTION_DENIAL_RE =
   /konnte (die|das|den|keine?)?\s*\S*\s*(nicht|leider nicht)\s*(ändern|bearbeiten|anpassen|finden)|kann (die|das|den)?\s*\S*\s*nicht (ändern|bearbeiten|anpassen)|leider nicht möglich|keine antwort (finden|gefunden)|nicht durchführen/i;
+/** Text denies having sources the thread demonstrably surfaced earlier. */
+const NO_SOURCES_CLAIM_RE =
+  /\b(?:mir\s+)?liegen?\s+(?:mir\s+)?keine\s+(?:quellen|belege|informationen)\b|\bich\s+habe\s+keine\s+(?:quellen|belege)\b|\bkeine\s+quellen\s+(?:vor|vorliegen|verfügbar)\b/i;
 /** Text claims research/tool work — must not appear when 0 tools ran. */
 const CLAIMED_WORK_RE =
   /ich habe (recherchiert|gesucht|nachgeschlagen|die (quellen|dokumente) (durchsucht|geprüft))|(meine|die) (recherche|suche) (ergab|zeigt|hat ergeben)|laut meiner (suche|recherche)/i;
@@ -194,12 +199,26 @@ export function runAssertions(
     );
   }
 
-  if (expect.generatesSharepic) {
-    results.push(
-      trace.sharepicGenerated
-        ? ok('generatesSharepic')
-        : fail('generatesSharepic', 'no sharepic_complete with variants')
-    );
+  if (expect.generatesSharepic !== undefined) {
+    // `false` is the load-bearing case: it is the only way to state "no graphic
+    // may be produced here". Truthy-gating this check meant the fabricated-quote
+    // sharepic could never have been caught by the corpus.
+    if (expect.generatesSharepic) {
+      results.push(
+        trace.sharepicGenerated
+          ? ok('generatesSharepic')
+          : fail('generatesSharepic', 'no sharepic_complete with variants')
+      );
+    } else {
+      results.push(
+        trace.sharepicGenerated
+          ? fail(
+              'generatesSharepic',
+              `sharepic produced (${trace.sharepicVariants.length} variant(s)) where none is allowed`
+            )
+          : ok('generatesSharepic', 'no sharepic, as required')
+      );
+    }
   }
 
   if (expect.internalOnly) {
@@ -280,6 +299,48 @@ export function runAssertions(
         ? ok('correctsFalsePremise')
         : fail('correctsFalsePremise', 'no negation/correction of the false premise')
     );
+  }
+
+  if (expect.minAnswerChars != null) {
+    const len = trace.fullText.trim().length;
+    results.push(
+      len >= expect.minAnswerChars
+        ? ok('minAnswerChars', `${len} chars`)
+        : fail(
+            'minAnswerChars',
+            `answer is ${len} chars, expected >= ${expect.minAnswerChars} (ghost answer?)`
+          )
+    );
+  }
+
+  if (expect.refusalLanguage != null) {
+    const lang = refusalLanguage(trace.fullText);
+    results.push(
+      lang === null || lang === expect.refusalLanguage
+        ? ok('refusalLanguage', lang === null ? 'not a refusal' : `refused in ${lang}`)
+        : fail('refusalLanguage', `refused in ${lang}, expected ${expect.refusalLanguage}`)
+    );
+  }
+
+  if (expect.retainsPriorSources) {
+    // Either this turn surfaced sources itself, or an earlier turn did and the
+    // answer must not deny having them.
+    const priorSources = (ctx?.priorSourceCount ?? 0) > 0;
+    const deniesSources = NO_SOURCES_CLAIM_RE.test(trace.fullText);
+    if (trace.sources > 0) {
+      results.push(ok('retainsPriorSources', `${trace.sources} citations this turn`));
+    } else if (!priorSources) {
+      results.push(fail('retainsPriorSources', 'no sources in this turn or any earlier turn'));
+    } else {
+      results.push(
+        deniesSources
+          ? fail(
+              'retainsPriorSources',
+              `denies having sources although earlier turns surfaced ${ctx?.priorSourceCount}`
+            )
+          : ok('retainsPriorSources', `${ctx?.priorSourceCount} carried from earlier turns`)
+      );
+    }
   }
 
   if (expect.maxLatencyMs != null) {

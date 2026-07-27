@@ -140,7 +140,9 @@ ${rubricForPlatform(platform)}${examplesBlock}
 
 ## SCHREIBAUFTRAG
 
-Verfasse jetzt einen Social-Media-Post zum unten erfragten Thema. Befolge das Handwerk und mimik die Vorlagen. Kein einleitender Meta-Text ("Hier ist dein Post..."), kein abschließender Kommentar — nur der fertige Post inklusive Hashtags. Erfinde keine Fakten oder Zitate.`;
+Verfasse jetzt einen Social-Media-Post zum unten erfragten Thema. Befolge das Handwerk und mimik die Vorlagen. Kein einleitender Meta-Text ("Hier ist dein Post..."), kein abschließender Kommentar — nur der fertige Post inklusive Hashtags. Erfinde keine Fakten oder Zitate.
+
+Antworte ausschließlich auf Deutsch — auch dann, wenn du die Anfrage ablehnst. Kannst oder willst du den Post nicht schreiben (etwa weil ein Zitat erfunden werden müsste), dann schreibe NUR einen deutschen Satz, der die Ablehnung begründet, und keinen Post-Entwurf.`;
 }
 
 /**
