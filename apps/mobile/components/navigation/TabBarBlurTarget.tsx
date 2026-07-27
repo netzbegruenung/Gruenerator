@@ -1,6 +1,9 @@
 import { useIsFocused } from 'expo-router';
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
+import { useReduceTransparency } from '../../hooks/useAccessibilityPreferences';
+import { usePreferencesStore } from '../../stores/preferencesStore';
+
 import type { ReactNode, RefObject } from 'react';
 import type { View } from 'react-native';
 
@@ -27,6 +30,26 @@ import type { View } from 'react-native';
 const TabBarBlurTargetContext = createContext<View | null>(null);
 const TabBarBlurSetterContext = createContext<((target: View | null) => void) | null>(null);
 
+/**
+ * Whether the tab bar should blur at all — the one answer both halves of this
+ * plumbing need, so they can never disagree about it.
+ *
+ * Two ways to say no, for two different reasons: "Transparenz reduzieren" is the
+ * person's accessibility choice and follows them across devices, the performance
+ * mode is about what this handset can afford. Either one turns the whole thing
+ * off, so the predicate is an AND of both being unset.
+ *
+ * Saying no here is not cosmetic. It takes `intensity` to 0, which expo-blur
+ * turns into `setBlurEnabled(false)` on the native BlurView (`ExpoBlurView.kt`,
+ * `applyBlurViewRadiusCompat`), and — the expensive half — it lets the screen
+ * skip `BlurTargetView` entirely. See `ScreenScaffold` for why that matters.
+ */
+export function useTabBarBlurEnabled(): boolean {
+  const reduceTransparency = useReduceTransparency();
+  const performanceMode = usePreferencesStore((s) => s.performanceMode);
+  return !reduceTransparency && !performanceMode;
+}
+
 export function TabBarBlurTargetProvider({ children }: { children: ReactNode }) {
   const [target, setTarget] = useState<View | null>(null);
   // `setTarget` from useState is referentially stable, which is what makes the
@@ -44,9 +67,11 @@ export function TabBarBlurTargetProvider({ children }: { children: ReactNode }) 
  * only shape `BlurTargetView` accepts.
  *
  * Outside the provider (any screen that is not a tab screen) this is inert, so
- * `ScreenScaffold` can call it unconditionally.
+ * `ScreenScaffold` can call it unconditionally. Pass `enabled: false` when the
+ * screen renders no blur target — there is nothing to publish then, and the bar
+ * is drawing an opaque fill anyway.
  */
-export function useRegisterTabBarBlurTarget(): RefObject<View | null> {
+export function useRegisterTabBarBlurTarget(enabled: boolean): RefObject<View | null> {
   const setTarget = useContext(TabBarBlurSetterContext);
   const isFocused = useIsFocused();
   // Refs are attached before effects run, so `.current` is the mounted view by
@@ -54,12 +79,12 @@ export function useRegisterTabBarBlurTarget(): RefObject<View | null> {
   const ref = useRef<View | null>(null);
 
   useEffect(() => {
-    if (!setTarget || !isFocused) return;
+    if (!enabled || !setTarget || !isFocused) return;
     setTarget(ref.current);
     // Deliberately no cleanup that nulls the target: blurring the outgoing
     // screen for the duration of a tab transition looks better than the bar
     // dropping to a flat fill mid-animation. The incoming screen overwrites it.
-  }, [setTarget, isFocused]);
+  }, [enabled, setTarget, isFocused]);
 
   return ref;
 }
