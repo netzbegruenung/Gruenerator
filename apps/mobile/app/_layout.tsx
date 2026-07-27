@@ -18,6 +18,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 
+import PTSansBold from '../assets/fonts/PTSans-Bold.ttf';
+import PTSansRegular from '../assets/fonts/PTSans-Regular.ttf';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { AppDrawer } from '../components/navigation';
 import { useAppInitialization } from '../hooks/useAppInitialization';
@@ -56,6 +58,10 @@ function RootLayout() {
     Raleway_500Medium,
     Raleway_600SemiBold,
     Raleway_700Bold,
+    // Body font, from the same PT Sans files the API's renderer uses — the
+    // woff/woff2 in apps/web are web-only formats React Native cannot load.
+    'PTSans-Regular': PTSansRegular,
+    'PTSans-Bold': PTSansBold,
   });
 
   useEffect(() => {
