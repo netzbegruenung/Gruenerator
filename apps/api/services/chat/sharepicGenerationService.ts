@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
+import { errorText, isRefusalError } from '../../routes/chat/services/refusalDetection.js';
 import campaignCanvasRouter from '../../routes/sharepic/sharepic_canvas/campaign_canvas.js';
 import dreizeilenCanvasRouter from '../../routes/sharepic/sharepic_canvas/dreizeilen_canvas.js';
 import infoCanvasRouter from '../../routes/sharepic/sharepic_canvas/info_canvas.js';
@@ -32,6 +33,21 @@ import type { Request, Router } from 'express';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const log = createLogger('sharepicGenerat');
+
+/**
+ * A generation that failed vs. one the model DECLINED.
+ *
+ * A refusal used to land as ERROR with a full stack trace, so the safety rules
+ * doing their job looked identical to an outage in monitoring — and the stack
+ * pointed at the generator, which is never the actionable part of a decline.
+ */
+function logGenerationFailure(what: string, error: unknown): void {
+  if (isRefusalError(error)) {
+    log.info(`[SharepicGeneration] ${what} declined — ${errorText(error)}`);
+    return;
+  }
+  log.error(`[SharepicGeneration] Error in ${what}:`, error);
+}
 
 const CAMPAIGNS_ROOT = path.resolve(__dirname, '../../config/campaigns');
 const SAFE_CAMPAIGN_ID_REGEX = /^[A-Za-z0-9_-]+$/;
@@ -697,7 +713,7 @@ const generateDreizeilenWithImageSharepic = async (
       },
     };
   } catch (error) {
-    log.error('[SharepicGeneration] Error in dreizeilen with image:', error);
+    logGenerationFailure('dreizeilen with image', error);
     throw error;
   }
 };
@@ -780,7 +796,7 @@ const generateDreizeilenWithAIImageSharepic = async (
       },
     };
   } catch (error) {
-    log.error('[SharepicGeneration] Error in dreizeilen with AI image:', error);
+    logGenerationFailure('dreizeilen with AI image', error);
     throw error;
   } finally {
     if (sharepicImageManager && sharepicRequestId) {

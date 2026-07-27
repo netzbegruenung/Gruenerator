@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { looksLikeRefusal, refusalLanguage } from './refusalDetection.js';
+import {
+  isRefusalError,
+  looksLikeRefusal,
+  refusalLanguage,
+  REFUSAL_ERROR_PREFIX,
+} from './refusalDetection.js';
 
 describe('looksLikeRefusal', () => {
   it('catches the English boilerplate that shipped a fabricated Kickl sharepic', () => {
@@ -55,5 +60,32 @@ describe('looksLikeRefusal', () => {
     expect(looksLikeRefusal('')).toBe(false);
     expect(looksLikeRefusal('   ')).toBe(false);
     expect(looksLikeRefusal(null as unknown as string)).toBe(false);
+  });
+});
+
+/**
+ * A policy decline is the system working. Logged as ERROR with a stack trace it
+ * was indistinguishable from an outage in monitoring — and the stack pointed at
+ * the generator, never at anything actionable.
+ */
+describe('isRefusalError', () => {
+  it('recognises the error the sharepic handler throws on a decline', () => {
+    const err = new Error(`${REFUSAL_ERROR_PREFIX}Erfundenes Zitat verstößt gegen die Regeln.`);
+    expect(isRefusalError(err)).toBe(true);
+  });
+
+  it('accepts the bare string form too (Promise.allSettled reasons)', () => {
+    expect(isRefusalError(`${REFUSAL_ERROR_PREFIX}Anfrage widerspricht den Werten.`)).toBe(true);
+  });
+
+  it('leaves a real failure classified as a failure', () => {
+    expect(isRefusalError(new Error('ECONNREFUSED 127.0.0.1:6333'))).toBe(false);
+    expect(isRefusalError(new Error('Missing required fields: zitat'))).toBe(false);
+  });
+
+  it('tolerates non-error values', () => {
+    expect(isRefusalError(null)).toBe(false);
+    expect(isRefusalError(undefined)).toBe(false);
+    expect(isRefusalError({ message: 'Ablehnung: nope' })).toBe(false);
   });
 });

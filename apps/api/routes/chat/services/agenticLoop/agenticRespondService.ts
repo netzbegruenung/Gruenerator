@@ -770,7 +770,14 @@ ANTWORTE KONKRET: Steht die Antwort in einer Quelle, dann NENNE SIE im Klartext 
       // observed live as steps=0 answers that offered to do the research the
       // user had just requested. `direct_response` remains the escape hatch
       // (searchTools.ts), so a genuinely tool-free answer is still reachable.
-      looksLikeExplicitResearchOrder(lastUserText);
+      looksLikeExplicitResearchOrder(lastUserText) ||
+      // Same failure without the explicit verb: a plain factual question the
+      // heuristic already classified as retrieval ("wer ist aktuell
+      // Bundeskanzler in Österreich" → web@0.80) was demoted into the loop and
+      // answered with the honesty note instead of a lookup. The classifier's
+      // verdict is the signal; a `direct` question that merely looked toolable
+      // does NOT set this, so follow-ups on carried sources stay tool-free.
+      finalState.loopDemotedFromRetrieval === true;
 
     await runAgenticLoop({
       mode,
