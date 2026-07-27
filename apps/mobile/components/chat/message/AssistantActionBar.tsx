@@ -1,4 +1,4 @@
-import { ActionBarPrimitive } from '@assistant-ui/react-native';
+import { ActionBarPrimitive, useAui } from '@assistant-ui/react-native';
 import { type ChatMessageMetadata } from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { memo, useCallback, useMemo, useState } from 'react';
@@ -9,6 +9,8 @@ import { useNativeTTS } from '../../../hooks/useNativeTTS';
 import { copyToClipboard } from '../../../services/share';
 import { colors, spacing } from '../../../theme';
 import { MessageActionsSheet } from '../MessageActionsSheet';
+
+import { flagRegenerate } from './threadRunSignals';
 
 import type { Theme } from '../../../theme/colors';
 
@@ -43,6 +45,7 @@ export const AssistantActionBar = memo(function AssistantActionBar({
   messageText: string;
   metadata: ChatMessageMetadata;
 }) {
+  const aui = useAui();
   const { state: ttsState, play, stop } = useNativeTTS();
   const [moreVisible, setMoreVisible] = useState(false);
   const target = useMemo(
@@ -53,6 +56,14 @@ export const AssistantActionBar = memo(function AssistantActionBar({
     [messageText, metadata]
   );
   const { exporting, exportDocx, openInDocs } = useMessageActions(target);
+
+  // Same shape as the edit composer's Send: the run has to be flagged as a
+  // regenerate before it starts, and ActionBarPrimitive.Reload takes no
+  // `onPress`, so this calls the `aui.message().reload()` the primitive wraps.
+  const handleReload = useCallback(() => {
+    flagRegenerate();
+    aui.message().reload();
+  }, [aui]);
 
   const handleTTS = useCallback(() => {
     if (ttsState === 'playing') {
@@ -100,9 +111,14 @@ export const AssistantActionBar = memo(function AssistantActionBar({
           color={ttsState === 'playing' ? colors.primary[500] : theme.textSecondary}
         />
       </Pressable>
-      <ActionBarPrimitive.Reload style={styles.button} accessibilityLabel="Neu generieren">
+      <Pressable
+        onPress={handleReload}
+        testID="chat-message-reload"
+        style={styles.button}
+        accessibilityLabel="Neu generieren"
+      >
         <Ionicons name="refresh-outline" size={ICON_SIZE} color={theme.textSecondary} />
-      </ActionBarPrimitive.Reload>
+      </Pressable>
       {messageText ? (
         <>
           <Pressable
