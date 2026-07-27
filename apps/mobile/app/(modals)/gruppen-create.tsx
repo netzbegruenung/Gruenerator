@@ -14,7 +14,15 @@ import {
 } from 'react-native';
 
 import { useCreateGroup } from '../../hooks/useGroups';
-import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../theme';
+import {
+  colors,
+  spacing,
+  typography,
+  borderRadius,
+  lightTheme,
+  darkTheme,
+  BODY_FONT,
+} from '../../theme';
 
 export default function CreateGroupScreen() {
   const colorScheme = useColorScheme();
@@ -128,7 +136,13 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: spacing.medium, gap: spacing.large },
   field: { gap: spacing.xsmall },
-  label: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  label: {
+    fontFamily: BODY_FONT,
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   input: {
     borderWidth: 1,
     borderRadius: borderRadius.medium,

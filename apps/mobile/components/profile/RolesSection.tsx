@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 
 import { fetchRoles, persistRoles } from '../../services/roles';
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 
 export function RolesSection() {
   const colorScheme = useColorScheme();
@@ -173,10 +173,12 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   title: {
+    fontFamily: BODY_FONT,
     fontSize: 18,
     fontWeight: '700',
   },
   description: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     lineHeight: 18,
   },
@@ -201,6 +203,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xsmall,
   },
   emptyButtonText: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -218,6 +221,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.medium,
   },
   cardIcon: {
+    fontFamily: BODY_FONT,
     fontSize: 20,
   },
   cardBody: {
@@ -225,10 +229,12 @@ const styles = StyleSheet.create({
     gap: 1,
   },
   cardTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },
   cardSubtitle: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
   },
   deleteButton: {

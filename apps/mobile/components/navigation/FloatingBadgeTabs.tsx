@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, lightTheme, darkTheme } from '../../theme';
+import { colors, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 
 export interface TabDefinition {
   key: string;
@@ -117,6 +117,7 @@ const styles = StyleSheet.create({
     // backgroundColor set dynamically based on theme
   },
   label: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },

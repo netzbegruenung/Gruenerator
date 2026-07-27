@@ -33,6 +33,7 @@ import {
   borderRadius,
   lightTheme,
   darkTheme,
+  BODY_FONT,
 } from '../../../../theme';
 
 const ICON_CHOICES = [
@@ -463,7 +464,13 @@ const editorStyles = StyleSheet.create({
   title: { ...typography.bodyBold },
   content: { padding: spacing.medium, gap: spacing.large },
   field: { gap: spacing.xsmall },
-  label: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  label: {
+    fontFamily: BODY_FONT,
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   input: {
     borderWidth: 1,
     borderRadius: borderRadius.medium,

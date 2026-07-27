@@ -7,7 +7,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 
 /**
  * A single onboarding page: an animated illustration inside a eucalyptus-tinted
@@ -92,6 +92,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.small,
   },
   subtitle: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
     lineHeight: 24,
     textAlign: 'center',

@@ -14,7 +14,7 @@ import {
 
 import { useUnreadCount } from '../../hooks/useNotifications';
 import { logout } from '../../services/auth';
-import { lightTheme, darkTheme, colors, spacing, borderRadius } from '../../theme';
+import { lightTheme, darkTheme, colors, spacing, borderRadius, BODY_FONT } from '../../theme';
 import { ProfileAvatar } from '../common';
 import { NotificationList } from '../notifications/NotificationList';
 
@@ -219,6 +219,7 @@ const styles = StyleSheet.create({
   },
   triggerBadgeText: {
     color: 'white',
+    fontFamily: BODY_FONT,
     fontSize: 9,
     fontWeight: '700',
   },
@@ -251,10 +252,12 @@ const styles = StyleSheet.create({
     gap: 1,
   },
   headerName: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '700',
   },
   headerEmail: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
   },
   separator: {
@@ -274,6 +277,7 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '500',
   },
