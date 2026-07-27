@@ -89,6 +89,10 @@ export function ClassicTabLayout() {
     <TabBarBlurTargetProvider>
       <Tabs
         screenOptions={{
+          // Explicit rather than leaning on the global `enableFreeze` in the root
+          // layout: this is the navigator where it matters most, and a screen
+          // option survives someone deleting that call by accident.
+          freezeOnBlur: true,
           tabBarActiveTintColor: tint,
           tabBarInactiveTintColor: isDark ? colors.grey[300] : theme.textSecondary,
           // Keeps the bar out of the way while typing instead of stacking it above
