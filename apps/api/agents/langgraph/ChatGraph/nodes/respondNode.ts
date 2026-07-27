@@ -211,6 +211,24 @@ Synthese (NUR zur Orientierung — wiederhole sie nicht):
 ${synthesisPreview}`;
 }
 
+/**
+ * Whether this research turn answers in WRAPPER mode — the retrieved synthesis
+ * is already the answer and the model only frames it in ~2 sentences.
+ *
+ * Exported because the model lane depends on it: framing a finished answer is
+ * Lane-A work, while the fallthrough (synthesising from raw chunks) is not.
+ * Both callers must agree, so the condition lives here once. Safe to call from
+ * the router — it runs `buildSystemMessage` before `resolveModel`, so
+ * `researchMeta` is populated by then.
+ */
+export function usesResearchWrapper(state: ChatGraphState): boolean {
+  return (
+    state.intent === 'research' &&
+    !!state.researchMeta?.answer &&
+    state.researchMeta.confidence !== 'low'
+  );
+}
+
 export async function formatSearchContext(
   state: ChatGraphState,
   includeSourceUrls = false
@@ -219,11 +237,7 @@ export async function formatSearchContext(
   // model writes a thin conversational reference, not a re-synthesis from
   // raw chunks. The tool artifact (researchMeta) is the single source of
   // truth for the answer; the chat reply just frames it.
-  if (
-    state.intent === 'research' &&
-    state.researchMeta?.answer &&
-    state.researchMeta.confidence !== 'low'
-  ) {
+  if (usesResearchWrapper(state) && state.researchMeta) {
     log.info(
       `[Respond] Wrapper-mode (intent=research, confidence=${state.researchMeta.confidence}, citations=${state.researchMeta.citations.length}, answer_len=${state.researchMeta.answer.length})`
     );

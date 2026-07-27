@@ -97,6 +97,25 @@ describe('autoPolicy — lane assignment per task shape', () => {
     }
   });
 
+  it('research in WRAPPER mode frames a finished answer — Small 4, no thinking', () => {
+    // The synthesis is already written and on screen as a card; the model adds
+    // two sentences of framing. Sending that to the think lane produced two
+    // back-to-back first_token_timeouts live (20s each) on a trivial task.
+    for (const complexity of ['simple', 'moderate', 'complex'] as const) {
+      const sel = resolveAutoSelection({ intent: 'research_wrapper', complexity });
+      expect(sel.modelId, complexity).toBe('mistral-small-4');
+      expect(sel.reasoning, complexity).toBe('off');
+    }
+  });
+
+  it('research WITHOUT wrapper mode still synthesises on the Gemma lane', () => {
+    // Fallthrough (low confidence / no retrieved answer) writes prose from raw
+    // chunks — genuinely a different job, and it must not be downgraded.
+    const sel = resolveAutoSelection({ intent: 'research', complexity: 'moderate' });
+    expect(sel.modelId).toBe('gemma-litellm');
+    expect(sel.reasoning).toBe('medium');
+  });
+
   it('short/structured turns take the Small 4 lane', () => {
     // Reporting/summarising over material that is already in context.
     for (const intent of [
