@@ -156,6 +156,44 @@ describe('parseClassifierResponse – typo correction guard', () => {
     expect(result.searchQuery).toBe('Energiewende');
   });
 
+  /**
+   * The live regression: distilling a long question into keywords drops most of
+   * the original words by design. Measured as recall that scored 36% and the
+   * clean query was thrown away — Linkup then received the raw sentence,
+   * "Recherchiere bitte mit Quellen:" preamble and all.
+   */
+  it('keeps a distilled query even when most original words are gone', () => {
+    const original =
+      'Recherchiere bitte mit Quellen: Wie hoch war 2025 der Anteil erneuerbarer Energien am ' +
+      'Stromverbrauch in Österreich, und wie hoch sind die Treibhausgasemissionen Österreichs ' +
+      '(Mio. Tonnen CO2e, letztes verfügbares Jahr)? Nenne Zahlen, Jahr und Quelle mit Link.';
+    const optimized =
+      'Anteil erneuerbarer Energien Stromverbrauch Österreich 2025 Treibhausgasemissionen Österreich CO2e';
+    const llmResponse = JSON.stringify({
+      intent: 'research',
+      searchQuery: optimized,
+      optimizedSearchQuery: optimized,
+      typoAnalysis: { original, corrected: original },
+      reasoning: 'research',
+    });
+    expect(parseClassifierResponse(llmResponse, original).searchQuery).toBe(optimized);
+  });
+
+  it('still rejects a query whose words are not in the question at all', () => {
+    const llmResponse = JSON.stringify({
+      intent: 'search',
+      searchQuery: 'Klimapolitik Bundesregierung',
+      optimizedSearchQuery: 'Klimapolitik Bundesregierung',
+      typoAnalysis: { original: 'Windkraft Tübingen', corrected: 'Klimapolitik Bundesregierung' },
+      reasoning: 'search',
+    });
+    const result = parseClassifierResponse(
+      llmResponse,
+      'Was sagt Müller in Tübingen über Windkraft'
+    );
+    expect(result.searchQuery).not.toBe('Klimapolitik Bundesregierung');
+  });
+
   it('handles single-word query with empty typoAnalysis', () => {
     const llmResponse = JSON.stringify({
       intent: 'search',

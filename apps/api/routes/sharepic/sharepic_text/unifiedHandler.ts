@@ -9,6 +9,7 @@ import {
   truncateAtSentence,
   truncateField,
 } from '../../../utils/sharepic/textParser.js';
+import { REFUSAL_ERROR_PREFIX } from '../../chat/services/refusalDetection.js';
 
 import type { SharepicRequest, PromptConfig } from './types.js';
 import type { Response } from 'express';
@@ -242,7 +243,11 @@ export async function generateUnifiedTexts(
       const declined = content.match(/^\s*ABLEHNUNG:\s*(.+)$/im);
       if (declined) {
         log.warn(`[${type}] Model declined: ${declined[1].trim()}`);
-        return { success: false, status: 400, error: `Ablehnung: ${declined[1].trim()}` };
+        return {
+          success: false,
+          status: 400,
+          error: `${REFUSAL_ERROR_PREFIX}${declined[1].trim()}`,
+        };
       }
 
       let mainData: Record<string, unknown> | string;
