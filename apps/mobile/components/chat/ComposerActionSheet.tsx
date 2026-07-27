@@ -105,6 +105,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
     threadMode,
     selectedNotebookId,
     pinnedConnector,
+    customSystemPrompt,
   } = useAgentStore(
     useShallow((s) => ({
       selectedAgentId: s.selectedAgentId,
@@ -113,6 +114,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
       threadMode: s.threadMode,
       selectedNotebookId: s.selectedNotebookId,
       pinnedConnector: s.pinnedConnector,
+      customSystemPrompt: s.customSystemPrompt,
     }))
   );
   const setSelectedModel = useAgentStore((s) => s.setSelectedModel);
@@ -135,7 +137,13 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
       ? AUTO_MODEL_OPTION.name
       : (models.find((m) => m.id === selectedModel)?.name ?? AUTO_MODEL_OPTION.name);
   const activeDepth = SEARCH_DEPTHS.find((d) => d.mode === searchMode) ?? SEARCH_DEPTHS[0];
-  const activeMode = COMPOSER_MODES.find((m) => m.mode === threadMode) ?? COMPOSER_MODES[0];
+  // Web disables "Eigener Chat" without a custom prompt to fall back on; mobile
+  // never populates one (`useUserProfileStore` is hydrated web-only), so the
+  // entry would produce a body with `agentId: null` and no prompt — which the
+  // server answers with the universal agent, silently. Hidden until mobile
+  // actually carries roles.
+  const modes = COMPOSER_MODES.filter((m) => m.mode !== 'eigener' || customSystemPrompt);
+  const activeMode = modes.find((m) => m.mode === threadMode) ?? modes[0];
   const activeNotebook = notebookMentionables.find((nb) => nb.identifier === selectedNotebookId);
 
   // Every way out returns the sheet to its root, so reopening never lands in the
@@ -223,7 +231,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
 
   const detailRows = (): ReactNode => {
     if (detail === 'mode') {
-      return COMPOSER_MODES.map((mode, i) =>
+      return modes.map((mode, i) =>
         row({
           key: mode.mode,
           icon: MODE_ICONS[mode.icon],
@@ -233,7 +241,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
             setDetail(mode.mode === 'notebook' ? 'notebook' : null);
           },
           selected: threadMode === mode.mode,
-          last: i === COMPOSER_MODES.length - 1,
+          last: i === modes.length - 1,
         })
       );
     }
@@ -257,7 +265,9 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
       const list = detail === 'skills' ? skills : functions;
       return list.map((item, i) =>
         row({
-          key: item.identifier,
+          // `mention`, not `identifier`: eighteen recipes share eight owning-agent
+          // identifiers, so keying on those collides.
+          key: item.mention,
           icon: detail === 'skills' ? 'color-wand-outline' : 'flash-outline',
           title: item.title,
           value: item.description,
