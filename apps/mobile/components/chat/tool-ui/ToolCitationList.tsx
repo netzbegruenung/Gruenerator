@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
     gap: 1,
   },
   title: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '500',
   },
   meta: {

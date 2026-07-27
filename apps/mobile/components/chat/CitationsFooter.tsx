@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xxsmall,
   },
   triggerText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
   },
   item: {
@@ -105,12 +105,12 @@ const styles = StyleSheet.create({
     gap: spacing.xxsmall,
   },
   number: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
   },
   title: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '500',
   },
 });

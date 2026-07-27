@@ -124,8 +124,8 @@ function AssistantToolCallPart(props: ToolCallProps) {
 
 const styles = StyleSheet.create({
   narration: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 20,
     paddingHorizontal: spacing.small,
     marginTop: spacing.xxsmall,
   },

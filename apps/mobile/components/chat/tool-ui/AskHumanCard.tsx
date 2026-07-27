@@ -119,9 +119,9 @@ const styles = StyleSheet.create({
   },
   question: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
-    lineHeight: 19,
+    lineHeight: 21,
   },
   options: {
     flexDirection: 'row',
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   optionText: {
-    fontSize: 13,
+    fontSize: 14,
   },
   inputRow: {
     flexDirection: 'row',
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xsmall,
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    fontSize: 14,
+    fontSize: 15,
   },
   sendButton: {
     padding: spacing.xsmall,
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   answeredLabel: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
   },
   answeredValue: {

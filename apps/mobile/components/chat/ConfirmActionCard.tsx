@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   title: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
   },
   description: {
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   },
   confirmLabel: {
     color: colors.white,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
   },
   cancelButton: {
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   cancelLabel: {
-    fontSize: 13,
+    fontSize: 14,
   },
   badge: {
     flexDirection: 'row',
@@ -235,14 +235,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   badgeText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
   },
   badgeLink: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
   },
   errorText: {
-    fontSize: 13,
+    fontSize: 14,
   },
 });

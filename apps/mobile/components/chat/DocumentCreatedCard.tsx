@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   title: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
   },
   subtype: {
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
   },
   openLabel: {
     color: colors.white,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
   },
 });
