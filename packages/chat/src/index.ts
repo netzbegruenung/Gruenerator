@@ -357,6 +357,17 @@ export {
   type BoardMentionable,
   type DocMentionable,
 } from './lib/mentionables';
+export {
+  slugifyMention,
+  syncBoards,
+  syncCustomAgents,
+  syncDocs,
+  syncMcpServers,
+  syncSheets,
+  syncTextforms,
+  syncUserNotebooks,
+  type MentionableFetch,
+} from './lib/mentionableSync';
 export { INTENT_TO_TOOL, DEEP_TOOL_MAP } from './lib/toolMappings';
 
 // Tool-result parsing & metadata (platform-agnostic; kept in sync with index.native.ts)
