@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { bahnPayloadSchema } from './bahn.js';
 import { canvasTemplateTypeSchema } from './canvasTemplateDescriptors.js';
+import { notebookCitationSchema } from './notebook.js';
 import { socialPostPayloadSchema } from './socialPost.js';
 
 /**
@@ -417,6 +418,46 @@ export type ReelUpdatedEvent = z.infer<typeof reelUpdatedEventSchema>;
  * `completion`, tool results) — those pin only optional fields, so the gate
  * can drop a *malformed* event but never a *richer* one.
  */
+/**
+ * A citation on the `done` event — the ChatGraph/agentic-loop shape
+ * (`apps/api/agents/langgraph/ChatGraph/types.ts`, `Citation`). Distinct from
+ * the notebook flow's `notebookCitationSchema`, which travels on `completion`
+ * and keys its sources as `index: string` with snake_case document fields.
+ * Both were `z.array(z.unknown())` here, which is how two divergent shapes for
+ * the same concept could grow without a single type error.
+ *
+ * TOTAL BY CONSTRUCTION — every field either has a `.catch()` fallback or is
+ * optional, so validation cannot fail. That is not laziness, it is required:
+ * the parser DROPS an event whose schema fails, and dropping `done` costs the
+ * terminal event, which the client then reports as a failed turn. `done` is
+ * also emitted through `sendRaw` in several places (agent graphs, recall loop)
+ * that bypass the typed emitter entirely. So this schema documents and derives
+ * the shape; it must never be the reason an answer is thrown away.
+ */
+const chatCitationBase = z.object({
+  id: z.number().catch(0),
+  title: z.string().catch(''),
+  url: z.string().catch(''),
+  snippet: z.string().catch(''),
+  source: z.string().catch(''),
+  citedText: z.string().optional(),
+  collectionName: z.string().optional(),
+  domain: z.string().optional(),
+  relevance: z.number().optional(),
+  contentType: z.string().optional(),
+  documentId: z.string().optional(),
+  chunkIndex: z.number().optional(),
+  similarityScore: z.number().optional(),
+  collectionId: z.string().optional(),
+  /** Set on fan-out per-document retrieval, so the UI can group source cards
+   *  by the document they answer for. */
+  documentSourceId: z.string().optional(),
+});
+
+export const chatCitationSchema = chatCitationBase.passthrough();
+/** The type the chat UI consumes — derived, never hand-written alongside. */
+export type ChatCitation = z.infer<typeof chatCitationBase>;
+
 export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
   thread_created: z.object({ threadId: z.string() }).passthrough(),
   intent: z
@@ -572,7 +613,7 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
   done: z
     .object({
       threadId: z.string().nullish(),
-      citations: z.array(z.unknown()).optional(),
+      citations: z.array(chatCitationSchema).optional(),
       generatedImage: z.unknown().optional(),
       metadata: flexibleRecord.optional(),
       interrupted: z.boolean().optional(),
@@ -594,7 +635,16 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
     .object({
       text: z.string().optional(),
       answer: z.string().optional(),
-      citations: z.array(z.unknown()).optional(),
+      // `completion` carries BOTH shapes, depending on who emits it: the
+      // notebook stream sends `notebookCitationSchema`, while the citation
+      // clamp on the chat paths (agenticRespondService, chatGraphContractRouter)
+      // sends chat citations. Pinning either one alone would drop the event —
+      // and with it the clamped text — for the other half of the emitters.
+      // Notebook first: it is the discriminating one (`index` is required),
+      // and the chat schema is total, so it would otherwise swallow everything.
+      citations: z
+        .array(z.union([notebookCitationSchema.passthrough(), chatCitationSchema]))
+        .optional(),
     })
     .passthrough(),
   error: chatErrorEventPayloadSchema,

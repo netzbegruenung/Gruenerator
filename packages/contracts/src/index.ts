@@ -22,12 +22,14 @@ export {
   exportsContract,
   recentValuesContract,
   recentActivityContract,
+  contentContract,
   itemUsageContract,
   userUsageContract,
   searchContract,
   globalSearchContract,
   researchContract,
   chatGraphContract,
+  searchGraphContract,
   boardsContract,
   sheetsContract,
   presentationsContract,
@@ -88,12 +90,14 @@ export * from './schemas/textForm.js';
 export * from './schemas/exports.js';
 export * from './schemas/recentValues.js';
 export * from './schemas/recentActivity.js';
+export * from './schemas/content.js';
 export * from './schemas/itemUsage.js';
 export * from './schemas/userUsage.js';
 export * from './schemas/search.js';
 export * from './schemas/globalSearch.js';
 export * from './schemas/research.js';
 export * from './schemas/chatGraph.js';
+export * from './schemas/searchGraph.js';
 export * from './schemas/chatStreamEvents.js';
 export * from './schemas/jobErrors.js';
 export * from './schemas/socialPost.js';

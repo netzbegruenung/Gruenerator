@@ -240,6 +240,27 @@ export async function resolveTarget(
   };
 }
 
+/**
+ * Does this thread hold ANY sharepic that could be edited?
+ *
+ * Deliberately the SAME evidence `resolveTarget` uses (canvas rows + the last 30
+ * assistant messages), so the router's precondition and the handler's target
+ * resolution can never disagree. They used to: the router asked
+ * `getLastSharepicVariant`, which reads only the single most recent assistant
+ * message, so one intervening reply made an existing sharepic invisible.
+ * 'ambiguous' counts as existing — several variants is still a target.
+ */
+export async function threadHasSharepic(threadId: string): Promise<boolean> {
+  try {
+    return (await resolveTarget(threadId, null)) !== null;
+  } catch {
+    // A DB blip must not be read as "no sharepic here" — that answer would
+    // license a fresh creation. Assume a target exists and let the handler,
+    // which resolves properly, decline.
+    return true;
+  }
+}
+
 /** Existing canvas bound to (thread, variant), or null. */
 async function findBoundCanvas(threadId: string, variantId: string): Promise<string | null> {
   const pg = getPostgresInstance();

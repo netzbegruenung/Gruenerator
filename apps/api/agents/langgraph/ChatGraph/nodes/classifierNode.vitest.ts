@@ -5,7 +5,6 @@ import {
   isTabularComputeQuestion,
   isSheetFillRequest,
   detectSocialPlatform,
-  resolveSocialPostEscape,
   nounNearCreateVerb,
   NOUN_TRIGGER_MAX_LENGTH,
 } from './classifierHeuristics.js';
@@ -154,6 +153,44 @@ describe('parseClassifierResponse – typo correction guard', () => {
     });
     const result = parseClassifierResponse(llmResponse, 'Schreib eine PM über Energiewende');
     expect(result.searchQuery).toBe('Energiewende');
+  });
+
+  /**
+   * The live regression: distilling a long question into keywords drops most of
+   * the original words by design. Measured as recall that scored 36% and the
+   * clean query was thrown away — Linkup then received the raw sentence,
+   * "Recherchiere bitte mit Quellen:" preamble and all.
+   */
+  it('keeps a distilled query even when most original words are gone', () => {
+    const original =
+      'Recherchiere bitte mit Quellen: Wie hoch war 2025 der Anteil erneuerbarer Energien am ' +
+      'Stromverbrauch in Österreich, und wie hoch sind die Treibhausgasemissionen Österreichs ' +
+      '(Mio. Tonnen CO2e, letztes verfügbares Jahr)? Nenne Zahlen, Jahr und Quelle mit Link.';
+    const optimized =
+      'Anteil erneuerbarer Energien Stromverbrauch Österreich 2025 Treibhausgasemissionen Österreich CO2e';
+    const llmResponse = JSON.stringify({
+      intent: 'research',
+      searchQuery: optimized,
+      optimizedSearchQuery: optimized,
+      typoAnalysis: { original, corrected: original },
+      reasoning: 'research',
+    });
+    expect(parseClassifierResponse(llmResponse, original).searchQuery).toBe(optimized);
+  });
+
+  it('still rejects a query whose words are not in the question at all', () => {
+    const llmResponse = JSON.stringify({
+      intent: 'search',
+      searchQuery: 'Klimapolitik Bundesregierung',
+      optimizedSearchQuery: 'Klimapolitik Bundesregierung',
+      typoAnalysis: { original: 'Windkraft Tübingen', corrected: 'Klimapolitik Bundesregierung' },
+      reasoning: 'search',
+    });
+    const result = parseClassifierResponse(
+      llmResponse,
+      'Was sagt Müller in Tübingen über Windkraft'
+    );
+    expect(result.searchQuery).not.toBe('Klimapolitik Bundesregierung');
   });
 
   it('handles single-word query with empty typoAnalysis', () => {
@@ -700,19 +737,51 @@ describe('heuristicClassify: social_post intent (EXPERIMENTAL combined post)', (
     expect(result.intent).toBe('examples');
   });
 
-  it('"nur Text" escape hatch keeps the text-only flow', () => {
+  // The "nur Text" / "ohne Text" escape hatches are gone with the combined
+  // post: text-only IS what social_post produces now, so there is nothing left
+  // to escape from, and "ohne Text" no longer buys a sharepic — only the word
+  // does.
+  it('"nur den Text" needs no escape hatch any more — social_post IS the text', () => {
     const result = heuristicClassify('Schreib mir nur den Text für einen Insta-Post zu Tempo 30');
-    expect(result.intent).toBe('examples');
+    expect(result.intent).toBe('social_post');
   });
 
-  it('"ohne Text" escape hatch keeps the sharepic-only flow', () => {
+  it('"ohne Text" no longer conjures a sharepic', () => {
     const result = heuristicClassify('Erstelle einen Instagram-Post ohne Text zu Tempo 30');
-    expect(result.intent).toBe('sharepic');
+    expect(result.intent).toBe('social_post');
   });
 
   it('explicit sharepic wording keeps the shipped sharepic flow (0.93 rule wins)', () => {
     const result = heuristicClassify('Erstelle ein Sharepic für Instagram zu Tempo 30');
     expect(result.intent).toBe('sharepic');
+  });
+
+  // ── The explicit-word rule (product decision, not a heuristic detail) ──
+  // A sharepic is only produced when the user said so. These four cases are the
+  // rule itself; if one of them flips, the rule is broken.
+  it('a plain post ask does NOT become a sharepic', () => {
+    expect(heuristicClassify('Schreib einen Instagram-Post zu Tempo 30').intent).toBe(
+      'social_post'
+    );
+  });
+
+  it('naming a sharepic in a post ask keeps social_post (which carries the half)', () => {
+    expect(heuristicClassify('Schreib einen Instagram-Post mit Sharepic zu Tempo 30').intent).toBe(
+      'social_post'
+    );
+  });
+
+  it('"Grafik" and "Kachel" are not sharepic words', () => {
+    // They mean a chart or a tile at least as often. Routing them to the
+    // sharepic generator was the biggest source of unrequested sharepics.
+    expect(heuristicClassify('Erstelle eine Grafik zur Windkraft').intent).not.toBe('sharepic');
+    expect(heuristicClassify('Mach mir eine Kachel zur Kindergrundsicherung').intent).not.toBe(
+      'sharepic'
+    );
+  });
+
+  it('"Dreizeiler" is a sharepic word', () => {
+    expect(heuristicClassify('Mach mir einen Dreizeiler zum Radverkehr').intent).toBe('sharepic');
   });
 
   it('"Post MIT Sharepic" is the explicit combined ask — stays social_post', () => {
@@ -1020,50 +1089,6 @@ describe('heuristicClassify – fast-path hardening', () => {
   });
   it('does not create a sheet when negated', () => {
     expect(heuristicClassify('Mach daraus bitte keine Tabelle').intent).not.toBe('create_sheet');
-  });
-});
-
-describe('resolveSocialPostEscape', () => {
-  it('routes "nur Text" to examples', () => {
-    expect(resolveSocialPostEscape('nur den text bitte')).toBe('examples');
-    expect(resolveSocialPostEscape('post ohne sharepic')).toBe('examples');
-  });
-
-  it('routes "nur Sharepic" / "ohne Text" to sharepic', () => {
-    expect(resolveSocialPostEscape('nur ein sharepic')).toBe('sharepic');
-    expect(resolveSocialPostEscape('bitte ohne text')).toBe('sharepic');
-  });
-
-  it('returns null for plain creation requests', () => {
-    expect(resolveSocialPostEscape('instagram-post zu tempo 30')).toBe(null);
-  });
-
-  it('inclusion phrasing ("mit Sharepic") is NOT an escape — combined flow', () => {
-    expect(resolveSocialPostEscape('insta-post mit sharepic zu tempo 30')).toBe(null);
-    expect(resolveSocialPostEscape('post mit einem passenden sharepic')).toBe(null);
-    expect(resolveSocialPostEscape('tweet inklusive spruchbild')).toBe(null);
-  });
-
-  it('unambiguous text-only nouns escape to examples without a "nur"', () => {
-    expect(resolveSocialPostEscape('gib mir den wortlaut für insta')).toBe('examples');
-    expect(resolveSocialPostEscape('post als bildunterschrift')).toBe('examples');
-    expect(resolveSocialPostEscape('reiner text bitte')).toBe('examples');
-  });
-
-  it('compound "-text" nouns (Posttext, Beitragstext, Social-Media-Text) escape to examples', () => {
-    expect(resolveSocialPostEscape('schreib mir den posttext zu tempo 30')).toBe('examples');
-    expect(resolveSocialPostEscape('beitragstext für facebook')).toBe('examples');
-    expect(resolveSocialPostEscape('beitragsstext zur verkehrswende')).toBe('examples');
-    expect(resolveSocialPostEscape('social-media-text über x')).toBe('examples');
-    expect(resolveSocialPostEscape('post-text bitte')).toBe('examples');
-  });
-
-  it('a bare "Text" stays combined (needs a "nur"/"reine" qualifier)', () => {
-    expect(resolveSocialPostEscape('schreib einen text für einen insta-post')).toBe(null);
-  });
-
-  it('exclusionary sharepic wording still escapes despite inclusion words elsewhere', () => {
-    expect(resolveSocialPostEscape('nur ein sharepic mit sonnenblume')).toBe('sharepic');
   });
 });
 

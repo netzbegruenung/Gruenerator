@@ -78,12 +78,15 @@ function appendFailureText(
   status: ReturnType<typeof errorStatus>
 ): ChatModelRunResult {
   const previous = lastResult?.content ?? [];
+  // The status alone renders MessagePrimitive.Error (the red banner with its
+  // retry button), so appending the same sentence as a text part showed every
+  // failure TWICE — bold in the message and again in the banner. Keep the
+  // banner, which is the one with the retry affordance; only append the text
+  // when there is a partial answer it needs to annotate.
+  if (previous.length === 0) return { ...lastResult, content: previous, status };
   return {
     ...lastResult,
-    content: [
-      ...previous,
-      { type: 'text' as const, text: previous.length > 0 ? `\n\n${text}` : text },
-    ],
+    content: [...previous, { type: 'text' as const, text: `\n\n${text}` }],
     status,
   };
 }

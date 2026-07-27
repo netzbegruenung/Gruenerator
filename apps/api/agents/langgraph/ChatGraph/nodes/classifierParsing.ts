@@ -28,6 +28,20 @@ const log = createLogger('ChatGraph:Classifier');
  * dem ich") on purpose: a bare "reel"/"video" would grab reel CREATION and the
  * reel_edit turns, which are separate branches.
  */
+/**
+ * References to THIS conversation rather than an earlier one ("vorhin", "in
+ * diesem Chat", "deine letzte Antwort"). Those need no retrieval at all — the
+ * messages are already in context.
+ *
+ * Live failure this guards: "Du hast meine Frage nach dem Bundeskanzler vorhin
+ * nicht beantwortet … was war meine allererste Frage in diesem Chat?" was
+ * classified `chat_history`, ran a Qdrant recall over PAST threads, got 0 hits
+ * and answered that no sources were available — while the answer sat a few
+ * messages above.
+ */
+export const CURRENT_THREAD_REFERENCE =
+  /\b(?:vorhin|eben\s+gerade|gerade\s+eben|weiter\s+oben|hier\s+im\s+chat|in\s+diesem\s+(?:chat|gespräch|thread|verlauf)|dieses\s+gespräch[s]?|deine[rn]?\s+(?:letzte|vorherige|obige)[rn]?\s+antwort|meine\s+(?:erste|allererste|letzte)\s+frage)\b/i;
+
 export const CHAT_HISTORY_KEYWORDS =
   /\b(letzte[sn]?\s+gespräch|vorher\s+besprochen|letzte\s+woche|gestern\s+besprochen|was\s+haben\s+wir|erinnere?\s+dich|wir\s+hatten|früheres?\s+chat|voriges?\s+gespräch|damals\s+besprochen|da\s+weiter|wo\s+wir\s+aufgehört|mein(e|en)?\s+(dokument|präsentation|tabelle|notiz|antrag|board|kanban|tafel|reel|video|clip)|meine\s+(dokumente|präsentationen|tabellen|notizen|boards|reels|videos|clips)|die\s+tabelle\s+die\s+ich|das\s+dokument\s+das\s+ich|das\s+board\s+das\s+ich|das\s+(reel|video)\s+(das\s+ich|zu(m)?\s|über)|welches\s+(reel|video)|in\s+welchem\s+(reel|video))\b/i;
 
@@ -160,6 +174,15 @@ export function parseClassifierResponse(
       );
     }
 
+    // The model contradicting itself: it answered "yes, this needs research"
+    // and then picked the one intent under which nothing is ever looked up.
+    // Loud on purpose — for the field's whole lifetime this was invisible.
+    if (parsed.needsResearch === true && parsed.intent === 'direct') {
+      log.warn(
+        `[Classifier] needsResearch=true but intent=direct — the turn will be forced to call a tool. Reasoning: ${parsed.reasoning}`
+      );
+    }
+
     // Defensive upgrade: the LLM sometimes calls a clear past-conversation
     // reference "direct". If the text plainly points at an earlier chat, route
     // it to the chat_history tool instead.
@@ -186,29 +209,41 @@ export function parseClassifierResponse(
         ? parsed.optimizedSearchQuery || parsed.searchQuery || userContent
         : null;
 
-      // Defense-in-depth: detect if typoAnalysis corrupted the search query
-      // If >40% of original significant words were lost, the LLM likely hallucinated
-      // a "correction" for proper nouns it didn't recognize
+      // Defense-in-depth: detect if typoAnalysis corrupted the search query.
+      // The LLM sometimes "corrects" a proper noun it doesn't recognise —
+      // "Stocker" → "Stocher" — and the search then looks for a person who
+      // doesn't exist.
+      //
+      // Measured as PRECISION (how much of the QUERY is backed by the original),
+      // not recall (how much of the original survived). Recall punished exactly
+      // what query optimisation is supposed to do: a good query drops the
+      // filler. Live, "Recherchiere bitte mit Quellen: Wie hoch war 2025 der
+      // Anteil erneuerbarer Energien …" distilled to a clean 12-word query,
+      // scored 36% recall, was thrown away — and the raw sentence, preamble and
+      // all, went to Linkup instead. A corrupted word has no counterpart in the
+      // original and therefore shows up here; a dropped word does not.
       if (effectiveSearchQuery && parsed.typoAnalysis && isSearchIntent) {
-        const originalWords = userContent
-          .toLowerCase()
-          .split(/\s+/)
-          .filter((w) => w.length > 3);
-        const queryWords = effectiveSearchQuery
-          .toLowerCase()
-          .split(/\s+/)
-          .filter((w) => w.length > 3);
-        const preserved = originalWords.filter((w) =>
-          queryWords.some((qw) => qw.includes(w) || w.includes(qw))
+        const significant = (s: string): string[] =>
+          s
+            .toLowerCase()
+            .split(/\s+/)
+            .map((w) => w.replace(/[^\p{L}\p{N}]/gu, ''))
+            .filter((w) => w.length > 3);
+        const originalWords = significant(userContent);
+        const queryWords = significant(effectiveSearchQuery);
+        const backed = queryWords.filter((qw) =>
+          originalWords.some((w) => qw.includes(w) || w.includes(qw))
         );
-        const preservedRatio =
-          originalWords.length > 0 ? preserved.length / originalWords.length : 1;
+        const backedRatio = queryWords.length > 0 ? backed.length / queryWords.length : 1;
 
-        if (preservedRatio < 0.6) {
+        // Same 0.6 bar as before — only what it measures changed. Keeping the
+        // number means a single corrected proper noun in a three-word query
+        // (0.67) still passes, exactly as it did under the old ratio.
+        if (backedRatio < 0.6) {
           const fallback = extractSearchTopic(userContent);
           log.warn(
             `[Classifier] Typo correction may have corrupted query: "${effectiveSearchQuery}" ` +
-              `(only ${Math.round(preservedRatio * 100)}% words preserved). ` +
+              `(only ${Math.round(backedRatio * 100)}% of its words appear in the question). ` +
               `Falling back to: "${fallback}"`
           );
           effectiveSearchQuery = fallback;
@@ -285,6 +320,7 @@ export function parseClassifierResponse(
         filters,
         reasoning: (parsed.reasoning || 'LLM classification') + suffix,
         contentType: parsed.contentType || null,
+        needsResearch: parsed.needsResearch === true,
         documentSubtype: validDocumentSubtype,
         targetGroupName: parsed.targetGroupName || null,
       };

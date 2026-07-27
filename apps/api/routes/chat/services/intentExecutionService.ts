@@ -20,6 +20,7 @@ import {
   computeNode,
   buildCitations,
 } from '../../../agents/langgraph/ChatGraph/index.js';
+import { hasExplicitSharepicWord } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { partitionSearchErrors } from '../../../agents/langgraph/ChatGraph/types.js';
 import { env } from '../../../config/env.js';
 import { type ExpressRequest as SharepicExpressRequest } from '../../../services/chat/sharepicGenerationService.js';
@@ -27,6 +28,7 @@ import { createRecurringTask } from '../../../services/recurringTasks/recurringT
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { needsThreadGrounding } from './agenticLoop/routing.js';
 import { resolveSharepicAuthorName } from './artifactGeneration.js';
 import {
   BOARD_SPEC,
@@ -52,6 +54,7 @@ import {
 } from './pastChatRecallService.js';
 import { pendingActionStore } from './pendingActionStore.js';
 import { resolveReferentialTopic } from './referentialTopic.js';
+import { looksLikeRefusal } from './refusalDetection.js';
 import {
   detectPreferredVariant,
   generateSharepicVariants,
@@ -59,10 +62,20 @@ import {
   type SharepicVariant,
 } from './sharepicVariantHelpers.js';
 import { generateSliderDeckVariant } from './sliderDeckService.js';
-import { PROGRESS_MESSAGES, sendChatWarning, sendSearchDegradedWarning } from './sseHelpers.js';
-import { createMessage, touchThread } from './threadPersistenceService.js';
+import {
+  createDeferredSSE,
+  PROGRESS_MESSAGES,
+  sendChatWarning,
+  sendSearchDegradedWarning,
+} from './sseHelpers.js';
+import {
+  createMessage,
+  getKeptResearchForRetry,
+  getRecentThreadSources,
+  touchThread,
+} from './threadPersistenceService.js';
 
-import type { SSEWriter, SearchResultPayload } from './sseHelpers.js';
+import type { SSEEmitter, SSEWriter, SearchResultPayload } from './sseHelpers.js';
 import type {
   ChatGraphState,
   GeneratedImageResult,
@@ -589,8 +602,15 @@ export async function runSharepicGeneration(opts: {
   req?: Request | undefined;
   threadId?: string | null;
   sharepicRefinement?: { instruction: string; prior: PriorSharepic };
+  /**
+   * Receives `sharepic_complete` instead of the live stream. The social_post
+   * branch passes a buffer so the graphic can still be revoked if the text half
+   * turns out to be a refusal (fabricated-quote gate).
+   */
+  emitTo?: SSEEmitter;
 }): Promise<SharepicVariant[]> {
   const { state, sse } = opts;
+  const emit = opts.emitTo ?? sse;
   try {
     const lastMsg = state.messages?.[state.messages.length - 1];
     const rawText = lastMsg ? extractTextContent(lastMsg.content) : '';
@@ -643,26 +663,74 @@ export async function runSharepicGeneration(opts: {
     }
 
     if (variants.length === 0) {
-      sse.send('sharepic_complete', {
+      emit.send('sharepic_complete', {
         message: 'Sharepic-Erstellung fehlgeschlagen',
         variants: [],
         error: 'All variant generations failed',
       });
       return [];
     }
-    sse.send('sharepic_complete', {
+    emit.send('sharepic_complete', {
       message: `${variants.length} Sharepic-Varianten erstellt`,
       variants,
     });
     return variants;
   } catch (error) {
     log.error('[ChatGraph] Sharepic variant generation failed:', error);
-    sse.send('sharepic_complete', {
+    emit.send('sharepic_complete', {
       message: 'Sharepic-Erstellung fehlgeschlagen',
       variants: [],
       error: toUserFacingMessage(error, 'Unknown error'),
     });
     return [];
+  }
+}
+
+/**
+ * Ground a vague continuation on the research this thread already paid for.
+ *
+ * A `direct` turn skips the whole retrieval block in executeIntentPipeline, so
+ * "Mehr dazu bitte" after a sourced answer arrived with NO sources — and the
+ * model regenerated from its own previous prose: ungrounded, uncitable, and to
+ * the reader indistinguishable from research. Same helper and same reasoning
+ * the agentic loop (agenticRespondService) and the artifact-creating turns
+ * (createTurn) already use.
+ *
+ * Called AFTER the intent loop, never as a branch inside it: a `direct` turn
+ * with a secondaryIntent runs two iterations, and a branch would carry sources
+ * on the first only to have the real search overwrite them on the second.
+ *
+ * Self-limiting: a thread with no prior research returns [] and this is a
+ * no-op, so the extra query only ever buys something on turns that were about
+ * those sources. Never throws — an ungrounded answer beats a 500.
+ *
+ * Note the carried sources are re-persisted as THIS turn's searchResults, which
+ * extends how far back getRecentThreadSources reaches in a long continuation
+ * thread. That is a memory horizon, not a correctness bug, but it is why the
+ * predicate demands an anaphor: topical continuity is the licence.
+ */
+export async function carryThreadSourcesIfNeeded(
+  state: ChatGraphState,
+  threadId: string | null
+): Promise<ChatGraphState> {
+  if (state.intent !== 'direct' || state.searchResults.length > 0 || !threadId) return state;
+  const lastUser = [...state.messages].reverse().find((m) => m.role === 'user');
+  if (!needsThreadGrounding(lastUser ? extractTextContent(lastUser.content) : '')) return state;
+  try {
+    // 6, not the default 10: a continuation asks for depth on a known topic,
+    // not a fresh dossier.
+    const carried = await getRecentThreadSources(threadId, 6);
+    if (carried.length === 0) return state;
+    log.info(`[Direct] grounded on ${carried.length} prior source(s) from this thread`);
+    return {
+      ...state,
+      searchResults: carried,
+      citations: buildCitations(carried),
+      sourcesCarriedFromThread: true,
+    };
+  } catch (err) {
+    log.warn(`[Direct] source carry skipped: ${err instanceof Error ? err.message : err}`);
+    return state;
   }
 }
 
@@ -683,6 +751,12 @@ export async function executeIntentPipeline(opts: {
   sharepicVariants: SharepicVariant[];
   /** Text half of the EXPERIMENTAL social_post intent; null otherwise. */
   socialPost: SocialPostPayload | null;
+  /** The text model refused: no post, no sharepic, and no success copy. */
+  socialPostRefused: boolean;
+  /** Whether that refusal is backed by a POLICY decline (the sharepic half
+   *  declined too) rather than only by the text half failing. Drives which
+   *  explanation the turn's answer gives — see the gate for the reasoning. */
+  socialPostRefusalIsPolicy: boolean;
 }> {
   const { classifiedState, sse, forcedTool, enabledTools, imageAttachments } = opts;
 
@@ -690,6 +764,8 @@ export async function executeIntentPipeline(opts: {
   let generatedImage: GeneratedImageResult | null = null;
   let sharepicVariants: SharepicVariant[] = [];
   let socialPost: SocialPostPayload | null = null;
+  let socialPostRefused = false;
+  let socialPostRefusalIsPolicy = false;
 
   // Build ordered list of intents to execute (primary first, then secondary).
   // social_post handles pasted URLs inline BEFORE text generation — a
@@ -771,23 +847,42 @@ export async function executeIntentPipeline(opts: {
         ...(opts.sharepicRefinement && { sharepicRefinement: opts.sharepicRefinement }),
       });
     } else if (currentIntent === 'social_post') {
-      // EXPERIMENTAL combined post: sharepic variants + platform text run in
-      // parallel; each half emits its SSE event as soon as it resolves (text
-      // usually lands first, so the card shows it while thumbnails render).
-      // Agents with sharepic disabled degrade to text-only; a failed text
-      // half degrades to plain sharepic behavior (the error payload on
-      // social_post_complete tells the card).
-      const sharepicEnabled = forcedTool || enabledTools?.['sharepic'] !== false;
+      // A post is TEXT ONLY unless the user named a sharepic ("Post mit
+      // Sharepic"). Producing a branded graphic for every "schreib einen
+      // Insta-Post zu X" was the largest source of sharepics nobody asked for.
+      // When a sharepic IS wanted, both halves run in parallel and each emits
+      // its SSE event as soon as it resolves (text usually lands first, so the
+      // card shows it while thumbnails render).
+      //
+      // Read from finalState.messages, not from the router's
+      // lastUserTextNoMentions: the resume path appends the answered
+      // clarification as a NEW user message (resumePipeline), so the original
+      // "mit Sharepic" wording is still the last user turn there and that path
+      // needs no separate handling.
+      const sharepicToolAllowed = forcedTool || enabledTools?.['sharepic'] !== false;
+      const lastUserMsg = [...finalState.messages].reverse().find((m) => m.role === 'user');
+      const wantsSharepic =
+        sharepicToolAllowed &&
+        hasExplicitSharepicWord(lastUserMsg ? extractTextContent(lastUserMsg.content) : '');
       sse.send('image_start', {
-        message: sharepicEnabled ? 'Texte und gestalte deinen Post...' : 'Texte deinen Post...',
+        message: wantsSharepic ? 'Texte und gestalte deinen Post...' : 'Texte deinen Post...',
       });
 
-      const sharepicHalf: Promise<SharepicVariant[]> = sharepicEnabled
+      // The sharepic half streams `sharepic_complete` itself, so its output is
+      // buffered until the text half is known: a graphic must never ship when
+      // the text model refused the request (live: an invented Kickl quote with
+      // an invented ORF source rendered in party design while the text said
+      // "I'm sorry, but I can't help with that"). Buffering keeps both halves
+      // parallel — the gate costs no latency, only revocability.
+      const sharepicBuffer = createDeferredSSE();
+      const postBuffer = createDeferredSSE();
+      const sharepicHalf: Promise<SharepicVariant[]> = wantsSharepic
         ? runSharepicGeneration({
             state: finalState,
             sse,
             req: opts.req,
             threadId: opts.threadId ?? null,
+            emitTo: sharepicBuffer,
           })
         : Promise.resolve([]);
 
@@ -840,7 +935,7 @@ export async function executeIntentPipeline(opts: {
           urlContext,
           ...(opts.req && { req: opts.req }),
         });
-        sse.send('social_post_complete', {
+        postBuffer.send('social_post_complete', {
           message: `${post.platform === 'generic' ? 'Social-Media' : post.platform}-Post erstellt`,
           post,
         });
@@ -849,9 +944,56 @@ export async function executeIntentPipeline(opts: {
 
       const [variantsSettled, textSettled] = await Promise.allSettled([sharepicHalf, textHalf]);
 
-      if (variantsSettled.status === 'fulfilled') {
-        sharepicVariants = variantsSettled.value;
+      // The gate: a refusal from the text model invalidates the whole turn, not
+      // just its own half. Both buffers are dropped so no graphic, no download
+      // button and no success copy survive the refusal.
+      const refusedText =
+        textSettled.status === 'fulfilled' && looksLikeRefusal(textSettled.value.post.text);
+      // WHY the text model declined is not something `looksLikeRefusal` can
+      // tell us — it only sees that it declined. The sharepic half ran the SAME
+      // request through its own ABLEHNUNG channel, so its outcome is the one
+      // piece of evidence available: both halves declining is a policy problem,
+      // while a text-only decline beside working variants is usually a broken
+      // task (live: an unresolvable "Jetzt eine Version davon auf Englisch."
+      // made the composer answer "ich kann keinen Post erstellen …", which was
+      // then shown to the user as a refusal about FABRICATED QUOTES — a reason
+      // that had nothing to do with the request).
+      //
+      // The gate itself does NOT change: both halves are discarded either way,
+      // because a text refusal beside a rendered sharepic is exactly the
+      // disinformation case this was built for. Only the explanation adapts to
+      // what is actually known.
+      //
+      // No sharepic half ⇒ no second opinion on the same request ⇒ no evidence
+      // that this was a policy decision. `wantsSharepic` is load-bearing here:
+      // without it a text-only post would report EVERY refusal as a fabricated
+      // quote, which is precisely the false accusation described above.
+      const sharepicAlsoDeclined =
+        wantsSharepic &&
+        (variantsSettled.status !== 'fulfilled' || variantsSettled.value.length === 0);
+      if (refusedText) {
+        log.warn(
+          `[ChatGraph] social_post: text model refused — discarding sharepic variants and post ` +
+            `(sharepicAlsoDeclined=${sharepicAlsoDeclined})`
+        );
+        sharepicBuffer.discard();
+        postBuffer.discard();
+        socialPostRefused = true;
+        socialPostRefusalIsPolicy = sharepicAlsoDeclined;
+        sse.send('social_post_complete', {
+          message: sharepicAlsoDeclined ? 'Anfrage abgelehnt' : 'Post nicht erstellt',
+          error: sharepicAlsoDeclined
+            ? 'Diese Anfrage kann ich nicht umsetzen — dabei entstünde ein erfundenes Zitat oder eine irreführende Aussage im Namen der Partei.'
+            : 'Daraus konnte ich keinen Post erzeugen. Sag mir bitte konkret, worum es gehen soll — oder worauf du dich beziehst.',
+        });
       } else {
+        sharepicBuffer.flush(sse);
+        postBuffer.flush(sse);
+      }
+
+      if (variantsSettled.status === 'fulfilled') {
+        sharepicVariants = refusedText ? [] : variantsSettled.value;
+      } else if (!refusedText) {
         // Mirror the text half below: without this the sharepic simply never
         // arrived and the turn reported success with only the post text.
         log.error('[ChatGraph] social_post sharepic generation failed:', variantsSettled.reason);
@@ -862,12 +1004,14 @@ export async function executeIntentPipeline(opts: {
         });
       }
       if (textSettled.status === 'fulfilled') {
-        socialPost = textSettled.value.post;
+        // A refusal is not a post: leaving it on state would persist it as one
+        // and make the router's confirmation line promise a post that isn't there.
+        socialPost = refusedText ? null : textSettled.value.post;
         // Keep the examples retrieval on state so persistence/citations work
         // like the examples flow.
         finalState = {
           ...textSettled.value.state,
-          socialPostResult: socialPost,
+          ...(socialPost && { socialPostResult: socialPost }),
         } as ChatGraphState;
       } else {
         log.error('[ChatGraph] social_post text generation failed:', textSettled.reason);
@@ -921,8 +1065,11 @@ export async function executeIntentPipeline(opts: {
         const dateFrom = finalState.detectedFilters?.date_from;
         const dateTo = finalState.detectedFilters?.date_to;
         // Space scope: restrict recall to the current Space's chats + roster.
+        // null ist hier der definierte Normalfall — ein Thread ohne Space
+        // liefert ihn ohnehin.
         const spaceScope = opts.threadId
-          ? await getSpaceRecallScope(opts.threadId, userId).catch(() => null)
+          ? // swallow-ok: scheitert die Einengung, sucht der Recall ungescopet weiter statt den Turn abzubrechen
+            await getSpaceRecallScope(opts.threadId, userId).catch(() => null)
           : null;
         const [rawChats, rawOfficeDocs, rawReels] = await Promise.all([
           recallPastChats(userId, query, {
@@ -999,8 +1146,36 @@ export async function executeIntentPipeline(opts: {
       const toolEnabled = forcedTool || enabledTools?.[currentIntent] !== false;
       if (toolEnabled) {
         let searchInputState = finalState;
+
+        // A retry of a research turn whose GENERATION failed: the sources are
+        // already on the thread. Re-running Linkup costs ~17s and a paid call
+        // to answer the identical question a second time (observed live, 36s
+        // after the sources had been persisted). Checked before the brief
+        // generator so the whole retrieval half is skipped, not just the search.
+        const reused =
+          currentIntent === 'research' && finalState.threadId
+            ? // swallow-ok: reine Ersparnis — scheitert sie, läuft die Recherche normal durch, teurer aber richtig
+              await getKeptResearchForRetry(
+                finalState.threadId,
+                finalState.searchQuery ?? ''
+              ).catch(() => null)
+            : null;
+        if (reused) {
+          log.info(
+            `[Research] Reusing ${reused.searchResults.length} source(s) kept from the failed attempt — skipping the repeat Linkup run`
+          );
+          searchInputState = {
+            ...finalState,
+            searchResults: reused.searchResults,
+            citations: buildCitations(reused.searchResults),
+            ...(reused.researchMeta && { researchMeta: reused.researchMeta }),
+          } as ChatGraphState;
+        }
+
         const willGenerateBrief =
-          ['complex', 'moderate'].includes(finalState.complexity) && currentIntent === 'research';
+          !reused &&
+          ['complex', 'moderate'].includes(finalState.complexity) &&
+          currentIntent === 'research';
         const briefStepId = willGenerateBrief ? `brief_${Date.now()}` : null;
         if (willGenerateBrief && briefStepId) {
           // brief generator is a silent LLM call (~1–3s); ping so the UI doesn't
@@ -1028,14 +1203,16 @@ export async function executeIntentPipeline(opts: {
         }
 
         const isDeepResearch = currentIntent === 'research';
-        sse.send('search_start', {
-          message: isDeepResearch
-            ? 'Tiefgehende Recherche läuft (mehrere Quellen, dauert ca. 15–20s)…'
-            : PROGRESS_MESSAGES.searchStart,
-          ...(finalState.subQueries?.length && { subQueries: finalState.subQueries }),
-        });
+        if (!reused) {
+          sse.send('search_start', {
+            message: isDeepResearch
+              ? 'Tiefgehende Recherche läuft (mehrere Quellen, dauert ca. 15–20s)…'
+              : PROGRESS_MESSAGES.searchStart,
+            ...(finalState.subQueries?.length && { subQueries: finalState.subQueries }),
+          });
+        }
 
-        if (isDeepResearch) {
+        if (isDeepResearch && !reused) {
           searchInputState = {
             ...searchInputState,
             onResearchProgress: (message: string) => {
@@ -1043,7 +1220,9 @@ export async function executeIntentPipeline(opts: {
             },
           } as ChatGraphState;
         }
-        const searchResult = await searchNode(searchInputState);
+        // Reused sources ARE the search result — running the node would issue the
+        // very Linkup call this branch exists to avoid.
+        const searchResult = reused ? {} : await searchNode(searchInputState);
         finalState = { ...searchInputState, ...searchResult } as ChatGraphState;
 
         if (finalState.searchResults?.length > 2) {
@@ -1116,5 +1295,14 @@ export async function executeIntentPipeline(opts: {
     }
   }
 
-  return { finalState, generatedImage, sharepicVariants, socialPost };
+  finalState = await carryThreadSourcesIfNeeded(finalState, opts.threadId ?? null);
+
+  return {
+    finalState,
+    generatedImage,
+    sharepicVariants,
+    socialPost,
+    socialPostRefused,
+    socialPostRefusalIsPolicy,
+  };
 }

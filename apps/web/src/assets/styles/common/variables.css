@@ -7,7 +7,7 @@
     /* Base Colors */
     --black: #000000;
     --white: #ffffff;
-    
+
     /* Primary Color System (Phtalo Green) - Primary digital interaction color */
     --primary-50: #F0F8F4;
     --primary-100: #D8F0E6;
@@ -33,7 +33,7 @@
     --secondary-800: #31453C;
     --secondary-900: #1E2A25;
     --secondary-950: #0B0F0D;
-    
+
     /* Grey Color System */
     --grey-50: #f9f9f9;
     --grey-100: #efefef;
@@ -46,12 +46,12 @@
     --grey-800: #3a3a3a;
     --grey-900: #2e2e2e;
     --grey-950: #262626;
-    
+
     /* Neutral Color System ("Sand") - Backgrounds and subtle hover */
     --neutral-500: #f8f4ec;
     --neutral-600: #F5F1E9;  /* Base "Sand" color */
     --neutral-700: #e8e0d4;
-    
+
     /* Semantic color mapping based on brand guidelines */
     --eucalyptus: var(--secondary-600);  /* Eucalyptus - secondary color */
 
@@ -102,7 +102,7 @@
     --overlay-dark-sm: rgba(0, 0, 0, 0.4);
     --overlay-dark-md: rgba(0, 0, 0, 0.65);
     --overlay-dark-lg: rgba(0, 0, 0, 0.85);
-    
+
     --spacing-xxsmall: 4px;
     --spacing-xsmall: 8px;
     --spacing-small: 12px;
@@ -110,7 +110,7 @@
     --spacing-large: 24px;
     --spacing-xlarge: 32px;
     --spacing-xxlarge: 48px;
-    
+
     /* Responsive spacing multipliers */
     --spacing-multiplier: 1;
     --spacing-responsive-xxsmall: calc(var(--spacing-xxsmall) * var(--spacing-multiplier));
@@ -132,7 +132,7 @@
 
     /* Safe Area - computed from layout dimensions */
     --safe-area-top: var(--header-height);
-    
+
     --interactive-accent-color: var(--secondary-600);
     --font-color-disabled: var(--grey-400);
     --font-color-secondary: var(--grey-500);
@@ -244,9 +244,9 @@
     --color-accent-hover-val: #3d8225;
     --color-destructive-val: #dc2626;
 
-    /* Code Blocks */
-    --color-code-block-bg-val: #111827;
-    --color-code-block-fg-val: #e5e7eb;
+    /* Code Blocks — matches Shiki's github-light background (see shikiHighlight.ts) */
+    --color-code-block-bg-val: #f6f8fa;
+    --color-code-block-fg-val: #24292e;
     --color-code-inline-bg-val: #f3f4f6;
 
     /* Error */
@@ -404,7 +404,9 @@
     --color-popover-val: #242424;
     --color-popover-foreground-val: #e5e5e5;
 
-    /* Code Blocks */
+    /* Code Blocks — dark-mode override (light-mode value set above) */
+    --color-code-block-bg-val: #111827;
+    --color-code-block-fg-val: #e5e7eb;
     --color-code-inline-bg-val: #1f2937;
 
     /* Error */
@@ -551,6 +553,8 @@
         --color-card-foreground-val: #e5e5e5;
         --color-popover-val: #242424;
         --color-popover-foreground-val: #e5e5e5;
+        --color-code-block-bg-val: #111827;
+        --color-code-block-fg-val: #e5e7eb;
         --color-code-inline-bg-val: #1f2937;
         --color-error-bg-val: rgba(153,27,27,0.2);
         --color-badge-purple-val: #c4b5fd;
@@ -668,7 +672,7 @@ button {
 @media (max-width: 768px) {
     .container {
         flex-direction: column;
-        margin-top: 0; 
+        margin-top: 0;
         margin-bottom: 0px;
     }
 }

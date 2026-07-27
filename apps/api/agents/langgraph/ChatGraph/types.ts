@@ -516,6 +516,46 @@ export interface ChatGraphInput {
  * Streaming is handled by the controller via @ai-sdk/langchain adapter.
  */
 export interface ChatGraphState {
+  /**
+   * The search query was inherited from a prior turn because this turn's ask was
+   * referential ("recherchiere das jetzt im Web"). Caps the research confidence:
+   * an inherited subject is an inference, not the user's literal question.
+   */
+  searchQueryInherited?: boolean | undefined;
+
+  /**
+   * The material of this turn (pasted text, attachment, open document) contains
+   * instruction-shaped markers. Set by the classifier, consumed by the answer
+   * prompts to warn the model BEFORE it acts — the classifier already noticed
+   * such payloads and simply passed them on.
+   */
+  injectionSuspected?: boolean | undefined;
+
+  /**
+   * This `agentic` turn reached the loop via Tier-3.5 demotion of a RETRIEVAL
+   * heuristic (web/search/examples/bundestag/…), not because the user asked
+   * for open-ended work. The loop requires a first tool call on such turns —
+   * without it the planner answered "Da ich in diesem Turn keine aktuellen
+   * Recherche-Ergebnisse habe …" to a plain factual question it was supposed
+   * to look up.
+   */
+  loopDemotedFromRetrieval?: boolean | undefined;
+
+  /**
+   * The LLM classifier itself said this turn needs research (`needsResearch:
+   * true`) and then picked `direct` anyway. Its own reasoning gave the game
+   * away live: „ist eine Web-Recherche (web) notwendig, um die aktuellen
+   * Vorwürfe zu identifizieren" — followed by `intent: direct`, zero searches,
+   * and an answer that invented the facts.
+   *
+   * Same consequence as {@link loopDemotedFromRetrieval} (a recognised
+   * retrieval need that produces no tool call), different source: that one
+   * comes from the Tier-3.5 heuristic demotion, this one from the model
+   * contradicting itself. Kept as a separate field so the log tells you WHICH
+   * of the two happened.
+   */
+  classifierContradictedResearch?: boolean | undefined;
+
   // Input (immutable after initialization)
   messages: ModelMessage[];
   threadId: string | null;
@@ -662,6 +702,14 @@ export interface ChatGraphState {
   needsClarification: boolean;
   clarificationQuestion: string | null;
   clarificationOptions: string[] | null;
+  /**
+   * Which question was asked, when the ANSWER has to be routed rather than
+   * merely used as a search topic. `graphic_kind` means "Sharepic, KI-Bild or
+   * Diagramm?" — the answer names an artifact, so the resume must re-classify
+   * the combined text instead of taking the generic ask_human path (which
+   * rewrites `direct`/`image` to `search`).
+   */
+  clarificationKind?: 'graphic_kind' | undefined;
 
   // Metadata filters extracted by classifier (for Qdrant filtering)
   detectedFilters: SubcategoryFilters | null;
@@ -671,6 +719,16 @@ export interface ChatGraphState {
   citations: Citation[];
   searchCount: number;
   maxSearches: number;
+
+  /**
+   * The sources on this turn were REHYDRATED from earlier turns of this thread
+   * (getRecentThreadSources) — nothing was searched now. Discriminates the one
+   * case where a `direct` turn may cite [N] at all, and swaps the "claim no
+   * research" honesty note for the carried-source variant. Without it the
+   * prompt would hand the model a source block and a citation instruction next
+   * to an order not to mention any sources.
+   */
+  sourcesCarriedFromThread?: boolean;
 
   // Research brief (compressed research intent for complex queries)
   researchBrief: string | null;
@@ -854,9 +912,17 @@ export interface ClassificationResult {
   filters?: SubcategoryFilters | null | undefined;
   reasoning: string;
   contentType?: string | null | undefined;
+  /**
+   * The classifier's own verdict on whether facts have to be looked up. Was
+   * requested from the model, logged once and then dropped on the floor for the
+   * field's entire lifetime — see `classifierContradictedResearch` in
+   * ChatGraphState for what that cost.
+   */
+  needsResearch?: boolean | undefined;
   needsClarification?: boolean | undefined;
   clarificationQuestion?: string | undefined;
   clarificationOptions?: string[] | undefined;
+  clarificationKind?: 'graphic_kind' | undefined;
   gatherSources?: GatherSource[] | undefined;
   documentSubtype?: string | null | undefined;
   targetGroupName?: string | null | undefined;
