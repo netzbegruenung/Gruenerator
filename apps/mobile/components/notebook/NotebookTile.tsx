@@ -1,5 +1,6 @@
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
+import { memo } from 'react';
 import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 
 import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
@@ -12,7 +13,7 @@ import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from 
  * ghost-icon preview above a title/meta footer, which is what makes a mixed
  * section still line up as one grid.
  */
-export function NotebookTile({
+export const NotebookTile = memo(function NotebookTile({
   title,
   meta,
   icon,
@@ -77,7 +78,7 @@ export function NotebookTile({
       )}
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   tile: {

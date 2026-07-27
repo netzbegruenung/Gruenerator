@@ -16,20 +16,25 @@ import type { View } from 'react-native';
  *
  * Every tab screen stays mounted while another is on top, so registration is
  * tied to focus: the visible screen is the one worth blurring.
+ *
+ * **Two contexts, not one.** The published target changes on every tab switch;
+ * the setter never does. With both in one value, every `ScreenScaffold` — which
+ * only ever needs the setter — re-rendered its header and full-screen gradient
+ * whenever any *other* tab was focused. Split, the target change reaches only
+ * the one consumer that reads it: the tab bar.
  */
 
-interface TabBarBlurTargetValue {
-  target: View | null;
-  setTarget: (target: View | null) => void;
-}
-
-const TabBarBlurTargetContext = createContext<TabBarBlurTargetValue | null>(null);
+const TabBarBlurTargetContext = createContext<View | null>(null);
+const TabBarBlurSetterContext = createContext<((target: View | null) => void) | null>(null);
 
 export function TabBarBlurTargetProvider({ children }: { children: ReactNode }) {
   const [target, setTarget] = useState<View | null>(null);
-  const value = useMemo(() => ({ target, setTarget }), [target]);
+  // `setTarget` from useState is referentially stable, which is what makes the
+  // setter context free of re-renders.
   return (
-    <TabBarBlurTargetContext.Provider value={value}>{children}</TabBarBlurTargetContext.Provider>
+    <TabBarBlurSetterContext.Provider value={setTarget}>
+      <TabBarBlurTargetContext.Provider value={target}>{children}</TabBarBlurTargetContext.Provider>
+    </TabBarBlurSetterContext.Provider>
   );
 }
 
@@ -42,12 +47,11 @@ export function TabBarBlurTargetProvider({ children }: { children: ReactNode }) 
  * `ScreenScaffold` can call it unconditionally.
  */
 export function useRegisterTabBarBlurTarget(): RefObject<View | null> {
-  const ctx = useContext(TabBarBlurTargetContext);
+  const setTarget = useContext(TabBarBlurSetterContext);
   const isFocused = useIsFocused();
   // Refs are attached before effects run, so `.current` is the mounted view by
   // the time the registration below fires.
   const ref = useRef<View | null>(null);
-  const setTarget = ctx?.setTarget;
 
   useEffect(() => {
     if (!setTarget || !isFocused) return;
@@ -69,7 +73,6 @@ export function useRegisterTabBarBlurTarget(): RefObject<View | null> {
  * blurring the first screen it ever saw.
  */
 export function useTabBarBlurTarget(): RefObject<View | null> | undefined {
-  const ctx = useContext(TabBarBlurTargetContext);
-  const target = ctx?.target ?? null;
+  const target = useContext(TabBarBlurTargetContext);
   return useMemo(() => (target ? { current: target } : undefined), [target]);
 }
