@@ -1,11 +1,12 @@
-import { resolveChatBackground } from '@gruenerator/shared/settings';
-import { useAuthStore } from '@gruenerator/shared/stores';
 import { useEffect, useState } from 'react';
 import { Animated, StyleSheet, useColorScheme } from 'react-native';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
+import { useChatBackground } from '../../hooks/useChatBackground';
 import { useReduceMotion } from '../../hooks/useAccessibilityPreferences';
-import { chatBackgroundColor } from '../../theme/chatBackgrounds';
+import { chatBackgroundColor, chatBackgroundMesh } from '../../theme/chatBackgrounds';
+
+import { MeshSurface } from './MeshSurface';
 
 /**
  * Mobile take on the web Chat tab's `.workplace-chat-sunrise` background
@@ -23,10 +24,11 @@ import { chatBackgroundColor } from '../../theme/chatBackgrounds';
 export function SunriseBackground() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  // Which preset is a server-side profile setting, shared with web; the colour
-  // it maps to is mobile's own (see theme/chatBackgrounds.ts).
-  const preset = resolveChatBackground(useAuthStore((s) => s.user?.chat_background));
+  // The device's choice, else the profile's — see useChatBackground. The colour
+  // or mesh it maps to is mobile's own (see theme/chatBackgrounds.ts).
+  const preset = useChatBackground();
   const glow = chatBackgroundColor(preset.key);
+  const mesh = chatBackgroundMesh(preset.key);
 
   const [progress] = useState(() => new Animated.Value(0));
   // Combines the OS setting with the profile override, so "Animationen
@@ -65,10 +67,23 @@ export function SunriseBackground() {
         { offset: '1', opacity: '0.12' },
       ];
 
+  // No rise for a mesh. The single-glow presets lift into place because they are
+  // one shape moving; a composition of clouds pinned to their corners would
+  // slide as a whole and read as the screen settling, not as light.
+  if (mesh) {
+    return (
+      <Animated.View pointerEvents="none" style={styles.container}>
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity }]}>
+          <MeshSurface mesh={mesh} id={`bg-${preset.key}`} />
+        </Animated.View>
+      </Animated.View>
+    );
+  }
+
   return (
     <Animated.View pointerEvents="none" style={styles.container}>
-      {/* The warm base belongs to the default preset. Any other choice would be
-          tinted by it, and "Neutral" would not be neutral at all. */}
+      {/* The warm base belongs to the `sunrise` preset. Any other choice would
+          be tinted by it, and "Neutral" would not be neutral at all. */}
       {!isDark && preset.key === 'sunrise' && (
         <Animated.View style={[StyleSheet.absoluteFill, styles.creamBase]} />
       )}

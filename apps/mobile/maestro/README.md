@@ -92,6 +92,14 @@ The testIDs the flows rely on:
 | `chat-message-edit`                                       | [components/chat/message/UserMessage.tsx](../components/chat/message/UserMessage.tsx) — pencil on an own message |
 | `chat-edit-input` / `chat-edit-send` / `chat-edit-cancel` | [components/chat/MessageEditComposer.tsx](../components/chat/MessageEditComposer.tsx)                            |
 | `chat-message-reload`                                     | [components/chat/message/AssistantActionBar.tsx](../components/chat/message/AssistantActionBar.tsx)              |
+| `chat-message-more` / `thread-item-more`                  | the two native menu triggers — see the note below                                                                |
+
+The two `*-more` ids sit on `MenuView` triggers. Maestro can tap them, but what
+opens is a SwiftUI `Menu` / Compose `DropdownMenu` **outside** the RN view tree —
+its entries carry no testID and are not addressable by `id:`. Assert on their
+visible German labels, or on the effect. Which entries each menu contains is
+covered in the Vitest lane instead
+([components/chat/menuActions.vitest.ts](../components/chat/menuActions.vitest.ts)).
 
 Tab bar items are selected by their visible labels — those come from
 `Tabs.Screen` `title` props in

@@ -1,17 +1,19 @@
 import { useEffect } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { useSettingsDialogStore, type SettingsTab } from './settingsDialogStore';
 
 // Legacy /profile/* tab names and the canonical /settings/:tab values both
-// resolve here; unknown tabs fall back to Allgemein.
+// resolve here; unknown tabs fall back to Allgemein. Namen, die es mal gab,
+// bleiben als Alias stehen — geteilte Links sollen nicht ins Leere laufen.
 const TAB_MAP: Record<string, SettingsTab> = {
   allgemein: 'allgemein',
-  profil: 'konto',
-  konto: 'konto',
+  profil: 'allgemein',
+  konto: 'allgemein',
   friends: 'friends',
   personalisierung: 'personalisierung',
-  briefkoepfe: 'briefkoepfe',
+  briefe: 'briefe',
+  briefkoepfe: 'briefe',
   'texte-anlernen': 'texte-anlernen',
   erinnerungen: 'erinnerungen',
   benachrichtigungen: 'benachrichtigungen',
@@ -32,17 +34,18 @@ const PAGE_REDIRECTS: Record<string, string> = {
 const SettingsRedirect = () => {
   const { tab } = useParams();
   const navigate = useNavigate();
-  const { pathname } = useLocation();
 
   useEffect(() => {
     const pageRedirect = tab ? PAGE_REDIRECTS[tab] : null;
     if (!pageRedirect) {
-      // Bare /profile kept the account view as its default; /settings opens Allgemein.
-      const fallback: SettingsTab = pathname.startsWith('/profile') ? 'konto' : 'allgemein';
-      useSettingsDialogStore.getState().openSettings(tab ? (TAB_MAP[tab] ?? fallback) : fallback);
+      // Das Konto steht jetzt in Allgemein, also landen /profile und /settings
+      // beide dort — der eigene Konto-Reiter existiert nicht mehr.
+      useSettingsDialogStore
+        .getState()
+        .openSettings(tab ? (TAB_MAP[tab] ?? 'allgemein') : 'allgemein');
     }
     void navigate(pageRedirect ?? '/workplace', { replace: true });
-  }, [tab, pathname, navigate]);
+  }, [tab, navigate]);
 
   return null;
 };

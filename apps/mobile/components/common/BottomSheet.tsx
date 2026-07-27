@@ -94,9 +94,18 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
   },
+  // No dim at all. It was 0.4 — a modal scrim, right for something that demands
+  // an answer, wrong for a picker you open, tap once and leave. The sheet is its
+  // own surface with a border and a radius, so what is behind it does not need
+  // to be pushed back to read as inactive; darkening it mainly hid the page.
+  //
+  // Still a Pressable, and still the whole area above the sheet: React Native
+  // hit-tests by layout rather than by painted pixels, so tap-to-close works
+  // exactly as before. This style is what makes the region invisible, not
+  // intangible.
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'transparent',
   },
   sheet: {
     borderTopLeftRadius: 20,

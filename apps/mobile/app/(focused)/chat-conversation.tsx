@@ -11,11 +11,13 @@ import { useEffect, useMemo } from 'react';
 import { StyleSheet, View, useColorScheme } from 'react-native';
 
 import { AssistantThread, type ThreadWelcome } from '../../components/chat';
+import { MeshSurface } from '../../components/common/MeshSurface';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
 import { useUserAgents } from '../../hooks/agents/useUserAgents';
 import { MobileChatProvider } from '../../providers/MobileChatProvider';
 import { usePendingAttachmentStore } from '../../stores/pendingAttachmentStore';
-import { lightTheme, darkTheme } from '../../theme';
+import { lightTheme, darkTheme, typeScale } from '../../theme';
+import { COMPOSER_GLOW, COMPOSER_GLOW_HEIGHT } from '../../theme/chatBackgrounds';
 
 const AT_DEFAULT_NOTEBOOK_ID = 'oesterreich-notebook';
 
@@ -160,13 +162,22 @@ export default function ChatConversationScreen() {
     <ScreenScaffold
       title={activeAgent?.title ?? 'Chat'}
       backdrop={
-        <View
-          pointerEvents="none"
-          style={[
-            StyleSheet.absoluteFill,
-            { backgroundColor: colorScheme === 'dark' ? theme.background : CHAT_VANILLA },
-          ]}
-        />
+        <>
+          <View
+            pointerEvents="none"
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: colorScheme === 'dark' ? theme.background : CHAT_VANILLA },
+            ]}
+          />
+          <MeshSurface
+            mesh={COMPOSER_GLOW}
+            id="composer-glow"
+            style={styles.composerGlow}
+            followsKeyboard
+            hideInDark
+          />
+        </>
       }
       // No "+" and no profile menu: both are a tap away in the drawer, and the
       // bar is needed for the agent's name — they run to 45 characters.
@@ -187,5 +198,16 @@ const CHAT_VANILLA = '#FEFCF5';
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  // Bottom-anchored band rather than the whole screen: the glow belongs to the
+  // composer, and behind a wall of message bubbles the same colour costs
+  // legibility. A `StyleSheet` entry and not an inline object — `MeshSurface` is
+  // memoized, and a fresh object each render would defeat that.
+  composerGlow: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: typeScale(COMPOSER_GLOW_HEIGHT),
   },
 });

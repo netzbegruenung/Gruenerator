@@ -2,17 +2,23 @@ import { type ChatBackground } from '@gruenerator/contracts';
 import { getAllRobotIds, getRobotAvatarUrl } from '@gruenerator/shared/avatar';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { AT_EBENEN, DE_EBENEN, type UserRole } from '@gruenerator/shared/roles';
-import {
-  CHAT_BACKGROUND_PRESETS,
-  getSettingsEntry,
-  resolveChatBackground,
-} from '@gruenerator/shared/settings';
+import { chatBackgroundsFor, getSettingsEntry } from '@gruenerator/shared/settings';
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, Switch, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Alert,
+  Platform,
+  useColorScheme,
+} from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
 import { logout } from '../../services/auth';
@@ -21,10 +27,14 @@ import { fetchRoles } from '../../services/roles';
 import { usePreferencesStore, type ThemeMode } from '../../stores/preferencesStore';
 import { useSettingsSheetStore, type SettingsDetail } from '../../stores/settingsSheetStore';
 import { spacing, colors, borderRadius, BODY_FONT } from '../../theme';
-import { chatBackgroundColor } from '../../theme/chatBackgrounds';
+import { chatBackgroundColor, chatBackgroundMesh, darkMesh } from '../../theme/chatBackgrounds';
 import { route } from '../../types/routes';
+import { useChatBackground } from '../../hooks/useChatBackground';
 import { BottomSheet } from '../common/BottomSheet';
 import { ListGroup, ListRow } from '../common/ListRow';
+import { MeshGradient } from '../common/MeshGradient';
+
+import { AppUpdateRow } from './AppUpdateRow';
 
 /**
  * The settings surface, whole.
@@ -87,8 +97,17 @@ function accessibilitySummary(reduceMotion?: boolean, reduceTransparency?: boole
   return count === 0 ? 'Folgt dem System' : `${count} aktiviert`;
 }
 
+/**
+ * Android only, and not out of caution: on iOS the tab bar is a real UITabBar
+ * and `BlurTargetView` compiles to a plain `View`, so the switch would have
+ * nothing to turn off. A control that does nothing is worse than no control.
+ */
+const SHOWS_PERFORMANCE_MODE = Platform.OS === 'android';
+
 export function SettingsSheet() {
   const theme = useTheme();
+  const isDark = useColorScheme() === 'dark';
+  const chatBackgroundPreset = useChatBackground();
   const { user, isLoggingOut } = useAuth();
 
   const isOpen = useSettingsSheetStore((s) => s.isOpen);
@@ -98,6 +117,8 @@ export function SettingsSheet() {
 
   const themeMode = usePreferencesStore((s) => s.themeMode);
   const setThemeMode = usePreferencesStore((s) => s.setThemeMode);
+  const performanceMode = usePreferencesStore((s) => s.performanceMode);
+  const setPerformanceMode = usePreferencesStore((s) => s.setPerformanceMode);
   const updateLocale = useAuthStore((s) => s.updateLocale);
   const updateAvatar = useAuthStore((s) => s.updateAvatar);
   const updateProfile = useAuthStore((s) => s.updateProfile);
@@ -128,7 +149,7 @@ export function SettingsSheet() {
   if (!user) return null;
 
   const locale = (user.locale ?? 'de-DE') as Locale;
-  const chatBackground = resolveChatBackground(user.chat_background);
+  const chatBackground = chatBackgroundPreset;
   const hasRoles = roles !== null && roles.length > 0;
   const ebenen = locale === 'de-AT' ? AT_EBENEN : DE_EBENEN;
 
@@ -186,8 +207,13 @@ export function SettingsSheet() {
         <>
           {note(getSettingsEntry('allgemein.chatHintergrund').description ?? '')}
           <View style={styles.swatches}>
-            {CHAT_BACKGROUND_PRESETS.map((preset) => {
+            {chatBackgroundsFor('mobile').map((preset) => {
               const color = chatBackgroundColor(preset.key);
+              // The swatch previews what the screen will look like, so it follows
+              // the colour scheme too — a light mesh in a dark picker would promise
+              // the wrong thing.
+              const light = chatBackgroundMesh(preset.key);
+              const mesh = light && isDark ? darkMesh(light) : light;
               const active = preset.key === chatBackground.key;
               return (
                 <Pressable
@@ -210,11 +236,15 @@ export function SettingsSheet() {
                     },
                   ]}
                 >
+                  {/* A mesh has no single colour to reduce to, so its swatch
+                      draws the real thing. Without this the three of them and
+                      "Neutral" would all be the same empty ring. */}
+                  {mesh && <MeshGradient mesh={mesh} id={`swatch-${preset.key}`} />}
                   {active && (
                     <Ionicons
                       name="checkmark"
                       size={18}
-                      color={color ? colors.grey[900] : theme.text}
+                      color={color || mesh ? colors.grey[900] : theme.text}
                     />
                   )}
                 </Pressable>
@@ -402,12 +432,27 @@ export function SettingsSheet() {
                 value={accessibilitySummary(user.reduce_motion, user.reduce_transparency)}
                 onPress={() => setDetail('accessibility')}
               />
+              {SHOWS_PERFORMANCE_MODE && (
+                <ListRow
+                  icon="speedometer-outline"
+                  title={getSettingsEntry('barrierefreiheit.leistung').title}
+                  value={getSettingsEntry('barrierefreiheit.leistung').description}
+                  valueLines={2}
+                  accessory={
+                    <Switch
+                      value={performanceMode}
+                      onValueChange={(value) => void setPerformanceMode(value)}
+                      trackColor={{ true: colors.primary[600], false: colors.grey[300] }}
+                    />
+                  }
+                />
+              )}
               <ListRow
                 icon="school-outline"
                 title="Einführung erneut ansehen"
                 onPress={() => leave(() => router.push(route('/(auth)/onboarding')))}
-                last
               />
+              <AppUpdateRow />
             </ListGroup>
 
             {/* Plain text, not a card row: logging out is rare, it already sits
@@ -468,6 +513,9 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
+    // The mesh swatch fills its ring with an absolutely positioned gradient,
+    // which would otherwise square off the corners.
+    overflow: 'hidden',
   },
   grid: {
     flexDirection: 'row',
