@@ -11,9 +11,9 @@ import {
   Pressable,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ListGroup, ListRow } from '../../../components/common';
+import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
 import { GroupAvatar } from '../../../components/workplace/GroupAvatar';
 import { useUserGroups, type GroupSummary } from '../../../hooks/useGroups';
 import {
@@ -118,16 +118,7 @@ export default function ProjekteScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
-      <View style={styles.header}>
-        <Pressable onPress={handleBack} hitSlop={10} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={26} color={theme.text} />
-        </Pressable>
-        <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>
-          Projekte
-        </Text>
-      </View>
-
+    <ScreenScaffold title="Projekte" onBack={handleBack}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -137,28 +128,19 @@ export default function ProjekteScreen() {
       >
         {body}
       </ScrollView>
-    </SafeAreaView>
+    </ScreenScaffold>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xsmall,
-    paddingHorizontal: spacing.small,
-    paddingVertical: spacing.small,
-  },
-  backButton: { padding: 2 },
-  title: { ...typography.h2, flex: 1 },
   scrollContent: {
     paddingHorizontal: spacing.medium,
-    paddingBottom: spacing.xxlarge,
+    paddingTop: spacing.xsmall,
+    paddingBottom: spacing.xxlarge * 2,
   },
   centered: {
     alignItems: 'center',
-    gap: spacing.small,
+    gap: spacing.medium,
     paddingVertical: spacing.xxlarge,
     paddingHorizontal: spacing.large,
   },

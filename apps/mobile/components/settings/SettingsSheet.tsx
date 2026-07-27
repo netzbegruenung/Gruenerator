@@ -449,7 +449,8 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: spacing.medium,
-    gap: spacing.medium,
+    paddingBottom: spacing.large,
+    gap: spacing.large,
   },
   note: {
     fontFamily: BODY_FONT,
@@ -491,6 +492,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingTop: spacing.xsmall,
   },
   logoutText: {
     fontFamily: BODY_FONT,
