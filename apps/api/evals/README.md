@@ -46,7 +46,13 @@ EVAL_FILTER=multiturn EVAL_BYPASS_TOKEN=<token> pnpm --filter @gruenerator/api e
 ```
 
 The backend needs `ALLOW_DEV_AUTH_BYPASS=true` + a matching `DEV_AUTH_BYPASS_TOKEN`
-(never in prod). Run **both lanes** — the sharepic-in-split bug was invisible on
+(never in prod) **and `CHAT_AGENT_LOOP=true`** — most of the corpus asserts tool
+calls, and without the loop those turns take the single-pass path, which emits
+no `tool_step` events at all. The result is a run that looks catastrophic
+(`tools=[]` everywhere) while nothing is actually broken. Note that
+`pnpm dev:backend` goes through turbo, which does NOT forward an ad-hoc
+`CHAT_AGENT_LOOP=true` on the command line: put it in `.env`, or start the
+backend directly with `cd apps/api && CHAT_AGENT_LOOP=true pnpm dev`. Run **both lanes** — the sharepic-in-split bug was invisible on
 Mistral (unified); use `EVAL_MODEL_ID=mistral` and a split lane (e.g. `gemma-4`).
 Nightly, `.github/workflows/nightly-eval.yml` does exactly this against the
 deployed test env (matrix over both lanes, judge blocking, per-lane baselines).
