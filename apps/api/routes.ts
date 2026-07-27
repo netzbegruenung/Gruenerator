@@ -83,7 +83,7 @@ import {
   searchController as searchRouter,
   webSearchController as webSearchRouter,
 } from './routes/search/index.js';
-import searchGraphRouter from './routes/search/searchGraphController.js';
+import { mountSearchGraphContractRouter } from './routes/search/searchGraphContractRouter.js';
 import { mountShareContractRouter } from './routes/share/shareContractRouter.js';
 import shareFileRouter from './routes/share/shareFileRouter.js';
 import { mountShareReadContractRouter } from './routes/share/shareReadContractRouter.js';
@@ -861,7 +861,12 @@ export async function setupRoutes(app: Application): Promise<void> {
   // createExpressEndpoints registers handlers directly on the app.
   app.use('/api/global-search', requireAuth, authenticatedReadLimiter);
   mountGlobalSearchContractRouter(app);
-  app.use('/api/search-graph', requireAuth, standardMutationLimiter, searchGraphRouter);
+  // Auth + rate-limiting run on the prefix because createExpressEndpoints
+  // registers the contract handlers directly on `app`, bypassing any middleware
+  // passed to app.use() alongside a router.
+  app.use('/api/search-graph', requireAuth);
+  app.use('/api/search-graph', standardMutationLimiter);
+  mountSearchGraphContractRouter(app);
   // ts-rest contract router — mount before legacy imagePickerRoute
   mountImagePickerContractRouter(app);
   app.use('/api/image-picker', publicReadLimiter, imagePickerRoute);
