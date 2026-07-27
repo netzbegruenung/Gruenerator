@@ -53,6 +53,7 @@ import {
   SOCIAL_BARE_NOUN_PATTERN,
   SOCIAL_META_QUESTION_PATTERN,
   POST_NOUN_PATTERN,
+  isAmbiguousGraphicRequest,
 } from './classifierHeuristics.js';
 import {
   parseClassifierResponse,
@@ -1081,6 +1082,39 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         searchQuery: userContent.slice(0, 500),
         detectedFilters: null,
         reasoning: 'Grünerator help question (docs)',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
+    // ── TIER 2.95: "Grafik" is three different products ────────────────────
+    // MUST run before Tier 3, which would swallow it: `imageKeywords` contains
+    // `grafik`, so "erstelle eine Grafik zur Windkraft" silently became a free
+    // AI image. It could equally mean a branded sharepic or a data chart — and
+    // all three cost a generation. Guessing produces the wrong artifact two
+    // times out of three, so ask instead.
+    //
+    // Only fires when the word is genuinely ambiguous: naming a sharepic, a
+    // chart type or a drawing verb already answers the question, and those
+    // paths stay untouched.
+    if (
+      !isLongPaste &&
+      (state.imageAttachments?.length ?? 0) === 0 &&
+      isAmbiguousGraphicRequest(userContent)
+    ) {
+      log.info(`[Classifier] Ambiguous "Grafik" ask — asking which kind`);
+      return {
+        intent: 'direct',
+        needsClarification: true,
+        clarificationQuestion:
+          'Was für eine Grafik soll es werden? Ein Sharepic ist eine gebrandete Vorlage mit Text, ein KI-Bild ein frei generiertes Motiv, ein Diagramm stellt Zahlen dar.',
+        clarificationOptions: ['Sharepic', 'KI-Bild', 'Diagramm'],
+        clarificationKind: 'graphic_kind',
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: 'Ambiguous graphic request — asking which artifact is meant',
         hasTemporal: temporal.hasTemporal,
         complexity,
         classificationTimeMs: Date.now() - startTime,

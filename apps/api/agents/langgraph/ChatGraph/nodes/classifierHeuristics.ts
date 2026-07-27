@@ -38,6 +38,35 @@ const log = createLogger('ChatGraph:Classifier');
  */
 export const POST_NOUN_PATTERN = /\b(post(ing)?|beitrag|tweet|caption)\b/i;
 
+/**
+ * "Grafik"/"Kachel" name three different products in this app: a branded
+ * sharepic template, a free AI image, and a data chart. Each costs a
+ * generation, so guessing is wrong about two thirds of the time.
+ */
+const AMBIGUOUS_GRAPHIC_NOUN = /\b(grafik(en)?|kachel(n)?)\b/i;
+
+/** Words that already say WHICH kind is meant — no question needed. */
+const GRAPHIC_KIND_DISAMBIGUATOR =
+  /\b(diagramm\w*|chart|graph|torte|balken|kreis|kurve|statistik\w*|daten|zahlen|werte|male|mal\s|zeichne\w*|illustrier\w*|foto\w*|bild\w*|logo|karte|infografik\w*)\b/i;
+
+/** Only a CREATION ask needs disambiguating; a question about graphics does not. */
+const GRAPHIC_CREATE_VERB =
+  /\b(erstell|generier|mach|bau|entwirf|entwerf|brauch|erzeug|gestalte?|hätte?\s+gern|will|möchte)\w*/i;
+
+/**
+ * True when the user asked for a "Grafik"/"Kachel" without saying which of the
+ * three kinds they mean. Naming a sharepic, a chart type, or a drawing verb
+ * answers the question already, so those keep their existing routes.
+ */
+export function isAmbiguousGraphicRequest(text: string): boolean {
+  const t = stripQuotedSpans(text ?? '');
+  if (!AMBIGUOUS_GRAPHIC_NOUN.test(t)) return false;
+  if (hasExplicitSharepicWord(t)) return false;
+  if (GRAPHIC_KIND_DISAMBIGUATOR.test(t)) return false;
+  if (!GRAPHIC_CREATE_VERB.test(t)) return false;
+  return !negatedOrMeta(t, AMBIGUOUS_GRAPHIC_NOUN);
+}
+
 const INSTAGRAM_PLATFORM_PATTERN = /\b(instagram|insta|reels?|story)\b/i;
 const FACEBOOK_PLATFORM_PATTERN = /\b(facebook|fb|fb-?post|fb-?beitrag)\b/i;
 // Mastodon/Bluesky share Twitter's 280-char budget (see prompts/social.json).
