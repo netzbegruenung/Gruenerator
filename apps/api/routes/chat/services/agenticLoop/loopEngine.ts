@@ -578,6 +578,7 @@ async function drain(
   idle?: { deadline: Promise<never>; clear: () => void; touch: () => void }
 ): Promise<{ text: string }> {
   let text = '';
+  let finishReason: string | null = null;
   const iterator = result.stream[Symbol.asyncIterator]();
   try {
     while (true) {
@@ -595,17 +596,22 @@ async function drain(
       } else if (part.type === 'text-delta' && part.text != null && part.text.length > 0) {
         text += part.text;
         onText(part.text);
-      } else if (part.type === 'finish' && part.finishReason === 'length') {
-        // Only reachable when a caller sets maxOutputTokens (answer paths omit
-        // it) or the provider enforces its own cap — surface it instead of
-        // persisting a silently truncated answer.
-        log.warn(
-          `[Engine] output budget exhausted (finishReason=length) after ${text.length} chars — answer is truncated`
-        );
+      } else if (part.type === 'finish') {
+        finishReason = part.finishReason ?? null;
       }
     }
   } finally {
     idle?.clear();
+  }
+  // Anything but a clean stop means the upstream cut the generation short:
+  // `length` (an output cap — the answer paths set none, so this would be the
+  // provider's own), `content-filter`, `error` or `other`. Previously only
+  // `length` was checked, so an abnormally terminated stream was persisted and
+  // shipped as a finished answer with nothing in the logs to say otherwise.
+  if (finishReason != null && finishReason !== 'stop' && finishReason !== 'tool-calls') {
+    log.warn(
+      `[Engine] stream ended with finishReason=${finishReason} after ${text.length} chars — the answer is likely truncated`
+    );
   }
   return { text };
 }
