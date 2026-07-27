@@ -702,6 +702,14 @@ export interface ChatGraphState {
   needsClarification: boolean;
   clarificationQuestion: string | null;
   clarificationOptions: string[] | null;
+  /**
+   * Which question was asked, when the ANSWER has to be routed rather than
+   * merely used as a search topic. `graphic_kind` means "Sharepic, KI-Bild or
+   * Diagramm?" — the answer names an artifact, so the resume must re-classify
+   * the combined text instead of taking the generic ask_human path (which
+   * rewrites `direct`/`image` to `search`).
+   */
+  clarificationKind?: 'graphic_kind' | undefined;
 
   // Metadata filters extracted by classifier (for Qdrant filtering)
   detectedFilters: SubcategoryFilters | null;
@@ -914,6 +922,7 @@ export interface ClassificationResult {
   needsClarification?: boolean | undefined;
   clarificationQuestion?: string | undefined;
   clarificationOptions?: string[] | undefined;
+  clarificationKind?: 'graphic_kind' | undefined;
   gatherSources?: GatherSource[] | undefined;
   documentSubtype?: string | null | undefined;
   targetGroupName?: string | null | undefined;
