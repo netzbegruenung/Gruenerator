@@ -27,7 +27,11 @@ import {
   useSettingsDialogStore,
   type SettingsTab,
 } from '../../../features/settings/settingsDialogStore';
-import { loadSettingsShell, preloadSettingsTab } from '../../../features/settings/settingsTabs';
+import {
+  cancelSettingsHoverPreload,
+  loadSettingsShell,
+  preloadSettingsTabOnHover,
+} from '../../../features/settings/settingsTabs';
 import { useAuthStore } from '../../../stores/authStore';
 
 import { cn } from '@/utils/cn';
@@ -70,15 +74,18 @@ const SidebarAccount = memo(function SidebarAccount({
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
 
-  // Reaching for the account button, or hovering one of its settings entries,
-  // happens hundreds of milliseconds before the click — long enough to have the
-  // dialog chunk, the tab chunk and the tab's data all in place by then.
+  // Reaching for the account button, or settling on one of its settings
+  // entries, happens hundreds of milliseconds before the click — long enough to
+  // have the dialog chunk, the tab chunk and the tab's data in place by then.
+  // The shell fires straight away (one small chunk, and every entry needs it);
+  // per-tab loading waits out the intent delay, so walking the menu down to
+  // "Abmelden" doesn't drag three tabs' data along with it.
   const warmSettingsShell = () => {
     void loadSettingsShell().catch(() => {});
   };
   const warmSettingsTab = (tab: SettingsTab) => {
     warmSettingsShell();
-    preloadSettingsTab(tab, queryClient);
+    preloadSettingsTabOnHover(tab, queryClient);
   };
 
   // Keep the sidebar from collapsing (hover-leave) while either surface is open.
@@ -122,11 +129,12 @@ const SidebarAccount = memo(function SidebarAccount({
       sideOffset={8}
       className="w-80"
     >
-      {/* Profile header — avatar + name on top, opens the Konto tab. */}
+      {/* Profile header — avatar + name on top; das Konto steht in Allgemein. */}
       <DropdownMenuItem
-        onSelect={() => openSettingsDeferred('konto')}
-        onPointerEnter={() => warmSettingsTab('konto')}
-        onFocus={() => warmSettingsTab('konto')}
+        onSelect={() => openSettingsDeferred('allgemein')}
+        onPointerEnter={() => warmSettingsTab('allgemein')}
+        onFocus={() => warmSettingsTab('allgemein')}
+        onPointerLeave={cancelSettingsHoverPreload}
         className="items-center gap-2 py-2"
       >
         <span className="shrink-0">{avatarEl}</span>
@@ -150,6 +158,7 @@ const SidebarAccount = memo(function SidebarAccount({
         onSelect={() => openSettingsDeferred('personalisierung')}
         onPointerEnter={() => warmSettingsTab('personalisierung')}
         onFocus={() => warmSettingsTab('personalisierung')}
+        onPointerLeave={cancelSettingsHoverPreload}
       >
         <FiSliders className="size-4" />
         <span>Personalisierung</span>
@@ -158,6 +167,7 @@ const SidebarAccount = memo(function SidebarAccount({
         onSelect={() => openSettingsDeferred('konnektoren')}
         onPointerEnter={() => warmSettingsTab('konnektoren')}
         onFocus={() => warmSettingsTab('konnektoren')}
+        onPointerLeave={cancelSettingsHoverPreload}
       >
         <FiServer className="size-4" />
         <span>Konnektoren</span>
@@ -167,6 +177,7 @@ const SidebarAccount = memo(function SidebarAccount({
         // No tab argument: this entry reopens whichever tab the store last held.
         onPointerEnter={() => warmSettingsTab(useSettingsDialogStore.getState().tab)}
         onFocus={() => warmSettingsTab(useSettingsDialogStore.getState().tab)}
+        onPointerLeave={cancelSettingsHoverPreload}
       >
         <HiCog className="size-4" />
         <span>Einstellungen</span>

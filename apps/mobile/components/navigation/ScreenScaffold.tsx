@@ -9,7 +9,7 @@ import { colors, spacing, lightTheme, darkTheme } from '../../theme';
 
 import { ProfileMenu } from './ProfileMenu';
 import { SidebarMenuButton } from './SidebarMenuButton';
-import { useRegisterTabBarBlurTarget } from './TabBarBlurTarget';
+import { useRegisterTabBarBlurTarget, useTabBarBlurEnabled } from './TabBarBlurTarget';
 
 /**
  * Shared tab-screen chrome: top-safe area + the app gradient background + the standard
@@ -54,48 +54,72 @@ export function ScreenScaffold({
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   // What the Android tab bar blurs: the whole screen, gradient included. On iOS
-  // `BlurTargetView` is a plain View, so this costs nothing there.
-  const blurTargetRef = useRegisterTabBarBlurTarget();
+  // `BlurTargetView` is a plain View, so both branches below are the same there.
+  const blurEnabled = useTabBarBlurEnabled();
+  const blurTargetRef = useRegisterTabBarBlurTarget(blurEnabled);
+
+  const body = (
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <LinearGradient
+        colors={
+          colorScheme === 'dark'
+            ? [colors.grey[950], colors.grey[950]]
+            : [colors.white, 'rgba(95, 133, 117, 0.05)']
+        }
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+      {backdrop}
+      <View style={styles.header}>
+        <View style={styles.headerSide}>
+          {onBack ? (
+            <Pressable
+              onPress={onBack}
+              hitSlop={8}
+              accessibilityLabel="Zurück"
+              accessibilityRole="button"
+              style={styles.backButton}
+            >
+              <Ionicons name="chevron-back" size={26} color={theme.text} />
+            </Pressable>
+          ) : (
+            <SidebarMenuButton color={theme.text} size={24} />
+          )}
+        </View>
+        {/* Agent names run longer than the tab titles this header was built
+              for — without this a long one wraps and grows the whole bar. */}
+        <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
+          {title}
+        </Text>
+        <View style={[styles.headerSide, styles.headerSideRight]}>{headerRight}</View>
+      </View>
+      {children}
+    </SafeAreaView>
+  );
+
+  /**
+   * `BlurTargetView` is not free when nothing blurs it.
+   *
+   * Its Android implementation (`BlurTarget.dispatchDraw`, BlurView 3.1.0) is
+   * unconditional on SDK 31+: every draw records this screen's whole subtree
+   * into a separate `RenderNode` and then draws that node into the parent
+   * canvas. There is no check for whether a `BlurView` is attached, let alone
+   * enabled — so turning the blur off alone still left every tab screen paying
+   * for an extra full-screen render pass on every frame.
+   *
+   * Swapping the element type remounts the subtree, which is why this reads a
+   * value that is settled before the tabs mount rather than one that flips
+   * mid-session. Toggling it in the settings does remount the screen underneath
+   * the sheet; that is a deliberate, rare action.
+   */
+  if (!blurEnabled) {
+    return <View style={styles.container}>{body}</View>;
+  }
 
   return (
     <BlurTargetView ref={blurTargetRef} style={styles.container}>
-      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-        <LinearGradient
-          colors={
-            colorScheme === 'dark'
-              ? [colors.grey[950], colors.grey[950]]
-              : [colors.white, 'rgba(95, 133, 117, 0.05)']
-          }
-          style={StyleSheet.absoluteFill}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-        />
-        {backdrop}
-        <View style={styles.header}>
-          <View style={styles.headerSide}>
-            {onBack ? (
-              <Pressable
-                onPress={onBack}
-                hitSlop={8}
-                accessibilityLabel="Zurück"
-                accessibilityRole="button"
-                style={styles.backButton}
-              >
-                <Ionicons name="chevron-back" size={26} color={theme.text} />
-              </Pressable>
-            ) : (
-              <SidebarMenuButton color={theme.text} size={24} />
-            )}
-          </View>
-          {/* Agent names run longer than the tab titles this header was built
-              for — without this a long one wraps and grows the whole bar. */}
-          <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
-            {title}
-          </Text>
-          <View style={[styles.headerSide, styles.headerSideRight]}>{headerRight}</View>
-        </View>
-        {children}
-      </SafeAreaView>
+      {body}
     </BlurTargetView>
   );
 }

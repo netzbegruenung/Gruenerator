@@ -2,12 +2,20 @@ import { ThreadPrimitive } from '@assistant-ui/react-native';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { memo, useRef } from 'react';
 import { View, Text, type TextInput, StyleSheet } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import {
+  KeyboardAvoidingView,
+  useReanimatedKeyboardAnimation,
+} from 'react-native-keyboard-controller';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../hooks/useTheme';
-import { spacing, BODY_FONT } from '../../theme';
-import { SCREEN_EDGE } from '../../theme/layout';
+import { spacing, BODY_FONT, typeScale } from '../../theme';
+import {
+  COMPOSER_BOTTOM_INSET,
+  COMPOSER_BOTTOM_INSET_RAISED,
+  SCREEN_EDGE,
+} from '../../theme/layout';
 import { mobileGreeting } from '../../utils/greeting';
 import { Composer, composerEdgeStyle, type ComposerAccessory } from '../common/Composer';
 
@@ -101,6 +109,22 @@ export const AssistantThread = memo(function AssistantThread({
   const insets = useSafeAreaInsets();
   const composerInputRef = useRef<TextInput>(null);
 
+  // Both ends computed here, on the JS thread, and only the interpolation runs
+  // in the worklet. `typeScale` is an ordinary function from another module, so
+  // calling it inside `useAnimatedStyle` makes it a remote call from the UI
+  // runtime — which throws once per frame ("Tried to synchronously call a Remote
+  // Function") and leaves the padding unset. Worklets may capture numbers; they
+  // may not reach back for them.
+  const restingPad = insets.bottom + typeScale(COMPOSER_BOTTOM_INSET);
+  const raisedPad = typeScale(COMPOSER_BOTTOM_INSET_RAISED);
+
+  // `progress` runs 0 → 1 with the keyboard, on the UI thread, so the padding
+  // interpolates between the two resting values instead of jumping between them.
+  const keyboard = useReanimatedKeyboardAnimation();
+  const composerPadding = useAnimatedStyle(() => ({
+    paddingBottom: restingPad + (raisedPad - restingPad) * keyboard.progress.value,
+  }));
+
   return (
     <KeyboardAvoidingView
       behavior="padding"
@@ -125,22 +149,26 @@ export const AssistantThread = memo(function AssistantThread({
         >
           {renderMessage}
         </ThreadPrimitive.Messages>
-        <Composer
-          binding="runtime"
-          variant="bar"
-          showActionSheet
-          theme={theme}
-          style={[
-            composerEdgeStyle,
-            {
-              backgroundColor: transparent ? 'transparent' : theme.background,
-              paddingBottom: insets.bottom,
-            },
-          ]}
-          testIDPrefix="chat-composer"
-          inputRef={composerInputRef}
-          accessory={composerAccessory}
-        />
+        {/* The bottom padding is animated rather than switched, because it is
+            two different numbers and the change has to happen *with* the
+            keyboard. Stepping it on `keyboardDidShow` would drop the composer
+            22dp in one frame, halfway through the keyboard's own animation.
+            See COMPOSER_BOTTOM_INSET for the two numbers. */}
+        <Animated.View style={composerPadding}>
+          <Composer
+            binding="runtime"
+            variant="bar"
+            showActionSheet
+            theme={theme}
+            style={[
+              composerEdgeStyle,
+              { backgroundColor: transparent ? 'transparent' : theme.background },
+            ]}
+            testIDPrefix="chat-composer"
+            inputRef={composerInputRef}
+            accessory={composerAccessory}
+          />
+        </Animated.View>
       </ThreadPrimitive.Root>
     </KeyboardAvoidingView>
   );

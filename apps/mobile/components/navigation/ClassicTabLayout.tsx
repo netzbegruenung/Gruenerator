@@ -1,15 +1,18 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { BlurView } from 'expo-blur';
 import { Tabs } from 'expo-router';
-import { StyleSheet, useColorScheme, useWindowDimensions } from 'react-native';
+import { StyleSheet, View, useColorScheme, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useReduceTransparency } from '../../hooks/useAccessibilityPreferences';
 import { lightTheme, darkTheme, colors, BODY_FONT } from '../../theme';
 import { TAB_BAR_CAPSULE_HEIGHT, TAB_BAR_CAPSULE_GAP } from '../../theme/layout';
 import { GrueneratorLoadingIcon } from '../chat/GrueneratorLoadingIcon';
 
-import { TabBarBlurTargetProvider, useTabBarBlurTarget } from './TabBarBlurTarget';
+import {
+  TabBarBlurTargetProvider,
+  useTabBarBlurEnabled,
+  useTabBarBlurTarget,
+} from './TabBarBlurTarget';
 import { useTabTint } from './useTabTint';
 
 const ICON_SIZE = 21;
@@ -40,18 +43,27 @@ const CAPSULE_SOLID_DARK = 'rgb(10, 12, 11)';
  */
 function TabBarBackground({ isDark }: { isDark: boolean }) {
   const blurTarget = useTabBarBlurTarget();
-  // "Transparenz reduzieren" takes the same path the blur already falls back to
-  // below Android 12 — intensity 0 over the fill — only with the fill turned
-  // opaque, so nothing shows through at all.
-  const reduceTransparency = useReduceTransparency();
+  // Either "Transparenz reduzieren" or the performance mode. Both end here, and
+  // both mean the same thing for this view.
+  const blurEnabled = useTabBarBlurEnabled();
 
-  const fill = reduceTransparency
-    ? isDark
-      ? CAPSULE_SOLID_DARK
-      : CAPSULE_SOLID_LIGHT
-    : isDark
-      ? CAPSULE_FILL_DARK
-      : CAPSULE_FILL_LIGHT;
+  // A plain View rather than a BlurView at intensity 0: the native side already
+  // ends up at `setBlurEnabled(false)` there, so the two render identically —
+  // this way the screen also skips publishing a blur target and the native blur
+  // view never gets mounted. The opaque fill is what the bar looked like
+  // whenever the blur could not run anyway (below Android 12, or with no target
+  // registered), so nothing new had to be designed for this state.
+  if (!blurEnabled) {
+    return (
+      <View
+        style={[
+          StyleSheet.absoluteFill,
+          styles.capsuleBackground,
+          { backgroundColor: isDark ? CAPSULE_SOLID_DARK : CAPSULE_SOLID_LIGHT },
+        ]}
+      />
+    );
+  }
 
   return (
     <BlurView
@@ -60,9 +72,13 @@ function TabBarBackground({ isDark }: { isDark: boolean }) {
       // a view that is on screen the whole time.
       blurMethod="dimezisBlurViewSdk31Plus"
       blurTarget={blurTarget}
-      intensity={reduceTransparency ? 0 : 60}
+      intensity={60}
       tint={isDark ? 'dark' : 'light'}
-      style={[StyleSheet.absoluteFill, styles.capsuleBackground, { backgroundColor: fill }]}
+      style={[
+        StyleSheet.absoluteFill,
+        styles.capsuleBackground,
+        { backgroundColor: isDark ? CAPSULE_FILL_DARK : CAPSULE_FILL_LIGHT },
+      ]}
     />
   );
 }
@@ -89,6 +105,10 @@ export function ClassicTabLayout() {
     <TabBarBlurTargetProvider>
       <Tabs
         screenOptions={{
+          // Explicit rather than leaning on the global `enableFreeze` in the root
+          // layout: this is the navigator where it matters most, and a screen
+          // option survives someone deleting that call by accident.
+          freezeOnBlur: true,
           tabBarActiveTintColor: tint,
           tabBarInactiveTintColor: isDark ? colors.grey[300] : theme.textSecondary,
           // Keeps the bar out of the way while typing instead of stacking it above

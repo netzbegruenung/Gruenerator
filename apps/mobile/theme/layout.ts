@@ -29,3 +29,30 @@ export const FLOATING_TAB_BAR_HEIGHT = TAB_BAR_CAPSULE_HEIGHT + TAB_BAR_CAPSULE_
  * optical edge; 16 (spacing.medium) read tight under a 28pt greeting.
  */
 export const SCREEN_EDGE = 20;
+
+/**
+ * What a bottom-pinned composer keeps under itself — two numbers, because the
+ * right answer is not the same with the keyboard up and down.
+ *
+ * Measured against ChatGPT on the same handset (S24, 3.0 px/dp, 360dp wide),
+ * and the pair of measurements is the whole point:
+ *
+ * - **Keyboard down**, its pill sits 34.2dp above the screen edge. The
+ *   navigation inset is 15dp of that, so 19dp is its own.
+ * - **Keyboard up**, 12.0dp — and no inset at all.
+ *
+ * Two things follow. The safe-area inset is dropped once the keyboard is up:
+ * the gesture bar is behind the keyboard, so there is nothing left to clear, and
+ * keeping it would hold the composer 15dp off the keys for no reason. And the
+ * composer's own breathing room shrinks too — floating over content it needs
+ * separation from the screen edge, docked onto the keyboard it only needs a
+ * seam.
+ *
+ * Ours came out at 34dp in *both* states before this, because it added inset
+ * plus padding unconditionally — 22dp too high while typing.
+ *
+ * `RAISED` is 12 rather than 12.0-to-the-decimal: through `typeScale` it lands
+ * at 11.5dp here, half a point tighter than ChatGPT and 1.5 physical pixels off.
+ */
+export const COMPOSER_BOTTOM_INSET = 20;
+export const COMPOSER_BOTTOM_INSET_RAISED = 12;
