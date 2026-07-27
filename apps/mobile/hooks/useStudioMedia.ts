@@ -1,5 +1,5 @@
 import { fetchProjects } from '@gruenerator/shared';
-import { getUserShares } from '@gruenerator/shared/share';
+import { getRecentShares } from '@gruenerator/shared/share';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
 
@@ -13,6 +13,21 @@ import { officeApi } from '../services/office/officeApi';
 
 import { toKiImageItems, toReelItems, toSharepicItems } from './studioMediaMapping';
 import { type RecentItem } from './useRecentActivity';
+
+/**
+ * How many image shares the two picture sections are drawn from.
+ *
+ * `/share/recent` is the bounded endpoint — server-capped at 20, the number web
+ * asks for too. `/share/my` has no limit at all and answers with the service
+ * default of 100 rows, five times the payload for a page that renders at most
+ * six tiles per section.
+ *
+ * The cost of the cap: both sections split this one list, so a run of 20 recent
+ * sharepics can leave "KI-Bilder" empty while older KI images exist. Web lives
+ * with the same trade at the same number. If it bites, the fix is a `limit` on
+ * `/share/my` rather than a bigger number here — 20 is this endpoint's ceiling.
+ */
+const RECENT_SHARES_LIMIT = 20;
 
 const SHAREPICS_KEY = ['studio', 'shares', 'image'] as const;
 const CANVASES_KEY = ['studio', 'canvases'] as const;
@@ -55,7 +70,7 @@ export function useStudioMedia(): StudioMedia {
         // answers 401 — without fixtures this screen would show nothing but its
         // error state under the very flag that exists to lay it out.
         queryFn: async () =>
-          DEV_FIXTURES_ENABLED ? DEV_SHARES : (await getUserShares('image')).shares,
+          DEV_FIXTURES_ENABLED ? DEV_SHARES : (await getRecentShares(RECENT_SHARES_LIMIT)).shares,
         staleTime: 30_000,
       },
       {
