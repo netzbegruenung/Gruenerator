@@ -1,87 +1,19 @@
 import { useAui, useAuiState } from '@assistant-ui/react-native';
-import { useAgentStore, MODEL_OPTIONS } from '@gruenerator/chat';
 import { useAuth } from '@gruenerator/shared/hooks';
-import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, useColorScheme, ScrollView } from 'react-native';
-import { useShallow } from 'zustand/shallow';
 
 import { AssistantThread } from '../../../components/chat/AssistantThread';
 import { ChatDrawerHeader } from '../../../components/chat/ChatDrawerHeader';
-import { ChatSettingsSheet } from '../../../components/chat/ChatSettingsSheet';
-import { TOOL_KEYS } from '../../../components/chat/ComposerActionSheet';
 import { Composer } from '../../../components/common';
 import { useDrawerStore } from '../../../hooks/useDrawerStore';
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
+import { spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
 
 const CHAT_EXAMPLES = [
   { label: 'Pressemitteilung', text: 'Schreibe eine Pressemitteilung zum Thema Klimaschutz' },
   { label: 'Instagram-Post', text: 'Schreibe einen Instagram-Post zum Thema Verkehrswende' },
   { label: 'Antrag', text: 'Erstelle einen Antrag zum Thema Bildungspolitik' },
 ];
-
-const MODE_LABELS: Record<string, string> = {
-  chat: 'Chat',
-  notebook: 'Notebook',
-  search: 'Suche',
-  eigener: 'Eigener Chat',
-};
-
-const MODE_ICONS: Record<string, IoniconsIconName> = {
-  chat: 'chatbubble-outline',
-  notebook: 'book-outline',
-  search: 'search-outline',
-  eigener: 'settings-outline',
-};
-
-function SettingsBar({ onOpen }: { onOpen: () => void }) {
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-
-  const { threadMode, selectedModel, enabledTools } = useAgentStore(
-    useShallow((s) => ({
-      threadMode: s.threadMode,
-      selectedModel: s.selectedModel,
-      enabledTools: s.enabledTools,
-    }))
-  );
-
-  // Count only tools that still have a toggle — the persisted store may carry
-  // entries for removed tools (e.g. web search).
-  const disabledCount = TOOL_KEYS.filter((key) => enabledTools[key] === false).length;
-  const model = MODEL_OPTIONS.find((m) => m.id === selectedModel);
-
-  return (
-    <Pressable onPress={onOpen} style={styles.settingsBar}>
-      <View style={[styles.settingsChip, { borderColor: theme.border }]}>
-        <Ionicons
-          name={MODE_ICONS[threadMode] || 'chatbubble-outline'}
-          size={14}
-          color={theme.textSecondary}
-        />
-        <Text style={[styles.settingsChipText, { color: theme.textSecondary }]}>
-          {MODE_LABELS[threadMode] || 'Chat'}
-        </Text>
-      </View>
-
-      <View style={[styles.settingsChip, { borderColor: theme.border }]}>
-        <Text style={[styles.settingsChipText, { color: theme.textSecondary }]}>
-          {model?.name || 'Automatisch'}
-        </Text>
-      </View>
-
-      {disabledCount > 0 && (
-        <View style={[styles.settingsChip, { borderColor: colors.primary[400] }]}>
-          <Text style={[styles.settingsChipText, { color: colors.primary[600] }]}>
-            {TOOL_KEYS.length - disabledCount}/{TOOL_KEYS.length} Tools
-          </Text>
-        </View>
-      )}
-
-      <Ionicons name="options-outline" size={16} color={theme.textSecondary} />
-    </Pressable>
-  );
-}
 
 export default function ChatScreen() {
   const colorScheme = useColorScheme();
@@ -91,7 +23,6 @@ export default function ChatScreen() {
 
   const aui = useAui();
   const [showThread, setShowThread] = useState(false);
-  const [settingsVisible, setSettingsVisible] = useState(false);
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const hasSwitched = useRef(false);
 
@@ -142,8 +73,6 @@ export default function ChatScreen() {
             onSubmit={handleSend}
           />
 
-          <SettingsBar onOpen={() => setSettingsVisible(true)} />
-
           <View style={styles.promptsRow}>
             {CHAT_EXAMPLES.map((p) => (
               <Pressable
@@ -160,8 +89,6 @@ export default function ChatScreen() {
           </View>
         </ScrollView>
       )}
-
-      <ChatSettingsSheet visible={settingsVisible} onDismiss={() => setSettingsVisible(false)} />
     </View>
   );
 }
@@ -187,25 +114,6 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: '700',
     marginTop: 2,
-  },
-  settingsBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xsmall,
-    marginTop: spacing.medium,
-  },
-  settingsChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: spacing.xsmall,
-    paddingVertical: 4,
-    borderRadius: borderRadius.full,
-    borderWidth: 1,
-  },
-  settingsChipText: {
-    fontSize: 11,
-    fontWeight: '500',
   },
   promptsRow: {
     flexDirection: 'row',
