@@ -51,6 +51,12 @@ export interface GrueneratorAdapterConfig {
    *  request scopes retrieval to. Set by the host app, which owns the
    *  notebook→collection map; absent → fall back to `selectedNotebookId`. */
   selectedNotebookCollectionIds?: string[];
+  /**
+   * Keyword facets to scope notebook retrieval by, keyed by filter field (the
+   * shape `/research/filters` returns and `/notebook/stream` accepts). Web's
+   * notebook page passes the same map through `NotebookAdapterConfig.filters`.
+   */
+  notebookFilters?: Record<string, string[]>;
   /** Notebook RAG depth; defaults to 'fast' (still returns citations). */
   notebookMode?: 'fast' | 'deep';
   threadMode?: ThreadMode;
