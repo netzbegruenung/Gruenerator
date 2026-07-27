@@ -48,6 +48,13 @@ import {
   type CanvaDesignToken,
   type VorlageToken,
 } from '../../lib/mentionables';
+import {
+  appendToDraft,
+  buildConnectAttachment,
+  buildWebpageAttachment,
+  buildWolkeAttachment,
+  canvaDesignsMarkdown,
+} from '../../lib/mentionAttachments';
 import { getFilteredMentionables, detectMention } from '../../lib/mentionDetection';
 import { computeMentionInsertion } from '../../lib/mentionInsertion';
 import { useScopedAgentId } from '../../lib/useScopedAgentState';
@@ -485,24 +492,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     (files: WolkeFileToken[]) => {
       if (files.length === 0) return;
       for (const f of files) {
-        void composerRuntime.addAttachment({
-          id: `gruenerator-wolke-${f.shareLinkId}:${f.path}`,
-          type: 'document',
-          name: f.name,
-          contentType: 'application/x-gruenerator-wolke',
-          content: [
-            {
-              type: 'data',
-              name: 'gruenerator-mention',
-              data: {
-                kind: 'wolke',
-                shareLinkId: f.shareLinkId,
-                path: f.path,
-                name: f.name,
-              },
-            },
-          ],
-        });
+        void composerRuntime.addAttachment(buildWolkeAttachment(f));
       }
       dismissPopover();
       requestAnimationFrame(() => textareaRef.current?.focus());
@@ -514,25 +504,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     (files: ConnectFileToken[]) => {
       if (files.length === 0) return;
       for (const f of files) {
-        void composerRuntime.addAttachment({
-          id: `gruenerator-connect-${f.provider}:${f.fileId}`,
-          type: 'document',
-          name: f.name,
-          contentType: 'application/x-gruenerator-connect',
-          content: [
-            {
-              type: 'data',
-              name: 'gruenerator-mention',
-              data: {
-                kind: 'connect',
-                provider: f.provider,
-                fileId: f.fileId,
-                name: f.name,
-                ...(f.mimeType ? { mimeType: f.mimeType } : {}),
-              },
-            },
-          ],
-        });
+        void composerRuntime.addAttachment(buildConnectAttachment(f));
       }
       dismissPopover();
       requestAnimationFrame(() => textareaRef.current?.focus());
@@ -542,26 +514,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
 
   const handleWebSelect = useCallback(
     (url: string) => {
-      const hostname = (() => {
-        try {
-          return new URL(url).hostname;
-        } catch {
-          return url;
-        }
-      })();
-      void composerRuntime.addAttachment({
-        id: `gruenerator-webpage-${url}`,
-        type: 'document',
-        name: hostname,
-        contentType: 'application/x-gruenerator-webpage',
-        content: [
-          {
-            type: 'data',
-            name: 'gruenerator-mention',
-            data: { kind: 'webpage', url, name: hostname },
-          },
-        ],
-      });
+      void composerRuntime.addAttachment(buildWebpageAttachment(url));
       dismissPopover();
       requestAnimationFrame(() => textareaRef.current?.focus());
     },
@@ -573,10 +526,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       if (designs.length === 0) return;
       // Insert each chosen design as a markdown link — a direct, durable
       // reference (view URLs are valid 30 days) the user/agent can act on.
-      const links = designs.map((d) => `[🎨 ${d.title}](${d.viewUrl})`).join(' ');
-      const currentText = composerRuntime.getState().text;
-      const needsSpace = currentText.length > 0 && !currentText.endsWith(' ');
-      const newText = `${currentText}${needsSpace ? ' ' : ''}${links} `;
+      const newText = appendToDraft(composerRuntime.getState().text, canvaDesignsMarkdown(designs));
       composerRuntime.setText(newText);
       dismissPopover();
       requestAnimationFrame(() => {
