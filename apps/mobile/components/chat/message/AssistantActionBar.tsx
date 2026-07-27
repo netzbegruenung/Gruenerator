@@ -1,14 +1,15 @@
 import { ActionBarPrimitive, useAui } from '@assistant-ui/react-native';
+import { MenuView } from '@expo/ui/community/menu';
 import { type ChatMessageMetadata } from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 
 import { useMessageActions } from '../../../hooks/useMessageActions';
 import { useNativeTTS } from '../../../hooks/useNativeTTS';
 import { copyToClipboard } from '../../../services/share';
 import { colors, spacing } from '../../../theme';
-import { MessageActionsSheet } from '../MessageActionsSheet';
+import { asMessageMenuId, buildMessageMenuActions } from '../menuActions';
 
 import { flagRegenerate } from './threadRunSignals';
 
@@ -35,6 +36,11 @@ async function writeToClipboard(text: string): Promise<void> {
  * only the three actions one reaches for mid-conversation — copy, read aloud,
  * regenerate. Everything that leaves the chat (Word export, editor handoff)
  * sits behind the "⋮".
+ *
+ * That "⋮" opens the platform's own menu, not a bottom sheet. A full-width sheet
+ * sliding up from the bottom edge for two entries was the wrong weight for the
+ * gesture, and it arrived a slide-animation after the tap — a native menu opens
+ * at the glyph, immediately.
  */
 export const AssistantActionBar = memo(function AssistantActionBar({
   theme,
@@ -47,7 +53,6 @@ export const AssistantActionBar = memo(function AssistantActionBar({
 }) {
   const aui = useAui();
   const { state: ttsState, play, stop } = useNativeTTS();
-  const [moreVisible, setMoreVisible] = useState(false);
   const target = useMemo(
     () =>
       messageText
@@ -73,18 +78,16 @@ export const AssistantActionBar = memo(function AssistantActionBar({
     }
   }, [ttsState, messageText, play, stop]);
 
-  // The sheet closes on pick rather than waiting for the export: both actions
-  // end outside the app (share sheet, editor), so leaving it open would strand a
-  // dead sheet behind whatever opens next.
-  const handleExportDocx = useCallback(() => {
-    setMoreVisible(false);
-    void exportDocx();
-  }, [exportDocx]);
+  const menuActions = useMemo(() => buildMessageMenuActions(!!exporting), [exporting]);
 
-  const handleOpenInDocs = useCallback(() => {
-    setMoreVisible(false);
-    void openInDocs();
-  }, [openInDocs]);
+  const handleMenuAction = useCallback(
+    ({ nativeEvent }: { nativeEvent: { event: string } }) => {
+      const id = asMessageMenuId(nativeEvent.event);
+      if (id === 'export-docx') void exportDocx();
+      else if (id === 'open-in-docs') void openInDocs();
+    },
+    [exportDocx, openInDocs]
+  );
 
   return (
     <View style={styles.bar}>
@@ -120,27 +123,18 @@ export const AssistantActionBar = memo(function AssistantActionBar({
         <Ionicons name="refresh-outline" size={ICON_SIZE} color={theme.textSecondary} />
       </Pressable>
       {messageText ? (
-        <>
-          <Pressable
-            onPress={() => setMoreVisible(true)}
-            style={styles.button}
-            accessibilityLabel="Weitere Aktionen"
-          >
-            <Ionicons
-              name={exporting ? 'hourglass-outline' : 'ellipsis-vertical'}
-              size={ICON_SIZE}
-              color={theme.textSecondary}
-            />
-          </Pressable>
-          <MessageActionsSheet
-            visible={moreVisible}
-            theme={theme}
-            exporting={exporting}
-            onClose={() => setMoreVisible(false)}
-            onExportDocx={handleExportDocx}
-            onOpenInDocs={handleOpenInDocs}
+        <MenuView
+          actions={menuActions}
+          onPressAction={handleMenuAction}
+          style={styles.button}
+          testID="chat-message-more"
+        >
+          <Ionicons
+            name={exporting ? 'hourglass-outline' : 'ellipsis-vertical'}
+            size={ICON_SIZE}
+            color={theme.textSecondary}
           />
-        </>
+        </MenuView>
       ) : null}
     </View>
   );
