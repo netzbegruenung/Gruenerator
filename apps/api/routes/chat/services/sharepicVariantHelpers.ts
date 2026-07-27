@@ -9,7 +9,7 @@ import {
 import { createLogger } from '../../../utils/logger.js';
 
 import { errorText, isRefusalError } from './refusalDetection.js';
-import { asksForNewArtifact } from './sharepicEditHeuristics.js';
+import { asksForNewArtifact, isVerificationQuestion } from './sharepicEditHeuristics.js';
 
 const log = createLogger('SharepicVariants');
 
@@ -111,6 +111,10 @@ export function isSharepicRefinement(text: string): boolean {
   // also carries — "Schreib einen Post UND eine Pressemitteilung. Kürze danach
   // nur die Pressemitteilung." matched on "Kürze" alone and produced nothing.
   if (asksForNewArtifact(text)) return false;
+  // REFINE_PATTERN fires on a single everyday word, so it swallows questions
+  // that merely contain one: "Ist das sachlich korrekt?" matched on "sachlich"
+  // and was answered as an edit command.
+  if (isVerificationQuestion(text)) return false;
   return REFINE_PATTERN.test(text);
 }
 
