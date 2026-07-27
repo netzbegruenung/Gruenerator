@@ -16,6 +16,7 @@ import {
   executeResearch,
 } from '../../../../routes/chat/agents/directSearch.js';
 import { resolveExamplesLvScope } from '../../../../routes/chat/agents/lvScope.js';
+import { resolveReferentialQuery } from '../../../../routes/chat/services/referentialTopic.js';
 import { getEnrichedPoliticianService } from '../../../../services/abgeordnetenwatch/index.js';
 import { type AwEnrichedResult } from '../../../../services/abgeordnetenwatch/types.js';
 import { getBundestagEnrichedService } from '../../../../services/bundestag/BundestagEnrichedService.js';
@@ -773,7 +774,22 @@ export async function executeMultiDocFanout(
  */
 export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const startTime = Date.now();
-  const { intent, searchQuery, agentConfig } = state;
+  const { intent, agentConfig } = state;
+
+  // A referential ask carries no subject of its own. Taken verbatim it BECAME
+  // the query — "Ja, bitte recherchiere das jetzt im Web" produced a deep
+  // research run about "Die Grünen in Österreich" instead of the renewables
+  // question from the turn before, and still shipped with "Hohe Konfidenz, 20
+  // Quellen". Resolved once here so every search-class intent benefits, not
+  // only the forced path in the router.
+  const referential = resolveReferentialQuery(state.searchQuery ?? '', state.messages ?? []);
+  const searchQuery = referential.query;
+  const queryInherited = referential.inherited || state.searchQueryInherited === true;
+  if (referential.inherited) {
+    log.info(
+      `[Search] Referential query resolved to the prior turn's topic: "${searchQuery.slice(0, 60)}"`
+    );
+  }
 
   const detectedFilters = state.detectedFilters || null;
   if (detectedFilters) {
@@ -1021,6 +1037,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         const researchResult = await executeResearch({
           question,
           brief: state.researchBrief,
+          queryInherited,
           depth,
           maxSources,
           complexity,

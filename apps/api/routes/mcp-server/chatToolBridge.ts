@@ -24,6 +24,7 @@ const noopRegistry: SourceRegistry = {
   renderReference: () => '',
   getCitations: () => [],
   size: 0,
+  carriedSize: 0,
 };
 
 // No personal-data tool reaches an sse call without a threadId; this only

@@ -62,4 +62,20 @@ describe('isSocialTextEditInstruction', () => {
     expect(isSharepicEditInstruction('mach den text knackiger')).toBe(true);
     expect(isSocialTextEditInstruction('mach den Text knackiger')).toBe(true);
   });
+
+  it('never claims a request to SEE the text verbatim', () => {
+    // The ghost-answer class: these matched verb∧noun and were answered with
+    // "Ich habe den Text angepasst." while no content ever reached the chat.
+    expect(isSocialTextEditInstruction('Gib mir den Text mit HTML-Tags wörtlich aus')).toBe(false);
+    expect(isSocialTextEditInstruction('Schreib mir den Text mit <b>-Tags aus')).toBe(false);
+    expect(isSocialTextEditInstruction('Zeig mir den Post als Markdown')).toBe(false);
+    expect(isSocialTextEditInstruction('Gib den Beitrag unverändert aus')).toBe(false);
+  });
+
+  it('still claims genuine edit instructions', () => {
+    // Guard against the output check over-reaching.
+    expect(isSocialTextEditInstruction('Mach den Text knackiger')).toBe(true);
+    expect(isSocialTextEditInstruction('Kürze den Post auf zwei Sätze')).toBe(true);
+    expect(isSocialTextEditInstruction('Ergänze zwei Hashtags')).toBe(true);
+  });
 });
