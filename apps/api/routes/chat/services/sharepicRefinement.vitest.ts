@@ -26,4 +26,21 @@ describe('isSharepicRefinement', () => {
   it('bleibt bei einer Nachricht ohne Edit-Wort negativ', () => {
     expect(isSharepicRefinement('Wer ist Bundesvorsitzende?')).toBe(false);
   });
+
+  /**
+   * REFINE_PATTERN fires on a SINGLE everyday word, so any question containing
+   * one was read as an edit command. "sachlich", "anders" and "mach es" are
+   * ordinary German, not sharepic vocabulary.
+   */
+  it('frisst keine Rückfragen mehr, die zufällig ein Edit-Wort enthalten', () => {
+    expect(isSharepicRefinement('Ist das sachlich korrekt?')).toBe(false);
+    expect(isSharepicRefinement('Ist die Zahl wirklich richtig?')).toBe(false);
+    expect(isSharepicRefinement('Stimmt das, oder hast du das geändert?')).toBe(false);
+  });
+
+  it('lässt höfliche Änderungswünsche in Frageform weiterhin durch', () => {
+    // Diese Grenze ist der Grund, warum kein blanker "?"-Test genügt.
+    expect(isSharepicRefinement('Kannst du das kürzer machen?')).toBe(true);
+    expect(isSharepicRefinement('Magst du ein anderes Bild nehmen?')).toBe(true);
+  });
 });

@@ -3,9 +3,56 @@ import { describe, it, expect } from 'vitest';
 import {
   asksForNewArtifact,
   isSharepicEditInstruction,
+  isVerificationQuestion,
   hasSharepicEditVerb,
   isShortAffirmation,
 } from './sharepicEditHeuristics.js';
+
+/**
+ * A question about the CONTENT is not an instruction to change it. Live, a user
+ * questioning a fact got "Welche Variante soll ich bearbeiten?" and the turn
+ * ended there.
+ *
+ * The hard part is that a bare "?" test would be wrong: half of all polite edit
+ * requests are questions in form ("Kannst du die Überschrift kürzen?"). What
+ * separates them is the verification vocabulary, not the punctuation — these
+ * tests pin both directions.
+ */
+describe('isVerificationQuestion', () => {
+  it('catches questions that challenge the content', () => {
+    expect(isVerificationQuestion('bist du sicher, dass der Name stimmt?')).toBe(true);
+    expect(isVerificationQuestion('Ist das sachlich korrekt?')).toBe(true);
+    expect(isVerificationQuestion('Stimmt das wirklich?')).toBe(true);
+    expect(isVerificationQuestion('Welche Quelle hast du dafür?')).toBe(true);
+    expect(isVerificationQuestion('Hast du dir das Zitat ausgedacht?')).toBe(true);
+    expect(isVerificationQuestion('Woher hast du die Zahl?')).toBe(true);
+  });
+
+  it('leaves polite edit requests alone — they are questions in form only', () => {
+    expect(isVerificationQuestion('Kannst du die Überschrift kürzen?')).toBe(false);
+    expect(isVerificationQuestion('Magst du das Bild austauschen?')).toBe(false);
+    expect(isVerificationQuestion('Machst du Zeile 2 kürzer?')).toBe(false);
+  });
+
+  it('needs BOTH the vocabulary and a question mark', () => {
+    // A correction that carries an instruction must keep working.
+    expect(isVerificationQuestion('das stimmt so nicht, kürz es')).toBe(false);
+    expect(isVerificationQuestion('Kürzer bitte')).toBe(false);
+  });
+
+  it('closes every door into the edit branch, not just one', () => {
+    // These carry a real edit VERB and NOUN, so without the guard both
+    // predicates fire and a question about what the assistant did becomes an
+    // order to do more of it. The refinement door is covered in
+    // sharepicRefinement.vitest.ts — a fix that shuts one of two doors is the
+    // bug this suite already knows about.
+    expect(isSharepicEditInstruction('Hast du den Text wirklich geändert?')).toBe(false);
+    expect(hasSharepicEditVerb('Stimmt das, oder hast du das geändert?')).toBe(false);
+    // …while the same words as an instruction stay an instruction.
+    expect(isSharepicEditInstruction('Ändere den Text')).toBe(true);
+    expect(hasSharepicEditVerb('ändere das')).toBe(true);
+  });
+});
 
 describe('asksForNewArtifact', () => {
   it('erkennt die live gescheiterte Multi-Intent-Anfrage als Erstellung', () => {

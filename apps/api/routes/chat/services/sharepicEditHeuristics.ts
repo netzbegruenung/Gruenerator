@@ -51,6 +51,26 @@ export function asksForNewArtifact(text: string): boolean {
 }
 
 /**
+ * A question ABOUT the content ("stimmt das?", "bist du sicher?") rather than a
+ * request to change it. Blocks every door into the edit branch — live, a user
+ * questioning a fact got "Welche Variante soll ich bearbeiten?" instead of an
+ * answer, and the turn ended there.
+ *
+ * A bare "?" test would be wrong and was rejected for that reason: "Kannst du
+ * die Überschrift kürzen?" is a question in form and an instruction in intent,
+ * and half of all polite edit requests look like that. What separates the two
+ * is the verification vocabulary — stimmt / sicher / korrekt / Quelle — not the
+ * punctuation. Both are required: "das stimmt so nicht, kürz es" is a
+ * correction WITH an instruction and must keep working.
+ */
+const VERIFICATION_QUESTION_PATTERN =
+  /(?<!\p{L})(stimmt\s+(?:das|die|der|es)|bist\s+du\s+(?:dir\s+)?sicher|sicher,?\s+dass|ist\s+(?:das|die|der|dies|diese[rs]?)\b[^?]{0,40}?(?:wirklich|korrekt|richtig|wahr|belegt|erfunden)|hast\s+du\s+(?:dir\s+)?(?:das|die|den)\b[^?]{0,30}?(?:erfunden|ausgedacht)|wo(?:her)?\s+(?:hast\s+du|kommt|stammt)|welche\s+quelle|gibt\s+es\s+(?:daf(?:ü|ue)r|dazu)\s+(?:eine\s+)?(?:quelle|beleg))/iu;
+
+export function isVerificationQuestion(text: string): boolean {
+  return text.includes('?') && VERIFICATION_QUESTION_PATTERN.test(text);
+}
+
+/**
  * True when the message reads like an edit instruction for an existing
  * sharepic (vs. a request for a fresh one). Only meaningful when the thread
  * actually has a sharepic to edit — callers check target existence.
@@ -58,6 +78,7 @@ export function asksForNewArtifact(text: string): boolean {
 export function isSharepicEditInstruction(text: string): boolean {
   if (NEW_VARIANTS_PATTERN.test(text)) return false;
   if (NEW_ARTIFACT_PATTERN.test(text)) return false;
+  if (isVerificationQuestion(text)) return false;
   return EDIT_VERB_PATTERN.test(text) && EDIT_NOUN_PATTERN.test(text);
 }
 
@@ -70,6 +91,7 @@ export function isSharepicEditInstruction(text: string): boolean {
  */
 export function hasSharepicEditVerb(text: string): boolean {
   if (NEW_VARIANTS_PATTERN.test(text)) return false;
+  if (isVerificationQuestion(text)) return false;
   return EDIT_VERB_PATTERN.test(text);
 }
 
