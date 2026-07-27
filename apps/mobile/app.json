@@ -77,7 +77,25 @@
           "supportsPictureInPicture": false
         }
       ],
-      "expo-font",
+      [
+        "expo-font",
+        {
+          "android": {
+            "fonts": [
+              {
+                "fontFamily": "PT Sans",
+                "fontDefinitions": [
+                  { "path": "./assets/fonts/PTSans-Regular.ttf", "weight": 400 },
+                  { "path": "./assets/fonts/PTSans-Bold.ttf", "weight": 700 }
+                ]
+              }
+            ]
+          },
+          "ios": {
+            "fonts": ["./assets/fonts/PTSans-Regular.ttf", "./assets/fonts/PTSans-Bold.ttf"]
+          }
+        }
+      ],
       "expo-notifications",
       "expo-speech-recognition",
       "./plugins/withMediaCapabilities.js",

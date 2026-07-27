@@ -3,7 +3,7 @@ import { memo } from 'react';
 import { View, ScrollView, Pressable, Text, StyleSheet, useColorScheme } from 'react-native';
 
 import { useDocsEditorBridgeStore, type FormatStyle } from '../../stores/docsEditorBridgeStore';
-import { lightTheme, darkTheme, colors } from '../../theme';
+import { lightTheme, darkTheme, colors, BODY_FONT } from '../../theme';
 
 interface ToolbarButton {
   id: string;
@@ -233,6 +233,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '500',
   },

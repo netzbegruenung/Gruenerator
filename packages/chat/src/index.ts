@@ -57,6 +57,7 @@ export {
   COMPOSER_MODES,
   COMPOSER_TOOLS,
   SEARCH_DEPTHS,
+  showsSearchDepth,
   type ComposerModeDef,
   type ComposerIconKey,
   type ComposerToolDef,
@@ -340,6 +341,7 @@ export {
   getAllMentionables,
   getAgentMentionables,
   setMentionLocale,
+  getMentionLocale,
   setCustomAgents,
   getCustomAgentMentionables,
   customAgentToMentionable,
@@ -435,6 +437,8 @@ export {
 } from './lib/toolRegistry';
 export {
   registerDocumentSlug,
+  buildDocumentMentionAttachment,
+  buildCollabDocAttachment,
   resolveDocumentSlug,
   clearDocumentSlugs,
   documentToSlug,
@@ -479,3 +483,11 @@ export { ModalThread, type ModalThreadProps } from './components/gruen-o-mat/Mod
 // Icons
 export { ChatIcon } from './components/icons/ChatIcon';
 export { default as GrueneratorHomeIconLoading } from './components/icons/GrueneratorHomeIconLoading';
+
+// Composer plus-menu assembly — shared by web's PlusMenu and mobile's ComposerActionSheet
+export {
+  quickSkillMentionables,
+  functionMentionables,
+  connectorMentionables,
+  connectorId,
+} from './lib/plusMenu';

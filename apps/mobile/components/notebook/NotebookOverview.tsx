@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 
 import { getResearchCollectionIds } from '../../config/notebooksConfig';
-import { spacing } from '../../theme';
+import { spacing, BODY_FONT } from '../../theme';
 import { getSurfaceFab } from '../../theme/toolTheme';
 
 import { LastAddedSection } from './LastAddedSection';
@@ -74,6 +74,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xsmall,
   },
   toggleText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },

@@ -1,4 +1,4 @@
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
 
@@ -8,23 +8,27 @@ export function getMarkdownStyles(theme: Theme) {
   return {
     body: {
       color: theme.text,
+      fontFamily: BODY_FONT,
       fontSize: 17,
       lineHeight: 27,
     },
     heading1: {
       color: theme.text,
+      fontFamily: BODY_FONT,
       fontSize: 24,
       fontWeight: '700' as const,
       marginBottom: spacing.xsmall,
     },
     heading2: {
       color: theme.text,
+      fontFamily: BODY_FONT,
       fontSize: 20,
       fontWeight: '600' as const,
       marginBottom: spacing.xsmall,
     },
     heading3: {
       color: theme.text,
+      fontFamily: BODY_FONT,
       fontSize: 18,
       fontWeight: '600' as const,
       marginBottom: spacing.xxsmall,

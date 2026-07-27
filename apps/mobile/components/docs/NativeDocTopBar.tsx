@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSpeechToText } from '../../hooks/useSpeechToText';
 import { useDocsEditorBridgeStore } from '../../stores/docsEditorBridgeStore';
-import { lightTheme, darkTheme, colors } from '../../theme';
+import { lightTheme, darkTheme, colors, BODY_FONT } from '../../theme';
 
 // Only "problem"/in-progress states get a dot. 'connecting' (initial load) and
 // 'connected' show nothing — the skeleton covers the load, so a red/amber dot on
@@ -340,12 +340,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarText: {
+    fontFamily: BODY_FONT,
     fontSize: 10,
     fontWeight: '700',
     color: colors.white,
   },
   titleInput: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '600',
     paddingVertical: 4,
@@ -375,6 +377,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   menuItemText: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '500',
     flexShrink: 1,

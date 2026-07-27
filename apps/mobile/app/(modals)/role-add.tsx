@@ -31,7 +31,15 @@ import {
 } from 'react-native';
 
 import { fetchRoles, persistRoles, generateRoleSystemPrompt } from '../../services/roles';
-import { colors, spacing, borderRadius, typography, lightTheme, darkTheme } from '../../theme';
+import {
+  colors,
+  spacing,
+  borderRadius,
+  typography,
+  lightTheme,
+  darkTheme,
+  BODY_FONT,
+} from '../../theme';
 
 import type { Theme } from '../../theme/colors';
 
@@ -496,6 +504,7 @@ const styles = StyleSheet.create({
     gap: spacing.medium,
   },
   generatingText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
   },
   backRow: {
@@ -506,18 +515,22 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xsmall,
   },
   backText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
   },
   stepTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 18,
     fontWeight: '700',
     marginTop: spacing.xsmall,
   },
   stepSubtitle: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     marginTop: -spacing.xxsmall,
   },
   fieldLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     marginBottom: spacing.xsmall,
     marginTop: spacing.xsmall,
@@ -533,6 +546,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.medium,
   },
   selectCardIcon: {
+    fontFamily: BODY_FONT,
     fontSize: 20,
   },
   selectCardText: {
@@ -540,13 +554,16 @@ const styles = StyleSheet.create({
     gap: 1,
   },
   selectCardLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '600',
   },
   selectCardDescription: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
   },
   input: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     borderWidth: 1,
     borderRadius: borderRadius.medium,
@@ -569,10 +586,12 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.small,
   },
   suggestionText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '500',
   },
   suggestionMeta: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
   },
   primaryButton: {
@@ -584,6 +603,7 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: colors.white,
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -592,6 +612,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   ghostButtonText: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '500',
   },

@@ -2,7 +2,7 @@ import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ioni
 import { Image } from 'expo-image';
 import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 
 /**
  * Notebook gallery tile — the mobile port of web's `NotebookGalleryCard`.
@@ -100,6 +100,7 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   meta: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     marginTop: 1,
   },

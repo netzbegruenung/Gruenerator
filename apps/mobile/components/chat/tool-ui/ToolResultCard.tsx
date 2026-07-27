@@ -3,7 +3,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 
-import { colors, spacing, borderRadius } from '../../../theme';
+import { colors, spacing, borderRadius, BODY_FONT } from '../../../theme';
 
 import { ToolCitationList } from './ToolCitationList';
 import { toolIonicon } from './toolIcons';
@@ -99,23 +99,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   label: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },
   query: {
     flexShrink: 1,
+    fontFamily: BODY_FONT,
     fontSize: 12,
   },
   count: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '700',
   },
   error: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     marginTop: spacing.xxsmall,
     marginLeft: spacing.xsmall,
   },
   note: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     lineHeight: 20,
     marginTop: spacing.xxsmall,

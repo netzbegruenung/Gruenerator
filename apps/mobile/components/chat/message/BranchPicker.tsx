@@ -3,7 +3,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-import { spacing } from '../../../theme';
+import { spacing, BODY_FONT } from '../../../theme';
 
 import type { Theme } from '../../../theme/colors';
 
@@ -50,6 +50,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   text: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     fontWeight: '500',
   },
