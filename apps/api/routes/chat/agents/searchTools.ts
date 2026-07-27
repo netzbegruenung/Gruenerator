@@ -36,6 +36,12 @@ export const ALL_COLLECTIONS = [
   'boell-stiftung',
 ] as const;
 
+/** Austria is a first-class audience, not a toggle on a German default. */
+const LOCALE_DEFAULT_COLLECTION: Record<string, string> = {
+  'de-AT': 'oesterreich',
+  'de-DE': 'deutschland',
+};
+
 export interface CreateSearchToolsOptions {
   /**
    * Add the router-style `direct_response` escape hatch. The chat handler needs
@@ -43,6 +49,14 @@ export interface CreateSearchToolsOptions {
    * tools on-demand and leaves it out.
    */
   includeDirectResponse?: boolean;
+  /**
+   * Whose collections to search when the model names none. Without it every
+   * turn defaulted to `deutschland` — an AT user asking about Austria searched
+   * the German corpus and got 0 hits (observed live). An explicit
+   * `toolRestrictions.defaultCollection` still wins: that is a deliberate
+   * per-agent decision, this is only the fallback.
+   */
+  userLocale?: string | null;
   /**
    * When set, restrict the returned search tools to the agent's user-selected
    * capabilities (USER_SELECTABLE_TOOLS keys: `search` → gruenerator_search,
@@ -70,7 +84,14 @@ export function createSearchTools(
     ? restrictions.allowedCollections
     : ALL_COLLECTIONS;
 
-  const defaultCollection = restrictions?.defaultCollection || allowedCollections[0];
+  const localeDefault = options.userLocale
+    ? LOCALE_DEFAULT_COLLECTION[options.userLocale]
+    : undefined;
+  const defaultCollection =
+    restrictions?.defaultCollection ||
+    (localeDefault && allowedCollections.includes(localeDefault)
+      ? localeDefault
+      : allowedCollections[0]);
   const examplesCountry = restrictions?.examplesCountry;
   // Landesverband scope for example searches — derived from the agent so an LV
   // agent only grounds in its own LV's social/press examples. Without this the
