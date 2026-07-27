@@ -1,134 +1,100 @@
-import { getAllRobotIds, getRobotAvatarUrl } from '@gruenerator/shared/avatar';
 import { useAuth } from '@gruenerator/shared/hooks';
+import { getSettingsEntry } from '@gruenerator/shared/settings';
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { Image } from 'expo-image';
-import { router } from 'expo-router';
-import { useState } from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  useColorScheme,
-  ActivityIndicator,
-  ScrollView,
-  Pressable,
-  TextInput,
-  Alert,
-} from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { StyleSheet, Text, View, ActivityIndicator, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, ProfileAvatar } from '../../components/common';
-import { BottomSheet } from '../../components/common/BottomSheet';
-import { AppSettingsSection } from '../../components/profile/AppSettingsSection';
-import { RolesSection } from '../../components/profile/RolesSection';
-import { logout } from '../../services/auth';
 import {
-  lightTheme,
-  darkTheme,
-  typography,
-  spacing,
-  colors,
-  borderRadius,
-  BODY_FONT,
-} from '../../theme';
+  SettingsGroup,
+  SettingsRow,
+  SettingsScreen,
+  SettingsPickerSheet,
+  useSurfaceStyles,
+  type PickerOption,
+} from '../../components/settings';
+import { useTheme } from '../../hooks/useTheme';
+import { logout } from '../../services/auth';
+import { fetchRoles } from '../../services/roles';
+import { usePreferencesStore, type ThemeMode } from '../../stores/preferencesStore';
+import { spacing, colors, borderRadius, typography, BODY_FONT } from '../../theme';
+import { route } from '../../types/routes';
 
-// Robot avatar 10 ("Wolki") is unlocked via a Wolke connection, which isn't
-// available on mobile — so the picker offers 1–9.
-const PICKABLE_ROBOT_IDS = getAllRobotIds().filter((id) => id !== 10);
+type Locale = 'de-DE' | 'de-AT';
 
-function AvatarPickerSheet({
-  visible,
-  currentId,
-  onClose,
-  onSelect,
-}: {
-  visible: boolean;
-  currentId?: string;
-  onClose: () => void;
-  onSelect: (id: number) => void;
-}) {
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+const THEME_OPTIONS: readonly PickerOption<ThemeMode>[] = [
+  {
+    value: 'system',
+    label: 'Automatisch',
+    description: 'Folgt dem System',
+    icon: 'contrast-outline',
+  },
+  { value: 'light', label: 'Hell', icon: 'sunny-outline' },
+  { value: 'dark', label: 'Dunkel', icon: 'moon-outline' },
+];
 
-  return (
-    <BottomSheet visible={visible} onClose={onClose} maxHeight="60%">
-      <Text style={[styles.sheetTitle, { color: theme.text }]}>Avatar wählen</Text>
-      <View style={styles.avatarGrid}>
-        {PICKABLE_ROBOT_IDS.map((id) => {
-          const selected = String(id) === currentId;
-          return (
-            <Pressable
-              key={id}
-              onPress={() => onSelect(id)}
-              style={[
-                styles.avatarOption,
-                {
-                  borderColor: selected ? colors.primary[600] : 'transparent',
-                  backgroundColor: theme.surface,
-                },
-              ]}
-            >
-              <Image
-                source={{ uri: getRobotAvatarUrl(id) }}
-                style={styles.avatarImage}
-                contentFit="cover"
-                cachePolicy="memory-disk"
-                recyclingKey={String(id)}
-              />
-            </Pressable>
-          );
-        })}
-      </View>
-    </BottomSheet>
-  );
-}
+const THEME_LABELS: Record<ThemeMode, string> = {
+  system: 'Automatisch',
+  light: 'Hell',
+  dark: 'Dunkel',
+};
 
+const LOCALE_OPTIONS: readonly PickerOption<Locale>[] = [
+  { value: 'de-DE', label: 'Deutschland', icon: 'flag-outline' },
+  { value: 'de-AT', label: 'Österreich', icon: 'flag-outline' },
+];
+
+const LOCALE_LABELS: Record<Locale, string> = {
+  'de-DE': 'Deutschland',
+  'de-AT': 'Österreich',
+};
+
+/** `null` while nothing is open; otherwise the picker being shown. */
+type OpenPicker = 'theme' | 'locale' | null;
+
+/**
+ * The settings surface: state first, editing second.
+ *
+ * Every row carries its current value as a subtitle so the screen reads without
+ * being tapped — the deliberate difference to web, whose dialog is a place you
+ * go to *change* things. Mobile is where you check what is set; the heavy
+ * management surfaces (Briefköpfe, Texte anlernen, Websites, Wolke,
+ * Erinnerungen, das Anlegen von Rollen und Konnektoren) stay on the desktop.
+ *
+ * Row wording comes from the shared settings catalog, so a rename on web renames
+ * it here too.
+ */
 export default function ProfileScreen() {
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const { user, isAuthenticated, isLoading, isLoggingOut } = useAuth();
-  const updateProfile = useAuthStore((s) => s.updateProfile);
-  const updateAvatar = useAuthStore((s) => s.updateAvatar);
+  const themeMode = usePreferencesStore((s) => s.themeMode);
+  const setThemeMode = usePreferencesStore((s) => s.setThemeMode);
   const updateLocale = useAuthStore((s) => s.updateLocale);
+  const { card } = useSurfaceStyles();
+  const theme = useTheme();
 
-  const [displayName, setDisplayName] = useState(user?.display_name ?? '');
-  const [avatarSheetVisible, setAvatarSheetVisible] = useState(false);
+  const [picker, setPicker] = useState<OpenPicker>(null);
+  const [roleCount, setRoleCount] = useState<number | null>(null);
 
-  const handleLogin = () => {
-    router.push('/(auth)/login');
-  };
-
-  const handleNameBlur = () => {
-    const trimmed = displayName.trim();
-    if (trimmed && trimmed !== user?.display_name) {
-      void updateProfile({ display_name: trimmed }).catch(() => {
-        setDisplayName(user?.display_name ?? '');
-        Alert.alert('Fehler', 'Name konnte nicht gespeichert werden.');
+  // Re-read on focus so a role changed on the web app shows up on return.
+  useFocusEffect(
+    useCallback(() => {
+      if (!isAuthenticated) return;
+      let active = true;
+      void fetchRoles().then((roles) => {
+        if (active) setRoleCount(roles.length);
       });
-    }
-  };
-
-  const handleSelectAvatar = (id: number) => {
-    setAvatarSheetVisible(false);
-    void updateAvatar(String(id)).catch(() => {
-      Alert.alert('Fehler', 'Avatar konnte nicht gespeichert werden.');
-    });
-  };
-
-  const handleSelectLocale = (locale: 'de-DE' | 'de-AT') => {
-    if (locale === user?.locale) return;
-    void updateLocale(locale).catch(() => {
-      Alert.alert('Fehler', 'Region konnte nicht gespeichert werden.');
-    });
-  };
+      return () => {
+        active = false;
+      };
+    }, [isAuthenticated])
+  );
 
   if (isLoading) {
     return (
-      <SafeAreaView
-        style={[styles.container, styles.centered, { backgroundColor: theme.background }]}
-        edges={['top']}
-      >
+      <SafeAreaView style={styles.centeredScreen} edges={['top']}>
         <ActivityIndicator size="large" color={colors.primary[600]} />
       </SafeAreaView>
     );
@@ -136,231 +102,165 @@ export default function ProfileScreen() {
 
   if (!isAuthenticated || !user) {
     return (
-      <SafeAreaView
-        style={[styles.container, { backgroundColor: theme.background }]}
-        edges={['top']}
-      >
-        <View style={[styles.centered, { flex: 1, paddingTop: spacing.xxlarge }]}>
-          <Text style={[styles.title, { color: theme.text }]}>Profil</Text>
-          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-            Melde dich an, um dein Profil zu verwalten
-          </Text>
-          <View style={styles.loginButton}>
-            <Button onPress={handleLogin}>Anmelden</Button>
-          </View>
+      <SettingsScreen title="Einstellungen">
+        <View style={styles.signedOut}>
+          <Text style={styles.signedOutText}>Melde dich an, um dein Profil zu verwalten</Text>
+          <Button onPress={() => router.push(route('/(auth)/login'))}>Anmelden</Button>
         </View>
-      </SafeAreaView>
+      </SettingsScreen>
     );
   }
 
+  const locale = (user.locale ?? 'de-DE') as Locale;
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        {/* Top bar — logout */}
-        <View style={styles.topBar}>
-          <Pressable
-            onPress={() => void logout()}
-            disabled={isLoggingOut}
-            hitSlop={8}
-            accessibilityLabel="Abmelden"
-            style={styles.logoutIcon}
-          >
-            {isLoggingOut ? (
-              <ActivityIndicator size="small" color={theme.textSecondary} />
-            ) : (
-              <Ionicons name="log-out-outline" size={24} color={theme.textSecondary} />
-            )}
-          </Pressable>
-        </View>
-
-        {/* Identity header */}
-        <View style={styles.header}>
-          <Pressable onPress={() => setAvatarSheetVisible(true)} style={styles.avatarWrap}>
-            <ProfileAvatar
-              avatarRobotId={user.avatar_robot_id}
-              displayName={user.display_name}
-              email={user.email}
-              size="large"
-            />
-            <View
-              style={[
-                styles.avatarEditBadge,
-                { backgroundColor: colors.primary[600], borderColor: theme.background },
-              ]}
-            >
-              <Ionicons name="pencil" size={12} color={colors.white} />
-            </View>
-          </Pressable>
-
-          <TextInput
-            value={displayName}
-            onChangeText={setDisplayName}
-            onBlur={handleNameBlur}
-            placeholder="Dein Name"
-            placeholderTextColor={theme.textSecondary}
-            style={[styles.nameInput, { color: theme.text }]}
-            returnKeyType="done"
+    <>
+      <SettingsScreen title="Einstellungen">
+        <Pressable
+          onPress={() => router.push(route('/(focused)/settings/konto'))}
+          style={({ pressed }) => [styles.account, card, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Konto"
+        >
+          <ProfileAvatar
+            avatarRobotId={user.avatar_robot_id}
+            displayName={user.display_name}
+            email={user.email}
+            size="medium"
           />
-          <Text style={[styles.email, { color: theme.textSecondary }]}>{user.email}</Text>
-
-          {/* Region / locale */}
-          <View style={[styles.localeSwitch, { borderColor: theme.border }]}>
-            {[
-              { value: 'de-DE' as const, label: 'Deutschland' },
-              { value: 'de-AT' as const, label: 'Österreich' },
-            ].map((opt) => {
-              const active = (user.locale ?? 'de-DE') === opt.value;
-              return (
-                <Pressable
-                  key={opt.value}
-                  onPress={() => handleSelectLocale(opt.value)}
-                  style={[
-                    styles.localeOption,
-                    { backgroundColor: active ? colors.primary[600] : 'transparent' },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.localeText,
-                      { color: active ? colors.white : theme.textSecondary },
-                    ]}
-                  >
-                    {opt.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
+          <View style={styles.accountText}>
+            <Text style={[styles.accountName, { color: theme.text }]} numberOfLines={1}>
+              {user.display_name || 'Dein Konto'}
+            </Text>
+            <Text style={[styles.accountEmail, { color: theme.textSecondary }]} numberOfLines={1}>
+              {user.email}
+            </Text>
           </View>
-        </View>
+          <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+        </Pressable>
 
-        {/* Rollen */}
-        <RolesSection />
+        <SettingsGroup>
+          <SettingsRow
+            icon="contrast-outline"
+            title={getSettingsEntry('allgemein.aussehen').title}
+            value={THEME_LABELS[themeMode]}
+            onPress={() => setPicker('theme')}
+          />
+          <SettingsRow
+            icon="flag-outline"
+            title={getSettingsEntry('allgemein.sprache').title}
+            value={LOCALE_LABELS[locale]}
+            onPress={() => setPicker('locale')}
+            last
+          />
+        </SettingsGroup>
 
-        {/* App-Einstellungen */}
-        <AppSettingsSection />
-      </ScrollView>
+        <SettingsGroup>
+          <SettingsRow
+            icon="ribbon-outline"
+            title={getSettingsEntry('personalisierung.rollen').title}
+            value={
+              roleCount === null
+                ? 'Wird geladen…'
+                : roleCount === 0
+                  ? 'Keine Rollen'
+                  : `${roleCount} ${roleCount === 1 ? 'Rolle' : 'Rollen'}`
+            }
+            onPress={() => router.push(route('/(focused)/settings/rollen'))}
+            last
+          />
+        </SettingsGroup>
 
-      <AvatarPickerSheet
-        visible={avatarSheetVisible}
-        currentId={user.avatar_robot_id}
-        onClose={() => setAvatarSheetVisible(false)}
-        onSelect={handleSelectAvatar}
+        <SettingsGroup>
+          <SettingsRow
+            icon="school-outline"
+            title="Einführung erneut ansehen"
+            onPress={() => router.push(route('/(auth)/onboarding'))}
+            last
+          />
+        </SettingsGroup>
+
+        <SettingsGroup>
+          <SettingsRow
+            icon="log-out-outline"
+            title={isLoggingOut ? 'Wird abgemeldet…' : 'Abmelden'}
+            destructive
+            disabled={isLoggingOut}
+            onPress={() => void logout()}
+            last
+          />
+        </SettingsGroup>
+      </SettingsScreen>
+
+      <SettingsPickerSheet
+        visible={picker === 'theme'}
+        onClose={() => setPicker(null)}
+        title={getSettingsEntry('allgemein.aussehen').title}
+        hint={getSettingsEntry('allgemein.aussehen').description}
+        options={THEME_OPTIONS}
+        selected={themeMode}
+        onSelect={(mode) => void setThemeMode(mode)}
       />
-    </SafeAreaView>
+
+      <SettingsPickerSheet
+        visible={picker === 'locale'}
+        onClose={() => setPicker(null)}
+        title={getSettingsEntry('allgemein.sprache').title}
+        hint={getSettingsEntry('allgemein.sprache').description}
+        options={LOCALE_OPTIONS}
+        selected={locale}
+        onSelect={(next) => {
+          // Region is server-side state — it decides whether the user gets
+          // Austrian or German wording and content — so it round-trips rather
+          // than sitting in a local store.
+          if (next === locale) return;
+          void updateLocale(next).catch(() => {
+            Alert.alert('Fehler', 'Region konnte nicht gespeichert werden.');
+          });
+        }}
+      />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  centeredScreen: {
     flex: 1,
-  },
-  centered: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing.medium,
   },
-  title: {
-    ...typography.h2,
-    marginBottom: spacing.small,
+  signedOut: {
+    alignItems: 'center',
+    gap: spacing.medium,
+    paddingTop: spacing.xxlarge,
   },
-  subtitle: {
+  signedOutText: {
     ...typography.body,
     textAlign: 'center',
-    marginBottom: spacing.large,
+    color: colors.grey[500],
   },
-  loginButton: {
-    width: '100%',
-    maxWidth: 300,
-  },
-  scrollContent: {
-    paddingVertical: spacing.large,
-    gap: spacing.large,
-  },
-  header: {
+  account: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.small,
-    paddingHorizontal: spacing.medium,
+    padding: spacing.medium,
+    borderRadius: borderRadius.large,
+    borderCurve: 'continuous',
   },
-  avatarWrap: {
-    position: 'relative',
+  accountText: {
+    flex: 1,
+    gap: 1,
   },
-  avatarEditBadge: {
-    position: 'absolute',
-    right: -2,
-    bottom: -2,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  nameInput: {
+  accountName: {
     fontFamily: BODY_FONT,
-    fontSize: 20,
-    fontWeight: '700',
-    textAlign: 'center',
-    minWidth: 200,
-    paddingVertical: 2,
+    fontSize: 17,
+    fontWeight: '600',
   },
-  email: {
+  accountEmail: {
     fontFamily: BODY_FONT,
     fontSize: 14,
   },
-  localeSwitch: {
-    flexDirection: 'row',
-    borderWidth: 1,
-    borderRadius: borderRadius.pill,
-    borderCurve: 'continuous',
-    padding: 2,
-    marginTop: spacing.xsmall,
-  },
-  localeOption: {
-    paddingHorizontal: spacing.medium,
-    paddingVertical: spacing.xsmall,
-    borderRadius: borderRadius.pill,
-    borderCurve: 'continuous',
-  },
-  localeText: {
-    fontFamily: BODY_FONT,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  sheetTitle: {
-    fontFamily: BODY_FONT,
-    fontSize: 16,
-    fontWeight: '700',
-    paddingHorizontal: spacing.medium,
-    paddingBottom: spacing.small,
-  },
-  avatarGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: spacing.small,
-    paddingHorizontal: spacing.medium,
-  },
-  avatarOption: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-  },
-  topBar: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingHorizontal: spacing.medium,
-    marginBottom: -spacing.small,
-  },
-  logoutIcon: {
-    padding: spacing.xxsmall,
+  pressed: {
+    opacity: 0.6,
   },
 });

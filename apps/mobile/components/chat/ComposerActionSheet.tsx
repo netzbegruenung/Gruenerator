@@ -24,9 +24,10 @@ import { View, Text, Pressable, ScrollView, StyleSheet, useColorScheme } from 'r
 import { useShallow } from 'zustand/shallow';
 
 import { useTheme } from '../../hooks/useTheme';
-import { colors, spacing, borderRadius, BODY_FONT } from '../../theme';
+import { spacing, borderRadius, BODY_FONT } from '../../theme';
 import { route } from '../../types/routes';
 import { BottomSheet } from '../common/BottomSheet';
+import { SettingsGroup, SettingsRow, useSurfaceStyles } from '../settings/SettingsRow';
 
 // Presentation only: labels and keys come from the shared COMPOSER_MODES /
 // SEARCH_DEPTHS lists; these map the semantic icon keys → Ionicons.
@@ -164,8 +165,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
     [close]
   );
 
-  const cardStyle = { backgroundColor: isDark ? theme.surface : colors.white };
-  const badgeStyle = { backgroundColor: isDark ? colors.grey[800] : colors.grey[100] };
+  const { card: cardStyle, badge: badgeStyle } = useSurfaceStyles();
 
   const tile = (icon: IoniconsIconName, label: string, onPress: () => void) => (
     <Pressable
@@ -181,167 +181,118 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
     </Pressable>
   );
 
-  const row = ({
-    key,
-    icon,
-    title,
-    value,
-    onPress,
-    selected,
-    last,
-  }: {
-    key: string;
-    icon: IoniconsIconName;
-    title: string;
-    value?: string | null;
-    onPress: () => void;
-    /** Detail rows show a check instead of the chevron. */
-    selected?: boolean;
-    last?: boolean;
-  }) => (
-    <Pressable
-      key={key}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        !last && { borderBottomColor: theme.border, borderBottomWidth: StyleSheet.hairlineWidth },
-        pressed && styles.pressed,
-      ]}
-      accessibilityRole="button"
-    >
-      <View style={[styles.rowBadge, badgeStyle]}>
-        <Ionicons name={icon} size={22} color={theme.text} />
-      </View>
-      <View style={styles.rowText}>
-        <Text style={[styles.rowTitle, { color: theme.text }]} numberOfLines={1}>
-          {title}
-        </Text>
-        {value ? (
-          <Text style={[styles.rowValue, { color: theme.textSecondary }]} numberOfLines={1}>
-            {value}
-          </Text>
-        ) : null}
-      </View>
-      {selected === undefined ? (
-        <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
-      ) : selected ? (
-        <Ionicons name="checkmark" size={22} color={colors.primary[600]} />
-      ) : (
-        <View style={styles.trailingSpacer} />
-      )}
-    </Pressable>
-  );
-
   const detailRows = (): ReactNode => {
     if (detail === 'mode') {
-      return modes.map((mode, i) =>
-        row({
-          key: mode.mode,
-          icon: MODE_ICONS[mode.icon],
-          title: mode.label,
-          onPress: () => {
+      return modes.map((mode, i) => (
+        <SettingsRow
+          key={mode.mode}
+          icon={MODE_ICONS[mode.icon]}
+          title={mode.label}
+          onPress={() => {
             setThreadMode(mode.mode);
             setDetail(mode.mode === 'notebook' ? 'notebook' : null);
-          },
-          selected: threadMode === mode.mode,
-          last: i === modes.length - 1,
-        })
-      );
+          }}
+          selected={threadMode === mode.mode}
+          last={i === modes.length - 1}
+        />
+      ));
     }
     if (detail === 'notebook') {
-      return notebookMentionables.map((notebook, i) =>
-        row({
-          key: notebook.identifier,
-          icon: 'book-outline',
-          title: notebook.title,
-          onPress: () => {
+      return notebookMentionables.map((notebook, i) => (
+        <SettingsRow
+          key={notebook.identifier}
+          icon="book-outline"
+          title={notebook.title}
+          onPress={() => {
             setSelectedNotebook(notebook.identifier);
             setThreadMode('notebook');
             setDetail(null);
-          },
-          selected: selectedNotebookId === notebook.identifier,
-          last: i === notebookMentionables.length - 1,
-        })
-      );
+          }}
+          selected={selectedNotebookId === notebook.identifier}
+          last={i === notebookMentionables.length - 1}
+        />
+      ));
     }
     if (detail === 'skills' || detail === 'functions') {
       const list = detail === 'skills' ? skills : functions;
-      const rows = list.map((item, i) =>
-        row({
-          // `mention`, not `identifier`: eighteen recipes share eight owning-agent
-          // identifiers, so keying on those collides.
-          key: item.mention,
-          icon: detail === 'skills' ? 'color-wand-outline' : 'flash-outline',
-          title: item.title,
-          value: item.description,
-          onPress: () => runAction(() => onInsertMention?.(item)),
-          last: detail === 'skills' ? false : i === list.length - 1,
-        })
-      );
+      const rows = list.map((item, i) => (
+        // `mention`, not `identifier`: eighteen recipes share eight owning-agent
+        // identifiers, so keying on those collides.
+        <SettingsRow
+          key={item.mention}
+          icon={detail === 'skills' ? 'color-wand-outline' : 'flash-outline'}
+          title={item.title}
+          value={item.description}
+          onPress={() => runAction(() => onInsertMention?.(item))}
+          last={detail === 'skills' ? false : i === list.length - 1}
+        />
+      ));
       if (detail === 'functions') return rows;
       // Web closes its recipe submenu with two entries — a search across all
       // recipes and a link to the library. On mobile the Agentura screen is both,
       // so it is one row.
       return [
         ...rows,
-        row({
-          key: 'all-recipes',
-          icon: 'library-outline',
-          title: 'Alle Rezepte',
-          value: 'In der Agentura durchsuchen',
-          onPress: () => runAction(() => router.push(route('/(focused)/agents'))),
-          last: true,
-        }),
+        <SettingsRow
+          key="all-recipes"
+          icon="library-outline"
+          title="Alle Rezepte"
+          value="In der Agentura durchsuchen"
+          onPress={() => runAction(() => router.push(route('/(focused)/agents')))}
+          last
+        />,
       ];
     }
     if (detail === 'depth') {
-      return SEARCH_DEPTHS.map((depth, i) =>
-        row({
-          key: depth.mode,
-          icon: DEPTH_ICONS[depth.icon],
-          title: depth.label,
-          value: depth.description,
-          onPress: () => {
+      return SEARCH_DEPTHS.map((depth, i) => (
+        <SettingsRow
+          key={depth.mode}
+          icon={DEPTH_ICONS[depth.icon]}
+          title={depth.label}
+          value={depth.description}
+          onPress={() => {
             setSearchMode(depth.mode);
             setDetail(null);
-          },
-          selected: searchMode === depth.mode,
-          last: i === SEARCH_DEPTHS.length - 1,
-        })
-      );
+          }}
+          selected={searchMode === depth.mode}
+          last={i === SEARCH_DEPTHS.length - 1}
+        />
+      ));
     }
     if (detail === 'model') {
       const options = [AUTO_MODEL_OPTION, ...models];
-      return options.map((model, i) =>
-        row({
-          key: model.id,
-          icon: model.id === AUTO_MODEL_ID ? 'sparkles-outline' : 'hardware-chip-outline',
-          title: model.name,
-          value: model.description,
-          onPress: () => {
+      return options.map((model, i) => (
+        <SettingsRow
+          key={model.id}
+          icon={model.id === AUTO_MODEL_ID ? 'sparkles-outline' : 'hardware-chip-outline'}
+          title={model.name}
+          value={model.description}
+          onPress={() => {
             setSelectedModel(model.id);
             setDetail(null);
-          },
-          selected: (selectedModel ?? AUTO_MODEL_ID) === model.id,
-          last: i === options.length - 1,
-        })
-      );
+          }}
+          selected={(selectedModel ?? AUTO_MODEL_ID) === model.id}
+          last={i === options.length - 1}
+        />
+      ));
     }
     // Connectors: picking the pinned one again unpins it, as on web.
     return connectors.map((connector, i) => {
       const id = connectorId(connector);
       const isPinned = pinnedConnector?.id === id;
-      return row({
-        key: connector.identifier,
-        icon: 'link-outline',
-        title: connector.title,
-        onPress: () => {
-          setPinnedConnector(isPinned ? null : { id, label: connector.title });
-          setDetail(null);
-        },
-        selected: isPinned,
-        last: i === connectors.length - 1,
-      });
+      return (
+        <SettingsRow
+          key={connector.identifier}
+          icon="link-outline"
+          title={connector.title}
+          onPress={() => {
+            setPinnedConnector(isPinned ? null : { id, label: connector.title });
+            setDetail(null);
+          }}
+          selected={isPinned}
+          last={i === connectors.length - 1}
+        />
+      );
     });
   };
 
@@ -370,7 +321,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         {detail ? (
-          <View style={[styles.group, cardStyle]}>{detailRows()}</View>
+          <SettingsGroup>{detailRows()}</SettingsGroup>
         ) : (
           <>
             {hasAttachments && (
@@ -383,70 +334,65 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
             )}
 
             {onInsertMention && (
-              <View style={[styles.group, cardStyle]}>
-                {row({
-                  key: 'skills',
-                  icon: 'color-wand-outline',
-                  title: 'Rezepte',
-                  value: skills.map((s) => s.title).join(' · '),
-                  onPress: () => setDetail('skills'),
-                })}
-                {row({
-                  key: 'functions',
-                  icon: 'flash-outline',
-                  title: 'Funktionen',
-                  value: functions.map((f) => f.title).join(' · '),
-                  onPress: () => setDetail('functions'),
-                  last: true,
-                })}
-              </View>
+              <SettingsGroup>
+                <SettingsRow
+                  icon="color-wand-outline"
+                  title="Rezepte"
+                  value={skills.map((s) => s.title).join(' · ')}
+                  onPress={() => setDetail('skills')}
+                />
+                <SettingsRow
+                  icon="flash-outline"
+                  title="Funktionen"
+                  value={functions.map((f) => f.title).join(' · ')}
+                  onPress={() => setDetail('functions')}
+                  last
+                />
+              </SettingsGroup>
             )}
 
-            <View style={[styles.group, cardStyle]}>
-              {row({
-                key: 'mode',
-                icon: MODE_ICONS[activeMode.icon],
-                title: 'Modus',
-                value: activeMode.label,
-                onPress: () => setDetail('mode'),
-              })}
-              {threadMode === 'notebook' &&
-                row({
-                  key: 'notebook',
-                  icon: 'book-outline',
-                  title: 'Notebook',
-                  value: activeNotebook?.title ?? 'Auswählen',
-                  onPress: () => setDetail('notebook'),
-                })}
-              {showsSearchDepth(selectedAgentId) &&
-                row({
-                  key: 'depth',
-                  icon: DEPTH_ICONS[activeDepth.icon],
-                  title: 'Recherchetiefe',
-                  value: activeDepth.label,
-                  onPress: () => setDetail('depth'),
-                })}
-              {row({
-                key: 'model',
-                icon: 'hardware-chip-outline',
-                title: 'Modell',
-                value: activeModel,
-                onPress: () => setDetail('model'),
-                last: true,
-              })}
-            </View>
+            <SettingsGroup>
+              <SettingsRow
+                icon={MODE_ICONS[activeMode.icon]}
+                title="Modus"
+                value={activeMode.label}
+                onPress={() => setDetail('mode')}
+              />
+              {threadMode === 'notebook' && (
+                <SettingsRow
+                  icon="book-outline"
+                  title="Notebook"
+                  value={activeNotebook?.title ?? 'Auswählen'}
+                  onPress={() => setDetail('notebook')}
+                />
+              )}
+              {showsSearchDepth(selectedAgentId) && (
+                <SettingsRow
+                  icon={DEPTH_ICONS[activeDepth.icon]}
+                  title="Recherchetiefe"
+                  value={activeDepth.label}
+                  onPress={() => setDetail('depth')}
+                />
+              )}
+              <SettingsRow
+                icon="hardware-chip-outline"
+                title="Modell"
+                value={activeModel}
+                onPress={() => setDetail('model')}
+                last
+              />
+            </SettingsGroup>
 
             {connectors.length > 0 && (
-              <View style={[styles.group, cardStyle]}>
-                {row({
-                  key: 'connectors',
-                  icon: 'link-outline',
-                  title: 'Konnektoren',
-                  value: pinnedConnector?.label ?? 'Keiner angeheftet',
-                  onPress: () => setDetail('connectors'),
-                  last: true,
-                })}
-              </View>
+              <SettingsGroup>
+                <SettingsRow
+                  icon="link-outline"
+                  title="Konnektoren"
+                  value={pinnedConnector?.label ?? 'Keiner angeheftet'}
+                  onPress={() => setDetail('connectors')}
+                  last
+                />
+              </SettingsGroup>
             )}
           </>
         )}
@@ -497,39 +443,6 @@ const styles = StyleSheet.create({
   tileLabel: {
     fontFamily: BODY_FONT,
     fontSize: 14,
-  },
-  group: {
-    borderRadius: borderRadius.large,
-    overflow: 'hidden',
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.small,
-    paddingHorizontal: spacing.small,
-    paddingVertical: 12,
-  },
-  rowBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowText: {
-    flex: 1,
-  },
-  rowTitle: {
-    fontFamily: BODY_FONT,
-    fontSize: 17,
-  },
-  rowValue: {
-    fontFamily: BODY_FONT,
-    fontSize: 14,
-    marginTop: 1,
-  },
-  trailingSpacer: {
-    width: 22,
   },
   pressed: {
     opacity: 0.6,
