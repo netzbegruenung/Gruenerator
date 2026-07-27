@@ -244,6 +244,102 @@ describe('wrapToolsForLoop', () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
+  it('stamps textOffset on the recorded step when getTextOffset is set', async () => {
+    const { ctx, steps } = makeCtx({ getTextOffset: () => 42 });
+    const tools = wrapToolsForLoop(
+      { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'search', { query: 'x' });
+    expect(steps[0].textOffset).toBe(42);
+  });
+
+  it('omits textOffset when getTextOffset is absent', async () => {
+    const { ctx, steps } = makeCtx();
+    const tools = wrapToolsForLoop(
+      { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'search', { query: 'x' });
+    expect('textOffset' in steps[0]).toBe(false);
+  });
+
+  it('omits textOffset when getTextOffset returns null (split mode)', async () => {
+    const { ctx, steps } = makeCtx({ getTextOffset: () => null });
+    const tools = wrapToolsForLoop(
+      { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'search', { query: 'x' });
+    expect('textOffset' in steps[0]).toBe(false);
+  });
+
+  it('stamps textOffset=0 (falsy but valid) on a guard-blocked step', async () => {
+    const { ctx, steps } = makeCtx({ getTextOffset: () => 0 });
+    ctx.guards.noteFailure('search');
+    ctx.guards.noteFailure('search'); // at cap
+    const tools = wrapToolsForLoop(
+      { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'search', { query: 'x' });
+    expect(steps[0].textOffset).toBe(0);
+  });
+
+  it('drains takeNarration at start and stamps it on the card + recorded step', async () => {
+    const { ctx, events, steps } = makeCtx({ takeNarration: () => 'Ich suche jetzt danach.' });
+    const tools = wrapToolsForLoop(
+      { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'search', { query: 'x' });
+    const start = events.find((e) => e.event === 'tool_step_start');
+    expect(start?.data).toMatchObject({ narration: 'Ich suche jetzt danach.' });
+    expect(steps[0].narration).toBe('Ich suche jetzt danach.');
+  });
+
+  it('omits narration when takeNarration returns null (no announcement buffered)', async () => {
+    const { ctx, events, steps } = makeCtx({ takeNarration: () => null });
+    const tools = wrapToolsForLoop(
+      { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'search', { query: 'x' });
+    const start = events.find((e) => e.event === 'tool_step_start');
+    expect('narration' in (start?.data ?? {})).toBe(false);
+    expect('narration' in steps[0]).toBe(false);
+  });
+
+  it('drains the narration buffer once — parallel siblings after it get none', async () => {
+    let drained = false;
+    const takeNarration = () => {
+      if (drained) return null;
+      drained = true;
+      return 'Ankündigung für beide Aufrufe.';
+    };
+    const { ctx, steps } = makeCtx({ takeNarration });
+    const tools = wrapToolsForLoop(
+      { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'search', { query: 'a' }, 'call_a');
+    await run(tools, 'search', { query: 'b' }, 'call_b');
+    expect(steps[0].narration).toBe('Ankündigung für beide Aufrufe.');
+    expect('narration' in steps[1]).toBe(false);
+  });
+
+  it('stamps narration on a guard-blocked step too', async () => {
+    const { ctx, steps } = makeCtx({ takeNarration: () => 'Kurz geprüft.' });
+    ctx.guards.noteFailure('search');
+    ctx.guards.noteFailure('search'); // at cap
+    const tools = wrapToolsForLoop(
+      { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'search', { query: 'x' });
+    expect(steps[0].narration).toBe('Kurz geprüft.');
+  });
+
   it('passes title/serverName onto the start card', async () => {
     const { ctx, events } = makeCtx({
       titleFor: () => 'Suche Notion…',

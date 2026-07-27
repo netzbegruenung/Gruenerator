@@ -30,11 +30,12 @@ import {
   type MenuItemType,
 } from '../Header/menuData';
 
+import { GrueneratorenSidebarSection } from './GrueneratorenSidebarSection';
 import NewItemDropdown from './NewItemDropdown';
+import { ProjekteSidebarSection } from './ProjekteSidebarSection';
 import SidebarAccount from './SidebarAccount';
 import { getAgentIcon } from './sidebarAgentConfig';
 import { iconClass, menuLinkClass } from './sidebarStyles';
-import { SpacesSidebarSection } from './SpacesSidebarSection';
 
 import { cn } from '@/utils/cn';
 import { startPagePath } from '@/utils/startpage';
@@ -81,7 +82,8 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
   const newMenuOpenRef = useRef(false);
   const accountMenuOpenRef = useRef(false);
-  const spacesMenuOpenRef = useRef(false);
+  const projekteMenuOpenRef = useRef(false);
+  const grueneratorenMenuOpenRef = useRef(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
   const directMenuItems = useMemo(() => getDirectMenuItems({ isAustrian }), [isAustrian]);
@@ -92,9 +94,11 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   const startTarget = startPagePath(user?.default_startpage);
   const additionalItems = useMemo<MenuItemType[]>(
     () =>
-      [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)].map((item) =>
-        item.id === 'startseite' ? { ...item, path: startTarget } : item
-      ),
+      [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)]
+        // Grüneratoren renders as its own quick-view popup section below,
+        // mirroring the Projekte entry — not as a plain nav link.
+        .filter((item) => item.id !== 'grueneratoren')
+        .map((item) => (item.id === 'startseite' ? { ...item, path: startTarget } : item)),
     [directMenuItems, mobileOnlyItems, startTarget]
   );
   const sidebarExpanded = isOpen || forceExpanded;
@@ -104,6 +108,9 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
     if (!forceExpanded) {
       close();
     }
+    // Intentionally keyed to pathname only: this must fire on navigation, not
+    // when forceExpanded/close identities change (which would close mid-session).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
   // Keyboard shortcuts: Escape to close, Ctrl/Cmd+B to toggle, Ctrl/Cmd+K to search
@@ -195,7 +202,12 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
       // outside the sidebar (main content, or the window).
       const rt = e.relatedTarget;
       if (rt instanceof Node && e.currentTarget.contains(rt)) return;
-      if (!newMenuOpenRef.current && !accountMenuOpenRef.current && !spacesMenuOpenRef.current) {
+      if (
+        !newMenuOpenRef.current &&
+        !accountMenuOpenRef.current &&
+        !projekteMenuOpenRef.current &&
+        !grueneratorenMenuOpenRef.current
+      ) {
         close();
       }
     },
@@ -232,7 +244,10 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
         </button>
       )}
 
-      <nav className={cn('flex-none overflow-x-hidden pb-sm', isDesktop ? 'pt-3' : 'pt-12')}>
+      <nav
+        data-tour="sidebar-nav"
+        className={cn('flex-none overflow-x-hidden pb-sm', isDesktop ? 'pt-3' : 'pt-12')}
+      >
         {/* Direct menu items - main navigation */}
         {additionalItems.length > 0 && (
           <div className="flex flex-col gap-0 p-0">
@@ -320,6 +335,24 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           </div>
         )}
 
+        {/* Grüneratoren quick-view popup */}
+        <GrueneratorenSidebarSection
+          openRef={grueneratorenMenuOpenRef}
+          titleClass={titleClass}
+          collapsed={!sidebarExpanded}
+          onNavigate={handleLinkClick}
+          onClose={close}
+        />
+
+        {/* Projekte quick-view popup — directly below Grüneratoren */}
+        <ProjekteSidebarSection
+          openRef={projekteMenuOpenRef}
+          titleClass={titleClass}
+          collapsed={!sidebarExpanded}
+          onNavigate={handleLinkClick}
+          onClose={close}
+        />
+
         {/* New Item Dropdown */}
         <NewItemDropdown
           openRef={newMenuOpenRef}
@@ -327,15 +360,6 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           collapsed={!sidebarExpanded}
           onChatClick={handleChatClick}
           onLinkClick={handleLinkClick}
-          onClose={close}
-        />
-
-        {/* Projekte quick-view popup */}
-        <SpacesSidebarSection
-          openRef={spacesMenuOpenRef}
-          titleClass={titleClass}
-          collapsed={!sidebarExpanded}
-          onNavigate={handleLinkClick}
           onClose={close}
         />
 
@@ -351,6 +375,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
       {/* Scroll region: chat threads */}
       <div
+        data-tour="sidebar-chats"
         className={cn(
           'flex-1 min-h-0 overflow-y-auto scrollbar-thin',
           !sidebarExpanded && 'hidden'

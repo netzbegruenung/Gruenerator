@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   extractUrls,
   isTabularComputeQuestion,
+  isSheetFillRequest,
   detectSocialPlatform,
   resolveSocialPostEscape,
   nounNearCreateVerb,
@@ -19,6 +20,7 @@ import {
   looksMultiTopic,
   HEURISTIC_CONFIDENCE_THRESHOLD,
 } from './classifierNode.js';
+import { CHAT_HISTORY_KEYWORDS } from './classifierParsing.js';
 
 // ─── extractSearchTopic ───────────────────────────────────────────────────
 
@@ -262,6 +264,49 @@ describe('heuristicClassify', () => {
     expect(result.intent).not.toBe('create_presentation');
   });
 
+  it('fast-paths explicit PDF/letterhead requests to create_pdf', () => {
+    for (const q of [
+      'Erstelle mir einen offiziellen Brief an den Stadtrat als PDF mit Briefkopf',
+      'Mach ein PDF daraus',
+      'Erstelle ein PDF-Dokument über unsere Forderungen',
+      'Schreib ein Anschreiben als PDF an den Kreisvorstand',
+    ]) {
+      const result = heuristicClassify(q);
+      expect(result.intent).toBe('create_pdf');
+      expect(result.confidence).toBeGreaterThanOrEqual(0.9);
+    }
+  });
+
+  it('fast-paths fillable-form requests to create_pdf', () => {
+    for (const q of [
+      'Erstelle ein Anmeldeformular für die Mitgliederversammlung',
+      'Bau mir ein ausfüllbares Formular für Mitgliedsanträge',
+      'Mach einen Fragebogen für die Mitgliederbefragung',
+      'Erstelle ein Antragsformular für Zuschüsse',
+    ]) {
+      const result = heuristicClassify(q);
+      expect(result.intent).toBe('create_pdf');
+    }
+  });
+
+  it('does NOT treat filling an ATTACHED form as a create_pdf request', () => {
+    // The fill path (pdf_form / compute) owns these — there is no creation verb.
+    expect(heuristicClassify('Füll das Formular für mich aus').intent).not.toBe('create_pdf');
+    expect(heuristicClassify('Kannst du das Antragsformular ausfüllen?').intent).not.toBe(
+      'create_pdf'
+    );
+  });
+
+  it('does NOT route PDF attachment reads or deck-as-PDF asks to create_pdf', () => {
+    // Attachment read: no creation verb targeting a PDF.
+    expect(heuristicClassify('Fass das PDF zusammen').intent).not.toBe('create_pdf');
+    expect(heuristicClassify('Was steht im PDF auf Seite 3?').intent).not.toBe('create_pdf');
+    // Deck noun wins: a Präsentation "als PDF" still builds a deck.
+    expect(heuristicClassify('Erstelle eine Präsentation zu Windkraft als PDF').intent).toBe(
+      'create_presentation'
+    );
+  });
+
   it('routes tabular aggregation questions to compute when a spreadsheet is attached', () => {
     const result = heuristicClassify('produkt mit höchstem gesamtgewinn?', {
       hasTabularAttachment: true,
@@ -292,6 +337,59 @@ describe('heuristicClassify', () => {
     expect(isTabularComputeQuestion('wie hoch ist der gewinn')).toBe(true);
     expect(isTabularComputeQuestion('was ist das produkt mit dem höchsten wert?')).toBe(true);
     expect(isTabularComputeQuestion('worum geht es in dieser datei?')).toBe(false);
+  });
+
+  it('isSheetFillRequest matches fill asks in their common German phrasings', () => {
+    expect(isSheetFillRequest('füll mir bitte die vorlage aus')).toBe(true);
+    expect(isSheetFillRequest('kannst du das formular ausfüllen?')).toBe(true);
+    expect(isSheetFillRequest('trag die daten in die tabelle ein')).toBe(true);
+    expect(isSheetFillRequest('bitte die werte eintragen')).toBe(true);
+    expect(isSheetFillRequest('setz die zahlen ein')).toBe(true);
+    expect(isSheetFillRequest('ergänze die fehlenden angaben')).toBe(true);
+    expect(isSheetFillRequest('übertrage die werte aus dem angebot')).toBe(true);
+    expect(isSheetFillRequest('bitte die tabelle vervollständigen')).toBe(true);
+    expect(isSheetFillRequest('schreib die werte in die tabelle')).toBe(true);
+    expect(isSheetFillRequest('trag bitte meinen namen und meine adresse ein')).toBe(true);
+    expect(isSheetFillRequest('das muss noch ausgefüllt werden')).toBe(true);
+  });
+
+  it('isSheetFillRequest stays conservative — a miss is cheaper than a false fire', () => {
+    // Writing prose ABOUT a table is not filling it in.
+    expect(isSheetFillRequest('schreib einen text über die tabelle')).toBe(false);
+    expect(isSheetFillRequest('schreib mir eine zusammenfassung')).toBe(false);
+    // Accepted misses: too generic to claim without risking real false fires.
+    // They fall back to the normal answer path, which is harmless.
+    expect(isSheetFillRequest('mach die vorlage fertig')).toBe(false);
+  });
+
+  it('isSheetFillRequest ignores look-alikes that are not fill asks', () => {
+    // 'füll' inside a compound noun that means the opposite of filling a form.
+    expect(isSheetFillRequest('entferne die füllwörter aus dem text')).toBe(false);
+    // Word-start binding: erfüllen/auffüllen and the -trag nouns must not match.
+    expect(isSheetFillRequest('erfüllt die tabelle die anforderungen?')).toBe(false);
+    expect(isSheetFillRequest('wie hoch ist der betrag im vertrag?')).toBe(false);
+    expect(isSheetFillRequest('was steht im antrag?')).toBe(false);
+    expect(isSheetFillRequest('worum geht es in dieser datei?')).toBe(false);
+    // Visualization keeps its own intent even when phrased as "eintragen".
+    expect(isSheetFillRequest('trag die werte in ein diagramm ein')).toBe(false);
+  });
+
+  it('routes a fill ask with a spreadsheet to compute, ahead of the aggregation rule', () => {
+    // "trag die summe ein" matches BOTH heuristics — filling must win, so the
+    // router picks openpyxl codegen instead of a read-only aggregation.
+    expect(isSheetFillRequest('trag die summe unten ein')).toBe(true);
+    const result = heuristicClassify('trag die summe unten ein', {
+      hasTabularAttachment: true,
+    });
+    expect(result.intent).toBe('compute');
+    expect(result.reasoning).toBe('Fill request with attached spreadsheet');
+  });
+
+  it('does not route a fill ask to compute without a spreadsheet attached', () => {
+    const result = heuristicClassify('füll mir bitte die vorlage aus', {
+      hasTabularAttachment: false,
+    });
+    expect(result.intent).not.toBe('compute');
   });
 
   it('isTabularComputeQuestion binds verbs to word starts (erzähl must not match zähl)', () => {
@@ -1043,5 +1141,54 @@ describe('parseClassifierResponse: new intent values', () => {
     const result = parseClassifierResponse(json, 'Füge neue Aufgaben zum Board hinzu');
     expect(result).not.toBeNull();
     expect(result!.intent).toBe('modify_board');
+  });
+});
+
+// ─── chat_history: reel recall ────────────────────────────────────────────
+
+describe('CHAT_HISTORY_KEYWORDS: reels', () => {
+  const directJson = (userText: string) =>
+    parseClassifierResponse(
+      JSON.stringify({
+        intent: 'direct',
+        searchQuery: null,
+        optimizedSearchQuery: null,
+        reasoning: 'looks like a writing task',
+        contentType: null,
+        needsResearch: false,
+        needsClarification: false,
+      }),
+      userText
+    );
+
+  it.each([
+    'Such mein Reel zum Thema Windkraft',
+    'In welchem Video habe ich über Mieten gesprochen?',
+    'Welches Reel passt zu Klimageld?',
+    'Zeig mir meine Reels',
+    'Das Video über Radwege — schreib mir eine Caption dazu',
+  ])('matches reel recall phrasing: %s', (text) => {
+    expect(CHAT_HISTORY_KEYWORDS.test(text)).toBe(true);
+  });
+
+  it.each([
+    'Erstelle ein Reel aus diesem Video',
+    'Mach die Untertitel größer',
+    'Wie funktioniert der Reel-Grünerator?',
+    'Was fordern die Grünen zur Videoüberwachung?',
+  ])('does not hijack non-recall phrasing: %s', (text) => {
+    expect(CHAT_HISTORY_KEYWORDS.test(text)).toBe(false);
+  });
+
+  it('upgrades a misclassified direct to chat_history for a reel search', () => {
+    const result = directJson('Such mein Reel zum Thema Windkraft und schreib eine Caption');
+    expect(result).not.toBeNull();
+    expect(result!.intent).toBe('chat_history');
+  });
+
+  it('leaves reel creation on its original intent', () => {
+    const result = directJson('Erstelle ein Reel aus diesem Video');
+    expect(result).not.toBeNull();
+    expect(result!.intent).toBe('direct');
   });
 });

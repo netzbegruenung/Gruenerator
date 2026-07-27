@@ -113,6 +113,17 @@ function App() {
   const [darkMode, toggleDarkMode] = useDarkMode();
   const { isFirstRun, requireLogin, completeFirstRun } = useFirstRun();
   const { login, setAuthState } = useAuthStore();
+  const reduceMotion = useAuthStore((s) => s.user?.reduce_motion ?? false);
+  const reduceTransparency = useAuthStore((s) => s.user?.reduce_transparency ?? false);
+  const showSkipLink = useAuthStore((s) => s.user?.show_skip_link ?? false);
+
+  // Mirror the profile's a11y preferences onto <html>, next to data-theme from
+  // useDarkMode — accessibility.css keys its global guards off these attributes.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute('data-reduce-motion', String(reduceMotion));
+    root.setAttribute('data-reduce-transparency', String(reduceTransparency));
+  }, [reduceMotion, reduceTransparency]);
 
   // Desktop (Tauri) OAuth callback: register the deep-link listener once on
   // startup so the gruenerator://auth/callback round-trip actually completes.
@@ -171,6 +182,11 @@ function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
+        {showSkipLink && (
+          <a href="#main-content" className="skip-link">
+            Zum Inhalt springen
+          </a>
+        )}
         <UserProfileHydrationBridge />
         <Toaster richColors position="top-right" />
         <TooltipProvider>

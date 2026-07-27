@@ -16,19 +16,35 @@
  * up front keeps `[N]` in lockstep).
  */
 import { buildCitations } from '../../../../agents/langgraph/ChatGraph/nodes/citationUtils.js';
+import { applyContextCap } from '../../../../utils/contextCap.js';
 
 import type { Citation, SearchResult } from '../../../../agents/langgraph/ChatGraph/types.js';
 
-/** How much of each result's content the model sees per snippet line. It's the
- *  only grounding text the model gets (the tool return drops the raw content),
- *  so keep it generous. */
-const SNIPPET_CHARS = 320;
+/**
+ * How much of each result's content the model sees per snippet line. It's the
+ * only grounding text the model gets — the tool return drops the raw content —
+ * so this number IS the retrieval quality ceiling.
+ *
+ * 320 was below our own chunk size: documents are indexed at 400-500 tokens
+ * (~1400-1750 chars), so we embedded, stored and searched a chunk and then
+ * showed the model a quarter of it. Numeric and tabular answers landed just
+ * past the cut, and the model reported "dazu steht nichts in den Quellen"
+ * while the citation chip pointed at the right document.
+ *
+ * 1500 covers a whole chunk. For reference, neither Open WebUI nor LobeChat
+ * truncates a retrieved source at all — they bound retrieval by COUNT
+ * (top_k 3 / 30 items) and let the chunk size do the limiting.
+ *
+ * Tools with longer prose can still raise it per registration (`snippetChars`).
+ */
+const SNIPPET_CHARS = 1500;
 
 export interface SourceRegistry {
   /** Add raw results (search/web/research/examples). Returns the numbered
    *  snippet block for exactly the newly-added results so the calling tool can
-   *  hand it back to the model. */
-  register(results: SearchResult[]): string;
+   *  hand it back to the model. `snippetChars` raises the per-line content cap
+   *  for these results (default 320) — honored in `renderAll` too. */
+  register(results: SearchResult[], opts?: { snippetChars?: number }): string;
   /**
    * Seed sources gathered in EARLIER turns (cross-turn rehydration). These feed
    * ONLY {@link renderReference} (the edit op-planner's grounding) — NOT
@@ -59,21 +75,60 @@ function resultKey(r: SearchResult): string {
   return `${r.url ?? ''}::${r.title ?? ''}::${(r.content ?? '').slice(0, 80)}`;
 }
 
-function snippetLine(index: number, r: SearchResult): string {
+/**
+ * Numbered source block for results that never went through a registry — the
+ * single-pass create turns, which have no loop and therefore no registry, read
+ * their prior research straight from the thread. Same line shape as the loop's
+ * blocks so the artifact prompts only ever have to recognise one format.
+ */
+export function renderSourceLines(results: SearchResult[], cap = SNIPPET_CHARS): string {
+  return results
+    .filter((r) => (r.content ?? '').trim())
+    .map((r, i) => snippetLine(i + 1, r, cap))
+    .join('\n');
+}
+
+/**
+ * Appends a numbered source block to a generation brief. The single place that
+ * phrases it, so the artifact prompts (PDF/deck/sheet) can match on the exact
+ * shape they're told to expect. Returns the brief unchanged when there is
+ * nothing to append.
+ */
+export function withResearchedSources(brief: string, sourcesBlock: string): string {
+  return sourcesBlock.trim()
+    ? `${brief}\n\nNutze diese recherchierten Quellen für die Inhalte:\n${sourcesBlock}`
+    : brief;
+}
+
+// The URL is part of the line because the snippet block is the ONLY view of a
+// source any writing model gets. Without it an artifact tool (PDF, deck, sheet)
+// can cite `[N]` but is structurally unable to reproduce the original link —
+// "erstelle ein PDF mit den Originalquellen" then yields placeholder URLs.
+// `[N]` stays the citation marker; the URL is the payload behind it.
+function snippetLine(index: number, r: SearchResult, cap = SNIPPET_CHARS): string {
   const title = (r.title || r.source || 'Quelle').trim();
-  const body = (r.content ?? '').replace(/\s+/g, ' ').trim().slice(0, SNIPPET_CHARS);
-  return `[${index}] ${title}${body ? ` — ${body}` : ''}`;
+  const body = applyContextCap(
+    (r.content ?? '').replace(/\s+/g, ' ').trim(),
+    cap,
+    'sourceRegistry:snippet',
+    false
+  );
+  const url = typeof r.url === 'string' && r.url.trim() ? ` <${r.url.trim()}>` : '';
+  return `[${index}] ${title}${url}${body ? ` — ${body}` : ''}`;
 }
 
 export function createSourceRegistry(): SourceRegistry {
   const ordered: SearchResult[] = [];
+  // Per-result snippet cap, parallel to `ordered` (register's snippetChars).
+  const caps: number[] = [];
   const seen = new Set<string>();
   // Prior-turn sources, kept OUT of `ordered` so they never affect this turn's
   // citations/persistence — they only ground the edit op-planner (renderReference).
   const carried: SearchResult[] = [];
 
   return {
-    register(results) {
+    register(results, opts) {
+      const cap = opts?.snippetChars ?? SNIPPET_CHARS;
       const lines: string[] = [];
       for (const r of results) {
         if (!r || typeof r !== 'object') continue;
@@ -84,7 +139,8 @@ export function createSourceRegistry(): SourceRegistry {
         if (seen.has(key)) continue;
         seen.add(key);
         ordered.push(r);
-        lines.push(snippetLine(ordered.length, r));
+        caps.push(cap);
+        lines.push(snippetLine(ordered.length, r, cap));
       }
       return lines.join('\n');
     },
@@ -103,7 +159,7 @@ export function createSourceRegistry(): SourceRegistry {
       return ordered.slice(0, limit);
     },
     renderAll() {
-      return ordered.map((r, i) => snippetLine(i + 1, r)).join('\n');
+      return ordered.map((r, i) => snippetLine(i + 1, r, caps[i])).join('\n');
     },
     renderReference() {
       // Carried (prior-turn) first, then this-turn's fresh sources not already

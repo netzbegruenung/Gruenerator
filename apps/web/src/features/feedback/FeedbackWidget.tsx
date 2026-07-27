@@ -13,17 +13,19 @@ import {
   toast,
 } from '@gruenerator/ui';
 import { useMutation } from '@tanstack/react-query';
-import { Loader2, Maximize2, MessageSquare } from 'lucide-react';
+import { Loader2, Maximize2 } from 'lucide-react';
 import { domToJpeg } from 'modern-screenshot';
 import { useCallback, useState, type JSX } from 'react';
 
-import FloatingActionButton from '@/components/common/UI/FloatingActionButton';
+import DraggableFeedbackLauncher, { type LauncherCorner } from './DraggableFeedbackLauncher';
 
 interface FeedbackWidgetProps {
   /** Optional scope label sent with the feedback (e.g. a phase or feature name). */
   feature?: string;
-  position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  position?: LauncherCorner;
   visible?: boolean;
+  /** Launcher appearance — text pill (default) or compact icon button. */
+  variant?: 'text' | 'icon';
 }
 
 function collectPageContext(): FeedbackPageContext {
@@ -49,16 +51,13 @@ async function capturePageScreenshot(): Promise<string | null> {
       backgroundColor: '#ffffff',
       // Exclude the (already open) feedback dialog and its own launcher so the
       // screenshot shows the page the user is giving feedback on, not the modal
-      // overlaying it. Only skip *our* dialog's portal (overlay + content) —
-      // other open dialogs the user may be reporting on stay in the shot.
+      // overlaying it. Radix portals overlay + content as direct <body>
+      // children without a wrapper element, so both carry data-feedback-dialog
+      // themselves (content via DialogContent props, overlay via overlayProps).
+      // Other open dialogs the user may be reporting on stay in the shot.
       filter: (node) => {
         if (node instanceof Element) {
-          if (
-            node.getAttribute('data-slot') === 'dialog-portal' &&
-            node.querySelector('[data-feedback-dialog]') != null
-          ) {
-            return false;
-          }
+          if (node.hasAttribute('data-feedback-dialog')) return false;
           if (node.classList.contains('feedback-widget-fab')) return false;
         }
         return true;
@@ -74,6 +73,7 @@ export default function FeedbackWidget({
   feature,
   position = 'bottom-right',
   visible = true,
+  variant = 'text',
 }: FeedbackWidgetProps): JSX.Element | null {
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState('');
@@ -126,15 +126,18 @@ export default function FeedbackWidget({
 
   return (
     <>
-      <FloatingActionButton
-        icon={<MessageSquare />}
-        onClick={handleLauncherClick}
-        position={position}
-        className="feedback-widget-fab bg-primary-600 dark:bg-primary-600"
+      <DraggableFeedbackLauncher
+        onOpen={handleLauncherClick}
+        defaultCorner={position}
+        variant={variant}
       />
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent data-feedback-dialog="" className="sm:max-w-2xl">
+        <DialogContent
+          data-feedback-dialog=""
+          overlayProps={{ 'data-feedback-dialog': '' }}
+          className="sm:max-w-2xl"
+        >
           <DialogHeader>
             <DialogTitle>Feedback geben</DialogTitle>
             <DialogDescription>

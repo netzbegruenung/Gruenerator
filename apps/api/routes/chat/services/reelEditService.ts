@@ -26,6 +26,7 @@ import {
 } from '@gruenerator/shared/subtitle-editor';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import { withRetry } from '../../../services/search/searchRetryStrategy.js';
 import {
   getAutoProgress,
   startAutoProcessing,
@@ -39,12 +40,14 @@ import {
   getFilePathFromUploadId,
   getOriginalFilename,
 } from '../../../services/subtitler/tusService.js';
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { APP_REDIRECT_TEXTS } from './platformGating.js';
 import { hasStrongReelNoun } from './reelEditHeuristics.js';
 import { runReelEdit } from './reelEditLlm.js';
 import { applyReelOps, validateReelOps } from './reelEditOps.js';
+import { sendChatWarning } from './sseHelpers.js';
 import { createMessage, touchThread } from './threadPersistenceService.js';
 
 import type { SSEWriter } from './sseHelpers.js';
@@ -131,13 +134,19 @@ async function finishWithText(
     },
   });
   try {
-    await createMessage(threadId, 'assistant', text, {
-      intent: 'reel_edit',
-      ...(toolCalls ? { toolCalls } : {}),
-    });
+    await withRetry(
+      () =>
+        createMessage(threadId, 'assistant', text, {
+          intent: 'reel_edit',
+          ...(toolCalls ? { toolCalls } : {}),
+        }),
+      { maxRetries: 1, delayMs: 300, isRecoverable: () => true, label: 'reelEdit:persist' }
+    );
     await touchThread(threadId);
   } catch (err) {
+    // Retry + Warnung: ein stiller Persist-Fehler lässt State und History divergieren.
     log.error('[ReelEdit] Failed to persist message:', err);
+    sendChatWarning(sse, 'persist_failed');
   }
   sse.end();
 }
@@ -475,7 +484,7 @@ export async function handleReelEdit(args: HandleReelEditArgs): Promise<boolean>
     log.error('[ReelEdit] Turn failed:', error);
     if (!sse.isEnded()) {
       sse.send('reel_edit_error', {
-        error: error instanceof Error ? error.message : 'Unbekannter Fehler',
+        error: toUserFacingMessage(error, 'Unbekannter Fehler'),
       });
       await finishWithText(
         args,

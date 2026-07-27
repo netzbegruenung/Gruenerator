@@ -1,6 +1,7 @@
 import {
   PRESENTATION_YDOC_KEYS,
   type Slide,
+  type SlideFontSize,
   type SlideLayout,
   type SlideTransition,
 } from '@gruenerator/contracts';
@@ -67,6 +68,7 @@ export function yMapToSlide(m: Y.Map<unknown>, ydoc: Y.Doc): Slide {
     hidden: Boolean(m.get('hidden') ?? false),
     codeLanguage: (m.get('codeLanguage') as string | null) ?? null,
     variant: Number(m.get('variant') ?? 0),
+    fontSize: (m.get('fontSize') as SlideFontSize | null) ?? null,
   };
 }
 
@@ -86,6 +88,7 @@ export function slideToYMap(slide: Slide): Y.Map<unknown> {
   m.set('hidden', slide.hidden ?? false);
   m.set('codeLanguage', slide.codeLanguage ?? null);
   m.set('variant', slide.variant ?? 0);
+  m.set('fontSize', slide.fontSize ?? null);
   return m;
 }
 

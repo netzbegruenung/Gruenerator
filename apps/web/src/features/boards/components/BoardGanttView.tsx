@@ -1,8 +1,8 @@
-import { memo, useMemo } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 
 import { FIELD_IDS } from '../types';
 
-import type { Field, Row, BoardView, SelectOption } from '../types';
+import type { Field, Row, BoardView, SelectOption, CellValue } from '../types';
 import type { GanttFeature, GanttStatus } from '@/components/kibo-ui/gantt';
 
 import {
@@ -23,13 +23,20 @@ interface BoardGanttViewProps {
   rows: Row[];
   activeView: BoardView | null;
   onRowClick: (row: Row) => void;
+  onCellUpdate?: (rowId: string, fieldId: string, value: CellValue) => void;
 }
+
+// Local YYYY-MM-DD like the card detail panel — toISOString() would shift a day
+// backwards in timezones east of UTC.
+const toDateCell = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
 export const BoardGanttView = memo(function BoardGanttView({
   fields,
   rows,
   activeView,
   onRowClick,
+  onCellUpdate,
 }: BoardGanttViewProps) {
   const dateFieldId = activeView?.dateFieldId ?? FIELD_IDS.DUE_DATE;
   const statusField = useMemo(() => fields.find((f) => f.id === FIELD_IDS.STATUS), [fields]);
@@ -98,6 +105,19 @@ export const BoardGanttView = memo(function BoardGanttView({
 
   const rowById = useMemo(() => new Map(rows.map((r) => [r.id, r])), [rows]);
 
+  const endDateFieldId = activeView?.endDateFieldId;
+
+  const handleMove = useCallback(
+    (id: string, startAt: Date, endAt: Date | null) => {
+      if (!onCellUpdate) return;
+      onCellUpdate(id, dateFieldId, toDateCell(startAt));
+      // Without an end-date field endAt is synthetic (start + 1 week), so there
+      // is nothing to persist.
+      if (endDateFieldId && endAt) onCellUpdate(id, endDateFieldId, toDateCell(endAt));
+    },
+    [onCellUpdate, dateFieldId, endDateFieldId]
+  );
+
   return (
     <div className="flex-1 overflow-hidden p-md sm:p-lg">
       <GanttProvider range="monthly" zoom={100}>
@@ -122,7 +142,7 @@ export const BoardGanttView = memo(function BoardGanttView({
           <GanttFeatureList>
             {groupedFeatures.map((group) => (
               <GanttFeatureListGroup key={group.status.id}>
-                <GanttFeatureRow features={group.features}>
+                <GanttFeatureRow features={group.features} onMove={onCellUpdate && handleMove}>
                   {(feature) => (
                     <p className="flex-1 truncate text-xs text-foreground">{feature.name}</p>
                   )}

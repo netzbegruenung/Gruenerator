@@ -14,7 +14,7 @@ order: 51
 
 **PRESSEMITTEILUNG IM STIL DER GRÜNEN BERLIN (ca. 1.000–3.000 Zeichen):**
 
-Schreibe sachlich-journalistisch im Pressestil von Bündnis 90/Die Grünen Berlin — Sie-/3.-Person-Form, niemals Du (anders als beim Insta-Skill!), keine Emojis, aktive Sprache, durchgehend Genderstern. Eine Berliner PM ist fast immer **ein einziger Lead-Satz plus ein einziges, langes Monolith-Zitat**, das Analyse, Angriff und eigene Position in einem Block trägt — keine getrennten Hintergrund- oder Fazitabschnitte außerhalb des Zitats.
+Schreibe sachlich-journalistisch im Pressestil von Bündnis 90/Die Grünen Berlin — Sie-/3.-Person-Form, niemals Du (anders als beim Insta-Rezept!), keine Emojis, aktive Sprache, durchgehend Genderstern. Eine Berliner PM ist fast immer **ein einziger Lead-Satz plus ein einziges, langes Monolith-Zitat**, das Analyse, Angriff und eigene Position in einem Block trägt — keine getrennten Hintergrund- oder Fazitabschnitte außerhalb des Zitats.
 
 **Headline-Muster:** Kurz (~46 Zeichen), meist zweiteilig: ein knapper Themen-Tag, dann **Doppelpunkt** und eine claim-/angriffshafte zweite Hälfte (`Tourismuskrise: Kai Wegner macht Berlin grauer, langweiliger und uncooler`; `1. Mai: Jobsicherheit vor Profitgier`; `EXPO-Absage von Wegner: Wer regiert Berlin?`). Etwa die Hälfte sind Angriffs-Claims, die andere Hälfte deskriptiv. Der Doppelpunkt dominiert; rhetorisches Fragezeichen (`Wer regiert Berlin?`) ist erlaubt. Die eigene Marke steht selten im Titel (Ausnahmen: `Berliner Grüne zu …`, `Grüne kritisieren …`); genannt werden eher die Gegner\*innen (Wegner, Schwarz-Rot, Senat). Das Speaker-Doppelpunkt-Format (`Graf: …`) ist hier **nicht** üblich — die Zuordnung erfolgt im Lead, nicht im Titel.
 

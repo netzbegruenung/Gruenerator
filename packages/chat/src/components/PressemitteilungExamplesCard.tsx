@@ -1,13 +1,14 @@
 'use client';
 
-import { memo, useMemo, useState } from 'react';
 import { Newspaper, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { memo, useMemo, useState } from 'react';
+
 import {
   formatGermanDate,
   parsePressemitteilungExamples,
   pressemitteilungLvLabel as lvLabel,
 } from '../lib/toolResults';
+import { cn } from '../lib/utils';
 
 interface PressemitteilungExamplesCardProps {
   query: string;

@@ -106,6 +106,7 @@ const useDarkMode = (): [
     } catch {
       // ignore write failures (private mode etc.)
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- part of a persist+broadcast effect; sets darkMode to its deterministic derived value
     setDarkMode(resolve(preference));
     listeners.forEach((cb) => {
       if (cb !== setPreferenceState) cb(preference);

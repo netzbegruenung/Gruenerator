@@ -60,6 +60,7 @@ import { openOAuthPopup, waitForOAuthPopup } from '../lib/mcpOAuthPopup';
 
 import type { IconType } from 'react-icons';
 
+import { SettingsCardsSkeleton } from '@/features/settings/components/SettingsSkeleton';
 import { cn } from '@/utils/cn';
 
 interface RunOAuthResult {
@@ -220,6 +221,9 @@ const McpAddForm = memo(
     // A pick from the discover list fills the form so the user only confirms.
     useEffect(() => {
       if (prefill) {
+        // Fill the form as a reaction to a directory pick (prefill prop change),
+        // not a render-derived value.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setName(prefill.name);
         setUrl(prefill.url);
         setAuthType(prefill.authType);
@@ -874,7 +878,11 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
         Verbindung.
       </p>
 
-      {isLoading && <p className="text-sm text-grey-400 text-center py-md">Lade…</p>}
+      {isLoading && (
+        <div className="mt-md">
+          <SettingsCardsSkeleton cards={3} />
+        </div>
+      )}
 
       {/* OAuth servers still waiting for their authorization — kept out of
           "Verbunden" so a pending server never looks usable. */}

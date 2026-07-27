@@ -1,7 +1,10 @@
-/* One-shot "sunrise" for the chat-tab warm radial glow. The gradient is the
+/* One-shot "sunrise" for the chat-tab radial glow. The gradient is the
    permanent resting state (initial-values below match the design); only the
    entrance animation runs once and settles into it (animation-fill-mode: forwards).
-   Registered @property values are what makes the gradient stops interpolable. */
+   Registered @property values are what makes the gradient stops interpolable.
+
+   The tint is a variable so the user-chosen preset only swaps two values
+   (--wp-bg-base / --wp-bg-tint) — the geometry and the animation stay shared. */
 
 @property --wp-sunrise-y {
   syntax: '<percentage>';
@@ -16,14 +19,160 @@
 }
 
 .workplace-chat-sunrise {
-  background-color: #fefcf5;
+  /* Defaults = the `sunrise` preset; the modifier classes below override them. */
+  --wp-bg-base: #fefcf5;
+  --wp-bg-tint: 233 214 150;
+  --wp-bg-base-dark: transparent;
+  /* Composer accent: same hue family as the wash, but deep enough to carry
+     white text. The wash itself never can — at 1.5:1–2.5:1 against white it
+     is a background tone, not a surface for a label. See --wp-accent below. */
+  --wp-accent: #8a6d0b;
+  --wp-accent-hover: #765d09;
+
+  background-color: var(--wp-bg-base);
   background-image: radial-gradient(
     88% 58% at 50% var(--wp-sunrise-y),
-    rgb(233 214 150 / calc(0.5 * var(--wp-sunrise-glow))) 0%,
-    rgb(233 214 150 / calc(0.18 * var(--wp-sunrise-glow))) 40%,
+    rgb(var(--wp-bg-tint) / calc(0.5 * var(--wp-sunrise-glow))) 0%,
+    rgb(var(--wp-bg-tint) / calc(0.18 * var(--wp-sunrise-glow))) 40%,
     rgb(255 255 255 / 0) 74%
   );
   animation: workplace-sunrise 2.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* ── Presets ──────────────────────────────────────────────────────────────
+   Keys match `chatBackgroundSchema` in @gruenerator/contracts. `sunrise` needs
+   no class — it is the base above. */
+
+.workplace-chat-bg--tanne {
+  --wp-bg-base: #f5faf7;
+  --wp-bg-tint: 122 176 143;
+  --wp-accent: #2f7d4f;
+  --wp-accent-hover: #286b43;
+}
+
+.workplace-chat-bg--himmel {
+  --wp-bg-base: #f5f9fd;
+  --wp-bg-tint: 137 186 231;
+  --wp-accent: #1667b8;
+  --wp-accent-hover: #12589e;
+}
+
+.workplace-chat-bg--sand {
+  --wp-bg-base: #fbf8f3;
+  --wp-bg-tint: 214 190 158;
+  --wp-accent: #8f6534;
+  --wp-accent-hover: #7a562c;
+}
+
+.workplace-chat-bg--magenta {
+  --wp-bg-base: #fdf5f9;
+  --wp-bg-tint: 228 152 190;
+  --wp-accent: #c2185b;
+  --wp-accent-hover: #a6144e;
+}
+
+/* Regenbogen is the one preset that can't ride the single-tint gradient of the
+   base class: it fans five pastel glows across the x-axis instead. Each layer
+   reuses --wp-sunrise-y / --wp-sunrise-glow, so the shared entrance animation
+   lifts and fades them exactly like the one-tint presets. */
+.workplace-chat-bg--regenbogen {
+  --wp-bg-base: #fdfaf7;
+  --wp-accent: #8e44ad;
+  --wp-accent-hover: #7d3c98;
+  background-image:
+    radial-gradient(
+      44% 56% at 10% var(--wp-sunrise-y),
+      rgb(240 130 145 / calc(0.34 * var(--wp-sunrise-glow))) 0%,
+      rgb(240 130 145 / 0) 70%
+    ),
+    radial-gradient(
+      44% 56% at 30% var(--wp-sunrise-y),
+      rgb(243 195 110 / calc(0.34 * var(--wp-sunrise-glow))) 0%,
+      rgb(243 195 110 / 0) 70%
+    ),
+    radial-gradient(
+      44% 56% at 50% var(--wp-sunrise-y),
+      rgb(146 205 141 / calc(0.34 * var(--wp-sunrise-glow))) 0%,
+      rgb(146 205 141 / 0) 70%
+    ),
+    radial-gradient(
+      44% 56% at 70% var(--wp-sunrise-y),
+      rgb(126 176 230 / calc(0.34 * var(--wp-sunrise-glow))) 0%,
+      rgb(126 176 230 / 0) 70%
+    ),
+    radial-gradient(
+      44% 56% at 90% var(--wp-sunrise-y),
+      rgb(179 141 219 / calc(0.34 * var(--wp-sunrise-glow))) 0%,
+      rgb(179 141 219 / 0) 70%
+    );
+}
+
+/* Neutral opts out entirely so the page falls through to the theme background.
+   With no hue there is nothing to derive an accent from, so it keeps the brand
+   green — the `--wp-accent` fallback in .workplace-chat-accent handles that. */
+.workplace-chat-bg--neutral {
+  background-color: transparent;
+  background-image: none;
+  animation: none;
+  --wp-accent: initial;
+  --wp-accent-hover: initial;
+}
+
+/* Re-point the primary token inside the composer instead of overriding the
+   `bg-primary` utility by name: Tailwind's generated class names are not a
+   contract, the token is. Every primary accent in the composer (send button,
+   its hover, the active voice button, the quote block) follows the preset.
+   Scoped to the workplace hero — the same composer at /suche, im Notebook und
+   in der Chat-Runtime stays brand green. Falls back to the brand tokens when a
+   preset defines no accent (neutral). */
+.workplace-chat-accent {
+  --color-primary: var(--wp-accent, var(--primary-500));
+  --color-primary-600: var(--wp-accent-hover, var(--primary-600));
+
+  /* Der „Entdecke den neuen Grünerator"-Knopf direkt unter dem Composer ist ein
+     weiches Pill — heller Grund, mittlerer Rahmen, dunkle Schrift — und greift
+     damit auf Primärstufen zu, die die beiden Zeilen oben nicht umbiegen. Er
+     blieb deshalb markengrün, während der Senden-Button eine Handbreit darüber
+     die Preset-Farbe trug.
+     Ein Preset liefert nur EINE Farbe; die Stufen werden daraus gemischt. Die
+     Prozente sind nach Wirkung gewählt, nicht aus der Marken-Palette
+     abgeleitet — die ist von Hand gestuft und keine Weiß-Rampe. */
+  --wp-accent-base: var(--wp-accent, var(--primary-500));
+  --color-primary-50: color-mix(in srgb, var(--wp-accent-base) 8%, white);
+  --color-primary-100: color-mix(in srgb, var(--wp-accent-base) 16%, white);
+  --color-primary-300: color-mix(in srgb, var(--wp-accent-base) 34%, white);
+  --color-primary-400: color-mix(in srgb, var(--wp-accent-base) 50%, white);
+  /* Die Akzente sind gegen WEISS auf Kontrast geprüft (siehe oben), nicht gegen
+     ihren eigenen Grund. Unverändert als Schrift auf der 8%igen Füllung
+     scheitert Sunrise bei 4,43:1 — und im Hover, wo die Füllung auf 16% geht,
+     erst recht. Eine Spur Schwarz holt den schlechtesten Fall auf 5,07:1 in
+     Ruhe und 4,56:1 im Hover; alle anderen Presets liegen darüber. */
+  --color-primary-700: color-mix(in srgb, var(--wp-accent-base) 92%, black);
+}
+
+/* Dunkelmodus mischt gegen Schwarz statt gegen Weiß — sonst leuchten Grund und
+   Rahmen aus der dunklen Fläche heraus. primary-400 muss mit, weil der
+   Hover-Rahmen des Knopfes ohne dark:-Variante auskommt und die helle
+   Licht-Mischung sonst auch nachts greifen würde. */
+[data-theme='dark'] .workplace-chat-accent {
+  --color-primary-900: color-mix(in srgb, var(--wp-accent-base) 30%, black);
+  --color-primary-700: color-mix(in srgb, var(--wp-accent-base) 62%, black);
+  --color-primary-400: color-mix(in srgb, var(--wp-accent-base) 80%, black);
+  --color-primary-200: color-mix(in srgb, var(--wp-accent-base) 45%, white);
+}
+
+/* Neutral hat keine Farbe, aus der sich etwas ableiten ließe, also zurück auf
+   die echten Marken-Stufen. Eine Mischung aus primary-500 träfe sie nicht:
+   primary-300 ist #8ac9b0, 34 % Weiß-Mischung ergäbe #c8dbd4.
+   Muss nach der Dark-Regel stehen — gleiche Spezifität, die spätere gewinnt. */
+.workplace-chat-bg--neutral .workplace-chat-accent {
+  --color-primary-50: var(--primary-50);
+  --color-primary-100: var(--primary-100);
+  --color-primary-200: var(--primary-200);
+  --color-primary-300: var(--primary-300);
+  --color-primary-400: var(--primary-400);
+  --color-primary-700: var(--primary-700);
+  --color-primary-900: var(--primary-900);
 }
 
 @keyframes workplace-sunrise {
@@ -39,17 +188,32 @@
 
 /* Dark mode is toggled via [data-theme="dark"] (see @custom-variant in the
    theme CSS), not a .dark class — a plain `.dark` selector never matches here.
-   Keep a faint warm glow over the theme background so the chat hero still reads
-   as a designed surface in dark mode. */
+   Keep a faint glow of the chosen tint over the theme background so the chat
+   hero still reads as a designed surface in dark mode. */
 [data-theme='dark'] .workplace-chat-sunrise {
   background-color: transparent;
   background-image: radial-gradient(
     88% 58% at 50% 52%,
-    rgb(233 214 150 / 0.1) 0%,
-    rgb(233 214 150 / 0.035) 42%,
+    rgb(var(--wp-bg-tint) / 0.1) 0%,
+    rgb(var(--wp-bg-tint) / 0.035) 42%,
     rgb(0 0 0 / 0) 74%
   );
   animation: none;
+}
+
+[data-theme='dark'] .workplace-chat-bg--neutral {
+  background-image: none;
+}
+
+/* Same fan of glows, dimmed to the dark-mode level of the one-tint presets.
+   Must come after the generic dark rule above (equal specificity). */
+[data-theme='dark'] .workplace-chat-bg--regenbogen {
+  background-image:
+    radial-gradient(44% 56% at 10% 52%, rgb(240 130 145 / 0.09) 0%, rgb(240 130 145 / 0) 70%),
+    radial-gradient(44% 56% at 30% 52%, rgb(243 195 110 / 0.09) 0%, rgb(243 195 110 / 0) 70%),
+    radial-gradient(44% 56% at 50% 52%, rgb(146 205 141 / 0.09) 0%, rgb(146 205 141 / 0) 70%),
+    radial-gradient(44% 56% at 70% 52%, rgb(126 176 230 / 0.09) 0%, rgb(126 176 230 / 0) 70%),
+    radial-gradient(44% 56% at 90% 52%, rgb(179 141 219 / 0.09) 0%, rgb(179 141 219 / 0) 70%);
 }
 
 @media (prefers-reduced-motion: reduce) {

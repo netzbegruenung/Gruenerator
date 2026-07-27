@@ -15,19 +15,21 @@ function errorMessage(body: unknown, status: number): string {
   return `HTTP ${status}`;
 }
 
+/** Shared by the hook and the tab's preload, so both hit the same cache entry. */
+export const textFormsQuery = {
+  queryKey: TEXT_FORMS_KEY,
+  retry: false,
+  queryFn: async (): Promise<TextForm[]> => {
+    const res = await getContractsClient().userTextForms.list();
+    if (res.status !== 200) throw new Error(errorMessage(res.body, res.status));
+    return res.body.forms;
+  },
+};
+
 export function useTextForms(enabled: boolean) {
   const queryClient = useQueryClient();
 
-  const query = useQuery({
-    queryKey: TEXT_FORMS_KEY,
-    enabled,
-    retry: false,
-    queryFn: async (): Promise<TextForm[]> => {
-      const res = await getContractsClient().userTextForms.list();
-      if (res.status !== 200) throw new Error(errorMessage(res.body, res.status));
-      return res.body.forms;
-    },
-  });
+  const query = useQuery({ ...textFormsQuery, enabled });
 
   const analyze = useMutation({
     mutationFn: async (input: {
@@ -71,5 +73,31 @@ export function useTextForms(enabled: boolean) {
     },
   });
 
-  return { query, analyze, save, remove };
+  const share = useMutation({
+    mutationFn: async (input: { mention: string; groupId: string }): Promise<void> => {
+      const res = await getContractsClient().userTextForms.share({
+        params: { mention: input.mention },
+        body: { group_id: input.groupId },
+      });
+      if (res.status !== 200) throw new Error(errorMessage(res.body, res.status));
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: TEXT_FORMS_KEY });
+    },
+  });
+
+  const unshare = useMutation({
+    mutationFn: async (input: { mention: string; groupId: string }): Promise<void> => {
+      const res = await getContractsClient().userTextForms.unshare({
+        params: { mention: input.mention },
+        body: { group_id: input.groupId },
+      });
+      if (res.status !== 200) throw new Error(errorMessage(res.body, res.status));
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: TEXT_FORMS_KEY });
+    },
+  });
+
+  return { query, analyze, save, remove, share, unshare };
 }

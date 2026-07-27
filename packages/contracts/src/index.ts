@@ -23,6 +23,7 @@ export {
   recentValuesContract,
   recentActivityContract,
   itemUsageContract,
+  userUsageContract,
   searchContract,
   globalSearchContract,
   researchContract,
@@ -46,6 +47,7 @@ export {
   wolkePendingContract,
   notebookWordpressContract,
   userWebsitesContract,
+  letterheadsContract,
   notebookSharingContract,
   docsContract,
   documentsContract,
@@ -53,7 +55,6 @@ export {
   voiceContract,
   imagePickerContract,
   videoContract,
-  textGenerationContract,
   sharepicContract,
   transferContract,
   unsplashContract,
@@ -88,11 +89,13 @@ export * from './schemas/exports.js';
 export * from './schemas/recentValues.js';
 export * from './schemas/recentActivity.js';
 export * from './schemas/itemUsage.js';
+export * from './schemas/userUsage.js';
 export * from './schemas/search.js';
 export * from './schemas/globalSearch.js';
 export * from './schemas/research.js';
 export * from './schemas/chatGraph.js';
 export * from './schemas/chatStreamEvents.js';
+export * from './schemas/jobErrors.js';
 export * from './schemas/socialPost.js';
 export * from './schemas/bundestag.js';
 export * from './schemas/bahn.js';
@@ -113,6 +116,7 @@ export * from './schemas/notebookCollections.js';
 export * from './schemas/wolkePending.js';
 export * from './schemas/notebookWordpress.js';
 export * from './schemas/userWebsite.js';
+export * from './schemas/letterhead.js';
 export * from './schemas/notebookSharing.js';
 export * from './schemas/docs.js';
 export * from './schemas/documents.js';
@@ -120,7 +124,6 @@ export * from './schemas/subtitler.js';
 export * from './schemas/voice.js';
 export * from './schemas/imagePicker.js';
 export * from './schemas/video.js';
-export * from './schemas/textGeneration.js';
 export * from './schemas/sharepic.js';
 export * from './schemas/transfer.js';
 export * from './schemas/unsplash.js';
@@ -158,6 +161,7 @@ export * from './sheetsYdoc.js';
 // Presentations (reveal.js) collab schema + pure formatting helpers —
 // reveal-free, shared by the editor package and the API.
 export * from './presentationsYdoc.js';
+export * from './presentationBrand.js';
 
 export * from './schemas/scanner.js';
 export * from './schemas/prompts.js';

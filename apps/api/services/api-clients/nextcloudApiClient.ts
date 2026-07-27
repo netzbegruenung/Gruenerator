@@ -3,6 +3,7 @@ import * as path from 'path';
 
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
 
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { sanitizeFilename } from '../../utils/validation/index.js';
 import { validateUrlSync, validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
 
@@ -14,12 +15,7 @@ export interface ParsedShareLink {
 }
 
 export type ConnectionErrorCode =
-  | 'invalid_link'
-  | 'not_found'
-  | 'forbidden'
-  | 'read_only'
-  | 'storage_full'
-  | 'unknown';
+  'invalid_link' | 'not_found' | 'forbidden' | 'read_only' | 'storage_full' | 'unknown';
 
 export interface ConnectionTestResult {
   success: boolean;
@@ -277,7 +273,7 @@ class NextcloudApiClient {
 
       return {
         success: false,
-        message: err.message || 'Connection test failed',
+        message: toUserFacingMessage(err) || 'Connection test failed',
         errorCode: 'unknown',
       };
     }
@@ -340,7 +336,7 @@ class NextcloudApiClient {
     } catch (error) {
       const err = error as Error;
       console.error('[NextcloudApiClient] Stream upload error', { error: err.message });
-      return { success: false, message: err.message };
+      return { success: false, message: toUserFacingMessage(err) };
     }
   }
 

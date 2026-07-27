@@ -165,7 +165,6 @@ export { GrueneratorComposer } from './components/thread/GrueneratorComposer';
 export { type ComposerPreset } from './components/thread/PlusMenu';
 export { FileMentionPopover } from './components/thread/FileMentionPopover';
 export { DocumentChatPicker } from './components/thread/DocumentChatPicker';
-export { SkillPopover } from './components/thread/SkillPopover';
 export { SkillLibraryModal } from './components/skills/SkillLibraryModal';
 export { useSkillFavoritesStore } from './stores/skillFavoritesStore';
 export { PlusMenu } from './components/thread/PlusMenu';
@@ -293,9 +292,7 @@ export { setThreadListSlot, useThreadListSlot } from './stores/threadListSlotSto
 // Mention detection & insertion (shared logic for web + mobile)
 export {
   detectMention,
-  getFilteredFunctions,
-  getFilteredSkills,
-  getFilteredForMode,
+  getFilteredMentionables,
   type MentionDetectionResult,
 } from './lib/mentionDetection';
 export { computeMentionInsertion, type MentionInsertionResult } from './lib/mentionInsertion';

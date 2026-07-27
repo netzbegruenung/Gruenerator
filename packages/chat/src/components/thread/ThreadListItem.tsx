@@ -1,6 +1,5 @@
 'use client';
 
-import { type MouseEvent, useCallback, useState, useSyncExternalStore } from 'react';
 import {
   ThreadListItemPrimitive,
   ThreadListItemMorePrimitive,
@@ -18,16 +17,19 @@ import {
   Tag,
   Users,
 } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import { useAgentStore } from '../../stores/chatStore';
-import useChatPinsStore, { useIsChatPinned } from '../../stores/useChatPinsStore';
+import { type MouseEvent, useCallback, useState, useSyncExternalStore } from 'react';
+
 import { useExternalThread } from '../../context/ExternalThreadContext';
+import { cn } from '../../lib/utils';
 import {
   getThreadType,
   getNotebookCollectionId,
   getThreadTags,
   subscribeThreadTags,
 } from '../../runtime/GrueneratorThreadListAdapter';
+import { useAgentStore } from '../../stores/chatStore';
+import useChatPinsStore, { useIsChatPinned } from '../../stores/useChatPinsStore';
+
 import { EditTagsDialog } from './EditTagsDialog';
 import { MoveToSpaceDialog } from './MoveToSpaceDialog';
 import { ShareThreadDialog } from './ShareThreadDialog';

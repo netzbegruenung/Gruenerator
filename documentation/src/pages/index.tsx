@@ -2,100 +2,62 @@ import type { ReactNode } from 'react';
 import Link from '@docusaurus/Link';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
+import SearchBar from '@theme/SearchBar';
+import {
+  SECTIONS,
+  QUICK_TASKS,
+  EXTRA_LINKS,
+  type DocSection,
+  type QuickTask,
+} from '@site/src/nav/sections';
 import styles from './index.module.css';
 
-type CategoryCard = {
-  title: string;
-  icon: string;
-  description: string;
-  link: string;
-  topPages: {
-    title: string;
-    link: string;
-  }[];
-};
+function TaskCard({ task }: { task: QuickTask }): ReactNode {
+  return (
+    <Link to={task.to} className={styles.taskCard}>
+      <div className={styles.taskText}>
+        <span className={styles.taskLabel}>{task.label}</span>
+        <span className={styles.taskDescription}>{task.description}</span>
+      </div>
+      <svg
+        className={styles.taskArrow}
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M14 5l7 7m0 0l-7 7m7-7H3"
+        />
+      </svg>
+    </Link>
+  );
+}
 
-const categories: CategoryCard[] = [
-  {
-    title: 'Über den Grünerator',
-    icon: '🎯',
-    description:
-      'Was ist der Grünerator? Lerne die grüne KI kennen und erfahre, was sie besonders macht.',
-    link: '/docs/ueber-den-gruenerator/intro',
-    topPages: [
-      { title: 'Einführung', link: '/docs/ueber-den-gruenerator/intro' },
-      { title: 'Pro EU', link: '/docs/ueber-den-gruenerator/gruenerator-pro-eu' },
-      {
-        title: 'Deine Daten im Grünerator',
-        link: '/docs/ueber-den-gruenerator/notebook',
-      },
-    ],
-  },
-  {
-    title: 'Grundlagen',
-    icon: '📚',
-    description: 'Wichtige Basics für die Arbeit mit dem Grünerator und KI-generierten Inhalten.',
-    link: '/docs/Grundlagen/Kennzeichnungs-Guide',
-    topPages: [
-      { title: 'Kennzeichnungs-Guide', link: '/docs/Grundlagen/Kennzeichnungs-Guide' },
-      { title: 'Welches KI-Tool wofür?', link: '/docs/Grundlagen/welches-ki-tool-wofuer' },
-    ],
-  },
-  {
-    title: 'Profil',
-    icon: '👤',
-    description: 'Personalisiere den Grünerator und nutze die Grüne Wolke für deine Inhalte.',
-    link: '/docs/Profil/gruene-wolke-tutorial',
-    topPages: [{ title: 'Grüne Wolke Tutorial', link: '/docs/Profil/gruene-wolke-tutorial' }],
-  },
-  {
-    title: 'Grünerieren',
-    icon: '✨',
-    description: 'Erstelle grüne Inhalte: Texte, Sharepics, Untertitel und mehr.',
-    link: '/docs/gruenerieren/ki-modelle',
-    topPages: [
-      { title: 'KI-Modelle', link: '/docs/gruenerieren/ki-modelle' },
-      { title: 'Websuche', link: '/docs/gruenerieren/websuche' },
-      { title: 'Dateien hinzufügen', link: '/docs/gruenerieren/dateien-hinzufuegen' },
-    ],
-  },
-  {
-    title: 'Integrationen',
-    icon: '🔌',
-    description: 'Nutze den Grünerator direkt in ChatGPT, Claude oder Mistral Le Chat.',
-    link: '/docs/integrationen/ki-chat-einrichten',
-    topPages: [
-      { title: 'KI-Chat einrichten', link: '/docs/integrationen/ki-chat-einrichten' },
-      { title: 'Was kann ich fragen?', link: '/docs/integrationen/mcp-was-kann-ich-fragen' },
-    ],
-  },
-  {
-    title: 'LLM Basics',
-    icon: '🧠',
-    description: 'Verstehe, wie Large Language Models funktionieren und welche Risiken es gibt.',
-    link: '/docs/llm-basics/wie-llms-funktionieren',
-    topPages: [
-      { title: 'Wie LLMs funktionieren', link: '/docs/llm-basics/wie-llms-funktionieren' },
-      { title: 'Risiken & Gefahren', link: '/docs/llm-basics/risiken-und-gefahren-von-llms' },
-    ],
-  },
-];
-
-function CategoryCard({ category }: { category: CategoryCard }): ReactNode {
+function SectionCard({ section }: { section: DocSection }): ReactNode {
   return (
     <div className={styles.categoryCard}>
-      <Link to={category.link} className={styles.categoryCardLink}>
+      <Link to={section.intro} className={styles.categoryCardLink}>
         <div className={styles.categoryHeader}>
-          <span className={styles.categoryIcon}>{category.icon}</span>
-          <h3 className={styles.categoryTitle}>{category.title}</h3>
+          <span className={styles.categoryIcon}>{section.icon}</span>
+          <h3 className={styles.categoryTitle}>{section.label}</h3>
         </div>
-        <p className={styles.categoryDescription}>{category.description}</p>
+        <p className={styles.categoryDescription}>{section.description}</p>
       </Link>
 
       <div className={styles.topPages}>
-        {category.topPages.map((page, idx) => (
-          <Link key={idx} to={page.link} className={styles.topPageLink}>
-            <svg className={styles.linkIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        {section.topPages.map((page) => (
+          <Link key={page.to} to={page.to} className={styles.topPageLink}>
+            <svg
+              className={styles.linkIcon}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -103,7 +65,7 @@ function CategoryCard({ category }: { category: CategoryCard }): ReactNode {
                 d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
               />
             </svg>
-            {page.title}
+            {page.label}
           </Link>
         ))}
       </div>
@@ -119,7 +81,6 @@ export default function Home(): ReactNode {
       title={`${siteConfig.title}`}
       description="Dokumentation für den Grünerator - die grüne KI für Bündnis 90/Die Grünen"
     >
-      {/* Hero Section */}
       <header className={styles.hero}>
         <div className="container">
           <div className={styles.heroContent}>
@@ -127,37 +88,61 @@ export default function Home(): ReactNode {
               <span className={styles.titleGreen}>Grünerator</span> Dokumentation
             </h1>
             <p className={styles.heroSubtitle}>Alles, was du über die grüne KI wissen musst</p>
-            <div className={styles.heroButtons}>
-              <Link className={styles.primaryButton} to="/docs/ueber-den-gruenerator/intro">
-                Erste Schritte
-              </Link>
-              <Link
-                className={styles.secondaryButton}
-                href="https://gruenerator.eu"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Zum Grünerator →
-              </Link>
+            <div className={styles.heroSearch}>
+              <SearchBar />
             </div>
+            <Link
+              className={styles.heroLink}
+              href="https://gruenerator.eu"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Zum Grünerator →
+            </Link>
           </div>
         </div>
       </header>
 
-      {/* Category Explorer Section */}
       <main className={styles.main}>
-        <div className="container">
-          <div className={styles.categoriesIntro}>
-            <h2 className={styles.sectionTitle}>Entdecke die Dokumentation</h2>
-            <p className={styles.sectionSubtitle}>Wähle eine Kategorie, um mehr zu erfahren</p>
+        <section className={styles.tasksSection}>
+          <div className="container">
+            <div className={styles.categoriesIntro}>
+              <h2 className={styles.sectionTitle}>Direkt loslegen</h2>
+              <p className={styles.sectionSubtitle}>
+                Die häufigsten Aufgaben — Schritt für Schritt erklärt
+              </p>
+            </div>
+            <div className={styles.tasksGrid}>
+              {QUICK_TASKS.map((task) => (
+                <TaskCard key={task.to} task={task} />
+              ))}
+            </div>
           </div>
+        </section>
 
-          <div className={styles.categoriesGrid}>
-            {categories.map((category, idx) => (
-              <CategoryCard key={idx} category={category} />
-            ))}
+        <section className={styles.categoriesSection}>
+          <div className="container">
+            <div className={styles.categoriesIntro}>
+              <h2 className={styles.sectionTitle}>Alle Bereiche</h2>
+              <p className={styles.sectionSubtitle}>
+                Die Dokumentation folgt dem Aufbau des Grünerators
+              </p>
+            </div>
+            <div className={styles.categoriesGrid}>
+              {SECTIONS.map((s) => (
+                <SectionCard key={s.id} section={s} />
+              ))}
+            </div>
+            <div className={styles.extraRow}>
+              <span className={styles.extraLabel}>Außerdem:</span>
+              {Object.values(EXTRA_LINKS).map((link) => (
+                <Link key={link.to} to={link.to} className={styles.extraLink}>
+                  {link.label}
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
+        </section>
       </main>
     </Layout>
   );

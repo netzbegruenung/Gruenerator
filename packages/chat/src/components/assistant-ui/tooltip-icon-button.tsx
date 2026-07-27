@@ -1,9 +1,8 @@
 'use client';
 
-import { ComponentPropsWithRef, forwardRef } from 'react';
-import { Slottable } from '@radix-ui/react-slot';
-
 import { Button, Tooltip, TooltipContent, TooltipTrigger, cn } from '@gruenerator/ui';
+import { Slottable } from '@radix-ui/react-slot';
+import { type ComponentPropsWithRef, forwardRef } from 'react';
 
 export type TooltipIconButtonProps = ComponentPropsWithRef<typeof Button> & {
   tooltip: string;

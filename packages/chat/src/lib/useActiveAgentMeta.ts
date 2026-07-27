@@ -1,10 +1,12 @@
-import { useMemo } from 'react';
 import { SKILLS, getSystemAgent, localizeAgent, type SkillIcon } from '@gruenerator/shared/agents';
-import { agentsList } from './agents';
+import { useMemo } from 'react';
+
+import { useUserAgentsRegistry } from '../stores/userAgentsRegistry';
+
 import { resolveAgentIcon } from './agentIcons';
+import { agentsList } from './agents';
 import { phosphorAgentIcon } from './phosphorAgentIcon';
 import { useScopedAgentId } from './useScopedAgentState';
-import { useUserAgentsRegistry } from '../stores/userAgentsRegistry';
 
 export interface ActiveAgentMeta {
   identifier: string;

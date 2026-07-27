@@ -159,7 +159,7 @@ function FilterButton({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
-          className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md border-none cursor-pointer transition-colors ${
+          className={`flex items-center gap-1 px-2 py-1 max-sm:min-h-11 max-sm:px-3 text-xs rounded-md border-none cursor-pointer transition-colors ${
             filters.length > 0
               ? 'bg-primary-600/10 text-primary-600 dark:text-primary-400'
               : 'bg-transparent text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800'
@@ -188,7 +188,7 @@ function FilterButton({
                 <select
                   value={rule.operator}
                   onChange={(e) => updateFilter(idx, { operator: e.target.value })}
-                  className="text-xs rounded border border-grey-200 dark:border-grey-700 bg-transparent px-1 py-0.5 outline-none"
+                  className="text-xs max-sm:text-base rounded border border-grey-200 dark:border-grey-700 bg-transparent px-1 py-0.5 outline-none"
                 >
                   {ops.map((op) => (
                     <option key={op.types[0]} value={op.types[0]}>
@@ -200,13 +200,13 @@ function FilterButton({
                   <input
                     value={String(rule.value ?? '')}
                     onChange={(e) => updateFilter(idx, { value: e.target.value })}
-                    className="flex-1 text-xs rounded border border-grey-200 dark:border-grey-700 bg-transparent px-1.5 py-0.5 outline-none focus:border-primary-500"
+                    className="flex-1 text-xs max-sm:text-base rounded border border-grey-200 dark:border-grey-700 bg-transparent px-1.5 py-0.5 outline-none focus:border-primary-500"
                     placeholder="Wert..."
                   />
                 )}
                 <button
                   onClick={() => removeFilter(idx)}
-                  className="text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-0.5"
+                  className="text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-0.5 max-sm:p-4"
                 >
                   <FiX size={12} />
                 </button>
@@ -288,7 +288,7 @@ function SortButton({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
-          className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md border-none cursor-pointer transition-colors ${
+          className={`flex items-center gap-1 px-2 py-1 max-sm:min-h-11 max-sm:px-3 text-xs rounded-md border-none cursor-pointer transition-colors ${
             sorts.length > 0
               ? 'bg-primary-600/10 text-primary-600 dark:text-primary-400'
               : 'bg-transparent text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800'
@@ -315,14 +315,14 @@ function SortButton({
                 </span>
                 <button
                   onClick={() => toggleDirection(idx)}
-                  className="flex items-center gap-0.5 text-xs text-grey-500 hover:text-foreground bg-transparent border-none cursor-pointer"
+                  className="flex items-center gap-0.5 text-xs max-sm:min-h-11 max-sm:px-1 text-grey-500 hover:text-foreground bg-transparent border-none cursor-pointer"
                 >
                   {rule.direction === 'asc' ? <FiArrowUp size={11} /> : <FiArrowDown size={11} />}
                   {rule.direction === 'asc' ? 'A→Z' : 'Z→A'}
                 </button>
                 <button
                   onClick={() => removeSort(idx)}
-                  className="text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-0.5"
+                  className="text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-0.5 max-sm:p-4"
                 >
                   <FiX size={12} />
                 </button>
@@ -379,7 +379,7 @@ function GroupByButton({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md border-none cursor-pointer transition-colors ${
+          className={`flex items-center gap-1 px-2 py-1 max-sm:min-h-11 max-sm:px-3 text-xs rounded-md border-none cursor-pointer transition-colors ${
             groupByFieldId
               ? 'bg-primary-600/10 text-primary-600 dark:text-primary-400'
               : 'bg-transparent text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800'

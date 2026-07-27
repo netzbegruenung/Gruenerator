@@ -25,6 +25,7 @@ import {
   getAgentForUser,
   getDefaultAgentId,
 } from '../../../routes/chat/agents/agentLoader.js';
+import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { briefGeneratorNode } from './nodes/briefGeneratorNode.js';
@@ -40,6 +41,7 @@ import { socialMediaComposerNode } from './nodes/socialMediaComposerNode.js';
 import type {
   ChatGraphInput,
   ChatGraphOutput,
+  DegradationNote,
   SearchIntent,
   SearchSource,
   SearchResult,
@@ -60,7 +62,6 @@ import type {
   ComputeData,
   ResearchToolResult,
   ExamplesToolResult,
-  BtEnrichedResult,
   DocumentSource,
   SynthesisMode,
   WolkeFileRef,
@@ -118,6 +119,9 @@ const ChatStateAnnotation = Annotation.Root({
   }),
   hasTabularAttachment: Annotation<boolean>({
     reducer: (x, y) => y ?? x ?? false,
+  }),
+  pdfFormAttachments: Annotation<Array<{ name: string; data: string }>>({
+    reducer: (x, y) => y ?? x ?? [],
   }),
   clientCanRunPython: Annotation<boolean>({
     reducer: (x, y) => y ?? x ?? false,
@@ -317,10 +321,6 @@ const ChatStateAnnotation = Annotation.Root({
     reducer: (x, y) => y ?? x,
   }),
 
-  bundestagResult: Annotation<BtEnrichedResult | null>({
-    reducer: (x, y) => y ?? x,
-  }),
-
   // Search results (replaced by each node — search sets initial results, rerank replaces with filtered set)
   searchResults: Annotation<SearchResult[]>({
     reducer: (x, y) => {
@@ -363,6 +363,12 @@ const ChatStateAnnotation = Annotation.Root({
   // searchErrors uses APPEND reducer so errors persist across the qualityGate→search loop;
   // searchResults uses replace, so without append we'd lose failures from prior iterations.
   searchErrors: Annotation<{ source: string; message: string }[]>({
+    reducer: (x, y) => [...(x ?? []), ...(y ?? [])],
+    default: () => [],
+  }),
+  // Appending, like searchErrors: a degradation found in an early node must
+  // survive the quality-gate retry loop back to respond.
+  degradationNotes: Annotation<DegradationNote[]>({
     reducer: (x, y) => [...(x ?? []), ...(y ?? [])],
     default: () => [],
   }),
@@ -538,6 +544,7 @@ function routeAfterClassification(
     intent === 'save_as_doc' ||
     intent === 'create_sheet' ||
     intent === 'create_presentation' ||
+    intent === 'create_pdf' ||
     intent === 'create_recurring_task' ||
     intent === 'modify_doc' ||
     intent === 'modify_board' ||
@@ -572,6 +579,10 @@ function routeAfterClassification(
     wetter: 'direct',
     news: 'direct',
     umfragen: 'direct',
+    // Same as the loop-only intents above: `hilfe` routes into the agentic loop
+    // before this map matters. Its tool is gated by enabledTools.hilfe in the
+    // catalog instead.
+    hilfe: 'direct',
     image: 'image',
     image_edit: 'image_edit',
     sharepic: 'sharepic',
@@ -587,6 +598,7 @@ function routeAfterClassification(
     share_doc: 'share_doc',
     create_sheet: 'create_sheet',
     create_presentation: 'create_presentation',
+    create_pdf: 'create_pdf',
     create_recurring_task: 'create_recurring_task',
     chat_history: 'chat_history',
     mcp: 'mcp',
@@ -828,6 +840,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     imageAttachments: input.imageAttachments || [],
     threadAttachments: input.threadAttachments || [],
     hasTabularAttachment: input.hasTabularAttachment ?? false,
+    pdfFormAttachments: input.pdfFormAttachments || [],
     clientCanRunPython: input.clientCanRunPython ?? false,
 
     // Notebook scoping
@@ -922,7 +935,6 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     researchBrief: null,
     researchMeta: null,
     examplesResult: null,
-    bundestagResult: null,
 
     // Search results (will be set by search node)
     searchResults: [],
@@ -936,6 +948,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
 
     // Reliability flags & structured error log
     searchErrors: [],
+    degradationNotes: [],
     briefGenerationFailed: false,
     rerankFailed: false,
     topRerankScore: null,
@@ -1058,7 +1071,7 @@ export async function runChatGraph(input: ChatGraphInput): Promise<ChatGraphOutp
         searchTimeMs: 0,
         responseTimeMs: 0,
       },
-      error: error instanceof Error ? error.message : String(error),
+      error: toUserFacingMessage(error),
     };
   }
 }

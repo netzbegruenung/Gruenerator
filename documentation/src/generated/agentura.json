@@ -1,0 +1,46 @@
+{
+  "categories": [
+    {
+      "key": "empfohlen",
+      "label": "Empfohlen",
+      "description": "Beliebte Grüneratoren zum Einstieg — eine Auswahl über alle Regale hinweg."
+    },
+    {
+      "key": "meine",
+      "label": "Meine Grüneratoren",
+      "description": "Deine selbst erstellten Grüneratoren und wiederkehrenden Aufgaben."
+    },
+    {
+      "key": "gruppen",
+      "label": "Geteilt mit Gruppen",
+      "description": "Grüneratoren, die in deinen Gruppen geteilt wurden."
+    },
+    {
+      "key": "community",
+      "label": "Von der Basis",
+      "description": "Öffentlich geteilte Grüneratoren von der Basis."
+    },
+    {
+      "key": "gruenerator",
+      "label": "Offizielle Grüneratoren",
+      "description": "Fertige Grüneratoren, Presse- & Social-Rezepte und Landesverbände von Grünerator."
+    },
+    {
+      "key": "favoriten",
+      "label": "Favoriten",
+      "description": "Deine gemerkten Grüneratoren und Rezepte."
+    }
+  ],
+  "defaultCategory": "empfohlen",
+  "sortLabels": {
+    "empfohlen": "Empfohlen",
+    "az": "A–Z"
+  },
+  "recipeCategories": {
+    "presse": "Presse & Kommunikation",
+    "social": "Social Media",
+    "dokumente": "Dokumente & Texte",
+    "recherche": "Recherche & Analyse",
+    "sonstiges": "Sonstiges"
+  }
+}

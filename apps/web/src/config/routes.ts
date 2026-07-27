@@ -210,7 +210,7 @@ const TranskriptionPage = lazy(() => import('../features/transkription/Transkrip
 const TransferPage = lazy(() => import('../features/transfer/TransferPage'));
 const RecurringTasksPage = lazy(() => import('../features/recurring-tasks/RecurringTasksPage'));
 const WorkplacePage = lazy(() => import('../features/workplace/WorkplacePage'));
-const GruppenPage = lazy(() => import('../features/groups/pages/GruppenPage'));
+const ProjektePage = lazy(() => import('../features/groups/pages/ProjektePage'));
 const OfficeSuiteLandingPage = lazy(() => import('../features/docs/OfficeSuiteLandingPage'));
 // The per-type office overviews are consolidated into the /office hub; keep the
 // old paths as redirects so pinned favourites and search results still resolve.
@@ -332,8 +332,8 @@ const standardRoutes: RouteConfig[] = [
     path: '/skills',
     component: lazy(() => Promise.resolve({ default: createRedirect('/agentura') })),
   },
-  { path: '/projekte', component: GruppenPage, layoutMode: 'sidebarOnly' },
-  { path: '/projekte/:idOrSlug', component: GruppenPage },
+  { path: '/projekte', component: ProjektePage, layoutMode: 'sidebarOnly' },
+  { path: '/projekte/:idOrSlug', component: ProjektePage },
   // Legacy /gruppen* → /projekte* (Spaces/Gruppen renamed to Projekte). Keep
   // redirects so pinned favourites and shared links still resolve.
   {

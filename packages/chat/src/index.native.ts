@@ -127,9 +127,7 @@ export { useSkillFavoritesStore } from './stores/skillFavoritesStore';
 // Mention detection & insertion (shared logic for web + mobile)
 export {
   detectMention,
-  getFilteredFunctions,
-  getFilteredSkills,
-  getFilteredForMode,
+  getFilteredMentionables,
   type MentionDetectionResult,
 } from './lib/mentionDetection';
 export { computeMentionInsertion, type MentionInsertionResult } from './lib/mentionInsertion';
@@ -149,6 +147,10 @@ export { useFetchFullText, type FetchFullTextFn } from './context/CitationContex
 
 // SSE Parsing
 export { parseSSELine, type SSECurrentEvent, type SSEParseResult } from './lib/sseParser';
+
+// Narration view-logic + label pacing (shared web + mobile)
+export { selectNarration, type PartLike } from './lib/narrationView';
+export { usePacedLabel } from './hooks/usePacedLabel';
 
 // URL Utilities
 export { extractDomain, getFaviconUrl, getHostname, faviconFromHostname } from './lib/urlUtils';

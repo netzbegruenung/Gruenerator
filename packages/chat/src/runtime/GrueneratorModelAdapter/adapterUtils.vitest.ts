@@ -11,6 +11,7 @@ import {
   type BuildRequestBodyParams,
 } from './buildRequestBody';
 import { truncateAttachmentContext } from './truncation';
+import type { ToolKey } from '../../stores/chatStore';
 
 describe('isAuiInternalThreadId', () => {
   it('flags the legacy local sentinel', () => {
@@ -81,7 +82,7 @@ describe('buildRequestBody', () => {
   const baseConfig = {
     agentId: 'agent-x',
     modelId: 'model-x',
-    enabledTools: { search: true } as any,
+    enabledTools: { search: true } as unknown as Record<ToolKey, boolean>,
     threadId: 'thread-1',
     selectedNotebookId: 'nb-1',
     searchMode: 'web' as const,

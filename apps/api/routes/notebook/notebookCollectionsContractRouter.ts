@@ -35,6 +35,7 @@ import { createNotification } from '../../services/notifications/NotificationSer
 import { getUsageMap } from '../../services/usage/ItemUsageService.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { fromParam, type DocumentId, type NotebookId } from '../../utils/types/branded.js';
 
@@ -978,7 +979,8 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       return {
         status: 500 as const,
         body: {
-          error: err.message || 'Failed to perform bulk delete of Notebook collections',
+          error:
+            toUserFacingMessage(err) || 'Failed to perform bulk delete of Notebook collections',
         },
       };
     }

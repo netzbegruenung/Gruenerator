@@ -61,6 +61,7 @@ import {
   detectSearchSources,
   CHAT_HISTORY_KEYWORDS,
   SYSTEM_MCP_PHRASING,
+  looksLikeDocsHelpQuestion,
 } from './classifierParsing.js';
 import { CLASSIFIER_PROMPT, NON_SEARCH_INTENTS } from './classifierPrompt.js';
 import { classifyDocsIntentTiebreak } from './docsIntentTiebreak.js';
@@ -818,7 +819,14 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // overwhelmingly common no-action message never touches the servers table.
     const mcpUserId = state.agentConfig?.userId;
     if (mcpUserId && userContent.length >= 8 && MCP_ACTION_PATTERN.test(userContent)) {
-      const servers = await McpServerRegistry.getClassifierContext(mcpUserId).catch(() => []);
+      const servers = await McpServerRegistry.getClassifierContext(mcpUserId).catch(
+        (err: unknown) => {
+          // Was a bare noop: a registry outage made every connector invisible,
+          // so "erstelle eine Brevo-Kampagne" quietly became a chat answer.
+          log.warn(`[Classifier] MCP registry lookup failed: ${err}`);
+          return [];
+        }
+      );
       const scopedServerId = matchMcpServerByName(userContent, servers);
       if (scopedServerId) {
         log.info('[Classifier] MCP prose routing → mcp intent', { scope: scopedServerId });
@@ -981,6 +989,29 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       }
     }
 
+    // ── TIER 2.9: Grünerator help question ("wie erstelle ich ein Sharepic?") ──
+    // MUST run before Tier 3: the heuristics see "erstelle … sharepic" and
+    // classify the turn as a GENERATION intent, so the assistant would build a
+    // sharepic for a user who only asked how sharepics work.
+    // `looksLikeDocsHelpQuestion` is deliberately high-precision (see
+    // classifierParsing) — what it misses still reaches the LLM tier, which
+    // knows the `hilfe` intent too.
+    if (looksLikeDocsHelpQuestion(userContent)) {
+      log.info(`[Classifier] Docs help question → hilfe: "${userContent.slice(0, 60)}"`);
+      return {
+        intent: 'hilfe',
+        searchSources: [],
+        // The docs tool runs BM25 over the question itself, so the raw text is
+        // the query — no separate extraction step like the search intents have.
+        searchQuery: userContent.slice(0, 500),
+        detectedFilters: null,
+        reasoning: 'Grünerator help question (docs)',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
     // ── TIER 3: Heuristic pre-check ──
     // Short messages: always use heuristics (likely greetings)
     if (userContent.length < 10) {
@@ -1121,7 +1152,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         ],
         options: {
           model: INTERMEDIATE_MODEL.model,
-          max_tokens: 250,
+          max_tokens: 1000,
           temperature: 0.1,
           response_format: { type: 'json_object' },
         },
@@ -1188,6 +1219,10 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       hasTemporal: false,
       complexity: 'moderate' as const,
       classificationTimeMs: Date.now() - startTime,
+      // The heuristic is a reasonable fallback, but it drops multi-source
+      // search and metadata filters — a materially worse turn that was
+      // previously indistinguishable from a normal one.
+      classifierDegraded: true,
     };
   }
 }
@@ -1256,6 +1291,9 @@ const TOOL_CONTEXT_HINTS: Record<NonNullable<ChatGraphState['lastToolContext']>[
   sheet: 'der Tabellen-Erstellung',
   document:
     'der Dokument-Erstellung — Folgeaufträge wie "kürze den zweiten Absatz" / "ändere die Begründung" sind Intent "modify_doc"',
+  // A finished file, not an editable document: a follow-up produces a NEW pdf,
+  // it never edits the old one (there is nothing editable to point at).
+  pdf: 'der PDF-Erstellung — Folgeaufträge erzeugen ein neues PDF (Intent "create_pdf")',
   board: 'der Board-Erstellung',
 };
 
@@ -1323,7 +1361,7 @@ async function classifyWithForcedSearch(opts: {
         ],
         options: {
           model: INTERMEDIATE_MODEL.model,
-          max_tokens: 250,
+          max_tokens: 1000,
           temperature: 0.1,
           response_format: { type: 'json_object' },
         },

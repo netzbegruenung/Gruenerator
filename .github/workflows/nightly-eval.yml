@@ -61,10 +61,21 @@ jobs:
 
       - name: Probe test-env reachability
         run: |
+          # Missing secrets otherwise surface as ~100 identical case failures
+          # ("Failed to parse URL from /api/chat-graph/stream") — fail loud here.
+          if [ -z "$EVAL_BASE_URL" ]; then
+            echo "::error::Repo secret EVAL_BASE_URL is not set — the eval has no backend to run against."
+            exit 1
+          fi
+          if [ -z "$EVAL_BYPASS_TOKEN" ]; then
+            echo "::error::Repo secret EVAL_BYPASS_TOKEN is not set — every request would be rejected as unauthenticated."
+            exit 1
+          fi
           echo "Backend git SHA (env drift check):"
           curl -sf --max-time 15 "$EVAL_BASE_URL/health" || echo "(no /health — continuing)"
         env:
           EVAL_BASE_URL: ${{ secrets.EVAL_BASE_URL }}
+          EVAL_BYPASS_TOKEN: ${{ secrets.EVAL_BYPASS_TOKEN }}
 
       - name: Run chat eval (${{ matrix.lane }})
         run: pnpm --filter @gruenerator/api eval:chat

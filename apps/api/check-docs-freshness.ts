@@ -1,9 +1,10 @@
 /**
  * Weekly AI Documentation Freshness Check
  *
- * Audits each feature/tutorial documentation article (documentation/docs/) against
- * the *current* web-app source code and files a deduplicated GitHub issue per stale
- * article. Because the web app has no i18n layer (German UI strings are hardcoded in
+ * Audits each feature/tutorial documentation article (documentation/docs/) — plus
+ * the in-app tours (touren/) and the repo-root README (readme/README.md) as
+ * pseudo-docs — against the *current* web-app source code and files a deduplicated
+ * GitHub issue per stale article. Because the web app has no i18n layer (German UI strings are hardcoded in
  * JSX), a Claude agent can grep the source to confirm whether a documented button /
  * slash-command / modal / menu label still exists with the same name.
  *
@@ -15,7 +16,7 @@
  *   --apply              Create / update / close GitHub issues. Default = dry-run
  *                        (prints verdicts, touches nothing).
  *   --doc <relpath>      Audit a single doc (relative to documentation/docs/),
- *                        e.g. --doc gruenerieren/ki-chat.md
+ *                        e.g. --doc chat/ki-chat.md
  *   --docs <a,b>         Audit an explicit comma-separated list of docs.
  *   --changed-files <f>  Reverse-map the newline-separated source paths in file <f>
  *                        (a PR's changed files) to the doc folders they affect, and
@@ -34,7 +35,7 @@
  *   GITHUB_STEP_SUMMARY      If set (CI), a markdown summary table is appended
  *
  * Examples:
- *   npx tsx check-docs-freshness.ts --doc gruenerieren/ki-chat.md   # one doc, dry-run
+ *   npx tsx check-docs-freshness.ts --doc chat/ki-chat.md   # one doc, dry-run
  *   npx tsx check-docs-freshness.ts                                 # full scope, dry-run
  *   npx tsx check-docs-freshness.ts --apply                         # full scope + issues
  */
@@ -54,31 +55,65 @@ import { parallelLimit } from './utils/parallelLimit.js';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '../..');
 const DOCS_ROOT = path.join(REPO_ROOT, 'documentation', 'docs');
+// In-app product tours audited as pseudo-docs under the virtual folder
+// "touren/": the step titles/descriptions are UI claims exactly like doc
+// prose, they just live in TS modules instead of markdown.
+const TOURS_ROOT = path.join(REPO_ROOT, 'apps', 'web', 'src', 'features', 'tours');
+const TOURS_FOLDER = 'touren';
+// The repo-root README is audited as a pseudo-doc under the virtual folder
+// "readme/": its feature list, workspace tables, command list and provider
+// claims drift against the code exactly like doc prose does.
+const README_FOLDER = 'readme';
+const README_DOC = `${README_FOLDER}/README.md`;
+const README_PATH = path.join(REPO_ROOT, 'README.md');
 
 // ── Scope ───────────────────────────────────────────────────────────────────
 // Feature/tutorial docs only — folders that describe the app UI. Content archives
-// (newsletter, intern, landesverbaende) and concept docs (llm-basics,
-// Grundlagen) are intentionally excluded: they have nothing to verify against code.
+// (archiv, intern) and concept docs (grundlagen) are intentionally excluded: they
+// have nothing to verify against code.
 const SCOPE_FOLDERS = [
   'ueber-den-gruenerator',
-  'gruenerieren',
+  'chat',
+  'office',
+  'wissen',
+  'grueneratoren',
+  'konto',
   'integrationen',
-  'Profil',
-  'notebooks',
-  'agents',
-  'monitor',
-  'signal-nachrichten',
+  'experimente',
 ] as const;
 
 // Optional hints (doc folder → likely source dirs) to focus the agent's search and
 // cut token use. Non-essential; the agent can grep without them.
 const AREA_HINTS: Record<string, string> = {
-  gruenerieren: 'packages/chat, apps/web/src/features/chat, apps/web/src/features/models',
-  agents: 'apps/web/src/features/agents, packages/chat',
-  notebooks: 'apps/web/src/features/notebook',
-  monitor: 'apps/web/src/features/monitor',
-  Profil: 'apps/web/src/features/wolke, apps/web/src/features/user-defaults',
+  // "Was kann ich fragen?" is verified against the chat's own registries, so the
+  // backend classifier/router dirs count as source for this folder too.
+  chat: 'packages/chat, apps/web/src/features/chat, apps/web/src/features/models, apps/api/routes/chat, apps/api/agents/langgraph/ChatGraph, packages/contracts/src/schemas',
+  grueneratoren: 'apps/web/src/features/agents, apps/web/src/features/agentura, packages/chat',
+  wissen: 'apps/web/src/features/notebook',
+  experimente: 'apps/web/src/features/monitor',
+  konto:
+    'apps/web/src/features/wolke, apps/web/src/features/user-defaults, apps/web/src/features/groups, apps/web/src/features/settings',
   integrationen: 'apps/web/src/features/connections, services/mcp',
+  // The Office articles describe four editors that share one document model, so
+  // the hint spans the feature dirs, their packages and the contracts the
+  // generated manifest reads. Without this entry no Office code change would
+  // ever trigger a docs check — AREA_HINTS is also the reverse map used by
+  // docs-freshness-pr.yml.
+  office:
+    'apps/web/src/features/docs, apps/web/src/features/sheets, apps/web/src/features/presentations, apps/web/src/features/boards, packages/sheets, packages/presentations, packages/docs, packages/chat/src/editor-surface, packages/contracts/src/schemas',
+  // Every surface a tour steps through, plus the tour modules themselves —
+  // so a PR touching a toured surface re-audits the tour texts (the anchor
+  // EXISTENCE check is deterministic: scripts/check-tour-anchors.mjs).
+  [TOURS_FOLDER]:
+    'apps/web/src/features/tours, apps/web/src/features/workplace, apps/web/src/components/layout/Sidebar, apps/web/src/features/docs, apps/web/src/features/sheets, apps/web/src/features/presentations, apps/web/src/features/image-studio, packages/canvas-editor, packages/presentations',
+  // Renamed twice (Gruppen → Spaces → Projekte); the code still says "groups"
+  // throughout, so the hint points at the old names on purpose.
+  // README claims are structural (workspace layout, commands, AI providers,
+  // env vars), so the reverse map triggers on structural files — a bare
+  // "package.json" prefix only matches the root manifest since changed paths
+  // are repo-relative.
+  [README_FOLDER]:
+    'pnpm-workspace.yaml, package.json, turbo.json, .env.example, apps/api/workers/providers, apps/api/services/ai',
 };
 
 const DEFAULT_MODEL = process.env.DOCS_CHECK_MODEL || 'claude-sonnet-4-6';
@@ -178,12 +213,32 @@ function collectMarkdown(dir: string, out: string[]): void {
   }
 }
 
+function tourDocs(): string[] {
+  try {
+    return readdirSync(TOURS_ROOT)
+      .filter((f) => f.endsWith('Tour.ts') && f !== 'runTour.ts')
+      .map((f) => `${TOURS_FOLDER}/${f}`)
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
 function docsInFolders(folders: readonly string[]): string[] {
   const abs: string[] = [];
+  const rel: string[] = [];
   for (const folder of folders) {
+    if (folder === TOURS_FOLDER) {
+      rel.push(...tourDocs());
+      continue;
+    }
+    if (folder === README_FOLDER) {
+      rel.push(README_DOC);
+      continue;
+    }
     collectMarkdown(path.join(DOCS_ROOT, folder), abs);
   }
-  return abs.map((f) => path.relative(DOCS_ROOT, f)).sort();
+  return [...abs.map((f) => path.relative(DOCS_ROOT, f)), ...rel].sort();
 }
 
 function discoverDocs(single?: string): string[] {
@@ -191,7 +246,16 @@ function discoverDocs(single?: string): string[] {
     const rel = single.replace(/^documentation\/docs\//, '');
     return [rel];
   }
-  return docsInFolders(SCOPE_FOLDERS);
+  return docsInFolders([...SCOPE_FOLDERS, TOURS_FOLDER, README_FOLDER]);
+}
+
+// Where a (pseudo-)doc actually lives in the repo — for issue/comment display.
+function docSourcePath(docPath: string): string {
+  if (docPath.startsWith(`${TOURS_FOLDER}/`)) {
+    return `apps/web/src/features/tours/${docPath.slice(TOURS_FOLDER.length + 1)}`;
+  }
+  if (docPath === README_DOC) return 'README.md';
+  return `documentation/docs/${docPath}`;
 }
 
 // Reverse of AREA_HINTS: given the source files a PR changed, which doc folders
@@ -257,6 +321,45 @@ If everything checks out, return {"upToDate": true, "findings": []}.`;
 function buildUserPrompt(docPath: string, content: string): string {
   const folder = docPath.split('/')[0];
   const hint = AREA_HINTS[folder];
+  if (folder === TOURS_FOLDER) {
+    return [
+      'Audit this in-app product tour (driver.js module) for freshness against the current source code.',
+      '',
+      `Tour module: apps/web/src/features/tours/${docPath.slice(TOURS_FOLDER.length + 1)}`,
+      hint ? `Likely relevant source dirs: ${hint}` : '',
+      '',
+      'Each step highlights the element matched by its `[data-tour="..."]` selector and shows a popover with title + description. The step titles and descriptions are the UI claims to verify: grep for the matching `data-tour="..."` attribute (or a `dataTour="..."` prop / dynamic template), read the anchored component, and confirm the text still accurately describes what that element shows or does (labels, listed features, keyboard shortcuts, described positions).',
+      'Anchor EXISTENCE is checked deterministically elsewhere — focus on whether the wording still matches the UI.',
+      '',
+      '--- TOUR MODULE ---',
+      content,
+      '--- END TOUR MODULE ---',
+      '',
+      'Search the codebase to verify the step texts, then output the JSON verdict.',
+    ]
+      .filter((l) => l !== '')
+      .join('\n');
+  }
+  if (folder === README_FOLDER) {
+    return [
+      'Audit the repository README for freshness against the current codebase. Unlike the app docs, its verifiable claims are STRUCTURAL, not UI labels:',
+      '',
+      '- Workspace tables (apps / packages / services) and their counts — compare against the actual `apps/`, `packages/` and `services/` directories.',
+      '- Development commands — compare against the `scripts` in the root `package.json`.',
+      '- Framework/version claims and badges (React, Vite, Expo, Node, Express, Tailwind) — compare against the relevant `package.json` dependencies.',
+      '- AI provider claims — compare against `apps/api/workers/providers/` and `apps/api/services/ai/`. Providers documented as removed elsewhere must not be advertised.',
+      '- Environment variable names in the Configuration section — compare against `.env.example`.',
+      '- Feature claims that name concrete surfaces or packages — confirm the named feature dir/package exists.',
+      '',
+      'Ignore marketing prose, the problem/solution narrative, external URLs, and the roadmap. Report only high-confidence factual drift.',
+      '',
+      '--- README ---',
+      content,
+      '--- END README ---',
+      '',
+      'Search the codebase to verify the claims, then output the JSON verdict.',
+    ].join('\n');
+  }
   return [
     'Audit this documentation article for freshness against the current source code.',
     '',
@@ -294,9 +397,15 @@ async function auditDoc(docPath: string, model: string): Promise<DocResult> {
   const start = Date.now();
   const base: Pick<DocResult, 'docPath'> = { docPath };
 
+  const contentPath = docPath.startsWith(`${TOURS_FOLDER}/`)
+    ? path.join(TOURS_ROOT, docPath.slice(TOURS_FOLDER.length + 1))
+    : docPath === README_DOC
+      ? README_PATH
+      : path.join(DOCS_ROOT, docPath);
+
   let content: string;
   try {
-    content = readFileSync(path.join(DOCS_ROOT, docPath), 'utf-8');
+    content = readFileSync(contentPath, 'utf-8');
   } catch (err) {
     return {
       ...base,
@@ -364,12 +473,16 @@ async function auditDoc(docPath: string, model: string): Promise<DocResult> {
       durationS: Math.round((Date.now() - start) / 1000),
     };
   } catch (err) {
+    // Kept raw on purpose: this DocResult feeds the run summary and a
+    // maintainer-facing GitHub issue, never a user response. A smoothed-over
+    // message would make a failed audit undebuggable.
+    const rawMessage = err instanceof Error ? err.message : String(err);
     return {
       ...base,
       status: 'error',
       upToDate: true,
       findings: [],
-      error: err instanceof Error ? err.message : String(err),
+      error: rawMessage,
       durationS: Math.round((Date.now() - start) / 1000),
     };
   }
@@ -427,7 +540,7 @@ function buildIssueBody(result: DocResult, today: string): string {
   lines.push('');
   lines.push(
     `The weekly AI freshness check found **${result.findings.length}** likely mismatch(es) between ` +
-      `\`documentation/docs/${result.docPath}\` and the current app UI.`
+      `\`${docSourcePath(result.docPath)}\` and the current app UI.`
   );
   lines.push('');
   for (const [i, f] of result.findings.entries()) {
@@ -528,7 +641,7 @@ function buildPrCommentBody(results: DocResult[], today: string): string {
   lines.push('');
   for (const r of stale) {
     lines.push(
-      `<details><summary><code>documentation/docs/${r.docPath}</code> — ` +
+      `<details><summary><code>${docSourcePath(r.docPath)}</code> — ` +
         `${r.findings.length} mögliche Abweichung(en)</summary>`
     );
     lines.push('');

@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
 import { bahnPayloadSchema } from './bahn.js';
-import { bundestagPayloadSchema } from './bundestag.js';
 import { canvasTemplateTypeSchema } from './canvasTemplateDescriptors.js';
 import { socialPostPayloadSchema } from './socialPost.js';
 
@@ -42,6 +41,55 @@ export const chatErrorCodeSchema = z.enum([
 ]);
 export type ChatErrorCode = z.infer<typeof chatErrorCodeSchema>;
 
+/**
+ * Machine-readable cause of a NON-FATAL degradation — travels on the SSE
+ * `warning` event. Codes are monitoring/telemetry vocabulary, never user
+ * vocabulary: wherever the turn still has a model available, the degradation
+ * is explained by the answer itself (see `degradationNotes` in the API); the
+ * warning only carries the machine signal plus a curated German fallback.
+ *
+ * To add a code: (1) add it here, (2) add its spec to CHAT_WARNINGS in
+ * apps/api/routes/chat/services/sseHelpers.ts (the compiler enforces the pair
+ * via `satisfies Record<ChatWarningCode, …>`), (3) decide whether the frontend
+ * should toast it or stay silent because the answer already explains it.
+ *
+ * Like `chatErrorCodeSchema`, the wire schema below keeps `code` as a plain
+ * string so an OLDER client never drops a warning it doesn't know yet.
+ */
+export const chatWarningCodeSchema = z.enum([
+  // Pre-existing codes (kept as-is — emitted before the taxonomy was introduced)
+  'search_degraded',
+  'wolke_refs_dropped',
+  'wolke_check_failed',
+  'doc_creation_failed',
+  // Persistence
+  'persist_failed',
+  // Artefact creation
+  'board_creation_failed',
+  'task_creation_failed',
+  'sheet_creation_failed',
+  'presentation_creation_failed',
+  'sharepic_failed',
+  'generation_failed',
+  'edit_failed',
+  // Retrieval / sources
+  'source_unavailable',
+  'rerank_degraded',
+  'research_plan_failed',
+  'classifier_degraded',
+  'summary_partial',
+  'recall_degraded',
+  'connect_reauth_required',
+  'mention_context_failed',
+  'extraction_failed',
+  'mcp_unreachable',
+  // Compute
+  'compute_failed',
+  // Provider / privacy
+  'privacy_mode_degraded',
+]);
+export type ChatWarningCode = z.infer<typeof chatWarningCodeSchema>;
+
 /** Wire payload of the SSE `error` event (see chatErrorCodeSchema for `code`). */
 export const chatErrorEventPayloadSchema = z
   .object({
@@ -78,6 +126,9 @@ export const searchIntentSchema = z.enum([
   'hotel',
   // Wahlumfragen (Sonntagsfrage via PolitPro + Meinungsbild) — native domain tool.
   'umfragen',
+  // Grünerator-Bedienung: Anleitungen aus der Doku (doku.gruenerator.eu) —
+  // native domain tool over a generated, in-process index.
+  'hilfe',
   'wetter',
   'news',
   'image',
@@ -96,6 +147,8 @@ export const searchIntentSchema = z.enum([
   'share_doc',
   'create_sheet',
   'create_presentation',
+  // Finished, downloadable CI-styled PDF (optionally with Grünen letterhead).
+  'create_pdf',
   // EXPERIMENTAL: set up a recurring "Wiederkehrende Aufgabe" (agent runs on a schedule).
   'create_recurring_task',
   'chat_history',
@@ -410,7 +463,6 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
   chart_data: z.object({ chart: chartPayloadSchema.passthrough().optional() }).passthrough(),
   artifact: z.object({ artifact: artifactPayloadSchema.passthrough().optional() }).passthrough(),
   compute: z.object({ compute: computePayloadSchema.passthrough().optional() }).passthrough(),
-  bundestag: z.object({ bundestag: bundestagPayloadSchema.passthrough().optional() }).passthrough(),
   bahn: z.object({ bahn: bahnPayloadSchema.passthrough().optional() }).passthrough(),
   // variants stay unknown[] here: per-item validation (sharepicVariantSchema)
   // happens in coerceSharepicVariants so ONE malformed variant drops alone
@@ -459,6 +511,10 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
       // serverName labels a connector/MCP tool. Both optional + additive.
       title: z.string().optional(),
       serverName: z.string().optional(),
+      // Planner announcement sentence(s) streamed before this tool call started
+      // (split-gather mode only). Persisted on the tool-call part and rendered
+      // as muted text above the card — the durable form of gather_narration.
+      narration: z.string().optional(),
     })
     .passthrough(),
   tool_step_result: z
@@ -491,6 +547,10 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
     .passthrough(),
   text_delta: z.object({ text: z.string() }).passthrough(),
   reasoning_delta: z.object({ text: z.string() }).passthrough(),
+  // Split-gather narration: one trimmed sentence per event (backend chunker),
+  // only between tool steps of the gather phase, never after response_start.
+  // Rendered as the live status line (custom.progress), never as a message part.
+  gather_narration: z.object({ text: z.string() }).passthrough(),
   fallback: z
     .object({
       from: z.object({ id: z.string(), name: z.string() }).passthrough(),

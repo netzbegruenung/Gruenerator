@@ -465,8 +465,7 @@ export async function textSearchCollection(
       title: String(result.payload?.title || metadata?.title || 'Unbekannt'),
       text: String(result.payload?.chunk_text || ''),
       url: (result.payload?.url || result.payload?.source_url || metadata?.url || null) as
-        | string
-        | null,
+        string | null,
       documentId: result.payload?.document_id as string | undefined,
       filename: result.payload?.filename || metadata?.filename,
       searchMethod: 'text' as const,
@@ -489,7 +488,7 @@ export async function getCollectionInfo(collectionName: string) {
   } catch (err) {
     return {
       name: collectionName,
-      error: err instanceof Error ? err.message : String(err),
+      error: describeFetchError(err),
     };
   }
 }

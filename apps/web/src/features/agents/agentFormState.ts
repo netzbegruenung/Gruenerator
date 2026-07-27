@@ -33,7 +33,7 @@ export interface FormState {
   defaultNotebookIds: string[];
   tags: string;
   model: string;
-  provider: 'mistral' | 'anthropic' | 'litellm' | 'regolo';
+  provider: 'mistral' | 'anthropic' | 'litellm' | 'regolo' | 'greenpt';
   maxTokens: number;
   temperature: number;
 }

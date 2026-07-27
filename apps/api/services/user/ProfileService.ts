@@ -1,9 +1,11 @@
+import { type ChatBackground } from '@gruenerator/contracts';
 import { ROBOT_ID_MIN, ROBOT_ID_MAX } from '@gruenerator/core/avatar';
 import { eq, sql } from 'drizzle-orm';
 
 import { profiles } from '../../database/schema/core.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { type DeleteResult, getPostgresInstance } from '../../database/services/PostgresService.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 
 import { toUserProfile } from './profileMapper.js';
 
@@ -163,6 +165,9 @@ class ProfileService {
         'boards',
         'bundestag_api_enabled',
         'memory_enabled',
+        'reduce_motion',
+        'reduce_transparency',
+        'show_skip_link',
         'deutschlandmodus',
         'is_admin',
         'content_management',
@@ -180,12 +185,14 @@ class ProfileService {
 
       const knownTextColumns = [
         'locale',
+        'chat_background',
         'custom_prompt',
         'presseabbinder',
         'custom_antrag_gliederung',
         'auth_source',
         'document_mode',
         'default_startpage',
+        'feedback_button',
       ] as const;
 
       for (const col of knownTextColumns) {
@@ -389,6 +396,20 @@ class ProfileService {
       return result;
     } catch (error: unknown) {
       console.error('[ProfileService] Error updating chat color:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update the chat-start background preset for a user
+   */
+  async updateChatBackground(userId: string, background: ChatBackground): Promise<UserProfile> {
+    try {
+      const result = await this.updateProfile(userId, { chat_background: background });
+      console.log(`[ProfileService] Chat background updated for user ${userId}: ${background}`);
+      return result;
+    } catch (error: unknown) {
+      console.error('[ProfileService] Error updating chat background:', error);
       throw error;
     }
   }
@@ -699,7 +720,7 @@ class ProfileService {
       return {
         status: 'unhealthy',
         database: 'postgresql',
-        error: error instanceof Error ? error.message : String(error),
+        error: toUserFacingMessage(error),
       };
     }
   }

@@ -64,6 +64,7 @@ export const COMPOUND_GENERATION_INTENTS: ReadonlySet<string> = new Set([
   'sharepic',
   'create_presentation',
   'create_sheet',
+  'create_pdf',
 ]);
 
 /**
@@ -75,9 +76,14 @@ export const COMPOUND_GENERATION_INTENTS: ReadonlySet<string> = new Set([
  * fixed-text/direct-dispatch contract.
  */
 const GENERATION_NOUN_RE =
-  /\b(sharepic|share-pic|grafik|kachel|pr[äa]sentation|presentation|folien?|slides?|tabelle|kalkulation|spreadsheet|sheet|dokument|schriftst[üu]ck|textdokument|entwurf|board|kanban|aufgabenboard|taskboard)\b/i;
+  /\b(sharepic|share-pic|grafik|kachel|pr[äa]sentation|presentation|folien?|slides?|tabelle|kalkulation|spreadsheet|sheet|dokument|schriftst[üu]ck|textdokument|entwurf|board|kanban|aufgabenboard|taskboard|pdf|briefkopf|antragsformular|anmeldeformular|fragebogen)\b/i;
+// `recherch\w*` (not `recherchier\w*`) so the NOUN "Recherche" counts too — a
+// follow-up like "erstelle ein PDF mit den Originalquellen aus der Recherche"
+// carries an unmistakable research signal but no research VERB, and used to
+// fall through to the single-pass generator with no sources at all.
+// `\w*quellen?` likewise catches Quellen/Originalquellen/Primärquellen.
 const RESEARCH_SIGNAL_RE =
-  /\b(recherchier\w*|such[e]?\b|finde|informier\w*|aktuell\w*|zahlen|fakten|daten|statistik\w*|position\w*|programm\w*|beschl(u|ü)ss\w*|was\s+sag(t|en)|abgestimmt|studie\w*)\b/i;
+  /\b(recherch\w*|such[e]?\b|finde|informier\w*|aktuell\w*|zahlen|fakten|daten|statistik\w*|position\w*|programm\w*|beschl(u|ü)ss\w*|was\s+sag(t|en)|abgestimmt|studie\w*|\w*quellen?|belege\w*|nachweis\w*)\b/i;
 
 export function looksLikeCompoundGeneration(raw: string): boolean {
   const t = (raw ?? '').trim();
@@ -121,7 +127,8 @@ export function isEditorSurface(enabledTools: Record<string, boolean> | undefine
   );
 }
 
-export type CompoundGenerationKind = 'sharepic' | 'presentation' | 'sheet' | 'document' | 'board';
+export type CompoundGenerationKind =
+  'sharepic' | 'presentation' | 'sheet' | 'document' | 'board' | 'pdf';
 
 // Per-artifact nouns, used to recover the generation KIND from the text when the
 // intent no longer names it (a demoted `agentic` turn, or a `direct` misroute).
@@ -129,6 +136,8 @@ const SHAREPIC_NOUN_RE = /\b(sharepic|share-pic|grafik|kachel)\b/i;
 const PRESENTATION_NOUN_RE = /\b(pr[äa]sentation|presentation|folien?|slides?)\b/i;
 const SHEET_NOUN_RE = /\b(tabelle|kalkulation|spreadsheet|sheet)\b/i;
 const BOARD_NOUN_RE = /\b(board|kanban|aufgabenboard|taskboard)\b/i;
+const PDF_NOUN_RE =
+  /\b(pdf|briefkopf|antragsformular|anmeldeformular|fragebogen|(ausf(ü|ue)llbar)[a-zäöü]*\s+(formular|vorlage))\b/i;
 const DOCUMENT_NOUN_RE = /\b(dokument|schriftst[üu]ck|textdokument|entwurf)\b/i;
 
 /**
@@ -146,13 +155,16 @@ export function compoundGenerationKind(intent: string, raw: string): CompoundGen
   if (intent === 'sharepic') return 'sharepic';
   if (intent === 'create_presentation') return 'presentation';
   if (intent === 'create_sheet') return 'sheet';
+  if (intent === 'create_pdf') return 'pdf';
   if (intent === 'agentic' || intent === 'direct') {
     // Order = specificity: the concrete products first, the generic "Dokument"
     // last (it's the fallback artifact when nothing more specific matches).
+    // pdf before document: "PDF-Dokument" names both nouns but means a PDF.
     if (SHAREPIC_NOUN_RE.test(t)) return 'sharepic';
     if (PRESENTATION_NOUN_RE.test(t)) return 'presentation';
     if (SHEET_NOUN_RE.test(t)) return 'sheet';
     if (BOARD_NOUN_RE.test(t)) return 'board';
+    if (PDF_NOUN_RE.test(t)) return 'pdf';
     if (DOCUMENT_NOUN_RE.test(t)) return 'document';
   }
   return null;
@@ -267,6 +279,9 @@ export interface AgenticDecisionInput {
   compoundGeneration: boolean;
   /** image_edit / vision turns stay single-pass. */
   hasImageAttachments: boolean;
+  /** A fill ask ("füll das aus") on a thread that has a PDF. Precomputed by the
+   *  caller (isSheetFillRequest) so this module stays import-free. */
+  isPdfFillRequest: boolean;
 }
 
 /**
@@ -277,9 +292,14 @@ export interface AgenticDecisionInput {
  */
 export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   const compoundGen = COMPOUND_GENERATION_INTENTS.has(p.intent) && p.compoundGeneration;
+  // "Füll mir das Formular aus" is an imperative with no question word, so
+  // looksLikeToolableQuestion rejects it by design (content imperatives are
+  // creative generation). With a PDF attached it is exactly a tool turn — and
+  // the PDF form tools only exist inside the loop.
   const inLoopSet =
     p.agenticIntents.has(p.intent) ||
     (p.intent === 'direct' && looksLikeToolableQuestion(p.lastUserText)) ||
+    p.isPdfFillRequest ||
     compoundGen;
   const secondaryAllowed =
     p.secondaryIntent == null || (compoundGen && p.secondaryIntent === 'scrape_url');

@@ -22,7 +22,7 @@ export const sliderTypeConfig: TemplateTypeConfig = {
   usesFluxApi: false,
   hasRateLimit: false,
   endpoints: {
-    text: '/slider_claude',
+    text: '/sharepic/text/slider',
     canvas: '/slider_canvas',
   },
   formComponent: 'SliderForm',

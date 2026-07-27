@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     sharepic BOOLEAN DEFAULT FALSE,
     anweisungen BOOLEAN DEFAULT FALSE,
     chat_color TEXT,
+    chat_background TEXT,
     content_management BOOLEAN DEFAULT FALSE,
     labor_enabled BOOLEAN DEFAULT FALSE,
     sites BOOLEAN DEFAULT FALSE,
@@ -92,7 +93,11 @@ CREATE TABLE IF NOT EXISTS profiles (
     docs BOOLEAN DEFAULT FALSE,
     boards BOOLEAN DEFAULT FALSE,
     bundestag_api_enabled BOOLEAN DEFAULT FALSE,
-    memory_enabled BOOLEAN DEFAULT FALSE
+    memory_enabled BOOLEAN DEFAULT FALSE,
+    feedback_button TEXT NOT NULL DEFAULT 'text' CHECK (feedback_button IN ('text', 'icon', 'off')),
+    reduce_motion BOOLEAN NOT NULL DEFAULT FALSE,
+    reduce_transparency BOOLEAN NOT NULL DEFAULT FALSE,
+    show_skip_link BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS sites_enabled BOOLEAN DEFAULT TRUE;
@@ -102,6 +107,10 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS docs BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS boards BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS bundestag_api_enabled BOOLEAN DEFAULT FALSE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS memory_enabled BOOLEAN DEFAULT FALSE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS feedback_button TEXT NOT NULL DEFAULT 'text' CHECK (feedback_button IN ('text', 'icon', 'off'));
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS reduce_motion BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS reduce_transparency BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS show_skip_link BOOLEAN NOT NULL DEFAULT FALSE;
 
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -1084,6 +1093,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     content TEXT,
     tool_calls JSONB,
     tool_results JSONB,
+    status VARCHAR(20) NOT NULL DEFAULT 'complete',
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 

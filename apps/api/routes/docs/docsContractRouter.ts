@@ -683,15 +683,25 @@ export const docsContractRouter = s.router(docsContract, {
           type: 'doc_generation',
           systemPrompt: DOCUMENT_GENERATION_PROMPT,
           messages: [{ role: 'user', content: description.trim() }],
-          options: { temperature: 0.7, max_tokens: 4000 },
+          options: { temperature: 0.7 },
         },
         args.req
       );
 
       const generated =
-        aiResult.success && aiResult.content
-          ? parseDocumentResponse(aiResult.content)
-          : { title: 'Neues Dokument', subtype: 'blank', content: '' };
+        aiResult.success && aiResult.content ? parseDocumentResponse(aiResult.content) : null;
+      // Empty content is the parser's failure signal — creating the document
+      // anyway produced a blank artifact reported as a success (201).
+      if (!generated || !generated.content) {
+        log.warn('[docsContract.generateDocument] Model returned no parseable content');
+        return {
+          status: 500 as const,
+          body: {
+            error: 'Failed to generate document',
+            details: 'Das Modell lieferte keinen verwertbaren Dokumentinhalt.',
+          },
+        };
+      }
 
       const document = await createDocumentWithContent(
         generated.title,

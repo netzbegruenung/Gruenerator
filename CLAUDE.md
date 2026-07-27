@@ -110,6 +110,20 @@ See `CLAUDE-styling.md` for Tailwind v4, theme/dark mode, CSS variables, shadcn/
 
 Zustand (global state). TanStack Query v5 (server state/fetching) with axios.
 
+### Naming, IDs & Renames
+
+**Drei Frozen-Stufen — jeden Rename zuerst einordnen:**
+
+- **F0 — extern eingefroren (Rename existiert nicht):** DB-Tabellen/-Spalten, Contract-Feldnamen und `z.enum`-Werte, MCP-Tool-Namen, Qdrant-Collections, Redis-/localStorage-Keys, Env-Vars, IDs in persistierten Inhalten (z. B. Mention-Tokens), CI-Job-Namen in Required Checks. Änderung nur **additiv**: Neues emittieren UND Altes tolerant weiterlesen, Deprecation mit Datum. Grund: ausgelieferte Mobile-Binaries, externe MCP-Clients und Nutzerdaten sprechen das alte Format weiter — der Compiler sieht nur den aktuellen Quellstand. URLs sind F0 mit Sonderrecht: neuer Pfad erlaubt, alter Pfad leitet für immer weiter (Slug-Suffix-/Redirect-Muster).
+- **F1 — intern eingefroren:** Registry-IDs (Tool-, Agent-, Intent-, Notebook-IDs, Icon-/Theme-Keys). Werden nicht umbenannt, auch wenn sie semantisch veralten — ein Kommentar in der Registry ist billiger als jede Migration. Notausgang nur mit Begründung im PR: Alias mit Ablaufdatum (Vorbild: `LEGACY_ID_ALIASES` + zustand-persist `version`/`migrate` in `sidebarFavouritesStore.ts`).
+- **F2 — frei:** Code-Symbole, Datei-/Ordnernamen, Anzeigenamen, Doku-Prosa. IDE-Rename/`git mv` genügt — genau dafür halten F0/F1 sie von der Persistenz entkoppelt. Anzeigenamen leben an genau einer Stelle (Registry-`title` bzw. der eine JSX-String, den das UI-Label-Manifest kennt).
+
+**Registry-Pflicht für neue ID-Mengen:** als `as const`-Registry mit exportierter Literal-Union anlegen (`type FooId = (typeof FOOS)[number]['id']`); Konsumenten leiten ab und deklarieren nie neu. Zuordnung: Wire-querende Mengen → benanntes, exportiertes `z.enum` in `@gruenerator/contracts` (nie inline duplizieren); rein Client-seitige → Config-Registry (Vorbilder: `documentation/src/nav/sections.ts`, `packages/shared/src/agents/`); Doku-Präsentation → `sections.ts`. Accessoren nehmen die Union, nicht `string`.
+
+**Persist-Konvention:** Jeder zustand-persist-Store wird mit `version` + `migrate` angelegt. DB-Umbauten mit ID-Semantik: expand → backfill/dual-write → contract; bei Spalten-Änderungen alle Queries greppen.
+
+**Sprachregelungen (Produkt-Wording):** Plural **„Grüneratoren"**, Singular **„Grünerator-Agent"** (nie „Agent" allein — „der Grünerator" meint das Produkt); **„Rezepte"** (nicht „Skills"); **„Projekte"** (nicht „Gruppen"/„Spaces"). Neue Produktnamen hier eintragen, bevor das Feature gebaut wird.
+
 ### Commits
 
 Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`). Atomic: one logical change per commit.
@@ -157,7 +171,13 @@ When changing column type via migration, grep all queries for that column and up
 
 ESLint (flat config), Prettier, Husky pre-commit (lint-staged), Knip (unused code). Don't add files to `allowDefaultProject` if already discovered by TS project service.
 
+**Knip** (`pnpm knip`, nicht in CI) findet toten Code — die Entry-Punkte in `knip.json` sind load-bearing: was knip nicht als Entry kennt, sieht es als „unbenutzt" und alles darunter gleich mit. Dynamisch geladene Dateien müssen deshalb explizit als Entry stehen (`apps/api/workers/aiWorker.ts` wird über einen berechneten Pfad in `new Worker()` geladen; `apps/mobile/app/**` kommt aus dem Expo Router; Web-Worker unter `apps/web/src/services/*.worker.ts`). Tests/Skripte gehören als **Entry** eingetragen, nicht in `ignore` — sonst zählen ihre Importe nicht als Nutzung und die Deps, die nur sie brauchen, gelten als unbenutzt. `apps/desktop` (Tauri-Wrapper) und `apps/wordpress` (Einstiege liegen in PHP) sind bewusst per `ignoreWorkspaces` ausgenommen.
+
 **Typecheck only when finished.** During a multi-file implementation, do NOT run `pnpm typecheck`/build after each change — keep editing and run a single consolidated typecheck (and lint) pass at the very end, fixing all surfaced errors together.
+
+### Frontend component testing
+
+`apps/web` and `packages/chat` have a jsdom vitest lane (`*.vitest.tsx`) running **alongside** the fast node lane (`*.vitest.ts`) — never flip the whole config to jsdom. Pick the tool by component shape: **RTL** for render/branching/interaction, **MSW** for `getContractsClient()` data hooks (success/error/empty branches), **axe** (`axe` from `test-utils`) wherever `aria-*`/`role=` is hand-written. Full guide, reference tests, the component→tool matrix, the sweep plan, and the load-bearing gotchas (jsdom pinned to 26.1.0; react aliased + react-query inlined in the dom project) live in **`apps/web/CLAUDE-testing.md`** — read it before adding component tests.
 
 ### Newsletter
 

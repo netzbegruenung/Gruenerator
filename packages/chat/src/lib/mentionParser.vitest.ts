@@ -4,7 +4,6 @@
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { parseAllMentions } from './mentionParser';
 import {
   documentMentionables,
   filterMentionables,
@@ -13,6 +12,7 @@ import {
   setDocMentionables,
   toolMentionables,
 } from './mentionables';
+import { parseAllMentions } from './mentionParser';
 
 beforeAll(() => {
   // Set up some known mentionables

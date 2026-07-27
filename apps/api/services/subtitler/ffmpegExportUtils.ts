@@ -134,6 +134,7 @@ function buildFFmpegOutputOptions(params: FFmpegOutputParams): FFmpegOutputResul
     isLarge ? 'main' : videoCodec === 'libx264' ? 'high' : 'main',
     '-level',
     videoCodec === 'libx264' ? '4.1' : '4.0',
+    ...hwaccel.getCpuPixelFormatOptions(),
     '-c:a',
     audioCodec,
     ...(audioBitrate ? ['-b:a', audioBitrate] : []),

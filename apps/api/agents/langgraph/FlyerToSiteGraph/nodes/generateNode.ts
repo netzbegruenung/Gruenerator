@@ -120,7 +120,7 @@ ${analysis.rawDescription}${themesInfo}${slogansInfo}`;
         type: 'website',
         systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
-        options: { max_tokens: 4000, temperature: 0.7 },
+        options: { temperature: 0.7 },
       },
       state.req
     );

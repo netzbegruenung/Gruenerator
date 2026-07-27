@@ -1,12 +1,19 @@
 import { type TextForm, type TextFormType } from '@gruenerator/contracts';
+import { type QueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { FiArrowLeft, FiChevronRight, FiPlus } from 'react-icons/fi';
 
-import TextFormEditor from './texteAnlernen/TextFormEditor';
-import { useTextForms } from './texteAnlernen/useTextForms';
+import { SettingsCardsSkeleton } from '../components/SettingsSkeleton';
 
-import Spinner from '@/components/common/Spinner';
+import TextFormEditor from './texteAnlernen/TextFormEditor';
+import { textFormsQuery, useTextForms } from './texteAnlernen/useTextForms';
+
 import { useAuthStore } from '@/stores/authStore';
+
+export const prefetch = (queryClient: QueryClient) => {
+  if (!useAuthStore.getState().user) return;
+  void queryClient.prefetchQuery(textFormsQuery);
+};
 
 const PRESETS: { textType: TextFormType; label: string; hint: string }[] = [
   { textType: 'instagram', label: 'Instagram', hint: 'Instagram-Posts' },
@@ -26,6 +33,7 @@ const PRESETS: { textType: TextFormType; label: string; hint: string }[] = [
 type EditorTarget =
   | { kind: 'preset'; textType: TextFormType; label: string; hint: string }
   | { kind: 'custom'; form: TextForm }
+  | { kind: 'shared'; form: TextForm }
   | { kind: 'new' };
 
 function formatLearned(form: TextForm | undefined): string {
@@ -70,27 +78,22 @@ const TexteAnlernenTab = () => {
   const api = useTextForms(!!user);
   const [target, setTarget] = useState<EditorTarget | null>(null);
 
-  if (api.query.isLoading) {
-    return (
-      <div className="flex justify-center py-lg">
-        <Spinner size="medium" />
-      </div>
-    );
-  }
+  if (api.query.isLoading) return <SettingsCardsSkeleton cards={4} />;
 
   const forms = api.query.data ?? [];
   const byMention = (mention: string): TextForm | undefined =>
-    forms.find((f) => f.mention === mention);
-  const customForms = forms.filter((f) => f.kind === 'custom');
+    forms.find((f) => f.mention === mention && !f.sharedFromGroup);
+  const customForms = forms.filter((f) => f.kind === 'custom' && !f.sharedFromGroup);
+  const sharedForms = forms.filter((f) => f.sharedFromGroup);
   const backToList = () => setTarget(null);
 
   if (target) {
     const heading =
       target.kind === 'preset'
         ? target.label
-        : target.kind === 'custom'
+        : target.kind === 'custom' || target.kind === 'shared'
           ? target.form.title
-          : 'Neue Textform';
+          : 'Neues Rezept';
 
     return (
       <div className="flex flex-col gap-md">
@@ -99,11 +102,23 @@ const TexteAnlernenTab = () => {
           onClick={backToList}
           className="flex items-center gap-1 self-start text-sm text-grey-500 hover:text-foreground dark:text-grey-400"
         >
-          <FiArrowLeft size={14} /> Alle Textformen
+          <FiArrowLeft size={14} /> Alle Rezepte
         </button>
         <h3 className="m-0 text-base font-semibold text-foreground-heading">{heading}</h3>
 
-        {target.kind === 'preset' ? (
+        {target.kind === 'shared' ? (
+          <div className="flex flex-col gap-sm">
+            <p className="m-0 text-sm text-grey-500 dark:text-grey-400">
+              Geteilt aus <strong>{target.form.sharedFromGroup}</strong>
+              {target.form.ownerName ? ` von ${target.form.ownerName}` : ''}. Du kannst dieses
+              Rezept im Chat über <code>@{target.form.mention}</code> nutzen, aber nur die
+              Besitzer*in kann es ändern.
+            </p>
+            <div className="rounded-lg border border-grey-200 p-md text-sm whitespace-pre-wrap text-foreground dark:border-grey-700">
+              {target.form.styleBlock}
+            </div>
+          </div>
+        ) : target.kind === 'preset' ? (
           <TextFormEditor
             kind="preset"
             fixedTextType={target.textType}
@@ -128,7 +143,7 @@ const TexteAnlernenTab = () => {
           <TextFormEditor
             kind="custom"
             defaultTitle=""
-            hint="deine Textform"
+            hint="dein Rezept"
             editableMeta
             api={api}
             onCreated={backToList}
@@ -142,20 +157,18 @@ const TexteAnlernenTab = () => {
   return (
     <div className="flex flex-col gap-xl">
       <p className="m-0 text-sm text-grey-500 dark:text-grey-400">
-        Füge echte Beispiele deiner Texte ein. Der Grünerator erkennt die Gemeinsamkeiten deines
-        Stils und verwendet ihn künftig — statt der Standard-Vorlage —, sobald du die passende
-        Textform im Chat aktivierst.
+        Füge echte Beispiele deiner Texte ein — getippt, per Copy-Paste oder als Datei hochgeladen.
+        Der Grünerator erkennt die Gemeinsamkeiten deines Stils und verwendet ihn künftig — statt
+        der Standard-Vorlage —, sobald du die passende Textform im Chat aktivierst.
       </p>
 
       <section className="flex flex-col gap-sm">
-        <h3 className="m-0 text-sm font-semibold text-foreground-heading">
-          Vorgegebene Textformen
-        </h3>
+        <h3 className="m-0 text-sm font-semibold text-foreground-heading">Mitgelieferte Rezepte</h3>
         {PRESETS.map((preset) => (
           <FormRow
             key={preset.textType}
             label={preset.label}
-            meta={`Ersetzt den Standard beim /${preset.textType}-Skill`}
+            meta={`Ersetzt das mitgelieferte Rezept @${preset.textType}`}
             status={formatLearned(byMention(preset.textType))}
             onClick={() => setTarget({ kind: 'preset', ...preset })}
           />
@@ -164,10 +177,10 @@ const TexteAnlernenTab = () => {
 
       <section className="flex flex-col gap-sm">
         <div>
-          <h3 className="m-0 text-sm font-semibold text-foreground-heading">Eigene Textformen</h3>
+          <h3 className="m-0 text-sm font-semibold text-foreground-heading">Eigene Rezepte</h3>
           <p className="m-0 text-xs text-grey-500 dark:text-grey-400">
-            Lege eine eigene Textform an (z.B. <code>/omv-einladungen</code>). Sie erscheint im Chat
-            als eigener Slash-Befehl.
+            Lege ein eigenes Rezept an (z.B. <code>@omv-einladungen</code>). Es erscheint im Chat
+            über <code>@</code> und lässt sich mit deinen Gruppen teilen.
           </p>
         </div>
 
@@ -175,7 +188,11 @@ const TexteAnlernenTab = () => {
           <FormRow
             key={form.mention}
             label={form.title}
-            meta={`/${form.mention}`}
+            meta={
+              form.sharedWithGroups.length > 0
+                ? `@${form.mention} · geteilt mit ${form.sharedWithGroups.map((g) => g.groupName).join(', ')}`
+                : `@${form.mention}`
+            }
             status={formatLearned(form)}
             onClick={() => setTarget({ kind: 'custom', form })}
           />
@@ -186,9 +203,32 @@ const TexteAnlernenTab = () => {
           onClick={() => setTarget({ kind: 'new' })}
           className="flex items-center gap-1 self-start text-sm text-primary-600 hover:underline dark:text-primary-400"
         >
-          <FiPlus size={14} /> Eigene Textform anlegen
+          <FiPlus size={14} /> Eigenes Rezept anlegen
         </button>
       </section>
+
+      {sharedForms.length > 0 && (
+        <section className="flex flex-col gap-sm">
+          <div>
+            <h3 className="m-0 text-sm font-semibold text-foreground-heading">
+              Rezepte aus deinen Gruppen
+            </h3>
+            <p className="m-0 text-xs text-grey-500 dark:text-grey-400">
+              Von anderen geteilt. Du kannst sie im Chat nutzen, aber nicht bearbeiten.
+            </p>
+          </div>
+
+          {sharedForms.map((form) => (
+            <FormRow
+              key={`shared-${form.mention}`}
+              label={form.title}
+              meta={`@${form.mention} · aus ${form.sharedFromGroup}${form.ownerName ? ` · von ${form.ownerName}` : ''}`}
+              status="Geteilt"
+              onClick={() => setTarget({ kind: 'shared', form })}
+            />
+          ))}
+        </section>
+      )}
     </div>
   );
 };

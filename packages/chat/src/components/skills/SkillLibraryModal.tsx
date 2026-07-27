@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
 import { X, Star, Search } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { PiSparkle } from 'react-icons/pi';
+
 import { agentsList, SKILL_CATEGORY_LABELS, type SkillCategory } from '../../lib/agents';
 import {
   agentToMentionable,
@@ -65,7 +66,7 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
-            <h2 className="text-lg font-semibold text-foreground">Skill-Bibliothek</h2>
+            <h2 className="text-lg font-semibold text-foreground">Rezept-Bibliothek</h2>
             <p className="mt-0.5 text-xs text-foreground-muted">
               Skills starten mit{' '}
               <kbd className="rounded bg-grey-100 px-1 py-0.5 font-mono text-[10px] dark:bg-grey-800">
@@ -94,7 +95,7 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Skills durchsuchen..."
+              placeholder="Rezepte durchsuchen…"
               className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-foreground-muted"
               autoFocus
             />

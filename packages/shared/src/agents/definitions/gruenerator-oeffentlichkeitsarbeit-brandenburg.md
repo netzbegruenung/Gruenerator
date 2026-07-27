@@ -15,7 +15,7 @@ model: mistral-large-latest
 defaultModel: mistral-large-latest
 provider: mistral
 params:
-  max_tokens: 3000
+  max_tokens: 8000
   temperature: 0.6
 openingMessage: |-
   Hallo! Ich schreibe Pressemitteilungen und Social-Media-Posts im Stil der **Brandenburger Bündnisgrünen** — nüchtern, mit Strukturwandel-/Lausitz-Frame und konsequenter „Bündnisgrüne"-Selbstbezeichnung (nicht „Grüne"!).

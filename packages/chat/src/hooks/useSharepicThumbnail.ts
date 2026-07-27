@@ -65,6 +65,7 @@ export function useSharepicThumbnail(variant: SharepicVariant): {
   useEffect(() => {
     const cached = thumbCache.get(cacheKey);
     if (cached) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reads the module-level thumb cache (populated by other mounts post-render); paints the cached thumbnail without re-rendering
       setImageBase64(cached);
       return undefined;
     }

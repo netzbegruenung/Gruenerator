@@ -10,24 +10,24 @@ import {
 import React, { useState, useEffect, useCallback } from 'react';
 import { PiUser, PiUsersThree, PiX } from 'react-icons/pi';
 
-type SpaceType = 'personal' | 'standard';
+type ProjektType = 'personal' | 'standard';
 
 interface GroupsCreateSectionProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreateGroup: (groupName: string, groupType: SpaceType, inviteEmails: string[]) => void;
+  onCreateGroup: (groupName: string, groupType: ProjektType, inviteEmails: string[]) => void;
   isCreatingGroup: boolean;
   isCreateGroupError: boolean;
   createGroupError: Error | null;
   /** Type the dialog opens on — lets the "Projekt" / "Gruppe" tile preselect
    *  its type. Defaults to 'personal'. */
-  initialSpaceType?: SpaceType;
+  initialProjektType?: ProjektType;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const TYPE_OPTIONS: {
-  value: SpaceType;
+  value: ProjektType;
   title: string;
   desc: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -53,10 +53,10 @@ const GroupsCreateSection: React.FC<GroupsCreateSectionProps> = ({
   isCreatingGroup,
   isCreateGroupError,
   createGroupError,
-  initialSpaceType = 'personal',
+  initialProjektType = 'personal',
 }) => {
   const [step, setStep] = useState<1 | 2>(2);
-  const [spaceType, setSpaceType] = useState<SpaceType>(initialSpaceType);
+  const [projektType, setProjektType] = useState<ProjektType>(initialProjektType);
   const [groupName, setGroupName] = useState('');
   const [emails, setEmails] = useState<string[]>([]);
   const [emailDraft, setEmailDraft] = useState('');
@@ -66,19 +66,22 @@ const GroupsCreateSection: React.FC<GroupsCreateSectionProps> = ({
     if (isOpen) {
       // The landing tiles already pick Projekt vs. Gruppe, so open on the name
       // step; "Zurück" still exposes the type choice.
-      setSpaceType(initialSpaceType);
+      // Reset as a reaction to the modal opening (isOpen toggle), not a
+      // render-derived value.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setProjektType(initialProjektType);
       setStep(2);
       setGroupName('');
       setEmails([]);
       setEmailDraft('');
       setEmailError('');
     }
-  }, [isOpen, initialSpaceType]);
+  }, [isOpen, initialProjektType]);
 
-  const isTeam = spaceType === 'standard';
+  const isTeam = projektType === 'standard';
 
-  const chooseType = useCallback((value: SpaceType) => {
-    setSpaceType(value);
+  const chooseType = useCallback((value: ProjektType) => {
+    setProjektType(value);
     setStep(2);
   }, []);
 
@@ -119,9 +122,9 @@ const GroupsCreateSection: React.FC<GroupsCreateSectionProps> = ({
         isTeam && pending && EMAIL_RE.test(pending) && !emails.includes(pending)
           ? [...emails, pending]
           : emails;
-      onCreateGroup(groupName, spaceType, isTeam ? finalEmails : []);
+      onCreateGroup(groupName, projektType, isTeam ? finalEmails : []);
     },
-    [emailDraft, emails, groupName, spaceType, isTeam, onCreateGroup]
+    [emailDraft, emails, groupName, projektType, isTeam, onCreateGroup]
   );
 
   const submitLabel = isCreatingGroup

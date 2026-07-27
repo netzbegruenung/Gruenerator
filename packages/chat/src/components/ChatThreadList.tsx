@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useCallback } from 'react';
 import { ThreadListPrimitive } from '@assistant-ui/react';
-import { cn } from '../lib/utils';
 import { Archive, ChevronDown, ChevronRight } from 'lucide-react';
+import { useState, useCallback } from 'react';
+
+import { cn } from '../lib/utils';
+
 import {
   GrueneratorThreadListItem,
   GrueneratorArchivedThreadListItem,

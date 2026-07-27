@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
 import {
   Badge,
   Command,
@@ -12,10 +11,14 @@ import {
   ScrollArea,
   Skeleton,
 } from '@gruenerator/ui';
+import { useState, useEffect, useCallback } from 'react';
+
 import { useFileMentionData } from '../../hooks/useFileMentionData';
 import { useDocMentionables } from '../../hooks/useMentionablesQuery';
-import { MentionFloatingPanel } from './MentionFloatingPanel';
 import { documentToSlug } from '../../lib/documentMentionables';
+
+import { MentionFloatingPanel } from './MentionFloatingPanel';
+
 import type {
   CollabDocSelection,
   DocumentMention,
@@ -26,8 +29,7 @@ import type {
 type Level = 'root' | 'documents';
 
 export type FileMentionSelection =
-  | { kind: 'document'; doc: DocumentMention }
-  | { kind: 'collab'; doc: CollabDocSelection };
+  { kind: 'document'; doc: DocumentMention } | { kind: 'collab'; doc: CollabDocSelection };
 
 interface FileMentionPopoverProps {
   visible: boolean;
@@ -48,6 +50,7 @@ export function FileMentionPopover({ visible, onSelect, onDismiss }: FileMention
 
   useEffect(() => {
     if (visible) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets navigation state when the panel opens (visibility transition), not a render-derived value
       setLevel('root');
       setSelectedCollection(null);
       setSearchResults([]);

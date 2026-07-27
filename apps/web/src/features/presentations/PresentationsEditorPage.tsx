@@ -37,6 +37,7 @@ import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import apiClient from '../../components/utils/apiClient';
 import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
+import { useAuthStore } from '../../stores/authStore';
 import { platformFetch } from '../../utils/platformFetch';
 import { webAppDocsAdapter } from '../docs/docsAdapter';
 import { GuestBadge, GUEST_ANIMALS } from '../docs/GuestBadge';
@@ -68,6 +69,10 @@ function PresentationsEditorContent() {
     ?.presentationTemplate;
   const { user, isAuthResolved } = useAuth({ lazy: true });
   const isGuest = Boolean(isAuthResolved) && !user;
+  // Country brand source: only an authenticated profile locale may stamp the
+  // deck (guests would backfill their browser default onto foreign decks).
+  const authLocale = useAuthStore((s) => s.locale);
+  const userLocale = user ? authLocale : null;
 
   const [searchParams] = useSearchParams();
 
@@ -135,6 +140,9 @@ function PresentationsEditorContent() {
   // connection survive close/reopen (docs pattern).
   const [hasOpenedChat, setHasOpenedChat] = useState(false);
   useEffect(() => {
+    // Sticky latch: flips once when chat first opens, then settles (guarded by
+    // !hasOpenedChat). Keeps the chat panel mounted across close/reopen.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (chatOpen && !hasOpenedChat) setHasOpenedChat(true);
   }, [chatOpen, hasOpenedChat]);
 
@@ -275,39 +283,13 @@ function PresentationsEditorContent() {
   return (
     <div className="h-full flex flex-col relative">
       <EditorTopBar
-        dataTour="presentations-topbar"
         title={docData.title}
         connectionStatus={connectionStatus}
         onBack={isGuest ? undefined : () => navigate('/office')}
         editable={isEditable}
         onTitleChange={handleTitleChange}
-        rightActions={
+        overflowActions={
           <>
-            {isGuest && guestIdentity && (
-              <GuestBadge
-                guestName={guestIdentity.guestName}
-                guestColor={guestIdentity.guestColor}
-                guestIcon={GUEST_ANIMALS[guestIdentity.guestAnimalIndex].icon}
-                loginUrl={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
-              />
-            )}
-            {!isGuest && !canEdit && (
-              <div className="flex items-center py-1 px-2.5 text-[0.75rem] rounded-full bg-grey-100/60 dark:bg-grey-800/40 text-grey-600 dark:text-grey-400 border border-grey-200/50 dark:border-grey-700/50">
-                Lesezugriff
-              </div>
-            )}
-            <CollaboratorAvatars collaborators={collaborators} />
-            {!isGuest && (
-              <button
-                className={`glass-btn ${chatOpen ? 'active' : ''}`}
-                onClick={() => setChatOpen((v) => !v)}
-                aria-label="Chat"
-                title="Chat"
-                data-tour="presentations-chat-toggle"
-              >
-                <FiMessageSquare />
-              </button>
-            )}
             {isEditable && editorApi && (
               <>
                 <button
@@ -355,22 +337,6 @@ function PresentationsEditorContent() {
             >
               <FiFileText />
             </button>
-            {isEditable && (
-              <button
-                onClick={() => setDesignPanelOpen((v) => !v)}
-                aria-label="Gestalten"
-                title="Folie gestalten"
-                data-tour="presentations-design"
-                className={`flex h-9 items-center gap-[7px] rounded-full px-3.5 text-sm font-bold text-[#2F4238] dark:text-grey-200 ${
-                  designPanelOpen
-                    ? 'bg-[#DCE7E0] dark:bg-grey-700'
-                    : 'bg-[#EFF3F0] dark:bg-grey-800 hover:bg-[#E4EBE7] dark:hover:bg-grey-700'
-                }`}
-              >
-                <FiSliders size={15} />
-                Gestalten
-              </button>
-            )}
             {!isGuest && (
               <button
                 onClick={() => setShowShareModal(true)}
@@ -382,6 +348,53 @@ function PresentationsEditorContent() {
                 Teilen
               </button>
             )}
+          </>
+        }
+        rightActions={
+          <>
+            {isGuest && guestIdentity && (
+              <GuestBadge
+                guestName={guestIdentity.guestName}
+                guestColor={guestIdentity.guestColor}
+                guestIcon={GUEST_ANIMALS[guestIdentity.guestAnimalIndex].icon}
+                loginUrl={`/login?redirectTo=${encodeURIComponent(`/office/${id}`)}`}
+              />
+            )}
+            {!isGuest && !canEdit && (
+              <div className="flex items-center py-1 px-2.5 text-[0.75rem] rounded-full bg-grey-100/60 dark:bg-grey-800/40 text-grey-600 dark:text-grey-400 border border-grey-200/50 dark:border-grey-700/50">
+                Lesezugriff
+              </div>
+            )}
+            <span className="max-sm:hidden">
+              <CollaboratorAvatars collaborators={collaborators} />
+            </span>
+            {!isGuest && (
+              <button
+                className={`glass-btn ${chatOpen ? 'active' : ''}`}
+                onClick={() => setChatOpen((v) => !v)}
+                aria-label="Chat"
+                title="Chat"
+                data-tour="presentations-chat-toggle"
+              >
+                <FiMessageSquare />
+              </button>
+            )}
+            {isEditable && (
+              <button
+                onClick={() => setDesignPanelOpen((v) => !v)}
+                aria-label="Gestalten"
+                title="Folie gestalten"
+                data-tour="presentations-design"
+                className={`flex h-9 max-sm:h-11 max-sm:w-11 max-sm:justify-center items-center gap-[7px] rounded-full px-3.5 max-sm:px-0 text-sm font-bold text-[#2F4238] dark:text-grey-200 ${
+                  designPanelOpen
+                    ? 'bg-[#DCE7E0] dark:bg-grey-700'
+                    : 'bg-[#EFF3F0] dark:bg-grey-800 hover:bg-[#E4EBE7] dark:hover:bg-grey-700'
+                }`}
+              >
+                <FiSliders size={15} />
+                <span className="max-sm:hidden">Gestalten</span>
+              </button>
+            )}
             <button
               onClick={() => {
                 setScrollView(false);
@@ -390,10 +403,10 @@ function PresentationsEditorContent() {
               aria-label="Präsentieren"
               title="Präsentieren"
               data-tour="presentations-present"
-              className="flex h-9 items-center gap-2 rounded-full bg-primary-600 px-[18px] text-sm font-bold text-white hover:brightness-110"
+              className="flex h-9 max-sm:h-11 items-center gap-2 rounded-full bg-primary-600 px-[18px] max-sm:px-4 text-sm font-bold text-white hover:brightness-110"
             >
               <FiPlay size={13} fill="currentColor" />
-              Präsentieren
+              <span className="max-sm:hidden">Präsentieren</span>
             </button>
           </>
         }
@@ -410,6 +423,8 @@ function PresentationsEditorContent() {
               onCloseDesignPanel={() => setDesignPanelOpen(false)}
               onReady={setEditorApi}
               seedSlides={seedSlides}
+              shortcutsDisabled={presenting || showShareModal}
+              userLocale={userLocale}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center text-sm text-grey-500">

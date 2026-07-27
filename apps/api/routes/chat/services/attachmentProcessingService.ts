@@ -28,6 +28,26 @@ export const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'
  *  Larger sheets keep full-text context but no reload-compute (avoids row bloat). */
 const MAX_TABULAR_BYTES_PERSISTED = 2 * 1024 * 1024;
 
+/** Max raw bytes of a fillable PDF we persist so `fill_pdf_form` still works on
+ *  follow-up turns. Its own (larger) cap: form PDFs carry page graphics, and
+ *  unlike sheets they are only ever stored when they actually have form fields. */
+const MAX_PDF_BYTES_PERSISTED = 8 * 1024 * 1024;
+
+/**
+ * Does this PDF carry an interactive AcroForm? Only fillable PDFs get their raw
+ * bytes stored — otherwise every uploaded brochure would bloat the attachment
+ * table for a capability it can never use. Fail-closed: an unreadable PDF is
+ * treated as not fillable.
+ */
+async function isFillablePdf(bytes: Buffer): Promise<boolean> {
+  try {
+    const { readFormFields } = await import('../../../services/pdfForm/pdfFormService.js');
+    return (await readFormFields(bytes)).length > 0;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Detect a tabular attachment (CSV/Excel/ODS) by name or MIME type. Mirrors the
  * frontend `isTabularFile` in `@gruenerator/chat` spreadsheetSetup — kept in sync
@@ -55,8 +75,10 @@ export interface ProcessedAttachmentMeta {
   /** Base64 image bytes, set for images only — used to generate a persistent
    *  vision description (summary) for multi-turn image memory. */
   imageData?: string;
-  /** Base64 raw bytes, set for tabular files (CSV/Excel/ODS) only — persisted so
-   *  the in-browser pandas interpreter can be rehydrated after a thread reload. */
+  /** Base64 raw bytes. Set for tabular files (CSV/Excel/ODS), so the in-browser
+   *  pandas interpreter can be rehydrated after a thread reload, and for
+   *  fillable PDFs, so `fill_pdf_form` still has the document on follow-up
+   *  turns. Consumers MUST filter by mimeType — see getThreadTabularFiles. */
   fileData?: string;
 }
 
@@ -101,9 +123,16 @@ export async function processAttachments(
       // Cap the stored bytes so a huge sheet can't bloat the row — larger files
       // still get full-text context, just no reload-compute.
       const rawBytes = Math.floor((attachment.data.length * 3) / 4);
-      const tabularData =
-        isTabularAttachment(attachment.name, attachment.type) &&
-        rawBytes <= MAX_TABULAR_BYTES_PERSISTED
+      const isTabular = isTabularAttachment(attachment.name, attachment.type);
+      // Fillable PDFs are stored too (see MAX_PDF_BYTES_PERSISTED) so
+      // fill_pdf_form can reach the document on later turns.
+      const keepPdf =
+        !isTabular &&
+        attachment.type === 'application/pdf' &&
+        rawBytes <= MAX_PDF_BYTES_PERSISTED &&
+        (await isFillablePdf(Buffer.from(attachment.data, 'base64')));
+      const persistedData =
+        (isTabular && rawBytes <= MAX_TABULAR_BYTES_PERSISTED) || keepPdf
           ? attachment.data
           : undefined;
       // Multi-sheet workbooks: the sheet map is read straight from the xlsx
@@ -133,9 +162,23 @@ export async function processAttachments(
             sizeBytes: attachment.size,
             isImage: false,
             extractedText: text,
-            ...(tabularData != null && { fileData: tabularData }),
+            ...(persistedData != null && { fileData: persistedData }),
           });
           log.info(`[${requestId}] Extracted ${result.text.length} chars from: ${attachment.name}`);
+        } else {
+          // OCR succeeded but found nothing (e.g. a scan without a text layer).
+          // Without this branch the file vanished from both the context and
+          // processedMeta — so it was never even persisted.
+          log.warn(`[${requestId}] No text extracted from: ${attachment.name}`);
+          documentTexts.push(`### ${attachment.name}\n\n[Kein Text erkannt]`);
+          processedMeta.push({
+            name: attachment.name,
+            mimeType: attachment.type,
+            sizeBytes: attachment.size,
+            isImage: false,
+            extractedText: null,
+            ...(persistedData != null && { fileData: persistedData }),
+          });
         }
       } catch (error) {
         log.error(`[${requestId}] Failed to extract text from ${attachment.name}:`, error);
@@ -146,7 +189,7 @@ export async function processAttachments(
           sizeBytes: attachment.size,
           isImage: false,
           extractedText: null,
-          ...(tabularData != null && { fileData: tabularData }),
+          ...(persistedData != null && { fileData: persistedData }),
         });
       }
     }

@@ -50,11 +50,32 @@ function extensionFor(name: string, fallback: string): string {
 }
 
 async function storeAsset(userId: string, base64: string, extension: string): Promise<string> {
+  return storeBinaryAssetFile(userId, Buffer.from(base64, 'base64'), extension);
+}
+
+async function storeBinaryAssetFile(
+  userId: string,
+  data: Buffer,
+  extension: string
+): Promise<string> {
   const fileName = `${randomUUID()}.${extension}`;
   const dir = path.join(baseDir(), userId);
   await mkdir(dir, { recursive: true });
-  await writeFile(path.join(dir, fileName), Buffer.from(base64, 'base64'));
+  await writeFile(path.join(dir, fileName), data);
   return fileName;
+}
+
+/**
+ * Store a server-generated binary (e.g. a create_pdf result) under the user's
+ * asset directory and return the stored file name + authenticated URL.
+ */
+export async function storeBinaryAsset(
+  userId: string,
+  data: Buffer,
+  extension: string
+): Promise<{ fileName: string; url: string }> {
+  const fileName = await storeBinaryAssetFile(userId, data, extension);
+  return { fileName, url: computeAssetUrl(fileName) };
 }
 
 /**

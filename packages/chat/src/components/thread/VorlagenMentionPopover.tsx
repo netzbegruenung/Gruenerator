@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { useVorlagenSearchQuery, type ChatVorlageTemplate } from '../../hooks/useMentionablesQuery';
 import { type VorlageToken } from '../../lib/mentionables';
+
 import { MentionFloatingPanel } from './MentionFloatingPanel';
 
 interface VorlagenMentionPopoverProps {
@@ -29,6 +30,7 @@ export function VorlagenMentionPopover({
 
   useEffect(() => {
     if (!visible) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets panel state on close (visibility transition), not a render-derived value
       setSelection(new Map());
       setFilter('');
       setDebouncedFilter('');

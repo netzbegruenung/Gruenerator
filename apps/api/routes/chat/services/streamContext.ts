@@ -51,6 +51,8 @@ import {
   getUser,
   createThread,
   createMessage,
+  createPendingAssistantMessage,
+  deleteEmptyStreamingRows,
   deleteMessagesFrom,
   deleteTrailingAssistant,
   getThreadToolContext,
@@ -111,6 +113,10 @@ export interface StreamContext {
   /** Last user message text WITH tokens (pre-sanitization) — for regex
    *  heuristics that need the remove-form. */
   lastUserTextRaw: string;
+  /** Placeholder assistant row minted before streaming so an aborted/crashed
+   *  turn still persists (WP-B). Null when no thread/user message, or when the
+   *  placeholder insert failed (the turn then runs as before). */
+  pendingAssistantMessageId: string | null;
 }
 
 export type BuildStreamContextResult = { done: true } | { done: false; ctx: StreamContext };
@@ -326,6 +332,9 @@ export async function buildStreamContext({
     actualThreadId = undefined;
   }
   let isNewThread = false;
+  // Placeholder assistant row for turn persistence — minted just below, after
+  // the user message is written (so ordering stays user → assistant).
+  let pendingAssistantMessageId: string | null = null;
 
   if (!actualThreadId && lastUserMessage) {
     // Titles are user-visible — never show raw mention tokens.
@@ -415,6 +424,18 @@ export async function buildStreamContext({
         userId
       );
     }
+
+    // Turn persistence: sweep this thread's empty streaming orphans (leftovers
+    // from an earlier crash; rows with partial text survive as aborted turns),
+    // then mint a fresh placeholder assistant row the stream fills as it runs.
+    // Best-effort — a failure here just means the turn runs like it did before.
+    try {
+      await deleteEmptyStreamingRows(actualThreadId);
+      pendingAssistantMessageId = await createPendingAssistantMessage(actualThreadId, userId);
+    } catch (err) {
+      log.warn('[StreamContext] Failed to create pending assistant row (continuing):', err);
+      pendingAssistantMessageId = null;
+    }
   }
 
   // Raw (token-bearing) text is persisted above; everything downstream —
@@ -462,6 +483,13 @@ export async function buildStreamContext({
   const hasTabularAttachment =
     docAttachments.some((a) => isTabularAttachment(a.name, a.type)) ||
     previousAttachments.some((a) => isTabularAttachment(a.name, a.mimeType));
+
+  // Raw bytes of this turn's PDFs, for the PDF form tools. Kept unfiltered here
+  // (the AcroForm probe happens in the tool, which reports "no fillable fields"
+  // to the model) — attachmentProcessing already decided what gets PERSISTED.
+  const pdfFormAttachments = docAttachments
+    .filter((a) => a.type === 'application/pdf')
+    .map((a) => ({ name: a.name, data: a.data }));
 
   // Large prose attachments from earlier turns were embedded into Qdrant — route
   // their document ids through the existing document-chat retrieval fan-out so
@@ -551,6 +579,7 @@ export async function buildStreamContext({
     imageAttachments: imageAttachments.length > 0 ? imageAttachments : undefined,
     threadAttachments: previousAttachments.length > 0 ? previousAttachments : undefined,
     hasTabularAttachment,
+    ...(pdfFormAttachments.length > 0 && { pdfFormAttachments }),
     clientCanRunPython: clientTools?.includes('run_python') ?? false,
     computedResult: rawComputedResult ?? undefined,
     notebookIds: notebookIds.length > 0 ? notebookIds : undefined,
@@ -652,6 +681,7 @@ export async function buildStreamContext({
       contextWindowTokens,
       mentionTokenFields,
       lastUserTextRaw,
+      pendingAssistantMessageId,
     },
   };
 }

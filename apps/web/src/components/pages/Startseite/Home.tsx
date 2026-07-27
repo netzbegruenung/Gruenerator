@@ -115,7 +115,7 @@ const FEATURES: FeatureData[] = [
     ),
   },
   {
-    icon: { category: 'navigation', name: 'notebook' },
+    icon: { category: 'navigation', name: 'notebooks' },
     title: 'Recherchiere in Grünen Quellen',
     description:
       'Stelle Fragen an Grundsatzprogramme, Bundestagsanträge und Kommunalwiki. Das Notebook liefert Antworten mit Quellenangaben.',
@@ -174,8 +174,10 @@ const Home = () => {
     contentRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
   };
 
+  // PageLayout's <main id="main-content"> is the skip-link target; a second id
+  // here would duplicate it.
   return (
-    <main id="main-content">
+    <main>
       <StartpageHero onScrollToContent={scrollToContent} />
 
       <div className="sp-content" ref={contentRef}>

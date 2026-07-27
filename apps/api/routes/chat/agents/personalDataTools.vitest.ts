@@ -30,6 +30,8 @@ const emitToolConfirmAction = vi.fn();
 const dbQuery = vi.fn();
 const getUserProjects = vi.fn();
 const deleteProject = vi.fn();
+const searchReels = vi.fn().mockResolvedValue([]);
+const getReelTranscript = vi.fn().mockResolvedValue(null);
 const getUserShares = vi.fn();
 const deleteShare = vi.fn();
 const nbGetUserCollections = vi.fn();
@@ -87,6 +89,11 @@ vi.mock('../../../services/subtitler/ProjectService.js', () => ({
     deleteProject: (...a: unknown[]) => deleteProject(...a),
   }),
 }));
+vi.mock('../../../services/subtitler/reelSearch.js', () => ({
+  searchReels: (...a: unknown[]) => searchReels(...a),
+  getReelTranscript: (...a: unknown[]) => getReelTranscript(...a),
+  reelUrl: (id: string) => `/studio/video?project=${id}`,
+}));
 vi.mock('../../../database/services/NotebookQdrantHelper.js', () => ({
   NotebookQdrantHelper: class {
     getUserNotebookCollections = (...a: unknown[]) => nbGetUserCollections(...a);
@@ -122,6 +129,10 @@ function exec(tool: unknown, input: unknown) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // clearAllMocks keeps implementations, so the reel mocks have to be put back
+  // to "no reels" or a search test leaks its hits into every later assertion.
+  searchReels.mockResolvedValue([]);
+  getReelTranscript.mockResolvedValue(null);
 });
 
 // --- find_content ------------------------------------------------------------
@@ -153,6 +164,34 @@ describe('find_content', () => {
     expect(searchOfficeContent).toHaveBeenCalledWith('u1', 'klima', { limit: 5 });
     expect(out.resultCount).toBe(1);
     expect(out.results[0]).toMatchObject({ title: 'Klimaplan', url: '/office/d1' });
+  });
+
+  it('search also surfaces matching reels alongside office content', async () => {
+    searchOfficeContent.mockResolvedValue([
+      { id: 'd1', title: 'Klimaplan', document_subtype: 'docs', content: 'Auszug' },
+    ]);
+    searchReels.mockResolvedValue([
+      {
+        id: 'p9',
+        title: 'Klima-Reel',
+        snippet: '[00:00.0–00:02.5] Klimageld jetzt.',
+        matchedTranscript: true,
+        url: '/studio/video?project=p9',
+        status: 'exported',
+        hasThumbnail: true,
+        lastEditedAt: '2026-04-01T10:00:00Z',
+      },
+    ]);
+    const out = (await exec(makeFindContentTool(ctx('u1')), {
+      action: 'search',
+      query: 'klima',
+      limit: 5,
+    })) as { results: Array<{ title: string; url: string; type?: string }>; resultCount: number };
+
+    expect(searchReels).toHaveBeenCalledWith('u1', 'klima', 5);
+    expect(out.resultCount).toBe(2);
+    expect(out.results.map((r) => r.type)).toContain('Reel');
+    expect(out.results.find((r) => r.type === 'Reel')?.url).toBe('/studio/video?project=p9');
   });
 
   it('recent maps the activity feed', async () => {
@@ -519,6 +558,95 @@ describe('media', () => {
       limit: 15,
     });
     expect(deleteProject).toHaveBeenCalledWith('u1', 'p1');
+  });
+
+  const reelHit = {
+    id: 'p9',
+    title: 'Windkraft-Reel',
+    snippet: '[00:00.0–00:02.5] Heute reden wir über Windkraft.',
+    matchedTranscript: true,
+    url: '/studio/video?project=p9',
+    status: 'exported',
+    hasThumbnail: true,
+    lastEditedAt: '2026-04-01T10:00:00Z',
+  };
+
+  it('search finds reels by spoken content and hands back a transcript ref', async () => {
+    searchReels.mockResolvedValue([reelHit]);
+    const out = (await exec(makeMediaTool(ctx('u1')), {
+      action: 'search',
+      type: 'all',
+      query: 'Windkraft',
+      confirm: false,
+      limit: 15,
+    })) as {
+      resultCount: number;
+      results: Array<{ ref?: string; snippet?: string }>;
+      note?: string;
+    };
+
+    expect(searchReels).toHaveBeenCalledWith('u1', 'Windkraft', 10);
+    expect(out.resultCount).toBe(1);
+    expect(out.results[0].ref).toBe('reel:p9');
+    expect(out.results[0].snippet).toContain('Heute reden wir über Windkraft.');
+    expect(out.note).toContain('transcript');
+  });
+
+  it('search rejects a blank query', async () => {
+    const out = (await exec(makeMediaTool(ctx('u1')), {
+      action: 'search',
+      type: 'all',
+      query: '  ',
+      confirm: false,
+      limit: 15,
+    })) as { error?: string };
+    expect(out.error).toContain('query');
+    expect(searchReels).not.toHaveBeenCalled();
+  });
+
+  it('transcript returns the spoken content and grounds it for the synthesizer', async () => {
+    getReelTranscript.mockResolvedValue({
+      title: 'Windkraft-Reel',
+      transcript: '[00:00.0–00:02.5] Heute reden wir über Windkraft.',
+      segmentCount: 1,
+    });
+    const registry = createSourceRegistry();
+    const out = (await exec(makeMediaTool(ctx('u1', [], registry)), {
+      action: 'transcript',
+      type: 'all',
+      ref: 'reel:p9',
+      confirm: false,
+      limit: 15,
+    })) as { title: string; transcript: string; segmentCount: number };
+
+    expect(getReelTranscript).toHaveBeenCalledWith('u1', 'p9');
+    expect(out.segmentCount).toBe(1);
+    expect(out.transcript).toContain('Heute reden wir über Windkraft.');
+    // Split mode: the synthesizer sees only rendered sources, so the transcript
+    // must be in the registry, not just the tool return value.
+    expect(registry.renderAll()).toContain('Heute reden wir über Windkraft.');
+  });
+
+  it('transcript refuses a non-reel ref and reports a missing reel', async () => {
+    const bad = (await exec(makeMediaTool(ctx('u1')), {
+      action: 'transcript',
+      type: 'all',
+      ref: 'sharepic:tok',
+      confirm: false,
+      limit: 15,
+    })) as { error?: string };
+    expect(bad.error).toContain('Reels');
+    expect(getReelTranscript).not.toHaveBeenCalled();
+
+    getReelTranscript.mockResolvedValue(null);
+    const missing = (await exec(makeMediaTool(ctx('u1')), {
+      action: 'transcript',
+      type: 'all',
+      ref: 'reel:p9',
+      confirm: false,
+      limit: 15,
+    })) as { error?: string };
+    expect(missing.error).toContain('nicht gefunden');
   });
 });
 

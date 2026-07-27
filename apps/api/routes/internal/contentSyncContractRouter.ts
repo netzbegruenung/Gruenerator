@@ -30,7 +30,7 @@ import { upsertSyncEvents } from '../../services/monitor/ContentSyncEventsServic
 import { getContentStatsMarkdown } from '../../services/scrapers/contentStats.js';
 import { drainSyncEvents } from '../../services/scrapers/syncEventRecorder.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
-import { toError } from '../../utils/errors/index.js';
+import { toError, toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { getCachedJson, setCachedJson } from '../../utils/redis/jsonCache.js';
 
@@ -287,8 +287,7 @@ async function persistJobStatus(job: ContentSyncJobStatus): Promise<boolean> {
 }
 
 type SyncOutcome =
-  | { status: 200; body: ContentSyncResult }
-  | { status: 500; body: ContentSyncFailure };
+  { status: 200; body: ContentSyncResult } | { status: 500; body: ContentSyncFailure };
 
 /**
  * The full sync run, shared by the synchronous and background paths. Owns
@@ -365,7 +364,7 @@ async function executeSyncRun(
     log.error(`Content sync failed: ${lockKey} — ${err.message}`);
     return {
       status: 500,
-      body: { success: false, sourceId, error: err.message, durationMs },
+      body: { success: false, sourceId, error: toUserFacingMessage(err), durationMs },
     };
   } finally {
     runningSync.delete(lockKey);

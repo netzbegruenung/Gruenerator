@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { Loader2, Image, Download, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
 import { cn } from '../../lib/utils';
+
 import type { GeneratedImage } from '../../hooks/useChatGraphStream';
 
 interface GeneratedImageDisplayProps {

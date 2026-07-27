@@ -21,8 +21,7 @@ import {
   rerankNode,
   buildCitations,
 } from '../../../agents/langgraph/ChatGraph/index.js';
-import { isSourceAvailabilityError } from '../../../agents/langgraph/ChatGraph/types.js';
-import { isReasoningStreamModel } from '../../../services/ai/regoloReasoningStream.js';
+import { partitionSearchErrors } from '../../../agents/langgraph/ChatGraph/types.js';
 import {
   buildAiTelemetry,
   withLangfuseTrace,
@@ -34,8 +33,9 @@ import { getContextWindow } from '../agents/providers.js';
 import { persistComputeAssets } from './computeAssetStorage.js';
 import { hasBrokenComputeValues } from './computeResultSanity.js';
 import { pruneMessages } from './contextPruningService.js';
-import { executeIntentPipeline } from './intentExecutionService.js';
+import { executeIntentPipeline, reportUnavailableSources } from './intentExecutionService.js';
 import { extractTextContent } from './messageHelpers.js';
+import { createPendingAssistantWriter } from './pendingAssistantWriter.js';
 import { pipelineStateStore } from './pipelineStateStore.js';
 import { persistResumedResponse } from './postResponseService.js';
 import {
@@ -49,11 +49,17 @@ import {
   type createSSEStream,
   getIntentMessage,
   PROGRESS_MESSAGES,
+  sendChatWarning,
   sendSearchDegradedWarning,
   sseFail,
   sseInternalError,
 } from './sseHelpers.js';
-import { getUser } from './threadPersistenceService.js';
+import {
+  createPendingAssistantMessage,
+  deleteEmptyStreamingRows,
+  discardPendingAssistantIfEmpty,
+  getUser,
+} from './threadPersistenceService.js';
 
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { ServerInferRequest } from '@ts-rest/core';
@@ -75,6 +81,19 @@ export async function runChatGraphResume({
 }): Promise<{ status: 200; body: undefined }> {
   const _requestId = `resume_${Date.now()}`;
   log.info('[chatGraphContract] resume handler entered, request_id=%s', _requestId);
+
+  // Turn persistence (WP-B) for the resume path: the placeholder assistant row
+  // + its streaming writer. Declared in the handler scope (not inside the try)
+  // so the outer catch can run cleanupPending too. Assigned only right before
+  // the truly streaming stage — the sharepic fixed-text branch and run_python
+  // correction rounds return earlier and must not stream into the placeholder.
+  let pendingId: string | null = null;
+  let pendingWriter: ReturnType<typeof createPendingAssistantWriter> | null = null;
+  const cleanupPending = async (discard: boolean): Promise<void> => {
+    sse.setTextListener(undefined);
+    await pendingWriter?.stop().catch(() => {});
+    if (discard && pendingId) await discardPendingAssistantIfEmpty(pendingId).catch(() => {});
+  };
 
   try {
     const { threadId } = body;
@@ -107,6 +126,13 @@ export async function runChatGraphResume({
     if (requestContext.userId !== user.id) {
       return sseFail(sse, PROGRESS_MESSAGES.unauthorized, { code: 'unauthorized' });
     }
+
+    // pipelineStateStore strips the PDF bytes before writing to Redis (they are
+    // already in processedMeta — storing both would double the payload). Rebuild
+    // the field here so the PDF form tools still work on a resumed turn.
+    classifiedState.pdfFormAttachments = requestContext.processedMeta
+      .filter((m) => m.mimeType === 'application/pdf' && m.fileData != null)
+      .map((m) => ({ name: m.name, data: m.fileData as string }));
 
     const aiWorkerPool = getAIWorkerPool(req);
     if (!aiWorkerPool) {
@@ -160,12 +186,31 @@ export async function runChatGraphResume({
         const retries = classifiedState.pandasComputeRetries ?? 0;
         if (retries >= 1) return false;
         classifiedState.aiWorkerPool = aiWorkerPool;
-        const { pythonCode } = await pandasComputeNode(classifiedState, {
+        const { pythonCode, computeFailed } = await pandasComputeNode(classifiedState, {
           ...(classifiedState.pandasLastCode != null && {
             previousCode: classifiedState.pandasLastCode,
           }),
+          ...(classifiedState.pandasComputeMode != null && {
+            mode: classifiedState.pandasComputeMode,
+          }),
           previousError: errorText,
         });
+        // This is the path where the user's Python run ALREADY failed once. If
+        // the correction codegen also fails, the turn falls through to respond
+        // — and without this note the model answers the numeric question from
+        // the truncated table text, which is the hallucination this node exists
+        // to prevent.
+        if (computeFailed) {
+          sendChatWarning(sse, 'compute_failed');
+          classifiedState.degradationNotes = [
+            ...(classifiedState.degradationNotes ?? []),
+            {
+              code: 'compute_failed',
+              modelHint:
+                'Die Berechnung auf der Tabelle ist fehlgeschlagen. Rechne NICHT selbst und nenne keine Zahlen aus der Tabelle — sag ehrlich, dass die Auswertung gerade nicht möglich war.',
+            },
+          ];
+        }
         if (!pythonCode) return false;
 
         classifiedState.pandasComputeRetries = retries + 1;
@@ -206,8 +251,14 @@ export async function runChatGraphResume({
       if (payload && !hasNanValues) {
         // Plausibility check (fail-open, once per turn, shares the correction
         // budget): catches code that RAN fine but answered the wrong question
-        // — beta: doubled totals, wrong column for "höchster Gewinn".
-        if ((classifiedState.pandasComputeRetries ?? 0) < 1 && classifiedState.pandasLastCode) {
+        // — beta: doubled totals, wrong column for "höchster Gewinn". Skipped
+        // for fill runs: they answer no question, they produce a file, and the
+        // verifier's "does this number fit?" framing has nothing to judge.
+        if (
+          classifiedState.pandasComputeMode !== 'fill' &&
+          (classifiedState.pandasComputeRetries ?? 0) < 1 &&
+          classifiedState.pandasLastCode
+        ) {
           classifiedState.aiWorkerPool = aiWorkerPool;
           const verdict = await computeVerifierNode(classifiedState, payload);
           if (!verdict.plausible) {
@@ -297,7 +348,7 @@ export async function runChatGraphResume({
       // Persist the artifacts too — without the sharepic/social_post tool
       // calls the card can't rehydrate on reload and later text edits would
       // fall through to the sharepic edit branch.
-      await persistResumedResponse({
+      const artifactPersist = await persistResumedResponse({
         threadId: requestContext.actualThreadId!,
         fullText,
         finalState: resumedFinalState,
@@ -307,6 +358,7 @@ export async function runChatGraphResume({
         sharepicVariants,
         socialPost,
       });
+      if (!artifactPersist.ok) sendChatWarning(sse, 'persist_failed');
 
       sse.send('done', {
         ...(requestContext.actualThreadId != null && {
@@ -368,8 +420,15 @@ export async function runChatGraphResume({
         }
 
         const resultCount = finalState.searchResults?.length || 0;
-        const searchDegraded = finalState.searchErrors?.some(isSourceAvailabilityError) ?? false;
+        const {
+          coreDegraded: searchDegraded,
+          unavailableSources,
+          needsReauth,
+        } = partitionSearchErrors(finalState.searchErrors);
         if (searchDegraded) sendSearchDegradedWarning(sse, resultCount);
+        if (unavailableSources.length > 0) {
+          reportUnavailableSources(sse, finalState, unavailableSources, needsReauth);
+        }
         sse.send('search_complete', {
           message:
             searchDegraded && resultCount === 0
@@ -399,10 +458,26 @@ export async function runChatGraphResume({
             ? { examplesResult: finalState.examplesResult }
             : {}),
         });
+      }
+    }
 
-        if (classifiedState.intent === 'bundestag' && finalState.bundestagResult) {
-          sse.send('bundestag', { bundestag: finalState.bundestagResult });
-        }
+    // === Turn persistence: mint the placeholder + stream the reply into it ===
+    // Only from here does the answer truly stream (streamWithFallback). The
+    // sharepic fixed-text branch and the run_python correction rounds send their
+    // own text and return above this point, so registering the SSE text listener
+    // now keeps their output out of the placeholder. Requires a real thread row;
+    // without one we degrade to the in-place insert (pendingId stays null), same
+    // as the regular router path.
+    const persistThreadId = requestContext.actualThreadId;
+    if (persistThreadId) {
+      await deleteEmptyStreamingRows(persistThreadId).catch(() => {});
+      pendingId = await createPendingAssistantMessage(persistThreadId, requestContext.userId).catch(
+        () => null
+      );
+      pendingWriter = pendingId ? createPendingAssistantWriter(pendingId) : null;
+      if (pendingWriter) {
+        const activeWriter = pendingWriter;
+        sse.setTextListener((kind, text) => activeWriter.onText(kind, text));
       }
     }
 
@@ -438,8 +513,6 @@ export async function runChatGraphResume({
     const prunedValidMessages = pruneMessages(validMessages, getContextWindow(modelId));
     const messagesForAI = buildMessagesForAI(systemMessage, prunedValidMessages);
 
-    const baseMaxTokens = finalState.agentConfig.params.max_tokens;
-
     let fullText: string | null;
     let resumeTraceId: string | undefined;
     const resumeTelemetry = buildAiTelemetry('chat-graph.resume', {
@@ -463,20 +536,16 @@ export async function runChatGraphResume({
             primary: resolution2,
             sse,
             logPrefix: '[ChatGraph:Resume]',
-            buildStream: async (r) => {
-              const isReasoning = isReasoningStreamModel(r.provider, r.modelName);
-              return streamForResolution({
+            buildStream: async (r) =>
+              // No output cap (OpenWebUI-style) — see chatGraphContractRouter.
+              streamForResolution({
                 resolution: r,
                 messages: messagesForAI,
-                maxTokens: isReasoning
-                  ? Math.max(baseMaxTokens, 16000)
-                  : Math.max(baseMaxTokens, 8000),
                 temperature: finalState.agentConfig.params.temperature,
                 sse,
                 logPrefix: '[ChatGraph:Resume]',
                 ...(resumeTelemetry && { telemetry: resumeTelemetry }),
-              });
-            },
+              }),
           });
         }
       );
@@ -484,10 +553,16 @@ export async function runChatGraphResume({
       if (resolution2.releaseSlot) await resolution2.releaseSlot();
     }
 
-    if (fullText === null) return { status: 200 as const, body: undefined };
+    if (fullText === null) {
+      await cleanupPending(true);
+      return { status: 200 as const, body: undefined };
+    }
 
     // === Persist & complete ===
-    await persistResumedResponse({
+    // Stop the writer BEFORE persist so its final throttle write can't race the
+    // finalize UPDATE (both target the same placeholder row).
+    await cleanupPending(false);
+    const persistOutcome = await persistResumedResponse({
       threadId: requestContext.actualThreadId!,
       fullText,
       finalState,
@@ -495,7 +570,9 @@ export async function runChatGraphResume({
       userId: requestContext.userId,
       processedMeta: requestContext.processedMeta,
       ...(resumeTraceId != null && { traceId: resumeTraceId }),
+      pendingMessageId: pendingId,
     });
+    if (!persistOutcome.ok) sendChatWarning(sse, 'persist_failed');
 
     const totalTimeMs = Date.now() - startTime;
     sse.send('done', {
@@ -521,6 +598,9 @@ export async function runChatGraphResume({
     const errorStack = error instanceof Error ? error.stack : undefined;
     log.error(`[ChatGraph:Resume] Controller error: ${errorMessage}`);
     if (errorStack) log.error(`[ChatGraph:Resume] Stack: ${errorStack}`);
+    // Best-effort: stop the writer and drop the placeholder only if it stayed
+    // empty; a row that already streamed partial text survives as an aborted turn.
+    await cleanupPending(true).catch(() => {});
     sseInternalError(sse, error);
     return { status: 200 as const, body: undefined };
   }

@@ -18,6 +18,7 @@ import {
 } from '../../services/subtitler/downloadUtils.js';
 import { parseAutoProgress, parseExportProgress } from '../../services/subtitler/redisCodecs.js';
 import { getFilePathFromUploadId, checkFileExists } from '../../services/subtitler/tusService.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
@@ -38,8 +39,7 @@ router.get(
     try {
       await processDirectDownload(req.params.token, res);
     } catch (e: unknown) {
-      if (!res.headersSent)
-        res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+      if (!res.headersSent) res.status(500).json({ error: toUserFacingMessage(e) });
     }
   }
 );
@@ -54,8 +54,7 @@ router.get(
     try {
       await processChunkedDownload(req.params.uploadId, parseInt(req.params.chunkIndex), res);
     } catch (e: unknown) {
-      if (!res.headersSent)
-        res.status(404).json({ error: e instanceof Error ? e.message : String(e) });
+      if (!res.headersSent) res.status(404).json({ error: toUserFacingMessage(e) });
     }
   }
 );
@@ -104,8 +103,7 @@ router.get(
         if (!res.headersSent) res.status(500).end();
       });
     } catch (e: unknown) {
-      if (!res.headersSent)
-        res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+      if (!res.headersSent) res.status(500).json({ error: toUserFacingMessage(e) });
     }
   }
 );
@@ -145,8 +143,7 @@ router.get(
         fs.createReadStream(videoPath).pipe(res);
       }
     } catch (e: unknown) {
-      if (!res.headersSent)
-        res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+      if (!res.headersSent) res.status(500).json({ error: toUserFacingMessage(e) });
     }
   }
 );
@@ -182,8 +179,7 @@ router.get(
       setContentDisposition(res, `video_${uploadId}_gruenerator.mp4`);
       fs.createReadStream(parsed.outputPath).pipe(res);
     } catch (e: unknown) {
-      if (!res.headersSent)
-        res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+      if (!res.headersSent) res.status(500).json({ error: toUserFacingMessage(e) });
     }
   }
 );

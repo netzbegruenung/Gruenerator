@@ -31,12 +31,7 @@ import type { ChatGraphState } from '../types.js';
 const log = createLogger('ChatGraph:Compute');
 
 type ComputeOperation =
-  | 'text_metrics'
-  | 'arithmetic'
-  | 'unit_convert'
-  | 'date_diff'
-  | 'date_add'
-  | 'unsupported';
+  'text_metrics' | 'arithmetic' | 'unit_convert' | 'date_diff' | 'date_add' | 'unsupported';
 
 interface ComputePlan {
   operation: ComputeOperation;

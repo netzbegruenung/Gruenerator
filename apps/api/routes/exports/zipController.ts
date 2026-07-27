@@ -6,6 +6,7 @@
 import { ZipArchive } from 'archiver';
 import express, { type Request, type Response } from 'express';
 
+import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -111,7 +112,7 @@ router.post(
         return res.status(500).json({
           success: false,
           message: 'ZIP-Export fehlgeschlagen',
-          error: error.message,
+          error: toUserFacingMessage(error),
         });
       }
     }

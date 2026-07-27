@@ -1,6 +1,15 @@
 'use client';
 
-import { memo, useState } from 'react';
+import {
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  ResponsiveMenu,
+  ResponsiveMenuSection,
+  ResponsiveMenuItem,
+} from '@gruenerator/ui';
 import {
   BookOpen,
   Check,
@@ -17,29 +26,17 @@ import {
   Wand2,
   Zap,
 } from 'lucide-react';
-import {
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  ResponsiveMenu,
-  ResponsiveMenuSection,
-  ResponsiveMenuItem,
-} from '@gruenerator/ui';
-import { composerToolbarButtonClass } from '../../lib/utils';
-import { useChatDensity } from './chatDensityContext';
-import { useSkillFavoritesStore } from '../../stores/skillFavoritesStore';
-import { useUserProfileStore } from '../../stores/userProfileStore';
+import { memo, useState } from 'react';
+
 import {
   getAgentMentionables,
   getCustomAgentMentionables,
+  getTextformMentionables,
   getMcpServerMentionables,
   toolMentionables,
   notebookMentionables,
   type Mentionable,
 } from '../../lib/mentionables';
-import { useAgentStore } from '../../stores/chatStore';
 import {
   useScopedThreadMode,
   useScopedSelectedNotebookId,
@@ -49,7 +46,13 @@ import {
   useScopedSetCustomSystemPrompt,
   useScopedSetCustomRoleName,
 } from '../../lib/useScopedAgentState';
+import { composerToolbarButtonClass } from '../../lib/utils';
+import { useAgentStore } from '../../stores/chatStore';
+import { useSkillFavoritesStore } from '../../stores/skillFavoritesStore';
+import { useUserProfileStore } from '../../stores/userProfileStore';
 import { SkillLibraryModal } from '../skills/SkillLibraryModal';
+
+import { useChatDensity } from './chatDensityContext';
 
 export interface ComposerPreset {
   key: string;
@@ -92,11 +95,13 @@ export const PlusMenu = memo(function PlusMenu({
   const [menuOpen, setMenuOpen] = useState(false);
   const isCompact = useChatDensity() === 'compact';
   const customAgents = getCustomAgentMentionables();
+  // Own learned recipes were reachable only via typeahead before.
+  const textforms = getTextformMentionables();
   const favorites = useSkillFavoritesStore((s) => s.favorites);
   const quickSkills = getAgentMentionables().filter(
     (a) => a.isSystemDefault || favorites.includes(a.mention.toLowerCase())
   );
-  const allQuickSkills = [...quickSkills, ...customAgents];
+  const allQuickSkills = [...quickSkills, ...customAgents, ...textforms];
 
   const mcpConnectors = getMcpServerMentionables();
   const pinnedConnector = useAgentStore((s) => s.pinnedConnector);
@@ -241,7 +246,7 @@ export const PlusMenu = memo(function PlusMenu({
       <DropdownMenuSub>
         <DropdownMenuSubTrigger>
           <Wand2 className="h-3.5 w-3.5" />
-          Skills
+          Rezepte
         </DropdownMenuSubTrigger>
         <DropdownMenuSubContent className="max-h-[24rem] overflow-y-auto">
           {allQuickSkills.map((skill) => {
@@ -256,12 +261,12 @@ export const PlusMenu = memo(function PlusMenu({
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => setLibraryOpen(true)}>
             <Library className="h-3.5 w-3.5" />
-            Alle Skills durchsuchen...
+            Alle Rezepte durchsuchen…
           </DropdownMenuItem>
           {onOpenSkillsPage && (
             <DropdownMenuItem onClick={onOpenSkillsPage}>
               <ExternalLink className="h-3.5 w-3.5" />
-              Zur Skill-Bibliothek
+              Zur Rezept-Bibliothek
             </DropdownMenuItem>
           )}
         </DropdownMenuSubContent>
@@ -437,7 +442,7 @@ export const PlusMenu = memo(function PlusMenu({
         </ResponsiveMenuItem>
       </ResponsiveMenuSection>
 
-      <ResponsiveMenuSection title="Skills">
+      <ResponsiveMenuSection title="Rezepte">
         {allQuickSkills.map((skill) => {
           const Icon = skill.icon;
           return (

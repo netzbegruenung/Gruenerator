@@ -22,10 +22,10 @@
  * turn also crawl a page ("suche X und lies den ersten Treffer").
  *
  * Phase 2b: when a `loop` context is supplied (the live agentic path, absent in
- * unit tests) the classified intent's DOMAIN tool is mounted too — `summary`,
- * `bundestag` or `abgeordnetenwatch` (see `domainTools.ts`). These are
- * intent-scoped (only the routed intent's tool is added) to keep Mistral's
- * catalog lean; a general per-turn selector is Phase 3n.
+ * unit tests) the DOMAIN tools are mounted too — `summary`, `bundestag`,
+ * `abgeordnetenwatch`, `umfragen` (see `domainTools.ts`). They mount broadly
+ * (not gated on the classified intent) so the model can pick them even when the
+ * classifier routed to plain `search`; a general per-turn selector is Phase 3n.
  *
  * Loop-level concerns (guards, SSE cards, timeouts, truncation, step recording)
  * are layered on separately by `wrapToolsForLoop`.
@@ -48,12 +48,15 @@ import {
   makeBundestagTool,
   makeCreateBoardTool,
   makeCreateDocTool,
+  makeCreatePdfTool,
   makeCreateSharepicTool,
+  makeDocsSearchTool,
   makeImageTool,
   makeSummaryTool,
   makeUmfragenTool,
 } from './domainTools.js';
 import { makeEditArtifactTool } from './editorTools.js';
+import { makeReadPdfFormTool, makeFillPdfFormTool } from './pdfFormTools.js';
 import {
   makeBoardsTasksTool,
   makeDocumentsTool,
@@ -95,6 +98,10 @@ const CATALOG_TOOLS = new Set([
 /** Tools whose results feed the citation registry and get the lean `sources` shape. */
 const SOURCE_HARVEST_TOOLS = new Set(['gruenerator_search', 'web_search']);
 
+/** Snippet budget for `scrape_url`. A deliberate page read deserves far more
+ *  than a search hit's snippet — see the call site. */
+const CRAWL_SNIPPET_CHARS = 25_000;
+
 type ExecuteFn = (input: unknown, options: { toolCallId: string }) => Promise<unknown>;
 
 export interface ChatToolCatalog {
@@ -106,10 +113,9 @@ export function buildChatToolCatalog(params: {
   agentConfig: AgentConfig;
   sourceRegistry: SourceRegistry;
   /**
-   * Live-loop context. Present only on the agentic path; enables the intent-
-   * scoped domain tools (summary/bundestag/abgeordnetenwatch) which emit their
-   * own SSE and run existing ChatGraph nodes. Absent in unit tests → search
-   * family only.
+   * Live-loop context. Present only on the agentic path; enables the domain
+   * tools (summary/bundestag/abgeordnetenwatch) which run existing ChatGraph
+   * nodes. Absent in unit tests → search family only.
    */
   loop?: { sse: SSEWriter; state: ChatGraphState; req?: Request; threadId?: string | null };
 }): ChatToolCatalog {
@@ -211,7 +217,12 @@ NUTZE WENN:
           error: 'Konnte die Seite(n) nicht lesen (Timeout, Blockade oder kein Textinhalt).',
         };
       }
-      const sources = sourceRegistry.register(results);
+      // A crawl is an explicit "read THIS page" — the user named it or the model
+      // picked it out of search hits. Registering it at the ordinary snippet cap
+      // meant fetching a 20-80k-char article and showing the model its first few
+      // hundred characters, so "fass diesen Artikel zusammen" was answered from
+      // the headline. 25k matches LobeChat's crawl budget.
+      const sources = sourceRegistry.register(results, { snippetChars: CRAWL_SNIPPET_CHARS });
       return { resultCount: results.length, sources };
     },
   });
@@ -226,9 +237,16 @@ NUTZE WENN:
   if (loop) {
     const { sse, state } = loop;
     tools.summarize = makeSummaryTool({ sse, state });
-    tools.bundestag = makeBundestagTool({ sse, state, sourceRegistry });
+    tools.bundestag = makeBundestagTool({ state, sourceRegistry });
     tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
     tools.umfragen = makeUmfragenTool({ sourceRegistry });
+    // Documentation search (`hilfe`). Mounted broadly like the other domain
+    // tools — the classifier routinely labels an operating question `direct` or
+    // `search`, and gating on intent would hide the tool exactly then. In-process
+    // BM25, so an unnecessary mount costs nothing but a description.
+    if (state.enabledTools?.['hilfe'] !== false) {
+      tools.gruenerator_docs_search = makeDocsSearchTool({ sourceRegistry });
+    }
     // Product self-knowledge: what Grünerator itself offers (Grüneratoren,
     // Werkzeuge, MCP-Server, Wissenssammlungen). Same builder respondNode
     // injects when the meta regex matches — the loop inherits that system
@@ -306,6 +324,19 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     if (state.enabledTools?.['notebooks'] !== false) {
       tools.notebooks = makeNotebooksTool(personalCtx);
     }
+
+    // PDF form tools, mounted only when a PDF is actually in play: this turn's
+    // attachments, or one from an earlier turn (threadAttachments carries no
+    // bytes, but tells us a PDF exists — the tool resolves the bytes and reports
+    // honestly if the stored form turned out not to be fillable).
+    const hasPdfInThread =
+      (state.pdfFormAttachments?.length ?? 0) > 0 ||
+      (state.threadAttachments ?? []).some((a) => a.mimeType === 'application/pdf');
+    if (hasPdfInThread && state.enabledTools?.['pdf_form'] !== false) {
+      const pdfCtx = { state, sse, threadId: loop.threadId ?? null };
+      tools.read_pdf_form = makeReadPdfFormTool(pdfCtx);
+      tools.fill_pdf_form = makeFillPdfFormTool(pdfCtx);
+    }
     // Image is expensive + rate-limited and the classifier routes it reliably,
     // so it stays intent-scoped (and gated). image_edit stays single-pass.
     // 'agentic' (demoted) turns mount it ONLY on explicit image phrasing
@@ -344,13 +375,28 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
           sse,
           state,
           req: loop.req,
+          sourceRegistry,
         });
       } else if (kind === 'sheet' && enabled('create_sheet')) {
-        tools.create_sheet = makeCreateDocTool({ kind: 'sheet', sse, state, req: loop.req });
+        tools.create_sheet = makeCreateDocTool({
+          kind: 'sheet',
+          sse,
+          state,
+          req: loop.req,
+          sourceRegistry,
+        });
       } else if (kind === 'document' && enabled('create_document')) {
-        tools.create_document = makeCreateDocTool({ kind: 'document', sse, state, req: loop.req });
+        tools.create_document = makeCreateDocTool({
+          kind: 'document',
+          sse,
+          state,
+          req: loop.req,
+          sourceRegistry,
+        });
       } else if (kind === 'board' && enabled('create_board')) {
         tools.create_board = makeCreateBoardTool({ state, req: loop.req });
+      } else if (kind === 'pdf' && enabled('create_pdf')) {
+        tools.create_pdf = makeCreatePdfTool({ sse, state, req: loop.req, sourceRegistry });
       }
     }
   }

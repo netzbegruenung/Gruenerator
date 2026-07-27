@@ -4,8 +4,8 @@ import { ArrowUp, Square } from 'lucide-react';
 import { memo, useMemo, type ReactNode } from 'react';
 
 import { CitationProvider } from '../../context/CitationContext';
-import { cn } from '../../lib/utils';
 import { resolveCitations } from '../../lib/citationUtils';
+import { cn } from '../../lib/utils';
 import { MarkdownContent } from '../MarkdownContent';
 import { ProgressIndicator } from '../message-parts/ProgressIndicator';
 import { SearchResultsSection, type AdditionalSource } from '../message-parts/SearchResultsSection';

@@ -1,3 +1,4 @@
+import { chatBackgroundSchema, type ChatBackground } from '@gruenerator/contracts';
 import { type InferSelectModel } from 'drizzle-orm';
 
 import { type profiles } from '../../database/schema/core.js';
@@ -24,10 +25,17 @@ export function toUserProfile(row: ProfileSelectModel): UserProfile {
     ...(row.display_name != null && { display_name: row.display_name }),
     avatar_robot_id: row.avatar_robot_id,
     ...(row.chat_color != null && { chat_color: row.chat_color }),
+    ...(chatBackgroundSchema.safeParse(row.chat_background).success && {
+      chat_background: row.chat_background as ChatBackground,
+    }),
     beta_features: row.beta_features,
     user_defaults: row.user_defaults,
     ...(row.locale != null && { locale: row.locale as 'de-DE' | 'de-AT' }),
     default_startpage: row.default_startpage as 'chat' | 'arbeiten',
+    feedback_button: row.feedback_button as 'text' | 'icon' | 'off',
+    reduce_motion: row.reduce_motion,
+    reduce_transparency: row.reduce_transparency,
+    show_skip_link: row.show_skip_link,
     ...(row.custom_prompt != null && { custom_prompt: row.custom_prompt }),
 
     // Feature flags — all have DB defaults so they are non-null

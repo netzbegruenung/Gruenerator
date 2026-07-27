@@ -9,23 +9,25 @@
 
 import { SKILLS } from '@gruenerator/shared/agents';
 
+import { getRetrievalBudget } from '../../../../routes/chat/services/messageHelpers.js';
 import { getPrAgentInsightFragment } from '../../../../services/agents/prAgentInsightService.js';
 import {
   buildCompactProductIdentity,
   buildProductKnowledgeBlock,
   isProductMetaQuestion,
 } from '../../../../services/chat/productKnowledge.js';
+import { buildDocsPageMap } from '../../../../services/docs/docsIndex.js';
 import { localizePlaceholders } from '../../../../services/localization/index.js';
 import { type Locale } from '../../../../services/localization/types.js';
 import { getTextFormForInjection } from '../../../../services/user/textFormRepository.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { formatGermanDate } from '../../../../utils/stringUtils.js';
-import { INTERMEDIATE_MODEL } from '../llmConfig.js';
-import { isSourceAvailabilityError } from '../types.js';
+import { isSourceAvailabilityError, renderDegradationNotes } from '../types.js';
 
 import { type AnchorDescriptor, getActiveAnchors } from './anchorContext.js';
 import { buildCitableSources, type CitableSource } from './citableSources.js';
 import { lastUserText } from './classifierHeuristics.js';
+import { looksLikeDocsHelpQuestion } from './classifierParsing.js';
 import { deriveTextFormMention } from './textFormMention.js';
 
 import type {
@@ -43,8 +45,13 @@ const log = createLogger('ChatGraph:Respond');
  * These prevent large documents from consuming the entire token budget.
  */
 const ATTACHMENT_LIMITS = {
-  PER_DOCUMENT_CHARS: 8000, // ~2000 tokens per document
-  TOTAL_BUDGET_CHARS: 20000, // ~5000 tokens total for all attachments
+  /** Floor per document; the effective per-doc limit follows the total budget. */
+  PER_DOCUMENT_CHARS: 25000,
+  /** FLOOR for all attachments together — the real budget is derived from the
+   *  model window (getRetrievalBudget). The former fixed 20000 (~5k tokens) was
+   *  model-blind: a 262k lane got exactly as much of an uploaded document as a
+   *  32k one. */
+  TOTAL_BUDGET_CHARS: 20000,
 };
 
 /**
@@ -57,6 +64,11 @@ export function truncateDocument(
   limit: number = ATTACHMENT_LIMITS.PER_DOCUMENT_CHARS
 ): string {
   if (!text || text.length <= limit) return text;
+
+  log.warn(
+    `[respondNode:attachment] cap hit: ${text.length} → ${limit} chars ` +
+      `(${text.length - limit} dropped from the middle)`
+  );
 
   // Smart truncation: keep intro (60%) + conclusion (40%)
   const introLength = Math.floor(limit * 0.6);
@@ -75,8 +87,10 @@ export function truncateDocument(
  */
 function limitAttachmentContext(
   context: string,
+  contextWindowTokens?: number,
   budget: number = ATTACHMENT_LIMITS.TOTAL_BUDGET_CHARS
 ): string {
+  budget = getRetrievalBudget(contextWindowTokens, budget);
   if (!context || context.length <= budget) return context;
 
   // Parse documents by the ### header pattern
@@ -142,63 +156,20 @@ function limitAttachmentContext(
  * Distributed proportionally by relevance score across top results.
  * Increases to 6000 when crawled full content is available.
  */
-const SEARCH_CONTEXT_BUDGET = 4000;
-const SEARCH_CONTEXT_BUDGET_CRAWLED = 6000;
-const SEARCH_CONTEXT_BUDGET_DOCUMENTCHAT = 8000;
-const MAX_SEARCH_RESULTS = 8;
-
-const FINDINGS_CLEANING_PROMPT = `Du bist ein Forschungsassistent. Fasse die folgenden Suchergebnisse zu einem kohärenten Überblick zusammen, fokussiert auf den Recherche-Auftrag.
-
-Regeln:
-- Strukturierte Zusammenfassung (max 1500 Zeichen)
-- Verweise auf die Quellen beibehalten (Titel in **Fettschrift**)
-- Wichtige Fakten, Zahlen und Positionen hervorheben
-- Redundante Informationen zusammenfassen
-- Auf Deutsch antworten
-
-Antworte NUR mit der Zusammenfassung, ohne Einleitung.`;
-
-const MAX_CLEANED_FINDINGS_LENGTH = 2000;
-
 /**
- * Clean and summarize search results using Mistral-small.
- * Returns a coherent findings summary or null on failure.
+ * FLOORS, not ceilings. The effective budget is derived from the model's window
+ * via getRetrievalBudget — these values only guarantee a sane minimum when the
+ * window is unknown or tiny.
+ *
+ * They used to be the budget itself: absolute character counts, identical on a
+ * 32k and a 262k lane. On the big lane that meant retrieved research occupied
+ * ~0.9% of the window while the conversation history took ~68% — the material
+ * the turn actually needed was the most tightly rationed part of the request.
  */
-async function cleanFindings(state: ChatGraphState): Promise<string | null> {
-  const { searchResults, researchBrief, searchQuery, aiWorkerPool } = state;
-
-  const topResults = searchResults.slice(0, 6);
-  const resultsText = topResults
-    .map((r, i) => `[${i + 1}] **${r.title}**\n${r.content.slice(0, 500)}`)
-    .join('\n\n');
-
-  const brief = researchBrief || searchQuery || '';
-
-  const response = await aiWorkerPool.processRequest(
-    {
-      type: 'chat_clean_findings',
-      provider: INTERMEDIATE_MODEL.provider,
-      systemPrompt: FINDINGS_CLEANING_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: `Recherche-Auftrag: ${brief}\n\nSuchergebnisse:\n${resultsText}\n\nErstelle eine strukturierte Zusammenfassung.`,
-        },
-      ],
-      options: {
-        model: INTERMEDIATE_MODEL.model,
-        max_tokens: 600,
-        temperature: 0.2,
-      },
-    },
-    null
-  );
-
-  const cleaned = (response.content || '').trim();
-  if (!cleaned) return null;
-
-  return cleaned.slice(0, MAX_CLEANED_FINDINGS_LENGTH);
-}
+const SEARCH_CONTEXT_FLOOR = 4000;
+const SEARCH_CONTEXT_FLOOR_CRAWLED = 6000;
+const SEARCH_CONTEXT_FLOOR_DOCUMENTCHAT = 8000;
+const MAX_SEARCH_RESULTS = 8;
 
 /**
  * Format search results as context for the response generation.
@@ -280,19 +251,13 @@ export async function formatSearchContext(
     return '';
   }
 
-  // Complex research: try LLM-cleaned findings
-  if (state.complexity === 'complex' && state.researchBrief && state.aiWorkerPool) {
-    try {
-      const cleaned = await cleanFindings(state);
-      if (cleaned) {
-        log.info(`[Respond] Using cleaned findings (${cleaned.length} chars)`);
-        return `\n\n## RECHERCHE-ERGEBNISSE\n\n${cleaned}`;
-      }
-    } catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error);
-      log.error(`[Respond] Findings cleaning failed, falling back to budget truncation: ${errMsg}`);
-    }
-  }
+  // A `complex` + researchBrief turn used to be handed to an intermediate model
+  // that condensed 6 results (500 chars each) into <=2000 chars WITHOUT URLs,
+  // and that digest REPLACED the budget block below. It fired on exactly the
+  // deep-research turns where losing sources hurts most: fewer sources, no
+  // links, and [N] markers numbered against 6 items while the citation list had
+  // up to 20. The budget path handles the same turns with more material and
+  // intact provenance, so there is nothing left to special-case.
 
   // Default: budget-based truncation
   // Notebook-scoped searches get more results and higher budget for deeper answers
@@ -314,13 +279,14 @@ export async function formatSearchContext(
   const hasCrawledContent = sources.some((s) => (s.representative.content?.length ?? 0) > 500);
   // Multi-source results get the higher budget (mixed doc + web content)
   const isMultiSource = (state.searchSources?.length || 0) > 1;
-  const budget = isDocumentChat
-    ? SEARCH_CONTEXT_BUDGET_DOCUMENTCHAT
+  const floor = isDocumentChat
+    ? SEARCH_CONTEXT_FLOOR_DOCUMENTCHAT
     : isNotebookScoped
-      ? SEARCH_CONTEXT_BUDGET_DOCUMENTCHAT
+      ? SEARCH_CONTEXT_FLOOR_DOCUMENTCHAT
       : hasCrawledContent || isMultiSource
-        ? SEARCH_CONTEXT_BUDGET_CRAWLED
-        : SEARCH_CONTEXT_BUDGET;
+        ? SEARCH_CONTEXT_FLOOR_CRAWLED
+        : SEARCH_CONTEXT_FLOOR;
+  const budget = getRetrievalBudget(state.contextWindowTokens, floor);
 
   // Crawled sources get 2x weight in budget allocation
   const weightedRelevance = sources.map((s) => {
@@ -436,7 +402,7 @@ function formatCurrentDocument(state: ChatGraphState): string {
     return '';
   }
   const { title, markdown, selectionText } = state.currentDocument;
-  const limitedMarkdown = limitAttachmentContext(markdown);
+  const limitedMarkdown = limitAttachmentContext(markdown, state.contextWindowTokens);
   const titleLine = title ? `Titel: ${title}\n\n` : '';
   const selection = selectionText
     ? `\n\n### AUSGEWÄHLTER TEXT\n\n${selectionText.slice(0, 4000)}`
@@ -458,7 +424,7 @@ function formatAttachmentContext(state: ChatGraphState): string {
   }
 
   // Apply truncation limits to prevent context explosion
-  const limitedContext = limitAttachmentContext(state.attachmentContext);
+  const limitedContext = limitAttachmentContext(state.attachmentContext, state.contextWindowTokens);
 
   return `
 
@@ -510,7 +476,10 @@ Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}
  * Images carry a vision-generated description as their summary, letting
  * follow-up turns reason about an earlier image without re-sending the pixels.
  */
-function formatThreadAttachmentsContext(attachments: ThreadAttachment[]): string {
+function formatThreadAttachmentsContext(
+  attachments: ThreadAttachment[],
+  contextWindowTokens?: number
+): string {
   if (!attachments || attachments.length === 0) {
     return '';
   }
@@ -528,7 +497,7 @@ function formatThreadAttachmentsContext(attachments: ThreadAttachment[]): string
   if (docBlocks) {
     // Reuse the same per-document + total budget limiter as current-turn
     // attachments so re-injected full text can't blow the context window.
-    const docs = limitAttachmentContext(docBlocks);
+    const docs = limitAttachmentContext(docBlocks, contextWindowTokens);
     sections.push(`
 
 ## FRÜHERE DOKUMENTE IN DIESEM GESPRÄCH
@@ -650,6 +619,7 @@ Der*die Nutzer*in hat eine Tabelle (CSV/Excel/ODS) angehängt. Auf diesem Gerät
 - Gib KEINEN ausführbaren Code-Block aus und behaupte NIEMALS, dass Code automatisch ausgeführt wird.
 - Beantworte Rechenfragen (Summe, Durchschnitt, Minimum/Maximum, "pro Produkt/Kategorie", Anteile, Zählungen …) direkt aus den Tabellendaten im angehängten Dokumentkontext: rechne sorgfältig Schritt für Schritt und zeige den Rechenweg kurz und nachvollziehbar (relevante Werte und Zwischensummen nennen).
 - Sind die benötigten Zeilen oder Spalten im Kontext nicht vollständig enthalten, sag das ehrlich und nenne, welche Angaben fehlen — erfinde KEINE Zahlen.
+- Soll die Tabelle AUSGEFÜLLT werden (Werte eintragen, Vorlage befüllen), geht das auf diesem Gerät nicht: sag kurz, dass das Ausfüllen und der Download der fertigen Datei derzeit nur im Browser (Web-Version) funktioniert, und nenne stattdessen die Werte, die einzutragen wären.
 - Wurde bereits ein BERECHNUNGSERGEBNIS geliefert (siehe unten), übernimm dessen Werte EXAKT und rechne nicht neu.`;
   }
   return `
@@ -763,6 +733,8 @@ function formatPlatformContext(platform: string | undefined): string {
 
 Der*die Nutzer*in schreibt aus der Grünerator-App (Mobil). Dort sind einige Funktionen nicht verfügbar:
 - Sharepics erstellen/bearbeiten und Reel-Untertitel bearbeiten gehen nur in der Web-Version (gruenerator.eu im Browser)
+- PDF-Formulare ausfüllen geht auch hier; die fertige Datei wird über „Teilen" bereitgestellt (keinen Link ausgeben)
+- Excel-/CSV-Vorlagen ausfüllen geht NICHT in der App (dafür braucht es den Browser-Interpreter der Web-Version)
 - Wenn danach gefragt wird: kurz erklären, dass das in der App noch nicht geht, und auf die Web-Version verweisen
 - Biete diese Funktionen nicht von dir aus an`;
   }
@@ -1031,7 +1003,10 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   const summaryContextFormatted = formatSummaryContext(summaryContext);
   const computedResultFormatted = formatComputedResultContext(computedResult);
   const tabularComputeGuidance = formatTabularComputeGuidance(state);
-  const threadAttachmentsContext = formatThreadAttachmentsContext(threadAttachments);
+  const threadAttachmentsContext = formatThreadAttachmentsContext(
+    threadAttachments,
+    state.contextWindowTokens
+  );
   const memoryContextFormatted = formatMemoryContext(memoryContext);
   const chatHistoryFormatted = state.chatHistoryContext ? `\n\n${state.chatHistoryContext}` : '';
   const boardContextFormatted = formatBoardContext(boardContext);
@@ -1096,6 +1071,18 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
     log.debug('[Respond] product-knowledge block attached');
   }
 
+  // Documentation page map: every doc page with URL + lead paragraph (~2.5k
+  // tokens for the whole corpus). Attached on operating questions so the model
+  // can name AND link the right page even on turns that never reach the agentic
+  // loop — CHITCHAT_RE pins "hilfe"/"was kannst du" to the single-pass path,
+  // where `gruenerator_docs_search` does not exist. Complementary to that tool,
+  // not redundant: the map lists the pages, the tool retrieves section text.
+  const docsPageMap =
+    !isNeutralTurn && (intent === 'hilfe' || looksLikeDocsHelpQuestion(userQuestion))
+      ? buildDocsPageMap()
+      : '';
+  if (docsPageMap) log.debug('[Respond] docs page map attached');
+
   // Custom system prompt: replaces the entire agent prompt when set
   if (state.customSystemPrompt) {
     return `${state.customSystemPrompt}
@@ -1149,8 +1136,14 @@ Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsForm
     ? ''
     : await getPrAgentInsightFragment(agentConfig.identifier);
 
-  return `${systemRole}${skillFragment}${insightsFragment}
-Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${productKnowledge}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
+  // What broke in this turn, in the model's own words. A warning event is
+  // telemetry only — without this block the model happily presents a degraded
+  // turn as a complete one (answering an arithmetic question from memory after
+  // the compute step failed, for instance).
+  const degradationBlock = renderDegradationNotes(state.degradationNotes);
+
+  return `${systemRole}${skillFragment}${insightsFragment}${degradationBlock}
+Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${productKnowledge}${docsPageMap}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo

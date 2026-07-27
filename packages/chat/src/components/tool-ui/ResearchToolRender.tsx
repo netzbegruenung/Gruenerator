@@ -1,8 +1,9 @@
 'use client';
 
 import { BookOpen, Loader2 } from 'lucide-react';
-import { ResearchArtifactCard } from '../ResearchArtifactCard';
+
 import { getToolQuery } from '../../lib/toolResults';
+import { ResearchArtifactCard } from '../ResearchArtifactCard';
 
 interface ResearchToolRenderProps {
   args: Record<string, unknown>;

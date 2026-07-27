@@ -184,7 +184,6 @@ router.post(
           streamForResolution({
             resolution: res_,
             messages: aiMessages,
-            maxTokens: 20000,
             temperature: 0.3,
             sse,
             signal: abortController.signal,

@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
 import { useAui } from '@assistant-ui/react';
 import { buildChatThreadSlug, extractSlugSuffix } from '@gruenerator/shared/utils';
+import { useEffect, useRef } from 'react';
+
 import { getDefaultAgent } from '../lib/agents';
-import { useAgentStore } from '../stores/chatStore';
 import {
   getNotebookCollectionId,
   getThreadAgentId,
@@ -12,6 +12,7 @@ import {
   getThreadType,
   resolveThreadBySlugSuffix,
 } from '../runtime/GrueneratorThreadListAdapter';
+import { useAgentStore } from '../stores/chatStore';
 
 export interface ChatThreadRoutingProps {
   /** Current `:threadSlug` URL param (null on plain /chat). */
@@ -79,7 +80,7 @@ export function ChatThreadRouting({
           store.restoreSelectedAgent(targetAgent);
         }
         store.setChatViewMode('thread');
-        await aui.threads().switchToThread(remoteId);
+        aui.threads().switchToThread(remoteId);
         if (!cancelled) activatedSuffixRef.current = suffix;
       } catch (err) {
         console.warn('[ChatThreadRouting] Failed to open thread from URL:', err);

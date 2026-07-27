@@ -298,8 +298,7 @@ export class McpOAuthService {
       : undefined;
 
     const metadata = (await discoverAuthorizationServerMetadata(st.authorizationServerUrl)) as
-      | AsMetadata
-      | undefined;
+      AsMetadata | undefined;
 
     const tokens = await exchangeAuthorization(st.authorizationServerUrl, {
       metadata: metadata as never,
@@ -345,8 +344,7 @@ export class McpOAuthService {
         ? decryptCredential(server.oauth_client_secret_encrypted)
         : undefined;
       const metadata = (await discoverAuthorizationServerMetadata(oidc.issuer)) as
-        | AsMetadata
-        | undefined;
+        AsMetadata | undefined;
       const tokens = await refreshAuthorization(oidc.issuer, {
         metadata: metadata as never,
         clientInformation: {

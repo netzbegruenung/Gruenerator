@@ -9,6 +9,7 @@ import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { env } from './config/env.js';
 import { requireAdminToken } from './middleware/adminTokenMiddleware.js';
 import authMiddleware from './middleware/authMiddleware.js';
+import { deprecatedRoute } from './middleware/deprecatedRoute.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
 import { mountGroupsContractRouter } from './routes/auth/groups/groupsContract/index.js';
@@ -38,11 +39,9 @@ import { mountThreadsContractRouter } from './routes/chat/threadsContractRouter.
 import { mountDocsContractRouter } from './routes/docs/docsContractRouter.js';
 import { mountDocumentsContractRouter } from './routes/documents/documentsContractRouter.js';
 import { mountEmailContractRouter } from './routes/email/emailContractRouter.js';
-import etherpadRoute from './routes/etherpad/etherpadController.js';
 import { mountExportsContractRouter } from './routes/exports/exportsContractRouter.js';
 import exportDocumentsRouter from './routes/exports/index.js';
 import { mountFeedbackContractRouter } from './routes/feedback/feedbackContractRouter.js';
-import imagineCreateRoute from './routes/flux/imagineCreate.js';
 import imaginePureRoute from './routes/flux/imaginePure.js';
 import outpaintRoute from './routes/flux/outpaint.js';
 import { mountImagePickerContractRouter } from './routes/image/imagePickerContractRouter.js';
@@ -91,7 +90,6 @@ import { mountShareReadContractRouter } from './routes/share/shareReadContractRo
 import backgroundRemovalRoute from './routes/sharepic/backgroundRemoval.js';
 import editSessionRouter from './routes/sharepic/editSession.js';
 import promptRoute from './routes/sharepic/promptRoute.js';
-import aiImageModificationRouter from './routes/sharepic/sharepic_canvas/aiImageModification.js';
 import dreizeilenAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/dreizeilen_at_canvas.js';
 import infoAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/info_at_canvas.js';
 import zitatAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/zitat_at_canvas.js';
@@ -99,10 +97,8 @@ import zitatPureAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/zitat_p
 import campaignCanvasRoute from './routes/sharepic/sharepic_canvas/campaign_canvas.js';
 import { mountCampaignCanvasContractRouter } from './routes/sharepic/sharepic_canvas/campaignCanvasContractRouter.js';
 import sharepicDreizeilenCanvasRoute from './routes/sharepic/sharepic_canvas/dreizeilen_canvas.js';
-import imageUploadRouter from './routes/sharepic/sharepic_canvas/imageUploadRouter.js';
 import imagineLabelCanvasRoute from './routes/sharepic/sharepic_canvas/imagine_label_canvas.js';
 import infoSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/info_canvas.js';
-import processTextRouter from './routes/sharepic/sharepic_canvas/processTextRouter.js';
 import profilbildCanvasRoute from './routes/sharepic/sharepic_canvas/profilbild_canvas.js';
 import simpleCanvasRoute from './routes/sharepic/sharepic_canvas/simple_canvas.js';
 import sliderCanvasRoute from './routes/sharepic/sharepic_canvas/slider_canvas.js';
@@ -110,12 +106,12 @@ import veranstaltungCanvasRoute from './routes/sharepic/sharepic_canvas/veransta
 import zitatSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/zitat_canvas.js';
 import zitatPureSharepicCanvasRoute from './routes/sharepic/sharepic_canvas/zitat_pure_canvas.js';
 // Österreich (de-AT) canvas renderers
-import campaignGenerateRoute from './routes/sharepic/sharepic_claude/campaign_generate.js';
-import sharepicClaudeRoute, {
-  handleClaudeRequest,
+import {
+  handleSharepicTextRequest,
   handleSliderSmartRequest,
-} from './routes/sharepic/sharepic_claude/index.js';
-import { type SharepicRequest } from './routes/sharepic/sharepic_claude/types.js';
+  type SharepicType,
+} from './routes/sharepic/sharepic_text/index.js';
+import { type SharepicRequest } from './routes/sharepic/sharepic_text/types.js';
 import { mountSheetsContractRouter } from './routes/sheets/sheetsContractRouter.js';
 import { mountSitesContractRouter } from './routes/sites/sitesContractRouter.js';
 import subtitlerRouter from './routes/subtitler/processingController.js';
@@ -124,15 +120,16 @@ import subtitlerShareRouter from './routes/subtitler/shareController.js';
 import { mountSubtitlerContractRouter } from './routes/subtitler/subtitlerContractRouter.js';
 import {
   universalRouter,
-  textAdjustmentRouter as claudeTextAdjustmentRoute,
-  textImproverRouter as claudeTextImproverRoute,
-  subtitlesRouter as claudeSubtitlesRoute,
-  leichteSpracheRouter as leichteSpracheRoute,
+  textAdjustmentRouter,
+  leichteSpracheRouter,
 } from './routes/texte/index.js';
 import { mountTransferContractRouter } from './routes/transfer/transferContractRouter.js';
 import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractRouter.js';
 import { mountItemUsageContractRouter } from './routes/usage/itemUsageContractRouter.js';
+import { mountUserUsageContractRouter } from './routes/usage/userUsageContractRouter.js';
 import { recentValuesRouter } from './routes/user/index.js';
+import { mountLetterheadsContractRouter } from './routes/user/letterheadsContractRouter.js';
+import letterheadStationeryRouter from './routes/user/letterheadStationeryRouter.js';
 import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
 import { mountUserWebsitesContractRouter } from './routes/user/userWebsitesContractRouter.js';
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
@@ -148,8 +145,10 @@ import { mountRecentActivityContractRouter } from './routes/workplace/recentActi
 import recentActivityRouter from './routes/workplace/recentActivityController.js';
 import * as sharepicGenerationService from './services/chat/sharepicGenerationService.js';
 import * as tusServiceModule from './services/subtitler/tusService.js';
+import { toUserFacingMessage } from './utils/errors/index.js';
 import { createLogger } from './utils/logger.js';
 import { RouteStatsTracker } from './utils/routeStats.js';
+import { featureFromPath, runWithUsageContext } from './utils/usageContext.js';
 
 import type { Application, Request, Response, NextFunction, Router } from 'express';
 
@@ -279,6 +278,16 @@ export async function setupRoutes(app: Application): Promise<void> {
     });
   });
 
+  // Per-user consumption tracking context. Must run before every auth mount:
+  // the store keeps a reference to `req` and reads `req.user` lazily, once
+  // requireAuth has resolved it.
+  // originalUrl, not req.path: inside an `app.use('/api/*splat')` mount Express
+  // strips the mount prefix, so req.path would arrive without its `/api/...`.
+  app.use('/api/*splat', (req: Request, _res: Response, next: NextFunction) => {
+    const path = req.originalUrl.split('?')[0] ?? req.originalUrl;
+    runWithUsageContext({ req, feature: featureFromPath(path) }, next);
+  });
+
   // Dynamic imports for ES modules
   // Auth routes - now TypeScript with subdirectory structure
   const {
@@ -289,10 +298,9 @@ export async function setupRoutes(app: Application): Promise<void> {
     groupsRouter: _userGroupsRouter,
   } = await import('./routes/auth/index.js');
   const { default: documentsRouter } = await import('./routes/documents/index.js');
-  const { default: claudeSocialRoute } = await import('./routes/texte/social.js');
-  const { default: claudeAlttextRoute } = await import('./routes/texte/alttext.js');
-  const { default: claudeGrueneratorAskRoute } = await import('./routes/texte/gruenerator_ask.js');
-  const { default: claudeWebsiteRoute } = await import('./routes/texte/website.js');
+  const { default: socialRoute } = await import('./routes/texte/social.js');
+  const { default: alttextRoute } = await import('./routes/texte/alttext.js');
+  const { default: websiteRoute } = await import('./routes/texte/website.js');
   const { default: customPromptRoute } = await import('./routes/custom_prompts/custom_prompt.js');
   const { internalNotebookRouter } = await import('./routes/notebook/index.js');
   const { internalAgentInsightRouter } =
@@ -319,9 +327,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: docResolveRouter } = await import('./routes/docs/resolveController.js');
   const { default: ogDocsRouter } = await import('./routes/docs/ogController.js');
   const { default: usersRouter } = await import('./routes/users/userController.js');
-  const { default: smartTexteRouter } = await import('./routes/texte/smart.js');
   const { default: playgroundRouter } = await import('./routes/texte/playground.js');
-  const { default: contentTitleRouter } = await import('./routes/texte/contentTitleRoute.js');
   const { default: mem0Router } = await import('./routes/mem0/mem0Controller.js');
   const { default: emailRouter } = await import('./routes/email/emailController.js');
   const { default: videoRouter } = await import('./routes/video/index.js');
@@ -377,6 +383,16 @@ export async function setupRoutes(app: Application): Promise<void> {
 
   app.use('/api/auth/user-websites', requireAuth);
   mountUserWebsitesContractRouter(app);
+  // Letterheads (Absender for the PDF export). requireAuth at the prefix for
+  // the same reason as its siblings: a contract router does not inherit the
+  // later `app.use('/api/auth', ...)` middleware, and every route here reads or
+  // writes user-scoped data.
+  app.use('/api/auth/letterheads', requireAuth);
+  mountLetterheadsContractRouter(app);
+  // Eigenes Briefpapier: multipart, deshalb ein normaler Express-Router neben
+  // dem Contract statt durch ihn hindurch. Pfade kollidieren nicht — der
+  // Contract kennt kein /:id/stationery.
+  app.use('/api/auth', letterheadStationeryRouter);
   // Neutral "my groups" endpoint used by share dialogs across features. Must
   // be `.use`'d before the contract router mounts the GET /api/auth/groups/me
   // handler so the middleware actually runs.
@@ -427,21 +443,29 @@ export async function setupRoutes(app: Application): Promise<void> {
   // ordering). requireAuth at the prefix — returns user-specific data.
   app.use('/api/item-usage', requireAuth, publicReadLimiter);
   mountItemUsageContractRouter(app);
+  // ts-rest contract router for /api/usage (personal consumption statistics).
+  // requireAuth at the prefix — strictly the caller's own data.
+  app.use('/api/usage', requireAuth, publicReadLimiter);
+  mountUserUsageContractRouter(app);
   app.use('/api/antraege', requireAuth, standardMutationLimiter, antraegeRouter);
   app.use('/api/scanner', publicReadLimiter, scannerRouter);
   app.use('/api/protokoll', publicReadLimiter, protokollRouter);
 
-  app.use('/api/claude_social', aiGenerationLimiter, claudeSocialRoute);
-  app.use('/api/claude_alttext', aiGenerationLimiter, claudeAlttextRoute);
+  app.use('/api/texte/social', aiGenerationLimiter, socialRoute);
+  app.use('/api/texte/alttext', aiGenerationLimiter, alttextRoute);
   app.use('/api/vision', aiGenerationLimiter, requireAuth, visionRouter);
-  app.use('/api/claude_website', aiGenerationLimiter, claudeWebsiteRoute);
-  app.use('/api/leichte_sprache', aiGenerationLimiter, leichteSpracheRoute);
-  app.use('/api/claude_text_improver', aiGenerationLimiter, claudeTextImproverRoute);
+  app.use('/api/texte/website', aiGenerationLimiter, websiteRoute);
+  app.use('/api/texte/leichte-sprache', aiGenerationLimiter, leichteSpracheRouter);
   // ts-rest contract routers — mount before legacy routers.
   // Apply requireAuth on the path prefixes BEFORE the mount calls so
   // unauthenticated requests get a 401 instead of crashing the handlers
   // with `Cannot read properties of undefined (reading 'id')`.
   app.use('/api/chat-service/threads', requireAuth);
+  // compute-assets serves session-scoped files (generated PDFs, run_python
+  // figures/exports) and derives the path from req.user.id — but the
+  // /api/chat-service prefix below carries no auth middleware, so req.user was
+  // never populated and every download 401'd. Gate the prefix like /threads.
+  app.use('/api/chat-service/compute-assets', requireAuth);
   app.use('/api/chat-graph', requireAuth);
   // /api/chat-graph/stream is in CUSTOM_BODY_PARSER_PATHS (bodyParserConfig.ts)
   // so the global 10mb body parser is skipped. Install a 50mb parser scoped
@@ -457,16 +481,41 @@ export async function setupRoutes(app: Application): Promise<void> {
   // 'authenticated' (50/day) instead of the 'anonymous' 20/day fallback.
   // The tool stays public — anonymous access is still allowed (anonymous = 20).
   app.use('/api/gruen-o-mat', optionalAuth, gruenOMatRouter);
-  app.use('/api/dreizeilen_canvas', standardMutationLimiter, sharepicDreizeilenCanvasRoute);
-  app.use('/api/zitat_canvas', standardMutationLimiter, zitatSharepicCanvasRoute);
-  app.use('/api/zitat_pure_canvas', standardMutationLimiter, zitatPureSharepicCanvasRoute);
-  app.use('/api/info_canvas', standardMutationLimiter, infoSharepicCanvasRoute);
+  app.use(
+    '/api/dreizeilen_canvas',
+    standardMutationLimiter,
+    requireAuth,
+    sharepicDreizeilenCanvasRoute
+  );
+  app.use('/api/zitat_canvas', standardMutationLimiter, requireAuth, zitatSharepicCanvasRoute);
+  app.use(
+    '/api/zitat_pure_canvas',
+    standardMutationLimiter,
+    requireAuth,
+    zitatPureSharepicCanvasRoute
+  );
+  app.use('/api/info_canvas', standardMutationLimiter, requireAuth, infoSharepicCanvasRoute);
   // Österreich (de-AT) canvas renderers
-  app.use('/api/info_at_canvas', standardMutationLimiter, infoAtCanvasRoute);
-  app.use('/api/zitat_at_canvas', standardMutationLimiter, zitatAtCanvasRoute);
-  app.use('/api/zitat_pure_at_canvas', standardMutationLimiter, zitatPureAtCanvasRoute);
-  app.use('/api/dreizeilen_at_canvas', standardMutationLimiter, dreizeilenAtCanvasRoute);
-  app.use('/api/imagine_label_canvas', standardMutationLimiter, imagineLabelCanvasRoute);
+  app.use('/api/info_at_canvas', standardMutationLimiter, requireAuth, infoAtCanvasRoute);
+  app.use('/api/zitat_at_canvas', standardMutationLimiter, requireAuth, zitatAtCanvasRoute);
+  app.use(
+    '/api/zitat_pure_at_canvas',
+    standardMutationLimiter,
+    requireAuth,
+    zitatPureAtCanvasRoute
+  );
+  app.use(
+    '/api/dreizeilen_at_canvas',
+    standardMutationLimiter,
+    requireAuth,
+    dreizeilenAtCanvasRoute
+  );
+  app.use(
+    '/api/imagine_label_canvas',
+    standardMutationLimiter,
+    requireAuth,
+    imagineLabelCanvasRoute
+  );
   // Canvas AI suggestions: dedicated Redis-based rate limit bucket
   // (canvas_ai resource) plus the abuse-prevention IP limiter shared with
   // other AI routes. The IP limiter runs first; the Redis middleware
@@ -511,83 +560,83 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/canvas', requireAuth, authenticatedReadLimiter);
   mountCanvasContractRouter(app);
 
-  // ts-rest contract router — mount before legacy campaignCanvasRoute
+  // ts-rest contract router — mount before legacy campaignCanvasRoute.
+  // requireAuth läuft auf dem Prefix, weil createExpressEndpoints die Handler
+  // direkt auf `app` registriert und keine spätere Prefix-Middleware erbt.
+  app.use('/api/campaign_canvas', requireAuth);
   mountCampaignCanvasContractRouter(app);
   app.use('/api/campaign_canvas', standardMutationLimiter, campaignCanvasRoute);
-  app.use('/api/veranstaltung_canvas', standardMutationLimiter, veranstaltungCanvasRoute);
-  app.use('/api/profilbild_canvas', standardMutationLimiter, profilbildCanvasRoute);
-  app.use('/api/simple_canvas', standardMutationLimiter, simpleCanvasRoute);
-  app.use('/api/slider_canvas', standardMutationLimiter, sliderCanvasRoute);
-  app.use('/api/campaign_generate', aiGenerationLimiter, campaignGenerateRoute);
-  app.use('/api/dreizeilen_claude', aiGenerationLimiter, sharepicClaudeRoute);
-  app.use('/api/sharepic/edit-session', standardMutationLimiter, editSessionRouter);
+  app.use(
+    '/api/veranstaltung_canvas',
+    standardMutationLimiter,
+    requireAuth,
+    veranstaltungCanvasRoute
+  );
+  app.use('/api/profilbild_canvas', standardMutationLimiter, requireAuth, profilbildCanvasRoute);
+  app.use('/api/simple_canvas', standardMutationLimiter, requireAuth, simpleCanvasRoute);
+  app.use('/api/slider_canvas', standardMutationLimiter, requireAuth, sliderCanvasRoute);
+  // Sharepic-Textgenerierung: ein Handler für alle Typen. Muss VOR
+  // `app.use('/api/sharepic', promptRoute)` stehen, damit /text/:type matcht.
+  const SHAREPIC_TEXT_TYPES: readonly SharepicType[] = [
+    'dreizeilen',
+    'zitat',
+    'zitat_pure',
+    'info',
+    'veranstaltung',
+    'simple',
+    'slider',
+    'default',
+  ];
+
+  const runSharepicText = async (
+    type: SharepicType,
+    req: Request,
+    res: Response
+  ): Promise<void> => {
+    if (type === 'slider' && (req.body as { smartCount?: unknown })?.smartCount) {
+      await handleSliderSmartRequest(req as SharepicRequest, res);
+      return;
+    }
+    await handleSharepicTextRequest(req as SharepicRequest, res, type);
+  };
+
+  app.post(
+    '/api/sharepic/text/:type',
+    aiGenerationLimiter,
+    requireAuth,
+    async (req: Request<{ type: string }>, res: Response): Promise<void> => {
+      const type = SHAREPIC_TEXT_TYPES.find((t) => t === req.params.type);
+      if (!type) {
+        res.status(400).json({ error: `Unbekannter Sharepic-Texttyp: ${req.params.type}` });
+        return;
+      }
+      await runSharepicText(type, req, res);
+    }
+  );
+
+  // DEPRECATED — die flachen `*_claude`-Pfade bleiben nur, bis das naechste
+  // Mobile-Release und der Desktop-Rebuild draussen sind. Danach ersatzlos
+  // entfernen; kanonisch ist POST /api/sharepic/text/:type.
+  for (const type of SHAREPIC_TEXT_TYPES) {
+    app.post(
+      `/api/${type}_claude`,
+      deprecatedRoute(`/api/sharepic/text/${type}`),
+      aiGenerationLimiter,
+      requireAuth,
+      async (req: Request, res: Response): Promise<void> => {
+        await runSharepicText(type, req, res);
+      }
+    );
+  }
+
+  app.use('/api/sharepic/edit-session', standardMutationLimiter, requireAuth, editSessionRouter);
   app.use('/api/sharepic', aiGenerationLimiter, promptRoute);
   app.use('/api/background-removal', aiGenerationLimiter, requireAuth, backgroundRemovalRoute);
 
   app.post(
-    '/api/zitat_claude',
-    aiGenerationLimiter,
-    async (req: Request, res: Response): Promise<void> => {
-      await handleClaudeRequest(req as SharepicRequest, res, 'zitat');
-    }
-  );
-  app.post(
-    '/api/headline_claude',
-    aiGenerationLimiter,
-    async (req: Request, res: Response): Promise<void> => {
-      await handleClaudeRequest(req as SharepicRequest, res, 'headline');
-    }
-  );
-  app.post(
-    '/api/info_claude',
-    aiGenerationLimiter,
-    async (req: Request, res: Response): Promise<void> => {
-      await handleClaudeRequest(req as SharepicRequest, res, 'info');
-    }
-  );
-  app.post(
-    '/api/veranstaltung_claude',
-    aiGenerationLimiter,
-    async (req: Request, res: Response): Promise<void> => {
-      await handleClaudeRequest(req as SharepicRequest, res, 'veranstaltung');
-    }
-  );
-  app.post(
-    '/api/zitat_pure_claude',
-    aiGenerationLimiter,
-    async (req: Request, res: Response): Promise<void> => {
-      await handleClaudeRequest(req as SharepicRequest, res, 'zitat_pure');
-    }
-  );
-  app.post(
-    '/api/simple_claude',
-    aiGenerationLimiter,
-    async (req: Request, res: Response): Promise<void> => {
-      await handleClaudeRequest(req as SharepicRequest, res, 'simple');
-    }
-  );
-  app.post(
-    '/api/slider_claude',
-    aiGenerationLimiter,
-    async (req: Request, res: Response): Promise<void> => {
-      if ((req.body as { smartCount?: unknown })?.smartCount) {
-        await handleSliderSmartRequest(req as SharepicRequest, res);
-      } else {
-        await handleClaudeRequest(req as SharepicRequest, res, 'slider');
-      }
-    }
-  );
-  app.post(
-    '/api/default_claude',
-    aiGenerationLimiter,
-    async (req: Request, res: Response): Promise<void> => {
-      await handleClaudeRequest(req as SharepicRequest, res, 'default');
-    }
-  );
-
-  app.post(
     '/api/generate-sharepic',
     aiGenerationLimiter,
+    requireAuth,
     async (req: Request, res: Response): Promise<void> => {
       try {
         const { type, ...requestBody } = req.body as { type?: string; [key: string]: unknown };
@@ -604,23 +653,59 @@ export async function setupRoutes(app: Application): Promise<void> {
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
         console.error('[UnifiedSharepic] Error:', err);
-        res
-          .status(500)
-          .json({ success: false, error: err.message || 'Failed to generate sharepic' });
+        res.status(500).json({
+          success: false,
+          error: toUserFacingMessage(err, 'Das Sharepic konnte nicht erstellt werden.'),
+        });
       }
     }
   );
 
-  app.use('/api/ai-image-modification', aiGenerationLimiter, aiImageModificationRouter);
-  app.use('/api/imageupload', standardMutationLimiter, imageUploadRouter);
-  app.use('/api/processText', aiGenerationLimiter, processTextRouter);
-  app.use('/api/claude_text_adjustment', aiGenerationLimiter, claudeTextAdjustmentRoute);
-  app.use('/api/etherpad', standardMutationLimiter, etherpadRoute);
-  app.use('/api/claude_universal', aiGenerationLimiter, universalRouter);
-  app.use('/api/texte/smart', aiGenerationLimiter, smartTexteRouter);
+  app.use('/api/texte/adjustment', aiGenerationLimiter, requireAuth, textAdjustmentRouter);
+  app.use('/api/texte/universal', aiGenerationLimiter, requireAuth, universalRouter);
+
+  // DEPRECATED — flache `claude_*`-Pfade der ersten Generatoren-Generation.
+  // Bleiben nur, bis das naechste Mobile-Release und der Desktop-Rebuild
+  // draussen sind; danach ersatzlos entfernen.
+  app.use(
+    '/api/claude_social',
+    deprecatedRoute('/api/texte/social'),
+    aiGenerationLimiter,
+    socialRoute
+  );
+  app.use(
+    '/api/claude_alttext',
+    deprecatedRoute('/api/texte/alttext'),
+    aiGenerationLimiter,
+    alttextRoute
+  );
+  app.use(
+    '/api/claude_website',
+    deprecatedRoute('/api/texte/website'),
+    aiGenerationLimiter,
+    websiteRoute
+  );
+  app.use(
+    '/api/leichte_sprache',
+    deprecatedRoute('/api/texte/leichte-sprache'),
+    aiGenerationLimiter,
+    leichteSpracheRouter
+  );
+  app.use(
+    '/api/claude_text_adjustment',
+    deprecatedRoute('/api/texte/adjustment'),
+    aiGenerationLimiter,
+    requireAuth,
+    textAdjustmentRouter
+  );
+  app.use(
+    '/api/claude_universal',
+    deprecatedRoute('/api/texte/universal'),
+    aiGenerationLimiter,
+    requireAuth,
+    universalRouter
+  );
   app.use('/api/texte/playground', requireAuth, aiGenerationLimiter, playgroundRouter);
-  app.use('/api/generate-content-title', aiGenerationLimiter, contentTitleRouter);
-  app.use('/api/claude_gruenerator_ask', aiGenerationLimiter, claudeGrueneratorAskRoute);
   app.use('/api/custom_prompt', aiGenerationLimiter, customPromptRoute);
   app.use('/api/auth/custom_prompt', aiGenerationLimiter, customPromptRoute);
   // ts-rest contract router for user-created agents — replaces the legacy
@@ -638,7 +723,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   // EXPERIMENTAL: recurring agent tasks. Scheduler worker lives in server.ts.
   app.use('/api/recurring-tasks', requireAuth, authenticatedReadLimiter);
   mountRecurringTasksContractRouter(app);
-  app.use('/api/claude/generate-short-subtitles', aiGenerationLimiter, claudeSubtitlesRoute);
   // Auth + rate-limiting must run before the contract mount — createExpressEndpoints
   // registers handlers directly on the app, bypassing the legacy prefix middleware.
   // Same pattern as /api/transfer below.
@@ -770,8 +854,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   // searchContractRouter exists but is intentionally NOT mounted yet — the
   // pilot contract doesn't model the SSE `?stream=true` mode that the frontend
   // depends on. Activate once streaming is added to the contract.
-  app.use('/api/search', publicReadLimiter, searchRouter);
-  app.use('/api/analyze', publicReadLimiter, searchRouter);
+  app.use('/api/search', requireAuth, publicReadLimiter, searchRouter);
+  app.use('/api/analyze', requireAuth, publicReadLimiter, searchRouter);
   // Unified "search everything" over the caller's own content — unrelated to
   // the web search above. requireAuth runs on the prefix because
   // createExpressEndpoints registers handlers directly on the app.
@@ -784,7 +868,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   // ts-rest contract router — mount before legacy unsplashRouter
   mountUnsplashContractRouter(app);
   app.use('/api/unsplash', publicReadLimiter, unsplashRouter);
-  app.use('/api/web-search', publicReadLimiter, webSearchRouter);
+  app.use('/api/web-search', requireAuth, publicReadLimiter, webSearchRouter);
   // Apply auth + rate limiting on the prefix BEFORE mounting the ts-rest
   // router (createExpressEndpoints registers routes directly on `app`, so the
   // prefix middleware must be in place first to gate them).
@@ -801,10 +885,14 @@ export async function setupRoutes(app: Application): Promise<void> {
     next();
   });
   app.use('/api/releases', publicReadLimiter, releasesRouter);
-  // ts-rest contract router — mount before legacy exports router
+  // Auth + rate limiting go on the prefix BEFORE the ts-rest router, because
+  // createExpressEndpoints registers directly on `app`: mounted first, it
+  // matched /api/exports/pdf and /api/exports/docx before the requireAuth
+  // below ever ran, leaving both generators open to unauthenticated callers.
+  app.use('/api/exports', requireAuth, authenticatedReadLimiter);
   mountExportsContractRouter(app);
-  app.use('/api/exports', requireAuth, authenticatedReadLimiter, exportDocumentsRouter);
-  app.use('/api/markdown', publicReadLimiter, markdownRouter);
+  app.use('/api/exports', exportDocumentsRouter);
+  app.use('/api/markdown', requireAuth, publicReadLimiter, markdownRouter);
   app.use('/api/database', publicReadLimiter, databaseTestRouter);
 
   if (snapshottingRouter) {
@@ -840,7 +928,7 @@ export async function setupRoutes(app: Application): Promise<void> {
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
         log.error(`Route stats fetch failed: ${err.message}`);
-        res.status(500).json({ success: false, error: err.message });
+        res.status(500).json({ success: false, error: toUserFacingMessage(err) });
       }
     }
   );
@@ -873,7 +961,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   // handlers directly on the app.
   app.use('/api/image-edit', requireAuth, aiGenerationLimiter);
   mountImageEditContractRouter(app);
-  app.use('/api/imagine/create', aiGenerationLimiter, imagineCreateRoute);
   app.use('/api/imagine/pure', aiGenerationLimiter, imaginePureRoute);
   app.use('/api/imagine/outpaint', aiGenerationLimiter, outpaintRoute);
 

@@ -105,9 +105,11 @@ export interface ToolMeta {
 const TOOL_METADATA: Record<string, ToolMeta> = {
   search_sources: { label: 'Quellen', iconKey: 'search' },
   gruenerator_search: { label: 'Dokumente', iconKey: 'search' },
+  gruenerator_docs_search: { label: 'Anleitungen', iconKey: 'book' },
   gruenerator_person_search: { label: 'Person', iconKey: 'user' },
   gruenerator_examples_search: { label: 'Beispiele', iconKey: 'image' },
   web_search: { label: 'Websuche', iconKey: 'globe' },
+  bundestag: { label: 'Bundestag (DIP)', iconKey: 'book' },
   research: { label: 'Deep Research', iconKey: 'book' },
   generate_image: { label: 'Bild', iconKey: 'sparkles' },
   scrape_url: { label: 'URL', iconKey: 'external-link' },
@@ -128,6 +130,8 @@ const TOOL_METADATA: Record<string, ToolMeta> = {
   groups: { label: 'Gruppen', iconKey: 'user' },
   media: { label: 'Medien', iconKey: 'image' },
   notebooks: { label: 'Notizbücher', iconKey: 'book' },
+  read_pdf_form: { label: 'Formularfelder', iconKey: 'file' },
+  fill_pdf_form: { label: 'Formular ausfüllen', iconKey: 'file' },
 };
 
 export function getToolMeta(toolName: string): ToolMeta {

@@ -2,14 +2,17 @@ import { create } from 'zustand';
 
 export type SettingsTab =
   | 'allgemein'
-  | 'konto'
+  | 'barrierefreiheit'
+  | 'friends'
   | 'personalisierung'
+  | 'briefe'
   | 'texte-anlernen'
   | 'erinnerungen'
   | 'benachrichtigungen'
   | 'wolke'
   | 'websites'
   | 'konnektoren'
+  | 'nutzung'
   | 'support';
 
 interface SettingsDialogState {
