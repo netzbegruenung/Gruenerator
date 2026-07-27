@@ -306,6 +306,12 @@ export interface AgenticDecisionInput {
   /** A fill ask ("füll das aus") on a thread that has a PDF. Precomputed by the
    *  caller (isSheetFillRequest) so this module stays import-free. */
   isPdfFillRequest: boolean;
+  /** The classifier answered `needsResearch: true` and then picked `direct`.
+   *  Rescues the turn into the loop even when it isn't shaped like a question —
+   *  the `direct` rescue below keys on phrasing, and the failing turns were
+   *  statements ("Erklär mir die aktuellen Vorwürfe gegen …") that carry a real
+   *  retrieval need without a single question word. */
+  classifierContradictedResearch?: boolean;
 }
 
 /**
@@ -322,7 +328,8 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   // the PDF form tools only exist inside the loop.
   const inLoopSet =
     p.agenticIntents.has(p.intent) ||
-    (p.intent === 'direct' && looksLikeToolableQuestion(p.lastUserText)) ||
+    (p.intent === 'direct' &&
+      (looksLikeToolableQuestion(p.lastUserText) || p.classifierContradictedResearch === true)) ||
     p.isPdfFillRequest ||
     compoundGen;
   const secondaryAllowed =
