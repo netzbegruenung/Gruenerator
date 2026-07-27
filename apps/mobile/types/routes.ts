@@ -33,7 +33,7 @@ export type AppRoute =
   | '/(focused)/chat-conversation'
   | '/(focused)/notebook-detail'
   | '/(focused)/agents'
-  | '/(focused)/gruppen'
+  | '/(focused)/projekte'
   | '/(focused)/bild-editor'
   | '/(focused)/image-studio-create/image'
   | '/(focused)/image-studio-create/style'
