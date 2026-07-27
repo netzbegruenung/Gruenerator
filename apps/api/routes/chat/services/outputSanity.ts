@@ -88,3 +88,26 @@ export function defersToSearchDespiteSources(
   if (opts.sources === 0 || opts.toolCalls === 0) return false;
   return DEFERS_TO_SEARCH_RE.test(text);
 }
+
+/**
+ * Whether an answer looks CUT OFF rather than finished: a completed German
+ * answer ends on punctuation, so a trailing letter or digit is the signature of
+ * a stream that stopped mid-sentence.
+ *
+ * The point of this check is WHERE it runs. The identical test also runs in the
+ * chat client (`parseSSEStream`, search for "looksCutOff") over the text the
+ * browser actually assembled, so the two logs together localise a truncation
+ * report without a repro:
+ *
+ *   server suspicious + client suspicious → generation stopped early
+ *                                            (pair it with finishReason)
+ *   server clean      + client suspicious → the tail was lost after the server
+ *                                            handed it over (transport/render)
+ *
+ * The live case that motivated this was the second kind — 513 chars generated,
+ * 414 on screen — and it cost an entire investigation to establish, because
+ * neither side said anything at all.
+ */
+export function looksCutOff(text: string): boolean {
+  return /[\p{L}\p{N}]$/u.test(text.trimEnd());
+}

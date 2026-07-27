@@ -1312,6 +1312,24 @@ export async function* parseSSEStream(
     }
   }
 
+  // Client half of the truncation cross-check. The server runs the identical
+  // test on the text it generated (`looksCutOff`, apps/api/.../outputSanity.ts)
+  // and logs its own char count as `chars=N`. Comparing the two numbers is what
+  // localises a "the answer just stops" report without a repro:
+  //   same count   → the model stopped early (check finishReason in the backend)
+  //   fewer here   → the tail was lost between server and screen
+  // Only warns on the suspicious shape, so a normal turn stays quiet.
+  const assembled = orderedContent
+    .filter((el): el is TextSegment => el.type === 'text')
+    .map((el) => el.text)
+    .join('');
+  if (assembled.length > 0 && /[\p{L}\p{N}]$/u.test(assembled.trimEnd())) {
+    console.warn(
+      `[GrueneratorModelAdapter] answer ends mid-sentence after ${assembled.length} chars ` +
+        `(compare the backend's "chars=" line) — tail: ${JSON.stringify(assembled.slice(-60))}`
+    );
+  }
+
   const finalResult = buildResult();
   outcome.lastResult = finalResult;
   yield finalResult;
