@@ -65,6 +65,14 @@ export default function NotebooksScreen() {
     void loadFavourites();
   }, [loadFavourites]);
 
+  // Hoisted out of the five section props below: an inline arrow there is a new
+  // function on every render, which would defeat the tiles' `memo` and re-render
+  // all 19 covers whenever anything on this screen changed.
+  const handleToggleFavourite = useCallback(
+    (nb: MobileNotebookEntry) => toggleFavourite(nb.id),
+    [toggleFavourite]
+  );
+
   const bundesebene = useMemo(() => getMobileNotebooksByCategory('bundesebene', locale), [locale]);
   const landesebene = useMemo(() => getMobileNotebooksByCategory('landesebene', locale), [locale]);
   const weitere = useMemo(() => getMobileNotebooksByCategory('weitere', locale), [locale]);
@@ -205,31 +213,31 @@ export default function NotebooksScreen() {
                 title="Favoriten"
                 notebooks={favouriteNotebooks}
                 onNotebookPress={handleNotebookPress}
-                onNotebookLongPress={(nb) => toggleFavourite(nb.id)}
+                onNotebookLongPress={handleToggleFavourite}
               />
               <NotebookSection
                 title="Bundesebene"
                 notebooks={bundesebene}
                 onNotebookPress={handleNotebookPress}
-                onNotebookLongPress={(nb) => toggleFavourite(nb.id)}
+                onNotebookLongPress={handleToggleFavourite}
               />
               <NotebookSection
                 title="Landesebene"
                 notebooks={landesebene}
                 onNotebookPress={handleNotebookPress}
-                onNotebookLongPress={(nb) => toggleFavourite(nb.id)}
+                onNotebookLongPress={handleToggleFavourite}
               />
               <NotebookSection
                 title="Weitere"
                 notebooks={weitere}
                 onNotebookPress={handleNotebookPress}
-                onNotebookLongPress={(nb) => toggleFavourite(nb.id)}
+                onNotebookLongPress={handleToggleFavourite}
               />
               <NotebookSection
                 title="Österreich"
                 notebooks={oesterreich}
                 onNotebookPress={handleNotebookPress}
-                onNotebookLongPress={(nb) => toggleFavourite(nb.id)}
+                onNotebookLongPress={handleToggleFavourite}
               />
 
               <View style={styles.section}>

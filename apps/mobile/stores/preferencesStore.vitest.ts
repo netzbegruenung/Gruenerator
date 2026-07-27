@@ -16,7 +16,7 @@ import { usePreferencesStore } from './preferencesStore';
 beforeEach(() => {
   __resetAsyncStorage();
   vi.clearAllMocks();
-  usePreferencesStore.setState({ isLoading: true, themeMode: 'system' });
+  usePreferencesStore.setState({ isLoading: true, themeMode: 'system', performanceMode: false });
 });
 
 describe('setThemeMode', () => {
@@ -46,6 +46,22 @@ describe('setThemeMode', () => {
   });
 });
 
+describe('setPerformanceMode', () => {
+  it.each([true, false])('persists %s as a string AsyncStorage can round-trip', async (value) => {
+    await usePreferencesStore.getState().setPerformanceMode(value);
+
+    expect(usePreferencesStore.getState().performanceMode).toBe(value);
+    expect(await AsyncStorage.getItem('performanceMode')).toBe(String(value));
+  });
+
+  it('still applies the switch when persisting fails', async () => {
+    vi.spyOn(AsyncStorage, 'setItem').mockRejectedValueOnce(new Error('disk full'));
+
+    await expect(usePreferencesStore.getState().setPerformanceMode(true)).resolves.toBeUndefined();
+    expect(usePreferencesStore.getState().performanceMode).toBe(true);
+  });
+});
+
 describe('loadPreferences', () => {
   it.each(['light', 'dark', 'system'] as const)('restores a stored %s', async (mode) => {
     await AsyncStorage.setItem('themeMode', mode);
@@ -71,6 +87,36 @@ describe('loadPreferences', () => {
 
     expect(usePreferencesStore.getState().themeMode).toBe('system');
     expect(Appearance.setColorScheme).toHaveBeenCalledWith('unspecified');
+  });
+
+  it('restores a stored performance mode', async () => {
+    await AsyncStorage.setItem('performanceMode', 'true');
+
+    await usePreferencesStore.getState().loadPreferences();
+
+    expect(usePreferencesStore.getState().performanceMode).toBe(true);
+  });
+
+  it.each([undefined, 'false', '1', 'yes'])('treats %s as performance mode off', async (stored) => {
+    // Only the exact string 'true' counts. Anything else — nothing stored, an
+    // older build's value, a hand-edited store — must leave the blur on rather
+    // than silently changing how the app looks.
+    if (stored !== undefined) await AsyncStorage.setItem('performanceMode', stored);
+
+    await usePreferencesStore.getState().loadPreferences();
+
+    expect(usePreferencesStore.getState().performanceMode).toBe(false);
+  });
+
+  it('keeps the theme when only the performance key is set', async () => {
+    // The two keys are read together; neither may swallow the other.
+    await AsyncStorage.setItem('themeMode', 'dark');
+    await AsyncStorage.setItem('performanceMode', 'true');
+
+    await usePreferencesStore.getState().loadPreferences();
+
+    expect(usePreferencesStore.getState().themeMode).toBe('dark');
+    expect(usePreferencesStore.getState().performanceMode).toBe(true);
   });
 
   it('always clears the loading flag, even when storage throws', async () => {

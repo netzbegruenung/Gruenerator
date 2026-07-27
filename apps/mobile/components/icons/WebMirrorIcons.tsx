@@ -44,6 +44,33 @@ export function DetectiveIcon({ color, size }: IconProps) {
   );
 }
 
+/**
+ * react-icons/hi → HiOutlineMenuAlt2, the drawer button's hamburger.
+ *
+ * A stroked glyph, not a filled one — Heroicons' outline set draws its lines
+ * rather than describing their outlines — which is why this one carries stroke
+ * props instead of a `fill`, and why its path is three short segments.
+ *
+ * Its shortened bottom stroke is the point. Ionicons' `menu` draws three equal
+ * bars, 2.49dp thick and 5.33dp apart as measured on the S24; at size 26 this
+ * one draws 2.17dp thick and 6.5dp apart, with the last line at 7/16 the width.
+ * Thinner, airier and tapered — the shape Claude's Android app wears (1.42dp /
+ * 7.11dp, with a half-length bottom bar), and the glyph web already renders.
+ */
+export function MenuAlt2Icon({ color, size }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M4 6h16M4 12h16M4 18h7"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 // ── Menu glyphs ────────────────────────────────────────────────────────────
 // The icons the drawer and the tool grids wear, mirrored from the exact
 // react-icons glyphs apps/web renders. Which tool gets which is decided once,

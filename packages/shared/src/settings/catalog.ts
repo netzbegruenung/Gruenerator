@@ -24,10 +24,9 @@
 export type SettingsTab =
   | 'allgemein'
   | 'barrierefreiheit'
-  | 'konto'
   | 'friends'
   | 'personalisierung'
-  | 'briefkoepfe'
+  | 'briefe'
   | 'texte-anlernen'
   | 'erinnerungen'
   | 'benachrichtigungen'
@@ -59,6 +58,18 @@ export interface SettingsCatalogEntry {
 const BOTH: readonly SettingsPlatform[] = ['web', 'mobile'];
 
 export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
+  {
+    // Web-only: the app dropped its Konto overview. Rows the user cannot change,
+    // restating what the Grüner Login already shows, earned no space on a
+    // surface built for reading state at a glance. Deleting an account is
+    // irreversible and takes a typed confirmation, so it stays on the surface
+    // the user sits down at; mobile points at it in prose.
+    id: 'allgemein.konto',
+    tab: 'allgemein',
+    title: 'Konto',
+    description:
+      'Name, Benutzername und E-Mail stammen aus deinem Grünen Login und werden dort geändert',
+  },
   {
     id: 'allgemein.aussehen',
     tab: 'allgemein',
@@ -113,6 +124,18 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     platforms: BOTH,
   },
   {
+    // Mobile-only, and device-local rather than a profile field: it is about
+    // what this handset can afford, not about how the person wants to be shown
+    // things. iOS has no blur to switch off (the tab bar is a real UITabBar),
+    // so the row does not appear there either.
+    id: 'barrierefreiheit.leistung',
+    tab: 'barrierefreiheit',
+    title: 'Leistungsmodus',
+    description:
+      'Schaltet den Blur hinter der Tab-Leiste ab. Hilft auf älteren Geräten, gilt nur auf diesem',
+    platforms: ['mobile'],
+  },
+  {
     // Web-only on purpose: the skip link exists for keyboard tabbing, which has
     // no counterpart on a touch screen.
     id: 'barrierefreiheit.sprunglink',
@@ -131,26 +154,6 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     title: 'Einführungs-Touren zurücksetzen',
     description:
       'Zeigt die Touren durch Workplace, Dokumente, Tabellen, Präsentationen und das Sharepic-Studio beim nächsten Öffnen wieder an.',
-  },
-  // No descriptions: these three are read-only mirrors of the Grüner Login and
-  // sit under the tab's own explanation. Adding a line to each would repeat it
-  // three times in a row.
-  //
-  // Web-only: the app dropped its Konto overview. Three rows the user cannot
-  // change, restating what the Grüner Login already shows, earned no space on a
-  // surface built for reading state at a glance.
-  { id: 'konto.anzeigename', tab: 'konto', title: 'Anzeigename' },
-  { id: 'konto.benutzername', tab: 'konto', title: 'Benutzername' },
-  { id: 'konto.email', tab: 'konto', title: 'E-Mail' },
-  {
-    // Web-only: deleting an account is irreversible and takes a typed
-    // confirmation, so it stays on the surface the user sits down at. Mobile
-    // points at it in prose rather than offering the row.
-    id: 'konto.loeschen',
-    tab: 'konto',
-    title: 'Konto löschen',
-    description:
-      'Entfernt Profil, gespeicherte Inhalte und den Zugang endgültig — das lässt sich nicht rückgängig machen.',
   },
   {
     id: 'friends.avatar',

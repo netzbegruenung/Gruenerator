@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../hooks/useTheme';
 import { colors, spacing, BODY_FONT } from '../../theme';
+import { MenuAlt2Icon } from '../icons/WebMirrorIcons';
 
 import type { Theme } from '../../theme/colors';
 
@@ -40,7 +41,7 @@ export const ChatDrawerHeader = memo(function ChatDrawerHeader({
         style={styles.menuButton}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <Ionicons name="menu" size={26} color={theme.text} />
+        <MenuAlt2Icon size={26} color={theme.text} />
       </Pressable>
 
       <Text style={[styles.title, { color: theme.text }]}>Chat</Text>
