@@ -17,6 +17,9 @@ export const Appearance = {
 
 export const Platform = {
   OS: 'android' as 'android' | 'ios' | 'web',
+  // Android's native build constants. Mutable so a test can stand the module on
+  // a phone or on an emulator — `devAuth` tells the two apart by these.
+  constants: {} as { Fingerprint?: string; Model?: string; Brand?: string },
   select: <T>(spec: { android?: T; ios?: T; native?: T; default?: T }): T | undefined =>
     spec.android ?? spec.native ?? spec.default,
 };
