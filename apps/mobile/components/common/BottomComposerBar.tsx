@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { spacing } from '../../theme';
 import { FLOATING_TAB_BAR_HEIGHT, SCREEN_EDGE } from '../../theme/layout';
 
-import { Composer } from './Composer';
+import { Composer, type ComposerProps } from './Composer';
 
 /**
  * Bottom-pinned, keyboard-aware composer bar (ChatGPT-style) for the tab screens.
@@ -19,6 +19,8 @@ export function BottomComposerBar({
   placeholder,
   onSend,
   onSettings,
+  showActionSheet,
+  onAttach,
   keyboardVerticalOffset = 0,
   autoFocus = false,
   onDismissEmpty,
@@ -27,6 +29,8 @@ export function BottomComposerBar({
   placeholder?: string;
   onSend: (text: string) => void;
   onSettings?: () => void;
+  showActionSheet?: boolean;
+  onAttach?: ComposerProps['onAttach'];
   keyboardVerticalOffset?: number;
   autoFocus?: boolean;
   onDismissEmpty?: () => void;
@@ -74,6 +78,8 @@ export function BottomComposerBar({
           placeholder={placeholder}
           onSubmit={onSend}
           onSettings={onSettings}
+          showActionSheet={showActionSheet}
+          onAttach={onAttach}
           autoFocus={autoFocus}
           onDismissEmpty={onDismissEmpty}
           onClose={onClose}

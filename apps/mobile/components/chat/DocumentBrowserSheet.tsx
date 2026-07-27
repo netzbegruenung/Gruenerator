@@ -21,12 +21,17 @@ import { colors, spacing, borderRadius } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
 
 import type { Theme } from '../../theme/colors';
-import type { DocumentSearchResult, NotebookCollectionItem } from '@gruenerator/chat';
+import type {
+  DocumentMention,
+  DocumentSearchResult,
+  NotebookCollectionItem,
+} from '@gruenerator/chat';
 
 interface DocumentBrowserSheetProps {
   visible: boolean;
   theme: Theme;
-  onSelect: (slug: string) => void;
+  /** The whole reference, not a slug: the caller attaches it by its real id. */
+  onSelect: (doc: DocumentMention) => void;
   onDismiss: () => void;
 }
 
@@ -82,15 +87,18 @@ export function DocumentBrowserSheet({
       collectionName?: string
     ) => {
       const slug = documentToSlug(doc.title);
-      registerDocumentSlug(slug, {
+      const mention: DocumentMention = {
         documentId: doc.id,
         documentTitle: doc.title,
         collectionId: collectionId ?? '',
         collectionName: collectionName ?? '',
         slug,
-        sourceType: (doc.sourceType as 'notebook' | 'document' | 'text') ?? 'document',
-      });
-      onSelect(slug);
+        sourceType: (doc.sourceType as DocumentMention['sourceType']) ?? 'document',
+      };
+      // Still registered: the slug map backs mention previews and the re-parse of
+      // text that older clients persisted. It is no longer the transport.
+      registerDocumentSlug(slug, mention);
+      onSelect(mention);
     },
     [onSelect]
   );

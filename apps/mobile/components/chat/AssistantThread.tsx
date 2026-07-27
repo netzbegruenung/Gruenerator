@@ -1,7 +1,7 @@
-import { ThreadPrimitive, useAui } from '@assistant-ui/react-native';
+import { ThreadPrimitive } from '@assistant-ui/react-native';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { getGreeting } from '@gruenerator/shared/utils';
-import { memo, useCallback, useMemo, useRef, useState } from 'react';
+import { memo, useMemo, useRef } from 'react';
 import { View, Text, type TextInput, StyleSheet } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,7 +11,6 @@ import { spacing } from '../../theme';
 import { SCREEN_EDGE } from '../../theme/layout';
 import { Composer, composerEdgeStyle, type ComposerAccessory } from '../common/Composer';
 
-import { DocumentBrowserSheet } from './DocumentBrowserSheet';
 import { MessageBubble } from './MessageBubble';
 
 import type { Theme } from '../../theme/colors';
@@ -89,26 +88,9 @@ export const AssistantThread = memo(function AssistantThread({
   const resolvedTheme = useTheme();
   const theme: Theme = themeProp ?? resolvedTheme;
   const insets = useSafeAreaInsets();
-  const aui = useAui();
   const composerInputRef = useRef<TextInput>(null);
-  const [docBrowserVisible, setDocBrowserVisible] = useState(false);
 
   const messageComponents = useMemo(() => ({ Message: MessageBubble }), []);
-
-  const handleOpenDocBrowser = useCallback(() => setDocBrowserVisible(true), []);
-
-  const handleDocumentSelect = useCallback(
-    (slug: string) => {
-      const mentionText = `@datei:${slug} `;
-      const currentText = aui.composer().getState().text;
-      const separator = currentText.length > 0 && !currentText.endsWith(' ') ? ' ' : '';
-      const newText = `${currentText}${separator}${mentionText}`;
-      aui.composer().setText(newText);
-      composerInputRef.current?.setNativeProps({ text: newText });
-      setDocBrowserVisible(false);
-    },
-    [aui]
-  );
 
   return (
     <KeyboardAvoidingView
@@ -143,15 +125,8 @@ export const AssistantThread = memo(function AssistantThread({
             },
           ]}
           testIDPrefix="chat-composer"
-          onOpenDocBrowser={handleOpenDocBrowser}
           inputRef={composerInputRef}
           accessory={composerAccessory}
-        />
-        <DocumentBrowserSheet
-          visible={docBrowserVisible}
-          theme={theme}
-          onSelect={handleDocumentSelect}
-          onDismiss={() => setDocBrowserVisible(false)}
         />
       </ThreadPrimitive.Root>
     </KeyboardAvoidingView>

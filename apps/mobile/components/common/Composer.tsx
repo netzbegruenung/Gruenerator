@@ -1,5 +1,15 @@
-import { useAui, useAuiState, ComposerPrimitive } from '@assistant-ui/react-native';
-import { detectMention, computeMentionInsertion, type Mentionable } from '@gruenerator/chat';
+import {
+  useAui,
+  useAuiState,
+  ComposerPrimitive,
+  type CreateAttachment,
+} from '@assistant-ui/react-native';
+import {
+  buildDocumentMentionAttachment,
+  computeMentionInsertion,
+  detectMention,
+  type Mentionable,
+} from '@gruenerator/chat';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useCallback, useRef, useState } from 'react';
 import {
@@ -27,6 +37,7 @@ import { colors, spacing } from '../../theme';
 import { SCREEN_EDGE } from '../../theme/layout';
 import { ComposerAttachmentUI } from '../chat/AttachmentUI';
 import { ComposerActionSheet } from '../chat/ComposerActionSheet';
+import { DocumentBrowserSheet } from '../chat/DocumentBrowserSheet';
 import { MentionSuggestions } from '../chat/MentionSuggestions';
 
 import {
@@ -76,7 +87,7 @@ export interface ComposerAccessory {
   accessibilityLabel?: string;
 }
 
-interface ComposerProps {
+export interface ComposerProps {
   /** `local` (default) drafts here and calls `onSubmit`. `runtime` writes through
    *  to the surrounding assistant-ui thread. */
   binding?: 'local' | 'runtime';
@@ -93,16 +104,15 @@ interface ComposerProps {
   minHeight?: number;
   /** `@`-mentions. On by default; off for surfaces where a mention is meaningless. */
   showMentions?: boolean;
-  /** Left toolbar button opening the attach/tools sheet. Requires `runtime`
-   *  (file pickers write into the thread's attachments). */
+  /** Left toolbar "+" button opening `ComposerActionSheet`. Under the `runtime`
+   *  binding it also offers the attach tiles (file pickers write into the
+   *  thread's attachments); a local composer gets the settings rows only. */
   showActionSheet?: boolean;
   /** Left toolbar button for a caller-owned settings sheet. Ignored when
    *  `showActionSheet` is on — the two share the same slot. */
   onSettings?: () => void;
   /** Second left-aligned button, beside the plus/settings one. */
   accessory?: ComposerAccessory;
-  /** Adds the "Dokument" entry to the action sheet. */
-  onOpenDocBrowser?: () => void;
   inputRef?: React.RefObject<TextInput | null>;
   /** Enables `<prefix>-input` / `<prefix>-send` testIDs for the Maestro flows. */
   testIDPrefix?: string;
@@ -113,6 +123,13 @@ interface ComposerProps {
    * the keyboard without typing.
    */
   onDismissEmpty?: () => void;
+  /**
+   * Local binding only: what to do with a file or document the user picked.
+   * A local composer has no thread to attach to, so its screen decides — the
+   * start screen queues the attachment and opens a new conversation with it.
+   * Omit it and the "+" sheet shows no attach tiles.
+   */
+  onAttach?: (attachment: CreateAttachment) => void;
   /**
    * Renders a close button in the leading slot (where the settings button would
    * sit) — a way back that does not depend on the field being empty. Ignored
@@ -198,6 +215,33 @@ function useComposerInput({
     [mention, pushText]
   );
 
+  // Picked from the "+" sheet rather than typed: there is no `@` in the text to
+  // replace, so `mentionStart: -1` appends the mention (with a leading space)
+  // at the end of the draft.
+  const insertMention = useCallback(
+    (mentionable: Mentionable) => {
+      const { newText, cursorPosition } = computeMentionInsertion(
+        textRef.current,
+        mentionable,
+        -1,
+        textRef.current.length
+      );
+      pushText(newText, cursorPosition);
+    },
+    [pushText]
+  );
+
+  /** Appends to the draft with a separating space (the doc browser's `@datei:`). */
+  const appendText = useCallback(
+    (value: string) => {
+      const current = textRef.current;
+      const separator = current.length > 0 && !current.endsWith(' ') ? ' ' : '';
+      const newText = `${current}${separator}${value}`;
+      pushText(newText, newText.length);
+    },
+    [pushText]
+  );
+
   // Dictation (mirrors web's DictateButton): final transcripts are appended to
   // the draft rather than replacing it.
   const onDictate = useCallback(() => {
@@ -224,6 +268,8 @@ function useComposerInput({
     onChangeText,
     onSelectionChange,
     onMentionSelect,
+    insertMention,
+    appendText,
     isListening,
     onDictate,
     reset,
@@ -245,6 +291,7 @@ function ComposerBody({
   attachments,
   sendButton,
   cancelButton,
+  addAttachment,
 }: {
   props: ComposerProps;
   input: ComposerInput;
@@ -255,6 +302,13 @@ function ComposerBody({
   sendButton: React.ReactNode;
   /** Runtime binding only — a local composer has no request to cancel. */
   cancelButton?: React.ReactNode;
+  /**
+   * Where a picked file or document reference goes. Supplied by the binding —
+   * the runtime composer hands it to the thread, a local one to whatever its
+   * screen does with it — so the picking, validating and error handling below
+   * exist once instead of once per binding. Absent ⇒ no attach affordance.
+   */
+  addAttachment?: (attachment: CreateAttachment) => void;
 }) {
   const resolvedTheme = useTheme();
   const theme = props.theme ?? resolvedTheme;
@@ -263,6 +317,25 @@ function ComposerBody({
   const iconSize = composerIconSize(variant);
   const showMentions = props.showMentions ?? true;
   const [actionSheetVisible, setActionSheetVisible] = useState(false);
+  const [docBrowserVisible, setDocBrowserVisible] = useState(false);
+
+  const attachPicked = useCallback(
+    async (pending: Promise<PickedDocument | null>) => {
+      // `await pending` inside the try so a native picker/manipulator rejection
+      // (camera unavailable, permission API throwing, HEIC→JPEG failure)
+      // surfaces as an Alert instead of an unhandled promise rejection.
+      try {
+        const doc = await pending;
+        if (!doc) return;
+        if (!validatePickedDocument(doc)) return;
+        addAttachment?.(await pickedDocumentToAttachment(doc));
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Fehler beim Anhängen';
+        Alert.alert('Anhang fehlgeschlagen', msg);
+      }
+    },
+    [addAttachment]
+  );
 
   // Mounting the composer warms the dynamic mentionable lists, as on web.
   useMentionablesSync();
@@ -274,7 +347,7 @@ function ComposerBody({
       hitSlop={6}
       accessibilityLabel="Anhänge und Werkzeuge"
     >
-      <Ionicons name="add-circle-outline" size={iconSize} color={theme.textSecondary} />
+      <Ionicons name="add" size={iconSize + 2} color={theme.textSecondary} />
     </Pressable>
   ) : props.onSettings ? (
     <Pressable
@@ -389,57 +462,36 @@ function ComposerBody({
         }
       />
       {props.showActionSheet && (
-        <ActionSheetHost
-          visible={actionSheetVisible}
-          onClose={() => setActionSheetVisible(false)}
-          onOpenDocBrowser={props.onOpenDocBrowser}
-        />
+        <>
+          <ComposerActionSheet
+            visible={actionSheetVisible}
+            onClose={() => setActionSheetVisible(false)}
+            {...(addAttachment
+              ? {
+                  onPickFile: () => void attachPicked(pickDocument()),
+                  onPickImage: () => void attachPicked(pickImageFromLibrary()),
+                  onTakePhoto: () => void attachPicked(takePhoto()),
+                  onOpenDocBrowser: () => setDocBrowserVisible(true),
+                }
+              : {})}
+            onInsertMention={input.insertMention}
+          />
+          <DocumentBrowserSheet
+            visible={docBrowserVisible}
+            theme={theme}
+            onSelect={(doc) => {
+              // Web's shape exactly: the attachment carries the real document id,
+              // which the model adapter turns into `documentIds`/`textIds`. The
+              // former `@datei:<slug>` text went through an in-memory map that a
+              // reload empties — an unresolvable slug was dropped in silence.
+              addAttachment?.(buildDocumentMentionAttachment(doc) as CreateAttachment);
+              setDocBrowserVisible(false);
+            }}
+            onDismiss={() => setDocBrowserVisible(false)}
+          />
+        </>
       )}
     </>
-  );
-}
-
-/** Attaching writes into the thread's composer state, so this only mounts under
- *  the runtime binding. */
-function ActionSheetHost({
-  visible,
-  onClose,
-  onOpenDocBrowser,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  onOpenDocBrowser?: () => void;
-}) {
-  const aui = useAui();
-
-  const attachPicked = useCallback(
-    async (pending: Promise<PickedDocument | null>) => {
-      // `await pending` is inside the try so a native picker/manipulator
-      // rejection (camera unavailable, permission API throwing, HEIC→JPEG
-      // failure) surfaces as an Alert instead of an unhandled promise rejection.
-      try {
-        const doc = await pending;
-        if (!doc) return;
-        if (!validatePickedDocument(doc)) return;
-        const attachment = await pickedDocumentToAttachment(doc);
-        await aui.composer().addAttachment(attachment);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Fehler beim Anhängen';
-        Alert.alert('Anhang fehlgeschlagen', msg);
-      }
-    },
-    [aui]
-  );
-
-  return (
-    <ComposerActionSheet
-      visible={visible}
-      onClose={onClose}
-      onPickFile={() => attachPicked(pickDocument())}
-      onPickImage={() => attachPicked(pickImageFromLibrary())}
-      onTakePhoto={() => attachPicked(takePhoto())}
-      onOpenDocBrowser={onOpenDocBrowser}
-    />
   );
 }
 
@@ -468,6 +520,9 @@ function LocalComposer(props: ComposerProps) {
       input={input}
       inputRef={inputRef}
       onSubmitEditing={handleSubmit}
+      // No thread of its own to attach to — only a screen that passed `onAttach`
+      // gets the attach tiles (see the prop's note).
+      addAttachment={props.onAttach}
       sendButton={
         <Pressable
           testID={props.testIDPrefix ? `${props.testIDPrefix}-send` : undefined}
@@ -518,6 +573,7 @@ function RuntimeComposer(props: ComposerProps) {
       input={input}
       inputRef={inputRef}
       onSubmitEditing={onSubmit ? handleIntercept : () => aui.composer().send()}
+      addAttachment={(attachment) => void aui.composer().addAttachment(attachment)}
       attachments={
         <View style={styles.attachmentsRow}>
           <ComposerPrimitive.Attachments components={{ Attachment: ComposerAttachmentUI }} />

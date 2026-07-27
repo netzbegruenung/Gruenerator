@@ -28,6 +28,7 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
     customSystemPrompt,
     customRoleName,
     customEnabledTools,
+    pinnedConnector,
   } = useAgentStore(
     useShallow((s) => ({
       selectedAgentId: s.selectedAgentId,
@@ -39,6 +40,7 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
       customSystemPrompt: s.customSystemPrompt,
       customRoleName: s.customRoleName,
       customEnabledTools: s.customEnabledTools,
+      pinnedConnector: s.pinnedConnector,
     }))
   );
   // Notebook filter selection (facets, sources, depth) — only honoured while it
@@ -86,6 +88,10 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
       customSystemPrompt,
       customRoleName,
       customEnabledTools,
+      // Without this the "+" sheet's Konnektoren section is decoration: the
+      // adapter injects the connector's mention token and its forcedTool from
+      // exactly this field, and mobile never sent it.
+      pinnedConnector,
     }),
     [
       selectedAgentId,
@@ -98,6 +104,7 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
       customSystemPrompt,
       customRoleName,
       customEnabledTools,
+      pinnedConnector,
     ]
   );
 

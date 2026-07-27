@@ -17,6 +17,12 @@ interface BottomSheetProps {
    * full-width buttons, chips) would otherwise sit flush against the edges.
    */
   padded?: boolean;
+  /**
+   * Sheet fill. Defaults to `theme.background`; pass the darker `theme.surface`
+   * for sheets built out of grouped cards, which need the cards to read as
+   * raised against the sheet rather than melting into it.
+   */
+  backgroundColor?: string;
 }
 
 export function BottomSheet({
@@ -26,6 +32,7 @@ export function BottomSheet({
   maxHeight = '85%',
   keyboardAvoiding,
   padded,
+  backgroundColor,
 }: BottomSheetProps) {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
@@ -43,7 +50,7 @@ export function BottomSheet({
             // inset (often 0 inside a RN Modal) plus a fixed cushion.
             paddingBottom: Math.max(insets.bottom, spacing.medium) + spacing.medium,
             paddingHorizontal: padded ? spacing.medium : undefined,
-            backgroundColor: theme.background,
+            backgroundColor: backgroundColor ?? theme.background,
             borderColor: theme.border,
             maxHeight,
           },

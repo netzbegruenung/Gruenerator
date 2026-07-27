@@ -10,19 +10,33 @@ import { Pressable, StyleSheet, View, useColorScheme } from 'react-native';
 import { AssistantThread } from '../../components/chat';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
 import { MobileChatProvider } from '../../providers/MobileChatProvider';
+import { usePendingAttachmentStore } from '../../stores/pendingAttachmentStore';
 import { lightTheme, darkTheme } from '../../theme';
 import { routeWithParams } from '../../types/routes';
 
 const AT_DEFAULT_NOTEBOOK_ID = 'oesterreich-notebook';
 
-function InitialMessageSender({ message }: { message: string }) {
+/**
+ * Drains anything the start screen queued (a file or a document reference picked
+ * before this thread existed), then sends the message it was opened with.
+ *
+ * One component for both because the order matters: `addAttachment` is async,
+ * and a send that fires first would leave the attachment behind on a thread the
+ * user has already moved past.
+ */
+function InitialTurnSender({ message }: { message: string }) {
   const aui = useAui();
 
   useEffect(() => {
-    if (message) {
-      aui.composer().setText(message);
-      aui.composer().send();
-    }
+    void (async () => {
+      for (const attachment of usePendingAttachmentStore.getState().drain()) {
+        await aui.composer().addAttachment(attachment);
+      }
+      if (message) {
+        aui.composer().setText(message);
+        aui.composer().send();
+      }
+    })();
     // Only run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -128,7 +142,7 @@ export default function ChatConversationScreen() {
     >
       <MobileChatProvider threadId={isNewChat ? null : threadId}>
         <AssistantThread theme={theme} transparent />
-        {isNewChat && initialMessage && <InitialMessageSender message={initialMessage} />}
+        {isNewChat && <InitialTurnSender message={initialMessage ?? ''} />}
         {isNewChat && initialComposerText && <ComposerPrefiller text={initialComposerText} />}
       </MobileChatProvider>
     </ScreenScaffold>
