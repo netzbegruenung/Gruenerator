@@ -178,6 +178,38 @@ describe('Tier 3.5 — demoted band (agentic, LLM skipped)', () => {
     expect(result.reasoning).toMatch(/demotion/i);
   });
 
+  /**
+   * The flag the loop reads to require a first tool call. Live failure: "wer
+   * ist aktuell Bundeskanzler in Österreich" was classified web@0.80, demoted,
+   * and the planner called nothing — the answer was the honesty note itself
+   * ("Da ich in diesem Turn keine aktuellen Recherche-Ergebnisse habe …").
+   */
+  it('marks a demoted RETRIEVAL verdict so the loop must call a tool', async () => {
+    const state = buildState({ userMessage: 'Wer ist aktuell Bundeskanzler in Österreich?' });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('agentic');
+    expect(result.loopDemotedFromRetrieval).toBe(true);
+  });
+
+  it('does NOT mark a demoted `direct` question that merely looked toolable', async () => {
+    // Follow-ups like this ride on sources already carried into the turn;
+    // forcing a fresh tool call would re-search what is already in context.
+    const state = buildState({
+      userMessage: 'Worin unterscheidet sich die deutsche von der österreichischen Position dazu?',
+      messages: [
+        { role: 'user' as const, content: 'Welche Position haben die Grünen zur Atomkraft?' },
+        { role: 'assistant' as const, content: 'Die Grünen lehnen Atomkraft ab.' },
+        {
+          role: 'user' as const,
+          content: 'Worin unterscheidet sich die deutsche von der österreichischen Position dazu?',
+        },
+      ],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('agentic');
+    expect(result.loopDemotedFromRetrieval).toBeFalsy();
+  });
+
   it('vague follow-up in a conversation demotes instead of paying the LLM', async () => {
     const state = buildState({
       userMessage: 'Und wie ist die Position dazu in Bayern?',

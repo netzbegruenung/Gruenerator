@@ -531,6 +531,16 @@ export interface ChatGraphState {
    */
   injectionSuspected?: boolean | undefined;
 
+  /**
+   * This `agentic` turn reached the loop via Tier-3.5 demotion of a RETRIEVAL
+   * heuristic (web/search/examples/bundestag/…), not because the user asked
+   * for open-ended work. The loop requires a first tool call on such turns —
+   * without it the planner answered "Da ich in diesem Turn keine aktuellen
+   * Recherche-Ergebnisse habe …" to a plain factual question it was supposed
+   * to look up.
+   */
+  loopDemotedFromRetrieval?: boolean | undefined;
+
   // Input (immutable after initialization)
   messages: ModelMessage[];
   threadId: string | null;
