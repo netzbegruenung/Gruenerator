@@ -36,10 +36,10 @@ import { PROGRESS_MESSAGES, type FallbackReason, type SSEWriter } from './sseHel
 const log = createLogger('ResponseStreaming');
 
 /**
- * How long to wait for the first content token before declaring the upstream
- * model dead and triggering fallback. Set generously enough to accommodate
- * gemma's reasoning preamble on LiteLLM (~10s observed), with headroom for
- * production load.
+ * How long the upstream model may stay SILENT before it is declared dead and
+ * the fallback fires. Generous enough for gemma's reasoning preamble on LiteLLM
+ * (~10s observed), with headroom for production load. Idle-based: any output
+ * rearms it — see createFirstTokenDeadline.
  */
 const FIRST_TOKEN_DEADLINE_MS = 20_000;
 
@@ -57,13 +57,15 @@ const SINGLE_PASS_WALL_CLOCK_MS = (() => {
 const LITELLM_FIRST_TOKEN_DEADLINE_MS = 30_000;
 /**
  * Reasoning models (Regolo vLLM, Verdigado/LiteLLM Gemma) hold back answer text
- * until thinking completes — reasoning deltas don't satisfy the deadline (see
- * the reasoning streamer), so the wait for the first TEXT token is legitimately
- * longer. But 45s was far too long: when verdigado-think HANGS (observed live
- * — first_token_timeout, then an 86s turn), the user waited the full 45s before
- * the sibling fallback (gemma) even started. 20s still covers a genuine thinking
- * phase (reasoning deltas stream meanwhile) while recovering from a hang ~2x
- * faster; the fallback answer is fine, so an occasional early cutover is cheap.
+ * until thinking completes, so the wait for the first TEXT token is legitimately
+ * longer than on a plain lane.
+ *
+ * This is an IDLE window, not a total budget: reasoning deltas rearm it (see
+ * createFirstTokenDeadline), so a genuine 60s thinking phase runs to completion
+ * as long as the model keeps emitting. It only trips on true silence — which is
+ * what "hung" actually means. Before that fix the same 20s was a hard ceiling
+ * on thinking, and a research turn died on verdigado-think at exactly 20s, then
+ * on its regolo/gemma4-31b sibling at exactly 20s again.
  */
 const REASONING_FIRST_TOKEN_DEADLINE_MS = 20_000;
 
