@@ -59,6 +59,52 @@ export function looksLikeToolableQuestion(raw: string): boolean {
   );
 }
 
+// Anaphors and expansion words — the two ways German asks for "more of what we
+// were just talking about". The da-compounds point back at the topic; the
+// expansion words ask for depth. Clause-final `das`/`es` counts too ("erzähl
+// mir mehr davon", "was gibt es noch dazu").
+//
+// `nochmal`/`erneut` are deliberately OUT (unlike MCP_CONTINUATION_REFERENTIAL,
+// where "do it again" IS the signal): here they are regenerate verbs with no
+// topical content — "Nochmal auf Englisch" wants a rewrite, not research.
+const CONTINUATION_MARKER_RE =
+  /\b(dazu|dar[üu]ber|davon|daraus|damit|daran|darauf|dabei|hierzu|mehr|weitere?[snmr]?|genauer|n[äa]her|ausf[üu]hrlicher|details?|vertief\w*|sonst\s+noch|noch\s+(mehr|was|etwas))\b/i;
+
+// Anchored: the WHOLE message is pleasantry. "Danke, und was sagt die Studie
+// dazu?" must not match.
+const CHITCHAT_ONLY_RE =
+  /^(danke\w*|dank\s+dir|thx|ok(ay)?|alles\s+klar|super|top|passt|perfekt|prima|cool|ja|nein|gut)\b[\s,.!?–—-]*$/i;
+
+/**
+ * A vague CONTINUATION of the running conversation ("Mehr dazu bitte") rather
+ * than a new topic or a pleasantry.
+ *
+ * Such a turn classifies as `direct` — it carries no question word, no verb the
+ * toolable net catches, nothing. On the single-pass path that used to mean the
+ * previous turn's sources were neither carried nor citable, so the model
+ * rewrote its own last answer from that answer's prose: ungrounded,
+ * uncitable, and to the reader indistinguishable from research.
+ *
+ * The word cap is the discriminator that matters: a message long enough to
+ * carry its own subject is not leaning on the thread for one.
+ */
+export function looksLikeGroundedFollowup(raw: string): boolean {
+  const t = (raw ?? '').trim().replace(GREETING_PREFIX_RE, '');
+  if (t.length === 0) return false;
+  if (CHITCHAT_ONLY_RE.test(t)) return false;
+  if (t.split(/\s+/).filter(Boolean).length > 12) return false;
+  return CONTINUATION_MARKER_RE.test(t);
+}
+
+/**
+ * "Does this turn need the thread's research behind it?" — the union both the
+ * loop gate and the single-pass source carry consult, so a turn cannot be
+ * grounded on one path and amnesiac on the other.
+ */
+export function needsThreadGrounding(raw: string): boolean {
+  return looksLikeToolableQuestion(raw) || looksLikeGroundedFollowup(raw);
+}
+
 /**
  * Generation intents that can enter the loop as a COMPOUND turn (research +
  * generation composed in one turn via an opaque fat tool). Each keeps its
