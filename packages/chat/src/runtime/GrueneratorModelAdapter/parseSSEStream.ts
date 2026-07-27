@@ -1253,20 +1253,31 @@ export async function* parseSSEStream(
         // ── Notebook mode events ──
         case 'completion': {
           sawTerminalEvent = true;
+          // `completion` carries EITHER shape (see the union in the wire
+          // schema): notebook citations key their source as `index: string`
+          // with snake_case document fields, while the citation clamp on the
+          // chat paths re-sends the chat shape it already had. Mapping every
+          // payload as notebook — the previous behaviour — turned a clamped
+          // chat turn's citations into `id: NaN` with empty titles until the
+          // trailing `done` event happened to overwrite them again.
+          type NotebookWireCitation = {
+            index: string;
+            cited_text?: string;
+            document_title?: string;
+            document_id?: string;
+            source_url?: string | null;
+            similarity_score?: number;
+            chunk_index?: number;
+            collection_id?: string;
+            collection_name?: string;
+          };
           const completionData = data as {
             text?: string;
-            citations?: Array<{
-              index: string;
-              cited_text?: string;
-              document_title?: string;
-              document_id?: string;
-              source_url?: string | null;
-              similarity_score?: number;
-              chunk_index?: number;
-              collection_id?: string;
-              collection_name?: string;
-            }>;
+            citations?: Array<NotebookWireCitation | Citation>;
           };
+          const isNotebookCitation = (
+            c: NotebookWireCitation | Citation
+          ): c is NotebookWireCitation => typeof (c as NotebookWireCitation).index === 'string';
           if (completionData.text) {
             // Flatten fallback: `completion` replaces the whole answer (e.g.
             // after a citation clamp), so we have ONE final text with no per-tool
@@ -1281,19 +1292,23 @@ export async function* parseSSEStream(
             currentTextSegment = finalSeg;
           }
           if (completionData.citations) {
-            receivedCitations = completionData.citations.map((c) => ({
-              id: parseInt(c.index, 10),
-              title: c.document_title ?? '',
-              url: c.source_url ?? '',
-              snippet: c.cited_text ?? '',
-              citedText: c.cited_text,
-              source: c.collection_name ?? '',
-              collectionName: c.collection_name,
-              documentId: c.document_id,
-              chunkIndex: c.chunk_index,
-              similarityScore: c.similarity_score,
-              collectionId: c.collection_id,
-            }));
+            receivedCitations = completionData.citations.map((c) =>
+              isNotebookCitation(c)
+                ? {
+                    id: parseInt(c.index, 10),
+                    title: c.document_title ?? '',
+                    url: c.source_url ?? '',
+                    snippet: c.cited_text ?? '',
+                    citedText: c.cited_text,
+                    source: c.collection_name ?? '',
+                    collectionName: c.collection_name,
+                    documentId: c.document_id,
+                    chunkIndex: c.chunk_index,
+                    similarityScore: c.similarity_score,
+                    collectionId: c.collection_id,
+                  }
+                : c
+            );
           }
           transitionStep('complete');
           currentProgress = { stage: 'complete', message: '' };
