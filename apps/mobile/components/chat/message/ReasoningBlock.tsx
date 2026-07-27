@@ -3,7 +3,7 @@ import { memo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 
 import { useTheme } from '../../../hooks/useTheme';
-import { colors, spacing, borderRadius, BODY_FONT } from '../../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../../theme';
 
 import type { Theme } from '../../../theme/colors';
 
@@ -55,15 +55,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xsmall,
   },
   label: {
+    ...chatType.chatLabel,
     flex: 1,
     fontFamily: BODY_FONT,
-    fontSize: 12,
     fontWeight: '600',
   },
   text: {
-    fontFamily: BODY_FONT,
-    fontSize: 13,
-    lineHeight: 18,
+    ...chatType.chatSecondary,
     paddingHorizontal: spacing.small,
     paddingBottom: spacing.small,
   },

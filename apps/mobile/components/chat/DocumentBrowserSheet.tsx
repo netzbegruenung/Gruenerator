@@ -17,7 +17,7 @@ import {
   validatePickedDocument,
   uploadDocumentToChat,
 } from '../../services/documentPicker';
-import { colors, spacing, borderRadius, BODY_FONT } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
 
 import type { Theme } from '../../theme/colors';
@@ -441,9 +441,9 @@ const styles = StyleSheet.create({
     gap: spacing.xsmall,
   },
   searchInput: {
+    ...chatType.chatTitle,
     flex: 1,
     fontFamily: BODY_FONT,
-    fontSize: 15,
     paddingVertical: spacing.xxsmall,
   },
   loading: {
@@ -451,8 +451,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sectionHeader: {
-    fontFamily: BODY_FONT,
-    fontSize: 12,
+    ...chatType.chatMeta,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -472,23 +471,20 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   rowTitle: {
-    fontFamily: BODY_FONT,
-    fontSize: 15,
+    ...chatType.chatTitle,
     fontWeight: '500',
   },
   rowSubtitle: {
-    fontFamily: BODY_FONT,
-    fontSize: 13,
+    ...chatType.chatLabel,
   },
   badge: {
-    fontFamily: BODY_FONT,
-    fontSize: 13,
+    ...chatType.chatLabel,
   },
   emptyText: {
+    ...chatType.chatSecondary,
     textAlign: 'center',
     paddingVertical: spacing.xlarge,
     fontFamily: BODY_FONT,
-    fontSize: 14,
   },
   emptyState: {
     alignItems: 'center',
@@ -503,8 +499,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.small,
   },
   emptySubtitle: {
-    fontFamily: BODY_FONT,
-    fontSize: 14,
+    ...chatType.chatSecondary,
     textAlign: 'center',
     maxWidth: 260,
   },
@@ -518,8 +513,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.small,
   },
   uploadButtonText: {
-    fontFamily: BODY_FONT,
-    fontSize: 15,
+    ...chatType.chatTitle,
     fontWeight: '600',
     color: colors.white,
   },
@@ -532,13 +526,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   uploadRowText: {
-    fontFamily: BODY_FONT,
-    fontSize: 15,
+    ...chatType.chatTitle,
     fontWeight: '500',
   },
   loadingLabel: {
-    fontFamily: BODY_FONT,
-    fontSize: 14,
+    ...chatType.chatSecondary,
     marginTop: spacing.small,
   },
 });
