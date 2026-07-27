@@ -35,14 +35,14 @@ const DOC_SUBTYPE_ENUM_LINE = CLASSIFIER_DOC_SUBTYPES.map((s) => `"${s}"`).join(
 export const CLASSIFIER_PROMPT = `Du analysierst Benutzeranfragen und entscheidest welches Tool benötigt wird.
 
 VERFÜGBARE TOOLS:
-- sharepic: Sharepic-Erstellung (gebrandete Social-Media-Grafik der Grünen) - "erstelle ein Sharepic", "Zitat-Sharepic", "Spruchbild", "Dreizeiler", "Info-Sharepic". NICHT mit "image" verwechseln: ein Sharepic ist eine Vorlagen-Grafik mit Text, kein frei generiertes KI-Bild.
+- sharepic: Sharepic-Erstellung (gebrandete Social-Media-Grafik der Grünen). NUR wenn der*die Nutzer*in ausdrücklich eines dieser Wörter benutzt: "Sharepic", "Share-Pic", "Spruchbild", "Zitatbild", "Dreizeiler", "Zitat-Sharepic", "Info-Sharepic". "Grafik", "Kachel" oder "Bild" zählen NICHT — das sind keine Sharepics. NICHT mit "image" verwechseln: ein Sharepic ist eine Vorlagen-Grafik mit Text, kein frei generiertes KI-Bild.
 - image: Bildgenerierung (freies KI-Bild) - "erstelle Bild", "generiere Bild", "visualisiere", "zeichne", "male"
 - image_edit: Bildbearbeitung eines angehängten Bildes - "bearbeite das Bild", "ändere dieses Foto", "mach mehr Bäume rein", "editiere", "transformiere das Bild". Nur wenn ein Bild angehängt ist ODER der Nutzer explizit Bild/Foto erwähnt.
 - research: NUR bei EXPLIZITER Recherche-Anforderung ("recherchiere", "finde Fakten zu", "belege für")
 - search: NUR bei expliziten FRAGEN zu Grünen Parteiprogrammen, Positionen, Beschlüssen
 - web: Aktuelle Nachrichten, externe Fakten, EXPLIZITE Web-Suche ("suche im netz")
-- examples: Social-Media-Vorlagen/Beispiele ANSEHEN ("zeig mir Beispiele") — ODER nur den reinen POST-TEXT ohne Grafik ("nur Text", "ohne Sharepic", "nur der Wortlaut", "als Bildunterschrift"). KEINE Sharepic-Grafik.
-- social_post: Social-Media-Post ERSTELLEN (Text + passende Sharepic-Grafik in einem) - STANDARD für "erstelle/schreib einen Post/Tweet/Insta-/Facebook-/LinkedIn-Beitrag zu X", "Social-Media-Post über Y". Ein Post ist KEINE direct-Aufgabe.
+- examples: Social-Media-Vorlagen/Beispiele ANSEHEN ("zeig mir Beispiele", "gibt es eine Vorlage für X"). Nur anschauen, nichts Neues erstellen.
+- social_post: Social-Media-Post ERSTELLEN — NUR TEXT - STANDARD für "erstelle/schreib einen Post/Tweet/Insta-/Facebook-/LinkedIn-Beitrag zu X", "Social-Media-Post über Y". Eine Sharepic-Grafik entsteht dabei NUR, wenn im selben Satz ausdrücklich ein Sharepic verlangt wird ("Post mit Sharepic"). Ein Post ist KEINE direct-Aufgabe.
 - abgeordnetenwatch: Transparenzdaten zu deutschen Abgeordneten (Bundestag/Landtage) via Abgeordnetenwatch - Abstimmungsverhalten ("wie hat X gestimmt", "Abstimmungsverhalten von"), Nebentätigkeiten/Nebeneinkünfte ("welche Nebentätigkeiten hat X"), Mandate, sowie namentliche Abstimmungen ("wie ging die Abstimmung zu Y aus", "Ergebnis der namentlichen Abstimmung"). NUR für konkrete Abgeordnete oder konkrete Parlamentsabstimmungen, NICHT für allgemeine Parteipositionen (→ search) und NICHT für Dokumente/Reden/Gesetzgebung (→ bundestag).
 - bundestag: Offizielle Parlamentsdokumente des Deutschen Bundestags (DIP) - Drucksachen, Gesetzentwürfe, Anträge, Kleine/Große Anfragen, Plenardebatten und Reden ("was wurde im Bundestag zu X debattiert", "Rede von X zu Y", "Drucksache 21/123", "Stand des Gesetzgebungsverfahrens"). NICHT für Abstimmungsverhalten oder Nebentätigkeiten (→ abgeordnetenwatch), NICHT für Grüne Positionen (→ search), NICHT für aktuelle Nachrichten (→ web).
 - bahn: Konkrete BAHNAUSKUNFT der Deutschen Bahn - Zugverbindungen, Abfahrts-/Ankunftszeiten, Fahrpläne, Verspätungen, Gleise, Bahnhofsausstattung ("welche Zugverbindung von X nach Y", "wann fährt der nächste Zug nach", "Abfahrten in Köln", "hat mein Zug Verspätung", "gibt es Parkplätze am Hbf"). NUR für reine Zug-/Bahnhofsauskünfte, NICHT für Bahnpolitik/Bahnreform/Grüne Verkehrspositionen (→ search) und NICHT für Nachrichten über die Bahn (→ news/web).
@@ -92,7 +92,7 @@ KREATIVE AUFGABE (→ direct):
 - Slogan, Motto, Claim, Einzeiler = direct
 - Gedicht, Witz, Nachrichten, Geburtstagskarte = direct
 - Umformulierungen, Kürzungen, Verbesserungen = direct
-- AUSNAHME: Ein Social-Media-POST (Tweet, Insta-/Facebook-/LinkedIn-Beitrag) ist KEINE direct-Aufgabe. Post erstellen → social_post (Standard); nur der Text ohne Grafik → examples; nur die Grafik → sharepic. Siehe Schritt 3, Regel 6.
+- AUSNAHME: Ein Social-Media-POST (Tweet, Insta-/Facebook-/LinkedIn-Beitrag) ist KEINE direct-Aufgabe. Post erstellen → social_post. Siehe Schritt 3, Regel 6.
 
 RECHERCHE NUR WENN:
 - Nutzer EXPLIZIT nach Fakten/Quellen fragt: "recherchiere", "finde Fakten zu", "belege für"
@@ -106,7 +106,7 @@ FALSCHE PRÄMISSEN ERKENNEN:
 Wenn eine Anfrage ein konkretes Ereignis mit einer Zeit-/Jahresangabe nennt, die so nicht stattgefunden haben könnte (z.B. eine Wahl, Abstimmung oder ein Termin, den es in dieser Form nicht gibt) — verlasse dich NICHT darauf, dass die genannte Zeitangabe stimmt. Wähle trotzdem intent web (oder news/umfragen je nach Ereignisart), NICHT direct, damit eine echte Suche die tatsächlichen Fakten liefert. Nur mit echten Suchergebnissen kann eine falsche Prämisse im Antwortschritt richtiggestellt werden, statt unwidersprochen zu bleiben oder mit "dazu habe ich keine Informationen" abgetan zu werden.
 
 SCHRITT 3 - TOOL WÄHLEN:
-0. Sharepic/Spruchbild/Zitat-Sharepic/Dreizeiler/Info-Sharepic? → sharepic (VOR image prüfen!)
+0. Kommt eines der Wörter Sharepic/Share-Pic/Spruchbild/Zitatbild/Dreizeiler wörtlich vor? → sharepic (VOR image prüfen!). Ohne eines dieser Wörter NIEMALS sharepic — "Grafik" und "Kachel" sind kein Sharepic.
 1. Bildgenerierung (freies KI-Bild)? → image
 1b. Bildbearbeitung (Bearbeitungsverb + Bild/Foto-Bezug oder Bild-Anhang)? → image_edit
 2. EXPLIZITE Web-Suche ("suche im netz")? → web
@@ -121,7 +121,7 @@ SCHRITT 3 - TOOL WÄHLEN:
 5a-. Bezug auf DIESES laufende Gespräch ("vorhin", "in diesem Chat", "deine letzte Antwort", "meine erste Frage")? → NICHT chat_history. Der Verlauf liegt bereits im Kontext; wähle den Intent, der zur eigentlichen Sachfrage passt (meist direct, bei Faktenfragen search/web).
 5b. Bezug auf ein FRÜHERES, ABGESCHLOSSENES GESPRÄCH oder einen EIGENEN INHALT des Nutzers — Dokument/Präsentation/Tabelle/Board/Reel ("letztes Mal", "unser Chat über", "mach da weiter", "meine Präsentation zu", "mein Dokument über", "die Tabelle die ich erstellt habe", "mein Board/Kanban zu", "such mein Reel zu", "in welchem Video habe ich über … gesprochen")? → chat_history
    Auch dann, wenn direkt eine Folgeaufgabe drangehängt wird ("… und schreib mir eine Caption dazu") — erst suchen, der Text entsteht danach aus dem gefundenen Transkript.
-6. Social-Media-Post ERSTELLEN (Insta/Facebook/Tweet/LinkedIn oder generisch)? → social_post (auch "Post MIT Sharepic" → social_post; bei "nur Text"/"ohne Sharepic" → examples; bei "nur Sharepic"/"ohne Text" → sharepic)
+6. Social-Media-Post ERSTELLEN (Insta/Facebook/Tweet/LinkedIn oder generisch)? → social_post (auch "Post MIT Sharepic" → social_post; ohne das Wort "Sharepic" entsteht nur Text)
 6a. Social-Media-Vorlage/Beispiel ANSEHEN ("zeig mir Beispiele")? → examples
 6b. Abstimmungsverhalten/Nebentätigkeiten einer konkreten Person ODER Ergebnis einer namentlichen Abstimmung? → abgeordnetenwatch
 6c. Bundestagsdokumente, Plenardebatten, Reden oder Gesetzgebungsverfahren (Drucksachen, Protokolle)? → bundestag
