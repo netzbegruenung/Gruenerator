@@ -2,7 +2,7 @@ import { parsePersonResult } from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { View, Text, StyleSheet } from 'react-native';
 
-import { colors, spacing, borderRadius } from '../../../theme';
+import { colors, spacing, borderRadius, BODY_FONT } from '../../../theme';
 
 import type { Theme } from '../../../theme/colors';
 
@@ -56,14 +56,17 @@ const styles = StyleSheet.create({
   },
   name: {
     flexShrink: 1,
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },
   meta: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     marginLeft: 18 + spacing.xxsmall,
   },
   empty: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontStyle: 'italic',
   },

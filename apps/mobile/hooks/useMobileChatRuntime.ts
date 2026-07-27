@@ -28,6 +28,8 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
     customSystemPrompt,
     customRoleName,
     customEnabledTools,
+    pinnedConnector,
+    activeSkillMention,
   } = useAgentStore(
     useShallow((s) => ({
       selectedAgentId: s.selectedAgentId,
@@ -39,6 +41,8 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
       customSystemPrompt: s.customSystemPrompt,
       customRoleName: s.customRoleName,
       customEnabledTools: s.customEnabledTools,
+      pinnedConnector: s.pinnedConnector,
+      activeSkillMention: s.activeSkillMention,
     }))
   );
   // Notebook filter selection (facets, sources, depth) — only honoured while it
@@ -86,6 +90,13 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
       customSystemPrompt,
       customRoleName,
       customEnabledTools,
+      // Without this the "+" sheet's Konnektoren section is decoration: the
+      // adapter injects the connector's mention token and its forcedTool from
+      // exactly this field, and mobile never sent it.
+      pinnedConnector,
+      // Likewise for recipes: the `/mention` is stripped from the text, so this
+      // is what carries the recipe's prompt fragment and scoping to the server.
+      activeSkillMention,
     }),
     [
       selectedAgentId,
@@ -98,6 +109,8 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
       customSystemPrompt,
       customRoleName,
       customEnabledTools,
+      pinnedConnector,
+      activeSkillMention,
     ]
   );
 

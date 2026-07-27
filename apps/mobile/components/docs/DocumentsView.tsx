@@ -20,7 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useIsTablet } from '../../hooks/useIsTablet';
 import { useDocsStore } from '../../stores/docsStore';
-import { lightTheme, darkTheme, colors, spacing } from '../../theme';
+import { lightTheme, darkTheme, colors, spacing, BODY_FONT } from '../../theme';
 import { FLOATING_TAB_BAR_HEIGHT } from '../../theme/layout';
 import { officeTypeColor } from '../../theme/officeColors';
 import { getSurfaceFab } from '../../theme/toolTheme';
@@ -506,6 +506,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 17,
@@ -516,6 +517,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   cardDate: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     paddingHorizontal: 10,
     paddingTop: 2,
@@ -550,11 +552,13 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   listTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '600',
     marginBottom: 2,
   },
   listDate: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
   },
 
@@ -571,6 +575,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   emptySubtitle: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     textAlign: 'center',
     marginTop: 8,
@@ -594,6 +599,7 @@ const styles = StyleSheet.create({
   },
   retryButtonText: {
     color: 'white',
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '600',
   },

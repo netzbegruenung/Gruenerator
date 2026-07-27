@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { View, Text, StyleSheet } from 'react-native';
 
-import { spacing, borderRadius } from '../../../theme';
+import { spacing, borderRadius, BODY_FONT } from '../../../theme';
 
 import type { Theme } from '../../../theme/colors';
 import type { ImageResultVM } from '@gruenerator/chat';
@@ -39,6 +39,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   caption: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
   },
 });

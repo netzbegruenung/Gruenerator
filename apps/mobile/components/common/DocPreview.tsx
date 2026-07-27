@@ -8,7 +8,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { colors, spacing, lightTheme, darkTheme } from '../../theme';
+import { colors, spacing, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 import { parseDocPreview } from '../../utils/htmlExcerpt';
 
 /**
@@ -50,12 +50,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   heading: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '700',
     lineHeight: 16,
     marginBottom: 3,
   },
   body: {
+    fontFamily: BODY_FONT,
     fontSize: 10,
     lineHeight: 14,
   },
