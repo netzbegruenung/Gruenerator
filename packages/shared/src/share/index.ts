@@ -52,6 +52,7 @@ export {
   createImageShare,
   updateImageShare,
   getUserShares,
+  getRecentShares,
   getShareInfo,
   deleteShare,
   publishShare,

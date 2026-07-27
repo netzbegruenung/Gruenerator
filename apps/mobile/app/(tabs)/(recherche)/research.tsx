@@ -15,7 +15,15 @@ import {
   Modal,
 } from 'react-native';
 
-import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../../theme';
+import {
+  colors,
+  spacing,
+  typography,
+  borderRadius,
+  lightTheme,
+  darkTheme,
+  BODY_FONT,
+} from '../../../theme';
 
 import type { Theme } from '../../../theme/colors';
 
@@ -969,6 +977,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   filterChipText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '500',
   },
@@ -1041,6 +1050,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.small,
   },
   scoreText: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -1058,6 +1068,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.small,
   },
   collectionText: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     fontWeight: '500',
   },
@@ -1072,6 +1083,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xxsmall,
   },
   linkText: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     flex: 1,
   },
@@ -1103,6 +1115,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.medium,
   },
   modalTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 18,
     fontWeight: '700',
   },
@@ -1115,6 +1128,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   allToggleText: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -1125,6 +1139,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.medium,
   },
   groupLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -1138,6 +1153,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   collectionName: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     flex: 1,
   },
@@ -1150,6 +1166,7 @@ const styles = StyleSheet.create({
   },
   applyButtonText: {
     color: colors.white,
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -1165,6 +1182,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.medium,
   },
   filterSectionTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
     marginBottom: spacing.xsmall,
@@ -1184,9 +1202,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   filterValueText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
   },
   filterValueCount: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
   },
   dateModal: {
@@ -1199,6 +1219,7 @@ const styles = StyleSheet.create({
     gap: spacing.xxsmall,
   },
   dateLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '500',
   },
@@ -1207,6 +1228,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.medium,
     paddingHorizontal: spacing.small,
     paddingVertical: spacing.small,
+    fontFamily: BODY_FONT,
     fontSize: 15,
   },
   dateActions: {
@@ -1221,6 +1243,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dateClearText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '500',
   },

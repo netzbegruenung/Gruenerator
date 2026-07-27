@@ -532,6 +532,54 @@ export function getIntentMessage(intent: SearchIntent): string {
 }
 
 /**
+ * Anything that can receive a typed SSE event — the real writer or a buffer.
+ * Producers take this instead of `SSEWriter` when their output may need to be
+ * held back and reviewed before it reaches the client.
+ */
+export interface SSEEmitter {
+  send<T extends SSEEventType>(event: T, data: SSEEventPayloads[T]): void;
+}
+
+/**
+ * Buffers events instead of writing them, so a caller can decide AFTER the fact
+ * whether they may be sent.
+ *
+ * Why: the social-post sharepic half and text half run in parallel, and the
+ * sharepic half streams `sharepic_complete` itself. A safety gate at the join
+ * would arrive after the graphic was already on screen. Buffering keeps both
+ * halves parallel (no added latency) while making the emit revocable.
+ */
+export interface DeferredSSE extends SSEEmitter {
+  /** Write everything buffered so far to the real stream, then clear. */
+  flush(sse: SSEWriter): void;
+  /** Drop everything buffered — the events must never reach the client. */
+  discard(): void;
+  /** Number of events currently held. */
+  readonly size: number;
+}
+
+export function createDeferredSSE(): DeferredSSE {
+  const buffered: { event: SSEEventType; data: unknown }[] = [];
+  return {
+    send(event, data) {
+      buffered.push({ event, data });
+    },
+    flush(sse) {
+      for (const { event, data } of buffered) {
+        sse.send(event, data as SSEEventPayloads[typeof event]);
+      }
+      buffered.length = 0;
+    },
+    discard() {
+      buffered.length = 0;
+    },
+    get size() {
+      return buffered.length;
+    },
+  };
+}
+
+/**
  * Create an SSE writer with initialized headers.
  */
 export function createSSEStream(res: Response): SSEWriter {
