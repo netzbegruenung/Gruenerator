@@ -1,21 +1,14 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { StyleSheet, View, useColorScheme } from 'react-native';
 import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
 import { MeshGradient } from './MeshGradient';
 
+import { darkMesh } from '../../theme/chatBackgrounds';
+
 import type { MeshPreset } from '../../theme/chatBackgrounds';
 import type { StyleProp, ViewStyle } from 'react-native';
-
-/**
- * How much of a mesh survives in dark mode.
- *
- * The palettes are light-mode ones; at full alpha over a near-black page they
- * turn into grey smudges. Faint, they still tint the corners, which is what the
- * compositions are for.
- */
-export const MESH_DARK_STRENGTH = 0.12;
 
 /**
  * A whole screen painted with a mesh: dark mode handled, optionally riding up
@@ -47,6 +40,9 @@ export const MeshSurface = memo(function MeshSurface({
   style?: StyleProp<ViewStyle>;
 }) {
   const isDark = useColorScheme() === 'dark';
+  // Not a dimmed copy of the light one: a background is re-hued for the dark
+  // page, a glow only quietens. `darkMesh` explains which and why.
+  const painted = useMemo(() => (isDark ? darkMesh(mesh) : mesh), [isDark, mesh]);
 
   // Negative while the keyboard is up — that is the sign convention of
   // `useReanimatedKeyboardAnimation`, meant to be applied as a translateY
@@ -58,12 +54,8 @@ export const MeshSurface = memo(function MeshSurface({
 
   const gradient = (
     <MeshGradient
-      mesh={mesh}
-      id={id}
-      strength={isDark ? MESH_DARK_STRENGTH : 1}
-      // Dark mode keeps the page's own near-black instead of the mesh's warm
-      // ground; the clouds are only a tint over it there.
-      withBase={!isDark}
+      mesh={painted}
+      id={`${id}${isDark ? '-dark' : ''}`}
       style={StyleSheet.absoluteFill}
       pointerEvents="none"
     />
