@@ -64,9 +64,10 @@ const ThreadItemBody = memo(function ThreadItemBody({
     <ThreadListItemPrimitive.Root style={styles.itemRoot}>
       <Pressable
         onPress={handlePress}
-        // Long-press used to delete outright. That put the one irreversible
-        // action behind the one gesture you can trigger by accident, and left
-        // renaming, sharing and archiving unreachable.
+        // Long-press is the ONLY way into the thread menu — there is no
+        // three-dot button beside the title. It used to delete outright, which
+        // put the one irreversible action behind the one gesture you can trigger
+        // by accident, and left renaming, sharing and archiving unreachable.
         onLongPress={onOpenActions}
         delayLongPress={350}
         style={({ pressed }) => [
@@ -78,17 +79,7 @@ const ThreadItemBody = memo(function ThreadItemBody({
           <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
         </Text>
       </Pressable>
-      {/* The dot marks the row, so it stays with the title. Behind the menu
-          button it read as one more control rather than as state. */}
       {isActive && <View style={[styles.activeDot, { backgroundColor: colors.primary[500] }]} />}
-      <Pressable
-        onPress={onOpenActions}
-        hitSlop={8}
-        style={styles.itemMore}
-        accessibilityLabel="Optionen für diese Unterhaltung"
-      >
-        <Ionicons name="ellipsis-horizontal" size={18} color={theme.textSecondary} />
-      </Pressable>
     </ThreadListItemPrimitive.Root>
   );
 });
@@ -557,10 +548,6 @@ const styles = StyleSheet.create({
   itemRoot: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  itemMore: {
-    paddingHorizontal: spacing.xsmall,
-    paddingVertical: spacing.xsmall,
   },
   itemTrigger: {
     flex: 1,

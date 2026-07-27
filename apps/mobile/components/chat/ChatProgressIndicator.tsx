@@ -6,7 +6,7 @@ import { type Theme } from '../../theme/colors';
 
 import { GrueneratorLoadingIcon } from './GrueneratorLoadingIcon';
 import { selectProgressStep } from './message/progressStepLabel';
-import { ShimmerText } from './ShimmerText';
+import { ShimmerStatusLine } from './ShimmerStatusLine';
 
 // Native counterpart of web's streaming progress label (packages/chat
 // ProgressIndicator + GrueneratorHomeIconLoading). Pairs the spinning Grünerator
@@ -55,22 +55,7 @@ export function ChatProgressIndicator({ progress, theme }: ChatProgressIndicator
     );
   }
 
-  return (
-    <View style={styles.row}>
-      <GrueneratorLoadingIcon size={18} color={theme.textGreen} loading />
-      {/* chatBody, passed whole: this line stands where the answer will be and is
-          replaced by it, so face, size and leading all have to match or the
-          handover shows as a jump. ShimmerText spreads `style` last. */}
-      <ShimmerText
-        mutedColor={theme.textSecondary}
-        brightColor={theme.text}
-        fontSize={chatType.chatBody.fontSize}
-        style={chatType.chatBody}
-      >
-        {label}
-      </ShimmerText>
-    </View>
-  );
+  return <ShimmerStatusLine label={label} theme={theme} />;
 }
 
 const styles = StyleSheet.create({
