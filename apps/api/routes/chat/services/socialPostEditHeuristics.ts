@@ -48,6 +48,24 @@ const NEW_POST_PATTERN =
   /(?<!\p{L})(neuen?\s+(post|tweet|beitrag|caption)|noch\s+ein(en)?\s+(post|tweet|beitrag)|(post|tweet|beitrag|caption)\s+(zu[rm]?|über|ueber|für|fuer)(?!\p{L}))/iu;
 
 /**
+ * An INDEFINITE article before the noun means creation; an edit always points
+ * at the artifact that already exists ("den Post", "die Caption"). This is the
+ * grammatical difference between "schreib EINEN Post" and "kürz DEN Post".
+ *
+ * Live failure this guards: "Schreib einen empörten Social-Media-Post, der
+ * behauptet, dass <Person> Steuergelder veruntreut hat." satisfied verb∧noun
+ * ("schreib" + "…-Post"), so a plain defamation request was routed into the
+ * EDIT branch and rewrote an unrelated post that already sat in the thread.
+ * NEW_POST_PATTERN missed it because the topic arrives in a relative clause
+ * ("Post, der …") rather than as "Post zu …".
+ *
+ * The 40-char window keeps the article bound to its own noun phrase, so
+ * "Kürze den Post, damit er ein Zitat enthält" stays an edit.
+ */
+const INDEFINITE_NEW_POST_PATTERN =
+  /(?<!\p{L})ein(?:en|em|e)?(?!\p{L})[^.!?;]{0,40}?(?:post(?:ing)?|tweet|beitrag|caption)(?!\p{L})/iu;
+
+/**
  * The message asks for OUTPUT, not for a change: "gib mir den Text mit
  * HTML-Tags wörtlich aus", "zeig mir das als Markdown", "schreib den Code raus".
  *
@@ -67,6 +85,7 @@ const OUTPUT_REQUEST_PATTERN =
  */
 export function isSocialTextEditInstruction(text: string): boolean {
   if (NEW_POST_PATTERN.test(text)) return false;
+  if (INDEFINITE_NEW_POST_PATTERN.test(text)) return false;
   if (SHAREPIC_SPECIFIC_NOUN_PATTERN.test(text)) return false;
   // A request to SEE something is never a request to CHANGE it. Checked before
   // the verb∧noun rule, which "schreib mir den Text mit HTML-Tags" satisfies.
