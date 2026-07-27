@@ -93,3 +93,19 @@ export const DEFAULT_LOOP_BUDGET: LoopBudget = {
   wallClockMs: 120_000,
   perCallTimeoutMs: 20_000,
 };
+
+/**
+ * Tools whose honest runtime does not fit the generic per-call budget.
+ *
+ * `research` runs a multi-source deep pass (planning → several searches →
+ * synthesis) and was measured live at 16.5s — only 3.5s under the generic 20s
+ * cap. Under load that cap kills a legitimate research call, and the turn sees
+ * it merely as "tool failed", so the answer silently loses its sources.
+ *
+ * Raised for this tool ALONE, not globally: the generic 20s is what keeps a
+ * hung backend from eating the whole turn, and `maxSteps` × 30s would exceed
+ * the wall clock. The wall clock stays the outer bound either way.
+ */
+export const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
+  research: 30_000,
+};
