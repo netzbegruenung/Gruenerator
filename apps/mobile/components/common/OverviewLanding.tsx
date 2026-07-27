@@ -1,11 +1,9 @@
 import { memo } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, useColorScheme } from 'react-native';
 
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+import { spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
 
-import { ComposerCard } from './ComposerCard';
-
-import type { Theme } from '../../theme/colors';
+import { Composer } from './Composer';
 
 interface ExamplePrompt {
   label: string;
@@ -39,7 +37,7 @@ export const OverviewLanding = memo(function OverviewLanding({
         )}
       </View>
 
-      <ComposerCard placeholder={placeholder} onSend={onSend} />
+      <Composer placeholder={placeholder} onSubmit={onSend} />
 
       <View style={styles.promptsRow}>
         {examples.map((p) => (
