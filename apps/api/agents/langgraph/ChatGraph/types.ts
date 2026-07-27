@@ -516,6 +516,14 @@ export interface ChatGraphInput {
  * Streaming is handled by the controller via @ai-sdk/langchain adapter.
  */
 export interface ChatGraphState {
+  /**
+   * The material of this turn (pasted text, attachment, open document) contains
+   * instruction-shaped markers. Set by the classifier, consumed by the answer
+   * prompts to warn the model BEFORE it acts — the classifier already noticed
+   * such payloads and simply passed them on.
+   */
+  injectionSuspected?: boolean | undefined;
+
   // Input (immutable after initialization)
   messages: ModelMessage[];
   threadId: string | null;
