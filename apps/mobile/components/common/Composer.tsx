@@ -619,12 +619,37 @@ function RuntimeComposer(props: ComposerProps) {
     onSubmit?.(trimmed);
   }, [onSubmit, aui, input]);
 
+  /**
+   * Send into this thread.
+   *
+   * Reads the draft, writes it to the runtime composer, sends, and only THEN
+   * clears — the same order `LocalComposer.handleSubmit` uses, and the reason
+   * that one never broke.
+   *
+   * It used to be `ComposerPrimitive.Send` with `onPressIn={input.reset}`, on the
+   * assumption that `reset()` touches only the native input. It does not:
+   * `reset()` calls `TextInput.clear()`, which under the New Architecture comes
+   * back as `onChangeText('')` and so empties the RUNTIME composer as well.
+   * `onPressIn` fires before `onPress`, so the primitive then read an empty
+   * composer and sent nothing. The message simply vanished — no error, no
+   * request. The primitive takes no `onPress` (`Omit<PressableProps,"onPress">`),
+   * so this calls the `aui.composer().send()` it wraps, one step later — the same
+   * shape `MessageEditComposer` already uses for the same reason.
+   */
+  const handleSend = useCallback(() => {
+    const trimmed = input.textRef.current.trim();
+    if (!trimmed) return;
+    aui.composer().setText(trimmed);
+    aui.composer().send();
+    input.reset();
+  }, [aui, input]);
+
   return (
     <ComposerBody
       props={props}
       input={input}
       inputRef={inputRef}
-      onSubmitEditing={onSubmit ? handleIntercept : () => aui.composer().send()}
+      onSubmitEditing={onSubmit ? handleIntercept : handleSend}
       addAttachment={(attachment) => void aui.composer().addAttachment(attachment)}
       attachments={
         <View style={styles.attachmentsRow}>
@@ -653,20 +678,18 @@ function RuntimeComposer(props: ComposerProps) {
             />
           </Pressable>
         ) : (
-          <ComposerPrimitive.Send
+          <Pressable
             testID={props.testIDPrefix ? `${props.testIDPrefix}-send` : undefined}
+            onPress={handleSend}
             style={[composerActionButtonStyle(variant), { backgroundColor: COMPOSER_ACTION_FILL }]}
-            // `onPressIn`, not `onPress`: the primitive reads the composer state
-            // on press, so the reset has to land before that read to clear the
-            // native input without racing the send.
-            onPressIn={input.reset}
+            accessibilityLabel="Senden"
           >
             <Ionicons
               name={variant === 'bar' ? 'arrow-up' : 'arrow-forward'}
               size={composerIconSize(variant)}
               color={colors.white}
             />
-          </ComposerPrimitive.Send>
+          </Pressable>
         )
       }
     />
