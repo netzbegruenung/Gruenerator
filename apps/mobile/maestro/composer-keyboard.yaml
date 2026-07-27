@@ -20,17 +20,22 @@ appId: de.gruenerator.app
 - extendedWaitUntil:
     visible: 'Chat'
     timeout: 60000
+
+# `tab-composer-*` is the bottom-pinned BottomComposerBar on the tab screens —
+# the composer this flow is actually about. It used to tap `chat-composer-*`,
+# which is the in-thread chat composer and lives in a different layout, so the
+# inset bug it guards was never exercised.
 - tapOn:
-    id: 'chat-composer-input'
+    id: 'tab-composer-input'
 
 # Typing raises the keyboard. The input must still be on screen afterwards, and
 # the send button — which only mounts once there is text — must be reachable.
 - inputText: 'Hallo'
 - assertVisible:
-    id: 'chat-composer-input'
+    id: 'tab-composer-input'
 - assertVisible:
-    id: 'chat-composer-send'
+    id: 'tab-composer-send'
 
 - hideKeyboard
 - assertVisible:
-    id: 'chat-composer-input'
+    id: 'tab-composer-input'
