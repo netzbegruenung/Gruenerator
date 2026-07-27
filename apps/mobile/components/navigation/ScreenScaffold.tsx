@@ -16,15 +16,20 @@ import { SidebarMenuButton } from './SidebarMenuButton';
  * Pass `backdrop` to layer a per-tab background behind the content (the mobile echoes of
  * the web workplace's per-tab tints: Chat sunrise, Wissen pink, Arbeiten flat). It renders
  * above the default app gradient but below the header + content.
+ *
+ * `action` puts one screen-specific control left of the profile menu (the chat's
+ * "new conversation"), so a screen never needs a header of its own.
  */
 export function ScreenScaffold({
   title,
   children,
   backdrop,
+  action,
 }: {
   title: string;
   children: ReactNode;
   backdrop?: ReactNode;
+  action?: ReactNode;
 }) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
@@ -48,6 +53,7 @@ export function ScreenScaffold({
         </View>
         <Text style={[styles.headerTitle, { color: theme.text }]}>{title}</Text>
         <View style={[styles.headerSide, styles.headerSideRight]}>
+          {action}
           <ProfileMenu />
         </View>
       </View>
@@ -64,7 +70,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.medium,
     paddingVertical: spacing.small,
   },
-  headerSide: { flex: 1, flexDirection: 'row', alignItems: 'center' },
+  headerSide: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.small },
   headerSideRight: { justifyContent: 'flex-end' },
   headerTitle: { fontFamily: 'Raleway_700Bold', fontSize: 20, textAlign: 'center' },
 });

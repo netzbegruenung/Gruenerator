@@ -4,7 +4,7 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { spacing } from '../../theme';
-import { FLOATING_TAB_BAR_HEIGHT } from '../../theme/layout';
+import { FLOATING_TAB_BAR_HEIGHT, SCREEN_EDGE } from '../../theme/layout';
 
 import { Composer } from './Composer';
 
@@ -85,7 +85,7 @@ export function BottomComposerBar({
 
 const styles = StyleSheet.create({
   wrap: {
-    paddingHorizontal: spacing.medium,
+    paddingHorizontal: SCREEN_EDGE,
     paddingTop: spacing.xsmall,
   },
 });

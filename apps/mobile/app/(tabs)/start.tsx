@@ -15,6 +15,7 @@ import { useDrawerStore } from '../../hooks/useDrawerStore';
 import { useTabSwipe } from '../../hooks/useTabSwipe';
 import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
 import { spacing, lightTheme, darkTheme } from '../../theme';
+import { SCREEN_EDGE } from '../../theme/layout';
 import { route, routeWithParams } from '../../types/routes';
 
 export default function StartScreen() {
@@ -73,7 +74,7 @@ export default function StartScreen() {
             {favoriteTools.length > 0 && (
               <View style={styles.section}>
                 <Text style={[styles.sectionTitle, { color: theme.text }]}>Werkzeuge</Text>
-                <ToolSquareGrid tools={favoriteTools} />
+                <ToolSquareGrid tools={favoriteTools} horizontalPadding={SCREEN_EDGE * 2} />
               </View>
             )}
           </ScrollView>
@@ -103,7 +104,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.medium,
   },
   welcomeSection: {
-    paddingHorizontal: spacing.medium,
+    paddingHorizontal: SCREEN_EDGE,
     paddingVertical: spacing.small,
   },
   welcomeText: {
@@ -117,7 +118,7 @@ const styles = StyleSheet.create({
   },
   section: {
     paddingTop: spacing.xlarge,
-    paddingHorizontal: spacing.medium,
+    paddingHorizontal: SCREEN_EDGE,
     gap: spacing.small,
   },
   sectionTitle: {
