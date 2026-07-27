@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import { StyleSheet, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BackButton } from '../../components/common/BackButton';
 import { NotebookResearchPanel } from '../../components/notebook/NotebookResearchPanel';
 import { colors, lightTheme, darkTheme } from '../../theme';
 
@@ -38,8 +39,7 @@ export default function NotebookDetailScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
-      {/* App gradient behind the whole screen — full immersion, matching start.
-          No back button; swipe-back is handled by the focused-stack gesture. */}
+      {/* App gradient behind the whole screen — full immersion, matching start. */}
       <LinearGradient
         colors={
           colorScheme === 'dark'
@@ -49,6 +49,10 @@ export default function NotebookDetailScreen() {
         style={StyleSheet.absoluteFill}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
+      />
+      <BackButton
+        color={colorScheme === 'dark' ? colors.grey[200] : colors.grey[800]}
+        background={colorScheme === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.85)'}
       />
       <NotebookResearchPanel
         notebookId={notebookId}
