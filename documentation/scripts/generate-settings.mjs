@@ -4,8 +4,9 @@
  * configs so the documentation can't quietly drift from the UI:
  *
  *   - the tab strip        (apps/web … settings/SettingsDialog.tsx, `NAV`)
- *   - the settings rows    (apps/web … settings/settingsCatalog.ts) — every row
- *     the dialog renders through <SettingsRow>, with its title and description
+ *   - the settings rows    (packages/shared … settings/catalog.ts) — every row
+ *     the dialog renders through <SettingsRow>, with its title and description.
+ *     Shared with apps/mobile, which shows a subset marked by `platforms`.
  *   - the choices          (apps/web … settings/tabs/GeneralTab.tsx) — theme,
  *     locale and start-page options as the user sees them labelled
  *   - writing-style presets (apps/web … settings/tabs/TexteAnlernenTab.tsx)
@@ -41,7 +42,8 @@ const OUT_FILE = path.join(REPO_ROOT, 'documentation/src/generated/settings.json
 
 const SRC = {
   dialog: 'apps/web/src/features/settings/SettingsDialog.tsx',
-  catalog: 'apps/web/src/features/settings/settingsCatalog.ts',
+  // Shared with apps/mobile, which renders a subset of the same rows.
+  catalog: 'packages/shared/src/settings/catalog.ts',
   general: 'apps/web/src/features/settings/tabs/GeneralTab.tsx',
   texteAnlernen: 'apps/web/src/features/settings/tabs/TexteAnlernenTab.tsx',
   notificationMeta: 'apps/web/src/features/notifications/notificationPreferenceMeta.ts',

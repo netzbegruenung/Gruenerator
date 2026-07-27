@@ -1,20 +1,9 @@
+import { type SettingsTab } from '@gruenerator/shared/settings';
 import { create } from 'zustand';
 
-export type SettingsTab =
-  | 'allgemein'
-  | 'barrierefreiheit'
-  | 'konto'
-  | 'friends'
-  | 'personalisierung'
-  | 'briefkoepfe'
-  | 'texte-anlernen'
-  | 'erinnerungen'
-  | 'benachrichtigungen'
-  | 'wolke'
-  | 'websites'
-  | 'konnektoren'
-  | 'nutzung'
-  | 'support';
+// Defined alongside the catalog so a new tab cannot be added on one side only.
+// Re-exported here because every consumer already imports it from this module.
+export type { SettingsTab };
 
 interface SettingsDialogState {
   isOpen: boolean;
