@@ -5,7 +5,7 @@ import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert, ActivityIndicator } from 'react-native';
 
 import { base64ToBytes, shareBytesAsFile } from '../../services/share';
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, chatType } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
 import type { ComputeData } from '@gruenerator/chat';
@@ -164,13 +164,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   operation: {
+    ...chatType.chatTitle,
     flexShrink: 1,
-    fontSize: 15,
     fontWeight: '600',
   },
   caption: {
+    ...chatType.chatMicro,
     marginLeft: 'auto',
-    fontSize: 10,
     letterSpacing: 0.8,
   },
   figure: {
@@ -197,8 +197,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.small,
   },
   chipLabel: {
+    ...chatType.chatMeta,
     flexShrink: 1,
-    fontSize: 12,
   },
   row: {
     flexDirection: 'row',
@@ -215,19 +215,19 @@ const styles = StyleSheet.create({
     borderTopColor: 'transparent',
   },
   rowLabel: {
-    fontSize: 12,
+    ...chatType.chatMeta,
   },
   rowLabelInline: {
     flexShrink: 1,
   },
   rowValue: {
-    fontSize: 15,
+    ...chatType.chatTitle,
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   blockValue: {
+    ...chatType.chatMeta,
     marginTop: 2,
-    fontSize: 12,
     fontFamily: 'monospace',
   },
 });

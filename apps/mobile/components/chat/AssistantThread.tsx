@@ -6,7 +6,7 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../hooks/useTheme';
-import { spacing } from '../../theme';
+import { spacing, chatType } from '../../theme';
 import { Composer, composerEdgeStyle, type ComposerAccessory } from '../common/Composer';
 
 import { DocumentBrowserSheet } from './DocumentBrowserSheet';
@@ -182,8 +182,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   emptySubtitle: {
-    fontSize: 15,
+    ...chatType.chatTitle,
     textAlign: 'center',
-    lineHeight: 22,
   },
 });

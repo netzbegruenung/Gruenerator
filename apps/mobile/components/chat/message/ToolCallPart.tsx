@@ -8,7 +8,7 @@ import {
 import { Text, StyleSheet } from 'react-native';
 
 import { useTheme } from '../../../hooks/useTheme';
-import { spacing } from '../../../theme';
+import { spacing, chatType } from '../../../theme';
 import { AskHumanCard } from '../tool-ui/AskHumanCard';
 import { ExampleResultsCard } from '../tool-ui/ExampleResultsCard';
 import { ImageResultCard } from '../tool-ui/ImageResultCard';
@@ -124,8 +124,7 @@ function AssistantToolCallPart(props: ToolCallProps) {
 
 const styles = StyleSheet.create({
   narration: {
-    fontSize: 14,
-    lineHeight: 20,
+    ...chatType.chatSecondary,
     paddingHorizontal: spacing.small,
     marginTop: spacing.xxsmall,
   },

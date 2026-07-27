@@ -1,7 +1,7 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, chatType } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
 
@@ -68,12 +68,12 @@ const styles = StyleSheet.create({
     gap: spacing.xsmall,
   },
   label: {
+    ...chatType.chatSecondary,
     flex: 1,
-    fontSize: 14,
     fontWeight: '500',
   },
   query: {
-    fontSize: 12,
+    ...chatType.chatMeta,
     marginTop: 2,
     marginLeft: spacing.medium + spacing.xsmall,
     fontStyle: 'italic',
