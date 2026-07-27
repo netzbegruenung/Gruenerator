@@ -15,6 +15,7 @@ import { getParam } from '../../utils/params.js';
 import { getAgent, loadAgents, getDefaultAgentId } from './agents/agentLoader.js';
 import computeAssetsRouter from './computeAssetsController.js';
 import confirmRouter from './confirmController.js';
+import feedbackRouter from './feedbackController.js';
 import messagesRouter from './messagesController.js';
 import notebookStreamRouter from './notebookStreamController.js';
 import promptGeneratorRouter from './promptGeneratorController.js';
@@ -32,6 +33,7 @@ router.use('/summarize', summarizeRouter);
 router.use('/generate-system-prompt', promptGeneratorRouter);
 router.use('/confirm', confirmRouter);
 router.use('/compute-assets', computeAssetsRouter);
+router.use('/feedback', feedbackRouter);
 router.use('/search', searchRouter);
 
 router.get('/agents', async (req: Request, res: Response): Promise<void> => {
