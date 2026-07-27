@@ -26,6 +26,7 @@ import {
   classifierNode,
   pandasComputeNode,
   buildSystemMessage,
+  usesResearchWrapper,
 } from '../../agents/langgraph/ChatGraph/index.js';
 import {
   isSheetFillRequest,
@@ -1643,7 +1644,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             requestId,
             {
               hasImages: imageAttachments.length > 0,
-              intent: finalState.intent,
+              // Wrapper-mode research only frames an answer that already
+              // exists — a different lane than synthesising one from chunks.
+              intent: usesResearchWrapper(finalState) ? 'research_wrapper' : finalState.intent,
               agentId: finalState.agentConfig.identifier,
               // Measured BEFORE pruning on purpose: the question is "does this
               // turn need a bigger lane", and pruning is exactly the loss we
