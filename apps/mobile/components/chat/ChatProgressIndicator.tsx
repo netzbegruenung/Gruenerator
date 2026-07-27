@@ -40,7 +40,9 @@ export function ChatProgressIndicator({ progress, theme }: ChatProgressIndicator
   return (
     <View style={styles.row}>
       <GrueneratorLoadingIcon size={18} color={theme.textGreen} loading />
-      <ShimmerText mutedColor={theme.textSecondary} brightColor={theme.text}>
+      {/* Matches the body size: this line stands where the answer will be and is
+          replaced by it, so a different size would show as a jump at handover. */}
+      <ShimmerText mutedColor={theme.textSecondary} brightColor={theme.text} fontSize={17}>
         {label}
       </ShimmerText>
     </View>
