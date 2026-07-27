@@ -103,6 +103,30 @@ const EDIT_SIGNAL_RE =
 const RESEARCH_VERB_RE = /\b(recherchier\w*|such\w*|finde|informier\w*|nachschlag\w*|google)\b/i;
 
 /**
+ * The user explicitly told the assistant to look something up in THIS turn.
+ *
+ * Why this exists: `forceFirstToolCall` was scoped to `intent === 'mcp'`, while
+ * the classifier's loop demotion routes search/web asks into `agentic`, where
+ * the planner is free to call nothing at all. Live result: "Recherchiere bitte
+ * mit Quellen" answered "Ich habe keinen Zugriff auf eine Live-Datenbank …
+ * soll ich das für Dich übernehmen?" with steps=0 — after the assistant had
+ * searched unprompted one turn earlier. Tool use has to follow the instruction,
+ * not the planner's mood.
+ *
+ * Narrow on purpose: an explicit research VERB, or an imperative paired with an
+ * unmistakable source demand ("mit Quellen", "belege das"). Content nouns like
+ * "aktuelle Daten" alone do NOT qualify — they are everyday words in edit turns.
+ */
+export function looksLikeExplicitResearchOrder(raw: string): boolean {
+  const t = (raw ?? '').trim();
+  if (t.length === 0) return false;
+  if (RESEARCH_VERB_RE.test(t)) return true;
+  return /\b(mit\s+quellen|mit\s+belegen|beleg\w*\s+(das|es|die|deine)|quellen\s+(angeben|nennen|dazu))\b/i.test(
+    t
+  );
+}
+
+/**
  * A compound "research + edit the OPEN doc/board" turn (editor sidebars only):
  * an EXPLICIT research verb AND an edit instruction. The caller gates this on an
  * editor surface (an edit_current_* tool enabled + a current doc/board), then

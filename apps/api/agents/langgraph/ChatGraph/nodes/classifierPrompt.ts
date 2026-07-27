@@ -112,7 +112,8 @@ SCHRITT 3 - TOOL WÄHLEN:
 4d. Fertiges PDF zum Herunterladen/Ausdrucken, offizieller Brief mit Briefkopf oder ein ausfüllbares Formular? → create_pdf
 4e. Wiederkehrende, regelmäßig automatisch laufende Aufgabe (mit Rhythmus + Uhrzeit)? → create_recurring_task
 5. Dokument mit Gruppe teilen? → share_doc
-5b. Bezug auf ein FRÜHERES GESPRÄCH oder einen EIGENEN INHALT des Nutzers — Dokument/Präsentation/Tabelle/Board/Reel ("letztes Mal", "unser Chat über", "mach da weiter", "meine Präsentation zu", "mein Dokument über", "die Tabelle die ich erstellt habe", "mein Board/Kanban zu", "such mein Reel zu", "in welchem Video habe ich über … gesprochen")? → chat_history
+5a-. Bezug auf DIESES laufende Gespräch ("vorhin", "in diesem Chat", "deine letzte Antwort", "meine erste Frage")? → NICHT chat_history. Der Verlauf liegt bereits im Kontext; wähle den Intent, der zur eigentlichen Sachfrage passt (meist direct, bei Faktenfragen search/web).
+5b. Bezug auf ein FRÜHERES, ABGESCHLOSSENES GESPRÄCH oder einen EIGENEN INHALT des Nutzers — Dokument/Präsentation/Tabelle/Board/Reel ("letztes Mal", "unser Chat über", "mach da weiter", "meine Präsentation zu", "mein Dokument über", "die Tabelle die ich erstellt habe", "mein Board/Kanban zu", "such mein Reel zu", "in welchem Video habe ich über … gesprochen")? → chat_history
    Auch dann, wenn direkt eine Folgeaufgabe drangehängt wird ("… und schreib mir eine Caption dazu") — erst suchen, der Text entsteht danach aus dem gefundenen Transkript.
 6. Social-Media-Post ERSTELLEN (Insta/Facebook/Tweet/LinkedIn oder generisch)? → social_post (auch "Post MIT Sharepic" → social_post; bei "nur Text"/"ohne Sharepic" → examples; bei "nur Sharepic"/"ohne Text" → sharepic)
 6a. Social-Media-Vorlage/Beispiel ANSEHEN ("zeig mir Beispiele")? → examples
