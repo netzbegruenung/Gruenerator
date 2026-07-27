@@ -88,3 +88,49 @@ export function defersToSearchDespiteSources(
   if (opts.sources === 0 || opts.toolCalls === 0) return false;
   return DEFERS_TO_SEARCH_RE.test(text);
 }
+
+/**
+ * Whether an answer looks CUT OFF rather than finished: a completed German
+ * answer ends on punctuation, so a trailing letter or digit is the signature of
+ * a stream that stopped mid-sentence.
+ *
+ * The point of this check is WHERE it runs. The identical test also runs in the
+ * chat client (`parseSSEStream`, search for "looksCutOff") over the text the
+ * browser actually assembled, so the two logs together localise a truncation
+ * report without a repro:
+ *
+ *   server suspicious + client suspicious → generation stopped early
+ *                                            (pair it with finishReason)
+ *   server clean      + client suspicious → the tail was lost after the server
+ *                                            handed it over (transport/render)
+ *
+ * The live case that motivated this was the second kind — 513 chars generated,
+ * 414 on screen — and it cost an entire investigation to establish, because
+ * neither side said anything at all.
+ */
+export function looksCutOff(text: string): boolean {
+  return /[\p{L}\p{N}]$/u.test(text.trimEnd());
+}
+
+/**
+ * Whether generated user-facing text is actually a leaked TOOL CALL.
+ *
+ * Live: a request to look up a number and post it produced the 93-character
+ * "post" `Let's search.{"query": "Grüne Sitze Bundestag Stand Juli 2026",
+ * "top_n": 5, "source": "news"}` — the composer imitated the tool-call pattern
+ * instead of answering, and it shipped into the post widget verbatim, exposing
+ * internal prompt structure to the user.
+ *
+ * The agentic loop already recognises this shape (`looksDegenerateSynth`), but
+ * the single-pass composers have no equivalent. Two independent signals, both
+ * of which a real post never carries: a JSON object literal with a quoted key,
+ * and an English "let's search"-style announcement of work to come.
+ */
+const JSON_ARGS_RE = /\{\s*"[a-z_]{2,}"\s*:/i;
+const TOOL_ANNOUNCEMENT_RE =
+  /^\s*(?:let(?:'|’)?s|i(?:'|’)?(?:ll|m going to)|now\s+i(?:'|’)?ll)\s+(?:search|look|perform|check|use|call|query|find)\b/i;
+
+export function looksLikeToolCallLeak(text: string): boolean {
+  if (typeof text !== 'string' || text.trim().length === 0) return false;
+  return JSON_ARGS_RE.test(text) || TOOL_ANNOUNCEMENT_RE.test(text);
+}

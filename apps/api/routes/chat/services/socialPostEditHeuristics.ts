@@ -66,6 +66,25 @@ const INDEFINITE_NEW_POST_PATTERN =
   /(?<!\p{L})ein(?:en|em|e)?(?!\p{L})[^.!?;]{0,40}?(?:post(?:ing)?|tweet|beitrag|caption)(?!\p{L})/iu;
 
 /**
+ * "Jetzt eine Version davon auf Englisch." — the same post, another language.
+ *
+ * These carry NO edit verb and NO tone word, so verb∧noun missed them, and they
+ * carry no CREATE verb either, so `resolveReferentialTopic` did not recognise
+ * them as a referential creation. The message fell through BOTH nets into the
+ * create path, where the topic became the instruction itself: the composer was
+ * asked to write a post about "Jetzt eine Version davon auf Englisch.", replied
+ * that it cannot, and `looksLikeRefusal` turned that into a content-policy
+ * refusal about fabricated quotes. Observed live on 27.07.2026, 18:50:35.
+ *
+ * A translation is an edit — the artifact exists, only its language changes —
+ * so the edit branch produces a v2 with the original post in context. The
+ * creation guards above still win: "Schreib einen neuen Post auf Englisch zu X"
+ * stays a fresh post.
+ */
+const TRANSLATION_PATTERN =
+  /(?<!\p{L})(?:(?:ü|ue)bersetz\w*|(?:auf|ins?)\s+(?:englisch\w*|deutsch\w*|franz(?:ö|oe)sisch\w*|spanisch\w*|italienisch\w*|t(?:ü|ue)rkisch\w*|arabisch\w*|polnisch\w*|ukrainisch\w*|russisch\w*)|in\s+english|english\s+version)(?!\p{L})/iu;
+
+/**
  * The message asks for OUTPUT, not for a change: "gib mir den Text mit
  * HTML-Tags wörtlich aus", "zeig mir das als Markdown", "schreib den Code raus".
  *
@@ -91,5 +110,8 @@ export function isSocialTextEditInstruction(text: string): boolean {
   // the verb∧noun rule, which "schreib mir den Text mit HTML-Tags" satisfies.
   if (OUTPUT_REQUEST_PATTERN.test(text)) return false;
   if (TEXT_EDIT_VERB_PATTERN.test(text) && TEXT_NOUN_PATTERN.test(text)) return true;
+  // Checked after the creation guards, so only a translation of the EXISTING
+  // post reaches here — "schreib einen Post auf Englisch zu X" left above.
+  if (TRANSLATION_PATTERN.test(text)) return true;
   return TONE_WORD_PATTERN.test(text);
 }

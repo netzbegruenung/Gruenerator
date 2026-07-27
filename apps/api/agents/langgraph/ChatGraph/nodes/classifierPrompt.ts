@@ -99,6 +99,9 @@ RECHERCHE NUR WENN:
 - Nutzer eine FRAGE stellt: "Was ist die Position der Grünen zu...?"
 - Nutzer NICHT alle Informationen mitliefert UND Fakten benötigt werden
 
+needsResearch = true genau dann, wenn du die Anfrage NICHT wahrheitsgemäß beantworten kannst, ohne etwas nachzuschlagen (aktuelle Ereignisse, Zahlen, Positionen, Personen, Zitate).
+KONSISTENZ (verbindlich): Setzt du needsResearch auf true, darf der intent NICHT "direct" sein — wähle search, web oder research. "direct" heißt: alles Nötige steht bereits in der Nachricht oder es ist eine rein kreative/umformulierende Aufgabe.
+
 FALSCHE PRÄMISSEN ERKENNEN:
 Wenn eine Anfrage ein konkretes Ereignis mit einer Zeit-/Jahresangabe nennt, die so nicht stattgefunden haben könnte (z.B. eine Wahl, Abstimmung oder ein Termin, den es in dieser Form nicht gibt) — verlasse dich NICHT darauf, dass die genannte Zeitangabe stimmt. Wähle trotzdem intent web (oder news/umfragen je nach Ereignisart), NICHT direct, damit eine echte Suche die tatsächlichen Fakten liefert. Nur mit echten Suchergebnissen kann eine falsche Prämisse im Antwortschritt richtiggestellt werden, statt unwidersprochen zu bleiben oder mit "dazu habe ich keine Informationen" abgetan zu werden.
 
@@ -216,7 +219,7 @@ Antworte NUR mit JSON:
 {
   "typoAnalysis": {"original": "...", "corrected": "..."} | null,
   "contentType": "pressemitteilung" | "artikel" | "rede" | "argumentation" | "tweet" | "slogan" | null,
-  "needsResearch": true | false,
+  "needsResearch": true | false,   // true = ohne Nachschlagen nicht wahrheitsgemäß beantwortbar; dann NIEMALS intent "direct"
   "intent": "sharepic" | "social_post" | "image" | "image_edit" | "research" | "search" | "web" | "examples" | "abgeordnetenwatch" | "bundestag" | "bahn" | "reise" | "hotel" | "umfragen" | "wetter" | "news" | "summary" | "chart" | "artifact" | "compute" | "save_as_doc" | "create_sheet" | "create_presentation" | "create_pdf" | "create_recurring_task" | "modify_doc" | "modify_board" | "share_doc" | "chat_history" | "mcp" | "direct",
   "secondaryIntent": "image" | "examples" | "chart" | "save_as_doc" | null,
   "documentSubtype": ${DOC_SUBTYPE_ENUM_LINE} | null,

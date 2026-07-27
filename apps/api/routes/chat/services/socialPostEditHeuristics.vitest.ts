@@ -9,6 +9,27 @@ import { isSocialTextEditInstruction } from './socialPostEditHeuristics.js';
  * after). The sharepic EDIT_NOUN_PATTERN contains `text`, so router order +
  * these heuristics are what keep "mach den Text knackiger" off the canvas.
  */
+describe('isSocialTextEditInstruction — Sprachversionen', () => {
+  it('behandelt die live gescheiterte Übersetzungs-Nachfrage als Edit', () => {
+    // Fiel durch verb∧noun UND durch resolveReferentialTopic; landete im
+    // Erstell-Pfad und wurde dem Nutzer als Diffamierungs-Ablehnung gemeldet.
+    expect(isSocialTextEditInstruction('Jetzt eine Version davon auf Englisch.')).toBe(true);
+  });
+
+  it('erkennt weitere Übersetzungsformulierungen', () => {
+    expect(isSocialTextEditInstruction('Übersetze das ins Englische')).toBe(true);
+    expect(isSocialTextEditInstruction('Bitte auf Türkisch')).toBe(true);
+    expect(isSocialTextEditInstruction('Kannst du mir eine english version geben?')).toBe(true);
+  });
+
+  it('lässt eine echte Neuerstellung auf Englisch eine Neuerstellung bleiben', () => {
+    expect(isSocialTextEditInstruction('Schreib einen neuen Post auf Englisch')).toBe(false);
+    expect(
+      isSocialTextEditInstruction('Schreib einen Post auf Englisch über bezahlbaren Wohnraum')
+    ).toBe(false);
+  });
+});
+
 describe('isSocialTextEditInstruction', () => {
   it('matches edit verb + text noun', () => {
     expect(isSocialTextEditInstruction('mach den Text knackiger')).toBe(true);

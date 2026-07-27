@@ -1,5 +1,6 @@
 'use client';
 
+import { useMessagePartText } from '@assistant-ui/react';
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
 import { memo, useMemo } from 'react';
 import rehypeKatex from 'rehype-katex';
@@ -28,9 +29,29 @@ const preprocess = (text: string) => {
   return escapeCitationMarkers(normalizeUnicodeMath(normalizeMathDelimiters(text)));
 };
 
+/**
+ * A `[N]` marker anywhere in the answer disables the typewriter reveal.
+ *
+ * `useSmooth` only animates while each new text is an extension of the last one
+ * — it checks `text.startsWith(displayedText)` and restarts the reveal from zero
+ * when that fails. `escapeCitationMarkers` breaks exactly that invariant: a
+ * half-streamed marker renders as `… ein [3`, and the next delta rewrites the
+ * same span to `… ein \[3\]`, which is not an extension. Every completed marker
+ * therefore restarts the reveal, and when the stream finishes while the reveal
+ * is still catching up, the animator stops WITHOUT committing the remainder —
+ * the answer stands cut mid-word while the UI marks it complete (measured live:
+ * 513 chars generated and persisted, 414 on screen).
+ *
+ * Cited answers stream fine without the animation: the SSE adapter already
+ * yields at most every 50ms, which is the perceived streaming. Same trade the
+ * notebook thread makes wholesale — see MarkdownStreamingContext.
+ */
+const CITATION_MARKER_RE = /\[\d+(?:\s*,\s*\d+)*\]/;
+
 function CitationMarkdownTextImpl() {
   const citations = useCitations();
-  const smooth = useMarkdownSmooth();
+  const { text: rawText } = useMessagePartText();
+  const smooth = useMarkdownSmooth() && !CITATION_MARKER_RE.test(rawText);
   const citationMap = useMemo(() => new Map(citations.map((c) => [c.id, c])), [citations]);
   const components = useMemo(() => makeCitationComponents(citationMap), [citationMap]);
 

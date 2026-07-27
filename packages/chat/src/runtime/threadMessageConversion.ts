@@ -58,6 +58,21 @@ export interface LoadedMessage {
   };
 }
 
+/**
+ * `[cite:N]` → `[N]`, the reload half of a normalisation both live paths
+ * already perform on arrival (`parseSSEStream.ts`, `NotebookModelAdapter.ts`).
+ *
+ * The notebook flow persists its answer with the `[cite:N]` tokens still in the
+ * text (`notebookStreamController` stores `result.answer` verbatim), so without
+ * this every reloaded notebook thread rendered its markers as literal
+ * `[cite:5]` prose — the badge layer only ever matched `[N]`. Same visible
+ * defect as a stray bracket beside a real badge, just triggered by reloading
+ * instead of by marker syntax.
+ */
+function normalizeCitationMarkers(text: string): string {
+  return text.replace(/\[cite:(\d+)\]/g, '[$1]');
+}
+
 function extractContent(content: unknown): string {
   if (typeof content !== 'string') return '';
 
@@ -65,20 +80,26 @@ function extractContent(content: unknown): string {
     try {
       const parts = JSON.parse(content);
       if (Array.isArray(parts)) {
-        return parts
-          .filter(
-            (p: unknown): p is { type: string; text: string } =>
-              p !== null && typeof p === 'object' && 'type' in p && p.type === 'text' && 'text' in p
-          )
-          .map((p) => p.text)
-          .join('');
+        return normalizeCitationMarkers(
+          parts
+            .filter(
+              (p: unknown): p is { type: string; text: string } =>
+                p !== null &&
+                typeof p === 'object' &&
+                'type' in p &&
+                p.type === 'text' &&
+                'text' in p
+            )
+            .map((p) => p.text)
+            .join('')
+        );
       }
     } catch {
       // Not valid JSON, return as-is
     }
   }
 
-  return content;
+  return normalizeCitationMarkers(content);
 }
 
 /**

@@ -174,7 +174,12 @@ export async function runDocGeneration(opts: {
       PRESENTATION_TOOL_SCHEMA,
       parsePresentationStructure,
       createPresentationDocument,
+      findEmptySlides,
     } = await import('../../../services/presentations/PresentationGenerationService.js');
+    const parseAndCheckSlides = viaLaxParser(
+      parsePresentationStructure,
+      'title oder slides fehlen'
+    );
     const generated = await generateStructured({
       aiWorkerPool,
       req: reqWithUser,
@@ -184,7 +189,19 @@ export async function runDocGeneration(opts: {
       toolName: 'create_presentation',
       toolDescription: 'Erzeugt die Folienstruktur der Präsentation.',
       schema: PRESENTATION_TOOL_SCHEMA,
-      validate: viaLaxParser(parsePresentationStructure, 'title oder slides fehlen'),
+      // A blank slide is a broken structure, not a success — rejecting it here
+      // buys a repair attempt with a message that names the offending slides,
+      // rather than shipping the deck and burying the gap in speaker notes.
+      validate: (input) => {
+        const parsed = parseAndCheckSlides(input);
+        if (!parsed.ok) return parsed;
+        const empty = findEmptySlides(parsed.value);
+        if (empty.length === 0) return parsed;
+        return {
+          ok: false as const,
+          error: `Folien ohne Inhalt: ${empty.join(', ')} — jede Folie mit Layout content/split/quote braucht einen gefüllten body.`,
+        };
+      },
       parseText: parsePresentationStructure,
       temperature: 0.4,
       label: 'presentation',

@@ -19,12 +19,66 @@ const NEW_VARIANTS_PATTERN =
   /(?<!\p{L})(neue?[sn]?\s+(sharepic|varianten?|karussell|slider)|noch\s*mal\s+(neu|von\s+vorn)|alle\s+varianten|drei\s+varianten)/iu;
 
 /**
+ * The message asks for a NEW document-level artifact, so it is a creation turn
+ * even when it also carries edit wording.
+ *
+ * Live failure: "Schreib einen Instagram-Post UND eine Pressemitteilung zum
+ * Thema Windkraft. Kürze danach nur die Pressemitteilung." produced NO content
+ * at all — "Kürze" alone satisfied the refinement pattern, the turn was routed
+ * into the sharepic edit branch, and the user got "Welche Variante soll ich
+ * bearbeiten?" for artifacts that had nothing to do with the request.
+ *
+ * `NEW_VARIANTS_PATTERN` above does not cover this: it only knows "neues
+ * Sharepic / neue Varianten", not "erstelle mir ein anderes Artefakt".
+ *
+ * Same indefinite-article idiom as the social-post branch
+ * (INDEFINITE_NEW_POST_PATTERN): an indefinite article before a
+ * document-level noun means creation, a definite one means edit. The noun list
+ * deliberately holds ONLY whole artifacts — sharepic-internal fields ("ein
+ * anderes Bild", "eine neue Zeile") must stay editable.
+ */
+const NEW_ARTIFACT_PATTERN =
+  /(?<!\p{L})ein(?:en|em|e)?(?!\p{L})[^.!?;]{0,40}?(?:post(?:ing)?|tweet|beitrag|caption|pressemitteilung|presseerkl(?:ä|ae)rung|rede|antrag|pr(?:ä|ae)sentation|tabelle|dokument|newsletter)(?!\p{L})/iu;
+
+/**
+ * Whether the message requests a new artifact rather than a change to an
+ * existing one. Exported so the sharepic REFINEMENT check (which lives with the
+ * variant helpers) applies the same rule — both entry points into the edit
+ * branch have to agree, or the fix only closes one of two doors.
+ */
+export function asksForNewArtifact(text: string): boolean {
+  return NEW_ARTIFACT_PATTERN.test(text);
+}
+
+/**
+ * A question ABOUT the content ("stimmt das?", "bist du sicher?") rather than a
+ * request to change it. Blocks every door into the edit branch — live, a user
+ * questioning a fact got "Welche Variante soll ich bearbeiten?" instead of an
+ * answer, and the turn ended there.
+ *
+ * A bare "?" test would be wrong and was rejected for that reason: "Kannst du
+ * die Überschrift kürzen?" is a question in form and an instruction in intent,
+ * and half of all polite edit requests look like that. What separates the two
+ * is the verification vocabulary — stimmt / sicher / korrekt / Quelle — not the
+ * punctuation. Both are required: "das stimmt so nicht, kürz es" is a
+ * correction WITH an instruction and must keep working.
+ */
+const VERIFICATION_QUESTION_PATTERN =
+  /(?<!\p{L})(stimmt\s+(?:das|die|der|es)|bist\s+du\s+(?:dir\s+)?sicher|sicher,?\s+dass|ist\s+(?:das|die|der|dies|diese[rs]?)\b[^?]{0,40}?(?:wirklich|korrekt|richtig|wahr|belegt|erfunden)|hast\s+du\s+(?:dir\s+)?(?:das|die|den)\b[^?]{0,30}?(?:erfunden|ausgedacht)|wo(?:her)?\s+(?:hast\s+du|kommt|stammt)|welche\s+quelle|gibt\s+es\s+(?:daf(?:ü|ue)r|dazu)\s+(?:eine\s+)?(?:quelle|beleg))/iu;
+
+export function isVerificationQuestion(text: string): boolean {
+  return text.includes('?') && VERIFICATION_QUESTION_PATTERN.test(text);
+}
+
+/**
  * True when the message reads like an edit instruction for an existing
  * sharepic (vs. a request for a fresh one). Only meaningful when the thread
  * actually has a sharepic to edit — callers check target existence.
  */
 export function isSharepicEditInstruction(text: string): boolean {
   if (NEW_VARIANTS_PATTERN.test(text)) return false;
+  if (NEW_ARTIFACT_PATTERN.test(text)) return false;
+  if (isVerificationQuestion(text)) return false;
   return EDIT_VERB_PATTERN.test(text) && EDIT_NOUN_PATTERN.test(text);
 }
 
@@ -37,6 +91,7 @@ export function isSharepicEditInstruction(text: string): boolean {
  */
 export function hasSharepicEditVerb(text: string): boolean {
   if (NEW_VARIANTS_PATTERN.test(text)) return false;
+  if (isVerificationQuestion(text)) return false;
   return EDIT_VERB_PATTERN.test(text);
 }
 
