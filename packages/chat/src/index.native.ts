@@ -113,6 +113,7 @@ export {
   COMPOSER_MODES,
   COMPOSER_TOOLS,
   SEARCH_DEPTHS,
+  showsSearchDepth,
   type ComposerModeDef,
   type ComposerIconKey,
   type ComposerToolDef,
@@ -264,6 +265,7 @@ export {
   setDocMentionables,
   getDocMentionables,
   toolMentionables,
+  getMcpServerMentionables,
   filterMentionablesByCategory,
   type Mentionable,
   type MentionableType,
@@ -299,6 +301,8 @@ export {
 export { extractContent } from './adapters/messageConversion';
 export {
   registerDocumentSlug,
+  buildDocumentMentionAttachment,
+  buildCollabDocAttachment,
   resolveDocumentSlug,
   clearDocumentSlugs,
   documentToSlug,
@@ -326,3 +330,11 @@ export {
   type ProcessedFile,
   type FileSummary,
 } from './lib/fileUtils';
+
+// Composer plus-menu assembly — shared by web's PlusMenu and mobile's ComposerActionSheet
+export {
+  quickSkillMentionables,
+  functionMentionables,
+  connectorMentionables,
+  connectorId,
+} from './lib/plusMenu';
