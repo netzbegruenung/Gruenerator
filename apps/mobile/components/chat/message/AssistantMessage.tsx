@@ -1,5 +1,12 @@
 import { MessagePrimitive, useAuiState } from '@assistant-ui/react-native';
-import { useFetchFullText, type ChatMessageMetadata, type Citation } from '@gruenerator/chat';
+import {
+  agentMentionables,
+  getCustomAgentMentionables,
+  getDefaultAgent,
+  useFetchFullText,
+  type ChatMessageMetadata,
+  type Citation,
+} from '@gruenerator/chat';
 import { memo, useMemo, useState } from 'react';
 import { View } from 'react-native';
 
@@ -13,12 +20,15 @@ import { ComputeCard } from '../ComputeCard';
 import { ConfirmActionCard } from '../ConfirmActionCard';
 import { DocumentCreatedCard } from '../DocumentCreatedCard';
 import { GeneratedImageDisplay } from '../GeneratedImageDisplay';
+import { MemoryIndicator } from '../MemoryIndicator';
 import { SocialPostCard } from '../SocialPostCard';
 
+import { AgentBadge } from './AgentBadge';
 import { AssistantActionBar } from './AssistantActionBar';
 import { AssistantTextPart } from './AssistantTextPart';
 import { BranchPicker } from './BranchPicker';
 import { MessageCitationsContext } from './citationContext';
+import { resolveMessageAgent, shouldShowAgentBadge } from './messageAgent';
 import { messageLayout } from './messageLayout';
 import { AssistantReasoningPart } from './ReasoningBlock';
 import { AssistantToolCallPartWithNarration } from './ToolCallPart';
@@ -44,6 +54,14 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const chartData = metadata.chartData;
   const socialPostData = metadata.socialPostData;
   const bahnData = metadata.bahnData;
+
+  // Which Grünerator wrote this. `getCustomAgentMentionables()` is a plain read
+  // of the module-level catalogue `useMentionablesSync` fills, so it re-resolves
+  // with the metadata rather than needing its own subscription.
+  const agent = useMemo(
+    () => resolveMessageAgent(metadata, agentMentionables, getCustomAgentMentionables()),
+    [metadata]
+  );
 
   // While this (last) message is still streaming, surface the cycling stage word
   // + spinning cog the same way web does — the label rides on metadata.progress,
@@ -78,6 +96,9 @@ export const AssistantMessage = memo(function AssistantMessage() {
   return (
     <MessagePrimitive.Root style={[messageLayout.row, messageLayout.assistantRow]}>
       <View style={messageLayout.assistantContent}>
+        {shouldShowAgentBadge(agent, getDefaultAgent()) && (
+          <AgentBadge agent={agent} theme={theme} />
+        )}
         {isStreaming && !hasToolCall && progress && (
           <ChatProgressIndicator progress={progress} theme={theme} />
         )}
@@ -98,6 +119,9 @@ export const AssistantMessage = memo(function AssistantMessage() {
         {createdDocument && <DocumentCreatedCard document={createdDocument} theme={theme} />}
         {citations && citations.length > 0 && (
           <CitationsFooter citations={citations} theme={theme} onSelect={setSelectedCitation} />
+        )}
+        {!isStreaming && progress?.memoryContext && (
+          <MemoryIndicator memoryContext={progress.memoryContext} theme={theme} />
         )}
       </View>
       <BranchPicker theme={theme} />
