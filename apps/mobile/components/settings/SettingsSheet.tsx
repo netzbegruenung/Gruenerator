@@ -24,8 +24,7 @@ import { spacing, colors, borderRadius, BODY_FONT } from '../../theme';
 import { chatBackgroundColor } from '../../theme/chatBackgrounds';
 import { route } from '../../types/routes';
 import { BottomSheet } from '../common/BottomSheet';
-
-import { SettingsGroup, SettingsRow } from './SettingsRow';
+import { ListGroup, ListRow } from '../common/ListRow';
 
 /**
  * The settings surface, whole.
@@ -140,9 +139,9 @@ export function SettingsSheet() {
   const detailBody = (): ReactNode => {
     if (detail === 'theme') {
       return (
-        <SettingsGroup>
+        <ListGroup>
           {THEME_OPTIONS.map((option, i) => (
-            <SettingsRow
+            <ListRow
               key={option.value}
               icon={option.icon}
               title={option.label}
@@ -154,15 +153,15 @@ export function SettingsSheet() {
               }}
             />
           ))}
-        </SettingsGroup>
+        </ListGroup>
       );
     }
 
     if (detail === 'locale') {
       return (
-        <SettingsGroup>
+        <ListGroup>
           {LOCALE_OPTIONS.map((option, i) => (
-            <SettingsRow
+            <ListRow
               key={option.value}
               icon="flag-outline"
               title={option.label}
@@ -178,7 +177,7 @@ export function SettingsSheet() {
               }}
             />
           ))}
-        </SettingsGroup>
+        </ListGroup>
       );
     }
 
@@ -244,21 +243,21 @@ export function SettingsSheet() {
           {note(
             'Diese Schalter gelten zusätzlich zu den Einstellungen deines Systems — dort Aktiviertes bleibt aktiv, auch wenn hier nichts gesetzt ist.'
           )}
-          <SettingsGroup>
-            <SettingsRow
+          <ListGroup>
+            <ListRow
               icon="pulse-outline"
               title={getSettingsEntry('barrierefreiheit.animationen').title}
               value="Weniger Bewegung in Verläufen und Übergängen"
               accessory={toggle('reduce_motion')}
             />
-            <SettingsRow
+            <ListRow
               icon="layers-outline"
               title={getSettingsEntry('barrierefreiheit.transparenz').title}
               value="Deckt durchscheinende Flächen wie die Tab-Leiste ab"
               accessory={toggle('reduce_transparency')}
               last
             />
-          </SettingsGroup>
+          </ListGroup>
         </>
       );
     }
@@ -313,14 +312,14 @@ export function SettingsSheet() {
       <>
         {note(getSettingsEntry('personalisierung.rollen').description ?? '')}
         {hasRoles && (
-          <SettingsGroup>
+          <ListGroup>
             {(roles ?? []).map((role, i) => {
               const ebene = ebenen.find((e) => e.id === role.ebene);
               const subtitle = [role.gliederung, role.bundesland, role.abgeordnete]
                 .filter(Boolean)
                 .join(' · ');
               return (
-                <SettingsRow
+                <ListRow
                   // Roles carry no id and two can be identical. The list is
                   // read-only and never reordered, so the index is stable here.
                   // eslint-disable-next-line react/no-array-index-key
@@ -332,7 +331,7 @@ export function SettingsSheet() {
                 />
               );
             })}
-          </SettingsGroup>
+          </ListGroup>
         )}
       </>
     );
@@ -362,8 +361,8 @@ export function SettingsSheet() {
           <>
             {/* One continuous list. Splitting these rows into cards produced a
                 stack of mostly single-row slabs whose gaps read as arbitrary. */}
-            <SettingsGroup>
-              <SettingsRow
+            <ListGroup>
+              <ListRow
                 icon="happy-outline"
                 title={getSettingsEntry('friends.avatar').title}
                 onPress={() => setDetail('friend')}
@@ -372,44 +371,44 @@ export function SettingsSheet() {
                   created on web, so an empty row would advertise a pane that
                   shows nothing and offers no way to fill it. */}
               {hasRoles && (
-                <SettingsRow
+                <ListRow
                   icon="ribbon-outline"
                   title={getSettingsEntry('personalisierung.rollen').title}
                   value={`${roles?.length} ${roles?.length === 1 ? 'Rolle' : 'Rollen'}`}
                   onPress={() => setDetail('roles')}
                 />
               )}
-              <SettingsRow
+              <ListRow
                 icon="contrast-outline"
                 title={getSettingsEntry('allgemein.aussehen').title}
                 value={THEME_LABELS[themeMode]}
                 onPress={() => setDetail('theme')}
               />
-              <SettingsRow
+              <ListRow
                 icon="color-palette-outline"
                 title={getSettingsEntry('allgemein.chatHintergrund').title}
                 value={chatBackground.label}
                 onPress={() => setDetail('chatBackground')}
               />
-              <SettingsRow
+              <ListRow
                 icon="flag-outline"
                 title={getSettingsEntry('allgemein.sprache').title}
                 value={LOCALE_LABELS[locale]}
                 onPress={() => setDetail('locale')}
               />
-              <SettingsRow
+              <ListRow
                 icon="accessibility-outline"
                 title="Barrierefreiheit"
                 value={accessibilitySummary(user.reduce_motion, user.reduce_transparency)}
                 onPress={() => setDetail('accessibility')}
               />
-              <SettingsRow
+              <ListRow
                 icon="school-outline"
                 title="Einführung erneut ansehen"
                 onPress={() => leave(() => router.push(route('/(auth)/onboarding')))}
                 last
               />
-            </SettingsGroup>
+            </ListGroup>
 
             {/* Plain text, not a card row: logging out is rare, it already sits
                 in the profile menu, and as a red row it was the loudest thing on

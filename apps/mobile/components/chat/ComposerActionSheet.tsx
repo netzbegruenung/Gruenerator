@@ -27,7 +27,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { spacing, borderRadius, chatType } from '../../theme';
 import { route } from '../../types/routes';
 import { BottomSheet } from '../common/BottomSheet';
-import { SettingsGroup, SettingsRow, useSurfaceStyles } from '../settings/SettingsRow';
+import { ListGroup, ListRow, useSurfaceStyles } from '../common/ListRow';
 
 // Presentation only: labels and keys come from the shared COMPOSER_MODES /
 // SEARCH_DEPTHS lists; these map the semantic icon keys → Ionicons.
@@ -184,7 +184,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
   const detailRows = (): ReactNode => {
     if (detail === 'mode') {
       return modes.map((mode, i) => (
-        <SettingsRow
+        <ListRow
           key={mode.mode}
           icon={MODE_ICONS[mode.icon]}
           title={mode.label}
@@ -199,7 +199,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
     }
     if (detail === 'notebook') {
       return notebookMentionables.map((notebook, i) => (
-        <SettingsRow
+        <ListRow
           key={notebook.identifier}
           icon="book-outline"
           title={notebook.title}
@@ -218,7 +218,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
       const rows = list.map((item, i) => (
         // `mention`, not `identifier`: eighteen recipes share eight owning-agent
         // identifiers, so keying on those collides.
-        <SettingsRow
+        <ListRow
           key={item.mention}
           icon={detail === 'skills' ? 'color-wand-outline' : 'flash-outline'}
           title={item.title}
@@ -233,7 +233,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
       // so it is one row.
       return [
         ...rows,
-        <SettingsRow
+        <ListRow
           key="all-recipes"
           icon="library-outline"
           title="Alle Rezepte"
@@ -245,7 +245,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
     }
     if (detail === 'depth') {
       return SEARCH_DEPTHS.map((depth, i) => (
-        <SettingsRow
+        <ListRow
           key={depth.mode}
           icon={DEPTH_ICONS[depth.icon]}
           title={depth.label}
@@ -262,7 +262,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
     if (detail === 'model') {
       const options = [AUTO_MODEL_OPTION, ...models];
       return options.map((model, i) => (
-        <SettingsRow
+        <ListRow
           key={model.id}
           icon={model.id === AUTO_MODEL_ID ? 'sparkles-outline' : 'hardware-chip-outline'}
           title={model.name}
@@ -281,7 +281,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
       const id = connectorId(connector);
       const isPinned = pinnedConnector?.id === id;
       return (
-        <SettingsRow
+        <ListRow
           key={connector.identifier}
           icon="link-outline"
           title={connector.title}
@@ -321,7 +321,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         {detail ? (
-          <SettingsGroup>{detailRows()}</SettingsGroup>
+          <ListGroup>{detailRows()}</ListGroup>
         ) : (
           <>
             {hasAttachments && (
@@ -334,32 +334,32 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
             )}
 
             {onInsertMention && (
-              <SettingsGroup>
-                <SettingsRow
+              <ListGroup>
+                <ListRow
                   icon="color-wand-outline"
                   title="Rezepte"
                   value={skills.map((s) => s.title).join(' · ')}
                   onPress={() => setDetail('skills')}
                 />
-                <SettingsRow
+                <ListRow
                   icon="flash-outline"
                   title="Funktionen"
                   value={functions.map((f) => f.title).join(' · ')}
                   onPress={() => setDetail('functions')}
                   last
                 />
-              </SettingsGroup>
+              </ListGroup>
             )}
 
-            <SettingsGroup>
-              <SettingsRow
+            <ListGroup>
+              <ListRow
                 icon={MODE_ICONS[activeMode.icon]}
                 title="Modus"
                 value={activeMode.label}
                 onPress={() => setDetail('mode')}
               />
               {threadMode === 'notebook' && (
-                <SettingsRow
+                <ListRow
                   icon="book-outline"
                   title="Notebook"
                   value={activeNotebook?.title ?? 'Auswählen'}
@@ -367,32 +367,32 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
                 />
               )}
               {showsSearchDepth(selectedAgentId) && (
-                <SettingsRow
+                <ListRow
                   icon={DEPTH_ICONS[activeDepth.icon]}
                   title="Recherchetiefe"
                   value={activeDepth.label}
                   onPress={() => setDetail('depth')}
                 />
               )}
-              <SettingsRow
+              <ListRow
                 icon="hardware-chip-outline"
                 title="Modell"
                 value={activeModel}
                 onPress={() => setDetail('model')}
                 last
               />
-            </SettingsGroup>
+            </ListGroup>
 
             {connectors.length > 0 && (
-              <SettingsGroup>
-                <SettingsRow
+              <ListGroup>
+                <ListRow
                   icon="link-outline"
                   title="Konnektoren"
                   value={pinnedConnector?.label ?? 'Keiner angeheftet'}
                   onPress={() => setDetail('connectors')}
                   last
                 />
-              </SettingsGroup>
+              </ListGroup>
             )}
           </>
         )}

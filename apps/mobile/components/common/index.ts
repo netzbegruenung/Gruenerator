@@ -8,6 +8,7 @@ export { MicButton } from './MicButton';
 export { Composer, composerEdgeStyle, type ComposerAccessory } from './Composer';
 export { ComposerShell, type ComposerVariant } from './ComposerShell';
 export { BottomSheet } from './BottomSheet';
+export { ListRow, ListGroup, useSurfaceStyles } from './ListRow';
 export { OverviewLanding } from './OverviewLanding';
 
 // Editor Toolbar Components
