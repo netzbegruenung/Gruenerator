@@ -1,3 +1,14 @@
+import coverBayern from '@gruenerator/shared/assets/notebook-covers/bayern.webp';
+import coverBerlin from '@gruenerator/shared/assets/notebook-covers/berlin.webp';
+import coverBrandenburg from '@gruenerator/shared/assets/notebook-covers/brandenburg.webp';
+import coverBundestagsfraktion from '@gruenerator/shared/assets/notebook-covers/bundestagsfraktion.webp';
+import coverBundesverband from '@gruenerator/shared/assets/notebook-covers/bundesverband.webp';
+import coverHessen from '@gruenerator/shared/assets/notebook-covers/hessen.webp';
+import coverKommunalwiki from '@gruenerator/shared/assets/notebook-covers/kommunalwiki.webp';
+import coverMecklenburgVorpommern from '@gruenerator/shared/assets/notebook-covers/mecklenburg-vorpommern.webp';
+import coverSaarland from '@gruenerator/shared/assets/notebook-covers/saarland.webp';
+import coverSachsenAnhalt from '@gruenerator/shared/assets/notebook-covers/sachsen-anhalt.webp';
+import coverThueringen from '@gruenerator/shared/assets/notebook-covers/thueringen.webp';
 import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
 import {
   NOTEBOOK_REGISTRY,
@@ -73,21 +84,23 @@ const NOTEBOOK_PATHS = {
 } satisfies Record<NotebookId, string>;
 
 /**
- * Branded notebook covers (in `apps/web/public/notebook-covers/`, optimized webp).
- * Partial by design — notebooks without an entry keep the ghost-icon tile.
+ * Branded notebook covers, optimized webp. The files live in
+ * `packages/shared/assets/notebook-covers/` so web and mobile share one copy —
+ * Vite turns these imports into hashed URLs, Metro into bundled image modules.
+ * Partial by design: notebooks without an entry keep the ghost-icon tile.
  */
 const NOTEBOOK_COVERS: Partial<Record<NotebookId, string>> = {
-  'gruene-notebook': '/notebook-covers/bundesverband.webp',
-  'bundestagsfraktion-notebook': '/notebook-covers/bundestagsfraktion.webp',
-  'thueringen-notebook': '/notebook-covers/thueringen.webp',
-  'berlin-notebook': '/notebook-covers/berlin.webp',
-  'mecklenburg-vorpommern-notebook': '/notebook-covers/mecklenburg-vorpommern.webp',
-  'brandenburg-notebook': '/notebook-covers/brandenburg.webp',
-  'bayern-notebook': '/notebook-covers/bayern.webp',
-  'sachsen-anhalt-notebook': '/notebook-covers/sachsen-anhalt.webp',
-  'hessen-notebook': '/notebook-covers/hessen.webp',
-  'saarland-notebook': '/notebook-covers/saarland.webp',
-  'kommunalwiki-notebook': '/notebook-covers/kommunalwiki.webp',
+  'gruene-notebook': coverBundesverband,
+  'bundestagsfraktion-notebook': coverBundestagsfraktion,
+  'thueringen-notebook': coverThueringen,
+  'berlin-notebook': coverBerlin,
+  'mecklenburg-vorpommern-notebook': coverMecklenburgVorpommern,
+  'brandenburg-notebook': coverBrandenburg,
+  'bayern-notebook': coverBayern,
+  'sachsen-anhalt-notebook': coverSachsenAnhalt,
+  'hessen-notebook': coverHessen,
+  'saarland-notebook': coverSaarland,
+  'kommunalwiki-notebook': coverKommunalwiki,
 };
 
 const toEntry = (nb: NotebookDefinition): NotebookConfigEntry => ({

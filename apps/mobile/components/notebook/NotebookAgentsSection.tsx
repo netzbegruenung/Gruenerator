@@ -7,9 +7,10 @@ import { useAuth } from '@gruenerator/shared/hooks';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 
-import { colors, spacing, borderRadius } from '../../theme';
+import { spacing, borderRadius, BODY_FONT } from '../../theme';
+import { getSurfaceFab } from '../../theme/toolTheme';
 import { routeWithParams } from '../../types/routes';
 import { agentIcon } from '../chat/sidebarIcons';
 
@@ -21,19 +22,14 @@ import type { Theme } from '../../theme/colors';
  * via `defaultNotebookIds`. Self-hides entirely when none match. Tapping an agent
  * opens a chat with it.
  */
-export function NotebookAgentsSection({
-  notebookId,
-  theme,
-  onGreen,
-}: {
-  notebookId: string;
-  theme: Theme;
-  onGreen?: boolean;
-}) {
+export function NotebookAgentsSection({ notebookId, theme }: { notebookId: string; theme: Theme }) {
   const router = useRouter();
   const { locale } = useAuth();
+  const isDark = useColorScheme() === 'dark';
   const [open, setOpen] = useState(false);
-  const accent = onGreen ? colors.white : theme.textGreen;
+  // The notebook surface is magenta end to end — the app green read as a stray
+  // accent on it.
+  const accent = getSurfaceFab('wissen', isDark).icon;
 
   const agents = useMemo(
     () =>
@@ -82,17 +78,10 @@ export function NotebookAgentsSection({
               <View style={[styles.iconCircle, { backgroundColor: theme.surface }]}>
                 <Ionicons name={agentIcon(agent.iconKey)} size={20} color={theme.textGreen} />
               </View>
-              <Text
-                style={[styles.name, { color: onGreen ? colors.white : theme.text }]}
-                numberOfLines={1}
-              >
+              <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>
                 {agent.title}
               </Text>
-              <Ionicons
-                name="chevron-forward"
-                size={18}
-                color={onGreen ? 'rgba(255,255,255,0.7)' : theme.textSecondary}
-              />
+              <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
             </Pressable>
           ))}
         </View>
@@ -113,6 +102,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xsmall,
   },
   toggleText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -134,6 +124,7 @@ const styles = StyleSheet.create({
   },
   name: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '600',
   },

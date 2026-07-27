@@ -71,6 +71,7 @@ import {
   executeIntentPipeline,
 } from './services/intentExecutionService.js';
 import { estimateRequestTokens, extractTextContent } from './services/messageHelpers.js';
+import { stripFabricatedSystemClaims } from './services/outputSanity.js';
 import {
   recallPastChats,
   recallOfficeDocuments,
@@ -1481,6 +1482,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       let generatedImage: PipelineResult['generatedImage'];
       let sharepicVariants: PipelineResult['sharepicVariants'];
       let socialPost: PipelineResult['socialPost'];
+      let socialPostRefused: PipelineResult['socialPostRefused'] = false;
       let fullText: string | null;
       let agenticSteps: PersistedStep[] | undefined;
       // Presentation/sheet created by a compound loop tool — lifted from the
@@ -1555,8 +1557,8 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         agenticSteps = outcome.steps;
       } else {
         // === Stage 2: Search or Image Generation ===
-        ({ finalState, generatedImage, sharepicVariants, socialPost } = await executeIntentPipeline(
-          {
+        ({ finalState, generatedImage, sharepicVariants, socialPost, socialPostRefused } =
+          await executeIntentPipeline({
             classifiedState,
             sse,
             forcedTool,
@@ -1565,8 +1567,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             req,
             threadId: actualThreadId ?? null,
             ...(sharepicRefinement && { sharepicRefinement }),
-          }
-        ));
+          }));
 
         // === Stage 3: Response generation ===
         if (finalState.intent === 'social_post') {
@@ -1575,8 +1576,14 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           // Fixed confirmation like the sharepic branch — no extra LLM call.
           const hasText = socialPost != null;
           const n = sharepicVariants.length;
-          fullText =
-            hasText && n > 0
+          fullText = socialPostRefused
+            ? // The text model refused, so both halves were discarded. Say so
+              // plainly — the old copy promised "dein Post mit N Varianten"
+              // because it only checked that SOME text came back.
+              `Diese Anfrage kann ich nicht umsetzen: Dabei entstünde ein erfundenes Zitat oder eine ` +
+              `irreführende Aussage im Namen der Partei. Wenn du mir ein echtes Zitat mit Quelle gibst, ` +
+              `gestalte ich dir daraus gern einen Post.`
+            : hasText && n > 0
               ? `Hier ist dein Post mit ${n} passenden Sharepic-${n === 1 ? 'Variante' : 'Varianten'}. ` +
                 `Sag mir, was ich am Text oder an der Grafik anpassen soll.`
               : hasText
@@ -1739,8 +1746,19 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           // agentic loop already clamps; this is its single-pass equivalent. When
           // anything changes, push the corrected text via `completion` so the
           // frontend replaces the streamed deltas (same channel as the notebook flow).
+          const sanity = stripFabricatedSystemClaims(fullText, [
+            finalState.attachmentContext ?? '',
+            finalState.currentDocument?.title ?? '',
+            ...finalState.searchResults.map((r) => `${r.title ?? ''} ${r.content ?? ''}`),
+          ]);
+          if (sanity.fabricated.length > 0) {
+            log.warn(
+              `[ChatGraph] Removed fabricated internal file claim(s): ${sanity.fabricated.join(', ')}`
+            );
+            fullText = sanity.text;
+          }
           const citeClamp = stripOutOfRangeCitations(fullText, finalState.citations.length);
-          if (citeClamp.changed) {
+          if (citeClamp.changed || sanity.fabricated.length > 0) {
             fullText = citeClamp.text;
             sse.send('completion', { text: fullText, citations: finalState.citations });
           }

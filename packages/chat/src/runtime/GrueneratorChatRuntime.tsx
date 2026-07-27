@@ -15,6 +15,7 @@ import {
   McpAppRenderer,
   McpAppsRemoteHost,
 } from '@assistant-ui/react';
+import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 import { GrueneratorRealtimeVoiceAdapter, VoxtralDictationAdapter } from '@gruenerator/voice';
 import {
   type ReactNode,
@@ -25,7 +26,6 @@ import {
   type PropsWithChildren,
 } from 'react';
 import { useShallow } from 'zustand/shallow';
-import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 
 import { ChatThreadListPortal } from '../components/ChatThreadListPortal';
 import { grueneratorToolkit } from '../components/tool-ui/GrueneratorToolUIs';
@@ -35,8 +35,8 @@ import { ChatRuntimeReadyProvider } from '../context/ChatRuntimeReadyContext';
 import { ExternalThreadProvider } from '../context/ExternalThreadContext';
 import { useChatCollaboration } from '../hooks/useChatCollaboration';
 import { getDefaultAgent } from '../lib/agents';
-import { notifyError } from '../lib/notify';
 import { handleDictationError } from '../lib/dictationErrorHandler';
+import { notifyError } from '../lib/notify';
 import { chatSuggestions } from '../lib/suggestions';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { useAgentStore } from '../stores/chatStore';
@@ -326,8 +326,7 @@ function useGrueneratorThreadRuntime() {
     () => ({
       submit: ({ message, type }) => {
         const custom = message.metadata?.custom as
-          | { streamMetadata?: { traceId?: string } }
-          | undefined;
+          { streamMetadata?: { traceId?: string } } | undefined;
         const traceId = custom?.streamMetadata?.traceId;
         if (!traceId) return;
         if (lastFeedbackRef.current.get(traceId) === type) return;

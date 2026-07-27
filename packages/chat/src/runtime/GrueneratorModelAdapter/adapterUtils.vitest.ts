@@ -2,6 +2,7 @@
  * Tests for GrueneratorModelAdapter pure utils — truncateAttachmentContext + buildRequestBody.
  */
 
+import { searchGraphStreamBodySchema } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -130,6 +131,33 @@ describe('buildRequestBody', () => {
     expect(body.searchMode).toBe('web');
     expect(body.agentId).toBe('agent-x');
     expect('enabledTools' in body).toBe(false);
+  });
+
+  // /api/search-graph/stream validates its body against this schema, so a drift
+  // between the adapter and the contract 400s every search on web AND mobile
+  // (both build the body here). Check the real adapter output, not a fixture.
+  it('search-mode body satisfies the search-graph contract schema', () => {
+    for (const searchMode of ['web', 'deep'] as const) {
+      const body = buildRequestBody(
+        baseParams({
+          effectiveMode: 'search',
+          config: { ...baseConfig, searchMode },
+        })
+      );
+      const result = searchGraphStreamBodySchema.safeParse(body);
+      expect(result.error?.issues ?? []).toEqual([]);
+      expect(result.success).toBe(true);
+    }
+  });
+
+  it('search-mode body stays valid when no thread exists yet', () => {
+    const body = buildRequestBody(
+      baseParams({
+        effectiveMode: 'search',
+        config: { ...baseConfig, threadId: null as unknown as string },
+      })
+    );
+    expect(searchGraphStreamBodySchema.safeParse(body).success).toBe(true);
   });
 
   it('notebook mode → messages + collectionId fallback from selectedNotebookId', () => {

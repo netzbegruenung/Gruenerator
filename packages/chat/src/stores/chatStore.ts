@@ -1,3 +1,5 @@
+import { type SearchMode } from '@gruenerator/contracts';
+import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 import {
   TEXT_MODELS,
   TEXT_MODEL_BY_ID,
@@ -7,8 +9,6 @@ import {
 } from '@gruenerator/shared/models';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-
-import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 
 import { notifyError, notifyWarning } from '../lib/notify';
 import { AUTO_MODEL_ID, type AutoModelId, type SelectedModel } from '../lib/resolveAutoModel';
@@ -58,7 +58,11 @@ interface TriggerCompactionResponse {
 export type ToolKey = 'search' | 'web' | 'examples' | 'pressemitteilung_examples' | 'research';
 
 export type ThreadMode = 'chat' | 'notebook' | 'search' | 'eigener';
-export type SearchMode = 'web' | 'deep';
+// Search depth is a wire value: it goes straight into the /api/search-graph/stream
+// body, where the contract validates it against `searchModeSchema`. Re-exported
+// from the contract so web, mobile and the API share one definition instead of
+// three copies that can drift.
+export { type SearchMode };
 
 /** A pinned MCP connector: while set, the composer auto-injects its durable
  *  `@[Label](mcp:id)` token into every sent message so the tool scope is held

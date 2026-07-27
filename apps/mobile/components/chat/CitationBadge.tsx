@@ -1,6 +1,6 @@
 import { Pressable, Text, StyleSheet } from 'react-native';
 
-import { colors } from '../../theme';
+import { colors, BODY_FONT } from '../../theme';
 
 /**
  * Inline citation badge — the native counterpart of web's circular superscript
@@ -31,7 +31,7 @@ export function CitationBadge({
   );
 }
 
-const SIZE = 18;
+const SIZE = 20;
 
 const styles = StyleSheet.create({
   bubble: {
@@ -47,8 +47,9 @@ const styles = StyleSheet.create({
   },
   label: {
     color: colors.white,
-    fontSize: 11,
+    fontFamily: BODY_FONT,
+    fontSize: 12,
     fontWeight: '700',
-    lineHeight: 14,
+    lineHeight: 15,
   },
 });

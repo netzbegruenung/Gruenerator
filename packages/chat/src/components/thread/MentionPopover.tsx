@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 
-import { filterMentionables, type Mentionable } from '../../lib/mentionables';
+import { filterMentionables, mentionableKey, type Mentionable } from '../../lib/mentionables';
 import { getFilteredMentionables } from '../../lib/mentionDetection';
 
 import { MentionFloatingPanel } from './MentionFloatingPanel';
@@ -127,7 +127,7 @@ export function MentionPopover({
                   const idx = itemIndex++;
                   return (
                     <MentionItem
-                      key={item.identifier}
+                      key={mentionableKey(item)}
                       mentionable={item}
                       isSelected={idx === selectedIndex}
                       onSelect={onSelect}
@@ -143,7 +143,7 @@ export function MentionPopover({
                       const idx = itemIndex++;
                       return (
                         <MentionItem
-                          key={item.identifier}
+                          key={mentionableKey(item)}
                           mentionable={item}
                           isSelected={idx === selectedIndex}
                           onSelect={onSelect}

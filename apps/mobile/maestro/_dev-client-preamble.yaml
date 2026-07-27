@@ -1,0 +1,47 @@
+# Dismiss the Expo dev-client interstitials that sit between launchApp and the
+# app itself. They exist ONLY in a local debug build — the release APK EAS
+# builds has no dev launcher — so every step here is conditional and the whole
+# file is a no-op on a standalone build.
+#
+# Underscore prefix so `maestro test maestro/` does not pick it up as a flow of
+# its own.
+appId: de.gruenerator.app
+---
+# `when:` conditions evaluate instantly, but the dev client needs a moment after
+# launchApp to decide what it is showing. Without this settle the checks run
+# against a half-drawn screen, skip, and the flow then fails on the first real
+# assertion with a misleading message.
+- extendedWaitUntil:
+    visible: 'Tools'
+    timeout: 4000
+    optional: true
+
+# "This is the developer menu…" explainer, shown once per fresh connection.
+- runFlow:
+    when:
+      visible: 'Continue'
+    commands:
+      - tapOn: 'Continue'
+
+# Dismissing the explainer reveals the dev menu itself (Reload / Go home /
+# TOOLS). Back closes it and drops into the app.
+- runFlow:
+    when:
+      visible: 'Toggle performance monitor'
+    commands:
+      - pressKey: Back
+
+# If state was cleared, the launcher forgets the Metro URL and shows its home
+# screen instead of the app. Reconnect rather than failing three steps later
+# with a confusing "Chat is not visible".
+- runFlow:
+    when:
+      visible: 'Fetch development servers'
+    commands:
+      - tapOn:
+          text: 'http://'
+      - inputText: 'http://localhost:8081'
+      - tapOn: 'Connect'
+      - extendedWaitUntil:
+          visible: 'Chat'
+          timeout: 60000

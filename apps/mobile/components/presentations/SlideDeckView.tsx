@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View, useColorScheme } from 'react-native';
 import PagerView from 'react-native-pager-view';
 
-import { darkTheme, lightTheme } from '../../theme';
+import { darkTheme, lightTheme, BODY_FONT } from '../../theme';
 
 import { SlideView } from './SlideView';
 
@@ -79,6 +79,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   counterText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -89,6 +90,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   emptyText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
   },
 });
