@@ -3,20 +3,22 @@ import { useAuth } from '@gruenerator/shared/hooks';
 import { getGreeting } from '@gruenerator/shared/utils';
 import { useRouter } from 'expo-router';
 import { useCallback } from 'react';
-import { View, Text, StyleSheet, useColorScheme, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, useColorScheme, ScrollView, Platform } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BottomComposerBar } from '../../components/common/BottomComposerBar';
+import { Composer } from '../../components/common/Composer';
 import { SunriseBackground } from '../../components/common/SunriseBackground';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
 import { ALL_TOOLS } from '../../components/tools/toolsConfig';
 import { ToolSquareGrid } from '../../components/tools/ToolSquareGrid';
 import { useDrawerStore } from '../../hooks/useDrawerStore';
-import { useTabSwipe } from '../../hooks/useTabSwipe';
+import { useTabNavigationSwipe } from '../../hooks/useTabSwipe';
 import { usePendingAttachmentStore } from '../../stores/pendingAttachmentStore';
 import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
 import { spacing, lightTheme, darkTheme } from '../../theme';
-import { SCREEN_EDGE } from '../../theme/layout';
+import { FLOATING_TAB_BAR_HEIGHT, SCREEN_EDGE } from '../../theme/layout';
 import { route, routeWithParams } from '../../types/routes';
 
 export default function StartScreen() {
@@ -25,8 +27,17 @@ export default function StartScreen() {
   const router = useRouter();
   const { user, locale } = useAuth();
   const firstName = user?.display_name?.split(' ')[0] ?? null;
-  const greeting = getGreeting(locale, firstName);
+  const greeting = getGreeting(locale, firstName, { short: true });
   const showHelpSubtitle = !greeting.includes('?');
+
+  const insets = useSafeAreaInsets();
+  // The Android tab bar is absolutely positioned (ClassicTabLayout), so the
+  // navigator reserves no room for it and the scroll content has to clear it
+  // itself — the same sum BottomComposerBar used while it was pinned there.
+  const bottomClearance =
+    Platform.OS === 'ios'
+      ? insets.bottom + spacing.medium
+      : insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.medium;
 
   const openDrawer = useDrawerStore((s) => s.openDrawer);
   const favorites = useToolFavoritesStore((s) => s.favorites);
@@ -55,47 +66,55 @@ export default function StartScreen() {
     [router]
   );
 
-  // Swipe left → Arbeiten, swipe right → the drawer. Both live here rather than
-  // letting the Drawer handle its own open-swipe: its pan handler claims
-  // horizontal drags in both directions, so swipe-left would never reach us.
-  const swipe = useTabSwipe({
-    onSwipeLeft: () => router.navigate(route('/(tabs)/(arbeiten)')),
-    onSwipeRight: openDrawer,
-  });
+  // Chat is the first tab: swipe left walks the row, and swipe right has no
+  // previous tab to reach, so it opens the drawer. That exception lives here and
+  // nowhere else — the other three tabs swipe right to their neighbour.
+  const swipe = useTabNavigationSwipe('/start', { onSwipeRightAtStart: openDrawer });
 
   return (
     <ScreenScaffold title="Grünerator" backdrop={<SunriseBackground />}>
       <GestureDetector gesture={swipe}>
         <View style={styles.flex}>
-          <ScrollView
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={styles.welcomeSection}>
-              <Text style={[styles.welcomeText, { color: theme.text }]}>{greeting}</Text>
-              {showHelpSubtitle && (
-                <Text style={[styles.welcomeSubtitle, { color: theme.textSecondary }]}>
-                  wie kann ich dir helfen?
-                </Text>
-              )}
-            </View>
-
-            {favoriteTools.length > 0 && (
-              <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: theme.text }]}>Werkzeuge</Text>
-                <ToolSquareGrid tools={favoriteTools} horizontalPadding={SCREEN_EDGE * 2} />
+          {/* One centred block — greeting, composer, tools — the way web's
+              ChatHero stacks WorkplaceGreeting over the pill composer. The
+              composer used to be pinned to the bottom edge, which left the
+              greeting floating alone in the middle of an empty screen. */}
+          <KeyboardAvoidingView behavior="padding" automaticOffset style={styles.flex}>
+            <ScrollView
+              style={styles.scrollView}
+              contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomClearance }]}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.welcomeSection}>
+                <View>
+                  <Text style={[styles.welcomeText, { color: theme.text }]}>{greeting}</Text>
+                  {showHelpSubtitle && (
+                    <Text style={[styles.welcomeSubtitle, { color: theme.textSecondary }]}>
+                      wie kann ich dir helfen?
+                    </Text>
+                  )}
+                </View>
               </View>
-            )}
-          </ScrollView>
 
-          <BottomComposerBar
-            placeholder="Frage oder Aufgabe…"
-            onSend={handleSend}
-            showActionSheet
-            onAttach={handleAttach}
-          />
+              <Composer
+                variant="bar"
+                testIDPrefix="tab-composer"
+                style={styles.composerSlot}
+                placeholder="Frage oder Aufgabe…"
+                onSubmit={handleSend}
+                showActionSheet
+                onAttach={handleAttach}
+              />
+
+              {favoriteTools.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={[styles.sectionTitle, { color: theme.text }]}>Werkzeuge</Text>
+                  <ToolSquareGrid tools={favoriteTools} horizontalPadding={SCREEN_EDGE * 2} />
+                </View>
+              )}
+            </ScrollView>
+          </KeyboardAvoidingView>
         </View>
       </GestureDetector>
     </ScreenScaffold>
@@ -112,11 +131,24 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingBottom: spacing.medium,
   },
+  // The block is centred, the text inside it stays left-aligned: the two lines
+  // keep one shared left edge, that edge just no longer sits on the screen
+  // border. Flush at SCREEN_EDGE the heading read as hugging the left, because
+  // the composer's own text starts ~74dp in — the heading was the only thing on
+  // the screen touching the margin. Centring the text itself would break the
+  // ragged-right rhythm of a two-line greeting, so only the box moves.
+  // Long enough to wrap, the block fills the width and this degrades to flush.
   welcomeSection: {
     paddingHorizontal: SCREEN_EDGE,
     paddingVertical: spacing.small,
+    alignItems: 'center',
+  },
+  // Web sets the greeting off from the pill by `mb-lg`; SCREEN_EDGE horizontally
+  // so the composer lines up with the greeting above it and the tool grid below.
+  composerSlot: {
+    paddingHorizontal: SCREEN_EDGE,
+    paddingTop: spacing.small,
   },
   welcomeText: {
     fontFamily: 'Raleway_700Bold',

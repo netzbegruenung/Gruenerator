@@ -118,9 +118,15 @@ const buttonStyles = StyleSheet.create({
   //
   // marginBottom lifts each button's centre onto the text line's centre, which
   // sits paddingBottom(12) + lineHeight/2(14.5) = 26.5dp above the content bottom:
-  //   icon: 26.5 - 38/2 = 7    action: 26.5 - 42/2 = 5
+  //   icon: 26.5 - 38/2 = 7.5    action: 26.5 - 42/2 = 5.5
   // Correct for the multi-line case too — the target is the last line, not the
   // input's outer box.
+  //
+  // The halves are not cosmetic. Rounded to 7 and 5 both glyphs sat a measured
+  // ~1dp below the pill's centre line — small, but on a 64dp capsule with
+  // nothing else to reference, the eye catches it. And while the input is one
+  // line the text-line centre IS the pill's centre (content box = input height
+  // 53, padding 5/5), so exact here means exact against the capsule too.
   //
   // The `card` variant centres its toolbar in a row of its own and needs none of
   // this, which is why these are separate styles rather than edits above.
@@ -128,7 +134,7 @@ const buttonStyles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    marginBottom: 7,
+    marginBottom: 7.5,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -136,7 +142,7 @@ const buttonStyles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    marginBottom: 5,
+    marginBottom: 5.5,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -221,7 +227,12 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    borderRadius: borderRadius.pill,
+    // `full`, not `pill` (24): web's is `rounded-full`, i.e. radius = half the
+    // height. At 64dp tall, 24 left a 16dp straight segment on each end — the
+    // bar read as a rounded rectangle beside web's capsule. Measured on the
+    // emulator before the change: the edge stopped curving 23dp in.
+    // Kept as a ratio-free `full` so it stays a true capsule if the height moves.
+    borderRadius: borderRadius.full,
     paddingLeft: spacing.xsmall,
     paddingRight: spacing.xxsmall,
     paddingVertical: 5,
