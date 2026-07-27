@@ -5,32 +5,32 @@
       "label": "Allgemein"
     },
     {
-      "value": "barrierefreiheit",
-      "label": "Barrierefreiheit"
-    },
-    {
-      "value": "friends",
-      "label": "Friends"
-    },
-    {
       "value": "personalisierung",
       "label": "Personalisierung"
-    },
-    {
-      "value": "briefe",
-      "label": "Briefe"
-    },
-    {
-      "value": "texte-anlernen",
-      "label": "Texte anlernen"
     },
     {
       "value": "erinnerungen",
       "label": "Erinnerungen"
     },
     {
+      "value": "texte-anlernen",
+      "label": "Texte anlernen"
+    },
+    {
+      "value": "friends",
+      "label": "Friends"
+    },
+    {
       "value": "benachrichtigungen",
       "label": "Benachrichtigungen"
+    },
+    {
+      "value": "briefe",
+      "label": "Briefe"
+    },
+    {
+      "value": "konnektoren",
+      "label": "Konnektoren"
     },
     {
       "value": "wolke",
@@ -41,8 +41,8 @@
       "label": "Meine Websites"
     },
     {
-      "value": "konnektoren",
-      "label": "Konnektoren"
+      "value": "barrierefreiheit",
+      "label": "Barrierefreiheit"
     },
     {
       "value": "nutzung",
