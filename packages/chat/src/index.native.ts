@@ -143,6 +143,11 @@ export { computeMentionInsertion, type MentionInsertionResult } from './lib/ment
 // File mention data hook
 export { useFileMentionData } from './hooks/useFileMentionData';
 
+// Group-level thread sharing. RN-safe: react-query plus `notify`, which imports
+// sonner dynamically and falls back to the console line in hosts that do not
+// ship it (mobile).
+export { useThreadSharing } from './hooks/useThreadSharing';
+
 // useMessageTTS excluded — imports @gruenerator/voice (web-only)
 
 // Citation Utils
