@@ -1,12 +1,10 @@
-import { useRouter } from 'expo-router';
 import { View, StyleSheet, useColorScheme } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 
 import { DocumentsView } from '../../../components/docs/DocumentsView';
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
 import { useOfficeExtraItems } from '../../../components/office/useOfficeExtraItems';
-import { useTabSwipe } from '../../../hooks/useTabSwipe';
-import { route } from '../../../types/routes';
+import { useTabNavigationSwipe } from '../../../hooks/useTabSwipe';
 
 /**
  * "Arbeiten": everything the user has made — documents, presentations, sheets,
@@ -19,7 +17,6 @@ import { route } from '../../../types/routes';
  */
 export default function ArbeitenScreen() {
   const isDark = useColorScheme() === 'dark';
-  const router = useRouter();
   const { items } = useOfficeExtraItems();
 
   // Flat near-white tint mirrors the web Arbeiten tab (bg-[#F7FBF8]); dark keeps the
@@ -28,11 +25,7 @@ export default function ArbeitenScreen() {
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.flatBg]} />
   );
 
-  // Swipe right → back to Chat, the mirror of Chat's swipe-left. The drawer does
-  // not contend for it here (AppDrawer disables swipe-to-open outside Chat).
-  const swipe = useTabSwipe({
-    onSwipeRight: () => router.navigate(route('/start')),
-  });
+  const swipe = useTabNavigationSwipe('/(tabs)/(arbeiten)');
 
   return (
     <ScreenScaffold title="Arbeiten" backdrop={backdrop}>

@@ -2,6 +2,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter, type Href } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomSheet } from '../../../components/common/BottomSheet';
@@ -12,6 +13,7 @@ import { MenuIcon } from '../../../components/icons/WebMirrorIcons';
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
 import { STUDIO_TOOLS } from '../../../components/tools/toolsConfig';
 import { useOpenRecentItem, useRecentActivity } from '../../../hooks/useRecentActivity';
+import { useTabNavigationSwipe } from '../../../hooks/useTabSwipe';
 import { spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../../theme';
 import { FLOATING_TAB_BAR_HEIGHT } from '../../../theme/layout';
 import { getSurfaceFab, getToolTheme } from '../../../theme/toolTheme';
@@ -42,34 +44,38 @@ export default function StudioScreen() {
     [items]
   );
 
+  const swipe = useTabNavigationSwipe('/(tabs)/(studio)');
+
   return (
     <ScreenScaffold title="Studio" backdrop={<StudioGradientBackground />}>
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.xxlarge },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Each section borrows the hue of the tool that produced it, so nothing on
+      <GestureDetector gesture={swipe}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.xxlarge },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Each section borrows the hue of the tool that produced it, so nothing on
             this page falls back to the app green. */}
-        <RecentItemsSection
-          title="Reels"
-          items={reels}
-          isLoading={isLoading}
-          accent={getToolTheme('reel', isDark).icon}
-          style={styles.section}
-          onOpen={openItem}
-        />
-        <RecentItemsSection
-          title="KI-Bilder"
-          items={images}
-          isLoading={isLoading}
-          accent={getToolTheme('ki-bildgenerierung', isDark).icon}
-          style={styles.section}
-          onOpen={openItem}
-        />
-      </ScrollView>
+          <RecentItemsSection
+            title="Reels"
+            items={reels}
+            isLoading={isLoading}
+            accent={getToolTheme('reel', isDark).icon}
+            style={styles.section}
+            onOpen={openItem}
+          />
+          <RecentItemsSection
+            title="KI-Bilder"
+            items={images}
+            isLoading={isLoading}
+            accent={getToolTheme('ki-bildgenerierung', isDark).icon}
+            style={styles.section}
+            onOpen={openItem}
+          />
+        </ScrollView>
+      </GestureDetector>
 
       <Fab
         icon="add"
