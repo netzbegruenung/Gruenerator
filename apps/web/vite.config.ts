@@ -110,6 +110,15 @@ export default defineConfig(({ command }) => ({
     alias: {
       '@': path.resolve(__dirname, 'src'),
       '~': path.resolve(__dirname, './'),
+      // The notebook cover images sit at packages/shared/**assets**/, NOT under
+      // src/ — they are shipped files, not compiled sources, and Metro resolves
+      // them through the package's `"./assets/*"` export. Web bypasses that
+      // export map via the bare alias below, which would rewrite them to
+      // packages/shared/**src**/assets/… and fail the build with
+      //   "ENOENT: … packages/shared/src/assets/notebook-covers/hessen.webp".
+      // Listed before the bare alias, per the ordering rule spelled out for the
+      // contracts subpath further down.
+      '@gruenerator/shared/assets': path.resolve(__dirname, '../../packages/shared/assets'),
       '@gruenerator/shared': path.resolve(__dirname, '../../packages/shared/src'),
       '@gruenerator/chat': path.resolve(__dirname, '../../packages/chat/src'),
       '@gruenerator/voice': path.resolve(__dirname, '../../packages/voice/src'),

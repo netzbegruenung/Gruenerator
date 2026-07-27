@@ -57,6 +57,7 @@ export {
   COMPOSER_MODES,
   COMPOSER_TOOLS,
   SEARCH_DEPTHS,
+  showsSearchDepth,
   type ComposerModeDef,
   type ComposerIconKey,
   type ComposerToolDef,
@@ -300,6 +301,19 @@ export { computeMentionInsertion, type MentionInsertionResult } from './lib/ment
 // File mention data hook
 export { useFileMentionData } from './hooks/useFileMentionData';
 
+// Typed-mention attachments (Wolke / Connect / web page) and the Canva draft
+// insertion. Shared so the recognition triple the backend keys on cannot drift
+// between platforms — see lib/mentionAttachments.ts.
+export {
+  buildWolkeAttachment,
+  buildConnectAttachment,
+  buildWebpageAttachment,
+  canvaDesignsMarkdown,
+  appendToDraft,
+  type MentionAttachment,
+} from './lib/mentionAttachments';
+export { joinWolkePath, wolkeParentPath, isWolkeRoot } from './lib/wolkePath';
+
 // Citation Utils
 export { mapRawCitationsToChat, resolveCitations } from './lib/citationUtils';
 
@@ -334,11 +348,13 @@ export {
   resolveMentionable,
   filterMentionables,
   agentMentionables,
+  mentionableKey,
   notebookMentionables,
   documentMentionables,
   getAllMentionables,
   getAgentMentionables,
   setMentionLocale,
+  getMentionLocale,
   setCustomAgents,
   getCustomAgentMentionables,
   customAgentToMentionable,
@@ -356,6 +372,17 @@ export {
   type BoardMentionable,
   type DocMentionable,
 } from './lib/mentionables';
+export {
+  slugifyMention,
+  syncBoards,
+  syncCustomAgents,
+  syncDocs,
+  syncMcpServers,
+  syncSheets,
+  syncTextforms,
+  syncUserNotebooks,
+  type MentionableFetch,
+} from './lib/mentionableSync';
 export { INTENT_TO_TOOL, DEEP_TOOL_MAP } from './lib/toolMappings';
 
 // Tool-result parsing & metadata (platform-agnostic; kept in sync with index.native.ts)
@@ -423,6 +450,8 @@ export {
 } from './lib/toolRegistry';
 export {
   registerDocumentSlug,
+  buildDocumentMentionAttachment,
+  buildCollabDocAttachment,
   resolveDocumentSlug,
   clearDocumentSlugs,
   documentToSlug,
@@ -467,3 +496,11 @@ export { ModalThread, type ModalThreadProps } from './components/gruen-o-mat/Mod
 // Icons
 export { ChatIcon } from './components/icons/ChatIcon';
 export { default as GrueneratorHomeIconLoading } from './components/icons/GrueneratorHomeIconLoading';
+
+// Composer plus-menu assembly — shared by web's PlusMenu and mobile's ComposerActionSheet
+export {
+  quickSkillMentionables,
+  functionMentionables,
+  connectorMentionables,
+  connectorId,
+} from './lib/plusMenu';

@@ -1065,8 +1065,11 @@ export async function executeIntentPipeline(opts: {
         const dateFrom = finalState.detectedFilters?.date_from;
         const dateTo = finalState.detectedFilters?.date_to;
         // Space scope: restrict recall to the current Space's chats + roster.
+        // null ist hier der definierte Normalfall — ein Thread ohne Space
+        // liefert ihn ohnehin.
         const spaceScope = opts.threadId
-          ? await getSpaceRecallScope(opts.threadId, userId).catch(() => null)
+          ? // swallow-ok: scheitert die Einengung, sucht der Recall ungescopet weiter statt den Turn abzubrechen
+            await getSpaceRecallScope(opts.threadId, userId).catch(() => null)
           : null;
         const [rawChats, rawOfficeDocs, rawReels] = await Promise.all([
           recallPastChats(userId, query, {
@@ -1151,7 +1154,8 @@ export async function executeIntentPipeline(opts: {
         // generator so the whole retrieval half is skipped, not just the search.
         const reused =
           currentIntent === 'research' && finalState.threadId
-            ? await getKeptResearchForRetry(
+            ? // swallow-ok: reine Ersparnis — scheitert sie, läuft die Recherche normal durch, teurer aber richtig
+              await getKeptResearchForRetry(
                 finalState.threadId,
                 finalState.searchQuery ?? ''
               ).catch(() => null)

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle, Line as SvgLine, Path, Rect, Text as SvgText } from 'react-native-svg';
 
-import { spacing, borderRadius } from '../../theme';
+import { spacing, borderRadius, BODY_FONT, chatType } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
 import type { ChartData } from '@gruenerator/chat';
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
     padding: CARD_PADDING,
   },
   title: {
-    fontSize: 14,
+    ...chatType.chatTitle,
     fontWeight: '600',
     marginBottom: spacing.xsmall,
   },
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
     maxWidth: '48%',
   },
   legendLabel: {
-    fontSize: 11,
+    ...chatType.chatMicro,
     flexShrink: 1,
   },
 });

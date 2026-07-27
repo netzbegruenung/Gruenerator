@@ -22,6 +22,17 @@ export default [
     },
   },
   {
-    ignores: ['.expo/**', 'android/**', 'ios/**', 'metro.config.js', 'shims/**', 'plugins/**'],
+    // Tool configs are CommonJS and outside the TS project service, same as
+    // metro.config.js — the typed-lint parser cannot resolve them.
+    ignores: [
+      '.expo/**',
+      'android/**',
+      'ios/**',
+      'metro.config.js',
+      'babel.config.js',
+      'jest.config.js',
+      'shims/**',
+      'plugins/**',
+    ],
   },
 ];

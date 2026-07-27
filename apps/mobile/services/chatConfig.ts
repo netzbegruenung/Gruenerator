@@ -66,7 +66,18 @@ async function mobileEditInDocs(
   }
 }
 
+let configured = false;
+
+/**
+ * Idempotent, and called once at module load (bottom of this file) rather than
+ * from a component: `configure` writes the chat config store, and a store write
+ * during render notifies every live subscriber — including the drawer runtime's
+ * `_RuntimeBinder`, which React then reports as "cannot update a component while
+ * rendering a different component".
+ */
 export function configureMobileChat(): void {
+  if (configured) return;
+  configured = true;
   useChatConfigStore.getState().configure({
     fetch: mobileFetch,
     onUnauthorized: mobileOnUnauthorized,
@@ -84,3 +95,5 @@ export function getMobileChatApiClient(): ChatApiClient {
   }
   return cachedApiClient;
 }
+
+configureMobileChat();
