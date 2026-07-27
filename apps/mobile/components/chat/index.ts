@@ -1,4 +1,4 @@
-export { AssistantThread } from './AssistantThread';
+export { AssistantThread, type ThreadWelcome } from './AssistantThread';
 export { MessageBubble } from './MessageBubble';
 export { ToolCallProgress } from './ToolCallProgress';
 export { CitationsFooter } from './CitationsFooter';
