@@ -19,12 +19,45 @@ const NEW_VARIANTS_PATTERN =
   /(?<!\p{L})(neue?[sn]?\s+(sharepic|varianten?|karussell|slider)|noch\s*mal\s+(neu|von\s+vorn)|alle\s+varianten|drei\s+varianten)/iu;
 
 /**
+ * The message asks for a NEW document-level artifact, so it is a creation turn
+ * even when it also carries edit wording.
+ *
+ * Live failure: "Schreib einen Instagram-Post UND eine Pressemitteilung zum
+ * Thema Windkraft. Kürze danach nur die Pressemitteilung." produced NO content
+ * at all — "Kürze" alone satisfied the refinement pattern, the turn was routed
+ * into the sharepic edit branch, and the user got "Welche Variante soll ich
+ * bearbeiten?" for artifacts that had nothing to do with the request.
+ *
+ * `NEW_VARIANTS_PATTERN` above does not cover this: it only knows "neues
+ * Sharepic / neue Varianten", not "erstelle mir ein anderes Artefakt".
+ *
+ * Same indefinite-article idiom as the social-post branch
+ * (INDEFINITE_NEW_POST_PATTERN): an indefinite article before a
+ * document-level noun means creation, a definite one means edit. The noun list
+ * deliberately holds ONLY whole artifacts — sharepic-internal fields ("ein
+ * anderes Bild", "eine neue Zeile") must stay editable.
+ */
+const NEW_ARTIFACT_PATTERN =
+  /(?<!\p{L})ein(?:en|em|e)?(?!\p{L})[^.!?;]{0,40}?(?:post(?:ing)?|tweet|beitrag|caption|pressemitteilung|presseerkl(?:ä|ae)rung|rede|antrag|pr(?:ä|ae)sentation|tabelle|dokument|newsletter)(?!\p{L})/iu;
+
+/**
+ * Whether the message requests a new artifact rather than a change to an
+ * existing one. Exported so the sharepic REFINEMENT check (which lives with the
+ * variant helpers) applies the same rule — both entry points into the edit
+ * branch have to agree, or the fix only closes one of two doors.
+ */
+export function asksForNewArtifact(text: string): boolean {
+  return NEW_ARTIFACT_PATTERN.test(text);
+}
+
+/**
  * True when the message reads like an edit instruction for an existing
  * sharepic (vs. a request for a fresh one). Only meaningful when the thread
  * actually has a sharepic to edit — callers check target existence.
  */
 export function isSharepicEditInstruction(text: string): boolean {
   if (NEW_VARIANTS_PATTERN.test(text)) return false;
+  if (NEW_ARTIFACT_PATTERN.test(text)) return false;
   return EDIT_VERB_PATTERN.test(text) && EDIT_NOUN_PATTERN.test(text);
 }
 

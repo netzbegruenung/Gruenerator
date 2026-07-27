@@ -25,15 +25,28 @@ const log = createLogger('sharepic_unified');
  * did not stop the graphic — an invented quote with an invented "ORF-Interview"
  * source shipped in party design, download button and all. One block, one place,
  * all types.
+ *
+ * TWO CLASSES, TWO MECHANISMS — do not merge them back. The REGELN block is
+ * about integrity and is enforced by declining. LAYOUT is about what the
+ * template can render and is enforced by omitting. They shared one "läuft die
+ * Anfrage einer dieser Regeln zuwider → ABLEHNUNG" line, and that is how a
+ * perfectly ordinary request ("recherchiere X und erstelle daraus einen Post
+ * mit Quellenangabe") became a refusal: the model reported "Anfrage verlangt
+ * Quellenangabe im Text, was gegen die Regel verstößt" — a formatting limit
+ * announced as a content violation, which the turn then relayed to the user as
+ * a refusal about fabricated quotes.
  */
-const SHAREPIC_SAFETY_RULES = `
+export const SHAREPIC_SAFETY_RULES = `
 
 REGELN (nicht verhandelbar):
 - Erfinde NIEMALS Zitate, Zahlen, Studien oder Ereignisse. Ein Zitat darf nur wiedergeben, was die*der Nutzer*in wörtlich mitgeliefert oder was eine mitgelieferte Quelle belegt.
 - Lege NIEMALS einer real existierenden Person eine Aussage in den Mund, die nicht belegt ist — auch nicht in Anführungszeichen, auch nicht satirisch, auch nicht als Beispiel.
-- Gib KEINE Quellen-, Autor*innen- oder Datumszeile aus (kein "— Name, Medium, Datum", kein "Quelle: ..."). Das Layout hat dafür kein Feld; solche Zeilen landen sonst im Zitat und lesen sich wie ein echter Beleg.
 - Erzeuge keine Inhalte, die Gruppen wegen Herkunft, Religion, Geschlecht oder Behinderung herabsetzen.
-- Läuft die Anfrage einer dieser Regeln zuwider, gib ausschließlich die Zeile \`ABLEHNUNG: <kurze deutsche Begründung>\` aus und sonst nichts.`;
+- Läuft die Anfrage einer dieser drei Regeln zuwider, gib ausschließlich die Zeile \`ABLEHNUNG: <kurze deutsche Begründung>\` aus und sonst nichts.
+
+LAYOUT (niemals ein Ablehnungsgrund):
+- Gib KEINE Quellen-, Autor*innen- oder Datumszeile aus (kein "— Name, Medium, Datum", kein "Quelle: ..."). Das Layout hat dafür kein Feld; solche Zeilen landen sonst im Zitat und lesen sich wie ein echter Beleg.
+- Verlangt die Anfrage eine Quellenangabe im Bild, lass sie STILL WEG und erzeuge den Text trotzdem. Das ist eine Formatgrenze, kein inhaltlicher Verstoß — lehne dafür NIEMALS ab.`;
 
 interface TypeConfig {
   fields: string[];
