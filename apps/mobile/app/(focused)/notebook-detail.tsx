@@ -1,12 +1,12 @@
 import { useAgentStore } from '@gruenerator/chat';
 import { NOTEBOOK_REGISTRY } from '@gruenerator/shared/notebooks';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect } from 'react';
 import { StyleSheet, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BackButton } from '../../components/common/BackButton';
+import { NotebookGradientBackground } from '../../components/common/NotebookGradientBackground';
 import { NotebookResearchPanel } from '../../components/notebook/NotebookResearchPanel';
 import { colors, lightTheme, darkTheme } from '../../theme';
 
@@ -39,17 +39,9 @@ export default function NotebookDetailScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
-      {/* App gradient behind the whole screen — full immersion, matching start. */}
-      <LinearGradient
-        colors={
-          colorScheme === 'dark'
-            ? [colors.grey[950], colors.grey[950]]
-            : [colors.white, 'rgba(95, 133, 117, 0.05)']
-        }
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      />
+      {/* The notebook's signature magenta, same as the Wissen gallery and web's
+          NOTEBOOK_MAGENTA_BG — a notebook keeps its colour when you open it. */}
+      <NotebookGradientBackground />
       <BackButton
         color={colorScheme === 'dark' ? colors.grey[200] : colors.grey[800]}
         background={colorScheme === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.85)'}

@@ -11,13 +11,8 @@ import {
   Pressable,
   ActivityIndicator,
   Keyboard,
+  useColorScheme,
 } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  interpolateColor,
-} from 'react-native-reanimated';
 
 import { useNotebookFilters } from '../../hooks/notebook/useNotebookFilters';
 import {
@@ -27,6 +22,7 @@ import {
   type SortOption,
 } from '../../hooks/notebook/useNotebookResearch';
 import { colors, spacing, typography, borderRadius } from '../../theme';
+import { getSurfaceFab } from '../../theme/toolTheme';
 import { routeWithParams } from '../../types/routes';
 import { CitationDetailSheet } from '../chat/CitationDetailSheet';
 import { BottomSheet } from '../common/BottomSheet';
@@ -128,6 +124,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
 
   const router = useRouter();
   const fetchFullText = useFetchFullText();
+  const fabTone = getSurfaceFab('wissen', useColorScheme() === 'dark');
 
   const handleChatSend = useCallback(
     (text: string) => {
@@ -142,24 +139,11 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
     [router, notebookId]
   );
 
-  // Animated green wash + white text when switching to manuelle Recherche, so the
-  // mode change reads instantly.
-  const onGreen = inputMode === 'recherche';
-  const greenProgress = useSharedValue(0);
+  // Both modes sit on the notebook's pink gradient (web parity) — the green wash
+  // that used to mark manuelle Recherche fought that background.
   const toggleMode = useCallback(() => {
-    setInputMode((m) => {
-      const next = m === 'chat' ? 'recherche' : 'chat';
-      greenProgress.value = withTiming(next === 'recherche' ? 1 : 0, { duration: 320 });
-      return next;
-    });
-  }, [greenProgress]);
-  const overlayStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(
-      greenProgress.value,
-      [0, 1],
-      ['rgba(49, 96, 73, 0)', colors.primary[600]]
-    ),
-  }));
+    setInputMode((m) => (m === 'chat' ? 'recherche' : 'chat'));
+  }, []);
   const { search, results, metadata, isLoading, hasSearched, error } = useNotebookResearch(
     notebookId,
     kind
@@ -217,9 +201,6 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
 
   return (
     <View style={styles.container}>
-      {/* Animated green wash behind everything for manuelle Recherche mode. */}
-      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, overlayStyle]} />
-
       {/* One scroll for the whole tab — greeting, composer and results all scroll
           together, like the home screen (no fixed top section). */}
       <ScrollView
@@ -231,15 +212,8 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
         {/* Greeting always on top. */}
         {notebookTitle && (
           <View style={styles.hero}>
-            <Text style={[styles.heroTitle, { color: onGreen ? colors.white : theme.text }]}>
-              {notebookTitle}
-            </Text>
-            <Text
-              style={[
-                styles.heroSubtitle,
-                { color: onGreen ? 'rgba(255,255,255,0.75)' : theme.textSecondary },
-              ]}
-            >
+            <Text style={[styles.heroTitle, { color: theme.text }]}>{notebookTitle}</Text>
+            <Text style={[styles.heroSubtitle, { color: theme.textSecondary }]}>
               Was möchtest du wissen?
             </Text>
           </View>
@@ -250,6 +224,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
         {inputMode === 'chat' ? (
           <View style={styles.chatComposer}>
             <ComposerCard
+              variant="compact"
               placeholder={`Frag ${notebookTitle ?? 'dieses Notebook'}…`}
               onSend={handleChatSend}
             />
@@ -267,7 +242,6 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
               onSubmitEditing={() => runSearch()}
               returnKeyType="search"
               autoCorrect={false}
-              multiline
             />
             <View style={styles.composerToolbar}>
               <Pressable
@@ -345,7 +319,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
               )}
             </>
           ) : kind === 'system' ? (
-            <NotebookOverview notebookId={notebookId} kind={kind} theme={theme} onGreen={onGreen} />
+            <NotebookOverview notebookId={notebookId} kind={kind} theme={theme} />
           ) : null}
         </View>
       </ScrollView>
@@ -355,8 +329,8 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
         icon={inputMode === 'chat' ? 'search' : 'chatbubbles'}
         onPress={toggleMode}
         accessibilityLabel={inputMode === 'chat' ? 'Manuelle Recherche' : 'KI-Chat'}
-        style={[styles.fab, onGreen ? { backgroundColor: colors.white } : null]}
-        color={onGreen ? colors.primary[600] : colors.white}
+        style={[styles.fab, { backgroundColor: fabTone.background }]}
+        color={fabTone.icon}
       />
 
       <BottomSheet
@@ -495,29 +469,30 @@ const styles = StyleSheet.create({
     fontSize: 26,
     marginTop: 2,
   },
+  // One narrow row, like web's notebook composer — the tall multiline card ate a
+  // third of the screen before a single result was on it.
   composer: {
-    borderRadius: borderRadius.large,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 56,
+    borderRadius: 28,
     borderWidth: 1,
-    paddingHorizontal: spacing.medium,
-    paddingTop: spacing.medium,
-    paddingBottom: spacing.small,
+    paddingLeft: spacing.medium,
+    paddingRight: spacing.xsmall,
     marginHorizontal: spacing.medium,
     marginTop: spacing.medium,
-    gap: spacing.small,
+    gap: spacing.xsmall,
   },
   composerInput: {
     ...typography.body,
+    flex: 1,
     fontSize: 16,
-    minHeight: 52,
-    maxHeight: 120,
-    textAlignVertical: 'top',
     padding: 0,
   },
   composerToolbar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: spacing.small,
+    gap: spacing.xxsmall,
   },
   iconButton: {
     width: 40,
