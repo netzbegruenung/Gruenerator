@@ -4,10 +4,12 @@
  * nodes → import cycle).
  */
 export function isAgenticLoopEnabled(): boolean {
-  // test-branch: loop ON by default so it can be exercised live without env
-  // config. An explicit CHAT_AGENT_LOOP=false still disables it (escape hatch).
-  // NOTE: this differs from the master-bound PR, which keeps the opt-in
-  // (=== 'true'); do not carry this default to prod without a deliberate flip.
+  // Default ON. The loop is the path where a factual turn actually calls a
+  // tool; single-pass is the fallback, not the norm. It was opt-in while it
+  // stabilised, but the variable then appeared in neither `.env` nor
+  // `.env.example` — so "the loop is on" was an assumption nothing in the repo
+  // supported, and every fix written for the loop was dead where it mattered.
+  // Opt out with CHAT_AGENT_LOOP=false (no redeploy needed).
   return process.env.CHAT_AGENT_LOOP !== 'false';
 }
 
