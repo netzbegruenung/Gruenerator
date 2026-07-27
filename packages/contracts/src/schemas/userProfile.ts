@@ -88,6 +88,8 @@ export const messageColorUpdateBodySchema = z.object({
  */
 export const chatBackgroundSchema = z.enum([
   'mesh',
+  'nebel',
+  'dunst',
   'sunrise',
   'tanne',
   'himmel',

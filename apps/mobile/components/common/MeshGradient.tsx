@@ -1,82 +1,95 @@
+import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 
-import { MESH_BASE, MESH_LAYERS } from '../../theme/chatBackgrounds';
+import { type MeshPreset } from '../../theme/chatBackgrounds';
 
 import type { StyleProp, ViewStyle } from 'react-native';
 
 /**
- * The `mesh` chat background: five soft colour clouds over a warm base.
+ * Paints a mesh — soft colour clouds over a flat base — and nothing else.
  *
- * Ported 1:1 from the design document (claude.ai/design, "Grünerator Mobile").
- * The layer table and the reasoning for why the translation from CSS is exact
- * rather than approximate live in `theme/chatBackgrounds` — the short version is
+ * Deliberately without policy: no dark mode, no keyboard, no lookup of which
+ * mesh belongs where. That lives in `MeshSurface`, which is what a screen
+ * reaches for; this is what the settings swatch reaches for, because a swatch
+ * has to show the real colours rather than the dimmed ones a dark page gets.
+ *
+ * The layer tables and the reasoning for why the translation from CSS is exact
+ * rather than approximate live in `theme/chatBackgrounds`. The short version is
  * that `react-native-svg`'s `RadialGradient` takes `rx`/`ry` in bounding-box
  * fractions, which is precisely what a CSS `radial-gradient(120% 80% at …)` is.
  *
- * One `Svg` with five stacked full-bleed rects, not five nested views: a view
- * per cloud would need a real blur to lose its edges, and `expo-blur` blurs what
- * is *behind* a view rather than the view itself.
+ * One `Svg` with stacked full-bleed rects, not a view per cloud: a view would
+ * need a real blur to lose its edges, and `expo-blur` blurs what is *behind* a
+ * view rather than the view itself.
  *
- * Its own component so the settings swatch can draw the actual mesh in a circle
- * rather than a stand-in colour. Without that, `mesh` and `Neutral` would be two
- * identical empty rings in the picker — the mesh has no single colour to reduce
- * to, which is the point of it.
+ * `memo`, and not as a precaution. Every mount site sits inside something that
+ * re-renders for its own reasons — the drawer on each thread-list change, the
+ * settings sheet on each keystroke in it — and this subtree is a dozen SVG
+ * elements whose props never change. Rebuilding it is pure waste. The `mesh`
+ * objects are module constants and the ids are literals, so the comparison
+ * holds; a caller passing an inline `style` object would break it, which is why
+ * the one caller that needs a style keeps it in a `StyleSheet`.
+ *
+ * Drawing is not the concern: the gradient is static, so it rasterises once and
+ * is composited from then on. Even the keyboard lift costs no redraw — that
+ * runs as a transform on the UI thread and never re-enters React.
  */
-export function MeshGradient({
-  /** Multiplies every layer's alpha. Dark mode passes a fraction; see below. */
+export const MeshGradient = memo(function MeshGradient({
+  mesh,
+  /**
+   * Distinguishes this instance's gradient ids. Required rather than derived,
+   * because SVG gradient ids are global to the document: the picker renders
+   * several meshes at once, and without distinct ids every swatch would paint
+   * whichever mesh mounted last.
+   */
+  id,
+  /** Multiplies every stop's alpha. */
   strength = 1,
   withBase = true,
   style,
+  pointerEvents,
 }: {
+  mesh: MeshPreset;
+  id: string;
   strength?: number;
   withBase?: boolean;
   style?: StyleProp<ViewStyle>;
+  pointerEvents?: 'none' | 'auto';
 }) {
   return (
-    <View style={[styles.fill, style]}>
-      {withBase && <View style={[StyleSheet.absoluteFill, styles.base]} />}
+    <View style={[styles.fill, style]} pointerEvents={pointerEvents}>
+      {withBase && <View style={[StyleSheet.absoluteFill, { backgroundColor: mesh.base }]} />}
       <Svg width="100%" height="100%">
         <Defs>
-          {MESH_LAYERS.map((layer, index) => (
+          {mesh.layers.map((layer, index) => (
             <RadialGradient
-              key={layer.color}
-              id={`mesh${index}`}
+              key={index}
+              id={`${id}-${index}`}
               cx={layer.cx}
               cy={layer.cy}
               rx={layer.rx}
               ry={layer.ry}
             >
-              <Stop offset="0" stopColor={layer.color} stopOpacity={layer.opacity * strength} />
-              <Stop offset={layer.end} stopColor={layer.color} stopOpacity={0} />
+              {layer.stops.map((stop, stopIndex) => (
+                <Stop
+                  key={stopIndex}
+                  offset={stop.offset}
+                  stopColor={layer.color}
+                  stopOpacity={stop.opacity * strength}
+                />
+              ))}
             </RadialGradient>
           ))}
         </Defs>
-        {MESH_LAYERS.map((layer, index) => (
-          <Rect
-            key={layer.color}
-            x="0"
-            y="0"
-            width="100%"
-            height="100%"
-            fill={`url(#mesh${index})`}
-          />
+        {mesh.layers.map((layer, index) => (
+          <Rect key={index} x="0" y="0" width="100%" height="100%" fill={`url(#${id}-${index})`} />
         ))}
       </Svg>
     </View>
   );
-}
-
-/**
- * How much of the mesh survives in dark mode.
- *
- * The palette is a light-mode one; at full alpha over a near-black page it turns
- * into five grey smudges. Faint, it still tints the corners, which is what the
- * composition is for.
- */
-export const MESH_DARK_STRENGTH = 0.12;
+});
 
 const styles = StyleSheet.create({
   fill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  base: { backgroundColor: MESH_BASE },
 });
