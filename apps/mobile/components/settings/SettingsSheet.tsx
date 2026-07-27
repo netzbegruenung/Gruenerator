@@ -12,7 +12,16 @@ import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ioni
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, Switch, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Alert,
+  Platform,
+} from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
 import { logout } from '../../services/auth';
@@ -89,6 +98,13 @@ function accessibilitySummary(reduceMotion?: boolean, reduceTransparency?: boole
   return count === 0 ? 'Folgt dem System' : `${count} aktiviert`;
 }
 
+/**
+ * Android only, and not out of caution: on iOS the tab bar is a real UITabBar
+ * and `BlurTargetView` compiles to a plain `View`, so the switch would have
+ * nothing to turn off. A control that does nothing is worse than no control.
+ */
+const SHOWS_PERFORMANCE_MODE = Platform.OS === 'android';
+
 export function SettingsSheet() {
   const theme = useTheme();
   const { user, isLoggingOut } = useAuth();
@@ -100,6 +116,8 @@ export function SettingsSheet() {
 
   const themeMode = usePreferencesStore((s) => s.themeMode);
   const setThemeMode = usePreferencesStore((s) => s.setThemeMode);
+  const performanceMode = usePreferencesStore((s) => s.performanceMode);
+  const setPerformanceMode = usePreferencesStore((s) => s.setPerformanceMode);
   const updateLocale = useAuthStore((s) => s.updateLocale);
   const updateAvatar = useAuthStore((s) => s.updateAvatar);
   const updateProfile = useAuthStore((s) => s.updateProfile);
@@ -404,6 +422,21 @@ export function SettingsSheet() {
                 value={accessibilitySummary(user.reduce_motion, user.reduce_transparency)}
                 onPress={() => setDetail('accessibility')}
               />
+              {SHOWS_PERFORMANCE_MODE && (
+                <ListRow
+                  icon="speedometer-outline"
+                  title={getSettingsEntry('barrierefreiheit.leistung').title}
+                  value={getSettingsEntry('barrierefreiheit.leistung').description}
+                  valueLines={2}
+                  accessory={
+                    <Switch
+                      value={performanceMode}
+                      onValueChange={(value) => void setPerformanceMode(value)}
+                      trackColor={{ true: colors.primary[600], false: colors.grey[300] }}
+                    />
+                  }
+                />
+              )}
               <ListRow
                 icon="school-outline"
                 title="Einführung erneut ansehen"

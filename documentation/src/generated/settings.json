@@ -93,6 +93,11 @@
       "title": "Transparenz reduzieren",
       "description": "Entfernt durchscheinende Flächen und Unschärfe-Effekte — folgt sonst automatisch der Einstellung deines Betriebssystems"
     },
+    "barrierefreiheit.leistung": {
+      "tab": "barrierefreiheit",
+      "title": "Leistungsmodus",
+      "description": "Schaltet den Blur hinter der Tab-Leiste ab. Hilft auf älteren Geräten, gilt nur auf diesem"
+    },
     "barrierefreiheit.sprunglink": {
       "tab": "barrierefreiheit",
       "title": "Sprung-Link zum Inhalt",
