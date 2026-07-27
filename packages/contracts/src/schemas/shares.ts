@@ -4,12 +4,30 @@
  */
 import { z } from 'zod';
 
+/**
+ * Which product made an image. Only these two are ever declared by a client —
+ * `'upload'` and `'unknown'` are assigned by the server and never accepted from
+ * the wire.
+ */
+export const contentOriginSchema = z.enum(['ki', 'sharepic']);
+
 // ── Request bodies ──────────────────────────────────────────────────────────
 
 export const createImageShareBodySchema = z.object({
   imageData: z.string(),
   title: z.string().optional(),
+  /**
+   * Display detail: which template/editor a draft reopens into. Free text on
+   * purpose — it carries canvas template ids the backend has no list of. It is
+   * NOT the gallery's Sharepic/KI discriminator any more; `contentOrigin` is.
+   */
   imageType: z.string().optional(),
+  /**
+   * Optional, not required: mobile ships by OTA, so an installed build cannot
+   * start sending this the moment the API deploys. When it is missing the server
+   * derives the value from `imageType`/`metadata` exactly as the clients used to.
+   */
+  contentOrigin: contentOriginSchema.optional(),
   metadata: z.record(z.unknown()).optional(),
   originalImage: z.string().optional(),
   status: z.enum(['ready', 'draft']).optional(),

@@ -241,6 +241,8 @@ export function useBildEditorV2() {
           imageData: image,
           title: (forPrompt || 'KI-Bild').slice(0, 100),
           imageType: SHARE_IMAGE_TYPE[kind],
+          // Every kind reaching this branch is AI output — `upload` returned above.
+          contentOrigin: 'ki',
           status: 'ready',
           metadata: { prompt: forPrompt, source: 'bild-editor' },
         })
