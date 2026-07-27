@@ -4,7 +4,7 @@ import { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
 import { useTheme } from '../../../hooks/useTheme';
-import { spacing, borderRadius } from '../../../theme';
+import { spacing, borderRadius, chatType } from '../../../theme';
 
 /**
  * Follow-up prompts under the last answer. These ride on message metadata
@@ -57,6 +57,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xsmall,
   },
   text: {
-    fontSize: 14,
+    ...chatType.chatSecondary,
   },
 });

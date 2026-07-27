@@ -3,7 +3,7 @@ import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ioni
 import { Image } from 'expo-image';
 import { View, StyleSheet, useColorScheme } from 'react-native';
 
-import { colors, borderRadius } from '../../theme';
+import { colors, borderRadius, chatType } from '../../theme';
 
 /**
  * Renders a single attachment as a horizontal badge/chip in the composer.
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   composerName: {
-    fontSize: 13,
+    ...chatType.chatLabel,
     flexShrink: 1,
   },
   removeHitArea: {
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   messageName: {
-    fontSize: 13,
+    ...chatType.chatLabel,
     color: colors.white,
     flex: 1,
   },

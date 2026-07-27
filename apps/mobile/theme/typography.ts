@@ -93,3 +93,60 @@ export const typography = {
     lineHeight: 20,
   } as TextStyle,
 } as const;
+
+/**
+ * Text scale for the chat surface.
+ *
+ * Six tiers ordered by distance from the conversation, not by pixel size. The
+ * rule for placing a style is what it *is*, never what it currently measures:
+ *
+ * - a sentence someone reads in the conversation → `chatBody`
+ * - the heading of a card or row                 → `chatTitle`
+ * - a sentence inside a card                     → `chatSecondary`
+ * - the name of a control or a column            → `chatLabel`
+ * - a fact about a thing (count, date, domain)   → `chatMeta`
+ * - a marker or ordinal (badge, index)           → `chatMicro`
+ *
+ * Before this existed, twelve sizes between 10 and 26 sat inline across 133
+ * styles, and 12px alone carried four different jobs — readable sentences,
+ * labels, facts and code. Changing "how airy is the chat" meant a search rather
+ * than an edit. Each tier carries its own leading on purpose: consistent line
+ * spacing is half of what reads as airy.
+ */
+export const chatType = {
+  /** The conversation itself: answers, the user's message, what you type. */
+  chatBody: {
+    fontSize: 17,
+    lineHeight: 27,
+  } as TextStyle,
+
+  /** The heading of a card or a list row. */
+  chatTitle: {
+    fontSize: 15,
+    lineHeight: 21,
+  } as TextStyle,
+
+  /** Prose inside a card — summaries, snippets, answers to a tool question. */
+  chatSecondary: {
+    fontSize: 14,
+    lineHeight: 20,
+  } as TextStyle,
+
+  /** The name of a control, chip or column. */
+  chatLabel: {
+    fontSize: 13,
+    lineHeight: 18,
+  } as TextStyle,
+
+  /** A fact about something: count, date, domain, query, status. */
+  chatMeta: {
+    fontSize: 12,
+    lineHeight: 16,
+  } as TextStyle,
+
+  /** A marker: badge text, ordinal, legend. Nothing is smaller than this. */
+  chatMicro: {
+    fontSize: 11,
+    lineHeight: 14,
+  } as TextStyle,
+} as const;

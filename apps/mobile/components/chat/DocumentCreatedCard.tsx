@@ -6,7 +6,7 @@ import { useCallback, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Linking, Alert } from 'react-native';
 
 import { secureStorage } from '../../services/storage';
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, chatType } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
 import type { ChatMessageMetadata } from '@gruenerator/chat';
@@ -122,11 +122,11 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   title: {
-    fontSize: 15,
+    ...chatType.chatTitle,
     fontWeight: '600',
   },
   subtype: {
-    fontSize: 12,
+    ...chatType.chatMeta,
   },
   openButton: {
     flexDirection: 'row',
@@ -138,8 +138,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[600],
   },
   openLabel: {
+    ...chatType.chatSecondary,
     color: colors.white,
-    fontSize: 14,
     fontWeight: '600',
   },
 });

@@ -3,7 +3,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-import { spacing } from '../../../theme';
+import { spacing, chatType } from '../../../theme';
 
 import type { Theme } from '../../../theme/colors';
 
@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   text: {
-    fontSize: 11,
+    ...chatType.chatMicro,
     fontWeight: '500',
   },
 });

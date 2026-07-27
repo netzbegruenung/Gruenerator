@@ -3,7 +3,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 
-import { colors, spacing, borderRadius } from '../../../theme';
+import { colors, spacing, borderRadius, chatType } from '../../../theme';
 
 import { ToolCitationList } from './ToolCitationList';
 import { toolIonicon } from './toolIcons';
@@ -99,25 +99,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   label: {
-    fontSize: 14,
+    ...chatType.chatSecondary,
     fontWeight: '600',
   },
   query: {
+    ...chatType.chatMeta,
     flexShrink: 1,
-    fontSize: 12,
   },
   count: {
-    fontSize: 12,
+    ...chatType.chatMeta,
     fontWeight: '700',
   },
   error: {
-    fontSize: 12,
+    ...chatType.chatMeta,
     marginTop: spacing.xxsmall,
     marginLeft: spacing.xsmall,
   },
   note: {
-    fontSize: 14,
-    lineHeight: 20,
+    ...chatType.chatSecondary,
     marginTop: spacing.xxsmall,
     marginLeft: spacing.xsmall,
   },

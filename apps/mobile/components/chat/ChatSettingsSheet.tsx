@@ -15,7 +15,7 @@ import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { useShallow } from 'zustand/shallow';
 
 import { useTheme } from '../../hooks/useTheme';
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, chatType } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
 
 // Maps the shared, renderer-agnostic icon keys (COMPOSER_MODES) to Ionicons.
@@ -193,12 +193,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.medium,
   },
   sectionTitle: {
-    fontSize: 14,
+    ...chatType.chatSecondary,
     fontWeight: '700',
     marginBottom: spacing.small,
   },
   sectionSubtitle: {
-    fontSize: 12,
+    ...chatType.chatMeta,
     fontWeight: '500',
     marginBottom: spacing.xsmall,
   },
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   modeChipText: {
-    fontSize: 13,
+    ...chatType.chatLabel,
     fontWeight: '600',
   },
   notebookSection: {
@@ -233,10 +233,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   notebookEmoji: {
-    fontSize: 14,
+    ...chatType.chatSecondary,
   },
   notebookChipText: {
-    fontSize: 12,
+    ...chatType.chatMeta,
     fontWeight: '500',
     maxWidth: 120,
   },
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   modelPillName: {
-    fontSize: 13,
+    ...chatType.chatLabel,
     fontWeight: '600',
   },
 });
