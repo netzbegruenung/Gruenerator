@@ -7,8 +7,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../hooks/useTheme';
 import { spacing } from '../../theme';
+import { Composer, composerEdgeStyle, type ComposerAccessory } from '../common/Composer';
 
-import { AssistantComposer, type ComposerAccessory } from './AssistantComposer';
 import { DocumentBrowserSheet } from './DocumentBrowserSheet';
 import { MessageBubble } from './MessageBubble';
 
@@ -72,6 +72,10 @@ const EmptyState = memo(function EmptyState({
 
 const messagesContentStyle = { paddingTop: spacing.small };
 
+/** The in-thread composer is snug rather than the landings' focal box, so the
+ *  message list keeps the space. */
+const THREAD_COMPOSER_MIN_HEIGHT = 92;
+
 export const AssistantThread = memo(function AssistantThread({
   theme: themeProp,
   welcome,
@@ -123,13 +127,22 @@ export const AssistantThread = memo(function AssistantThread({
           contentContainerStyle={messagesContentStyle}
           keyboardDismissMode="interactive"
         />
-        <AssistantComposer
+        <Composer
+          binding="runtime"
+          showActionSheet
+          minHeight={THREAD_COMPOSER_MIN_HEIGHT}
           theme={theme}
-          bottomInset={insets.bottom}
+          style={[
+            composerEdgeStyle,
+            {
+              backgroundColor: transparent ? 'transparent' : theme.background,
+              paddingBottom: insets.bottom,
+            },
+          ]}
+          testIDPrefix="chat-composer"
           onOpenDocBrowser={handleOpenDocBrowser}
           inputRef={composerInputRef}
           accessory={composerAccessory}
-          transparent={transparent}
         />
         <DocumentBrowserSheet
           visible={docBrowserVisible}

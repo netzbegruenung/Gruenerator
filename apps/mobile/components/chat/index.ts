@@ -1,6 +1,7 @@
 export { ThreadListItem } from './ThreadListItem';
 export { AssistantThread } from './AssistantThread';
-export { AssistantComposer } from './AssistantComposer';
+/** @deprecated Fallback during the `Composer` rollout — see the file header. */
+export { AssistantComposer, type ComposerAccessory } from './AssistantComposer';
 export { MessageBubble } from './MessageBubble';
 export { ToolCallProgress } from './ToolCallProgress';
 export { CitationsFooter } from './CitationsFooter';

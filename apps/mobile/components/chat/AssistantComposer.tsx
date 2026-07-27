@@ -13,7 +13,16 @@ import {
   pickedDocumentToAttachment,
   type PickedDocument,
 } from '../../services/documentPicker';
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing } from '../../theme';
+import {
+  ComposerShell,
+  composerActionButtonStyle,
+  composerIconButtonStyle,
+  composerIconSize,
+  composerInputStyle,
+  COMPOSER_ACTION_FILL,
+  type ComposerVariant,
+} from '../common/ComposerShell';
 
 import { ComposerAttachmentUI } from './AttachmentUI';
 import { ComposerActionSheet } from './ComposerActionSheet';
@@ -27,6 +36,12 @@ interface MentionState {
   query: string;
   mentionStart: number;
 }
+
+/**
+ * The in-thread composer is snug rather than the landings' focal box, so the
+ * message list keeps the space.
+ */
+const THREAD_CARD_MIN_HEIGHT = 92;
 
 /** Optional toolbar button a host can surface in the composer (e.g. a notebook
  *  filter/mode toggle), so its controls live in the composer instead of a chip bar. */
@@ -45,8 +60,18 @@ interface Props {
   accessory?: ComposerAccessory;
   /** Transparent outer background so a screen-level gradient shows through. */
   transparent?: boolean;
+  /** See `ComposerVariant`. Defaults to the `card` look the thread has always used. */
+  variant?: ComposerVariant;
 }
 
+/**
+ * @deprecated Use `Composer` (components/common) with `binding="runtime"`.
+ *
+ * Kept as a working fallback while the unified `Composer` beds in: it is the
+ * assistant-ui-bound composer as it stood before the merge, already rendering
+ * through `ComposerShell`, so swapping a call site back is a one-line import
+ * change. Delete once `Composer` has shipped without regressions.
+ */
 export function AssistantComposer({
   theme,
   bottomInset = 0,
@@ -54,6 +79,7 @@ export function AssistantComposer({
   inputRef: externalInputRef,
   accessory,
   transparent,
+  variant = 'card',
 }: Props) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const aui = useAui();
@@ -67,6 +93,7 @@ export function AssistantComposer({
   // for the send button.
   const [hasText, setHasText] = useState(false);
   const { isListening, toggle: toggleSpeech } = useSpeechToText();
+  const iconSize = composerIconSize(variant);
 
   // Dictation (mirrors web's DictateButton): final transcripts are appended
   // to the draft and pushed into both the native input and the composer state.
@@ -153,73 +180,87 @@ export function AssistantComposer({
   const handleTakePhoto = useCallback(() => attachPicked(takePhoto()), [attachPicked]);
 
   return (
-    <ComposerPrimitive.Root
-      style={[
-        styles.root,
-        {
-          backgroundColor: transparent ? 'transparent' : theme.background,
-          paddingBottom: bottomInset,
-        },
-      ]}
-    >
-      {mention?.visible && (
-        <MentionSuggestions
-          query={mention.query}
-          visible={mention.visible}
-          theme={theme}
-          onSelect={handleMentionSelect}
-          onDismiss={() => setMention(null)}
-        />
-      )}
-      <View style={styles.attachmentsRow}>
-        <ComposerPrimitive.Attachments components={{ Attachment: ComposerAttachmentUI }} />
-      </View>
-      {/* Card-style composer (input on top, action toolbar below) — matches the
-          start screen ComposerCard and the manuelle-Recherche composer. */}
-      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <TextInput
-          ref={inputRef}
-          testID="chat-composer-input"
-          style={[styles.input, { color: theme.text }]}
-          placeholder="Nachricht eingeben..."
-          placeholderTextColor={theme.textSecondary}
-          multiline
-          textAlignVertical="top"
-          onChangeText={onChangeText}
-          onSelectionChange={onSelectionChange}
-        />
-        <View style={styles.toolbar}>
+    <ComposerPrimitive.Root>
+      <ComposerShell
+        variant={variant}
+        theme={theme}
+        minHeight={THREAD_CARD_MIN_HEIGHT}
+        style={[
+          styles.root,
+          {
+            backgroundColor: transparent ? 'transparent' : theme.background,
+            paddingBottom: bottomInset,
+          },
+        ]}
+        aboveBox={
+          <>
+            {mention?.visible && (
+              <MentionSuggestions
+                query={mention.query}
+                visible={mention.visible}
+                theme={theme}
+                onSelect={handleMentionSelect}
+                onDismiss={() => setMention(null)}
+              />
+            )}
+            <View style={styles.attachmentsRow}>
+              <ComposerPrimitive.Attachments components={{ Attachment: ComposerAttachmentUI }} />
+            </View>
+          </>
+        }
+        input={
+          <TextInput
+            ref={inputRef}
+            testID="chat-composer-input"
+            style={[composerInputStyle(variant), { color: theme.text }]}
+            placeholder="Nachricht eingeben..."
+            placeholderTextColor={theme.textSecondary}
+            multiline
+            textAlignVertical="top"
+            onChangeText={onChangeText}
+            onSelectionChange={onSelectionChange}
+          />
+        }
+        leading={
           <Pressable
             onPress={() => setActionSheetVisible(true)}
-            style={styles.iconButton}
-            hitSlop={8}
+            style={composerIconButtonStyle(variant)}
+            hitSlop={6}
+            accessibilityLabel="Anhänge und Werkzeuge"
           >
-            <Ionicons name="add-circle-outline" size={24} color={theme.textSecondary} />
+            <Ionicons name="add-circle-outline" size={iconSize} color={theme.textSecondary} />
           </Pressable>
-          {accessory && (
+        }
+        toolbarExtra={
+          accessory ? (
             <Pressable
               onPress={accessory.onPress}
-              style={styles.iconButton}
-              hitSlop={8}
+              style={composerIconButtonStyle(variant)}
+              hitSlop={6}
               accessibilityLabel={accessory.accessibilityLabel}
             >
               <Ionicons
                 name={accessory.icon}
-                size={22}
+                size={iconSize}
                 color={accessory.active ? colors.primary[600] : theme.textSecondary}
               />
             </Pressable>
-          )}
-          <View style={styles.spacer} />
-          {/* One merged button: mic while empty, send once there's text. */}
-          {isRunning ? (
-            <ComposerPrimitive.Cancel style={styles.cancelButton}>
+          ) : null
+        }
+        // One merged button: cancel while running, mic while empty, send once
+        // there's text.
+        action={
+          isRunning ? (
+            <ComposerPrimitive.Cancel style={composerActionButtonStyle(variant)}>
               <ActivityIndicator size="small" color={colors.error[500]} />
             </ComposerPrimitive.Cancel>
           ) : hasText ? (
             <ComposerPrimitive.Send
               testID="chat-composer-send"
-              style={styles.sendButton}
+              style={[
+                composerActionButtonStyle(variant),
+                { backgroundColor: COMPOSER_ACTION_FILL },
+              ]}
               onPressIn={() => {
                 inputRef.current?.clear();
                 textRef.current = '';
@@ -227,29 +268,29 @@ export function AssistantComposer({
                 setMention(null);
               }}
             >
-              <Ionicons name="arrow-forward" size={20} color={colors.white} />
+              <Ionicons name="arrow-forward" size={iconSize} color={colors.white} />
             </ComposerPrimitive.Send>
           ) : (
             <Pressable
               onPress={handleDictate}
               style={[
-                styles.sendButton,
+                composerActionButtonStyle(variant),
                 isListening
                   ? { backgroundColor: colors.error[500] }
                   : { backgroundColor: 'transparent' },
               ]}
-              hitSlop={8}
+              hitSlop={6}
               accessibilityLabel={isListening ? 'Diktat beenden' : 'Diktieren'}
             >
               <Ionicons
                 name={isListening ? 'stop' : 'mic'}
-                size={20}
+                size={iconSize}
                 color={isListening ? colors.white : theme.textSecondary}
               />
             </Pressable>
-          )}
-        </View>
-      </View>
+          )
+        }
+      />
       <ComposerActionSheet
         visible={actionSheetVisible}
         onClose={() => setActionSheetVisible(false)}
@@ -271,52 +312,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: spacing.xsmall,
-  },
-  card: {
-    borderRadius: borderRadius.xlarge,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: spacing.medium,
-    paddingTop: spacing.small,
-    paddingBottom: spacing.xsmall,
-    minHeight: 92,
-  },
-  input: {
-    fontSize: 16,
-    lineHeight: 22,
-    minHeight: 36,
-    maxHeight: 120,
-    paddingVertical: 0,
-    textAlignVertical: 'top',
-  },
-  toolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xxsmall,
-    marginTop: spacing.xsmall,
-  },
-  spacer: {
-    flex: 1,
-  },
-  iconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sendButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.primary[600],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cancelButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 });
