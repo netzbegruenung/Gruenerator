@@ -14,7 +14,7 @@ import {
 
 import { useIsTablet } from '../../hooks/useIsTablet';
 import { type RecentItem, type RecentItemType } from '../../hooks/useRecentActivity';
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 
 import { DocPreview } from './DocPreview';
 
@@ -154,6 +154,7 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   sectionTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -186,10 +187,12 @@ const styles = StyleSheet.create({
     gap: spacing.xxsmall,
   },
   cardTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
   },
   cardMeta: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
   },
 });

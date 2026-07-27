@@ -5,7 +5,7 @@ import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../hooks/useTheme';
-import { colors, spacing } from '../../theme';
+import { colors, spacing, BODY_FONT } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
 
@@ -71,6 +71,7 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 18,
     fontWeight: '600',
     textAlign: 'center',

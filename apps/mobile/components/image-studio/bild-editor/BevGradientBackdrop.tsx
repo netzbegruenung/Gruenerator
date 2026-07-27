@@ -10,6 +10,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { BODY_FONT } from '../../../theme';
+
 import { type BevPalette } from './palette';
 
 function useReduceMotion(): boolean {
@@ -171,6 +173,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   loadingText: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '700',
     color: '#fff',

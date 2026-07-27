@@ -2,7 +2,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, StyleSheet, ScrollView } from 'react-native';
 
-import { colors, spacing, borderRadius } from '../../../theme';
+import { colors, spacing, borderRadius, BODY_FONT } from '../../../theme';
 
 import type { Theme } from '../../../theme/colors';
 
@@ -85,11 +85,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xsmall,
   },
   label: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '600',
   },
   status: {
     flexShrink: 1,
+    fontFamily: BODY_FONT,
     fontSize: 12,
   },
   toggle: {
@@ -99,9 +101,11 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   toggleLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
   },
   error: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     color: '#d97706',
     paddingHorizontal: spacing.small,

@@ -3,7 +3,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useCallback } from 'react';
 import { View, Text, Pressable, StyleSheet, Linking } from 'react-native';
 
-import { spacing, borderRadius } from '../../../theme';
+import { spacing, borderRadius, BODY_FONT } from '../../../theme';
 
 import type { Theme } from '../../../theme/colors';
 
@@ -58,6 +58,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   empty: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontStyle: 'italic',
   },
@@ -70,6 +71,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.small,
   },
   number: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     fontWeight: '600',
   },
@@ -78,10 +80,12 @@ const styles = StyleSheet.create({
     gap: 1,
   },
   title: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '500',
   },
   meta: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
   },
 });

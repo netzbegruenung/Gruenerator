@@ -6,6 +6,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useBildEditorMobile } from '../../../hooks/image-studio/useBildEditorMobile';
+import { BODY_FONT } from '../../../theme';
 import { BackButton } from '../../common/BackButton';
 
 import { BevComposer } from './BevComposer';
@@ -229,6 +230,7 @@ const styles = StyleSheet.create({
     padding: 32,
   },
   loadingHeadline: {
+    fontFamily: BODY_FONT,
     fontSize: 28,
     fontWeight: '700',
     textAlign: 'center',
@@ -243,6 +245,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   headline: {
+    fontFamily: BODY_FONT,
     fontSize: 30,
     fontWeight: '700',
     textAlign: 'center',
@@ -275,6 +278,7 @@ const styles = StyleSheet.create({
   restart: { fontSize: 13, fontWeight: '600' },
   captionWrap: { flex: 1, alignItems: 'center' },
   caption: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '700',
     borderWidth: 1,
@@ -327,6 +331,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 7,
     bottom: 6,
+    fontFamily: BODY_FONT,
     fontSize: 9,
     fontWeight: '700',
     color: '#fff',
@@ -337,6 +342,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   branchHint: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '600',
     borderWidth: 1,

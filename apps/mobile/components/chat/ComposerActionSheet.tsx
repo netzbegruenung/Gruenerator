@@ -14,7 +14,7 @@ import { View, Text, Pressable, Switch, ScrollView, StyleSheet } from 'react-nat
 import { useShallow } from 'zustand/shallow';
 
 import { useTheme } from '../../hooks/useTheme';
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
 
 // Presentation only: keys/labels come from the shared COMPOSER_TOOLS /
@@ -293,10 +293,12 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.large,
   },
   actionLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '600',
   },
   sectionTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '700',
     marginBottom: spacing.small,
@@ -319,6 +321,7 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   toolText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
   },
   depthHeader: {
@@ -334,10 +337,12 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   modelChipText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '600',
   },
   modelChipDesc: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
   },
 });

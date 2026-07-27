@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDrawerStore } from '../../hooks/useDrawerStore';
 import { useTheme } from '../../hooks/useTheme';
 import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, BODY_FONT } from '../../theme';
 import { route, routeWithParams, type AppRoute } from '../../types/routes';
 import { ProfileAvatar } from '../common';
 import { STUDIO_TOOLS, TOOLS, type ToolDef } from '../tools/toolsConfig';
@@ -290,6 +290,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.small,
   },
   headerTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 20,
     fontWeight: '700',
   },
@@ -309,10 +310,12 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.medium,
   },
   navLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '500',
   },
   sectionLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '700',
     paddingHorizontal: spacing.medium,
@@ -343,6 +346,7 @@ const styles = StyleSheet.create({
   },
   itemTitle: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 15,
   },
   empty: {
@@ -352,11 +356,13 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   emptyTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '600',
     marginTop: spacing.xsmall,
   },
   emptyText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     textAlign: 'center',
   },
@@ -371,6 +377,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary[600],
   },
   emptyButtonText: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     fontWeight: '600',
     color: colors.white,
@@ -385,6 +392,7 @@ const styles = StyleSheet.create({
   },
   footerName: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '500',
   },

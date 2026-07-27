@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, useColorScheme } from 'react-native';
 
-import { spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+import { spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 
 import { Composer } from './Composer';
 
@@ -68,10 +68,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.large,
   },
   title: {
+    fontFamily: BODY_FONT,
     fontSize: 26,
     fontWeight: '700',
   },
   subtitle: {
+    fontFamily: BODY_FONT,
     fontSize: 26,
     fontWeight: '700',
     marginTop: 2,
@@ -89,6 +91,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   chipLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '500',
   },

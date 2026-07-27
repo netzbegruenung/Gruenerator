@@ -13,7 +13,7 @@ import {
   useColorScheme,
 } from 'react-native';
 
-import { lightTheme, darkTheme, colors, spacing, borderRadius } from '../../theme';
+import { lightTheme, darkTheme, colors, spacing, borderRadius, BODY_FONT } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
 import { officeIconFor, type OfficeItem } from '../office/officeItem';
 
@@ -273,6 +273,7 @@ export function CreateDocSheet({
 
 const styles = StyleSheet.create({
   title: {
+    fontFamily: BODY_FONT,
     fontSize: 20,
     fontWeight: '700',
     paddingHorizontal: 20,
@@ -297,6 +298,7 @@ const styles = StyleSheet.create({
   },
   inputField: {
     flex: 1,
+    fontFamily: BODY_FONT,
     fontSize: 15,
     paddingVertical: 0,
   },
@@ -325,6 +327,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   chipText: {
+    fontFamily: BODY_FONT,
     fontSize: 13,
     fontWeight: '500',
   },
@@ -347,10 +350,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   rowTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     fontWeight: '600',
   },
   rowSubtitle: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     marginTop: 1,
   },

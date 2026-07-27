@@ -35,6 +35,7 @@ import {
   borderRadius,
   lightTheme,
   darkTheme,
+  BODY_FONT,
 } from '../../../../theme';
 
 export default function GroupDetailScreen() {
@@ -527,6 +528,7 @@ const styles = StyleSheet.create({
   primaryButtonText: { ...typography.body, fontWeight: '600', color: colors.white },
   section: { gap: spacing.xsmall },
   sectionTitle: {
+    fontFamily: BODY_FONT,
     fontSize: 11,
     fontWeight: '600',
     textTransform: 'uppercase',

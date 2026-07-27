@@ -25,7 +25,7 @@ import {
 } from '../../services/docs/docsShareApi';
 import { secureStorage } from '../../services/storage';
 import { useDocsEditorBridgeStore } from '../../stores/docsEditorBridgeStore';
-import { lightTheme, darkTheme, colors } from '../../theme';
+import { lightTheme, darkTheme, colors, BODY_FONT } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
 
 import type { Theme } from '../../theme/colors';
@@ -691,6 +691,7 @@ const styles = StyleSheet.create({
 
   permSection: { paddingHorizontal: 20, paddingVertical: 8 },
   permSectionLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -743,12 +744,14 @@ const styles = StyleSheet.create({
 
   templateBody: { paddingHorizontal: 20, paddingBottom: 12, gap: 8 },
   templateLabel: {
+    fontFamily: BODY_FONT,
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   templateInput: {
+    fontFamily: BODY_FONT,
     fontSize: 15,
     paddingHorizontal: 14,
     paddingVertical: 12,
