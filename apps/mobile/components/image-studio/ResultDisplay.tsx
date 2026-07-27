@@ -51,7 +51,7 @@ export function ResultDisplay({
   const [showShareModal, setShowShareModal] = useState(false);
 
   // Auto-save to gallery database
-  const { status: autoSaveStatus, shareToken } = useImageAutoSave();
+  const { status: autoSaveStatus, shareToken, contentOrigin, imageType } = useImageAutoSave();
 
   const handleSave = async () => {
     if (!generatedImage) return;
@@ -203,6 +203,8 @@ export function ResultDisplay({
         onClose={() => setShowShareModal(false)}
         imageBase64={generatedImage}
         shareToken={shareToken}
+        contentOrigin={contentOrigin}
+        imageType={imageType}
       />
     </ScrollView>
   );

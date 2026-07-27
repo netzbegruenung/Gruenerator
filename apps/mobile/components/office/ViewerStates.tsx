@@ -1,7 +1,7 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { ActivityIndicator, StyleSheet, Text, View, useColorScheme } from 'react-native';
 
-import { colors, darkTheme, lightTheme } from '../../theme';
+import { colors, darkTheme, lightTheme, BODY_FONT } from '../../theme';
 
 export function ViewerLoading() {
   const theme = useColorScheme() === 'dark' ? darkTheme : lightTheme;
@@ -32,10 +32,12 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   title: {
+    fontFamily: BODY_FONT,
     fontSize: 16,
     fontWeight: '600',
   },
   msg: {
+    fontFamily: BODY_FONT,
     fontSize: 14,
     textAlign: 'center',
   },

@@ -1,0 +1,26 @@
+name: e2e-test-android
+
+# Manual for now (`eas workflow:run .eas/workflows/e2e-test-android.yml`).
+# Add a pull_request trigger once the flow set covers more than the boot path —
+# a build per PR is not worth it for one flow.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build_android_for_e2e:
+    type: build
+    params:
+      platform: android
+      profile: e2e-test
+
+  maestro_test:
+    needs: [build_android_for_e2e]
+    type: maestro
+    params:
+      build_id: ${{ needs.build_android_for_e2e.outputs.build_id }}
+      # Only the flows that pass without a session. The `e2e-test` profile builds
+      # a release APK, where __DEV__ is false and the dev auth bypass is therefore
+      # off — that guard is deliberate (e478007b9) and is not being relaxed for
+      # tests. The authenticated flows in maestro/ need a build that keeps
+      # __DEV__ true; see maestro/README.md.
+      flow_path: ['maestro/boot-to-login.yaml']

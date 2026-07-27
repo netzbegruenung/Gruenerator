@@ -39,9 +39,28 @@ export {
   type UserSelectableTool,
 } from './userTools.js';
 
+export {
+  AGENTURA_CATEGORIES,
+  DEFAULT_CATEGORY,
+  SKILL_CATEGORY_ORDER,
+  SORT_LABELS,
+  SORT_VALUES,
+  agenturaCategoriesForPlatform,
+  type AgenturaCategory,
+  type AgenturaCategoryKey,
+  type AgenturaPlatform,
+  type AgenturaSort,
+} from './agenturaCategories.js';
+
 export { getAgentSlug, resolveAgentSlug } from './slug.js';
 
-export { LANDESVERBAENDE, type LandesverbandEntry } from './landesverbaende.js';
+export {
+  LANDESVERBAENDE,
+  isLandesverbandIdentifier,
+  landesverbandLabel,
+  landesverbandRegion,
+  type LandesverbandEntry,
+} from './landesverbaende.js';
 
 export {
   LV_HUBS,

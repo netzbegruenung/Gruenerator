@@ -473,7 +473,7 @@ export function createGrueneratorModelAdapter(
             // sent for compat (old backend / old mobile apps).
             textPart.text = parsed.tokenText;
 
-            // Sticky connector (web-only): while a connector is pinned, hold its
+            // Sticky connector: while a connector is pinned, hold its
             // MCP scope on EVERY message by injecting the durable token + the
             // matching forcedTool. Skip when the user already scoped to any mcp:
             // server this turn (typed @connector) — their explicit choice wins
