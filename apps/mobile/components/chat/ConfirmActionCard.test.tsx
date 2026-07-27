@@ -5,7 +5,7 @@
    with "Cannot read properties of undefined (reading 'jest')". */
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { confirmChatAction } from '@gruenerator/chat';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import { ActivityIndicator } from 'react-native';
 
@@ -40,6 +40,18 @@ const ACTION: ConfirmActionData = {
 
 const renderCard = (action: ConfirmActionData = ACTION) =>
   render(<ConfirmActionCard action={action} theme={lightTheme} />);
+
+/**
+ * Settle the confirmChatAction promise and let React commit the state it sets.
+ *
+ * Needed because `waitFor(() => expect(queryByText(…)).toBeNull())` — waiting for
+ * something to *disappear* — does not reliably recover here: when the press's own
+ * act scope happens to flush the promise, the first check passes and the test is
+ * green; when it does not, the poll loop never observes the flip and the test
+ * hangs until the timeout. That coin flip was the whole flakiness. Measured: one
+ * flush is always enough, so the wait can be explicit and the assertion plain.
+ */
+const settle = () => act(async () => {});
 
 /** Resolve the pending confirmChatAction call by hand, so "loading" is observable. */
 const deferOutcome = (): { resolve: (outcome: ConfirmActionOutcome) => void } => {
@@ -102,7 +114,9 @@ describe('confirming', () => {
 
     fireEvent.press(screen.getByText('Speichern'));
 
-    await waitFor(() => expect(screen.queryByText('Speichern')).toBeNull());
+    await settle();
+
+    expect(screen.queryByText('Speichern')).toBeNull();
     expect(mockConfirm).toHaveBeenCalledWith(ACTION, true);
     expect(screen.getByText('Als Dokument speichern')).toBeTruthy();
   });
@@ -122,7 +136,9 @@ describe('confirming', () => {
 
     fireEvent.press(screen.getByText('Speichern'));
 
-    await waitFor(() => expect(screen.queryByText('Speichern')).toBeNull());
+    await settle();
+
+    expect(screen.queryByText('Speichern')).toBeNull();
     expect(screen.queryByText('Dokument öffnen')).toBeNull();
     expect(screen.queryByText('Gruppe öffnen')).toBeNull();
   });
@@ -228,6 +244,8 @@ describe('double submission', () => {
     expect(mockConfirm).toHaveBeenCalledTimes(1);
 
     resolve({ status: 'confirmed', url: null });
-    await waitFor(() => expect(screen.queryByText('Speichern')).toBeNull());
+    await settle();
+
+    expect(screen.queryByText('Speichern')).toBeNull();
   });
 });
