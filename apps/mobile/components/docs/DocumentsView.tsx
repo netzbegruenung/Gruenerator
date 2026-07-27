@@ -4,7 +4,7 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useCallback, useState, useMemo } from 'react';
+import { useEffect, useCallback, useState, useMemo, memo } from 'react';
 import {
   View,
   FlatList,
@@ -27,16 +27,167 @@ import { getSurfaceFab } from '../../theme/toolTheme';
 import { DocPreview } from '../common/DocPreview';
 import { Fab } from '../common/Fab';
 import { type ViewMode } from '../common/ViewModeToggle';
-import {
-  isDocFamily,
-  kindFromSubtype,
-  officeIconFor,
-  pushOfficeItem,
-  type OfficeItem,
-} from '../office/officeItem';
+import { isDocFamily, officeIconFor, pushOfficeItem, type OfficeItem } from '../office/officeItem';
 
 import { CreateDocSheet } from './CreateDocSheet';
+import { toDocListItems } from './docListItems';
 import { NativeShareModal } from './NativeShareModal';
+
+/**
+ * One formatter for the whole list. `toLocaleDateString` builds a fresh
+ * `Intl.DateTimeFormat` on every call, which on a grid of cards means one per
+ * card per render — the most expensive thing a date label can do.
+ */
+const DATE_FORMAT = new Intl.DateTimeFormat('de-DE', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+});
+
+const formatDate = (dateString: string): string => DATE_FORMAT.format(new Date(dateString));
+
+/**
+ * Windowing for both lists. FlatList's defaults keep roughly ten screens of
+ * cells alive (`windowSize: 21`, measured in viewports either side), which for a
+ * grid of document cards means dozens of mounted previews and thumbnails for a
+ * list nobody has scrolled. Four screens either way is still far more than a
+ * flick can outrun.
+ */
+const GRID_WINDOWING = {
+  initialNumToRender: 8,
+  maxToRenderPerBatch: 6,
+  windowSize: 9,
+  removeClippedSubviews: true,
+} as const;
+
+/** Theme slice the cards need — narrow so their props stay comparable. */
+interface CardTheme {
+  card: string;
+  cardBorder: string;
+  text: string;
+  textSecondary: string;
+  surface: string;
+}
+
+/**
+ * Grid card, memoised.
+ *
+ * Split out of `DocumentsView` for one reason: as inline JSX inside a
+ * `renderItem` closure there was nothing to memoise, so every card re-rendered
+ * whenever anything on the screen changed — including `DocPreview`, which regexes
+ * document HTML, and the canvas thumbnails. `item` is a fresh object per list
+ * rebuild but a stable one between renders, and the three remaining props are
+ * module constants or `useCallback`s, so the comparison actually holds.
+ */
+const OfficeGridCard = memo(function OfficeGridCard({
+  item,
+  isDark,
+  theme,
+  onOpen,
+  onActions,
+}: {
+  item: OfficeItem;
+  isDark: boolean;
+  theme: CardTheme;
+  onOpen: (item: OfficeItem) => void;
+  onActions: (item: OfficeItem) => void;
+}) {
+  const typeColor = officeTypeColor(item.kind, isDark);
+  const handleOpen = useCallback(() => onOpen(item), [onOpen, item]);
+  const handleActions = useCallback(() => onActions(item), [onActions, item]);
+
+  return (
+    <TouchableOpacity
+      style={[styles.gridCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+      onPress={handleOpen}
+      activeOpacity={0.7}
+    >
+      {item.kind === 'canvas' && item.thumbnailUrl ? (
+        <Image
+          source={{ uri: item.thumbnailUrl }}
+          style={styles.cardThumbnail}
+          contentFit="cover"
+          transition={150}
+          // Without this the recycled view keeps the previous item's image until
+          // the new one decodes, which in a fast scroll reads as cards swapping
+          // pictures.
+          recyclingKey={item.id}
+        />
+      ) : item.kind === 'doc' && item.preview ? (
+        <DocPreview content={item.preview} style={styles.cardThumbnailDoc} />
+      ) : (
+        <View style={[styles.cardThumbnail, { backgroundColor: typeColor.tile }]}>
+          <Ionicons name={officeIconFor(item.kind)} size={36} color={typeColor.icon} />
+        </View>
+      )}
+      <View style={styles.cardInfoRow}>
+        <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={2}>
+          {item.title || 'Unbenannt'}
+        </Text>
+        {isDocFamily(item.kind) && (
+          <TouchableOpacity
+            onPress={handleActions}
+            style={styles.cardMenuButton}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="ellipsis-vertical" size={16} color={theme.textSecondary} />
+          </TouchableOpacity>
+        )}
+      </View>
+      <Text style={[styles.cardDate, { color: theme.textSecondary }]}>
+        {formatDate(item.updatedAt)}
+      </Text>
+    </TouchableOpacity>
+  );
+});
+
+/** List-mode row. Same memoisation reasoning as the grid card. */
+const OfficeListRow = memo(function OfficeListRow({
+  item,
+  isDark,
+  theme,
+  onOpen,
+  onActions,
+}: {
+  item: OfficeItem;
+  isDark: boolean;
+  theme: CardTheme;
+  onOpen: (item: OfficeItem) => void;
+  onActions: (item: OfficeItem) => void;
+}) {
+  const typeColor = officeTypeColor(item.kind, isDark);
+  const handleOpen = useCallback(() => onOpen(item), [onOpen, item]);
+  const handleActions = useCallback(() => onActions(item), [onActions, item]);
+
+  return (
+    <TouchableOpacity
+      style={[styles.listCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+      onPress={handleOpen}
+      activeOpacity={0.7}
+    >
+      <View style={[styles.listIconTile, { backgroundColor: typeColor.tile }]}>
+        <Ionicons name={officeIconFor(item.kind)} size={18} color={typeColor.icon} />
+      </View>
+      <View style={styles.listInfo}>
+        <Text style={[styles.listTitle, { color: theme.text }]} numberOfLines={1}>
+          {item.title || 'Unbenannt'}
+        </Text>
+        <Text style={[styles.listDate, { color: theme.textSecondary }]}>
+          {formatDate(item.updatedAt)}
+        </Text>
+      </View>
+      {isDocFamily(item.kind) && (
+        <TouchableOpacity
+          onPress={handleActions}
+          style={styles.cardMenuButton}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="ellipsis-vertical" size={16} color={theme.textSecondary} />
+        </TouchableOpacity>
+      )}
+    </TouchableOpacity>
+  );
+});
 
 /**
  * Documents body without the surrounding ScreenScaffold — the Arbeiten tab's
@@ -68,16 +219,18 @@ export function DocumentsView({
   const { user } = useAuth();
   const gridCols = useIsTablet() ? 3 : 2;
 
-  const {
-    documents,
-    isLoading,
-    error,
-    fetchDocuments,
-    createDocument,
-    generateDocument,
-    deleteDocument,
-    clearError,
-  } = useDocsStore();
+  // One selector per field rather than `useDocsStore()`. The bare call subscribes
+  // to the whole store, so this view re-rendered — and with it every visible
+  // card — whenever `prefetchedDocs` was replaced, a Map it never reads.
+  const documents = useDocsStore((s) => s.documents);
+  const isLoading = useDocsStore((s) => s.isLoading);
+  const error = useDocsStore((s) => s.error);
+  const fetchDocuments = useDocsStore((s) => s.fetchDocuments);
+  const createDocument = useDocsStore((s) => s.createDocument);
+  const generateDocument = useDocsStore((s) => s.generateDocument);
+  const deleteDocument = useDocsStore((s) => s.deleteDocument);
+  const clearError = useDocsStore((s) => s.clearError);
+  const prefetchRecentDocs = useDocsStore((s) => s.prefetchRecentDocs);
   const insets = useSafeAreaInsets();
   const fabTones = getSurfaceFab('arbeiten', colorScheme === 'dark');
   // The Android tab bar is an absolutely positioned capsule, so nothing reserves
@@ -91,22 +244,12 @@ export function DocumentsView({
   const [isCreating, setIsCreating] = useState(false);
   const [activeDoc, setActiveDoc] = useState<{ id: string; title: string } | null>(null);
 
-  // Normalize docs (+ merged boards/canvas) into one type-tagged list, newest
-  // first. Sheets/presentations already arrive in `documents` via /docs — the
-  // subtype decides which viewer they open.
-  const officeItems = useMemo<OfficeItem[]>(() => {
-    const docItems: OfficeItem[] = documents.map((doc) => ({
-      id: doc.id,
-      title: doc.title,
-      updatedAt: doc.updated_at,
-      kind: kindFromSubtype(doc.document_subtype),
-      content: doc.content,
-    }));
-    const merged = extraItems ? [...docItems, ...extraItems] : docItems;
-    return merged.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  }, [documents, extraItems]);
-
-  const { prefetchRecentDocs } = useDocsStore();
+  // Sheets/presentations already arrive in `documents` via /docs — the subtype
+  // decides which viewer they open. See `docListItems` for the merge itself.
+  const officeItems = useMemo<OfficeItem[]>(
+    () => toDocListItems(documents, extraItems),
+    [documents, extraItems]
+  );
 
   useEffect(() => {
     if (user) {
@@ -162,9 +305,13 @@ export function DocumentsView({
     }
   };
 
-  const handleOpenActions = (id: string, title: string) => {
-    setActiveDoc({ id, title: title || 'Unbenannt' });
-  };
+  // Stable identities: these reach every card as props, and a fresh function per
+  // render would undo the cards' `memo` exactly as the inline closures did.
+  const handleOpenItem = useCallback((item: OfficeItem) => pushOfficeItem(router, item), [router]);
+
+  const handleOpenActions = useCallback((item: OfficeItem) => {
+    setActiveDoc({ id: item.id, title: item.title || 'Unbenannt' });
+  }, []);
 
   const handleDelete = (id: string, title: string) => {
     setActiveDoc(null);
@@ -178,91 +325,33 @@ export function DocumentsView({
     ]);
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('de-DE', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-  };
+  const isDark = colorScheme === 'dark';
 
-  const renderDocument = ({ item }: { item: OfficeItem }) => {
-    const typeColor = officeTypeColor(item.kind, colorScheme === 'dark');
-    const showActions = isDocFamily(item.kind);
-    return (
-      <TouchableOpacity
-        style={[styles.gridCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
-        onPress={() => pushOfficeItem(router, item)}
-        activeOpacity={0.7}
-      >
-        {item.kind === 'canvas' && item.thumbnailUrl ? (
-          <Image
-            source={{ uri: item.thumbnailUrl }}
-            style={styles.cardThumbnail}
-            contentFit="cover"
-            transition={150}
-          />
-        ) : item.kind === 'doc' && item.content ? (
-          <DocPreview content={item.content} style={styles.cardThumbnailDoc} />
-        ) : (
-          <View style={[styles.cardThumbnail, { backgroundColor: typeColor.tile }]}>
-            <Ionicons name={officeIconFor(item.kind)} size={36} color={typeColor.icon} />
-          </View>
-        )}
-        <View style={styles.cardInfoRow}>
-          <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={2}>
-            {item.title || 'Unbenannt'}
-          </Text>
-          {showActions && (
-            <TouchableOpacity
-              onPress={() => handleOpenActions(item.id, item.title)}
-              style={styles.cardMenuButton}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="ellipsis-vertical" size={16} color={theme.textSecondary} />
-            </TouchableOpacity>
-          )}
-        </View>
-        <Text style={[styles.cardDate, { color: theme.textSecondary }]}>
-          {formatDate(item.updatedAt)}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
+  const renderDocument = useCallback(
+    ({ item }: { item: OfficeItem }) => (
+      <OfficeGridCard
+        item={item}
+        isDark={isDark}
+        theme={theme}
+        onOpen={handleOpenItem}
+        onActions={handleOpenActions}
+      />
+    ),
+    [isDark, theme, handleOpenItem, handleOpenActions]
+  );
 
-  const renderListItem = ({ item }: { item: OfficeItem }) => {
-    const typeColor = officeTypeColor(item.kind, colorScheme === 'dark');
-    const showActions = isDocFamily(item.kind);
-    return (
-      <TouchableOpacity
-        style={[styles.listCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
-        onPress={() => pushOfficeItem(router, item)}
-        activeOpacity={0.7}
-      >
-        <View style={[styles.listIconTile, { backgroundColor: typeColor.tile }]}>
-          <Ionicons name={officeIconFor(item.kind)} size={18} color={typeColor.icon} />
-        </View>
-        <View style={styles.listInfo}>
-          <Text style={[styles.listTitle, { color: theme.text }]} numberOfLines={1}>
-            {item.title || 'Unbenannt'}
-          </Text>
-          <Text style={[styles.listDate, { color: theme.textSecondary }]}>
-            {formatDate(item.updatedAt)}
-          </Text>
-        </View>
-        {showActions && (
-          <TouchableOpacity
-            onPress={() => handleOpenActions(item.id, item.title)}
-            style={styles.cardMenuButton}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="ellipsis-vertical" size={16} color={theme.textSecondary} />
-          </TouchableOpacity>
-        )}
-      </TouchableOpacity>
-    );
-  };
+  const renderListItem = useCallback(
+    ({ item }: { item: OfficeItem }) => (
+      <OfficeListRow
+        item={item}
+        isDark={isDark}
+        theme={theme}
+        onOpen={handleOpenItem}
+        onActions={handleOpenActions}
+      />
+    ),
+    [isDark, theme, handleOpenItem, handleOpenActions]
+  );
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
@@ -390,6 +479,7 @@ export function DocumentsView({
             />
           }
           showsVerticalScrollIndicator={false}
+          {...GRID_WINDOWING}
         />
       ) : (
         <FlatList
@@ -412,6 +502,7 @@ export function DocumentsView({
             />
           }
           showsVerticalScrollIndicator={false}
+          {...GRID_WINDOWING}
         />
       )}
 
