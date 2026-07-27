@@ -541,6 +541,21 @@ export interface ChatGraphState {
    */
   loopDemotedFromRetrieval?: boolean | undefined;
 
+  /**
+   * The LLM classifier itself said this turn needs research (`needsResearch:
+   * true`) and then picked `direct` anyway. Its own reasoning gave the game
+   * away live: „ist eine Web-Recherche (web) notwendig, um die aktuellen
+   * Vorwürfe zu identifizieren" — followed by `intent: direct`, zero searches,
+   * and an answer that invented the facts.
+   *
+   * Same consequence as {@link loopDemotedFromRetrieval} (a recognised
+   * retrieval need that produces no tool call), different source: that one
+   * comes from the Tier-3.5 heuristic demotion, this one from the model
+   * contradicting itself. Kept as a separate field so the log tells you WHICH
+   * of the two happened.
+   */
+  classifierContradictedResearch?: boolean | undefined;
+
   // Input (immutable after initialization)
   messages: ModelMessage[];
   threadId: string | null;
@@ -879,6 +894,13 @@ export interface ClassificationResult {
   filters?: SubcategoryFilters | null | undefined;
   reasoning: string;
   contentType?: string | null | undefined;
+  /**
+   * The classifier's own verdict on whether facts have to be looked up. Was
+   * requested from the model, logged once and then dropped on the floor for the
+   * field's entire lifetime — see `classifierContradictedResearch` in
+   * ChatGraphState for what that cost.
+   */
+  needsResearch?: boolean | undefined;
   needsClarification?: boolean | undefined;
   clarificationQuestion?: string | undefined;
   clarificationOptions?: string[] | undefined;

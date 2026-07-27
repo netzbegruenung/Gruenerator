@@ -99,6 +99,9 @@ RECHERCHE NUR WENN:
 - Nutzer eine FRAGE stellt: "Was ist die Position der Grünen zu...?"
 - Nutzer NICHT alle Informationen mitliefert UND Fakten benötigt werden
 
+needsResearch = true genau dann, wenn du die Anfrage NICHT wahrheitsgemäß beantworten kannst, ohne etwas nachzuschlagen (aktuelle Ereignisse, Zahlen, Positionen, Personen, Zitate).
+KONSISTENZ (verbindlich): Setzt du needsResearch auf true, darf der intent NICHT "direct" sein — wähle search, web oder research. "direct" heißt: alles Nötige steht bereits in der Nachricht oder es ist eine rein kreative/umformulierende Aufgabe.
+
 SCHRITT 3 - TOOL WÄHLEN:
 0. Sharepic/Spruchbild/Zitat-Sharepic/Dreizeiler/Info-Sharepic? → sharepic (VOR image prüfen!)
 1. Bildgenerierung (freies KI-Bild)? → image
@@ -213,7 +216,7 @@ Antworte NUR mit JSON:
 {
   "typoAnalysis": {"original": "...", "corrected": "..."} | null,
   "contentType": "pressemitteilung" | "artikel" | "rede" | "argumentation" | "tweet" | "slogan" | null,
-  "needsResearch": true | false,
+  "needsResearch": true | false,   // true = ohne Nachschlagen nicht wahrheitsgemäß beantwortbar; dann NIEMALS intent "direct"
   "intent": "sharepic" | "social_post" | "image" | "image_edit" | "research" | "search" | "web" | "examples" | "abgeordnetenwatch" | "bundestag" | "bahn" | "reise" | "hotel" | "umfragen" | "wetter" | "news" | "summary" | "chart" | "artifact" | "compute" | "save_as_doc" | "create_sheet" | "create_presentation" | "create_pdf" | "create_recurring_task" | "modify_doc" | "modify_board" | "share_doc" | "chat_history" | "mcp" | "direct",
   "secondaryIntent": "image" | "examples" | "chart" | "save_as_doc" | null,
   "documentSubtype": ${DOC_SUBTYPE_ENUM_LINE} | null,

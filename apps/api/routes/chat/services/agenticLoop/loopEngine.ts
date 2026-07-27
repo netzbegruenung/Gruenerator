@@ -116,9 +116,13 @@ export function buildPrepareStep(
   finishSuffix: string,
   maxSteps: number,
   forceFinish: () => boolean,
-  forceFirstToolCall: boolean
+  forceFirstToolCall: boolean,
+  /** Names a tool the NEXT step must call (see guards.emptyResultFallback), or
+   *  null to leave the choice to the model. Consulted on every step but the
+   *  first — step 0 has no tool result to react to yet. */
+  forcedTool: () => string | null = () => null
 ): ({ stepNumber }: { stepNumber: number }) => {
-  toolChoice?: 'none' | 'required';
+  toolChoice?: 'none' | 'required' | { type: 'tool'; toolName: string };
   system?: string;
 } {
   return ({ stepNumber }) => {
@@ -132,6 +136,12 @@ export function buildPrepareStep(
     // scope turn (clarification allowed) and meta questions by the caller.
     if (forceFirstToolCall && stepNumber === 0) {
       return { toolChoice: 'required' as const };
+    }
+    if (stepNumber > 0) {
+      const toolName = forcedTool();
+      // `required` would only guarantee SOME call — the model would happily
+      // re-run the internal search that just came back empty. Name the tool.
+      if (toolName) return { toolChoice: { type: 'tool' as const, toolName } };
     }
     return {};
   };
@@ -248,6 +258,10 @@ export interface LoopEngineParams {
   forceFinish: () => boolean;
   /** Force a tool call on the first step (explicit-scope MCP follow-ups). */
   forceFirstToolCall?: boolean;
+  /** Names a specific tool the next step must call — used to turn the "web is
+   *  now allowed" permission after an empty internal search into an actual
+   *  fallback. Evaluated per step; null leaves the choice to the model. */
+  forcedToolForStep?: () => string | null;
   onText: (delta: string) => void;
   onReasoning: (delta: string) => void;
   /** Split mode: fires when the synth phase begins — i.e. tools are done and
@@ -307,7 +321,8 @@ async function streamWithTools(
       FORCE_FINISH_SYSTEM_SUFFIX,
       p.maxSteps,
       p.forceFinish,
-      p.forceFirstToolCall ?? false
+      p.forceFirstToolCall ?? false,
+      p.forcedToolForStep
     ),
     experimental_repairToolCall: repairToolCall,
   });
@@ -336,7 +351,8 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
         FORCE_FINISH_GATHER_SUFFIX,
         p.maxSteps,
         p.forceFinish,
-        p.forceFirstToolCall ?? false
+        p.forceFirstToolCall ?? false,
+        p.forcedToolForStep
       ),
       experimental_repairToolCall: repairToolCall,
     });

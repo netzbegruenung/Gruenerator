@@ -963,6 +963,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
                 (a) => a.mimeType === 'application/pdf'
               )) &&
             isSheetFillRequest(lastUserText),
+          classifierContradictedResearch: classifiedState.classifierContradictedResearch === true,
         });
 
       // A demoted turn that a kill-switch (compound, forced tool, ...) kept out
