@@ -12,4 +12,4 @@
 {"id": "gate-frage-trotz-anhang-verb", "prompt": "Wie viele Unterschriften braucht ein Bürgerbegehren in Bayern? Erstell daraus bitte KEINE Grafik, nur die Antwort.", "category": "tool-gating", "expect": {"toolsMustNotInclude": ["generate_image", "sharepic"], "routingNot": ["image", "sharepic", "chart"]}}
 {"id": "gate-post-text-only", "prompt": "Schreib einen Instagram-Post zu Tempo 30 in Städten", "category": "tool-gating", "expect": {"generatesSharepic": false, "minAnswerChars": 60}}
 {"id": "gate-post-with-sharepic", "prompt": "Schreib einen Instagram-Post mit Sharepic zu Tempo 30 in Städten", "category": "tool-gating", "expect": {"generatesSharepic": true}}
-{"id": "gate-grafik-is-not-sharepic", "prompt": "Recherchiere die aktuellen Ausbauzahlen zur Windkraft und mach daraus eine Grafik", "category": "tool-gating", "expect": {"generatesSharepic": false}}
+{"id": "gate-grafik-is-not-sharepic", "category": "tool-gating", "turns": [{"prompt": "Recherchiere die aktuellen Ausbauzahlen zur Windkraft und mach daraus eine Grafik", "expect": {"generatesSharepic": false}, "onInterrupt": {"resume": "Diagramm"}}]}

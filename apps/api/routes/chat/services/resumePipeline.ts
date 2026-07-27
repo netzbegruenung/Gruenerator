@@ -15,6 +15,7 @@ import {
 import {
   buildSystemMessage,
   briefGeneratorNode,
+  classifierNode,
   pandasComputeNode,
   computeVerifierNode,
   searchNode,
@@ -300,6 +301,40 @@ export async function runChatGraphResume({
     }
 
     const startTime = Date.now();
+
+    // === "Sharepic, KI-Bild oder Diagramm?" — the answer names the ARTIFACT ===
+    // Unlike every other ask_human answer, this one is not a search topic: it
+    // decides which generator runs. Re-classify the combined text so the answer
+    // routes itself ("Sharepic" licenses the sharepic path, "Diagramm" the
+    // chart path) and let it fall through to the branches below. Without this
+    // the generic path further down rewrites `direct`/`image` to `search` and
+    // the user gets a web search instead of the graphic they just chose.
+    if (classifiedState.clarificationKind === 'graphic_kind' && userAnswer) {
+      const prevUserMsg = [...classifiedState.messages].reverse().find((m) => m.role === 'user');
+      const prevText = prevUserMsg ? extractTextContent(prevUserMsg.content) : '';
+      // REPLACE the ambiguous noun, don't append the answer. Appending loses:
+      // "Erstelle eine Grafik zur Windkraft Diagramm" still matches the image
+      // rule first (it sits above the chart rule and fires on "erstelle …
+      // Grafik"), so a user who picked "Diagramm" got an AI image — the answer
+      // silently overruled. Substituting makes the request unambiguous and the
+      // ordinary classifier does the rest.
+      const chosen = /diagramm|chart|graph/i.test(userAnswer)
+        ? 'Diagramm'
+        : /sharepic|spruchbild|zitatbild/i.test(userAnswer)
+          ? 'Sharepic'
+          : /bild|foto|motiv|ki/i.test(userAnswer)
+            ? 'Bild'
+            : null;
+      const combined = chosen
+        ? prevText.replace(/\b(grafik(en)?|kachel(n)?)\b/gi, chosen)
+        : `${prevText} ${userAnswer}`.trim();
+      classifiedState.messages = [...classifiedState.messages, { role: 'user', content: combined }];
+      classifiedState.clarificationKind = undefined;
+      Object.assign(classifiedState, await classifierNode(classifiedState));
+      log.info(
+        `[ChatGraph:Resume] graphic kind "${userAnswer}" → ${classifiedState.intent} (${combined.slice(0, 60)})`
+      );
+    }
 
     // === Sharepic / social_post resume: the answer is the topic — regenerate and finish ===
     if (classifiedState.intent === 'sharepic' || classifiedState.intent === 'social_post') {
