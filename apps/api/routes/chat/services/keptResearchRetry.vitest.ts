@@ -47,11 +47,14 @@ describe('getKeptResearchForRetry', () => {
     expect(out).not.toBeNull();
   });
 
-  it('carries the research meta so the card survives the retry', async () => {
-    const researchMeta = { answer: 'Rund 87 Prozent.', citations: [], confidence: 'high' };
-    query.mockResolvedValue(keptRow({ researchMeta }));
+  // The old row also carried a `researchMeta` (Linkup's own written answer) so
+  // the Recherche-Karte survived a retry. There is no card to restore any more:
+  // the sources ARE the salvage, and the model writes the answer from them.
+  it('reuses a legacy kept row, ignoring the research meta it still carries', async () => {
+    query.mockResolvedValue(keptRow({ researchMeta: { answer: 'Rund 87 Prozent.' } }));
     const out = await getKeptResearchForRetry('t1', 'Anteil erneuerbarer Energien Österreich 2025');
-    expect(out?.researchMeta).toEqual(researchMeta);
+    expect(out?.searchResults).toEqual(SOURCES);
+    expect(out).not.toHaveProperty('researchMeta');
   });
 
   it('does NOT reuse anything for a different question', async () => {

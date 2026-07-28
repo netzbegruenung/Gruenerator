@@ -123,15 +123,10 @@ const POLICY: Record<string, AutoEntry> = {
   hotel: { modelId: SMALL, reasoning: 'off' },
   reise: { modelId: SMALL, reasoning: 'off' },
   umfragen: { modelId: SMALL, reasoning: 'off' },
-  // Research in WRAPPER mode: the retrieved synthesis IS the answer and is
-  // already on screen as a card — the model only frames it ("maximal 2 Sätze",
-  // "Wiederhole NICHT die Recherche-Antwort", see formatResearchWrapperContext).
-  // That is Lane-A work, not Lane B. Routing it to Gemma sent the turn to
-  // `verdigado-think` at reasoning=medium, which the loop's own AVOID_AS_SYNTH
-  // guard rewrites away as a slow reasoning lane — but the single-pass path had
-  // no such guard, and both it and its sibling fallback hit first_token_timeout
-  // (observed live, twice, 20s each) on a two-sentence task.
-  research_wrapper: { modelId: SMALL, reasoning: 'off' },
+  // `research_wrapper` lived here while a research turn only framed a
+  // ready-made answer in two sentences — a Lane-A task. With the research/web
+  // merge the model writes the whole answer from raw sources, so a research
+  // turn is ordinary synthesis and takes the default lane like `web` does.
 
   // ── Lane B: Gemma 4 ──
   research: { modelId: GEMMA, reasoning: graded('low', 'medium', 'medium') },
