@@ -132,7 +132,7 @@
     "konnektoren.server": {
       "tab": "konnektoren",
       "title": "Konnektoren",
-      "description": "Verbundene Dienste, die im Chat als eigene Quelle ansprechbar sind. Neue verbindest du am Rechner."
+      "description": "Verbundene Dienste, die im Chat als eigene Quelle ansprechbar sind"
     },
     "nutzung.uebersicht": {
       "tab": "nutzung",

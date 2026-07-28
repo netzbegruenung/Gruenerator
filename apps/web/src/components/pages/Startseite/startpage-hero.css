@@ -1,24 +1,31 @@
-/* Full-screen "sunrise" hero for the public start page.
-   Theme-aware via the app's [data-theme] tokens (variables.css). The resting
-   backdrop is a soft green radial; opening the login crossfades it to warm
-   yellow. Both layers are fixed (Home renders in the noChrome layout, so there
-   is no transform ancestor and position:fixed behaves). */
+/* Full-screen backdrop for the public start page.
+   Theme-aware via the app's [data-theme] tokens (variables.css). At rest it is
+   the „Klarer Kern"-Nebel; opening the login crossfades it to warm yellow. Both
+   layers are fixed (Home renders in the noChrome layout, so there is no
+   transform ancestor and position:fixed behaves). */
 
-@property --sp-sunrise-y {
-  syntax: '<percentage>';
-  inherits: false;
-  initial-value: 52%;
-}
 @property --sp-sunrise-glow {
   syntax: '<number>';
   inherits: false;
   initial-value: 1;
 }
 
-/* ── Backdrop: warm chat-tab glow at rest, yellow while the login is open ──
-   Geometry, color, strength and the entrance are copied 1:1 from the
-   workplace chat-tab sunrise (.workplace-chat-sunrise in
-   workplace-sunrise.css) — only the custom-property names differ. */
+/* ── Backdrop: Nebel at rest, yellow while the login is open ──
+   The gradient is 3b/4b from the design document, the same values the chat
+   start wears as `kern` (.workplace-chat-bg--kern in workplace-sunrise.css).
+   Copied rather than shared, which is what this file already did with the
+   sunrise it replaces: the two surfaces have different entrances (Home fades
+   the whole layer and crossfades to yellow on login) and are free to drift.
+   Change one on purpose, not by accident — but do look at the other.
+
+   „Klarer Kern" of the three, because this page puts a headline and two buttons
+   dead centre: the veil holds 0.82 opacity out to 40 % of the radius, so the
+   type sits on near-white and the colour stays a rim.
+
+   Only the clouds carry --sp-sunrise-glow, the veil does not — so the fog
+   clears on entry instead of the whole surface fading up. There is no y-shift
+   left to animate: the cloud centres are placed, and lifting them would drag
+   them out of the frame. */
 .sp-sunrise {
   position: fixed;
   inset: 0;
@@ -26,23 +33,56 @@
   pointer-events: none;
   --sp-sunrise-opacity: 1;
   opacity: var(--sp-sunrise-opacity);
-  background-color: #fefcf5;
-  background-image: radial-gradient(
-    88% 58% at 50% var(--sp-sunrise-y),
-    rgb(233 214 150 / calc(0.5 * var(--sp-sunrise-glow))) 0%,
-    rgb(233 214 150 / calc(0.18 * var(--sp-sunrise-glow))) 40%,
-    rgb(255 255 255 / 0) 74%
-  );
+  background-color: #fdfcf9;
+  background-image:
+    radial-gradient(
+      78% 120% at 50% 50%,
+      rgb(255 255 255 / 0.97) 0%,
+      rgb(255 255 255 / 0.82) 40%,
+      rgb(255 255 255 / 0.2) 72%,
+      rgb(255 255 255 / 0) 90%
+    ),
+    radial-gradient(
+      56% 120% at 0% 14%,
+      rgb(247 206 198 / calc(0.8 * var(--sp-sunrise-glow))) 0%,
+      rgb(247 206 198 / 0) 64%
+    ),
+    radial-gradient(
+      46% 110% at 100% 26%,
+      rgb(220 218 246 / calc(0.75 * var(--sp-sunrise-glow))) 0%,
+      rgb(220 218 246 / 0) 62%
+    ),
+    radial-gradient(
+      50% 110% at 100% 92%,
+      rgb(199 228 216 / calc(0.8 * var(--sp-sunrise-glow))) 0%,
+      rgb(199 228 216 / 0) 62%
+    ),
+    radial-gradient(
+      52% 100% at 2% 100%,
+      rgb(243 238 190 / calc(0.7 * var(--sp-sunrise-glow))) 0%,
+      rgb(243 238 190 / 0) 62%
+    );
   animation: sp-sunrise-in 2.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
+
+/* Runde 4 aus dem Entwurf. The base is the design's own #16190f rather than a
+   fall-through to the theme: the veil covers the centre at 0.99, but it runs
+   out to 0 at the rim, and there the page background would show through
+   noticeably lighter and greyer than the olive-black the clouds are drawn for. */
 [data-theme='dark'] .sp-sunrise {
-  background-color: transparent;
-  background-image: radial-gradient(
-    88% 58% at 50% 52%,
-    rgb(233 214 150 / 0.1) 0%,
-    rgb(233 214 150 / 0.035) 42%,
-    rgb(0 0 0 / 0) 74%
-  );
+  background-color: #16190f;
+  background-image:
+    radial-gradient(
+      76% 118% at 50% 50%,
+      rgb(22 25 15 / 0.99) 0%,
+      rgb(22 25 15 / 0.9) 42%,
+      rgb(22 25 15 / 0.28) 74%,
+      rgb(22 25 15 / 0) 92%
+    ),
+    radial-gradient(56% 120% at 0% 14%, rgb(219 134 120 / 0.42) 0%, rgb(219 134 120 / 0) 64%),
+    radial-gradient(46% 110% at 100% 26%, rgb(142 134 212 / 0.4) 0%, rgb(142 134 212 / 0) 62%),
+    radial-gradient(50% 110% at 100% 92%, rgb(104 184 154 / 0.42) 0%, rgb(104 184 154 / 0) 62%),
+    radial-gradient(52% 100% at 2% 100%, rgb(206 196 108 / 0.34) 0%, rgb(206 196 108 / 0) 62%);
   animation: none;
 }
 
@@ -70,11 +110,9 @@
 
 @keyframes sp-sunrise-in {
   from {
-    --sp-sunrise-y: 82%;
     --sp-sunrise-glow: 0;
   }
   to {
-    --sp-sunrise-y: 52%;
     --sp-sunrise-glow: 1;
   }
 }
@@ -376,7 +414,6 @@
 @media (prefers-reduced-motion: reduce) {
   .sp-sunrise {
     animation: none;
-    --sp-sunrise-y: 52%;
     --sp-sunrise-glow: 1;
     opacity: var(--sp-sunrise-opacity);
   }
