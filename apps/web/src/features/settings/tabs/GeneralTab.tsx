@@ -97,7 +97,10 @@ const GeneralTab = () => {
         </SettingsRow>
 
         <SettingsRow id="allgemein.chatHintergrund">
-          <div className="flex gap-1.5">
+          {/* Umbrechend und begrenzt: die Zeile sitzt in einem shrink-0-Slot, eine
+              Reihe aus zehn Plättchen würde die Beschriftung links zusammendrücken
+              statt selbst schmaler zu werden. */}
+          <div className="flex max-w-[13.5rem] flex-wrap justify-end gap-1.5">
             {CHAT_BACKGROUND_PRESETS.map(({ key, label, swatch, accent }) => (
               <button
                 key={key}
