@@ -23,7 +23,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
-import { voiceContract } from '@gruenerator/contracts';
+import { voiceContract, MAX_DURATION_LABEL, MAX_FILE_SIZE_LABEL } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { env } from '../../config/env.js';
@@ -400,8 +400,8 @@ export const voiceContractRouter = s.router(voiceContract, {
         body: {
           success: true,
           supportedFormats: formats,
-          maxFileSize: '500MB (video), 50MB (audio)',
-          maxDuration: '~30 minutes for transcription, ~40 minutes for understanding',
+          maxFileSize: MAX_FILE_SIZE_LABEL,
+          maxDuration: MAX_DURATION_LABEL,
           provider: env.REGOLO_API_KEY
             ? 'Regolo Whisper (Voxtral fallback, video converted via FFmpeg)'
             : 'Mistral Voxtral (video converted via FFmpeg)',
