@@ -48,13 +48,21 @@ export interface SourceRegistry {
   /**
    * Seed sources gathered in EARLIER turns (cross-turn rehydration).
    *
-   * These stay out of `getCitations`/`getResults`/`size` — the citation UI and
-   * persistence remain this-turn-only, so no `[N]` chip can dangle and no fresh
-   * source is pushed out of the capped persistence slice. They DO reach
-   * `renderAll` as a separate, UNNUMBERED block: excluding them there meant the
-   * log said "rehydrated 3 prior source(s) for grounding" while the synth got
-   * nothing and was then told by the honesty note that it had researched
-   * nothing — which is exactly what it repeated to the user.
+   * Numbered and citable exactly like this turn's own results. They used to be
+   * a separate UNNUMBERED block with the model explicitly forbidden to mark
+   * them — which made the SAME follow-up citable or uncitable depending only on
+   * whether the turn happened to route through the loop or the single-pass
+   * path (`carryThreadSourcesIfNeeded` cites them). The user-visible effect was
+   * an answer that read as researched and pointed at nothing.
+   *
+   * The original worry — a `[N]` chip the UI cannot back — does not apply:
+   * carried sources are projected into `getCitations()` and re-persisted via
+   * `getResults()` just like fresh ones, so every marker has a chip and every
+   * chip has a row. What they must NOT do is count as this turn's research:
+   * `freshSize` (not `size`) is what the loop guards budget against.
+   *
+   * Order matters only in that the numbering is positional — seeded first, they
+   * occupy the low numbers, and `register()` continues from there.
    */
   seedCarried(results: SearchResult[]): void;
   /**
@@ -62,7 +70,7 @@ export interface SourceRegistry {
    * lookup came back empty. The split-mode synth sees no tool returns, so this
    * is its only channel for "what actually happened" — but it is NOT a source.
    *
-   * Kept out of `ordered` (and therefore out of citations, persistence and
+   * Kept out of the numbered entries (and therefore out of citations, persistence and
    * `renderReference`) because it used to be in: a Kanban confirmation line
    * registered as a source, was persisted as this turn's `searchResults`, and a
    * later "mach ein PDF draus" was briefed with it as the only research in
@@ -71,12 +79,17 @@ export interface SourceRegistry {
   note(title: string, content: string): void;
   /** Prior-turn sources currently seeded (drives the honesty note). */
   readonly carriedSize: number;
-  /** All accumulated results in stable order (capped), for persistence/UI. */
+  /** Sources gathered in THIS turn. The loop guards budget against this, not
+   *  `size` — counting carried sources as research would tell a follow-up it had
+   *  "already found enough internal documents" and block the web search. */
+  readonly freshSize: number;
+  /** All accumulated results (capped) for persistence/UI — this turn's first, so
+   *  a long carry can never push fresh research out of the capped slice. */
   getResults(limit?: number): SearchResult[];
   /** The full numbered snippet block for ALL accumulated results — injected into
    *  the synthesizer's context in the planner/executor split (the synth model
    *  has no tools, so it can't see results via tool returns). Carried
-   *  (prior-turn) sources follow in an unnumbered block. */
+   *  (prior-turn) sources sit in the same numbering, marked as such. */
   renderAll(): string;
   /**
    * Numbered snippet block of carried (prior-turn) + this-turn sources, deduped —
@@ -124,7 +137,7 @@ export function withResearchedSources(brief: string, sourcesBlock: string): stri
 // can cite `[N]` but is structurally unable to reproduce the original link —
 // "erstelle ein PDF mit den Originalquellen" then yields placeholder URLs.
 // `[N]` stays the citation marker; the URL is the payload behind it.
-function snippetLine(index: number, r: SearchResult, cap = SNIPPET_CHARS): string {
+function snippetLine(index: number, r: SearchResult, cap = SNIPPET_CHARS, prior = false): string {
   const title = (r.title || r.source || 'Quelle').trim();
   const body = applyContextCap(
     (r.content ?? '').replace(/\s+/g, ' ').trim(),
@@ -133,58 +146,82 @@ function snippetLine(index: number, r: SearchResult, cap = SNIPPET_CHARS): strin
     false
   );
   const url = typeof r.url === 'string' && r.url.trim() ? ` <${r.url.trim()}>` : '';
-  return `[${index}] ${title}${url}${body ? ` — ${body}` : ''}`;
+  const mark = prior ? ' (frühere Recherche)' : '';
+  return `[${index}]${mark} ${title}${url}${body ? ` — ${body}` : ''}`;
+}
+
+/** One entry per source. `prior` is the ONLY thing separating a carried source
+ *  from a fresh one — position in this array IS the citation number, so no call
+ *  order can desync the model's `[N]` from the chips. */
+interface Entry {
+  result: SearchResult;
+  cap: number;
+  prior: boolean;
 }
 
 export function createSourceRegistry(): SourceRegistry {
-  const ordered: SearchResult[] = [];
-  // Per-result snippet cap, parallel to `ordered` (register's snippetChars).
-  const caps: number[] = [];
-  const seen = new Set<string>();
-  // Prior-turn sources, kept OUT of `ordered` so they never affect this turn's
-  // citations/persistence — they only ground the edit op-planner (renderReference).
-  const carried: SearchResult[] = [];
+  const entries: Entry[] = [];
+  const indexByKey = new Map<string, number>();
   // Per-turn outcome lines (see `note`). Never sources.
   const notes: string[] = [];
+
+  /** Returns the 1-based number of the entry, whether newly added or already
+   *  present. A search that re-finds a carried source must still SHOW it to the
+   *  model — under its established number, not as a second chip for one URL. */
+  const add = (r: SearchResult, cap: number, prior: boolean): number | null => {
+    if (!r || typeof r !== 'object') return null;
+    // Skip empty-content results: buildCitations drops them, so numbering
+    // them here would desync the model's [N] from done.citations.
+    if ((r.content ?? '').trim().length === 0) return null;
+    const key = resultKey(r);
+    const existing = indexByKey.get(key);
+    if (existing !== undefined) {
+      const entry = entries[existing - 1];
+      // A tool with longer prose may re-find a source registered under the
+      // default cap — widen rather than show it truncated.
+      if (entry && cap > entry.cap) entry.cap = cap;
+      // Re-found by a search THIS turn: it is no longer only prior research,
+      // so it drops the marker and starts counting toward `freshSize`.
+      if (entry && !prior) entry.prior = false;
+      return existing;
+    }
+    entries.push({ result: r, cap, prior });
+    indexByKey.set(key, entries.length);
+    return entries.length;
+  };
 
   return {
     register(results, opts) {
       const cap = opts?.snippetChars ?? SNIPPET_CHARS;
       const lines: string[] = [];
+      const emitted = new Set<number>();
       for (const r of results) {
-        if (!r || typeof r !== 'object') continue;
-        // Skip empty-content results: buildCitations drops them, so numbering
-        // them here would desync the model's [N] from done.citations.
-        if ((r.content ?? '').trim().length === 0) continue;
-        const key = resultKey(r);
-        if (seen.has(key)) continue;
-        seen.add(key);
-        ordered.push(r);
-        caps.push(cap);
-        lines.push(snippetLine(ordered.length, r, cap));
+        const index = add(r, cap, false);
+        if (index === null || emitted.has(index)) continue;
+        emitted.add(index);
+        lines.push(snippetLine(index, r, cap));
       }
       return lines.join('\n');
     },
     seedCarried(results) {
-      const localSeen = new Set(carried.map((r) => resultKey(r)));
-      for (const r of results) {
-        if (!r || typeof r !== 'object') continue;
-        if ((r.content ?? '').trim().length === 0) continue;
-        const key = resultKey(r);
-        if (localSeen.has(key)) continue;
-        localSeen.add(key);
-        carried.push(r);
-      }
+      for (const r of results) add(r, SNIPPET_CHARS, true);
     },
     note(title, content) {
       const line = `${(title || 'Vorgang').trim()} — ${(content ?? '').replace(/\s+/g, ' ').trim()}`;
       if (!notes.includes(line)) notes.push(line);
     },
     getResults(limit = 10) {
-      return ordered.slice(0, limit);
+      // This turn's own research first: a thread carrying ten prior sources
+      // would otherwise fill the persisted slice before a single fresh result
+      // reached it, and the next turn would rehydrate the same stale set.
+      const fresh = entries.filter((e) => !e.prior).map((e) => e.result);
+      const prior = entries.filter((e) => e.prior).map((e) => e.result);
+      return [...fresh, ...prior].slice(0, limit);
     },
     renderAll() {
-      const current = ordered.map((r, i) => snippetLine(i + 1, r, caps[i])).join('\n');
+      const current = entries
+        .map((e, i) => snippetLine(i + 1, e.result, e.cap, e.prior))
+        .join('\n');
       // Unnumbered and explicitly labelled: the synth must be able to REPORT
       // what happened without ever treating it as retrieved material.
       const notesBlock =
@@ -193,54 +230,37 @@ export function createSourceRegistry(): SourceRegistry {
               .map((n) => `- ${n}`)
               .join('\n')}`
           : '';
-      const withNotes = [current, notesBlock].filter((p) => p).join('\n\n');
-      if (carried.length === 0) return withNotes;
-      // Deliberately unnumbered: a `[N]` here would be a citation the UI and the
-      // persisted turn cannot back. The model may still USE the content — it
-      // just cannot cite it as one of this turn's sources.
-      const prior = carried
-        .map((r) => {
-          const title = (r.title || r.source || 'Quelle').trim();
-          const url = typeof r.url === 'string' && r.url.trim() ? ` <${r.url.trim()}>` : '';
-          const body = applyContextCap(
-            (r.content ?? '').replace(/\s+/g, ' ').trim(),
-            SNIPPET_CHARS,
-            'sourceRegistry:carried',
-            false
-          );
-          return `- ${title}${url}${body ? ` — ${body}` : ''}`;
-        })
-        .join('\n');
-      const priorBlock = `FRÜHERE QUELLEN (aus vorherigen Turns dieses Gesprächs — inhaltlich nutzbar, aber NICHT mit [N] zitierbar):\n${prior}`;
-      return current ? `${current}\n\n${priorBlock}` : priorBlock;
+      // Marked, not fenced off: the model may cite them, but a sentence like
+      // "meine Recherche ergab" about a source found three turns ago is the
+      // dishonesty this note prevents.
+      const priorNote = entries.some((e) => e.prior)
+        ? 'Mit „(frühere Recherche)" markierte Quellen stammen aus einem früheren Turn dieses Gesprächs — zitierbar wie die übrigen, aber behaupte NICHT, sie gerade gefunden zu haben.'
+        : '';
+      return [current, priorNote, notesBlock].filter((p) => p).join('\n\n');
     },
     renderReference() {
-      // Carried (prior-turn) first, then this-turn's fresh sources not already
-      // carried — one deduped, sequentially-numbered block for the op-planner.
-      const refSeen = new Set<string>();
-      const combined: SearchResult[] = [];
-      for (const r of [...carried, ...ordered]) {
-        const key = resultKey(r);
-        if (refSeen.has(key)) continue;
-        refSeen.add(key);
-        combined.push(r);
-      }
-      return combined.map((r, i) => snippetLine(i + 1, r)).join('\n');
+      // Same numbering as renderAll, without the provenance marker: this block
+      // briefs artifact/edit generators, and "(frühere Recherche)" would end up
+      // inside the document they write.
+      return entries.map((e, i) => snippetLine(i + 1, e.result, e.cap)).join('\n');
     },
     getCitations() {
       // Project each result in registry order and stamp the registry index as
-      // the id — NOT buildCitations(ordered), which would re-sort/group/cap and
+      // the id — NOT buildCitations(all), which would re-sort/group/cap and
       // break alignment with the snippet numbers the model cited.
-      return ordered.flatMap((r, i) => {
-        const [projected] = buildCitations([r]);
+      return entries.flatMap((e, i) => {
+        const [projected] = buildCitations([e.result]);
         return projected ? [{ ...projected, id: i + 1 }] : [];
       });
     },
     get size() {
-      return ordered.length;
+      return entries.length;
     },
     get carriedSize() {
-      return carried.length;
+      return entries.filter((e) => e.prior).length;
+    },
+    get freshSize() {
+      return entries.filter((e) => !e.prior).length;
     },
   };
 }
