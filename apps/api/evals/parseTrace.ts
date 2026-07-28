@@ -70,6 +70,8 @@ export function buildTrace(events: SseEvent[], latencyMs: number): ChatTrace {
     editorOps: false,
     sharepicUpdated: false,
     sharepicVariants: [],
+    confirmActions: [],
+    documentCreated: false,
   };
 
   const stepsById = new Map<string, TracedToolCall>();
@@ -121,9 +123,11 @@ export function buildTrace(events: SseEvent[], latencyMs: number): ChatTrace {
       }
       case 'document_created': {
         collectIds(data, trace.artifactIds);
+        trace.documentCreated = true;
         break;
       }
       case 'confirm_action': {
+        if (typeof data.type === 'string') trace.confirmActions.push(data.type);
         // A modify_doc / modify_board card is a HITL edit of a PRIOR artifact —
         // no auto-applied editor_operations/sharepic_updated event fires, so the
         // target id (a metadata row) is the only signal that this turn edits the

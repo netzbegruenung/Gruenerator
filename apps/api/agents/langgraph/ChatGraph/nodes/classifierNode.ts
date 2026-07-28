@@ -67,9 +67,12 @@ import {
 import { CLASSIFIER_PROMPT, NON_SEARCH_INTENTS } from './classifierPrompt.js';
 import { classifyDocsIntentTiebreak } from './docsIntentTiebreak.js';
 import {
+  ARTIFACT_NOUN_BY_KIND,
+  forbidsPersistentAction,
   hasExplicitSharepicWord,
   isNegatedArtifactRequest,
   stripQuotedSpans,
+  type ForbiddableArtifact,
 } from './fastPathGuards.js';
 
 import type { ChatGraphState, GatherSource, SearchIntent } from '../types.js';
@@ -993,7 +996,11 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         !hasDocMentions &&
         !hasAnyDocuments &&
         !hasBoards &&
-        docModifyPattern.test(userContent)
+        docModifyPattern.test(userContent) &&
+        // "Gib den Stand als JSON aus, keine Dokumentaktion" matches the modify
+        // verbs and used to update the thread's last document anyway — this tier
+        // is purely positive-patterned and had no negation check.
+        !forbidsPersistentAction(userContent, ARTIFACT_NOUN_BY_KIND.document)
       ) {
         log.info('[Classifier] Follow-up doc edit via lastToolContext → modify_doc', {
           ref: tc.ref,
@@ -1015,7 +1022,8 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       if (
         tc.kind === 'image' &&
         !hasImageAttachments &&
-        (hasImageEditVerb(userContent) || isImageRegenRequest(userContent))
+        (hasImageEditVerb(userContent) || isImageRegenRequest(userContent)) &&
+        !forbidsPersistentAction(userContent, ARTIFACT_NOUN_BY_KIND.image)
       ) {
         log.info('[Classifier] Follow-up image edit via lastToolContext → image_edit');
         return {
@@ -1252,7 +1260,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Tool memory of the thread: mentions are stripped from message text on
     // send, so this line is the only signal that e.g. "@tally" or a generated
     // image preceded a vague follow-up ("denk dir was aus", "mach es blauer").
-    const toolContextLine = formatToolContextLine(state.lastToolContext ?? null);
+    const toolContextLine = formatToolContextLine(state.lastToolContext ?? null, userContent);
     const response = await aiWorkerPool.processRequest(
       {
         type: 'chat_intent_classification',
@@ -1419,11 +1427,37 @@ const TOOL_CONTEXT_HINTS: Record<NonNullable<ChatGraphState['lastToolContext']>[
   board: 'der Board-Erstellung',
 };
 
+/**
+ * Which artifact family a tool context can be told not to touch. The research
+ * kinds (mcp/bundestag/abgeordnetenwatch/notebook) are absent on purpose —
+ * "nichts speichern" says nothing about whether a connector may be queried.
+ */
+const FORBIDDABLE_BY_CONTEXT_KIND: Partial<
+  Record<NonNullable<ChatGraphState['lastToolContext']>['kind'], ForbiddableArtifact>
+> = {
+  document: 'document',
+  presentation: 'presentation',
+  sheet: 'sheet',
+  pdf: 'pdf',
+  board: 'board',
+  image: 'image',
+};
+
 /** One-line thread tool memory for the LLM classifier (empty string when none). */
-function formatToolContextLine(tc: ChatGraphState['lastToolContext'] | null): string {
+function formatToolContextLine(
+  tc: ChatGraphState['lastToolContext'] | null,
+  userContent: string
+): string {
   if (!tc) return '';
   const hint = TOOL_CONTEXT_HINTS[tc.kind];
   if (!hint) return '';
+  // The hint is a standing nudge — "vage Folgeaufträge beziehen sich meist
+  // darauf" — that outlives the turn that created the artifact. On a turn that
+  // forbids touching it, the nudge argues for exactly the action the user just
+  // ruled out, and the LLM followed it (observed live as an unasked-for
+  // save_as_doc secondaryIntent). Stay silent instead.
+  const family = FORBIDDABLE_BY_CONTEXT_KIND[tc.kind];
+  if (family && forbidsPersistentAction(userContent, ARTIFACT_NOUN_BY_KIND[family])) return '';
   const label = tc.label ? ` („${tc.label}")` : '';
   return `\n\nHinweis: Der vorherige Turn dieses Gesprächs arbeitete mit ${hint}${label}. Vage Folgeaufträge beziehen sich meist darauf.`;
 }
