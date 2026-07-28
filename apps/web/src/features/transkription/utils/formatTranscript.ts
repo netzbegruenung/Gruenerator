@@ -23,13 +23,18 @@ export function getSpeakerLabel(id: string, speakerMap?: Record<string, string>)
  * with bold, resolved speaker labels per block. Non-diarized text (plain or
  * already Markdown, e.g. a generated Protokoll) is returned unchanged so it flows
  * through the shared copy/export utils as-is.
+ *
+ * The backend emits one `[speaker_N]` marker per diarized segment (often several
+ * short segments per sentence), so runs of consecutive segments from the same
+ * speaker are merged into a single block here — otherwise the label would repeat
+ * mid-paragraph for every segment instead of once per speaker turn.
  */
 export function transcriptToMarkdown(text: string, speakerMap?: Record<string, string>): string {
   if (!text) return '';
   if (!text.includes('[speaker_')) return text;
 
   const parts = text.split(/(\[speaker_\d+\])/g).filter(Boolean);
-  const blocks: string[] = [];
+  const blocks: { speaker: string; text: string }[] = [];
   let currentSpeaker = '';
 
   for (const part of parts) {
@@ -38,10 +43,19 @@ export function transcriptToMarkdown(text: string, speakerMap?: Record<string, s
     } else {
       const trimmed = part.trim();
       if (!trimmed) continue;
-      const label = currentSpeaker ? getSpeakerLabel(currentSpeaker, speakerMap) : '';
-      blocks.push(label ? `**${label}:** ${trimmed}` : trimmed);
+      const last = blocks[blocks.length - 1];
+      if (last && last.speaker === currentSpeaker) {
+        last.text = `${last.text} ${trimmed}`;
+      } else {
+        blocks.push({ speaker: currentSpeaker, text: trimmed });
+      }
     }
   }
 
-  return blocks.join('\n\n');
+  return blocks
+    .map(({ speaker, text: blockText }) => {
+      const label = speaker ? getSpeakerLabel(speaker, speakerMap) : '';
+      return label ? `**${label}:** ${blockText}` : blockText;
+    })
+    .join('\n\n');
 }
