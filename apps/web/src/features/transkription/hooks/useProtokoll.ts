@@ -55,5 +55,11 @@ export function useProtokoll() {
     setState(INITIAL_STATE);
   }, []);
 
-  return { state, formatAsProtokoll, reset };
+  /** Put a persisted Protokoll back on screen without re-generating it. */
+  const restore = useCallback((result: string, typ: ProtokollTyp) => {
+    abortRef.current?.abort();
+    setState({ status: 'done', result, typ, error: null });
+  }, []);
+
+  return { state, formatAsProtokoll, reset, restore };
 }
