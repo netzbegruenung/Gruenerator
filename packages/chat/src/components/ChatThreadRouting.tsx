@@ -6,6 +6,7 @@ import { useEffect, useRef } from 'react';
 
 import { getDefaultAgent } from '../lib/agents';
 import {
+  didLastThreadListFetchFail,
   getNotebookCollectionId,
   getThreadAgentId,
   getThreadSlugSuffix,
@@ -57,7 +58,16 @@ export function ChatThreadRouting({
       try {
         await aui.threads().getLoadThreadsPromise();
         if (cancelled) return;
-        const remoteId = resolveThreadBySlugSuffix(suffix);
+        let remoteId = resolveThreadBySlugSuffix(suffix);
+        if (!remoteId && didLastThreadListFetchFail()) {
+          // The initial list load failed (network blip, cold backend, etc.) —
+          // assistant-ui swallows that failure internally and just leaves the
+          // list empty, so an empty result here doesn't mean the thread is
+          // actually gone. Retry once with a fresh fetch before giving up.
+          await aui.threads().reload();
+          if (cancelled) return;
+          remoteId = resolveThreadBySlugSuffix(suffix);
+        }
         if (!remoteId) {
           onThreadGone();
           return;
