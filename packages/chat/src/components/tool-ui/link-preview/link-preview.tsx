@@ -1,7 +1,6 @@
 'use client';
 
-import { Globe } from 'lucide-react';
-
+import { SourceGlyph } from '../citation/SourceGlyph';
 import {
   RATIO_CLASS_MAP,
   getFitClass,
@@ -118,9 +117,10 @@ export function LinkPreview(props: LinkPreviewProps) {
                     decoding="async"
                   />
                 ) : (
-                  <div className="border-border/60 bg-muted flex size-4 shrink-0 items-center justify-center rounded-full border">
-                    <Globe className="h-2.5 w-2.5" aria-hidden="true" />
-                  </div>
+                  // Nothing in the app supplies `favicon` any more — see
+                  // urlUtils. The monogram keeps two previews distinguishable
+                  // where a row of identical globes would not.
+                  <SourceGlyph domain={domain} size={16} rounded="rounded-full" />
                 )}
                 <span>{domain}</span>
               </div>
