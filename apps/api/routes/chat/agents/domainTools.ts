@@ -27,6 +27,7 @@ import {
   withResearchedSources,
   type SourceRegistry,
 } from '../services/agenticLoop/sourceRegistry.js';
+import { buildCreateTurnContext, withConversationContext } from '../services/createTurn.js';
 import {
   pdfKindFromText,
   runBoardGeneration,
@@ -386,6 +387,30 @@ const DOC_LABELS: Record<
   document: { label: 'Dokument', artifact: 'ein Textdokument zu einem Thema' },
 };
 
+/**
+ * The full brief for an artifact generator: the thread, then the planner's
+ * order, then this turn's sources.
+ *
+ * The transcript is the part that was missing. A generator is a separate model
+ * call that never sees the chat's system prompt or its history — all it got here
+ * was `prompt`, a free-text order the planner RETYPES from its own short-term
+ * memory. Live (QA 28.07.2026): three measures were agreed in the thread, the
+ * PDF kept the catchiest one and replaced the other two with generic substitutes
+ * the generator knew on its own. Nothing had shown it the list.
+ *
+ * The single-pass create turns were given the same transcript in #2136
+ * (`createTurn.ts`); this is the loop's half of that fix, deliberately reusing
+ * the identical framing so both paths speak one format.
+ */
+function briefWithContext(
+  prompt: string,
+  state: ChatGraphState,
+  sourceRegistry?: SourceRegistry
+): string {
+  const withHistory = withConversationContext(prompt, buildCreateTurnContext(state.messages ?? []));
+  return withResearchedSources(withHistory, sourceRegistry?.renderReference() ?? '');
+}
+
 export function makeCreateDocTool(ctx: {
   kind: 'presentation' | 'sheet' | 'document';
   sse: SSEWriter;
@@ -425,7 +450,7 @@ NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/F
       }
       const created = await runDocGeneration({
         kind,
-        userContent: withResearchedSources(prompt, sourceRegistry?.renderReference() ?? ''),
+        userContent: briefWithContext(prompt, state, sourceRegistry),
         aiWorkerPool: state.aiWorkerPool,
         req,
         userId,
@@ -513,7 +538,7 @@ WICHTIG — PRÜFEN STATT BEHAUPTEN: Das Tool öffnet das erzeugte PDF erneut un
       if (!userId) {
         return { error: 'PDF-Erstellung nicht möglich (keine Nutzer-Sitzung).' };
       }
-      const brief = withResearchedSources(prompt, sourceRegistry?.renderReference() ?? '');
+      const brief = briefWithContext(prompt, state, sourceRegistry);
       const userContent = recipient ? `${brief}\n\nEmpfänger des Schreibens:\n${recipient}` : brief;
       // Classify on the ASK, never on the enriched brief: a "Formular"/"Brief"
       // wording inside an appended source snippet would otherwise flip the layout.
@@ -588,7 +613,7 @@ NUTZE WENN der*die Nutzer*in ein Board/Kanban zum Thema möchte. Recherchiere ZU
         return { error: 'Board-Erstellung nicht möglich (keine Nutzer-Sitzung).' };
       }
       const created = await runBoardGeneration({
-        userContent: prompt,
+        userContent: briefWithContext(prompt, state),
         aiWorkerPool: state.aiWorkerPool,
         req,
         userId,
