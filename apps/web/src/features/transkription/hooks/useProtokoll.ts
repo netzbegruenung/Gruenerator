@@ -1,8 +1,11 @@
+import { type ProtokollResponse, type ProtokollTyp } from '@gruenerator/contracts';
 import { useCallback, useRef, useState } from 'react';
 
 import apiClient from '../../../components/utils/apiClient';
 
-export type ProtokollTyp = 'Sitzungsprotokoll' | 'Ergebnisprotokoll' | 'Verlaufsprotokoll';
+// The union lives in the contract's z.enum; re-exported so feature code keeps a
+// local import path without restating the values.
+export type { ProtokollTyp };
 
 interface ProtokollState {
   status: 'idle' | 'generating' | 'done' | 'error';
@@ -31,7 +34,7 @@ export function useProtokoll() {
     setState({ status: 'generating', result: '', typ: protokollTyp, error: null });
 
     try {
-      const response = await apiClient.post<{ content?: string; text?: string }>(
+      const response = await apiClient.post<ProtokollResponse & { text?: string }>(
         '/voice/protokoll',
         { inputText, protokollTyp },
         { signal: controller.signal, timeout: 120000 }
