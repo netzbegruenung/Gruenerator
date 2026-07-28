@@ -71,8 +71,26 @@ export function readMcpResult(result: Record<string, unknown> | undefined): McpR
 export interface LoopBudget {
   /** Max LLM steps (each tool round trip is one step). */
   maxSteps: number;
-  /** Wall-clock budget for the whole turn. */
+  /**
+   * Budget for the TOOL work — searching, scraping, generating artifacts.
+   *
+   * SOFT: spending it strips the tools and tells the model to answer with what
+   * it has (the same door `forceFinish` already opens on the step limit). It
+   * used to be a hard `AbortSignal.timeout` over the whole turn, which meant it
+   * could fire while the answer was being written: the stream was torn down
+   * mid-word and the stump shipped as if it were the finished answer. Observed
+   * live on both turns of a QA session that created an artifact first — a sheet
+   * or PDF eats 30–60s here, so the writer started with the clock nearly spent.
+   */
   wallClockMs: number;
+  /**
+   * Absolute ceiling for the turn — the only HARD abort left. Deliberately far
+   * above `wallClockMs`: it exists so a wedged provider cannot hang a request
+   * forever, not to pace the answer. Writing is guarded by its own idle
+   * deadline (SYNTH_IDLE_DEADLINE_MS), which catches a dead lane in 20s without
+   * punishing a slow but live one.
+   */
+  hardCapMs: number;
   /** Per tool-call execution timeout. */
   perCallTimeoutMs: number;
 }
@@ -91,6 +109,7 @@ export const DEFAULT_LOOP_BUDGET: LoopBudget = {
   // plus a step to answer, without force-finishing mid-coverage.
   maxSteps: 8,
   wallClockMs: 120_000,
+  hardCapMs: 300_000,
   perCallTimeoutMs: 20_000,
 };
 
