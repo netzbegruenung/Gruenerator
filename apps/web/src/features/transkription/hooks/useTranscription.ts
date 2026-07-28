@@ -1,3 +1,9 @@
+import {
+  type TranscribeResponse,
+  type TranscribeStreamEvent,
+  type TranscriptionSegment,
+  type VoiceErrorResponse,
+} from '@gruenerator/contracts';
 import { useCallback, useRef, useState } from 'react';
 import * as tus from 'tus-js-client';
 
@@ -6,12 +12,9 @@ import { getDesktopToken } from '../../../utils/desktopAuth';
 import { isDesktopApp } from '../../../utils/platform';
 import { platformFetch } from '../../../utils/platformFetch';
 
-export interface TranscriptionSegment {
-  start: number;
-  end: number;
-  text: string;
-  speakerId?: string | null;
-}
+// Re-exported so feature code keeps a local import path while the shape stays
+// owned by the contract schema.
+export type { TranscriptionSegment };
 
 export interface TranscriptionState {
   status: 'idle' | 'uploading' | 'extracting' | 'transcribing' | 'done' | 'error';
@@ -28,35 +31,6 @@ export interface TranscriptionOptions {
   timestamps: boolean;
   language: string;
   privacyMode?: boolean;
-}
-
-// === SSE MESSAGE TYPES ===
-type SSEMessage =
-  | { type: 'extraction_start' }
-  | { type: 'extraction_progress'; percent: number; timemark: string }
-  | { type: 'extraction_complete' }
-  | { type: 'transcription_start' }
-  | { type: 'text.delta'; text: string }
-  | {
-      type: 'done';
-      text: string;
-      segments?: TranscriptionSegment[];
-      hasTimestamps?: boolean;
-      speakerMap?: Record<string, string>;
-    }
-  | { type: 'error'; text?: string };
-
-interface TranscriptionApiResponse {
-  success: boolean;
-  error?: string;
-  text?: string;
-  segments?: TranscriptionSegment[];
-  hasTimestamps?: boolean;
-  speakerMap?: Record<string, string>;
-}
-
-interface TranscriptionErrorResponse {
-  error?: string;
 }
 
 const INITIAL_STATE: TranscriptionState = {
@@ -79,9 +53,9 @@ interface SSECallbacks {
   onDelta: (text: string) => void;
   onDone: (data: {
     text: string;
-    segments?: TranscriptionSegment[];
-    hasTimestamps?: boolean;
-    speakerMap?: Record<string, string>;
+    segments?: TranscriptionSegment[] | null;
+    hasTimestamps?: boolean | null;
+    speakerMap?: Record<string, string> | null;
   }) => void;
 }
 
@@ -111,9 +85,9 @@ async function parseSSEStream(response: Response, callbacks: SSECallbacks): Prom
 
       // Only the JSON.parse is guarded: one malformed frame should be skipped,
       // not turned into a total failure of an otherwise healthy stream.
-      let data: SSEMessage;
+      let data: TranscribeStreamEvent;
       try {
-        data = JSON.parse(dataLine.slice(6)) as SSEMessage;
+        data = JSON.parse(dataLine.slice(6)) as TranscribeStreamEvent;
       } catch {
         continue;
       }
@@ -243,7 +217,7 @@ export function useTranscription() {
           });
 
           if (!response.ok) {
-            const err = (await response.json().catch(() => ({}))) as TranscriptionErrorResponse;
+            const err = (await response.json().catch(() => ({}))) as Partial<VoiceErrorResponse>;
             throw new Error(err.error ?? `HTTP ${response.status}`);
           }
 
@@ -287,7 +261,7 @@ export function useTranscription() {
           }
           return fullText;
         } else {
-          const response = await apiClient.post<TranscriptionApiResponse>(
+          const response = await apiClient.post<TranscribeResponse>(
             '/voice/transcribe-upload',
             {
               uploadId,

@@ -1,4 +1,8 @@
-import { type CollabSubtype, type ExportToDocsResponse } from '@gruenerator/contracts';
+import {
+  type CollabSubtype,
+  type ExportToDocsResponse,
+  type TodoListResponse,
+} from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { toast } from '@gruenerator/ui';
 import { useCallback, useState } from 'react';
@@ -6,10 +10,6 @@ import { useNavigate } from 'react-router-dom';
 
 import apiClient from '../components/utils/apiClient';
 import { extractHTMLContent } from '../components/utils/contentExtractor';
-
-interface TodoListResponse {
-  content?: string;
-}
 
 interface UseContentActionsOptions {
   getContent: () => string;
@@ -95,6 +95,18 @@ export function useContentActions({
         title: `Aufgaben — ${title}`,
         documentType: 'checkliste',
       });
+      // The extraction prompt only sees the first N characters. Saying so beats
+      // handing over a list of the first fifteen minutes that looks complete.
+      if (res.data?.truncated) {
+        const percent = res.data.totalChars
+          ? Math.round(((res.data.coveredChars ?? 0) / res.data.totalChars) * 100)
+          : null;
+        toast.warning(
+          percent != null
+            ? `Nur die ersten ${percent} % des Textes wurden ausgewertet — die Liste kann unvollständig sein.`
+            : 'Der Text wurde für die Auswertung gekürzt — die Liste kann unvollständig sein.'
+        );
+      }
       navigatePendingTab(tab, `/office/${docRes.data.documentId}`);
     } catch (error) {
       tab?.close();
