@@ -199,6 +199,33 @@ export function runAssertions(
     );
   }
 
+  if (expect.offersPersistentAction !== undefined) {
+    // Same shape as generatesSharepic, same reason: `false` is the load-bearing
+    // case. A confirm_action card counts as "offered" — the user is one click
+    // from a write they explicitly ruled out, and whether they click is not the
+    // product's decision to make.
+    const offered = [
+      ...(trace.documentCreated ? ['document_created'] : []),
+      ...trace.confirmActions,
+    ];
+    if (expect.offersPersistentAction) {
+      results.push(
+        offered.length > 0
+          ? ok('offersPersistentAction', offered.join(', '))
+          : fail('offersPersistentAction', 'no document and no confirm_action card')
+      );
+    } else {
+      results.push(
+        offered.length > 0
+          ? fail(
+              'offersPersistentAction',
+              `persistent action offered where none is allowed: ${offered.join(', ')}`
+            )
+          : ok('offersPersistentAction', 'no persistent action, as required')
+      );
+    }
+  }
+
   if (expect.generatesSharepic !== undefined) {
     // `false` is the load-bearing case: it is the only way to state "no graphic
     // may be produced here". Truthy-gating this check meant the fabricated-quote
