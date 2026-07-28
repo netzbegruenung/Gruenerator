@@ -1,3 +1,4 @@
+import { MAX_AUDIO_MINUTES } from '@gruenerator/contracts';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +33,7 @@ import { formatElapsed, useElapsedTime } from './hooks/useElapsedTime';
 import { useProtokoll } from './hooks/useProtokoll';
 import { useTranscription } from './hooks/useTranscription';
 import { transcriptToMarkdown } from './utils/formatTranscript';
+import { readMediaDurationSeconds } from './utils/mediaDuration';
 
 import type { ProtokollTyp } from './hooks/useProtokoll';
 import type { TranscriptionOptions } from './hooks/useTranscription';
@@ -96,6 +98,7 @@ const TranskriptionPage = () => {
   // Protokoll, so going back cost a second AI round-trip and every export
   // silently reverted to the transcript.
   const [showOriginal, setShowOriginal] = useState(false);
+  const [durationWarning, setDurationWarning] = useState<string | null>(null);
   const isVideo = selectedFile?.type.startsWith('video/') ?? false;
 
   const generateDOCX = useExportStore((s) => s.generateDOCX);
@@ -126,8 +129,19 @@ const TranskriptionPage = () => {
   const { handleOpenInDocs, handleCreateTodoList, handleCreateBoard, actionLoading } =
     useContentActions({ getContent: getActiveContent, getTitle, getDocumentType });
 
+  // Checked here rather than after the upload: discovering the limit inside the
+  // provider SDK costs a full 500 MB transfer (plus audio extraction for video)
+  // before the error appears.
   const handleFileSelected = useCallback((file: File) => {
     setSelectedFile(file);
+    setDurationWarning(null);
+    void readMediaDurationSeconds(file).then((seconds) => {
+      if (seconds != null && seconds > MAX_AUDIO_MINUTES * 60) {
+        setDurationWarning(
+          `Die Aufnahme ist ${Math.round(seconds / 60)} Minuten lang. Verarbeitet werden höchstens ${MAX_AUDIO_MINUTES} Minuten — bitte vorher kürzen.`
+        );
+      }
+    });
   }, []);
 
   const handleStart = useCallback(async () => {
@@ -211,6 +225,7 @@ const TranskriptionPage = () => {
     setCopied(false);
     setSelectedProtokollTyp(null);
     setShowOriginal(false);
+    setDurationWarning(null);
   }, [reset, resetProtokoll]);
 
   // Retry keeps the picked file: a full reset means re-uploading a file that may
@@ -346,6 +361,12 @@ const TranskriptionPage = () => {
               </DropdownMenu>
             </div>
 
+            {durationWarning && (
+              <div className="rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 p-md">
+                <p className="text-sm text-amber-800 dark:text-amber-300 m-0">{durationWarning}</p>
+              </div>
+            )}
+
             <SubmitButton
               text="Transkribieren"
               loading={false}
@@ -353,6 +374,7 @@ const TranskriptionPage = () => {
               onClick={handleStart}
               className="w-full"
               type="button"
+              disabled={!!durationWarning}
             />
           </div>
         )}

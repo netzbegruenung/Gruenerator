@@ -126,6 +126,7 @@ export * from './schemas/docs.js';
 export * from './schemas/documents.js';
 export * from './schemas/subtitler.js';
 export * from './schemas/voice.js';
+export * from './schemas/voiceLimits.js';
 export * from './schemas/imagePicker.js';
 export * from './schemas/video.js';
 export * from './schemas/sharepic.js';
