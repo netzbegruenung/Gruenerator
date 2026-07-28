@@ -334,5 +334,14 @@ export function useTranscription() {
     setState(INITIAL_STATE);
   }, []);
 
-  return { state, transcribe, reset };
+  /** Put a previously persisted result back on screen without re-transcribing. */
+  const restore = useCallback(
+    (value: Pick<TranscriptionState, 'text' | 'segments' | 'hasTimestamps' | 'speakerMap'>) => {
+      abortRef.current?.abort();
+      setState({ ...INITIAL_STATE, ...value, status: 'done', progress: 100 });
+    },
+    []
+  );
+
+  return { state, transcribe, reset, restore };
 }

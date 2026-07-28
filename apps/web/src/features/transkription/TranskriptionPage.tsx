@@ -12,7 +12,7 @@ import {
   StepBreadcrumb,
   toast,
 } from '@gruenerator/ui';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { HiDocumentText, HiDownload } from 'react-icons/hi';
 import { IoCopyOutline } from 'react-icons/io5';
 import { PiCheckSquare, PiKanban, PiMicrophone, PiNotePencil, PiUsersThree } from 'react-icons/pi';
@@ -32,6 +32,7 @@ import UploadZone from './components/UploadZone';
 import { formatElapsed, useElapsedTime } from './hooks/useElapsedTime';
 import { useProtokoll } from './hooks/useProtokoll';
 import { useTranscription } from './hooks/useTranscription';
+import { useLastTranscriptionStore } from './stores/lastTranscriptionStore';
 import { transcriptToMarkdown } from './utils/formatTranscript';
 import { readMediaDurationSeconds } from './utils/mediaDuration';
 
@@ -83,8 +84,13 @@ const PROTOKOLL_TYPES: { value: ProtokollTyp; label: string; description: string
 ];
 
 const TranskriptionPage = () => {
-  const { state, transcribe, reset } = useTranscription();
-  const { state: protokollState, formatAsProtokoll, reset: resetProtokoll } = useProtokoll();
+  const { state, transcribe, reset, restore } = useTranscription();
+  const {
+    state: protokollState,
+    formatAsProtokoll,
+    reset: resetProtokoll,
+    restore: restoreProtokoll,
+  } = useProtokoll();
   const [options, setOptions] = useState<TranscriptionOptions>({
     diarize: false,
     timestamps: true,
@@ -99,7 +105,14 @@ const TranskriptionPage = () => {
   // silently reverted to the transcript.
   const [showOriginal, setShowOriginal] = useState(false);
   const [durationWarning, setDurationWarning] = useState<string | null>(null);
+  // User corrections to the AI-detected speaker names, layered over speakerMap.
+  // Purely client-side: getSpeakerLabel already takes a map, so this needs no
+  // endpoint and no schema — and it rides along on the persist store below.
+  const [speakerOverrides, setSpeakerOverrides] = useState<Record<string, string>>({});
+  const [recoveryDismissed, setRecoveryDismissed] = useState(false);
   const isVideo = selectedFile?.type.startsWith('video/') ?? false;
+
+  const { last: lastTranscription, save: saveLast, patch: patchLast } = useLastTranscriptionStore();
 
   const generateDOCX = useExportStore((s) => s.generateDOCX);
   const generatePDF = useExportStore((s) => s.generatePDF);
@@ -108,14 +121,21 @@ const TranskriptionPage = () => {
   const hasProtokoll = protokollState.status === 'done' && !!protokollState.result;
   const isProtokollView = hasProtokoll && !showOriginal;
 
+  const effectiveSpeakerMap = useMemo(
+    () => ({ ...state.speakerMap, ...speakerOverrides }),
+    [state.speakerMap, speakerOverrides]
+  );
+
   // Protokoll result is already Markdown; a raw transcript gets its `[speaker_N]`
   // markers resolved to labelled Markdown so copy/download/docs/todo/board all
   // format cleanly. Everything that exports goes through here, so the toggle
   // above is what decides which of the two leaves the page.
   const getActiveContent = useCallback(
     () =>
-      isProtokollView ? protokollState.result : transcriptToMarkdown(state.text, state.speakerMap),
-    [isProtokollView, protokollState.result, state.text, state.speakerMap]
+      isProtokollView
+        ? protokollState.result
+        : transcriptToMarkdown(state.text, effectiveSpeakerMap),
+    [isProtokollView, protokollState.result, state.text, effectiveSpeakerMap]
   );
   const getTitle = useCallback(() => {
     const base = selectedFile?.name.replace(/\.[^.]+$/, '') ?? 'Transkription';
@@ -153,6 +173,68 @@ const TranskriptionPage = () => {
       void formatAsProtokoll(text, selectedProtokollTyp);
     }
   }, [selectedFile, transcribe, options, selectedProtokollTyp, formatAsProtokoll]);
+
+  // Persist whenever a finished result changes, so a reload or a crash is no
+  // longer fatal. One slot, not a list — the durable archive is Docs.
+  useEffect(() => {
+    if (state.status !== 'done' || !state.text) return;
+    saveLast({
+      text: state.text,
+      segments: state.segments,
+      hasTimestamps: state.hasTimestamps,
+      speakerMap: state.speakerMap,
+      speakerOverrides,
+      fileName: selectedFile?.name ?? '',
+      protokoll: protokollState.status === 'done' ? protokollState.result : '',
+      protokollTyp: protokollState.status === 'done' ? protokollState.typ : null,
+      savedAt: new Date().toISOString(),
+    });
+  }, [
+    state.status,
+    state.text,
+    state.segments,
+    state.hasTimestamps,
+    state.speakerMap,
+    speakerOverrides,
+    selectedFile,
+    protokollState.status,
+    protokollState.result,
+    protokollState.typ,
+    saveLast,
+  ]);
+
+  const handleRecoverLast = useCallback(() => {
+    if (!lastTranscription) return;
+    restore({
+      text: lastTranscription.text,
+      segments: lastTranscription.segments,
+      hasTimestamps: lastTranscription.hasTimestamps,
+      speakerMap: lastTranscription.speakerMap,
+    });
+    setSpeakerOverrides(lastTranscription.speakerOverrides ?? {});
+    if (lastTranscription.protokoll && lastTranscription.protokollTyp) {
+      restoreProtokoll(lastTranscription.protokoll, lastTranscription.protokollTyp);
+    }
+    setRecoveryDismissed(true);
+  }, [lastTranscription, restore, restoreProtokoll]);
+
+  const handleRenameSpeaker = useCallback(
+    (speakerId: string, currentLabel: string) => {
+      const next = window.prompt('Name der sprechenden Person', currentLabel);
+      if (next == null) return;
+      const trimmed = next.trim();
+      setSpeakerOverrides((prev) => {
+        // An emptied field means "drop my correction", not "blank name".
+        if (!trimmed) {
+          const { [speakerId]: _removed, ...rest } = prev;
+          return rest;
+        }
+        return { ...prev, [speakerId]: trimmed };
+      });
+      patchLast({ speakerOverrides: { ...speakerOverrides, [speakerId]: trimmed } });
+    },
+    [patchLast, speakerOverrides]
+  );
 
   const handleCopy = useCallback(async () => {
     await copyFormattedContent(getActiveContent(), () => {
@@ -259,6 +341,7 @@ const TranskriptionPage = () => {
   );
 
   const showRipple = state.status === 'idle' && !selectedFile;
+  const canRecover = !!lastTranscription?.text && !recoveryDismissed;
   const [isHovering, setIsHovering] = useState(false);
 
   return (
@@ -268,6 +351,32 @@ const TranskriptionPage = () => {
         subtitle="Audio- und Meeting-Aufnahmen automatisch transkribieren."
         maxWidth="md"
       >
+        {showRipple && canRecover && (
+          <div className="mb-lg rounded-lg border border-grey-300 dark:border-grey-600 bg-background-pure p-md flex flex-wrap items-center justify-between gap-md">
+            <p className="text-sm text-foreground m-0">
+              Letzte Transkription
+              {lastTranscription?.fileName ? ` (${lastTranscription.fileName})` : ''} ist noch
+              gespeichert.
+            </p>
+            <div className="flex items-center gap-sm">
+              <button
+                type="button"
+                onClick={handleRecoverLast}
+                className="px-md py-sm text-sm rounded-md bg-primary-600 text-white hover:bg-primary-500 transition-colors cursor-pointer border-none"
+              >
+                Wiederherstellen
+              </button>
+              <button
+                type="button"
+                onClick={() => setRecoveryDismissed(true)}
+                className="px-md py-sm text-sm rounded-md border border-grey-300 dark:border-grey-600 bg-background text-foreground hover:bg-grey-50 dark:hover:bg-grey-800 transition-colors cursor-pointer"
+              >
+                Verwerfen
+              </button>
+            </div>
+          </div>
+        )}
+
         {showRipple && (
           <div className="relative">
             <div
@@ -459,8 +568,9 @@ const TranskriptionPage = () => {
                 text={state.text}
                 segments={state.segments}
                 hasTimestamps={state.hasTimestamps}
-                speakerMap={state.speakerMap}
+                speakerMap={effectiveSpeakerMap}
                 formattedText={isProtokollView ? protokollState.result : undefined}
+                onRenameSpeaker={isProtokollView ? undefined : handleRenameSpeaker}
               />
             )}
 
@@ -571,6 +681,25 @@ const TranskriptionPage = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
 
+              {/*
+                Promoted out of the "Weiterverarbeiten" dropdown: this is the
+                only action that gives a transcript a durable home (a
+                collaborative_document, and with it history, search and
+                sharing), and it was buried two levels deep.
+              */}
+              <button
+                type="button"
+                onClick={handleOpenInDocs}
+                disabled={!!actionLoading}
+                className={cn(
+                  'flex items-center gap-xs px-md py-sm text-sm rounded-md border border-grey-300 dark:border-grey-600 bg-background text-foreground hover:bg-grey-50 dark:hover:bg-grey-800 transition-colors cursor-pointer',
+                  actionLoading === 'docs' && 'opacity-50 cursor-not-allowed'
+                )}
+              >
+                <PiNotePencil size={16} />
+                {actionLoading === 'docs' ? 'Wird gespeichert…' : 'Als Dokument speichern'}
+              </button>
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
@@ -581,15 +710,13 @@ const TranskriptionPage = () => {
                       actionLoading && 'opacity-50 cursor-not-allowed'
                     )}
                   >
-                    <PiNotePencil size={16} />
-                    {actionLoading ? 'Wird erstellt...' : 'Weiterverarbeiten'}
+                    <PiCheckSquare size={16} />
+                    {actionLoading && actionLoading !== 'docs'
+                      ? 'Wird erstellt…'
+                      : 'Weiterverarbeiten'}
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
-                  <DropdownMenuItem onClick={handleOpenInDocs} disabled={!!actionLoading}>
-                    <PiNotePencil size={16} className="mr-xs" />
-                    In Docs öffnen
-                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleCreateTodoList} disabled={!!actionLoading}>
                     <PiCheckSquare size={16} className="mr-xs" />
                     Aufgabenliste erstellen

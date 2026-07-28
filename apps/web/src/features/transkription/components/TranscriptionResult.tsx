@@ -1,5 +1,5 @@
 import Markdown from '../../../components/common/Markdown/Markdown';
-import { getSpeakerLabel } from '../utils/formatTranscript';
+import { getSpeakerLabel, parseSpeakerBlocks } from '../utils/formatTranscript';
 
 import type { TranscriptionSegment } from '../hooks/useTranscription';
 
@@ -30,6 +30,8 @@ interface TranscriptionResultProps {
   hasTimestamps: boolean;
   formattedText?: string;
   speakerMap?: Record<string, string>;
+  /** Omit to render speaker labels as plain, non-editable text. */
+  onRenameSpeaker?: (speakerId: string, currentLabel: string) => void;
 }
 
 export default function TranscriptionResult({
@@ -38,6 +40,7 @@ export default function TranscriptionResult({
   hasTimestamps,
   formattedText,
   speakerMap,
+  onRenameSpeaker,
 }: TranscriptionResultProps) {
   if (formattedText) {
     return (
@@ -49,40 +52,39 @@ export default function TranscriptionResult({
   // Diarized text: parse [speaker_N] markers (check before timestamps — diarized output also has segments)
   const hasSpeakers = text.includes('[speaker_');
   if (hasSpeakers) {
-    // Backend emits one [speaker_N] marker per diarized segment (often several
-    // per sentence) — merge consecutive same-speaker segments into one block so
-    // the label doesn't repeat mid-paragraph.
-    const parts = text.split(/(\[speaker_\d+\])/g).filter(Boolean);
-    let currentSpeaker = '';
-    const blocks: { speaker: string; text: string }[] = [];
-
-    for (const part of parts) {
-      if (part.startsWith('[speaker_')) {
-        currentSpeaker = part.slice(1, -1);
-      } else {
-        const trimmed = part.trim();
-        if (!trimmed) continue;
-        const last = blocks[blocks.length - 1];
-        if (last && last.speaker === currentSpeaker) {
-          last.text = `${last.text} ${trimmed}`;
-        } else {
-          blocks.push({ speaker: currentSpeaker, text: trimmed });
-        }
-      }
-    }
+    const blocks = parseSpeakerBlocks(text);
 
     return (
       <div className="display-container flex flex-col rounded-md bg-background-pure shadow-[0_4px_20px_rgba(0,0,0,0.15)] p-lg max-h-[75vh] overflow-y-auto max-md:p-md max-md:shadow-none">
+        {onRenameSpeaker && (
+          <p className="text-xs text-grey-500 dark:text-grey-400 m-0 mb-md">
+            Namen werden automatisch erkannt — zum Korrigieren auf einen Namen klicken.
+          </p>
+        )}
         <div className="flex flex-col gap-md">
-          {blocks.map((block, i) => {
+          {blocks.map((block) => {
             const speakerIndex = parseInt(block.speaker.match(/\d+/)?.[0] ?? '0');
+            const label = getSpeakerLabel(block.speaker, speakerMap);
             return (
-              <div key={i}>
-                {block.speaker && (
-                  <span className={cn('text-xs font-semibold', getSpeakerColor(speakerIndex))}>
-                    {getSpeakerLabel(block.speaker, speakerMap)}
-                  </span>
-                )}
+              <div key={block.offset}>
+                {block.speaker &&
+                  (onRenameSpeaker ? (
+                    <button
+                      type="button"
+                      onClick={() => onRenameSpeaker(block.speaker, label)}
+                      title="Sprecher*in umbenennen"
+                      className={cn(
+                        'text-xs font-semibold bg-transparent border-none p-0 cursor-pointer hover:underline',
+                        getSpeakerColor(speakerIndex)
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ) : (
+                    <span className={cn('text-xs font-semibold', getSpeakerColor(speakerIndex))}>
+                      {label}
+                    </span>
+                  ))}
                 <p className="text-sm text-foreground m-0 mt-xs leading-relaxed">{block.text}</p>
               </div>
             );
@@ -96,8 +98,8 @@ export default function TranscriptionResult({
     return (
       <div className="display-container flex flex-col rounded-md bg-background-pure shadow-[0_4px_20px_rgba(0,0,0,0.15)] p-lg max-h-[75vh] overflow-y-auto max-md:p-md max-md:shadow-none">
         <div className="flex flex-col gap-sm">
-          {segments.map((seg, i) => (
-            <div key={i} className="flex gap-sm">
+          {segments.map((seg) => (
+            <div key={`${seg.start}-${seg.end}`} className="flex gap-sm">
               <span className="text-xs text-grey-400 dark:text-grey-500 font-mono whitespace-nowrap pt-0.5 min-w-[5rem]">
                 {formatTime(seg.start)} – {formatTime(seg.end)}
               </span>

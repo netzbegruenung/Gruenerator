@@ -9,21 +9,19 @@ import { useEffect, useState } from 'react';
  * the question people actually have while they wait.
  */
 export function useElapsedTime(active: boolean): number {
-  const [seconds, setSeconds] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
-    if (!active) {
-      setSeconds(0);
-      return;
-    }
+    if (!active) return;
     const startedAt = Date.now();
-    const id = setInterval(() => {
-      setSeconds(Math.floor((Date.now() - startedAt) / 1000));
-    }, 1000);
+    // Polled faster than it is displayed so a restart cannot show the previous
+    // run's figure for a visible moment. The interval is the only writer, which
+    // keeps the reset out of the effect body.
+    const id = setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 250);
     return () => clearInterval(id);
   }, [active]);
 
-  return seconds;
+  return active ? elapsed : 0;
 }
 
 export function formatElapsed(seconds: number): string {
