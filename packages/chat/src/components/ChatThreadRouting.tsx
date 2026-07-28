@@ -129,8 +129,21 @@ export function ChatThreadRouting({
       // is showing. Only fire once the slug actually resolved — during a cold
       // deep-link load currentThreadId is legitimately null.
       if (threadSlug && suffix && activatedSuffixRef.current === suffix) {
+        // MainThreadSyncEffect nulls currentThreadId on ANY reset of the
+        // "main" thread slot, not just a genuine deletion — an unrelated
+        // remount/reset (observed: repeated auth-query settles right after a
+        // reload) can null it even though the thread we just activated still
+        // exists. Re-resolve before concluding it's actually gone.
+        const remoteId = resolveThreadBySlugSuffix(suffix);
+        if (remoteId) {
+          console.debug(
+            `[ChatThreadRouting] suffix=${suffix} currentThreadId went null but still resolves to ${remoteId} — re-activating instead of navigating away`
+          );
+          void aui.threads().switchToThread(remoteId);
+          return;
+        }
         console.warn(
-          `[ChatThreadRouting] suffix=${suffix} currentThreadId went null after activation — navigating away from /chat/${threadSlug}`
+          `[ChatThreadRouting] suffix=${suffix} currentThreadId null and no longer resolves — navigating away from /chat/${threadSlug}`
         );
         onThreadGone();
       }
