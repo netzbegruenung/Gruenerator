@@ -6,6 +6,7 @@ import * as React from 'react';
 import { openSafeNavigationHref, sanitizeHref } from '../shared/media';
 
 import { cn, Popover, PopoverContent, PopoverTrigger } from './_adapter';
+import { SourceGlyph } from './SourceGlyph';
 
 import type { SerializableCitation, CitationType, CitationVariant } from './schema';
 import type { LucideIcon } from 'lucide-react';
@@ -116,6 +117,10 @@ export function Citation(props: CitationProps) {
     }
   };
 
+  // `favicon` is still honoured for a caller that supplies one, but nothing in
+  // this app does any more: the monogram tells two web sources apart without
+  // the third-party request a favicon URL implies. Non-web types keep their
+  // own icon — a document is better identified as a document than by a letter.
   const iconElement = favicon ? (
     <img
       src={favicon}
@@ -125,6 +130,8 @@ export function Citation(props: CitationProps) {
       height={14}
       className="bg-muted size-3.5 shrink-0 rounded object-cover"
     />
+  ) : domain && type === 'webpage' ? (
+    <SourceGlyph domain={domain} size={14} />
   ) : (
     <TypeIcon className="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
   );
