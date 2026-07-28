@@ -581,7 +581,9 @@ type Stationery =
   | { kind: 'image'; image: PDFImage };
 
 class PdfRenderer {
-  private page: PDFPage;
+  private activePage: PDFPage;
+  /** Ein angeforderter, noch nicht ausgeführter Seitenumbruch — siehe `page`. */
+  private pendingPage = false;
   private y: number;
   private readonly tagger: PdfTagger;
   private readonly form: PDFForm;
@@ -605,16 +607,34 @@ class PdfRenderer {
   ) {
     this.tagger = new PdfTagger(doc, { language: spec.language, title: spec.title });
     this.form = doc.getForm();
-    this.page = doc.addPage([PAGE_W, PAGE_H]);
+    this.activePage = doc.addPage([PAGE_W, PAGE_H]);
     this.drawStationery();
     this.y = CONTINUATION_TOP;
   }
 
   // ── page plumbing ──────────────────────────────────────────────────────────
 
+  /**
+   * Die Seite, auf die gezeichnet wird — und die Stelle, an der ein angeforderter
+   * Umbruch tatsächlich stattfindet.
+   *
+   * Ein Umbruch wird nur vorgemerkt, das Blatt entsteht erst beim nächsten
+   * Zeichnen. Sonst hinterließ jede Platzreservierung, der kein Inhalt mehr
+   * folgte, ein leeres Blatt: der Briefschluss reserviert 95 pt, auch wenn Gruß
+   * und Unterschrift fehlen, und ein abschließender `pagebreak`-Block bricht um,
+   * obwohl nichts mehr kommt.
+   */
+  private get page(): PDFPage {
+    if (this.pendingPage) {
+      this.pendingPage = false;
+      this.activePage = this.doc.addPage([PAGE_W, PAGE_H]);
+      this.drawStationery();
+    }
+    return this.activePage;
+  }
+
   private newPage(): void {
-    this.page = this.doc.addPage([PAGE_W, PAGE_H]);
-    this.drawStationery();
+    this.pendingPage = true;
     this.y = CONTINUATION_TOP;
   }
 
@@ -967,8 +987,10 @@ class PdfRenderer {
         })
       );
     }
-    // Accent bar only when the quote stayed on one page.
-    if (this.page === startPage && startY > this.y) {
+    // Accent bar only when the quote stayed on one page. Der Vergleich geht
+    // absichtlich an `page` vorbei: ein vorgemerkter Umbruch würde sonst hier
+    // ein Blatt anlegen, auf das der Balken dann gar nicht kommt.
+    if (!this.pendingPage && this.activePage === startPage && startY > this.y) {
       const barBottom = this.y;
       this.tagger.artifact(startPage, () =>
         startPage.drawRectangle({
@@ -1769,6 +1791,7 @@ class PdfRenderer {
 
   private renderLetterFooter(): void {
     const letter = this.spec.letter ?? {};
+    if (!letter.closing && !letter.signature) return;
     this.ensureSpace(95);
     this.y -= 8;
     if (letter.closing) {
