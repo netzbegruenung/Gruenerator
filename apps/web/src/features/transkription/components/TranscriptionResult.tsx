@@ -28,7 +28,6 @@ interface TranscriptionResultProps {
   text: string;
   segments: TranscriptionSegment[];
   hasTimestamps: boolean;
-  isStreaming?: boolean;
   formattedText?: string;
   speakerMap?: Record<string, string>;
 }
@@ -37,7 +36,6 @@ export default function TranscriptionResult({
   text,
   segments,
   hasTimestamps,
-  isStreaming,
   formattedText,
   speakerMap,
 }: TranscriptionResultProps) {
@@ -114,12 +112,7 @@ export default function TranscriptionResult({
   // Plain text
   return (
     <div className="display-container flex flex-col rounded-md bg-background-pure shadow-[0_4px_20px_rgba(0,0,0,0.15)] p-lg max-h-[75vh] overflow-y-auto max-md:p-md max-md:shadow-none">
-      <p className="text-sm text-foreground m-0 leading-relaxed whitespace-pre-wrap">
-        {text}
-        {isStreaming && (
-          <span className="inline-block w-1.5 h-4 bg-primary-500 ml-0.5 animate-pulse rounded-sm" />
-        )}
-      </p>
+      <p className="text-sm text-foreground m-0 leading-relaxed whitespace-pre-wrap">{text}</p>
     </div>
   );
 }

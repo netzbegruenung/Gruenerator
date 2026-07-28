@@ -28,6 +28,7 @@ import { downloadFile } from '../../utils/downloadFile';
 import AudioVisualizer from './components/AudioVisualizer';
 import TranscriptionResult from './components/TranscriptionResult';
 import UploadZone from './components/UploadZone';
+import { formatElapsed, useElapsedTime } from './hooks/useElapsedTime';
 import { useProtokoll } from './hooks/useProtokoll';
 import { useTranscription } from './hooks/useTranscription';
 import { transcriptToMarkdown } from './utils/formatTranscript';
@@ -221,6 +222,27 @@ const TranskriptionPage = () => {
     setShowOriginal(false);
   }, [reset, resetProtokoll]);
 
+  // `reset()` aborts the in-flight request via the hook's AbortController — that
+  // has always worked, it was simply never offered while a job was running, so
+  // closing the tab was the only way out.
+  const handleCancel = handleRetry;
+
+  const isBusy =
+    state.status === 'uploading' ||
+    state.status === 'extracting' ||
+    state.status === 'transcribing';
+  const elapsed = useElapsedTime(isBusy);
+
+  const cancelButton = (
+    <button
+      type="button"
+      onClick={handleCancel}
+      className="px-md py-sm text-sm rounded-md border border-grey-300 dark:border-grey-600 bg-background text-foreground hover:bg-grey-50 dark:hover:bg-grey-800 transition-colors cursor-pointer"
+    >
+      Abbrechen
+    </button>
+  );
+
   const showRipple = state.status === 'idle' && !selectedFile;
   const [isHovering, setIsHovering] = useState(false);
 
@@ -351,44 +373,45 @@ const TranskriptionPage = () => {
                 : [{ label: 'Hochladen' }, { label: 'Transkribieren' }]
             }
             activeStepIndex={state.status === 'uploading' ? 0 : 1}
+            footer={cancelButton}
           />
         )}
 
+        {/*
+          No live transcript here on purpose. `timestamps` is always requested,
+          which makes the backend take its single-shot branch, so `text.delta`
+          never fires and a streaming view would render an empty box forever.
+          An elapsed clock is what can be shown honestly.
+        */}
         {state.status === 'transcribing' && (
-          <div className="flex flex-col gap-md">
-            {state.text ? (
-              <TranscriptionResult
-                text={state.text}
-                segments={state.segments}
-                hasTimestamps={state.hasTimestamps}
-                speakerMap={state.speakerMap}
-                isStreaming
+          <div className="flex flex-col items-center gap-lg py-xl" role="status" aria-live="polite">
+            <AudioVisualizer className="h-12" />
+            <div className="flex flex-col items-center gap-xs">
+              <p className="text-sm font-medium text-foreground">
+                Wird transkribiert… {formatElapsed(elapsed)}
+              </p>
+              <StepBreadcrumb
+                steps={
+                  isVideo
+                    ? [
+                        { label: 'Hochladen' },
+                        { label: 'Extrahieren' },
+                        { label: 'Transkribieren' },
+                      ]
+                    : [{ label: 'Hochladen' }, { label: 'Transkribieren' }]
+                }
+                activeIndex={isVideo ? 2 : 1}
               />
-            ) : (
-              <div className="flex flex-col items-center gap-lg py-xl">
-                <AudioVisualizer className="h-12" />
-                <div className="flex flex-col items-center gap-xs">
-                  <p className="text-sm font-medium text-foreground">Wird transkribiert...</p>
-                  <StepBreadcrumb
-                    steps={
-                      isVideo
-                        ? [
-                            { label: 'Hochladen' },
-                            { label: 'Extrahieren' },
-                            { label: 'Transkribieren' },
-                          ]
-                        : [{ label: 'Hochladen' }, { label: 'Transkribieren' }]
-                    }
-                    activeIndex={isVideo ? 2 : 1}
-                  />
-                  {options.privacyMode && (
-                    <p className="text-xs text-emerald-700 dark:text-emerald-400">
-                      (Datenschutz-Modus — kann länger dauern)
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
+              <p className="text-xs text-grey-500 dark:text-grey-400">
+                Lange Aufnahmen brauchen mehrere Minuten.
+              </p>
+              {options.privacyMode && (
+                <p className="text-xs text-emerald-700 dark:text-emerald-400">
+                  (Datenschutz-Modus — kann länger dauern)
+                </p>
+              )}
+            </div>
+            {cancelButton}
           </div>
         )}
 
