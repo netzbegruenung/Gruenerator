@@ -618,9 +618,12 @@ describe('renderPdf', () => {
     expect(verification.problems).toEqual([]);
     expect(verification.extractedChars).toBeGreaterThan(50);
     // The sender must actually reach the page — this test used to assert only
-    // "no problems", so the whole Absender block could vanish unnoticed.
+    // "no problems", so the sender could vanish unnoticed. Im Brief trägt ihn
+    // die Rücksendeangabe; der Absenderblock steht dort nicht mehr daneben.
     expect(await extractText(result.bytes)).toContain('KV Test');
-    expect(await sectTitles(result.bytes)).toContain('Absender');
+    const titles = await sectTitles(result.bytes);
+    expect(titles).toContain('Rücksendeangabe');
+    expect(titles).not.toContain('Absender');
   });
 
   /**
@@ -973,18 +976,39 @@ describe('Brief: DIN 5008 Form B, versandfähig im Fensterkuvert', () => {
     expect(intruders.map((l) => `${l.text} @ ${l.top.toFixed(1)}mm`)).toEqual([]);
   });
 
-  it('hält den Absenderblock über dem Anschriftfeld', async () => {
+  /**
+   * Der Absender stand doppelt auf dem Blatt: als Block oben links UND in der
+   * Rücksendeangabe. Beides trägt dieselbe Angabe, keine zehn Zentimeter
+   * auseinander — die Rücksendeangabe ist die richtige Stelle, denn nur sie ist
+   * im Fensterkuvert sichtbar.
+   */
+  it('setzt den Absender nur in die Rücksendeangabe, nicht zusätzlich oben links', async () => {
+    const result = await renderPdf(LETTER, {
+      locale: 'de-DE',
+      sender: { ...SENDER, address: 'Grüne Straße 12\nHinterhaus\n12345 Musterstadt' },
+    });
+    const lines = await placedText(result.bytes);
+
+    // Über dem Anschriftfeld steht links nichts mehr.
+    expect(lines.filter((l) => l.page === 1 && l.top < 45 && l.x < 100)).toEqual([]);
+    // Und die Organisation kommt auf dem ganzen Brief genau einmal vor.
+    expect(lines.filter((l) => l.text.includes(SENDER.organization))).toHaveLength(1);
+  });
+
+  it('zeichnet den Absenderblock, wenn die Rücksendeangabe abgeschaltet ist', async () => {
     const result = await renderPdf(LETTER, {
       locale: 'de-DE',
       // Fünf Zeilen — mehr zeichnet drawSenderBlock nicht.
       sender: { ...SENDER, address: 'Grüne Straße 12\nHinterhaus\n12345 Musterstadt' },
+      returnLine: false,
     });
     const senderLines = (await placedText(result.bytes)).filter(
       (l) => l.page === 1 && l.top < 45 && l.x < 100
     );
 
+    // Ohne ihn stünde der Absender nirgends mehr.
     expect(senderLines.length).toBeGreaterThan(0);
-    for (const line of senderLines) expect(line.top).toBeLessThan(45);
+    expect(await sectTitles(result.bytes)).toContain('Absender');
   });
 
   it('hält die Codierzone der Post am Fuß jeder Seite frei', async () => {
@@ -1066,8 +1090,10 @@ describe('Brief: DIN 5008 Form B, versandfähig im Fensterkuvert', () => {
       expect(line.right).toBeLessThanOrEqual(105);
     }
 
-    // Absenderblock über dem Fenster.
-    expect(lines.filter((l) => l.top < 45 && l.x < 100).length).toBeGreaterThan(0);
+    // Absender in der Rücksendeangabe, direkt über der Anschriftzone.
+    const returnLine = lines.find((l) => l.text.startsWith('BÜNDNIS 90/DIE GRÜNEN Musterstadt ·'));
+    expect(returnLine?.top).toBeGreaterThanOrEqual(45);
+    expect(returnLine?.top).toBeLessThan(63.3);
 
     // Betreff aus dem Titel, weiterhin zwei Zeilen unter dem Anschriftfeld.
     // Nur der Zeilenanfang, denn Umlaute laufen über eine eigene Font-Run.
@@ -1239,6 +1265,6 @@ describe('Brief: Versandoptionen aus dem Briefkopf', () => {
     });
 
     expect((await verifyPdf(result.bytes, PDF_TYPE_AREA)).problems).toEqual([]);
-    expect(await sectTitles(result.bytes)).toContain('Absender');
+    expect(await sectTitles(result.bytes)).toContain('Rücksendeangabe');
   });
 });
