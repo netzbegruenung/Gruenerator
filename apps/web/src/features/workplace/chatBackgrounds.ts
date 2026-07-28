@@ -26,12 +26,15 @@ export { DEFAULT_CHAT_BACKGROUND };
 
 /** Web-only rendering details, keyed by the shared preset key. */
 const RENDERING: Record<ChatBackground, { className: string; swatch: string }> = {
-  // The three mesh presets are app-only for now: `chatBackgroundsFor('web')`
-  // filters them out of the list this file exports, so these entries exist to
-  // satisfy the exhaustive Record and are never rendered. The swatches are the
-  // real gradients rather than placeholders, so whoever brings them to web finds
-  // the values already here; what is missing is a `.workplace-chat-bg--*` class
-  // per preset in workplace-sunrise.css.
+  // `mesh` is still app-only: `chatBackgroundsFor('web')` filters it out of the
+  // list this file exports, so this entry exists to satisfy the exhaustive
+  // Record and is never rendered. The swatch is the real gradient rather than a
+  // placeholder, so whoever brings it to web finds the values already here; what
+  // is missing is a `.workplace-chat-bg--mesh` class in workplace-sunrise.css.
+  //
+  // The swatches for the mesh presets are the screen gradients re-aimed at a
+  // 28px circle: same colours and alphas, wider radii, centres pulled off the
+  // rim. Stated at full-screen geometry the clouds would sit outside the chip.
   mesh: {
     className: 'workplace-chat-bg--mesh',
     swatch:
@@ -52,6 +55,16 @@ const RENDERING: Record<ChatBackground, { className: string; swatch: string }> =
       'radial-gradient(120% 75% at 84% 102%, rgb(220 218 244 / 0.5) 0%, rgb(220 218 244 / 0) 66%),' +
       'radial-gradient(130% 62% at 50% -4%, rgb(253 248 240 / 1) 0%, rgb(253 248 240 / 0) 64%),' +
       '#fdfbf7',
+  },
+  kern: {
+    className: 'workplace-chat-bg--kern',
+    swatch:
+      'radial-gradient(104% 82% at 50% 50%, rgb(255 255 255 / 0.97) 0%, rgb(255 255 255 / 0.82) 40%, rgb(255 255 255 / 0.2) 72%, rgb(255 255 255 / 0) 90%),' +
+      'radial-gradient(120% 100% at 4% 16%, rgb(247 206 198 / 0.8) 0%, rgb(247 206 198 / 0) 64%),' +
+      'radial-gradient(110% 95% at 96% 24%, rgb(220 218 246 / 0.75) 0%, rgb(220 218 246 / 0) 62%),' +
+      'radial-gradient(110% 95% at 96% 88%, rgb(199 228 216 / 0.8) 0%, rgb(199 228 216 / 0) 62%),' +
+      'radial-gradient(110% 90% at 6% 96%, rgb(243 238 190 / 0.7) 0%, rgb(243 238 190 / 0) 62%),' +
+      '#fdfcf9',
   },
   dunst: {
     className: 'workplace-chat-bg--dunst',
