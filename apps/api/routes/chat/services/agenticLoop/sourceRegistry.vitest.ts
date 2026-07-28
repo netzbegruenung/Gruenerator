@@ -206,3 +206,51 @@ describe('createSourceRegistry', () => {
     });
   });
 });
+
+/**
+ * Outcome lines are not sources.
+ *
+ * Live failure this pins: `boards_tasks add_card` registered its confirmation
+ * ("Karte hinzufügen — Bestätigung … angefordert") through the same channel as a
+ * web search. It became this turn's `searchResults`, was persisted, and a later
+ * "jetzt als PDF exportieren" — briefed by `getRecentThreadSources` — built the
+ * entire document out of that one log line and cited it as [1].
+ */
+describe('sourceRegistry.note', () => {
+  it('reaches the synth but never the citations, results or size', () => {
+    const reg = createSourceRegistry();
+    reg.note('Karte hinzufügen', 'Bestätigung zum Hinzufügen angefordert.');
+
+    expect(reg.renderAll()).toContain('Karte hinzufügen');
+    expect(reg.size).toBe(0);
+    expect(reg.getCitations()).toEqual([]);
+    expect(reg.getResults()).toEqual([]);
+    // renderReference briefs the edit op-planner with MATERIAL — an outcome line
+    // is not material, and this is the exact path the PDF was briefed through.
+    expect(reg.renderReference()).not.toContain('Karte hinzufügen');
+  });
+
+  it('labels the block so the synth cannot mistake it for retrieved material', () => {
+    const reg = createSourceRegistry();
+    reg.note('Gelöscht', 'Reel wurde gelöscht.');
+    const rendered = reg.renderAll();
+    expect(rendered).toContain('KEINE Quellen');
+    expect(rendered).not.toMatch(/^\[1\]/m);
+  });
+
+  it('does not disturb the numbering of real sources', () => {
+    const reg = createSourceRegistry();
+    reg.register([{ source: 'web', title: 'Echte Quelle', content: 'Inhalt', url: 'https://x' }]);
+    reg.note('Vorgang', 'irgendwas passiert');
+    expect(reg.size).toBe(1);
+    expect(reg.getCitations()).toHaveLength(1);
+    expect(reg.getCitations()[0]?.id).toBe(1);
+  });
+
+  it('deduplicates identical outcome lines', () => {
+    const reg = createSourceRegistry();
+    reg.note('Gelöscht', 'Reel wurde gelöscht.');
+    reg.note('Gelöscht', 'Reel wurde gelöscht.');
+    expect(reg.renderAll().match(/Gelöscht/g)).toHaveLength(1);
+  });
+});
