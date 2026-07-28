@@ -13,7 +13,10 @@
  * matches its own routes first; unmatched paths fall through to the
  * legacy router (which handles multer/multipart routes).
  *
- * No requireAuth at the prefix — voice routes are public per legacy router.
+ * requireAuth + the rate limiter are applied on the /api/voice prefix in
+ * routes.ts, before this router is mounted — createExpressEndpoints registers
+ * handlers straight on the app, so prefix middleware added afterwards would
+ * not cover them.
  */
 
 import fs from 'fs';
@@ -32,6 +35,7 @@ import {
   getUploadStatus,
 } from '../../services/subtitler/tusService.js';
 import { extractAudio, cleanupFiles } from '../../services/subtitler/videoUploadService.js';
+import { recordOperation } from '../../services/usage/UsageTrackingService.js';
 import mistralVoiceService from '../../services/voice/mistralVoiceService.js';
 import {
   generateProtokoll,
@@ -184,6 +188,7 @@ async function transcribeBuffer(
 
   if (needsVoxtral) {
     const result = await mistralVoiceService.transcribeFromBuffer(audioBuffer, filename, options);
+    recordOperation({ unit: 'transcriptions', provider: 'mistral', model: 'voxtral' });
     return {
       text: result.text,
       ...(result.segments != null && { segments: result.segments }),
@@ -193,7 +198,9 @@ async function transcribeBuffer(
 
   if (env.REGOLO_API_KEY) {
     try {
-      return await transcribeWithRegoloWhisper(audioBuffer, filename, options);
+      const result = await transcribeWithRegoloWhisper(audioBuffer, filename, options);
+      recordOperation({ unit: 'transcriptions', provider: 'regolo', model: WHISPER_MODEL });
+      return result;
     } catch (error) {
       log.warn(
         `[voiceContract] Regolo Whisper failed, falling back to Voxtral: ${(error as Error).message}`
@@ -202,6 +209,7 @@ async function transcribeBuffer(
   }
 
   const result = await mistralVoiceService.transcribeFromBuffer(audioBuffer, filename, options);
+  recordOperation({ unit: 'transcriptions', provider: 'mistral', model: 'voxtral' });
   return {
     text: result.text,
     ...(result.segments != null && { segments: result.segments }),
