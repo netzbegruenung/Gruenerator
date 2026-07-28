@@ -5,7 +5,12 @@
 export const INTENT_TO_TOOL: Record<string, string> = {
   search: 'gruenerator_search',
   web: 'web_search',
-  research: 'research',
+  // Research is the same web retrieval at a deeper tier since the merge — it
+  // returns a result list, not the written report the `research` renderer
+  // (`markdown-report`) expects, which would render an empty card over a good
+  // answer. Threads from before the merge carry their own persisted `research`
+  // tool call and keep the Recherche-Karte; only this live intent→tool hop moves.
+  research: 'web_search',
   examples: 'gruenerator_examples_search',
   pressemitteilung_examples: 'gruenerator_pressemitteilung_examples',
   chat_history: 'search_chat_history',

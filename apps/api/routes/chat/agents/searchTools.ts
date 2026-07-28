@@ -10,6 +10,7 @@
 import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 
+import { SEARCH_TIERS } from '../../../services/search/searchDepth.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import {
@@ -17,7 +18,6 @@ import {
   executeDirectExamplesSearch,
   executeDirectPressemitteilungExamples,
   executeDirectWebSearch,
-  executeResearch,
 } from './directSearch.js';
 import { resolveExamplesLvScope } from './lvScope.js';
 
@@ -60,7 +60,7 @@ export interface CreateSearchToolsOptions {
   /**
    * When set, restrict the returned search tools to the agent's user-selected
    * capabilities (USER_SELECTABLE_TOOLS keys: `search` → gruenerator_search,
-   * `examples` → examples/pressemitteilung, `web`/`research` → web_search/research).
+   * `examples` → examples/pressemitteilung, `web`/`research` → web_search).
    * Undefined leaves the full set (chat + board defaults unchanged).
    */
   enabledToolKeys?: readonly string[];
@@ -205,13 +205,19 @@ NICHT FÜR: Social-Media-Posts (nutze gruenerator_examples_search), allgemeine R
   });
 
   tools.web_search = tool({
-    description: `Suche im Internet nach aktuellen Informationen und Nachrichten.
+    description: `Suche im Internet nach aktuellen Informationen, Fakten und Nachrichten — in drei Stufen.
 
 NUTZE WENN:
 - Aktuelle Ereignisse oder Nachrichten gefragt
 - Informationen außerhalb der Grünen-Dokumentation
 - Allgemeine Fakten aus dem Web
 - Externe Quellen benötigt
+- Der Benutzer "recherchiere", "finde heraus" oder "belege für" sagt → höhere Stufe
+
+WÄHLE DIE STUFE NACH AUFWAND, NICHT NACH WORTLAUT:
+- standard: eine klare Faktenfrage, ein Datum, eine Zahl, eine Nachricht. Der Normalfall.
+- gruendlich: mehrere Aspekte, ein Vergleich, oder der Benutzer bittet ausdrücklich um Recherche.
+- tiefenrecherche: breite Themen, bei denen viele Quellen gegeneinander gehalten werden müssen. Dauert spürbar länger — nutze sie sparsam.
 
 NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
     inputSchema: z.object({
@@ -221,12 +227,26 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
         .optional()
         .default('general')
         .describe('Suchtyp: general (allgemein) oder news (Nachrichten)'),
-      maxResults: z.number().optional().default(5).describe('Maximale Anzahl Ergebnisse (1-10)'),
+      tiefe: z
+        .enum(SEARCH_TIERS)
+        .optional()
+        .default('standard')
+        .describe(
+          'Rechercheaufwand: standard (schnell), gruendlich (mehrere Quellen), tiefenrecherche (viele Quellen, langsam)'
+        ),
+      maxResults: z
+        .number()
+        .optional()
+        .describe('Optional: Anzahl Ergebnisse überschreiben (sonst aus der Stufe)'),
     }),
-    execute: async ({ query, searchType, maxResults }) => {
+    execute: async ({ query, searchType, tiefe, maxResults }) => {
       try {
-        const results = await executeDirectWebSearch({ query, searchType, maxResults });
-        return results;
+        return await executeDirectWebSearch({
+          query,
+          searchType,
+          tier: tiefe,
+          ...(maxResults != null ? { maxResults } : {}),
+        });
       } catch (error) {
         log.error('Direct web search error:', error);
         return { error: 'Websuche fehlgeschlagen', results: [], resultsCount: 0, query };
@@ -234,57 +254,13 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
     },
   });
 
-  // Research tool: Perplexity-style structured research with planning, multi-source search, and synthesis
-  tools.research = tool({
-    description: `Strukturierte Recherche mit Planung, Suche und Synthese.
-
-NUTZE WENN:
-- Der Benutzer "recherchiere", "suche nach", "finde heraus" sagt
-- Komplexe Fragen mit mehreren Aspekten
-- Vergleiche verschiedener Quellen gewünscht
-- Themen die Kontext aus mehreren Bereichen brauchen
-- Explizite Recherche-Anfragen ("nutze das recherche tool")
-
-Das Tool plant automatisch, sucht in relevanten Quellen, und synthetisiert mit Inline-Zitaten [1], [2].
-
-NICHT FÜR: Einfache Begrüßungen, Dankeschöns, kreative Aufgaben ohne Faktenbedarf`,
-    inputSchema: z.object({
-      question: z.string().describe('Die Frage oder das Thema für die Recherche'),
-      depth: z
-        .enum(['quick', 'thorough'])
-        .optional()
-        .default('quick')
-        .describe(
-          'Recherchetiefe: quick (schnell, 1-2 Quellen) oder thorough (gründlich, mehr Quellen)'
-        ),
-    }),
-    execute: async ({ question, depth }) => {
-      try {
-        log.info(
-          `[Research Tool] Starting research: "${question.slice(0, 50)}..." (depth: ${depth})`
-        );
-        const result = await executeResearch({
-          question,
-          depth,
-          maxSources: depth === 'thorough' ? 10 : 6,
-        });
-        log.info(
-          `[Research Tool] Complete: ${result.citations.length} citations, confidence: ${result.confidence}`
-        );
-        return result;
-      } catch (error) {
-        log.error('Research tool error:', error);
-        return {
-          answer: 'Die Recherche konnte leider nicht durchgeführt werden.',
-          citations: [],
-          followUpQuestions: [],
-          searchSteps: [],
-          confidence: 'low' as const,
-          error: 'Recherche fehlgeschlagen',
-        };
-      }
-    },
-  });
+  // The separate `research` tool is gone: it was a second door into a different
+  // engine (Linkup depth=deep + sourcedAnswer, i.e. LINKUP wrote the answer)
+  // reachable by the word "recherchiere" alone, and it exposed a `depth` choice
+  // that `executeResearch` discarded before Linkup ever saw it. Recherche is now
+  // the upper two tiers of `web_search`, so the answer — and every [N] in it —
+  // stays ours. `executeResearch` itself lives on for the Monitor's daily
+  // briefing (HotTopicPipeline), which genuinely wants a ready-made report.
 
   // Direct response tool: router escape hatch for non-search cases (chat handler only)
   if (options.includeDirectResponse) {
@@ -320,9 +296,11 @@ NICHT NUTZEN wenn Fakten, aktuelle Infos oder Belege gefragt sind.`,
       delete tools.gruenerator_examples_search;
       delete tools.gruenerator_pressemitteilung_examples;
     }
+    // `research` is still accepted as a key: it is persisted in agent configs
+    // (F0), and an agent that was given "Recherche" must keep its web access
+    // now that recherche IS the web tool at a deeper tier.
     if (!keys.has('web') && !keys.has('research')) {
       delete tools.web_search;
-      delete tools.research;
     }
   }
 

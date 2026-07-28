@@ -60,7 +60,6 @@ import type {
   SocialPostPayload,
   ChartData,
   ComputeData,
-  ResearchToolResult,
   ExamplesToolResult,
   DocumentSource,
   SynthesisMode,
@@ -310,10 +309,6 @@ const ChatStateAnnotation = Annotation.Root({
 
   // Research brief (compressed research intent for complex queries)
   researchBrief: Annotation<string | null>({
-    reducer: (x, y) => y ?? x,
-  }),
-
-  researchMeta: Annotation<ResearchToolResult | null>({
     reducer: (x, y) => y ?? x,
   }),
 
@@ -933,7 +928,6 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
 
     // Research brief (will be set by briefGenerator node for complex research)
     researchBrief: null,
-    researchMeta: null,
     examplesResult: null,
 
     // Search results (will be set by search node)

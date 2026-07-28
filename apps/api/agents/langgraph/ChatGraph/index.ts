@@ -19,7 +19,6 @@ export {
   computeVerifierNode,
   respondNode,
   buildSystemMessage,
-  usesResearchWrapper,
 } from './nodes/index.js';
 export {
   buildCitations,

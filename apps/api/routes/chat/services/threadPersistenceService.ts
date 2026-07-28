@@ -11,11 +11,7 @@ import { getPostgresInstance } from '../../../database/services/PostgresService.
 
 import { type PersistedStep } from './agenticLoop/types.js';
 
-import type {
-  ResearchToolResult,
-  SearchResult,
-  ThreadToolContext,
-} from '../../../agents/langgraph/ChatGraph/types.js';
+import type { SearchResult, ThreadToolContext } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { UserProfile } from '../../../services/user/types.js';
 import type { AuthRequest } from '../../auth/types.js';
 import type express from 'express';
@@ -218,15 +214,13 @@ export async function persistSourcesOnFailure(
   searchResults: SearchResult[],
   /** Query that produced them — the key {@link getKeptResearchForRetry} matches
    *  on, so a retry of the SAME question can skip the Linkup run entirely. */
-  researchQuery?: string,
-  researchMeta?: ResearchToolResult
+  researchQuery?: string
 ): Promise<boolean> {
   if (searchResults.length === 0) return false;
   return finalizeAssistantMessage(messageId, noticeText, {
     searchResults,
     keptOnFailure: true,
     ...(researchQuery && { researchQuery }),
-    ...(researchMeta && { researchMeta }),
   });
 }
 
@@ -252,7 +246,7 @@ function normalizeResearchQuery(q: string): string {
 export async function getKeptResearchForRetry(
   threadId: string,
   query: string
-): Promise<{ searchResults: SearchResult[]; researchMeta: ResearchToolResult | null } | null> {
+): Promise<{ searchResults: SearchResult[] } | null> {
   const normalized = normalizeResearchQuery(query);
   if (normalized.length === 0) return null;
 
@@ -270,17 +264,13 @@ export async function getKeptResearchForRetry(
     keptOnFailure?: unknown;
     researchQuery?: unknown;
     searchResults?: unknown;
-    researchMeta?: unknown;
   };
   if (kept.keptOnFailure !== true) return null;
   if (typeof kept.researchQuery !== 'string') return null;
   if (normalizeResearchQuery(kept.researchQuery) !== normalized) return null;
   if (!Array.isArray(kept.searchResults) || kept.searchResults.length === 0) return null;
 
-  return {
-    searchResults: kept.searchResults as SearchResult[],
-    researchMeta: (kept.researchMeta as ResearchToolResult | undefined) ?? null,
-  };
+  return { searchResults: kept.searchResults as SearchResult[] };
 }
 
 /**

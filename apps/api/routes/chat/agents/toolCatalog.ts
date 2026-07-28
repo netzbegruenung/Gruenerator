@@ -87,7 +87,9 @@ const log = createLogger('toolCatalog');
 const IMAGE_REQUEST_PATTERN =
   /\b(bild(er)?|foto|illustration|grafik|motiv|zeichnung|zeichne|male|visualisier\w*|image|sujet)\b/i;
 
-/** Tools exposed to the Phase-1 agentic loop (research intentionally excluded). */
+/** Tools exposed to the Phase-1 agentic loop. `research` used to be excluded
+ *  here as a second, more expensive search door; it no longer exists — the
+ *  loop reaches every tier through `web_search`'s `tiefe` parameter. */
 const CATALOG_TOOLS = new Set([
   'gruenerator_search',
   'web_search',
