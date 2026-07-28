@@ -15,7 +15,6 @@ import {
   getObject,
   getString,
   getToolMeta,
-  faviconFromHostname,
   parseExamples,
   parsePersonResult,
   parsePressemitteilungExamples,
@@ -196,7 +195,9 @@ function parseLinkPreviewVM(args: unknown, result: unknown): ToolResultVM {
     title: page.domain ?? page.url,
     description: page.snippet || null,
     domain: page.domain,
-    favicon: page.domain ? faviconFromHostname(page.domain) : null,
+    // No favicon: the source's own domain line plus the SourceGlyph identify it
+    // without a request to a third-party icon service (see urlUtils).
+    favicon: null,
   };
 }
 
