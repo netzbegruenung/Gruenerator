@@ -69,8 +69,9 @@ export interface RenderPdfOptions {
    *
    * A letterhead is an additive band, NOT a layout: it must not drag in the
    * DIN-5008 furniture (recipient, place/date, subject, salutation, signature)
-   * that `kind: 'letter'` implies. Letters always draw the block and ignore
-   * this flag.
+   * that `kind: 'letter'` implies. Letters ignore this flag: there the Absender
+   * stands in der Rücksendeangabe des Anschriftfelds, und der Block kommt nur
+   * dann dazu, wenn die fehlt.
    *
    * Deliberately explicit rather than derived from `sender != null`:
    * renderPdfFixtures.ts passes a sender to the document and form fixtures too,
@@ -168,11 +169,22 @@ const MM = 2.834645669;
 const ADDRESS_FIELD = {
   left: 20 * MM,
   width: 85 * MM,
+  /**
+   * Das Feld wird NICHT bis an den Rand beschriftet: der Anschrifttext steht
+   * 5 mm eingerückt und landet damit auf derselben Fluchtlinie wie Betreff und
+   * Brieftext (25 mm). Am Feldrand gesetzt stand die Anschrift sichtbar 5 mm
+   * links vom übrigen Brief — die 20 mm sind die Grenze der Zone, nicht die
+   * Textkante.
+   */
+  textInset: 5 * MM,
   top: 50 * MM,
   height: 40 * MM,
   lineHeight: (40 / 9) * MM,
   zvzLines: 3,
 };
+/** Fluchtlinie des Anschrifttexts — deckungsgleich mit MARGIN_L. */
+const ADDRESS_TEXT_LEFT = ADDRESS_FIELD.left + ADDRESS_FIELD.textInset;
+const ADDRESS_TEXT_WIDTH = ADDRESS_FIELD.width - ADDRESS_FIELD.textInset;
 /** Anschriftzone: where the recipient's own lines start. */
 const ADDRESS_ZONE_TOP = ADDRESS_FIELD.top + ADDRESS_FIELD.zvzLines * ADDRESS_FIELD.lineHeight;
 /** Left edge of the DIN Informationsblock — right of the envelope window. */
@@ -505,6 +517,35 @@ function formatDate(locale: PdfLocale): string {
   }).format(new Date());
 }
 
+/**
+ * Zwei Überschriften auf dieselbe Zeile prüfen, ohne an Anführungszeichen,
+ * Bindestrichen oder Groß-/Kleinschreibung zu scheitern: der Dokumenttitel
+ * verliert unterwegs schon mal die Gänsefüßchen, gemeint ist trotzdem dieselbe
+ * Zeile.
+ */
+function sameHeadline(a: string, b: string): boolean {
+  const norm = (s: string): string => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+  const normalized = norm(a);
+  return normalized.length > 0 && normalized === norm(b);
+}
+
+/**
+ * Eine führende Überschrift streichen, die den Kopf nur wiederholt.
+ *
+ * Der Docs-Export schickt den Dokumenttitel als Betreff UND den Dokumentinhalt
+ * mitsamt dessen eigener H1 — dieselbe Zeile stand dann zweimal untereinander.
+ * Geprüft wird nur der ERSTE Block: eine gleichlautende Überschrift weiter
+ * unten gliedert den Text und bleibt stehen.
+ *
+ * Der letzte Block bleibt unangetastet, damit aus einem Dokument, das nur aus
+ * seinem Titel besteht, keine Seite ohne jeden Inhalt wird.
+ */
+function dropRepeatedHeadline(blocks: PdfBlock[], headline: string): PdfBlock[] {
+  const first = blocks[0];
+  if (blocks.length < 2 || !first || first.type !== 'heading') return blocks;
+  return sameHeadline(first.text, headline) ? blocks.slice(1) : blocks;
+}
+
 function senderLines(sender: PdfSender | null | undefined): string[] {
   if (!sender) return [];
   const lines: string[] = [];
@@ -540,7 +581,9 @@ type Stationery =
   | { kind: 'image'; image: PDFImage };
 
 class PdfRenderer {
-  private page: PDFPage;
+  private activePage: PDFPage;
+  /** Ein angeforderter, noch nicht ausgeführter Seitenumbruch — siehe `page`. */
+  private pendingPage = false;
   private y: number;
   private readonly tagger: PdfTagger;
   private readonly form: PDFForm;
@@ -564,16 +607,34 @@ class PdfRenderer {
   ) {
     this.tagger = new PdfTagger(doc, { language: spec.language, title: spec.title });
     this.form = doc.getForm();
-    this.page = doc.addPage([PAGE_W, PAGE_H]);
+    this.activePage = doc.addPage([PAGE_W, PAGE_H]);
     this.drawStationery();
     this.y = CONTINUATION_TOP;
   }
 
   // ── page plumbing ──────────────────────────────────────────────────────────
 
+  /**
+   * Die Seite, auf die gezeichnet wird — und die Stelle, an der ein angeforderter
+   * Umbruch tatsächlich stattfindet.
+   *
+   * Ein Umbruch wird nur vorgemerkt, das Blatt entsteht erst beim nächsten
+   * Zeichnen. Sonst hinterließ jede Platzreservierung, der kein Inhalt mehr
+   * folgte, ein leeres Blatt: der Briefschluss reserviert 95 pt, auch wenn Gruß
+   * und Unterschrift fehlen, und ein abschließender `pagebreak`-Block bricht um,
+   * obwohl nichts mehr kommt.
+   */
+  private get page(): PDFPage {
+    if (this.pendingPage) {
+      this.pendingPage = false;
+      this.activePage = this.doc.addPage([PAGE_W, PAGE_H]);
+      this.drawStationery();
+    }
+    return this.activePage;
+  }
+
   private newPage(): void {
-    this.page = this.doc.addPage([PAGE_W, PAGE_H]);
-    this.drawStationery();
+    this.pendingPage = true;
     this.y = CONTINUATION_TOP;
   }
 
@@ -926,8 +987,10 @@ class PdfRenderer {
         })
       );
     }
-    // Accent bar only when the quote stayed on one page.
-    if (this.page === startPage && startY > this.y) {
+    // Accent bar only when the quote stayed on one page. Der Vergleich geht
+    // absichtlich an `page` vorbei: ein vorgemerkter Umbruch würde sonst hier
+    // ein Blatt anlegen, auf das der Balken dann gar nicht kommt.
+    if (!this.pendingPage && this.activePage === startPage && startY > this.y) {
       const barBottom = this.y;
       this.tagger.artifact(startPage, () =>
         startPage.drawRectangle({
@@ -1540,6 +1603,10 @@ class PdfRenderer {
    * caller's text flow — that is what lets the document layout draw it in the
    * band above the title (PAGE_H-52 … PAGE_H-130) without moving anything.
    *
+   * Im Brieflayout ist er der Ausnahmefall, nicht die Regel: dort trägt die
+   * Rücksendeangabe den Absender, und beides zusammen stand doppelt auf dem
+   * Blatt.
+   *
    * The `Sect` is opened ONLY for a non-empty sender: opening it
    * unconditionally left sender-less letters with a childless structure
    * element, which is a PDF/UA smell no fixture covered.
@@ -1618,7 +1685,7 @@ class PdfRenderer {
       if (!candidate) continue;
       const text = candidate.join(' · ');
       const runs = splitIntoFontRuns(text, this.fonts.body, this.fonts);
-      if (measureRuns(runs, 7) <= ADDRESS_FIELD.width) return text;
+      if (measureRuns(runs, 7) <= ADDRESS_TEXT_WIDTH) return text;
     }
     return head;
   }
@@ -1630,28 +1697,47 @@ class PdfRenderer {
     const sender = senderLines(this.opts.sender);
     const page = this.page;
 
-    this.drawSenderBlock(sender);
-
     // Rücksendeangabe — erste Zeile der Zusatz- und Vermerkzone, also INNERHALB
     // des Anschriftfelds. Sie ist die einzige Angabe außer der Anschrift, die
     // dort stehen darf.
     const returnLine = this.opts.returnLine === false ? '' : this.fitReturnLine(sender);
+
+    // Der Absender gehört genau EINMAL aufs Blatt. Steht er in der
+    // Rücksendeangabe, entfällt der Block oben links — sonst las sich derselbe
+    // Absender zweimal, wenige Zentimeter übereinander. Ohne Rücksendeangabe
+    // (eigener Briefbogen, abgeschaltete Option) bleibt der Block die einzige
+    // Stelle, an der er überhaupt steht.
+    if (!returnLine) this.drawSenderBlock(sender);
+
     if (returnLine) {
       const ruleY = PAGE_H - ADDRESS_FIELD.top - ADDRESS_FIELD.lineHeight;
+      // Getaggt statt als Artefakt: seit sie den Absenderblock ersetzt, ist sie
+      // die einzige Stelle, an der ein Screenreader den Absender erreicht.
+      // Eigener Sect-Titel, damit „Absender“ weiterhin genau den Block meint.
+      this.tagger.open('Sect', { title: 'Rücksendeangabe' });
+      this.writeLineAt(
+        'P',
+        returnLine,
+        ADDRESS_TEXT_LEFT,
+        ruleY + 3,
+        7,
+        this.fonts.body,
+        MUTED_COLOR,
+        { maxWidth: ADDRESS_TEXT_WIDTH }
+      );
+      this.tagger.close();
       this.tagger.artifact(page, () => {
-        const [line] = this.boundedLines(returnLine, this.fonts.body, 7, ADDRESS_FIELD.width, 1);
-        drawRuns(page, line ?? [], ADDRESS_FIELD.left, ruleY + 3, 7, MUTED_COLOR);
         page.drawLine({
-          start: { x: ADDRESS_FIELD.left, y: ruleY },
-          end: { x: ADDRESS_FIELD.left + ADDRESS_FIELD.width, y: ruleY },
+          start: { x: ADDRESS_TEXT_LEFT, y: ruleY },
+          end: { x: ADDRESS_TEXT_LEFT + ADDRESS_TEXT_WIDTH, y: ruleY },
           thickness: 0.5,
           color: MUTED_COLOR,
         });
       });
     }
 
-    // Anschriftzone: 6 Zeilen, keine Leerzeile dazwischen, linksbündig auf
-    // 20 mm — so liest die Sortieranlage der Post die Adresse.
+    // Anschriftzone: 6 Zeilen, keine Leerzeile dazwischen, linksbündig auf der
+    // Fluchtlinie — so liest die Sortieranlage der Post die Adresse.
     this.tagger.open('Sect', { title: 'Empfänger' });
     let addrY = PAGE_H - ADDRESS_ZONE_TOP - ADDRESS_FIELD.lineHeight * 0.72;
     for (const line of (letter.recipient ?? '')
@@ -1661,8 +1747,8 @@ class PdfRenderer {
       .slice(0, 6)) {
       // The DIN 5008 address window is narrow — an overlong line must be cut,
       // not printed across the page.
-      this.writeLineAt('P', line, ADDRESS_FIELD.left, addrY, 10.5, this.fonts.body, BODY_COLOR, {
-        maxWidth: ADDRESS_FIELD.width,
+      this.writeLineAt('P', line, ADDRESS_TEXT_LEFT, addrY, 10.5, this.fonts.body, BODY_COLOR, {
+        maxWidth: ADDRESS_TEXT_WIDTH,
       });
       addrY -= ADDRESS_FIELD.lineHeight;
     }
@@ -1705,6 +1791,7 @@ class PdfRenderer {
 
   private renderLetterFooter(): void {
     const letter = this.spec.letter ?? {};
+    if (!letter.closing && !letter.signature) return;
     this.ensureSpace(95);
     this.y -= 8;
     if (letter.closing) {
@@ -1729,7 +1816,11 @@ class PdfRenderer {
     if (this.spec.kind === 'letter') this.renderLetterHeader();
     else this.renderDocumentHeader();
 
-    this.renderBlocks(this.spec.blocks);
+    // Was im Kopf steht — Betreff beim Brief, Titel sonst — und deshalb nicht
+    // gleich darunter noch einmal stehen darf.
+    const headline =
+      this.spec.kind === 'letter' ? this.spec.letter?.subject || this.spec.title : this.spec.title;
+    this.renderBlocks(dropRepeatedHeadline(this.spec.blocks, headline));
 
     if (this.spec.kind === 'letter') this.renderLetterFooter();
 
