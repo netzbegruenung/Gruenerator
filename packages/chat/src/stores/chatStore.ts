@@ -259,7 +259,14 @@ export const useAgentStore = create<AgentState>()(
       },
 
       setCurrentThread: (threadId) => {
-        if (useAgentStore.getState().currentThreadId === threadId) return;
+        const prev = useAgentStore.getState().currentThreadId;
+        if (prev === threadId) return;
+        // Traced at the single choke point for this field — MainThreadSyncEffect,
+        // GrueneratorHistoryProvider's history.load(), AgentSwitchListener, and
+        // the thread-list adapter's onDelete callback all write here. When a
+        // thread URL unexpectedly bounces to /chat, this trace shows which of
+        // them nulled it and why (see the trailing stack).
+        console.trace(`[chatStore] setCurrentThread: ${prev ?? 'null'} -> ${threadId ?? 'null'}`);
         set({
           currentThreadId: threadId,
           currentThreadTitle: null,
