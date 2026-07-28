@@ -151,7 +151,64 @@ function resolveBudget(): LoopBudget {
   const maxSteps = Number(process.env.CHAT_AGENT_LOOP_MAX_STEPS) || DEFAULT_LOOP_BUDGET.maxSteps;
   const wallClockMs =
     Number(process.env.CHAT_AGENT_LOOP_BUDGET_MS) || DEFAULT_LOOP_BUDGET.wallClockMs;
-  return { ...DEFAULT_LOOP_BUDGET, maxSteps, wallClockMs };
+  // The ceiling must stay above the tool budget, or raising the latter via env
+  // would put the hard abort BACK inside the tool phase — the very ordering
+  // this split exists to prevent.
+  const hardCapMs = Math.max(DEFAULT_LOOP_BUDGET.hardCapMs, wallClockMs * 2);
+  return { ...DEFAULT_LOOP_BUDGET, maxSteps, wallClockMs, hardCapMs };
+}
+
+/**
+ * Appended when the stream was torn down after the answer had already started.
+ *
+ * Leads with a blank line so it separates from whatever half-sentence it lands
+ * behind, and names the cause in the user's terms — "abgebrochen", not
+ * "AbortError". It ships as a `text_delta` AND into the persisted text, so a
+ * reloaded thread carries the same warning the live turn showed.
+ */
+export const TRUNCATION_NOTE =
+  '\n\n_Hier musste ich abbrechen — die Antwort ist unvollständig. Frag gern nach dem fehlenden Teil._';
+
+/** What a failed turn owes the user, given what it had already written. */
+export interface AbortOutcome {
+  /** Text to send as a delta. */
+  delta: string;
+  /** `replace`: nothing was written, `delta` IS the answer (and any recorded
+   *  textOffset now points into text that no longer exists).
+   *  `append`: a half answer stands and only gets the honest footnote. */
+  mode: 'replace' | 'append';
+}
+
+/**
+ * The four ways a loop turn can end badly — one function, because the
+ * interesting case used to have no branch at all.
+ *
+ * Before, only the empty-text cases were handled; a turn that died with an
+ * answer half-written fell through in silence and shipped the stump. The
+ * asymmetry is deliberate the other way round now: an ABORT with text means the
+ * stream was torn down mid-sentence, so the user must be told. A genuine ERROR
+ * with text is different — the answer had already streamed to completion and
+ * something afterwards (an artifact hook, a persistence step) threw. Marking
+ * that one "unvollständig" would be a lie, so it stays silent.
+ */
+export function resolveAbortOutcome(params: {
+  text: string;
+  aborted: boolean;
+}): AbortOutcome | null {
+  if (params.text.trim().length === 0) {
+    if (params.aborted) {
+      return {
+        delta:
+          'Das hat leider zu lange gedauert. Magst du es noch einmal versuchen oder die Frage eingrenzen?',
+        mode: 'replace',
+      };
+    }
+    return {
+      delta: 'Bei der Antwort ist etwas schiefgelaufen. Versuch es bitte gleich noch einmal.',
+      mode: 'replace',
+    };
+  }
+  return params.aborted ? { delta: TRUNCATION_NOTE, mode: 'append' } : null;
 }
 
 export function buildToolUsageBlock(maxSteps: number): string {
@@ -560,9 +617,16 @@ export async function streamAgenticResponse(params: {
         ? `\n\nQUELLEN AUS FRÜHEREN TURNS DIESES GESPRÄCHS (nummeriert — belege sie mit [N] wie eigene Treffer, behaupte aber NICHT, gerade recherchiert zu haben; sag stattdessen, dass sich die Angaben auf die Recherche von vorhin stützen). Ergebnisse neuer Suchen in diesem Turn zählen ab [${sourceRegistry.carriedSize + 1}] weiter:\n${sourceRegistry.renderAll()}`
         : '';
     const toolSystem = `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps)}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}`;
-    const abortSignal = reqSignal
-      ? AbortSignal.any([reqSignal, AbortSignal.timeout(budget.wallClockMs)])
-      : AbortSignal.timeout(budget.wallClockMs);
+    // The turn budget is now SOFT: it strips the tools via `forceFinish` (see
+    // below) instead of aborting the stream. Only the absolute ceiling aborts —
+    // it is a hang guard, not a pace.
+    const withRequest = (signal: AbortSignal): AbortSignal =>
+      reqSignal ? AbortSignal.any([reqSignal, signal]) : signal;
+    const abortSignal = withRequest(AbortSignal.timeout(budget.hardCapMs));
+    // Split mode's writer gets a FRESH ceiling. Sharing the turn's would mean a
+    // 60s artifact generation is billed to the sentence that comes after it.
+    const writeAbortSignal = withRequest(AbortSignal.timeout(budget.hardCapMs));
+    const toolBudgetDeadline = Date.now() + budget.wallClockMs;
 
     // Synthesizer system (split mode): the selected model has no tools, so the
     // gathered numbered sources are injected into its context for [N] citing.
@@ -868,8 +932,14 @@ ANTWORTE KONKRET: Steht die Antwort in einer Quelle, dann NENNE SIE im Klartext 
       // No output cap (OpenWebUI-style): the model window is the backstop.
       // The old 4000-token floor truncated think-lane answers mid-sentence.
       abortSignal,
+      writeAbortSignal,
       afterGather,
       forceFinish: () =>
+        // The turn budget lands HERE rather than on the abort signal: spending
+        // it must end the tool work, not the sentence being written. In unified
+        // mode this is also what protects the answer — one stream holds tools
+        // and text there, so a hard timeout could only ever cut prose.
+        Date.now() >= toolBudgetDeadline ||
         finalState.generatedImage != null ||
         (finalState.sharepicVariants?.length ?? 0) > 0 ||
         finalState.createdDocument != null ||
@@ -915,13 +985,18 @@ ANTWORTE KONKRET: Steht die Antwort in einer Quelle, dann NENNE SIE im Klartext 
     const aborted =
       err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError');
     log.warn(`[Agentic] loop ${aborted ? 'stopped (budget/abort)' : 'failed'}: ${msg}`);
-    if (text.trim().length === 0) {
-      text = aborted
-        ? 'Das hat leider zu lange gedauert. Magst du es noch einmal versuchen oder die Frage eingrenzen?'
-        : 'Bei der Antwort ist etwas schiefgelaufen. Versuch es bitte gleich noch einmal.';
+    const outcome = resolveAbortOutcome({ text, aborted });
+    if (outcome?.mode === 'replace') {
+      text = outcome.delta;
       for (const s of steps) delete s.textOffset;
       startResponse();
       sse.send('text_delta', { text });
+    } else if (outcome?.mode === 'append') {
+      // The half answer stays — it is real work and dropping it helps nobody —
+      // but it must not PASS as a finished one. APPEND, never replace: recorded
+      // textOffsets index into the prefix and stay valid this way.
+      text += outcome.delta;
+      sse.send('text_delta', { text: outcome.delta });
     }
   } finally {
     endSynthHeartbeat();
