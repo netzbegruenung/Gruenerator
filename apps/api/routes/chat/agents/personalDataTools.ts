@@ -28,6 +28,11 @@ import { buildNotebookSlug, buildGroupSlug, buildChatThreadSlug } from '@gruener
 import { tool, type Tool } from 'ai';
 import { z } from 'zod';
 
+import {
+  ARTIFACT_NOUN_BY_KIND,
+  forbidsPersistentAction,
+  type ForbiddableArtifact,
+} from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { NotebookQdrantHelper } from '../../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { updateCard } from '../../../services/boards/boardCardWriteService.js';
@@ -56,6 +61,7 @@ import {
 import { aggregateRecentActivity } from '../../workplace/recentActivityController.js';
 import { hasWriteAccess } from '../confirmController.js';
 import { emitToolConfirmAction, newActionId } from '../services/confirmActionService.js';
+import { extractTextContent } from '../services/messageHelpers.js';
 import {
   recallPastChats,
   getThreadRecallContext,
@@ -78,6 +84,33 @@ export interface PersonalToolCtx {
   /** Per-turn source registry — MUST be fed so the split-mode synth model (which
    *  never sees tool return values, only `renderAll()`) can ground its answer. */
   sourceRegistry: SourceRegistry;
+}
+
+/**
+ * A turn that rules out persistent changes must not get one offered — not even
+ * behind a confirm card, and not by a tool.
+ *
+ * The classifier-level gate (chatGraphContractRouter) cannot reach this path:
+ * inside the agentic loop the MODEL picks the action. Observed live, it picked
+ * `add_card` on a turn whose entire instruction was "merke dir das und antworte
+ * mit „D2 gespeichert"" — and offered to add a Kanban task nobody mentioned.
+ *
+ * Returns an error the model can read, rather than a silent no-op: a swallowed
+ * refusal would leave it announcing a confirmation that was never emitted.
+ */
+function refuseForbiddenAction(
+  state: ChatGraphState,
+  family?: ForbiddableArtifact
+): { error: string } | null {
+  const lastUser = [...(state.messages ?? [])].reverse().find((m) => m.role === 'user');
+  const text = lastUser ? extractTextContent(lastUser.content) : '';
+  if (!forbidsPersistentAction(text, family ? ARTIFACT_NOUN_BY_KIND[family] : undefined)) {
+    return null;
+  }
+  return {
+    error:
+      'Diese Nachricht schließt Änderungen aus — es wurde nichts vorbereitet. Antworte nur im Chat.',
+  };
 }
 
 /**
@@ -113,9 +146,17 @@ function groundRows(reg: SourceRegistry, rows: ResultRow[]): void {
   );
 }
 
-/** A single status/outcome line (write actions, confirmations). */
+/**
+ * A single status/outcome line (write actions, confirmations, empty results).
+ *
+ * Routed to `reg.note`, NOT `reg.register`: these lines exist so the split-mode
+ * synth can say what happened, and they are not retrieved material. Registering
+ * them as sources meant they were persisted as the turn's `searchResults` — a
+ * later "mach ein PDF draus" was then briefed with a Kanban confirmation as the
+ * only research in scope and built the whole document out of it.
+ */
 function groundNote(reg: SourceRegistry, title: string, content: string): void {
-  ground(reg, [{ title, content }]);
+  reg.note(title, content);
 }
 
 /** A clickable result row — the frontend registry lifts `{ title, url }` into a citation list. */
@@ -251,7 +292,11 @@ NUTZE WENN nach früheren Gesprächen gefragt wird ("worüber haben wir letztens
         if (!readThreadId) return { error: 'Zum Lesen wird eine threadId benötigt.' };
         const ctxData = await getThreadRecallContext(readThreadId, userId);
         if (!ctxData) return { error: 'Thread nicht gefunden oder kein Zugriff.' };
-        groundNote(sourceRegistry, ctxData.title || 'Früherer Chat', ctxData.transcript);
+        // Real retrieved material (a past conversation), not an outcome line —
+        // this one IS a source and stays citable.
+        ground(sourceRegistry, [
+          { title: ctxData.title || 'Früherer Chat', content: ctxData.transcript },
+        ]);
         return {
           title: ctxData.title,
           updatedAt: ctxData.updatedAt,
@@ -399,6 +444,8 @@ NUTZE FÜR: eigene Dokumente auflisten (list), eines per id ansehen (get), umben
         : !id && state.createdDocument
           ? { id: state.createdDocument.documentId, title: state.createdDocument.title }
           : null;
+      const forbiddenShare = refuseForbiddenAction(state, 'document');
+      if (forbiddenShare) return forbiddenShare;
       if (!shareTarget) return { error: 'Dokument nicht gefunden oder kein Zugriff.' };
       if (!groupName?.trim()) return { error: 'share_to_group braucht groupName.' };
       if (!threadId) return { error: 'Teilen ist in diesem Kontext nicht möglich.' };
@@ -555,6 +602,8 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
       }
 
       if (action === 'add_card') {
+        const forbidden = refuseForbiddenAction(state, 'board');
+        if (forbidden) return forbidden;
         if (!boardId || !args.title?.trim())
           return { error: 'add_card braucht boardId und title.' };
         if (!threadId) return { error: 'Hinzufügen ist in diesem Kontext nicht möglich.' };
@@ -585,6 +634,10 @@ NUTZE FÜR: Boards auflisten (list_boards), Karten eines Boards lesen (get_cards
       }
 
       // Direct card edits (edit_card/move_card/set_due/assign) — need write access.
+      // These write IMMEDIATELY (no confirm card), so the constraint check has to
+      // come first.
+      const forbiddenEdit = refuseForbiddenAction(state, 'board');
+      if (forbiddenEdit) return forbiddenEdit;
       if (!boardId || !cardId) return { error: `${action} braucht boardId und cardId.` };
       if (!(await hasWriteAccess(boardId, userId))) {
         return { error: 'Keine Berechtigung, dieses Board zu bearbeiten.' };
@@ -646,6 +699,10 @@ NUTZE FÜR: eigene Gruppen auflisten (list), eine Gruppe per Name finden (find),
         `/gruppen/${g.slug_suffix ? buildGroupSlug(g.name, g.slug_suffix) : g.id}`;
 
       if (action === 'create') {
+        // No artifact noun to bind to — only an action-level prohibition
+        // ("nichts speichern", "keine Aktion") can rule a group out.
+        const forbidden = refuseForbiddenAction(state);
+        if (forbidden) return forbidden;
         const groupName = name?.trim();
         if (!groupName) return { error: 'create braucht einen name.' };
         if (!threadId) return { error: 'Erstellen ist in diesem Kontext nicht möglich.' };
