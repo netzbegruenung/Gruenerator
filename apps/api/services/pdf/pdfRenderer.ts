@@ -169,11 +169,22 @@ const MM = 2.834645669;
 const ADDRESS_FIELD = {
   left: 20 * MM,
   width: 85 * MM,
+  /**
+   * Das Feld wird NICHT bis an den Rand beschriftet: der Anschrifttext steht
+   * 5 mm eingerückt und landet damit auf derselben Fluchtlinie wie Betreff und
+   * Brieftext (25 mm). Am Feldrand gesetzt stand die Anschrift sichtbar 5 mm
+   * links vom übrigen Brief — die 20 mm sind die Grenze der Zone, nicht die
+   * Textkante.
+   */
+  textInset: 5 * MM,
   top: 50 * MM,
   height: 40 * MM,
   lineHeight: (40 / 9) * MM,
   zvzLines: 3,
 };
+/** Fluchtlinie des Anschrifttexts — deckungsgleich mit MARGIN_L. */
+const ADDRESS_TEXT_LEFT = ADDRESS_FIELD.left + ADDRESS_FIELD.textInset;
+const ADDRESS_TEXT_WIDTH = ADDRESS_FIELD.width - ADDRESS_FIELD.textInset;
 /** Anschriftzone: where the recipient's own lines start. */
 const ADDRESS_ZONE_TOP = ADDRESS_FIELD.top + ADDRESS_FIELD.zvzLines * ADDRESS_FIELD.lineHeight;
 /** Left edge of the DIN Informationsblock — right of the envelope window. */
@@ -544,6 +555,35 @@ function formatDate(locale: PdfLocale): string {
     month: 'long',
     year: 'numeric',
   }).format(new Date());
+}
+
+/**
+ * Zwei Überschriften auf dieselbe Zeile prüfen, ohne an Anführungszeichen,
+ * Bindestrichen oder Groß-/Kleinschreibung zu scheitern: der Dokumenttitel
+ * verliert unterwegs schon mal die Gänsefüßchen, gemeint ist trotzdem dieselbe
+ * Zeile.
+ */
+function sameHeadline(a: string, b: string): boolean {
+  const norm = (s: string): string => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+  const normalized = norm(a);
+  return normalized.length > 0 && normalized === norm(b);
+}
+
+/**
+ * Eine führende Überschrift streichen, die den Kopf nur wiederholt.
+ *
+ * Der Docs-Export schickt den Dokumenttitel als Betreff UND den Dokumentinhalt
+ * mitsamt dessen eigener H1 — dieselbe Zeile stand dann zweimal untereinander.
+ * Geprüft wird nur der ERSTE Block: eine gleichlautende Überschrift weiter
+ * unten gliedert den Text und bleibt stehen.
+ *
+ * Der letzte Block bleibt unangetastet, damit aus einem Dokument, das nur aus
+ * seinem Titel besteht, keine Seite ohne jeden Inhalt wird.
+ */
+function dropRepeatedHeadline(blocks: PdfBlock[], headline: string): PdfBlock[] {
+  const first = blocks[0];
+  if (blocks.length < 2 || !first || first.type !== 'heading') return blocks;
+  return sameHeadline(first.text, headline) ? blocks.slice(1) : blocks;
 }
 
 function senderLines(sender: PdfSender | null | undefined): string[] {
@@ -1663,7 +1703,7 @@ class PdfRenderer {
       if (!candidate) continue;
       const text = candidate.join(' · ');
       const runs = splitIntoFontRuns(text, this.fonts.body, this.fonts);
-      if (measureRuns(runs, 7) <= ADDRESS_FIELD.width) return text;
+      if (measureRuns(runs, 7) <= ADDRESS_TEXT_WIDTH) return text;
     }
     return head;
   }
@@ -1696,26 +1736,26 @@ class PdfRenderer {
       this.writeLineAt(
         'P',
         returnLine,
-        ADDRESS_FIELD.left,
+        ADDRESS_TEXT_LEFT,
         ruleY + 3,
         7,
         this.fonts.body,
         MUTED_COLOR,
-        { maxWidth: ADDRESS_FIELD.width }
+        { maxWidth: ADDRESS_TEXT_WIDTH }
       );
       this.tagger.close();
       this.tagger.artifact(page, () => {
         page.drawLine({
-          start: { x: ADDRESS_FIELD.left, y: ruleY },
-          end: { x: ADDRESS_FIELD.left + ADDRESS_FIELD.width, y: ruleY },
+          start: { x: ADDRESS_TEXT_LEFT, y: ruleY },
+          end: { x: ADDRESS_TEXT_LEFT + ADDRESS_TEXT_WIDTH, y: ruleY },
           thickness: 0.5,
           color: MUTED_COLOR,
         });
       });
     }
 
-    // Anschriftzone: 6 Zeilen, keine Leerzeile dazwischen, linksbündig auf
-    // 20 mm — so liest die Sortieranlage der Post die Adresse.
+    // Anschriftzone: 6 Zeilen, keine Leerzeile dazwischen, linksbündig auf der
+    // Fluchtlinie — so liest die Sortieranlage der Post die Adresse.
     this.tagger.open('Sect', { title: 'Empfänger' });
     let addrY = PAGE_H - ADDRESS_ZONE_TOP - ADDRESS_FIELD.lineHeight * 0.72;
     for (const line of (letter.recipient ?? '')
@@ -1725,8 +1765,8 @@ class PdfRenderer {
       .slice(0, 6)) {
       // The DIN 5008 address window is narrow — an overlong line must be cut,
       // not printed across the page.
-      this.writeLineAt('P', line, ADDRESS_FIELD.left, addrY, 10.5, this.fonts.body, BODY_COLOR, {
-        maxWidth: ADDRESS_FIELD.width,
+      this.writeLineAt('P', line, ADDRESS_TEXT_LEFT, addrY, 10.5, this.fonts.body, BODY_COLOR, {
+        maxWidth: ADDRESS_TEXT_WIDTH,
       });
       addrY -= ADDRESS_FIELD.lineHeight;
     }
@@ -1793,7 +1833,11 @@ class PdfRenderer {
     if (this.spec.kind === 'letter') this.renderLetterHeader();
     else this.renderDocumentHeader();
 
-    this.renderBlocks(this.spec.blocks);
+    // Was im Kopf steht — Betreff beim Brief, Titel sonst — und deshalb nicht
+    // gleich darunter noch einmal stehen darf.
+    const headline =
+      this.spec.kind === 'letter' ? this.spec.letter?.subject || this.spec.title : this.spec.title;
+    this.renderBlocks(dropRepeatedHeadline(this.spec.blocks, headline));
 
     if (this.spec.kind === 'letter') this.renderLetterFooter();
 
