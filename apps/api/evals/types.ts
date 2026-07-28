@@ -54,6 +54,12 @@ export interface ChatTrace {
   sharepicUpdated: boolean;
   /** Raw variant objects from sharepic_complete (id, canvasType, canvasId?). */
   sharepicVariants: Record<string, unknown>[];
+  /** `type` of every confirm_action card offered (save_as_doc, modify_board, …).
+   *  A card is a persistent action the user is one click away from — offering
+   *  one on a turn that forbade it is the defect, not the click. */
+  confirmActions: string[];
+  /** A document_created event fired (a document was actually persisted). */
+  documentCreated: boolean;
 }
 
 /** Per-prompt expectations. All fields optional — only assert what's known. */
@@ -74,6 +80,16 @@ export interface EvalExpect {
   toolsMustNotInclude?: string[];
   maxToolCalls?: number;
   generatesSharepic?: boolean;
+  /**
+   * Whether the turn may create/update a persistent artifact — a document, or a
+   * confirm_action card offering one.
+   *
+   * `false` is the load-bearing case and the reason this exists: "Erstelle
+   * diesmal kein Dokument" used to produce a document-update card anyway, and no
+   * existing assertion could see it (a card is neither a tool call nor an
+   * intent).
+   */
+  offersPersistentAction?: boolean;
   /** The turn asks the user a clarifying question instead of guessing. `false`
    *  is the load-bearing case: it states "this ask was unambiguous, do not
    *  interrupt". */
