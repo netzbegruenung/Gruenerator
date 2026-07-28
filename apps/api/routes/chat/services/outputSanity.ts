@@ -108,8 +108,27 @@ export function defersToSearchDespiteSources(
  * 414 on screen — and it cost an entire investigation to establish, because
  * neither side said anything at all.
  */
+/**
+ * Fewer words than this and an unpunctuated ending says nothing: that is the
+ * shape of a LABEL, not of a severed sentence.
+ *
+ * Empirical, not invented. A QA session asked for three literal wordings and
+ * got a warning for each — "KEINE DATEN", "Korrigiert", "Klarwasser
+ * gespeichert" (1–2 words), all three perfect answers — beside ONE real
+ * truncation. Meanwhile the shortest cut this check exists to catch runs six
+ * words ("Im Vergleich zu anderen rechtspopulistischen Pa"). Five sits in that
+ * gap. It is a threshold, not a law: a cut after four words slips through, and
+ * that is the price of a warning that means something when it appears.
+ *
+ * Mirrored in `parseSSEStream` — change both, or the cross-check between the
+ * two logs stops comparing like with like.
+ */
+export const TRUNCATION_MIN_WORDS = 5;
+
 export function looksCutOff(text: string): boolean {
-  return /[\p{L}\p{N}]$/u.test(text.trimEnd());
+  const trimmed = text.trimEnd();
+  if (trimmed.split(/\s+/).filter(Boolean).length < TRUNCATION_MIN_WORDS) return false;
+  return /[\p{L}\p{N}]$/u.test(trimmed);
 }
 
 /**
