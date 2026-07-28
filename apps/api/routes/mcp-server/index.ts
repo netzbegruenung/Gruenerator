@@ -9,6 +9,7 @@
  */
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { type Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
+import { ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
@@ -21,6 +22,14 @@ import { resolveMcpAuth } from './mcpAuth.js';
 import { buildAuthenticatedMcpServer } from './serverFactory.js';
 
 const log = createLogger('McpServer');
+
+// Spec 2026-07-28 partitions the JSON-RPC server-error range: -32000..-32019
+// stays implementation-defined, -32020..-32099 is reserved for the spec. Both
+// codes below sit in the implementation-defined window. (Was -32029.)
+// Rationale in CLAUDE-mcp.md; standard codes come from the SDK's ErrorCode.
+const JSONRPC_UNAUTHORIZED = -32000;
+const JSONRPC_METHOD_NOT_ALLOWED = -32000;
+const JSONRPC_RATE_LIMITED = -32003;
 
 const resourceUrl = new URL(MCP_RESOURCE_URL);
 const PROTECTED_RESOURCE_METADATA_URL = `${resourceUrl.origin}/.well-known/oauth-protected-resource${
@@ -40,7 +49,7 @@ const limiter =
         keyGenerator: (req: Request) => (req.ip ? ipKeyGenerator(req.ip) : 'anonymous'),
         message: {
           jsonrpc: '2.0',
-          error: { code: -32029, message: 'Zu viele Anfragen – bitte kurz warten.' },
+          error: { code: JSONRPC_RATE_LIMITED, message: 'Zu viele Anfragen – bitte kurz warten.' },
           id: null,
         },
       });
@@ -52,7 +61,7 @@ function unauthorized(res: Response): void {
     .set('Access-Control-Expose-Headers', 'WWW-Authenticate')
     .json({
       jsonrpc: '2.0',
-      error: { code: -32000, message: 'Unauthorized: Authentication required' },
+      error: { code: JSONRPC_UNAUTHORIZED, message: 'Unauthorized: Authentication required' },
       id: null,
     });
 }
@@ -97,7 +106,7 @@ router.post('/', async (req, res) => {
     if (!res.headersSent) {
       res.status(500).json({
         jsonrpc: '2.0',
-        error: { code: -32603, message: 'Interner Serverfehler' },
+        error: { code: ErrorCode.InternalError, message: 'Interner Serverfehler' },
         id: null,
       });
     }
@@ -108,7 +117,10 @@ router.post('/', async (req, res) => {
 const methodNotAllowed = (_req: Request, res: Response): void => {
   res.status(405).json({
     jsonrpc: '2.0',
-    error: { code: -32000, message: 'Method not allowed (stateless JSON mode)' },
+    error: {
+      code: JSONRPC_METHOD_NOT_ALLOWED,
+      message: 'Method not allowed (stateless JSON mode)',
+    },
     id: null,
   });
 };
