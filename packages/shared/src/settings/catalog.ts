@@ -171,12 +171,14 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     platforms: BOTH,
   },
   {
+    // Web-only: die App empfängt Push-Benachrichtigungen, stellt sie aber
+    // nirgends ein. Die Stufe gilt kontoweit — sie am Rechner zu setzen wirkt
+    // auf dem Gerät mit, eine Zeile ohne Fläche dahinter nicht.
     id: 'benachrichtigungen.stufe',
     tab: 'benachrichtigungen',
     title: 'Wie viel wir melden',
     description:
       'Wenig meldet nur Kritisches und Persönliches, Mittel die wichtigen Ereignisse, Viele alles.',
-    platforms: BOTH,
   },
   {
     id: 'benachrichtigungen.testmail',
@@ -186,26 +188,29 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
       'Sendet dir sofort eine Test-E-Mail an deine Profil-Adresse, um die Zustellung zu prüfen.',
   },
   {
+    // Web-only: Verbinden läuft über einen OAuth-Umweg im Browser, den die App
+    // nicht abschließt. Eine reine Leseliste ohne den Schritt, der sie füllt,
+    // wäre eine Zeile, die auf den Rechner verweist.
     id: 'konnektoren.server',
     tab: 'konnektoren',
     title: 'Konnektoren',
-    description:
-      'Verbundene Dienste, die im Chat als eigene Quelle ansprechbar sind. Neue verbindest du am Rechner.',
-    platforms: BOTH,
+    description: 'Verbundene Dienste, die im Chat als eigene Quelle ansprechbar sind',
   },
   {
+    // Web-only: die Übersicht ist eine Tabelle über Zeiträume hinweg. Sie
+    // sinnvoll auf ein Sheet zu bringen ist eine eigene Fläche, keine Zeile.
     id: 'nutzung.uebersicht',
     tab: 'nutzung',
     title: 'Nutzung',
     description: 'Wie viele Anfragen, Tokens, Bilder und Recherchen auf dein Konto gehen',
-    platforms: BOTH,
   },
   {
+    // Web-only: die App hat keine Support-Fläche. Der Weg dorthin führt
+    // ohnehin nach außen (Doku, Feedback, Mail), nicht in eine App-Einstellung.
     id: 'support.kontakt',
     tab: 'support',
     title: 'Support',
     description: 'Wo du Hilfe bekommst und Rückmeldung loswirst',
-    platforms: BOTH,
   },
 ] as const;
 
