@@ -97,23 +97,23 @@ describe('autoPolicy — lane assignment per task shape', () => {
     }
   });
 
-  it('research in WRAPPER mode frames a finished answer — Small 4, no thinking', () => {
-    // The synthesis is already written and on screen as a card; the model adds
-    // two sentences of framing. Sending that to the think lane produced two
-    // back-to-back first_token_timeouts live (20s each) on a trivial task.
+  /**
+   * `research_wrapper` was a lane of its own while a research turn only framed
+   * a ready-made Linkup answer in two sentences — Small 4, no thinking, because
+   * the think lane hit two back-to-back first_token_timeouts on that trivial
+   * task. Since the research/web merge the model writes the whole answer from
+   * raw sources, so research is ordinary synthesis and shares the web lane.
+   */
+  it('research writes prose from sources now — same lane as web, never weaker', () => {
+    const rank = { off: 0, low: 1, medium: 2, high: 3 } as const;
     for (const complexity of ['simple', 'moderate', 'complex'] as const) {
-      const sel = resolveAutoSelection({ intent: 'research_wrapper', complexity });
-      expect(sel.modelId, complexity).toBe('mistral-small-4');
-      expect(sel.reasoning, complexity).toBe('off');
+      const research = resolveAutoSelection({ intent: 'research', complexity });
+      const web = resolveAutoSelection({ intent: 'web', complexity });
+      // Same writing job, so the same lane. Research may still think harder:
+      // its deeper tier hands the model up to twice as many sources.
+      expect(research.modelId, complexity).toBe(web.modelId);
+      expect(rank[research.reasoning], complexity).toBeGreaterThanOrEqual(rank[web.reasoning]);
     }
-  });
-
-  it('research WITHOUT wrapper mode still synthesises on the Gemma lane', () => {
-    // Fallthrough (low confidence / no retrieved answer) writes prose from raw
-    // chunks — genuinely a different job, and it must not be downgraded.
-    const sel = resolveAutoSelection({ intent: 'research', complexity: 'moderate' });
-    expect(sel.modelId).toBe('gemma-litellm');
-    expect(sel.reasoning).toBe('medium');
   });
 
   it('short/structured turns take the Small 4 lane', () => {

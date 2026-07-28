@@ -336,3 +336,58 @@ describe('toolCatalog scrape_url', () => {
     expect(out.error).toMatch(/nicht lesen/);
   });
 });
+
+/**
+ * "Ohne neue Recherche" enforced by absence.
+ *
+ * The ban used to lose an argument it should never have been in: four tool
+ * descriptions open with "Recherchiere ZUERST", the loop's cardinal rule
+ * demands a fresh tool call for any factual follow-up, and
+ * `looksLikeCompoundGeneration` reads the word "Recherche" in the ban itself as
+ * a research SIGNAL — so the sentence forbidding the search is what mounted the
+ * search tools. No wording can win that argument; only an empty catalog can.
+ */
+describe('research ban (forbidsNewResearch → no search tools)', () => {
+  function catalogFor(userText: string): string[] {
+    const state = {
+      lastUserTextNoMentions: userText,
+      messages: [{ role: 'user', content: userText }],
+      enabledTools: {},
+    } as unknown as ChatGraphState;
+    const { toolNames } = buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry: createSourceRegistry(),
+      loop: { sse: { send: () => {}, sendRaw: () => {}, end: () => {} } as never, state },
+    });
+    return toolNames;
+  }
+
+  it('unmounts the whole search family when the user forbids new research', () => {
+    const names = catalogFor('Erstelle ohne neue Recherche eine Vergleichstabelle daraus.');
+    for (const t of ['gruenerator_search', 'web_search', 'scrape_url']) {
+      expect(names, t).not.toContain(t);
+    }
+  });
+
+  /**
+   * scrape_url is the door that would otherwise stay open: "read this page" is
+   * new research by any honest reading, and a blocked search reappears as a
+   * crawl if only the search tools are removed.
+   */
+  it('closes scrape_url too, not just the search tools', () => {
+    expect(catalogFor('Bitte keine weitere Websuche.')).not.toContain('scrape_url');
+  });
+
+  it('leaves everything else mounted — a research ban is not a work ban', () => {
+    const names = catalogFor('Ohne neue Recherche bitte.');
+    expect(names).toContain('summarize');
+    expect(names).toContain('documents');
+  });
+
+  it('mounts the full catalog for an ordinary turn', () => {
+    const names = catalogFor('Recherchiere die aktuellen Zahlen zum Radverkehr.');
+    expect(names).toContain('gruenerator_search');
+    expect(names).toContain('web_search');
+    expect(names).toContain('scrape_url');
+  });
+});

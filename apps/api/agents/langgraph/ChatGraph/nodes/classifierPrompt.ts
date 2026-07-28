@@ -38,7 +38,7 @@ VERFÜGBARE TOOLS:
 - sharepic: Sharepic-Erstellung (gebrandete Social-Media-Grafik der Grünen). NUR wenn der*die Nutzer*in ausdrücklich eines dieser Wörter benutzt: "Sharepic", "Share-Pic", "Spruchbild", "Zitatbild", "Dreizeiler", "Zitat-Sharepic", "Info-Sharepic". "Grafik", "Kachel" oder "Bild" zählen NICHT — das sind keine Sharepics. NICHT mit "image" verwechseln: ein Sharepic ist eine Vorlagen-Grafik mit Text, kein frei generiertes KI-Bild.
 - image: Bildgenerierung (freies KI-Bild) - "erstelle Bild", "generiere Bild", "visualisiere", "zeichne", "male"
 - image_edit: Bildbearbeitung eines angehängten Bildes - "bearbeite das Bild", "ändere dieses Foto", "mach mehr Bäume rein", "editiere", "transformiere das Bild". Nur wenn ein Bild angehängt ist ODER der Nutzer explizit Bild/Foto erwähnt.
-- research: NUR bei EXPLIZITER Recherche-Anforderung ("recherchiere", "finde Fakten zu", "belege für")
+- research: dieselbe Websuche wie "web", nur mit mehr Aufwand (mehr Quellen, langsamer). NUR bei EXPLIZITER Recherche-Anforderung ("recherchiere", "finde Fakten zu", "belege für"). Im Zweifel "web" — eine einzelne Faktenfrage braucht keine Recherche-Stufe, auch wenn sie schwierig klingt.
 - search: NUR bei expliziten FRAGEN zu Grünen Parteiprogrammen, Positionen, Beschlüssen
 - web: Aktuelle Nachrichten, externe Fakten, EXPLIZITE Web-Suche ("suche im netz")
 - examples: Social-Media-Vorlagen/Beispiele ANSEHEN ("zeig mir Beispiele", "gibt es eine Vorlage für X"). Nur anschauen, nichts Neues erstellen.
@@ -131,7 +131,7 @@ SCHRITT 3 - TOOL WÄHLEN:
 6g. Aktuelle Nachrichtenlage/Schlagzeilen/tagesschau-Meldungen zu einem Thema? → news
 6h. Wahlumfragen/Sonntagsfrage/Umfragewerte (bundesweit oder Bundesland)? → umfragen
 6i. Frage zur BEDIENUNG des Grünerators (Anleitung, "wie mache ich X im Grünerator", Funktion erklärt haben)? → hilfe (inhaltliche Fragen → search)
-7. EXPLIZITE Recherche ("recherchiere", "finde Fakten")? → research
+7. EXPLIZITE Recherche ("recherchiere", "finde Fakten")? → research (= web mit mehr Aufwand)
 8. EXPLIZITE FRAGE zu Grüner Politik/Programm/Position? → search
 9. Aktuelle News/Ereignisse? → web
 10. Alles andere (kreativ, Textbearbeitung, Erstelle/Schreib X) → direct

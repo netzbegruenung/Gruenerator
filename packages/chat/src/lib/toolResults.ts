@@ -10,7 +10,7 @@
 import { type SerializableCitation } from '../components/tool-ui/citation/schema';
 
 import { formatNamespacedToolLabel } from './toolMappings';
-import { extractDomain, faviconFromHostname, getHostname } from './urlUtils';
+import { extractDomain, getHostname } from './urlUtils';
 
 import type {
   ExampleSnippet,
@@ -170,7 +170,6 @@ export function toSerializableCitation(
       getString(item, 'excerpt') ||
       undefined,
     domain,
-    favicon: domain ? faviconFromHostname(domain) : undefined,
     type: typeHint,
   };
 }
@@ -256,7 +255,6 @@ export function researchCitationToSerializable(c: ResearchCitation): Serializabl
     href: c.url,
     ...(c.snippet ? { snippet: c.snippet } : {}),
     ...(domain ? { domain } : {}),
-    ...(domain ? { favicon: faviconFromHostname(domain) } : {}),
   };
 }
 
@@ -409,4 +407,4 @@ export function formatGermanDate(iso: string | null | undefined): string | null 
 }
 
 // Re-export so callers needing raw URL helpers don't reach past this module.
-export { extractDomain, getHostname, faviconFromHostname };
+export { extractDomain, getHostname };
