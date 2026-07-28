@@ -10,9 +10,9 @@ import { chatBackgroundSchema, type ChatBackground } from '@gruenerator/contract
  * What stays platform-side is how the preset is *drawn*, because the two do not
  * agree there: web has a CSS class and a gradient swatch
  * (`apps/web/src/features/workplace/chatBackgrounds.ts`), mobile has its own
- * table — one flat colour for most presets, a five-layer mesh for `mesh`
- * (`apps/mobile/theme/chatBackgrounds.ts`). Putting web's gradient stops in here
- * would push a value mobile cannot use onto both.
+ * table — one flat colour for most presets, a layered mesh for `mesh`, `nebel`
+ * and `dunst` (`apps/mobile/theme/chatBackgrounds.ts`). Putting web's gradient
+ * stops in here would push a value mobile cannot use onto both.
  */
 export type ChatBackgroundPlatform = 'web' | 'mobile';
 
@@ -27,10 +27,11 @@ export interface ChatBackgroundPreset {
    * every preset predating this field exists on either platform.
    *
    * A preset can be drawn on one platform before the other, and that is a fact
-   * about the code rather than a matter of taste: `mesh` needs five layered
-   * radial gradients, which mobile draws with `react-native-svg` and web still
-   * has no class for. Marking it here keeps the picker from offering something
-   * that would silently fall back to another preset's look.
+   * about the code rather than a matter of taste: a mesh preset is five or six
+   * layered radial gradients, which each platform has to draw in its own way —
+   * `react-native-svg` on the phone, a `.workplace-chat-bg--*` class in the
+   * browser. Marking it here keeps the picker from offering something that would
+   * silently fall back to another preset's look.
    */
   platforms?: readonly ChatBackgroundPlatform[];
 }
@@ -47,45 +48,57 @@ const BOTH: readonly ChatBackgroundPlatform[] = ['web', 'mobile'];
 /**
  * What an *unset* profile falls back to. Nobody's stored choice is affected.
  *
- * Still `sunrise`, because a default has to be a preset both platforms can
- * draw — see `DEFAULT_CHAT_BACKGROUND_MOBILE` for why the app answers this
- * differently, and `platforms` above for what makes that legitimate.
+ * Still `sunrise` in the browser. The reason it once had to be — a default has
+ * to be a preset both platforms can draw, and `nebel` was app-only — is gone
+ * now that web draws `nebel` too; what is left is that changing it would restyle
+ * the chat start for every web account that never picked one. That is a product
+ * call, not a consequence of the port, so it stays a separate decision.
  */
 export const DEFAULT_CHAT_BACKGROUND: ChatBackground = 'sunrise';
 
 /**
- * The app's default since 2026-07-27 — `nebel`, the variant being tried next.
+ * The app's default since 2026-07-27 — `nebel`, the variant being tried first.
  *
- * It differs from the one above because the mesh presets are app-only for now.
  * Resolving through `resolveChatBackground(value, 'mobile')` is what applies
  * it; a profile that already names a preset keeps that preset either way.
  */
 export const DEFAULT_CHAT_BACKGROUND_MOBILE: ChatBackground = 'nebel';
 
 export const CHAT_BACKGROUND_PRESETS: readonly ChatBackgroundPreset[] = [
-  // The three mesh presets are the same four colours — peach, yellow, green,
-  // lilac — at three strengths. The distinction worth carrying in the label is
-  // how much of the screen keeps colour, because that is what a person is
-  // actually choosing between; the names come from the design document.
+  // The mesh presets are the same four colours — peach, yellow, green, lilac —
+  // at different strengths. The distinction worth carrying in the label is how
+  // much of the screen keeps colour, because that is what a person is actually
+  // choosing between; the names come from the design document.
+  //
+  // The accent is a step darker than the design's #52907A link green. That green
+  // is a background tone: mixed down to `--color-primary-700` on a `--color-primary-50`
+  // fill — the „Entdecke den neuen Grünerator"-Knopf under the composer — it
+  // lands at 3.9:1 and misses AA. #3f7161 (the design's own link-hover green)
+  // carries the same fill at 5.7:1 and white text at 5.6:1.
   {
     key: 'nebel',
     label: 'Nebel',
     description: 'Farbwolken hinter weißem Dunst — der Composer steht frei.',
-    accent: '#52907A',
-    platforms: ['mobile'],
+    accent: '#3f7161',
+  },
+  {
+    key: 'kern',
+    label: 'Klarer Kern',
+    description: 'Weiß in der Mitte, Farbe nur am Rand — die ruhigste Fassung.',
+    accent: '#3f7161',
+    platforms: ['web'],
   },
   {
     key: 'dunst',
     label: 'Dunst von unten',
     description: 'Farbe sammelt sich am unteren Rand, oben bleibt es klar.',
-    accent: '#52907A',
-    platforms: ['mobile'],
+    accent: '#3f7161',
   },
   {
     key: 'mesh',
     label: 'Farbwolken',
     description: 'Dieselben Farben ohne Schleier — die kräftigste Fassung.',
-    accent: '#52907A',
+    accent: '#3f7161',
     platforms: ['mobile'],
   },
   {
