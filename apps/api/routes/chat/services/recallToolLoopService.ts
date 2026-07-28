@@ -20,7 +20,6 @@ import {
   loadPresentationState,
   formatPresentationAsContext,
 } from '../../../services/presentations/PresentationGenerationService.js';
-import { withRetry } from '../../../services/search/searchRetryStrategy.js';
 import {
   loadSheetState,
   formatSheetAsContext,
@@ -30,6 +29,7 @@ import { loadDocumentProse } from '../../docs/docProseReader.js';
 import { getModel } from '../agents/providers.js';
 
 import { probeThreadSizes, probeOfficeSizes } from './contentSizeService.js';
+import { finishEditTurn } from './editTurnCompletion.js';
 import {
   recallPastChats,
   recallOfficeDocuments,
@@ -37,8 +37,6 @@ import {
   getThreadRecallContext,
 } from './pastChatRecallService.js';
 import { createLoopGuards } from './sharepicAgenticGuards.js';
-import { sendChatWarning } from './sseHelpers.js';
-import { createMessage, touchThread } from './threadPersistenceService.js';
 
 import type { SSEWriter } from './sseHelpers.js';
 
@@ -320,35 +318,18 @@ async function endTurn(
   text: string
 ): Promise<void> {
   const { sse, threadId, startTime, classificationTimeMs } = args;
-  sse.sendRaw('done', {
+  await finishEditTurn({
+    sse,
     threadId,
-    citations: [],
-    metadata: {
-      intent: 'chat_history',
-      searchCount: steps.filter((s) => s.toolName === 'search_user_content').length,
-      totalTimeMs: Date.now() - startTime,
-      ...(classificationTimeMs != null && { classificationTimeMs }),
-      searchTimeMs: 0,
-    },
+    text,
+    intent: 'chat_history',
+    persistLabel: 'recallLoop:persist',
+    logPrefix: '[RecallLoop]',
+    startTime,
+    ...(classificationTimeMs != null && { classificationTimeMs }),
+    searchCount: steps.filter((s) => s.toolName === 'search_user_content').length,
+    toolCalls: steps as unknown as Record<string, unknown>[],
+    // The loop already streamed response_start/text_delta as tokens arrived.
+    streamed: true,
   });
-  if (threadId) {
-    try {
-      await withRetry(
-        () =>
-          createMessage(threadId, 'assistant', text, {
-            intent: 'chat_history',
-            ...(steps.length > 0
-              ? { toolCalls: steps as unknown as Record<string, unknown>[] }
-              : {}),
-          }),
-        { maxRetries: 1, delayMs: 300, isRecoverable: () => true, label: 'recallLoop:persist' }
-      );
-      await touchThread(threadId);
-    } catch (err) {
-      // Retry + Warnung: ein stiller Persist-Fehler lässt State und History divergieren.
-      log.error('[RecallLoop] Failed to persist message:', err);
-      sendChatWarning(sse, 'persist_failed');
-    }
-  }
-  sse.end();
 }
