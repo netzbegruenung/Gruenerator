@@ -212,16 +212,30 @@ export const useAgentStore = create<AgentState>()(
 
       setPinnedConnector: (connector) => set({ pinnedConnector: connector }),
 
-      setSelectedAgent: (agentId) =>
-        set({ selectedAgentId: agentId, activeSkillMention: null, pinnedConnector: null }),
+      setSelectedAgent: (agentId) => {
+        const prev = useAgentStore.getState().selectedAgentId;
+        if (prev !== agentId) {
+          // User-initiated switch (or something that should look like one) —
+          // AgentSwitchListener treats this as real and resets to a new thread.
+          console.trace(`[chatStore] setSelectedAgent: ${prev ?? 'null'} -> ${agentId ?? 'null'}`);
+        }
+        set({ selectedAgentId: agentId, activeSkillMention: null, pinnedConnector: null });
+      },
 
-      restoreSelectedAgent: (agentId) =>
+      restoreSelectedAgent: (agentId) => {
+        const prev = useAgentStore.getState().selectedAgentId;
+        if (prev !== agentId) {
+          console.trace(
+            `[chatStore] restoreSelectedAgent: ${prev ?? 'null'} -> ${agentId ?? 'null'} (suppressed)`
+          );
+        }
         set({
           selectedAgentId: agentId,
           activeSkillMention: null,
           pinnedConnector: null,
           suppressAgentSwitchReset: true,
-        }),
+        });
+      },
 
       resetThreadContext: () =>
         set({
