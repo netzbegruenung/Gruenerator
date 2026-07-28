@@ -101,8 +101,13 @@ export function buildCreateTurnContext(messages: ChatGraphState['messages']): st
  * Frames the transcript so the model knows which half is the instruction. The
  * brief goes LAST: it is what the turn is for, and recency is the cheapest way
  * to say so.
+ *
+ * Exported because the agentic loop's artifact tools need the identical framing:
+ * a generator is a SEPARATE model call with no access to the chat's system
+ * prompt, so whatever is not threaded through here is structurally invisible to
+ * it — see `makeCreateDocTool` in `agents/domainTools.ts`.
  */
-function withConversationContext(brief: string, transcript: string): string {
+export function withConversationContext(brief: string, transcript: string): string {
   return transcript.trim()
     ? `BISHERIGES GESPRÄCH (Hintergrund — ein Auftrag wie „mach ein PDF daraus" bezieht sich auf den letzten Beitrag darin):\n${transcript}\n\nAUFTRAG:\n${brief}`
     : brief;
