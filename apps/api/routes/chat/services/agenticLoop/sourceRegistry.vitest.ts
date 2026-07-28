@@ -199,14 +199,35 @@ describe('createSourceRegistry', () => {
       expect(reg.getResults(2).map((r) => r.title)).toEqual(['FRESH', 'P0']);
     });
 
-    it('renderReference omits the marker — it briefs document generators', () => {
+    it('renderReference keeps the numbered LINES clean — they brief generators', () => {
+      const reg = createSourceRegistry();
+      reg.seedCarried([result({ title: 'PRIOR', content: 'prior', url: 'https://p' })]);
+      reg.register([result({ title: 'FRESH', content: 'fresh', url: 'https://f' })]);
+      const lines = reg.renderReference().split('\n\n')[0] ?? '';
+      expect(lines).toBe('[1] PRIOR <https://p> — prior\n[2] FRESH <https://f> — fresh');
+    });
+
+    /**
+     * The provenance still has to reach the generator — just not as part of a
+     * line it may copy. Live (QA 28.07.2026): a PDF asked to cite official
+     * Austrian sources shipped an appendix of hits from three turns earlier,
+     * each looking exactly as approved as the ones gathered for the job.
+     */
+    it('names the carried numbers in a separate note, outside the citable lines', () => {
       const reg = createSourceRegistry();
       reg.seedCarried([result({ title: 'PRIOR', content: 'prior', url: 'https://p' })]);
       reg.register([result({ title: 'FRESH', content: 'fresh', url: 'https://f' })]);
       const ref = reg.renderReference();
-      expect(ref).toMatch(/\[1\] PRIOR/);
-      expect(ref).toMatch(/\[2\] FRESH/);
-      expect(ref).not.toContain('frühere Recherche');
+      expect(ref).toContain('HERKUNFT');
+      expect(ref).toContain('[1]');
+      // The note names the carried source only — [2] was gathered for this job.
+      expect(ref.slice(ref.indexOf('HERKUNFT'))).not.toContain('[2]');
+    });
+
+    it('adds no provenance note when nothing was carried', () => {
+      const reg = createSourceRegistry();
+      reg.register([result({ title: 'FRESH', content: 'fresh', url: 'https://f' })]);
+      expect(reg.renderReference()).not.toContain('HERKUNFT');
     });
 
     it('a carried source re-found this turn keeps its number and becomes fresh', () => {

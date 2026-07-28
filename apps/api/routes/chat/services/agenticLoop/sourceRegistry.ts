@@ -239,10 +239,24 @@ export function createSourceRegistry(): SourceRegistry {
       return [current, priorNote, notesBlock].filter((p) => p).join('\n\n');
     },
     renderReference() {
-      // Same numbering as renderAll, without the provenance marker: this block
-      // briefs artifact/edit generators, and "(frühere Recherche)" would end up
-      // inside the document they write.
-      return entries.map((e, i) => snippetLine(i + 1, e.result, e.cap)).join('\n');
+      // Same numbering as renderAll, without the per-line provenance marker:
+      // this block briefs artifact/edit generators, and "(frühere Recherche)"
+      // pasted into a source list is text inside the finished document.
+      const lines = entries.map((e, i) => snippetLine(i + 1, e.result, e.cap)).join('\n');
+      if (!lines) return '';
+      // The provenance still has to travel — just as a separate instruction
+      // rather than as part of a citable line. Without it the generator cannot
+      // tell material gathered FOR this artifact from material the thread
+      // happens to be carrying, and it appends everything: a PDF that was meant
+      // to cite official Austrian sources shipped an appendix full of hits from
+      // three turns earlier, each of them looking equally approved.
+      const carried = entries.flatMap((e, i) => (e.prior ? [i + 1] : []));
+      if (carried.length === 0) return lines;
+      return `${lines}\n\nHERKUNFT: Die Quellen ${carried
+        .map((n) => `[${n}]`)
+        .join(
+          ', '
+        )} stammen aus einem FRÜHEREN Teil dieses Gesprächs und wurden nicht für diesen Auftrag gesucht. Nutze sie nur, wenn sie inhaltlich zum Auftrag passen, und übernimm sie NICHT ungeprüft in eine Quellenliste. Diese Zeile selbst gehört nicht in das Dokument.`;
     },
     getCitations() {
       // Project each result in registry order and stamp the registry index as
