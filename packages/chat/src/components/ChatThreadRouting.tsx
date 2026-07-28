@@ -39,9 +39,9 @@ export function ChatThreadRouting({
   const aui = useAui();
   const suffix = threadSlug ? extractSlugSuffix(threadSlug) : null;
   // Suffix whose thread actually became active. Guards the "thread gone"
-  // signal below against the boot race: on a cold /chat/<slug> load the
-  // MainThreadSyncEffect nulls currentThreadId (main is a fresh draft) while
-  // the deep-link resolution is still awaiting the thread list.
+  // signal below against the boot race: assistant-ui's initial local thread
+  // item is a fresh draft, so history.load() nulls currentThreadId once on
+  // boot before the deep-link resolution below has switched to the real thread.
   const activatedSuffixRef = useRef<string | null>(null);
 
   // URL → thread: deep link, reload, browser back/forward.
@@ -54,32 +54,21 @@ export function ChatThreadRouting({
     }
 
     let cancelled = false;
-    console.debug(`[ChatThreadRouting] resolving suffix=${suffix} from URL`);
     void (async () => {
       try {
         await aui.threads().getLoadThreadsPromise();
         if (cancelled) return;
         let remoteId = resolveThreadBySlugSuffix(suffix);
-        console.debug(
-          `[ChatThreadRouting] suffix=${suffix} initial lookup: ${remoteId ? `found ${remoteId}` : 'not found'} (lastFetchFailed=${didLastThreadListFetchFail()})`
-        );
         if (!remoteId && didLastThreadListFetchFail()) {
           // The initial list load failed (network blip, cold backend, etc.) —
           // assistant-ui swallows that failure internally and just leaves the
           // list empty, so an empty result here doesn't mean the thread is
           // actually gone. Retry once with a fresh fetch before giving up.
-          console.debug(`[ChatThreadRouting] suffix=${suffix} retrying list load after failure`);
           await aui.threads().reload();
           if (cancelled) return;
           remoteId = resolveThreadBySlugSuffix(suffix);
-          console.debug(
-            `[ChatThreadRouting] suffix=${suffix} retry lookup: ${remoteId ? `found ${remoteId}` : 'still not found'}`
-          );
         }
         if (!remoteId) {
-          console.warn(
-            `[ChatThreadRouting] suffix=${suffix} unresolved after load — navigating away from /chat/${threadSlug}`
-          );
           onThreadGone();
           return;
         }
@@ -102,15 +91,9 @@ export function ChatThreadRouting({
         }
         store.setChatViewMode('thread');
         aui.threads().switchToThread(remoteId);
-        if (!cancelled) {
-          activatedSuffixRef.current = suffix;
-          console.debug(`[ChatThreadRouting] suffix=${suffix} activated remoteId=${remoteId}`);
-        }
+        if (!cancelled) activatedSuffixRef.current = suffix;
       } catch (err) {
-        console.warn(
-          `[ChatThreadRouting] suffix=${suffix} threw while opening thread from URL:`,
-          err
-        );
+        console.warn('[ChatThreadRouting] Failed to open thread from URL:', err);
         if (!cancelled) onThreadGone();
       }
     })();
@@ -129,22 +112,14 @@ export function ChatThreadRouting({
       // is showing. Only fire once the slug actually resolved — during a cold
       // deep-link load currentThreadId is legitimately null.
       if (threadSlug && suffix && activatedSuffixRef.current === suffix) {
-        // MainThreadSyncEffect nulls currentThreadId on ANY reset of the
-        // "main" thread slot, not just a genuine deletion — an unrelated
-        // remount/reset (observed: repeated auth-query settles right after a
-        // reload) can null it even though the thread we just activated still
-        // exists. Re-resolve before concluding it's actually gone.
+        // currentThreadId can null out for reasons other than genuine
+        // deletion (e.g. an unrelated reset of assistant-ui's "main" thread
+        // slot). Re-resolve before concluding the thread is actually gone.
         const remoteId = resolveThreadBySlugSuffix(suffix);
         if (remoteId) {
-          console.debug(
-            `[ChatThreadRouting] suffix=${suffix} currentThreadId went null but still resolves to ${remoteId} — re-activating instead of navigating away`
-          );
           void aui.threads().switchToThread(remoteId);
           return;
         }
-        console.warn(
-          `[ChatThreadRouting] suffix=${suffix} currentThreadId null and no longer resolves — navigating away from /chat/${threadSlug}`
-        );
         onThreadGone();
       }
       return;

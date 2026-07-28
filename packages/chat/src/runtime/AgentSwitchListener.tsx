@@ -16,16 +16,12 @@ export function AgentSwitchListener() {
       return;
     }
     if (prevRef.current === selectedAgentId) return;
-    const prevAgentId = prevRef.current;
     prevRef.current = selectedAgentId;
 
     // Agent restored from a thread deep link (ChatThreadRouting) — not a
     // user-initiated switch. Consume the flag and keep the loaded thread.
     if (useAgentStore.getState().suppressAgentSwitchReset) {
       useAgentStore.setState({ suppressAgentSwitchReset: false });
-      console.debug(
-        `[AgentSwitchListener] ${prevAgentId ?? 'null'} -> ${selectedAgentId ?? 'null'}: suppressed (deep-link restore)`
-      );
       return;
     }
 
@@ -34,17 +30,11 @@ export function AgentSwitchListener() {
     // param) — not a user-initiated agent switch. Resetting here would stomp
     // the just-switched thread with a blank new one.
     if (selectedAgentId === null && useAgentStore.getState().chatViewMode === 'thread') {
-      console.debug(
-        `[AgentSwitchListener] ${prevAgentId ?? 'null'} -> null: ignored (deselect while in thread view)`
-      );
       return;
     }
 
     // Clear the per-thread context but keep the just-selected agent, then start
     // a fresh thread. (resetChatContext would wipe selectedAgentId too.)
-    console.debug(
-      `[AgentSwitchListener] ${prevAgentId ?? 'null'} -> ${selectedAgentId ?? 'null'}: resetting to a new thread (currentThreadId=${useAgentStore.getState().currentThreadId ?? 'null'})`
-    );
     const store = useAgentStore.getState();
     store.resetThreadContext();
     store.setCurrentThread(null);
