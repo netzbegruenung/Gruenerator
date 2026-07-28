@@ -25,17 +25,18 @@ describe('resolveChatBackground', () => {
   it('keeps a stored preset the platform can draw', () => {
     expect(resolveChatBackground('tanne', 'mobile').key).toBe('tanne');
     expect(resolveChatBackground('tanne', 'web').key).toBe('tanne');
-    expect(resolveChatBackground('nebel', 'mobile').key).toBe('nebel');
-    expect(resolveChatBackground('dunst', 'mobile').key).toBe('dunst');
+    // Chosen in the app, opened in the browser — since web draws them too.
+    for (const key of ['nebel', 'dunst']) {
+      expect(resolveChatBackground(key, 'mobile').key).toBe(key);
+      expect(resolveChatBackground(key, 'web').key).toBe(key);
+    }
   });
 
   it('substitutes a preset the platform does not draw', () => {
-    // Chosen in the app, opened in the browser: web has no class for the mesh
-    // presets, so showing one would mean rendering another preset's look under
-    // its name. They resolve to web's own default instead.
-    for (const key of ['mesh', 'nebel', 'dunst']) {
-      expect(resolveChatBackground(key, 'web').key).toBe(DEFAULT_CHAT_BACKGROUND);
-    }
+    // Showing one would mean rendering another preset's look under its name, so
+    // each resolves to the platform's own default instead.
+    expect(resolveChatBackground('mesh', 'web').key).toBe(DEFAULT_CHAT_BACKGROUND);
+    expect(resolveChatBackground('kern', 'mobile').key).toBe(DEFAULT_CHAT_BACKGROUND_MOBILE);
   });
 
   it('falls back for values outside the schema', () => {
@@ -46,11 +47,11 @@ describe('resolveChatBackground', () => {
 });
 
 describe('chatBackgroundsFor', () => {
-  it('offers the app-only presets to the app and not to the browser', () => {
-    for (const key of ['mesh', 'nebel', 'dunst']) {
-      expect(chatBackgroundsFor('mobile').map((p) => p.key)).toContain(key);
-      expect(chatBackgroundsFor('web').map((p) => p.key)).not.toContain(key);
-    }
+  it('offers a one-platform preset only to that platform', () => {
+    expect(chatBackgroundsFor('mobile').map((p) => p.key)).toContain('mesh');
+    expect(chatBackgroundsFor('web').map((p) => p.key)).not.toContain('mesh');
+    expect(chatBackgroundsFor('web').map((p) => p.key)).toContain('kern');
+    expect(chatBackgroundsFor('mobile').map((p) => p.key)).not.toContain('kern');
   });
 
   it('offers every unmarked preset to both', () => {

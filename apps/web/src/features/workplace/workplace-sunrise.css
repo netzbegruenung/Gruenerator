@@ -22,6 +22,8 @@
   /* Defaults = the `sunrise` preset; the modifier classes below override them. */
   --wp-bg-base: #fefcf5;
   --wp-bg-tint: 233 214 150;
+  /* Dunkelmodus fällt auf die Theme-Fläche durch. Nur die Nebel-Familie setzt
+     hier einen eigenen Grund — ihr Schleier verlangt einen, siehe dort. */
   --wp-bg-base-dark: transparent;
   /* Composer accent: same hue family as the wash, but deep enough to carry
      white text. The wash itself never can — at 1.5:1–2.5:1 against white it
@@ -71,10 +73,132 @@
   --wp-accent-hover: #a6144e;
 }
 
-/* Regenbogen is the one preset that can't ride the single-tint gradient of the
-   base class: it fans five pastel glows across the x-axis instead. Each layer
-   reuses --wp-sunrise-y / --wp-sunrise-glow, so the shared entrance animation
-   lifts and fades them exactly like the one-tint presets. */
+/* ── Nebel-Familie ────────────────────────────────────────────────────────
+   Die drei Fassungen aus dem Entwurf (3a/3b/3c, dunkel 4a/4b/4c), 1:1 in ihren
+   Zahlen. Sie teilen sich vier Farben — Pfirsich, Gelb, Grün, Flieder — und
+   unterscheiden sich nur darin, wie viel Fläche der weiße Schleier freigibt.
+
+   Der Schleier ist die erste Schicht und liegt damit OBEN; die Farbwolken
+   stehen dahinter. Genau das stellt den Composer frei: die Farbe wird nicht
+   schwächer, sie wird überdeckt. Die Reihenfolge ist deshalb load-bearing.
+
+   Nur die Wolken tragen --wp-sunrise-glow, der Schleier nicht. So klart der
+   Nebel beim Eintritt auf, statt dass die ganze Fläche aufblendet.
+   --wp-sunrise-y bleibt außen vor: die Zentren sind gesetzt, ein Anheben
+   verzöge sie.
+
+   Akzent: eine Stufe dunkler als das #52907a des Entwurfs — Begründung an
+   `accent` in packages/shared/src/settings/chatBackgrounds.ts. */
+
+.workplace-chat-bg--nebel {
+  --wp-bg-base: #fdfbf7;
+  --wp-accent: #3f7161;
+  --wp-accent-hover: #34604f;
+  background-image:
+    radial-gradient(
+      90% 130% at 50% 50%,
+      rgb(255 255 255 / 0.82) 0%,
+      rgb(255 255 255 / 0.45) 38%,
+      rgb(255 255 255 / 0.08) 68%,
+      rgb(255 255 255 / 0) 88%
+    ),
+    radial-gradient(
+      70% 130% at 6% 24%,
+      rgb(248 214 207 / calc(0.6 * var(--wp-sunrise-glow))) 0%,
+      rgb(248 214 207 / 0) 70%
+    ),
+    radial-gradient(
+      60% 110% at 42% 96%,
+      rgb(244 239 199 / calc(0.5 * var(--wp-sunrise-glow))) 0%,
+      rgb(244 239 199 / 0) 68%
+    ),
+    radial-gradient(
+      52% 110% at 74% 58%,
+      rgb(206 230 219 / calc(0.55 * var(--wp-sunrise-glow))) 0%,
+      rgb(206 230 219 / 0) 70%
+    ),
+    radial-gradient(
+      46% 100% at 100% 34%,
+      rgb(220 218 244 / calc(0.5 * var(--wp-sunrise-glow))) 0%,
+      rgb(220 218 244 / 0) 66%
+    ),
+    radial-gradient(80% 46% at 40% -6%, rgb(253 248 240 / 1) 0%, rgb(253 248 240 / 0) 64%);
+}
+
+/* Zentren außerhalb 0..1 (at 0% 14%, at 2% 100%) sind Koordinaten, keine
+   geklammerten Positionen — die Ellipse liegt bewusst halb neben der Fläche. */
+.workplace-chat-bg--kern {
+  --wp-bg-base: #fdfcf9;
+  --wp-accent: #3f7161;
+  --wp-accent-hover: #34604f;
+  background-image:
+    radial-gradient(
+      78% 120% at 50% 50%,
+      rgb(255 255 255 / 0.97) 0%,
+      rgb(255 255 255 / 0.82) 40%,
+      rgb(255 255 255 / 0.2) 72%,
+      rgb(255 255 255 / 0) 90%
+    ),
+    radial-gradient(
+      56% 120% at 0% 14%,
+      rgb(247 206 198 / calc(0.8 * var(--wp-sunrise-glow))) 0%,
+      rgb(247 206 198 / 0) 64%
+    ),
+    radial-gradient(
+      46% 110% at 100% 26%,
+      rgb(220 218 246 / calc(0.75 * var(--wp-sunrise-glow))) 0%,
+      rgb(220 218 246 / 0) 62%
+    ),
+    radial-gradient(
+      50% 110% at 100% 92%,
+      rgb(199 228 216 / calc(0.8 * var(--wp-sunrise-glow))) 0%,
+      rgb(199 228 216 / 0) 62%
+    ),
+    radial-gradient(
+      52% 100% at 2% 100%,
+      rgb(243 238 190 / calc(0.7 * var(--wp-sunrise-glow))) 0%,
+      rgb(243 238 190 / 0) 62%
+    );
+}
+
+.workplace-chat-bg--dunst {
+  --wp-bg-base: #fdfcfa;
+  --wp-accent: #3f7161;
+  --wp-accent-hover: #34604f;
+  background-image:
+    radial-gradient(
+      100% 76% at 50% 16%,
+      rgb(255 255 255 / 0.95) 0%,
+      rgb(255 255 255 / 0.6) 46%,
+      rgb(255 255 255 / 0) 82%
+    ),
+    radial-gradient(
+      50% 80% at 12% 104%,
+      rgb(248 210 202 / calc(0.75 * var(--wp-sunrise-glow))) 0%,
+      rgb(248 210 202 / 0) 68%
+    ),
+    radial-gradient(
+      58% 76% at 52% 112%,
+      rgb(244 238 192 / calc(0.7 * var(--wp-sunrise-glow))) 0%,
+      rgb(244 238 192 / 0) 66%
+    ),
+    radial-gradient(
+      50% 80% at 92% 100%,
+      rgb(203 229 217 / calc(0.7 * var(--wp-sunrise-glow))) 0%,
+      rgb(203 229 217 / 0) 66%
+    ),
+    radial-gradient(
+      44% 70% at 100% 76%,
+      rgb(219 217 245 / calc(0.6 * var(--wp-sunrise-glow))) 0%,
+      rgb(219 217 245 / 0) 62%
+    ),
+    radial-gradient(90% 40% at 46% -8%, rgb(253 249 242 / 1) 0%, rgb(253 249 242 / 0) 58%);
+}
+
+/* Regenbogen kann die Eintint-Fläche der Basisklasse ebenfalls nicht tragen:
+   es fächert fünf Pastelltöne über die x-Achse. Anders als die Nebel-Familie
+   reicht jede Schicht --wp-sunrise-y durch, die Eintrittsbewegung hebt sie
+   also mit an. */
 .workplace-chat-bg--regenbogen {
   --wp-bg-base: #fdfaf7;
   --wp-accent: #8e44ad;
@@ -191,7 +315,7 @@
    Keep a faint glow of the chosen tint over the theme background so the chat
    hero still reads as a designed surface in dark mode. */
 [data-theme='dark'] .workplace-chat-sunrise {
-  background-color: transparent;
+  background-color: var(--wp-bg-base-dark);
   background-image: radial-gradient(
     88% 58% at 50% 52%,
     rgb(var(--wp-bg-tint) / 0.1) 0%,
@@ -203,6 +327,69 @@
 
 [data-theme='dark'] .workplace-chat-bg--neutral {
   background-image: none;
+}
+
+/* Runde 4 aus dem Entwurf: dieselben vier Nebel, dunkel. Der Schleier ist kein
+   Weiß mehr, sondern tiefes Oliv-Schwarz auf hoher Deckkraft — er überdeckt die
+   Farbe genauso, nur nach unten. Die Wolken sind eigene, gesättigtere Töne, weil
+   Pastell auf Dunkel verschwindet.
+
+   Diese drei sind die einzigen Presets mit eigenem --wp-bg-base-dark. Die
+   Theme-Fläche durchfallen zu lassen wäre naheliegend, hält aber nur in der
+   Mitte: dort deckt der Schleier bei 0,94–0,99 ohnehin fast alles. Am Rand
+   läuft er auf 0 aus, und dann steht nicht das Oliv-Schwarz des Entwurfs da,
+   sondern --grey-950 (#262626) mit einer Farbwolke darüber — sichtbar heller
+   und grauer. Die Klasse trägt im Hellen ebenso ihren eigenen Grund; dass sie
+   sich damit vom Rand der Seite absetzt, ist im Entwurf so vorgesehen.
+
+   Keine glow-Faktoren: die Dunkel-Regel schaltet die Animation ab.
+
+   Muss nach der generischen Dunkel-Regel oben stehen — gleiche Spezifität. */
+[data-theme='dark'] .workplace-chat-bg--nebel {
+  --wp-bg-base-dark: #14170f;
+  background-image:
+    radial-gradient(
+      88% 128% at 50% 50%,
+      rgb(20 23 17 / 0.94) 0%,
+      rgb(20 23 17 / 0.66) 40%,
+      rgb(20 23 17 / 0.14) 70%,
+      rgb(20 23 17 / 0) 90%
+    ),
+    radial-gradient(70% 130% at 6% 24%, rgb(214 132 118 / 0.3) 0%, rgb(214 132 118 / 0) 70%),
+    radial-gradient(60% 110% at 42% 96%, rgb(206 196 112 / 0.24) 0%, rgb(206 196 112 / 0) 68%),
+    radial-gradient(52% 110% at 74% 58%, rgb(110 186 157 / 0.3) 0%, rgb(110 186 157 / 0) 70%),
+    radial-gradient(46% 100% at 100% 34%, rgb(139 131 206 / 0.28) 0%, rgb(139 131 206 / 0) 66%);
+}
+
+[data-theme='dark'] .workplace-chat-bg--kern {
+  --wp-bg-base-dark: #16190f;
+  background-image:
+    radial-gradient(
+      76% 118% at 50% 50%,
+      rgb(22 25 15 / 0.99) 0%,
+      rgb(22 25 15 / 0.9) 42%,
+      rgb(22 25 15 / 0.28) 74%,
+      rgb(22 25 15 / 0) 92%
+    ),
+    radial-gradient(56% 120% at 0% 14%, rgb(219 134 120 / 0.42) 0%, rgb(219 134 120 / 0) 64%),
+    radial-gradient(46% 110% at 100% 26%, rgb(142 134 212 / 0.4) 0%, rgb(142 134 212 / 0) 62%),
+    radial-gradient(50% 110% at 100% 92%, rgb(104 184 154 / 0.42) 0%, rgb(104 184 154 / 0) 62%),
+    radial-gradient(52% 100% at 2% 100%, rgb(206 196 108 / 0.34) 0%, rgb(206 196 108 / 0) 62%);
+}
+
+[data-theme='dark'] .workplace-chat-bg--dunst {
+  --wp-bg-base-dark: #14170f;
+  background-image:
+    radial-gradient(
+      100% 74% at 50% 14%,
+      rgb(19 22 15 / 0.97) 0%,
+      rgb(19 22 15 / 0.72) 48%,
+      rgb(19 22 15 / 0) 84%
+    ),
+    radial-gradient(50% 80% at 12% 104%, rgb(216 133 119 / 0.4) 0%, rgb(216 133 119 / 0) 68%),
+    radial-gradient(58% 76% at 52% 112%, rgb(204 194 108 / 0.34) 0%, rgb(204 194 108 / 0) 66%),
+    radial-gradient(50% 80% at 92% 100%, rgb(104 184 154 / 0.38) 0%, rgb(104 184 154 / 0) 66%),
+    radial-gradient(44% 70% at 100% 76%, rgb(140 132 210 / 0.3) 0%, rgb(140 132 210 / 0) 62%);
 }
 
 /* Same fan of glows, dimmed to the dark-mode level of the one-tint presets.
