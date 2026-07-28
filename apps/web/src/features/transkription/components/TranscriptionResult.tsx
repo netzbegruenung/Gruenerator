@@ -1,5 +1,5 @@
 import Markdown from '../../../components/common/Markdown/Markdown';
-import { getSpeakerLabel } from '../utils/formatTranscript';
+import { getSpeakerLabel, parseSpeakerBlocks } from '../utils/formatTranscript';
 
 import type { TranscriptionSegment } from '../hooks/useTranscription';
 
@@ -28,67 +28,63 @@ interface TranscriptionResultProps {
   text: string;
   segments: TranscriptionSegment[];
   hasTimestamps: boolean;
-  isStreaming?: boolean;
   formattedText?: string;
-  onShowOriginal?: () => void;
   speakerMap?: Record<string, string>;
+  /** Omit to render speaker labels as plain, non-editable text. */
+  onRenameSpeaker?: (speakerId: string, currentLabel: string) => void;
 }
 
 export default function TranscriptionResult({
   text,
   segments,
   hasTimestamps,
-  isStreaming,
   formattedText,
-  onShowOriginal,
   speakerMap,
+  onRenameSpeaker,
 }: TranscriptionResultProps) {
   if (formattedText) {
     return (
       <div className="display-container flex flex-col rounded-md bg-background-pure shadow-[0_4px_20px_rgba(0,0,0,0.15)] p-lg max-h-[75vh] overflow-y-auto max-md:p-md max-md:shadow-none">
         <Markdown className="prose prose-sm dark:prose-invert max-w-none">{formattedText}</Markdown>
-        {onShowOriginal && (
-          <button
-            type="button"
-            onClick={onShowOriginal}
-            className="mt-md text-xs text-grey-400 dark:text-grey-500 hover:text-foreground transition-colors cursor-pointer"
-          >
-            Originaltext anzeigen
-          </button>
-        )}
       </div>
     );
   }
   // Diarized text: parse [speaker_N] markers (check before timestamps — diarized output also has segments)
   const hasSpeakers = text.includes('[speaker_');
   if (hasSpeakers) {
-    const parts = text.split(/(\[speaker_\d+\])/g).filter(Boolean);
-    let currentSpeaker = '';
-    const blocks: { speaker: string; text: string }[] = [];
-
-    for (const part of parts) {
-      if (part.startsWith('[speaker_')) {
-        currentSpeaker = part.slice(1, -1);
-      } else {
-        const trimmed = part.trim();
-        if (trimmed) {
-          blocks.push({ speaker: currentSpeaker, text: trimmed });
-        }
-      }
-    }
+    const blocks = parseSpeakerBlocks(text);
 
     return (
       <div className="display-container flex flex-col rounded-md bg-background-pure shadow-[0_4px_20px_rgba(0,0,0,0.15)] p-lg max-h-[75vh] overflow-y-auto max-md:p-md max-md:shadow-none">
+        {onRenameSpeaker && (
+          <p className="text-xs text-grey-500 dark:text-grey-400 m-0 mb-md">
+            Namen werden automatisch erkannt — zum Korrigieren auf einen Namen klicken.
+          </p>
+        )}
         <div className="flex flex-col gap-md">
-          {blocks.map((block, i) => {
+          {blocks.map((block) => {
             const speakerIndex = parseInt(block.speaker.match(/\d+/)?.[0] ?? '0');
+            const label = getSpeakerLabel(block.speaker, speakerMap);
             return (
-              <div key={i}>
-                {block.speaker && (
-                  <span className={cn('text-xs font-semibold', getSpeakerColor(speakerIndex))}>
-                    {getSpeakerLabel(block.speaker, speakerMap)}
-                  </span>
-                )}
+              <div key={block.offset}>
+                {block.speaker &&
+                  (onRenameSpeaker ? (
+                    <button
+                      type="button"
+                      onClick={() => onRenameSpeaker(block.speaker, label)}
+                      title="Sprecher*in umbenennen"
+                      className={cn(
+                        'text-xs font-semibold bg-transparent border-none p-0 cursor-pointer hover:underline',
+                        getSpeakerColor(speakerIndex)
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ) : (
+                    <span className={cn('text-xs font-semibold', getSpeakerColor(speakerIndex))}>
+                      {label}
+                    </span>
+                  ))}
                 <p className="text-sm text-foreground m-0 mt-xs leading-relaxed">{block.text}</p>
               </div>
             );
@@ -102,8 +98,8 @@ export default function TranscriptionResult({
     return (
       <div className="display-container flex flex-col rounded-md bg-background-pure shadow-[0_4px_20px_rgba(0,0,0,0.15)] p-lg max-h-[75vh] overflow-y-auto max-md:p-md max-md:shadow-none">
         <div className="flex flex-col gap-sm">
-          {segments.map((seg, i) => (
-            <div key={i} className="flex gap-sm">
+          {segments.map((seg) => (
+            <div key={`${seg.start}-${seg.end}`} className="flex gap-sm">
               <span className="text-xs text-grey-400 dark:text-grey-500 font-mono whitespace-nowrap pt-0.5 min-w-[5rem]">
                 {formatTime(seg.start)} – {formatTime(seg.end)}
               </span>
@@ -118,12 +114,7 @@ export default function TranscriptionResult({
   // Plain text
   return (
     <div className="display-container flex flex-col rounded-md bg-background-pure shadow-[0_4px_20px_rgba(0,0,0,0.15)] p-lg max-h-[75vh] overflow-y-auto max-md:p-md max-md:shadow-none">
-      <p className="text-sm text-foreground m-0 leading-relaxed whitespace-pre-wrap">
-        {text}
-        {isStreaming && (
-          <span className="inline-block w-1.5 h-4 bg-primary-500 ml-0.5 animate-pulse rounded-sm" />
-        )}
-      </p>
+      <p className="text-sm text-foreground m-0 leading-relaxed whitespace-pre-wrap">{text}</p>
     </div>
   );
 }

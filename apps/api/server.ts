@@ -26,6 +26,7 @@ import { createCorsOptions } from './config/cors.js';
 import { env } from './config/env.js';
 import { getServerConfig } from './config/serverConfig.js';
 import { Sentry } from './lib/sentry.js';
+import { requireAuth } from './middleware/authMiddleware.js';
 import { shouldSkipBodyParser } from './middleware/bodyParserConfig.js';
 import { createCacheMiddleware } from './middleware/cacheMiddleware.js';
 import { setupRoutes } from './routes.js';
@@ -312,14 +313,6 @@ async function startWorker(): Promise<void> {
     void tusServer.handle(req, res);
   });
 
-  const audioUploadPath = '/api/audio/upload';
-  app.all(audioUploadPath, (req: Request, res: Response) => {
-    void tusServer.handle(req, res);
-  });
-  app.all(audioUploadPath + '/*splat', (req: Request, res: Response) => {
-    void tusServer.handle(req, res);
-  });
-
   // Plain binary upload for non-TUS clients (mobile uses expo-file-system's
   // native uploader). Registered here — before compression and the body
   // parsers — so `req` stays the raw byte stream and writes straight to disk.
@@ -338,6 +331,26 @@ async function startWorker(): Promise<void> {
   app.post('/api/subtitler/upload-binary', uploadBinaryLimiter, (req: Request, res: Response) => {
     void handleBinaryUpload(req, res);
   });
+
+  // Audio uploads for the Transkription feature. Unlike the subtitler TUS path
+  // above, this one is behind requireAuth: its only client is a logged-in page,
+  // and an open endpoint that writes up to 500 MB per upload straight to disk is
+  // a standing invitation. requireAuth reads req.headers only (cookie or bearer),
+  // so it works here even though the body parsers run later; the CORS middleware
+  // registered further up already answers OPTIONS preflights itself, so TUS's
+  // non-POST verbs are not blocked by it.
+  const audioUploadPath = '/api/audio/upload';
+  app.all(audioUploadPath, uploadBinaryLimiter, requireAuth, (req: Request, res: Response) => {
+    void tusServer.handle(req, res);
+  });
+  app.all(
+    audioUploadPath + '/*splat',
+    uploadBinaryLimiter,
+    requireAuth,
+    (req: Request, res: Response) => {
+      void tusServer.handle(req, res);
+    }
+  );
 
   // Compression middleware
   app.use(
@@ -718,7 +731,6 @@ async function startWorker(): Promise<void> {
       success: false,
       error: 'Ein Serverfehler ist aufgetreten',
 
-      // eslint-disable-next-line gruenerator/no-raw-error-to-client -- dev-only branch; prod gets `errorMessage`
       message: isDev ? err.message : errorMessage,
       stack: isDev ? err.stack : undefined,
       errorId: `${Date.now()}-${Math.floor(Math.random() * 1000)}`,

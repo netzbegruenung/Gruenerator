@@ -853,10 +853,17 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountPresentationsContractRouter(app);
   app.use('/api/presentations', presentationExportRouter);
   app.use('/api/users', requireAuth, publicReadLimiter, usersRouter);
+  // Auth + rate-limiting run on the prefix because createExpressEndpoints
+  // registers handlers directly on the app — mounting them after
+  // mountVoiceContractRouter would leave the contracted routes uncovered.
+  // Every voice endpoint spends AI credit or disk, so none of them are public.
+  // The /api/voice/realtime WebSocket is unaffected: it is served from the
+  // server's `upgrade` handler, which Express middleware never sees.
+  app.use('/api/voice', requireAuth, standardMutationLimiter);
   // ts-rest contract router — mount before legacy voiceController router
   mountVoiceContractRouter(app);
-  app.use('/api/voice', publicReadLimiter, voiceRouter);
-  app.use('/api/voice/tts', requireAuth, standardMutationLimiter, ttsRouter);
+  app.use('/api/voice', voiceRouter);
+  app.use('/api/voice/tts', ttsRouter);
   // searchContractRouter exists but is intentionally NOT mounted yet — the
   // pilot contract doesn't model the SSE `?stream=true` mode that the frontend
   // depends on. Activate once streaming is added to the contract.
