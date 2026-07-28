@@ -362,13 +362,6 @@ function MainThreadSyncEffect() {
   );
 
   useEffect(() => {
-    if (mainRemoteId === null) {
-      // Traces WHY the "main" thread slot became a fresh/unmapped draft —
-      // switchToNewThread() (AgentSwitchListener, a "new chat" action) vs a
-      // remount recreating the runtime from scratch are the two known causes;
-      // the stack below shows which.
-      console.trace('[MainThreadSyncEffect] mainRemoteId -> null');
-    }
     useAgentStore.getState().setCurrentThread(mainRemoteId);
   }, [mainRemoteId]);
 

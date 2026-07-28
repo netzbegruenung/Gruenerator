@@ -142,7 +142,6 @@ export function createGrueneratorThreadListAdapter(
 
   return {
     async list() {
-      const startedAt = Date.now();
       try {
         const threads = await apiClient.get<ApiThread[]>('/api/chat-service/threads');
         cachedThreads = threads;
@@ -215,9 +214,6 @@ export function createGrueneratorThreadListAdapter(
         const all = [...apiEntries, ...externalEntries].sort((a, b) => b._updatedAt - a._updatedAt);
 
         lastListFetchFailed = false;
-        console.debug(
-          `[ThreadList] list() ok: ${cachedThreads.length} threads in ${Date.now() - startedAt}ms`
-        );
         return {
           threads: all.map(({ _updatedAt, ...rest }) => rest),
         };
@@ -226,17 +222,8 @@ export function createGrueneratorThreadListAdapter(
         // onUnauthorized's teardown wins. Keep the empty-list fallback for real
         // failures (offline, 5xx) so the sidebar degrades gracefully there.
         lastListFetchFailed = true;
-        const status =
-          error &&
-          typeof error === 'object' &&
-          typeof (error as { status?: unknown }).status === 'number'
-            ? (error as { status: number }).status
-            : null;
-        console.warn(
-          `[ThreadList] list() FAILED after ${Date.now() - startedAt}ms (status=${status ?? 'n/a'}):`,
-          error instanceof Error ? error.message : error
-        );
         if (isUnauthorizedError(error)) throw error;
+        console.warn('[ThreadList] Failed to fetch threads:', error);
         // An empty sidebar is indistinguishable from "you have no chats", so
         // say which one it is before falling back.
         notifyWarning(
