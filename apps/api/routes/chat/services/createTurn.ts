@@ -26,10 +26,12 @@
  *    intents) → `doneIntent`.
  */
 
+import { applyContextCap } from '../../../utils/contextCap.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { renderSourceLines, withResearchedSources } from './agenticLoop/sourceRegistry.js';
 import { failCreation, rememberArtifact } from './createTurnHelpers.js';
+import { extractTextContent } from './messageHelpers.js';
 import { createMessage, getRecentThreadSources, touchThread } from './threadPersistenceService.js';
 
 import type { SSEWriter } from './sseHelpers.js';
@@ -43,6 +45,68 @@ const log = createLogger('ChatGraphController');
 
 /** Text is streamed in fixed-size slices, matching the previous handlers. */
 const TEXT_CHUNK = 20;
+
+/**
+ * How much conversation a create turn is handed.
+ *
+ * Bounded in CHARACTERS, not messages. A message COUNT is the wrong unit here:
+ * in the thread that exposed this, messages ranged from "Notiert." to a
+ * 1700-character essay, so "the last four" meant anything between 30 and 7000
+ * characters — and a short run of confirmations would push the very answer the
+ * user said "mach ein PDF draus" about right out of the window.
+ *
+ * 24000 is sized against a measured thread rather than guessed: a 39-message QA
+ * session logged 3195 tokens (~12000 chars) in total, so this carries a whole
+ * conversation with headroom while staying near 6k tokens — a fraction of the
+ * ~41.8k the direct lane already budgets, so it cannot crowd out the artifact
+ * prompt or the generation itself.
+ */
+const CONTEXT_CHARS = 24_000;
+/** Per-message cap, so one pasted wall of text cannot eat the whole budget. */
+const PER_MESSAGE_CHARS = 4_000;
+
+/**
+ * The thread as a plain transcript, newest-first-bounded.
+ *
+ * Why this exists: a single-pass create turn used to build NO history — the
+ * generator saw one string. "jetzt als PDF exportieren" therefore reached it as
+ * exactly that sentence, and the answer it referred to was structurally
+ * invisible. Observed live: the PDF was filled from the only other material in
+ * scope, a Kanban confirmation line, and cited it as a source.
+ *
+ * The LAST user message is skipped — it IS the brief, passed separately.
+ */
+export function buildCreateTurnContext(messages: ChatGraphState['messages']): string {
+  const history = messages.slice(0, -1);
+  const lines: string[] = [];
+  let budget = CONTEXT_CHARS;
+  for (let i = history.length - 1; i >= 0 && budget > 0; i--) {
+    const message = history[i];
+    if (!message) continue;
+    const text = extractTextContent(message.content).trim();
+    if (!text) continue;
+    const clipped = applyContextCap(
+      text,
+      Math.min(PER_MESSAGE_CHARS, budget),
+      'createTurn:context',
+      false
+    );
+    lines.unshift(`${message.role}: ${clipped}`);
+    budget -= clipped.length;
+  }
+  return lines.join('\n');
+}
+
+/**
+ * Frames the transcript so the model knows which half is the instruction. The
+ * brief goes LAST: it is what the turn is for, and recency is the cheapest way
+ * to say so.
+ */
+function withConversationContext(brief: string, transcript: string): string {
+  return transcript.trim()
+    ? `BISHERIGES GESPRÄCH (Hintergrund — ein Auftrag wie „mach ein PDF daraus" bezieht sich auf den letzten Beitrag darin):\n${transcript}\n\nAUFTRAG:\n${brief}`
+    : brief;
+}
 
 export interface CreateTurnOpts {
   sse: SSEWriter;
@@ -117,17 +181,25 @@ export async function runCreateTurn<T>(
     streamOpened = true;
   };
 
-  // A single-pass create turn builds NO message history — the generator sees one
-  // string. Without this, "erstelle ein PDF mit den Quellen aus der Recherche"
-  // reaches the model as that bare sentence and it fills the document with
-  // placeholders. Hand it the thread's most recent research instead, in the same
-  // numbered shape the artifact prompts are told to expect.
-  let enrichedContent = userContent;
+  // A single-pass create turn builds no message history of its own, so the
+  // generator would see one string. Two enrichments fix that, in this order:
+  //
+  //  1. the thread transcript — what "mach ein PDF daraus" POINTS AT. Without
+  //     it the referenced answer is invisible and the generator falls back on
+  //     whatever else is in scope (live: a Kanban confirmation line became the
+  //     document's entire content, cited as source [1]);
+  //  2. the thread's most recent research, in the numbered shape the artifact
+  //     prompts are told to expect, so "erstelle ein PDF mit den Quellen aus
+  //     der Recherche" gets real sources instead of placeholders.
+  let enrichedContent = withConversationContext(
+    userContent,
+    buildCreateTurnContext(classifiedState.messages ?? [])
+  );
   if (actualThreadId) {
     try {
       const carried = await getRecentThreadSources(actualThreadId);
       if (carried.length > 0) {
-        enrichedContent = withResearchedSources(userContent, renderSourceLines(carried));
+        enrichedContent = withResearchedSources(enrichedContent, renderSourceLines(carried));
         log.info(`[${spec.logLabel}] briefed with ${carried.length} prior source(s)`);
       }
     } catch (err) {
