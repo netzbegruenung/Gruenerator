@@ -8,14 +8,11 @@
  */
 
 import fs from 'fs';
-import os from 'os';
-import path from 'path';
 
 import express, { type Request, type Response, type Router } from 'express';
 import multer, { type FileFilterCallback } from 'multer';
 import { z } from 'zod';
 
-import { env } from '../../config/env.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import {
   getFilePathFromUploadId,
@@ -24,13 +21,15 @@ import {
   scheduleImmediateCleanup,
   getUploadStatus,
 } from '../../services/subtitler/tusService.js';
-import { extractAudio, cleanupFiles } from '../../services/subtitler/videoUploadService.js';
 import mistralVoiceService from '../../services/voice/mistralVoiceService.js';
+import { identifySpeakers } from '../../services/voice/protokollService.js';
 import {
-  generateProtokoll,
-  identifySpeakers,
-  extractTodoList,
-} from '../../services/voice/protokollService.js';
+  extractAudioFromVideo,
+  isVideoFile,
+  transcribeBuffer,
+  type TranscriptionOptions,
+  type TranscriptionSegment,
+} from '../../services/voice/transcriptionRouterService.js';
 import { createLogger } from '../../utils/logger.js';
 import { sanitizeFilename } from '../../utils/validation/security.js';
 import { createSSEStream } from '../chat/services/sseHelpers.js';
@@ -40,18 +39,6 @@ const log = createLogger('voice');
 // ============================================================================
 // Types
 // ============================================================================
-
-interface TranscriptionSegment {
-  start: number;
-  end: number;
-  text: string;
-}
-
-interface TranscriptionResult {
-  text: string;
-  segments?: TranscriptionSegment[];
-  hasTimestamps: boolean;
-}
 
 interface TranscribeRequest extends Request {
   file?: Express.Multer.File;
@@ -90,23 +77,10 @@ interface TranscribeResponse {
   error?: string;
 }
 
-interface TranscribeUrlResponse extends TranscribeResponse {
-  sourceUrl?: string;
-}
-
 interface ChatResponse {
   success: boolean;
   response?: string;
   prompt?: string;
-  error?: string;
-}
-
-interface FormatsResponse {
-  success: boolean;
-  supportedFormats?: string[];
-  maxFileSize?: string;
-  maxDuration?: string;
-  provider?: string;
   error?: string;
 }
 
@@ -118,90 +92,11 @@ const tusTranscribeBodySchema = z.object({
 });
 type TusTranscribeBody = z.infer<typeof tusTranscribeBodySchema>;
 
-const transcribeUrlBodySchema = z.object({
-  url: z.string().min(1),
-  language: z.string().optional(),
-  removeTimestamps: z.boolean().optional(),
-  timestamps: z.boolean().optional(),
-  diarize: z.boolean().optional(),
-  contextBias: z.array(z.string()).optional(),
-});
-type TranscribeUrlBody = z.infer<typeof transcribeUrlBodySchema>;
-
-const protokollBodySchema = z.object({
-  inputText: z.string().min(1),
-  protokollTyp: z.enum(['Sitzungsprotokoll', 'Ergebnisprotokoll', 'Verlaufsprotokoll']).optional(),
-});
-type ProtokollBody = z.infer<typeof protokollBodySchema>;
-
-const identifySpeakersBodySchema = z.object({
-  text: z.string().min(1),
-});
-type IdentifySpeakersBody = z.infer<typeof identifySpeakersBodySchema>;
-
-const todoListBodySchema = z.object({
-  text: z.string().min(1),
-  title: z.string().optional(),
-});
-type TodoListBody = z.infer<typeof todoListBodySchema>;
-
-type TimestampGranularity = 'segment';
-
-interface TranscriptionOptions {
-  language?: string;
-  removeTimestamps?: boolean;
-  timestamp_granularities?: TimestampGranularity[];
-  diarize?: boolean;
-  contextBias?: string[];
-}
-
 // ============================================================================
 // Router Setup
 // ============================================================================
 
 const router: Router = express.Router();
-
-const VIDEO_MIME_TYPES = new Set([
-  'video/mp4',
-  'video/quicktime',
-  'video/x-msvideo',
-  'video/x-matroska',
-  'video/webm',
-  'video/mpeg',
-  'video/ogg',
-  'video/3gpp',
-]);
-
-function isVideoFile(mimetype: string): boolean {
-  return VIDEO_MIME_TYPES.has(mimetype) || mimetype.startsWith('video/');
-}
-
-interface ExtractOptions {
-  onProgress?: (percent: number, timemark: string) => void;
-}
-
-async function extractAudioFromVideo(
-  videoBuffer: Buffer,
-  originalname: string,
-  options?: ExtractOptions
-): Promise<{ buffer: Buffer; filename: string }> {
-  const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'voice-video-'));
-  const ext = path.extname(originalname) || '.mp4';
-  const videoPath = path.join(tmpDir, `input${ext}`);
-  const audioPath = path.join(tmpDir, 'extracted.mp3');
-
-  try {
-    await fs.promises.writeFile(videoPath, videoBuffer);
-    const extractOptions = options?.onProgress != null ? { onProgress: options.onProgress } : {};
-    await extractAudio(videoPath, audioPath, extractOptions);
-    const audioBuffer = await fs.promises.readFile(audioPath);
-    const audioFilename = originalname.replace(/\.[^.]+$/, '.mp3');
-    return { buffer: audioBuffer, filename: audioFilename };
-  } finally {
-    await cleanupFiles(videoPath, audioPath);
-    await fs.promises.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
-  }
-}
 
 // Multer configuration for in-memory upload
 const storage = multer.memoryStorage();
@@ -221,132 +116,6 @@ const upload = multer({
     }
   },
 });
-
-// ============================================================================
-// STT Provider Selection
-// ============================================================================
-
-const REGOLO_BASE_URL = 'https://api.regolo.ai/v1';
-const WHISPER_MODEL = 'faster-whisper-large-v3';
-
-interface WhisperSegment {
-  start: number;
-  end: number;
-  text: string;
-  words?: Array<{ word: string; start: number; end: number }>;
-}
-
-interface WhisperVerboseResponse {
-  text: string;
-  segments?: WhisperSegment[];
-}
-
-function mimeTypeFromFilename(filename: string): string {
-  const ext = filename.split('.').pop()?.toLowerCase();
-  const mimeMap: Record<string, string> = {
-    mp3: 'audio/mpeg',
-    wav: 'audio/wav',
-    m4a: 'audio/m4a',
-    aac: 'audio/aac',
-    ogg: 'audio/ogg',
-    webm: 'audio/webm',
-    flac: 'audio/flac',
-  };
-  return mimeMap[ext || ''] || 'audio/wav';
-}
-
-/**
- * Transcribe audio buffer via Regolo faster-whisper (same endpoint as subtitler).
- * Returns the same shape as mistralVoiceService.transcribeFromBuffer().
- */
-async function transcribeWithRegoloWhisper(
-  audioBuffer: Buffer,
-  filename: string,
-  options: TranscriptionOptions = {}
-): Promise<TranscriptionResult> {
-  const apiKey = env.REGOLO_API_KEY;
-  if (!apiKey) throw new Error('REGOLO_API_KEY is not configured');
-
-  const { language = 'de', timestamp_granularities } = options;
-  const requestTimestamps = !!timestamp_granularities?.length;
-
-  log.debug(
-    `[Voice/Regolo] Transcribing ${filename} (${(audioBuffer.length / 1024 / 1024).toFixed(1)} MB)`
-  );
-
-  const blob = new Blob([new Uint8Array(audioBuffer)], { type: mimeTypeFromFilename(filename) });
-  const form = new FormData();
-  form.append('file', blob, filename);
-  form.append('model', WHISPER_MODEL);
-  form.append('language', language);
-
-  if (requestTimestamps) {
-    form.append('response_format', 'verbose_json');
-    form.append('timestamp_granularities[]', 'segment');
-  }
-
-  const response = await fetch(`${REGOLO_BASE_URL}/audio/transcriptions`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}` },
-    body: form,
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Regolo transcription failed (${response.status}): ${errorText}`);
-  }
-
-  const data = (await response.json()) as WhisperVerboseResponse;
-  log.debug(`[Voice/Regolo] Completed: ${data.text.length} chars`);
-
-  const result: TranscriptionResult = { text: data.text, hasTimestamps: false };
-
-  if (requestTimestamps && data.segments) {
-    result.segments = data.segments.map((s) => ({ start: s.start, end: s.end, text: s.text }));
-    result.hasTimestamps = true;
-  }
-
-  return result;
-}
-
-/**
- * Transcribe using Regolo Whisper with Mistral Voxtral fallback.
- * Diarize/contextBias require Voxtral (Whisper doesn't support them).
- */
-async function transcribeBuffer(
-  audioBuffer: Buffer,
-  filename: string,
-  options: TranscriptionOptions = {}
-): Promise<TranscriptionResult> {
-  const needsVoxtral = options.diarize || options.contextBias?.length;
-
-  if (needsVoxtral) {
-    log.debug('[Voice] Using Voxtral (diarize/contextBias requested)');
-    const result = await mistralVoiceService.transcribeFromBuffer(audioBuffer, filename, options);
-    return {
-      text: result.text,
-      ...(result.segments != null && { segments: result.segments }),
-      hasTimestamps: !!result.segments?.length,
-    };
-  }
-
-  if (env.REGOLO_API_KEY) {
-    try {
-      return await transcribeWithRegoloWhisper(audioBuffer, filename, options);
-    } catch (error) {
-      log.warn(
-        `[Voice] Regolo Whisper failed, falling back to Voxtral: ${(error as Error).message}`
-      );
-    }
-  }
-
-  const result = await mistralVoiceService.transcribeFromBuffer(audioBuffer, filename, options);
-  return {
-    text: result.text,
-    ...(result.segments != null && { segments: result.segments }),
-    hasTimestamps: !!result.segments?.length,
-  };
-}
 
 // ============================================================================
 // Route Handlers
@@ -504,7 +273,7 @@ router.post('/transcribe/stream', upload.single('audio'), (async (
       });
     } else {
       // Streaming transcription — Voxtral only (Whisper has no streaming API)
-      // eslint-disable-next-line @typescript-eslint/await-thenable -- transcribeFromBufferStream yields an async-iterable stream
+
       for await (const event of mistralVoiceService.transcribeFromBufferStream(
         audioBuffer,
         filename,
@@ -524,73 +293,6 @@ router.post('/transcribe/stream', upload.single('audio'), (async (
 // ============================================================================
 // TUS-based transcription (two-phase: upload via TUS, then process)
 // ============================================================================
-
-/**
- * POST /api/voice/transcribe-upload
- * Transcribe a file previously uploaded via TUS at /api/audio/upload.
- * Reads the file from disk by uploadId, avoiding multer memory limits.
- */
-router.post(
-  '/transcribe-upload',
-  validateBody(tusTranscribeBodySchema),
-  async (req: TypedRequest<TusTranscribeBody>, res: Response<TranscribeResponse>) => {
-    const { uploadId, language = 'de', diarize = false, timestamps = false } = req.body;
-
-    const filePath = getFilePathFromUploadId(uploadId);
-    if (!(await checkFileExists(filePath))) {
-      void scheduleImmediateCleanup(uploadId, 'file not found');
-      return res.status(404).json({ success: false, error: 'Upload nicht gefunden' });
-    }
-
-    try {
-      markUploadAsProcessed(uploadId);
-      const uploadStatus = await getUploadStatus(uploadId);
-      const meta = uploadStatus.metadata?.metadata as Record<string, string> | undefined;
-      let audioBuffer: Buffer = Buffer.from(await fs.promises.readFile(filePath));
-      let filename = sanitizeFilename(meta?.filename || 'audio.mp3', 'audio.mp3');
-      const filetype = meta?.filetype || '';
-
-      const options: TranscriptionOptions = {
-        language,
-        ...(timestamps && { timestamp_granularities: ['segment'] as const }),
-        ...(diarize && { diarize: true }),
-      };
-
-      if (isVideoFile(filetype)) {
-        log.debug('[Voice] TUS upload is video, extracting audio from:', filename);
-        const extracted = await extractAudioFromVideo(audioBuffer, filename);
-        audioBuffer = extracted.buffer;
-        filename = extracted.filename;
-      }
-
-      log.debug('[Voice] Starting TUS transcription for:', filename, 'Options:', options);
-      const result = await transcribeBuffer(audioBuffer, filename, options);
-
-      let speakerMap: Record<string, string> = {};
-      if (diarize && result.text.includes('[speaker_')) {
-        speakerMap = await identifySpeakers(result.text);
-      }
-
-      void scheduleImmediateCleanup(uploadId, 'transcription complete');
-
-      return res.json({
-        success: true,
-        text: result.text,
-        ...(result.segments != null && { segments: result.segments }),
-        hasTimestamps: result.hasTimestamps,
-        speakerMap,
-        language,
-      });
-    } catch (error) {
-      log.error('[Voice] TUS transcription error:', error);
-      void scheduleImmediateCleanup(uploadId, 'transcription error');
-      return res.status(500).json({
-        success: false,
-        error: 'Fehler bei der Transkription: ' + (error as Error).message,
-      });
-    }
-  }
-);
 
 /**
  * POST /api/voice/transcribe-upload/stream
@@ -658,7 +360,6 @@ router.post(
           speakerMap,
         });
       } else {
-        // eslint-disable-next-line @typescript-eslint/await-thenable -- transcribeFromBufferStream yields an async-iterable stream
         for await (const event of mistralVoiceService.transcribeFromBufferStream(
           audioBuffer,
           filename,
@@ -676,60 +377,6 @@ router.post(
     }
 
     sse.end();
-  }
-);
-
-/**
- * POST /api/voice/transcribe-url
- * Transcribe audio from URL
- */
-router.post(
-  '/transcribe-url',
-  validateBody(transcribeUrlBodySchema),
-  async (req: TypedRequest<TranscribeUrlBody>, res: Response<TranscribeUrlResponse>) => {
-    const {
-      url,
-      language = 'de',
-      removeTimestamps = false,
-      timestamps = false,
-      diarize = false,
-      contextBias,
-    } = req.body;
-
-    const options: TranscriptionOptions = {
-      language,
-      removeTimestamps,
-      ...(timestamps && { timestamp_granularities: ['segment'] as const }),
-      diarize,
-      ...(contextBias != null && { contextBias }),
-    };
-
-    try {
-      log.debug('[Voice] Starting URL transcription for:', url, 'Options:', options);
-
-      const voxtralResult = await mistralVoiceService.transcribeFromUrl(url, options);
-      const result: TranscriptionResult = {
-        text: voxtralResult.text,
-        ...(voxtralResult.segments != null && { segments: voxtralResult.segments }),
-        hasTimestamps: !!voxtralResult.segments?.length,
-      };
-
-      return res.json({
-        success: true,
-        text: result.text,
-        ...(result.segments != null && { segments: result.segments }),
-        hasTimestamps: result.hasTimestamps,
-        ...(options.language != null && { language: options.language }),
-        sourceUrl: url,
-      });
-    } catch (error) {
-      log.error('[Voice] URL transcription error:', error);
-
-      return res.status(500).json({
-        success: false,
-        error: 'Fehler bei der URL-Transkription: ' + (error as Error).message,
-      });
-    }
   }
 );
 
@@ -772,104 +419,5 @@ router.post('/chat', upload.single('audio'), (async (
     });
   }
 }) as express.RequestHandler);
-
-/**
- * POST /api/voice/protokoll
- * Generate a structured protocol from transcription text using GPT-OSS via LiteLLM
- */
-router.post(
-  '/protokoll',
-  validateBody(protokollBodySchema),
-  async (req: TypedRequest<ProtokollBody>, res: Response) => {
-    const { inputText, protokollTyp } = req.body;
-
-    try {
-      const content = await generateProtokoll({
-        inputText,
-        protokollTyp: protokollTyp || 'Sitzungsprotokoll',
-      });
-      return res.json({ success: true, content });
-    } catch (error) {
-      log.error('[Voice] Protokoll error:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'Fehler bei der Protokoll-Erstellung: ' + (error as Error).message,
-      });
-    }
-  }
-);
-
-/**
- * POST /api/voice/identify-speakers
- * Use GPT-OSS to identify speaker names from diarized transcription context
- */
-router.post(
-  '/identify-speakers',
-  validateBody(identifySpeakersBodySchema),
-  async (req: TypedRequest<IdentifySpeakersBody>, res: Response) => {
-    const { text } = req.body;
-
-    try {
-      const mapping = await identifySpeakers(text);
-      return res.json({ success: true, mapping });
-    } catch (error) {
-      log.error('[Voice] Speaker identification error:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'Fehler bei der Sprecher*innen-Erkennung: ' + (error as Error).message,
-      });
-    }
-  }
-);
-
-/**
- * POST /api/voice/todo-list
- * Extract action items from transcription text via GPT-OSS and return as checklist HTML
- */
-router.post(
-  '/todo-list',
-  validateBody(todoListBodySchema),
-  async (req: TypedRequest<TodoListBody>, res: Response) => {
-    const { text, title } = req.body;
-
-    try {
-      const html = await extractTodoList(text, title);
-      return res.json({ success: true, content: html });
-    } catch (error) {
-      log.error('[Voice] Todo list error:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'Fehler bei der Aufgaben-Extraktion: ' + (error as Error).message,
-      });
-    }
-  }
-);
-
-/**
- * GET /api/voice/formats
- * Get supported audio formats
- */
-router.get('/formats', (_req: Request, res: Response<FormatsResponse>) => {
-  try {
-    const formats = [...mistralVoiceService.getSupportedFormats(), ...Array.from(VIDEO_MIME_TYPES)];
-
-    return res.json({
-      success: true,
-      supportedFormats: formats,
-      maxFileSize: '500MB (video), 50MB (audio)',
-      maxDuration: '~30 minutes for transcription, ~40 minutes for understanding',
-      provider: env.REGOLO_API_KEY
-        ? 'Regolo Whisper (Voxtral fallback, video converted via FFmpeg)'
-        : 'Mistral Voxtral (video converted via FFmpeg)',
-    });
-  } catch (error) {
-    log.error('[Voice] Formats error:', error);
-
-    return res.status(500).json({
-      success: false,
-      error: 'Fehler beim Abrufen der unterstützten Formate',
-    });
-  }
-});
 
 export default router;
