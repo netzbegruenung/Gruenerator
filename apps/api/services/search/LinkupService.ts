@@ -2,9 +2,13 @@
  * Linkup Service
  *
  * Thin client around the Linkup agentic-search API (https://docs.linkup.so).
- * Two modes mapped 1:1 to our two intents:
- *   - webSearch  → depth=standard, outputType=searchResults  (replaces SearXNG)
- *   - deepResearch → depth=deep, outputType=sourcedAnswer    (replaces our orchestrator)
+ * Two orthogonal knobs — depth (standard|deep) and outputType:
+ *   - webSearch    → outputType=searchResults, depth per call. The chat's only
+ *                    retrieval door; WE write the answer and own the [N].
+ *   - deepResearch → depth=deep, outputType=sourcedAnswer. LINKUP writes the
+ *                    answer. Used by the Monitor's daily briefing pipeline, no
+ *                    longer by the chat — a chat answer the model didn't write
+ *                    cannot be cited against our own source registry.
  *
  * Gated by env.LINKUP_API_KEY presence — getLinkupService() returns null when
  * the key is unset, leaving existing code paths intact.
@@ -46,25 +50,41 @@ export interface LinkupSourcedAnswerResponse {
 
 export type LinkupLocale = 'de' | 'at' | 'eu';
 
+/** The two engine depths Linkup offers. Everything the chat calls "Stufe" maps
+ *  onto this plus a result count — there is no third depth to reach for. */
+export type LinkupDepth = 'standard' | 'deep';
+
 export class LinkupService {
   constructor(private readonly apiKey: string) {}
 
-  /** standard depth, searchResults output — drop-in for SearXNG. */
+  /**
+   * searchResults output at either engine depth — the chat's single retrieval
+   * door.
+   *
+   * `depth: 'deep'` runs Linkup's own multi-iteration agentic search and returns
+   * RAW results, which is the combination we never used: the chat had exactly
+   * two settings, `standard` here and `deep`+`sourcedAnswer` in `deepResearch`,
+   * so every question that needed more than a quick lookup jumped straight to
+   * the most expensive mode and handed answer-writing to Linkup.
+   */
   async webSearch(params: {
     query: string;
+    depth?: LinkupDepth;
     maxResults?: number;
     fromDate?: string;
   }): Promise<LinkupSearchResultsResponse> {
     return this.call<LinkupSearchResultsResponse>('/search', {
       q: params.query,
-      depth: 'standard',
+      depth: params.depth ?? 'standard',
       outputType: 'searchResults',
       ...(params.maxResults ? { maxResults: params.maxResults } : {}),
       ...(params.fromDate ? { fromDate: params.fromDate } : {}),
     });
   }
 
-  /** deep depth, sourcedAnswer output — replaces the research orchestrator. */
+  /** deep depth, sourcedAnswer output — Linkup writes the report itself.
+   *  Monitor pipeline only (HotTopicPipeline); the chat routes through
+   *  `webSearch` at every tier so citations stay ours. */
   async deepResearch(params: {
     question: string;
     locale?: LinkupLocale;
