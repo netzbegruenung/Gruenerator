@@ -54,21 +54,32 @@ export function ChatThreadRouting({
     }
 
     let cancelled = false;
+    console.debug(`[ChatThreadRouting] resolving suffix=${suffix} from URL`);
     void (async () => {
       try {
         await aui.threads().getLoadThreadsPromise();
         if (cancelled) return;
         let remoteId = resolveThreadBySlugSuffix(suffix);
+        console.debug(
+          `[ChatThreadRouting] suffix=${suffix} initial lookup: ${remoteId ? `found ${remoteId}` : 'not found'} (lastFetchFailed=${didLastThreadListFetchFail()})`
+        );
         if (!remoteId && didLastThreadListFetchFail()) {
           // The initial list load failed (network blip, cold backend, etc.) —
           // assistant-ui swallows that failure internally and just leaves the
           // list empty, so an empty result here doesn't mean the thread is
           // actually gone. Retry once with a fresh fetch before giving up.
+          console.debug(`[ChatThreadRouting] suffix=${suffix} retrying list load after failure`);
           await aui.threads().reload();
           if (cancelled) return;
           remoteId = resolveThreadBySlugSuffix(suffix);
+          console.debug(
+            `[ChatThreadRouting] suffix=${suffix} retry lookup: ${remoteId ? `found ${remoteId}` : 'still not found'}`
+          );
         }
         if (!remoteId) {
+          console.warn(
+            `[ChatThreadRouting] suffix=${suffix} unresolved after load — navigating away from /chat/${threadSlug}`
+          );
           onThreadGone();
           return;
         }
@@ -91,9 +102,15 @@ export function ChatThreadRouting({
         }
         store.setChatViewMode('thread');
         aui.threads().switchToThread(remoteId);
-        if (!cancelled) activatedSuffixRef.current = suffix;
+        if (!cancelled) {
+          activatedSuffixRef.current = suffix;
+          console.debug(`[ChatThreadRouting] suffix=${suffix} activated remoteId=${remoteId}`);
+        }
       } catch (err) {
-        console.warn('[ChatThreadRouting] Failed to open thread from URL:', err);
+        console.warn(
+          `[ChatThreadRouting] suffix=${suffix} threw while opening thread from URL:`,
+          err
+        );
         if (!cancelled) onThreadGone();
       }
     })();
@@ -111,7 +128,12 @@ export function ChatThreadRouting({
       // Thread went away (deleted / switched to a fresh draft) while its URL
       // is showing. Only fire once the slug actually resolved — during a cold
       // deep-link load currentThreadId is legitimately null.
-      if (threadSlug && suffix && activatedSuffixRef.current === suffix) onThreadGone();
+      if (threadSlug && suffix && activatedSuffixRef.current === suffix) {
+        console.warn(
+          `[ChatThreadRouting] suffix=${suffix} currentThreadId went null after activation — navigating away from /chat/${threadSlug}`
+        );
+        onThreadGone();
+      }
       return;
     }
     // Overview showing (e.g. "Neuer Chat" clicked while the old thread is
