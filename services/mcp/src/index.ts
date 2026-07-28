@@ -7,7 +7,11 @@ console.log(`[Boot] Environment: ${process.env.NODE_ENV || 'development'}`);
 console.log('[Boot] Loading dependencies...');
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { SUPPORTED_PROTOCOL_VERSIONS } from '@modelcontextprotocol/sdk/types.js';
+import {
+  ErrorCode,
+  McpError,
+  SUPPORTED_PROTOCOL_VERSIONS,
+} from '@modelcontextprotocol/sdk/types.js';
 import * as Sentry from '@sentry/node';
 import cors from 'cors';
 import express from 'express';
@@ -67,8 +71,12 @@ app.use(
   cors({
     origin: allowedOrigins.length > 0 ? allowedOrigins : '*',
     methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+    // `mcp-session-id` stays *allowed* on purpose: we run stateless and never
+    // issue one, but stateful-mode SDK clients send it on every request once
+    // they have one, and dropping it here would make the CORS preflight reject
+    // them outright. It is not *exposed* — spec 2026-07-28 removes the header,
+    // and we have never set it.
     allowedHeaders: ['Content-Type', 'mcp-session-id', 'Authorization'],
-    exposedHeaders: ['Mcp-Session-Id'],
   })
 );
 
@@ -85,6 +93,15 @@ console.log('[Boot] Express configured');
 function getBaseUrl(req: express.Request): string {
   return config.server.publicUrl || `${req.protocol}://${req.get('host')}`;
 }
+
+// --- JSON-RPC error codes we mint ourselves.
+// Spec 2026-07-28 partitions the server-error range: -32000..-32019 stays
+// implementation-defined, -32020..-32099 is reserved for the MCP spec. Both
+// codes below sit in the implementation-defined window so a future spec
+// revision can't collide with us. (Rate limiting previously used -32029.)
+// Rationale in CLAUDE-mcp.md; standard codes come from the SDK's ErrorCode. ---
+const JSONRPC_METHOD_NOT_ALLOWED = -32000;
+const JSONRPC_RATE_LIMITED = -32003;
 
 // --- Anti-abuse: per-IP rate limiting (in-memory; the server is single-process).
 // Anonymous search triggers a Mistral embedding + Qdrant query per call, so an
@@ -132,6 +149,39 @@ const READONLY_INTERNAL = {
   openWorldHint: false,
 } as const;
 
+// Tool catalogue. Each entry pairs a tool with the annotations it is registered
+// with, so /health/mcp and /.well-known/mcp.json advertise exactly what
+// tools/list returns — the manifest used to be hand-written and had drifted to
+// naming 5 of the 8 tools with annotations that didn't match.
+//
+// Registration itself still lives in `createMcpServer` (the handlers differ too
+// much to loop over), so adding a tool means touching both places; the smoke
+// test compares the manifest against a live tools/list to catch a miss.
+const PUBLIC_TOOLS = [
+  { tool: searchTool, annotations: READONLY_EXTERNAL },
+  { tool: filtersTool, annotations: READONLY_EXTERNAL },
+  { tool: cacheStatsTool, annotations: READONLY_INTERNAL },
+  { tool: examplesSearchTool, annotations: READONLY_EXTERNAL },
+  { tool: clientConfigTool, annotations: READONLY_INTERNAL },
+] as const;
+/** Registered only when the caller forwards a Bearer API key. */
+const AUTHENTICATED_TOOLS = [
+  { tool: notebooksListTool, annotations: READONLY_EXTERNAL },
+  { tool: notebooksSearchTool, annotations: READONLY_EXTERNAL },
+  { tool: notebooksGetFiltersTool, annotations: READONLY_EXTERNAL },
+] as const;
+
+function toManifestEntry(entry: {
+  tool: { name: string; description: string };
+  annotations: Record<string, boolean>;
+}) {
+  return {
+    name: entry.tool.name,
+    description: entry.tool.description,
+    annotations: entry.annotations,
+  };
+}
+
 function wrapToolHandler(
   label: string,
   handler: (params: Record<string, unknown>) => Promise<Record<string, unknown>>
@@ -167,7 +217,15 @@ function extractBearerKey(req: express.Request): string | null {
   const auth = req.headers.authorization;
   if (typeof auth !== 'string') return null;
   const match = /^Bearer\s+(.+)$/i.exec(auth.trim());
-  return match?.[1]?.trim() ?? null;
+  const key = match?.[1]?.trim() ?? null;
+  // An *invalid* key still surfaces to the model, because the notebook tools get
+  // registered and their 401 carries an actionable hint (see notebooksApiError).
+  // A *malformed* header is the silent case: the tools are never advertised and
+  // the caller can't tell their credential was ignored — so say so in the log.
+  if (!key) {
+    info('MCP', 'Authorization-Header vorhanden, aber kein gültiges "Bearer <key>" — ignoriert.');
+  }
+  return key;
 }
 
 // MCP Server Factory
@@ -253,17 +311,15 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
       },
       async () => {
         const resource = await getCollectionResource(`gruenerator://collections/${key}`);
-        return (
-          resource || {
-            contents: [
-              {
-                uri: `gruenerator://collections/${key}`,
-                mimeType: 'application/json',
-                text: JSON.stringify({ error: 'Collection not found' }),
-              },
-            ],
-          }
-        );
+        // A missing collection must fail, not resolve to a body the model reads
+        // as content and narrates back. Spec 2026-07-28 renumbers
+        // resource-not-found from -32002 to -32602, which is exactly what
+        // ErrorCode.InvalidParams already is — so this lands on the new code
+        // without waiting for SDK support.
+        if (!resource) {
+          throw new McpError(ErrorCode.InvalidParams, `Sammlung nicht gefunden: ${key}`);
+        }
+        return resource;
       }
     );
   }
@@ -489,13 +545,7 @@ app.get('/health/mcp', async (_req, res) => {
   const catalog = getCatalogStatus();
   const mistralConfigured = !!config.mistral.apiKey;
 
-  const publicTools = [
-    searchTool.name,
-    filtersTool.name,
-    cacheStatsTool.name,
-    examplesSearchTool.name,
-    clientConfigTool.name,
-  ];
+  const publicTools = PUBLIC_TOOLS.map((e) => e.tool.name);
 
   // Transport contract that keeps tools visible in the claude.ai connector —
   // must stay in sync with the POST /mcp handler (stateless + enableJsonResponse).
@@ -578,33 +628,14 @@ app.get('/.well-known/mcp.json', (req, res) => {
     mcp_endpoint: `${baseUrl}/mcp`,
     transport: 'streamable-http',
     deprecation: DEPRECATION,
-    tools: [
-      {
-        name: 'gruenerator_search',
-        description: 'Durchsucht Grüne Parteiprogramme mit hybrid/vector/text Suche',
-        annotations: { readOnlyHint: true, idempotentHint: true },
-      },
-      {
-        name: 'gruenerator_get_filters',
-        description: 'Gibt verfügbare Filterwerte für eine Sammlung zurück',
-        annotations: { readOnlyHint: true, idempotentHint: true },
-      },
-      {
-        name: 'gruenerator_cache_stats',
-        description: 'Zeigt Cache-Statistiken für die Suche',
-        annotations: { readOnlyHint: true, idempotentHint: true },
-      },
-      {
-        name: 'get_client_config',
-        description: 'Generiert fertige MCP-Client-Konfigurationen',
-        annotations: { readOnlyHint: true, idempotentHint: true },
-      },
-      {
-        name: 'gruenerator_examples_search',
-        description: 'Sucht nach Social-Media-Beispielen der Grünen (Instagram, Facebook)',
-        annotations: { readOnlyHint: true, idempotentHint: true },
-      },
-    ],
+    // `tools` mirrors what an anonymous tools/list returns. The Bearer-gated
+    // notebook tools are listed separately so a directory scraping this file
+    // doesn't present them as callable without a key.
+    tools: PUBLIC_TOOLS.map(toManifestEntry),
+    authenticated_tools: {
+      note: 'Nur verfügbar, wenn der Client einen Grünerator-API-Key als Bearer-Token sendet.',
+      tools: AUTHENTICATED_TOOLS.map(toManifestEntry),
+    },
     resources: [
       {
         uri: 'gruenerator://system-prompt',
@@ -671,40 +702,28 @@ app.get('/info', (req, res) => {
       config: `${baseUrl}/config/:client`,
       info: `${baseUrl}/info`,
     },
-    tools: [
-      {
-        name: 'gruenerator_search',
-        description: 'Durchsucht Grüne Parteiprogramme mit hybrid/vector/text Suche',
-        collections: Object.keys(config.collections),
-        searchModes: ['hybrid', 'vector', 'text'],
-        features: ['caching', 'metadata-filtering', 'german-optimization'],
-        annotations: { readOnlyHint: true, idempotentHint: true },
-      },
-      {
-        name: 'gruenerator_get_filters',
-        description: 'Gibt verfügbare Filterwerte für eine Sammlung zurück',
-        collections: Object.keys(config.collections),
-        annotations: { readOnlyHint: true, idempotentHint: true },
-      },
-      {
-        name: 'gruenerator_cache_stats',
-        description: 'Zeigt Cache-Statistiken für Embeddings und Suche',
-        annotations: { readOnlyHint: true, idempotentHint: true },
-      },
-      {
-        name: 'get_client_config',
-        description: 'Generiert MCP-Client-Konfigurationen',
-        clients: ['claude', 'cursor', 'vscode'],
-        annotations: { readOnlyHint: true, idempotentHint: true },
-      },
-      {
-        name: 'gruenerator_examples_search',
-        description: 'Sucht nach Social-Media-Beispielen der Grünen',
-        platforms: ['instagram', 'facebook'],
-        countries: ['DE', 'AT'],
-        annotations: { readOnlyHint: true, idempotentHint: true },
-      },
-    ],
+    // Same catalogue as /.well-known/mcp.json, plus a few per-tool extras. Kept
+    // derived so the two endpoints can't disagree again.
+    tools: PUBLIC_TOOLS.map((entry) => {
+      const base = toManifestEntry(entry);
+      switch (entry.tool.name) {
+        case searchTool.name:
+          return {
+            ...base,
+            collections: Object.keys(config.collections),
+            searchModes: ['hybrid', 'vector', 'text'],
+            features: ['caching', 'metadata-filtering', 'german-optimization'],
+          };
+        case filtersTool.name:
+          return { ...base, collections: Object.keys(config.collections) };
+        case clientConfigTool.name:
+          return { ...base, clients: ['claude', 'cursor', 'vscode'] };
+        case examplesSearchTool.name:
+          return { ...base, platforms: ['instagram', 'facebook'], countries: ['DE', 'AT'] };
+        default:
+          return base;
+      }
+    }),
     resources: [
       {
         uri: 'gruenerator://system-prompt',
@@ -737,9 +756,12 @@ app.get('/info', (req, res) => {
 // MCP POST Endpoint (Hauptkommunikation)
 app.post('/mcp', async (req, res) => {
   if (isRateLimited(req.ip ?? req.socket.remoteAddress ?? 'unknown')) {
+    // Retry-After is what actually makes a client back off correctly; the
+    // JSON-RPC code is secondary.
+    res.setHeader('Retry-After', String(Math.ceil(RATE_LIMIT_WINDOW_MS / 1000)));
     res.status(429).json({
       jsonrpc: '2.0',
-      error: { code: -32029, message: 'Zu viele Anfragen – bitte kurz warten.' },
+      error: { code: JSONRPC_RATE_LIMITED, message: 'Zu viele Anfragen – bitte kurz warten.' },
       id: null,
     });
     return;
@@ -770,7 +792,7 @@ app.post('/mcp', async (req, res) => {
     if (!res.headersSent) {
       res.status(500).json({
         jsonrpc: '2.0',
-        error: { code: -32603, message: 'Interner Serverfehler' },
+        error: { code: ErrorCode.InternalError, message: 'Interner Serverfehler' },
         id: null,
       });
     }
@@ -783,7 +805,7 @@ const methodNotAllowed = (_req: express.Request, res: express.Response) => {
   res.status(405).json({
     jsonrpc: '2.0',
     error: {
-      code: -32000,
+      code: JSONRPC_METHOD_NOT_ALLOWED,
       message: 'Method Not Allowed – der Server läuft im stateless JSON-Modus.',
     },
     id: null,
@@ -793,7 +815,9 @@ app.get('/mcp', methodNotAllowed);
 app.delete('/mcp', methodNotAllowed);
 
 // Server starten
-const PORT = process.env.PORT || 3003;
+// 3004 matches the Dockerfile (ENV PORT/EXPOSE/healthcheck) and the nginx
+// upstream `mcp:3004`. Only applies when run outside the container.
+const PORT = process.env.PORT || 3004;
 console.log(`[Boot] Starting server on port ${PORT}...`);
 
 // Capture unhandled errors thrown from Express route handlers (registered after

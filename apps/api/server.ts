@@ -204,7 +204,9 @@ async function startWorker(): Promise<void> {
   // The Bearer-authenticated MCP endpoint is origin-agnostic: browser MCP
   // clients send Origins outside the allowlist and must still reach the
   // 401/WWW-Authenticate challenge instead of dying in the strict validator.
-  const mcpCors = cors({ origin: true, exposedHeaders: ['WWW-Authenticate', 'Mcp-Session-Id'] });
+  // Mcp-Session-Id is not exposed: we run stateless and never issue one, and
+  // spec 2026-07-28 removes the header outright.
+  const mcpCors = cors({ origin: true, exposedHeaders: ['WWW-Authenticate'] });
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.path.startsWith('/api/mcp-server')) {
       mcpCors(req, res, next);
@@ -731,7 +733,6 @@ async function startWorker(): Promise<void> {
       success: false,
       error: 'Ein Serverfehler ist aufgetreten',
 
-      // eslint-disable-next-line gruenerator/no-raw-error-to-client -- dev-only branch; prod gets `errorMessage`
       message: isDev ? err.message : errorMessage,
       stack: isDev ? err.stack : undefined,
       errorId: `${Date.now()}-${Math.floor(Math.random() * 1000)}`,
