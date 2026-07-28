@@ -69,8 +69,9 @@ export interface RenderPdfOptions {
    *
    * A letterhead is an additive band, NOT a layout: it must not drag in the
    * DIN-5008 furniture (recipient, place/date, subject, salutation, signature)
-   * that `kind: 'letter'` implies. Letters always draw the block and ignore
-   * this flag.
+   * that `kind: 'letter'` implies. Letters ignore this flag: there the Absender
+   * stands in der Rücksendeangabe des Anschriftfelds, und der Block kommt nur
+   * dann dazu, wenn die fehlt.
    *
    * Deliberately explicit rather than derived from `sender != null`:
    * renderPdfFixtures.ts passes a sender to the document and form fixtures too,
@@ -1580,6 +1581,10 @@ class PdfRenderer {
    * caller's text flow — that is what lets the document layout draw it in the
    * band above the title (PAGE_H-52 … PAGE_H-130) without moving anything.
    *
+   * Im Brieflayout ist er der Ausnahmefall, nicht die Regel: dort trägt die
+   * Rücksendeangabe den Absender, und beides zusammen stand doppelt auf dem
+   * Blatt.
+   *
    * The `Sect` is opened ONLY for a non-empty sender: opening it
    * unconditionally left sender-less letters with a childless structure
    * element, which is a PDF/UA smell no fixture covered.
@@ -1670,17 +1675,36 @@ class PdfRenderer {
     const sender = senderLines(this.opts.sender);
     const page = this.page;
 
-    this.drawSenderBlock(sender);
-
     // Rücksendeangabe — erste Zeile der Zusatz- und Vermerkzone, also INNERHALB
     // des Anschriftfelds. Sie ist die einzige Angabe außer der Anschrift, die
     // dort stehen darf.
     const returnLine = this.opts.returnLine === false ? '' : this.fitReturnLine(sender);
+
+    // Der Absender gehört genau EINMAL aufs Blatt. Steht er in der
+    // Rücksendeangabe, entfällt der Block oben links — sonst las sich derselbe
+    // Absender zweimal, wenige Zentimeter übereinander. Ohne Rücksendeangabe
+    // (eigener Briefbogen, abgeschaltete Option) bleibt der Block die einzige
+    // Stelle, an der er überhaupt steht.
+    if (!returnLine) this.drawSenderBlock(sender);
+
     if (returnLine) {
       const ruleY = PAGE_H - ADDRESS_FIELD.top - ADDRESS_FIELD.lineHeight;
+      // Getaggt statt als Artefakt: seit sie den Absenderblock ersetzt, ist sie
+      // die einzige Stelle, an der ein Screenreader den Absender erreicht.
+      // Eigener Sect-Titel, damit „Absender“ weiterhin genau den Block meint.
+      this.tagger.open('Sect', { title: 'Rücksendeangabe' });
+      this.writeLineAt(
+        'P',
+        returnLine,
+        ADDRESS_FIELD.left,
+        ruleY + 3,
+        7,
+        this.fonts.body,
+        MUTED_COLOR,
+        { maxWidth: ADDRESS_FIELD.width }
+      );
+      this.tagger.close();
       this.tagger.artifact(page, () => {
-        const [line] = this.boundedLines(returnLine, this.fonts.body, 7, ADDRESS_FIELD.width, 1);
-        drawRuns(page, line ?? [], ADDRESS_FIELD.left, ruleY + 3, 7, MUTED_COLOR);
         page.drawLine({
           start: { x: ADDRESS_FIELD.left, y: ruleY },
           end: { x: ADDRESS_FIELD.left + ADDRESS_FIELD.width, y: ruleY },
