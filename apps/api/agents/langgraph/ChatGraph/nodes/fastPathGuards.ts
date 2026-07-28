@@ -143,6 +143,63 @@ export function forbidsPersistentAction(text: string, nounPattern?: RegExp): boo
 }
 
 /**
+ * An explicit ban on looking anything up in THIS turn: "ohne neue Recherche",
+ * "keine weitere Suche", "nur aus dem Chat".
+ *
+ * Why a predicate and not a prompt line: the ban used to lose an argument
+ * against our own instructions. Four tool descriptions open with "Recherchiere
+ * ZUERST die Fakten (gruenerator_search)", the loop's cardinal rule says a
+ * factual follow-up "verlangt einen ERNEUTEN Tool-Aufruf", and — the sharpest
+ * edge — `looksLikeCompoundGeneration` reads the word "Recherche" as a research
+ * SIGNAL, so "ohne neue Recherche eine Vergleichstabelle" is precisely the
+ * phrase that mounted the search tools in the first place. One user sentence
+ * cannot outvote that. A tool the catalog never mounts cannot be called.
+ *
+ * Deliberately narrow — an EXPLICIT negation, not an inference. "Kannst du das
+ * aus dem Kopf?" is a preference; "ohne neue Recherche" is an instruction.
+ */
+const RESEARCH_BAN_RE = new RegExp(
+  [
+    // "keine (neue/weitere/erneute) Recherche/Suche/Websuche"
+    String.raw`\bkein\w{0,5}\s+(?:neue\w{0,2}\s+|weitere\w{0,2}\s+|erneute\w{0,2}\s+|zus[äa]tzliche\w{0,2}\s+)?(?:recherche\w*|(?:web|internet|online|quellen)?such\w*|nachforschung\w*)\b`,
+    // "ohne (neue) Recherche/Suche" — the wording the QA run actually used.
+    String.raw`\bohne\s+(?:neue\w{0,2}\s+|weitere\w{0,2}\s+|erneute\w{0,2}\s+)?(?:recherche\w*|(?:web|internet|online)?such\w*|nachzuschlagen)\b`,
+    // "nicht noch mal recherchieren/googeln/im Netz suchen". The bare verb
+    // "such" is NOT in here: "ich weiß nicht, wonach ich suchen soll" is not a
+    // ban, and a 25-char window cannot tell the two apart.
+    String.raw`\bnicht\b[^.!?\n]{0,25}?\b(?:recherchier\w*|nachschlag\w*|google\w*|googel\w*|im\s+(?:web|internet|netz)\s+such\w*|neu\s+such\w*|nochmals?\s+such\w*)\b`,
+    // The same instruction with the verb first: "Such nicht nochmal",
+    // "Recherchiere bitte nicht". The negator must FOLLOW immediately (one
+    // optional filler word) — a wider window swallows "Suche nach Quellen, die
+    // nicht älter als 2020 sind", which asks for research rather than refusing it.
+    String.raw`\b(?:such\w*|recherchier\w*|google\w*|googel\w*|nachschlag\w*)\s+(?:bitte\s+|jetzt\s+|dazu\s+|dafür\s+)?nicht\b`,
+    // "nur aus dem Chat / nur mit den gespeicherten Fakten"
+    String.raw`\bnur\s+(?:aus|mit|auf\s+basis)\s+(?:dem|den|der|des)?\s*(?:bisherigen|gespeicherten|vorhandenen|bekannten)?\s*(?:chat\w*|gespr[äa]ch\w*|verlauf\w*|faktenbasis|fakten|daten|angaben)\b`,
+    // "ausschließlich die gespeicherte Faktenbasis verwenden"
+    String.raw`\bausschlie[ßs]lich\b[^.!?\n]{0,40}?\b(?:gespeicherte\w*|bisherige\w*|vorhandene\w*|bereits\b)`,
+    String.raw`\brechercheverbot\w*\b`,
+  ].join('|'),
+  'gi'
+);
+
+/**
+ * A negator in front of the ban flips it back: "das geht nicht ohne Recherche"
+ * ASKS for research. Without this the guard would read the opposite of the
+ * sentence — the one failure mode worse than missing the ban entirely.
+ */
+const BAN_REVERSER_RE = /\b(nicht|kaum|schwer\w*|unm[öo]glich)\b[^.!?\n]{0,15}$/i;
+
+/** True when the turn explicitly forbids looking anything up. */
+export function forbidsNewResearch(text: string): boolean {
+  const t = stripQuotedSpans(text ?? '');
+  for (const m of t.matchAll(RESEARCH_BAN_RE)) {
+    const i = m.index ?? 0;
+    if (!BAN_REVERSER_RE.test(t.slice(Math.max(0, i - 30), i))) return true;
+  }
+  return false;
+}
+
+/**
  * The ONLY accepted sharepic vocabulary. A sharepic is a branded party template
  * with text on it — "Grafik" and "Kachel" mean a chart or a tile just as often,
  * and inferring one from them is what made sharepics appear unasked-for.

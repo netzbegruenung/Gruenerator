@@ -101,3 +101,23 @@ describe('stripFabricatedSystemClaims', () => {
     expect(stripFabricatedSystemClaims(null as unknown as string).text).toBe('');
   });
 });
+
+/**
+ * The floor. Three of four warnings in one QA session were for correct answers:
+ * the user had demanded the literal wordings "KEINE DATEN", "Korrigiert" and
+ * "Klarwasser gespeichert", and each ends on a letter. The fourth, at 892
+ * characters, was a real cut — and read as more of the same noise. A detector
+ * that is wrong three times out of four is how a real truncation gets filed as
+ * a content defect, which is exactly what happened.
+ */
+describe('looksCutOff — short answers are not evidence', () => {
+  it('stays quiet on the demanded one-liners that produced false alarms', () => {
+    for (const t of ['KEINE DATEN', 'Korrigiert', 'Klarwasser gespeichert']) {
+      expect(looksCutOff(t), t).toBe(false);
+    }
+  });
+
+  it('still flags the shortest real cut it exists for', () => {
+    expect(looksCutOff('Im Vergleich zu anderen rechtspopulistischen Pa')).toBe(true);
+  });
+});
