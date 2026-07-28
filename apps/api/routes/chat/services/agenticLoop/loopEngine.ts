@@ -254,6 +254,19 @@ export interface LoopEngineParams {
    *  think-lane answers mid-sentence because reasoning tokens count too. */
   maxOutputTokens?: number;
   abortSignal: AbortSignal;
+  /**
+   * Split mode: the signal the WRITE phase runs under. Defaults to
+   * `abortSignal`.
+   *
+   * Exists because the two phases fail differently. The tool phase is bounded
+   * by a turn budget — it may be cut off, and the answer still gets written
+   * from what was gathered. The write phase must not be cut off at all: an
+   * abort there lands mid-word, and the stump ships as a finished answer (the
+   * `catch` only substitutes text when NOTHING was written). Give the writer
+   * the request signal plus the absolute ceiling, never the elapsed turn
+   * budget, which a slow artifact generation has already spent.
+   */
+  writeAbortSignal?: AbortSignal;
   /** Extra force-finish trigger (e.g. an image was generated). */
   forceFinish: () => boolean;
   /** Force a tool call on the first step (explicit-scope MCP follow-ups). */
@@ -511,7 +524,8 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: 
       temperature: p.temperature,
       ...(p.maxOutputTokens != null && { maxOutputTokens: p.maxOutputTokens }),
       // Combined so a stalled provider call is torn down, not just abandoned.
-      abortSignal: AbortSignal.any([p.abortSignal, idle.signal]),
+      // `writeAbortSignal` deliberately, NOT the turn budget — see its doc.
+      abortSignal: AbortSignal.any([p.writeAbortSignal ?? p.abortSignal, idle.signal]),
     });
     try {
       const { text } = await drain(result, gate.push, p.onReasoning, idle);
