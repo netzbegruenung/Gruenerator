@@ -24,6 +24,10 @@ export const CHAT_BACKGROUND_COLORS: Record<ChatBackground, string | null> = {
   mesh: null,
   nebel: null,
   dunst: null,
+  // Web-only (`platforms: ['web']`), so the app never offers or draws it. The
+  // entry exists because this Record is exhaustive over the schema — a key the
+  // app cannot draw still has to have an answer here.
+  kern: null,
   // The glow this screen had for a long time, and the default before `mesh`.
   sunrise: '#E9D696',
   tanne: colors.primary[500],
