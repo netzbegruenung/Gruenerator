@@ -20,6 +20,7 @@ import { DocumentSearchService } from '../../../services/document-services/index
 import { searchExamples } from '../../../services/examples/exampleSearchService.js';
 import { withRetry } from '../../../services/search/index.js';
 import { getLinkupService } from '../../../services/search/LinkupService.js';
+import { resolveTier, type SearchTier } from '../../../services/search/searchDepth.js';
 import { searxngService } from '../../../services/search/SearxngService.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -437,31 +438,49 @@ export async function executeDirectPressemitteilungExamples(params: {
 }
 
 /**
- * Execute a web search using SearXNG.
- * Provides access to current web content for queries about recent events or
- * topics not covered in the document collections.
+ * The chat's single web-retrieval door, at one of three tiers.
+ *
+ * `tier` replaces the old split between this function and `executeResearch`:
+ * "recherchiere" no longer routes to a different engine, it routes here with a
+ * deeper setting. `maxResults` stays an independent override for callers that
+ * want a specific count (news widgets, compound turns); the tier only supplies
+ * the default.
+ *
+ * Falls back to SearXNG when LINKUP_API_KEY is unset — SearXNG has no depth
+ * concept, so every tier degrades to one flat search there. That is a
+ * dev/self-host path; production has the key.
  */
 export async function executeDirectWebSearch(params: {
   query: string;
   searchType?: 'general' | 'news';
+  tier?: SearchTier;
   maxResults?: number;
   timeRange?: string;
   language?: string;
 }): Promise<DirectWebSearchResult> {
-  const { query, searchType = 'general', maxResults = 5, timeRange, language = 'de-DE' } = params;
+  const { query, searchType = 'general', tier, timeRange, language = 'de-DE' } = params;
+  const tierConfig = resolveTier(tier);
+  const maxResults = params.maxResults ?? tierConfig.maxResults;
+  // The deeper tiers exist to give the writing model more to work with; a
+  // 300-char snippet would cap that no matter how many sources came back.
+  // Stays under the source registry's own per-line cap (1500).
+  const snippetChars = tierConfig.depth === 'deep' ? 1200 : 300;
 
   log.info(
-    `[Direct Web Search] query="${query}" type="${searchType}" max=${maxResults} lang=${language}`
+    `[Direct Web Search] query="${query}" type="${searchType}" tier=${tier ?? 'standard'} max=${maxResults} lang=${language}`
   );
 
   try {
     const linkup = getLinkupService();
     if (linkup) {
-      log.info(`[Direct Web Search] Routing via Linkup (standard) for "${query}"`);
+      log.info(
+        `[Direct Web Search] Routing via Linkup (${tierConfig.depth}) for "${query}" [${tier ?? 'standard'}]`
+      );
       const fromDate = timeRange ? timeRangeToFromDate(timeRange) : undefined;
       const linkupRes = await linkup.webSearch({
         query,
-        maxResults: Math.min(maxResults, 10),
+        depth: tierConfig.depth,
+        maxResults,
         ...(fromDate ? { fromDate } : {}),
       });
       const linkupFormatted = linkupRes.results.slice(0, maxResults).map((r, i) => ({
@@ -469,7 +488,7 @@ export async function executeDirectWebSearch(params: {
         // Linkup returns raw HTML-entity-encoded titles/snippets (e.g. "&Ouml;sterreich").
         title: decodeHtmlEntities(r.name) || 'Unbekannt',
         url: r.url,
-        snippet: truncateText(decodeHtmlEntities(r.content), 300),
+        snippet: truncateText(decodeHtmlEntities(r.content), snippetChars),
         domain: extractDomain(r.url),
         publishedDate: null as string | null,
       }));

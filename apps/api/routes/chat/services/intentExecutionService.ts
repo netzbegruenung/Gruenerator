@@ -25,6 +25,7 @@ import { partitionSearchErrors } from '../../../agents/langgraph/ChatGraph/types
 import { env } from '../../../config/env.js';
 import { type ExpressRequest as SharepicExpressRequest } from '../../../services/chat/sharepicGenerationService.js';
 import { createRecurringTask } from '../../../services/recurringTasks/recurringTasksRepository.js';
+import { resolveTier, tierFromClassification } from '../../../services/search/searchDepth.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -1168,7 +1169,6 @@ export async function executeIntentPipeline(opts: {
             ...finalState,
             searchResults: reused.searchResults,
             citations: buildCitations(reused.searchResults),
-            ...(reused.researchMeta && { researchMeta: reused.researchMeta }),
           } as ChatGraphState;
         }
 
@@ -1202,23 +1202,29 @@ export async function executeIntentPipeline(opts: {
           });
         }
 
-        const isDeepResearch = currentIntent === 'research';
+        // The progress line now follows the TIER, not the intent: "recherchiere"
+        // no longer means a different engine, so promising "dauert 15–20s" on
+        // every such turn would be a lie about a search that takes two.
+        const searchTier = tierFromClassification({
+          intent: currentIntent,
+          complexity: searchInputState.complexity ?? null,
+        });
         if (!reused) {
           sse.send('search_start', {
-            message: isDeepResearch
-              ? 'Tiefgehende Recherche läuft (mehrere Quellen, dauert ca. 15–20s)…'
-              : PROGRESS_MESSAGES.searchStart,
+            message:
+              searchTier === 'standard'
+                ? PROGRESS_MESSAGES.searchStart
+                : resolveTier(searchTier).progress,
             ...(finalState.subQueries?.length && { subQueries: finalState.subQueries }),
           });
-        }
-
-        if (isDeepResearch && !reused) {
-          searchInputState = {
-            ...searchInputState,
-            onResearchProgress: (message: string) => {
-              sse.send('search_start', { message });
-            },
-          } as ChatGraphState;
+          if (searchTier !== 'standard') {
+            searchInputState = {
+              ...searchInputState,
+              onResearchProgress: (message: string) => {
+                sse.send('search_start', { message });
+              },
+            } as ChatGraphState;
+          }
         }
         // Reused sources ARE the search result — running the node would issue the
         // very Linkup call this branch exists to avoid.
@@ -1283,9 +1289,6 @@ export async function executeIntentPipeline(opts: {
               : PROGRESS_MESSAGES.searchComplete(resultCount),
           resultCount,
           results: payloadResults,
-          ...(currentIntent === 'research' && finalState.researchMeta
-            ? { researchMeta: finalState.researchMeta }
-            : {}),
           ...((currentIntent === 'examples' || currentIntent === 'pressemitteilung_examples') &&
           finalState.examplesResult
             ? { examplesResult: finalState.examplesResult }
