@@ -413,6 +413,7 @@ const TranskriptionPage = () => {
             <div className="flex flex-wrap items-center gap-md">
               <select
                 value={options.language}
+                aria-label="Sprache der Aufnahme"
                 onChange={(e) => setOptions((o) => ({ ...o, language: e.target.value }))}
                 className="px-md py-sm text-sm rounded-md border border-grey-300 dark:border-grey-600 bg-background text-foreground cursor-pointer"
               >
@@ -489,23 +490,28 @@ const TranskriptionPage = () => {
         )}
 
         {(state.status === 'uploading' || state.status === 'extracting') && (
-          <ProcessingState
-            progress={state.progress}
-            label={
-              state.status === 'uploading'
-                ? isVideo
-                  ? 'Video wird hochgeladen'
-                  : 'Wird hochgeladen'
-                : 'Audio wird extrahiert'
-            }
-            steps={
-              isVideo
-                ? [{ label: 'Hochladen' }, { label: 'Extrahieren' }, { label: 'Transkribieren' }]
-                : [{ label: 'Hochladen' }, { label: 'Transkribieren' }]
-            }
-            activeStepIndex={state.status === 'uploading' ? 0 : 1}
-            footer={cancelButton}
-          />
+          // ProcessingState renders plain markup, so the live region wraps it —
+          // otherwise a screen reader is told nothing at all while a long upload
+          // and extraction run.
+          <div role="status" aria-live="polite">
+            <ProcessingState
+              progress={state.progress}
+              label={
+                state.status === 'uploading'
+                  ? isVideo
+                    ? 'Video wird hochgeladen'
+                    : 'Wird hochgeladen'
+                  : 'Audio wird extrahiert'
+              }
+              steps={
+                isVideo
+                  ? [{ label: 'Hochladen' }, { label: 'Extrahieren' }, { label: 'Transkribieren' }]
+                  : [{ label: 'Hochladen' }, { label: 'Transkribieren' }]
+              }
+              activeStepIndex={state.status === 'uploading' ? 0 : 1}
+              footer={cancelButton}
+            />
+          </div>
         )}
 
         {/*
