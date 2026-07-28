@@ -1211,6 +1211,87 @@ describe('doppelte Überschrift im Kopf', () => {
 });
 
 /**
+ * Ein Seitenumbruch wurde ausgeführt, sobald jemand Platz reservierte — auch
+ * wenn danach nichts mehr kam. Der Briefschluss tat genau das: er reservierte
+ * 95 pt, bevor er wusste, ob es Gruß und Unterschrift überhaupt gibt.
+ */
+describe('keine leere Schlussseite', () => {
+  /** Zeilen je Seite, ohne die Fußzeile, die auf jedem Blatt steht. */
+  const linesPerPage = async (bytes: Buffer): Promise<number[]> => {
+    const placed = (await placedText(bytes)).filter((l) => l.top < 275);
+    const pages = Math.max(...placed.map((l) => l.page));
+    return Array.from({ length: pages }, (_, i) => placed.filter((l) => l.page === i + 1).length);
+  };
+
+  /** Text, der die erste Seite bis dicht an den Fuß füllt. */
+  const filling = (n: number): PdfDocumentSpec['blocks'] =>
+    Array.from({ length: n }, (_, i) => ({
+      type: 'paragraph' as const,
+      text: `Absatz ${i + 1}: ${'Wir bitten um Auskunft zum Stand des Ausbaus. '.repeat(3)}`,
+    }));
+
+  const LETTER = {
+    recipient: 'Stadt Musterstadt\nRathausplatz 1\n12345 Musterstadt',
+    subject: 'Anfrage zum Ausbau des Radwegenetzes',
+    salutation: 'Sehr geehrte Damen und Herren,',
+  };
+
+  it('bricht nicht für einen Briefschluss um, den es nicht gibt', async () => {
+    // 9 Absätze reichten bis kurz vor den Fuß: die Reservierung schlug um, das
+    // Blatt blieb leer, weil weder Gruß noch Unterschrift gesetzt sind.
+    const result = await renderPdf(spec({ kind: 'letter', letter: LETTER, blocks: filling(9) }), {
+      locale: 'de-DE',
+      sender: { name: 'Maxi Mustermensch' },
+    });
+
+    expect(await linesPerPage(result.bytes)).toHaveLength(1);
+  });
+
+  it('nimmt Gruß und Unterschrift mit auf das zweite Blatt', async () => {
+    const result = await renderPdf(
+      spec({
+        kind: 'letter',
+        letter: { ...LETTER, closing: 'Mit freundlichen Grüßen', signature: 'Maxi Mustermensch' },
+        blocks: filling(9),
+      }),
+      { locale: 'de-DE', sender: { name: 'Maxi Mustermensch' } }
+    );
+
+    // Der Umbruch selbst bleibt richtig — nur leer darf die Seite nicht sein.
+    const pages = await linesPerPage(result.bytes);
+    expect(pages).toHaveLength(2);
+    expect(pages[1]).toBeGreaterThan(0);
+  });
+
+  it('setzt für einen abschließenden Umbruch-Block kein Blatt', async () => {
+    const result = await renderPdf(
+      spec({ blocks: [{ type: 'paragraph', text: 'Ein Absatz.' }, { type: 'pagebreak' }] }),
+      { locale: 'de-DE' }
+    );
+
+    expect(await linesPerPage(result.bytes)).toHaveLength(1);
+  });
+
+  it('führt einen Umbruch aus, auf den noch Inhalt folgt', async () => {
+    const result = await renderPdf(
+      spec({
+        blocks: [
+          { type: 'paragraph', text: 'Vor dem Umbruch.' },
+          { type: 'pagebreak' },
+          { type: 'paragraph', text: 'Nach dem Umbruch.' },
+        ],
+      }),
+      { locale: 'de-DE' }
+    );
+
+    expect(await linesPerPage(result.bytes)).toHaveLength(2);
+    expect((await placedText(result.bytes)).find((l) => l.text.startsWith('Nach dem'))?.page).toBe(
+      2
+    );
+  });
+});
+
+/**
  * Was sich zwischen den Versanddiensten unterscheidet, steht im Briefkopf der
  * Nutzer*in — nicht in einer Konstante hier. Diese Tests halten fest, dass die
  * Optionen wirklich durchschlagen, und nicht nur entgegengenommen werden.
