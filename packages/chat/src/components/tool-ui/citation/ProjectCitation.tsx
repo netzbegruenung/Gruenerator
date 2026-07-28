@@ -1,16 +1,12 @@
 'use client';
 
-import { ExternalLink } from 'lucide-react';
 import { memo } from 'react';
 
 import { getCollectionStyle } from '../../../lib/collectionStyles';
 
-import type { CitationProps } from './projectSchema';
+import { SourceGlyph } from './SourceGlyph';
 
-function getFaviconUrl(domain: string | undefined): string | null {
-  if (!domain) return null;
-  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=16`;
-}
+import type { CitationProps } from './projectSchema';
 
 interface CitationComponentProps extends CitationProps {
   variant?: 'default' | 'inline' | 'stacked';
@@ -34,7 +30,6 @@ const CardCitation = memo(function CardCitation({
   compact?: boolean;
 }) {
   const displayText = citation.citedText || citation.snippet || '';
-  const faviconUrl = getFaviconUrl(citation.domain);
   const style = getCollectionStyle(citation.source);
 
   return (
@@ -71,16 +66,7 @@ const CardCitation = memo(function CardCitation({
           )}
 
           <div className="flex items-center gap-1.5 flex-wrap">
-            {faviconUrl && (
-              <img
-                src={faviconUrl}
-                alt=""
-                width={12}
-                height={12}
-                className="flex-shrink-0"
-                loading="lazy"
-              />
-            )}
+            {citation.domain && <SourceGlyph domain={citation.domain} size={12} />}
             {citation.domain && (
               <span className="text-[10px] text-foreground-muted">{citation.domain}</span>
             )}
@@ -100,14 +86,11 @@ const CardCitation = memo(function CardCitation({
 });
 
 const InlineCitation = memo(function InlineCitation(citation: CitationProps) {
-  const faviconUrl = getFaviconUrl(citation.domain);
   const label = citation.domain || citation.title;
   const baseClass =
     'inline-flex items-center gap-1 rounded-full bg-card border border-border/50 px-2 py-0.5 text-xs text-foreground-muted';
   const interactiveClass = ' hover:border-border hover:text-foreground transition-colors';
-  const icon = faviconUrl ? (
-    <img src={faviconUrl} alt="" width={12} height={12} className="flex-shrink-0" loading="lazy" />
-  ) : null;
+  const icon = citation.domain ? <SourceGlyph domain={citation.domain} size={12} /> : null;
   const text = <span className="truncate max-w-[120px]">{label}</span>;
 
   // URL-less sources (e.g. private Wolke files) render as a non-clickable
@@ -136,7 +119,6 @@ const InlineCitation = memo(function InlineCitation(citation: CitationProps) {
 });
 
 const StackedCitation = memo(function StackedCitation(citation: CitationProps) {
-  const faviconUrl = getFaviconUrl(citation.domain);
   const style = getCollectionStyle(citation.source);
 
   return (
@@ -145,16 +127,7 @@ const StackedCitation = memo(function StackedCitation(citation: CitationProps) {
       style={{ borderColor: style.color }}
       title={citation.title}
     >
-      {faviconUrl && (
-        <img
-          src={faviconUrl}
-          alt=""
-          width={14}
-          height={14}
-          className="flex-shrink-0"
-          loading="lazy"
-        />
-      )}
+      {citation.domain && <SourceGlyph domain={citation.domain} size={14} rounded="rounded-full" />}
       <span className="text-[10px] text-foreground-muted truncate max-w-[80px]">
         {citation.domain || citation.source}
       </span>

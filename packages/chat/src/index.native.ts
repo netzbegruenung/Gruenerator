@@ -199,7 +199,7 @@ export { selectNarration, type PartLike } from './lib/narrationView';
 export { usePacedLabel } from './hooks/usePacedLabel';
 
 // URL Utilities
-export { extractDomain, getFaviconUrl, getHostname, faviconFromHostname } from './lib/urlUtils';
+export { domainHue, domainInitial, extractDomain, getHostname } from './lib/urlUtils';
 
 // Tool-result parsing & metadata (platform-agnostic; web + mobile share these)
 export {
