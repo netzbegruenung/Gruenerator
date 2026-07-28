@@ -57,6 +57,18 @@ export interface SourceRegistry {
    * nothing — which is exactly what it repeated to the user.
    */
   seedCarried(results: SearchResult[]): void;
+  /**
+   * A per-turn OUTCOME line: a write happened, a confirmation was requested, a
+   * lookup came back empty. The split-mode synth sees no tool returns, so this
+   * is its only channel for "what actually happened" — but it is NOT a source.
+   *
+   * Kept out of `ordered` (and therefore out of citations, persistence and
+   * `renderReference`) because it used to be in: a Kanban confirmation line
+   * registered as a source, was persisted as this turn's `searchResults`, and a
+   * later "mach ein PDF draus" was briefed with it as the only research in
+   * scope. The generated PDF's entire content was that log line, cited as [1].
+   */
+  note(title: string, content: string): void;
   /** Prior-turn sources currently seeded (drives the honesty note). */
   readonly carriedSize: number;
   /** All accumulated results in stable order (capped), for persistence/UI. */
@@ -132,6 +144,8 @@ export function createSourceRegistry(): SourceRegistry {
   // Prior-turn sources, kept OUT of `ordered` so they never affect this turn's
   // citations/persistence — they only ground the edit op-planner (renderReference).
   const carried: SearchResult[] = [];
+  // Per-turn outcome lines (see `note`). Never sources.
+  const notes: string[] = [];
 
   return {
     register(results, opts) {
@@ -162,12 +176,25 @@ export function createSourceRegistry(): SourceRegistry {
         carried.push(r);
       }
     },
+    note(title, content) {
+      const line = `${(title || 'Vorgang').trim()} — ${(content ?? '').replace(/\s+/g, ' ').trim()}`;
+      if (!notes.includes(line)) notes.push(line);
+    },
     getResults(limit = 10) {
       return ordered.slice(0, limit);
     },
     renderAll() {
       const current = ordered.map((r, i) => snippetLine(i + 1, r, caps[i])).join('\n');
-      if (carried.length === 0) return current;
+      // Unnumbered and explicitly labelled: the synth must be able to REPORT
+      // what happened without ever treating it as retrieved material.
+      const notesBlock =
+        notes.length > 0
+          ? `VORGÄNGE IN DIESEM TURN (was passiert ist — KEINE Quellen: nicht mit [N] zitieren und nicht als Inhalt für Dokumente verwenden):\n${notes
+              .map((n) => `- ${n}`)
+              .join('\n')}`
+          : '';
+      const withNotes = [current, notesBlock].filter((p) => p).join('\n\n');
+      if (carried.length === 0) return withNotes;
       // Deliberately unnumbered: a `[N]` here would be a citation the UI and the
       // persisted turn cannot back. The model may still USE the content — it
       // just cannot cite it as one of this turn's sources.
