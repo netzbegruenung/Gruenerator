@@ -319,12 +319,14 @@ export function makeCreateSharepicTool(ctx: {
   state: ChatGraphState;
   req: Request;
   threadId: string | null;
+  /** The turn forbade new research — see `briefInstruction`. */
+  researchBanned?: boolean;
 }): Tool {
   const { sse, state, req, threadId } = ctx;
   return tool({
     description: `Erstellt ein Sharepic (gebrandete Social-Media-Grafik) aus einer Kernaussage.
 
-NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Sharepic/Spruchbild/Zitatbild/einen Dreizeiler verlangt hat — NICHT bei "Grafik", "Kachel" oder "Bild". Recherchiere ZUERST die Fakten (gruenerator_search), dann übergib die konkrete, belegte Kernaussage — kein Platzhaltertext.`,
+NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Sharepic/Spruchbild/Zitatbild/einen Dreizeiler verlangt hat — NICHT bei "Grafik", "Kachel" oder "Bild". ${briefInstruction(ctx.researchBanned === true, 'die konkrete, belegte Kernaussage')}`,
     inputSchema: z.object({
       text: z
         .string()
@@ -375,6 +377,21 @@ NUTZE NUR WENN der*die Nutzer*in ausdrücklich ein Sharepic/Spruchbild/Zitatbild
  * persisted message `createdDocument` metadata), and hands the model a lean
  * value to announce. The `prompt` arg carries the researched, concrete brief.
  */
+/**
+ * The one sentence every generation tool opens its brief instruction with.
+ *
+ * It used to be four hard-coded copies of "Recherchiere ZUERST die Fakten
+ * (gruenerator_search)". That is right for the ordinary turn and flatly wrong
+ * when the user just said "ohne neue Recherche": the description then ordered a
+ * search the catalog had deliberately not mounted, so the model either stalled
+ * or reached for the nearest substitute. One switch, four call sites.
+ */
+function briefInstruction(researchBanned: boolean, what: string): string {
+  return researchBanned
+    ? `Recherchiere NICHT — der*die Nutzer*in hat neue Recherche ausdrücklich ausgeschlossen. Übergib ${what} ausschließlich auf Basis dessen, was im bisherigen Gespräch steht.`
+    : `Recherchiere ZUERST die Fakten (gruenerator_search), dann übergib ${what} — kein Platzhaltertext.`;
+}
+
 const DOC_LABELS: Record<
   'presentation' | 'sheet' | 'document',
   { label: string; artifact: string }
@@ -420,13 +437,15 @@ export function makeCreateDocTool(ctx: {
    *  from the real snippets (incl. URLs) rather than from whatever the planner
    *  chose to retype into `prompt`. */
   sourceRegistry?: SourceRegistry;
+  /** The turn forbade new research — see `briefInstruction`. */
+  researchBanned?: boolean;
 }): Tool {
   const { kind, sse, state, req, sourceRegistry } = ctx;
   const { label, artifact } = DOC_LABELS[kind];
   return tool({
     description: `Erstellt ${artifact}.
 
-NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/Folien' : label === 'Tabelle' ? 'eine Tabelle/Kalkulation' : 'ein Dokument/einen Text'} zum Thema möchte. Recherchiere ZUERST die Fakten (gruenerator_search), dann übergib in "prompt" einen konkreten, mit den recherchierten Fakten angereicherten Auftrag — kein Platzhaltertext.`,
+NUTZE WENN der*die Nutzer*in ${label === 'Präsentation' ? 'eine Präsentation/Folien' : label === 'Tabelle' ? 'eine Tabelle/Kalkulation' : 'ein Dokument/einen Text'} zum Thema möchte. ${briefInstruction(ctx.researchBanned === true, 'in "prompt" einen konkreten, mit den recherchierten Fakten angereicherten Auftrag')}`,
     inputSchema: z.object({
       prompt: z
         .string()
@@ -485,6 +504,8 @@ export function makeCreatePdfTool(ctx: {
    *  (and any carried) sources so "PDF mit den Originalquellen" can actually
    *  reproduce them. */
   sourceRegistry?: SourceRegistry;
+  /** The turn forbade new research — see `briefInstruction`. */
+  researchBanned?: boolean;
 }): Tool {
   const { sse, state, req, sourceRegistry } = ctx;
   return tool({
@@ -495,7 +516,7 @@ DREI ARTEN:
 - "letter": offizieller Brief / Anschreiben mit Grünen-Briefkopf (DIN 5008)
 - "form": AUSFÜLLBARES Formular mit echten Feldern (Text, Datum, Auswahl, Ankreuzfelder) — für Anträge, Anmeldungen, Fragebögen
 
-NUTZE WENN ein fertiges PDF, ein Schreiben mit Briefkopf oder ein ausfüllbares Formular gewünscht ist. Recherchiere ZUERST die Fakten (gruenerator_search), dann übergib in "prompt" einen konkreten, mit den recherchierten Fakten angereicherten Auftrag — kein Platzhaltertext.
+NUTZE WENN ein fertiges PDF, ein Schreiben mit Briefkopf oder ein ausfüllbares Formular gewünscht ist. ${briefInstruction(ctx.researchBanned === true, 'in "prompt" einen konkreten, mit den recherchierten Fakten angereicherten Auftrag')}
 
 WICHTIG — PRÜFEN STATT BEHAUPTEN: Das Tool öffnet das erzeugte PDF erneut und prüft, ob Text wirklich auslesbar ist, die Struktur getaggt wurde, die PDF/UA-Kennung gesetzt ist und alle Formularfelder beschriftet sind. Häufiger Fehler bei PDFs: Sie sehen richtig aus, enthalten aber KEINE auslesbare Textebene oder keine Tags — dann kann sie kein Screenreader lesen. Lies deshalb IMMER das Feld "geprueft" und vor allem "probleme" im Ergebnis und nenne gefundene Probleme offen; behaupte NIE, das PDF sei barrierefrei, wenn "probleme" nicht leer ist.`,
     inputSchema: z.object({
@@ -589,12 +610,17 @@ WICHTIG — PRÜFEN STATT BEHAUPTEN: Das Tool öffnet das erzeugte PDF erneut un
  * `done` event) and hands the model the board URL to mention. No card
  * rehydration on reload (matches the single-pass @board-erstellen path).
  */
-export function makeCreateBoardTool(ctx: { state: ChatGraphState; req: Request }): Tool {
+export function makeCreateBoardTool(ctx: {
+  state: ChatGraphState;
+  req: Request;
+  /** The turn forbade new research — see `briefInstruction`. */
+  researchBanned?: boolean;
+}): Tool {
   const { state, req } = ctx;
   return tool({
     description: `Erstellt ein Kanban-Board (Aufgabenboard) zu einem Thema.
 
-NUTZE WENN der*die Nutzer*in ein Board/Kanban zum Thema möchte. Recherchiere ZUERST die Fakten (gruenerator_search), dann übergib in "prompt" einen konkreten, mit den recherchierten Inhalten angereicherten Auftrag (Aufgaben/Spalten) — kein Platzhaltertext.`,
+NUTZE WENN der*die Nutzer*in ein Board/Kanban zum Thema möchte. ${briefInstruction(ctx.researchBanned === true, 'in "prompt" einen konkreten, mit den recherchierten Inhalten angereicherten Auftrag (Aufgaben/Spalten)')}`,
     inputSchema: z.object({
       prompt: z
         .string()

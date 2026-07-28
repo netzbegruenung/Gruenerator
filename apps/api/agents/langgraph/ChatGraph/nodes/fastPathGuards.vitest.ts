@@ -7,6 +7,7 @@ import {
   negatedOrMeta,
   hasExplicitSharepicWord,
   forbidsPersistentAction,
+  forbidsNewResearch,
   ARTIFACT_NOUN_BY_KIND,
 } from './fastPathGuards.js';
 
@@ -217,5 +218,78 @@ describe('forbidsPersistentAction', () => {
   it('survives empty and nullish input', () => {
     expect(forbidsPersistentAction('')).toBe(false);
     expect(forbidsPersistentAction(undefined as unknown as string, DOC)).toBe(false);
+  });
+});
+
+/**
+ * The research ban. Its whole reason for existing is that the sentence
+ * "ohne neue Recherche eine Vergleichstabelle" is ALSO what
+ * `looksLikeCompoundGeneration` reads as a research signal — the ban was the
+ * trigger for the machinery it was meant to stop. So the predicate has to be
+ * right about the sentence itself, not merely about its keywords.
+ */
+describe('forbidsNewResearch', () => {
+  it('catches the wording the QA session actually used', () => {
+    expect(
+      forbidsNewResearch(
+        'Ohne neue Recherche und ohne frühere Angaben zu zitieren: Berechne den Betrag.'
+      )
+    ).toBe(true);
+    expect(
+      forbidsNewResearch(
+        'Aus den Projektdaten sollte ohne neue Recherche eine editierbare Vergleichstabelle entstehen.'
+      )
+    ).toBe(true);
+  });
+
+  it('catches the other explicit phrasings of the same instruction', () => {
+    for (const t of [
+      'Bitte keine neue Recherche.',
+      'Keine weitere Websuche bitte.',
+      'Such nicht nochmal, nimm was da ist.',
+      'Antworte nur aus dem bisherigen Gesprächsverlauf.',
+      'Verwende ausschließlich die gespeicherte Faktenbasis.',
+      'Recherchiere nicht neu, das haben wir schon geklärt.',
+    ]) {
+      expect(forbidsNewResearch(t), t).toBe(true);
+    }
+  });
+
+  /**
+   * The failure mode worse than missing the ban: reading the OPPOSITE of the
+   * sentence. "Das geht nicht ohne Recherche" is a request to look things up,
+   * and silently unmounting the search tools for it would be the guard
+   * sabotaging the very turn it was asked to serve.
+   */
+  it('does not fire when a preceding negator flips the phrase into a request', () => {
+    expect(forbidsNewResearch('Das geht nicht ohne Recherche, fürchte ich.')).toBe(false);
+    expect(forbidsNewResearch('Ich kann das kaum ohne Recherche beantworten.')).toBe(false);
+    // Known limit, deliberately not chased: a reverser AFTER the phrase
+    // ("Ohne Recherche kaum zu beantworten") still reads as a ban. Catching it
+    // would mean treating a following "nicht" as a reverser, and that swallows
+    // the real instruction "Ohne neue Recherche: nicht raten, sondern fragen."
+  });
+
+  it('leaves ordinary turns alone', () => {
+    for (const t of [
+      'Recherchiere bitte die aktuellen Zahlen.',
+      'Ich weiß nicht, wonach ich suchen soll.',
+      'Mach mir eine Tabelle zum Radverkehr.',
+      'Kannst du das nochmal erklären?',
+      'Wir haben keine Zeit mehr für das Projekt.',
+    ]) {
+      expect(forbidsNewResearch(t), t).toBe(false);
+    }
+  });
+
+  it('ignores a ban inside reported speech', () => {
+    expect(forbidsNewResearch('Er schrieb: „Bitte keine neue Recherche" — stimmt das?')).toBe(
+      false
+    );
+  });
+
+  it('survives empty and nullish input', () => {
+    expect(forbidsNewResearch('')).toBe(false);
+    expect(forbidsNewResearch(undefined as unknown as string)).toBe(false);
   });
 });
