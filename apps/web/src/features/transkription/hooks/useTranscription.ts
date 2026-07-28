@@ -85,10 +85,16 @@ interface SSECallbacks {
   }) => void;
 }
 
-async function parseSSEStream(response: Response, callbacks: SSECallbacks) {
+/**
+ * Returns whether a `done` event actually arrived. The caller needs to know:
+ * a stream that ends without one (backend crash, proxy timeout, dropped
+ * connection) is a failure, not an empty success.
+ */
+async function parseSSEStream(response: Response, callbacks: SSECallbacks): Promise<boolean> {
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let sawDone = false;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -103,41 +109,47 @@ async function parseSSEStream(response: Response, callbacks: SSECallbacks) {
       const dataLine = event.split('\n').find((l) => l.startsWith('data: '));
       if (!dataLine) continue;
 
+      // Only the JSON.parse is guarded: one malformed frame should be skipped,
+      // not turned into a total failure of an otherwise healthy stream.
+      let data: SSEMessage;
       try {
-        const data = JSON.parse(dataLine.slice(6)) as SSEMessage;
-        switch (data.type) {
-          case 'extraction_start':
-            callbacks.onExtractionStart();
-            break;
-          case 'extraction_progress':
-            callbacks.onExtractionProgress(data.percent ?? 0, data.timemark ?? '');
-            break;
-          case 'extraction_complete':
-            callbacks.onExtractionComplete();
-            break;
-          case 'transcription_start':
-            callbacks.onTranscriptionStart();
-            break;
-          case 'text.delta':
-            callbacks.onDelta(data.text);
-            break;
-          case 'done':
-            callbacks.onDone({
-              text: data.text ?? '',
-              segments: data.segments,
-              hasTimestamps: data.hasTimestamps,
-              speakerMap: data.speakerMap,
-            });
-            break;
-          case 'error':
-            throw new Error(data.text ?? 'Streaming-Fehler');
-        }
-      } catch (err) {
-        if (err instanceof Error && err.message !== 'Streaming-Fehler') throw err;
-        if (err instanceof Error) throw err;
+        data = JSON.parse(dataLine.slice(6)) as SSEMessage;
+      } catch {
+        continue;
+      }
+
+      switch (data.type) {
+        case 'extraction_start':
+          callbacks.onExtractionStart();
+          break;
+        case 'extraction_progress':
+          callbacks.onExtractionProgress(data.percent ?? 0, data.timemark ?? '');
+          break;
+        case 'extraction_complete':
+          callbacks.onExtractionComplete();
+          break;
+        case 'transcription_start':
+          callbacks.onTranscriptionStart();
+          break;
+        case 'text.delta':
+          callbacks.onDelta(data.text);
+          break;
+        case 'done':
+          sawDone = true;
+          callbacks.onDone({
+            text: data.text ?? '',
+            segments: data.segments,
+            hasTimestamps: data.hasTimestamps,
+            speakerMap: data.speakerMap,
+          });
+          break;
+        case 'error':
+          throw new Error(data.text ?? 'Streaming-Fehler');
       }
     }
   }
+
+  return sawDone;
 }
 
 /**
@@ -160,9 +172,15 @@ async function tusUpload(
       retryDelays: [0, 3000, 5000, 10000, 20000],
       chunkSize: 5 * 1024 * 1024,
       metadata: { filename: file.name, filetype: file.type },
-      // Bearer auth is cross-origin on desktop; don't also send absent cookies.
-      withCredentials: !isDesktop,
       ...(token != null && { headers: { Authorization: `Bearer ${token}` } }),
+      // tus-js-client has no `withCredentials` option; the documented way to
+      // send cookies is to reach the underlying XHR. Bearer auth is
+      // cross-origin on desktop, so there are no cookies to send there.
+      onBeforeRequest: (req) => {
+        if (isDesktop) return;
+        const xhr = req.getUnderlyingObject() as XMLHttpRequest | undefined;
+        if (xhr) xhr.withCredentials = true;
+      },
       onError: (err) => reject(err),
       onProgress: (bytesUploaded, bytesTotal) => {
         onProgress(Math.round((bytesUploaded / bytesTotal) * 100));
@@ -231,7 +249,7 @@ export function useTranscription() {
 
           let fullText = '';
 
-          await parseSSEStream(response, {
+          const sawDone = await parseSSEStream(response, {
             onExtractionStart: () => {
               setState((s) => ({ ...s, status: 'extracting', progress: 0 }));
             },
@@ -262,7 +280,11 @@ export function useTranscription() {
             },
           });
 
-          setState((s) => (s.status !== 'done' ? { ...s, status: 'done' } : s));
+          // Without this guard a stream that ended early was reported as a
+          // successful, empty transcription: the full result UI over no text.
+          if (!sawDone) {
+            throw new Error('Verbindung abgebrochen — bitte erneut versuchen');
+          }
           return fullText;
         } else {
           const response = await apiClient.post<TranscriptionApiResponse>(
