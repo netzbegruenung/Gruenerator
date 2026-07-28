@@ -6,6 +6,8 @@ import {
   isMetaQuestionAbout,
   negatedOrMeta,
   hasExplicitSharepicWord,
+  forbidsPersistentAction,
+  ARTIFACT_NOUN_BY_KIND,
 } from './fastPathGuards.js';
 
 const SHAREPIC = /\b(share[\s-]?pics?|sharepics?)\b/i;
@@ -137,5 +139,83 @@ describe('hasExplicitSharepicWord', () => {
   it('survives empty and nullish input', () => {
     expect(hasExplicitSharepicWord('')).toBe(false);
     expect(hasExplicitSharepicWord(undefined as unknown as string)).toBe(false);
+  });
+});
+
+/**
+ * Negative action constraints. The QA round of 28.07.2026 produced a document
+ * action on EVERY substantive turn once a document existed in the thread —
+ * including turns that said "keine Dokumentaktion" in so many words. The
+ * per-noun negation guard above was already in place; it just never ran on the
+ * two paths that fire in a long thread.
+ *
+ * The load-bearing half of this suite is the negative space: an ordinary
+ * artifact request must not be mistaken for a prohibition, or the fix trades a
+ * noisy failure for a silent one.
+ */
+describe('forbidsPersistentAction', () => {
+  const DOC = ARTIFACT_NOUN_BY_KIND.document;
+
+  it('catches the noun-bound prohibition', () => {
+    for (const t of [
+      'Erstelle diesmal kein Dokument',
+      'Gib mir den Stand, aber kein Dokument',
+      'Fass es zusammen — nicht als Dokument speichern',
+      'Das Dokument unverändert lassen',
+    ]) {
+      expect(forbidsPersistentAction(t, DOC), t).toBe(true);
+    }
+  });
+
+  it('catches the action-level prohibition that carries no artifact noun', () => {
+    // These are the shapes the per-noun guard structurally cannot see — which is
+    // why they needed a second pattern rather than a wider noun list.
+    for (const t of [
+      'Nichts speichern, nur antworten',
+      'Keine Dokumentaktion',
+      'Keine Speicher-, Dokument- oder Aktualisierungsaktion',
+      'Keine Aktion anbieten',
+      'Antworte nur im Chat',
+      'Bitte nichts anlegen',
+    ]) {
+      expect(forbidsPersistentAction(t), t).toBe(true);
+    }
+  });
+
+  it('is per-family: an unrelated prohibition leaves the asked-for artifact alone', () => {
+    // The whole reason the guard takes a noun pattern. A global predicate would
+    // refuse to write the document the user explicitly asked for.
+    const t = 'Erstelle ein Dokument, aber keine Tabelle';
+    expect(forbidsPersistentAction(t, DOC)).toBe(false);
+    expect(forbidsPersistentAction(t, ARTIFACT_NOUN_BY_KIND.sheet)).toBe(true);
+  });
+
+  it('does not fire on ordinary requests', () => {
+    for (const t of [
+      'Erstelle ein Dokument mit dem Antrag',
+      'Speichere das als Protokoll',
+      'Kürze die Begründung auf die Hälfte',
+      'Mach das Bild ohne Text',
+      'Aktualisiere die Zahlen im Dokument',
+    ]) {
+      expect(forbidsPersistentAction(t, DOC), t).toBe(false);
+    }
+  });
+
+  it('does not read "keine großen Änderungen" as a refusal to edit', () => {
+    // `änderung` is deliberately out of the prohibition vocabulary: this is an
+    // instruction about HOW to edit, not a refusal.
+    expect(forbidsPersistentAction('Bitte keine großen Änderungen am Rest', DOC)).toBe(false);
+  });
+
+  it('ignores a prohibition inside reported speech', () => {
+    expect(
+      forbidsPersistentAction('Sie schrieb: „Bitte kein Dokument erstellen" — was meint sie?', DOC)
+    ).toBe(false);
+  });
+
+  it('survives empty and nullish input', () => {
+    expect(forbidsPersistentAction('')).toBe(false);
+    expect(forbidsPersistentAction(undefined as unknown as string, DOC)).toBe(false);
   });
 });

@@ -32,7 +32,12 @@ import {
   isSheetFillRequest,
   isTabularComputeQuestion,
 } from '../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
-import { hasExplicitSharepicWord } from '../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
+import {
+  ARTIFACT_NOUN_BY_KIND,
+  forbidsPersistentAction,
+  hasExplicitSharepicWord,
+  type ForbiddableArtifact,
+} from '../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import {
   SYSTEM_TOOL_INTENTS,
   isSystemIntentAvailable,
@@ -63,6 +68,7 @@ import { injectImageAttachments } from './services/attachmentProcessingService.j
 import { extractCompoundTopic } from './services/compoundTopicExtractor.js';
 import { extractChartFromResponse, emitConfirmAction } from './services/confirmActionService.js';
 import { pruneMessages, applyCompaction } from './services/contextPruningService.js';
+import { buildCreateTurnContext } from './services/createTurn.js';
 import {
   handleBoardCreation,
   handleSheetCreation,
@@ -872,6 +878,45 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           log.info('[ChatGraph] Unlicensed sharepic intent, nothing to edit → fixed reply');
           return await finishTurnWithFixedText(NO_SHAREPIC_TO_EDIT_TEXT, 'sharepic');
         }
+      }
+
+      // === Negative action constraints: one gate for "may this turn persist?" ===
+      // Same shape as the sharepic licence above, same reason: the artifact
+      // intents have many doors (Tier-2.7 lastToolContext, Tier-3 heuristics,
+      // the Tier-4 LLM, its malformed-JSON recovery, secondaryIntent) and only
+      // the Tier-3 ones ever checked for negation. Enforcing it here, once,
+      // means a door that forgets cannot leak. Demoting to `direct` (rather than
+      // a fixed reply) is deliberate: the user asked for an ANSWER and forbade
+      // the artifact — they should get the answer.
+      const forbiddenBy: Partial<Record<string, ForbiddableArtifact>> = {
+        save_as_doc: 'document',
+        modify_doc: 'document',
+        share_doc: 'document',
+        create_sheet: 'sheet',
+        create_presentation: 'presentation',
+        create_pdf: 'pdf',
+        modify_board: 'board',
+        image: 'image',
+      };
+      const secondaryFamily = forbiddenBy[classifiedState.secondaryIntent ?? ''];
+      if (
+        secondaryFamily &&
+        forbidsPersistentAction(lastUserTextNoMentions, ARTIFACT_NOUN_BY_KIND[secondaryFamily])
+      ) {
+        log.info(
+          `[ChatGraph] Turn forbids ${secondaryFamily} action → dropping secondaryIntent ${classifiedState.secondaryIntent}`
+        );
+        classifiedState.secondaryIntent = null;
+      }
+      const primaryFamily = forbiddenBy[classifiedState.intent];
+      if (
+        primaryFamily &&
+        forbidsPersistentAction(lastUserTextNoMentions, ARTIFACT_NOUN_BY_KIND[primaryFamily])
+      ) {
+        log.info(
+          `[ChatGraph] Turn forbids ${primaryFamily} action → demoting intent ${classifiedState.intent} to direct`
+        );
+        classifiedState.intent = 'direct';
       }
 
       sse.send('progress_step', {
@@ -2077,10 +2122,17 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         classifiedState.secondaryIntent === 'save_as_doc';
       if (isSaveAsDoc && fullText) {
         const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+        // Same transcript builder the other create turns use, so "speicher das
+        // als Dokument" and "mach ein PDF draus" see the same thread. It used to
+        // be a hand-rolled `slice(-4)` here and nothing at all there. The answer
+        // being saved is generated in THIS turn and is not in `validMessages`
+        // yet, so it is appended.
         const conversationContext = [
-          ...validMessages.slice(-4).map((m) => `${m.role}: ${extractTextContent(m.content)}`),
+          buildCreateTurnContext(validMessages),
           `assistant: ${fullText.slice(0, 3000)}`,
-        ].join('\n');
+        ]
+          .filter((part) => part.trim())
+          .join('\n');
 
         await generateAndCreateDocument({
           sse,
