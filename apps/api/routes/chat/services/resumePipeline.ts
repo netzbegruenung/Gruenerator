@@ -446,12 +446,15 @@ export async function runChatGraphResume({
         const searchResult = await searchNode(searchInputState);
         finalState = { ...searchInputState, ...searchResult } as ChatGraphState;
 
-        if (finalState.searchResults?.length > 3) {
+        // Threshold and degraded-warning must match the normal search stage in
+        // intentExecutionService — a resumed turn is the same turn.
+        if (finalState.searchResults?.length > 2) {
           const rerankResult = await rerankNode(finalState);
           finalState = { ...finalState, ...rerankResult } as ChatGraphState;
           if (finalState.searchResults.length > 0) {
             finalState.citations = buildCitations(finalState.searchResults);
           }
+          if (finalState.rerankFailed) sendChatWarning(sse, 'rerank_degraded');
         }
 
         const resultCount = finalState.searchResults?.length || 0;
