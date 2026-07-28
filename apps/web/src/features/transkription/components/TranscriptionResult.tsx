@@ -62,6 +62,9 @@ export default function TranscriptionResult({
   // Diarized text: parse [speaker_N] markers (check before timestamps — diarized output also has segments)
   const hasSpeakers = text.includes('[speaker_');
   if (hasSpeakers) {
+    // Backend emits one [speaker_N] marker per diarized segment (often several
+    // per sentence) — merge consecutive same-speaker segments into one block so
+    // the label doesn't repeat mid-paragraph.
     const parts = text.split(/(\[speaker_\d+\])/g).filter(Boolean);
     let currentSpeaker = '';
     const blocks: { speaker: string; text: string }[] = [];
@@ -71,7 +74,11 @@ export default function TranscriptionResult({
         currentSpeaker = part.slice(1, -1);
       } else {
         const trimmed = part.trim();
-        if (trimmed) {
+        if (!trimmed) continue;
+        const last = blocks[blocks.length - 1];
+        if (last && last.speaker === currentSpeaker) {
+          last.text = `${last.text} ${trimmed}`;
+        } else {
           blocks.push({ speaker: currentSpeaker, text: trimmed });
         }
       }
