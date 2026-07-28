@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 
-import { resolveAbortOutcome, TRUNCATION_NOTE } from './agenticRespondService.js';
+import { pdfProblemNote, resolveAbortOutcome, TRUNCATION_NOTE } from './agenticRespondService.js';
 import { runAgenticLoop, type LoopDeps, type LoopEngineParams } from './loopEngine.js';
-import { DEFAULT_LOOP_BUDGET } from './types.js';
+import { DEFAULT_LOOP_BUDGET, type PersistedStep } from './types.js';
 
 /**
  * The turn budget must not be able to cut the sentence being written.
@@ -171,5 +171,52 @@ describe('resolveAbortOutcome', () => {
   it('explains the abort in German, without technical terms', () => {
     expect(TRUNCATION_NOTE).toMatch(/unvollständig/);
     expect(TRUNCATION_NOTE).not.toMatch(/abort|timeout|error/i);
+  });
+});
+
+/**
+ * The PDF tool reopens the file it just wrote and reports real defects — a
+ * missing text layer, deleted characters, an untagged structure. Both its
+ * description and its result note order the model to pass them on. Live it did
+ * not: characters had been dropped from the document's own title and the chat
+ * called the PDF fine. An accessibility check the model may quietly skip is
+ * not a check.
+ */
+describe('pdfProblemNote', () => {
+  const step = (probleme: string[]): PersistedStep => ({
+    toolCallId: 't1',
+    toolName: 'create_pdf',
+    args: {},
+    result: { probleme },
+  });
+
+  it('surfaces a finding the answer left out', () => {
+    const note = pdfProblemNote(
+      [step(['2 Zeichen konnten nicht dargestellt werden und wurden entfernt: ‑ ‑'])],
+      'Das PDF ist fertig und steht zum Download bereit.'
+    );
+    expect(note).toContain('Zeichen konnten nicht dargestellt');
+  });
+
+  it('stays quiet when the answer already reported it', () => {
+    const problem = 'Die Dokumentsprache fehlt.';
+    expect(pdfProblemNote([step([problem])], `Hinweis: ${problem} Ich kann das nachtragen.`)).toBe(
+      ''
+    );
+  });
+
+  it('stays quiet when the self-check found nothing', () => {
+    expect(pdfProblemNote([step([])], 'Fertig.')).toBe('');
+    expect(pdfProblemNote([], 'Fertig.')).toBe('');
+  });
+
+  it('ignores steps from other tools', () => {
+    const other: PersistedStep = {
+      toolCallId: 't2',
+      toolName: 'create_sheet',
+      args: {},
+      result: { probleme: ['irgendwas'] },
+    };
+    expect(pdfProblemNote([other], 'Fertig.')).toBe('');
   });
 });

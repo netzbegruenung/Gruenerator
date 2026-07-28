@@ -34,6 +34,7 @@ import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 
 import { lastUserText } from '../../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
+import { forbidsNewResearch } from '../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import {
   buildProductKnowledgeBlock,
   isProductMetaQuestion,
@@ -123,6 +124,17 @@ export function buildChatToolCatalog(params: {
 }): ChatToolCatalog {
   const { agentConfig, sourceRegistry, loop } = params;
 
+  // "Ohne neue Recherche" is enforced by ABSENCE, not by asking nicely: the
+  // search family is simply not built for this turn. Everything else — the
+  // artifact tools, the personal-data reads, MCP — stays, because a ban on
+  // looking things UP is not a ban on doing the work. See `forbidsNewResearch`.
+  const researchBanned = loop
+    ? forbidsNewResearch(loop.state.lastUserTextNoMentions ?? lastUserText(loop.state))
+    : false;
+  if (researchBanned) {
+    log.info('[toolCatalog] user forbade new research — search tools not mounted this turn');
+  }
+
   // No `direct_response` — the loop simply answers without a tool call when no
   // tool is needed (toolChoice stays 'auto').
   const base = createSearchTools(agentConfig, {
@@ -131,7 +143,7 @@ export function buildChatToolCatalog(params: {
 
   const tools: ToolSet = {};
   for (const [name, def] of Object.entries(base)) {
-    if (!CATALOG_TOOLS.has(name)) continue;
+    if (!CATALOG_TOOLS.has(name) || researchBanned) continue;
 
     if (!SOURCE_HARVEST_TOOLS.has(name)) {
       // Examples tools: surfaced to the model + UI as-is (they render via the
@@ -180,56 +192,62 @@ export function buildChatToolCatalog(params: {
   // loop model can call to read a page it found or the user named, feeding the
   // content into the source registry like any other search result. URLs are
   // SSRF-validated (CLAUDE.md) before crawling.
-  tools.scrape_url = tool({
-    description: `Ruft den vollständigen Textinhalt einer oder mehrerer Webseiten ab.
+  //
+  // It belongs to the search family for the ban: reading a page the model picked
+  // is new research by any honest reading, and leaving this one door open is
+  // exactly how a blocked search reappears as a crawl.
+  if (!researchBanned) {
+    tools.scrape_url = tool({
+      description: `Ruft den vollständigen Textinhalt einer oder mehrerer Webseiten ab.
 
 NUTZE WENN:
 - Der*die Nutzer*in eine URL genannt/eingefügt hat und deren Inhalt gebraucht wird
 - Du nach einer Websuche eine konkrete Trefferseite im Volltext lesen willst
 
 Übergib die vollständigen URLs (inkl. https://). Der Inhalt wird als zitierbare Quelle [N] verfügbar.`,
-    inputSchema: z.object({
-      urls: z.array(z.string()).min(1).max(3).describe('Vollständige URLs inkl. Protokoll'),
-    }),
-    execute: async ({ urls }) => {
-      const validated: string[] = [];
-      for (const raw of urls) {
-        const check = await validateUrlForFetch(raw);
-        if (check.isValid && check.url) validated.push(check.url.toString());
-        else log.warn(`[scrape_url] rejected URL: ${check.error ?? 'invalid'}`);
-      }
-      if (validated.length === 0) {
-        return { error: 'Keine gültige oder erlaubte URL. Prüfe die Adresse (inkl. https://).' };
-      }
-      const seeds = validated.map((url, idx) => ({
-        url,
-        title: url,
-        content: '',
-        relevance: 1 - idx * 0.1,
-      }));
-      const crawled = await selectAndCrawlTopUrls(seeds, '', { maxUrls: 3, timeout: 8000 });
-      const results: SearchResult[] = crawled
-        .filter((r) => r.crawled && (r.fullContent || r.content))
-        .map((r) => ({
-          source: 'web',
-          url: r.url,
-          title: r.title || r.url || '',
-          content: r.fullContent || r.content || '',
+      inputSchema: z.object({
+        urls: z.array(z.string()).min(1).max(3).describe('Vollständige URLs inkl. Protokoll'),
+      }),
+      execute: async ({ urls }) => {
+        const validated: string[] = [];
+        for (const raw of urls) {
+          const check = await validateUrlForFetch(raw);
+          if (check.isValid && check.url) validated.push(check.url.toString());
+          else log.warn(`[scrape_url] rejected URL: ${check.error ?? 'invalid'}`);
+        }
+        if (validated.length === 0) {
+          return { error: 'Keine gültige oder erlaubte URL. Prüfe die Adresse (inkl. https://).' };
+        }
+        const seeds = validated.map((url, idx) => ({
+          url,
+          title: url,
+          content: '',
+          relevance: 1 - idx * 0.1,
         }));
-      if (results.length === 0) {
-        return {
-          error: 'Konnte die Seite(n) nicht lesen (Timeout, Blockade oder kein Textinhalt).',
-        };
-      }
-      // A crawl is an explicit "read THIS page" — the user named it or the model
-      // picked it out of search hits. Registering it at the ordinary snippet cap
-      // meant fetching a 20-80k-char article and showing the model its first few
-      // hundred characters, so "fass diesen Artikel zusammen" was answered from
-      // the headline. 25k matches LobeChat's crawl budget.
-      const sources = sourceRegistry.register(results, { snippetChars: CRAWL_SNIPPET_CHARS });
-      return { resultCount: results.length, sources };
-    },
-  });
+        const crawled = await selectAndCrawlTopUrls(seeds, '', { maxUrls: 3, timeout: 8000 });
+        const results: SearchResult[] = crawled
+          .filter((r) => r.crawled && (r.fullContent || r.content))
+          .map((r) => ({
+            source: 'web',
+            url: r.url,
+            title: r.title || r.url || '',
+            content: r.fullContent || r.content || '',
+          }));
+        if (results.length === 0) {
+          return {
+            error: 'Konnte die Seite(n) nicht lesen (Timeout, Blockade oder kein Textinhalt).',
+          };
+        }
+        // A crawl is an explicit "read THIS page" — the user named it or the model
+        // picked it out of search hits. Registering it at the ordinary snippet cap
+        // meant fetching a 20-80k-char article and showing the model its first few
+        // hundred characters, so "fass diesen Artikel zusammen" was answered from
+        // the headline. 25k matches LobeChat's crawl budget.
+        const sources = sourceRegistry.register(results, { snippetChars: CRAWL_SNIPPET_CHARS });
+        return { resultCount: results.length, sources };
+      },
+    });
+  }
 
   // Domain tools (loop path only). Mounted BROADLY, not gated on the exact
   // classified intent: the loop's whole point is that the MODEL picks the tool,
@@ -366,12 +384,17 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     if (state.compoundGeneration === true && loop.req && !editorSurface) {
       const kind = state.compoundGenerationKind;
       const enabled = (key: string): boolean => state.enabledTools?.[key] !== false;
+      // The generation tools stay mounted under a research ban — only their
+      // opening line flips from "Recherchiere ZUERST" to "arbeite mit dem, was
+      // im Gespräch steht". Telling the model to search with no search tool
+      // mounted is how a turn stalls or invents one.
       if (kind === 'sharepic' && enabled('sharepic')) {
         tools.sharepic = makeCreateSharepicTool({
           sse,
           state,
           req: loop.req,
           threadId: loop.threadId ?? null,
+          researchBanned,
         });
       } else if (kind === 'presentation' && enabled('create_presentation')) {
         tools.create_presentation = makeCreateDocTool({
@@ -380,6 +403,7 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
           state,
           req: loop.req,
           sourceRegistry,
+          researchBanned,
         });
       } else if (kind === 'sheet' && enabled('create_sheet')) {
         tools.create_sheet = makeCreateDocTool({
@@ -388,6 +412,7 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
           state,
           req: loop.req,
           sourceRegistry,
+          researchBanned,
         });
       } else if (kind === 'document' && enabled('create_document')) {
         tools.create_document = makeCreateDocTool({
@@ -396,11 +421,18 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
           state,
           req: loop.req,
           sourceRegistry,
+          researchBanned,
         });
       } else if (kind === 'board' && enabled('create_board')) {
-        tools.create_board = makeCreateBoardTool({ state, req: loop.req });
+        tools.create_board = makeCreateBoardTool({ state, req: loop.req, researchBanned });
       } else if (kind === 'pdf' && enabled('create_pdf')) {
-        tools.create_pdf = makeCreatePdfTool({ sse, state, req: loop.req, sourceRegistry });
+        tools.create_pdf = makeCreatePdfTool({
+          sse,
+          state,
+          req: loop.req,
+          sourceRegistry,
+          researchBanned,
+        });
       }
     }
   }

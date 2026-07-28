@@ -1338,7 +1338,12 @@ export async function* parseSSEStream(
     .filter((el): el is TextSegment => el.type === 'text')
     .map((el) => el.text)
     .join('');
-  if (assembled.length > 0 && /[\p{L}\p{N}]$/u.test(assembled.trimEnd())) {
+  // Mirrors TRUNCATION_MIN_WORDS on the server: under five words, "ends on a
+  // letter" is the shape of a demanded one-liner ("KEINE DATEN") as often as of
+  // a severed sentence, and warning on both is how the real cut got read as
+  // noise.
+  const tail = assembled.trimEnd();
+  if (tail.split(/\s+/).filter(Boolean).length >= 5 && /[\p{L}\p{N}]$/u.test(tail)) {
     console.warn(
       `[GrueneratorModelAdapter] answer ends mid-sentence after ${assembled.length} chars ` +
         `(compare the backend's "chars=" line) — tail: ${JSON.stringify(assembled.slice(-60))}`
