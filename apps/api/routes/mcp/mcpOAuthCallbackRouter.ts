@@ -59,6 +59,8 @@ async function handleCallback(req: Request, res: Response): Promise<void> {
   const code = typeof req.query.code === 'string' ? req.query.code : '';
   const state = typeof req.query.state === 'string' ? req.query.state : '';
   const oauthError = typeof req.query.error === 'string' ? req.query.error : '';
+  // RFC 9207 authorization-response issuer; validated in handleCallback.
+  const iss = typeof req.query.iss === 'string' ? req.query.iss : undefined;
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
 
@@ -71,7 +73,7 @@ async function handleCallback(req: Request, res: Response): Promise<void> {
     return;
   }
   try {
-    const { serverId } = await McpOAuthService.handleCallback(code, state);
+    const { serverId } = await McpOAuthService.handleCallback(code, state, iss);
     res.send(renderResultPage({ success: true, serverId }));
   } catch (error) {
     log.warn('MCP OAuth callback failed', {
