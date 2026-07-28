@@ -203,15 +203,20 @@ Gib NUR JSON zurück, das dem Schema entspricht.`,
 export function localeToSearchScope(locale: ResearchLocale): {
   qdrantCollection: string;
   webLanguage: string;
+  docDomain: string;
 } {
   switch (locale) {
     case 'at':
-      return { qdrantCollection: 'oesterreich', webLanguage: 'de-AT' };
+      return {
+        qdrantCollection: 'oesterreich',
+        webLanguage: 'de-AT',
+        docDomain: 'gruene.at',
+      };
     case 'eu':
-      return { qdrantCollection: 'deutschland', webLanguage: 'de-DE' };
+      return { qdrantCollection: 'deutschland', webLanguage: 'de-DE', docDomain: 'gruene.de' };
     case 'de':
     default:
-      return { qdrantCollection: 'deutschland', webLanguage: 'de-DE' };
+      return { qdrantCollection: 'deutschland', webLanguage: 'de-DE', docDomain: 'gruene.de' };
   }
 }
 
@@ -311,7 +316,7 @@ async function executeDeepSearches(
   const sources: CollectedSource[] = [];
   const searchSteps: ResearchResult['searchSteps'] = [];
   let sourceId = startSourceId;
-  const { qdrantCollection, webLanguage } = localeToSearchScope(plan.locale);
+  const { qdrantCollection, webLanguage, docDomain } = localeToSearchScope(plan.locale);
 
   // Fan out all sub-questions in parallel — each may target web, qdrant, or both.
   const tasks = plan.subQuestions.flatMap((sq) => {
@@ -386,7 +391,7 @@ async function executeDeepSearches(
           id: sourceId++,
           title: result.source,
           url: result.url || '',
-          domain: plan.locale === 'at' ? 'gruene.at' : 'gruene.de',
+          domain: docDomain,
           snippet: result.excerpt,
           relevance:
             result.relevance === 'Sehr hoch' ? 0.9 : result.relevance === 'Hoch' ? 0.7 : 0.5,
@@ -453,11 +458,13 @@ Wenn lückenhaft: nenne 1–3 schwach abgedeckte Aspekte als kurze Suchphrasen (
  */
 async function executeSearches(
   plan: SearchPlan,
+  locale: ResearchLocale,
   aiWorkerPool?: AIWorkerPool
 ): Promise<{ sources: CollectedSource[]; searchSteps: ResearchResult['searchSteps'] }> {
   const sources: CollectedSource[] = [];
   const searchSteps: ResearchResult['searchSteps'] = [];
   let sourceId = 1;
+  const { qdrantCollection, webLanguage, docDomain } = localeToSearchScope(locale);
 
   for (const query of plan.queries) {
     try {
@@ -478,6 +485,7 @@ async function executeSearches(
                 query: q,
                 searchType: 'general',
                 maxResults: 5,
+                language: webLanguage,
               }).catch((err: unknown) => {
                 log.warn(
                   `[Research] Web search failed for variant "${q}": ${err instanceof Error ? err.message : String(err)}`
@@ -513,7 +521,7 @@ async function executeSearches(
         case 'gruenerator_search': {
           const docResults = await executeDirectSearch({
             query: query.query,
-            collection: 'deutschland',
+            collection: qdrantCollection,
             limit: 5,
           });
           searchSteps.push({
@@ -526,7 +534,7 @@ async function executeSearches(
               id: sourceId++,
               title: result.source,
               url: result.url || '',
-              domain: 'gruene.de',
+              domain: docDomain,
               snippet: result.excerpt,
               relevance:
                 result.relevance === 'Sehr hoch' ? 0.9 : result.relevance === 'Hoch' ? 0.7 : 0.5,
@@ -928,7 +936,7 @@ export async function executeResearch(params: {
   );
 
   // Phase 2: Execute searches
-  const { sources, searchSteps } = await executeSearches(plan, aiWorkerPool);
+  const { sources, searchSteps } = await executeSearches(plan, defaultLocale, aiWorkerPool);
   log.info(`[Research] Collected ${sources.length} sources from ${searchSteps.length} searches`);
 
   // B3: Apply MMR diversity to sources before synthesis
