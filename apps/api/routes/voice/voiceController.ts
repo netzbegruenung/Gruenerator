@@ -25,6 +25,7 @@ import {
   getUploadStatus,
 } from '../../services/subtitler/tusService.js';
 import { extractAudio, cleanupFiles } from '../../services/subtitler/videoUploadService.js';
+import { recordOperation } from '../../services/usage/UsageTrackingService.js';
 import mistralVoiceService from '../../services/voice/mistralVoiceService.js';
 import {
   generateProtokoll,
@@ -323,6 +324,7 @@ async function transcribeBuffer(
   if (needsVoxtral) {
     log.debug('[Voice] Using Voxtral (diarize/contextBias requested)');
     const result = await mistralVoiceService.transcribeFromBuffer(audioBuffer, filename, options);
+    recordOperation({ unit: 'transcriptions', provider: 'mistral', model: 'voxtral' });
     return {
       text: result.text,
       ...(result.segments != null && { segments: result.segments }),
@@ -332,7 +334,9 @@ async function transcribeBuffer(
 
   if (env.REGOLO_API_KEY) {
     try {
-      return await transcribeWithRegoloWhisper(audioBuffer, filename, options);
+      const result = await transcribeWithRegoloWhisper(audioBuffer, filename, options);
+      recordOperation({ unit: 'transcriptions', provider: 'regolo', model: WHISPER_MODEL });
+      return result;
     } catch (error) {
       log.warn(
         `[Voice] Regolo Whisper failed, falling back to Voxtral: ${(error as Error).message}`
@@ -341,6 +345,7 @@ async function transcribeBuffer(
   }
 
   const result = await mistralVoiceService.transcribeFromBuffer(audioBuffer, filename, options);
+  recordOperation({ unit: 'transcriptions', provider: 'mistral', model: 'voxtral' });
   return {
     text: result.text,
     ...(result.segments != null && { segments: result.segments }),
@@ -504,7 +509,7 @@ router.post('/transcribe/stream', upload.single('audio'), (async (
       });
     } else {
       // Streaming transcription — Voxtral only (Whisper has no streaming API)
-      // eslint-disable-next-line @typescript-eslint/await-thenable -- transcribeFromBufferStream yields an async-iterable stream
+
       for await (const event of mistralVoiceService.transcribeFromBufferStream(
         audioBuffer,
         filename,
@@ -658,7 +663,6 @@ router.post(
           speakerMap,
         });
       } else {
-        // eslint-disable-next-line @typescript-eslint/await-thenable -- transcribeFromBufferStream yields an async-iterable stream
         for await (const event of mistralVoiceService.transcribeFromBufferStream(
           audioBuffer,
           filename,
