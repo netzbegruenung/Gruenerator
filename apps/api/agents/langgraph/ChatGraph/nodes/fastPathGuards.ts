@@ -40,8 +40,12 @@ export function stripQuotedSpans(text: string): string {
 // them avoids false stand-downs at the cost of missing the rarer "statt einer
 // Grafik" shape (which then just keeps today's behavior).
 const NEGATOR_BEFORE_RE = /\b(kein\w{0,2}|nicht|ohne|nie(?:mals)?)\b[^.!?\n]{0,20}$/i;
-// Negator shortly after the noun ("ein Sharepic will ich nicht").
-const NEGATOR_AFTER_RE = /^[^.!?\n]{0,30}?\b(nicht|kein\w{0,2})\b/i;
+// Negator shortly after the noun ("ein Sharepic will ich nicht"). A contrastive
+// conjunction between noun and negator stops it: in "Erstelle ein Dokument, aber
+// keine Tabelle" the "keine" belongs to what FOLLOWS the "aber", so reading it
+// as a negation of the document refuses the very artifact that was asked for.
+const NEGATOR_AFTER_RE =
+  /^(?![^.!?\n]{0,30}?\b(?:aber|jedoch|sondern|allerdings|dafür|stattdessen)\b)[^.!?\n]{0,30}?\b(nicht|kein\w{0,2})\b/i;
 
 /**
  * True when an occurrence of `nounPattern` is negated within a sentence-bounded
@@ -76,6 +80,66 @@ export function isMetaQuestionAbout(text: string, nounPattern: RegExp): boolean 
 /** The single conjunct a guarded fast path adds: true ⇒ stand down (defer/other). */
 export function negatedOrMeta(text: string, nounPattern: RegExp): boolean {
   return isNegatedArtifactRequest(text, nounPattern) || isMetaQuestionAbout(text, nounPattern);
+}
+
+/**
+ * The artifact families a turn can be told NOT to touch. Keyed so the caller
+ * passes the family it is about to act on — per-noun on purpose: "Erstelle ein
+ * Dokument, aber keine Tabelle" forbids the table and must still write the
+ * document.
+ */
+export type ForbiddableArtifact = 'document' | 'sheet' | 'presentation' | 'pdf' | 'board' | 'image';
+
+export const ARTIFACT_NOUN_BY_KIND: Readonly<Record<ForbiddableArtifact, RegExp>> = {
+  document:
+    /\b(dokument\w*|protokoll\w*|notiz\w*|checkliste\w*|schriftst[üu]ck\w*|textdokument\w*)\b/i,
+  sheet: /\b(tabelle\w*|kalkulation\w*|spreadsheet\w*|sheet\w*)\b/i,
+  presentation: /\b(pr[äa]sentation\w*|folien?|slides?)\b/i,
+  pdf: /\bpdf\w*\b/i,
+  board: /\b(board\w*|kanban\w*|karten?|aufgaben?|tasks?)\b/i,
+  image: /\b(bild\w*|foto\w*|grafik\w*|illustration\w*)\b/i,
+};
+
+/**
+ * An ACTION-LEVEL prohibition: "nichts speichern", "keine Dokumentaktion",
+ * "nur antworten", "das Dokument unverändert lassen". These carry no artifact
+ * noun the per-noun negation guard could bind to, which is exactly why they
+ * used to pass through every gate untouched.
+ *
+ * `änderung` is deliberately absent from the noun list: "keine großen
+ * Änderungen" is an instruction about HOW to edit, not a refusal to edit, and
+ * it is common enough in ordinary edit turns to make the guard misfire.
+ */
+const ACTION_PROHIBITION_RE = new RegExp(
+  [
+    // "keine Aktion", "keine Dokumentaktion", "keine Speicher- oder
+    // Aktualisierungsaktion" — the lazy gap keeps the negator in the same clause.
+    String.raw`\bkein\w{0,2}\b[^.!?\n]{0,30}?\w*(?:aktion|aktualisierung|speicherung)\w*`,
+    String.raw`\bnichts?\s+(?:ab)?(?:speicher|anleg|ablege|sicher)\w*`,
+    String.raw`\bnicht\b[^.!?\n]{0,25}?\b(?:speichern|abspeichern|anlegen|aktualisieren|[üu]berschreiben|fortschreiben)\b`,
+    String.raw`\bnur\s+(?:im\s+chat|hier(?:\s+im\s+chat)?|antworten|als\s+antwort|in\s+der\s+antwort)\b`,
+    String.raw`\bunver[äa]ndert\s+(?:lassen|bleiben)\b`,
+  ].join('|'),
+  'i'
+);
+
+/**
+ * True when the turn explicitly forbids creating, saving or updating a
+ * persistent artifact.
+ *
+ * Why this exists: negation was already guarded — `negatedOrMeta` sits at
+ * eleven Tier-3 fast paths. It sat at the wrong eleven. The two routes that
+ * actually fire in a long thread (the Tier-2.7 `lastToolContext` follow-up and
+ * the Tier-4 LLM, nudged by the tool-context hint) had no negation check at
+ * all, so "Erstelle diesmal kein Dokument" reliably produced a document action.
+ *
+ * Pass `nounPattern` when acting on a specific family so an unrelated
+ * prohibition in the same message doesn't stand the turn down.
+ */
+export function forbidsPersistentAction(text: string, nounPattern?: RegExp): boolean {
+  const t = stripQuotedSpans(text ?? '');
+  if (ACTION_PROHIBITION_RE.test(t)) return true;
+  return nounPattern ? isNegatedArtifactRequest(t, nounPattern) : false;
 }
 
 /**
