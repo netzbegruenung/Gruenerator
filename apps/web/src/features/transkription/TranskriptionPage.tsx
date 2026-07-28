@@ -9,6 +9,7 @@ import {
   ProcessingState,
   Ripple,
   StepBreadcrumb,
+  toast,
 } from '@gruenerator/ui';
 import { useCallback, useState } from 'react';
 import { HiDocumentText, HiDownload } from 'react-icons/hi';
@@ -21,6 +22,7 @@ import SubmitButton from '../../components/common/SubmitButton';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { copyFormattedContent } from '../../components/utils/commonFunctions';
 import { useContentActions } from '../../hooks/useContentActions';
+import { useExportStore } from '../../stores/core/exportStore';
 import { downloadFile } from '../../utils/downloadFile';
 
 import AudioVisualizer from './components/AudioVisualizer';
@@ -89,21 +91,39 @@ const TranskriptionPage = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [copied, setCopied] = useState(false);
   const [selectedProtokollTyp, setSelectedProtokollTyp] = useState<ProtokollTyp | null>(null);
+  // Which of the two results is on screen. Switching used to *discard* the
+  // Protokoll, so going back cost a second AI round-trip and every export
+  // silently reverted to the transcript.
+  const [showOriginal, setShowOriginal] = useState(false);
   const isVideo = selectedFile?.type.startsWith('video/') ?? false;
 
+  const generateDOCX = useExportStore((s) => s.generateDOCX);
+  const generatePDF = useExportStore((s) => s.generatePDF);
+  const isExporting = useExportStore((s) => s.isGenerating);
+
+  const hasProtokoll = protokollState.status === 'done' && !!protokollState.result;
+  const isProtokollView = hasProtokoll && !showOriginal;
+
   // Protokoll result is already Markdown; a raw transcript gets its `[speaker_N]`
-  // markers resolved to labelled Markdown so copy/docs/todo/board all format cleanly.
+  // markers resolved to labelled Markdown so copy/download/docs/todo/board all
+  // format cleanly. Everything that exports goes through here, so the toggle
+  // above is what decides which of the two leaves the page.
   const getActiveContent = useCallback(
-    () => protokollState.result || transcriptToMarkdown(state.text, state.speakerMap),
-    [protokollState.result, state.text, state.speakerMap]
+    () =>
+      isProtokollView ? protokollState.result : transcriptToMarkdown(state.text, state.speakerMap),
+    [isProtokollView, protokollState.result, state.text, state.speakerMap]
   );
-  const getTitle = useCallback(
-    () => selectedFile?.name.replace(/\.[^.]+$/, '') ?? 'Transkription',
-    [selectedFile]
+  const getTitle = useCallback(() => {
+    const base = selectedFile?.name.replace(/\.[^.]+$/, '') ?? 'Transkription';
+    return isProtokollView && protokollState.typ ? `${protokollState.typ} — ${base}` : base;
+  }, [selectedFile, isProtokollView, protokollState.typ]);
+  const getDocumentType = useCallback(
+    () => (isProtokollView ? ('protokoll' as const) : ('notizen' as const)),
+    [isProtokollView]
   );
 
   const { handleOpenInDocs, handleCreateTodoList, handleCreateBoard, actionLoading } =
-    useContentActions({ getContent: getActiveContent, getTitle });
+    useContentActions({ getContent: getActiveContent, getTitle, getDocumentType });
 
   const handleFileSelected = useCallback((file: File) => {
     setSelectedFile(file);
@@ -112,7 +132,9 @@ const TranskriptionPage = () => {
   const handleStart = useCallback(async () => {
     if (!selectedFile) return;
     const text = await transcribe(selectedFile, options);
-    if (text && selectedProtokollTyp) {
+    // `text.trim()` rather than `text`: an empty-but-present transcript would
+    // otherwise spend an AI call producing a Protokoll of nothing.
+    if (text?.trim() && selectedProtokollTyp) {
       void formatAsProtokoll(text, selectedProtokollTyp);
     }
   }, [selectedFile, transcribe, options, selectedProtokollTyp, formatAsProtokoll]);
@@ -124,10 +146,19 @@ const TranskriptionPage = () => {
     });
   }, [getActiveContent]);
 
-  const handleDownloadTxt = useCallback(() => {
-    downloadFile(state.text, `${getTitle()}.txt`, 'text/plain');
-  }, [state.text, getTitle]);
+  // All text downloads follow the Protokoll/Original toggle. They used to read
+  // `state.text` unconditionally, so downloading a Protokoll handed you the raw
+  // transcript — complete with unresolved [speaker_N] markers.
+  const handleDownloadMd = useCallback(() => {
+    downloadFile(getActiveContent(), `${getTitle()}.md`, 'text/markdown');
+  }, [getActiveContent, getTitle]);
 
+  const handleDownloadTxt = useCallback(() => {
+    downloadFile(getActiveContent(), `${getTitle()}.txt`, 'text/plain');
+  }, [getActiveContent, getTitle]);
+
+  // .srt is the one export that ignores the toggle: subtitles are timecoded
+  // segments, and a Protokoll has no timecodes. It is hidden in Protokoll view.
   const handleDownloadSrt = useCallback(() => {
     const srt = state.segments
       .map(
@@ -138,8 +169,35 @@ const TranskriptionPage = () => {
     downloadFile(srt, `${getTitle()}.srt`, 'text/srt');
   }, [state.segments, getTitle]);
 
+  // Both server-side generators accept Markdown directly (contentParser detects
+  // it), so the Protokoll needs no conversion on the way out.
+  const handleDownloadDocx = useCallback(async () => {
+    const pending = toast.loading('Word-Datei wird erstellt …');
+    try {
+      await generateDOCX(getActiveContent(), getTitle());
+      toast.success('Word-Datei erstellt', { id: pending });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Word-Export fehlgeschlagen', {
+        id: pending,
+      });
+    }
+  }, [generateDOCX, getActiveContent, getTitle]);
+
+  const handleDownloadPdf = useCallback(async () => {
+    const pending = toast.loading('PDF wird erstellt …');
+    try {
+      await generatePDF(getActiveContent(), getTitle());
+      toast.success('PDF erstellt', { id: pending });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'PDF-Export fehlgeschlagen', {
+        id: pending,
+      });
+    }
+  }, [generatePDF, getActiveContent, getTitle]);
+
   const handleFormatProtokoll = useCallback(
     (typ: ProtokollTyp) => {
+      setShowOriginal(false);
       void formatAsProtokoll(state.text, typ);
     },
     [formatAsProtokoll, state.text]
@@ -151,6 +209,16 @@ const TranskriptionPage = () => {
     setSelectedFile(null);
     setCopied(false);
     setSelectedProtokollTyp(null);
+    setShowOriginal(false);
+  }, [reset, resetProtokoll]);
+
+  // Retry keeps the picked file: a full reset means re-uploading a file that may
+  // have taken minutes, which is the last thing you want after a failure.
+  const handleRetry = useCallback(() => {
+    reset();
+    resetProtokoll();
+    setCopied(false);
+    setShowOriginal(false);
   }, [reset, resetProtokoll]);
 
   const showRipple = state.status === 'idle' && !selectedFile;
@@ -347,12 +415,46 @@ const TranskriptionPage = () => {
                 segments={state.segments}
                 hasTimestamps={state.hasTimestamps}
                 speakerMap={state.speakerMap}
-                formattedText={protokollState.status === 'done' ? protokollState.result : undefined}
-                onShowOriginal={protokollState.status === 'done' ? resetProtokoll : undefined}
+                formattedText={isProtokollView ? protokollState.result : undefined}
               />
             )}
 
             <div className="flex flex-wrap items-center gap-sm">
+              {hasProtokoll && (
+                <div
+                  role="group"
+                  aria-label="Ansicht"
+                  className="flex items-center rounded-md border border-grey-300 dark:border-grey-600 overflow-hidden"
+                >
+                  <button
+                    type="button"
+                    aria-pressed={isProtokollView}
+                    onClick={() => setShowOriginal(false)}
+                    className={cn(
+                      'px-md py-sm text-sm transition-colors cursor-pointer border-none',
+                      isProtokollView
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-background text-foreground hover:bg-grey-50 dark:hover:bg-grey-800'
+                    )}
+                  >
+                    {protokollState.typ ?? 'Protokoll'}
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={!isProtokollView}
+                    onClick={() => setShowOriginal(true)}
+                    className={cn(
+                      'px-md py-sm text-sm transition-colors cursor-pointer border-none',
+                      !isProtokollView
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-background text-foreground hover:bg-grey-50 dark:hover:bg-grey-800'
+                    )}
+                  >
+                    Originaltext
+                  </button>
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={handleCopy}
@@ -366,15 +468,23 @@ const TranskriptionPage = () => {
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className="flex items-center gap-xs px-md py-sm text-sm rounded-md border border-grey-300 dark:border-grey-600 bg-background text-foreground hover:bg-grey-50 dark:hover:bg-grey-800 transition-colors cursor-pointer"
+                    disabled={isExporting}
+                    className={cn(
+                      'flex items-center gap-xs px-md py-sm text-sm rounded-md border border-grey-300 dark:border-grey-600 bg-background text-foreground hover:bg-grey-50 dark:hover:bg-grey-800 transition-colors cursor-pointer',
+                      isExporting && 'opacity-50 cursor-not-allowed'
+                    )}
                   >
                     <HiDownload size={16} />
                     Herunterladen
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={handleDownloadDocx}>Als Word (.docx)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleDownloadPdf}>Als PDF (.pdf)</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleDownloadMd}>Als Markdown (.md)</DropdownMenuItem>
                   <DropdownMenuItem onClick={handleDownloadTxt}>Als Text (.txt)</DropdownMenuItem>
-                  {state.hasTimestamps && state.segments.length > 0 && (
+                  {!isProtokollView && state.hasTimestamps && state.segments.length > 0 && (
                     <DropdownMenuItem onClick={handleDownloadSrt}>
                       Als Untertitel (.srt)
                     </DropdownMenuItem>
@@ -461,13 +571,22 @@ const TranskriptionPage = () => {
         {state.status === 'error' && (
           <div className="flex flex-col items-center gap-md py-xl text-center">
             <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>
-            <button
-              type="button"
-              onClick={handleReset}
-              className="px-md py-sm text-sm rounded-md bg-primary-600 text-white hover:bg-primary-500 transition-colors cursor-pointer border-none"
-            >
-              Erneut versuchen
-            </button>
+            <div className="flex flex-wrap items-center justify-center gap-sm">
+              <button
+                type="button"
+                onClick={handleRetry}
+                className="px-md py-sm text-sm rounded-md bg-primary-600 text-white hover:bg-primary-500 transition-colors cursor-pointer border-none"
+              >
+                Erneut versuchen
+              </button>
+              <button
+                type="button"
+                onClick={handleReset}
+                className="px-md py-sm text-sm rounded-md border border-grey-300 dark:border-grey-600 bg-background text-foreground hover:bg-grey-50 dark:hover:bg-grey-800 transition-colors cursor-pointer"
+              >
+                Andere Datei wählen
+              </button>
+            </div>
           </div>
         )}
       </PageContainer>

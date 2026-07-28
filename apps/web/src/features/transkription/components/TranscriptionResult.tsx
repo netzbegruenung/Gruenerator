@@ -30,7 +30,6 @@ interface TranscriptionResultProps {
   hasTimestamps: boolean;
   isStreaming?: boolean;
   formattedText?: string;
-  onShowOriginal?: () => void;
   speakerMap?: Record<string, string>;
 }
 
@@ -40,22 +39,12 @@ export default function TranscriptionResult({
   hasTimestamps,
   isStreaming,
   formattedText,
-  onShowOriginal,
   speakerMap,
 }: TranscriptionResultProps) {
   if (formattedText) {
     return (
       <div className="display-container flex flex-col rounded-md bg-background-pure shadow-[0_4px_20px_rgba(0,0,0,0.15)] p-lg max-h-[75vh] overflow-y-auto max-md:p-md max-md:shadow-none">
         <Markdown className="prose prose-sm dark:prose-invert max-w-none">{formattedText}</Markdown>
-        {onShowOriginal && (
-          <button
-            type="button"
-            onClick={onShowOriginal}
-            className="mt-md text-xs text-grey-400 dark:text-grey-500 hover:text-foreground transition-colors cursor-pointer"
-          >
-            Originaltext anzeigen
-          </button>
-        )}
       </div>
     );
   }
