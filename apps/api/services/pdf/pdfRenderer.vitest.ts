@@ -813,6 +813,41 @@ describe('renderPdf', () => {
       expect(result.missingGlyphs).toEqual([]);
     });
 
+    it('verliert kein Zeichen der Bindestrich- und Leerzeichen-Familie', async () => {
+      // Der Auslöser: "Klarwasser\u2011BASIS\u20111" kam im Bericht als
+      // "KlarwasserBASIS1" an. Unsere Schriften führen U+2011 zwar (der Test
+      // unten belegt es), aber die Tabelle kannte weder ihn noch das schmale
+      // Leerzeichen — jede Schrift ohne diese Glyphen hätte sie ERSATZLOS
+      // gelöscht und aus zwei Wörtern eines gemacht, ohne ein Wort darüber zu
+      // verlieren. Die Zusicherung ist deshalb: getrennt bleibt getrennt.
+      const result = await renderPdf(
+        spec({
+          title: 'Klarwasser\u2011BASIS\u20111',
+          blocks: [{ type: 'paragraph', text: 'Halb\u2011tags, 5\u2009km und ein\u00A0Wort.' }],
+        }),
+        { locale: 'de-DE' }
+      );
+      const text = await extractText(result.bytes);
+      expect(result.missingGlyphs).toEqual([]);
+      expect(text).toMatch(/Klarwasser.BASIS.1/);
+      expect(text).toMatch(/Halb.tags/);
+      expect(text).toMatch(/5.km/);
+      expect(text).toMatch(/ein.Wort/);
+    });
+
+    it('meldet unsichtbare Steuerzeichen NICHT als Problem', async () => {
+      // Ein weiches Trennzeichen SOLL im Druck verschwinden. Es als "konnte
+      // nicht dargestellt werden" zu melden füllt die Selbstprüfung mit
+      // Befunden, die keine sind — und eine Problemliste, der niemand traut,
+      // liest auch niemand.
+      const result = await renderPdf(
+        spec({ blocks: [{ type: 'paragraph', text: 'Sil\u00ADben\u200Btrennung.' }] }),
+        { locale: 'de-DE' }
+      );
+      expect(result.missingGlyphs).toEqual([]);
+      expect(await extractText(result.bytes)).toContain('Silbentrennung.');
+    });
+
     it('meldet, wie viele Zeichen es verworfen hat', async () => {
       const result = await renderPdf(
         spec({ blocks: [{ type: 'paragraph', text: '绿色政策 绿色' }] }),

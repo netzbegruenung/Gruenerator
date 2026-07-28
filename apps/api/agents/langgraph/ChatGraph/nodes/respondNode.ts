@@ -35,13 +35,7 @@ import { lastUserText } from './classifierHeuristics.js';
 import { looksLikeDocsHelpQuestion } from './classifierParsing.js';
 import { deriveTextFormMention } from './textFormMention.js';
 
-import type {
-  ChatGraphState,
-  DocumentSource,
-  ResearchToolResult,
-  SearchResult,
-  ThreadAttachment,
-} from '../types.js';
+import type { ChatGraphState, DocumentSource, SearchResult, ThreadAttachment } from '../types.js';
 
 const log = createLogger('ChatGraph:Respond');
 
@@ -184,50 +178,22 @@ const MAX_SEARCH_RESULTS = 8;
  * For complex research queries with a researchBrief, uses LLM cleaning
  * to produce a coherent summary instead of raw truncated snippets.
  */
-export function formatResearchWrapperContext(meta: ResearchToolResult): string {
-  // Wrapper-mode prompt: the synthesized answer is rendered separately as the
-  // Recherche-Karte (researchMeta tool result). The agent must NOT re-synthesize
-  // from chunks — that produces drift (small models drop confidence and emit
-  // "keine Informationen" while the card shows a confident answer). Treat this
-  // as a thin conversational wrapper around the artifact.
-  const synthesisPreview = meta.answer.length > 800 ? `${meta.answer.slice(0, 800)}…` : meta.answer;
-  const followUpHint =
-    meta.followUpQuestions.length > 0
-      ? 'nimm ggf. eine der Folge-Fragen aus der Karte auf, oder '
-      : '';
-  return `
-
-## RECHERCHE ABGESCHLOSSEN — DU BIST WRAPPER, NICHT ANTWORTGEBER
-
-Die vollständige Recherche-Antwort und alle ${meta.citations.length} Quellen werden dem*der Nutzer*in als separate Recherche-Karte oberhalb deiner Antwort angezeigt.
-
-WICHTIG:
-1. Wiederhole NICHT die Recherche-Antwort — sie ist bereits sichtbar.
-2. Verweise konversationell auf die Karte (maximal 2 Sätze).
-3. Sage NIE "keine Informationen", "keine Treffer", "konnte nichts finden" o.ä. — die Recherche WAR erfolgreich (Konfidenz: ${meta.confidence}, ${meta.citations.length} Quellen).
-4. Wenn passend: ${followUpHint}biete eine weiterführende Frage an.
-
-Synthese (NUR zur Orientierung — wiederhole sie nicht):
-${synthesisPreview}`;
-}
-
-/**
- * Whether this research turn answers in WRAPPER mode — the retrieved synthesis
- * is already the answer and the model only frames it in ~2 sentences.
+/*
+ * Wrapper mode is gone with the research/web merge.
  *
- * Exported because the model lane depends on it: framing a finished answer is
- * Lane-A work, while the fallthrough (synthesising from raw chunks) is not.
- * Both callers must agree, so the condition lives here once. Safe to call from
- * the router — it runs `buildSystemMessage` before `resolveModel`, so
- * `researchMeta` is populated by then.
+ * It existed because `intent: 'research'` did not retrieve — it asked Linkup to
+ * WRITE the answer (depth=deep, outputType=sourcedAnswer). That answer went into
+ * a Recherche-Karte, and the model was reduced to two framing sentences above
+ * it. The costs were structural: the answer carried Linkup's own [N] numbering
+ * against a source list our registry never saw, the model could not be asked to
+ * follow up on it, and a lane that failed to write two sentences had to be
+ * salvaged with the card's text.
+ *
+ * Research is now the upper two tiers of the same web retrieval (searchDepth.ts),
+ * so the model writes every answer and every [N] resolves in our registry.
+ * Persisted turns from before the merge keep their card — the frontend still
+ * reads `researchMeta` out of `tool_results`; nothing produces it any more.
  */
-export function usesResearchWrapper(state: ChatGraphState): boolean {
-  return (
-    state.intent === 'research' &&
-    !!state.researchMeta?.answer &&
-    state.researchMeta.confidence !== 'low'
-  );
-}
 
 export async function formatSearchContext(
   state: ChatGraphState,
@@ -237,22 +203,6 @@ export async function formatSearchContext(
   // model writes a thin conversational reference, not a re-synthesis from
   // raw chunks. The tool artifact (researchMeta) is the single source of
   // truth for the answer; the chat reply just frames it.
-  if (usesResearchWrapper(state) && state.researchMeta) {
-    log.info(
-      `[Respond] Wrapper-mode (intent=research, confidence=${state.researchMeta.confidence}, citations=${state.researchMeta.citations.length}, answer_len=${state.researchMeta.answer.length})`
-    );
-    return formatResearchWrapperContext(state.researchMeta);
-  }
-
-  // Log why wrapper-mode did NOT apply so regressions are easy to spot in
-  // production logs (e.g. confidence dropping to 'low', meta missing,
-  // intent mis-classified).
-  if (state.intent === 'research') {
-    log.info(
-      `[Respond] Wrapper-mode skipped for research intent: hasMeta=${!!state.researchMeta}, hasAnswer=${!!state.researchMeta?.answer}, confidence=${state.researchMeta?.confidence ?? 'none'} — falling through to chunk-based context`
-    );
-  }
-
   // Infrastructure failure must not read like "no results on this topic":
   // without this block the model confidently answers "dazu gibt es nichts",
   // although the sources were simply unreachable.

@@ -41,7 +41,10 @@ describe('createSourceRegistry', () => {
     const reg = createSourceRegistry();
     reg.register([result({ url: 'https://x', title: 'A', content: 'alpha' })]);
     const dup = reg.register([result({ url: 'https://x', title: 'A', content: 'alpha' })]);
-    expect(dup).toBe(''); // nothing new added
+    // Re-emitted under its ESTABLISHED number rather than swallowed: a second
+    // search that happens to land on the same page must not hand the model an
+    // empty result block and read as "nothing found".
+    expect(dup).toBe('[1] A <https://x> — alpha');
     expect(reg.size).toBe(1);
   });
 
@@ -136,67 +139,114 @@ describe('createSourceRegistry', () => {
     expect(reg.getResults(10)).toHaveLength(10);
   });
 
+  /**
+   * Carried sources are CITABLE.
+   *
+   * They used to be an unnumbered block with the model explicitly told not to
+   * mark them. The same follow-up ("Mehr dazu bitte") was therefore sourced or
+   * unsourced depending on nothing but whether the turn routed through the loop
+   * or through the single-pass path — where carryThreadSourcesIfNeeded has
+   * always cited them. These tests pin the invariant that closes that split:
+   * one numbering, every marker chip-backed, and prior research never counted
+   * as this turn's work.
+   */
   describe('cross-turn carried sources (seedCarried / renderReference)', () => {
-    it('carried sources reach the synth block but never the citation channels', () => {
+    it('numbers carried sources and projects them into the citation channels', () => {
       const reg = createSourceRegistry();
       reg.seedCarried([result({ title: 'PRIOR', content: 'prior-fact', url: 'https://p' })]);
-      // renderReference exposes the carried source to the op-planner...
       expect(reg.renderReference()).toMatch(/\[1\] PRIOR/);
-      // ...and the synth sees it too, or it would deny having sources that are
-      // visibly attached to the same conversation.
-      expect(reg.renderAll()).toContain('PRIOR');
       expect(reg.renderAll()).toContain('prior-fact');
-      // ...but this-turn channels stay empty (no dangling citation, no push-out).
-      expect(reg.getCitations()).toEqual([]);
-      expect(reg.getResults()).toEqual([]);
-      expect(reg.size).toBe(0);
+      // Every [N] the model may emit now has a chip and a persisted row behind it.
+      expect(reg.getCitations().map((c) => c.id)).toEqual([1]);
+      expect(reg.getResults()).toHaveLength(1);
+      // `size` is the clamp bound — a carried [1] must survive stripOutOfRangeCitations.
+      expect(reg.size).toBe(1);
       expect(reg.carriedSize).toBe(1);
+      // ...but it is not research THIS turn. The loop guards budget against this.
+      expect(reg.freshSize).toBe(0);
     });
 
-    it('renders carried sources UNNUMBERED so no [N] can dangle', () => {
+    it('marks carried sources as prior so the answer cannot claim fresh research', () => {
       const reg = createSourceRegistry();
       reg.seedCarried([result({ title: 'PRIOR', content: 'prior-fact', url: 'https://p' })]);
       const block = reg.renderAll();
-      // The citation clamp keys off `size`; a [1] here would survive it and
-      // point at a chip the UI never rendered.
-      expect(block).not.toMatch(/\[\d+\]/);
-      expect(block).toContain('FRÜHERE QUELLEN');
+      expect(block).toMatch(/\[1\] \(frühere Recherche\) PRIOR/);
+      expect(block).toContain('behaupte NICHT');
     });
 
-    it('puts this-turn sources first and keeps their numbering independent', () => {
+    it('continues this turn numbering after the carried sources', () => {
+      const reg = createSourceRegistry();
+      reg.seedCarried([result({ title: 'PRIOR', content: 'prior', url: 'https://p' })]);
+      const returned = reg.register([
+        result({ title: 'FRESH', content: 'fresh', url: 'https://f' }),
+      ]);
+      // The number the TOOL hands back to the model must match the block.
+      expect(returned).toMatch(/^\[2\] FRESH/);
+      expect(reg.renderAll()).toMatch(/\[2\] FRESH/);
+      expect(reg.size).toBe(2);
+      expect(reg.freshSize).toBe(1);
+      expect(reg.getCitations().map((c) => c.id)).toEqual([1, 2]);
+    });
+
+    it('persists this turn sources first so a long carry cannot push them out', () => {
+      const reg = createSourceRegistry();
+      reg.seedCarried(
+        Array.from({ length: 3 }, (_, i) =>
+          result({ title: `P${i}`, content: `prior${i}`, url: `https://p${i}` })
+        )
+      );
+      reg.register([result({ title: 'FRESH', content: 'fresh', url: 'https://f' })]);
+      expect(reg.getResults(2).map((r) => r.title)).toEqual(['FRESH', 'P0']);
+    });
+
+    it('renderReference keeps the numbered LINES clean — they brief generators', () => {
       const reg = createSourceRegistry();
       reg.seedCarried([result({ title: 'PRIOR', content: 'prior', url: 'https://p' })]);
       reg.register([result({ title: 'FRESH', content: 'fresh', url: 'https://f' })]);
-      const block = reg.renderAll();
-      expect(block.indexOf('[1] FRESH')).toBeGreaterThanOrEqual(0);
-      expect(block.indexOf('[1] FRESH')).toBeLessThan(block.indexOf('FRÜHERE QUELLEN'));
-      // Carried must not shift this turn's numbering or inflate the clamp bound.
-      expect(reg.size).toBe(1);
+      const lines = reg.renderReference().split('\n\n')[0] ?? '';
+      expect(lines).toBe('[1] PRIOR <https://p> — prior\n[2] FRESH <https://f> — fresh');
     });
 
-    it('renderReference lists carried first, then this-turn sources, sequentially numbered', () => {
+    /**
+     * The provenance still has to reach the generator — just not as part of a
+     * line it may copy. Live (QA 28.07.2026): a PDF asked to cite official
+     * Austrian sources shipped an appendix of hits from three turns earlier,
+     * each looking exactly as approved as the ones gathered for the job.
+     */
+    it('names the carried numbers in a separate note, outside the citable lines', () => {
       const reg = createSourceRegistry();
       reg.seedCarried([result({ title: 'PRIOR', content: 'prior', url: 'https://p' })]);
       reg.register([result({ title: 'FRESH', content: 'fresh', url: 'https://f' })]);
       const ref = reg.renderReference();
-      expect(ref).toMatch(/\[1\] PRIOR/);
-      expect(ref).toMatch(/\[2\] FRESH/);
+      expect(ref).toContain('HERKUNFT');
+      expect(ref).toContain('[1]');
+      // The note names the carried source only — [2] was gathered for this job.
+      expect(ref.slice(ref.indexOf('HERKUNFT'))).not.toContain('[2]');
     });
 
-    it('renderReference dedups a carried source re-found this turn', () => {
+    it('adds no provenance note when nothing was carried', () => {
+      const reg = createSourceRegistry();
+      reg.register([result({ title: 'FRESH', content: 'fresh', url: 'https://f' })]);
+      expect(reg.renderReference()).not.toContain('HERKUNFT');
+    });
+
+    it('a carried source re-found this turn keeps its number and becomes fresh', () => {
       const reg = createSourceRegistry();
       reg.seedCarried([result({ title: 'A', content: 'alpha', url: 'https://a' })]);
-      reg.register([result({ title: 'A', content: 'alpha', url: 'https://a' })]);
-      const ref = reg.renderReference();
-      expect(ref).toBe('[1] A <https://a> — alpha');
-      // this-turn citation still counts the fresh registration (it was cited live)
+      const returned = reg.register([result({ title: 'A', content: 'alpha', url: 'https://a' })]);
+      // One chip for one URL — but the search still SHOWS its hit to the model.
+      expect(returned).toBe('[1] A <https://a> — alpha');
       expect(reg.size).toBe(1);
+      expect(reg.freshSize).toBe(1);
+      expect(reg.carriedSize).toBe(0);
+      expect(reg.renderAll()).not.toContain('frühere Recherche');
     });
 
     it('seedCarried skips empty-content sources', () => {
       const reg = createSourceRegistry();
       reg.seedCarried([result({ title: 'Empty', content: '', url: 'https://e' })]);
       expect(reg.renderReference()).toBe('');
+      expect(reg.carriedSize).toBe(0);
     });
 
     it('renderReference falls back to this-turn sources when nothing carried', () => {

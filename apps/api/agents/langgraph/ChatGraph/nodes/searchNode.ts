@@ -13,7 +13,6 @@ import {
   // executeDirectPersonSearch, // DISABLED: Person search not production ready
   executeDirectExamplesSearch,
   executeDirectWebSearch,
-  executeResearch,
 } from '../../../../routes/chat/agents/directSearch.js';
 import { resolveExamplesLvScope } from '../../../../routes/chat/agents/lvScope.js';
 import { resolveReferentialQuery } from '../../../../routes/chat/services/referentialTopic.js';
@@ -35,6 +34,7 @@ import {
 } from '../../../../services/search/CrawlingService.js';
 import { expandQuery } from '../../../../services/search/QueryExpansionService.js';
 import { DEFAULT_RELEVANCE } from '../../../../services/search/rerankPipeline.js';
+import { resolveTier, tierFromClassification } from '../../../../services/search/searchDepth.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { type AIWorkerPool } from '../../../../workers/types.js';
 import {
@@ -43,7 +43,6 @@ import {
   type DocumentSource,
   type SearchResult,
   type Citation,
-  type ResearchToolResult,
   type ExamplesToolResult,
   type SearchErrorEntry,
 } from '../types.js';
@@ -784,7 +783,6 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
   // only the forced path in the router.
   const referential = resolveReferentialQuery(state.searchQuery ?? '', state.messages ?? []);
   const searchQuery = referential.query;
-  const queryInherited = referential.inherited || state.searchQueryInherited === true;
   if (referential.inherited) {
     log.info(
       `[Search] Referential query resolved to the prior turn's topic: "${searchQuery.slice(0, 60)}"`
@@ -814,7 +812,6 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     let results: SearchResult[] = [];
     let citations: Citation[] = [];
     let searchedCollections: string[] = [];
-    let researchMeta: ResearchToolResult | null = null;
     let examplesResult: ExamplesToolResult | null = null;
     // Backend failures on the single-source paths. The multi-source paths have
     // collected these all along; here they were only logged, so a Qdrant or
@@ -1016,68 +1013,6 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     // is present — the multi-doc fan-out above is its real path.
     const effectiveIntent = intent === 'compare' ? 'search' : intent;
     switch (effectiveIntent) {
-      case 'research': {
-        // Dynamic research depth based on query complexity
-        const complexity = state.complexity || 'moderate';
-        const depthConfig = {
-          simple: { depth: 'quick' as const, maxSources: 4 },
-          moderate: { depth: 'quick' as const, maxSources: 6 },
-          complex: { depth: 'thorough' as const, maxSources: 10 },
-        };
-        const { depth, maxSources } = depthConfig[complexity];
-
-        // Pass the user's actual short query to the search planner.
-        // The brief is for orienting the synthesis LLM, not for SearXNG —
-        // a 460-char paragraph as a search string returns near-random hits.
-        const question = searchQuery || state.researchBrief || '';
-        log.info(
-          `[Search] Research depth: ${depth}, maxSources: ${maxSources} (complexity: ${complexity}, brief: ${!!state.researchBrief})`
-        );
-
-        const researchResult = await executeResearch({
-          question,
-          brief: state.researchBrief,
-          queryInherited,
-          depth,
-          maxSources,
-          complexity,
-          userLocale: state.userLocale,
-          aiWorkerPool: state.aiWorkerPool,
-          ...(state.onResearchProgress && { onProgress: state.onResearchProgress }),
-        });
-
-        // Convert research citations to SearchResult format
-        results =
-          researchResult.citations?.map((c, i) => ({
-            source: 'research',
-            title: c.title,
-            content: c.snippet || '',
-            url: c.url,
-            relevance: 1 - i * 0.1,
-          })) || [];
-
-        // Build enriched citations from results
-        citations = buildCitations(results);
-
-        // Capture full metadata for the persisted tool-call payload.
-        // The synthesized `answer` is consumed directly by respondNode via
-        // `state.researchMeta` (wrapper-mode prompt), so we no longer
-        // need to unshift it into `results` as a fake `research_synthesis`
-        // chunk — that workaround caused drift when small response models
-        // treated it as one source among many and contradicted the artifact.
-        researchMeta = {
-          answer: researchResult.answer,
-          citations,
-          confidence: researchResult.confidence,
-          searchSteps: researchResult.searchSteps,
-          followUpQuestions: researchResult.followUpQuestions,
-        };
-        log.info(
-          `[Search] researchMeta captured (answer_len=${researchResult.answer?.length ?? 0}, confidence=${researchResult.confidence}, citations=${citations.length}, follow_ups=${researchResult.followUpQuestions.length})`
-        );
-        break;
-      }
-
       case 'search': {
         // Document chat: search within multi-selected user documents
         if (state.documentChatIds && state.documentChatIds.length > 0) {
@@ -1415,22 +1350,44 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         break;
       }
 
+      // `research` is no longer a separate engine — it is this path at a deeper
+      // tier. It used to call executeResearch, which handed the whole question
+      // to Linkup `depth=deep, outputType=sourcedAnswer`: LINKUP wrote the
+      // answer, we rendered it in a card, and the model only framed it in two
+      // sentences. Retrieval and answer-writing are separated again, so every
+      // [N] in a research answer is now backed by our own source registry.
+      case 'research':
       case 'web': {
-        // Web search with query expansion and content crawling
-        const query = truncateQuery(searchQuery || '');
+        const tier = tierFromClassification({
+          intent: effectiveIntent,
+          complexity: state.complexity ?? null,
+        });
+        const tierConfig = resolveTier(tier);
+        // The brief is a fallback only: it orients the synthesis LLM, but a
+        // 460-char paragraph as a search string returns near-random hits.
+        const query = truncateQuery(searchQuery || state.researchBrief || '');
+        log.info(
+          `[Search] Web tier=${tier} (intent=${effectiveIntent}, complexity=${state.complexity ?? 'none'}, depth=${tierConfig.depth}, max=${tierConfig.maxResults})`
+        );
+        state.onResearchProgress?.(tierConfig.progress);
 
-        // A2: Expand query for broader coverage (web and research intents)
+        // A2: Expand query for broader coverage — but only at `standard`.
+        // Expansion exists to compensate for a shallow engine; the deep tiers
+        // run Linkup's own multi-iteration agentic search, so expanding on top
+        // pays for the same fan-out twice (and multiplies the deep call).
         let allWebQueries = [query];
-        try {
-          const expanded = await expandQuery(query, state.aiWorkerPool);
-          if (expanded.alternatives.length > 0) {
-            allWebQueries = [query, ...expanded.alternatives];
-            log.info(`[Search] Expanded web query into ${allWebQueries.length} variants`);
+        if (tierConfig.depth === 'standard') {
+          try {
+            const expanded = await expandQuery(query, state.aiWorkerPool);
+            if (expanded.alternatives.length > 0) {
+              allWebQueries = [query, ...expanded.alternatives];
+              log.info(`[Search] Expanded web query into ${allWebQueries.length} variants`);
+            }
+          } catch (err: unknown) {
+            log.warn(
+              `[Search] Query expansion failed, using original: ${err instanceof Error ? err.message : String(err)}`
+            );
           }
-        } catch (err: unknown) {
-          log.warn(
-            `[Search] Query expansion failed, using original: ${err instanceof Error ? err.message : String(err)}`
-          );
         }
 
         // Search all query variants in parallel
@@ -1438,7 +1395,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           executeDirectWebSearch({
             query: q,
             searchType: 'general',
-            maxResults: 5,
+            tier,
           }).catch((err: unknown) => {
             const msg = err instanceof Error ? err.message : String(err);
             log.warn(`[Search] Web search failed for variant "${q}": ${msg}`);
@@ -1674,7 +1631,6 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       citations: citations.length > 0 ? citations : buildCitations(results),
       searchCount: 1,
       searchTimeMs,
-      researchMeta,
       examplesResult,
       ...(searchedCollections.length > 0 && { searchedCollections }),
       // Only when the turn ends up with nothing: a backend failure that still

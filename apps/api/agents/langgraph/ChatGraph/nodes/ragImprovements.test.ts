@@ -235,7 +235,6 @@ async function testExpandedContextWindow() {
     searchCount: 1,
     maxSearches: 3,
     researchBrief: null,
-    researchMeta: null,
     examplesResult: null,
     searchErrors: [],
     degradationNotes: [],

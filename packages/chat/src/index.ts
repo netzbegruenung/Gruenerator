@@ -321,7 +321,7 @@ export { mapRawCitationsToChat, resolveCitations } from './lib/citationUtils';
 export { parseSSELine, type SSECurrentEvent, type SSEParseResult } from './lib/sseParser';
 
 // URL Utilities
-export { extractDomain, getFaviconUrl, getHostname, faviconFromHostname } from './lib/urlUtils';
+export { domainHue, domainInitial, extractDomain, getHostname } from './lib/urlUtils';
 
 // Lib
 export { cn } from './lib/utils';

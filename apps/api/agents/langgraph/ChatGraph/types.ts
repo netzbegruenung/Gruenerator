@@ -733,11 +733,6 @@ export interface ChatGraphState {
   // Research brief (compressed research intent for complex queries)
   researchBrief: string | null;
 
-  // Full research metadata (set by search node when intent === 'research').
-  // Persisted into the `research` tool-call result so the UI can render
-  // confidence, search steps, and follow-up questions.
-  researchMeta: ResearchToolResult | null;
-
   // Rich examples result, kind-segmented (set by search node for examples /
   // pressemitteilung_examples intents). Persisted into the matching tool-call
   // `result.examples` so PressemitteilungExamplesCard can render title/body/lv

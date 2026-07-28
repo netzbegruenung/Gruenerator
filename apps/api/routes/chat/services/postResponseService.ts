@@ -55,7 +55,13 @@ const log = createLogger('PostResponse');
 export const INTENT_TO_TOOL: Record<string, string> = {
   search: 'gruenerator_search',
   web: 'web_search',
-  research: 'research',
+  // Research persists as a web search because that is now what it IS — the same
+  // retrieval at a deeper tier. Keeping `research` here would hand the frontend
+  // a tool whose renderer (`markdown-report`) expects Linkup's written answer,
+  // which no turn produces any more; it would render an empty report card over
+  // a perfectly good result list. Turns from before the merge keep their own
+  // persisted `research` tool call and still render the Recherche-Karte.
+  research: 'web_search',
   examples: 'gruenerator_examples_search',
   pressemitteilung_examples: 'gruenerator_pressemitteilung_examples',
   image: 'image_generate',
@@ -126,9 +132,6 @@ function buildToolCallResult(
   generatedImage: GeneratedImageResult | null,
   sharepicVariants: SharepicVariant[]
 ): ToolCallResult {
-  if (toolName === 'research' && finalState.researchMeta) {
-    return finalState.researchMeta;
-  }
   if ((toolName === 'image_generate' || toolName === 'image_edit') && generatedImage) {
     return {
       url: generatedImage.url,

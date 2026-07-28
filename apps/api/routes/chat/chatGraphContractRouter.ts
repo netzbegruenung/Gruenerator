@@ -26,7 +26,6 @@ import {
   classifierNode,
   pandasComputeNode,
   buildSystemMessage,
-  usesResearchWrapper,
 } from '../../agents/langgraph/ChatGraph/index.js';
 import {
   isSheetFillRequest,
@@ -151,13 +150,6 @@ import type { ModelMessage } from 'ai';
 import type { Application } from 'express';
 
 const log = createLogger('chatGraphContractRouter');
-
-/**
- * Framing for a wrapper-mode research answer that had to be delivered without a
- * model: honest that the formulation failed, but the recherche itself did not.
- */
-const RESEARCH_SALVAGE_PREFIX =
-  'Die Formulierung der Antwort hat gerade nicht geklappt — hier ist das Rechercheergebnis unverändert:';
 
 /** Content of the row that keeps a failed turn's sources for the retry. */
 const RESEARCH_KEPT_ON_FAILURE_TEXT =
@@ -1796,9 +1788,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             requestId,
             {
               hasImages: imageAttachments.length > 0,
-              // Wrapper-mode research only frames an answer that already
-              // exists — a different lane than synthesising one from chunks.
-              intent: usesResearchWrapper(finalState) ? 'research_wrapper' : finalState.intent,
+              intent: finalState.intent,
               agentId: finalState.agentConfig.identifier,
               // Measured BEFORE pruning on purpose: the question is "does this
               // turn need a bigger lane", and pruning is exactly the loss we
@@ -1882,14 +1872,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
                   primary: resolution,
                   sse,
                   logPrefix: '[ChatGraph]',
-                  // In wrapper mode the retrieved synthesis IS the answer and
-                  // the card is already on screen — the model only frames it.
-                  // If no lane can write those two sentences, ship the answer
-                  // itself rather than an error over finished work.
-                  salvage: () =>
-                    usesResearchWrapper(finalState) && finalState.researchMeta
-                      ? `${RESEARCH_SALVAGE_PREFIX}\n\n${finalState.researchMeta.answer}`
-                      : null,
                   buildStream: async (r) =>
                     // No output cap (OpenWebUI-style): the provider/model window is
                     // the backstop; agentConfig.params.max_tokens is deliberately
@@ -1920,8 +1902,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
                 pendingId,
                 RESEARCH_KEPT_ON_FAILURE_TEXT,
                 finalState.searchResults.slice(0, MAX_SOURCES),
-                finalState.searchQuery ?? undefined,
-                finalState.researchMeta ?? undefined
+                finalState.searchQuery ?? undefined
               ).catch(() => false);
               if (kept) {
                 log.info(

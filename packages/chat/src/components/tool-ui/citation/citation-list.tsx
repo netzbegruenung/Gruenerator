@@ -7,6 +7,7 @@ import { openSafeNavigationHref, resolveSafeNavigationHref } from '../shared/med
 
 import { cn, Popover, PopoverContent, PopoverTrigger } from './_adapter';
 import { Citation } from './citation';
+import { SourceGlyph } from './SourceGlyph';
 
 import type { SerializableCitation, CitationType, CitationVariant } from './schema';
 import type { LucideIcon } from 'lucide-react';
@@ -264,6 +265,8 @@ function OverflowItem({ citation, onClick }: OverflowItemProps) {
           height={16}
           className="bg-muted size-4 shrink-0 rounded object-cover"
         />
+      ) : citation.domain && (citation.type ?? 'webpage') === 'webpage' ? (
+        <SourceGlyph domain={citation.domain} size={16} />
       ) : (
         <TypeIcon className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
       )}
@@ -348,6 +351,8 @@ function StackedCitations({ id, citations, className, onNavigate }: StackedCitat
                         height={18}
                         className="size-4.5 rounded-full object-cover"
                       />
+                    ) : citation.domain && (citation.type ?? 'webpage') === 'webpage' ? (
+                      <SourceGlyph domain={citation.domain} size={18} rounded="rounded-full" />
                     ) : (
                       <TypeIcon className="text-muted-foreground size-3" aria-hidden="true" />
                     )}

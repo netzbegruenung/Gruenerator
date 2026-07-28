@@ -267,6 +267,28 @@ interface RendererFonts {
  * shows up as an empty box in the reader.
  */
 const GLYPH_FALLBACKS: Record<string, string> = {
+  // The hyphen family. U+2011 (non-breaking hyphen) is the one that bit us:
+  // language models type it inside compound names, no CI font carries it, and
+  // without a stand-in it was DELETED — "Klarwasser‑BASIS‑1" reached the reader
+  // as "KlarwasserBASIS1", a different string in the document's own title.
+  '‐': '-', // hyphen
+  '‑': '-', // non-breaking hyphen
+  '‒': '-', // figure dash
+  '–': '-', // en dash
+  '—': '-', // em dash
+  '―': '-', // horizontal bar
+  // Typographic spaces. Dropping one glues two words together silently, and
+  // the reader sees a compound word that was never written.
+  '\u00A0': ' ', // no-break space
+  '\u2007': ' ', // figure space
+  '\u2009': ' ', // thin space
+  '\u200A': ' ', // hair space
+  '\u202F': ' ', // narrow no-break space
+  // Bullets that turn up in generated lists.
+  '‣': '-',
+  '▪': '-',
+  '▫': '-',
+  '◦': '-',
   '→': '->',
   '⇒': '=>',
   '➔': '->',
@@ -284,6 +306,23 @@ const GLYPH_FALLBACKS: Record<string, string> = {
   '−': '-',
   '⋅': '·',
 };
+
+/**
+ * Invisible formatting marks that are SUPPOSED to disappear in print: a soft
+ * hyphen only marks where a word may break, a zero-width space only permits one.
+ * They have no glyph by design, so reporting them as "characters we could not
+ * render" would fill the self-check with problems that are not problems — and
+ * a problem list nobody trusts is one nobody reads.
+ */
+const SILENTLY_DROPPED = new Set([
+  '\u00AD', // soft hyphen
+  '\u200B', // zero-width space
+  '\u200C', // zero-width non-joiner
+  '\u200D', // zero-width joiner
+  '\u200E', // left-to-right mark
+  '\u200F', // right-to-left mark
+  '\uFEFF', // byte-order mark
+]);
 
 /**
  * Split text into runs by which embedded font can actually render each
@@ -306,6 +345,7 @@ function splitIntoFontRuns(text: string, textFont: PDFFont, fonts: RendererFonts
   for (const char of text.normalize('NFC')) {
     const cp = char.codePointAt(0);
     if (cp === undefined) continue;
+    if (SILENTLY_DROPPED.has(char)) continue;
     if (fonts.supports(textFont, cp)) {
       push(char, textFont);
       continue;
