@@ -212,30 +212,16 @@ export const useAgentStore = create<AgentState>()(
 
       setPinnedConnector: (connector) => set({ pinnedConnector: connector }),
 
-      setSelectedAgent: (agentId) => {
-        const prev = useAgentStore.getState().selectedAgentId;
-        if (prev !== agentId) {
-          // User-initiated switch (or something that should look like one) —
-          // AgentSwitchListener treats this as real and resets to a new thread.
-          console.trace(`[chatStore] setSelectedAgent: ${prev ?? 'null'} -> ${agentId ?? 'null'}`);
-        }
-        set({ selectedAgentId: agentId, activeSkillMention: null, pinnedConnector: null });
-      },
+      setSelectedAgent: (agentId) =>
+        set({ selectedAgentId: agentId, activeSkillMention: null, pinnedConnector: null }),
 
-      restoreSelectedAgent: (agentId) => {
-        const prev = useAgentStore.getState().selectedAgentId;
-        if (prev !== agentId) {
-          console.trace(
-            `[chatStore] restoreSelectedAgent: ${prev ?? 'null'} -> ${agentId ?? 'null'} (suppressed)`
-          );
-        }
+      restoreSelectedAgent: (agentId) =>
         set({
           selectedAgentId: agentId,
           activeSkillMention: null,
           pinnedConnector: null,
           suppressAgentSwitchReset: true,
-        });
-      },
+        }),
 
       resetThreadContext: () =>
         set({
@@ -273,14 +259,7 @@ export const useAgentStore = create<AgentState>()(
       },
 
       setCurrentThread: (threadId) => {
-        const prev = useAgentStore.getState().currentThreadId;
-        if (prev === threadId) return;
-        // Traced at the single choke point for this field — MainThreadSyncEffect,
-        // GrueneratorHistoryProvider's history.load(), AgentSwitchListener, and
-        // the thread-list adapter's onDelete callback all write here. When a
-        // thread URL unexpectedly bounces to /chat, this trace shows which of
-        // them nulled it and why (see the trailing stack).
-        console.trace(`[chatStore] setCurrentThread: ${prev ?? 'null'} -> ${threadId ?? 'null'}`);
+        if (useAgentStore.getState().currentThreadId === threadId) return;
         set({
           currentThreadId: threadId,
           currentThreadTitle: null,
