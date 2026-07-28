@@ -2,6 +2,8 @@ import { useCallback, useRef, useState } from 'react';
 import * as tus from 'tus-js-client';
 
 import apiClient from '../../../components/utils/apiClient';
+import { getDesktopToken } from '../../../utils/desktopAuth';
+import { isDesktopApp } from '../../../utils/platform';
 import { platformFetch } from '../../../utils/platformFetch';
 
 export interface TranscriptionSegment {
@@ -138,17 +140,29 @@ async function parseSSEStream(response: Response, callbacks: SSECallbacks) {
   }
 }
 
-function tusUpload(
+/**
+ * `/api/audio/upload` is behind requireAuth, so the TUS request has to carry a
+ * credential like every other API call: the session cookie on web, and the
+ * stored bearer token in the desktop shell, whose `tauri://localhost` origin
+ * has no cookie to send. Mirrors what `platformFetch` does for plain fetches.
+ */
+async function tusUpload(
   file: File,
   onProgress: (percent: number) => void,
   signal: AbortSignal
 ): Promise<string> {
+  const isDesktop = isDesktopApp();
+  const token = isDesktop ? await getDesktopToken() : null;
+
   return new Promise((resolve, reject) => {
     const upload = new tus.Upload(file, {
       endpoint: TUS_UPLOAD_ENDPOINT,
       retryDelays: [0, 3000, 5000, 10000, 20000],
       chunkSize: 5 * 1024 * 1024,
       metadata: { filename: file.name, filetype: file.type },
+      // Bearer auth is cross-origin on desktop; don't also send absent cookies.
+      withCredentials: !isDesktop,
+      ...(token != null && { headers: { Authorization: `Bearer ${token}` } }),
       onError: (err) => reject(err),
       onProgress: (bytesUploaded, bytesTotal) => {
         onProgress(Math.round((bytesUploaded / bytesTotal) * 100));
