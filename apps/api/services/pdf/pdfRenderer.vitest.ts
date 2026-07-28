@@ -44,6 +44,42 @@ const RICH_BLOCKS: PdfDocumentSpec['blocks'] = [
   { type: 'signature', labels: ['Ort, Datum', 'Unterschrift'] },
 ];
 
+const MM = 2.834645669;
+const PAGE_H = 841.89;
+const PAGE_W = 595.28;
+
+interface Placed {
+  page: number;
+  x: number;
+  top: number;
+  right: number;
+  text: string;
+}
+
+/** Jede gezeichnete Textzeile mit ihrer Lage in mm — Artefakte eingeschlossen. */
+async function placedText(bytes: Buffer): Promise<Placed[]> {
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const task = pdfjs.getDocument({ data: new Uint8Array(bytes), useSystemFonts: false });
+  const doc = await task.promise;
+  const out: Placed[] = [];
+  for (let i = 1; i <= doc.numPages; i++) {
+    const content = await (await doc.getPage(i)).getTextContent();
+    for (const item of content.items) {
+      if (!('str' in item) || !item.str.trim()) continue;
+      const t = item.transform as number[];
+      out.push({
+        page: i,
+        x: (t[4] ?? 0) / MM,
+        top: (PAGE_H - (t[5] ?? 0)) / MM,
+        right: ((t[4] ?? 0) + (item.width ?? 0)) / MM,
+        text: item.str.trim(),
+      });
+    }
+  }
+  await task.destroy();
+  return out;
+}
+
 /** Read the text layer the way a screen reader would. */
 async function extractText(bytes: Buffer): Promise<string> {
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
@@ -880,42 +916,6 @@ describe('renderPdf', () => {
  * die Maße angibt.
  */
 describe('Brief: DIN 5008 Form B, versandfähig im Fensterkuvert', () => {
-  const MM = 2.834645669;
-  const PAGE_H = 841.89;
-  const PAGE_W = 595.28;
-
-  interface Placed {
-    page: number;
-    x: number;
-    top: number;
-    right: number;
-    text: string;
-  }
-
-  /** Jede gezeichnete Textzeile mit ihrer Lage in mm — Artefakte eingeschlossen. */
-  async function placedText(bytes: Buffer): Promise<Placed[]> {
-    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
-    const task = pdfjs.getDocument({ data: new Uint8Array(bytes), useSystemFonts: false });
-    const doc = await task.promise;
-    const out: Placed[] = [];
-    for (let i = 1; i <= doc.numPages; i++) {
-      const content = await (await doc.getPage(i)).getTextContent();
-      for (const item of content.items) {
-        if (!('str' in item) || !item.str.trim()) continue;
-        const t = item.transform as number[];
-        out.push({
-          page: i,
-          x: (t[4] ?? 0) / MM,
-          top: (PAGE_H - (t[5] ?? 0)) / MM,
-          right: ((t[4] ?? 0) + (item.width ?? 0)) / MM,
-          text: item.str.trim(),
-        });
-      }
-    }
-    await task.destroy();
-    return out;
-  }
-
   const LETTER = spec({
     kind: 'letter',
     title: 'Brief',
@@ -940,21 +940,43 @@ describe('Brief: DIN 5008 Form B, versandfähig im Fensterkuvert', () => {
 
   it('setzt die Anschrift in die Anschriftzone des Sichtfensters', async () => {
     const result = await renderPdf(LETTER, { locale: 'de-DE', sender: SENDER });
-    // Nach Lage gefiltert, nicht nach Text: "12345 Musterstadt" steht auch im
-    // Absenderblock, eine Textsuche zählte es doppelt.
+    // Nach Lage gefiltert, nicht nach Text: "12345 Musterstadt" steht auch in
+    // der Rücksendeangabe, eine Textsuche zählte es doppelt. Seit Anschrift und
+    // Brieftext auf derselben Fluchtlinie stehen, trennt sie nur noch die
+    // senkrechte Lage — die Anschriftzone endet bei 90 mm, der Betreff beginnt
+    // bei 98 mm.
     const address = (await placedText(result.bytes)).filter(
-      (l) => l.page === 1 && l.top > 63 && l.x < 24
+      (l) => l.page === 1 && l.top > 63 && l.top <= 90 && l.x < 29
     );
 
     expect(address.map((l) => l.text)).toEqual(LETTER.letter?.recipient?.split('\n'));
     for (const line of address) {
-      // Anschriftzone Form B: 63,3 mm bis 90 mm unter der Oberkante,
-      // linksbündig auf 20 mm, höchstens 85 mm breit.
-      expect(line.x).toBeCloseTo(20, 1);
+      // Anschriftzone Form B: 63,3 mm bis 90 mm unter der Oberkante. Der Text
+      // steht 5 mm im Feld, also auf der Fluchtlinie bei 25 mm; das Feld selbst
+      // beginnt bei 20 mm und endet bei 105 mm.
+      expect(line.x).toBeCloseTo(25, 1);
       expect(line.top).toBeGreaterThanOrEqual(63.3);
       expect(line.top).toBeLessThanOrEqual(90);
       expect(line.right).toBeLessThanOrEqual(105);
     }
+  });
+
+  /**
+   * Die Anschrift stand auf 20 mm, Betreff und Brieftext auf 25 mm — ein
+   * sichtbarer Versatz von 5 mm. DIN 5008 rückt den Anschrifttext um 5 mm ins
+   * Feld ein, genau damit er auf derselben Fluchtlinie steht.
+   */
+  it('setzt Anschrift, Rücksendeangabe und Brieftext auf dieselbe Fluchtlinie', async () => {
+    const result = await renderPdf(LETTER, { locale: 'de-DE', sender: SENDER });
+    const lines = (await placedText(result.bytes)).filter((l) => l.page === 1);
+
+    const returnLine = lines.find((l) => l.text.startsWith(SENDER.organization));
+    const address = lines.find((l) => l.text === 'Stadtverwaltung Musterstadt');
+    const subject = lines.find((l) => l.text.startsWith('Antrag'));
+
+    expect(returnLine?.x).toBeCloseTo(25, 1);
+    expect(address?.x).toBeCloseTo(25, 1);
+    expect(subject?.x).toBeCloseTo(25, 1);
   });
 
   it('lässt im Sichtfenster nichts außer Anschrift und Rücksendeangabe stehen', async () => {
@@ -1032,7 +1054,7 @@ describe('Brief: DIN 5008 Form B, versandfähig im Fensterkuvert', () => {
     // Nur die Anschriftzone selbst — die Datumszeile liegt zwar auf gleicher
     // Höhe, aber rechts vom Fenster und ist deshalb nicht gemeint.
     const lines = (await placedText(result.bytes)).filter(
-      (l) => l.page === 1 && l.top >= 63.3 && l.top <= 90 && l.x < 24
+      (l) => l.page === 1 && l.top >= 63.3 && l.top <= 90 && l.x < 29
     );
 
     expect(lines.length).toBeGreaterThan(0);
@@ -1079,14 +1101,14 @@ describe('Brief: DIN 5008 Form B, versandfähig im Fensterkuvert', () => {
     );
     const lines = (await placedText(result.bytes)).filter((l) => l.page === 1);
 
-    const address = lines.filter((l) => l.top >= 63.3 && l.top <= 90 && l.x < 24);
+    const address = lines.filter((l) => l.top >= 63.3 && l.top <= 90 && l.x < 29);
     expect(address.map((l) => l.text)).toEqual([
       'Stadtverwaltung Musterstadt',
       'Rathausplatz 1',
       '12345 Musterstadt',
     ]);
     for (const line of address) {
-      expect(line.x).toBeCloseTo(20, 1);
+      expect(line.x).toBeCloseTo(25, 1);
       expect(line.right).toBeLessThanOrEqual(105);
     }
 
@@ -1110,15 +1132,90 @@ describe('Brief: DIN 5008 Form B, versandfähig im Fensterkuvert', () => {
 });
 
 /**
+ * Der Docs-Export schickt den Dokumenttitel als Betreff UND den Inhalt mitsamt
+ * dessen eigener H1. Beides gesetzt stand dieselbe Zeile zweimal untereinander
+ * auf dem Blatt.
+ */
+describe('doppelte Überschrift im Kopf', () => {
+  /** Nur der Satzspiegel — die Fußzeile trägt den Titel auf jeder Seite und
+   *  ist nicht die Dopplung, um die es hier geht. */
+  const headings = async (bytes: Buffer, text: string): Promise<number> =>
+    (await placedText(bytes)).filter((l) => l.top < 270 && l.text.startsWith(text)).length;
+
+  it('streicht im Brief die H1, die den Betreff wiederholt', async () => {
+    const result = await renderPdf(
+      spec({
+        kind: 'letter',
+        title: 'Projekt-Pitch Alpenfalter – Radverkehr',
+        letter: { recipient: 'Alexander Kraska\nMusterstr. 1\n12345 Berlin' },
+        blocks: [
+          // Anführungszeichen im Titel überleben den Weg ins Dokument nicht
+          // immer — der Vergleich darf daran nicht scheitern.
+          { type: 'heading', level: 1, text: 'Projekt-Pitch „Alpenfalter“ – Radverkehr' },
+          { type: 'heading', level: 2, text: 'Recherche' },
+          { type: 'paragraph', text: 'Fließtext.' },
+        ],
+      }),
+      { locale: 'de-DE', sender: { organization: 'Grüne Rhein-Sieg', name: 'Moritz Wächter' } }
+    );
+
+    expect(await headings(result.bytes, 'Projekt-Pitch')).toBe(1);
+    // Der Rest des Dokuments bleibt vollständig.
+    expect(await headings(result.bytes, 'Recherche')).toBe(1);
+  });
+
+  it('streicht sie auch im Dokument-Layout', async () => {
+    const result = await renderPdf(
+      spec({
+        title: 'Radverkehr in Musterstadt',
+        blocks: [
+          { type: 'heading', level: 1, text: 'Radverkehr in Musterstadt' },
+          { type: 'paragraph', text: 'Fließtext.' },
+        ],
+      }),
+      { locale: 'de-DE' }
+    );
+
+    expect(await headings(result.bytes, 'Radverkehr in Musterstadt')).toBe(1);
+  });
+
+  it('lässt eine gleichlautende Überschrift weiter unten stehen', async () => {
+    const result = await renderPdf(
+      spec({
+        title: 'Radverkehr',
+        blocks: [
+          { type: 'paragraph', text: 'Einleitung.' },
+          { type: 'heading', level: 2, text: 'Radverkehr' },
+          { type: 'paragraph', text: 'Fließtext.' },
+        ],
+      }),
+      { locale: 'de-DE' }
+    );
+
+    // Einmal als Titel, einmal als Gliederung — die zweite gehört zum Text.
+    expect(await headings(result.bytes, 'Radverkehr')).toBe(2);
+  });
+
+  it('behält den einzigen Block, statt eine leere Seite zu setzen', async () => {
+    const result = await renderPdf(
+      spec({
+        title: 'Nur ein Titel',
+        blocks: [{ type: 'heading', level: 1, text: 'Nur ein Titel' }],
+      }),
+      { locale: 'de-DE' }
+    );
+
+    expect(await headings(result.bytes, 'Nur ein Titel')).toBe(2);
+    expect((await verifyPdf(result.bytes, PDF_TYPE_AREA)).problems).toEqual([]);
+  });
+});
+
+/**
  * Was sich zwischen den Versanddiensten unterscheidet, steht im Briefkopf der
  * Nutzer*in — nicht in einer Konstante hier. Diese Tests halten fest, dass die
  * Optionen wirklich durchschlagen, und nicht nur entgegengenommen werden.
  */
 describe('Brief: Versandoptionen aus dem Briefkopf', () => {
-  const MM = 2.834645669;
-  const PAGE_H = 841.89;
-  const PAGE_W = 595.28;
-
   /** Rechtecke aller gezeichneten Bilder/Seiten in mm, y ab Oberkante. */
   async function placedImages(
     bytes: Buffer,
