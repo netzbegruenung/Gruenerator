@@ -7,12 +7,22 @@
  *    required field is what broke PDF generation in production, and a blind
  *    retry at the same temperature would just reproduce it;
  *  - the text fallback keeps providers that ignore tools working, so the new
- *    path is a strict superset of the old one and nothing can regress.
+ *    path is a strict superset of the old one and nothing can regress;
+ *  - both transports run through ONE validator. They used to have separate
+ *    ones, and the text path's returned a bare `null`: the PDF that died in
+ *    production was rejected for `caption: null` and the repair turn was told
+ *    "Kein Tool-Aufruf in der Antwort", so attempt 2 repeated the mistake. The
+ *    same split let the presentation generator's empty-slide gate be skipped
+ *    entirely whenever the provider answered with prose.
  */
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { generateStructured, type StructuredValidation } from './generateStructured.js';
+import {
+  generateStructured,
+  jsonCandidatesFromText,
+  type StructuredValidation,
+} from './generateStructured.js';
 
 import type { AIWorkerPool } from '../../workers/types.js';
 
@@ -99,29 +109,92 @@ describe('generateStructured', () => {
     expect(repair.options.temperature).toBe(0);
   });
 
-  it('falls back to the text parser when the provider ignores tools', async () => {
+  it('recovers JSON from text when the provider ignores tools', async () => {
     const { pool } = poolReturning({ success: true, content: '{"title":"Aus Text"}' });
-    const parseText = vi.fn((text: string) => JSON.parse(text) as Thing);
 
-    const result = await generateStructured({ ...base, aiWorkerPool: pool, parseText });
+    const result = await generateStructured({ ...base, aiWorkerPool: pool });
 
     expect(result).toEqual({ ok: true, data: { title: 'Aus Text' } });
-    expect(parseText).toHaveBeenCalledWith('{"title":"Aus Text"}');
+  });
+
+  it('runs the validator on the text transport, not just on the tool call', async () => {
+    // The presentation empty-slide gate lived only in `validate`. A gate that a
+    // provider can skip by answering with prose is not a gate.
+    const gate = vi.fn(validate);
+    const { pool } = poolReturning({
+      success: true,
+      content: 'Bitte sehr:\n```json\n{"title":"Aus Text"}\n```',
+    });
+
+    await generateStructured({ ...base, aiWorkerPool: pool, validate: gate });
+
+    expect(gate).toHaveBeenCalledWith({ title: 'Aus Text' });
+  });
+
+  it('carries the validation error from a TEXT answer into the repair turn', async () => {
+    const { pool, processRequest } = poolReturning(
+      { success: true, content: '```json\n{"subtitle":"ohne Titel"}\n```' },
+      toolCall({ title: 'Repariert' })
+    );
+
+    const result = await generateStructured({ ...base, aiWorkerPool: pool });
+
+    expect(result).toEqual({ ok: true, data: { title: 'Repariert' } });
+    const [repair] = processRequest.mock.calls[1];
+    const repairText = repair.messages.map((m: { content: string }) => m.content).join('\n');
+    expect(repairText).toContain('title: Required');
+    expect(repairText).not.toContain('Kein Tool-Aufruf');
+    // The echo is the extracted STRUCTURE, not the prose around it.
+    expect(
+      repair.messages.some(
+        (m: { role: string; content: string }) =>
+          m.role === 'assistant' && m.content === '{"subtitle":"ohne Titel"}'
+      )
+    ).toBe(true);
   });
 
   it('does not treat unparseable text as success', async () => {
-    const { pool } = poolReturning(
+    const { pool, processRequest } = poolReturning(
       { success: true, content: 'nur Prosa' },
       { success: true, content: 'immer noch Prosa' }
     );
 
-    const result = await generateStructured({
-      ...base,
-      aiWorkerPool: pool,
-      parseText: () => null,
-    });
+    const result = await generateStructured({ ...base, aiWorkerPool: pool });
 
     expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain('kein verwertbares JSON');
+    // Nothing parseable to echo — prose must not be replayed as if it were the
+    // previous structure.
+    const [repair] = processRequest.mock.calls[1];
+    expect(repair.messages.some((m: { role: string }) => m.role === 'assistant')).toBe(false);
+  });
+
+  it('omits an oversized echo instead of truncating it mid-document', async () => {
+    // The old code cut the echo at 2000 chars and then demanded a COMPLETE
+    // document — so the model "corrected" the truncation.
+    const { pool, processRequest } = poolReturning(
+      toolCall({ filler: 'x'.repeat(20_000) }),
+      toolCall({ title: 'Repariert' })
+    );
+
+    await generateStructured({ ...base, aiWorkerPool: pool });
+
+    const [repair] = processRequest.mock.calls[1];
+    expect(repair.messages.some((m: { role: string }) => m.role === 'assistant')).toBe(false);
+    expect(repair.messages.at(-1).content).toContain('title: Required');
+  });
+
+  it('leaves the model choice to providerSelector', async () => {
+    // A top-level `provider` picks the ADAPTER without picking a matching
+    // model — routes/texte/website.ts documents where that lands. The creation
+    // types route to Mistral Medium 3.5 by TYPE; see providerSelector.
+    const { pool, processRequest } = poolReturning(toolCall({ title: 'X' }));
+
+    await generateStructured({ ...base, aiWorkerPool: pool });
+
+    const [request] = processRequest.mock.calls[0];
+    expect(request.provider).toBeUndefined();
+    expect(request.options.model).toBeUndefined();
   });
 
   it('gives up after the attempt budget and reports the last error', async () => {
@@ -183,6 +256,15 @@ describe('generateStructured', () => {
     const result = await generateStructured({ ...base, aiWorkerPool: pool });
 
     expect(result).toEqual({ ok: true, data: { title: 'Aus Block' } });
+  });
+
+  it('extracts JSON from every shape a text answer takes', () => {
+    expect(jsonCandidatesFromText('{"title":"A"}')).toEqual([{ title: 'A' }]);
+    expect(jsonCandidatesFromText('Hier:\n```json\n{"title":"B"}\n```')).toContainEqual({
+      title: 'B',
+    });
+    expect(jsonCandidatesFromText('Vorrede {"title":"C"} Nachrede')).toContainEqual({ title: 'C' });
+    expect(jsonCandidatesFromText('Ich kann das leider nicht.')).toEqual([]);
   });
 
   it('ignores a tool call for a different tool', async () => {
