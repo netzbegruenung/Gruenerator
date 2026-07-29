@@ -9,6 +9,8 @@
  * - Save conversation to mem0 memory
  */
 
+import { INTENT_TO_TOOL_SHARED } from '@gruenerator/contracts';
+
 import { upsertThreadRecallPoint } from '../../../services/chat/threadRecallEmbeddingService.js';
 import { generateThreadTags } from '../../../services/chat/threadTagService.js';
 import { generateThreadTitle } from '../../../services/chat/threadTitleService.js';
@@ -53,17 +55,14 @@ import type { ModelMessage } from 'ai';
 const log = createLogger('PostResponse');
 
 export const INTENT_TO_TOOL: Record<string, string> = {
-  search: 'gruenerator_search',
-  web: 'web_search',
-  // Research persists as a web search because that is now what it IS — the same
-  // retrieval at a deeper tier. Keeping `research` here would hand the frontend
-  // a tool whose renderer (`markdown-report`) expects Linkup's written answer,
-  // which no turn produces any more; it would render an empty report card over
-  // a perfectly good result list. Turns from before the merge keep their own
-  // persisted `research` tool call and still render the Recherche-Karte.
-  research: 'web_search',
-  examples: 'gruenerator_examples_search',
-  pressemitteilung_examples: 'gruenerator_pressemitteilung_examples',
+  // The retrieval intents, where this map and the client's copy in
+  // packages/chat/src/lib/toolMappings.ts MUST agree — otherwise a thread shows
+  // one card while streaming and a different one after reload. Shared so the
+  // two cannot drift; see the comment on INTENT_TO_TOOL_SHARED.
+  ...INTENT_TO_TOOL_SHARED,
+  // Server-only: artefact intents persist a tool call so the thread rehydrates
+  // with a card. The live client renders these from their own SSE events
+  // (sharepic_complete, image_complete, …) and has no use for the mapping.
   image: 'image_generate',
   image_edit: 'image_edit',
   sharepic: 'sharepic',
@@ -71,8 +70,6 @@ export const INTENT_TO_TOOL: Record<string, string> = {
   // social_post) — see buildToolCalls.
   social_post: 'social_post',
   scrape_url: 'scrape_url',
-  bundestag: 'bundestag',
-  chat_history: 'search_chat_history',
 };
 
 /**

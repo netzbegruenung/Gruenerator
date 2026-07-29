@@ -14,6 +14,9 @@ import path from 'path';
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 import { extractAudio, cleanupFiles } from '../subtitler/videoUploadService.js';
+import { probeBufferDurationSeconds } from '../transcription/audioDuration.js';
+import { mimeTypeFromFilename } from '../transcription/mimeTypes.js';
+import { chooseProvider } from '../transcription/providerPolicy.js';
 import { recordOperation } from '../usage/UsageTrackingService.js';
 
 import mistralVoiceService from './mistralVoiceService.js';
@@ -38,19 +41,7 @@ export function isVideoFile(mimetype: string): boolean {
   return VIDEO_MIME_TYPES.has(mimetype) || mimetype.startsWith('video/');
 }
 
-export function mimeTypeFromFilename(filename: string): string {
-  const ext = filename.split('.').pop()?.toLowerCase();
-  const mimeMap: Record<string, string> = {
-    mp3: 'audio/mpeg',
-    wav: 'audio/wav',
-    m4a: 'audio/m4a',
-    aac: 'audio/aac',
-    ogg: 'audio/ogg',
-    webm: 'audio/webm',
-    flac: 'audio/flac',
-  };
-  return mimeMap[ext ?? ''] ?? 'audio/wav';
-}
+export { mimeTypeFromFilename };
 
 export interface TranscriptionSegment {
   start: number;
@@ -70,6 +61,11 @@ export interface TranscriptionOptions {
   timestamp_granularities?: 'segment'[];
   diarize?: boolean;
   contextBias?: string[];
+  /**
+   * Media length in seconds, when the caller already knows it. Saves the
+   * temp-file probe in transcribeBuffer; omit it and the buffer is probed.
+   */
+  durationSeconds?: number | null;
 }
 
 interface WhisperVerboseResponse {
@@ -164,22 +160,32 @@ async function transcribeWithVoxtral(
 }
 
 /**
- * Provider chain: Regolo faster-whisper first, Voxtral as fallback.
- * Diarization and contextBias go straight to Voxtral — Whisper supports neither.
+ * Provider selection via the shared policy — the same rules the subtitler uses
+ * (this router used to carry its own, and ignored TRANSCRIPTION_PROVIDER).
+ * Whichever provider loses is still the fallback if the winner errors.
  */
 export async function transcribeBuffer(
   audioBuffer: Buffer,
   filename: string,
   options: TranscriptionOptions = {}
 ): Promise<TranscriptionResult> {
-  const needsVoxtral = options.diarize || options.contextBias?.length;
+  // Buffer-only entry point: probe via a temp file unless the caller already
+  // knows the length (the upload routes do — they have a path in hand).
+  const durationSeconds =
+    options.durationSeconds ?? (await probeBufferDurationSeconds(audioBuffer, filename));
 
-  if (needsVoxtral) {
-    log.debug('[Voice] Using Voxtral (diarize/contextBias requested)');
-    return transcribeWithVoxtral(audioBuffer, filename, options);
-  }
+  const { provider, reason } = chooseProvider({
+    durationSeconds,
+    ...(options.diarize !== undefined && { diarize: options.diarize }),
+    ...(options.contextBias !== undefined && { requestedContextBias: options.contextBias }),
+    override: env.TRANSCRIPTION_PROVIDER,
+  });
 
-  if (env.REGOLO_API_KEY) {
+  log.info(
+    `[Voice] provider=${provider} (${reason}) duration=${durationSeconds === null ? 'unknown' : `${Math.round(durationSeconds)}s`}`
+  );
+
+  if (provider === 'regolo' && env.REGOLO_API_KEY) {
     try {
       const result = await transcribeWithRegoloWhisper(audioBuffer, filename, options);
       recordOperation({ unit: 'transcriptions', provider: 'regolo', model: WHISPER_MODEL });

@@ -213,6 +213,23 @@ Wenn intent search/research/web/examples/social_post/chat_history ist, erstelle 
 - ANAPHER AUFLÖSEN: Wenn die Nachricht sich auf das geöffnete Dokument bezieht ("dieses/diesem Dokument", "hier", "das hier", "dazu") UND ein THEMENKONTEXT mitgeliefert wird, löse die Referenz auf das tatsächliche Thema des Dokuments auf (aus dem Themenkontext) und baue searchQuery + optimizedSearchQuery aus diesem Thema. Suche NIE nach der wörtlichen Meta-Frage.
 - Beispiel: "wie ist unsere position zu diesem dokument" + Themenkontext (Dokument über kommunalen Klimaschutz) → optimizedSearchQuery: "Grüne Position kommunaler Klimaschutz"
 
+SCHRITT 4b - THEMA DES ARTEFAKTS BESTIMMEN (creationTopic):
+Wenn intent sharepic/image/create_pdf/create_sheet/create_presentation/save_as_doc/modify_board ist,
+setze creationTopic auf das Thema, ÜBER DAS das Artefakt gehen soll.
+- Die Erstellungsanweisung selbst ist NIE das Thema. "jetzt noch ein normales sharepic" beschreibt
+  Zeitpunkt und Layout, kein Thema.
+- Nennt die aktuelle Nachricht kein eigenes Thema, nimm es aus dem GESPRÄCHSVERLAUF — das zuletzt
+  inhaltlich verhandelte Thema, NICHT deine eigene Bestätigung ("Ich habe dir 1 Sharepic-Variante
+  erstellt.") und nicht die Erstellungsanweisung des Nutzers.
+- Beispiel: Verlauf "zitat sharepic für klimaanlagen in schulen für hitzeschutz" → Bestätigung →
+  aktuelle Nachricht "jetzt noch ein normales sharepic" → creationTopic: "Klimaanlagen in Schulen als Hitzeschutz"
+- Beispiel: Verlauf über Artenschutz-Recherche + "visualisiere das in einem sharepic" → creationTopic: "Artenschutz"
+- Nennt die Nachricht ihr Thema selbst, gib genau dieses zurück ("erstelle ein Sharepic zum Radwegeausbau"
+  → "Radwegeausbau").
+- Gibt der Verlauf kein Thema her und nennt die Nachricht keins, setze null. Rate NICHT und erfinde NICHTS —
+  null führt zu einer Rückfrage an den Nutzer, ein erfundenes Thema zu einem falschen Artefakt.
+- Bei allen anderen Intents: null.
+
 SCHRITT 5 - KOMPLEXE ANFRAGEN ZERLEGEN:
 Wenn die Anfrage MEHRERE VERSCHIEDENE Themen vergleicht, kombiniert, ODER verschiedene Aufgaben enthält die verschiedene Themen betreffen:
 - Erstelle sub-Queries für jedes einzelne THEMA (max 3)
@@ -305,10 +322,11 @@ Antworte NUR mit JSON:
   "clarificationQuestion": "..." | null,
   "clarificationOptions": ["option1", "option2"] | null,
   "targetGroupName": "Name der Zielgruppe" | null,
+  "creationTopic": "das Thema, über das das Artefakt gehen soll" | null,
   "reasoning": "..."
 }
 
-Bei "direct", "sharepic", "image" und "image_edit" setze searchQuery, optimizedSearchQuery, subQueries, searchSources und filters auf null/[].
+Bei "direct", "sharepic", "image" und "image_edit" setze searchQuery, optimizedSearchQuery, subQueries, searchSources und filters auf null/[]. creationTopic ist davon NICHT betroffen (siehe Schritt 4b).
 Bei "save_as_doc" setze documentSubtype auf den passenden Dokumenttyp:
 - "checkliste" für Aufgabenlisten, Todo-Listen, Checklisten, Aufgaben zum Abhaken
 - "protokoll" für Sitzungsprotokolle, Versammlungsprotokolle
@@ -321,6 +339,22 @@ Bei "save_as_doc" setze documentSubtype auf den passenden Dokumenttyp:
 - null wenn kein spezifischer Typ erkennbar ist
 WICHTIG: "todo" oder "aufgaben" → immer "checkliste", NICHT "protokoll".
 Bei "share_doc" setze targetGroupName auf den im Text genannten Gruppennamen (z.B. "AG Umwelt", "KV München"). Setze searchQuery auf null.`;
+
+/**
+ * Intents whose turn produces an artifact from a single generation pass, and
+ * which therefore need `creationTopic`. Same constant the prompt's SCHRITT 4b
+ * enumerates, so "asked of the model" and "accepted from the model" cannot
+ * drift apart.
+ */
+export const CREATION_TOPIC_INTENTS = new Set([
+  'sharepic',
+  'image',
+  'create_pdf',
+  'create_sheet',
+  'create_presentation',
+  'save_as_doc',
+  'modify_board',
+]);
 
 /**
  * Intents that don't trigger search/retrieval — used to skip query optimization.

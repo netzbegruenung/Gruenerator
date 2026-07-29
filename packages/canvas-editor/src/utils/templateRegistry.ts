@@ -91,15 +91,7 @@ export const TEMPLATE_REGISTRY: Record<CanvasConfigId, TemplateInfo> = {
     category: 'profilbild',
   },
 
-  // Österreich (de-AT) variants
-  'info-at': {
-    id: 'info-at',
-    label: 'Info',
-    description: 'Headline mit Betonung und Logo (Österreich)',
-    previewImage: '/imagine/previews/info-at-preview.webp',
-    category: 'sharepic',
-    audience: 'de-AT',
-  },
+  // Österreich (de-AT) variants — kein Info-Sujet, das gibt es nur für de-DE
   'zitat-at': {
     id: 'zitat-at',
     label: 'Zitat',
@@ -121,6 +113,14 @@ export const TEMPLATE_REGISTRY: Record<CanvasConfigId, TemplateInfo> = {
     label: '3 Zeilen',
     description: 'Dreizeilige Headline mit Betonung (Österreich)',
     previewImage: '/imagine/previews/dreizeilen-at-preview.webp',
+    category: 'sharepic',
+    audience: 'de-AT',
+  },
+  'dreizeilen-overlay-at': {
+    id: 'dreizeilen-overlay-at',
+    label: '3 Zeilen auf Bild',
+    description: 'Dreizeilige Headline auf Farbfläche über einem Foto (Österreich)',
+    previewImage: '/imagine/previews/dreizeilen-overlay-at-preview.webp',
     category: 'sharepic',
     audience: 'de-AT',
   },

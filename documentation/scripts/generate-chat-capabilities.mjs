@@ -48,10 +48,17 @@ const SRC = {
   mentionables: 'packages/chat/src/lib/mentionables.ts',
   userTools: 'packages/shared/src/agents/userTools.ts',
   systemMcp: 'apps/api/services/mcp/systemMcpServers.ts',
-  // CONTROLLER_HANDLED_INTENTS is a `Record<SearchIntent, string>` — TypeScript
-  // forces it to cover every intent, and each entry says how that intent is
-  // handled, flagging the young ones with EXPERIMENTAL. That makes it a better
-  // source for "is this experimental?" than the enum's free-floating comments.
+  // CONTROLLER_HANDLED_INTENTS says how each intent is handled and flags the
+  // young ones EXPERIMENTAL, which makes it a better source for "is this
+  // experimental?" than the enum's free-floating comments.
+  //
+  // It is ALSO annotated `Record<SearchIntent, string>`, and this comment used
+  // to claim TypeScript forces it to cover every intent. It does not:
+  // `apps/api/tsconfig.json` excludes `**/*.vitest.ts`, so tsc never sees this
+  // file. Coverage is enforced by the test's runtime loop over
+  // `searchIntentSchema.options`, and by
+  // scripts/check-unenforced-exhaustive-maps.mjs, which fails CI if that loop
+  // is ever dropped.
   intentNotes: 'apps/api/agents/langgraph/ChatGraph/intentPipeline.vitest.ts',
 };
 

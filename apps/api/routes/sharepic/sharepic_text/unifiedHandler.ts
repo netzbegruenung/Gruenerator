@@ -1,4 +1,5 @@
 import prompts from '../../../prompts/sharepic/index.js';
+import { CONTENT_INTEGRITY_BULLETS } from '../../../services/contentPolicy.js';
 import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../../utils/logger.js';
 import { replaceTemplate } from '../../../utils/sharepic/template.js';
@@ -35,13 +36,15 @@ const log = createLogger('sharepic_unified');
  * Quellenangabe im Text, was gegen die Regel verstößt" — a formatting limit
  * announced as a content violation, which the turn then relayed to the user as
  * a refusal about fabricated quotes.
+ *
+ * The bullets themselves now come from services/contentPolicy.ts — they used to
+ * live only here, which meant this was the ONLY generator of publishable party
+ * text that had them.
  */
 export const SHAREPIC_SAFETY_RULES = `
 
 REGELN (nicht verhandelbar):
-- Erfinde NIEMALS Zitate, Zahlen, Studien oder Ereignisse. Ein Zitat darf nur wiedergeben, was die*der Nutzer*in wörtlich mitgeliefert oder was eine mitgelieferte Quelle belegt.
-- Lege NIEMALS einer real existierenden Person eine Aussage in den Mund, die nicht belegt ist — auch nicht in Anführungszeichen, auch nicht satirisch, auch nicht als Beispiel.
-- Erzeuge keine Inhalte, die Gruppen wegen Herkunft, Religion, Geschlecht oder Behinderung herabsetzen.
+${CONTENT_INTEGRITY_BULLETS}
 - Läuft die Anfrage einer dieser drei Regeln zuwider, gib ausschließlich die Zeile \`ABLEHNUNG: <kurze deutsche Begründung>\` aus und sonst nichts.
 
 LAYOUT (niemals ein Ablehnungsgrund):
@@ -153,12 +156,15 @@ export interface UnifiedTextBody {
   quote?: string | undefined;
   name?: string | undefined;
   count?: number | undefined;
-  /**
-   * Brand string for `{{partyName}}`. Optional seam: the sharepic chain does
-   * not carry `userLocale` yet, so AT callers still get the DE default until
-   * the locale is plumbed through sharepicGenerationService.
-   */
+  /** Brand string for `{{partyName}}`. */
   partyName?: string | undefined;
+  /**
+   * Signed-in user's locale. When `de-AT`, a prompt named `<type>_at` is
+   * preferred over `<type>` — the Austrian sujets have their own typographic
+   * constraints (the AT Dreizeiler fits ~15 characters per line where the
+   * German one allows 35).
+   */
+  userLocale?: string | undefined;
   _campaignPrompt?: unknown;
 }
 
@@ -188,7 +194,12 @@ export async function generateUnifiedTexts(
   }
 
   const { thema, details, quote, name, count = 1 } = body;
-  const rawPromptConfig = body._campaignPrompt || prompts[type as keyof typeof prompts];
+  // de-AT prefers a locale-specific prompt where one exists, by the `<type>_at`
+  // convention. Falls back to the German prompt so a missing AT variant is a
+  // silent no-op rather than a 400.
+  const atKey = `${type}_at`;
+  const promptKey = body.userLocale === 'de-AT' && atKey in prompts ? atKey : type;
+  const rawPromptConfig = body._campaignPrompt || prompts[promptKey as keyof typeof prompts];
 
   if (!rawPromptConfig) {
     return { success: false, status: 400, error: `No prompt config for type: ${type}` };
