@@ -90,6 +90,32 @@ describe('wrapToolsForLoop', () => {
     expect(out.error).toMatch(/Zeitüberschreitung/);
   });
 
+  it('a timeout counts as a tool failure, closes the card and persists the step', async () => {
+    // This is what keeps the hand-rolled `withTimeout` in place. The AI SDK's
+    // `timeout.toolMs` aborts from OUTSIDE the wrapper — it merely merges an
+    // AbortSignal into the tool's options and then awaits — so swapping to it
+    // would skip all three effects below: the failure would never be counted,
+    // the step never recorded, and the tool card would spin forever. Whoever
+    // attempts that swap should see this go red.
+    const { ctx, events, steps } = makeCtx({ perCallTimeoutMs: 20 });
+    const tools = wrapToolsForLoop(
+      { hang: { execute: () => new Promise(() => {}) } } as unknown as ToolSet,
+      ctx
+    );
+
+    // Distinct args on purpose: identical ones would be stopped by the
+    // duplicate guard, which never reaches the timeout at all.
+    await run(tools, 'hang', { q: 'a' });
+    await run(tools, 'hang', { q: 'b' }, 'call_2');
+
+    // Two failures = the per-tool cap, so a third call would be short-circuited.
+    expect(ctx.guards.checkFailureCap('hang')).not.toBeNull();
+    expect(steps).toHaveLength(2);
+    const results = events.filter((e) => e.event === 'tool_step_result');
+    expect(results).toHaveLength(2);
+    expect(results[0].data).toMatchObject({ ok: false });
+  });
+
   it('gives a named tool its own, longer budget', async () => {
     // Deep research measured 16.5s live against the generic 20s cap — 3.5s of
     // headroom, so under load the cap killed a legitimate call and the turn

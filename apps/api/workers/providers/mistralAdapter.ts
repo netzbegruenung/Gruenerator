@@ -14,11 +14,15 @@ import { buildAiSdkTools, mergeMetadata } from './adapterUtils.js';
 import type { AIRequestData, AIWorkerResult, ToolCall, ContentBlock } from '../types.js';
 
 // Connection metrics for monitoring
+/**
+ * `retries` is deliberately absent: the AI SDK owns retrying now and does not
+ * report how many attempts it made, so a counter here could only ever report
+ * 0 — which reads as "no retries happened" rather than "not measured".
+ */
 export interface ConnectionMetrics {
   attempts: number;
   successes: number;
   failures: number;
-  retries: number;
   lastFailureTime: number | null;
   lastFailureReason: string | null;
 }
@@ -27,7 +31,6 @@ export const connectionMetrics: ConnectionMetrics = {
   attempts: 0,
   successes: 0,
   failures: 0,
-  retries: 0,
   lastFailureTime: null,
   lastFailureReason: null,
 };
@@ -277,131 +280,94 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
   // Get the model instance
   const aiModel = getModel('mistral', model);
 
-  // Retry logic with exponential backoff
-  let lastError: Error | undefined;
-  const maxRetries = 3;
-  const baseDelay = 1000;
+  // Retries are the SDK's job. `maxRetries: 2` = 3 attempts total, exactly what
+  // the hand-rolled loop this replaced did, with the same 2s/4s exponential
+  // backoff. What changes is HOW retryability is decided: the old loop matched
+  // substrings against the error message ('fetch failed', 'socket', 'rate
+  // limit', 'timeout'), so a provider that reworded its errors silently stopped
+  // being retried. The SDK inspects the structured APICallError instead.
+  connectionMetrics.attempts++;
 
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      if (attempt > 1) {
-        connectionMetrics.retries++;
-        const delay = baseDelay * Math.pow(2, attempt - 1);
-        console.log(
-          `[mistralAdapter ${requestId}] Retry attempt ${attempt}/${maxRetries} after ${delay}ms delay`
-        );
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
+  try {
+    const result = await generateText({
+      model: aiModel,
+      ...(system != null && { system }),
+      messages: modelMessages,
+      temperature: config.temperature,
+      maxOutputTokens: config.maxTokens,
+      topP: config.topP,
+      maxRetries: 2,
+      ...(tools != null && { tools }),
+      ...(toolChoice != null && { toolChoice }),
+    });
 
-      connectionMetrics.attempts++;
+    connectionMetrics.successes++;
 
-      const result = await generateText({
-        model: aiModel,
-        ...(system != null && { system }),
-        messages: modelMessages,
-        temperature: config.temperature,
-        maxOutputTokens: config.maxTokens,
-        topP: config.topP,
-        ...(tools != null && { tools }),
-        ...(toolChoice != null && { toolChoice }),
-      });
+    // Extract text content
+    const textContent = result.text || null;
 
-      connectionMetrics.successes++;
+    // Extract tool calls
+    const toolCalls: ToolCall[] | undefined =
+      result.toolCalls && result.toolCalls.length > 0
+        ? result.toolCalls.map((tc, index) => ({
+            id: tc.toolCallId || `mistral_tool_${index}`,
+            name: tc.toolName,
+            input: tc.input as Record<string, unknown>,
+          }))
+        : undefined;
 
-      if (attempt > 1) {
-        console.log(`[mistralAdapter ${requestId}] Retry successful on attempt ${attempt}`);
-      }
-
-      // Extract text content
-      const textContent = result.text || null;
-
-      // Extract tool calls
-      const toolCalls: ToolCall[] | undefined =
-        result.toolCalls && result.toolCalls.length > 0
-          ? result.toolCalls.map((tc, index) => ({
-              id: tc.toolCallId || `mistral_tool_${index}`,
-              name: tc.toolName,
-              input: tc.input as Record<string, unknown>,
-            }))
-          : undefined;
-
-      // Build raw content blocks
-      const rawContentBlocks: ContentBlock[] = [];
-      if (textContent) {
-        rawContentBlocks.push({ type: 'text', text: textContent });
-      }
-      if (toolCalls) {
-        for (const tc of toolCalls) {
-          rawContentBlocks.push({
-            type: 'tool_use',
-            id: tc.id,
-            name: tc.name,
-            input: tc.input,
-          });
-        }
-      }
-
-      // Normalize finish reason
-      const stopReason =
-        result.finishReason === 'tool-calls' ? 'tool_use' : result.finishReason || 'stop';
-
-      return {
-        content: textContent,
-        stop_reason: stopReason,
-        tool_calls: toolCalls,
-        raw_content_blocks: rawContentBlocks.length > 0 ? rawContentBlocks : undefined,
-        success: true,
-        metadata: mergeMetadata(requestMetadata, {
-          provider: 'mistral',
-          model: model,
-          timestamp: new Date().toISOString(),
-          requestId,
-          ...(result.usage && {
-            usage: {
-              prompt_tokens: result.usage.inputTokens,
-              completion_tokens: result.usage.outputTokens,
-              total_tokens: result.usage.totalTokens,
-            },
-          }),
-        }),
-      };
-    } catch (error: unknown) {
-      const err = error as { message?: string; code?: string; cause?: { code?: string } };
-      lastError = error as Error;
-      connectionMetrics.failures++;
-      connectionMetrics.lastFailureTime = Date.now();
-      connectionMetrics.lastFailureReason = err.message || 'Unknown error';
-
-      // Check if error is retryable
-      const isRetryable =
-        err.message?.includes('fetch failed') ||
-        err.message?.includes('socket') ||
-        err.message?.includes('ECONNRESET') ||
-        err.message?.includes('UND_ERR_SOCKET') ||
-        err.cause?.code === 'UND_ERR_SOCKET' ||
-        err.message?.includes('rate limit') ||
-        err.message?.includes('timeout');
-
-      if (!isRetryable || attempt === maxRetries) {
-        console.error(
-          `[mistralAdapter ${requestId}] ${isRetryable ? 'Max retries reached' : 'Non-retryable error'}:`,
-          {
-            message: err.message,
-            code: err.code || err.cause?.code,
-            attempt: attempt,
-          }
-        );
-        throw error;
-      }
-
-      console.warn(
-        `[mistralAdapter ${requestId}] Retryable connection error on attempt ${attempt}:`,
-        err.message
-      );
+    // Build raw content blocks
+    const rawContentBlocks: ContentBlock[] = [];
+    if (textContent) {
+      rawContentBlocks.push({ type: 'text', text: textContent });
     }
-  }
+    if (toolCalls) {
+      for (const tc of toolCalls) {
+        rawContentBlocks.push({
+          type: 'tool_use',
+          id: tc.id,
+          name: tc.name,
+          input: tc.input,
+        });
+      }
+    }
 
-  throw lastError || new Error('No response received from Mistral');
+    // Normalize finish reason
+    const stopReason =
+      result.finishReason === 'tool-calls' ? 'tool_use' : result.finishReason || 'stop';
+
+    return {
+      content: textContent,
+      stop_reason: stopReason,
+      tool_calls: toolCalls,
+      raw_content_blocks: rawContentBlocks.length > 0 ? rawContentBlocks : undefined,
+      success: true,
+      metadata: mergeMetadata(requestMetadata, {
+        provider: 'mistral',
+        model: model,
+        timestamp: new Date().toISOString(),
+        requestId,
+        ...(result.usage && {
+          usage: {
+            prompt_tokens: result.usage.inputTokens,
+            completion_tokens: result.usage.outputTokens,
+            total_tokens: result.usage.totalTokens,
+          },
+        }),
+      }),
+    };
+  } catch (error: unknown) {
+    const err = error as { message?: string; code?: string; cause?: { code?: string } };
+    connectionMetrics.failures++;
+    connectionMetrics.lastFailureTime = Date.now();
+    connectionMetrics.lastFailureReason = err.message || 'Unknown error';
+
+    console.error(`[mistralAdapter ${requestId}] Request failed after retries:`, {
+      message: err.message,
+      code: err.code || err.cause?.code,
+    });
+    throw error;
+  }
 }
 
 export { execute };
