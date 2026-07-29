@@ -187,6 +187,7 @@ const VARIANT_LABEL_BY_CANVAS_TYPE: Partial<Record<CanvasTemplateType, string>> 
   zitat: 'Zitat',
   info: 'Info',
   'dreizeilen-at': 'Dreizeiler',
+  'dreizeilen-overlay-at': 'Dreizeiler',
   'zitat-pure-at': 'Zitat',
   'zitat-at': 'Zitat',
 };
@@ -268,6 +269,20 @@ function buildInitialPropsForType(
         line3: slogan.line3 ?? '',
       };
     }
+    // Wie dreizeilen-at, aber mit Foto hinter der Farbfläche — der Hintergrund
+    // wird also mitgegeben, anders als beim reinen Flächen-Sujet.
+    case 'dreizeilen-overlay-at': {
+      const slogan = sharepic.mainSlogan ?? {};
+      return {
+        line1: slogan.line1 ?? '',
+        accent: slogan.line2 ?? '',
+        line3: slogan.line3 ?? '',
+        subline: sharepic.subheader ?? '',
+        ...(sharepic.selectedImage && {
+          currentImageSrc: `/api/image-picker/stock-image/${encodeURIComponent(sharepic.selectedImage)}`,
+        }),
+      };
+    }
     default:
       return {};
   }
@@ -307,6 +322,7 @@ const CANVAS_TYPE_TO_GEN: Record<string, string> = {
   'zitat-pure-at': 'zitat_pure',
   'zitat-at': 'zitat_pure',
   'dreizeilen-at': 'dreizeilen',
+  'dreizeilen-overlay-at': 'dreizeilen',
   // 'info-at' fehlt bewusst: das Sujet gibt es nicht mehr. Verfeinerungen
   // bereits gespeicherter info-at-Artefakte fallen über den `?? 'dreizeilen'`
   // der Aufrufstelle auf einen Dreizeiler zurück.
