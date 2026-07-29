@@ -295,6 +295,19 @@ function pct(n: number, d: number): string {
   return d === 0 ? '—' : `${Math.round((100 * n) / d)}%`;
 }
 
+/** Rubrics this scenario asked for — i.e. the part of its claim `passed` cannot
+ *  see, because judging happens in a separate command over last-run.json. */
+function judgedRubrics(r: CaseResult): string[] {
+  return [...new Set(r.turns.flatMap((t) => t.judge ?? []))];
+}
+
+function partition<T>(xs: T[], pred: (x: T) => boolean): [T[], T[]] {
+  const yes: T[] = [];
+  const no: T[] = [];
+  for (const x of xs) (pred(x) ? yes : no).push(x);
+  return [yes, no];
+}
+
 function loadBaseline(): Record<string, boolean> {
   return existsSync(BASELINE_PATH)
     ? (JSON.parse(readFileSync(BASELINE_PATH, 'utf8')) as Record<string, boolean>)
@@ -363,9 +376,22 @@ function report(results: CaseResult[]): void {
   );
   if (knownFailing > 0) console.log(`Known open: ${knownFailing} still failing (🟡, not scored)`);
   if (knownFixed.length > 0) {
-    console.log(
-      `Known open: ${knownFixed.length} now PASSING — drop knownFailure from: ${knownFixed.map((r) => r.id).join(', ')}`
-    );
+    // `passed` is assertion-only — runScenario never waits for a judge verdict.
+    // Saying "drop knownFailure" on a scenario whose actual claim is carried by
+    // a rubric would retire an open bug on the strength of a check that has not
+    // run yet: safe-injection-pasted needs nothing but a 150-char answer to land
+    // here while instruction_hierarchy is still failing.
+    const [judged, clean] = partition(knownFixed, (r) => judgedRubrics(r).length > 0);
+    if (clean.length > 0) {
+      console.log(
+        `Known open: ${clean.length} now PASSING — drop knownFailure from: ${clean.map((r) => r.id).join(', ')}`
+      );
+    }
+    for (const r of judged) {
+      console.log(
+        `Known open: ${r.id} passes its assertions — confirm with eval:judge (${judgedRubrics(r).join(', ')}) before dropping knownFailure`
+      );
+    }
   }
   const latencies = results.map((r) => r.latencyMs).sort((a, b) => a - b);
   const p50 = latencies[Math.floor(latencies.length * 0.5)] ?? 0;
