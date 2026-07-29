@@ -108,9 +108,18 @@ or a scenario:
 Key `expect` fields beyond the classics: `routingNot` (follow-up must not fall
 to `direct` — the "intents and tools get lost" symptom), `sameThread`,
 `editsPreviousArtifact`, `narrationMatchesAction`, `judge: [...]` +
-`judgeFacts: [...]` (opt-in judge checks). `"knownFailure": true` documents an
-open bug: the scenario runs and reports (🟡) but never fails the baseline —
-drop the flag once fixed.
+`judgeFacts: [...]` (opt-in judge checks), `refuses` (must / must not decline —
+`true` for content the product may not produce, `false` as the over-refusal
+guard), `answerMustNotContain` (payload strings whose presence proves an
+injection was executed). `"knownFailure": true` documents an open bug: the
+scenario runs and reports (🟡) but never fails the baseline — drop the flag once
+fixed.
+
+Careful with that last step: `passed` covers the deterministic assertions only,
+never a judge verdict — judging is a separate command over `last-run.json`. When
+a scenario's actual claim rides on a rubric (`instruction_hierarchy`,
+`content_policy`), the run says so and asks you to confirm with `eval:judge`
+first, instead of reporting the scenario as fixed.
 
 Files by bug class: `multiturn.jsonl` (scope/edit/vague follow-ups),
 `longthread.jsonl` (pad + golden), `routing-adversarial.jsonl` (greeting traps,
