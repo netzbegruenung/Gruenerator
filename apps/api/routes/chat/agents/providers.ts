@@ -3,19 +3,21 @@
  * Manages Mistral and LiteLLM providers for the chat service
  */
 
-import { createMistral } from '@ai-sdk/mistral';
-import { createOpenAI } from '@ai-sdk/openai';
-
 import { env } from '../../../config/env.js';
-import { greenptFetchWithThinkingDisabled } from '../../../services/ai/greenptThinkingFetch.js';
-import { litellmFetchWithThinkingDisabled } from '../../../services/ai/litellmThinkingFetch.js';
 import { isVisionCapable } from '../../../services/ai/modelDiscovery.js';
-import { regoloFetchWithThinkingDisabled } from '../../../services/ai/regoloThinkingFetch.js';
+import {
+  getGreenPTProvider,
+  getLiteLLMProvider,
+  getMistralProvider,
+  getRegoloProvider,
+  isProviderConfigured,
+} from '../../../services/ai/providerInstances.js';
 import {
   tryAcquireVerdigadoSlot,
   releaseVerdigadoSlot,
 } from '../../../services/providers/verdigadoSlot.js';
 import { withUsageTracking } from '../../../services/usage/usageModelMiddleware.js';
+import { createLogger } from '../../../utils/logger.js';
 
 import {
   AVOID_AS_SYNTH,
@@ -27,6 +29,8 @@ import {
 
 import type { AgentConfig } from './types.js';
 import type { LanguageModel } from 'ai';
+
+const log = createLogger('chatProviders');
 
 const LITELLM_DEFAULT_MODEL = 'verdigado-pro';
 
@@ -318,143 +322,72 @@ export function getContextWindow(
   return DEFAULT_CONTEXT_WINDOW;
 }
 
-let mistralInstance: ReturnType<typeof createMistral> | null = null;
-let litellmInstance: ReturnType<typeof createOpenAI> | null = null;
-let regoloInstance: ReturnType<typeof createOpenAI> | null = null;
-let greenptInstance: ReturnType<typeof createOpenAI> | null = null;
-
-function getMistralProvider() {
-  if (!mistralInstance) {
-    mistralInstance = createMistral({
-      ...(env.MISTRAL_API_KEY && { apiKey: env.MISTRAL_API_KEY }),
-    });
-  }
-  return mistralInstance;
-}
-
-function getLiteLLMProvider() {
-  if (!litellmInstance) {
-    const baseURL = env.LITELLM_BASE_URL;
-    if (!baseURL) {
-      throw new Error('LITELLM_BASE_URL is not configured');
-    }
-    litellmInstance = createOpenAI({
-      baseURL: `${baseURL}/v1`,
-      apiKey: env.LITELLM_API_KEY || '',
-      name: 'litellm',
-      fetch: litellmFetchWithThinkingDisabled,
-    });
-  }
-  return litellmInstance;
-}
-
-function getRegoloProvider() {
-  if (!regoloInstance) {
-    const apiKey = env.REGOLO_API_KEY;
-    if (!apiKey) {
-      throw new Error('REGOLO_API_KEY is not configured');
-    }
-    regoloInstance = createOpenAI({
-      baseURL: 'https://api.regolo.ai/v1',
-      apiKey,
-      name: 'regolo',
-      fetch: regoloFetchWithThinkingDisabled,
-    });
-  }
-  return regoloInstance;
-}
-
-function getGreenPTProvider() {
-  if (!greenptInstance) {
-    const apiKey = env.GREENPT_API_KEY;
-    if (!apiKey) {
-      throw new Error('GREENPT_API_KEY is not configured');
-    }
-    greenptInstance = createOpenAI({
-      baseURL: 'https://api.greenpt.ai/v1',
-      apiKey,
-      name: 'greenpt',
-      fetch: greenptFetchWithThinkingDisabled,
-    });
-  }
-  return greenptInstance;
-}
-
-export function isProviderConfigured(provider: string): boolean {
-  let configured = false;
-  switch (provider) {
-    case 'mistral':
-      configured = !!env.MISTRAL_API_KEY;
-      console.log(
-        `[providers] Checking mistral: MISTRAL_API_KEY=${configured ? 'set' : 'NOT SET'}`
-      );
-      return configured;
-    case 'litellm': {
-      const hasBaseUrl = !!env.LITELLM_BASE_URL;
-      const hasApiKey = !!env.LITELLM_API_KEY;
-      configured = hasBaseUrl && hasApiKey;
-      console.log(
-        `[providers] Checking litellm: BASE_URL=${hasBaseUrl ? 'set' : 'NOT SET'}, API_KEY=${hasApiKey ? 'set' : 'NOT SET'}`
-      );
-      return configured;
-    }
-    case 'regolo':
-      configured = !!env.REGOLO_API_KEY;
-      console.log(`[providers] Checking regolo: REGOLO_API_KEY=${configured ? 'set' : 'NOT SET'}`);
-      return configured;
-    case 'greenpt':
-      configured = !!env.GREENPT_API_KEY;
-      console.log(
-        `[providers] Checking greenpt: GREENPT_API_KEY=${configured ? 'set' : 'NOT SET'}`
-      );
-      return configured;
-    case 'anthropic':
-      return false;
-    default:
-      return false;
-  }
-}
+// Provider clients come from the ONE construction site — see
+// services/ai/providerInstances.ts. This module used to build its own four
+// singletons; they drifted from the worker path's copies in base-URL handling,
+// failure modes and `fetch` wrappers, and the GreenPT thinking-disable wrapper
+// had to be threaded into both by hand.
+//
+// `isProviderConfigured` is re-exported unchanged in meaning for `mistral`,
+// `regolo` and `greenpt`. For `litellm` it is now key-only: this copy also
+// required LITELLM_BASE_URL, but that variable has a documented default, so
+// demanding it reported "not configured" for a lane that would in fact work
+// (and that the worker path used happily).
+//
+// Six modules import isProviderConfigured from here (boardAiService,
+// canvasChatEditController, notebookStreamCore, docs/aiController,
+// presentationAiService, sheetAiService), so it is re-exported rather than
+// every importer being repointed in the same change.
+export { isProviderConfigured };
 
 export function getModel(provider: string, modelId: string): LanguageModel {
   return withUsageTracking(resolveModel(provider, modelId), provider);
 }
 
+/**
+ * The Regolo divergence is DELIBERATE and must stay visible.
+ *
+ * The worker path (`services/ai/providers.ts`) throws without REGOLO_API_KEY.
+ * This path substitutes Mistral instead, because a chat turn that answers on a
+ * different lane beats one that 500s. That is a real product decision, not
+ * drift — but it used to be invisible: the caller could not tell it had been
+ * handed a different provider, and the only trace was a console.log among
+ * dozens of others.
+ *
+ * It is now logged at WARN and reported through `lastFallbackProvider` so a
+ * caller that cares can say so. Do NOT "clean this up" by picking one side.
+ */
+let lastFallbackProvider: string | null = null;
+
+/** The provider actually used, if the last resolveModel silently substituted
+ *  one. Read immediately after getModel; null when no substitution happened. */
+export function takeProviderFallback(): string | null {
+  const v = lastFallbackProvider;
+  lastFallbackProvider = null;
+  return v;
+}
+
 function resolveModel(provider: string, modelId: string): LanguageModel {
-  console.log(`[providers] getModel called: provider=${provider}, modelId=${modelId}`);
+  lastFallbackProvider = null;
   switch (provider) {
-    case 'mistral': {
-      console.log(`[providers] Creating Mistral model: ${modelId}`);
-      const mistral = getMistralProvider();
-      const model = mistral(modelId);
-      console.log(`[providers] Mistral model created successfully`);
-      return model;
-    }
-    case 'litellm': {
-      const resolvedModel = modelId || LITELLM_DEFAULT_MODEL;
-      console.log(`[providers] Creating LiteLLM model: ${resolvedModel}`);
-      const litellm = getLiteLLMProvider();
-      const model = litellm.chat(resolvedModel);
-      console.log(`[providers] LiteLLM model created successfully`);
-      return model;
-    }
+    case 'mistral':
+      return getMistralProvider()(modelId);
+    case 'litellm':
+      return getLiteLLMProvider().chat(modelId || LITELLM_DEFAULT_MODEL);
     case 'regolo': {
       if (!env.REGOLO_API_KEY) {
-        console.log(`[providers] REGOLO_API_KEY not set, falling back to Mistral: ${modelId}`);
-        const mistral = getMistralProvider();
-        return mistral(modelId);
+        log.warn(
+          `REGOLO_API_KEY not set — answering on Mistral instead of Regolo (requested "${modelId}")`
+        );
+        lastFallbackProvider = 'mistral';
+        return getMistralProvider()(modelId);
       }
-      const regoloDefault = env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b';
-      console.log(`[providers] Creating Regolo model: ${modelId || regoloDefault}`);
-      const regolo = getRegoloProvider();
-      const model = regolo.chat(modelId || regoloDefault);
-      console.log(`[providers] Regolo model created successfully`);
-      return model;
+      return getRegoloProvider().chat(modelId || env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b');
     }
-    case 'greenpt': {
-      const resolvedModel = modelId || env.GREENPT_DEFAULT_MODEL || GREENPT_DEFAULT_MODEL;
-      console.log(`[providers] Creating GreenPT model: ${resolvedModel}`);
-      return getGreenPTProvider().chat(resolvedModel);
-    }
+    case 'greenpt':
+      return getGreenPTProvider().chat(
+        modelId || env.GREENPT_DEFAULT_MODEL || GREENPT_DEFAULT_MODEL
+      );
     case 'anthropic':
       throw new Error('Anthropic provider is not yet implemented');
     default:
