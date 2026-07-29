@@ -205,8 +205,15 @@ function mapPerson(raw: z.infer<typeof rawPersonSchema>): BtPerson | null {
   };
 }
 
+/**
+ * The activity's SUBJECT is `vorgangsbezug[0].titel`; the record's own `titel`
+ * is the MP's display line and therefore identical on every row — an
+ * activity list built from it reads as the same name eight times and tells the
+ * model nothing. Fall back to `titel` only when there is no Vorgang reference.
+ */
 function mapAktivitaet(raw: z.infer<typeof rawAktivitaetSchema>): BtAktivitaet | null {
-  const titel = raw.titel?.trim();
+  const subject = raw.vorgangsbezug?.find((v) => v.titel?.trim())?.titel?.trim();
+  const titel = subject || raw.titel?.trim();
   if (!titel) return null;
   return {
     titel,
