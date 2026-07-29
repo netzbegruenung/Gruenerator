@@ -85,11 +85,11 @@ describe('Österreich (de-AT) canvas configs', () => {
       expect((zitat.elements.find((e) => e.id === id) as { align?: string }).align).toBe('center');
     }
 
-    // Der Verlauf ist ein echter Verlauf in Dunkelgruen, kein flacher Schleier.
-    const scrim = zitat.elements.find((e) => e.id === 'gradient-overlay') as
-      { fillLinearGradientColorStops?: Array<number | string> } | undefined;
-    expect(scrim?.fillLinearGradientColorStops?.length).toBeGreaterThan(4);
-    expect(String(scrim?.fillLinearGradientColorStops?.[1])).toContain('37, 118, 57');
+    // Ueber dem Foto liegt nichts — die AT-CI kennt keinen Verlauf, schon gar
+    // keinen gruenen. Das deutsche Zitat setzt dagegen weiterhin einen.
+    expect(zitat.elements.find((e) => e.id === 'gradient-overlay')).toBeUndefined();
+    const de = await loadCanvasConfig('zitat');
+    expect(de.elements.find((e) => e.id === 'gradient-overlay')).toBeDefined();
   });
 
   it('zentriert den Zitatblock als Gruppe statt ihn am Blattboden zu verankern', () => {
