@@ -144,6 +144,34 @@ export async function runPdfGeneration(opts: {
     returnLine: letterhead.returnLine,
     foldMarks: letterhead.foldMarks,
     stationery: letterhead.stationery,
+    // Bounded self-repair, in the shape computeVerifierNode + resumePipeline
+    // already use for compute: the self-check's findings go back to the model
+    // once. `createPdfDocument` owns WHEN this is called (only for findings a
+    // rewrite can fix) and whether the result is kept (only if it improved).
+    regenerate: async (problems) => {
+      const repaired = await generateStructured({
+        aiWorkerPool,
+        req: reqWithUser,
+        type: 'doc_generation',
+        systemPrompt: PDF_GENERATION_PROMPT,
+        userContent:
+          `${directive}${userContent}\n\n` +
+          `Dein vorheriger Entwurf hatte diese Mängel:\n` +
+          `${problems.map((p) => `- ${p}`).join('\n')}\n\n` +
+          `Gib das VOLLSTÄNDIGE Dokument korrigiert erneut aus. Behalte Inhalt und ` +
+          `Aussage bei; ändere nur, was zur Behebung nötig ist.`,
+        toolName: 'create_pdf_document',
+        toolDescription: 'Erzeugt ein fertiges PDF-Dokument aus Titel und Inhaltsblöcken.',
+        schema: PDF_DOCUMENT_TOOL_SCHEMA,
+        validate: validatePdfStructure,
+        parseText: parsePdfStructure,
+        // The first pass already spent its creativity; a repair is deterministic.
+        temperature: 0,
+        attempts: 1,
+        label: 'pdf-repair',
+      });
+      return repaired.ok ? repaired.data : null;
+    },
   });
 }
 
