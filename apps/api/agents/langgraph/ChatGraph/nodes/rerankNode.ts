@@ -24,6 +24,12 @@ const RERANK_EXCERPT_CHARS = 1200;
 
 function getSourceTag(source: string): string {
   if (source.startsWith(SOURCE_PREFIX.GRUENERATOR)) return 'Parteidokument';
+  // Official DIP records. Untagged they fell through to the generic 'Quelle'
+  // while the instruct below tells the cross-encoder to prefer "official party
+  // documents" — harmless while a turn is all-DIP (one tag for every
+  // candidate), but it would rank a crawled web text above a Plenarprotokoll
+  // the moment DIP and collection results ever share one pool.
+  if (source === SOURCE_PREFIX.BUNDESTAG) return 'Parlamentsdokument';
   if (source.startsWith(SOURCE_PREFIX.DOCUMENT)) return 'Nutzerdokument';
   if (source === SOURCE_PREFIX.WEB) return 'Web';
   if (source === SOURCE_PREFIX.EXAMPLES) return 'Beispiel';

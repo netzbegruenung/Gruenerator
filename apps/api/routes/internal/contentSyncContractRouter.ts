@@ -231,22 +231,22 @@ async function runScopedLandesverband(
             sources: [
               {
                 name: `Landesverband ${landesverband}`,
-                status: 'success',
+                status: result.errors > 0 ? 'failed' : 'success',
                 stored: result.stored,
                 updated: result.updated,
                 skipped: result.skipped,
-                errors: 0,
+                errors: result.errors,
                 duration: result.duration,
               },
             ],
             totals: {
               sources: 1,
-              succeeded: 1,
-              failed: 0,
+              succeeded: result.errors > 0 ? 0 : 1,
+              failed: result.errors > 0 ? 1 : 0,
               stored: result.stored,
               updated: result.updated,
               skipped: result.skipped,
-              errors: 0,
+              errors: result.errors,
             },
             runUrl,
             dryRun: opts.dryRun,
@@ -259,12 +259,18 @@ async function runScopedLandesverband(
     }
   }
 
+  // Hard errors stay hard. This used to return `fetchErrors: result.errors,
+  // errors: 0` — but the Landesverband scraper reports a single undifferentiated
+  // error count (no `skipReasons`, unlike the gruenblog/böll scrapers), so that
+  // split was invented, not measured. Calling every failure "unreachable" is
+  // what let a Landesverband scrape nothing for weeks and still read as a clean
+  // run in the GitHub Actions summary.
   return {
     stored: result.stored,
     updated: result.updated,
     skipped: result.skipped,
-    fetchErrors: result.errors,
-    errors: 0,
+    fetchErrors: 0,
+    errors: result.errors,
   };
 }
 
