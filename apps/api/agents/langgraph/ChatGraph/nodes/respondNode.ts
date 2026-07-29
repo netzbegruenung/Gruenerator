@@ -985,6 +985,49 @@ function getAnchorAdjuncts(state: ChatGraphState): string {
   return `\n\n## ZUSÄTZLICHER KONTEXT\n\n${fragments.join('\n')}\n\nNutze die jeweils relevanten Quellen — keine ist exklusiv. Bei Recherche-Fragen sind Suchergebnisse die primäre Antwortgrundlage; offene/referenzierte Dokumente dienen als thematischer Kontext.${coEqualLine}`;
 }
 
+/** Distinct sources that justify structuring an external-research answer. */
+const STRUCTURE_SOURCE_THRESHOLD = 4;
+
+/**
+ * Answer length and structure.
+ *
+ * `complexity` alone used to decide this, but it is a keyword regex over the
+ * QUESTION and its `moderate` branch is the fallback — the value returned when
+ * no rule matched, i.e. "unknown", not "medium" (services/search/searchDepth.ts
+ * refuses to upgrade on it for exactly that reason). A researched turn whose
+ * phrasing missed every regex therefore got "no headings" no matter how much
+ * material came back: observed live on a 4-source biography that rendered as
+ * three unstructured paragraphs.
+ *
+ * Only the `moderate` fallback defers to retrieval reality, which is measured
+ * rather than guessed. `simple` and `complex` are positive signals and keep
+ * deciding alone, so no turn where a regex actually matched changes behaviour.
+ * The value semantics of `complexity` stay untouched — briefGeneratorNode and
+ * intentExecutionService deliberately group `moderate` with `complex`.
+ *
+ * Headings are PERMITTED, never required: rule 1 caps the scope, and an
+ * obligation here would inflate short answers into padded section stacks.
+ */
+function buildAnswerFormatRule(state: ChatGraphState, sourceCount: number): string {
+  // A multi-document turn already has its format prescribed by the comparison /
+  // multi-doc block (table, per-doc bullets, grounded prose). A second structure
+  // directive here is how "Antworte als zusammenhängende Prosa" and "Strukturiere
+  // mit Überschriften" ended up in the same prompt.
+  if (state.synthesisMode) {
+    return state.complexity === 'simple' ? 'Kurze, präzise Antworten' : 'Bis zu 6 Absätze';
+  }
+
+  if (state.complexity === 'complex') return 'Strukturiere mit Überschriften, bis zu 6 Absätze';
+  if (state.complexity === 'simple') return 'Kurze, präzise Antworten (1-2 Absätze)';
+
+  const isExternalResearch = state.intent === 'research' || state.intent === 'web';
+  if (isExternalResearch && sourceCount >= STRUCTURE_SOURCE_THRESHOLD) {
+    return 'Bis zu 6 Absätze. Hat die Antwort mehrere eigenständige Aspekte, darfst du sie mit Überschriften gliedern — Pflicht ist das nicht';
+  }
+
+  return '2-4 Absätze mit klarer Struktur';
+}
+
 /**
  * Build the complete system message with agent role and search context.
  */
@@ -1179,7 +1222,7 @@ Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${pr
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo
-2. ${state.complexity === 'complex' ? 'Strukturiere mit Überschriften, bis zu 6 Absätze' : state.complexity === 'moderate' ? '2-4 Absätze mit klarer Struktur' : 'Kurze, präzise Antworten (1-2 Absätze)'}
+2. ${buildAnswerFormatRule(state, sourceCount)}
 3. Antworte auf Deutsch
 4. Erfinde keine Fakten oder Quellennamen
 5. Erstelle KEINE Quellenliste/Quellenverzeichnis am Ende — Quellen werden automatisch in der Oberfläche angezeigt
