@@ -55,6 +55,17 @@ export const dreizeilenAtTypeConfig: TemplateTypeConfig = {
   legacyType: 'DreizeilenAt',
 };
 
+export const dreizeilenOverlayAtTypeConfig: TemplateTypeConfig = {
+  ...baseAt,
+  id: IMAGE_STUDIO_TYPES.DREIZEILEN_OVERLAY_AT,
+  label: '3 Zeilen auf Bild',
+  description: 'Dreizeilige Headline auf Farbfläche über einem Foto',
+  icon: PiTextT,
+  previewImage: '/imagine/previews/dreizeilen-overlay-at-preview.webp',
+  endpoints: { canvas: '/dreizeilen_overlay_at_canvas' },
+  legacyType: 'DreizeilenOverlayAt',
+};
+
 export const freeformAtTypeConfig: TemplateTypeConfig = {
   ...baseAt,
   id: IMAGE_STUDIO_TYPES.FREEFORM_AT,
@@ -84,4 +95,5 @@ const emptyFieldConfig: TemplateFieldConfig = {
 export const zitatAtFieldConfig = emptyFieldConfig;
 export const zitatPureAtFieldConfig = emptyFieldConfig;
 export const dreizeilenAtFieldConfig = emptyFieldConfig;
+export const dreizeilenOverlayAtFieldConfig = emptyFieldConfig;
 export const freeformAtFieldConfig = emptyFieldConfig;
