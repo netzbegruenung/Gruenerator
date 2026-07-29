@@ -265,14 +265,17 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
   postProcessAuto: async (args) => {
     const { uploadId, maxResolution = null } = args.body;
     const userId = getUserId(args.req) ?? args.body.userId ?? null;
-    // The auth middleware overlays req.user.locale with the fresh, Redis-cached
-    // DB locale (see services/localization/localeCache), so this already reflects
-    // the persisted profile — no separate profile read needed. It replaces the
-    // stale 300s Better-Auth session-cookie cache that served AT users the
-    // German subtitle style.
+    // requireAuth runs on this prefix (see routes.ts), so req.user exists and
+    // tryResolveUser has already overlaid req.user.locale with the fresh,
+    // Redis-cached DB locale (services/localization/localeCache). That makes
+    // extractLocaleFromRequest return the persisted profile value rather than
+    // falling through to the browser-derived X-User-Locale header — the
+    // fall-through that served AT users the German subtitle style.
+    // `source` is logged because that fall-through was invisible for months.
     const locale = extractLocaleFromRequest(args.req);
+    const source = (args.req as { user?: { locale?: string } }).user?.locale ? 'profile' : 'header';
     log.info(
-      `[process-auto] uploadId=${uploadId} bodyLocale=${args.body.locale ?? 'none'} → resolved=${locale} userId=${userId ?? 'none'}`
+      `[process-auto] uploadId=${uploadId} → locale=${locale} (${source}) userId=${userId ?? 'none'}`
     );
     try {
       const videoPath = getFilePathFromUploadId(uploadId);
