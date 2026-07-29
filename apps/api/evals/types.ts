@@ -84,6 +84,22 @@ export type EvalSurface = z.infer<typeof evalSurfaceSchema>;
 /** Notebook retrieval mode (mirrors NotebookStreamOptions['mode']). */
 export const evalNotebookModeSchema = z.enum(['fast', 'deep']);
 
+/**
+ * The LLM-judge rubrics a turn may request. An enum, not a free string: a
+ * corpus line naming a rubric that doesn't exist would otherwise load fine and
+ * simply never be judged. `judge/rubrics.ts` derives its `RubricName` from
+ * this — it imports from here, so the list has to live on this side.
+ */
+export const rubricNameSchema = z.enum([
+  'groundedness',
+  'narration_consistency',
+  'known_answer',
+  'german_quality',
+  'parity',
+  'instruction_hierarchy',
+]);
+export type RubricName = z.infer<typeof rubricNameSchema>;
+
 /** Per-prompt expectations. All fields optional — only assert what's known.
  *  `.strict()` is the point: an unknown key is a typo, and a typo'd assertion
  *  is one that never runs. */
@@ -157,7 +173,7 @@ export const evalExpectSchema = z
     /** Text must not deny an edit that happened, nor claim research with 0 tool calls. */
     narrationMatchesAction: z.boolean().optional(),
     /** LLM-judge checks to run on this turn (eval:judge; ignored by assertions). */
-    judge: z.array(z.string()).optional(),
+    judge: z.array(rubricNameSchema).optional(),
     /** Facts the answer must not contradict (judge `known_answer` rubric). */
     judgeFacts: z.array(z.string()).optional(),
   })
