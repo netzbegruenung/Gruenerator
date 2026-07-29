@@ -51,6 +51,13 @@ const CONFIDENCE_COLORS = {
   low: 'text-status-red',
 } as const;
 
+/**
+ * @deprecated Renders the old dossier shape (`researchMeta.answer`). No path has
+ * produced `researchMeta` since 2026-07-30 — dossiers now ship as message text.
+ * Keep: pre-2026-07-30 turns have their dossier ONLY here (the assistant message
+ * was just two framing sentences); deleting this hides those dossiers until
+ * `researchMeta.answer` is backfilled into message content.
+ */
 export const ResearchArtifactCard = memo(function ResearchArtifactCard({
   query,
   result,
