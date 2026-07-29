@@ -9,7 +9,12 @@ import { getGenerationConfig, type GenerationOptions } from '../../services/ai/c
 import { getModel, isProviderConfigured } from '../../services/ai/providers.js';
 import ToolHandler from '../../services/tools/index.js';
 
-import { buildAiSdkTools, resolveToolChoice, mergeMetadata } from './adapterUtils.js';
+import {
+  buildAiSdkTools,
+  convertMessages,
+  resolveToolChoice,
+  mergeMetadata,
+} from './adapterUtils.js';
 
 import type { AIRequestData, AIWorkerResult, ToolCall, ContentBlock } from '../types.js';
 
@@ -34,182 +39,6 @@ export const connectionMetrics: ConnectionMetrics = {
   lastFailureTime: null,
   lastFailureReason: null,
 };
-
-/**
- * Convert internal message format to Vercel AI SDK ModelMessage format
- */
-async function convertMessages(
-  messages: AIRequestData['messages'],
-  systemPrompt?: string
-): Promise<{ system: string | undefined; messages: ModelMessage[] }> {
-  const systemParts: string[] = [];
-  if (systemPrompt) systemParts.push(systemPrompt);
-
-  const modelMessages: ModelMessage[] = [];
-
-  if (!messages) {
-    return {
-      system: systemParts.length > 0 ? systemParts.join('\n\n') : undefined,
-      messages: modelMessages,
-    };
-  }
-
-  for (const msg of messages) {
-    if (msg.role === 'system') {
-      const sysContent =
-        typeof msg.content === 'string'
-          ? msg.content
-          : Array.isArray(msg.content)
-            ? (msg.content as Array<{ text?: string; content?: string }>)
-                .map((c) => c.text || c.content || '')
-                .join('\n')
-            : String(msg.content);
-      systemParts.push(sysContent);
-      continue;
-    }
-
-    // Handle assistant messages with tool calls
-    if (msg.role === 'assistant' && Array.isArray(msg.content)) {
-      const content = msg.content as Array<{
-        type: string;
-        id?: string;
-        name?: string;
-        input?: unknown;
-        text?: string;
-      }>;
-
-      const toolUseBlocks = content.filter((c) => c.type === 'tool_use');
-      const textContent = content
-        .filter((c) => c.type === 'text')
-        .map((c) => c.text || '')
-        .join('\n');
-
-      if (toolUseBlocks.length > 0) {
-        // Assistant message with tool calls
-        modelMessages.push({
-          role: 'assistant',
-          content: [
-            ...(textContent ? [{ type: 'text' as const, text: textContent }] : []),
-            ...toolUseBlocks.map((tc) => ({
-              type: 'tool-call' as const,
-              toolCallId: tc.id || '',
-              toolName: tc.name || '',
-              input: tc.input as Record<string, unknown>,
-            })),
-          ],
-        });
-      } else if (textContent) {
-        modelMessages.push({ role: 'assistant', content: textContent });
-      }
-      continue;
-    }
-
-    // Handle user messages with tool results
-    if (msg.role === 'user' && Array.isArray(msg.content)) {
-      const content = msg.content as Array<{
-        type: string;
-        tool_use_id?: string;
-        tool_call_id?: string;
-        toolCallId?: string;
-        id?: string;
-        content?: unknown;
-        text?: string;
-        source?: {
-          data?: string;
-          media_type?: string;
-          name?: string;
-          url?: string;
-          text?: string;
-        };
-      }>;
-
-      const toolResults = content.filter((c) => c.type === 'tool_result');
-      if (toolResults.length > 0) {
-        // Tool result messages
-        for (const tr of toolResults) {
-          const resultContent =
-            typeof tr.content === 'string' ? tr.content : JSON.stringify(tr.content);
-          const toolCallId = tr.tool_use_id || tr.tool_call_id || tr.toolCallId || tr.id || '';
-          modelMessages.push({
-            role: 'tool',
-            content: [
-              {
-                type: 'tool-result' as const,
-                toolCallId,
-                toolName: '', // Will be matched by toolCallId
-                output: { type: 'text' as const, value: resultContent },
-              },
-            ],
-          });
-        }
-        continue;
-      }
-
-      // Handle documents and images
-      const hasImages = content.some((c) => c.type === 'image' && c.source?.data);
-      if (hasImages) {
-        const parts: Array<
-          { type: 'text'; text: string } | { type: 'image'; image: Buffer; mimeType: string }
-        > = [];
-        for (const c of content) {
-          if (c.type === 'text') {
-            parts.push({ type: 'text', text: c.text || '' });
-          } else if (c.type === 'image' && c.source?.data) {
-            const mediaType = c.source.media_type || 'image/png';
-            const base64Data = c.source.data.replace(/^data:image\/[^;]+;base64,/, '');
-            parts.push({
-              type: 'image',
-              image: Buffer.from(base64Data, 'base64'),
-              mimeType: mediaType,
-            });
-          }
-        }
-        modelMessages.push({ role: 'user', content: parts });
-        continue;
-      }
-
-      // Text-only user message with documents
-      const textParts = await Promise.all(
-        content.map(async (c) => {
-          if (c.type === 'text') {
-            return c.text || '';
-          } else if (c.type === 'document' && c.source) {
-            if (c.source.data && c.source.media_type === 'application/pdf') {
-              try {
-                const { ocrService } = await import('../../services/ocrService.js');
-                const result = await ocrService.extractTextFromBase64PDF(
-                  c.source.data,
-                  c.source.name || 'unknown.pdf'
-                );
-                return `[PDF-Inhalt: ${c.source.name || 'Unbekannt'}]\n\n${result.text}`;
-              } catch (error: unknown) {
-                const err = error as { message?: string };
-                return `[PDF-Dokument: ${c.source.name || 'Unbekannt'} - Text-Extraktion fehlgeschlagen: ${err.message || 'Unknown error'}]`;
-              }
-            } else if (c.source.text) {
-              return c.source.text;
-            }
-            return `[Dokument: ${c.source.name || 'Unbekannt'}]`;
-          }
-          return '';
-        })
-      );
-      modelMessages.push({ role: 'user', content: textParts.filter(Boolean).join('\n') });
-      continue;
-    }
-
-    // Simple text message
-    modelMessages.push({
-      role: msg.role as 'user' | 'assistant',
-      content: typeof msg.content === 'string' ? msg.content : String(msg.content || ''),
-    });
-  }
-
-  return {
-    system: systemParts.length > 0 ? systemParts.join('\n\n') : undefined,
-    messages: modelMessages,
-  };
-}
 
 /**
  * Execute a Mistral AI request using Vercel AI SDK

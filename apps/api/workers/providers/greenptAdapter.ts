@@ -12,7 +12,7 @@ import ToolHandler from '../../services/tools/index.js';
 import {
   buildAiSdkTools,
   resolveToolChoice,
-  convertMessagesWithImages,
+  convertMessages,
   mergeMetadata,
 } from './adapterUtils.js';
 
@@ -29,7 +29,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
 
   const model = options.model || env.GREENPT_DEFAULT_MODEL || 'mistral-medium-3.5-128b';
 
-  const { system, messages: modelMessages } = convertMessagesWithImages(messages, systemPrompt);
+  const { system, messages: modelMessages } = await convertMessages(messages, systemPrompt);
 
   const toolsPayload = ToolHandler.prepareToolsPayload(
     {

@@ -8,60 +8,14 @@ import { generateText, type ModelMessage } from 'ai';
 import { getDefaultModel, getModel, isProviderConfigured } from '../../services/ai/providers.js';
 import ToolHandler from '../../services/tools/index.js';
 
-import { buildAiSdkTools, resolveToolChoice, mergeMetadata } from './adapterUtils.js';
+import {
+  buildAiSdkTools,
+  convertMessages,
+  resolveToolChoice,
+  mergeMetadata,
+} from './adapterUtils.js';
 
 import type { AIRequestData, AIWorkerResult, ToolCall, ContentBlock } from '../types.js';
-
-/**
- * Convert internal message format to Vercel AI SDK ModelMessage format
- */
-function convertMessages(
-  messages: AIRequestData['messages'],
-  systemPrompt?: string
-): { system: string | undefined; messages: ModelMessage[] } {
-  const systemParts: string[] = [];
-  if (systemPrompt) systemParts.push(systemPrompt);
-
-  const modelMessages: ModelMessage[] = [];
-
-  if (!messages) {
-    return {
-      system: systemParts.length > 0 ? systemParts.join('\n\n') : undefined,
-      messages: modelMessages,
-    };
-  }
-
-  for (const msg of messages) {
-    let content: string;
-    if (typeof msg.content === 'string') {
-      content = msg.content;
-    } else if (Array.isArray(msg.content)) {
-      content = msg.content
-        .map((c) => {
-          const block = c as { text?: string; content?: string };
-          return block.text || block.content || '';
-        })
-        .join('\n');
-    } else {
-      content = String(msg.content);
-    }
-
-    if (msg.role === 'system') {
-      systemParts.push(content);
-      continue;
-    }
-
-    modelMessages.push({
-      role: msg.role as 'user' | 'assistant',
-      content,
-    });
-  }
-
-  return {
-    system: systemParts.length > 0 ? systemParts.join('\n\n') : undefined,
-    messages: modelMessages,
-  };
-}
 
 /**
  * Convert tool handler payload to Vercel AI SDK tools format
@@ -82,7 +36,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
   const model = options.model || getDefaultModel('litellm');
 
   // Convert messages to Vercel AI SDK format
-  const { system, messages: modelMessages } = convertMessages(messages, systemPrompt);
+  const { system, messages: modelMessages } = await convertMessages(messages, systemPrompt);
 
   // Prepare tools - only include options that are not null/undefined
   const toolsPayload = ToolHandler.prepareToolsPayload(
