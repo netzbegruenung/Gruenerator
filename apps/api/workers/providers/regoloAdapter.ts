@@ -57,8 +57,9 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
       ...(system != null && { system }),
       messages: modelMessages,
       ...(options.max_tokens != null && { maxOutputTokens: options.max_tokens }),
-      temperature: options.temperature || 0,
-      topP: options.top_p || 0.1,
+      // `??`, not `||`: 0 is a value a caller means, not a missing one.
+      temperature: options.temperature ?? 0,
+      topP: options.top_p ?? 0.1,
       ...(tools != null && { tools }),
       ...(toolChoice != null && { toolChoice }),
     });
