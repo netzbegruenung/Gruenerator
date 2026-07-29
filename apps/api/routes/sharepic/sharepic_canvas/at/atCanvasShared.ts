@@ -24,7 +24,9 @@ export const AT_BRAND = {
   fonts: {
     headline: 'GothamNarrow-Ultra',
     body: 'GothamNarrow-Book',
-    quoteShort: 'GothamNarrow-Bold',
+    // Zitate tragen denselben Display-Schnitt wie Headlines und Untertitel —
+    // Bold fiel als einziges AT-Sujet aus der Reihe.
+    quoteShort: 'GothamNarrow-Ultra',
     quoteEmphasis: 'Vollkorn',
   },
   lineHeightFactor: 0.9,
