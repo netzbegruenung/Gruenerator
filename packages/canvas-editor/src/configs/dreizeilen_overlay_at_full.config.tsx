@@ -1,8 +1,9 @@
 /**
  * Dreizeilen-Overlay AT Full Canvas Configuration (Österreich / de-AT)
  *
- * Foto vollflächig, darauf eine zentrierte quadratische Farbfläche (Dunkel-
- * oder Hellgrün) mit zentrierter dreizeiliger Headline (Zeile 1 + 3 weiß Gotham
+ * Foto vollflächig, darauf eine zentrierte quadratische Fläche in Dunkelgrün
+ * (Hellgrün ist für dieses Sujet nicht vorgesehen) mit zentrierter dreizeiliger
+ * Headline (Zeile 1 + 3 weiß Gotham
  * Ultra, Zeile 2 gelbe Vollkorn-Betonung), Subline und mittigem Logo.
  *
  * Built on createImageTwoTextCanvas (photo background + pan/scale/lock) with

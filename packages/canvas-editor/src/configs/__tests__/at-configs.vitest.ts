@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { getBrandTheme } from '../../brand/theme';
 import { loadCanvasConfig } from '../configLoader';
 import { getTemplatesForLocale } from '../../utils/templateRegistry';
+import { ZITAT_AT_CONFIG, calculateZitatAtLayout } from '../../utils/zitatAtLayout';
 
 const AT_IDS = [
   'zitat-at',
@@ -13,16 +14,23 @@ const AT_IDS = [
 ] as const;
 
 describe('Österreich (de-AT) canvas configs', () => {
-  it.each(AT_IDS)('loads and builds config %s', async (id) => {
-    const config = await loadCanvasConfig(id);
-    expect(config).toBeTruthy();
-    expect(config.id).toBe(id);
-    expect(Array.isArray(config.elements)).toBe(true);
-    expect(config.elements.length).toBeGreaterThan(0);
-    // createInitialState must not throw
-    const state = config.createInitialState({});
-    expect(state).toBeTruthy();
-  });
+  // Der erste dynamische Import zieht die gesamte Konva-Kette nach und reisst
+  // die 5-Sekunden-Vorgabe in etwa zwei von drei Laeufen — der Fall sah wie
+  // Flakiness aus, ist aber schlicht Kaltstart des ersten geladenen Sujets.
+  it.each(AT_IDS)(
+    'loads and builds config %s',
+    async (id) => {
+      const config = await loadCanvasConfig(id);
+      expect(config).toBeTruthy();
+      expect(config.id).toBe(id);
+      expect(Array.isArray(config.elements)).toBe(true);
+      expect(config.elements.length).toBeGreaterThan(0);
+      // createInitialState must not throw
+      const state = config.createInitialState({});
+      expect(state).toBeTruthy();
+    },
+    20_000
+  );
 
   it('brand theme exposes AT tokens', () => {
     const at = getBrandTheme('de-AT');
@@ -58,6 +66,45 @@ describe('Österreich (de-AT) canvas configs', () => {
     const overlay = await loadCanvasConfig('dreizeilen-overlay-at');
     expect(overlay.elements.find((e) => e.id === 'logo')).toBeDefined();
     expect(overlay.elements.find((e) => e.id === 'overlay-box')?.type).toBe('rect');
+  });
+
+  it('Zitat auf Foto folgt der AT-Guideline, nicht der deutschen Geometrie', async () => {
+    const zitat = await loadCanvasConfig('zitat-at');
+
+    // Logo rechts oben — das deutsche Zitat traegt keines.
+    const logo = zitat.elements.find((e) => e.id === 'logo');
+    expect(logo).toBeDefined();
+    expect(logo?.x).toBe(ZITAT_AT_CONFIG.canvas.width - 70 - ZITAT_AT_CONFIG.logo.width);
+
+    // Gelbes Anfuehrungszeichen statt des weissen aus der DE-Konfiguration.
+    const mark = zitat.elements.find((e) => e.id === 'quote-mark');
+    expect((mark as { src?: string } | undefined)?.src).toBe('/quote-gelb.svg');
+
+    // Zitat und Name stehen mittig.
+    for (const id of ['quote-text', 'name-text']) {
+      expect((zitat.elements.find((e) => e.id === id) as { align?: string }).align).toBe('center');
+    }
+
+    // Der Verlauf ist ein echter Verlauf in Dunkelgruen, kein flacher Schleier.
+    const scrim = zitat.elements.find((e) => e.id === 'gradient-overlay') as
+      { fillLinearGradientColorStops?: Array<number | string> } | undefined;
+    expect(scrim?.fillLinearGradientColorStops?.length).toBeGreaterThan(4);
+    expect(String(scrim?.fillLinearGradientColorStops?.[1])).toContain('37, 118, 57');
+  });
+
+  it('zentriert den Zitatblock als Gruppe statt ihn am Blattboden zu verankern', () => {
+    const kurz = calculateZitatAtLayout('Kurz.', 'Name Nachname');
+    const lang = calculateZitatAtLayout(
+      'Ein deutlich laengeres Zitat einer Person zu einem tagesaktuellen Thema, das ueber mehrere Zeilen laeuft und trotzdem mittig sitzen soll.',
+      'Name Nachname'
+    );
+    const mitte = (l: ReturnType<typeof calculateZitatAtLayout>) =>
+      (l.quoteMarkY + l.authorY + l.authorFontSize) / 2;
+    const ziel = ZITAT_AT_CONFIG.canvas.height * ZITAT_AT_CONFIG.groupCenterRatio;
+    expect(Math.abs(mitte(kurz) - ziel)).toBeLessThan(20);
+    expect(Math.abs(mitte(lang) - ziel)).toBeLessThan(20);
+    // Und der laengere Block waechst nach beiden Seiten, nicht nur nach unten.
+    expect(lang.quoteMarkY).toBeLessThan(kurz.quoteMarkY);
   });
 
   it('macht alle vier Textzonen KI-editierbar', async () => {

@@ -1,7 +1,10 @@
 /**
  * Zitat AT napi-canvas renderer (Österreich / de-AT).
- * Hintergrundfoto + Gradient, weißes Anführungszeichen + Zitat (Gotham),
- * gelber Name. Mirrors zitat_at_full.config.tsx.
+ * Foto vollflächig, darüber ein dunkelgrüner Verlauf, darauf mittig das gelbe
+ * Anführungszeichen, das weiße Zitat und der gelbe Name; Logo rechts oben.
+ *
+ * Spiegelbild von zitat_at_full.config.tsx / zitatAtLayout.ts — beide Dateien
+ * sind handverdrahtet und müssen zusammen geändert werden.
  */
 import { createCanvas, loadImage, type Canvas, type SKRSContext2D as Ctx } from '@napi-rs/canvas';
 import { Router, type Request, type Response } from 'express';
@@ -16,10 +19,13 @@ import { createLogger } from '../../../../utils/logger.js';
 import {
   AT_BRAND,
   CANVAS,
+  ZITAT,
   registerAtFonts,
   wrapText,
   drawLines,
-  loadAtQuoteWhite,
+  drawCoverImage,
+  drawAtLogo,
+  loadAtQuoteGelb,
 } from './atCanvasShared.js';
 
 const log = createLogger('zitat_at_canv');
@@ -36,60 +42,54 @@ async function render(imageBuffer: Buffer, quote: string, name: string): Promise
   const canvas: Canvas = createCanvas(CANVAS.width, CANVAS.height);
   const ctx: Ctx = canvas.getContext('2d');
 
-  // Cover-fit background image
-  const image = await loadImage(imageBuffer);
-  const canvasAspect = CANVAS.width / CANVAS.height;
-  let sx: number, sy: number, sWidth: number, sHeight: number;
-  if (image.width / image.height > canvasAspect) {
-    sHeight = image.height;
-    sWidth = image.height * canvasAspect;
-    sx = (image.width - sWidth) / 2;
-    sy = 0;
-  } else {
-    sWidth = image.width;
-    sHeight = image.width / canvasAspect;
-    sx = 0;
-    sy = (image.height - sHeight) / 2;
-  }
-  ctx.drawImage(image, sx, sy, sWidth, sHeight, 0, 0, CANVAS.width, CANVAS.height);
+  drawCoverImage(ctx, await loadImage(imageBuffer));
 
-  // Bottom gradient for contrast
+  // Dunkelgrüner Verlauf. Die Stützstellen sind dieselben wie in
+  // ZITAT_AT_CONFIG.scrim — der Konva-Pfad baut daraus dieselben Colorstops.
   const gradient = ctx.createLinearGradient(0, 0, 0, CANVAS.height);
-  gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
-  gradient.addColorStop(1, 'rgba(0, 0, 0, 0.5)');
+  for (const stop of ZITAT.scrim.curve) {
+    gradient.addColorStop(stop.at, `rgba(${ZITAT.scrim.color}, ${stop.opacity})`);
+  }
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, CANVAS.width, CANVAS.height);
 
-  const margin = 50;
-  const maxWidth = CANVAS.width - margin * 2;
-  const quoteFontSize = 60;
-  const lineHeight = Math.round(quoteFontSize * 1.17);
+  const fontSize = ZITAT.baseFontSize;
+  const lineHeight = Math.round(fontSize * ZITAT.lineHeightRatio);
+  const nameFontSize = Math.round(fontSize * ZITAT.nameFontSizeRatio);
+  const markSize = Math.round(fontSize * ZITAT.markSizeRatio);
+  const nameGap = Math.round(fontSize * ZITAT.nameGapRatio);
 
-  ctx.textAlign = 'left';
+  ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  ctx.font = `${quoteFontSize}px ${AT_BRAND.fonts.quoteShort}`;
-  const lines = wrapText(ctx, quote, maxWidth);
+  ctx.font = `${fontSize}px ${AT_BRAND.fonts.quoteShort}`;
+  const lines = wrapText(ctx, quote, ZITAT.maxWidth);
 
-  const quoteMarkSize = Math.round(quoteFontSize * 1.67);
-  const quoteMarkY = 750;
-  const quoteY = quoteMarkY + quoteMarkSize + 10;
+  // Gruppe aus Anführungszeichen + Zitat + Name mittig um groupCenterRatio.
+  const quoteHeight = lines.length * lineHeight;
+  const nameHeight = name ? nameGap + nameFontSize : 0;
+  const groupHeight = markSize + ZITAT.markGapToText + quoteHeight + nameHeight;
+  const groupTop = Math.round(CANVAS.height * ZITAT.groupCenterRatio - groupHeight / 2);
+  const quoteY = groupTop + markSize + ZITAT.markGapToText;
 
-  // Quote mark (white SVG) — same asset the konva zitat config draws.
-  const mark = await loadAtQuoteWhite();
-  ctx.drawImage(mark, margin, quoteMarkY, quoteMarkSize, quoteMarkSize);
+  const centerX = CANVAS.width / 2;
 
-  // Quote (white Gotham)
+  const mark = await loadAtQuoteGelb();
+  ctx.drawImage(mark, Math.round(centerX - markSize / 2), groupTop, markSize, markSize);
+
   ctx.fillStyle = AT_BRAND.textOnDark;
-  ctx.font = `${quoteFontSize}px ${AT_BRAND.fonts.quoteShort}`;
-  const afterQuoteY = drawLines(ctx, lines, margin, quoteY, lineHeight);
+  const afterQuoteY = drawLines(ctx, lines, centerX, quoteY, lineHeight);
 
-  // Name (yellow). Gap mirrors calculateZitatLayout (author.gapFromQuoteRatio 1.33).
   if (name) {
-    const nameFontSize = Math.round(quoteFontSize * 0.67);
     ctx.fillStyle = AT_BRAND.accent;
     ctx.font = `${nameFontSize}px ${AT_BRAND.fonts.body}`;
-    ctx.fillText(name, margin, afterQuoteY + Math.round(quoteFontSize * 1.33));
+    ctx.fillText(name, centerX, afterQuoteY + nameGap);
   }
+
+  await drawAtLogo(ctx, {
+    x: CANVAS.width - ZITAT.logo.margin - ZITAT.logo.width,
+    y: ZITAT.logo.margin,
+    width: ZITAT.logo.width,
+  });
 
   return canvas.toBuffer('image/png');
 }
