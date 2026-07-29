@@ -356,13 +356,13 @@ export class PersonDetectionService {
     try {
       console.log('[PersonDetection] Refreshing MP cache...');
 
-      // `fraktion` is advertised by the MCP tool but silently IGNORED by the
-      // server — short ("GRÜNE") and long ("BÜNDNIS 90/DIE GRÜNEN") names both
-      // return the same unfiltered 1017 MPs across all parties. So the
-      // client-side `_isGrueneFraktion` filter below is load-bearing, not a
-      // belt-and-braces double check; don't remove it on the assumption that
-      // the request already narrowed the set. Passing the long name anyway so
-      // this starts working the day the server honours it.
+      // `fraktion` used to be advertised but silently ignored — every call came
+      // back as the same unfiltered set across all parties. The MCP now filters
+      // on `person.fraktion` itself and pages through DIP until the limit is
+      // met, so this request really does narrow to the 83 Green MdB of the
+      // current Wahlperiode. `_isGrueneFraktion` below is therefore no longer
+      // load-bearing; it stays as a cheap guard because a silent regression
+      // here would repopulate the cache with MPs of other parties.
       const result = await this.mcpClient.searchPersonen({
         fraktion: 'BÜNDNIS 90/DIE GRÜNEN',
         wahlperiode: CURRENT_WAHLPERIODE,

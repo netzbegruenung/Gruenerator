@@ -152,6 +152,7 @@ export interface ThreadToolContext {
  */
 export const SOURCE_PREFIX = {
   GRUENERATOR: 'gruenerator:',
+  BUNDESTAG: 'bundestag',
   WEB: 'web',
   EXAMPLES: 'examples',
   RESEARCH: 'research',

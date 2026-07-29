@@ -14,7 +14,7 @@
  * `fetchTrimmed` drops non-conforming items one by one, so a shape change shows
  * up as an empty list rather than an error. Only a live run catches that.
  */
-import { getBundestagMCPClient } from './BundestagMCPClient.js';
+import { getBundestagMCPClient, CURRENT_WAHLPERIODE } from './BundestagMCPClient.js';
 
 interface Check {
   name: string;
@@ -165,8 +165,6 @@ const CHECKS: Check[] = [
   {
     name: 'searchAktivitaetenTrimmed(person 7439)',
     usedBy: 'Personen-Pfad (aktivitaeten-Liste)',
-    knownUpstream:
-      'bundestag_search_aktivitaeten liefert mit JEDER person_id 0 Treffer (ohne Filter: 1,77 Mio.)',
     run: async () => {
       const r = await client.searchAktivitaetenTrimmed('7439', 5);
       return { ok: r.items.length > 0, detail: `${r.items.length} items` };
@@ -175,25 +173,42 @@ const CHECKS: Check[] = [
 
   // ── Legacy loose wrappers (raw DIP envelopes) ────────────────────────────
   {
-    name: 'searchPersonen(fraktion filter is IGNORED upstream)',
+    name: 'searchPersonen(fraktion filter)',
     usedBy: 'PersonDetectionService.refreshMPCache',
     run: async () => {
-      // Short and long name must return the SAME unfiltered set — that is the
-      // observed server behaviour. If this ever differs, the server started
-      // honouring `fraktion` and the client-side filter can be relied on less.
-      const short = documentsOf(await client.searchPersonen({ fraktion: 'GRÜNE', limit: 10 }));
-      const long = documentsOf(
-        await client.searchPersonen({ fraktion: 'BÜNDNIS 90/DIE GRÜNEN', limit: 10 })
-      );
-      const parties = new Set(
-        long.flatMap((p) => {
-          const f = (p as { fraktion?: unknown }).fraktion;
-          return Array.isArray(f) ? (f as string[]) : f ? [String(f)] : [];
-        })
-      );
+      // The MCP used to advertise `fraktion` and ignore it — every call came
+      // back unfiltered across all parties. It now filters on `person.fraktion`
+      // and pages DIP until the limit is met, so assert the filter BITES:
+      // no foreign party may appear, and the result must be narrower than the
+      // unfiltered set. Both name forms are accepted upstream.
+      const partiesOf = (docs: unknown[]) =>
+        new Set(
+          docs.flatMap((p) => {
+            const f = (p as { fraktion?: unknown }).fraktion;
+            return Array.isArray(f) ? (f as string[]) : f ? [String(f)] : [];
+          })
+        );
+      const green = await client.searchPersonen({
+        fraktion: 'BÜNDNIS 90/DIE GRÜNEN',
+        wahlperiode: CURRENT_WAHLPERIODE,
+        limit: 10,
+      });
+      const short = await client.searchPersonen({
+        fraktion: 'GRÜNE',
+        wahlperiode: CURRENT_WAHLPERIODE,
+        limit: 10,
+      });
+      const all = await client.searchPersonen({ wahlperiode: CURRENT_WAHLPERIODE, limit: 10 });
+      const greenParties = partiesOf(documentsOf(green));
+      const shortParties = partiesOf(documentsOf(short));
+      const onlyGreen = (ps: Set<string>) =>
+        ps.size > 0 && [...ps].every((f) => f.includes('GRÜNE'));
+      // totalResults must be the FILTERED count, not the raw DIP total.
+      const greenTotal = (green as { totalResults?: number }).totalResults ?? -1;
+      const allTotal = (all as { totalResults?: number }).totalResults ?? -1;
       return {
-        ok: short.length > 0 && long.length > 0,
-        detail: `short=${short.length} long=${long.length} docs; Parteien im Ergebnis: ${[...parties].join(', ') || '—'} → Filter wirkt ${parties.size > 1 ? 'NICHT' : 'evtl. doch'}`,
+        ok: onlyGreen(greenParties) && onlyGreen(shortParties) && greenTotal < allTotal,
+        detail: `gefiltert=${greenTotal} (${[...greenParties].join(', ') || '—'}), kurzform=${[...shortParties].join(', ') || '—'}, ungefiltert=${allTotal}`,
       };
     },
   },
@@ -234,7 +249,6 @@ const CHECKS: Check[] = [
   {
     name: 'searchAktivitaeten(person_id 7439)',
     usedBy: 'EnrichedPersonSearchService._searchAktivitaeten',
-    knownUpstream: 'gleicher person_id-Filter-Bug wie oben',
     run: async () => {
       const r = await client.searchAktivitaeten({ person_id: '7439', limit: 5 });
       return { ok: documentsOf(r).length > 0, detail: `${documentsOf(r).length} docs` };
