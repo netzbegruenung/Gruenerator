@@ -75,6 +75,17 @@ export interface CreatePdfOptions extends Pick<
   userId: string;
   locale: PdfLocale;
   sender?: PdfSender | null;
+  /**
+   * Optional one-shot repair. Called ONLY when the self-check found problems
+   * the model can actually act on (see `repairableProblems`), with those
+   * problems as German instructions. Returns a corrected spec, or null to keep
+   * the first attempt.
+   *
+   * The caller owns this callback because it owns the model handle; the
+   * render/verify loop lives here so that only the ACCEPTED bytes are ever
+   * stored — repairing after `storeBinaryAsset` would leave an orphan file.
+   */
+  regenerate?: (problems: string[]) => Promise<PdfDocumentSpec | null>;
 }
 
 export interface CreatedPdfDocument {
@@ -142,16 +153,55 @@ export function parsePdfStructure(content: string): PdfDocumentSpec | null {
  * Render, verify and store. `documentId` is the stored file name (uuid.pdf) —
  * stable for the card's rehydration; `url` is the authenticated download route.
  */
-export async function createPdfDocument(
-  spec: PdfDocumentSpec,
-  opts: CreatePdfOptions
-): Promise<CreatePdfResult> {
-  // The generation model recognises a letter from the wording more reliably
-  // than the classifier does — trust its filled letter fields over the intent.
-  const isLetter =
-    spec.kind === 'letter' || Boolean(spec.letter?.recipient || spec.letter?.salutation);
-  const effective: PdfDocumentSpec = isLetter ? { ...spec, kind: 'letter' } : spec;
+/**
+ * The subset of self-check findings a REGENERATION could plausibly fix.
+ *
+ * Derived from structured fields, never by matching the German problem
+ * strings — those are user-facing prose and would silently stop matching the
+ * first time someone rewords one.
+ *
+ * Deliberately excluded, because handing them to the model burns a generation
+ * and risks a worse document for nothing:
+ *  - missing tags / `/Lang` / the PDF/UA identifier — these are properties of
+ *    the RENDERER, not of the content. If they are absent, `pdfRenderer` has a
+ *    bug and no rewrite of the text will change it.
+ *  - a letter's missing recipient address — the model cannot invent someone's
+ *    address. Asking the USER is the correct behaviour and already happens.
+ *  - the form-appearance note — informational, about the reader, not the file.
+ */
+function repairableProblems(
+  verification: PdfVerification,
+  rendered: { missingGlyphs: string[] }
+): string[] {
+  const problems: string[] = [];
+  if (verification.overflowingText.length > 0) {
+    problems.push(
+      `Dieser Text läuft aus dem Satzspiegel heraus und wird abgeschnitten: ` +
+        `${verification.overflowingText.slice(0, 5).join(' | ')}. ` +
+        `Kürze die betroffenen Stellen deutlich oder teile sie auf mehrere Blöcke auf.`
+    );
+  }
+  if (rendered.missingGlyphs.length > 0) {
+    problems.push(
+      `Diese Zeichen können die Schriften nicht darstellen und wurden entfernt: ` +
+        `${rendered.missingGlyphs.join(' ')}. Formuliere die Stellen ohne diese Zeichen.`
+    );
+  }
+  if (verification.fieldsWithoutLabel.length > 0) {
+    problems.push(
+      `Diese Formularfelder haben kein "label" — ein Screenreader liest dann den ` +
+        `technischen Feldnamen vor: ${verification.fieldsWithoutLabel.join(', ')}. ` +
+        `Gib jedem Feld ein sprechendes "label".`
+    );
+  }
+  return problems;
+}
 
+/** Render + self-check, without storing. Runs once per repair attempt. */
+async function renderAndVerify(
+  effective: PdfDocumentSpec,
+  opts: CreatePdfOptions
+): Promise<{ rendered: Awaited<ReturnType<typeof renderPdf>>; verification: PdfVerification }> {
   const rendered = await renderPdf(effective, {
     locale: opts.locale,
     sender: opts.sender ?? null,
@@ -179,7 +229,52 @@ export async function createPdfDocument(
       'Dem Brief fehlt die Empfängeranschrift — ohne sie ist er nicht versandfähig. Frage nach Name, Straße und PLZ/Ort.'
     );
   }
+  return { rendered, verification };
+}
 
+/** A letter is recognised from filled letter fields, not only the declared kind
+ *  — the generation model reads the wording more reliably than the classifier. */
+function asEffectiveSpec(spec: PdfDocumentSpec): PdfDocumentSpec {
+  const isLetter =
+    spec.kind === 'letter' || Boolean(spec.letter?.recipient || spec.letter?.salutation);
+  return isLetter ? { ...spec, kind: 'letter' } : spec;
+}
+
+export async function createPdfDocument(
+  spec: PdfDocumentSpec,
+  opts: CreatePdfOptions
+): Promise<CreatePdfResult> {
+  const effective = asEffectiveSpec(spec);
+  let attempt = await renderAndVerify(effective, opts);
+
+  // Bounded repair: at most ONE extra round, and only for findings a rewrite
+  // can address. Everything else keeps the old behaviour — deliver the file and
+  // disclose the problem — because a document the user can still fix by hand
+  // beats no document at all.
+  const repairable = repairableProblems(attempt.verification, attempt.rendered);
+  if (repairable.length > 0 && opts.regenerate) {
+    try {
+      const repairedSpec = await opts.regenerate(repairable);
+      if (repairedSpec) {
+        const second = await renderAndVerify(asEffectiveSpec(repairedSpec), opts);
+        const before = repairable.length;
+        const after = repairableProblems(second.verification, second.rendered).length;
+        // Keep the repair only if it actually helped. A regeneration that trades
+        // one overflow for two is a worse document, and the model cannot tell.
+        if (after < before) {
+          log.info(`PDF repair improved the document: ${before} → ${after} fixable problem(s)`);
+          attempt = second;
+        } else {
+          log.info(`PDF repair did not improve the document (${before} → ${after}); keeping first`);
+        }
+      }
+    } catch (err) {
+      // A failed repair must never cost the user their document.
+      log.warn(`PDF repair failed, keeping the first attempt: ${String(err)}`);
+    }
+  }
+
+  const { rendered, verification } = attempt;
   const { fileName, url } = await storeBinaryAsset(opts.userId, rendered.bytes, 'pdf');
   log.info(
     `PDF created for user ${opts.userId}: "${effective.title}" (${fileName}, ${rendered.bytes.length} bytes) — ${summarizeVerification(verification)}${
