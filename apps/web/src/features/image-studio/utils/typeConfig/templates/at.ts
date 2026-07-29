@@ -22,17 +22,6 @@ const baseAt = {
   steps: [FORM_STEPS.CANVAS_EDIT, FORM_STEPS.RESULT],
 };
 
-export const infoAtTypeConfig: TemplateTypeConfig = {
-  ...baseAt,
-  id: IMAGE_STUDIO_TYPES.INFO_AT,
-  label: 'Info',
-  description: 'Headline mit Betonung und Logo',
-  icon: PiInfo,
-  previewImage: '/imagine/previews/info-at-preview.webp',
-  endpoints: { canvas: '/info_at_canvas' },
-  legacyType: 'InfoAt',
-};
-
 export const zitatAtTypeConfig: TemplateTypeConfig = {
   ...baseAt,
   id: IMAGE_STUDIO_TYPES.ZITAT_AT,
@@ -92,7 +81,6 @@ const emptyFieldConfig: TemplateFieldConfig = {
   showSocialGeneration: true,
 };
 
-export const infoAtFieldConfig = emptyFieldConfig;
 export const zitatAtFieldConfig = emptyFieldConfig;
 export const zitatPureAtFieldConfig = emptyFieldConfig;
 export const dreizeilenAtFieldConfig = emptyFieldConfig;

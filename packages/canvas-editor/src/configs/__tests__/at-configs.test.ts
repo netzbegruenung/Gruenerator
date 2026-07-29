@@ -4,7 +4,7 @@ import { getBrandTheme } from '../../brand/theme';
 import { loadCanvasConfig } from '../configLoader';
 import { getTemplatesForLocale } from '../../utils/templateRegistry';
 
-const AT_IDS = ['info-at', 'zitat-at', 'zitat-pure-at', 'dreizeilen-at', 'freeform-at'] as const;
+const AT_IDS = ['zitat-at', 'zitat-pure-at', 'dreizeilen-at', 'freeform-at'] as const;
 
 describe('Österreich (de-AT) canvas configs', () => {
   it.each(AT_IDS)('loads and builds config %s', async (id) => {
@@ -25,6 +25,8 @@ describe('Österreich (de-AT) canvas configs', () => {
     expect(at.colors.accent).toBe('#FCEC00');
     expect(at.colors.stoerer).toBe('#E4007C');
     expect(at.fonts.headline).toBe('GothamNarrow-Ultra');
+    // Zitate tragen denselben Display-Schnitt wie Headlines und Untertitel.
+    expect(at.fonts.quoteShort).toBe('GothamNarrow-Ultra');
     expect(at.fonts.quoteEmphasis).toBe('Vollkorn');
     expect(at.logo?.src).toContain('gruene-at-logo');
   });
@@ -33,8 +35,13 @@ describe('Österreich (de-AT) canvas configs', () => {
     const at = getTemplatesForLocale('de-AT').map((t) => t.id);
     const de = getTemplatesForLocale('de-DE').map((t) => t.id);
     expect(at).toEqual(expect.arrayContaining([...AT_IDS]));
-    expect(at).not.toContain('info'); // DE-only stays hidden for AT
     expect(de).toContain('info');
-    expect(de).not.toContain('info-at');
+    // Info gibt es ausschliesslich für de-DE — für AT existiert gar kein Sujet,
+    // weder 'info' noch ein 'info-at'.
+    expect(at.filter((id) => id.startsWith('info'))).toEqual([]);
+  });
+
+  it('kennt kein info-at mehr', async () => {
+    await expect(loadCanvasConfig('info-at' as never)).rejects.toThrow();
   });
 });
