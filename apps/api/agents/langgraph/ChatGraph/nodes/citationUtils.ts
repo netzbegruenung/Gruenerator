@@ -16,6 +16,13 @@ import type { SearchResult, Citation } from '../types.js';
 export const COLLECTION_LABELS: Record<string, string> = {
   deutschland: 'Grundsatzprogramm',
   bundestagsfraktion: 'Bundestagsfraktion',
+  // Official DIP records (`bundestag` intent) — a DIFFERENT source than the
+  // crawled gruene-bundestag.de collection above, which is why both need a
+  // label. Missing here, every DIP citation reached the renderer with
+  // `collectionName: undefined`, and SourceCard/CitationPopover only print the
+  // provenance line when that field is set — so the "Bundestag Wrapped" label
+  // that COLLECTION_STYLES already defines was never shown on any of them.
+  bundestag: 'Bundestag Wrapped',
   'gruene-de': 'gruene.de',
   kommunalwiki: 'Kommunalwiki',
   oesterreich: 'Österreich',

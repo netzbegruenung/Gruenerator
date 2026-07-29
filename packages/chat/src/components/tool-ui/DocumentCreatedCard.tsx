@@ -1,4 +1,5 @@
-import { FileText, Table2, ArrowRight, FileDown, ExternalLink } from 'lucide-react';
+import { ARTIFACT_TYPE_META, subtypeToArtifactKind } from '@gruenerator/shared/docs';
+import { ArrowRight, ExternalLink } from 'lucide-react';
 import { memo, useState } from 'react';
 
 import { useChatConfigStore } from '../../stores/chatConfigStore';
@@ -16,7 +17,7 @@ const OBJECT_URL_TTL_MS = 60_000;
  *  the browser's PDF viewer renders it and offers its own download, instead of
  *  dropping a file the user never asked for. Assets expire after 90 days →
  *  error state. */
-function PdfOpenButton({ document }: { document: DocumentCreatedData }) {
+function PdfOpenButton({ document, label }: { document: DocumentCreatedData; label: string }) {
   const [unavailable, setUnavailable] = useState(false);
 
   const handleOpen = async () => {
@@ -59,7 +60,7 @@ function PdfOpenButton({ document }: { document: DocumentCreatedData }) {
       onClick={() => void handleOpen()}
       className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full bg-primary text-white hover:bg-primary/90 transition-colors flex-shrink-0"
     >
-      PDF öffnen
+      {label} öffnen
       <ExternalLink className="h-3.5 w-3.5" />
     </button>
   );
@@ -70,21 +71,29 @@ export const DocumentCreatedCard = memo(function DocumentCreatedCard({
 }: {
   document: DocumentCreatedData;
 }) {
-  const isSheet = document.subtype === 'sheets';
-  const isPdf = document.subtype === 'pdf';
-  const Icon = isPdf ? FileDown : isSheet ? Table2 : FileText;
+  // The kind drives icon, accent and wording alike, so a new artifact type is
+  // one registry entry rather than three ternaries drifting apart. The raw
+  // subtype used to be printed here, which surfaced 'blank' to users.
+  const kind = subtypeToArtifactKind(document.subtype);
+  const meta = ARTIFACT_TYPE_META[kind];
+  const Icon = meta.Icon;
   return (
-    <div className="my-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+    <div className="my-5 max-w-md rounded-xl border border-border bg-background px-4 py-3">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <Icon className="h-4 w-4 text-primary flex-shrink-0" />
+        <div className="flex items-center gap-3 min-w-0">
+          <span
+            className="flex h-9 w-9 flex-none items-center justify-center rounded-lg"
+            style={{ background: meta.bg, color: meta.color }}
+          >
+            <Icon className="h-5 w-5" />
+          </span>
           <div className="min-w-0">
             <p className="text-sm font-medium text-foreground truncate">{document.title}</p>
-            <p className="text-xs text-foreground-muted">{isPdf ? 'PDF' : document.subtype}</p>
+            <p className="text-xs text-foreground-muted">{meta.label}</p>
           </div>
         </div>
-        {isPdf ? (
-          <PdfOpenButton document={document} />
+        {kind === 'pdf' ? (
+          <PdfOpenButton document={document} label={meta.label} />
         ) : (
           <a
             href={document.url}
@@ -92,7 +101,7 @@ export const DocumentCreatedCard = memo(function DocumentCreatedCard({
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full bg-primary text-white hover:bg-primary/90 transition-colors flex-shrink-0"
           >
-            {isSheet ? 'Tabelle öffnen' : 'Dokument öffnen'}
+            {meta.label} öffnen
             <ArrowRight className="h-3.5 w-3.5" />
           </a>
         )}
