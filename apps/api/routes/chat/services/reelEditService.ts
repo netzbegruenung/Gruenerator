@@ -50,6 +50,7 @@ import { applyReelOps, validateReelOps } from './reelEditOps.js';
 
 import type { SSEWriter } from './sseHelpers.js';
 import type { ClientPlatform } from '../../../agents/langgraph/ChatGraph/types.js';
+import type { Locale } from '../../../services/localization/types.js';
 import type { AIWorkerPool } from '../../../workers/types.js';
 import type { ReelPickerProject } from '@gruenerator/contracts';
 
@@ -102,7 +103,7 @@ export interface HandleReelEditArgs {
   instruction: string;
   currentReel: { projectId: string } | null;
   reelUpload: { uploadId: string; filename: string } | null;
-  userLocale: string;
+  userLocale: Locale;
   clientPlatform: ClientPlatform;
   aiWorkerPool: AIWorkerPool;
   startTime: number;

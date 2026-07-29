@@ -1,4 +1,8 @@
-import { type AutoProgress, type ExportProgress } from '@gruenerator/contracts';
+import {
+  type AutoProgress,
+  type ExportProgress,
+  type SupportedLocale,
+} from '@gruenerator/contracts';
 import { getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
 import { Paths, File as ExpoFile, DownloadTask, UploadType } from 'expo-file-system';
 
@@ -119,10 +123,13 @@ export async function cancelUpload(uploadId: string): Promise<void> {
 export async function startAutoProcess(
   uploadId: string,
   userId?: string,
-  locale: string = 'de-DE'
+  locale?: SupportedLocale
 ): Promise<void> {
   const res = await getContractsClient().subtitler.postProcessAuto({
-    body: { uploadId, locale, userId: userId || null },
+    // The server derives the locale from the profile and only logs whatever the
+    // body carries, so omit it rather than asserting a hardcoded de-DE — that
+    // hardcoding is what sent Austrian users German subtitles on web.
+    body: { uploadId, userId: userId || null, ...(locale && { locale }) },
   });
   if (res.status !== 202) {
     throw new Error(

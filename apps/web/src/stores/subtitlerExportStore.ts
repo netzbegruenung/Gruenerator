@@ -1,4 +1,4 @@
-import { type ApiErrorBody, type JobErrorCode } from '@gruenerator/contracts';
+import { type ApiErrorBody, type JobErrorCode, type SupportedLocale } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import axios from 'axios';
 import { create } from 'zustand';
@@ -40,7 +40,9 @@ interface ExportParams {
   subtitlePreference?: string;
   stylePreference?: string;
   heightPreference?: string;
-  locale?: string;
+  // Closed set — mirrors the contract's localeSchema. As a plain string this
+  // silently accepted anything and handed it to the export endpoint.
+  locale?: SupportedLocale;
   maxResolution?: number | null;
   projectId?: string | null;
   userId?: string | null;
