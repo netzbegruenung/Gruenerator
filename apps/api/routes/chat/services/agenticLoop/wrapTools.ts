@@ -103,6 +103,26 @@ class ToolTimeoutError extends Error {
   }
 }
 
+/**
+ * Hand-rolled on purpose — do NOT replace this with the AI SDK's
+ * `timeout: { toolMs }` (checked against ai@7.0.37, `dist/index.js` ~:2918).
+ *
+ * `toolMs` is COOPERATIVE, not enforcing: the SDK turns it into
+ * `AbortSignal.timeout(ms)`, merges it into the tool's `options.abortSignal`
+ * and then plainly awaits the tool. There is no timer racing the await. A tool
+ * that never reads the signal runs unbounded.
+ *
+ * Not one of our tools reads it — none of the `execute` implementations in
+ * `agents/searchTools.ts` / `domainTools.ts` / the other catalogs even declares
+ * the second `options` parameter. Switching would therefore be a silent no-op
+ * that removes the only hard bound on a hung tool call.
+ *
+ * The enforcement also has to live INSIDE this wrapper, not around it: the
+ * rejection is caught below and turned into `{ error }`, which is what makes a
+ * timeout count as a tool failure (`noteFailure` → MAX_FAILURES_PER_TOOL),
+ * persist via `recordStep`, and close the tool card via `sendResult`. An
+ * abort from outside would skip all three and leave the card spinning.
+ */
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => reject(new ToolTimeoutError(ms)), ms);
