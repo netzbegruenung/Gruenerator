@@ -1,6 +1,8 @@
 import {
   type AutoProgress,
   type ExportProgress,
+  type HeightPreference,
+  type StylePreference,
   type SupportedLocale,
 } from '@gruenerator/contracts';
 import { getContractsClient, getGlobalApiClient } from '@gruenerator/shared/api';
@@ -200,15 +202,15 @@ export async function downloadVideo(
  */
 export async function startManualProcess(
   uploadId: string,
-  stylePreference: string = 'shadow',
-  heightPreference: string = 'tief'
+  stylePreference: StylePreference = 'shadow',
+  heightPreference: HeightPreference = 'tief'
 ): Promise<void> {
   const res = await getContractsClient().subtitler.postProcess({
     body: {
       uploadId,
       subtitlePreference: 'manual',
       stylePreference,
-      heightPreference: heightPreference as 'standard' | 'tief',
+      heightPreference,
     },
   });
   if (res.status !== 202) {
@@ -224,8 +226,8 @@ export async function startManualProcess(
  */
 export async function getManualResult(
   uploadId: string,
-  stylePreference: string = 'shadow',
-  heightPreference: string = 'tief'
+  stylePreference: StylePreference = 'shadow',
+  heightPreference: HeightPreference = 'tief'
 ): Promise<ManualResultResponse> {
   const res = await getContractsClient().subtitler.getResult({
     params: { uploadId },
@@ -255,8 +257,8 @@ export async function exportVideo(params: {
   projectId: string | null;
   userId: string | null;
   subtitles: { startTime: number; endTime: number; text: string }[];
-  stylePreference: string;
-  heightPreference: string;
+  stylePreference: StylePreference;
+  heightPreference: HeightPreference;
 }): Promise<string> {
   const res = await getContractsClient().subtitler.postExport({
     body: {

@@ -125,7 +125,7 @@ const SubtitlerPage = (): React.ReactElement => {
   } = useSocialTextGenerator();
   const [subtitlePreference] = useState<SubtitlePreference>('manual');
   const [stylePreference, setStylePreference] = useState<StylePreference>('shadow');
-  const modePreference = 'manual';
+  const modePreference: SubtitlePreference = 'manual';
   const [heightPreference, setHeightPreference] = useState<HeightPreference>('tief');
   const [loadedProject, setLoadedProject] = useState<LoadedProject | null>(null);
   const [autoSavedProjectId, setAutoSavedProjectId] = useState<string | null>(null);
