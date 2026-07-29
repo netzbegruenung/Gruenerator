@@ -115,6 +115,24 @@ function measure(zones: OverlayZone[], scale: number): { heights: number[]; tota
 }
 
 /**
+ * Jede Headline-Zone muss auf EINE Zeile passen — das Sujet ist ein
+ * Dreizeiler, eine umgebrochene Zone hat ihn schon zerstört. Über die Höhe
+ * allein fällt das nicht auf: bei 118 px passen in die 720 px der Box nur rund
+ * zwölf Zeichen, und vier oder fünf Zeilen stehen vertikal noch bequem drin.
+ * Die Subline ist die letzte Zone und darf umbrechen, sie ist Fließtext.
+ */
+function headlinesFitOneLine(zones: OverlayZone[], scale: number): boolean {
+  return zones.slice(0, -1).every((zone) => {
+    if (!zone.text) return true;
+    const fontSize = Math.round(zone.fontSize * scale);
+    return (
+      wrapTextAccurate(zone.text, CFG.maxWidth, fontSize, zone.fontFamily, zone.fontStyle).length <=
+      1
+    );
+  });
+}
+
+/**
  * Stack the headline zones plus subline inside the overlay box, shrinking all
  * of them by one uniform factor until they fit above the logo, then centre the
  * whole group (text + logo) vertically in the padded box.
@@ -122,7 +140,7 @@ function measure(zones: OverlayZone[], scale: number): { heights: number[]; tota
 export function calculateOverlayAtLayout(zones: OverlayZone[]): OverlayAtLayout {
   let scale = 1;
   let m = measure(zones, scale);
-  while (m.total > AVAILABLE && scale > MIN_SCALE) {
+  while ((m.total > AVAILABLE || !headlinesFitOneLine(zones, scale)) && scale > MIN_SCALE) {
     scale = Math.max(MIN_SCALE, scale - 0.04);
     m = measure(zones, scale);
   }
