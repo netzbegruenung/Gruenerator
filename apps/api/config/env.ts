@@ -341,6 +341,7 @@ const envSchema = z.object({
   RERANK_MMR_KEEP_TOP: numStr(2),
   RERANK_MERGE_OVERFETCH: numStr(16),
   RERANK_WEB_SCORE_CEILING: z.coerce.number().default(0.8),
+  RERANK_DIP_SCORE_CEILING: z.coerce.number().default(0.8),
 });
 
 // ---------------------------------------------------------------------------

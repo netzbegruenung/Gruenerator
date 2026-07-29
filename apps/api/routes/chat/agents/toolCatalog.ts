@@ -30,6 +30,7 @@
  * Loop-level concerns (guards, SSE cards, timeouts, truncation, step recording)
  * are layered on separately by `wrapToolsForLoop`.
  */
+import { isIntentAllowedForLocale } from '@gruenerator/shared/chat-intents';
 import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 
@@ -259,9 +260,21 @@ NUTZE WENN:
   if (loop) {
     const { sse, state } = loop;
     tools.summarize = makeSummaryTool({ sse, state });
-    tools.bundestag = makeBundestagTool({ state, sourceRegistry });
-    tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
-    tools.umfragen = makeUmfragenTool({ sourceRegistry });
+    // Broad mounting stops at the border. The classifier already degrades
+    // `bundestag`/`abgeordnetenwatch` to `web` for de-AT users — but that only
+    // rewrote `state.intent`, while this catalog handed the model the tools
+    // anyway. So an Austrian turn still cost a tool call that ended in the
+    // executor's "nur für Deutschland" decline. Gating here is what makes the
+    // downgrade actually take effect on the loop path.
+    if (isIntentAllowedForLocale('bundestag', state.userLocale)) {
+      tools.bundestag = makeBundestagTool({ state, sourceRegistry });
+    }
+    if (isIntentAllowedForLocale('abgeordnetenwatch', state.userLocale)) {
+      tools.abgeordnetenwatch = makeAbgeordnetenwatchTool({ state, sourceRegistry });
+    }
+    // `umfragen` is NOT gated: PolitPro covers the Austrian parliaments, and the
+    // tool resolves them from `state.userLocale`.
+    tools.umfragen = makeUmfragenTool({ sourceRegistry, state });
     // Documentation search (`hilfe`). Mounted broadly like the other domain
     // tools — the classifier routinely labels an operating question `direct` or
     // `search`, and gating on intent would hide the tool exactly then. In-process

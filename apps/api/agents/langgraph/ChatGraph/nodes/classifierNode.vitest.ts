@@ -331,6 +331,54 @@ describe('detectSearchSources', () => {
   it('returns empty for direct intent even with keywords', () => {
     expect(detectSearchSources('Hallo, wie geht es den Grünen aktuell?', 'direct')).toEqual([]);
   });
+
+  it('pairs collections with DIP when a parliamentary process is named', () => {
+    expect(
+      detectSearchSources(
+        'Was ist unsere grüne Position zur Wärmewende und was wurde dazu im Bundestag debattiert?',
+        'search'
+      )
+    ).toEqual(['documents', 'bundestag']);
+    expect(
+      detectSearchSources('Grüne Haltung zur Kindergrundsicherung und der Gesetzentwurf', 'search')
+    ).toEqual(['documents', 'bundestag']);
+  });
+
+  it('matches declined forms, not just the nominative', () => {
+    // German inflection: a `\b`-anchored keyword matched "Gesetzentwurf" and
+    // silently missed "des Gesetzentwurfs" — found by the live probe, not here,
+    // because the test above happened to use the nominative too.
+    for (const q of [
+      'Grüne Haltung zur Kindergrundsicherung und der Stand des Gesetzentwurfs',
+      'Grüne Anträge und die Gesetzentwürfe dazu',
+      'Grüne Position und die Drucksachen dazu',
+      'Grüne Kritik und die Plenardebatten darüber',
+    ]) {
+      expect(detectSearchSources(q, 'search')).toEqual(['documents', 'bundestag']);
+    }
+  });
+
+  it('does NOT pair DIP for the bare word Bundestag', () => {
+    // A question about positions, not about the parliamentary record — pairing
+    // it would spend a second retrieval round on documents nobody asked for.
+    expect(
+      detectSearchSources('Was sagen die Grünen im Bundestag zum Klimaschutz?', 'search')
+    ).toEqual([]);
+  });
+
+  it('does NOT pair DIP for our own bundestagsfraktion collection', () => {
+    expect(
+      detectSearchSources('Position der Bundestagsfraktion zum Klimaschutz', 'search')
+    ).toEqual([]);
+  });
+
+  it('prefers DIP over web when both a process and temporal wording appear', () => {
+    // Both branches match; the parliamentary one is checked first because the
+    // named Drucksache is the more specific request.
+    expect(detectSearchSources('Aktuelle grüne Anträge und die Drucksache dazu', 'search')).toEqual(
+      ['documents', 'bundestag']
+    );
+  });
 });
 
 // ─── detectComplexity ────────────────────────────────────────────────────

@@ -6,6 +6,7 @@
  */
 
 import { dipSearchUrl, btpProtokollPdfUrl as btpPdfUrl } from '@gruenerator/contracts';
+import { isIntentAllowedForLocale, intentDeclineNote } from '@gruenerator/shared/chat-intents';
 
 import { vectorConfig } from '../../../../config/vectorConfig.js';
 import {
@@ -240,7 +241,16 @@ function btSpeechResult(s: BtSpeech, title: string, relevance: number): SearchRe
  * respond node. Everything here is already trimmed by the client — this only
  * formats German prose and assigns relevance; no raw DIP shapes leak through.
  */
-function buildBundestagResults(enriched: BtEnrichedResult): SearchResult[] {
+/**
+ * `standalone` controls the two explanatory entries at the end.
+ *
+ * When DIP is the whole turn (`bundestag` intent), a note or an explicit "found
+ * nothing" IS the answer and must reach the model — otherwise it invents one.
+ * When DIP is only one source among several, those same entries are noise: they
+ * carry no parliamentary content, compete for the rerank input budget, and can
+ * be cited as a source. There the caller wants substance or nothing.
+ */
+function buildBundestagResults(enriched: BtEnrichedResult, standalone = true): SearchResult[] {
   const results: SearchResult[] = [];
 
   if (enriched.kind === 'person' && enriched.person) {
@@ -322,6 +332,8 @@ function buildBundestagResults(enriched: BtEnrichedResult): SearchResult[] {
       });
     });
   }
+
+  if (!standalone) return results;
 
   if (enriched.notes.length > 0) {
     results.push({
@@ -568,7 +580,7 @@ export async function executeWebSearchParallel(
  * don't dominate over high-quality docs before the cross-encoder runs.
  */
 export function normalizeScore(r: SearchResult): number {
-  const { webScoreCeiling } = vectorConfig.get('rerank');
+  const { webScoreCeiling, dipScoreCeiling } = vectorConfig.get('rerank');
 
   if (r.similarityScore != null && r.source.startsWith(SOURCE_PREFIX.GRUENERATOR)) {
     return Math.min(1.0, r.similarityScore * 1.05);
@@ -581,6 +593,19 @@ export function normalizeScore(r: SearchResult): number {
   if (r.source === SOURCE_PREFIX.WEB) {
     const raw = r.relevance ?? DEFAULT_RELEVANCE;
     return Math.min(webScoreCeiling, raw * webScoreCeiling);
+  }
+
+  // DIP results carry no similarity at all: `buildBundestagResults` assigns
+  // relevance by POSITION (1 for the person/document header, 0.9 − 0.02·i for
+  // speeches, …). Those numbers say "first in its list", not "close to the
+  // query", so on the shared [0,1] scale they outrank genuinely similar
+  // collection chunks — the same way raw web rank-decay would without the
+  // ceiling above. Compress them into the same band so the cross-encoder, not
+  // the list order, decides. Falls through to the generic branch for every
+  // other source, unchanged.
+  if (r.source === SOURCE_PREFIX.BUNDESTAG) {
+    const raw = r.relevance ?? DEFAULT_RELEVANCE;
+    return Math.min(dipScoreCeiling, raw * dipScoreCeiling);
   }
 
   return r.relevance ?? DEFAULT_RELEVANCE;
@@ -908,6 +933,31 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         );
       }
 
+      // DIP alongside the party collections. de-AT is excluded for the same
+      // reason as the `bundestag` intent below: the DIP covers Bundestag and
+      // Bundesrat only, so for an Austrian account this source can contribute
+      // nothing and would just spend a turn's latency budget.
+      if (searchSources.includes('bundestag') && state.userLocale !== 'de-AT') {
+        sourcePromises.push(
+          getBundestagEnrichedService()
+            .search(query)
+            .then((enriched) => ({
+              results: buildBundestagResults(enriched, false),
+              collections: ['bundestag'],
+              errors: [] as SearchErrorEntry[],
+            }))
+            .catch((err) => {
+              const msg = err instanceof Error ? err.message : String(err);
+              log.error(`[Search] Bundestag search failed in multi-source: ${msg}`);
+              return {
+                results: [],
+                collections: [],
+                errors: [{ source: 'bundestag', message: msg }],
+              };
+            })
+        );
+      }
+
       if (searchSources.includes('web')) {
         sourcePromises.push(
           executeWebSearchParallel(query, state.aiWorkerPool)
@@ -959,9 +1009,28 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       }
 
       const sourceResults = await Promise.all(sourcePromises);
-      const allResults = sourceResults.map((s) => s.results);
       searchedCollections = sourceResults.flatMap((s) => s.collections);
       const aggregatedErrors = sourceResults.flatMap((s) => s.errors);
+
+      // Give every source that returned something a share of the merge window
+      // BEFORE the global sort, the way SearchGraph's executor does it.
+      //
+      // Without this the document side can occupy the window on its own: it asks
+      // for 3 hits per collection, so the four default DE collections yield 12 —
+      // and with subQueries, 24, already past `mergeOverfetch`. Since collection
+      // hits carry real similarity (~0.78–0.88 normalized) and DIP's positional
+      // relevance is capped below that by design, a global sort would then drop
+      // every DIP result — after the MCP round trip had already been paid for.
+      // The cross-encoder can only arbitrate between sources it actually sees.
+      const { mergeOverfetch } = vectorConfig.get('rerank');
+      const nonEmpty = sourceResults.filter((s) => s.results.length > 0);
+      const perSourceCap = Math.max(4, Math.floor(mergeOverfetch / Math.max(1, nonEmpty.length)));
+      const allResults = sourceResults.map((s) => s.results.slice(0, perSourceCap));
+      if (nonEmpty.length > 1) {
+        log.info(
+          `[Search] Merge window: ${perSourceCap}/source over ${nonEmpty.length} sources (${sourceResults.map((s) => s.results.length).join('+')} found)`
+        );
+      }
 
       results = mergeSearchResults(...allResults);
 
@@ -1302,13 +1371,12 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         // the Abgeordnetenwatch API. DE-only source: for AT users (reachable
         // here only via a forced @abgeordnetenwatch mention, since the classifier
         // downgrades AT) return a graceful decline instead of empty data.
-        if (state.userLocale === 'de-AT') {
+        if (!isIntentAllowedForLocale('abgeordnetenwatch', state.userLocale)) {
           results = [
             {
               source: 'abgeordnetenwatch',
               title: 'Nur für Deutschland verfügbar',
-              content:
-                'Abgeordnetenwatch erfasst nur deutsche Parlamente (Bundestag/Landtage). Für den österreichischen Nationalrat liegen hier keine Daten vor.',
+              content: intentDeclineNote('abgeordnetenwatch') ?? '',
               relevance: 1,
             },
           ];
@@ -1329,13 +1397,12 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         // via the Bundestag MCP / DIP. DE-only source: for AT users (reachable
         // here only via a forced @bundestag mention, since the classifier
         // downgrades AT) return a graceful decline instead of empty data.
-        if (state.userLocale === 'de-AT') {
+        if (!isIntentAllowedForLocale('bundestag', state.userLocale)) {
           results = [
             {
               source: 'bundestag',
               title: 'Nur für Deutschland verfügbar',
-              content:
-                'Das DIP erfasst nur den Deutschen Bundestag und Bundesrat. Für den österreichischen Nationalrat liegen hier keine Daten vor.',
+              content: intentDeclineNote('bundestag') ?? '',
               relevance: 1,
             },
           ];

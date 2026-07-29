@@ -11,6 +11,8 @@
  *   Tier 4: LLM classification (full context)
  */
 
+import { degradeTargetForLocale } from '@gruenerator/shared/chat-intents';
+
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
 import { looksLikeToolableQuestion } from '../../../../routes/chat/services/agenticLoop/routing.js';
 import { containsInstructionMarkers } from '../../../../routes/chat/services/untrustedContent.js';
@@ -20,7 +22,6 @@ import {
   type McpClassifierServer,
 } from '../../../../services/mcp/McpServerRegistry.js';
 import {
-  DE_ONLY_SYSTEM_INTENTS,
   SYSTEM_MCP_INTENTS,
   isSystemIntentAvailable,
 } from '../../../../services/mcp/systemMcpServers.js';
@@ -186,21 +187,6 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     intent = 'compare';
   }
 
-  // Abgeordnetenwatch covers German parliaments only (Bundestag/Landtage), not
-  // the Austrian Nationalrat. For de-AT users never route here — fall back to
-  // web so the question still gets answered instead of returning empty data.
-  if (intent === 'abgeordnetenwatch' && state.userLocale === 'de-AT') {
-    log.info('[Classifier] abgeordnetenwatch downgraded to web for de-AT locale (DE-only source)');
-    intent = 'web';
-  }
-
-  // Same DE-only rule for the Bundestag DIP: it covers the Deutsche Bundestag
-  // only, never the Austrian Nationalrat — downgrade to web for de-AT users.
-  if (intent === 'bundestag' && state.userLocale === 'de-AT') {
-    log.info('[Classifier] bundestag downgraded to web for de-AT locale (DE-only source)');
-    intent = 'web';
-  }
-
   // Conservative MCP guard: the LLM tier can return `mcp` but can't name a
   // concrete connected server. Only the deterministic name-match tier (which
   // sets mcpServerScope) or an explicit @notion/@brevo mention (resolved later
@@ -279,18 +265,47 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     intent = 'sharepic';
   }
 
-  // DE-only system sources (DB IRIS timetables, tagesschau) — de-AT users get
-  // the web fallback, mirroring the abgeordnetenwatch/bundestag rule above.
-  if (intent && DE_ONLY_SYSTEM_INTENTS.has(intent) && state.userLocale === 'de-AT') {
-    log.info(`[Classifier] ${intent} downgraded to web for de-AT locale (DE-only source)`);
-    intent = 'web';
-    downgradedSearchQuery = userText;
+  // A source that does not cover the user's country is never routed to — the
+  // question degrades (normally to web search) so it still gets answered
+  // instead of returning empty data.
+  //
+  // Which intents those are, and where each degrades to, is declared once in
+  // the intent registry (`audience` / `degradeTo`). Before, this was three
+  // separate hand-written `=== 'de-AT'` blocks: one for abgeordnetenwatch, one
+  // for bundestag, one for the DE-only system sources — in two different places
+  // in this file, and only the last of them carried the search query over.
+  //
+  // Carrying `userText` over now applies to all of them. A degraded turn keeps
+  // whatever query the classifier produced (see the guard at the return); this
+  // only fills the gap where it produced none, which is the same reason the
+  // router backfills a query for forced search intents.
+  if (intent) {
+    const degraded = degradeTargetForLocale(intent, state.userLocale);
+    if (degraded) {
+      log.info(
+        `[Classifier] ${intent} downgraded to ${degraded} for ${state.userLocale ?? 'de-DE'} ` +
+          `(source does not cover this country)`
+      );
+      intent = degraded;
+      if (degraded === 'web') downgradedSearchQuery = userText;
+    }
   }
 
   // System MCP sources are env-gated: without the deploy env URL the intent has
   // no tools behind it — degrade so the question still gets answered (wetter/
   // news → web has a chance; a live train query without the source doesn't).
-  if (intent && SYSTEM_MCP_INTENTS.has(intent) && !isSystemIntentAvailable(intent)) {
+  //
+  // The locale goes in because availability is a per-country question whenever an
+  // intent maps to more than one source. `reise` was that case — train (DE-only)
+  // plus hotel and weather (global), deliberately kept out of
+  // DE_ONLY_SYSTEM_INTENTS, so on a bahn-only deploy an Austrian travel turn
+  // looked "available" and mounted nothing. It is off now, so this argument is
+  // currently prevention rather than a live fix.
+  if (
+    intent &&
+    SYSTEM_MCP_INTENTS.has(intent) &&
+    !isSystemIntentAvailable(intent, state.userLocale)
+  ) {
     const fallback = intent === 'bahn' ? 'direct' : 'web';
     log.info(`[Classifier] ${intent} downgraded to ${fallback} (system MCP source not configured)`);
     intent = fallback;

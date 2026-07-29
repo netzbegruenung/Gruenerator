@@ -9,8 +9,9 @@
  * - Save conversation to mem0 memory
  */
 
-import { INTENT_TO_TOOL_SHARED } from '@gruenerator/contracts';
+import { intentToolNames } from '@gruenerator/shared/chat-intents';
 
+import { renumberAnswerCitations } from '../../../agents/langgraph/ChatGraph/nodes/citationUtils.js';
 import { upsertThreadRecallPoint } from '../../../services/chat/threadRecallEmbeddingService.js';
 import { generateThreadTags } from '../../../services/chat/threadTagService.js';
 import { generateThreadTitle } from '../../../services/chat/threadTitleService.js';
@@ -54,23 +55,19 @@ import type { ModelMessage } from 'ai';
 
 const log = createLogger('PostResponse');
 
-export const INTENT_TO_TOOL: Record<string, string> = {
-  // The retrieval intents, where this map and the client's copy in
-  // packages/chat/src/lib/toolMappings.ts MUST agree — otherwise a thread shows
-  // one card while streaming and a different one after reload. Shared so the
-  // two cannot drift; see the comment on INTENT_TO_TOOL_SHARED.
-  ...INTENT_TO_TOOL_SHARED,
-  // Server-only: artefact intents persist a tool call so the thread rehydrates
-  // with a card. The live client renders these from their own SSE events
-  // (sharepic_complete, image_complete, …) and has no use for the mapping.
-  image: 'image_generate',
-  image_edit: 'image_edit',
-  sharepic: 'sharepic',
-  // EXPERIMENTAL combined post: persisted as TWO tool calls (sharepic +
-  // social_post) — see buildToolCalls.
-  social_post: 'social_post',
-  scrape_url: 'scrape_url',
-};
+/**
+ * What each intent PERSISTS as a tool call, so a reloaded thread rehydrates
+ * with the same card it streamed. Derived from the intent registry, which the
+ * client's live map (`packages/chat/src/lib/toolMappings.ts`) also derives
+ * from — the two cannot drift any more.
+ *
+ * This map is a superset of the client's on purpose: artefact intents
+ * (`image`, `sharepic`, `social_post`, …) persist a tool call, but the live
+ * client renders them from their own SSE events (`sharepic_complete`,
+ * `image_complete`, …) and has no use for the mapping. The registry expresses
+ * that as a `persistTool` without a `uiTool`.
+ */
+export const INTENT_TO_TOOL: Record<string, string> = intentToolNames().persist;
 
 /**
  * Result payload shape for non-research tool calls (search, web, examples).
@@ -394,6 +391,15 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
   )
     return { ok: true };
 
+  // Gapless citation numbers on the persisted turn. The prompt hands the model
+  // 1..N and it cites a subset, so the stored text and chips kept whatever holes
+  // the answer left (observed: 1, 2, 4 against four sources). The notebook path
+  // has done this since #2137; this is the web path's half.
+  const { text: persistedText, citations: persistedCitations } = renumberAnswerCitations(
+    fullText,
+    finalState.citations ?? []
+  );
+
   try {
     // Agentic loop: persist the real executed steps (already in the
     // {toolCallId, toolName, args, result} shape the cards rehydrate from)
@@ -417,7 +423,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
       // Only stamp a real agent — the universal default carries no badge, so
       // reload matches the live stream (which sets agentInfo only for agents).
       ...(agentId && agentId !== 'gruenerator-universal' ? { agentId } : {}),
-      citations: finalState.citations,
+      citations: persistedCitations,
       searchResults: finalState.searchResults?.slice(0, MAX_SOURCES) || [],
       generatedImage: generatedImage
         ? {
@@ -447,7 +453,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
       // re-insert (that would resurrect a turn the user discarded); just warn
       // and skip all post-persist side effects for this turn.
       const matched = await withMessageWriteRetry(
-        () => finalizeAssistantMessage(pendingMessageId, fullText || null, metadata),
+        () => finalizeAssistantMessage(pendingMessageId, persistedText || null, metadata),
         'finalizeAssistantMessage'
       );
       if (!matched) {
@@ -458,7 +464,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
       }
     } else {
       await withMessageWriteRetry(
-        () => createMessage(threadId, 'assistant', fullText || null, metadata),
+        () => createMessage(threadId, 'assistant', persistedText || null, metadata),
         'createMessage'
       );
     }
@@ -680,6 +686,13 @@ export async function persistResumedResponse(params: {
 
   if (!threadId || !fullText) return { ok: true };
 
+  // Same gapless numbering as the non-resumed path — both write
+  // `metadata.citations`, so wiring only one would reintroduce the drift.
+  const { text: persistedText, citations: persistedCitations } = renumberAnswerCitations(
+    fullText,
+    finalState.citations ?? []
+  );
+
   try {
     const toolCalls = buildToolCalls(
       classifiedState,
@@ -692,7 +705,7 @@ export async function persistResumedResponse(params: {
       intent: finalState.intent,
       searchCount: finalState.searchCount,
       ...(traceId && { traceId }),
-      citations: finalState.citations,
+      citations: persistedCitations,
       searchResults: finalState.searchResults?.slice(0, MAX_SOURCES) || [],
       resumed: true,
       // Same shape the non-resumed path persists, so the document card
@@ -711,7 +724,7 @@ export async function persistResumedResponse(params: {
       // is gone (e.g. a regenerate from another tab deleted it) — do NOT
       // re-insert; just warn and skip the post-persist side effects.
       const matched = await withMessageWriteRetry(
-        () => finalizeAssistantMessage(pendingMessageId, fullText, metadata),
+        () => finalizeAssistantMessage(pendingMessageId, persistedText, metadata),
         'finalizeAssistantMessage:resume'
       );
       if (!matched) {
@@ -722,7 +735,7 @@ export async function persistResumedResponse(params: {
       }
     } else {
       await withMessageWriteRetry(
-        () => createMessage(threadId, 'assistant', fullText, metadata),
+        () => createMessage(threadId, 'assistant', persistedText, metadata),
         'createMessage:resume'
       );
     }
