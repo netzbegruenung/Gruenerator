@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
+import { buildSharepicConfirmation } from './artifactConfirmations.js';
 import {
   isReferentialCreation,
   resolveReferentialTopic,
@@ -88,6 +89,62 @@ describe('resolveReferentialTopic', () => {
   it('does not inherit when there is no substantive prior turn', () => {
     const msgs: ModelMessage[] = [
       { role: 'user', content: 'hi' },
+      { role: 'user', content: 'visualisiere das' },
+    ];
+    expect(resolveReferentialTopic('visualisiere das', msgs).inherited).toBe(false);
+  });
+
+  // NOTE on phrasing: these exercise `findPriorSubject`, so the trigger has to
+  // clear `isReferentialCreation` first — and that is a subtractive word list
+  // whose reach is limited by construction ("visualisiere das nochmal" already
+  // falls outside it, because "nochmal" is not in ARTIFACT_FILLER). Widening
+  // the list is not the answer; this is the FALLBACK, and the classifier's
+  // `creationTopic` is the path that handles arbitrary phrasing.
+
+  // Live: the sharepic confirmation is 112 characters and says "erstellt", not
+  // "wurde erstellt" — the old regex missed it, so the follow-up inherited the
+  // boilerplate and the sharepic came out about the confirmation.
+  it('reaches past our own artifact confirmation', () => {
+    const msgs: ModelMessage[] = [
+      { role: 'user', content: 'zitat sharepic für klimaanlagen in schulen für hitzeschutz' },
+      { role: 'assistant', content: buildSharepicConfirmation(1) },
+      { role: 'user', content: 'visualisiere das' },
+    ];
+    const { text, inherited } = resolveReferentialTopic('visualisiere das', msgs);
+    expect(inherited).toBe(true);
+    expect(text).toMatch(/klimaanlagen/i);
+    expect(text).not.toMatch(/Wähle eine aus/);
+  });
+
+  // A user states a subject far more tersely than the assistant answers it; the
+  // 40-character bar was written for assistant prose and silently excluded the
+  // short user turns that are exactly the topic to inherit.
+  it('inherits a short prior USER subject', () => {
+    const msgs: ModelMessage[] = [
+      { role: 'user', content: 'sharepic zu klimaanlagen' },
+      { role: 'assistant', content: buildSharepicConfirmation(3) },
+      { role: 'user', content: 'mach ein sharepic dazu' },
+    ];
+    const { text, inherited } = resolveReferentialTopic('mach ein sharepic dazu', msgs);
+    expect(inherited).toBe(true);
+    expect(text).toMatch(/klimaanlagen/i);
+  });
+
+  it('skips a prior user turn that is itself referential', () => {
+    const msgs: ModelMessage[] = [
+      { role: 'user', content: 'was sind die Vorteile von Tempo 30 in Wohngebieten?' },
+      { role: 'user', content: 'mach ein sharepic dazu' },
+      { role: 'user', content: 'visualisiere das' },
+    ];
+    const { text, inherited } = resolveReferentialTopic('visualisiere das', msgs);
+    expect(inherited).toBe(true);
+    expect(text).toMatch(/Tempo 30/);
+  });
+
+  it('still ignores acknowledgements', () => {
+    const msgs: ModelMessage[] = [
+      { role: 'user', content: 'ok' },
+      { role: 'user', content: 'danke' },
       { role: 'user', content: 'visualisiere das' },
     ];
     expect(resolveReferentialTopic('visualisiere das', msgs).inherited).toBe(false);
