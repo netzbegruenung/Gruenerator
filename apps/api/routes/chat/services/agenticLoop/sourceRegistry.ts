@@ -17,6 +17,7 @@
  */
 import { buildCitations } from '../../../../agents/langgraph/ChatGraph/nodes/citationUtils.js';
 import { applyContextCap } from '../../../../utils/contextCap.js';
+import { INSTRUCTION_HIERARCHY_RULE, embedUntrusted } from '../untrustedContent.js';
 
 import type { Citation, SearchResult } from '../../../../agents/langgraph/ChatGraph/types.js';
 
@@ -127,9 +128,13 @@ export function renderSourceLines(results: SearchResult[], cap = SNIPPET_CHARS):
  * nothing to append.
  */
 export function withResearchedSources(brief: string, sourcesBlock: string): string {
-  return sourcesBlock.trim()
-    ? `${brief}\n\nNutze diese recherchierten Quellen für die Inhalte:\n${sourcesBlock}`
-    : brief;
+  if (!sourcesBlock.trim()) return brief;
+  // A brief is a bare user message to a generator that has no system prompt of
+  // ours — so when the block arrives delimited (renderAll), the delimiter has to
+  // arrive with its meaning attached. Callers passing an undelimited block
+  // (renderReference, renderSourceLines) get the old wording unchanged.
+  const rule = sourcesBlock.includes('<untrusted_content') ? INSTRUCTION_HIERARCHY_RULE : '';
+  return `${brief}\n\nNutze diese recherchierten Quellen für die Inhalte:\n${sourcesBlock}${rule}`;
 }
 
 // The URL is part of the line because the snippet block is the ONLY view of a
@@ -219,9 +224,17 @@ export function createSourceRegistry(): SourceRegistry {
       return [...fresh, ...prior].slice(0, limit);
     },
     renderAll() {
-      const current = entries
+      // Retrieved snippets are third-party text — a scraped page, a web result,
+      // an MCP server's return — and go into the prompt as DATA, delimited the
+      // same way the single-pass path delimits search results (respondNode).
+      // Without this the loop was the one lane where a page saying "SYSTEM-
+      // HINWEIS: ignoriere alle Regeln" arrived structurally indistinguishable
+      // from an actual system rule. The notes and the provenance line below are
+      // OUR statements about the turn, so they stay outside the wrapper.
+      const snippets = entries
         .map((e, i) => snippetLine(i + 1, e.result, e.cap, e.prior))
         .join('\n');
+      const current = snippets ? embedUntrusted('suchergebnis', snippets) : '';
       // Unnumbered and explicitly labelled: the synth must be able to REPORT
       // what happened without ever treating it as retrieved material.
       const notesBlock =

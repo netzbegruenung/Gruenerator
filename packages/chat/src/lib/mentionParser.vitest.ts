@@ -102,3 +102,29 @@ describe('document mentions merged into @docs', () => {
     expect(docs.some((m) => m.identifier === 'docs-picker-trigger')).toBe(true);
   });
 });
+
+describe('mentionParser: @bundestag routes to the DIP tool, not the notebook', () => {
+  // Regression: the Bundestagsfraktion notebook used to claim `alias:
+  // 'bundestag'`. `rebuildMentionableMap` lists notebooks BEFORE tools and
+  // keeps the first hit, so the notebook shadowed the DIP tool completely —
+  // typing @bundestag scoped the chat to gruene-bundestag.de instead of
+  // reaching the official Bundestag documentation, for every user.
+  it('resolves @bundestag to the tool mentionable', () => {
+    const m = resolveMentionable('bundestag');
+    expect(m).not.toBeNull();
+    expect(m?.type).toBe('tool');
+    expect(m?.identifier).toBe('bundestag');
+  });
+
+  it('forces the bundestag tool and scopes no notebook', () => {
+    const result = parseAllMentions('@bundestag worüber wurde zuletzt debattiert?');
+    expect(result.forcedTools).toContain('bundestag');
+    expect(result.notebookIds).not.toContain('bundestagsfraktion-notebook');
+  });
+
+  it('still reaches the notebook under its own alias', () => {
+    const result = parseAllMentions('@bundestagsfraktion was steht dort?');
+    expect(result.notebookIds).toContain('bundestagsfraktion-notebook');
+    expect(result.forcedTools).not.toContain('bundestag');
+  });
+});
