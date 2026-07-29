@@ -9,7 +9,12 @@ import { env } from '../../config/env.js';
 import { getModel, isProviderConfigured } from '../../services/ai/providers.js';
 import ToolHandler from '../../services/tools/index.js';
 
-import { buildAiSdkTools, convertMessagesWithImages, mergeMetadata } from './adapterUtils.js';
+import {
+  buildAiSdkTools,
+  resolveToolChoice,
+  convertMessagesWithImages,
+  mergeMetadata,
+} from './adapterUtils.js';
 
 import type { AIRequestData, AIWorkerResult, ToolCall, ContentBlock } from '../types.js';
 
@@ -37,17 +42,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
   );
   const tools = buildAiSdkTools(toolsPayload);
 
-  let toolChoice: 'auto' | 'none' | 'required' | undefined;
-  if (tools) {
-    const choice = toolsPayload.tool_choice as string | { type: string; name?: string } | undefined;
-    if (choice === 'required') {
-      toolChoice = 'required';
-    } else if (choice === undefined || choice === 'none') {
-      toolChoice = 'none';
-    } else {
-      toolChoice = 'auto';
-    }
-  }
+  const toolChoice = tools ? resolveToolChoice(toolsPayload.tool_choice) : undefined;
 
   const aiModel = getModel('greenpt', model);
 

@@ -9,7 +9,7 @@ import { getGenerationConfig, type GenerationOptions } from '../../services/ai/c
 import { getModel, isProviderConfigured } from '../../services/ai/providers.js';
 import ToolHandler from '../../services/tools/index.js';
 
-import { buildAiSdkTools, mergeMetadata } from './adapterUtils.js';
+import { buildAiSdkTools, resolveToolChoice, mergeMetadata } from './adapterUtils.js';
 
 import type { AIRequestData, AIWorkerResult, ToolCall, ContentBlock } from '../types.js';
 
@@ -259,23 +259,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
   );
   const tools = buildAiSdkTools(toolsPayload);
 
-  // Determine tool choice
-  let toolChoice: 'auto' | 'none' | 'required' | { type: 'tool'; toolName: string } | undefined;
-  if (tools) {
-    const choice = toolsPayload.tool_choice as string | { type: string; name?: string } | undefined;
-    if (choice === 'required') {
-      toolChoice = 'required';
-    } else if (choice === undefined || choice === 'none') {
-      toolChoice = 'none';
-    } else if (typeof choice === 'object' && choice?.type === 'tool') {
-      toolChoice = {
-        type: 'tool',
-        toolName: choice.name || '',
-      };
-    } else {
-      toolChoice = 'auto';
-    }
-  }
+  const toolChoice = tools ? resolveToolChoice(toolsPayload.tool_choice) : undefined;
 
   // Get the model instance
   const aiModel = getModel('mistral', model);
