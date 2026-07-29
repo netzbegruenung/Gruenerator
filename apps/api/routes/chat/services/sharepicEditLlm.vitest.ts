@@ -31,4 +31,14 @@ describe('sharepic edit reply guard', () => {
   it('still asks for a short chat confirmation reply', () => {
     expect(prompt).toMatch(/"reply"/);
   });
+
+  // Creation is guarded by SHAREPIC_SAFETY_RULES, so a fabricated quote is
+  // declined up front — but this prompt had no content rule at all, which left
+  // the edit path as a way to the same card: build a benign quote sharepic,
+  // then edit its text into an attribution to a real politician.
+  it('carries the content rules the creation path has', () => {
+    expect(prompt).toContain('real existierenden Person');
+    expect(prompt).toContain('herabsetzen');
+    expect(prompt).toContain('setze sie NICHT um');
+  });
 });

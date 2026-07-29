@@ -8,7 +8,7 @@ import {
 } from '../../../services/chat/sharepicGenerationService.js';
 import { createLogger } from '../../../utils/logger.js';
 
-import { errorText, isRefusalError } from './refusalDetection.js';
+import { errorText, isRefusalError, REFUSAL_ERROR_PREFIX } from './refusalDetection.js';
 import { asksForNewArtifact, isVerificationQuestion } from './sharepicEditHeuristics.js';
 
 const log = createLogger('SharepicVariants');
@@ -189,15 +189,19 @@ const VARIANT_LABEL_BY_CANVAS_TYPE: Partial<Record<CanvasTemplateType, string>> 
   'dreizeilen-at': 'Dreizeiler',
   'zitat-pure-at': 'Zitat',
   'zitat-at': 'Zitat',
-  'info-at': 'Info',
 };
 
-/** de-AT overrides: base canvas type → Austrian variant. */
+/**
+ * de-AT overrides: base canvas type → Austrian variant.
+ *
+ * `info` fehlt bewusst — das Info-Sujet gibt es nur für de-DE. AT-Anfragen
+ * werden schon vor der Generierung auf `dreizeilen` umgelenkt
+ * (siehe resolveVariantTypes), damit das Modell ein mainSlogan-Payload liefert.
+ */
 const AT_CANVAS_TYPE: Partial<Record<CanvasTemplateType, CanvasTemplateType>> = {
   dreizeilen: 'dreizeilen-at',
   'zitat-pure': 'zitat-pure-at',
   zitat: 'zitat-at',
-  info: 'info-at',
 };
 
 function mapSharepicTypeToCanvasType(
@@ -253,14 +257,6 @@ function buildInitialPropsForType(
       return {
         header: sharepic.header ?? '',
         body: sharepic.body ?? sharepic.subheader ?? '',
-      };
-    }
-    // AT info: headline (white) + accent (gelb, Betonung) + body (subline)
-    case 'info-at': {
-      return {
-        headline: sharepic.header ?? '',
-        accent: sharepic.subheader ?? '',
-        body: sharepic.body ?? '',
       };
     }
     // AT dreizeilen: line1 + accent (gelbe Mittelzeile) + line3
@@ -319,7 +315,9 @@ const CANVAS_TYPE_TO_GEN: Record<string, string> = {
   'zitat-pure-at': 'zitat_pure',
   'zitat-at': 'zitat_pure',
   'dreizeilen-at': 'dreizeilen',
-  'info-at': 'info',
+  // 'info-at' fehlt bewusst: das Sujet gibt es nicht mehr. Verfeinerungen
+  // bereits gespeicherter info-at-Artefakte fallen über den `?? 'dreizeilen'`
+  // der Aufrufstelle auf einen Dreizeiler zurück.
 };
 
 /** One generation request: a sharepic type plus the body passed to the prompt. */
@@ -388,6 +386,23 @@ function buildRefinementRequest(
   };
 }
 
+/**
+ * Welche Varianten für diese Locale erzeugt werden.
+ *
+ * de-AT kennt kein Info-Sujet, deshalb wird `info` hier — VOR der Generierung —
+ * durch `dreizeilen` ersetzt. Erst auf Canvas-Ebene umzubiegen würde leere
+ * Sharepics erzeugen: `dreizeilen-at` liest `mainSlogan`, ein Info-Ergebnis
+ * liefert aber `header`/`subheader`/`body`.
+ */
+function resolveVariantTypes(
+  preferred: SharepicVariantType | null | undefined,
+  userLocale?: string
+): ReadonlyArray<SharepicVariantType> {
+  const base: ReadonlyArray<SharepicVariantType> = preferred ? [preferred] : SHAREPIC_VARIANT_TYPES;
+  if (userLocale !== 'de-AT') return base;
+  return Array.from(new Set(base.map((type) => (type === 'info' ? 'dreizeilen' : type))));
+}
+
 /** Map a successful generation result to a frontend SharepicVariant. */
 function toVariant(
   sharepic: SharepicResponseShape,
@@ -404,18 +419,34 @@ function toVariant(
   };
 }
 
+/**
+ * Variants, plus the reason when the run produced none because the model
+ * DECLINED rather than failed.
+ *
+ * The distinction has to survive this function. A decline used to be logged and
+ * then folded into the same empty array a timeout produces, so the chat told the
+ * user "Sharepic-Erstellung fehlgeschlagen / All variant generations failed" —
+ * a technical fault. On the combined social_post path the cross-gate already
+ * says the honest thing; the pure sharepic path had no channel for it, which
+ * made correct policy behaviour indistinguishable from an outage.
+ */
+export interface SharepicVariantsResult {
+  variants: SharepicVariant[];
+  /** German, user-facing reason from the model's ABLEHNUNG channel; null when
+   *  nothing was declined (including when variants were produced). */
+  declinedReason: string | null;
+}
+
 export async function generateSharepicVariants(
   args: GenerateVariantsArgs
-): Promise<SharepicVariant[]> {
+): Promise<SharepicVariantsResult> {
   let requests: VariantRequest[];
 
   if (args.refinement) {
     // Refinement: regenerate just the previous variant, seeded with its own text.
     requests = [buildRefinementRequest(args.refinement, args.authorName)];
   } else {
-    const typesToGenerate: ReadonlyArray<SharepicVariantType> = args.preferredVariant
-      ? [args.preferredVariant]
-      : SHAREPIC_VARIANT_TYPES;
+    const typesToGenerate = resolveVariantTypes(args.preferredVariant, args.userLocale);
 
     // The prompt template fills its `thema` placeholder from `thema` — the chat
     // path previously omitted it, so the AI got an empty topic. Extract the
@@ -441,15 +472,16 @@ export async function generateSharepicVariants(
   );
 
   const variants: SharepicVariant[] = [];
+  let declinedReason: string | null = null;
   settled.forEach((result, idx) => {
     const requestedType = requests[idx].type;
     if (result.status !== 'fulfilled') {
       // A refusal is the safety rules working, not a fault: log the reason,
       // not an Error object whose stack points at the generator.
       if (isRefusalError(result.reason)) {
-        log.info(
-          `[SharepicVariants] ${requestedType} variant declined — ${errorText(result.reason)}`
-        );
+        const reason = errorText(result.reason);
+        log.info(`[SharepicVariants] ${requestedType} variant declined — ${reason}`);
+        declinedReason ??= reason.slice(REFUSAL_ERROR_PREFIX.length).trim() || null;
         return;
       }
       log.warn(`[SharepicVariants] ${requestedType} variant rejected:`, result.reason);
@@ -463,5 +495,7 @@ export async function generateSharepicVariants(
     variants.push(toVariant(sharepic, requestedType, args.userLocale));
   });
 
-  return variants;
+  // One declined type among several successful ones is a per-type quirk, not a
+  // policy answer to the request — only report it when NOTHING came back.
+  return { variants, declinedReason: variants.length === 0 ? declinedReason : null };
 }
