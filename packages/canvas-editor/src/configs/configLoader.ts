@@ -27,6 +27,7 @@ type CanvasConfigType =
   | 'zitat-at'
   | 'zitat-pure-at'
   | 'dreizeilen-at'
+  | 'dreizeilen-overlay-at'
   | 'freeform-at';
 
 // Use a flexible type that accepts any state/action types
@@ -77,6 +78,9 @@ export async function loadCanvasConfig(type: CanvasConfigType): Promise<AnyCanva
     case 'dreizeilen-at':
       return (await import('./dreizeilen_at_full.config')).dreizeilenAtFullConfig;
 
+    case 'dreizeilen-overlay-at':
+      return (await import('./dreizeilen_overlay_at_full.config')).dreizeilenOverlayAtFullConfig;
+
     case 'freeform-at':
       return (await import('./freeform_at_full.config')).freeformAtFullConfig;
 
@@ -102,6 +106,7 @@ export function isValidCanvasType(type: string): type is CanvasConfigType {
     'zitat-at',
     'zitat-pure-at',
     'dreizeilen-at',
+    'dreizeilen-overlay-at',
     'freeform-at',
   ].includes(type);
 }

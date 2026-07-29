@@ -4,7 +4,13 @@ import { getBrandTheme } from '../../brand/theme';
 import { loadCanvasConfig } from '../configLoader';
 import { getTemplatesForLocale } from '../../utils/templateRegistry';
 
-const AT_IDS = ['zitat-at', 'zitat-pure-at', 'dreizeilen-at', 'freeform-at'] as const;
+const AT_IDS = [
+  'zitat-at',
+  'zitat-pure-at',
+  'dreizeilen-at',
+  'dreizeilen-overlay-at',
+  'freeform-at',
+] as const;
 
 describe('Österreich (de-AT) canvas configs', () => {
   it.each(AT_IDS)('loads and builds config %s', async (id) => {
@@ -43,5 +49,30 @@ describe('Österreich (de-AT) canvas configs', () => {
 
   it('kennt kein info-at mehr', async () => {
     await expect(loadCanvasConfig('info-at' as never)).rejects.toThrow();
+  });
+
+  it('Fläche traegt kein Logo — die CI setzt sie als reine Typografie', async () => {
+    const flaeche = await loadCanvasConfig('dreizeilen-at');
+    expect(flaeche.elements.find((e) => e.id === 'logo')).toBeUndefined();
+    // Die Overlay-Variante dagegen schon, mittig in der Farbflaeche.
+    const overlay = await loadCanvasConfig('dreizeilen-overlay-at');
+    expect(overlay.elements.find((e) => e.id === 'logo')).toBeDefined();
+    expect(overlay.elements.find((e) => e.id === 'overlay-box')?.type).toBe('rect');
+  });
+
+  it('macht alle vier Textzonen KI-editierbar', async () => {
+    // Ohne eigene Setter fehlten `accent` und `line3` in describeForAi, die
+    // gelbe Betonungszeile war fuer die KI unsichtbar.
+    const overlay = await loadCanvasConfig('dreizeilen-overlay-at');
+    const fields = overlay.ai
+      ?.describeForAi(overlay.createInitialState({}))
+      .textFields.map((f) => f.field);
+    expect(fields).toEqual(['line1', 'accent', 'line3', 'subline']);
+
+    const flaeche = await loadCanvasConfig('dreizeilen-at');
+    const flaecheFields = flaeche.ai
+      ?.describeForAi(flaeche.createInitialState({}))
+      .textFields.map((f) => f.field);
+    expect(flaecheFields).toEqual(['line1', 'accent', 'line3']);
   });
 });
