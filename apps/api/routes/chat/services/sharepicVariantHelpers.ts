@@ -307,6 +307,14 @@ interface GenerateVariantsArgs {
    * text plus this instruction (e.g. "verlängern"), instead of starting fresh.
    */
   refinement?: { instruction: string; prior: PriorSharepic } | null;
+  /**
+   * The material the sharepic should be built FROM — thread transcript and any
+   * research the thread already carries. Fills the `{{details}}` slot every
+   * sharepic template has and which, outside refinements, was always empty: the
+   * generator saw `Thema: <topic>\nDetails: ` and had to invent the substance.
+   * Documents/sheets/presentations have had this since runCreateTurn.
+   */
+  background?: string;
   /** Signed-in user's locale; when 'de-AT' the variants use the Austrian configs. */
   userLocale?: string;
 }
@@ -460,6 +468,7 @@ export async function generateSharepicVariants(
     // path previously omitted it, so the AI got an empty topic. Extract the
     // subject from the message; fall back to raw text if extraction strips all.
     const thema = extractSharepicTopic(args.text) || args.text;
+    const details = args.background?.trim();
 
     requests = typesToGenerate.map((type) => ({
       type,
@@ -467,6 +476,7 @@ export async function generateSharepicVariants(
         text: args.text,
         subject: args.text,
         thema,
+        ...(details && { details }),
         count: 1,
         ...(args.authorName && { name: args.authorName }),
       },
