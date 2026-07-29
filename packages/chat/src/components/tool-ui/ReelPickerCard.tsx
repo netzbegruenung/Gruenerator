@@ -16,7 +16,7 @@ export const ReelPickerCard = memo(function ReelPickerCard({ data }: { data: Ree
   const activeReel = useReelLiveStore((s) => s.activeReel);
 
   return (
-    <div className="my-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+    <div className="my-5 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
       <p className="mb-2 text-xs font-medium text-foreground-muted">Deine Reels</p>
       <div className="flex flex-col gap-1.5">
         {data.projects.map((project) => {

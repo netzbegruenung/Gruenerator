@@ -2,21 +2,28 @@
  * Maps ChatGraph search intents to tool names used in the UI (tool-call parts).
  * Shared across ModelAdapter, ChatProvider, and MobileChatProvider.
  */
-export const INTENT_TO_TOOL: Record<string, string> = {
-  search: 'gruenerator_search',
-  web: 'web_search',
-  // Research is the same web retrieval at a deeper tier since the merge — it
-  // returns a result list, not the written report the `research` renderer
-  // (`markdown-report`) expects, which would render an empty card over a good
-  // answer. Threads from before the merge carry their own persisted `research`
-  // tool call and keep the Recherche-Karte; only this live intent→tool hop moves.
-  research: 'web_search',
-  examples: 'gruenerator_examples_search',
-  pressemitteilung_examples: 'gruenerator_pressemitteilung_examples',
-  chat_history: 'search_chat_history',
-  hilfe: 'gruenerator_docs_search',
-  bundestag: 'bundestag',
-};
+import { intentToolNames } from '@gruenerator/shared/chat-intents';
+
+/**
+ * The retrieval intents that render a tool card LIVE, derived from the intent
+ * registry's `uiTool` field. The backend's persistence map
+ * (`apps/api/routes/chat/services/postResponseService.ts`) derives from the same
+ * registry — they MUST agree, or a thread renders one card while streaming and
+ * a different one after reload.
+ *
+ * `hilfe` deliberately has no entry. It used to sit here as a client-only
+ * extra, mapped to `gruenerator_docs_search`. That was not an asymmetry worth
+ * persisting, it was a GHOST card: this map is consulted only on the
+ * non-agentic path (`agentic ? undefined : INTENT_TO_TOOL[intent]`,
+ * parseSSEStream), and on that path the docs tool does not exist at all —
+ * CHITCHAT_RE pins "hilfe" / "was kannst du" to single-pass, where respondNode
+ * injects a documentation PAGE MAP into the prompt instead of retrieving
+ * anything. So the card announced a search that never ran, and then vanished on
+ * reload because there was correctly nothing to persist. On the agentic path
+ * the real `gruenerator_docs_search` step is emitted and persisted by the loop,
+ * which is why help answers have working cards there and always did.
+ */
+export const INTENT_TO_TOOL: Record<string, string> = intentToolNames().ui;
 
 /** System MCP source prefixes → display names (mirrors apps/api systemMcpServers). */
 const SYSTEM_TOOL_PREFIXES: Record<string, string> = {

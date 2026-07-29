@@ -1383,7 +1383,7 @@ class PdfRenderer {
     const labelLines = this.boundedLines(label, this.fonts.bodyBold, 9, width, 2).length;
     const labelH = 5 + labelLines * 11;
     const helpH = field.help ? 16 : 0;
-    if (field.kind === 'multiline') return labelH + (field.rows ?? 4) * 14 + 14 + helpH;
+    if (field.kind === 'multiline') return labelH + (field.lines ?? 4) * 14 + 14 + helpH;
     if (field.kind === 'checkbox') {
       const beside = this.boundedLines(label, this.fonts.body, 10, width - 19, 2).length;
       return 24 + (beside - 1) * 11 + helpH;
@@ -1424,7 +1424,7 @@ class PdfRenderer {
       case 'text':
       case 'date':
       case 'multiline': {
-        const boxHeight = field.kind === 'multiline' ? (field.rows ?? 4) * 14 : 20;
+        const boxHeight = field.kind === 'multiline' ? (field.lines ?? 4) * 14 : 20;
         const top = this.y + 12;
         const text = this.form.createTextField(name);
         if (field.kind === 'multiline') text.enableMultiline();

@@ -11,6 +11,7 @@ import {
   type ComputePayload,
   type chatGraphContract,
 } from '@gruenerator/contracts';
+import { type ChatIntentId } from '@gruenerator/shared/chat-intents';
 
 import {
   buildSystemMessage,
@@ -70,6 +71,16 @@ import {
 import type { ChatGraphState } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { ServerInferRequest } from '@ts-rest/core';
 import type { Request } from 'express';
+
+/**
+ * Intents a clarification answer upgrades to `search` (see the call site for
+ * why this is NOT `NON_SEARCH_INTENTS`).
+ */
+const CLARIFICATION_UPGRADE_INTENTS: ReadonlySet<ChatIntentId> = new Set([
+  'direct',
+  'image',
+  'image_edit',
+] as const satisfies readonly ChatIntentId[]);
 
 const log = createLogger('chatGraphContractRouter');
 
@@ -415,8 +426,19 @@ export async function runChatGraphResume({
       return { status: 200 as const, body: undefined };
     }
 
-    const nonSearchIntents = new Set(['direct', 'image', 'image_edit']);
-    if (resumeInput.kind === 'ask_human' && nonSearchIntents.has(classifiedState.intent)) {
+    // Intents that become a SEARCH once the user has answered a clarification:
+    // the answer supplies the query the original turn was missing.
+    //
+    // NOT to be confused with `NON_SEARCH_INTENTS` in classifierPrompt.ts,
+    // which answers a different question (which intents need no optimised
+    // search query) and has 22 members. Merging the two would rewrite a
+    // `create_pdf` or `wetter` turn into a search after a clarification and
+    // throw its artefact/tool route away. The old name here — `nonSearchIntents`
+    // — is how that trap was laid.
+    if (
+      resumeInput.kind === 'ask_human' &&
+      CLARIFICATION_UPGRADE_INTENTS.has(classifiedState.intent)
+    ) {
       classifiedState.intent = 'search';
     }
 
@@ -437,7 +459,10 @@ export async function runChatGraphResume({
     let finalState = classifiedState;
     const { enabledTools, modelId, forcedTool } = requestContext;
 
-    if (resumeInput.kind === 'ask_human' && !nonSearchIntents.has(classifiedState.intent)) {
+    if (
+      resumeInput.kind === 'ask_human' &&
+      !CLARIFICATION_UPGRADE_INTENTS.has(classifiedState.intent)
+    ) {
       const toolEnabled = forcedTool || enabledTools?.[classifiedState.intent] !== false;
       if (toolEnabled) {
         let searchInputState = classifiedState;

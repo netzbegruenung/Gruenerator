@@ -583,7 +583,7 @@ describe('renderPdf', () => {
           { type: 'field', kind: 'text', label: 'Vorname', width: 'half', required: true },
           { type: 'field', kind: 'text', label: 'Nachname', width: 'half' },
           { type: 'field', kind: 'date', label: 'Geburtsdatum' },
-          { type: 'field', kind: 'multiline', label: 'Anmerkungen', rows: 3 },
+          { type: 'field', kind: 'multiline', label: 'Anmerkungen', lines: 3 },
           { type: 'field', kind: 'checkbox', label: 'Ich stimme zu' },
           { type: 'field', kind: 'radio', label: 'Mitgliedsart', options: ['Voll', 'Förder'] },
           { type: 'field', kind: 'select', label: 'Gliederung', options: ['KV A', 'KV B'] },

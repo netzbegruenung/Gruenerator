@@ -55,6 +55,13 @@ jobs:
       - name: No new silent error swallows
         run: node scripts/check-silent-swallows.mjs
 
+      # `**/*.vitest.ts` is excluded from apps/api/tsconfig.json, so a
+      # `Record<SomeUnion, X>` written in a test is decoration — tsc never
+      # checks it. Such a map has to live in production code or be looped over
+      # the enum at runtime.
+      - name: No unenforced exhaustive maps in tests
+        run: node scripts/check-unenforced-exhaustive-maps.mjs
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
@@ -78,6 +85,12 @@ jobs:
           pnpm --filter @gruenerator/documentation labels:check
           pnpm --filter @gruenerator/documentation settings:check
           pnpm --filter @gruenerator/documentation docs:index:check
+          # Same class as the three above: the committed chat-capabilities
+          # manifest vs. what the generator reads out of the code. This is NOT
+          # the capabilities AUDIT (undocumented capability → GitHub issue,
+          # deliberately non-blocking in docs-capabilities.yml) — it is the
+          # staleness check, which existed in package.json but had no caller.
+          pnpm --filter @gruenerator/documentation capabilities:check
 
   test:
     name: Tests

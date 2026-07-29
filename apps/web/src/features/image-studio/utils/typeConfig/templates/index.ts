@@ -16,11 +16,13 @@ import {
   zitatPureAtTypeConfig,
   dreizeilenAtTypeConfig,
   dreizeilenOverlayAtTypeConfig,
+  infoAtTypeConfig,
   freeformAtTypeConfig,
   zitatAtFieldConfig,
   zitatPureAtFieldConfig,
   dreizeilenAtFieldConfig,
   dreizeilenOverlayAtFieldConfig,
+  infoAtFieldConfig,
   freeformAtFieldConfig,
 } from './at';
 import { dreizeilenTypeConfig, dreizeilenFieldConfig } from './dreizeilen';
@@ -50,6 +52,7 @@ export const templateTypeConfigs: Record<string, TypeConfig> = {
   [zitatPureAtTypeConfig.id]: zitatPureAtTypeConfig,
   [dreizeilenAtTypeConfig.id]: dreizeilenAtTypeConfig,
   [dreizeilenOverlayAtTypeConfig.id]: dreizeilenOverlayAtTypeConfig,
+  [infoAtTypeConfig.id]: infoAtTypeConfig,
   [freeformAtTypeConfig.id]: freeformAtTypeConfig,
 };
 
@@ -68,5 +71,6 @@ export const templateFieldConfigs: Record<string, TemplateFieldConfig> = {
   [zitatPureAtTypeConfig.id]: zitatPureAtFieldConfig,
   [dreizeilenAtTypeConfig.id]: dreizeilenAtFieldConfig,
   [dreizeilenOverlayAtTypeConfig.id]: dreizeilenOverlayAtFieldConfig,
+  [infoAtTypeConfig.id]: infoAtFieldConfig,
   [freeformAtTypeConfig.id]: freeformAtFieldConfig,
 };

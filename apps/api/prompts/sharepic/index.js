@@ -7,13 +7,26 @@ const dreizeilen = require('./dreizeilen.json');
 // diesen Eintrag über die Konvention `<type>_at`, wenn userLocale de-AT ist.
 const dreizeilen_at = require('./dreizeilen_at.json');
 const info = require('./info.json');
+// Österreich: anderes Sujet, andere Felder — Introline, Infotext und ein gelb
+// gesetztes Schlusswort statt Header/Subheader/Body.
+const info_at = require('./info_at.json');
 const simple = require('./simple.json');
 const slider = require('./slider.json');
 const veranstaltung = require('./veranstaltung.json');
 const zitat = require('./zitat.json');
 const zitat_pure = require('./zitat_pure.json');
 
-export { dreizeilen, dreizeilen_at, zitat, zitat_pure, info, veranstaltung, simple, slider };
+export {
+  dreizeilen,
+  dreizeilen_at,
+  zitat,
+  zitat_pure,
+  info,
+  info_at,
+  veranstaltung,
+  simple,
+  slider,
+};
 
 export default {
   dreizeilen,
@@ -21,6 +34,7 @@ export default {
   zitat,
   zitat_pure,
   info,
+  info_at,
   veranstaltung,
   simple,
   slider,

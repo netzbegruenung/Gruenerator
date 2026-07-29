@@ -111,6 +111,34 @@ interface SourceGroup {
   run: (args: CliArgs) => Promise<Omit<SourceGroupResult, 'id' | 'name' | 'duration' | 'status'>>;
 }
 
+/**
+ * Report a Landesverband scrape result without inventing an error taxonomy.
+ *
+ * Both Landesverband paths used to return `fetchErrors: result.errors, errors: 0`,
+ * which made a scrape that failed outright look identical to one that merely
+ * missed a few pages. The per-LV email fires on `stored + updated + errors > 0`,
+ * so a Landesverband storing nothing at all printed "Unreachable 1 | Errors 0"
+ * and notified nobody — that is how Saarland produced zero documents unnoticed.
+ *
+ * Unlike the gruenblog / gruene-at / böll scrapers, this one reports a single
+ * undifferentiated `errors` count with no `skipReasons`, so there is nothing to
+ * split. `fetchErrors: 0` says exactly that instead of guessing.
+ */
+function reportLandesverbandResult(result: {
+  stored: number;
+  updated: number;
+  skipped: number;
+  errors: number;
+}): { stored: number; updated: number; skipped: number; fetchErrors: number; errors: number } {
+  return {
+    stored: result.stored,
+    updated: result.updated,
+    skipped: result.skipped,
+    fetchErrors: 0,
+    errors: result.errors,
+  };
+}
+
 const SOURCE_GROUPS: SourceGroup[] = [
   {
     id: 'landesverbaende',
@@ -122,13 +150,7 @@ const SOURCE_GROUPS: SourceGroup[] = [
         dryRun: args.dryRun,
         recent: args.recent,
       });
-      return {
-        stored: result.stored,
-        updated: result.updated,
-        skipped: result.skipped,
-        fetchErrors: result.errors,
-        errors: 0,
-      };
+      return reportLandesverbandResult(result);
     },
   },
   {
@@ -420,13 +442,7 @@ async function main() {
             recent: a.recent,
             landesverband: lvCode,
           });
-          return {
-            stored: result.stored,
-            updated: result.updated,
-            skipped: result.skipped,
-            fetchErrors: result.errors,
-            errors: 0,
-          };
+          return reportLandesverbandResult(result);
         },
       },
     ];

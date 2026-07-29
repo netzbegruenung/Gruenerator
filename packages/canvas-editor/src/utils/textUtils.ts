@@ -49,8 +49,10 @@ export function measureTextWidthWithFont(
   fontFamily: string,
   fontStyle: string = 'normal'
 ): number {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
+  // Ohne DOM (Tests, SSR) gibt es kein Canvas zum Messen — dann auf die
+  // Schätzung zurückfallen statt zu werfen.
+  const ctx =
+    typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
   if (!ctx) {
     // Fallback to estimation if canvas unavailable
     return text.length * fontSize * 0.5;

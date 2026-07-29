@@ -117,7 +117,7 @@ export const ReelProcessingCard = memo(function ReelProcessingCard({
   }, [data.uploadId, data.filename]);
 
   return (
-    <div className="my-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+    <div className="my-5 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
       <div className="flex items-center gap-2 min-w-0">
         {state.phase === 'complete' ? (
           <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />

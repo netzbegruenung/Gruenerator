@@ -658,3 +658,14 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
     .passthrough(),
   error: chatErrorEventPayloadSchema,
 };
+
+/**
+ * Intent → tool name used to live in TWO hand-maintained copies here and in
+ * `packages/chat`. The intersection was pulled into this file first; it now
+ * lives in the intent registry (`@gruenerator/shared/chat-intents`), which owns
+ * the whole per-intent description and derives BOTH maps — so the client's
+ * live card and the server's persisted one cannot disagree.
+ *
+ * Nothing intent-shaped belongs here any more: this file owns the wire enum
+ * (`searchIntentSchema` above), and the registry is keyed by it.
+ */
