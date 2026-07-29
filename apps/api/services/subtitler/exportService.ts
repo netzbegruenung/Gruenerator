@@ -16,6 +16,7 @@ import { type VideoMetadata } from '../../routes/subtitler/types.js';
 import { toJobError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
+import { getUserLocale } from '../localization/localeCache.js';
 
 import { buildFFmpegOutputOptions, buildVideoFilters } from './ffmpegExportUtils.js';
 import { ffmpeg, normalizeRotation, type FFprobeMetadata } from './ffmpegWrapper.js';
@@ -155,7 +156,8 @@ function calculateFontSize(metadata: VideoMetadata): number {
 
 async function processProjectExport(
   project: Project,
-  projService: ProjectService
+  projService: ProjectService,
+  ownerUserId?: string | null
 ): Promise<ExportResult> {
   const exportToken = uuidv4();
 
@@ -185,7 +187,10 @@ async function processProjectExport(
 
     const stylePreference = project.style_preference || 'standard';
     const heightPreference = project.height_preference || 'standard';
-    const locale = 'de-DE';
+    // Re-exports used to hardcode de-DE, so an Austrian project re-rendered for
+    // a share link came back with German styling and fonts — even though the
+    // original export had been correct.
+    const locale = (ownerUserId ? await getUserLocale(ownerUserId) : null) ?? 'de-DE';
 
     await redisClient.set(
       `export:${exportToken}`,
