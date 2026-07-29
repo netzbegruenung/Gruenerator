@@ -135,6 +135,7 @@ import {
   PROGRESS_MESSAGES,
   sseInternalError,
   sendChatWarning,
+  type SSEEventPayloads,
 } from './services/sseHelpers.js';
 import { buildStreamContext } from './services/streamContext.js';
 import {
@@ -300,6 +301,65 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (classifiedState.classifierDegraded) sendChatWarning(sse, 'classifier_degraded');
 
       let forcedTool: boolean = false;
+
+      /**
+       * Suspend the turn: tell the client what it must do, park everything the
+       * resume endpoint needs in Redis, then close cleanly.
+       *
+       * The 14-field requestContext has to stay in lockstep with what
+       * resumePipeline reads back out. Three hand-maintained copies of it
+       * guaranteed a new field would eventually land in only two.
+       *
+       * `threadId` is required, not optional: the store builds its Redis key by
+       * string concatenation, so a missing id used to write everything into the
+       * shared `pipeline_state:undefined` key — and emit an interrupt the client
+       * could never resume, dead-ending the turn.
+       */
+      const suspendTurn = async (
+        threadId: string,
+        interrupt: SSEEventPayloads['interrupt']
+      ): Promise<{ status: 200; body: undefined }> => {
+        sse.send('interrupt', interrupt);
+
+        await pipelineStateStore.store(threadId, {
+          classifiedState,
+          requestContext: {
+            userId,
+            agentId: agentId ?? 'gruenerator-universal',
+            enabledTools: enabledTools ?? {},
+            ...(modelId != null && { modelId }),
+            actualThreadId: threadId,
+            isNewThread,
+            processedMeta,
+            imageAttachments,
+            memoryContext,
+            memoryRetrieveTimeMs,
+            validMessages,
+            forcedTool,
+            ...(rawDocumentIds != null && { rawDocumentIds }),
+          },
+        });
+
+        sse.send('done', {
+          threadId,
+          citations: [],
+          interrupted: true,
+          metadata: {
+            intent: classifiedState.intent,
+            searchCount: 0,
+            totalTimeMs: Date.now() - initialState.startTime,
+            classificationTimeMs: classifiedState.classificationTimeMs,
+            searchTimeMs: 0,
+          },
+        });
+
+        // Interrupt turn — nothing streamed; drop the empty placeholder (the
+        // resume path persists its own message).
+        await cleanupPending(true);
+        sse.end();
+        return { status: 200 as const, body: undefined };
+      };
+
       log.info(
         `[ChatGraph] forcedTools received: ${JSON.stringify(forcedTools)}, classifier intent: ${classifiedState.intent}`
       );
@@ -1213,8 +1273,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       }
 
       // === HITL: Check if clarification is needed ===
+      // `actualThreadId` is part of the gate, not an assertion inside it: a
+      // clarification the client cannot resume is worse than no clarification,
+      // so a thread-less turn falls through to the normal pipeline instead.
       if (
         classifiedState.needsClarification &&
+        actualThreadId != null &&
         !forcedTool &&
         !isCompound &&
         !initialState.attachmentContext &&
@@ -1235,51 +1299,14 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           },
         });
 
-        sse.send('interrupt', {
+        return suspendTurn(actualThreadId, {
           interruptType: 'clarification',
           question: classifiedState.clarificationQuestion!,
           ...(classifiedState.clarificationOptions != null && {
             options: classifiedState.clarificationOptions,
           }),
-          ...(actualThreadId != null && { threadId: actualThreadId }),
+          threadId: actualThreadId,
         });
-
-        await pipelineStateStore.store(actualThreadId!, {
-          classifiedState,
-          requestContext: {
-            userId,
-            agentId: agentId ?? 'gruenerator-universal',
-            enabledTools: enabledTools ?? {},
-            ...(modelId != null && { modelId }),
-            ...(actualThreadId != null && { actualThreadId }),
-            isNewThread,
-            processedMeta,
-            imageAttachments,
-            memoryContext,
-            memoryRetrieveTimeMs,
-            validMessages,
-            forcedTool,
-            ...(rawDocumentIds != null && { rawDocumentIds }),
-          },
-        });
-
-        sse.send('done', {
-          ...(actualThreadId != null && { threadId: actualThreadId }),
-          citations: [],
-          interrupted: true,
-          metadata: {
-            intent: classifiedState.intent,
-            searchCount: 0,
-            totalTimeMs: Date.now() - initialState.startTime,
-            classificationTimeMs: classifiedState.classificationTimeMs,
-            searchTimeMs: 0,
-          },
-        });
-        // Interrupt turn — nothing streamed; drop the empty placeholder (the
-        // resume path persists its own message).
-        await cleanupPending(true);
-        sse.end();
-        return { status: 200 as const, body: undefined };
       }
 
       // === Client-tool interrupt: run-then-answer spreadsheet compute ===
@@ -1378,48 +1405,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             args: { code: pythonCode },
           });
 
-          sse.send('interrupt', {
+          return suspendTurn(actualThreadId, {
             interruptType: 'client_tool',
             toolName: 'run_python',
             args: { code: pythonCode },
             threadId: actualThreadId,
           });
-
-          await pipelineStateStore.store(actualThreadId, {
-            classifiedState,
-            requestContext: {
-              userId,
-              agentId: agentId ?? 'gruenerator-universal',
-              enabledTools: enabledTools ?? {},
-              ...(modelId != null && { modelId }),
-              actualThreadId,
-              isNewThread,
-              processedMeta,
-              imageAttachments,
-              memoryContext,
-              memoryRetrieveTimeMs,
-              validMessages,
-              forcedTool,
-              ...(rawDocumentIds != null && { rawDocumentIds }),
-            },
-          });
-
-          sse.send('done', {
-            threadId: actualThreadId,
-            citations: [],
-            interrupted: true,
-            metadata: {
-              intent: classifiedState.intent,
-              searchCount: 0,
-              totalTimeMs: Date.now() - initialState.startTime,
-              classificationTimeMs: classifiedState.classificationTimeMs,
-              searchTimeMs: 0,
-            },
-          });
-          // Interrupt turn — nothing streamed; drop the empty placeholder.
-          await cleanupPending(true);
-          sse.end();
-          return { status: 200 as const, body: undefined };
         }
         // Codegen failed — continue with the normal pipeline (prompt guidance
         // still steers the model toward an auto-run code block).
@@ -1567,48 +1558,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             args: { question, options },
           });
 
-          sse.send('interrupt', {
+          return suspendTurn(actualThreadId, {
             interruptType: 'clarification',
             question,
             options,
             threadId: actualThreadId,
           });
-
-          await pipelineStateStore.store(actualThreadId, {
-            classifiedState,
-            requestContext: {
-              userId,
-              agentId: agentId ?? 'gruenerator-universal',
-              enabledTools: enabledTools ?? {},
-              ...(modelId != null && { modelId }),
-              actualThreadId,
-              isNewThread,
-              processedMeta,
-              imageAttachments,
-              memoryContext,
-              memoryRetrieveTimeMs,
-              validMessages,
-              forcedTool,
-              ...(rawDocumentIds != null && { rawDocumentIds }),
-            },
-          });
-
-          sse.send('done', {
-            threadId: actualThreadId,
-            citations: [],
-            interrupted: true,
-            metadata: {
-              intent: classifiedState.intent,
-              searchCount: 0,
-              totalTimeMs: Date.now() - initialState.startTime,
-              classificationTimeMs: classifiedState.classificationTimeMs,
-              searchTimeMs: 0,
-            },
-          });
-          // Interrupt turn — nothing streamed; drop the empty placeholder.
-          await cleanupPending(true);
-          sse.end();
-          return { status: 200 as const, body: undefined };
         }
       }
 
