@@ -294,7 +294,17 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   // System MCP sources are env-gated: without the deploy env URL the intent has
   // no tools behind it — degrade so the question still gets answered (wetter/
   // news → web has a chance; a live train query without the source doesn't).
-  if (intent && SYSTEM_MCP_INTENTS.has(intent) && !isSystemIntentAvailable(intent)) {
+  //
+  // The locale MUST go in. `reise` is deliberately absent from
+  // DE_ONLY_SYSTEM_INTENTS (it keeps hotel + weather for Austria), so the
+  // audience degrade above leaves it standing; asking availability without the
+  // locale then answers "yes" on a bahn-only deploy, where an Austrian gets zero
+  // travel tools mounted and the model invents the connection.
+  if (
+    intent &&
+    SYSTEM_MCP_INTENTS.has(intent) &&
+    !isSystemIntentAvailable(intent, state.userLocale)
+  ) {
     const fallback = intent === 'bahn' ? 'direct' : 'web';
     log.info(`[Classifier] ${intent} downgraded to ${fallback} (system MCP source not configured)`);
     intent = fallback;

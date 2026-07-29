@@ -1077,11 +1077,17 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // decideRunAgentic would keep the turn single-pass, where
       // `gruenerator_docs_search` does not exist — the mention would silently
       // do nothing.
+      // The locale belongs in the availability question: forcing the loop for an
+      // intent whose sources are all dropped for this country mounts nothing and
+      // lets the model answer from memory. `reise` is the reachable case — it
+      // survives the audience degrade by design (hotel + weather cover Austria),
+      // so on a bahn-only deploy it would force the gate with an empty toolbox.
       const isMcpTurn =
         classifiedState.intent === 'mcp' ||
         classifiedState.intent === 'umfragen' ||
         classifiedState.intent === 'hilfe' ||
-        (classifiedState.intent != null && isSystemIntentAvailable(classifiedState.intent));
+        (classifiedState.intent != null &&
+          isSystemIntentAvailable(classifiedState.intent, classifiedState.userLocale));
       const isSystemToolIntent =
         classifiedState.intent != null && SYSTEM_TOOL_INTENTS.has(classifiedState.intent);
       const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
