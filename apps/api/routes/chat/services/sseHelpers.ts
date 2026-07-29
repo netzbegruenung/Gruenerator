@@ -769,6 +769,14 @@ export const CHAT_WARNINGS = {
     severity: 'info',
     attribution: 'system',
   },
+  // Always sent with a messageOverride naming the reset time; this copy is the
+  // fallback for a caller that has none.
+  deep_research_quota_spent: {
+    message:
+      'Die Tiefenrecherche ist für heute aufgebraucht — ich habe stattdessen normal recherchiert.',
+    severity: 'info',
+    attribution: 'user',
+  },
   classifier_degraded: {
     message:
       'Die Anfrage-Analyse war eingeschränkt — die Antwort nutzt eine vereinfachte Einordnung.',
