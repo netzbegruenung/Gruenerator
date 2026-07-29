@@ -55,6 +55,13 @@ jobs:
       - name: No new silent error swallows
         run: node scripts/check-silent-swallows.mjs
 
+      # `**/*.vitest.ts` is excluded from apps/api/tsconfig.json, so a
+      # `Record<SomeUnion, X>` written in a test is decoration — tsc never
+      # checks it. Such a map has to live in production code or be looped over
+      # the enum at runtime.
+      - name: No unenforced exhaustive maps in tests
+        run: node scripts/check-unenforced-exhaustive-maps.mjs
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
