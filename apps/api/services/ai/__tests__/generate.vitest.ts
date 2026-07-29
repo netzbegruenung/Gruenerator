@@ -68,8 +68,10 @@ describe('aiText', () => {
     executeProvider.mockResolvedValueOnce(answered('Vom Fallback'));
 
     await expect(aiText({ lane: 'antrag', prompt: 'x' })).resolves.toBe('Vom Fallback');
-    expect(callAt(0).provider).toBe('litellm');
-    expect(callAt(1).provider).toBe('regolo');
+    // `antrag` writes a finished text, so Gemma 4 on Regolo is primary; the
+    // generic chain (litellm → regolo → mistral) then leads with litellm.
+    expect(callAt(0).provider).toBe('regolo');
+    expect(callAt(1).provider).toBe('litellm');
   });
 
   it('falls over when one throws', async () => {
