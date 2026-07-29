@@ -79,6 +79,17 @@ const TYPE_CONFIGS: Record<string, TypeConfig> = {
     mainKey: 'mainSlogan',
     maxLengths: { zeile1: 35, zeile2: 35, zeile3: 35 },
   },
+  // Österreich: wie der deutsche Dreizeiler, aber mit einer Subline unter dem
+  // Slogan. Sie füllt die Overlay-Fläche; das reine Flächen-Sujet ignoriert sie.
+  // Optional, weil ein Slogan auch ohne Ergänzung stehen darf — ohne den
+  // Eintrag in `optionalFields` scheitert der Parser, sobald das Modell die
+  // Zeile weglässt.
+  dreizeilen_at: {
+    fields: ['zeile1', 'zeile2', 'zeile3', 'subline', 'suchbegriff'],
+    optionalFields: ['subline'],
+    mainKey: 'mainSlogan',
+    maxLengths: { zeile1: 35, zeile2: 35, zeile3: 35, subline: 70 },
+  },
   veranstaltung: {
     fields: ['titel', 'tag', 'datum', 'zeit', 'ort', 'adresse', 'beschreibung', 'suchbegriff'],
     mainKey: 'mainEvent',
@@ -132,6 +143,13 @@ function mapToResponseFormat(
         line1: data.zeile1,
         line2: data.zeile2,
         line3: data.zeile3,
+      };
+    case 'dreizeilen_at':
+      return {
+        line1: data.zeile1,
+        line2: data.zeile2,
+        line3: data.zeile3,
+        subline: data.subline || '',
       };
     case 'veranstaltung':
       return {
@@ -341,7 +359,9 @@ export async function generateUnifiedTexts(
           data.suchbegriff ? [data.suchbegriff] : []
         );
       } else {
-        const parseResult = parseLabeledText(content, config.fields);
+        // Der Batch-Pfad kannte optionale Felder längst, der Einzelpfad nicht —
+        // ein weggelassenes Feld liess hier den ganzen Durchlauf scheitern.
+        const parseResult = parseLabeledText(content, config.fields, config.optionalFields);
 
         if (!parseResult.success) {
           lastError = parseResult.error || 'Parse failed';

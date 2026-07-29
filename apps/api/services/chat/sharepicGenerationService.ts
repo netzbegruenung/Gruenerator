@@ -4,6 +4,8 @@ import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 import { errorText, isRefusalError } from '../../routes/chat/services/refusalDetection.js';
+import dreizeilenOverlayAtCanvasRouter from '../../routes/sharepic/sharepic_canvas/at/dreizeilen_overlay_at_canvas.js';
+import infoAtCanvasRouter from '../../routes/sharepic/sharepic_canvas/at/info_at_canvas.js';
 import campaignCanvasRouter from '../../routes/sharepic/sharepic_canvas/campaign_canvas.js';
 import dreizeilenCanvasRouter from '../../routes/sharepic/sharepic_canvas/dreizeilen_canvas.js';
 import infoCanvasRouter from '../../routes/sharepic/sharepic_canvas/info_canvas.js';
@@ -113,6 +115,13 @@ interface SharepicResult {
       body?: string;
       quote?: string;
       name?: string;
+      // Österreich-Info: Introline / Infotext / gelbe Schlusszeile statt
+      // Header / Subheader / Body. Eigene Felder, weil das AT-Sujet anders
+      // aufgebaut ist. `text` bleibt wie bei allen Typen die Zusammenfassung
+      // aller Zeilen, deshalb heisst der Infotext hier `infoText`.
+      introline?: string;
+      infoText?: string;
+      accent?: string;
       mainSlogan?: MainSlogan;
       alternatives?: unknown[];
       textData?: TextData;
@@ -406,10 +415,84 @@ const buildInfoCanvasPayload = ({
   };
 };
 
+/**
+ * Info-Sujet für Österreich: Introline, Infotext und gelbe Schlusszeile.
+ *
+ * Eigener Zweig, weil `mainInfo` hier andere Schlüssel trägt — der Textpfad
+ * wählt über die `<type>_at`-Konvention die Feldliste `introline/text/akzent`.
+ * Gegen die deutsche Destrukturierung gelesen wären alle drei `undefined`
+ * gewesen und der Canvas hätte ein leeres Bild bekommen.
+ */
+/**
+ * Welcher Dreizeiler-Canvas serverseitig rendert.
+ *
+ * Österreich bekommt das Overlay-Sujet: dieselben drei Zeilen, aber auf einer
+ * Farbfläche über dem Foto. Der Router liest `line2` als Alias für die gelbe
+ * Mittelzeile und `subline` als Ergänzung — `mainSlogan` passt also unverändert
+ * als Body. Vorher lief auch der AT-Pfad durch den deutschen Canvas.
+ */
+const dreizeilenRouterFor = (requestBody: RequestBody): Router =>
+  requestBody.userLocale === 'de-AT' ? dreizeilenOverlayAtCanvasRouter : dreizeilenCanvasRouter;
+
+const generateInfoAtSharepic = async (
+  expressReq: ExpressRequest,
+  requestBody: RequestBody
+): Promise<SharepicResult> => {
+  const textResponse = await callSharepicText(expressReq, 'info', requestBody);
+
+  if (!textResponse?.success) {
+    throw new Error((textResponse?.error as string) || 'Info Sharepic generation failed');
+  }
+
+  const mainInfo = textResponse.mainInfo as {
+    introline?: string;
+    text?: string;
+    accent?: string;
+  };
+  const alternatives = (textResponse.alternatives as unknown[]) || [];
+  const { introline, text, accent } = mainInfo;
+
+  const { payload: canvasPayload } = await callCanvasRoute(infoAtCanvasRouter, {
+    ...(introline && { introline }),
+    text: text ?? '',
+    ...(accent && { accent }),
+  });
+
+  if (!canvasPayload?.image) {
+    throw new Error('Info canvas (AT) did not return an image');
+  }
+
+  return {
+    success: true,
+    agent: 'info',
+    content: {
+      metadata: {
+        sharepicType: 'info',
+      },
+      sharepic: {
+        image: canvasPayload.image,
+        type: 'info',
+        text: `${introline || ''}\n${text || ''}\n${accent || ''}`.trim(),
+        ...(introline && { introline }),
+        ...(text && { infoText: text }),
+        ...(accent && { accent }),
+        alternatives,
+      },
+      sharepicTitle: 'Sharepic Vorschau',
+      sharepicDownloadText: 'Sharepic herunterladen',
+      sharepicDownloadFilename: `sharepic-info-${Date.now()}.png`,
+    },
+  };
+};
+
 const generateInfoSharepic = async (
   expressReq: ExpressRequest,
   requestBody: RequestBody
 ): Promise<SharepicResult> => {
+  if (requestBody.userLocale === 'de-AT') {
+    return generateInfoAtSharepic(expressReq, requestBody);
+  }
+
   const textResponse = await callSharepicText(expressReq, 'info', requestBody);
 
   if (!textResponse?.success) {
@@ -521,7 +604,7 @@ const _generateDreizeilenSharepic = async (
   log.debug('[SharepicGeneration] Dreizeilen mainSlogan received:', JSON.stringify(mainSlogan));
 
   const { payload: canvasPayload } = await callCanvasRoute(
-    dreizeilenCanvasRouter,
+    dreizeilenRouterFor(requestBody),
     mainSlogan as Record<string, unknown>
   );
 
@@ -684,7 +767,7 @@ const generateDreizeilenWithImageSharepic = async (
     };
 
     const { payload: canvasPayload } = await callCanvasRoute(
-      dreizeilenCanvasRouter,
+      dreizeilenRouterFor(requestBody),
       mockReq.body as Record<string, unknown>,
       mockReq.file as { buffer: Buffer; mimetype: string; originalname: string }
     );
@@ -761,7 +844,7 @@ const generateDreizeilenWithAIImageSharepic = async (
     };
 
     const { payload: canvasPayload } = await callCanvasRoute(
-      dreizeilenCanvasRouter,
+      dreizeilenRouterFor(requestBody),
       mockReq.body as Record<string, unknown>,
       mockReq.file as { buffer: Buffer; mimetype: string; originalname: string }
     );
