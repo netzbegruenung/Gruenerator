@@ -726,6 +726,29 @@ export interface ChatGraphState {
    */
   explicitDeepRequest: boolean;
 
+  /**
+   * The user typed `@deepresearch`. The ONLY route from the chat to Linkup's
+   * `sourcedAnswer` endpoint, where LINKUP writes the dossier — a synthesis
+   * surcharge on top of the already-expensive deep engine, hence one per day.
+   *
+   * Not a classifier output and not derivable from the wording: an intent a model
+   * inferred cannot be a spending authorisation. Set in the router from the
+   * mention token, checked against the quota in `intentExecutionService`.
+   * Optional so existing state initialisations stay valid — absent means "not
+   * requested", which is the safe reading.
+   */
+  deepResearchRequested?: boolean;
+
+  /**
+   * Linkup's finished dossier, set only when the gated `@deepresearch` path ran.
+   *
+   * Present means the answer is ALREADY WRITTEN and must be served verbatim: the
+   * router streams it as the assistant message and skips synthesis entirely.
+   * Running a model over it would paraphrase a text we already paid for, cost a
+   * second LLM pass, and break the [N]↔source-order coupling this path relies on.
+   */
+  deepResearchAnswer?: string | null;
+
   // Platform hint for the `examples` / `social_post` intents. Set by the
   // classifier when the user prompt names a platform; null otherwise. Consumed
   // by searchNode to filter social examples (instagram/facebook only — the
