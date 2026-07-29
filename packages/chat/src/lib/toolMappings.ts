@@ -8,13 +8,19 @@ export const INTENT_TO_TOOL: Record<string, string> = {
   // The retrieval intents, shared with the backend's persistence map
   // (apps/api/routes/chat/services/postResponseService.ts). They MUST agree, or
   // a thread renders one card while streaming and a different one after reload.
+  //
+  // `hilfe` used to sit here as a client-only extra, mapped to
+  // `gruenerator_docs_search`. It was not an asymmetry worth persisting, it was
+  // a GHOST card: this map is consulted only on the non-agentic path
+  // (`agentic ? undefined : INTENT_TO_TOOL[intent]`, parseSSEStream), and on
+  // that path the docs tool does not exist at all — CHITCHAT_RE pins "hilfe" /
+  // "was kannst du" to single-pass, where respondNode injects a documentation
+  // PAGE MAP into the prompt instead of retrieving anything. So the card
+  // announced a search that never ran, and then vanished on reload because
+  // there was correctly nothing to persist. On the agentic path the real
+  // `gruenerator_docs_search` step is emitted and persisted by the loop, which
+  // is why help answers have working cards there and always did.
   ...INTENT_TO_TOOL_SHARED,
-  // Client-only, and knowingly asymmetric: the backend persists no tool call for
-  // `hilfe`, so the docs-search card is LIVE-only and disappears on reload.
-  // Left as it is — making it survive means persisting a result payload for the
-  // intent, i.e. a change to what a hilfe turn writes to the database, not a
-  // mapping fix.
-  hilfe: 'gruenerator_docs_search',
 };
 
 /** System MCP source prefixes → display names (mirrors apps/api systemMcpServers). */
