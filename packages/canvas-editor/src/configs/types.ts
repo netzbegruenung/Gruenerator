@@ -318,11 +318,12 @@ export type CanvasConfigId =
   | 'slider'
   | 'freeform'
   | 'profilbild'
-  // Österreich (de-AT) variants — kein Info-Sujet, das gibt es nur für de-DE
+  // Österreich (de-AT) variants
   | 'zitat-at'
   | 'zitat-pure-at'
   | 'dreizeilen-at'
   | 'dreizeilen-overlay-at'
+  | 'info-at'
   | 'freeform-at';
 
 /** A page in a heterogeneous multi-page document */

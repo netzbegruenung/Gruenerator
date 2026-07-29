@@ -23,11 +23,12 @@ type CanvasConfigType =
   | 'slider'
   | 'freeform'
   | 'profilbild'
-  // Österreich (de-AT) variants — kein Info-Sujet, das gibt es nur für de-DE
+  // Österreich (de-AT) variants
   | 'zitat-at'
   | 'zitat-pure-at'
   | 'dreizeilen-at'
   | 'dreizeilen-overlay-at'
+  | 'info-at'
   | 'freeform-at';
 
 // Use a flexible type that accepts any state/action types
@@ -81,6 +82,9 @@ export async function loadCanvasConfig(type: CanvasConfigType): Promise<AnyCanva
     case 'dreizeilen-overlay-at':
       return (await import('./dreizeilen_overlay_at_full.config')).dreizeilenOverlayAtFullConfig;
 
+    case 'info-at':
+      return (await import('./info_at_full.config')).infoAtFullConfig;
+
     case 'freeform-at':
       return (await import('./freeform_at_full.config')).freeformAtFullConfig;
 
@@ -107,6 +111,7 @@ export function isValidCanvasType(type: string): type is CanvasConfigType {
     'zitat-pure-at',
     'dreizeilen-at',
     'dreizeilen-overlay-at',
+    'info-at',
     'freeform-at',
   ].includes(type);
 }

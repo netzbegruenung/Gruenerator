@@ -62,6 +62,23 @@ const INTENT_SOURCES: Record<string, SystemMcpKey[]> = {
   news: ['news'],
 };
 
+/**
+ * Audience per SOURCE, which is finer than per intent and has to be: `reise`
+ * mounts three sources at once, and only one of them is German-only. Answering
+ * "plane meine Fahrt Wien→Graz" by offering Deutsche-Bahn tools is the failure
+ * this table prevents — an intent-level audience could only have chosen between
+ * dropping the whole travel intent for Austria or keeping the wrong tools.
+ *
+ * Deutsche Bahn has no ÖBB counterpart wired up, and tagesschau covers Austria
+ * as foreign news. Weather (Open-Meteo) and hotels (trivago) are global.
+ */
+const SOURCE_AUDIENCE: Record<SystemMcpKey, 'de-DE' | 'all'> = {
+  bahn: 'de-DE',
+  news: 'de-DE',
+  wetter: 'all',
+  hotel: 'all',
+};
+
 const DEFINITIONS: Array<Omit<SystemMcpSource, 'url' | 'authType' | 'token'>> = [
   {
     key: 'bahn',
@@ -146,24 +163,40 @@ export const SYSTEM_TOOL_INTENTS: ReadonlySet<SearchIntent> = new Set([
   'hilfe',
 ] as SearchIntent[]);
 
-/** The env-configured sources the given system intent mounts (possibly []). */
-export function getSourcesForIntent(intent: string): SystemMcpSource[] {
+/**
+ * The env-configured sources the given system intent mounts (possibly []).
+ *
+ * `locale` drops sources whose data does not cover that country. It is optional
+ * so callers with no user context (health checks, catalog listings) keep the
+ * full set, but every CHAT path must pass it — without it an Austrian traveller
+ * gets Deutsche-Bahn tools mounted for a Vienna→Graz trip.
+ */
+export function getSourcesForIntent(intent: string, locale?: string | null): SystemMcpSource[] {
   const keys = INTENT_SOURCES[intent];
   if (!keys) return [];
   const active = getSystemMcpSources();
-  return keys.flatMap((k) => active.filter((s) => s.key === k));
+  const allowed = locale
+    ? keys.filter((k) => SOURCE_AUDIENCE[k] === 'all' || SOURCE_AUDIENCE[k] === locale)
+    : keys;
+  return allowed.flatMap((k) => active.filter((s) => s.key === k));
 }
 
 /** True when the intent has at least one configured system source behind it. */
-export function isSystemIntentAvailable(intent: string): boolean {
-  return getSourcesForIntent(intent).length > 0;
+export function isSystemIntentAvailable(intent: string, locale?: string | null): boolean {
+  return getSourcesForIntent(intent, locale).length > 0;
 }
 
-/** Sources whose data covers Germany only — de-AT users get the web fallback. */
-export const DE_ONLY_SYSTEM_INTENTS: ReadonlySet<SearchIntent> = new Set([
-  'bahn',
-  'news',
-] as SearchIntent[]);
+/**
+ * System intents with NO source left for a de-AT user — they degrade to the web
+ * fallback. Derived from `SOURCE_AUDIENCE` rather than hand-listed, so a source
+ * whose coverage changes cannot leave this set stale. `reise` is deliberately
+ * absent: it still has hotel and weather for Austria, just no train.
+ */
+export const DE_ONLY_SYSTEM_INTENTS: ReadonlySet<SearchIntent> = new Set(
+  Object.keys(INTENT_SOURCES).filter((intent) =>
+    (INTENT_SOURCES[intent] ?? []).every((k) => SOURCE_AUDIENCE[k] === 'de-DE')
+  ) as SearchIntent[]
+);
 
 export function toSystemConnectionConfig(source: SystemMcpSource): McpConnectionConfig {
   return {
