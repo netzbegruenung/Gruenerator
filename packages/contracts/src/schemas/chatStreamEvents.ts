@@ -653,3 +653,34 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
     .passthrough(),
   error: chatErrorEventPayloadSchema,
 };
+
+/**
+ * Intent → persisted/rendered tool name, for the intents where the backend and
+ * the chat client MUST agree.
+ *
+ * Two hand-maintained copies existed — `INTENT_TO_TOOL` in
+ * `apps/api/routes/chat/services/postResponseService.ts` (what gets persisted)
+ * and in `packages/chat/src/lib/toolMappings.ts` (what renders live and after a
+ * reload). Nothing compared them. They have to agree on exactly these seven or
+ * a thread renders one card while streaming and a different one after reload.
+ *
+ * Each side legitimately adds entries the other has no use for: the server also
+ * persists artefact intents (sharepic, image, …) that the client renders from
+ * dedicated events instead. Those stay local, next to the comment that explains
+ * them. This constant is the intersection, not the union.
+ */
+export const INTENT_TO_TOOL_SHARED: Readonly<Record<string, string>> = Object.freeze({
+  search: 'gruenerator_search',
+  web: 'web_search',
+  // Research persists as a web search because that is now what it IS — the same
+  // retrieval at a deeper tier. Keeping `research` here would hand the frontend
+  // a tool whose renderer (`markdown-report`) expects Linkup's written answer,
+  // which no turn produces any more; it would render an empty report card over a
+  // perfectly good result list. Turns from before the merge keep their own
+  // persisted `research` tool call and still render the Recherche-Karte.
+  research: 'web_search',
+  examples: 'gruenerator_examples_search',
+  pressemitteilung_examples: 'gruenerator_pressemitteilung_examples',
+  bundestag: 'bundestag',
+  chat_history: 'search_chat_history',
+});

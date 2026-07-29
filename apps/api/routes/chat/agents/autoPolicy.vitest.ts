@@ -5,7 +5,7 @@ import { isReasoningCapable } from '../../../services/ai/modelDiscovery.js';
 import { isReasoningStreamModel } from '../../../services/ai/regoloReasoningStream.js';
 import { mistralReasoningOption } from '../services/responseStreamingService.js';
 
-import { resolveAutoSelection, type Complexity } from './autoPolicy.js';
+import { AUTO_POLICY_EXEMPT, resolveAutoSelection, type Complexity } from './autoPolicy.js';
 import { AVAILABLE_MODELS } from './providers.js';
 
 const ALL_INTENTS = searchIntentSchema.options;
@@ -166,9 +166,10 @@ describe('autoPolicy — lane assignment per task shape', () => {
    */
   it('no other intent falls through to the default by accident', () => {
     const fallthrough = JSON.stringify(resolveAutoSelection({ intent: 'not-a-real-intent' }));
+    const exempt: readonly string[] = AUTO_POLICY_EXEMPT;
     const silent = ALL_INTENTS.filter(
       (intent) =>
-        intent !== 'sharepic' &&
+        !exempt.includes(intent) &&
         // `direct` and `hilfe` ARE the speed lane on purpose, so they match it.
         intent !== 'direct' &&
         intent !== 'hilfe' &&

@@ -117,7 +117,7 @@ const FAST: AutoLaneId = 'litellm';
  * With the exemption named, the table is exhaustive over SearchIntent and a new
  * intent breaks the build until someone decides.
  */
-const AUTO_POLICY_EXEMPT = ['sharepic'] as const satisfies readonly SearchIntent[];
+export const AUTO_POLICY_EXEMPT = ['sharepic'] as const satisfies readonly SearchIntent[];
 type ExemptIntent = (typeof AUTO_POLICY_EXEMPT)[number];
 
 const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
