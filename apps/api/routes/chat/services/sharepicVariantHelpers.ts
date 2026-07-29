@@ -190,6 +190,7 @@ const VARIANT_LABEL_BY_CANVAS_TYPE: Partial<Record<CanvasTemplateType, string>> 
   'dreizeilen-overlay-at': 'Dreizeiler',
   'zitat-pure-at': 'Zitat',
   'zitat-at': 'Zitat',
+  'info-at': 'Info',
 };
 
 /**
@@ -222,6 +223,10 @@ interface SharepicResponseShape {
   header?: string;
   subheader?: string;
   body?: string;
+  /** Österreich-Info: eigene Felder statt header/subheader/body. */
+  introline?: string;
+  text?: string;
+  accent?: string;
   selectedImage?: string;
   altText?: string;
 }
@@ -258,6 +263,16 @@ function buildInitialPropsForType(
       return {
         header: sharepic.header ?? '',
         body: sharepic.body ?? sharepic.subheader ?? '',
+      };
+    }
+    // AT-Info: Introline, Infotext und die gelbe Schlusszeile. Der Prompt
+    // liefert die Felder direkt so — anders als das deutsche Info-Sujet mit
+    // header/subheader/body.
+    case 'info-at': {
+      return {
+        introline: sharepic.introline ?? '',
+        text: sharepic.text ?? sharepic.header ?? '',
+        accent: sharepic.accent ?? '',
       };
     }
     // AT dreizeilen: line1 + accent (gelbe Mittelzeile) + line3
@@ -331,9 +346,7 @@ const CANVAS_TYPE_TO_GEN: Record<string, string> = {
   'zitat-at': 'zitat_pure',
   'dreizeilen-at': 'dreizeilen',
   'dreizeilen-overlay-at': 'dreizeilen',
-  // 'info-at' fehlt bewusst: das Sujet gibt es nicht mehr. Verfeinerungen
-  // bereits gespeicherter info-at-Artefakte fallen über den `?? 'dreizeilen'`
-  // der Aufrufstelle auf einen Dreizeiler zurück.
+  'info-at': 'info',
 };
 
 /** One generation request: a sharepic type plus the body passed to the prompt. */
