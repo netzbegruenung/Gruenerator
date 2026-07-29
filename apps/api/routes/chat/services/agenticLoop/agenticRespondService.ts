@@ -38,7 +38,12 @@ import {
   stripFabricatedSystemClaims,
 } from '../outputSanity.js';
 import { resolveModel, type ResolvedModelTuple } from '../responseStreamingService.js';
-import { PROGRESS_MESSAGES, startResponseHeartbeat, type SSEWriter } from '../sseHelpers.js';
+import {
+  PROGRESS_MESSAGES,
+  sendChatWarning,
+  startResponseHeartbeat,
+  type SSEWriter,
+} from '../sseHelpers.js';
 import {
   getRecentThreadSources,
   getRecentToolSteps,
@@ -498,6 +503,12 @@ export async function streamAgenticResponse(params: {
           // Remember the server actually used, so the next unscoped turn re-scopes.
           if (threadId && scope && !mcpCatalog.scopedServerMissing && mcpCatalog.labels.size > 0) {
             void setThreadLastMcpServer(threadId, scope);
+          }
+          // A server whose tool definitions drifted since approval had its tools
+          // withheld. Say so — otherwise it just looks broken or idle, and the
+          // user never learns there is something to re-check.
+          for (const explanation of mcpCatalog.driftedServers ?? []) {
+            sendChatWarning(sse, 'mcp_tools_drifted', explanation);
           }
           Object.assign(tools, mcpCatalog.tools);
         }
