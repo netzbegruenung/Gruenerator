@@ -12,6 +12,8 @@ import {
   type SharepicTemplateDescriptor,
 } from '@gruenerator/contracts';
 
+import { CONTENT_INTEGRITY_EDIT_RULES } from '../../../services/contentPolicy.js';
+
 import { runToolForcedEdit } from './toolForcedEdit.js';
 
 import type { AIWorkerPool } from '../../../workers/types.js';
@@ -178,6 +180,14 @@ export function buildSystemPrompt(
   );
   lines.push('');
   lines.push('Ändere NUR, was verlangt wurde. Nutze nur die gelisteten Felder, IDs und Werte.');
+  // The editor had no content rule at all. SHAREPIC_SAFETY_RULES guards the
+  // model that WRITES a sharepic's text, so a request for a fabricated quote is
+  // declined at creation — but the very same card could then be EDITED into
+  // exactly that attribution, because this prompt never mentioned it. Stated as
+  // a constraint on the operations, not as a prose decline: this call is
+  // tool-forced and has no channel to refuse in except `reply`.
+  lines.push('');
+  lines.push(CONTENT_INTEGRITY_EDIT_RULES);
 
   return lines.join('\n');
 }
