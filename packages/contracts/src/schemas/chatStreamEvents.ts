@@ -84,6 +84,10 @@ export const chatWarningCodeSchema = z.enum([
   'mention_context_failed',
   'extraction_failed',
   'mcp_unreachable',
+  // A connected MCP server changed its tool DEFINITIONS since the user approved
+  // them, so its tools were withheld this turn (rug pull). Distinct from
+  // `mcp_unreachable`: the server answered fine, we declined to trust it.
+  'mcp_tools_drifted',
   // Compute
   'compute_failed',
   // Provider / privacy
