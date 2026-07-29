@@ -9,7 +9,7 @@
  * - Save conversation to mem0 memory
  */
 
-import { INTENT_TO_TOOL_SHARED } from '@gruenerator/contracts';
+import { intentToolNames } from '@gruenerator/shared/chat-intents';
 
 import { upsertThreadRecallPoint } from '../../../services/chat/threadRecallEmbeddingService.js';
 import { generateThreadTags } from '../../../services/chat/threadTagService.js';
@@ -54,23 +54,19 @@ import type { ModelMessage } from 'ai';
 
 const log = createLogger('PostResponse');
 
-export const INTENT_TO_TOOL: Record<string, string> = {
-  // The retrieval intents, where this map and the client's copy in
-  // packages/chat/src/lib/toolMappings.ts MUST agree — otherwise a thread shows
-  // one card while streaming and a different one after reload. Shared so the
-  // two cannot drift; see the comment on INTENT_TO_TOOL_SHARED.
-  ...INTENT_TO_TOOL_SHARED,
-  // Server-only: artefact intents persist a tool call so the thread rehydrates
-  // with a card. The live client renders these from their own SSE events
-  // (sharepic_complete, image_complete, …) and has no use for the mapping.
-  image: 'image_generate',
-  image_edit: 'image_edit',
-  sharepic: 'sharepic',
-  // EXPERIMENTAL combined post: persisted as TWO tool calls (sharepic +
-  // social_post) — see buildToolCalls.
-  social_post: 'social_post',
-  scrape_url: 'scrape_url',
-};
+/**
+ * What each intent PERSISTS as a tool call, so a reloaded thread rehydrates
+ * with the same card it streamed. Derived from the intent registry, which the
+ * client's live map (`packages/chat/src/lib/toolMappings.ts`) also derives
+ * from — the two cannot drift any more.
+ *
+ * This map is a superset of the client's on purpose: artefact intents
+ * (`image`, `sharepic`, `social_post`, …) persist a tool call, but the live
+ * client renders them from their own SSE events (`sharepic_complete`,
+ * `image_complete`, …) and has no use for the mapping. The registry expresses
+ * that as a `persistTool` without a `uiTool`.
+ */
+export const INTENT_TO_TOOL: Record<string, string> = intentToolNames().persist;
 
 /**
  * Result payload shape for non-research tool calls (search, web, examples).
