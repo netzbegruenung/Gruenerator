@@ -179,7 +179,13 @@ export function calculateInfoAtLayout(
     scale = step;
     m = next;
   }
-  while (m.total > AVAILABLE && scale > MIN_SCALE) {
+  // Zwei Gründe zu schrumpfen: der Block ist zu hoch ODER ein einzelnes Wort
+  // ist breiter als die Spalte. Der zweite Fall traf die Ausgangsgröße selbst,
+  // die vorher nie geprüft wurde — die Wachstumsschleife prüft erst den
+  // NÄCHSTEN Schritt. „unabhängigkeit" misst bei 118 px 824 px gegen 760 px
+  // Satzmaß und brach in Konva mitten im Wort, während wrapTextAccurate es
+  // weiter als eine Zeile meldete.
+  while ((m.total > AVAILABLE || !longestWordFits(zones, scale)) && scale > MIN_SCALE) {
     scale = Math.max(MIN_SCALE, scale - 0.04);
     m = measure(zones, scale);
   }

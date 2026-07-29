@@ -123,7 +123,9 @@ async function render(
     scale = step;
     m = next;
   }
-  while (m.total > available && scale > minScale) {
+  // Auch die Ausgangsgroesse muss die Wortbreite bestehen — die
+  // Wachstumsschleife prueft nur den naechsten Schritt.
+  while ((m.total > available || !longestWordFits(scale)) && scale > minScale) {
     scale = Math.max(minScale, scale - 0.04);
     m = measure(scale);
   }

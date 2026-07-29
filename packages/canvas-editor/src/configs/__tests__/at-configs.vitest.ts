@@ -5,6 +5,7 @@ import { loadCanvasConfig } from '../configLoader';
 import { getTemplatesForLocale } from '../../utils/templateRegistry';
 import { ZITAT_AT_CONFIG, calculateZitatAtLayout } from '../../utils/zitatAtLayout';
 import { INFO_AT_CONFIG, calculateInfoAtLayout } from '../../utils/infoAtLayout';
+import { measureTextWidthWithFont } from '../../utils/textUtils';
 
 const AT_IDS = [
   'zitat-at',
@@ -105,6 +106,28 @@ describe('Österreich (de-AT) canvas configs', () => {
       expect(l.zones[0].y).toBeGreaterThanOrEqual(INFO_AT_CONFIG.topBoundary - 1);
       expect(l.zones[2].y).toBeLessThan(INFO_AT_CONFIG.bottomBoundary);
     }
+  });
+
+  it('schrumpft, wenn ein einzelnes Wort breiter als die Spalte ist', () => {
+    // Aus dem Realtest (Mistral Medium 3.5): „unabhängigkeit" misst in Vollkorn
+    // kursiv bei 118 px 824 px gegen 760 px Satzmaß. Konva brach daraufhin
+    // MITTEN im Wort, waehrend wrapTextAccurate — das nur an Leerzeichen bricht
+    // — es weiter als eine Zeile meldete. Die Wachstumsschleife prueft die
+    // Wortbreite nur fuer den NAECHSTEN Schritt, die Ausgangsgroesse selbst
+    // wurde nie geprueft.
+    const l = calculateInfoAtLayout(
+      'Österreichs Strommix',
+      '87 Prozent kommen bereits aus Erneuerbaren mehr',
+      'unabhängigkeit'
+    );
+    expect(l.zones[2].fontSize).toBeLessThan(INFO_AT_CONFIG.text.fontSize);
+    const breite = measureTextWidthWithFont(
+      'unabhängigkeit',
+      l.zones[2].fontSize,
+      INFO_AT_CONFIG.accent.fontFamily,
+      INFO_AT_CONFIG.accent.fontStyle
+    );
+    expect(breite).toBeLessThanOrEqual(INFO_AT_CONFIG.maxWidth);
   });
 
   it('Fläche traegt kein Logo — die CI setzt sie als reine Typografie', async () => {
