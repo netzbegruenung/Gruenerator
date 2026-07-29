@@ -103,6 +103,29 @@ export const ZITAT = {
   logo: { width: 150, margin: 70 },
 } as const;
 
+/**
+ * Zitat-Pur-Geometrie — mirrors ZITAT_PURE_AT_CONFIG in canvas-editor.
+ * Ohne Foto traegt die Flaeche allein: groesserer Grad als beim Foto-Sujet,
+ * weisses Anfuehrungszeichen statt gelbem, Block genau mittig.
+ */
+export const ZITAT_PURE = {
+  margin: 115,
+  maxWidth: 850,
+  groupCenterRatio: 0.5,
+  markSizeRatio: 1.47,
+  markGapToText: 26,
+  baseFontSize: 72,
+  minFontSize: 46,
+  maxFontSize: 88,
+  lineHeightRatio: 1.15,
+  maxLines: 5,
+  growBelowLines: 3,
+  nameFontSizeRatio: 0.47,
+  nameGapRatio: 0.61,
+  topBoundary: 120,
+  bottomBoundary: 1230,
+} as const;
+
 export function registerAtFonts(): void {
   registerFonts();
 }
