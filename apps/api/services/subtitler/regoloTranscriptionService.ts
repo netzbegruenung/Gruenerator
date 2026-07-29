@@ -8,6 +8,9 @@
 import fs from 'fs';
 
 import { createLogger } from '../../utils/logger.js';
+import { type Locale } from '../localization/types.js';
+import { mimeTypeFromFilename } from '../transcription/mimeTypes.js';
+import { toWhisperLanguage } from '../transcription/providerPolicy.js';
 
 const log = createLogger('regolo-transcription');
 
@@ -39,7 +42,8 @@ interface WhisperVerboseResponse {
 async function transcribeWithRegolo(
   filePath: string,
   requestWordTimestamps: boolean = false,
-  _uploadId: string | null = null
+  _uploadId: string | null = null,
+  locale: Locale = 'de-DE'
 ): Promise<TranscriptionResult> {
   // Read from process.env at call time so runtime env changes (and tests that
   // unset the variable) take effect — the parsed `env` module is cached at
@@ -54,13 +58,15 @@ async function transcribeWithRegolo(
   log.debug(`Starting Regolo transcription (${fileSizeMB} MB)`);
 
   const fileBuffer = fs.readFileSync(filePath);
-  const fileName = filePath.split('/').pop() || 'audio.wav';
-  const blob = new Blob([fileBuffer], { type: 'audio/wav' });
+  const fileName = filePath.split('/').pop() || 'audio.mp3';
+  const blob = new Blob([fileBuffer], { type: mimeTypeFromFilename(fileName) });
 
   const form = new FormData();
   form.append('file', blob, fileName);
   form.append('model', 'faster-whisper-large-v3');
-  form.append('language', 'de');
+  // Whisper's language set is ISO-639-1 only — an Austrian code is rejected
+  // with 422, so both locales resolve to 'de'. See toWhisperLanguage.
+  form.append('language', toWhisperLanguage(locale));
 
   if (requestWordTimestamps) {
     form.append('response_format', 'verbose_json');
