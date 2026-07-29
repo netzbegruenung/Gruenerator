@@ -158,6 +158,14 @@ Damit bliebe nur der Loop-Pfad tauschbar — und `streamIdleDeadline.ts` existie
 
 Nebenbei geklärt und für später notiert: der Fehler *wäre* unterscheidbar. Ein Chunk-Timeout bricht mit einer `DOMException` namens `TimeoutError` und der Nachricht `"Chunk timeout of Nms exceeded"` ab (`setAbortTimeout`, `dist/index.js:2743`) — `runPassWithFallback` könnte ihn also von einem Nutzer-Abbruch trennen, allerdings über `name`/Nachricht statt über einen eigenen Typ.
 
+### 4.6 SSE-Emission aus dem Tool-Wrapper lösen — geprüft und verworfen
+
+Der Plan sah vor, `sendResult` und `recordStep` aus `wrapTools.ts` in einen `onToolExecutionEnd`-Hook zu verschieben (`sendStart` musste ohnehin bleiben, weil die Karte *vor* dem bis zu 30 s langen Ergebnis erscheinen soll).
+
+**Der Hook bekommt unseren Zustand nicht.** `ToolExecutionEndEvent` trägt ausschließlich `toolCall`, `toolContext` und `toolOutput` (`ai@7.0.37`, `dist/index.d.ts:3165`). `recordStep` braucht aber `textOffset` (beim **Start** genommen), die gedrainte `narration` (ebenfalls beim Start, „erster von parallelen Geschwistern gewinnt") und `serverMeta`. Der Umbau bräuchte also eine Seitentabelle `Map<toolCallId, …>`, im Wrapper geschrieben und im Hook gelesen — plus ein Leck für jeden Call, der nie endet.
+
+**Bilanz:** Der Wrapper bliebe für Guards, `sendStart`, Offset-Erfassung, Narration, Timeout und Truncation bestehen; zwei von sechs Belangen zögen um und brauchten dafür geteilten Zustand zwischen zwei Stellen. Das ist **mehr** Kopplung, nicht weniger, ohne sichtbaren Gewinn — und das an der am stärksten tragenden Stelle des Chats.
+
 ---
 
 ## 5. Bewertung: MCP
@@ -196,7 +204,7 @@ Grenze, die man mitdokumentieren muss: das erkennt Mutation von Beschreibung, In
 
 ### Tier 2 — je eine Entscheidung dran
 
-Toten Graph-Code löschen (§2.3) · MCP-Drift-Erkennung (§5.2) · ~~`chunkMs` statt `createIdleDeadline`~~ (geprüft und verworfen, §4.5) · Provider-Konstruktion vereinheitlichen (§7) · SSE-Emission aus dem Tool-Wrapper lösen — nur `sendResult`/`recordStep`, **`sendStart` muss bleiben** · `ToolLoopAgent` als Retrieval-Subagent für den Notebook-Tiefenpfad.
+Toten Graph-Code löschen (§2.3) · MCP-Drift-Erkennung (§5.2) · ~~`chunkMs` statt `createIdleDeadline`~~ (geprüft und verworfen, §4.5) · Provider-Konstruktion vereinheitlichen (§7) · ~~SSE-Emission aus dem Tool-Wrapper lösen~~ (geprüft und verworfen, §4.6) · `ToolLoopAgent` als Retrieval-Subagent für den Notebook-Tiefenpfad.
 
 ### Tier 3 — bewusst entscheiden, nicht hineinschlittern
 
