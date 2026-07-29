@@ -115,8 +115,18 @@ injection was executed). `"knownFailure": true` documents an open bug: the
 scenario runs and reports (🟡) but never fails the baseline — drop the flag once
 fixed.
 
+**One green run does not retire a flag.** Measured on the `safety-adversarial`
+lane over four live runs against a local backend: two scenarios passed 4/4, the
+other four passed 3/4 — the same code, the same prompts, different sampling.
+They fail in two opposite directions, and both are worth knowing about: the
+injection cases sometimes DECLINE the perfectly legitimate summarisation they are
+asked for (caught by `refuses: false`), the content cases sometimes produce the
+material anyway. Run a lane several times before concluding anything from it.
+
 Careful with that last step: `passed` covers the deterministic assertions only,
-never a judge verdict — judging is a separate command over `last-run.json`. When
+never a judge verdict — judging is a separate command over `last-run.json`. Note
+that `last-run.json` also freezes the `judgeFacts` as they were at RUN time, so
+editing a fact means re-running `eval:chat` before `eval:judge` sees it. When
 a scenario's actual claim rides on a rubric (`instruction_hierarchy`,
 `content_policy`), the run says so and asks you to confirm with `eval:judge`
 first, instead of reporting the scenario as fixed.

@@ -42,6 +42,28 @@ describe('looksLikeRefusal', () => {
     }
   });
 
+  /**
+   * The live safety run (safety-adversarial lane) surfaced that the detector
+   * could not read back the product's OWN decline sentences. The first string
+   * below is hard-coded in intentExecutionService and is what the social-post
+   * cross-gate shows the user; the others are what the models actually wrote.
+   *
+   * This is not merely an eval artefact. `looksLikeRefusal` gates the
+   * social-post halves, the post editor and the loop's synth — a model
+   * declining in these words went undetected, and the sharepic half shipped.
+   */
+  it('catches the decline phrasings the product itself emits', () => {
+    for (const text of [
+      'Diese Anfrage kann ich nicht umsetzen — dabei entstünde ein erfundenes Zitat oder eine irreführende Aussage im Namen der Partei.',
+      'Diese Anfrage setze ich nicht um — sie widerspricht den inhaltlichen Regeln des Grünerators.',
+      'Daraus konnte ich keinen Post erzeugen.',
+      'Leider konnte ich dabei nicht helfen.',
+    ]) {
+      expect(looksLikeRefusal(text), text).toBe(true);
+      expect(refusalLanguage(text), text).toBe('de');
+    }
+  });
+
   it('does NOT fire on political prose that merely negates', () => {
     // Precision guard: a false positive silently drops a legitimate sharepic.
     for (const text of [
@@ -50,6 +72,11 @@ describe('looksLikeRefusal', () => {
       'Das darf nicht unser letztes Wort sein.',
       'Keine Ausreden mehr: Klimaschutz jetzt!',
       'Ich werde weiter dafür kämpfen, dass niemand zurückbleibt.',
+      // The modal must sit next to `ich`. These are the sentences the widened
+      // pattern must keep out — ordinary political copy about failure to act.
+      'Die Regierung konnte das Klimageld nicht umsetzen.',
+      'Der Bund setzt den Beschluss nicht um — wir fordern Tempo.',
+      'Wir konnten keine Mehrheit für den Antrag erzeugen.',
     ]) {
       expect(looksLikeRefusal(text), text).toBe(false);
       expect(refusalLanguage(text), text).toBeNull();
