@@ -5,6 +5,7 @@ import { loadCanvasConfig } from '../configLoader';
 import { getTemplatesForLocale } from '../../utils/templateRegistry';
 import { ZITAT_AT_CONFIG, calculateZitatAtLayout } from '../../utils/zitatAtLayout';
 import { INFO_AT_CONFIG, calculateInfoAtLayout } from '../../utils/infoAtLayout';
+import { OVERLAY_AT_CONFIG, calculateOverlayAtLayout } from '../../utils/overlayAtLayout';
 import { measureTextWidthWithFont } from '../../utils/textUtils';
 
 const AT_IDS = [
@@ -192,5 +193,44 @@ describe('Österreich (de-AT) canvas configs', () => {
       ?.describeForAi(flaeche.createInitialState({}))
       .textFields.map((f) => f.field);
     expect(flaecheFields).toEqual(['line1', 'accent', 'line3']);
+  });
+
+  it('schrumpft das Overlay, bis jede Headline-Zeile auf eine Zeile passt', () => {
+    // Die Box verengt das Satzmass auf 720 px; bei der Startgroesse von 118 px
+    // passen dort nur rund zwoelf Zeichen. Die Hoehenpruefung allein liess
+    // „Mehr Windkraft" umbrechen — vier Zeilen stehen vertikal noch bequem in
+    // der Box, aus dem Dreizeiler wurde ein Absatz.
+    const O = OVERLAY_AT_CONFIG;
+    const headline = (text: string) => ({
+      text,
+      fontSize: O.headline.fontSize,
+      fontFamily: O.headline.fontFamily,
+      fontStyle: O.headline.fontStyle,
+    });
+    const layout = calculateOverlayAtLayout([
+      headline('Mehr Windkraft'),
+      {
+        text: 'für Österreich',
+        fontSize: O.accent.fontSize,
+        fontFamily: O.accent.fontFamily,
+        fontStyle: O.accent.fontStyle,
+      },
+      headline('und für uns'),
+      {
+        text: '',
+        fontSize: O.subline.fontSize,
+        fontFamily: O.subline.fontFamily,
+        fontStyle: O.subline.fontStyle,
+      },
+    ]);
+
+    expect(layout.zones[0].fontSize).toBeLessThan(O.headline.fontSize);
+    const breite = measureTextWidthWithFont(
+      'Mehr Windkraft',
+      layout.zones[0].fontSize,
+      O.headline.fontFamily,
+      O.headline.fontStyle
+    );
+    expect(breite).toBeLessThanOrEqual(O.maxWidth);
   });
 });

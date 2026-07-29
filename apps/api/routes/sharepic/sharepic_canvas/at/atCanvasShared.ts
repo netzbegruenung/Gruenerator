@@ -247,12 +247,28 @@ export async function drawOverlayContent(ctx: Ctx, content: OverlayContent): Pro
     return { lines, sub, height };
   };
 
+  /**
+   * Jede Headline-Zone muss auf EINE Zeile passen — das Sujet ist ein
+   * Dreizeiler, eine umgebrochene Zone hat ihn schon zerstoert. Die Hoehe
+   * allein faengt das nicht ab: bei 118 px passen in die 720 px der Box nur
+   * rund zwoelf Zeichen, und vier oder fuenf Zeilen stehen vertikal noch
+   * bequem drin. Die Subline darf umbrechen, sie ist Fliesstext.
+   */
+  const headlinesFitOneLine = (scale: number): boolean => {
+    const size = Math.round(OVERLAY.baseFontSize * scale);
+    return zones.every((z) => {
+      if (!z.text) return true;
+      ctx.font = fontFor(z.kind, size).font;
+      return ctx.measureText(z.text).width <= OVERLAY.maxWidth;
+    });
+  };
+
   const minScale = OVERLAY.minFontSize / OVERLAY.baseFontSize;
   // The text has to share the padded box with the logo below it.
   const available = OVERLAY.box.height - 2 * OVERLAY.padding - OVERLAY.sublineGap - logoHeight;
   let scale = 1;
   let m = measure(scale);
-  while (m.height > available && scale > minScale) {
+  while ((m.height > available || !headlinesFitOneLine(scale)) && scale > minScale) {
     scale = Math.max(minScale, scale - 0.04);
     m = measure(scale);
   }
