@@ -7,6 +7,7 @@ import {
   visibleToolMentionables,
   visibleNotebookMentionables,
   filterMentionables,
+  getAllMentionables,
   setMentionLocale,
 } from './mentionables';
 
@@ -231,25 +232,19 @@ describe('locale-aware picker', () => {
   it('still RESOLVES a DE-only mention for an Austrian user', () => {
     setMentionLocale('de-AT');
     // Resolution is locale-agnostic by design so an old thread keeps rendering.
-    // Use @abgeordnetenwatch here, not @bundestag — see the slug-collision test
-    // below for why the latter does not resolve to the tool at all.
     expect(resolveMentionable('abgeordnetenwatch')?.identifier).toBe('abgeordnetenwatch');
   });
 
-  it('PRE-EXISTING: @bundestag resolves to the notebook, not the tool', () => {
+  it('@bundestag reaches the DIP tool, not the Landesverband notebook', () => {
     setMentionLocale('de-DE');
-    // `bundestagsfraktion-notebook` claims the alias `bundestag`, and
-    // `rebuildMentionableMap` registers notebooks BEFORE tools with first-wins.
-    // So the Bundestag TOOL mention is shadowed: picking it from the tool
-    // section inserts `@bundestag`, which the parser then resolves to a
-    // notebook and routes to `notebookIds` instead of `forcedTools` — the DIP
-    // intent is never forced.
-    //
-    // Not introduced by the registry (the slugs collided before it) and not
-    // fixed here, because which one SHOULD own `@bundestag` is a product call.
-    // Pinned so the day someone changes it, they change it on purpose.
-    expect(resolveMentionable('bundestag')?.type).toBe('notebook');
-    expect(resolveMentionable('bundestag')?.identifier).toBe('bundestagsfraktion-notebook');
+    // #2187 freed the slug: the notebook is @bundestagsfraktion now. Before that,
+    // notebooks were registered BEFORE tools with first-wins, so picking Bundestag
+    // from the tool section inserted @bundestag, which the parser resolved to a
+    // notebook and routed to `notebookIds` instead of `forcedTools`.
+    expect(resolveMentionable('bundestag')?.type).toBe('tool');
+    expect(resolveMentionable('bundestagsfraktion')?.identifier).toBe(
+      'bundestagsfraktion-notebook'
+    );
   });
 
   it('keeps DE Landesverband notebooks out of the Austrian picker', () => {
@@ -277,5 +272,33 @@ describe('locale-aware picker', () => {
     // read the raw array while only the plus menu applied the filter.
     expect(filterMentionables('bun').tools.map((m) => m.mention)).not.toContain('bundestag');
     expect(filterMentionables('').tools.map((m) => m.mention)).not.toContain('bundestag');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Slug uniqueness ACROSS sources. Each source (agents, notebooks, tools, boards,
+// docs, wolke, connect, canva, …) keeps its own slugs unique on its own; nothing
+// checked the union. `rebuildMentionableMap` is first-wins, so a later source
+// that reuses a slug is silently unreachable — the picker offers the entry, the
+// parser resolves it to a different one, and the turn routes somewhere else.
+//
+// That is exactly how the Bundestag tool mention stayed dead until #2187, whose
+// fix is a COMMENT in `notebooks/index.ts` asking the next author not to take
+// the slug back. This makes it a check instead.
+// ---------------------------------------------------------------------------
+describe('mentionable slug uniqueness across sources', () => {
+  it('every mentionable resolves to itself', () => {
+    setMentionLocale('de-DE');
+    const shadowed: string[] = [];
+    for (const m of getAllMentionables()) {
+      for (const slug of [m.mention, ...(m.aliases ?? [])]) {
+        const hit = resolveMentionable(slug);
+        if (hit === m) continue;
+        shadowed.push(
+          `@${slug} (${m.type}/${m.identifier}) resolves to ${hit?.type}/${hit?.identifier}`
+        );
+      }
+    }
+    expect(shadowed).toEqual([]);
   });
 });
