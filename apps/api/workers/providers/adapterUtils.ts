@@ -77,117 +77,215 @@ export function mergeMetadata(
   };
 }
 
+/** A block inside an array-shaped message. Deliberately loose: callers build
+ *  these by hand in Claude-ish, OpenAI-ish and internal shapes. */
+interface ContentPart {
+  type: string;
+  text?: string;
+  content?: unknown;
+  tool_use_id?: string;
+  tool_call_id?: string;
+  toolCallId?: string;
+  id?: string;
+  name?: string;
+  input?: unknown;
+  image_url?: { url: string };
+  source?: {
+    data?: string;
+    media_type?: string;
+    name?: string;
+    url?: string;
+    text?: string;
+  };
+}
+
+type ImagePart = { type: 'image'; image: Buffer | URL; mimeType?: string };
+type TextPart = { type: 'text'; text: string };
+
+function flattenToText(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return (content as ContentPart[]).map((c) => c.text || String(c.content ?? '')).join('\n');
+  }
+  return String(content ?? '');
+}
+
+/** An image block in either dialect, or null if this part is not an image. */
+function toImagePart(c: ContentPart): ImagePart | null {
+  if (c.type === 'image' && c.source?.data) {
+    const mimeType = c.source.media_type || 'image/png';
+    const base64 = c.source.data.replace(/^data:image\/[^;]+;base64,/, '');
+    return { type: 'image', image: Buffer.from(base64, 'base64'), mimeType };
+  }
+  if (c.type === 'image_url' && c.image_url?.url) {
+    const url = c.image_url.url;
+    const dataUri = url.match(/^data:(image\/[^;]+);base64,(.+)$/);
+    if (dataUri) {
+      return {
+        type: 'image',
+        image: Buffer.from(dataUri[2] as string, 'base64'),
+        mimeType: dataUri[1] as string,
+      };
+    }
+    if (!url.startsWith('data:')) return { type: 'image', image: new URL(url) };
+  }
+  return null;
+}
+
+/** A document block as text. PDFs go through OCR; anything else contributes
+ *  whatever text it carries, or a placeholder so the model knows it existed. */
+async function documentToText(c: ContentPart): Promise<string> {
+  const source = c.source;
+  if (!source) return '';
+  if (source.data && source.media_type === 'application/pdf') {
+    try {
+      const { ocrService } = await import('../../services/ocrService.js');
+      const result = await ocrService.extractTextFromBase64PDF(
+        source.data,
+        source.name || 'unknown.pdf'
+      );
+      return `[PDF-Inhalt: ${source.name || 'Unbekannt'}]\n\n${result.text}`;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return `[PDF-Dokument: ${source.name || 'Unbekannt'} - Text-Extraktion fehlgeschlagen: ${message}]`;
+    }
+  }
+  if (source.text) return source.text;
+  return `[Dokument: ${source.name || 'Unbekannt'}]`;
+}
+
 /**
- * Convert internal message format to AI SDK `ModelMessage[]`, preserving image
- * parts (base64 `source.data` and `image_url`). Shared by the OpenAI-compatible
- * adapters (Regolo, GreenPT).
+ * Convert the internal message shape to AI SDK `ModelMessage[]`.
+ *
+ * ONE converter for every provider. There used to be three, with three
+ * different capability sets, and which one ran was decided by the fallback
+ * chain rather than by the caller:
+ *
+ *   mistral  tool round-trips, base64 images, PDF→OCR — but not `image_url`
+ *   regolo   base64 images and `image_url` — but no tool round-trips
+ *   greenpt  (a copy of regolo)
+ *   litellm  text only: `c.text || c.content || ''`, so a document or image
+ *            block collapsed to an empty string
+ *
+ * The litellm case is the one that bites. `promptAssemblyGraph` builds
+ * `{type:'document'}` / `{type:'image'}` blocks, `PromptProcessor` hands them
+ * straight to the service, and litellm is the lane every unmapped `routeType`
+ * lands on — so attachments were dropped without a word, leaving blank lines
+ * where the material should have been.
+ *
+ * This is the union: every shape any of the three understood, understood by all.
  */
-export function convertMessagesWithImages(
+export async function convertMessages(
   messages: AIRequestData['messages'],
   systemPrompt?: string
-): { system: string | undefined; messages: ModelMessage[] } {
+): Promise<{ system: string | undefined; messages: ModelMessage[] }> {
   const systemParts: string[] = [];
   if (systemPrompt) systemParts.push(systemPrompt);
 
   const modelMessages: ModelMessage[] = [];
+  const done = (): { system: string | undefined; messages: ModelMessage[] } => ({
+    system: systemParts.length > 0 ? systemParts.join('\n\n') : undefined,
+    messages: modelMessages,
+  });
 
-  if (!messages) {
-    return {
-      system: systemParts.length > 0 ? systemParts.join('\n\n') : undefined,
-      messages: modelMessages,
-    };
-  }
+  if (!messages) return done();
 
   for (const msg of messages) {
     if (msg.role === 'system') {
-      const sysContent =
-        typeof msg.content === 'string'
-          ? msg.content
-          : Array.isArray(msg.content)
-            ? (msg.content as Array<{ text?: string; content?: string }>)
-                .map((c) => c.text || c.content || '')
-                .join('\n')
-            : String(msg.content);
-      systemParts.push(sysContent);
+      systemParts.push(flattenToText(msg.content));
       continue;
     }
 
     if (typeof msg.content === 'string') {
+      modelMessages.push({ role: msg.role as 'user' | 'assistant', content: msg.content });
+      continue;
+    }
+
+    if (!Array.isArray(msg.content)) {
       modelMessages.push({
         role: msg.role as 'user' | 'assistant',
-        content: msg.content,
+        content: String(msg.content ?? ''),
       });
       continue;
     }
 
-    if (Array.isArray(msg.content)) {
-      const contentParts = msg.content as Array<{
-        type: string;
-        text?: string;
-        content?: string;
-        source?: { data?: string; media_type?: string };
-        image_url?: { url: string };
-      }>;
+    const parts = msg.content as ContentPart[];
 
-      const hasImages = contentParts.some(
-        (c) =>
-          (c.type === 'image' && c.source?.data) || (c.type === 'image_url' && c.image_url?.url)
-      );
+    // Assistant turn that made tool calls — replayed so the model sees its own
+    // side of the exchange.
+    if (msg.role === 'assistant') {
+      const toolUses = parts.filter((c) => c.type === 'tool_use');
+      const text = parts
+        .filter((c) => c.type === 'text')
+        .map((c) => c.text || '')
+        .join('\n');
 
-      if (hasImages) {
-        const parts: Array<
-          { type: 'text'; text: string } | { type: 'image'; image: Buffer | URL; mimeType?: string }
-        > = [];
-
-        for (const c of contentParts) {
-          if (c.type === 'text') {
-            parts.push({ type: 'text', text: c.text || '' });
-          } else if (c.type === 'image' && c.source?.data) {
-            const mediaType = c.source.media_type || 'image/png';
-            const base64Data = c.source.data.replace(/^data:image\/[^;]+;base64,/, '');
-            parts.push({
-              type: 'image',
-              image: Buffer.from(base64Data, 'base64'),
-              mimeType: mediaType,
-            });
-          } else if (c.type === 'image_url' && c.image_url?.url) {
-            const url = c.image_url.url;
-            if (url.startsWith('data:')) {
-              const match = url.match(/^data:(image\/[^;]+);base64,(.+)$/);
-              if (match) {
-                parts.push({
-                  type: 'image',
-                  image: Buffer.from(match[2], 'base64'),
-                  mimeType: match[1],
-                });
-              }
-            } else {
-              parts.push({ type: 'image', image: new URL(url) });
-            }
-          }
-        }
-
-        modelMessages.push({ role: 'user', content: parts });
-        continue;
+      if (toolUses.length > 0) {
+        modelMessages.push({
+          role: 'assistant',
+          content: [
+            ...(text ? [{ type: 'text' as const, text }] : []),
+            ...toolUses.map((tc) => ({
+              type: 'tool-call' as const,
+              toolCallId: tc.id || '',
+              toolName: tc.name || '',
+              input: tc.input as Record<string, unknown>,
+            })),
+          ],
+        });
+      } else if (text) {
+        modelMessages.push({ role: 'assistant', content: text });
       }
-
-      const textContent = contentParts.map((c) => c.text || c.content || '').join('\n');
-
-      modelMessages.push({
-        role: msg.role as 'user' | 'assistant',
-        content: textContent,
-      });
       continue;
     }
 
-    modelMessages.push({
-      role: msg.role as 'user' | 'assistant',
-      content: String(msg.content),
-    });
+    // Tool results arrive on a user turn but are their own role for the SDK.
+    const toolResults = parts.filter((c) => c.type === 'tool_result');
+    if (toolResults.length > 0) {
+      for (const tr of toolResults) {
+        modelMessages.push({
+          role: 'tool',
+          content: [
+            {
+              type: 'tool-result' as const,
+              toolCallId: tr.tool_use_id || tr.tool_call_id || tr.toolCallId || tr.id || '',
+              toolName: tr.name || '', // matched by toolCallId when absent
+              output: {
+                type: 'text' as const,
+                value: typeof tr.content === 'string' ? tr.content : JSON.stringify(tr.content),
+              },
+            },
+          ],
+        });
+      }
+      continue;
+    }
+
+    const images = parts.map(toImagePart).filter((p): p is ImagePart => p !== null);
+    if (images.length > 0) {
+      const mixed: Array<TextPart | ImagePart> = [];
+      for (const c of parts) {
+        if (c.type === 'text') {
+          mixed.push({ type: 'text', text: c.text || '' });
+          continue;
+        }
+        const image = toImagePart(c);
+        if (image) mixed.push(image);
+      }
+      modelMessages.push({ role: 'user', content: mixed });
+      continue;
+    }
+
+    // Text and documents. Sequential rather than mapped: PDF OCR is the only
+    // async step and running a stack of them at once buys nothing.
+    const texts: string[] = [];
+    for (const c of parts) {
+      if (c.type === 'text') texts.push(c.text || '');
+      else if (c.type === 'document') texts.push(await documentToText(c));
+      else if (c.content != null) texts.push(String(c.content));
+    }
+    modelMessages.push({ role: 'user', content: texts.filter(Boolean).join('\n') });
   }
 
-  return {
-    system: systemParts.length > 0 ? systemParts.join('\n\n') : undefined,
-    messages: modelMessages,
-  };
+  return done();
 }
