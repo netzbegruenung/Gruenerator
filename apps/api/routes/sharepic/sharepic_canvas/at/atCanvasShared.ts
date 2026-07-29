@@ -111,6 +111,30 @@ export const ZITAT = {
   },
 } as const;
 
+/**
+ * Info-sujet geometry — mirrors INFO_AT_CONFIG in canvas-editor.
+ * Farbflaeche, Logo rechts oben, darunter mittig Introline, Infotext und eine
+ * gelbe Vollkorn-Schlusszeile. Alle drei schrumpfen um EINEN gemeinsamen
+ * Faktor, damit das Groessenverhaeltnis bei langem Text erhalten bleibt.
+ */
+export const INFO = {
+  margin: 160,
+  maxWidth: 760,
+  groupCenterRatio: 0.55,
+  topBoundary: 330,
+  bottomBoundary: 1250,
+  introFontSize: 52,
+  introLineHeightRatio: 1.25,
+  textFontSize: 118,
+  minTextFontSize: 70,
+  maxTextFontSize: 190,
+  /** Vollkorn sitzt im Zeilenkasten tiefer als Gotham — Differenz der Aufsteiger. */
+  accentLeadShiftRatio: -0.152,
+  lineHeightRatio: 0.95,
+  introGap: 20,
+  logo: { width: 150, margin: 70 },
+} as const;
+
 export function registerAtFonts(): void {
   registerFonts();
 }

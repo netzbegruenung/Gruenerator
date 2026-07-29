@@ -67,6 +67,13 @@ const TYPE_CONFIGS: Record<string, TypeConfig> = {
     // sentence is kept whole (sentence-safe trim), not chopped. Renderer auto-fits.
     maxLengths: { header: 65, subheader: 125, body: 300 },
   },
+  // Österreich: eigenes Sujet mit eigenen Feldern. Der Resolver unten wählt
+  // diesen Eintrag über dieselbe `<type>_at`-Konvention wie den Prompt.
+  info_at: {
+    fields: ['introline', 'text', 'akzent', 'suchbegriff'],
+    mainKey: 'mainInfo',
+    maxLengths: { introline: 40, text: 110, akzent: 26 },
+  },
   dreizeilen: {
     fields: ['zeile1', 'zeile2', 'zeile3', 'suchbegriff'],
     mainKey: 'mainSlogan',
@@ -108,6 +115,12 @@ function mapToResponseFormat(
   data: Record<string, string>
 ): Record<string, unknown> | string {
   switch (type) {
+    case 'info_at':
+      return {
+        introline: data.introline,
+        text: data.text,
+        accent: data.akzent,
+      };
     case 'info':
       return {
         header: data.header,
@@ -188,17 +201,25 @@ export async function generateUnifiedTexts(
   type: string,
   body: UnifiedTextBody
 ): Promise<UnifiedTextResult> {
-  const config = TYPE_CONFIGS[type];
+  // de-AT prefers a locale-specific prompt where one exists, by the `<type>_at`
+  // convention. Falls back to the German prompt so a missing AT variant is a
+  // silent no-op rather than a 400.
+  const atKey = `${type}_at`;
+  const useAt = body.userLocale === 'de-AT' && atKey in prompts;
+  const promptKey = useAt ? atKey : type;
+  // Die Feldliste folgt derselben Konvention, aber nur wo es eine gibt: der
+  // AT-Dreizeiler hat dieselben Felder wie der deutsche und braucht keine.
+  // Das AT-Info-Sujet dagegen liefert Introline/Text/Akzent statt
+  // Header/Subheader/Body — ohne diesen Schritt liefe es gegen die deutsche
+  // Feldliste und der Parser fände nichts.
+  const configKey = useAt && atKey in TYPE_CONFIGS ? atKey : type;
+
+  const config = TYPE_CONFIGS[configKey];
   if (!config) {
     return { success: false, status: 400, error: `Unknown type: ${type}` };
   }
 
   const { thema, details, quote, name, count = 1 } = body;
-  // de-AT prefers a locale-specific prompt where one exists, by the `<type>_at`
-  // convention. Falls back to the German prompt so a missing AT variant is a
-  // silent no-op rather than a 400.
-  const atKey = `${type}_at`;
-  const promptKey = body.userLocale === 'de-AT' && atKey in prompts ? atKey : type;
   const rawPromptConfig = body._campaignPrompt || prompts[promptKey as keyof typeof prompts];
 
   if (!rawPromptConfig) {
@@ -312,8 +333,10 @@ export async function generateUnifiedTexts(
           return processedData;
         });
 
-        mainData = mapToResponseFormat(type, processedResults[0]);
-        alternatives = processedResults.slice(1).map((data) => mapToResponseFormat(type, data));
+        mainData = mapToResponseFormat(configKey, processedResults[0]);
+        alternatives = processedResults
+          .slice(1)
+          .map((data) => mapToResponseFormat(configKey, data));
         searchTerms = processedResults.flatMap((data) =>
           data.suchbegriff ? [data.suchbegriff] : []
         );
@@ -339,7 +362,7 @@ export async function generateUnifiedTexts(
           processedData[key] = processed;
         }
 
-        mainData = mapToResponseFormat(type, processedData);
+        mainData = mapToResponseFormat(configKey, processedData);
         searchTerms = processedData.suchbegriff ? [processedData.suchbegriff] : [];
       }
 
