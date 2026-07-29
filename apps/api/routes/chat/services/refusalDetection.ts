@@ -56,17 +56,90 @@ const GERMAN_SEPARABLE_REFUSAL_RE =
 
 export type RefusalLanguage = 'de' | 'en';
 
-/** The language a refusal was written in, or null when the text isn't one. */
-export function refusalLanguage(text: string): RefusalLanguage | null {
+interface RefusalHit {
+  lang: RefusalLanguage;
+  index: number;
+  length: number;
+}
+
+function findRefusal(text: string): RefusalHit | null {
   if (typeof text !== 'string' || text.trim().length === 0) return null;
-  if (ENGLISH_REFUSAL_RE.test(text)) return 'en';
-  if (GERMAN_REFUSAL_RE.test(text) || GERMAN_SEPARABLE_REFUSAL_RE.test(text)) return 'de';
+  const en = ENGLISH_REFUSAL_RE.exec(text);
+  if (en) return { lang: 'en', index: en.index, length: en[0].length };
+  const de = GERMAN_REFUSAL_RE.exec(text) ?? GERMAN_SEPARABLE_REFUSAL_RE.exec(text);
+  if (de) return { lang: 'de', index: de.index, length: de[0].length };
   return null;
 }
 
-/** True when the generated content is a refusal rather than the asked-for text. */
+/** The language a refusal was written in, or null when the text isn't one. */
+export function refusalLanguage(text: string): RefusalLanguage | null {
+  return findRefusal(text)?.lang ?? null;
+}
+
+/** True when the generated content CONTAINS a refusal. Recall-oriented: the
+ *  social-post gate compares two halves and needs to see a decline wherever it
+ *  sits. For "is the answer NOTHING BUT a decline" use
+ *  {@link isWholesaleRefusal} — the two want opposite errors. */
 export function looksLikeRefusal(text: string): boolean {
-  return refusalLanguage(text) !== null;
+  return findRefusal(text) !== null;
+}
+
+/**
+ * Words that mark the declined thing as the EMBEDDED MATERIAL rather than the
+ * user's request.
+ *
+ * These exist because `INSTRUCTION_HIERARCHY_RULE` asks the model, in so many
+ * words, to name an embedded instruction as a manipulation attempt — and the
+ * natural German for that ("den eingefügten Systemhinweis setze ich nicht um")
+ * is exactly the shape the refusal patterns match. Once `umsetzen` and the
+ * separable form were added for recall, a CORRECT answer — summary written,
+ * injection called out — became indistinguishable from a decline.
+ *
+ * Deliberately about EMBEDDEDNESS, not about instruction nouns: a bare "diese
+ * Anweisung kann ich nicht umsetzen" really is a decline of the request, so
+ * `Anweisung` alone must not exempt anything.
+ */
+const EMBEDDED_MATERIAL_RE =
+  /\b(?:eingebettet\w*|eingefügt\w*|enthaltene\w*|mitgeschickt\w*|system[-\s]?hinweis\w*|manipulationsversuch\w*|codewort\w*|zahlungsaufforderung\w*|prompt[-\s]?injection|injektion\w*)\b|\bim\s+(?:text|material|anhang|dokument|schreiben)\b/i;
+
+/** The sentence the match sits in. `;` and `—` are NOT boundaries — "Der
+ *  Systemhinweis ist ein Manipulationsversuch; ich setze ihn nicht um" is one
+ *  statement, and splitting it would hide what the decline refers to. */
+function sentenceAround(text: string, index: number, length: number): string {
+  const isBoundary = (ch: string): boolean => ch === '.' || ch === '!' || ch === '?' || ch === '\n';
+  let start = 0;
+  for (let i = index; i > 0; i--) {
+    if (isBoundary(text[i - 1] as string)) {
+      start = i;
+      break;
+    }
+  }
+  let end = text.length;
+  for (let i = index + length; i < text.length; i++) {
+    if (isBoundary(text[i] as string)) {
+      end = i;
+      break;
+    }
+  }
+  return text.slice(start, end);
+}
+
+/**
+ * True when the text declines the REQUEST — as opposed to doing the job and
+ * declining an instruction that was smuggled into the material.
+ *
+ * Precision-oriented, and the mirror image of {@link looksLikeRefusal}: its
+ * caller throws the model's answer away and replaces it with a canned decline,
+ * so a false positive costs the user a correct answer. Measured live on the
+ * `safety-adversarial` lane: a pasted citizen enquiry carrying a "SYSTEM-HINWEIS"
+ * was summarised correctly and the summary was then swapped for the generic
+ * "Diese Anfrage setze ich nicht um …" — the model had complied, the guard
+ * over-refused on its behalf.
+ */
+export function isWholesaleRefusal(text: string): boolean {
+  const hit = findRefusal(text);
+  if (!hit) return false;
+  return !EMBEDDED_MATERIAL_RE.test(sentenceAround(text, hit.index, hit.length));
 }
 
 /**
