@@ -686,6 +686,17 @@ export const CHAT_WARNINGS = {
     severity: 'warning',
     attribution: 'user',
   },
+  // Rug pull: a connected MCP server changed its tool DEFINITIONS since the
+  // user approved them, so its tools were withheld from the model. `error`,
+  // not `warning` — the user connected that server expecting it to work, and
+  // the remedy (re-approve in settings) is theirs. The concrete server and tool
+  // names arrive via messageOverride.
+  mcp_tools_drifted: {
+    message:
+      'Ein verbundener MCP-Server hat seine Werkzeug-Beschreibungen seit der Freigabe geändert — seine Werkzeuge wurden nicht verwendet.',
+    severity: 'error',
+    attribution: 'user',
+  },
   wolke_check_failed: {
     message: 'Die Wolke-Verbindung konnte nicht geprüft werden.',
     severity: 'warning',
