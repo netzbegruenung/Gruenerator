@@ -40,6 +40,16 @@ const BEFORE: Row[] = [
     audience: 'all',
     aliases: ['websearch'],
   },
+  // Variant mention of `research`, added with the @deepresearch gate: same intent,
+  // same routing, but the only token that authorises Linkup's paid dossier
+  // endpoint. It sorts right behind @recherche by TOOL_MENTION_ORDER.
+  {
+    identifier: 'deepresearch',
+    mention: 'deepresearch',
+    title: 'Tiefenrecherche',
+    audience: 'all',
+    aliases: ['tiefenrecherche', 'dossier'],
+  },
   { identifier: 'search', mention: 'dokumente', title: 'Dokumente', audience: 'all' },
   {
     identifier: 'hilfe',
@@ -236,20 +246,25 @@ describe('locale-aware picker', () => {
     expect(resolveMentionable('abgeordnetenwatch')?.identifier).toBe('abgeordnetenwatch');
   });
 
-  it('PRE-EXISTING: @bundestag resolves to the notebook, not the tool', () => {
+  it('@bundestag resolves to the DIP tool, and the notebook keeps its own alias', () => {
     setMentionLocale('de-DE');
-    // `bundestagsfraktion-notebook` claims the alias `bundestag`, and
-    // `rebuildMentionableMap` registers notebooks BEFORE tools with first-wins.
-    // So the Bundestag TOOL mention is shadowed: picking it from the tool
-    // section inserts `@bundestag`, which the parser then resolves to a
-    // notebook and routes to `notebookIds` instead of `forcedTools` — the DIP
-    // intent is never forced.
+    // History: `bundestagsfraktion-notebook` used to claim the alias `bundestag`,
+    // and `rebuildMentionableMap` registers notebooks BEFORE tools with
+    // first-wins — so the Bundestag TOOL mention was shadowed. Picking it from
+    // the tool section inserted `@bundestag`, which the parser then resolved to a
+    // notebook and routed to `notebookIds` instead of `forcedTools`, so the DIP
+    // intent was never forced.
     //
-    // Not introduced by the registry (the slugs collided before it) and not
-    // fixed here, because which one SHOULD own `@bundestag` is a product call.
-    // Pinned so the day someone changes it, they change it on purpose.
-    expect(resolveMentionable('bundestag')?.type).toBe('notebook');
-    expect(resolveMentionable('bundestag')?.identifier).toBe('bundestagsfraktion-notebook');
+    // Resolved in the notebook registry, which now says `alias:
+    // 'bundestagsfraktion'` with an explicit "NICHT 'bundestag': diesen Alias
+    // beansprucht das DIP-Tool". Both directions are pinned here so neither side
+    // can reclaim the other's slug by accident.
+    expect(resolveMentionable('bundestag')?.type).toBe('tool');
+    expect(resolveMentionable('bundestag')?.identifier).toBe('bundestag');
+    expect(resolveMentionable('bundestagsfraktion')?.type).toBe('notebook');
+    expect(resolveMentionable('bundestagsfraktion')?.identifier).toBe(
+      'bundestagsfraktion-notebook'
+    );
   });
 
   it('keeps DE Landesverband notebooks out of the Austrian picker', () => {
