@@ -1,5 +1,5 @@
+import { env } from '../../config/env.js';
 import * as providers from '../../workers/providers/index.js';
-import config from '../../workers/worker.config.js';
 import * as providerFallback from '../providers/providerFallback.js';
 import * as providerSelector from '../providers/providerSelector.js';
 
@@ -11,6 +11,16 @@ import type {
   AIWorkerPool,
 } from '../../workers/types.js';
 import type { ProviderName, FallbackProviderData } from '../providers/types.js';
+
+/**
+ * Wall clock for one generation, fallback chain included. The only setting the
+ * retired `worker.config.ts` ever had an effect through — the ~18 others it
+ * exposed (rate limits, retry counts, debug flags) were read by nobody.
+ *
+ * It does not cancel the provider request: `generateText` gets no signal, so a
+ * timeout here resolves the promise and leaves the HTTP call running.
+ */
+const REQUEST_TIMEOUT_MS = env.REQUEST_TIMEOUT;
 
 const SHAREPIC_TYPES = [
   'sharepic_dreizeilen',
@@ -34,7 +44,7 @@ class AIService implements AIWorkerPool {
     requestId: string,
     data: AIRequestData
   ): Promise<AIWorkerResult> {
-    const timeoutMs = config.worker.requestTimeout;
+    const timeoutMs = REQUEST_TIMEOUT_MS;
 
     return new Promise<AIWorkerResult>((resolve, reject) => {
       const timeout = setTimeout(() => {

@@ -1,9 +1,17 @@
 /**
- * Structured classification of AI-provider failures. Errors that cross the
- * worker-thread boundary lose their class/status (only strings survive
- * postMessage), so the worker classifies BEFORE posting and the pool
- * reconstructs an AiProviderError the route layer can branch on —
- * retryable vs not, rate-limit vs invalid request.
+ * Structured classification of AI-provider failures, so the route layer can
+ * branch on retryable vs not, rate-limit vs invalid request — see the taxonomy
+ * `sseHelpers` emits.
+ *
+ * This existed because errors crossing the `worker_threads` boundary lost their
+ * class and status (only strings survive `postMessage`): the worker classified
+ * before posting, the pool rebuilt an `AiProviderError`. That pool is gone, and
+ * with it the single place `AiProviderError` was ever CONSTRUCTED — so every
+ * provider failure currently reaches the client as a bare `internal`.
+ *
+ * `classifyProviderError` is therefore momentarily without a caller. It gets one
+ * back in the next commit, at the boundary in `services/ai/aiService.ts`, which
+ * is where classification belongs now that there is no boundary to cross.
  */
 
 import { APICallError } from 'ai';
