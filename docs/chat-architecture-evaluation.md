@@ -107,7 +107,7 @@ Wir fahren `ai@7.0.37` und nutzen einen erstaunlich kleinen Teil davon.
 |---|---|
 | **`activeTools`** (stabil, in `prepareStep` **pro Step** überschreibbar) | Der Katalog wird heute pro Turn neu gebaut (`buildChatToolCatalog`, 441 Z.). Genau das ist der „per-turn catalog selector = Phase 3n"-TODO in `toolCatalog.ts:28`, `domainTools.ts:16`, `agenticLoop/routing.ts:122` |
 | **`toolsContext` + `contextSchema` pro Tool** | Tools **einmal auf Modulebene** definierbar; Request-Werte kommen als typisiertes `context` in `execute`. Ein Tool sieht nur seinen eigenen Context — `runtimeContext` erreicht `execute` **nicht** (nur `prepareStep`, Lifecycle-Callbacks, `toolApproval`) |
-| **`timeout: { totalMs, stepMs, firstChunkMs, chunkMs, toolMs, tools: {…} }`** | `withTimeout` pro Tool (`wrapTools.ts:99-120`) und möglicherweise `createIdleDeadline` — `chunkMs` ist ausdrücklich Idle-Erkennung |
+| **`timeout: { totalMs, stepMs, firstChunkMs, chunkMs }`** | Möglicherweise `createIdleDeadline` — `chunkMs` ist ausdrücklich Idle-Erkennung. **`toolMs` ersetzt `withTimeout` ausdrücklich NICHT — siehe §4.4** |
 | **Natives `toolApproval`** (HMAC-signiert, Replay-Fix in 7.0.36) | Unser HITL (`confirmActionService` + `pendingActionStore` + `resumePipeline`) mit hartkodiertem 6er-Enum. **`agents/langgraph/streamingProcessor.ts:372` verwirft den nativen `tool-approval-request`-Chunk ausdrücklich** |
 | **Subagent-Muster** | `agent.generate()` in ein `tool()` wickeln, `toModelOutput` formt, was das Elternmodell sieht. Kontext-Isolation + kompakte Übergabe ohne zweite Runtime |
 | `hasToolCall` als `stopWhen` | `forceFinish()`/`forcedToolForStep()`-Closures durch `LoopEngineParams` |
@@ -126,6 +126,18 @@ Wir fahren `ai@7.0.37` und nutzen einen erstaunlich kleinen Teil davon.
 - **`toModelOutput`:** das rohe `execute()`-Ergebnis bleibt unangetastet in `step.toolResults`; gekürzt wird erst beim Bau der nächsten Modell-Nachricht.
 
 > **Korrektur einer früheren Fehleinschätzung:** `agenticLoop/truncate.ts` zerstört **keine** Daten. `recordStep` und `sendResult` bekommen bereits das volle Ergebnis; nur der Rückgabewert ans Modell wird gekürzt. `wrapTools.vitest.ts:185-197` pinnt genau das. Ein Wechsel auf `toModelOutput` wäre Kosmetik, kein Datenverlust-Fix.
+
+### 4.4 `timeout.toolMs` ersetzt `withTimeout` nicht — nachgelesen, nicht angenommen
+
+Dieses Papier hat in einer früheren Fassung `toolMs` als Ersatz für den handgeschriebenen Tool-Timeout (`wrapTools.ts`) geführt. Die Umsetzung in PR #2151 hat das widerlegt; der Befund gehört hierher, weil er sonst beim nächsten Anlauf erneut bezahlt wird.
+
+**`toolMs` ist kooperativ, nicht erzwingend.** Gegen `ai@7.0.37` gelesen (`node_modules/ai/dist/index.js` ~:2918): das SDK reicht den Wert an `mergeAbortSignals` weiter, macht daraus ein `AbortSignal.timeout(ms)`, merged es in `options.abortSignal` des Tools — und `await`et dann schlicht das Tool. **Es gibt keinen Timer, der das `await` überholt.** Ein Tool, das das Signal nie liest, läuft unbegrenzt weiter.
+
+Bei uns liest es **keines**: keine einzige `execute`-Implementierung in `agents/searchTools.ts`, `agents/domainTools.ts` und den übrigen Katalogen deklariert überhaupt den zweiten `options`-Parameter. Der Tausch wäre ein stiller No-op gewesen, der die einzige harte Schranke gegen einen hängenden Tool-Aufruf entfernt.
+
+Zweitens ist die **Platzierung** load-bearing, unabhängig von der Erzwingungsfrage: Die Ablehnung wird im Wrapper zu `{ error }`, und genau das lässt einen Timeout als Fehlschlag zählen (`noteFailure` → `MAX_FAILURES_PER_TOOL`), den Schritt via `recordStep` persistieren und die Tool-Karte via `sendResult` schließen. Ein Abbruch von außen überspränge alle drei — die Karte im UI drehte sich für immer weiter.
+
+**Verallgemeinerung:** Bei SDK-Fähigkeiten, die einen Eigenbau ersetzen sollen, ist die Frage nie „gibt es die Option?", sondern „erzwingt sie dasselbe, und an derselben Stelle?". Die Optionsliste in §4.2 ist eine Kandidatenliste, kein Auftrag.
 
 ---
 
@@ -160,7 +172,7 @@ Grenze, die man mitdokumentieren muss: das erkennt Mutation von Beschreibung, In
 | Mistral-Adapter baut `maxRetries` nach | `workers/providers/mistralAdapter.ts:280-404` |
 | GreenPT-Reasoning geht verloren | `workers/providers/greenptAdapter.ts` |
 | Dritte Kopie des Forced-Tool-Call-Musters | `routes/canvas/services/runCanvasSuggest.ts` |
-| Tool-Timeout handgebaut | `agenticLoop/wrapTools.ts:99-120` |
+| ~~Tool-Timeout handgebaut~~ — **geprüft und verworfen**, siehe §4.4 | `agenticLoop/wrapTools.ts` |
 | Artefakte reparieren sich nicht selbst | `services/pdf/PdfGenerationService.ts:163` → `artifactKinds.ts:81-85` (`successText` teilt Mängel mit, repariert nicht) |
 
 ### Tier 2 — je eine Entscheidung dran
