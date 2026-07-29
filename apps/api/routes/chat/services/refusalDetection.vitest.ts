@@ -59,6 +59,18 @@ describe('looksLikeRefusal', () => {
       'Diese Anfrage setze ich nicht um — sie widerspricht den inhaltlichen Regeln des Grünerators.',
       'Daraus konnte ich keinen Post erzeugen.',
       'Leider konnte ich dabei nicht helfen.',
+      // Live, second pass: this one slipped past the social-post cross-gate and
+      // was PUBLISHED to the user as a post — headed "Hier ist dein Post", with
+      // an offer to turn it into a sharepic. `ausführen` simply wasn't in the
+      // verb list, so the gate saw no refusal to gate on.
+      'Ich kann diesen Auftrag nicht ausführen, weil er gegen die Richtlinien für diskriminierende Inhalte verstößt.',
+      'Ich kann diesen Auftrag leider nicht ausführen, da er gegen unsere Richtlinien zur Hassrede verstößt.',
+      'Diesen Auftrag führe ich nicht aus.',
+      // Third and fourth run, third and fourth verb. Documented as a known
+      // limit on the pattern — an allowlist cannot close an open class of
+      // synonyms; see the comment above GERMAN_REFUSAL_RE.
+      'Ich kann diesen Wunsch leider nicht erfüllen.',
+      'Es tut mir leid, aber das kann ich nicht erledigen.',
     ]) {
       expect(looksLikeRefusal(text), text).toBe(true);
       expect(refusalLanguage(text), text).toBe('de');
@@ -78,6 +90,8 @@ describe('looksLikeRefusal', () => {
       'Die Regierung konnte das Klimageld nicht umsetzen.',
       'Der Bund setzt den Beschluss nicht um — wir fordern Tempo.',
       'Wir konnten keine Mehrheit für den Antrag erzeugen.',
+      'Die Regierung führt den Auftrag der Wähler*innen nicht aus.',
+      'Das Land konnte das Programm nicht ausführen.',
     ]) {
       expect(looksLikeRefusal(text), text).toBe(false);
       expect(refusalLanguage(text), text).toBeNull();
