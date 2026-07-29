@@ -113,9 +113,14 @@ export async function imageNode(state: ChatGraphState): Promise<Partial<ChatGrap
       typeof lastUserMessage?.content === 'string'
         ? lastUserMessage.content
         : JSON.stringify(lastUserMessage?.content || '');
-    // A referential follow-up ("mach ein Bild dazu") inherits the prior turn's
-    // subject instead of generating an image about the bare instruction.
-    const userContent = resolveReferentialTopic(rawUserContent, messages).text;
+    // A referential follow-up ("mach ein Bild dazu") names no subject; the
+    // classifier resolved one against the history, with the heuristic as
+    // fallback for turns that never reached the LLM. Deliberately topic ONLY —
+    // an image prompt gets worse, not better, from a conversation transcript,
+    // which is why this path stays out of the background briefing the
+    // text-producing artifacts get.
+    const userContent =
+      state.creationTopic || resolveReferentialTopic(rawUserContent, messages).text;
 
     // Get user ID from agent config for rate limiting
     // Note: userId is passed through agentConfig.userId or extracted from request context

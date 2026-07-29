@@ -1,7 +1,8 @@
 /**
  * Dreizeilen AT napi-canvas renderer (Österreich / de-AT).
  * Dunkelgrüne Fläche, dreizeilige Headline (Zeile 1+3 weiß Gotham, Zeile 2 gelb
- * Vollkorn), weißes Ein-Balken-Logo. Mirrors dreizeilen_at_full.config.
+ * Vollkorn). Ohne Logo — die CI setzt die Fläche als reine Typografie.
+ * Mirrors dreizeilen_at_full.config.
  */
 import { createCanvas, type Canvas, type SKRSContext2D as Ctx } from '@napi-rs/canvas';
 import { Router, type Request, type Response } from 'express';
@@ -14,13 +15,7 @@ import {
 import { isValidHexColor } from '../../../../services/sharepic/canvas/utils.js';
 import { createLogger } from '../../../../utils/logger.js';
 
-import {
-  AT_BRAND,
-  CANVAS,
-  registerAtFonts,
-  drawHeadlineStack,
-  drawAtLogo,
-} from './atCanvasShared.js';
+import { AT_BRAND, CANVAS, registerAtFonts, drawHeadlineStack } from './atCanvasShared.js';
 
 const log = createLogger('dreizeilen_at_canv');
 const router: Router = Router();
@@ -34,12 +29,7 @@ interface Body {
   backgroundColor?: string;
 }
 
-async function render(
-  line1: string,
-  line2: string,
-  line3: string,
-  backgroundColor: string
-): Promise<Buffer> {
+function render(line1: string, line2: string, line3: string, backgroundColor: string): Buffer {
   registerAtFonts();
   const canvas: Canvas = createCanvas(CANVAS.width, CANVAS.height);
   const ctx: Ctx = canvas.getContext('2d');
@@ -56,7 +46,6 @@ async function render(
     ],
     'left'
   );
-  await drawAtLogo(ctx, 'left');
 
   return canvas.toBuffer('image/png');
 }
@@ -70,7 +59,7 @@ router.post('/', upload.single('image'), async (req: Request, res: Response): Pr
       return;
     }
     const bg = isValidHexColor(backgroundColor) ? backgroundColor! : AT_BRAND.primary;
-    const raw = await render((line1 ?? '').trim(), mid, (line3 ?? '').trim(), bg);
+    const raw = render((line1 ?? '').trim(), mid, (line3 ?? '').trim(), bg);
     const optimized = await optimizeCanvasBuffer(raw);
     res.json({ image: bufferToBase64(optimized) });
   } catch (err) {

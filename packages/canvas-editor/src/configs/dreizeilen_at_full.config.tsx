@@ -2,7 +2,8 @@
  * Dreizeilen AT Full Canvas Configuration (Österreich / de-AT)
  *
  * Dreizeilige Headline auf dunkelgrüner Fläche (CI 2026): Zeile 1 + 3 weiß
- * (Gotham Ultra), Zeile 2 gelbe Vollkorn-Betonung, weißes Ein-Balken-Logo.
+ * (Gotham Ultra), Zeile 2 gelbe Vollkorn-Betonung. Ohne Logo — die CI setzt
+ * die Fläche als reine Typografie; das Logo trägt die Overlay-Variante.
  *
  * Built on createColorTwoTextCanvas (line1 + line3) plus a third editable
  * accent zone (line2, textKey 'accent').
@@ -10,6 +11,7 @@
 
 import { getBrandTheme } from '../brand/theme';
 import { HEADLINE_AT_CONFIG, calculateHeadlineAtLayout } from '../utils/headlineAtLayout';
+import { getPlaceholder } from './placeholders';
 
 import {
   createAiCapabilities,
@@ -22,7 +24,7 @@ import {
   type ColorTwoTextState,
 } from './factory';
 
-import type { ImageElementConfig, LayoutResult, TextElementConfig } from './types';
+import type { FullCanvasConfig, LayoutResult, TextElementConfig } from './types';
 
 const AT = getBrandTheme('de-AT');
 const H = HEADLINE_AT_CONFIG;
@@ -70,7 +72,6 @@ const calculateLayout = (state: DreizeilenAtState): LayoutResult => {
       width: H.maxWidth,
       fontSize: state.customSecondaryFontSize ?? z3.fontSize,
     },
-    logo: { x: H.logo.x, y: H.logo.y, width: H.logo.width, height: H.logo.height },
     _meta: { fontColor: AT.colors.textOnDark } as Record<string, unknown>,
   };
 };
@@ -121,18 +122,6 @@ const line3Element = createSecondaryText<DreizeilenAtState>({
   layoutFallback: { x: LEFT_X, y: 600, fontSize: H.headline.fontSize },
 });
 
-const logoElement: ImageElementConfig<DreizeilenAtState> = {
-  id: 'logo',
-  type: 'image',
-  x: fromLayout('logo', 'x', H.logo.x),
-  y: fromLayout('logo', 'y', H.logo.y),
-  order: 5,
-  width: H.logo.width,
-  height: H.logo.height,
-  src: H.logo.src,
-  draggable: true,
-};
-
 const baseDreizeilenAtConfig = createColorTwoTextCanvas({
   id: 'dreizeilen-at',
   canvas: { width: H.canvas.width, height: H.canvas.height },
@@ -143,7 +132,7 @@ const baseDreizeilenAtConfig = createColorTwoTextCanvas({
   textColorMap: AT.textColorMap,
   calculateLayout,
   passthroughStateKeys: ['accent'],
-  elements: [line1Element, accentElement, line3Element, logoElement],
+  elements: [line1Element, accentElement, line3Element],
   features: { icons: true, shapes: true, illustrations: true },
   getCanvasText: (state) => {
     const line1 = state.line1 || '';
@@ -153,21 +142,72 @@ const baseDreizeilenAtConfig = createColorTwoTextCanvas({
   },
 });
 
-const dreizeilenAtAiCapabilities = createAiCapabilities<DreizeilenAtState, ColorTwoTextActions>({
-  id: 'dreizeilen-at',
-  errorLabel: '3 Zeilen (AT)',
-  fields: [
-    { field: 'line1', label: 'Zeile 1', read: (s) => s.line1 || '', setter: (a) => a.setPrimary },
-    { field: 'line3', label: 'Zeile 3', read: (s) => s.line3 || '', setter: (a) => a.setSecondary },
-  ],
-  background: { read: (s) => s.backgroundColor as `#${string}` },
-});
+/**
+ * The factory owns exactly two text fields, but the sujet has three. The gelbe
+ * Betonungszeile therefore needs its own setter — without one it stayed absent
+ * from the AI capabilities below, so the Studio's AI panel could rewrite lines
+ * 1 and 3 but never the emphasis line that carries the message.
+ */
+export interface DreizeilenAtFullActions extends ColorTwoTextActions {
+  setAccent: (val: string) => void;
+}
+
+const dreizeilenAtConfig: FullCanvasConfig<DreizeilenAtState, DreizeilenAtFullActions> = {
+  ...baseDreizeilenAtConfig,
+  // The factory seeds only its own two fields, so a new page came up with two
+  // white lines and no gelbe Betonung at all.
+  multiPage: {
+    enabled: true,
+    maxPages: baseDreizeilenAtConfig.multiPage?.maxPages ?? 10,
+    heterogeneous: true,
+    defaultNewPageState: {
+      ...baseDreizeilenAtConfig.multiPage?.defaultNewPageState,
+      accent: getPlaceholder('accent'),
+    } as Partial<DreizeilenAtState>,
+  },
+  createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => ({
+    ...baseDreizeilenAtConfig.createActions(
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory,
+      callbacks
+    ),
+    setAccent: (val: string) => {
+      setState({ accent: val } as Partial<DreizeilenAtState>);
+      callbacks.onAccentChange?.(val);
+      debouncedSaveToHistory(getState());
+    },
+  }),
+};
+
+const dreizeilenAtAiCapabilities = createAiCapabilities<DreizeilenAtState, DreizeilenAtFullActions>(
+  {
+    id: 'dreizeilen-at',
+    errorLabel: '3 Zeilen (AT)',
+    fields: [
+      { field: 'line1', label: 'Zeile 1', read: (s) => s.line1 || '', setter: (a) => a.setPrimary },
+      {
+        field: 'accent',
+        label: 'Zeile 2 (Betonung)',
+        read: (s) => (s.accent as string) || '',
+        setter: (a) => a.setAccent,
+      },
+      {
+        field: 'line3',
+        label: 'Zeile 3',
+        read: (s) => s.line3 || '',
+        setter: (a) => a.setSecondary,
+      },
+    ],
+    background: { read: (s) => s.backgroundColor as `#${string}` },
+  }
+);
 
 export const dreizeilenAtFullConfig = wrapWithAi(
-  baseDreizeilenAtConfig,
+  dreizeilenAtConfig,
   'dreizeilen-at',
   dreizeilenAtAiCapabilities
 );
 
 export type DreizeilenAtFullState = DreizeilenAtState;
-export type { ColorTwoTextActions as DreizeilenAtFullActions } from './factory';
