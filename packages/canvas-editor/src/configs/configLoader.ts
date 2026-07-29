@@ -23,8 +23,7 @@ type CanvasConfigType =
   | 'slider'
   | 'freeform'
   | 'profilbild'
-  // Österreich (de-AT) variants
-  | 'info-at'
+  // Österreich (de-AT) variants — kein Info-Sujet, das gibt es nur für de-DE
   | 'zitat-at'
   | 'zitat-pure-at'
   | 'dreizeilen-at'
@@ -75,9 +74,6 @@ export async function loadCanvasConfig(type: CanvasConfigType): Promise<AnyCanva
     case 'zitat-at':
       return (await import('./zitat_at_full.config')).zitatAtFullConfig;
 
-    case 'info-at':
-      return (await import('./info_at_full.config')).infoAtFullConfig;
-
     case 'dreizeilen-at':
       return (await import('./dreizeilen_at_full.config')).dreizeilenAtFullConfig;
 
@@ -103,7 +99,6 @@ export function isValidCanvasType(type: string): type is CanvasConfigType {
     'slider',
     'freeform',
     'profilbild',
-    'info-at',
     'zitat-at',
     'zitat-pure-at',
     'dreizeilen-at',

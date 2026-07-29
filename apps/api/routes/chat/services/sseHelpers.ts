@@ -170,6 +170,11 @@ export interface SSEEventPayloads {
     message: string;
     variants: SharepicVariant[];
     error?: string;
+    /** No variants because the model DECLINED on content grounds, not because
+     *  generation failed; `message` carries the German reason. Deliberately
+     *  distinct from `error` — a decline is the safety rules working, and
+     *  reporting it as a failure invites the user to simply retry. */
+    declined?: boolean;
   };
   sharepic_minted: { variantId: string; canvasId: string };
   sharepic_updated: {

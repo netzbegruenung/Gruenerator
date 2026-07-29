@@ -92,7 +92,6 @@ import backgroundRemovalRoute from './routes/sharepic/backgroundRemoval.js';
 import editSessionRouter from './routes/sharepic/editSession.js';
 import promptRoute from './routes/sharepic/promptRoute.js';
 import dreizeilenAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/dreizeilen_at_canvas.js';
-import infoAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/info_at_canvas.js';
 import zitatAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/zitat_at_canvas.js';
 import zitatPureAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/zitat_pure_at_canvas.js';
 import campaignCanvasRoute from './routes/sharepic/sharepic_canvas/campaign_canvas.js';
@@ -497,7 +496,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   );
   app.use('/api/info_canvas', standardMutationLimiter, requireAuth, infoSharepicCanvasRoute);
   // Österreich (de-AT) canvas renderers
-  app.use('/api/info_at_canvas', standardMutationLimiter, requireAuth, infoAtCanvasRoute);
   app.use('/api/zitat_at_canvas', standardMutationLimiter, requireAuth, zitatAtCanvasRoute);
   app.use(
     '/api/zitat_pure_at_canvas',

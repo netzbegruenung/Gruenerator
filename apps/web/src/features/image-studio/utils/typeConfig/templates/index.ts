@@ -12,12 +12,10 @@ export { sliderTypeConfig, sliderFieldConfig } from './slider';
 export { freeformTypeConfig, freeformFieldConfig } from './freeform';
 
 import {
-  infoAtTypeConfig,
   zitatAtTypeConfig,
   zitatPureAtTypeConfig,
   dreizeilenAtTypeConfig,
   freeformAtTypeConfig,
-  infoAtFieldConfig,
   zitatAtFieldConfig,
   zitatPureAtFieldConfig,
   dreizeilenAtFieldConfig,
@@ -46,7 +44,6 @@ export const templateTypeConfigs: Record<string, TypeConfig> = {
   [sliderTypeConfig.id]: sliderTypeConfig,
   [freeformTypeConfig.id]: freeformTypeConfig,
   // Österreich (de-AT)
-  [infoAtTypeConfig.id]: infoAtTypeConfig,
   [zitatAtTypeConfig.id]: zitatAtTypeConfig,
   [zitatPureAtTypeConfig.id]: zitatPureAtTypeConfig,
   [dreizeilenAtTypeConfig.id]: dreizeilenAtTypeConfig,
@@ -64,7 +61,6 @@ export const templateFieldConfigs: Record<string, TemplateFieldConfig> = {
   [sliderTypeConfig.id]: sliderFieldConfig,
   [freeformTypeConfig.id]: freeformFieldConfig,
   // Österreich (de-AT)
-  [infoAtTypeConfig.id]: infoAtFieldConfig,
   [zitatAtTypeConfig.id]: zitatAtFieldConfig,
   [zitatPureAtTypeConfig.id]: zitatPureAtFieldConfig,
   [dreizeilenAtTypeConfig.id]: dreizeilenAtFieldConfig,
