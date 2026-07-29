@@ -47,6 +47,7 @@ import {
   type CreateTurnOpts,
 } from './createTurn.js';
 import { failCreation, rememberArtifact } from './createTurnHelpers.js';
+import { runDeepResearchTurn } from './deepResearchTurn.js';
 import { extractTextContent } from './messageHelpers.js';
 import {
   recallPastChats,
@@ -1213,6 +1214,34 @@ export async function executeIntentPipeline(opts: {
       const toolEnabled = forcedTool || enabledTools?.[currentIntent] !== false;
       if (toolEnabled) {
         let searchInputState = finalState;
+
+        // @deepresearch: Linkup writes the dossier, so this path replaces BOTH
+        // halves of the turn — retrieval and synthesis. It must therefore skip
+        // everything below, not just the search node: reranking reorders
+        // `searchResults`, and Linkup's [N] point at the original order.
+        //
+        // `null` means "not served" (quota spent, no key, failed call) and falls
+        // through to the ordinary research path with the warning already sent.
+        if (searchInputState.deepResearchRequested === true) {
+          const dossier = await runDeepResearchTurn({ state: searchInputState, sse });
+          if (dossier) {
+            finalState = { ...searchInputState, ...dossier } as ChatGraphState;
+            sse.send('search_complete', {
+              message: PROGRESS_MESSAGES.searchComplete(finalState.searchResults?.length ?? 0),
+              resultCount: finalState.searchResults?.length ?? 0,
+              results: (finalState.searchResults ?? []).slice(0, 10).map((r) => {
+                const result: SearchResultPayload = {
+                  source: r.source,
+                  title: r.title,
+                  content: r.content,
+                };
+                if (r.url != null) result.url = r.url;
+                return result;
+              }),
+            });
+            continue;
+          }
+        }
 
         // A retry of a research turn whose GENERATION failed: the sources are
         // already on the thread. Re-running Linkup costs ~17s and a paid call
