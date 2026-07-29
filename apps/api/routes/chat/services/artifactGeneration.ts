@@ -83,7 +83,7 @@ export async function runPdfGeneration(opts: {
 }): Promise<CreatePdfResult | null> {
   const { userContent, aiWorkerPool, req, userId, onCommit } = opts;
   const reqWithUser = req as Express.Request & { user?: { id?: string }; sessionID?: string };
-  const { PDF_GENERATION_PROMPT, parsePdfStructure, validatePdfStructure, createPdfDocument } =
+  const { PDF_GENERATION_PROMPT, validatePdfStructure, createPdfDocument } =
     await import('../../../services/pdf/PdfGenerationService.js');
   const { PDF_DOCUMENT_TOOL_SCHEMA } = await import('../../../services/pdf/pdfDocument.js');
   const { generateStructured } = await import('../../../services/ai/generateStructured.js');
@@ -106,9 +106,6 @@ export async function runPdfGeneration(opts: {
     toolDescription: 'Erzeugt ein fertiges PDF-Dokument aus Titel und Inhaltsblöcken.',
     schema: PDF_DOCUMENT_TOOL_SCHEMA,
     validate: validatePdfStructure,
-    // Providers that ignore tools still answer with JSON text — this was the
-    // only path before, kept so none of them can regress.
-    parseText: parsePdfStructure,
     temperature: 0.5,
     label: 'pdf',
   });
@@ -164,7 +161,6 @@ export async function runPdfGeneration(opts: {
         toolDescription: 'Erzeugt ein fertiges PDF-Dokument aus Titel und Inhaltsblöcken.',
         schema: PDF_DOCUMENT_TOOL_SCHEMA,
         validate: validatePdfStructure,
-        parseText: parsePdfStructure,
         // The first pass already spent its creativity; a repair is deterministic.
         temperature: 0,
         attempts: 1,
@@ -220,6 +216,8 @@ export async function runDocGeneration(opts: {
       // A blank slide is a broken structure, not a success — rejecting it here
       // buys a repair attempt with a message that names the offending slides,
       // rather than shipping the deck and burying the gap in speaker notes.
+      // This gate used to be bypassed whenever the provider answered with text
+      // instead of a tool call, because that path ran the bare parser.
       validate: (input) => {
         const parsed = parseAndCheckSlides(input);
         if (!parsed.ok) return parsed;
@@ -230,7 +228,6 @@ export async function runDocGeneration(opts: {
           error: `Folien ohne Inhalt: ${empty.join(', ')} — jede Folie mit Layout content/split/quote braucht einen gefüllten body.`,
         };
       },
-      parseText: parsePresentationStructure,
       temperature: 0.4,
       label: 'presentation',
     });
@@ -261,7 +258,6 @@ export async function runDocGeneration(opts: {
       toolDescription: 'Erzeugt die Tabellenstruktur (Blätter, Spalten, Zeilen).',
       schema: SHEET_TOOL_SCHEMA,
       validate: viaLaxParser(parseSheetStructure, 'title oder sheets fehlen'),
-      parseText: parseSheetStructure,
       temperature: 0.4,
       label: 'sheet',
     });
@@ -295,7 +291,6 @@ export async function runDocGeneration(opts: {
     toolDescription: 'Erzeugt das Dokument als HTML mit Titel und subtype.',
     schema: DOCUMENT_TOOL_SCHEMA,
     validate: viaLaxParser(withContent(parseDocumentResponse), 'content fehlt oder ist leer'),
-    parseText: withContent(parseDocumentResponse),
     temperature: 0.7,
     label: 'document',
   });
@@ -364,7 +359,6 @@ export async function runBoardGeneration(opts: {
     toolDescription: 'Erzeugt die Board-Struktur aus Spalten und Aufgabenkarten.',
     schema: BOARD_TOOL_SCHEMA,
     validate: viaLaxParser(parseBoardStructure, 'statusOptions oder rows fehlen'),
-    parseText: parseBoardStructure,
     temperature: 0.7,
     label: 'board',
   });
@@ -426,7 +420,6 @@ export async function createDocumentArtifact(opts: {
     toolDescription: 'Erzeugt das Dokument als HTML mit Titel und subtype.',
     schema: DOCUMENT_TOOL_SCHEMA,
     validate: viaLaxParser(withContent(parseDocumentResponse), 'content fehlt oder ist leer'),
-    parseText: withContent(parseDocumentResponse),
     temperature: 0.7,
     label: 'document',
   });

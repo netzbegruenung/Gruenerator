@@ -24,6 +24,14 @@ export interface AdditionalSource {
 interface SearchResultsSectionProps {
   citations: Citation[];
   additionalSources?: AdditionalSource[];
+  /**
+   * Controlled mode: the trigger lives elsewhere (the message action row), so
+   * this renders the list only. Leave unset and the component keeps its own
+   * trigger and state — surfaces without an action row (compact modal thread,
+   * Grün-O-Mat) would otherwise have no way to open it.
+   */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 interface DocumentGroup {
@@ -113,15 +121,19 @@ function groupAdditionalSources(sources: AdditionalSource[]): AdditionalSourceGr
 export const SearchResultsSection = memo(function SearchResultsSection({
   citations,
   additionalSources,
+  open,
+  onOpenChange,
 }: SearchResultsSectionProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const isControlled = open !== undefined;
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isOpen = isControlled ? open : internalOpen;
 
   // Listen for external expand requests (e.g. from CitationPopover "Mehr anzeigen")
   useEffect(() => {
-    const handler = () => setIsOpen(true);
+    const handler = () => (onOpenChange ? onOpenChange(true) : setInternalOpen(true));
     document.addEventListener('citation-expand-sources', handler);
     return () => document.removeEventListener('citation-expand-sources', handler);
-  }, []);
+  }, [onOpenChange]);
 
   const hasDocumentIds = citations.some((c) => c.documentId);
   const { documentGroups, ungrouped } = useMemo(
@@ -133,19 +145,20 @@ export const SearchResultsSection = memo(function SearchResultsSection({
   if (citations.length === 0) return null;
 
   return (
-    <div className="mt-3 pt-3 border-t border-border">
-      {/* Collapsed trigger */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 text-xs font-medium text-foreground-muted hover:text-foreground transition-colors"
-      >
-        <Paperclip className="h-3.5 w-3.5" />
-        <span>{citations.length} Quellen</span>
-        <ChevronRight className={cn('h-3.5 w-3.5 transition-transform', isOpen && 'rotate-90')} />
-      </button>
+    <div className={isControlled ? '' : 'mt-3'}>
+      {!isControlled && (
+        <button
+          onClick={() => setInternalOpen(!internalOpen)}
+          className="flex items-center gap-1.5 text-xs font-medium text-foreground-muted hover:text-foreground transition-colors"
+        >
+          <Paperclip className="h-3.5 w-3.5" />
+          <span>{citations.length} Quellen</span>
+          <ChevronRight className={cn('h-3.5 w-3.5 transition-transform', isOpen && 'rotate-90')} />
+        </button>
+      )}
 
       {isOpen && (
-        <div className="mt-2">
+        <div className="mt-3">
           {hasDocumentIds ? (
             <DocumentGroupedView documentGroups={documentGroups} ungrouped={ungrouped} />
           ) : (
