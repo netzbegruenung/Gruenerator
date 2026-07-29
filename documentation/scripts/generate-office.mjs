@@ -60,7 +60,7 @@ const SRC = {
   presentations: 'packages/contracts/src/schemas/presentations.ts',
   boardFlow: 'packages/contracts/src/schemas/boardFlow.ts',
   applySheet: 'packages/sheets/src/ai/applySheetOperations.ts',
-  docTypeMeta: 'apps/web/src/features/docs/docTypeMeta.tsx',
+  docTypeMeta: 'packages/shared/src/docs/docTypeMeta.tsx',
   sheetImport: 'apps/web/src/features/sheets/SheetImportDialog.tsx',
 };
 

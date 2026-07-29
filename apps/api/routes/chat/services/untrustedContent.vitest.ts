@@ -5,7 +5,22 @@ import {
   embedUntrusted,
   INJECTION_WARNING_NOTE,
   INSTRUCTION_HIERARCHY_RULE,
+  withInstructionHierarchy,
 } from './untrustedContent.js';
+
+describe('withInstructionHierarchy', () => {
+  it('states the rule on a prompt that lacks it', () => {
+    const out = withInstructionHierarchy('Du bist der Grünerator.');
+    expect(out.startsWith('Du bist der Grünerator.')).toBe(true);
+    expect(out).toContain('REGELHIERARCHIE');
+  });
+
+  it('does not state it twice when the prompt already carries it', () => {
+    const already = `Du bist der Grünerator.${INSTRUCTION_HIERARCHY_RULE}`;
+    expect(withInstructionHierarchy(already)).toBe(already);
+    expect(withInstructionHierarchy(already).match(/REGELHIERARCHIE/g)).toHaveLength(1);
+  });
+});
 
 describe('embedUntrusted', () => {
   it('wraps material in a tagged delimiter', () => {

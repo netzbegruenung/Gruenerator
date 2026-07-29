@@ -86,11 +86,20 @@ describe('laneFallback', () => {
     }
   });
 
-  it('leads with mistral for sharepics and with litellm elsewhere', () => {
+  it('drops the primary from the chain and keeps the rest in order', () => {
     // Matches the two chains `providerFallback` runs today: short creative
     // German is what Mistral is best at, so sharepics try it first.
     expect(laneFallback('sharepic_zitat')[0]).toBe('litellm'); // mistral is primary, so dropped
-    expect(laneFallback('antrag')[0]).toBe('regolo'); // litellm is primary, so dropped
-    expect(laneFallback('image_picker')[0]).toBe('litellm');
+    expect(laneFallback('default')[0]).toBe('regolo'); // litellm is primary, so dropped
+    expect(laneFallback('image_picker')[0]).toBe('litellm'); // regolo is primary, so dropped
+  });
+
+  it('makes GPT-OSS the fallback for both creation families, not the primary', () => {
+    // Finished texts run on Gemma 4 (regolo), structured creation on Mistral.
+    // Either way litellm/GPT-OSS is now the first fallback rather than where
+    // these lanes started.
+    expect(laneFallback('antrag')).toEqual(['litellm', 'mistral']);
+    expect(laneFallback('social')).toEqual(['litellm', 'mistral']);
+    expect(laneFallback('doc_generation')).toEqual(['litellm', 'regolo']);
   });
 });

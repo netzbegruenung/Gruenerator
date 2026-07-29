@@ -39,6 +39,8 @@ export interface LaneConfig {
 
 const MISTRAL_MEDIUM = 'mistral-medium-2604';
 const VERDIGADO_PRO = 'verdigado-pro';
+/** Gemma 4 — named explicitly because Regolo's DEFAULT is qwen, which policy excludes. */
+const GEMMA_4 = 'gemma4-31b';
 
 /**
  * Every routed lane. A `type` that is not here answers on `default`, and
@@ -58,16 +60,43 @@ export const AI_LANES = {
   qa_planner: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
   qa_repair: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
 
-  // — Legislative documents. GPT-OSS; reasoning is handled via reasoningEffort.
-  antrag: { provider: 'litellm', model: VERDIGADO_PRO, structuredMode: 'tool' },
-  antrag_simple: { provider: 'litellm', model: VERDIGADO_PRO, structuredMode: 'tool' },
-  kleine_anfrage: { provider: 'litellm', model: VERDIGADO_PRO, structuredMode: 'tool' },
-  grosse_anfrage: { provider: 'litellm', model: VERDIGADO_PRO, structuredMode: 'tool' },
+  // — Fertige Texte. Gemma 4 schreibt das beste Deutsch; es sitzt aus demselben
+  //   Grund im Synth-Slot des Chat-Loops. Siehe TEXT_TYPES in
+  //   services/providers/providerSelector.ts.
+  //
+  //   Die Anträge saßen auf GPT-OSS mit der Notiz "reasoning is handled via
+  //   reasoningEffort". Auf DIESEM Pfad stimmte das nie: der Worker-Pool
+  //   (workers/providers/execute.ts) reicht keine Reasoning-Option durch. Im
+  //   Streaming-Pfad (agents/langgraph/streamingProcessor.ts) gilt sie und
+  //   wird dort providerspezifisch gesetzt.
+  antrag: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
+  antrag_simple: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
+  kleine_anfrage: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
+  grosse_anfrage: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
+  universal: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
+  leichte_sprache: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
+  custom_prompt: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
+  protokoll: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
+  rede: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
+  wahlprogramm: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
+  buergeranfragen: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
+  social: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
+  social_post_generation: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
+  social_post_edit: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
+  subtitler_social: { provider: 'regolo', model: GEMMA_4, structuredMode: 'tool' },
 
   // — Candidate-site content. Mistral, which the route always intended; it used
   //   to say so with a top-level `provider` that selected the adapter without
   //   selecting a matching model.
   website: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
+
+  // — Artefakte über erzwungene Tool-Calls (generateStructured). These had no
+  //   lane at all, so both tables put them on `default` — GPT-OSS, which
+  //   answers a forced tool call with prose. That killed a PDF generation in
+  //   production: two attempts, both stop_reason=stop, no tool call.
+  doc_generation: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
+  board_generation: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
+  canvas_ai_suggest: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
 
   // — Fast helper tasks. One edit to INTERMEDIATE_MODEL moves all of them.
   image_picker: {

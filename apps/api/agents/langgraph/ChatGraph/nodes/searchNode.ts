@@ -6,6 +6,7 @@
  */
 
 import { dipSearchUrl, btpProtokollPdfUrl as btpPdfUrl } from '@gruenerator/contracts';
+import { isIntentAllowedForLocale, intentDeclineNote } from '@gruenerator/shared/chat-intents';
 
 import { vectorConfig } from '../../../../config/vectorConfig.js';
 import {
@@ -1370,13 +1371,12 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         // the Abgeordnetenwatch API. DE-only source: for AT users (reachable
         // here only via a forced @abgeordnetenwatch mention, since the classifier
         // downgrades AT) return a graceful decline instead of empty data.
-        if (state.userLocale === 'de-AT') {
+        if (!isIntentAllowedForLocale('abgeordnetenwatch', state.userLocale)) {
           results = [
             {
               source: 'abgeordnetenwatch',
               title: 'Nur für Deutschland verfügbar',
-              content:
-                'Abgeordnetenwatch erfasst nur deutsche Parlamente (Bundestag/Landtage). Für den österreichischen Nationalrat liegen hier keine Daten vor.',
+              content: intentDeclineNote('abgeordnetenwatch') ?? '',
               relevance: 1,
             },
           ];
@@ -1397,13 +1397,12 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         // via the Bundestag MCP / DIP. DE-only source: for AT users (reachable
         // here only via a forced @bundestag mention, since the classifier
         // downgrades AT) return a graceful decline instead of empty data.
-        if (state.userLocale === 'de-AT') {
+        if (!isIntentAllowedForLocale('bundestag', state.userLocale)) {
           results = [
             {
               source: 'bundestag',
               title: 'Nur für Deutschland verfügbar',
-              content:
-                'Das DIP erfasst nur den Deutschen Bundestag und Bundesrat. Für den österreichischen Nationalrat liegen hier keine Daten vor.',
+              content: intentDeclineNote('bundestag') ?? '',
               relevance: 1,
             },
           ];
