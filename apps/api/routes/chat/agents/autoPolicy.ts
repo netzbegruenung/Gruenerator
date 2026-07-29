@@ -31,6 +31,8 @@
 
 import { getSystemAgent } from '@gruenerator/shared/agents';
 
+import type { SearchIntent } from '@gruenerator/contracts';
+
 /**
  * Reasoning strength. `off` means "do not think at all" — for the lanes that
  * stream reasoning by default this means routing around the reasoning path
@@ -105,7 +107,20 @@ const MEDIUM: AutoLaneId = 'mistral-medium-3.5';
 /** Lane D — GPT-OSS. The speed lane. */
 const FAST: AutoLaneId = 'litellm';
 
-const POLICY: Record<string, AutoEntry> = {
+/**
+ * Intents the auto model genuinely cannot influence — the ONLY legitimate
+ * reason to be absent from the table.
+ *
+ * Being a hand-written `Record<string, AutoEntry>` meant "deliberately absent"
+ * and "forgotten" looked identical, and both silently took DEFAULT_ENTRY. Two
+ * intents were in fact forgotten (`hilfe`, `create_pdf`) and nobody could tell.
+ * With the exemption named, the table is exhaustive over SearchIntent and a new
+ * intent breaks the build until someone decides.
+ */
+const AUTO_POLICY_EXEMPT = ['sharepic'] as const satisfies readonly SearchIntent[];
+type ExemptIntent = (typeof AUTO_POLICY_EXEMPT)[number];
+
+const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   // ── Lane A: Small 4 ──
   // Synth summarises tool output; the planner makes the MCP calls.
   mcp: { modelId: SMALL, reasoning: 'off' },
@@ -123,6 +138,11 @@ const POLICY: Record<string, AutoEntry> = {
   hotel: { modelId: SMALL, reasoning: 'off' },
   reise: { modelId: SMALL, reasoning: 'off' },
   umfragen: { modelId: SMALL, reasoning: 'off' },
+  // Reporting retrieved documentation sections back — the same shape as `mcp`
+  // above (planner fetches, synth summarises). Was silently taking the speed
+  // lane via DEFAULT_ENTRY; kept on a lane of the same tier so this commit
+  // fixes the omission without also changing what a hilfe turn costs.
+  hilfe: { modelId: FAST, reasoning: 'off' },
   // `research_wrapper` lived here while a research turn only framed a
   // ready-made answer in two sentences — a Lane-A task. With the research/web
   // merge the model writes the whole answer from raw sources, so a research
@@ -169,6 +189,13 @@ const POLICY: Record<string, AutoEntry> = {
   create_sheet: { modelId: MEDIUM, reasoning: graded('medium', 'high', 'high') },
   create_presentation: { modelId: MEDIUM, reasoning: graded('medium', 'high', 'high') },
   create_recurring_task: { modelId: MEDIUM, reasoning: 'medium' },
+  // Same family as its three siblings above: generate structured content AND
+  // narrate a platform action the model cannot see in its context. It was the
+  // only create_* intent missing from the table, so it took the speed lane —
+  // exactly the setup the Lane C note documents as producing capability
+  // refusals ("Ich kann keine neuen Dateien erstellen") while the artefact is
+  // created anyway.
+  create_pdf: { modelId: MEDIUM, reasoning: graded('medium', 'high', 'high') },
   // The router rewrites this to `agentic`; kept as a safety net.
   modify_board: { modelId: MEDIUM, reasoning: 'medium' },
   // The vision override in resolveModel wins over this anyway.
@@ -228,7 +255,11 @@ export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
     };
   }
 
-  const entry = POLICY[intent] ?? DEFAULT_ENTRY;
+  // `intent` arrives as a wire string, so the lookup is a genuine boundary: the
+  // table is exhaustive over SearchIntent at COMPILE time, but nothing stops a
+  // caller passing something else at runtime, and that must still resolve to
+  // the speed lane rather than throw.
+  const entry = (POLICY as Partial<Record<string, AutoEntry>>)[intent] ?? DEFAULT_ENTRY;
 
   let modelId = entry.modelId;
   if (HINT_OVERRIDABLE.has(intent) && input.agentId) {
