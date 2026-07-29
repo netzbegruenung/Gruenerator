@@ -1,6 +1,6 @@
 import { jsonSchema, type ModelMessage, type Tool } from 'ai';
 
-import type { AIRequestData } from '../types.js';
+import type { AIRequestData, AIWorkerResult, ContentBlock, ToolCall } from '../types.js';
 import type { RequestMetadata, ResponseMetadata } from './types.js';
 
 /**
@@ -288,4 +288,96 @@ export async function convertMessages(
   }
 
   return done();
+}
+
+/** The parts of `generateText`'s result the adapters actually read. */
+interface SdkTextResult {
+  text?: string | undefined;
+  finishReason?: string | undefined;
+  toolCalls?: Array<{ toolCallId?: string; toolName: string; input: unknown }> | undefined;
+  usage?:
+    | {
+        inputTokens?: number | undefined;
+        outputTokens?: number | undefined;
+        totalTokens?: number | undefined;
+      }
+    | undefined;
+}
+
+/**
+ * Turn an SDK result into the `AIWorkerResult` the call sites expect.
+ *
+ * Written once because the four adapters disagreed on two points and neither
+ * disagreement was a decision anyone made:
+ *
+ * - **Empty answers.** litellm alone THREW; the other three returned empty
+ *   content. Both end up in `executeFallback`, so the outcome was the same —
+ *   but the throw discarded `metadata.usage`, so the tokens a truncated answer
+ *   had already burned went unrecorded. Uniformly: return it, let the caller's
+ *   own emptiness check decide.
+ * - **The `finishReason === 'length'` diagnostic.** Also litellm-only, and it is
+ *   most valuable exactly where it was missing: reasoning models (gpt-oss, the
+ *   GreenPT thinking lanes) bill their chain of thought against `max_tokens`
+ *   and can exhaust the budget before writing a single word of answer. Without
+ *   the log that reads as "the model returned nothing".
+ *
+ * `raw_content_blocks` is `undefined` when there is nothing to put in it —
+ * mistral's shape. The `[{type:'text', text:''}]` filler the other three
+ * emitted reads as `''` at every consumer, so this changes nothing for them.
+ */
+export function buildAdapterResult(params: {
+  provider: string;
+  model: string;
+  requestId: string;
+  type?: string | undefined;
+  requestMetadata?: RequestMetadata | undefined;
+  result: SdkTextResult;
+}): AIWorkerResult {
+  const { provider, model, requestId, type, requestMetadata = {}, result } = params;
+
+  const textContent = result.text || null;
+
+  if (result.finishReason === 'length') {
+    console.warn(
+      `[${provider}Adapter ${requestId}] Output token budget exhausted (finish_reason=length) ` +
+        `for type=${type}, model=${model}. Usage: ${JSON.stringify(result.usage)}. ` +
+        `Reasoning tokens count against max_tokens — raise the budget if answers are truncated.`
+    );
+  }
+
+  const toolCalls: ToolCall[] | undefined =
+    result.toolCalls && result.toolCalls.length > 0
+      ? result.toolCalls.map((tc, index) => ({
+          id: tc.toolCallId || `${provider}_tool_${index}`,
+          name: tc.toolName,
+          input: tc.input as Record<string, unknown>,
+        }))
+      : undefined;
+
+  const rawContentBlocks: ContentBlock[] = [];
+  if (textContent) rawContentBlocks.push({ type: 'text', text: textContent });
+  for (const tc of toolCalls ?? []) {
+    rawContentBlocks.push({ type: 'tool_use', id: tc.id, name: tc.name, input: tc.input });
+  }
+
+  return {
+    content: textContent,
+    stop_reason: result.finishReason === 'tool-calls' ? 'tool_use' : result.finishReason || 'stop',
+    tool_calls: toolCalls,
+    raw_content_blocks: rawContentBlocks.length > 0 ? rawContentBlocks : undefined,
+    success: true,
+    metadata: mergeMetadata(requestMetadata, {
+      provider,
+      model,
+      timestamp: new Date().toISOString(),
+      requestId,
+      ...(result.usage && {
+        usage: {
+          prompt_tokens: result.usage.inputTokens,
+          completion_tokens: result.usage.outputTokens,
+          total_tokens: result.usage.totalTokens,
+        },
+      }),
+    }),
+  };
 }

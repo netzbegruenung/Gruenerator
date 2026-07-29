@@ -11,12 +11,12 @@ import ToolHandler from '../../services/tools/index.js';
 
 import {
   buildAiSdkTools,
+  buildAdapterResult,
   convertMessages,
   resolveToolChoice,
-  mergeMetadata,
 } from './adapterUtils.js';
 
-import type { AIRequestData, AIWorkerResult, ToolCall, ContentBlock } from '../types.js';
+import type { AIRequestData, AIWorkerResult } from '../types.js';
 
 // Connection metrics for monitoring
 /**
@@ -116,59 +116,14 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
 
     connectionMetrics.successes++;
 
-    // Extract text content
-    const textContent = result.text || null;
-
-    // Extract tool calls
-    const toolCalls: ToolCall[] | undefined =
-      result.toolCalls && result.toolCalls.length > 0
-        ? result.toolCalls.map((tc, index) => ({
-            id: tc.toolCallId || `mistral_tool_${index}`,
-            name: tc.toolName,
-            input: tc.input as Record<string, unknown>,
-          }))
-        : undefined;
-
-    // Build raw content blocks
-    const rawContentBlocks: ContentBlock[] = [];
-    if (textContent) {
-      rawContentBlocks.push({ type: 'text', text: textContent });
-    }
-    if (toolCalls) {
-      for (const tc of toolCalls) {
-        rawContentBlocks.push({
-          type: 'tool_use',
-          id: tc.id,
-          name: tc.name,
-          input: tc.input,
-        });
-      }
-    }
-
-    // Normalize finish reason
-    const stopReason =
-      result.finishReason === 'tool-calls' ? 'tool_use' : result.finishReason || 'stop';
-
-    return {
-      content: textContent,
-      stop_reason: stopReason,
-      tool_calls: toolCalls,
-      raw_content_blocks: rawContentBlocks.length > 0 ? rawContentBlocks : undefined,
-      success: true,
-      metadata: mergeMetadata(requestMetadata, {
-        provider: 'mistral',
-        model: model,
-        timestamp: new Date().toISOString(),
-        requestId,
-        ...(result.usage && {
-          usage: {
-            prompt_tokens: result.usage.inputTokens,
-            completion_tokens: result.usage.outputTokens,
-            total_tokens: result.usage.totalTokens,
-          },
-        }),
-      }),
-    };
+    return buildAdapterResult({
+      provider: 'mistral',
+      model,
+      requestId,
+      type,
+      requestMetadata,
+      result,
+    });
   } catch (error: unknown) {
     const err = error as { message?: string; code?: string; cause?: { code?: string } };
     connectionMetrics.failures++;
