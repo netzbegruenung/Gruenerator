@@ -402,4 +402,44 @@ describe('wrapToolsForLoop', () => {
     await run(tools, 's0__search', {});
     expect(events[0].data).toMatchObject({ title: 'Suche Notion…', serverName: 'Notion' });
   });
+  /**
+   * A deferred search is postponed, not failed: no tool card, no persisted step,
+   * no failure counted. A red "Fehler" card for a search that will run in the next
+   * step is a false statement about the turn, and the model is expected to repeat
+   * the identical call — which the duplicate guard would block if the deferral had
+   * registered anything.
+   */
+  it('defers a third concurrent search silently — no card, no step, no failure', async () => {
+    const { ctx, events, steps } = makeCtx({
+      guards: createToolLoopGuards({ searchToolNames: new Set(['web_search']) }),
+    });
+    const tools = wrapToolsForLoop(
+      { web_search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
+      ctx
+    );
+    // Two in flight, neither completed.
+    ctx.guards.noteCall('web_search');
+    ctx.guards.noteCall('web_search');
+
+    const out = (await run(tools, 'web_search', { query: 'x' })) as { error?: string };
+    expect(out.error).toMatch(/Warte auf das Ergebnis/);
+    expect(events).toHaveLength(0);
+    expect(steps).toHaveLength(0);
+    // Not a failure: the per-tool cap must stay untouched.
+    expect(ctx.guards.checkFailureCap('web_search')).toBeNull();
+  });
+
+  it('still runs a search when a slot is free', async () => {
+    const { ctx, events } = makeCtx({
+      guards: createToolLoopGuards({ searchToolNames: new Set(['web_search']) }),
+    });
+    const tools = wrapToolsForLoop(
+      { web_search: { execute: async () => ({ results: [{ t: 1 }] }) } } as unknown as ToolSet,
+      ctx
+    );
+    ctx.guards.noteCall('web_search');
+    const out = (await run(tools, 'web_search', { query: 'x' })) as { results?: unknown[] };
+    expect(out.results).toHaveLength(1);
+    expect(events.map((e) => e.event)).toEqual(['tool_step_start', 'tool_step_result']);
+  });
 });
