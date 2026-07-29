@@ -31,7 +31,7 @@ import { formatGermanDate } from '../../../../utils/stringUtils.js';
 import { isSourceAvailabilityError, renderDegradationNotes } from '../types.js';
 
 import { type AnchorDescriptor, getActiveAnchors } from './anchorContext.js';
-import { buildCitableSources, type CitableSource } from './citableSources.js';
+import { buildCitableSources, MAX_SOURCES, type CitableSource } from './citableSources.js';
 import { lastUserText } from './classifierHeuristics.js';
 import { looksLikeDocsHelpQuestion } from './classifierParsing.js';
 import { deriveTextFormMention } from './textFormMention.js';
@@ -169,7 +169,15 @@ function limitAttachmentContext(
 const SEARCH_CONTEXT_FLOOR = 4000;
 const SEARCH_CONTEXT_FLOOR_CRAWLED = 6000;
 const SEARCH_CONTEXT_FLOOR_DOCUMENTCHAT = 8000;
-const MAX_SEARCH_RESULTS = 8;
+
+/**
+ * Per-source floor for the whole block. The floors above are flat totals, so a
+ * wider source list silently thinned every excerpt: 12 sources against the 4000
+ * floor land on the 200-char per-source minimum below, i.e. one sentence each.
+ * Scaling the total with the source count keeps a readable excerpt per source
+ * instead of trading breadth against depth.
+ */
+const MIN_CHARS_PER_SOURCE = 600;
 
 /**
  * Format search results as context for the response generation.
@@ -237,11 +245,20 @@ export async function formatSearchContext(
     (state.notebookCollectionIds?.length ?? 0) > 0 ||
     (state.defaultNotebookCollectionIds?.length ?? 0) > 0 ||
     (state.notebookDocumentIds?.length ?? 0) > 0;
-  const maxResults = isNotebookScoped ? 12 : MAX_SEARCH_RESULTS;
   // Group chunks → sources so each `[N]` is one source. Dedup means a wolke
   // file with 5 chunks renders as a single `[1]` block (multiple excerpts
   // concatenated), not 5 separate entries the model would over-cite.
-  const sources = buildCitableSources(state.searchResults.slice(0, maxResults));
+  //
+  // No pre-dedup slice: there used to be one at 8 (12 when notebook-scoped),
+  // applied to CHUNKS before grouping, which re-imposed exactly the ceiling
+  // buildCitableSources documents as removed. rerankNode now bounds what gets
+  // here, and buildCitableSources' own MAX_SOURCES is the single ceiling.
+  const sources = buildCitableSources(state.searchResults);
+  if (sources.length === MAX_SOURCES) {
+    log.debug(
+      `[Respond] Source list at cap (${MAX_SOURCES}) — ${state.searchResults.length} chunks in, further sources dropped`
+    );
+  }
 
   // Document chat gets the highest budget for focused Q&A
   const isDocumentChat = state.documentChatIds?.length > 0;
@@ -249,13 +266,14 @@ export async function formatSearchContext(
   const hasCrawledContent = sources.some((s) => (s.representative.content?.length ?? 0) > 500);
   // Multi-source results get the higher budget (mixed doc + web content)
   const isMultiSource = (state.searchSources?.length || 0) > 1;
-  const floor = isDocumentChat
+  const flatFloor = isDocumentChat
     ? SEARCH_CONTEXT_FLOOR_DOCUMENTCHAT
     : isNotebookScoped
       ? SEARCH_CONTEXT_FLOOR_DOCUMENTCHAT
       : hasCrawledContent || isMultiSource
         ? SEARCH_CONTEXT_FLOOR_CRAWLED
         : SEARCH_CONTEXT_FLOOR;
+  const floor = Math.max(flatFloor, sources.length * MIN_CHARS_PER_SOURCE);
   const budget = getRetrievalBudget(state.contextWindowTokens, floor);
 
   // Crawled sources get 2x weight in budget allocation
