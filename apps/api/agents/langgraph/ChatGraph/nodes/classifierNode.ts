@@ -25,6 +25,7 @@ import {
   SYSTEM_MCP_INTENTS,
   isSystemIntentAvailable,
 } from '../../../../services/mcp/systemMcpServers.js';
+import { isExplicitDeepRequest } from '../../../../services/search/searchDepth.js';
 import { analyzeTemporality } from '../../../../services/search/TemporalAnalyzer.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { INTERMEDIATE_MODEL } from '../llmConfig.js';
@@ -374,10 +375,21 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     log.warn('[Classifier] Instruction-shaped markers in this turn material — warning the model');
   }
 
+  // Deep-research consent, read off the user's own words. Sits here with the
+  // other deterministic signals (URLs, injection markers) rather than in the
+  // classifier's JSON schema: it gates the one paid engine setting, so it must be
+  // testable without a model, and adding a field to that schema costs prompt
+  // budget on every single turn.
+  const explicitDeepRequest = isExplicitDeepRequest(userText);
+  if (explicitDeepRequest) {
+    log.info('[Classifier] Explicit deep-research request — top search tier unlocked');
+  }
+
   return {
     ...result,
     intent: intent ?? result.intent,
     injectionSuspected,
+    explicitDeepRequest,
     ...(downgradedSearchQuery != null && !result.searchQuery
       ? { searchQuery: downgradedSearchQuery }
       : {}),

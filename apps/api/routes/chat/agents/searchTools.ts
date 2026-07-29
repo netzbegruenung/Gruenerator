@@ -10,7 +10,7 @@
 import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 
-import { SEARCH_TIERS } from '../../../services/search/searchDepth.js';
+import { resolveSearchTier, SEARCH_TIERS } from '../../../services/search/searchDepth.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import {
@@ -64,6 +64,14 @@ export interface CreateSearchToolsOptions {
    * Undefined leaves the full set (chat + board defaults unchanged).
    */
   enabledToolKeys?: readonly string[];
+  /**
+   * Did the user ask for a thorough research in so many words? Only then may a
+   * `tiefe: 'tiefenrecherche'` tool call actually reach Linkup's deep engine;
+   * otherwise it is clamped one step down. The tier the model names is a REQUEST,
+   * not authority — "nutze sie sparsam" in a tool description is documentation,
+   * not enforcement, and a paid engine setting needs enforcement.
+   */
+  explicitDeepRequest?: boolean;
 }
 
 /**
@@ -223,8 +231,10 @@ NUTZE WENN:
 
 WÄHLE DIE STUFE NACH AUFWAND, NICHT NACH WORTLAUT:
 - standard: eine klare Faktenfrage, ein Datum, eine Zahl, eine Nachricht. Der Normalfall.
-- gruendlich: mehrere Aspekte, ein Vergleich, oder der Benutzer bittet ausdrücklich um Recherche.
-- tiefenrecherche: breite Themen, bei denen viele Quellen gegeneinander gehalten werden müssen. Dauert spürbar länger — nutze sie sparsam.
+- gruendlich: mehrere Aspekte oder ein Vergleich. Deckt das Thema breiter ab, dauert kaum länger.
+- tiefenrecherche: nur wenn der Benutzer ausdrücklich eine gründliche Recherche verlangt hat. Dauert 15–30 Sekunden.
+
+EINE SUCHE ZUR ZEIT: Starte eine Suche, lies das Ergebnis, und suche erst dann weiter, wenn wirklich etwas fehlt. Höchstens zwei Suchen gleichzeitig. War ein Ergebnis schwach, formuliere die Anfrage EINMAL anders (notfalls englisch) — schicke keine Varianten auf Vorrat los.
 
 NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
     inputSchema: z.object({
@@ -239,7 +249,7 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
         .optional()
         .default('standard')
         .describe(
-          'Rechercheaufwand: standard (schnell), gruendlich (mehrere Quellen), tiefenrecherche (viele Quellen, langsam)'
+          'Rechercheaufwand: standard (schnell), gruendlich (mehrere Quellen), tiefenrecherche (nur auf ausdrücklichen Wunsch, langsam)'
         ),
       maxResults: z
         .number()
@@ -248,10 +258,23 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
     }),
     execute: async ({ query, searchType, tiefe, maxResults }) => {
       try {
+        // The model's tier is a request; `resolveSearchTier` clamps it to what the
+        // user actually consented to. Without this the deep engine is one
+        // hallucinated argument away, on every turn.
+        const tier = resolveSearchTier({
+          intent: 'web',
+          requestedTier: tiefe,
+          explicitDeep: options.explicitDeepRequest ?? false,
+        });
+        if (tier !== tiefe) {
+          log.info(
+            `[Tools] web_search tier clamped: ${tiefe} → ${tier} (no explicit deep request)`
+          );
+        }
         return await executeDirectWebSearch({
           query,
           searchType,
-          tier: tiefe,
+          tier,
           ...(maxResults != null ? { maxResults } : {}),
         });
       } catch (error) {

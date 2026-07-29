@@ -713,6 +713,19 @@ export interface ChatGraphState {
   hasTemporal: boolean;
   complexity: 'simple' | 'moderate' | 'complex';
 
+  /**
+   * The user asked for a thorough/deep research in so many words — the ONLY route
+   * to Linkup's expensive `deep` engine depth (`tiefenrecherche`).
+   *
+   * Set deterministically in the classifier's post-pass (`isExplicitDeepRequest`),
+   * not by the LLM: it gates a paid setting, so it has to be inspectable and
+   * testable without a model in the loop. Deliberately NOT derived from
+   * `complexity` — that used to buy the deep tier, and since `detectComplexity`
+   * returns `complex` for any "vergleich"/"ausführlich" in the text, the most
+   * expensive engine setting had become the default for ordinary questions.
+   */
+  explicitDeepRequest: boolean;
+
   // Platform hint for the `examples` / `social_post` intents. Set by the
   // classifier when the user prompt names a platform; null otherwise. Consumed
   // by searchNode to filter social examples (instagram/facebook only — the
