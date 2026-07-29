@@ -89,6 +89,25 @@ const calculateLayout = (state: OverlayAtState): LayoutResult => {
   };
 };
 
+/**
+ * Solid fallback UNDER the photo. The image factory contributes only the photo
+ * element, so before a picture is chosen the canvas was transparent and the
+ * green box floated on nothing — the napi route already fell back to
+ * Dunkelgrün, the editor did not. Negative order keeps it below the photo,
+ * where it is invisible as soon as one is set.
+ */
+const canvasFallbackElement: RectElementConfig<OverlayAtState> = {
+  id: 'canvas-fallback',
+  type: 'rect',
+  order: -1,
+  x: 0,
+  y: 0,
+  width: O.canvas.width,
+  height: O.canvas.height,
+  fill: AT.colors.primary,
+  listening: false,
+};
+
 const boxElement: RectElementConfig<OverlayAtState> = {
   id: 'overlay-box',
   type: 'rect',
@@ -186,7 +205,15 @@ const baseOverlayAtConfig = createImageTwoTextCanvas({
   secondaryField: { key: 'subline', label: 'Subline' },
   calculateLayout,
   passthroughStateKeys: ['accent', 'line3', 'boxColor'],
-  elements: [boxElement, line1Element, accentElement, line3Element, sublineElement, logoElement],
+  elements: [
+    canvasFallbackElement,
+    boxElement,
+    line1Element,
+    accentElement,
+    line3Element,
+    sublineElement,
+    logoElement,
+  ],
   features: { icons: true, shapes: true, illustrations: true },
   getCanvasText: (state) =>
     [
