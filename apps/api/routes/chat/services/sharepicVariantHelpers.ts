@@ -457,8 +457,15 @@ export async function generateSharepicVariants(
     }));
   }
 
+  // Injected here rather than at each request-building site so the refinement
+  // path gets it too. The text handler uses it to pick a `<type>_at` prompt.
   const settled = await Promise.allSettled(
-    requests.map((r) => generateSharepicForChat(args.req, r.type, r.body))
+    requests.map((r) =>
+      generateSharepicForChat(args.req, r.type, {
+        ...r.body,
+        ...(args.userLocale && { userLocale: args.userLocale }),
+      })
+    )
   );
 
   const variants: SharepicVariant[] = [];
