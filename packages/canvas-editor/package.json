@@ -15,7 +15,7 @@
       "types": "./src/index.ts"
     },
     "./styles": "./src/canvas-editor.css",
-    "./styles/bundle": "./dist/canvas-editor-bundle.css",
+    "./styles/bundle": "./dist/styles/canvas-editor-bundle.css",
     "./stores": {
       "import": "./src/stores/index.ts",
       "require": "./src/stores/index.ts"
@@ -28,7 +28,7 @@
     "./configs/*": "./src/configs/*"
   },
   "scripts": {
-    "build:css": "tailwindcss -i ./src/styles/tailwind-input.css -o ./dist/canvas-editor-bundle.css --minify",
+    "build:css": "tailwindcss -i ./src/styles/tailwind-input.css -o ./dist/styles/canvas-editor-bundle.css --minify",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
