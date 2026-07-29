@@ -26,7 +26,7 @@ import {
 } from 'ai';
 
 import { createLogger } from '../../../../utils/logger.js';
-import { looksLikeRefusal, refusalLanguage } from '../refusalDetection.js';
+import { isWholesaleRefusal, refusalLanguage } from '../refusalDetection.js';
 import { createIdleDeadline } from '../streamIdleDeadline.js';
 
 import type { LanguageModel, ModelMessage, ToolSet } from 'ai';
@@ -430,11 +430,15 @@ export const SYNTH_RETRY_SYSTEM_SUFFIX =
  * answer that merely contains a refusal-shaped clause is prose, not a decline.
  * And correctness: past that length the emitter gate has already opened and the
  * text is on the wire, so it can no longer be swapped for the German message.
+ *
+ * The length bound alone is not enough, hence {@link isWholesaleRefusal} rather
+ * than `looksLikeRefusal`: a short summary that ends by calling out an injected
+ * instruction fits inside 200 characters, and was being discarded whole.
  */
 export function looksLikeSynthRefusal(text: string): boolean {
   const trimmed = text.trim();
   if (trimmed.length === 0 || trimmed.length > DEGENERATE_MAX_CHARS) return false;
-  return looksLikeRefusal(trimmed);
+  return isWholesaleRefusal(trimmed);
 }
 
 /**
@@ -566,9 +570,14 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: 
   // call that refuses again) and then reported as "keine Antwort gefunden".
   if (looksLikeSynthRefusal(first.text)) {
     first.discard();
+    // The discarded text goes into the line on purpose: an over-refusal is
+    // invisible without it — the wire only ever shows the canned message, so a
+    // wrongly swapped answer looks exactly like a correct decline in the logs.
     log.info(
       `[Engine] synth declined the request (${refusalLanguage(first.text) ?? 'de'}) — ` +
-        'surfacing the German refusal instead of retrying'
+        `surfacing the German refusal instead of retrying; discarded: ${JSON.stringify(
+          first.text.trim().slice(0, 120)
+        )}`
     );
     p.onText(SYNTH_REFUSAL_TEXT);
     return { text: SYNTH_REFUSAL_TEXT };

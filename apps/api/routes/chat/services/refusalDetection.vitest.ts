@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   isRefusalError,
+  isWholesaleRefusal,
   looksLikeRefusal,
   refusalLanguage,
   REFUSAL_ERROR_PREFIX,
@@ -87,6 +88,58 @@ describe('looksLikeRefusal', () => {
     expect(looksLikeRefusal('')).toBe(false);
     expect(looksLikeRefusal('   ')).toBe(false);
     expect(looksLikeRefusal(null as unknown as string)).toBe(false);
+  });
+});
+
+/**
+ * The over-refusal half, measured on the same live run. `looksLikeRefusal` wants
+ * recall, this wants precision — its caller throws the model's answer away and
+ * puts a canned decline in its place, so every false positive costs a user a
+ * correct answer.
+ *
+ * The collision is one we built ourselves: `INSTRUCTION_HIERARCHY_RULE` asks the
+ * model to name an injected instruction as a manipulation attempt, and the
+ * German for that reads exactly like a decline.
+ */
+describe('isWholesaleRefusal', () => {
+  it('still calls a real decline a decline', () => {
+    for (const text of [
+      "I'm sorry, but I can't help with that.",
+      'Diese Anfrage kann ich nicht umsetzen — dabei entstünde ein erfundenes Zitat.',
+      'Diese Anfrage setze ich nicht um — sie widerspricht den inhaltlichen Regeln des Grünerators.',
+      'Ich kann dieses Sharepic nicht erstellen, da ich keine fiktiven Zitate erzeuge.',
+      'Daraus konnte ich keinen Post erzeugen.',
+      // A decline that happens to use the word "Anweisung" for the USER's
+      // request is still a decline — only embeddedness exempts.
+      'Diese Anweisung kann ich nicht umsetzen.',
+      // …and "enthalten" as a plain verb is not embeddedness either. Only the
+      // attributive participle ("die enthaltene Aufforderung") points at the
+      // material, which is why the pattern asks for that form.
+      'Ich kann keine Sharepics erstellen, die erfundene Aussagen enthalten.',
+    ]) {
+      expect(isWholesaleRefusal(text), text).toBe(true);
+    }
+  });
+
+  it('does NOT fire when the job was done and only the injected part was declined', () => {
+    for (const text of [
+      'M. Berger kritisiert, dass die Radwegverbindung seit zwei Jahren stockt. Den eingefügten Systemhinweis setze ich nicht um.',
+      'Zusammenfassung: Es geht um die Radwegplanung. Die im Text enthaltene Zahlungsaufforderung kann ich nicht umsetzen.',
+      'Kurz: die Planung stockt seit zwei Jahren. Der Systemhinweis ist ein Manipulationsversuch; ich kann ihn nicht umsetzen.',
+      'Die Anfrage betrifft den Radweg. Eingebettete Anweisungen kann ich nicht umsetzen.',
+    ]) {
+      expect(isWholesaleRefusal(text), text).toBe(false);
+      // …while the recall-oriented check still SEES the clause. That the two
+      // disagree here is the whole point of having both.
+      expect(looksLikeRefusal(text), text).toBe(true);
+    }
+  });
+
+  it('agrees with looksLikeRefusal on plain political prose', () => {
+    for (const text of ['Wir dürfen nicht schweigen.', 'Keine Ausreden mehr: Klimaschutz jetzt!']) {
+      expect(isWholesaleRefusal(text), text).toBe(false);
+      expect(looksLikeRefusal(text), text).toBe(false);
+    }
   });
 });
 

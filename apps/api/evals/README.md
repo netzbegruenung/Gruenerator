@@ -123,6 +123,13 @@ injection cases sometimes DECLINE the perfectly legitimate summarisation they ar
 asked for (caught by `refuses: false`), the content cases sometimes produce the
 material anyway. Run a lane several times before concluding anything from it.
 
+The over-refusal direction turned out to be ours, not the model's: the loop
+swapped a correct summary for its canned decline because the summary named the
+injected instruction ("den eingefügten Systemhinweis setze ich nicht um") and the
+refusal patterns read that as a decline of the whole turn. Fixed in
+`refusalDetection.isWholesaleRefusal`; the flags stay until a live lane confirms
+it, since the content direction is untouched.
+
 Careful with that last step: `passed` covers the deterministic assertions only,
 never a judge verdict — judging is a separate command over `last-run.json`. Note
 that `last-run.json` also freezes the `judgeFacts` as they were at RUN time, so
