@@ -1,16 +1,16 @@
 /**
  * AT Headline Layout Utility (Österreich / de-AT)
  *
- * Shared geometry for the two solid-green "headline" sujets — Info und
- * Dreizeilen (CI 2026). A stacked block of up to three text zones (white
- * Gotham headline + gelbe Vollkorn-Betonung), vertically centred, with the
- * weiße Ein-Balken-Logo below.
+ * Geometry for the solid-green Flächen-Sujet: a top-anchored, left-aligned
+ * block of three text zones (weiß Gotham Ultra / gelbe Vollkorn-Betonung /
+ * weiß Gotham Ultra) on a full-bleed colour field. Die CI zeigt diese Fläche
+ * als reine Typo — ohne Logo.
  *
- * Zeilenabstand = Schriftgröße × 0,9 (CI). Genutzt von dreizeilen_at (ein Info-Sujet gibt es für AT nicht).
+ * Zeilenabstand = Schriftgröße × 0,9 (CI). Genutzt von dreizeilen_at.
+ * Die Box-Variante mit Foto, Subline und Logo liegt in overlayAtLayout.ts.
  */
 
 import { getBrandTheme } from '../brand/theme';
-import { SYSTEM_ASSETS } from './canvasAssets';
 import { wrapTextAccurate } from './textUtils';
 
 const AT = getBrandTheme('de-AT');
@@ -42,13 +42,6 @@ export const HEADLINE_AT_CONFIG = {
     minFontSize: 30,
     color: AT.colors.textOnDark, // white
   },
-  logo: {
-    src: SYSTEM_ASSETS.logoAt.weiss.src,
-    width: 300,
-    height: 264, // 300 * (1239/1410) — keeps official aspect ratio
-    x: 90,
-    y: 1040,
-  },
 } as const;
 
 export interface HeadlineZone {
@@ -63,8 +56,12 @@ export interface HeadlineZoneLayout {
   fontSize: number;
 }
 
-/** Content must stay above the logo (which sits at logo.y) with some breathing room. */
-const CONTENT_BOTTOM = HEADLINE_AT_CONFIG.logo.y - 40;
+/**
+ * Lower bound for the text block. The sujet carries no logo — the CI shows the
+ * Fläche as type only — so the block may run to the bottom margin; this only
+ * stops overlong copy from leaving the canvas.
+ */
+const CONTENT_BOTTOM = HEADLINE_AT_CONFIG.canvas.height - HEADLINE_AT_CONFIG.margin.x;
 /** Ratio applied to a zone's declared minFontSize floor. */
 const MIN_SCALE = HEADLINE_AT_CONFIG.headline.minFontSize / HEADLINE_AT_CONFIG.headline.fontSize;
 
