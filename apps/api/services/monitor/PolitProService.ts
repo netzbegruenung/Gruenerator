@@ -800,9 +800,17 @@ export function resolveParliamentByName(
   // Substring match so "Wie stehen die Grünen in Wien?" resolves without the
   // caller having to extract the bare region name first. The length floor keeps
   // very short names from matching inside unrelated words.
-  const partial = candidates.find((p) => {
-    const folded = foldRegion(p.name);
-    return folded.length >= 4 && needle.includes(folded);
-  });
+  //
+  // LONGEST name first, and that is load-bearing: "oesterreich" is a substring
+  // of "oberoesterreich" and "niederoesterreich", and the national entry comes
+  // first in the registry. In registry order, "Umfragen in Oberösterreich"
+  // therefore resolved to the NATIONALRAT — the wrong scope, answered
+  // confidently, which is the exact failure this whole area exists to remove.
+  const partial = [...candidates]
+    .sort((a, b) => foldRegion(b.name).length - foldRegion(a.name).length)
+    .find((p) => {
+      const folded = foldRegion(p.name);
+      return folded.length >= 4 && needle.includes(folded);
+    });
   return partial ? { id: partial.id, name: partial.name } : null;
 }
