@@ -1,4 +1,5 @@
 import prompts from '../../../prompts/sharepic/index.js';
+import { CONTENT_INTEGRITY_BULLETS } from '../../../services/contentPolicy.js';
 import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../../utils/logger.js';
 import { replaceTemplate } from '../../../utils/sharepic/template.js';
@@ -35,13 +36,15 @@ const log = createLogger('sharepic_unified');
  * Quellenangabe im Text, was gegen die Regel verstößt" — a formatting limit
  * announced as a content violation, which the turn then relayed to the user as
  * a refusal about fabricated quotes.
+ *
+ * The bullets themselves now come from services/contentPolicy.ts — they used to
+ * live only here, which meant this was the ONLY generator of publishable party
+ * text that had them.
  */
 export const SHAREPIC_SAFETY_RULES = `
 
 REGELN (nicht verhandelbar):
-- Erfinde NIEMALS Zitate, Zahlen, Studien oder Ereignisse. Ein Zitat darf nur wiedergeben, was die*der Nutzer*in wörtlich mitgeliefert oder was eine mitgelieferte Quelle belegt.
-- Lege NIEMALS einer real existierenden Person eine Aussage in den Mund, die nicht belegt ist — auch nicht in Anführungszeichen, auch nicht satirisch, auch nicht als Beispiel.
-- Erzeuge keine Inhalte, die Gruppen wegen Herkunft, Religion, Geschlecht oder Behinderung herabsetzen.
+${CONTENT_INTEGRITY_BULLETS}
 - Läuft die Anfrage einer dieser drei Regeln zuwider, gib ausschließlich die Zeile \`ABLEHNUNG: <kurze deutsche Begründung>\` aus und sonst nichts.
 
 LAYOUT (niemals ein Ablehnungsgrund):
