@@ -31,7 +31,7 @@ import { formatGermanDate } from '../../../../utils/stringUtils.js';
 import { isSourceAvailabilityError, renderDegradationNotes } from '../types.js';
 
 import { type AnchorDescriptor, getActiveAnchors } from './anchorContext.js';
-import { buildCitableSources, type CitableSource } from './citableSources.js';
+import { buildCitableSources, MAX_SOURCES, type CitableSource } from './citableSources.js';
 import { lastUserText } from './classifierHeuristics.js';
 import { looksLikeDocsHelpQuestion } from './classifierParsing.js';
 import { deriveTextFormMention } from './textFormMention.js';
@@ -169,7 +169,15 @@ function limitAttachmentContext(
 const SEARCH_CONTEXT_FLOOR = 4000;
 const SEARCH_CONTEXT_FLOOR_CRAWLED = 6000;
 const SEARCH_CONTEXT_FLOOR_DOCUMENTCHAT = 8000;
-const MAX_SEARCH_RESULTS = 8;
+
+/**
+ * Per-source floor for the whole block. The floors above are flat totals, so a
+ * wider source list silently thinned every excerpt: 12 sources against the 4000
+ * floor land on the 200-char per-source minimum below, i.e. one sentence each.
+ * Scaling the total with the source count keeps a readable excerpt per source
+ * instead of trading breadth against depth.
+ */
+const MIN_CHARS_PER_SOURCE = 600;
 
 /**
  * Format search results as context for the response generation.
@@ -237,11 +245,20 @@ export async function formatSearchContext(
     (state.notebookCollectionIds?.length ?? 0) > 0 ||
     (state.defaultNotebookCollectionIds?.length ?? 0) > 0 ||
     (state.notebookDocumentIds?.length ?? 0) > 0;
-  const maxResults = isNotebookScoped ? 12 : MAX_SEARCH_RESULTS;
   // Group chunks → sources so each `[N]` is one source. Dedup means a wolke
   // file with 5 chunks renders as a single `[1]` block (multiple excerpts
   // concatenated), not 5 separate entries the model would over-cite.
-  const sources = buildCitableSources(state.searchResults.slice(0, maxResults));
+  //
+  // No pre-dedup slice: there used to be one at 8 (12 when notebook-scoped),
+  // applied to CHUNKS before grouping, which re-imposed exactly the ceiling
+  // buildCitableSources documents as removed. rerankNode now bounds what gets
+  // here, and buildCitableSources' own MAX_SOURCES is the single ceiling.
+  const sources = buildCitableSources(state.searchResults);
+  if (sources.length === MAX_SOURCES) {
+    log.debug(
+      `[Respond] Source list at cap (${MAX_SOURCES}) — ${state.searchResults.length} chunks in, further sources dropped`
+    );
+  }
 
   // Document chat gets the highest budget for focused Q&A
   const isDocumentChat = state.documentChatIds?.length > 0;
@@ -249,13 +266,14 @@ export async function formatSearchContext(
   const hasCrawledContent = sources.some((s) => (s.representative.content?.length ?? 0) > 500);
   // Multi-source results get the higher budget (mixed doc + web content)
   const isMultiSource = (state.searchSources?.length || 0) > 1;
-  const floor = isDocumentChat
+  const flatFloor = isDocumentChat
     ? SEARCH_CONTEXT_FLOOR_DOCUMENTCHAT
     : isNotebookScoped
       ? SEARCH_CONTEXT_FLOOR_DOCUMENTCHAT
       : hasCrawledContent || isMultiSource
         ? SEARCH_CONTEXT_FLOOR_CRAWLED
         : SEARCH_CONTEXT_FLOOR;
+  const floor = Math.max(flatFloor, sources.length * MIN_CHARS_PER_SOURCE);
   const budget = getRetrievalBudget(state.contextWindowTokens, floor);
 
   // Crawled sources get 2x weight in budget allocation
@@ -831,6 +849,16 @@ const CARRIED_SOURCES_NOTE =
 const SEARCH_GUIDANCE =
   '\nDu hast Recherche-Ergebnisse erhalten. Beantworte die Frage primär aus diesen Ergebnissen und zitiere sie inline.';
 
+// Calibration, not fabrication. "Erfinde keine Fakten" already bans inventing;
+// it says nothing about how SURE to sound about something a source itself marks
+// as unresolved. Observed live: a web-researched biography reported a disputed
+// cause of death as settled fact, because reproducing the source faithfully and
+// reproducing its hedges are different instructions and only the first existed.
+// Applies to both citation branches — a polished document that publishes a
+// contested claim as settled is the worse of the two failures.
+const SOURCE_HEDGING_RULE =
+  'Widersprechen sich die Quellen zu einer Aussage, oder markiert eine Quelle sie selbst als ungeklärt, vermutet oder offiziell, dann übernimm diese Einschränkung in die Antwort. Gib eine strittige Angabe nie als feststehend wieder.';
+
 /**
  * The artefact-action intents (save_as_doc / modify_doc / share_doc /
  * modify_board) are single-pass: the PLATFORM performs the action — Stage 4c in
@@ -967,6 +995,49 @@ function getAnchorAdjuncts(state: ChatGraphState): string {
   return `\n\n## ZUSÄTZLICHER KONTEXT\n\n${fragments.join('\n')}\n\nNutze die jeweils relevanten Quellen — keine ist exklusiv. Bei Recherche-Fragen sind Suchergebnisse die primäre Antwortgrundlage; offene/referenzierte Dokumente dienen als thematischer Kontext.${coEqualLine}`;
 }
 
+/** Distinct sources that justify structuring an external-research answer. */
+const STRUCTURE_SOURCE_THRESHOLD = 4;
+
+/**
+ * Answer length and structure.
+ *
+ * `complexity` alone used to decide this, but it is a keyword regex over the
+ * QUESTION and its `moderate` branch is the fallback — the value returned when
+ * no rule matched, i.e. "unknown", not "medium" (services/search/searchDepth.ts
+ * refuses to upgrade on it for exactly that reason). A researched turn whose
+ * phrasing missed every regex therefore got "no headings" no matter how much
+ * material came back: observed live on a 4-source biography that rendered as
+ * three unstructured paragraphs.
+ *
+ * Only the `moderate` fallback defers to retrieval reality, which is measured
+ * rather than guessed. `simple` and `complex` are positive signals and keep
+ * deciding alone, so no turn where a regex actually matched changes behaviour.
+ * The value semantics of `complexity` stay untouched — briefGeneratorNode and
+ * intentExecutionService deliberately group `moderate` with `complex`.
+ *
+ * Headings are PERMITTED, never required: rule 1 caps the scope, and an
+ * obligation here would inflate short answers into padded section stacks.
+ */
+function buildAnswerFormatRule(state: ChatGraphState, sourceCount: number): string {
+  // A multi-document turn already has its format prescribed by the comparison /
+  // multi-doc block (table, per-doc bullets, grounded prose). A second structure
+  // directive here is how "Antworte als zusammenhängende Prosa" and "Strukturiere
+  // mit Überschriften" ended up in the same prompt.
+  if (state.synthesisMode) {
+    return state.complexity === 'simple' ? 'Kurze, präzise Antworten' : 'Bis zu 6 Absätze';
+  }
+
+  if (state.complexity === 'complex') return 'Strukturiere mit Überschriften, bis zu 6 Absätze';
+  if (state.complexity === 'simple') return 'Kurze, präzise Antworten (1-2 Absätze)';
+
+  const isExternalResearch = state.intent === 'research' || state.intent === 'web';
+  if (isExternalResearch && sourceCount >= STRUCTURE_SOURCE_THRESHOLD) {
+    return 'Bis zu 6 Absätze. Hat die Antwort mehrere eigenständige Aspekte, darfst du sie mit Überschriften gliedern — Pflicht ist das nicht';
+  }
+
+  return '2-4 Absätze mit klarer Struktur';
+}
+
 /**
  * Build the complete system message with agent role and search context.
  */
@@ -1032,13 +1103,15 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
     citationInstruction = `
 5. Verwende die Suchergebnisse als Faktengrundlage, aber setze KEINE Inline-Quellenverweise [1], [2] etc. in den Text.
 6. Der Text soll als fertiges, professionelles Dokument lesbar sein. Die Quellen werden separat angezeigt.
-7. Erfinde KEINE Fakten — stütze dich auf die bereitgestellten Quellen.`;
+7. Erfinde KEINE Fakten — stütze dich auf die bereitgestellten Quellen.
+8. ${SOURCE_HEDGING_RULE}`;
   } else if (hasSources) {
     citationInstruction = `
 5. Du hast genau ${sourceCount} Quelle(n). Verwende NUR [1] bis [${sourceCount}] als Quellenverweise. Höhere Nummern existieren NICHT.
 6. Zitiere 1-2 Quellen pro Kernaussage — nicht jeder Satz braucht eine Referenz.
 7. Setze die Referenz direkt nach der Aussage, z.B.: "Die Grünen fordern ein Tempolimit [1]." Stützen mehrere Quellen dieselbe Aussage, fasse sie in EINER Klammer zusammen: [1, 3].
-8. Erfinde KEINE zusätzlichen Quellen oder Quellenverweise über [${sourceCount}] hinaus.`;
+8. Erfinde KEINE zusätzlichen Quellen oder Quellenverweise über [${sourceCount}] hinaus.
+9. ${SOURCE_HEDGING_RULE}`;
   }
 
   const today = formatGermanDate();
@@ -1160,9 +1233,9 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
 Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${productKnowledge}${docsPageMap}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
 
 ## ANTWORT-REGELN
-1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo
-2. ${state.complexity === 'complex' ? 'Strukturiere mit Überschriften, bis zu 6 Absätze' : state.complexity === 'moderate' ? '2-4 Absätze mit klarer Struktur' : 'Kurze, präzise Antworten (1-2 Absätze)'}
-3. Antworte auf Deutsch
+1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo. Ausnahme: Bei offenen Fragen nach einer Person, Organisation oder einem Begriff gehören die einordnenden Kerndaten (Lebensdaten, Funktion, Hauptwerke) zur Antwort und gelten nicht als Zusatzinfo
+2. ${buildAnswerFormatRule(state, sourceCount)}
+3. Antworte auf Deutsch. Sind Quellen fremdsprachig, formuliere SPRACHLICH eigenständig statt wörtlich zu übersetzen — INHALTLICH bleibst du exakt bei der Quelle und ergänzt nichts, was dort nicht steht. Kannst du eine Aussage nicht nachvollziehbar auf Deutsch wiedergeben, lass sie weg statt zu raten
 4. Erfinde keine Fakten oder Quellennamen
 5. Erstelle KEINE Quellenliste/Quellenverzeichnis am Ende — Quellen werden automatisch in der Oberfläche angezeigt
 6. Kompakte Formatierung: Maximal eine Leerzeile zwischen Absätzen. Keine doppelten Leerzeilen, keine horizontalen Trennlinien (---)
