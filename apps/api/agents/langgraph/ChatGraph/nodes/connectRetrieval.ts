@@ -21,38 +21,11 @@ import { extractTextFromFile } from '../../../../services/document-services/Docu
 import { createLogger } from '../../../../utils/logger.js';
 import { SOURCE_PREFIX, type DocumentSource, type SearchResult } from '../types.js';
 
+import { chunkText, mimeTypeFromName } from './retrievalChunking.js';
+
 import type { NangoProviderKey } from '../../../../config/nango.js';
 
 const log = createLogger('ConnectRetrieval');
-
-const CHUNK_SIZE = 1500;
-const CHUNK_OVERLAP = 100;
-
-function chunkText(text: string, perSourceLimit: number): string[] {
-  const cleaned = text.trim();
-  if (!cleaned) return [];
-  if (cleaned.length <= CHUNK_SIZE) return [cleaned];
-  const chunks: string[] = [];
-  let pos = 0;
-  const stride = CHUNK_SIZE - CHUNK_OVERLAP;
-  while (pos < cleaned.length && chunks.length < perSourceLimit) {
-    chunks.push(cleaned.slice(pos, pos + CHUNK_SIZE));
-    pos += stride;
-  }
-  return chunks;
-}
-
-function mimeTypeFromName(name: string, fallback?: string | null): string {
-  if (fallback) return fallback;
-  const lower = name.toLowerCase();
-  if (lower.endsWith('.pdf')) return 'application/pdf';
-  if (lower.endsWith('.docx'))
-    return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-  if (lower.endsWith('.pptx'))
-    return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-  if (lower.endsWith('.txt') || lower.endsWith('.md')) return 'text/plain';
-  return 'application/octet-stream';
-}
 
 /** Strip HTML tags + collapse whitespace for Confluence storage/view bodies. */
 function htmlToText(html: string): string {

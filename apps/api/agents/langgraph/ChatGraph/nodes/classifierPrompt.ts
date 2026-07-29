@@ -6,6 +6,8 @@
  * don't pollute logic diffs.
  */
 
+import type { SearchIntent } from '../types.js';
+
 /**
  * Doc subtypes the classifier may emit as `documentSubtype`.
  *
@@ -27,6 +29,70 @@ export const CLASSIFIER_DOC_SUBTYPES = [
 ] as const;
 
 const DOC_SUBTYPE_ENUM_LINE = CLASSIFIER_DOC_SUBTYPES.map((s) => `"${s}"`).join(' | ');
+
+/**
+ * Intents the classifier prompt offers the LLM.
+ *
+ * Single source for the prompt's `"intent"` enum line AND the parser-side
+ * accept-list (classifierParsing.ts). Keeping the two apart is what broke:
+ * the prompt offered create_sheet / create_presentation / create_recurring_task
+ * / share_doc / mcp while the parser's hand-written array did not, so those
+ * verdicts were dropped and the turn fell through to `direct`. For
+ * create_recurring_task — the one intent with no heuristic fast path — that
+ * meant the chat entry point never worked at all.
+ *
+ * Deliberately NOT offered, because a deterministic step assigns them instead:
+ *   compare                   → post-classification upgrade (classifierNode)
+ *   scrape_url                → extractUrls on a pasted link
+ *   edit_current_doc/_board   → the anchor tiers (Tier 1/2)
+ *   pressemitteilung_examples → LV-scoped examples routing
+ *   agentic                   → Tier 3.5 loop demotion, a router disposition
+ */
+export const CLASSIFIER_OFFERED_INTENTS = [
+  'sharepic',
+  'social_post',
+  'image',
+  'image_edit',
+  'research',
+  'search',
+  'web',
+  'examples',
+  'abgeordnetenwatch',
+  'bundestag',
+  'bahn',
+  'reise',
+  'hotel',
+  'umfragen',
+  'wetter',
+  'news',
+  'hilfe',
+  'summary',
+  'chart',
+  'artifact',
+  'compute',
+  'save_as_doc',
+  'create_sheet',
+  'create_presentation',
+  'create_pdf',
+  'create_recurring_task',
+  'modify_doc',
+  'modify_board',
+  'share_doc',
+  'chat_history',
+  'mcp',
+  'direct',
+] as const satisfies readonly SearchIntent[];
+
+export type OfferedIntent = (typeof CLASSIFIER_OFFERED_INTENTS)[number];
+
+const OFFERED_INTENT_SET: ReadonlySet<string> = new Set(CLASSIFIER_OFFERED_INTENTS);
+
+/** Narrows an LLM-supplied `intent` string to something the prompt actually offered. */
+export function isOfferedIntent(value: string): value is OfferedIntent {
+  return OFFERED_INTENT_SET.has(value);
+}
+
+const INTENT_ENUM_LINE = CLASSIFIER_OFFERED_INTENTS.map((i) => `"${i}"`).join(' | ');
 
 /**
  * System prompt for intent classification.
@@ -220,7 +286,7 @@ Antworte NUR mit JSON:
   "typoAnalysis": {"original": "...", "corrected": "..."} | null,
   "contentType": "pressemitteilung" | "artikel" | "rede" | "argumentation" | "tweet" | "slogan" | null,
   "needsResearch": true | false,   // true = ohne Nachschlagen nicht wahrheitsgemäß beantwortbar; dann NIEMALS intent "direct"
-  "intent": "sharepic" | "social_post" | "image" | "image_edit" | "research" | "search" | "web" | "examples" | "abgeordnetenwatch" | "bundestag" | "bahn" | "reise" | "hotel" | "umfragen" | "wetter" | "news" | "summary" | "chart" | "artifact" | "compute" | "save_as_doc" | "create_sheet" | "create_presentation" | "create_pdf" | "create_recurring_task" | "modify_doc" | "modify_board" | "share_doc" | "chat_history" | "mcp" | "direct",
+  "intent": ${INTENT_ENUM_LINE},
   "secondaryIntent": "image" | "examples" | "chart" | "save_as_doc" | null,
   "documentSubtype": ${DOC_SUBTYPE_ENUM_LINE} | null,
   "searchQuery": "ORIGINALTEXT des Benutzers (KEINE Korrekturen an Eigennamen!)" | null,
