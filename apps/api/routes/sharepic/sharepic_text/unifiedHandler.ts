@@ -67,10 +67,28 @@ const TYPE_CONFIGS: Record<string, TypeConfig> = {
     // sentence is kept whole (sentence-safe trim), not chopped. Renderer auto-fits.
     maxLengths: { header: 65, subheader: 125, body: 300 },
   },
+  // Österreich: eigenes Sujet mit eigenen Feldern. Der Resolver unten wählt
+  // diesen Eintrag über dieselbe `<type>_at`-Konvention wie den Prompt.
+  info_at: {
+    fields: ['introline', 'text', 'akzent', 'suchbegriff'],
+    mainKey: 'mainInfo',
+    maxLengths: { introline: 40, text: 110, akzent: 26 },
+  },
   dreizeilen: {
     fields: ['zeile1', 'zeile2', 'zeile3', 'suchbegriff'],
     mainKey: 'mainSlogan',
     maxLengths: { zeile1: 35, zeile2: 35, zeile3: 35 },
+  },
+  // Österreich: wie der deutsche Dreizeiler, aber mit einer Subline unter dem
+  // Slogan. Sie füllt die Overlay-Fläche; das reine Flächen-Sujet ignoriert sie.
+  // Optional, weil ein Slogan auch ohne Ergänzung stehen darf — ohne den
+  // Eintrag in `optionalFields` scheitert der Parser, sobald das Modell die
+  // Zeile weglässt.
+  dreizeilen_at: {
+    fields: ['zeile1', 'zeile2', 'zeile3', 'subline', 'suchbegriff'],
+    optionalFields: ['subline'],
+    mainKey: 'mainSlogan',
+    maxLengths: { zeile1: 35, zeile2: 35, zeile3: 35, subline: 70 },
   },
   veranstaltung: {
     fields: ['titel', 'tag', 'datum', 'zeit', 'ort', 'adresse', 'beschreibung', 'suchbegriff'],
@@ -108,6 +126,12 @@ function mapToResponseFormat(
   data: Record<string, string>
 ): Record<string, unknown> | string {
   switch (type) {
+    case 'info_at':
+      return {
+        introline: data.introline,
+        text: data.text,
+        accent: data.akzent,
+      };
     case 'info':
       return {
         header: data.header,
@@ -119,6 +143,13 @@ function mapToResponseFormat(
         line1: data.zeile1,
         line2: data.zeile2,
         line3: data.zeile3,
+      };
+    case 'dreizeilen_at':
+      return {
+        line1: data.zeile1,
+        line2: data.zeile2,
+        line3: data.zeile3,
+        subline: data.subline || '',
       };
     case 'veranstaltung':
       return {
@@ -156,12 +187,15 @@ export interface UnifiedTextBody {
   quote?: string | undefined;
   name?: string | undefined;
   count?: number | undefined;
-  /**
-   * Brand string for `{{partyName}}`. Optional seam: the sharepic chain does
-   * not carry `userLocale` yet, so AT callers still get the DE default until
-   * the locale is plumbed through sharepicGenerationService.
-   */
+  /** Brand string for `{{partyName}}`. */
   partyName?: string | undefined;
+  /**
+   * Signed-in user's locale. When `de-AT`, a prompt named `<type>_at` is
+   * preferred over `<type>` — the Austrian sujets have their own typographic
+   * constraints (the AT Dreizeiler fits ~15 characters per line where the
+   * German one allows 35).
+   */
+  userLocale?: string | undefined;
   _campaignPrompt?: unknown;
 }
 
@@ -185,13 +219,26 @@ export async function generateUnifiedTexts(
   type: string,
   body: UnifiedTextBody
 ): Promise<UnifiedTextResult> {
-  const config = TYPE_CONFIGS[type];
+  // de-AT prefers a locale-specific prompt where one exists, by the `<type>_at`
+  // convention. Falls back to the German prompt so a missing AT variant is a
+  // silent no-op rather than a 400.
+  const atKey = `${type}_at`;
+  const useAt = body.userLocale === 'de-AT' && atKey in prompts;
+  const promptKey = useAt ? atKey : type;
+  // Die Feldliste folgt derselben Konvention, aber nur wo es eine gibt: der
+  // AT-Dreizeiler hat dieselben Felder wie der deutsche und braucht keine.
+  // Das AT-Info-Sujet dagegen liefert Introline/Text/Akzent statt
+  // Header/Subheader/Body — ohne diesen Schritt liefe es gegen die deutsche
+  // Feldliste und der Parser fände nichts.
+  const configKey = useAt && atKey in TYPE_CONFIGS ? atKey : type;
+
+  const config = TYPE_CONFIGS[configKey];
   if (!config) {
     return { success: false, status: 400, error: `Unknown type: ${type}` };
   }
 
   const { thema, details, quote, name, count = 1 } = body;
-  const rawPromptConfig = body._campaignPrompt || prompts[type as keyof typeof prompts];
+  const rawPromptConfig = body._campaignPrompt || prompts[promptKey as keyof typeof prompts];
 
   if (!rawPromptConfig) {
     return { success: false, status: 400, error: `No prompt config for type: ${type}` };
@@ -304,13 +351,17 @@ export async function generateUnifiedTexts(
           return processedData;
         });
 
-        mainData = mapToResponseFormat(type, processedResults[0]);
-        alternatives = processedResults.slice(1).map((data) => mapToResponseFormat(type, data));
+        mainData = mapToResponseFormat(configKey, processedResults[0]);
+        alternatives = processedResults
+          .slice(1)
+          .map((data) => mapToResponseFormat(configKey, data));
         searchTerms = processedResults.flatMap((data) =>
           data.suchbegriff ? [data.suchbegriff] : []
         );
       } else {
-        const parseResult = parseLabeledText(content, config.fields);
+        // Der Batch-Pfad kannte optionale Felder längst, der Einzelpfad nicht —
+        // ein weggelassenes Feld liess hier den ganzen Durchlauf scheitern.
+        const parseResult = parseLabeledText(content, config.fields, config.optionalFields);
 
         if (!parseResult.success) {
           lastError = parseResult.error || 'Parse failed';
@@ -331,7 +382,7 @@ export async function generateUnifiedTexts(
           processedData[key] = processed;
         }
 
-        mainData = mapToResponseFormat(type, processedData);
+        mainData = mapToResponseFormat(configKey, processedData);
         searchTerms = processedData.suchbegriff ? [processedData.suchbegriff] : [];
       }
 

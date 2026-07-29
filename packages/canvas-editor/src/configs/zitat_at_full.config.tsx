@@ -1,14 +1,16 @@
 /**
  * Zitat AT Full Canvas Configuration (Österreich / de-AT)
- * Quote sharepic over a user background image — weißes Anführungszeichen,
- * weißes Zitat (Gotham), gelber Name (CI 2026).
  *
- * Reuses the DE zitat geometry (ZITAT_CONFIG / calculateZitatLayout) and only
- * swaps brand tokens from getBrandTheme('de-AT').
+ * Foto vollflächig, darüber ein dunkelgrüner Verlauf, darauf mittig das gelbe
+ * Anführungszeichen, das weiße Zitat und der gelbe Name; Logo rechts oben.
+ *
+ * Eigene Geometrie über ZITAT_AT_CONFIG — die deutsche ZITAT_CONFIG setzt
+ * linksbündig am Bildboden und trägt kein Logo, was mit der CI 2026 nicht
+ * zusammengeht.
  */
 
 import { getBrandTheme } from '../brand/theme';
-import { ZITAT_CONFIG, calculateZitatLayout } from '../utils/zitatLayout';
+import { ZITAT_AT_CONFIG, calculateZitatAtLayout } from '../utils/zitatAtLayout';
 
 import {
   createAiCapabilities,
@@ -24,32 +26,36 @@ import {
 import type { ImageElementConfig, LayoutResult } from './types';
 
 const AT = getBrandTheme('de-AT');
+const Z = ZITAT_AT_CONFIG;
 
 type ZitatAtState = ImageTwoTextState<'quote' | 'name'>;
 
 const calculateLayout = (state: ZitatAtState): LayoutResult => {
-  const quote = state.quote || '';
-  const fontSize = state.customPrimaryFontSize ?? ZITAT_CONFIG.quote.fontSize;
-  const layout = calculateZitatLayout(quote, fontSize);
+  const layout = calculateZitatAtLayout(
+    state.quote || '',
+    state.name || '',
+    state.customPrimaryFontSize ?? Z.quote.fontSize,
+    AT.fonts.quoteShort
+  );
 
   return {
     'quote-mark': {
-      x: ZITAT_CONFIG.quotationMark.x,
+      x: layout.quoteMarkX,
       y: layout.quoteMarkY,
       width: layout.quoteMarkSize,
       height: layout.quoteMarkSize,
     },
     'quote-text': {
-      x: ZITAT_CONFIG.quote.x,
+      x: Z.margin,
       y: layout.quoteY,
-      width: ZITAT_CONFIG.quote.maxWidth,
+      width: Z.maxWidth,
       fontSize: layout.quoteFontSize,
       lineHeight: layout.lineHeight,
     },
     'name-text': {
-      x: ZITAT_CONFIG.author.x,
+      x: Z.margin,
       y: layout.authorY,
-      width: ZITAT_CONFIG.quote.maxWidth,
+      width: Z.maxWidth,
       fontSize: state.customSecondaryFontSize ?? layout.authorFontSize,
     },
   };
@@ -58,12 +64,12 @@ const calculateLayout = (state: ZitatAtState): LayoutResult => {
 const quoteMarkElement: ImageElementConfig<ZitatAtState> = {
   id: 'quote-mark',
   type: 'image',
-  x: fromLayout('quote-mark', 'x', ZITAT_CONFIG.quotationMark.x),
-  y: fromLayout('quote-mark', 'y', ZITAT_CONFIG.quotationMark.y),
+  x: fromLayout('quote-mark', 'x', (Z.canvas.width - 64) / 2),
+  y: fromLayout('quote-mark', 'y', 500),
   order: 2,
-  width: fromLayout('quote-mark', 'width', 100),
-  height: fromLayout('quote-mark', 'height', 100),
-  src: ZITAT_CONFIG.quotationMark.src,
+  width: fromLayout('quote-mark', 'width', 64),
+  height: fromLayout('quote-mark', 'height', 64),
+  src: Z.quotationMark.src,
   listening: true,
   draggable: true,
   offsetKey: 'quoteMarkOffset',
@@ -74,38 +80,53 @@ const quoteTextElement = createPrimaryText<ZitatAtState>({
   id: 'quote-text',
   textKey: 'quote',
   order: 3,
-  width: ZITAT_CONFIG.quote.maxWidth,
+  width: Z.maxWidth,
   fontFamily: AT.fonts.quoteShort,
   fontStyle: 'normal',
-  lineHeight: ZITAT_CONFIG.quote.lineHeightRatio,
+  lineHeight: Z.quote.lineHeightRatio,
+  align: 'center',
   defaultColor: AT.colors.textOnDark,
-  layoutFallback: { x: ZITAT_CONFIG.quote.x, y: 800, fontSize: ZITAT_CONFIG.quote.fontSize },
+  layoutFallback: { x: Z.margin, y: 600, fontSize: Z.quote.fontSize },
 });
 
 const nameTextElement = createSecondaryText<ZitatAtState>({
   id: 'name-text',
   textKey: 'name',
   order: 4,
-  width: ZITAT_CONFIG.quote.maxWidth,
+  width: Z.maxWidth,
   fontFamily: AT.fonts.body,
   fontStyle: 'normal',
+  align: 'center',
   // Name is always the accent colour (Gelb).
   defaultColor: AT.colors.accent,
-  layoutFallback: { x: ZITAT_CONFIG.author.x, y: 1000, fontSize: 40 },
+  layoutFallback: { x: Z.margin, y: 850, fontSize: 34 },
 });
+
+const logoElement: ImageElementConfig<ZitatAtState> = {
+  id: 'logo',
+  type: 'image',
+  x: Z.canvas.width - Z.logo.margin - Z.logo.width,
+  y: Z.logo.margin,
+  order: 5,
+  width: Z.logo.width,
+  height: Z.logo.height,
+  src: AT.logo?.src ?? '',
+  draggable: true,
+};
 
 const baseZitatAtConfig = createImageTwoTextCanvas({
   id: 'zitat-at',
   canvas: {
-    width: ZITAT_CONFIG.canvas.width,
-    height: ZITAT_CONFIG.canvas.height,
+    width: Z.canvas.width,
+    height: Z.canvas.height,
   },
   primaryField: { key: 'quote', label: 'Zitat' },
   secondaryField: { key: 'name', label: 'Name' },
   calculateLayout,
-  elements: [quoteMarkElement, quoteTextElement, nameTextElement],
+  elements: [quoteMarkElement, quoteTextElement, nameTextElement, logoElement],
   features: { icons: true, shapes: true, illustrations: true },
-  gradientOpacity: ZITAT_CONFIG.gradient.bottomOpacity,
+  // Kein `gradientOpacity`: über dem Foto liegt nichts. Anders als beim
+  // deutschen Zitat, das einen schwarzen Verlauf für den Textkontrast setzt.
   getCanvasText: (state) => {
     const quote = state.quote || '';
     const name = state.name || '';

@@ -44,6 +44,8 @@ export const CANVAS_TEMPLATE_TYPES = [
   'zitat-at',
   'zitat-pure-at',
   'dreizeilen-at',
+  'dreizeilen-overlay-at',
+  'info-at',
   'freeform-at',
 ] as const;
 export const canvasTemplateTypeSchema = z.enum(CANVAS_TEMPLATE_TYPES);

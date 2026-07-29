@@ -36,7 +36,7 @@ Single workspace: `pnpm --filter @gruenerator/api test:auth`, `pnpm --filter @gr
 ### Monorepo Layout
 
 - **`apps/web`** — React 19 + Vite 7. Feature-sliced design, 26 modules in `src/features/`. Routes: `src/config/routes.ts`.
-- **`apps/api`** — Express 5, Node.js cluster mode. AI via worker pool (`workers/aiWorkerPool.ts`). Routes in `routes/`, logic in `services/`. See `CLAUDE-routing.md`.
+- **`apps/api`** — Express 5, Node.js cluster mode. AI runs in-process via `services/ai/aiService.ts` (still reachable as `app.locals.aiWorkerPool` — the `worker_threads` pool it replaced is gone). Routes in `routes/`, logic in `services/`. See `CLAUDE-routing.md`.
   - **Chat: contract router is the only handler.** `routes/chat/chatGraphContractRouter.ts` (+ `agents/langgraph/ChatGraph/` nodes: classifier → search → respond) handles `/api/chat-service/*`; tools are executed by `routes/chat/services/intentExecutionService.ts` (calling services directly — there is no LangChain tool registry). **When debugging chat behavior (intent, tool calls, prompts), check the contract router & ChatGraph nodes first** — confirm via backend logs `[ChatGraph:Classifier]` / `[chatGraphContractRouter]`.
   - **Before restructuring anything in the chat stack, read `docs/chat-architecture-evaluation.md`.** It records what the architecture actually is (the compiled LangGraph graphs have zero callers — the routers hand-sequence the nodes), which duplicates are deliberate vs. drift, what the AI SDK v7 already provides that we hand-rolled, and why Deep Agents was evaluated and declined. Note `/docs/` is gitignored — edits there need `git add -f`.
 - **`apps/docs`** — **Deprecated** collaborative editor. New docs features → `apps/web/src/features/docs/` + `packages/docs/`.

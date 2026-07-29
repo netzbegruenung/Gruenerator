@@ -4,11 +4,12 @@
  * instrumentation in one place: `wrapGenerate` reads the usage off the result,
  * `wrapStream` taps the `finish` chunk as it passes through.
  *
- * NOTE: the worker-thread provider adapters call `getModel` too, but they run
- * without a usage context, so this middleware records nothing there. Worker
- * calls are accounted for once in AIWorkerPool.processRequest, from the usage
- * the adapters already return in `metadata.usage`. Do not "fix" that asymmetry
- * — it is what prevents double counting.
+ * This is the ONLY place usage is recorded. An earlier note here claimed the
+ * provider adapters were accounted for separately, inside
+ * `AIWorkerPool.processRequest`, and warned against "fixing" the asymmetry —
+ * that was true of the `worker_threads` pool, which is gone. The adapters now
+ * run in this process, on models from `getModel`, and are counted right here.
+ * Adding a second recorder for them would double-count.
  */
 
 import { wrapLanguageModel } from 'ai';
