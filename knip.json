@@ -23,7 +23,13 @@
       "ignoreDependencies": ["vite-bundle-analyzer"]
     },
     "apps/api": {
-      "entry": ["*.ts", "tests/**/*.ts", "evals/**/*.ts", "scripts/**/*.{ts,js,mjs}"],
+      "entry": [
+        "*.ts",
+        "tests/**/*.ts",
+        "evals/**/*.ts",
+        "scripts/**/*.{ts,js,mjs}",
+        "**/*.manual-test.ts"
+      ],
       "project": ["**/*.{ts,js,mts,mjs}"],
       "ignore": ["dist/**"]
     },

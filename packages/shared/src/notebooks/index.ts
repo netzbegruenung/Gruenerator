@@ -139,7 +139,14 @@ export const NOTEBOOK_REGISTRY = [
     category: 'bundesebene',
     audience: 'de-DE',
     mention: {
-      alias: 'bundestag',
+      // NICHT 'bundestag': diesen Alias beansprucht das DIP-Tool
+      // (Drucksachen/Reden/Gesetzgebung) in `packages/chat` als `identifier`.
+      // `rebuildMentionableMap` reiht Notebooks VOR Tools und nimmt den ersten
+      // Treffer, also hat dieses Notebook das Tool vollständig verdeckt — per
+      // @-Mention war die offizielle Bundestags-Dokumentation unerreichbar.
+      // Bestehende Threads bleiben heil: der persistierte Mention-Token trägt
+      // `notebook:<id>`, nicht den Alias.
+      alias: 'bundestagsfraktion',
       title: 'Bundestagsfraktion',
       description: 'Inhalte von gruene-bundestag.de',
       avatar: '🏛️',
