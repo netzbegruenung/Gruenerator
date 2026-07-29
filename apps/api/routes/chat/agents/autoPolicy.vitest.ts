@@ -5,7 +5,7 @@ import { isReasoningCapable } from '../../../services/ai/modelDiscovery.js';
 import { isReasoningStreamModel } from '../../../services/ai/regoloReasoningStream.js';
 import { mistralReasoningOption } from '../services/responseStreamingService.js';
 
-import { resolveAutoSelection, type Complexity } from './autoPolicy.js';
+import { AUTO_POLICY_EXEMPT, resolveAutoSelection, type Complexity } from './autoPolicy.js';
 import { AVAILABLE_MODELS } from './providers.js';
 
 const ALL_INTENTS = searchIntentSchema.options;
@@ -155,6 +155,38 @@ describe('autoPolicy — lane assignment per task shape', () => {
     expect(resolveAutoSelection({ intent: 'sharepic' })).toEqual(
       resolveAutoSelection({ intent: 'not-a-real-intent' })
     );
+  });
+
+  /**
+   * ...and it is the ONLY one. The table used to be a `Record<string, …>`, so a
+   * forgotten intent and a deliberately exempt one were indistinguishable: both
+   * silently took DEFAULT_ENTRY, and the suite above still passed, because
+   * "resolves to a real lane" is true of the default too. `hilfe` and
+   * `create_pdf` sat there unnoticed.
+   */
+  it('no other intent falls through to the default by accident', () => {
+    const fallthrough = JSON.stringify(resolveAutoSelection({ intent: 'not-a-real-intent' }));
+    const exempt: readonly string[] = AUTO_POLICY_EXEMPT;
+    const silent = ALL_INTENTS.filter(
+      (intent) =>
+        !exempt.includes(intent) &&
+        // `direct` and `hilfe` ARE the speed lane on purpose, so they match it.
+        intent !== 'direct' &&
+        intent !== 'hilfe' &&
+        JSON.stringify(resolveAutoSelection({ intent })) === fallthrough
+    );
+    expect(silent).toEqual([]);
+  });
+
+  it('create_pdf sits with its create_* siblings, not on the speed lane', () => {
+    // The Lane C note records what the speed lane does to a turn that has to
+    // narrate a platform action: "Ich kann keine neuen Dateien … erstellen",
+    // while the artefact is created anyway.
+    for (const complexity of COMPLEXITIES) {
+      expect(resolveAutoSelection({ intent: 'create_pdf', complexity }).modelId).toBe(
+        resolveAutoSelection({ intent: 'create_presentation', complexity }).modelId
+      );
+    }
   });
 });
 

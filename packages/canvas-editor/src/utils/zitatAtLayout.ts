@@ -46,20 +46,9 @@ export const ZITAT_AT_CONFIG = {
     height: Math.round(150 * (1410 / 1239)),
     margin: 70,
   },
-  /**
-   * Dunkelgrüner Verlauf. Die Kurve zieht früh an, damit der Textblock schon
-   * auf tragendem Grund sitzt, und lässt das obere Bilddrittel frei.
-   */
-  scrim: {
-    color: '37, 118, 57',
-    endOpacity: 0.75,
-    curve: [
-      { at: 0, opacity: 0 },
-      { at: 0.18, opacity: 0 },
-      { at: 0.42, opacity: 0.58 },
-      { at: 1, opacity: 0.75 },
-    ],
-  },
+  // Kein Verlauf über dem Foto — die österreichische CI kennt keinen, schon gar
+  // keinen grünen. Das Foto steht unbehandelt, die Bildauswahl trägt den
+  // Kontrast.
 } as const;
 
 export interface ZitatAtLayoutResult {

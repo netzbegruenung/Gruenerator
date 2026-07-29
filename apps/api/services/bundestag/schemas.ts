@@ -29,12 +29,27 @@ export const rawResultsEnvelope = <T extends z.ZodTypeAny>(item: T) =>
 /** Scores come back as strings (e.g. "0.860") — coerce, tolerate numbers. */
 const rawScore = z.union([z.string(), z.number()]).nullish();
 
+/**
+ * DIP reports `wahlperiode` per record type: a scalar on documents/activities,
+ * but an ARRAY on person records (an MP sits in several periods, e.g.
+ * `[18, 19, 20, 21]`). A scalar-only schema rejected every person record, and
+ * `fetchTrimmed` skips items that fail — so person lookups silently returned
+ * zero hits. Accept both; `pickLatestWahlperiode` narrows to the DTO's number.
+ */
+const rawWahlperiode = z.union([z.number(), z.array(z.number())]).nullish();
+
+/** Newest period of a DIP `wahlperiode` scalar-or-array field. */
+export function pickLatestWahlperiode(value: number | number[] | null | undefined): number | null {
+  if (Array.isArray(value)) return value.length > 0 ? Math.max(...value) : null;
+  return value ?? null;
+}
+
 export const rawDrucksacheSchema = z.object({
   id: z.union([z.string(), z.number()]).optional(),
   titel: z.string().nullish(),
   dokumentnummer: z.string().nullish(),
   drucksachetyp: z.string().nullish(),
-  wahlperiode: z.number().nullish(),
+  wahlperiode: rawWahlperiode,
   datum: z.string().nullish(),
   urheber: z.array(z.union([z.string(), z.object({ titel: z.string().nullish() })])).nullish(),
   fundstelle: z.object({ pdf_url: z.string().nullish() }).nullish(),
@@ -48,7 +63,7 @@ export const rawSpeechSchema = z.object({
   protokollId: z.union([z.string(), z.number()]).nullish(),
   dokumentnummer: z.string().nullish(),
   datum: z.string().nullish(),
-  wahlperiode: z.number().nullish(),
+  wahlperiode: rawWahlperiode,
   herausgeber: z.string().nullish(),
   topTitle: z.string().nullish(),
 });
@@ -62,16 +77,18 @@ export const rawSemanticHitSchema = z.object({
   abstract: z.string().nullish(),
   dokumentnummer: z.string().nullish(),
   date: z.string().nullish(),
-  wahlperiode: z.number().nullish(),
+  wahlperiode: rawWahlperiode,
 });
 
 export const rawPersonSchema = z.object({
   id: z.union([z.string(), z.number()]),
   vorname: z.string().nullish(),
   nachname: z.string().nullish(),
+  // NOT an academic title — DIP puts the full display line here, e.g.
+  // "Katrin Uhlig, MdB, BÜNDNIS 90/DIE GRÜNEN". Only a fallback for the name.
   titel: z.string().nullish(),
   fraktion: z.union([z.string(), z.array(z.string())]).nullish(),
-  wahlperiode: z.number().nullish(),
+  wahlperiode: rawWahlperiode,
 });
 
 export const rawAktivitaetSchema = z.object({
@@ -79,7 +96,7 @@ export const rawAktivitaetSchema = z.object({
   aktivitaetsart: z.string().nullish(),
   titel: z.string().nullish(),
   datum: z.string().nullish(),
-  wahlperiode: z.number().nullish(),
+  wahlperiode: rawWahlperiode,
   dokumentnummer: z.string().nullish(),
 });
 
