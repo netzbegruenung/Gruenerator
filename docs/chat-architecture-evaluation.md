@@ -139,6 +139,25 @@ Zweitens ist die **Platzierung** load-bearing, unabhängig von der Erzwingungsfr
 
 **Verallgemeinerung:** Bei SDK-Fähigkeiten, die einen Eigenbau ersetzen sollen, ist die Frage nie „gibt es die Option?", sondern „erzwingt sie dasselbe, und an derselben Stelle?". Die Optionsliste in §4.2 ist eine Kandidatenliste, kein Auftrag.
 
+### 4.5 `chunkMs` statt `createIdleDeadline` — Vorfrage beantwortet, Ergebnis trotzdem: nein
+
+Die offene Vorfrage lautete: **zählt ein Reasoning-Delta als content chunk?** Davon hing ab, ob `chunkMs` unseren `createIdleDeadline` ersetzen kann — unsere ganze Idle-Erkennung beruht darauf, dass ein denkendes Modell als lebendig gilt.
+
+**Die Antwort ist ja.** In `ai@7.0.37` (`node_modules/ai/dist/index.js:8509`) entscheidet `isOutputChunk2`, was den Chunk-Timer zurücksetzt, und dort steht `case 'reasoning-delta': return chunk.text.length > 0`. Ein nicht-leeres Reasoning-Delta ist ein Output-Chunk und rearmt das Fenster — genau unsere Semantik.
+
+**Trotzdem nicht tauschen**, aus einem Grund, der erst beim Vergleich der beiden Aufrufstellen sichtbar wird:
+
+| Pfad | Politik | `chunkMs`? |
+|---|---|---|
+| Loop-Synth (`loopEngine.ts:516`) | rearmt auf allem, bewacht den ganzen Stream | **exakte Entsprechung** |
+| Single-Pass (`responseStreamingService.ts:438-476`) | rearmt auf Reasoning, **entwaffnet** (`clear()`) beim ersten sichtbaren Text-Delta | **nein** — `chunkMs` kennt kein Entwaffnen |
+
+Das Entwaffnen ist dort Absicht und ausdrücklich kommentiert: solange dem Nutzer noch nichts angezeigt wurde, ist ein sauberer Lane-Fallback möglich; danach nicht mehr. `chunkMs` bewachte auch Phase 2 weiter und nähme dem Pfad diese Unterscheidung.
+
+Damit bliebe nur der Loop-Pfad tauschbar — und `streamIdleDeadline.ts` existiert laut eigenem Kopfkommentar genau deshalb, weil beide Pfade **eine** Definition von „hängt" teilen sollen. Einen der zwei Aufrufer auf einen SDK-Mechanismus umzustellen hieße: Modul behalten **und** zweiten Mechanismus dazu — wieder zwei Definitionen, also das Gegenteil des Zwecks.
+
+Nebenbei geklärt und für später notiert: der Fehler *wäre* unterscheidbar. Ein Chunk-Timeout bricht mit einer `DOMException` namens `TimeoutError` und der Nachricht `"Chunk timeout of Nms exceeded"` ab (`setAbortTimeout`, `dist/index.js:2743`) — `runPassWithFallback` könnte ihn also von einem Nutzer-Abbruch trennen, allerdings über `name`/Nachricht statt über einen eigenen Typ.
+
 ---
 
 ## 5. Bewertung: MCP
@@ -177,7 +196,7 @@ Grenze, die man mitdokumentieren muss: das erkennt Mutation von Beschreibung, In
 
 ### Tier 2 — je eine Entscheidung dran
 
-Toten Graph-Code löschen (§2.3) · MCP-Drift-Erkennung (§5.2) · `chunkMs` statt `createIdleDeadline` (Vorfrage: zählt ein Reasoning-Delta als content chunk?) · Provider-Konstruktion vereinheitlichen (§7) · SSE-Emission aus dem Tool-Wrapper lösen — nur `sendResult`/`recordStep`, **`sendStart` muss bleiben** · `ToolLoopAgent` als Retrieval-Subagent für den Notebook-Tiefenpfad.
+Toten Graph-Code löschen (§2.3) · MCP-Drift-Erkennung (§5.2) · ~~`chunkMs` statt `createIdleDeadline`~~ (geprüft und verworfen, §4.5) · Provider-Konstruktion vereinheitlichen (§7) · SSE-Emission aus dem Tool-Wrapper lösen — nur `sendResult`/`recordStep`, **`sendStart` muss bleiben** · `ToolLoopAgent` als Retrieval-Subagent für den Notebook-Tiefenpfad.
 
 ### Tier 3 — bewusst entscheiden, nicht hineinschlittern
 
