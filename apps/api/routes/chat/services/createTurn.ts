@@ -66,6 +66,14 @@ const CONTEXT_CHARS = 24_000;
 const PER_MESSAGE_CHARS = 4_000;
 
 /**
+ * What a sharepic gets. A document generator turns a whole conversation into
+ * pages; a sharepic turns it into three lines of at most 35 characters, at
+ * temperature 0.9. Past a few thousand characters the extra transcript stops
+ * being material and starts being noise the slogan has to survive.
+ */
+export const SHAREPIC_CONTEXT_CHARS = 4_000;
+
+/**
  * The thread as a plain transcript, newest-first-bounded.
  *
  * Why this exists: a single-pass create turn used to build NO history — the
@@ -75,11 +83,17 @@ const PER_MESSAGE_CHARS = 4_000;
  * scope, a Kanban confirmation line, and cited it as a source.
  *
  * The LAST user message is skipped — it IS the brief, passed separately.
+ *
+ * `maxChars` exists for callers whose generator has a much smaller appetite than
+ * a document generator's (see SHAREPIC_CONTEXT_CHARS).
  */
-export function buildCreateTurnContext(messages: ChatGraphState['messages']): string {
+export function buildCreateTurnContext(
+  messages: ChatGraphState['messages'],
+  maxChars: number = CONTEXT_CHARS
+): string {
   const history = messages.slice(0, -1);
   const lines: string[] = [];
-  let budget = CONTEXT_CHARS;
+  let budget = maxChars;
   for (let i = history.length - 1; i >= 0 && budget > 0; i--) {
     const message = history[i];
     if (!message) continue;
