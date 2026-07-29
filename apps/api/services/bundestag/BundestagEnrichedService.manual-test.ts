@@ -50,6 +50,13 @@ function expectPerson(surname: string): (r: BtEnrichedResult) => string | null {
     if (r.person.speeches.length === 0 && r.person.aktivitaeten.length === 0) {
       return 'person found but neither speeches nor activities returned';
     }
+    // Regression guard: a DIP Aktivität's own `titel` is the MP's display line
+    // and identical on every row — the subject lives in `vorgangsbezug[].titel`.
+    // Mapping the wrong one yields N copies of the person's name.
+    const akt = r.person.aktivitaeten;
+    if (akt.length > 1 && new Set(akt.map((a) => a.titel)).size === 1) {
+      return `all ${akt.length} activities share one title ("${akt[0].titel}") — subject not mapped`;
+    }
     return null;
   };
 }
