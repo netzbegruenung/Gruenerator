@@ -9,6 +9,9 @@ import fs from 'fs';
 
 import { createLogger } from '../../utils/logger.js';
 import mistralClient from '../../workers/mistralClient.js';
+import { type Locale } from '../localization/types.js';
+import { toWhisperLanguage } from '../transcription/providerPolicy.js';
+import { buildContextBias } from '../transcription/transcriptionBias.js';
 
 const log = createLogger('voxtral-transcription');
 
@@ -36,7 +39,8 @@ interface VoxtralSegment {
 async function transcribeWithVoxtral(
   filePath: string,
   requestWordTimestamps: boolean = false,
-  _uploadId: string | null = null
+  _uploadId: string | null = null,
+  locale: Locale = 'de-DE'
 ): Promise<TranscriptionResult> {
   const stats = fs.statSync(filePath);
   const fileSizeMB = (stats.size / (1024 * 1024)).toFixed(2);
@@ -48,7 +52,10 @@ async function transcribeWithVoxtral(
   const response = await mistralClient.audio.transcriptions.complete({
     model: VOXTRAL_MODEL,
     file: { fileName, content: audioBuffer },
-    language: 'de',
+    language: toWhisperLanguage(locale),
+    // Steers spelling of party names, institutions and politicians for the
+    // user's country. Voxtral-only — Regolo has no equivalent parameter.
+    contextBias: buildContextBias(locale),
     ...(requestWordTimestamps
       ? { responseFormat: 'verbose_json', timestampGranularities: ['word'] }
       : {}),
