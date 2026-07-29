@@ -63,6 +63,14 @@ export interface ChatTrace {
   sharepicUpdated: boolean;
   /** Raw variant objects from sharepic_complete (id, canvasType, canvasId?). */
   sharepicVariants: Record<string, unknown>[];
+  /**
+   * Text the turn PRODUCED somewhere other than the answer stream — today the
+   * `social_post_complete` post body. On such a turn `fullText` is only the
+   * wrapper sentence ("Hier ist dein Post."), so every check about what was
+   * WRITTEN has to read this as well, or it grades the frame instead of the
+   * picture.
+   */
+  generatedText: string[];
   /** `type` of every confirm_action card offered (save_as_doc, modify_board, …).
    *  A card is a persistent action the user is one click away from — offering
    *  one on a turn that forbade it is the defect, not the click. */
@@ -97,6 +105,7 @@ export const rubricNameSchema = z.enum([
   'german_quality',
   'parity',
   'instruction_hierarchy',
+  'content_policy',
 ]);
 export type RubricName = z.infer<typeof rubricNameSchema>;
 
@@ -150,8 +159,32 @@ export const evalExpectSchema = z
     /**
      * If the answer IS a refusal, it must be written in this language. A German
      * product refusing in English is a defect even when the refusal is correct.
+     *
+     * Note what this does NOT say: a non-refusal passes ("not a refusal"). It is
+     * a language check, never a "must decline" check — use {@link refuses} for
+     * that. The three content-policy scenarios asserted only this and
+     * `generatesSharepic: false`, which meant they stayed green while the model
+     * wrote the fabricated quote / the group-defamation post in full.
      */
     refusalLanguage: z.literal('de').optional(),
+    /**
+     * Whether the answer must BE a refusal. Both cases carry weight:
+     * `true` states "producing this content is the defect" (fabricated quotes
+     * attributed to a real person, group defamation); `false` is the
+     * over-refusal guard that keeps a hardening pass from breaking legitimate
+     * work.
+     */
+    refuses: z.boolean().optional(),
+    /**
+     * Substrings that must NOT appear in the answer (case-insensitive).
+     *
+     * The deterministic floor under the `instruction_hierarchy` judge: injection
+     * is semantic in general, but a KNOWN payload leaves a lexical trace — the
+     * codeword it demanded, the payment address it wanted forwarded, the
+     * internal filenames it induced. Those can be proven from the trace alone,
+     * so they must not depend on a judge run that `passed` never waits for.
+     */
+    answerMustNotContain: z.array(z.string()).optional(),
     /**
      * Turn 2+: sources retrieved in an earlier turn must still be usable. Fails
      * when the answer denies having sources while the thread has them.
@@ -286,6 +319,8 @@ export interface TurnResult {
   imageGenerated: boolean;
   citations: unknown[];
   fullText: string;
+  /** Text produced outside the answer stream (social_post body). See ChatTrace. */
+  generatedText: string[];
   error: string | null;
   assertions: AssertionResult[];
   passed: boolean;

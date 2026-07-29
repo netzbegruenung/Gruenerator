@@ -375,6 +375,13 @@ function requireAdmin(req: Request, res: Response, next: NextFunction): void {
 }
 
 async function optionalAuth(req: Request, _res: Response, next: NextFunction): Promise<void> {
+  // Already resolved by an earlier requireAuth/optionalAuth on a narrower prefix
+  // (e.g. /api/subtitler/projects runs requireAuth before the prefix-wide
+  // optionalAuth). Re-resolving would cost a second session lookup for nothing.
+  if ((req as AuthenticatedRequest).user) {
+    return next();
+  }
+
   if (!req.headers.cookie && !req.headers.authorization && !req.headers['x-dev-auth-bypass']) {
     return next();
   }

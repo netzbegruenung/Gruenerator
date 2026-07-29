@@ -60,12 +60,3 @@ export async function setUserLocale(userId: string, locale: Locale): Promise<voi
     log.warn(`redis set failed for ${userId}: ${(err as Error).message}`);
   }
 }
-
-/** Drop the cached locale (next read re-reads the DB). */
-export async function invalidateUserLocale(userId: string): Promise<void> {
-  try {
-    await redisClient.del(key(userId));
-  } catch (err) {
-    log.warn(`redis del failed for ${userId}: ${(err as Error).message}`);
-  }
-}

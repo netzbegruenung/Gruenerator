@@ -16,9 +16,11 @@ import { type VideoMetadata } from '../../routes/subtitler/types.js';
 import { toJobError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
+import { getUserLocale } from '../localization/localeCache.js';
 
 import { buildFFmpegOutputOptions, buildVideoFilters } from './ffmpegExportUtils.js';
-import { ffmpeg, normalizeRotation, type FFprobeMetadata } from './ffmpegWrapper.js';
+import { ffmpeg } from './ffmpegWrapper.js';
+import { probeVideoMetadata } from './videoMetadata.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -44,43 +46,6 @@ interface ExportResult {
   exportToken: string;
   outputPath: string;
   duration: number;
-}
-
-async function getVideoMetadata(inputPath: string): Promise<VideoMetadata> {
-  return new Promise((resolve, reject) => {
-    ffmpeg.ffprobe(inputPath, (err: Error | null, metadata?: FFprobeMetadata) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-
-      if (!metadata) {
-        reject(new Error('No metadata received'));
-        return;
-      }
-
-      const videoStream = metadata.streams.find((s) => s.codec_type === 'video');
-      const audioStream = metadata.streams.find((s) => s.codec_type === 'audio');
-
-      const rotationDegrees = videoStream ? normalizeRotation(videoStream) : 0;
-      const isVertical = rotationDegrees === 90 || rotationDegrees === 270;
-      const rawW = videoStream?.width || 1920;
-      const rawH = videoStream?.height || 1080;
-
-      resolve({
-        width: isVertical ? rawH : rawW,
-        height: isVertical ? rawW : rawH,
-        duration: parseFloat(metadata.format.duration || '0') || 0,
-        rotation: String(rotationDegrees),
-        originalFormat: {
-          ...(videoStream?.codec_name && { codec: videoStream.codec_name }),
-          ...(audioStream?.codec_name && { audioCodec: audioStream.codec_name }),
-          audioBitrate: audioStream?.bit_rate ? parseInt(audioStream.bit_rate) / 1000 : null,
-          videoBitrate: videoStream?.bit_rate ? parseInt(videoStream.bit_rate) : null,
-        },
-      });
-    });
-  });
 }
 
 function parseSubtitleSegments(subtitles: string): SubtitleSegment[] {
@@ -155,7 +120,8 @@ function calculateFontSize(metadata: VideoMetadata): number {
 
 async function processProjectExport(
   project: Project,
-  projService: ProjectService
+  projService: ProjectService,
+  ownerUserId?: string | null
 ): Promise<ExportResult> {
   const exportToken = uuidv4();
 
@@ -170,7 +136,7 @@ async function processProjectExport(
       throw new Error('Video file not found');
     }
 
-    const metadata = project.video_metadata || (await getVideoMetadata(inputPath));
+    const metadata = project.video_metadata || (await probeVideoMetadata(inputPath));
     const fileStats = await fs.stat(inputPath);
 
     const segments = parseSubtitleSegments(project.subtitles);
@@ -185,7 +151,10 @@ async function processProjectExport(
 
     const stylePreference = project.style_preference || 'standard';
     const heightPreference = project.height_preference || 'standard';
-    const locale = 'de-DE';
+    // Re-exports used to hardcode de-DE, so an Austrian project re-rendered for
+    // a share link came back with German styling and fonts — even though the
+    // original export had been correct.
+    const locale = (ownerUserId ? await getUserLocale(ownerUserId) : null) ?? 'de-DE';
 
     await redisClient.set(
       `export:${exportToken}`,
@@ -370,5 +339,5 @@ async function processProjectExport(
   }
 }
 
-export { processProjectExport, parseSubtitleSegments, calculateFontSize, getVideoMetadata };
+export { processProjectExport, parseSubtitleSegments };
 export type { VideoMetadata, SubtitleSegment, Project, ProjectService, ExportResult };

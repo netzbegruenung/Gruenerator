@@ -37,6 +37,7 @@ export interface ClassifierLLMResponse {
   clarificationOptions?: string[];
   documentSubtype?: string | null;
   targetGroupName?: string | null;
+  creationTopic?: string | null;
   reasoning: string;
 }
 

@@ -6,6 +6,8 @@
  * and implicit any types.
  */
 
+import type { HeightPreference, StylePreference, SubtitlePreference } from '@gruenerator/contracts';
+
 /**
  * Represents a single subtitle segment with timing information
  */
@@ -28,19 +30,13 @@ export interface VideoMetadata {
 }
 
 /**
- * Available subtitle style preferences
+ * Subtitle preferences — re-exported from the contract, never re-declared.
+ *
+ * These used to be hand-written here and had drifted: `SubtitlePreference` read
+ * `'manual' | 'auto'`, while the server has always accepted `'manual' | 'word'`.
+ * `'auto'` was never a value the backend understood.
  */
-export type StylePreference = 'standard' | 'clean' | 'shadow' | 'tanne';
-
-/**
- * Subtitle vertical position preferences
- */
-export type HeightPreference = 'tief' | 'standard';
-
-/**
- * Subtitle generation mode preferences
- */
-export type SubtitlePreference = 'manual' | 'auto';
+export type { StylePreference, HeightPreference, SubtitlePreference };
 
 /**
  * Export process status
@@ -58,7 +54,7 @@ export interface LoadedProject {
   title?: string;
   stylePreference?: StylePreference;
   heightPreference?: HeightPreference;
-  modePreference?: string;
+  modePreference?: SubtitlePreference;
   videoMetadata?: VideoMetadata;
   videoFilename?: string;
   videoSize?: number;
