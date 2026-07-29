@@ -207,6 +207,13 @@ export const pollDataSchema = z.object({
 export const pollParliamentSchema = z.object({
   id: z.string(),
   name: z.string(),
+  /**
+   * Which country's parliament this is. PolitPro covers Austria as fully as
+   * Germany (Nationalrat plus all nine Länder); the chat poll lookup needs the
+   * split so it can pick a national default per user locale instead of always
+   * answering with the Bundestag. Additive — existing clients ignore it.
+   */
+  country: z.enum(['DE', 'AT']),
 });
 
 export const pollParliamentsResponseSchema = z.array(pollParliamentSchema);

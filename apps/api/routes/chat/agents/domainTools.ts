@@ -145,13 +145,27 @@ NUTZE WENN nach dem Abstimmungsverhalten, den Nebentätigkeiten oder dem Mandat 
  * + AT-Parlamente) und themenbezogenes Meinungsbild (MRP/GERDA) — the same
  * `lookupUmfragen` the Monitor uses. Registers one source for the [N] footer
  * and returns the full formatted block as the model's grounding.
+ *
+ * Takes `state` for `userLocale`: this promise of Austrian coverage used to be
+ * made in the description only. The tool passed no locale, so `lookupUmfragen`
+ * fell back to `deutschland` and an Austrian user asking for the Sonntagsfrage
+ * got the Bundestag, labelled as such.
  */
-export function makeUmfragenTool(ctx: { sourceRegistry: SourceRegistry }): Tool {
-  const { sourceRegistry } = ctx;
+export function makeUmfragenTool(ctx: {
+  sourceRegistry: SourceRegistry;
+  state: ChatGraphState;
+}): Tool {
+  const { sourceRegistry, state } = ctx;
+  const isAT = state.userLocale === 'de-AT';
+  // The wording forks because the examples ARE the instruction: a tool told to
+  // expect "Bayern" will not think to pass "Wien", and a national question for
+  // an Austrian user means the Nationalrat, not the Bundestag.
+  const regionExample = isAT ? '"Wien", "Steiermark"' : '"Bayern"';
+  const nationalWord = isAT ? 'österreichweit' : 'bundesweit';
   return tool({
-    description: `Ruft aktuelle Wahlumfragen ab: Sonntagsfrage (Parteiwerte, bundesweit oder pro Bundesland/Österreich) und themenbezogene Meinungsbilder.
+    description: `Ruft aktuelle Wahlumfragen ab: Sonntagsfrage (Parteiwerte, ${nationalWord} oder pro Bundesland) und themenbezogene Meinungsbilder.
 
-NUTZE WENN nach Umfragewerten, der Sonntagsfrage oder der Zustimmung zu einem Thema gefragt wird ("wie stehen die Grünen in Umfragen", "Sonntagsfrage Bayern"). NICHT für Parteipositionen oder Wahlergebnisse.`,
+NUTZE WENN nach Umfragewerten, der Sonntagsfrage oder der Zustimmung zu einem Thema gefragt wird ("wie stehen die Grünen in Umfragen", "Sonntagsfrage ${isAT ? 'Wien' : 'Bayern'}"). NICHT für Parteipositionen oder Wahlergebnisse.`,
     inputSchema: z.object({
       topic: z
         .string()
@@ -163,11 +177,13 @@ NUTZE WENN nach Umfragewerten, der Sonntagsfrage oder der Zustimmung zu einem Th
         .string()
         .optional()
         .describe(
-          'Bundesland/Region für die Sonntagsfrage (z.B. "Bayern"); weglassen für bundesweit'
+          `Bundesland/Region für die Sonntagsfrage (z.B. ${regionExample}); weglassen für ${nationalWord}`
         ),
     }),
     execute: async ({ topic, bundesland }) => {
-      const text = await lookupUmfragen(topic ?? '', bundesland).catch(() => null);
+      const text = await lookupUmfragen(topic ?? '', bundesland, isAT ? 'de-AT' : 'de-DE').catch(
+        () => null
+      );
       if (!text) {
         return { resultCount: 0, sources: '', error: 'Keine Umfragedaten verfügbar.' };
       }
