@@ -430,11 +430,11 @@ export const EXAMPLES: CapabilityExample[] = [
   {
     intent: 'reise',
     group: 'alltag',
-    label: 'Reise planen',
-    hint: 'Zug, Übernachtung und Wetter in einer Antwort — für Fahrten zu Parteitagen und Terminen.',
+    label: 'Reise planen (derzeit aus)',
+    hint: 'Die kombinierte Reiseplanung ist abgeschaltet, solange es keine ÖBB-Anbindung gibt — für Österreich wäre die Antwort nur halb. Frage Bahnauskunft, Unterkunft und Wetter einzeln ab; solche Fragen beantwortet der Chat sonst über die Websuche.',
     questions: [
-      'Plane meine Fahrt zum Länderrat: Zug und Hotel.',
-      'Ich muss Donnerstag nach Hannover — wie komme ich hin und wo kann ich übernachten?',
+      'Wann fahren Donnerstag Züge von Kassel nach Hannover?',
+      'Such mir eine Unterkunft in Hannover für Donnerstag.',
     ],
   },
   {
