@@ -13,10 +13,21 @@
  * the client wrappers, so no raw DIP shapes reach the LLM. A single failing
  * MCP call degrades to an empty list — this service never throws.
  */
-import { getBundestagMCPClient, type BundestagMCPClient } from './BundestagMCPClient.js';
+import {
+  getBundestagMCPClient,
+  CURRENT_WAHLPERIODE,
+  SUBSTANTIVE_ENTITY_TYPES,
+  type BundestagMCPClient,
+} from './BundestagMCPClient.js';
 import { getPersonDetectionService } from './PersonDetectionService.js';
 
-import type { BtDrucksache, BtEnrichedResult, BtSpeech, BtVorgang } from './types.js';
+import type {
+  BtDrucksache,
+  BtEnrichedResult,
+  BtSemanticHit,
+  BtSpeech,
+  BtVorgang,
+} from './types.js';
 
 // Explicit reference: "Drucksache 21/123", "BT-Drs. 20/1234", "Drs 21/50".
 const EXPLICIT_DRS_RE = /\b(?:drucksache|bt-?drs\.?|drs\.?)\s*(\d{1,2})\s*\/\s*(\d{1,6})\b/i;
@@ -222,15 +233,24 @@ export class BundestagEnrichedService {
     // ── Topic path (default) ─────────────────────────────────────────────────
     const speechLimit = SPEECH_QUERY_RE.test(query) ? 4 : 2;
     const [hitResult, speechResult] = await Promise.all([
-      this.client.semanticSearch({ query, limit: 6, ...(sort ? { sort } : {}) }),
+      // Overfetch: `entityTypes` still lets a bill's Bundestag and Bundesrat
+      // versions through under one title, and dedupeHits drops the redundant
+      // one — asking for 6 would then deliver fewer than 6.
+      this.client.semanticSearch({
+        query,
+        limit: 10,
+        entityTypes: SUBSTANTIVE_ENTITY_TYPES,
+        ...(sort ? { sort } : {}),
+      }),
       this.client.searchSpeeches({ query, limit: speechLimit, ...(sort ? { sort } : {}) }),
     ]);
+    const hits = this.dedupeHits(hitResult.items).slice(0, 6);
 
     // The semantic layer can be empty or unavailable (vector backend down) —
     // fall back to the raw DIP title search so topic queries still resolve.
     let documents: BtDrucksache[] = [];
     let vorgaenge: BtVorgang[] = [];
-    if (hitResult.items.length === 0 && speechResult.items.length === 0) {
+    if (hits.length === 0 && speechResult.items.length === 0) {
       const keyword = this.extractTopic(query) ?? query;
       const [drsResult, vorgangResult] = await Promise.all([
         this.client.findDrucksache({ query: keyword, limit: 4 }),
@@ -247,7 +267,7 @@ export class BundestagEnrichedService {
     }
 
     if (
-      hitResult.items.length > 0 ||
+      hits.length > 0 ||
       speechResult.items.length > 0 ||
       documents.length > 0 ||
       vorgaenge.length > 0
@@ -256,7 +276,7 @@ export class BundestagEnrichedService {
       return {
         kind: 'topic',
         topic: {
-          hits: hitResult.items,
+          hits,
           speeches: this.dedupeSpeeches(speechResult.items),
           documents,
           vorgaenge,
@@ -333,6 +353,38 @@ export class BundestagEnrichedService {
       out.push(s);
     }
     return out;
+  }
+
+  /**
+   * One bill reaches DIP as several records under the SAME title — the
+   * Bundestag Drucksache and its Bundesrat counterpart, plus reprints. They are
+   * indistinguishable to the reranker (identical title, null abstract), so they
+   * crowd out other topics for no informational gain.
+   *
+   * Keep one record per title, preferring the Bundestag document: its
+   * `dokumentnummer` is `<wahlperiode>/<laufende Nummer>` ("21/6587"), whereas
+   * the Bundesrat numbers by year ("382/25"). Hits arrive relevance-ordered, so
+   * the first of a group is otherwise the one to keep.
+   */
+  private dedupeHits(hits: BtSemanticHit[]): BtSemanticHit[] {
+    const isBundestag = (h: BtSemanticHit): boolean =>
+      (h.dokumentnummer ?? '').startsWith(`${CURRENT_WAHLPERIODE}/`);
+    const byTitle = new Map<string, BtSemanticHit>();
+    const order: string[] = [];
+    for (const h of hits) {
+      const key = h.title.toLowerCase().replace(/\s+/g, ' ').trim();
+      const kept = byTitle.get(key);
+      if (!kept) {
+        byTitle.set(key, h);
+        order.push(key);
+        continue;
+      }
+      if (!isBundestag(kept) && isBundestag(h)) byTitle.set(key, h);
+    }
+    return order.flatMap((k) => {
+      const h = byTitle.get(k);
+      return h ? [h] : [];
+    });
   }
 }
 

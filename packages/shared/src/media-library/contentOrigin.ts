@@ -66,6 +66,7 @@ const TEMPLATE_IMAGE_TYPES: ReadonlySet<string> = new Set([
   'ZitatPureAt',
   'DreizeilenAt',
   'DreizeilenOverlayAt',
+  'InfoAt',
   'FreeformAt',
   // canvas config ids
   'dreizeilen',
@@ -82,6 +83,7 @@ const TEMPLATE_IMAGE_TYPES: ReadonlySet<string> = new Set([
   'zitat-pure-at',
   'dreizeilen-at',
   'dreizeilen-overlay-at',
+  'info-at',
   'freeform-at',
 ]);
 
