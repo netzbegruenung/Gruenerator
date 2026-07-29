@@ -107,32 +107,15 @@ class AIService implements AIWorkerPool {
     });
 
     try {
-      let result: AIWorkerResult | undefined;
-
-      const explicitProvider = data.provider || null;
-      if (explicitProvider) {
-        result = await providers.executeProvider(explicitProvider, requestId, {
-          ...data,
-          options: effectiveOptions,
-        });
-      }
-
-      if (!result && selection.provider === 'litellm' && !explicitProvider) {
-        result = await providers.executeProvider('litellm', requestId, {
-          ...data,
-          options: effectiveOptions,
-        });
-      } else if (!result && selection.provider === 'regolo' && !explicitProvider) {
-        result = await providers.executeProvider('regolo', requestId, {
-          ...data,
-          options: effectiveOptions,
-        });
-      } else if (!result && !explicitProvider) {
-        result = await providers.executeProvider('mistral', requestId, {
-          ...data,
-          options: effectiveOptions,
-        });
-      }
+      // The chosen provider, run. This used to be an if/else chain naming
+      // litellm and regolo explicitly and sending everything else to mistral —
+      // so a `greenpt` selection quietly answered on mistral, and any fifth
+      // provider would have too. For the three branches that were reachable
+      // this is the identity.
+      let result = await providers.executeProvider(data.provider || selection.provider, requestId, {
+        ...data,
+        options: effectiveOptions,
+      });
 
       const hasValidContent = result?.content || result?.stop_reason === 'tool_use';
       if (!hasValidContent) {

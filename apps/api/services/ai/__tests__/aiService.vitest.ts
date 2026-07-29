@@ -278,3 +278,46 @@ describe('AIService — provider errors reach the caller classified', () => {
     expect((error as Error).cause).toBe(original);
   });
 });
+
+/**
+ * The routing chain used to name litellm and regolo explicitly and send
+ * everything else to mistral. A `greenpt` selection therefore answered on
+ * mistral without a word — latent rather than live (no call site selects
+ * greenpt today), but the shape of the defect is that EVERY future provider
+ * inherits it.
+ */
+describe('AIService — the selected provider is the one that runs', () => {
+  let service: AIService;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    service = new AIService();
+    mockExecuteProvider.mockResolvedValue(VALID_RESULT);
+  });
+
+  for (const provider of ['mistral', 'litellm', 'regolo', 'greenpt'] as const) {
+    it(`runs ${provider} when ${provider} is selected`, async () => {
+      mockSelectProviderAndModel.mockReturnValue({ provider, model: 'some-model' });
+
+      await service.processRequest(makeRequest());
+
+      expect(mockExecuteProvider).toHaveBeenCalledWith(
+        provider,
+        expect.any(String),
+        expect.any(Object)
+      );
+    });
+  }
+
+  it('a top-level provider still overrides the selection', async () => {
+    mockSelectProviderAndModel.mockReturnValue({ provider: 'litellm', model: 'verdigado-pro' });
+
+    await service.processRequest(makeRequest({ provider: 'mistral' }));
+
+    expect(mockExecuteProvider).toHaveBeenCalledWith(
+      'mistral',
+      expect.any(String),
+      expect.any(Object)
+    );
+  });
+});
