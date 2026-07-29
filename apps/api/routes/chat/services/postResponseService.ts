@@ -11,6 +11,7 @@
 
 import { intentToolNames } from '@gruenerator/shared/chat-intents';
 
+import { renumberAnswerCitations } from '../../../agents/langgraph/ChatGraph/nodes/citationUtils.js';
 import { upsertThreadRecallPoint } from '../../../services/chat/threadRecallEmbeddingService.js';
 import { generateThreadTags } from '../../../services/chat/threadTagService.js';
 import { generateThreadTitle } from '../../../services/chat/threadTitleService.js';
@@ -390,6 +391,15 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
   )
     return { ok: true };
 
+  // Gapless citation numbers on the persisted turn. The prompt hands the model
+  // 1..N and it cites a subset, so the stored text and chips kept whatever holes
+  // the answer left (observed: 1, 2, 4 against four sources). The notebook path
+  // has done this since #2137; this is the web path's half.
+  const { text: persistedText, citations: persistedCitations } = renumberAnswerCitations(
+    fullText,
+    finalState.citations ?? []
+  );
+
   try {
     // Agentic loop: persist the real executed steps (already in the
     // {toolCallId, toolName, args, result} shape the cards rehydrate from)
@@ -413,7 +423,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
       // Only stamp a real agent — the universal default carries no badge, so
       // reload matches the live stream (which sets agentInfo only for agents).
       ...(agentId && agentId !== 'gruenerator-universal' ? { agentId } : {}),
-      citations: finalState.citations,
+      citations: persistedCitations,
       searchResults: finalState.searchResults?.slice(0, MAX_SOURCES) || [],
       generatedImage: generatedImage
         ? {
@@ -443,7 +453,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
       // re-insert (that would resurrect a turn the user discarded); just warn
       // and skip all post-persist side effects for this turn.
       const matched = await withMessageWriteRetry(
-        () => finalizeAssistantMessage(pendingMessageId, fullText || null, metadata),
+        () => finalizeAssistantMessage(pendingMessageId, persistedText || null, metadata),
         'finalizeAssistantMessage'
       );
       if (!matched) {
@@ -454,7 +464,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
       }
     } else {
       await withMessageWriteRetry(
-        () => createMessage(threadId, 'assistant', fullText || null, metadata),
+        () => createMessage(threadId, 'assistant', persistedText || null, metadata),
         'createMessage'
       );
     }
@@ -676,6 +686,13 @@ export async function persistResumedResponse(params: {
 
   if (!threadId || !fullText) return { ok: true };
 
+  // Same gapless numbering as the non-resumed path — both write
+  // `metadata.citations`, so wiring only one would reintroduce the drift.
+  const { text: persistedText, citations: persistedCitations } = renumberAnswerCitations(
+    fullText,
+    finalState.citations ?? []
+  );
+
   try {
     const toolCalls = buildToolCalls(
       classifiedState,
@@ -688,7 +705,7 @@ export async function persistResumedResponse(params: {
       intent: finalState.intent,
       searchCount: finalState.searchCount,
       ...(traceId && { traceId }),
-      citations: finalState.citations,
+      citations: persistedCitations,
       searchResults: finalState.searchResults?.slice(0, MAX_SOURCES) || [],
       resumed: true,
       // Same shape the non-resumed path persists, so the document card
@@ -707,7 +724,7 @@ export async function persistResumedResponse(params: {
       // is gone (e.g. a regenerate from another tab deleted it) — do NOT
       // re-insert; just warn and skip the post-persist side effects.
       const matched = await withMessageWriteRetry(
-        () => finalizeAssistantMessage(pendingMessageId, fullText, metadata),
+        () => finalizeAssistantMessage(pendingMessageId, persistedText, metadata),
         'finalizeAssistantMessage:resume'
       );
       if (!matched) {
@@ -718,7 +735,7 @@ export async function persistResumedResponse(params: {
       }
     } else {
       await withMessageWriteRetry(
-        () => createMessage(threadId, 'assistant', fullText, metadata),
+        () => createMessage(threadId, 'assistant', persistedText, metadata),
         'createMessage:resume'
       );
     }
