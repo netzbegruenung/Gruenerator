@@ -52,6 +52,12 @@
       "import": "./dist/utils/index.js",
       "default": "./dist/utils/index.js"
     },
+    "./docs": {
+      "development": "./src/docs/index.ts",
+      "types": "./src/docs/index.ts",
+      "import": "./dist/docs/index.js",
+      "default": "./dist/docs/index.js"
+    },
     "./generators": {
       "development": "./src/generators/index.ts",
       "types": "./src/generators/index.ts",
@@ -177,6 +183,12 @@
       "types": "./src/notebooks/index.ts",
       "import": "./dist/notebooks/index.js",
       "default": "./dist/notebooks/index.js"
+    },
+    "./chat-intents": {
+      "development": "./src/chat-intents/index.ts",
+      "types": "./src/chat-intents/index.ts",
+      "import": "./dist/chat-intents/index.js",
+      "default": "./dist/chat-intents/index.js"
     },
     "./chat": {
       "development": "./src/chat/index.ts",

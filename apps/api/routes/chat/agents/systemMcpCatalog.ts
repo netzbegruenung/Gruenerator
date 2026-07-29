@@ -237,8 +237,10 @@ export async function loadSystemMcpCatalog(params: {
   intent: string;
   sse: SSEWriter;
   sourceRegistry: SourceRegistry;
+  /** Drops sources that do not cover this user's country (see SOURCE_AUDIENCE). */
+  userLocale?: string | null;
 }): Promise<McpCatalog> {
-  const sources = getSourcesForIntent(params.intent);
+  const sources = getSourcesForIntent(params.intent, params.userLocale);
   if (sources.length === 0) return EMPTY;
 
   const clients: UserMCPClient[] = [];

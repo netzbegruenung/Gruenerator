@@ -114,3 +114,68 @@ describe('getSystemMcpSources (env matrix)', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Locale gating. A source is dropped when its data does not cover the user's
+// country — resolved per SOURCE, not per intent, because `reise` mounts three
+// at once and only the train one is German-only.
+// ---------------------------------------------------------------------------
+
+describe('locale gating', () => {
+  const allConfigured = () => {
+    process.env.SYSTEM_MCP_DB_URL = 'https://db.example';
+    process.env.SYSTEM_MCP_WEATHER_URL = 'https://weather.example';
+    process.env.SYSTEM_MCP_ARD_URL = 'https://ard.example';
+    process.env.SYSTEM_MCP_TRIVAGO_URL = 'https://trivago.example';
+  };
+
+  it('keeps every source for a German user', () => {
+    allConfigured();
+    expect(
+      getSourcesForIntent('reise', 'de-DE')
+        .map((s) => s.key)
+        .sort()
+    ).toEqual(['bahn', 'hotel', 'wetter']);
+    expect(getSourcesForIntent('bahn', 'de-DE')).toHaveLength(1);
+    expect(getSourcesForIntent('news', 'de-DE')).toHaveLength(1);
+  });
+
+  it('drops only the German-only sources for an Austrian user', () => {
+    allConfigured();
+    // The bug this prevents: an Austrian planning Wien→Graz was handed Deutsche
+    // Bahn IRIS tools, because the gate was per intent and `reise` is not
+    // German-only as a whole.
+    expect(
+      getSourcesForIntent('reise', 'de-AT')
+        .map((s) => s.key)
+        .sort()
+    ).toEqual(['hotel', 'wetter']);
+    expect(getSourcesForIntent('bahn', 'de-AT')).toHaveLength(0);
+    expect(getSourcesForIntent('news', 'de-AT')).toHaveLength(0);
+    // Global sources are untouched.
+    expect(getSourcesForIntent('wetter', 'de-AT')).toHaveLength(1);
+    expect(getSourcesForIntent('hotel', 'de-AT')).toHaveLength(1);
+  });
+
+  it('keeps the full set when no locale is given (health checks, catalogs)', () => {
+    allConfigured();
+    expect(getSourcesForIntent('reise')).toHaveLength(3);
+    expect(getSourcesForIntent('bahn')).toHaveLength(1);
+  });
+
+  it('reports availability per locale', () => {
+    allConfigured();
+    expect(isSystemIntentAvailable('bahn', 'de-DE')).toBe(true);
+    expect(isSystemIntentAvailable('bahn', 'de-AT')).toBe(false);
+    // `reise` survives for Austria — with hotel and weather, without the train.
+    expect(isSystemIntentAvailable('reise', 'de-AT')).toBe(true);
+  });
+
+  it('derives DE_ONLY_SYSTEM_INTENTS instead of hand-listing it', async () => {
+    const { DE_ONLY_SYSTEM_INTENTS } = await import('./systemMcpServers.js');
+    expect([...DE_ONLY_SYSTEM_INTENTS].sort()).toEqual(['bahn', 'news']);
+    // `reise` must NOT be in here: it still has sources for Austria, so
+    // degrading the whole intent to web would throw away hotel and weather.
+    expect(DE_ONLY_SYSTEM_INTENTS.has('reise' as never)).toBe(false);
+  });
+});
