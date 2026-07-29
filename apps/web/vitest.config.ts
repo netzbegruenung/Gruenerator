@@ -23,6 +23,7 @@ const resolve = {
 export default defineConfig({
   resolve,
   test: {
+    ...(process.env.CI ? {} : { maxWorkers: 2, minWorkers: 1 }),
     projects: [
       {
         // Fast pure-logic lane — no DOM, unchanged from the original config.

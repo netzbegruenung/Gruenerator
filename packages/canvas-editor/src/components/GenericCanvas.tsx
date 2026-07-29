@@ -545,6 +545,41 @@ function GenericCanvasWithRef<
     );
   }, [isExporting, state, config.canvas.width, config.canvas.height]);
 
+  /**
+   * Konva berechnet den Zeilenumbruch eines Text-Knotens EINMAL, beim Setzen
+   * seiner Eigenschaften, und legt ihn in `textArr` ab. Ist die Webschrift zu
+   * diesem Zeitpunkt noch nicht geladen, misst es gegen die Ersatzschrift und
+   * behaelt diesen Umbruch, auch wenn die echte Schrift eintrifft: Das Bild
+   * wird dann in der richtigen Schrift mit den falschen Bruechen gezeichnet.
+   * Im Realtest lief „aus Erneuerbaren." so auf drei Zeilen, mit dem Punkt
+   * allein auf der letzten — die Ersatzschrift Georgia ist breiter als
+   * Vollkorn und drueckte ihn ueber das Satzmass.
+   *
+   * `layout` wird an `isFontAvailable` zwar neu berechnet, das rettet aber nur
+   * die Faelle, in denen sich dabei eine Eigenschaft aendert. Bleibt der
+   * Schriftgrad gleich, sieht React identische Props und Konva rechnet nichts
+   * neu. Der Text wird deshalb zweimal gesetzt: Konvas Setter steigt bei
+   * unveraendertem Wert frueh aus, ein einzelnes Setzen waere wirkungslos.
+   *
+   * Nur beim Umschlagen von `isFontAvailable`, nicht bei jeder Neuberechnung
+   * des Layouts: danach misst Konva ohnehin gegen die richtige Schrift, und
+   * ein Zuruecksetzen bei jeder Textaenderung wuerde der laufenden Bearbeitung
+   * in die Quere kommen.
+   */
+  useEffect(() => {
+    if (!isFontAvailable) return;
+    const stage = stageRef.current?.getStage();
+    if (!stage) return;
+    for (const node of stage.find('Text')) {
+      const textNode = node as unknown as { text: (value?: string) => string };
+      const value = textNode.text();
+      if (!value) continue;
+      textNode.text('');
+      textNode.text(value);
+    }
+    stage.batchDraw();
+  }, [isFontAvailable]);
+
   const handleAlign = useCallback(
     (direction: AlignmentDirection) => {
       const selectedElement = store.getState().selectedElement;
