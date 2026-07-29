@@ -2,7 +2,7 @@
 
 import { MessagePrimitive, useMessage } from '@assistant-ui/react';
 import { type SkillIcon } from '@gruenerator/shared/agents';
-import { memo, useMemo } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 
 import { CitationProvider, useFetchFullText } from '../../context/CitationContext';
 import { agentsList, getDefaultAgent } from '../../lib/agents';
@@ -152,6 +152,15 @@ export const AssistantMessage = memo(function AssistantMessage() {
 
   const showSearchResults = !isStreaming && citations.length > 0;
 
+  // Owned here, not in SearchResultsSection: the trigger sits in the action row
+  // and the list below it, so neither of the two can hold the state alone.
+  const [sourcesOpen, setSourcesOpen] = useState(false);
+  const toggleSources = useCallback(() => setSourcesOpen((v) => !v), []);
+
+  // A text-less turn (image only) renders no action row, so the trigger has
+  // nowhere to live — the list falls back to carrying its own.
+  const showActions = !isStreaming && textContent.length > 0;
+
   return (
     <MessagePrimitive.Root
       className={
@@ -239,15 +248,22 @@ export const AssistantMessage = memo(function AssistantMessage() {
 
         {!isStreaming && custom?.reelPicker && <ReelPickerCard data={custom.reelPicker} />}
 
-        {showSearchResults && (
-          <SearchResultsSection citations={citations} additionalSources={additionalSources} />
-        )}
-
-        {!isStreaming && textContent && (
+        {showActions && (
           <MessageActions
             content={textContent}
             metadata={actionsMetadata}
             showFeedback={custom?.streamMetadata?.traceId != null}
+            {...(showSearchResults
+              ? { sources: citations, sourcesOpen, onToggleSources: toggleSources }
+              : {})}
+          />
+        )}
+
+        {showSearchResults && (
+          <SearchResultsSection
+            citations={citations}
+            additionalSources={additionalSources}
+            {...(showActions ? { open: sourcesOpen, onOpenChange: setSourcesOpen } : {})}
           />
         )}
 

@@ -268,6 +268,38 @@ export async function processGraphRequestStreaming(
     };
     const reasoningEffort =
       (requestData.reasoningEffort as string | undefined) || REASONING_BY_TYPE[routeType];
+
+    /**
+     * `providerOptions` is namespaced BY PROVIDER: the SDK hands a model only
+     * the entry whose key matches its own provider id. A hardcoded `openai`
+     * block was therefore correct only as long as every one of these lanes ran
+     * on LiteLLM — the moment a lane moves, the option is dropped in silence:
+     * no error, no reasoning, nothing in the logs to notice.
+     *
+     * Per provider:
+     *  - litellm (GPT-OSS) has the native four-step dial → pass it through;
+     *  - mistral is BINARY. `@ai-sdk/mistral` validates against
+     *    `'high' | 'none'` and throws a ZodError on 'low'/'medium', so the
+     *    scale collapses exactly as `mistralReasoningOption` collapses it in
+     *    routes/chat/services/responseStreamingService.ts;
+     *  - regolo takes NO reasoning option at all. Its provider id is 'regolo'
+     *    (createOpenAI({name:'regolo'})), so an `openai` block would not reach
+     *    it anyway, and its fetch wrapper pins `enable_thinking: false` on
+     *    every request (services/ai/regoloThinkingFetch.ts). Sending one would
+     *    be a lie in the code about what the lane does.
+     */
+    let reasoningProviderOptions: Record<string, Record<string, string>> | undefined;
+    if (reasoningEffort) {
+      if (effectiveProvider === 'litellm') {
+        reasoningProviderOptions = { openai: { reasoningEffort } };
+      } else if (
+        effectiveProvider === 'mistral' &&
+        (reasoningEffort === 'high' || reasoningEffort === 'medium')
+      ) {
+        reasoningProviderOptions = { mistral: { reasoningEffort: 'high' } };
+      }
+    }
+
     log.debug(
       `[streaming] Using provider=${effectiveProvider}, model=${effectiveModel}${reasoningEffort ? `, reasoningEffort=${reasoningEffort}` : ''}`
     );
@@ -309,13 +341,7 @@ export async function processGraphRequestStreaming(
           : 16384,
       temperature: aiOptions.temperature ?? 0.7,
       abortSignal: abortController.signal,
-      ...(reasoningEffort
-        ? {
-            providerOptions: {
-              openai: { reasoningEffort },
-            },
-          }
-        : {}),
+      ...(reasoningProviderOptions ? { providerOptions: reasoningProviderOptions } : {}),
     });
 
     let fullText = '';
