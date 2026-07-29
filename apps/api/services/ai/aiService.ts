@@ -1,5 +1,6 @@
+import { env } from '../../config/env.js';
 import * as providers from '../../workers/providers/index.js';
-import config from '../../workers/worker.config.js';
+import { AiProviderError, classifyProviderError } from '../providers/providerErrors.js';
 import * as providerFallback from '../providers/providerFallback.js';
 import * as providerSelector from '../providers/providerSelector.js';
 
@@ -12,6 +13,16 @@ import type {
 } from '../../workers/types.js';
 import type { ProviderName, FallbackProviderData } from '../providers/types.js';
 
+/**
+ * Wall clock for one generation, fallback chain included. The only setting the
+ * retired `worker.config.ts` ever had an effect through — the ~18 others it
+ * exposed (rate limits, retry counts, debug flags) were read by nobody.
+ *
+ * It does not cancel the provider request: `generateText` gets no signal, so a
+ * timeout here resolves the promise and leaves the HTTP call running.
+ */
+const REQUEST_TIMEOUT_MS = env.REQUEST_TIMEOUT;
+
 const SHAREPIC_TYPES = [
   'sharepic_dreizeilen',
   'sharepic_zitat',
@@ -22,19 +33,38 @@ const SHAREPIC_TYPES = [
 ];
 
 class AIService implements AIWorkerPool {
+  /**
+   * The one classification point. Everything below throws raw — adapters throw
+   * the SDK's `APICallError`, the fallback chain throws an aggregate carrying
+   * the last one as `cause`, the timeout throws a plain Error — and this
+   * boundary turns whatever arrives into an `AiProviderError` the route layer
+   * can branch on (`sseHelpers` distinguishes rate limit / provider down / bad
+   * request / retryable).
+   *
+   * The `worker_threads` pool used to do this after rebuilding the error from a
+   * postMessage payload; when it went, so did the only place `AiProviderError`
+   * was ever constructed, and every provider failure has been reaching the
+   * client as a bare `internal` since.
+   */
   async processRequest(
     data: AIRequestData,
     _req?: { user?: { id?: string } }
   ): Promise<AIWorkerResult> {
     const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-    return this.executeWithTimeout(requestId, { ...data });
+    try {
+      return await this.executeWithTimeout(requestId, { ...data });
+    } catch (error) {
+      if (error instanceof AiProviderError) throw error;
+      const message = error instanceof Error ? error.message : String(error);
+      throw new AiProviderError(message, classifyProviderError(error), { cause: error });
+    }
   }
 
   private async executeWithTimeout(
     requestId: string,
     data: AIRequestData
   ): Promise<AIWorkerResult> {
-    const timeoutMs = config.worker.requestTimeout;
+    const timeoutMs = REQUEST_TIMEOUT_MS;
 
     return new Promise<AIWorkerResult>((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -77,32 +107,15 @@ class AIService implements AIWorkerPool {
     });
 
     try {
-      let result: AIWorkerResult | undefined;
-
-      const explicitProvider = data.provider || null;
-      if (explicitProvider) {
-        result = await providers.executeProvider(explicitProvider, requestId, {
-          ...data,
-          options: effectiveOptions,
-        });
-      }
-
-      if (!result && selection.provider === 'litellm' && !explicitProvider) {
-        result = await providers.executeProvider('litellm', requestId, {
-          ...data,
-          options: effectiveOptions,
-        });
-      } else if (!result && selection.provider === 'regolo' && !explicitProvider) {
-        result = await providers.executeProvider('regolo', requestId, {
-          ...data,
-          options: effectiveOptions,
-        });
-      } else if (!result && !explicitProvider) {
-        result = await providers.executeProvider('mistral', requestId, {
-          ...data,
-          options: effectiveOptions,
-        });
-      }
+      // The chosen provider, run. This used to be an if/else chain naming
+      // litellm and regolo explicitly and sending everything else to mistral —
+      // so a `greenpt` selection quietly answered on mistral, and any fifth
+      // provider would have too. For the three branches that were reachable
+      // this is the identity.
+      let result = await providers.executeProvider(data.provider || selection.provider, requestId, {
+        ...data,
+        options: effectiveOptions,
+      });
 
       const hasValidContent = result?.content || result?.stop_reason === 'tool_use';
       if (!hasValidContent) {

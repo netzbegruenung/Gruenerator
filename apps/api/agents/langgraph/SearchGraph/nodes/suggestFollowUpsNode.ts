@@ -48,7 +48,9 @@ export async function suggestFollowUpsNode(
         ],
         options: {
           provider: 'litellm',
-          model: 'mistral-small',
+          // See queryPlannerNode: `mistral-small` was never sent — the adapter
+          // substituted the verdigado default. This names what actually runs.
+          model: 'verdigado-pro',
           max_tokens: 150,
           temperature: 0.5,
         },
