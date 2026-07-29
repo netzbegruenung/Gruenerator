@@ -20,6 +20,90 @@ describe('selectProviderAndModel — provider and model agree', () => {
     expect(model).toBe('mistral-medium-2604');
   });
 
+  /**
+   * Everything that creates content runs on Mistral Medium 3.5.
+   *
+   * Most of these had no entry and fell through to the base default
+   * verdigado-pro (GPT-OSS 120B). For the artifact lanes that is not a taste
+   * question: they force a tool call, and GPT-OSS answers with prose instead —
+   * which is what killed a PDF generation in production (two attempts, both
+   * `stop_reason=stop`, no tool call).
+   *
+   * The list is spelled out rather than imported from the module so that
+   * dropping a type out of the set fails HERE instead of silently sending that
+   * lane back to GPT-OSS.
+   */
+  it('routes structured creation to Mistral Medium 3.5', () => {
+    const structureTypes = [
+      'doc_generation',
+      'board_generation',
+      'canvas_ai_suggest',
+      'website',
+      'sharepic_dreizeilen',
+      'sharepic_zitat',
+      'sharepic_zitat_pure',
+      'sharepic_headline',
+      'sharepic_info',
+      'sharepic_veranstaltung',
+      'sharepic_simple',
+      'sharepic_slider',
+    ];
+
+    for (const type of structureTypes) {
+      const { provider, model } = selectProviderAndModel({ type, env: {} });
+      expect(provider, type).toBe('mistral');
+      expect(model, type).toBe('mistral-medium-2604');
+    }
+  });
+
+  /**
+   * Finished texts go to Gemma 4 — the best German writer, which is why it also
+   * holds the chat loop's synth slot.
+   *
+   * The model must be NAMED: Regolo's default is `qwen3.5-122b`, and qwen is
+   * excluded by policy (AVOID_AS_SYNTH in routes/chat/agents/autoPolicy.ts).
+   * A lane that resolves to the bare Regolo default is a policy breach, not a
+   * style choice — hence the explicit model assertion on every type.
+   */
+  it('routes finished texts to Gemma 4 on Regolo, never to the Regolo default', () => {
+    const textTypes = [
+      'antrag',
+      'antrag_simple',
+      'kleine_anfrage',
+      'grosse_anfrage',
+      'universal',
+      'leichte_sprache',
+      'custom_prompt',
+      'protokoll',
+      'rede',
+      'wahlprogramm',
+      'buergeranfragen',
+      'social',
+      'social_post_generation',
+      'social_post_edit',
+      'subtitler_social',
+    ];
+
+    for (const type of textTypes) {
+      const { provider, model } = selectProviderAndModel({ type, env: {} });
+      expect(provider, type).toBe('regolo');
+      expect(model, type).toBe('gemma4-31b');
+      expect(model, type).not.toMatch(/qwen/);
+    }
+  });
+
+  it('leaves non-creation traffic on its own lanes', () => {
+    // The creation set must not swallow the rest of the table — chat, search
+    // and the fast helper lanes keep their models.
+    expect(selectProviderAndModel({ type: 'image_picker', env: {} }).provider).not.toBe('mistral');
+    expect(selectProviderAndModel({ type: 'text_adjustment', env: {} }).model).toBe(
+      'verdigado-pro'
+    );
+    expect(selectProviderAndModel({ type: 'chat_quality_gate', env: {} }).model).toBe(
+      'verdigado-pro'
+    );
+  });
+
   it('still lets a caller name its own model on that lane', () => {
     const { provider, model } = selectProviderAndModel({
       type: 'website',
@@ -63,6 +147,9 @@ describe('selectProviderAndModel — provider and model agree', () => {
       'sharepic_slider',
       'presse',
       'social',
+      'doc_generation',
+      'board_generation',
+      'canvas_ai_suggest',
     ];
 
     for (const type of types) {

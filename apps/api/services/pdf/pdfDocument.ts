@@ -73,8 +73,16 @@ export const pdfBlockSchema = z.discriminatedUnion('type', [
     /** Rendered as a small hint under the field AND as the widget's tooltip. */
     help: z.string().max(300).optional(),
     width: z.enum(['full', 'half']).optional(),
-    /** Multiline height in text rows. */
-    rows: z.number().int().min(2).max(20).optional(),
+    /**
+     * Multiline height in text lines.
+     *
+     * NOT `rows`: the flat wire schema has one property per NAME across all
+     * block types, and `rows` there is the table's `string[][]`. A model that
+     * followed it for a multiline field produced an array here and the whole
+     * document was rejected — the same failure `caption: null` caused, one
+     * field over.
+     */
+    lines: z.number().int().min(2).max(20).optional(),
   }),
   z.object({
     type: z.literal('signature'),
@@ -104,6 +112,76 @@ export const pdfDocumentSchema = z.object({
 
 export type PdfBlock = z.infer<typeof pdfBlockSchema>;
 export type PdfDocumentSpec = z.infer<typeof pdfDocumentSchema>;
+
+/**
+ * ── The model-facing layer ──────────────────────────────────────────────────
+ *
+ * `pdfDocumentSchema` is the domain model of TWO producers: the LLM, and
+ * `contentToBlocks` (the export path), which builds a `PdfDocumentSpec`
+ * directly and is correct by construction. Only the LLM produces noise, so the
+ * leniency belongs at the LLM's edge — not in the schema, where it would drag
+ * `| null` through the renderer for the producer that never emits it.
+ *
+ * Same two-layer treatment `services/bundestag/schemas.ts` gives the DIP API:
+ * a lenient RAW pass, then the strict domain schema. Model output is an
+ * untrusted external source in exactly that sense.
+ *
+ * What this fixes: the model fills fields it was told are optional with
+ * `null` ("not applicable") — `"caption": null` on the sources table took down
+ * a whole generated document, because `.optional()` accepts only `undefined`.
+ * A `null` on an absent optional carries no information, so dropping it loses
+ * nothing.
+ *
+ * Deliberately NOT lenient: missing required fields, unknown block types, an
+ * empty `blocks`. Leniency covers absent optional values; broken structure
+ * must still fail loudly, or generation degrades into silently empty results
+ * (the failure mode `bundestag/schemas.ts` documents).
+ */
+
+/** Recursively drop `null` object properties and `null` array elements. */
+function dropModelNulls(value: unknown): unknown {
+  if (Array.isArray(value)) return value.filter((v) => v !== null).map(dropModelNulls);
+  if (value !== null && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+      if (entry !== null) out[key] = dropModelNulls(entry);
+    }
+    return out;
+  }
+  return value;
+}
+
+/**
+ * Table geometry is POSITIONAL, so a `null` there must not be dropped:
+ * `renderTable` pads short rows at the END, so a removed cell would shift every
+ * later cell one column to the left and silently file data under the wrong
+ * heading. An empty cell is the honest reading of `null` here.
+ */
+function normalizeTableGeometry(block: unknown): unknown {
+  if (!block || typeof block !== 'object') return block;
+  const table = block as Record<string, unknown>;
+  if (table.type !== 'table') return block;
+  const cell = (v: unknown): unknown => (v === null ? '' : v);
+  return {
+    ...table,
+    ...(Array.isArray(table.columns) && { columns: (table.columns as unknown[]).map(cell) }),
+    ...(Array.isArray(table.rows) && {
+      rows: (table.rows as unknown[]).map((row) =>
+        Array.isArray(row) ? (row as unknown[]).map(cell) : row
+      ),
+    }),
+  };
+}
+
+function normalizeModelOutput(input: unknown): unknown {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return dropModelNulls(input);
+  const doc = input as Record<string, unknown>;
+  if (!Array.isArray(doc.blocks)) return dropModelNulls(doc);
+  return dropModelNulls({ ...doc, blocks: doc.blocks.map(normalizeTableGeometry) });
+}
+
+/** The gate for MODEL output. Use `pdfDocumentSchema` for anything we build ourselves. */
+export const pdfDocumentFromModelSchema = z.preprocess(normalizeModelOutput, pdfDocumentSchema);
 
 /**
  * The schema shown to the MODEL for the forced tool call — deliberately NOT
@@ -171,6 +249,11 @@ export const PDF_DOCUMENT_TOOL_SCHEMA: Record<string, unknown> = {
           items: { type: 'array', items: { type: 'string' } },
           columns: { type: 'array', items: { type: 'string' } },
           rows: { type: 'array', items: { type: 'array', items: { type: 'string' } } },
+          // A form field's height is `lines`, NOT `rows` — the flat schema has
+          // one type per property NAME across all block types, and `rows` is
+          // already the table's string[][]. See the field block in
+          // pdfDocumentSchema.
+          lines: { type: 'integer' },
           caption: { type: 'string' },
           source: { type: 'string' },
           title: { type: 'string' },

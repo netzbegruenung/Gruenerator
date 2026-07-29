@@ -16,10 +16,10 @@ export function ArtifactCard({ artifact }: { artifact: ActiveArtifact }) {
   return (
     <button
       onClick={() => useArtifactLiveStore.getState().setActiveArtifact(artifact)}
-      className="my-2 flex w-full items-center gap-3 rounded-lg border border-border bg-background p-3 text-left transition-colors hover:border-primary hover:bg-primary/5"
+      className="my-5 flex w-full items-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-left transition-colors hover:border-primary hover:bg-primary/5"
       aria-label={`Artefakt "${artifact.title}" im Panel öffnen`}
     >
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
         <Code2 className="h-5 w-5" />
       </span>
       <span className="flex min-w-0 flex-1 flex-col">

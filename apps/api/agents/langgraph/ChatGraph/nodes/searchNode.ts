@@ -6,6 +6,7 @@
  */
 
 import { dipSearchUrl, btpProtokollPdfUrl as btpPdfUrl } from '@gruenerator/contracts';
+import { isIntentAllowedForLocale, intentDeclineNote } from '@gruenerator/shared/chat-intents';
 
 import { vectorConfig } from '../../../../config/vectorConfig.js';
 import {
@@ -1302,13 +1303,12 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         // the Abgeordnetenwatch API. DE-only source: for AT users (reachable
         // here only via a forced @abgeordnetenwatch mention, since the classifier
         // downgrades AT) return a graceful decline instead of empty data.
-        if (state.userLocale === 'de-AT') {
+        if (!isIntentAllowedForLocale('abgeordnetenwatch', state.userLocale)) {
           results = [
             {
               source: 'abgeordnetenwatch',
               title: 'Nur für Deutschland verfügbar',
-              content:
-                'Abgeordnetenwatch erfasst nur deutsche Parlamente (Bundestag/Landtage). Für den österreichischen Nationalrat liegen hier keine Daten vor.',
+              content: intentDeclineNote('abgeordnetenwatch') ?? '',
               relevance: 1,
             },
           ];
@@ -1329,13 +1329,12 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         // via the Bundestag MCP / DIP. DE-only source: for AT users (reachable
         // here only via a forced @bundestag mention, since the classifier
         // downgrades AT) return a graceful decline instead of empty data.
-        if (state.userLocale === 'de-AT') {
+        if (!isIntentAllowedForLocale('bundestag', state.userLocale)) {
           results = [
             {
               source: 'bundestag',
               title: 'Nur für Deutschland verfügbar',
-              content:
-                'Das DIP erfasst nur den Deutschen Bundestag und Bundesrat. Für den österreichischen Nationalrat liegen hier keine Daten vor.',
+              content: intentDeclineNote('bundestag') ?? '',
               relevance: 1,
             },
           ];
@@ -1603,23 +1602,53 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         break;
       }
 
+      // ── Handled elsewhere; searchNode does nothing for them ──
+      //
+      // This arm and `default` below behave identically — both fall through
+      // without searching. The difference is diagnostic, and that IS the point:
+      // `default` logs "Unexpected intent", which is supposed to mean "nobody
+      // considered this intent here". Seventeen intents were missing from the
+      // list, so the warning fired on every ordinary create_sheet, create_pdf
+      // and mcp turn and had stopped carrying information.
       case 'image':
       case 'image_edit':
       case 'sharepic':
       case 'summary':
       case 'chart':
+      case 'compute':
+      case 'artifact':
+      case 'direct':
+        break;
+      // Artefact + editor intents: the content comes from the generation
+      // services, not from retrieval here.
       case 'save_as_doc':
       case 'modify_doc':
       case 'modify_board':
       case 'share_doc':
       case 'edit_current_doc':
+      case 'edit_current_board':
+      case 'create_sheet':
+      case 'create_presentation':
+      case 'create_pdf':
       case 'create_recurring_task':
-      case 'direct':
-        // These intents are handled by other graph nodes; no search needed.
+        break;
+      // System-MCP / connector intents: the MCP client does the retrieval.
+      case 'bahn':
+      case 'reise':
+      case 'hotel':
+      case 'wetter':
+      case 'news':
+      case 'umfragen':
+      case 'hilfe':
+      case 'mcp':
+      case 'chat_history':
+        break;
+      // Loop demotion — the agentic loop picks and runs its own tools.
+      case 'agentic':
         break;
 
       default:
-        // Should not reach here due to graph routing
+        // A real signal again: an intent nobody routed through here.
         log.warn(`[Search] Unexpected intent: ${intent}`);
         break;
     }

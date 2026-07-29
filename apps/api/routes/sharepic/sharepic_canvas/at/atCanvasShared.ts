@@ -79,6 +79,76 @@ export const OVERLAY = {
 
 const LOGO_WEISS_PATH = path.resolve(__dirname, '../../../../public/gruene-at-logo-weiss.png');
 const QUOTE_WHITE_PATH = path.resolve(__dirname, '../../../../public/quote-white.svg');
+const QUOTE_GELB_PATH = path.resolve(__dirname, '../../../../public/quote-gelb.svg');
+
+/**
+ * Zitat-sujet geometry — mirrors ZITAT_AT_CONFIG in canvas-editor.
+ * Anders als in Deutschland: mittig gesetzt, gelbes Anführungszeichen, Logo
+ * rechts oben, und der Block hängt nicht am Blattboden, sondern wird als
+ * Gruppe um `groupCenterRatio` zentriert. Kein Verlauf über dem Foto — die
+ * österreichische CI kennt keinen.
+ */
+export const ZITAT = {
+  margin: 130,
+  maxWidth: 820,
+  groupCenterRatio: 0.48,
+  markSizeRatio: 1.15,
+  markGapToText: 22,
+  baseFontSize: 56,
+  minFontSize: 40,
+  maxFontSize: 72,
+  lineHeightRatio: 1.15,
+  nameFontSizeRatio: 0.6,
+  nameGapRatio: 0.75,
+  logo: { width: 150, margin: 70 },
+} as const;
+
+/**
+ * Zitat-Pur-Geometrie — mirrors ZITAT_PURE_AT_CONFIG in canvas-editor.
+ * Ohne Foto traegt die Flaeche allein: groesserer Grad als beim Foto-Sujet,
+ * weisses Anfuehrungszeichen statt gelbem, Block genau mittig.
+ */
+export const ZITAT_PURE = {
+  margin: 115,
+  maxWidth: 850,
+  groupCenterRatio: 0.5,
+  markSizeRatio: 1.47,
+  markGapToText: 26,
+  baseFontSize: 72,
+  minFontSize: 46,
+  maxFontSize: 88,
+  lineHeightRatio: 1.15,
+  maxLines: 5,
+  growBelowLines: 3,
+  nameFontSizeRatio: 0.47,
+  nameGapRatio: 0.61,
+  topBoundary: 120,
+  bottomBoundary: 1230,
+} as const;
+
+/**
+ * Info-sujet geometry — mirrors INFO_AT_CONFIG in canvas-editor.
+ * Farbflaeche, Logo rechts oben, darunter mittig Introline, Infotext und eine
+ * gelbe Vollkorn-Schlusszeile. Alle drei schrumpfen um EINEN gemeinsamen
+ * Faktor, damit das Groessenverhaeltnis bei langem Text erhalten bleibt.
+ */
+export const INFO = {
+  margin: 160,
+  maxWidth: 760,
+  groupCenterRatio: 0.55,
+  topBoundary: 330,
+  bottomBoundary: 1250,
+  introFontSize: 52,
+  introLineHeightRatio: 1.25,
+  textFontSize: 118,
+  minTextFontSize: 70,
+  maxTextFontSize: 190,
+  /** Vollkorn sitzt im Zeilenkasten tiefer als Gotham — Differenz der Aufsteiger. */
+  accentLeadShiftRatio: -0.152,
+  lineHeightRatio: 0.95,
+  introGap: 20,
+  logo: { width: 150, margin: 70 },
+} as const;
 
 export function registerAtFonts(): void {
   registerFonts();
@@ -91,12 +161,19 @@ export async function loadAtLogo(): Promise<Image> {
   return logoPromise;
 }
 
-// White quote mark — the same asset the konva zitat configs reference
-// (SYSTEM_ASSETS.quote.white). Decoded once and reused across requests.
+// Anführungszeichen. Auf Foto (zitat-at) steht es gelb, auf der Farbfläche
+// (zitat-pure-at) weiß — dieselben Assets, die die Konva-Configs referenzieren.
+// Einmal dekodiert, dann über Requests hinweg wiederverwendet.
 let quoteWhitePromise: Promise<Image> | null = null;
 export async function loadAtQuoteWhite(): Promise<Image> {
   if (!quoteWhitePromise) quoteWhitePromise = loadImage(QUOTE_WHITE_PATH);
   return quoteWhitePromise;
+}
+
+let quoteGelbPromise: Promise<Image> | null = null;
+export async function loadAtQuoteGelb(): Promise<Image> {
+  if (!quoteGelbPromise) quoteGelbPromise = loadImage(QUOTE_GELB_PATH);
+  return quoteGelbPromise;
 }
 
 /**
@@ -185,12 +262,28 @@ export async function drawOverlayContent(ctx: Ctx, content: OverlayContent): Pro
     return { lines, sub, height };
   };
 
+  /**
+   * Jede Headline-Zone muss auf EINE Zeile passen — das Sujet ist ein
+   * Dreizeiler, eine umgebrochene Zone hat ihn schon zerstoert. Die Hoehe
+   * allein faengt das nicht ab: bei 118 px passen in die 720 px der Box nur
+   * rund zwoelf Zeichen, und vier oder fuenf Zeilen stehen vertikal noch
+   * bequem drin. Die Subline darf umbrechen, sie ist Fliesstext.
+   */
+  const headlinesFitOneLine = (scale: number): boolean => {
+    const size = Math.round(OVERLAY.baseFontSize * scale);
+    return zones.every((z) => {
+      if (!z.text) return true;
+      ctx.font = fontFor(z.kind, size).font;
+      return ctx.measureText(z.text).width <= OVERLAY.maxWidth;
+    });
+  };
+
   const minScale = OVERLAY.minFontSize / OVERLAY.baseFontSize;
   // The text has to share the padded box with the logo below it.
   const available = OVERLAY.box.height - 2 * OVERLAY.padding - OVERLAY.sublineGap - logoHeight;
   let scale = 1;
   let m = measure(scale);
-  while (m.height > available && scale > minScale) {
+  while ((m.height > available || !headlinesFitOneLine(scale)) && scale > minScale) {
     scale = Math.max(minScale, scale - 0.04);
     m = measure(scale);
   }

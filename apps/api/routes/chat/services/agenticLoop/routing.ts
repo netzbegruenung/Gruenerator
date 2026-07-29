@@ -7,6 +7,8 @@
  * the "what counts as a sharepic ask" vocabulary can live in exactly one place
  * without this module losing its purity.
  */
+import { type ChatIntentId } from '@gruenerator/shared/chat-intents';
+
 import { hasExplicitSharepicWord } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 
 /**
@@ -111,12 +113,16 @@ export function needsThreadGrounding(raw: string): boolean {
  * single-pass direct dispatch for non-research asks ("mach ein Sharepic zu X"):
  * only a turn that ALSO carries a research signal is lifted into the loop.
  */
+// The literal is `satisfies`-checked against the intent union, so a typo or a
+// renamed intent fails the build — it used to compile and silently never match.
+// The Set stays `ReadonlySet<string>` because `decideRunAgentic` takes a plain
+// `intent: string`; narrowing that is a separate change.
 export const COMPOUND_GENERATION_INTENTS: ReadonlySet<string> = new Set([
   'sharepic',
   'create_presentation',
   'create_sheet',
   'create_pdf',
-]);
+] as const satisfies readonly ChatIntentId[]);
 
 /**
  * Compound research+generation detector (Phase 3n): a generation turn (sharepic,
