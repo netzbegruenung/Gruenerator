@@ -443,9 +443,14 @@ interface MemoizedBackgroundProps<
 const MemoizedBackgroundElement = memo(function MemoizedBackgroundElement<
   TState extends Record<string, unknown> = Record<string, unknown>,
 >({ config, state }: MemoizedBackgroundProps<TState>) {
-  const color = config.colorKey
-    ? (getOptionalStateValue<string>(state, config.colorKey) ?? config.color ?? '#ffffff')
-    : (config.color ?? '#ffffff');
+  // Der Typ bietet zwei Schlüssel an: `colorKey` (slider) und `fillStateKey`
+  // (freeform). Gelesen wurde nur der erste, deshalb blieb der
+  // Freeform-Hintergrund unabhängig von der Farbwahl immer weiß.
+  const stateKey = config.colorKey ?? config.fillStateKey;
+  const color =
+    (stateKey ? getOptionalStateValue<string>(state, stateKey) : undefined) ??
+    config.color ??
+    '#ffffff';
 
   return <CanvasBackground width={config.width} height={config.height} color={color} />;
 });
