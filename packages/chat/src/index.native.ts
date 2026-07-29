@@ -311,6 +311,8 @@ export {
   setDocMentionables,
   getDocMentionables,
   toolMentionables,
+  visibleToolMentionables,
+  visibleNotebookMentionables,
   getMcpServerMentionables,
   filterMentionablesByCategory,
   type Mentionable,
