@@ -13,6 +13,7 @@
  *
  * Pure, so it unit-tests in isolation (referentialTopic.vitest.ts).
  */
+import { isArtifactConfirmation } from './artifactConfirmations.js';
 import { extractTextContent } from './messageHelpers.js';
 
 import type { ModelMessage } from 'ai';
@@ -40,19 +41,38 @@ export function isReferentialCreation(text: string): boolean {
   return text.trim().length > 0 && residualSubject(text).length < 3;
 }
 
-// Our own create_* handlers persist templated confirmations ("PDF **"…"**
-// wurde erstellt …"). They carry no subject — a retry like "also aus der
-// tabelle" must inherit the content turn BEFORE them, not the confirmation.
-const CREATION_CONFIRMATION_RE = /\bwurde erstellt\b|\beingerichtet —/;
+/**
+ * Assistant prose only counts as a subject from this length up — below it the
+ * turn is an acknowledgement, not content.
+ */
+const MIN_ASSISTANT_SUBJECT_LENGTH = 40;
+/**
+ * A user turn states its subject far more tersely than the assistant answers
+ * it: "sharepic zu klimaanlagen" is 24 characters and is exactly the topic to
+ * inherit. Mirrors the threshold `findPriorQuerySubject` uses on the search
+ * side, which had this right from the start.
+ */
+const MIN_USER_SUBJECT_LENGTH = 12;
 
 /** Most recent substantive prior turn (the subject a referential follow-up
  *  refers back to). Skips the current (last) message; prefers the newest turn
  *  with real content, which for a "create X, then visualise it" flow is the
- *  assistant's summary of X. */
+ *  assistant's summary of X. Our own artifact confirmations are skipped — they
+ *  carry no subject, so a follow-up must reach the content turn BEFORE them. */
 function findPriorSubject(messages: ModelMessage[]): string | null {
   for (let i = messages.length - 2; i >= 0; i--) {
-    const text = extractTextContent(messages[i]?.content ?? '').trim();
-    if (text.length >= 40 && !CREATION_CONFIRMATION_RE.test(text)) return text.slice(0, 2000);
+    const message = messages[i];
+    const text = extractTextContent(message?.content ?? '').trim();
+    if (isArtifactConfirmation(text)) continue;
+    if (message?.role === 'user') {
+      // A referential user turn points somewhere else itself — inheriting it
+      // would just hand on the instruction.
+      if (text.length >= MIN_USER_SUBJECT_LENGTH && !isReferentialCreation(text)) {
+        return text.slice(0, 2000);
+      }
+      continue;
+    }
+    if (text.length >= MIN_ASSISTANT_SUBJECT_LENGTH) return text.slice(0, 2000);
   }
   return null;
 }

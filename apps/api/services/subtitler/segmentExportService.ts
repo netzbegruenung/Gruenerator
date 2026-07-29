@@ -18,7 +18,7 @@ import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
 import { ffmpegPool } from './ffmpegPool.js';
-import { ffmpeg, ffprobe, normalizeRotation } from './ffmpegWrapper.js';
+import { ffmpeg } from './ffmpegWrapper.js';
 import * as hwaccel from './hwaccelUtils.js';
 import {
   buildSegmentFilterComplex,
@@ -26,6 +26,7 @@ import {
   calculateTotalDuration,
   type Segment,
 } from './segmentFilterBuilders.js';
+import { probeVideoMetadata } from './videoMetadata.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,45 +53,6 @@ interface ExportResult {
   outputPath: string;
   duration: number;
   segmentCount: number;
-}
-
-function parseFrameRate(frameRateStr: string): number {
-  if (!frameRateStr) return 30;
-  const parts = frameRateStr.split('/');
-  if (parts.length === 2) {
-    const numerator = parseFloat(parts[0]);
-    const denominator = parseFloat(parts[1]);
-    if (denominator !== 0) {
-      return numerator / denominator;
-    }
-  }
-  const parsed = parseFloat(frameRateStr);
-  return isNaN(parsed) ? 30 : parsed;
-}
-
-async function getVideoMetadata(inputPath: string): Promise<VideoMetadata> {
-  const metadata = await ffprobe(inputPath);
-  const videoStream = metadata.streams.find((s) => s.codec_type === 'video');
-  const audioStream = metadata.streams.find((s) => s.codec_type === 'audio');
-
-  const rotationDegrees = videoStream ? normalizeRotation(videoStream) : 0;
-  const isVertical = rotationDegrees === 90 || rotationDegrees === 270;
-  const rawW = videoStream?.width || 1920;
-  const rawH = videoStream?.height || 1080;
-
-  return {
-    width: isVertical ? rawH : rawW,
-    height: isVertical ? rawW : rawH,
-    duration: parseFloat(metadata.format.duration || '0') || 0,
-    fps: parseFrameRate(videoStream?.r_frame_rate || '30/1'),
-    rotation: String(rotationDegrees),
-    originalFormat: {
-      ...(videoStream?.codec_name && { codec: videoStream.codec_name }),
-      ...(audioStream?.codec_name && { audioCodec: audioStream.codec_name }),
-      audioBitrate: audioStream?.bit_rate ? parseInt(audioStream.bit_rate) / 1000 : null,
-      videoBitrate: videoStream?.bit_rate ? parseInt(videoStream.bit_rate) : null,
-    },
-  };
 }
 
 function calculateFontSize(metadata: VideoMetadata): number {
@@ -199,7 +161,7 @@ export async function exportWithSegments(
   try {
     await fs.access(inputPath);
 
-    const metadata = await getVideoMetadata(inputPath);
+    const metadata = await probeVideoMetadata(inputPath);
     const fileStats = await fs.stat(inputPath);
 
     if (!segments || segments.length === 0) {
@@ -380,7 +342,7 @@ export async function exportWithSegmentsAndSubtitles(
   try {
     await fs.access(inputPath);
 
-    const metadata = await getVideoMetadata(inputPath);
+    const metadata = await probeVideoMetadata(inputPath);
     const fileStats = await fs.stat(inputPath);
 
     if (!segments || segments.length === 0) {

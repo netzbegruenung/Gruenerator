@@ -216,7 +216,8 @@ async function triggerBackgroundRender(
         style_preference?: string;
         height_preference?: string;
       },
-      projService
+      projService,
+      userId
     );
 
     const subtitledVideoRelativePath = `${userId}/${projectId}/subtitled_${Date.now()}.mp4`;

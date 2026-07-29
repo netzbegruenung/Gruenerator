@@ -11,6 +11,8 @@ import { extractFilters } from './classifierFilters.js';
 import { extractSearchTopic } from './classifierHeuristics.js';
 import {
   CLASSIFIER_DOC_SUBTYPES,
+  CLASSIFIER_OFFERED_INTENTS,
+  CREATION_TOPIC_INTENTS,
   isOfferedIntent,
   NON_SEARCH_INTENTS,
 } from './classifierPrompt.js';
@@ -19,6 +21,78 @@ import type { SearchIntent, SearchSource, ClassificationResult } from '../types.
 import type { ClassifierLLMResponse } from './classifierFilters.js';
 
 const log = createLogger('ChatGraph:Classifier');
+
+/**
+ * Scan order for the malformed-JSON fallback, in DESCENDING priority.
+ *
+ * Only a partial list: it exists because a malformed response can mention the
+ * `intent:` field more than once, and then the first match wins. That is an
+ * editorial call ("sharepic before image", "social_post before examples") and
+ * has to stay hand-written.
+ *
+ * What must NOT be hand-written is the SET. This chain used to be twenty
+ * hard-coded `if`s and nothing else, so twelve of the intents the prompt offers
+ * — including create_sheet, create_presentation and create_recurring_task —
+ * were undetectable here and fell through to `direct`. That is the very bug
+ * `isOfferedIntent` was introduced to fix on the primary path (see
+ * classifierPrompt.ts): the fix landed on one of the two doors.
+ *
+ * Now the ranked entries are followed by every remaining offered intent, so a
+ * newly offered intent is at worst LOW priority and can never again be
+ * invisible. Appending rather than prepending is deliberate: it cannot change
+ * the outcome of any response the old chain already resolved.
+ */
+const FALLBACK_PRIORITY = [
+  'sharepic',
+  'image',
+  'save_as_doc',
+  'create_pdf',
+  'share_doc',
+  'chart',
+  'summary',
+  // System MCP intents — specific tokens, safe before the broad direct/search.
+  'reise',
+  'bahn',
+  'wetter',
+  'news',
+  'hotel',
+  'umfragen',
+  'hilfe',
+  'direct',
+  // social_post before examples: 'examples' would otherwise never lose to it
+  // in malformed responses that mention both.
+  'social_post',
+  'examples',
+  'search',
+  'web',
+  'research',
+] as const satisfies readonly SearchIntent[];
+
+const FALLBACK_SCAN_ORDER: readonly SearchIntent[] = [
+  ...FALLBACK_PRIORITY,
+  ...CLASSIFIER_OFFERED_INTENTS.filter(
+    (i) => !(FALLBACK_PRIORITY as readonly string[]).includes(i)
+  ),
+];
+
+/**
+ * Fallback intents whose executor searches the user's own text, so the raw
+ * message is the query. Everything else gets `null` — the executor reads the
+ * message itself and a stray query would only be noise.
+ */
+const FALLBACK_CARRIES_QUERY: ReadonlySet<string> = new Set<SearchIntent>([
+  'chart',
+  'news',
+  'hilfe',
+  'social_post',
+  'examples',
+  'search',
+  'web',
+  'research',
+  'abgeordnetenwatch',
+  'bundestag',
+  'chat_history',
+]);
 
 /**
  * Phrases that reference the user's earlier work — a past conversation with the
@@ -45,6 +119,38 @@ const log = createLogger('ChatGraph:Classifier');
  */
 export const CURRENT_THREAD_REFERENCE =
   /\b(?:vorhin|eben\s+gerade|gerade\s+eben|weiter\s+oben|hier\s+im\s+chat|in\s+diesem\s+(?:chat|gespräch|thread|verlauf)|dieses\s+gespräch[s]?|deine[rn]?\s+(?:letzte|vorherige|obige)[rn]?\s+antwort|meine\s+(?:erste|allererste|letzte)\s+frage)\b/i;
+
+/** Longer than this and the model returned prose, not a topic. */
+const MAX_CREATION_TOPIC_LENGTH = 300;
+
+/**
+ * The classifier's answer to "what should this artifact be ABOUT", validated.
+ *
+ * Deliberately structural rather than lexical — no list of filler words to keep
+ * up with. Exactly two things can go wrong and both are checkable without
+ * knowing any German: the model answers for an intent that creates nothing, or
+ * it hands back the instruction it was supposed to look past. `null` is a fine
+ * answer; the callers fall back to `resolveReferentialTopic` and, failing that,
+ * ask the user.
+ */
+export function validateCreationTopic(
+  raw: string | null | undefined,
+  intent: string,
+  userContent: string
+): string | null {
+  if (typeof raw !== 'string') return null;
+  const topic = raw.trim();
+  if (!topic) return null;
+  if (!CREATION_TOPIC_INTENTS.has(intent)) return null;
+  // Echoing the message back means the model did not resolve anything — the
+  // instruction as a topic is exactly the bug this field exists to fix.
+  const normalize = (text: string): string => text.trim().toLowerCase().replace(/\s+/g, ' ');
+  if (normalize(topic) === normalize(userContent)) {
+    log.warn(`[Classifier] creationTopic echoed the user message — dropped`);
+    return null;
+  }
+  return topic.slice(0, MAX_CREATION_TOPIC_LENGTH);
+}
 
 export const CHAT_HISTORY_KEYWORDS =
   /\b(letzte[sn]?\s+gespräch|vorher\s+besprochen|letzte\s+woche|gestern\s+besprochen|was\s+haben\s+wir|erinnere?\s+dich|wir\s+hatten|früheres?\s+chat|voriges?\s+gespräch|damals\s+besprochen|da\s+weiter|wo\s+wir\s+aufgehört|mein(e|en)?\s+(dokument|präsentation|tabelle|notiz|antrag|board|kanban|tafel|reel|video|clip)|meine\s+(dokumente|präsentationen|tabellen|notizen|boards|reels|videos|clips)|die\s+tabelle\s+die\s+ich|das\s+dokument\s+das\s+ich|das\s+board\s+das\s+ich|das\s+(reel|video)\s+(das\s+ich|zu(m)?\s|über)|welches\s+(reel|video)|in\s+welchem\s+(reel|video))\b/i;
@@ -289,6 +395,11 @@ export function parseClassifierResponse(
         }
       }
 
+      const creationTopic = validateCreationTopic(parsed.creationTopic, parsed.intent, userContent);
+      if (creationTopic) {
+        log.info(`[Classifier] Creation topic: "${creationTopic}"`);
+      }
+
       const result: ClassificationResult = {
         intent: parsed.intent,
         secondaryIntent: validSecondary,
@@ -301,6 +412,7 @@ export function parseClassifierResponse(
         needsResearch: parsed.needsResearch === true,
         documentSubtype: validDocumentSubtype,
         targetGroupName: parsed.targetGroupName || null,
+        creationTopic,
       };
 
       if (parsed.needsClarification && parsed.clarificationQuestion) {
@@ -348,136 +460,17 @@ export function parseClassifierResponse(
   // Fallback: detect intent from LLM text using intent-field patterns.
   // Only match when the LLM actually tried to output the intent value,
   // not when it mentions a word in reasoning (e.g. "no research needed").
-  // Order: cheapest/most-specific first, most-expensive last.
   const intentFieldPattern = (intent: string) =>
     new RegExp(`["']?intent["']?\\s*[:=]\\s*["']?${intent}\\b`, 'i');
 
-  // sharepic before image: it's the more specific intent and must not be shadowed.
-  if (intentFieldPattern('sharepic').test(content))
+  for (const intent of FALLBACK_SCAN_ORDER) {
+    if (!intentFieldPattern(intent).test(content)) continue;
     return {
-      intent: 'sharepic',
-      searchQuery: null,
-      reasoning: 'Fallback: sharepic detected in response',
+      intent,
+      searchQuery: FALLBACK_CARRIES_QUERY.has(intent) ? userContent : null,
+      reasoning: `Fallback: ${intent} detected in response`,
     };
-  if (intentFieldPattern('image').test(content))
-    return {
-      intent: 'image',
-      searchQuery: null,
-      reasoning: 'Fallback: image detected in response',
-    };
-  if (intentFieldPattern('save_as_doc').test(content))
-    return {
-      intent: 'save_as_doc',
-      searchQuery: null,
-      reasoning: 'Fallback: save_as_doc detected in response',
-    };
-  if (intentFieldPattern('create_pdf').test(content))
-    return {
-      intent: 'create_pdf',
-      searchQuery: null,
-      reasoning: 'Fallback: create_pdf detected in response',
-    };
-  if (intentFieldPattern('share_doc').test(content))
-    return {
-      intent: 'share_doc',
-      searchQuery: null,
-      reasoning: 'Fallback: share_doc detected in response',
-    };
-  if (intentFieldPattern('chart').test(content))
-    return {
-      intent: 'chart',
-      searchQuery: userContent,
-      reasoning: 'Fallback: chart detected in response',
-    };
-  if (intentFieldPattern('summary').test(content))
-    return {
-      intent: 'summary',
-      searchQuery: null,
-      reasoning: 'Fallback: summary detected in response',
-    };
-  // System MCP intents — specific tokens, safe before the broad direct/search.
-  if (intentFieldPattern('reise').test(content))
-    return {
-      intent: 'reise',
-      searchQuery: null,
-      reasoning: 'Fallback: reise detected in response',
-    };
-  if (intentFieldPattern('bahn').test(content))
-    return {
-      intent: 'bahn',
-      searchQuery: null,
-      reasoning: 'Fallback: bahn detected in response',
-    };
-  if (intentFieldPattern('wetter').test(content))
-    return {
-      intent: 'wetter',
-      searchQuery: null,
-      reasoning: 'Fallback: wetter detected in response',
-    };
-  if (intentFieldPattern('news').test(content))
-    return {
-      intent: 'news',
-      searchQuery: userContent,
-      reasoning: 'Fallback: news detected in response',
-    };
-  if (intentFieldPattern('hotel').test(content))
-    return {
-      intent: 'hotel',
-      searchQuery: null,
-      reasoning: 'Fallback: hotel detected in response',
-    };
-  if (intentFieldPattern('umfragen').test(content))
-    return {
-      intent: 'umfragen',
-      searchQuery: null,
-      reasoning: 'Fallback: umfragen detected in response',
-    };
-  // Carries the user text: the docs tool searches it directly, so unlike the
-  // system-MCP intents above there is no separate query-extraction step.
-  if (intentFieldPattern('hilfe').test(content))
-    return {
-      intent: 'hilfe',
-      searchQuery: userContent,
-      reasoning: 'Fallback: hilfe detected in response',
-    };
-  if (intentFieldPattern('direct').test(content))
-    return {
-      intent: 'direct',
-      searchQuery: null,
-      reasoning: 'Fallback: direct detected in response',
-    };
-  // social_post before examples: 'examples' would otherwise never lose to it
-  // in malformed responses that mention both.
-  if (intentFieldPattern('social_post').test(content))
-    return {
-      intent: 'social_post',
-      searchQuery: userContent,
-      reasoning: 'Fallback: social_post detected in response',
-    };
-  if (intentFieldPattern('examples').test(content))
-    return {
-      intent: 'examples',
-      searchQuery: userContent,
-      reasoning: 'Fallback: examples detected in response',
-    };
-  if (intentFieldPattern('search').test(content))
-    return {
-      intent: 'search',
-      searchQuery: userContent,
-      reasoning: 'Fallback: search detected in response',
-    };
-  if (intentFieldPattern('web').test(content))
-    return {
-      intent: 'web',
-      searchQuery: userContent,
-      reasoning: 'Fallback: web detected in response',
-    };
-  if (intentFieldPattern('research').test(content))
-    return {
-      intent: 'research',
-      searchQuery: userContent,
-      reasoning: 'Fallback: research detected in response',
-    };
+  }
 
   // Final fallback: default to direct (cheapest path).
   // The heuristic already ran in classifierNode — re-running it here

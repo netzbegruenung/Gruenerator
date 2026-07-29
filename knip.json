@@ -25,10 +25,10 @@
     "apps/api": {
       "entry": [
         "*.ts",
-        "workers/aiWorker.ts",
         "tests/**/*.ts",
         "evals/**/*.ts",
-        "scripts/**/*.{ts,js,mjs}"
+        "scripts/**/*.{ts,js,mjs}",
+        "**/*.manual-test.ts"
       ],
       "project": ["**/*.{ts,js,mts,mjs}"],
       "ignore": ["dist/**"]
