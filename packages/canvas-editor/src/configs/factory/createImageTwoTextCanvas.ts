@@ -195,6 +195,24 @@ export interface ImageTwoTextOptions<
 
   /** Optional: Gradient overlay opacity (default: none) */
   gradientOpacity?: number;
+
+  /** Optional: RGB-Tripel des Verlaufs als "r, g, b" (Vorgabe: Schwarz). */
+  gradientColor?: string;
+
+  /**
+   * Optional: Stützstellen des Verlaufs, `at` als Anteil der Leinwandhöhe.
+   * Vorgabe ist die gerade Rampe von oben klar nach unten `gradientOpacity`.
+   */
+  gradientCurve?: ReadonlyArray<{ at: number; opacity: number }>;
+
+  /**
+   * Optional: template-specific state keys that must survive
+   * createInitialState (e.g. the AT overlay's `accent` / `subline` / `boxColor`).
+   * Without this the initial-state whitelist silently drops keys written by
+   * chat edits, so card renders and remote-sync re-seeds lose them.
+   * Mirrors the same option on createColorTwoTextCanvas.
+   */
+  passthroughStateKeys?: string[];
 }
 
 // ============================================================================
@@ -219,6 +237,9 @@ export function createImageTwoTextCanvas<
     maxPages = 10,
     getCanvasText,
     gradientOpacity,
+    gradientColor = '0, 0, 0',
+    gradientCurve,
+    passthroughStateKeys = [],
   } = options;
 
   // Build base elements
@@ -241,9 +262,15 @@ export function createImageTwoTextCanvas<
     },
   ];
 
-  // Add gradient overlay if specified. The fill bakes the opacity into rgba()
-  // because RectElementConfig doesn't carry an opacityStateKey field.
+  // Add gradient overlay if specified. Ein echter Verlauf von oben transparent
+  // nach unten deckend — nicht ein flacher Schleier über dem ganzen Bild, den
+  // dieses Element bis Juli 2026 gezeichnet hat, während die napi-Route längst
+  // einen createLinearGradient legte. Beide Flächen zeigen jetzt dasselbe.
   if (gradientOpacity !== undefined) {
+    const curve = gradientCurve ?? [
+      { at: 0, opacity: 0 },
+      { at: 1, opacity: gradientOpacity },
+    ];
     baseElements.push({
       id: 'gradient-overlay',
       type: 'rect',
@@ -252,7 +279,13 @@ export function createImageTwoTextCanvas<
       y: 0,
       width: canvas.width,
       height: canvas.height,
-      fill: `rgba(0, 0, 0, ${gradientOpacity})`,
+      fill: `rgba(${gradientColor}, ${gradientOpacity})`,
+      fillLinearGradientStartPoint: { x: 0, y: 0 },
+      fillLinearGradientEndPoint: { x: 0, y: canvas.height },
+      fillLinearGradientColorStops: curve.flatMap((s) => [
+        s.at,
+        `rgba(${gradientColor}, ${s.opacity})`,
+      ]),
       listening: false,
     });
   }
@@ -418,6 +451,10 @@ export function createImageTwoTextCanvas<
         frameInstances: [],
         chartInstances: [],
         userImageInstances: [],
+
+        ...Object.fromEntries(
+          passthroughStateKeys.filter((k) => k in props).map((k) => [k, props[k]])
+        ),
       }) as State,
 
     createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => {

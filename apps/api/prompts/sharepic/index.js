@@ -1,23 +1,40 @@
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-
 const dreizeilen = require('./dreizeilen.json');
+// Österreich: eigenes Satzmaß (max 15 statt 35 Zeichen pro Zeile) plus der
+// Hinweis, dass Zeile 2 die gelbe kursive Betonung trägt. Der Handler wählt
+// diesen Eintrag über die Konvention `<type>_at`, wenn userLocale de-AT ist.
+const dreizeilen_at = require('./dreizeilen_at.json');
 const info = require('./info.json');
+// Österreich: anderes Sujet, andere Felder — Introline, Infotext und ein gelb
+// gesetztes Schlusswort statt Header/Subheader/Body.
+const info_at = require('./info_at.json');
 const simple = require('./simple.json');
 const slider = require('./slider.json');
 const veranstaltung = require('./veranstaltung.json');
 const zitat = require('./zitat.json');
 const zitat_pure = require('./zitat_pure.json');
 
-export { dreizeilen, zitat, zitat_pure, info, veranstaltung, simple, slider };
-
-export default {
+export {
   dreizeilen,
+  dreizeilen_at,
   zitat,
   zitat_pure,
   info,
+  info_at,
+  veranstaltung,
+  simple,
+  slider,
+};
+
+export default {
+  dreizeilen,
+  dreizeilen_at,
+  zitat,
+  zitat_pure,
+  info,
+  info_at,
   veranstaltung,
   simple,
   slider,

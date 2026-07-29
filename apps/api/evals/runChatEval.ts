@@ -248,6 +248,7 @@ async function runTurn(
     imageGenerated: trace.imageGenerated,
     citations: trace.citations,
     fullText: trace.fullText,
+    generatedText: trace.generatedText,
     error: trace.error,
     assertions,
     passed: assertions.every((a) => a.pass),

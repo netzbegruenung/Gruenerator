@@ -44,7 +44,7 @@ import type {
 } from '../../agents/langgraph/WebSearchGraph/types.js';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type { ReferencesMap, ExpandedChunkResult } from '../../services/search/types.js';
-import type AIWorkerPool from '../../workers/aiWorkerPool.js';
+import type { AIWorkerPool } from '../../workers/types.js';
 import type { Response } from 'express';
 
 /** Zod schema for the POST body of normal search streaming */

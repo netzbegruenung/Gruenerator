@@ -63,6 +63,14 @@ export interface ChatTrace {
   sharepicUpdated: boolean;
   /** Raw variant objects from sharepic_complete (id, canvasType, canvasId?). */
   sharepicVariants: Record<string, unknown>[];
+  /**
+   * Text the turn PRODUCED somewhere other than the answer stream — today the
+   * `social_post_complete` post body. On such a turn `fullText` is only the
+   * wrapper sentence ("Hier ist dein Post."), so every check about what was
+   * WRITTEN has to read this as well, or it grades the frame instead of the
+   * picture.
+   */
+  generatedText: string[];
   /** `type` of every confirm_action card offered (save_as_doc, modify_board, …).
    *  A card is a persistent action the user is one click away from — offering
    *  one on a turn that forbade it is the defect, not the click. */
@@ -311,6 +319,8 @@ export interface TurnResult {
   imageGenerated: boolean;
   citations: unknown[];
   fullText: string;
+  /** Text produced outside the answer stream (social_post body). See ChatTrace. */
+  generatedText: string[];
   error: string | null;
   assertions: AssertionResult[];
   passed: boolean;

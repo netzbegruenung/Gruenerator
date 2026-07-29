@@ -76,6 +76,11 @@ export const SYSTEM_ASSETS = {
       src: '/quote.svg',
       label: 'Anführungszeichen',
     },
+    // Österreich (de-AT): das Anführungszeichen steht dort in Gelb (CI 2026).
+    gelb: {
+      src: '/quote-gelb.svg',
+      label: 'Anführungszeichen (Gelb)',
+    },
   },
   // Österreich (de-AT) — reduziertes Ein-Balken-Logo "G DIE GRÜNEN" (CI 2026)
   logoAt: {

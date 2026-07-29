@@ -187,21 +187,26 @@ const VARIANT_LABEL_BY_CANVAS_TYPE: Partial<Record<CanvasTemplateType, string>> 
   zitat: 'Zitat',
   info: 'Info',
   'dreizeilen-at': 'Dreizeiler',
+  'dreizeilen-overlay-at': 'Dreizeiler',
   'zitat-pure-at': 'Zitat',
   'zitat-at': 'Zitat',
+  'info-at': 'Info',
 };
 
 /**
  * de-AT overrides: base canvas type → Austrian variant.
  *
- * `info` fehlt bewusst — das Info-Sujet gibt es nur für de-DE. AT-Anfragen
- * werden schon vor der Generierung auf `dreizeilen` umgelenkt
- * (siehe resolveVariantTypes), damit das Modell ein mainSlogan-Payload liefert.
+ * Der Slogan landet auf dem Overlay-Sujet, nicht auf der reinen Fläche: es ist
+ * das einzige AT-Template mit Foto und damit das einzige, das das Stockbild
+ * verwertet, das der Generator ohnehin schon auswählt. Ohne es sähen alle drei
+ * Vorschläge gleich aus — drei flächige Grün-Panels nebeneinander.
+ * `dreizeilen-at` bleibt im Studio erreichbar.
  */
 const AT_CANVAS_TYPE: Partial<Record<CanvasTemplateType, CanvasTemplateType>> = {
-  dreizeilen: 'dreizeilen-at',
+  dreizeilen: 'dreizeilen-overlay-at',
   'zitat-pure': 'zitat-pure-at',
   zitat: 'zitat-at',
+  info: 'info-at',
 };
 
 function mapSharepicTypeToCanvasType(
@@ -215,12 +220,20 @@ function mapSharepicTypeToCanvasType(
 
 interface SharepicResponseShape {
   type: string;
-  mainSlogan?: { line1?: string; line2?: string; line3?: string };
+  mainSlogan?: { line1?: string; line2?: string; line3?: string; subline?: string };
   quote?: string;
   name?: string;
   header?: string;
   subheader?: string;
   body?: string;
+  /**
+   * Österreich-Info: eigene Felder statt header/subheader/body. `infoText`
+   * heisst nicht `text`, weil `text` bei jedem Typ die Zusammenfassung aller
+   * Zeilen trägt.
+   */
+  introline?: string;
+  infoText?: string;
+  accent?: string;
   selectedImage?: string;
   altText?: string;
 }
@@ -259,6 +272,16 @@ function buildInitialPropsForType(
         body: sharepic.body ?? sharepic.subheader ?? '',
       };
     }
+    // AT-Info: Introline, Infotext und die gelbe Schlusszeile. Der Prompt
+    // liefert die Felder direkt so — anders als das deutsche Info-Sujet mit
+    // header/subheader/body.
+    case 'info-at': {
+      return {
+        introline: sharepic.introline ?? '',
+        text: sharepic.infoText ?? '',
+        accent: sharepic.accent ?? '',
+      };
+    }
     // AT dreizeilen: line1 + accent (gelbe Mittelzeile) + line3
     case 'dreizeilen-at': {
       const slogan = sharepic.mainSlogan ?? {};
@@ -266,6 +289,22 @@ function buildInitialPropsForType(
         line1: slogan.line1 ?? '',
         accent: slogan.line2 ?? '',
         line3: slogan.line3 ?? '',
+      };
+    }
+    // Wie dreizeilen-at, aber mit Foto hinter der Farbfläche — der Hintergrund
+    // wird also mitgegeben, anders als beim reinen Flächen-Sujet. Die Subline
+    // kommt aus dem AT-Prompt und darf leer sein; das Layout schliesst die
+    // Lücke dann selbst.
+    case 'dreizeilen-overlay-at': {
+      const slogan = sharepic.mainSlogan ?? {};
+      return {
+        line1: slogan.line1 ?? '',
+        accent: slogan.line2 ?? '',
+        line3: slogan.line3 ?? '',
+        subline: slogan.subline ?? '',
+        ...(sharepic.selectedImage && {
+          currentImageSrc: `/api/image-picker/stock-image/${encodeURIComponent(sharepic.selectedImage)}`,
+        }),
       };
     }
     default:
@@ -292,6 +331,14 @@ interface GenerateVariantsArgs {
    * text plus this instruction (e.g. "verlängern"), instead of starting fresh.
    */
   refinement?: { instruction: string; prior: PriorSharepic } | null;
+  /**
+   * The material the sharepic should be built FROM — thread transcript and any
+   * research the thread already carries. Fills the `{{details}}` slot every
+   * sharepic template has and which, outside refinements, was always empty: the
+   * generator saw `Thema: <topic>\nDetails: ` and had to invent the substance.
+   * Documents/sheets/presentations have had this since runCreateTurn.
+   */
+  background?: string;
   /** Signed-in user's locale; when 'de-AT' the variants use the Austrian configs. */
   userLocale?: string;
 }
@@ -307,9 +354,8 @@ const CANVAS_TYPE_TO_GEN: Record<string, string> = {
   'zitat-pure-at': 'zitat_pure',
   'zitat-at': 'zitat_pure',
   'dreizeilen-at': 'dreizeilen',
-  // 'info-at' fehlt bewusst: das Sujet gibt es nicht mehr. Verfeinerungen
-  // bereits gespeicherter info-at-Artefakte fallen über den `?? 'dreizeilen'`
-  // der Aufrufstelle auf einen Dreizeiler zurück.
+  'dreizeilen-overlay-at': 'dreizeilen',
+  'info-at': 'info',
 };
 
 /** One generation request: a sharepic type plus the body passed to the prompt. */
@@ -349,10 +395,10 @@ function buildRefinementRequest(
   }
 
   if (genType === 'info') {
-    // AT info stores headline/accent/body; DE info stores header/(subheader)/body.
-    const header = str(p.header) || str(p.headline);
+    // AT info stores introline/text/accent; DE info stores header/(subheader)/body.
+    const header = str(p.header) || str(p.headline) || str(p.introline);
     const accent = str(p.accent);
-    const body = str(p.body);
+    const body = str(p.body) || str(p.text);
     const combined = [header, accent, body].filter(Boolean).join(' ');
     return {
       type: 'info',
@@ -379,29 +425,36 @@ function buildRefinementRequest(
 }
 
 /**
- * Welche Varianten für diese Locale erzeugt werden.
+ * Welche Varianten erzeugt werden.
  *
- * de-AT kennt kein Info-Sujet, deshalb wird `info` hier — VOR der Generierung —
- * durch `dreizeilen` ersetzt. Erst auf Canvas-Ebene umzubiegen würde leere
- * Sharepics erzeugen: `dreizeilen-at` liest `mainSlogan`, ein Info-Ergebnis
- * liefert aber `header`/`subheader`/`body`.
+ * Für de-AT wurde `info` hier früher durch `dreizeilen` ersetzt, weil das
+ * Info-Sujet nur für Deutschland existierte — nach dem Entfernen des Duplikats
+ * blieben für Österreich zwei Vorschläge statt drei. Mit `info-at` gilt für
+ * beide Locales dieselbe Trias; die Übersetzung in das jeweilige Sujet
+ * passiert erst in AT_CANVAS_TYPE.
  */
 function resolveVariantTypes(
-  preferred: SharepicVariantType | null | undefined,
-  userLocale?: string
+  preferred: SharepicVariantType | null | undefined
 ): ReadonlyArray<SharepicVariantType> {
-  const base: ReadonlyArray<SharepicVariantType> = preferred ? [preferred] : SHAREPIC_VARIANT_TYPES;
-  if (userLocale !== 'de-AT') return base;
-  return Array.from(new Set(base.map((type) => (type === 'info' ? 'dreizeilen' : type))));
+  return preferred ? [preferred] : SHAREPIC_VARIANT_TYPES;
 }
 
-/** Map a successful generation result to a frontend SharepicVariant. */
+/**
+ * Map a successful generation result to a frontend SharepicVariant.
+ *
+ * `forcedCanvasType` hält eine Verfeinerung auf ihrem Sujet. Ohne das liefe
+ * jede Überarbeitung erneut durch AT_CANVAS_TYPE und ein im Studio erzeugter
+ * `dreizeilen-at` würde beim „verlängern" zum Overlay-Sujet — der Nutzer hat
+ * aber eine Änderung am Text verlangt, nicht am Layout.
+ */
 function toVariant(
   sharepic: SharepicResponseShape,
   requestedType: string,
-  userLocale?: string
+  userLocale?: string,
+  forcedCanvasType?: CanvasTemplateType
 ): SharepicVariant {
-  const canvasType = mapSharepicTypeToCanvasType(sharepic.type ?? requestedType, userLocale);
+  const canvasType =
+    forcedCanvasType ?? mapSharepicTypeToCanvasType(sharepic.type ?? requestedType, userLocale);
   return {
     id: randomUUID(),
     canvasType,
@@ -438,12 +491,13 @@ export async function generateSharepicVariants(
     // Refinement: regenerate just the previous variant, seeded with its own text.
     requests = [buildRefinementRequest(args.refinement, args.authorName)];
   } else {
-    const typesToGenerate = resolveVariantTypes(args.preferredVariant, args.userLocale);
+    const typesToGenerate = resolveVariantTypes(args.preferredVariant);
 
     // The prompt template fills its `thema` placeholder from `thema` — the chat
     // path previously omitted it, so the AI got an empty topic. Extract the
     // subject from the message; fall back to raw text if extraction strips all.
     const thema = extractSharepicTopic(args.text) || args.text;
+    const details = args.background?.trim();
 
     requests = typesToGenerate.map((type) => ({
       type,
@@ -451,14 +505,22 @@ export async function generateSharepicVariants(
         text: args.text,
         subject: args.text,
         thema,
+        ...(details && { details }),
         count: 1,
         ...(args.authorName && { name: args.authorName }),
       },
     }));
   }
 
+  // Injected here rather than at each request-building site so the refinement
+  // path gets it too. The text handler uses it to pick a `<type>_at` prompt.
   const settled = await Promise.allSettled(
-    requests.map((r) => generateSharepicForChat(args.req, r.type, r.body))
+    requests.map((r) =>
+      generateSharepicForChat(args.req, r.type, {
+        ...r.body,
+        ...(args.userLocale && { userLocale: args.userLocale }),
+      })
+    )
   );
 
   const variants: SharepicVariant[] = [];
@@ -482,7 +544,8 @@ export async function generateSharepicVariants(
       return;
     }
     const sharepic = result.value.content.sharepic as SharepicResponseShape;
-    variants.push(toVariant(sharepic, requestedType, args.userLocale));
+    const priorType = args.refinement?.prior.canvasType as CanvasTemplateType | undefined;
+    variants.push(toVariant(sharepic, requestedType, args.userLocale, priorType));
   });
 
   // One declined type among several successful ones is a per-type quirk, not a

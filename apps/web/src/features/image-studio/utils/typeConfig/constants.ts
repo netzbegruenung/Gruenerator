@@ -35,6 +35,8 @@ export const IMAGE_STUDIO_TYPES = {
   ZITAT_AT: 'zitat-at',
   ZITAT_PURE_AT: 'zitat-pure-at',
   DREIZEILEN_AT: 'dreizeilen-at',
+  DREIZEILEN_OVERLAY_AT: 'dreizeilen-overlay-at',
+  INFO_AT: 'info-at',
   FREEFORM_AT: 'freeform-at',
 
   // KI types (FLUX API-based)
@@ -86,6 +88,8 @@ export const URL_TYPE_MAP: Record<string, ImageStudioType> = {
   'zitat-at': IMAGE_STUDIO_TYPES.ZITAT_AT,
   'zitat-pure-at': IMAGE_STUDIO_TYPES.ZITAT_PURE_AT,
   'dreizeilen-at': IMAGE_STUDIO_TYPES.DREIZEILEN_AT,
+  'dreizeilen-overlay-at': IMAGE_STUDIO_TYPES.DREIZEILEN_OVERLAY_AT,
+  'info-at': IMAGE_STUDIO_TYPES.INFO_AT,
   'freeform-at': IMAGE_STUDIO_TYPES.FREEFORM_AT,
   'green-edit': IMAGE_STUDIO_TYPES.GREEN_EDIT,
   'universal-edit': IMAGE_STUDIO_TYPES.UNIVERSAL_EDIT,

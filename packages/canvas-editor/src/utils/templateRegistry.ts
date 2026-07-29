@@ -116,6 +116,22 @@ export const TEMPLATE_REGISTRY: Record<CanvasConfigId, TemplateInfo> = {
     category: 'sharepic',
     audience: 'de-AT',
   },
+  'dreizeilen-overlay-at': {
+    id: 'dreizeilen-overlay-at',
+    label: '3 Zeilen auf Bild',
+    description: 'Dreizeilige Headline auf Farbfläche über einem Foto (Österreich)',
+    previewImage: '/imagine/previews/dreizeilen-overlay-at-preview.webp',
+    category: 'sharepic',
+    audience: 'de-AT',
+  },
+  'info-at': {
+    id: 'info-at',
+    label: 'Info',
+    description: 'Introline, Infotext und gelbe Schlusszeile auf Farbfläche (Österreich)',
+    previewImage: '/imagine/previews/info-at-preview.webp',
+    category: 'sharepic',
+    audience: 'de-AT',
+  },
   'freeform-at': {
     id: 'freeform-at',
     label: 'Freies Design',

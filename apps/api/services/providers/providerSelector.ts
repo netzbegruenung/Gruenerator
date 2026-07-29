@@ -120,6 +120,16 @@ export function selectProviderAndModel({
     provider = 'litellm';
     model = options.model || 'verdigado-pro';
   }
+  // Candidate-site content — a long structured JSON document. Mistral, which is
+  // what the route always intended: it set a top-level `provider: 'mistral'`,
+  // but that picks the ADAPTER only, while the model kept coming from here. With
+  // no entry for `website` the model was the litellm default `verdigado-pro`, so
+  // every request handed the Mistral API a verdigado alias, got an error, and
+  // was rescued by the fallback chain. The lane belongs here, next to the others.
+  else if (type === 'website') {
+    provider = 'mistral';
+    model = options.model || 'mistral-medium-2604';
+  }
   // Fast helper tasks — Intermediate model (Regolo)
   else if (
     type === 'image_picker' ||
