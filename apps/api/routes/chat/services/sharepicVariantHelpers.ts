@@ -8,7 +8,7 @@ import {
 } from '../../../services/chat/sharepicGenerationService.js';
 import { createLogger } from '../../../utils/logger.js';
 
-import { errorText, isRefusalError } from './refusalDetection.js';
+import { errorText, isRefusalError, REFUSAL_ERROR_PREFIX } from './refusalDetection.js';
 import { asksForNewArtifact, isVerificationQuestion } from './sharepicEditHeuristics.js';
 
 const log = createLogger('SharepicVariants');
@@ -411,9 +411,27 @@ function toVariant(
   };
 }
 
+/**
+ * Variants, plus the reason when the run produced none because the model
+ * DECLINED rather than failed.
+ *
+ * The distinction has to survive this function. A decline used to be logged and
+ * then folded into the same empty array a timeout produces, so the chat told the
+ * user "Sharepic-Erstellung fehlgeschlagen / All variant generations failed" —
+ * a technical fault. On the combined social_post path the cross-gate already
+ * says the honest thing; the pure sharepic path had no channel for it, which
+ * made correct policy behaviour indistinguishable from an outage.
+ */
+export interface SharepicVariantsResult {
+  variants: SharepicVariant[];
+  /** German, user-facing reason from the model's ABLEHNUNG channel; null when
+   *  nothing was declined (including when variants were produced). */
+  declinedReason: string | null;
+}
+
 export async function generateSharepicVariants(
   args: GenerateVariantsArgs
-): Promise<SharepicVariant[]> {
+): Promise<SharepicVariantsResult> {
   let requests: VariantRequest[];
 
   if (args.refinement) {
@@ -444,15 +462,16 @@ export async function generateSharepicVariants(
   );
 
   const variants: SharepicVariant[] = [];
+  let declinedReason: string | null = null;
   settled.forEach((result, idx) => {
     const requestedType = requests[idx].type;
     if (result.status !== 'fulfilled') {
       // A refusal is the safety rules working, not a fault: log the reason,
       // not an Error object whose stack points at the generator.
       if (isRefusalError(result.reason)) {
-        log.info(
-          `[SharepicVariants] ${requestedType} variant declined — ${errorText(result.reason)}`
-        );
+        const reason = errorText(result.reason);
+        log.info(`[SharepicVariants] ${requestedType} variant declined — ${reason}`);
+        declinedReason ??= reason.slice(REFUSAL_ERROR_PREFIX.length).trim() || null;
         return;
       }
       log.warn(`[SharepicVariants] ${requestedType} variant rejected:`, result.reason);
@@ -466,5 +485,7 @@ export async function generateSharepicVariants(
     variants.push(toVariant(sharepic, requestedType, args.userLocale));
   });
 
-  return variants;
+  // One declined type among several successful ones is a per-type quirk, not a
+  // policy answer to the request — only report it when NOTHING came back.
+  return { variants, declinedReason: variants.length === 0 ? declinedReason : null };
 }

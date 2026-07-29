@@ -17,6 +17,29 @@ import { z } from 'zod';
 import { jobErrorCodeSchema } from './jobErrors.js';
 import { localeSchema } from './userProfile.js';
 
+// ── Subtitle preference vocabularies ────────────────────────────────────────
+
+/**
+ * The three subtitle preferences are closed sets, so they are declared once
+ * here and reused by every request schema below.
+ *
+ * `stylePreference` carries only the four values a client can pick. The
+ * Austrian variants (`at_standard`, `at_shadow`, …) are derived server-side by
+ * `AssSubtitleService.mapStyleForLocale` for font and preset selection; they
+ * never cross the wire and are never persisted, so they do not belong here.
+ *
+ * Deliberately NOT applied to `subtitlerProjectSchema`: that mirrors a Postgres
+ * row and stays permissive on purpose, so an older row with an unexpected value
+ * still parses instead of breaking the whole project list.
+ */
+export const subtitlePreferenceSchema = z.enum(['manual', 'word']);
+export const stylePreferenceSchema = z.enum(['standard', 'clean', 'shadow', 'tanne']);
+export const heightPreferenceSchema = z.enum(['standard', 'tief']);
+
+export type SubtitlePreference = z.infer<typeof subtitlePreferenceSchema>;
+export type StylePreference = z.infer<typeof stylePreferenceSchema>;
+export type HeightPreference = z.infer<typeof heightPreferenceSchema>;
+
 // ── Canonical SubtitleSegment ───────────────────────────────────────────────
 
 /**
@@ -111,8 +134,8 @@ export const videoSegmentSchema = z.object({
 export type VideoSegment = z.infer<typeof videoSegmentSchema>;
 
 export const subtitleConfigSchema = z.object({
-  stylePreference: z.string().optional(),
-  heightPreference: z.string().optional(),
+  stylePreference: stylePreferenceSchema.optional(),
+  heightPreference: heightPreferenceSchema.optional(),
   locale: localeSchema.optional(),
   // `segments` is required so callers don't have to handle the
   // subtitle-without-segments edge case.
@@ -170,13 +193,10 @@ export const cleanupResponseSchema = z.object({
 
 // ── Processing: process (start transcription) ───────────────────────────────
 
-export const subtitlePreferenceSchema = z.enum(['manual', 'word']);
-export const heightPreferenceSchema = z.enum(['standard', 'tief']);
-
 export const processRequestSchema = z.object({
   uploadId: z.string(),
   subtitlePreference: subtitlePreferenceSchema.optional(),
-  stylePreference: z.string().optional(),
+  stylePreference: stylePreferenceSchema.optional(),
   heightPreference: heightPreferenceSchema.optional(),
 });
 
@@ -191,9 +211,9 @@ export const processStartResponseSchema = z.object({
 // ── Processing: result query + response ─────────────────────────────────────
 
 export const resultQuerySchema = z.object({
-  subtitlePreference: z.string().optional(),
-  stylePreference: z.string().optional(),
-  heightPreference: z.string().optional(),
+  subtitlePreference: subtitlePreferenceSchema.optional(),
+  stylePreference: stylePreferenceSchema.optional(),
+  heightPreference: heightPreferenceSchema.optional(),
 });
 
 export type ResultQuery = z.infer<typeof resultQuerySchema>;
@@ -225,9 +245,9 @@ export const exportRequestSchema = z.object({
   uploadId: z.string().optional(),
   // Either a structured segment array (preferred) or an SRT string.
   subtitles: z.union([z.array(z.record(z.string(), z.unknown())), z.string()]).optional(),
-  subtitlePreference: z.string().optional(),
-  stylePreference: z.string().optional(),
-  heightPreference: z.string().optional(),
+  subtitlePreference: subtitlePreferenceSchema.optional(),
+  stylePreference: stylePreferenceSchema.optional(),
+  heightPreference: heightPreferenceSchema.optional(),
   locale: localeSchema.optional(),
   maxResolution: z.number().nullable().optional(),
   projectId: z.string().nullable().optional(),
@@ -360,9 +380,9 @@ export type RedisJobResult = z.infer<typeof redisJobResultSchema>;
 export const exportTokenBodySchema = z.object({
   uploadId: z.string(),
   subtitles: z.string(),
-  subtitlePreference: z.string().optional(),
-  stylePreference: z.string().optional(),
-  heightPreference: z.string().optional(),
+  subtitlePreference: subtitlePreferenceSchema.optional(),
+  stylePreference: stylePreferenceSchema.optional(),
+  heightPreference: heightPreferenceSchema.optional(),
 });
 
 export const exportTokenResponseSchema = z.object({
@@ -378,9 +398,9 @@ export const projectDataBodySchema = z.object({
   videoFilename: z.string(),
   subtitles: z.array(subtitleSegmentSchema),
   title: z.string().nullish(),
-  stylePreference: z.string().nullish(),
-  heightPreference: z.string().nullish(),
-  modePreference: z.string().nullish(),
+  stylePreference: stylePreferenceSchema.nullish(),
+  heightPreference: heightPreferenceSchema.nullish(),
+  modePreference: subtitlePreferenceSchema.nullish(),
   videoMetadata: videoMetadataLooseSchema.nullish(),
   videoSize: z.number().nullish(),
 });
@@ -396,10 +416,10 @@ export const updateProjectBodySchema = z.object({
   // (ProjectService.updateProject) so the stored column converges on the
   // canonical format — same one the create path writes.
   subtitles: z.union([z.string(), z.array(subtitleSegmentSchema)]).nullish(),
-  style_preference: z.string().nullish(),
-  stylePreference: z.string().nullish(),
-  height_preference: z.string().nullish(),
-  heightPreference: z.string().nullish(),
+  style_preference: stylePreferenceSchema.nullish(),
+  stylePreference: stylePreferenceSchema.nullish(),
+  height_preference: heightPreferenceSchema.nullish(),
+  heightPreference: heightPreferenceSchema.nullish(),
   style_settings: styleSettingsSchema.nullish(),
   styleSettings: styleSettingsSchema.nullish(),
   status: z.string().nullish(),
