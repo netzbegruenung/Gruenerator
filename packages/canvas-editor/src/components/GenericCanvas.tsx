@@ -250,12 +250,30 @@ function GenericCanvasWithRef<
     }
   }, [state, callbacks]);
 
+  // Every family the template actually paints. Derived from the elements rather
+  // than read from `config.fonts.primary` alone: a Konva paint is not a DOM font
+  // usage, so a family nobody preloads is still unloaded at first paint and the
+  // fallback face gets baked into the canvas. Templates whose layout is pure
+  // arithmetic (zitat) never re-render afterwards, so it stays baked in.
+  const canvasFontFamilies = useMemo(() => {
+    const families = new Set<string>();
+    if (config.fonts?.primary) families.add(config.fonts.primary);
+    for (const element of config.elements) {
+      if (element.type !== 'text') continue;
+      // Element families carry a ', Arial, sans-serif' fallback stack — only the
+      // first entry is a webfont we can wait for.
+      const family = element.fontFamily.split(',')[0]?.trim();
+      if (family) families.add(family);
+    }
+    return Array.from(families);
+  }, [config]);
+
   // Font loading - non-blocking! Renders immediately with fallback, swaps to custom font when ready
   const { isFontAvailable } = useFontLoader(
-    config.fonts?.requireFontLoad !== false && config.fonts
+    config.fonts?.requireFontLoad !== false && canvasFontFamilies.length > 0
       ? {
-          fontFamily: config.fonts.primary,
-          fontSize: config.fonts.fontSize,
+          fontFamily: canvasFontFamilies,
+          fontSize: config.fonts?.fontSize ?? 60,
           maxAttempts: 30,
           pollInterval: 50,
         }
