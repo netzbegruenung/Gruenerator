@@ -165,8 +165,6 @@ const CHECKS: Check[] = [
   {
     name: 'searchAktivitaetenTrimmed(person 7439)',
     usedBy: 'Personen-Pfad (aktivitaeten-Liste)',
-    knownUpstream:
-      'bundestag_search_aktivitaeten liefert mit JEDER person_id 0 Treffer (ohne Filter: 1,77 Mio.)',
     run: async () => {
       const r = await client.searchAktivitaetenTrimmed('7439', 5);
       return { ok: r.items.length > 0, detail: `${r.items.length} items` };
@@ -234,7 +232,6 @@ const CHECKS: Check[] = [
   {
     name: 'searchAktivitaeten(person_id 7439)',
     usedBy: 'EnrichedPersonSearchService._searchAktivitaeten',
-    knownUpstream: 'gleicher person_id-Filter-Bug wie oben',
     run: async () => {
       const r = await client.searchAktivitaeten({ person_id: '7439', limit: 5 });
       return { ok: documentsOf(r).length > 0, detail: `${documentsOf(r).length} docs` };
