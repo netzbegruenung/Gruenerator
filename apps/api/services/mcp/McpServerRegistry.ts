@@ -138,9 +138,45 @@ export class McpServerRegistry {
             });
           }
         }
-        return { id: row.id, name: row.name, url: row.url, authType: row.auth_type, token };
+        return {
+          id: row.id,
+          name: row.name,
+          url: row.url,
+          authType: row.auth_type,
+          token,
+          approvedFingerprints: row.tool_fingerprints,
+        };
       })
     );
+  }
+
+  /**
+   * Record the approved tool-definition fingerprints for a server.
+   *
+   * Called when a server has no baseline yet (first connect, or a server that
+   * predates the column) and after an explicit re-approval. NOT best-effort in
+   * the same sense as saveToolsSnapshot: a failed write here means the next
+   * load re-baselines rather than blocking, so a persistent failure degrades
+   * to today's behaviour — no detection — instead of locking the user out.
+   * It is logged at WARN for exactly that reason.
+   */
+  static async saveToolFingerprints(
+    userId: string,
+    serverId: string,
+    fingerprints: Record<string, string>
+  ): Promise<void> {
+    try {
+      const db = getDrizzleInstance();
+      await db
+        .update(mcp_servers)
+        .set({ tool_fingerprints: fingerprints, tools_approved_at: new Date() })
+        .where(and(eq(mcp_servers.user_id, userId), eq(mcp_servers.id, serverId)));
+    } catch (err) {
+      log.warn('Failed to persist MCP tool fingerprints', {
+        serverId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   /**
