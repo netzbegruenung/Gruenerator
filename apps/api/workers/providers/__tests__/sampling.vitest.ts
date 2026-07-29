@@ -36,19 +36,11 @@ vi.mock('../../../services/tools/index.js', () => ({
   default: { prepareToolsPayload: vi.fn(() => ({})) },
 }));
 
-const { execute: mistral } = await import('../mistralAdapter.js');
-const { execute: litellm } = await import('../litellmAdapter.js');
-const { execute: regolo } = await import('../regoloAdapter.js');
-const { execute: greenpt } = await import('../greenptAdapter.js');
+const { execute } = await import('../execute.js');
 
-type Execute = (requestId: string, data: never) => Promise<unknown>;
-
-const ADAPTERS: Array<{ name: string; execute: Execute }> = [
-  { name: 'mistral', execute: mistral as Execute },
-  { name: 'litellm', execute: litellm as Execute },
-  { name: 'regolo', execute: regolo as Execute },
-  { name: 'greenpt', execute: greenpt as Execute },
-];
+const PROVIDERS = ['mistral', 'litellm', 'regolo', 'greenpt'] as const;
+type Provider = (typeof PROVIDERS)[number];
+const run = (provider: Provider, data: unknown) => execute(provider, 'req', data as never);
 
 function request(options: Record<string, unknown> = {}) {
   return {
@@ -73,19 +65,19 @@ beforeEach(() => {
 });
 
 describe('an explicit sampling value reaches the model', () => {
-  for (const { name, execute } of ADAPTERS) {
+  for (const name of PROVIDERS) {
     it(`${name}: temperature 0 stays 0`, async () => {
-      await execute('req', request({ temperature: 0 }) as never);
+      await run(name, request({ temperature: 0 }));
       expect(sentToSdk().temperature).toBe(0);
     });
 
     it(`${name}: top_p 0 stays 0`, async () => {
-      await execute('req', request({ top_p: 0 }) as never);
+      await run(name, request({ top_p: 0 }));
       expect(sentToSdk().topP).toBe(0);
     });
 
     it(`${name}: a non-zero value is passed through unchanged`, async () => {
-      await execute('req', request({ temperature: 0.42, top_p: 0.55 }) as never);
+      await run(name, request({ temperature: 0.42, top_p: 0.55 }));
       expect(sentToSdk().temperature).toBe(0.42);
       expect(sentToSdk().topP).toBe(0.55);
     });
@@ -107,9 +99,9 @@ describe('per-provider defaults when the caller says nothing', () => {
     greenpt: { temperature: 0, topP: 0.1 },
   };
 
-  for (const { name, execute } of ADAPTERS) {
+  for (const name of PROVIDERS) {
     it(`${name} defaults to ${EXPECTED[name].temperature} / ${EXPECTED[name].topP}`, async () => {
-      await execute('req', request() as never);
+      await run(name, request());
       expect(sentToSdk().temperature).toBe(EXPECTED[name].temperature);
       expect(sentToSdk().topP).toBe(EXPECTED[name].topP);
     });
@@ -126,12 +118,12 @@ describe('per-provider defaults when the caller says nothing', () => {
       metadata: { platforms: ['twitter'] },
     };
 
-    await mistral('req', social as never);
+    await run('mistral', social);
     expect(sentToSdk().maxOutputTokens).toBe(120);
 
-    for (const { execute } of [ADAPTERS[1], ADAPTERS[2], ADAPTERS[3]]) {
+    for (const provider of ['litellm', 'regolo', 'greenpt'] as const) {
       generateText.mockClear();
-      await execute('req', social as never);
+      await run(provider, social);
       expect(sentToSdk().maxOutputTokens).toBeUndefined();
     }
   });
