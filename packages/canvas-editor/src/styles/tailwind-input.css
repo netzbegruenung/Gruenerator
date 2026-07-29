@@ -1,12 +1,19 @@
 /**
  * Canvas Editor — Tailwind v4 entry point
  *
- * Compiled by `@tailwindcss/cli` into dist/canvas-editor-bundle.css.
+ * Compiled by `@tailwindcss/cli` into dist/styles/canvas-editor-bundle.css.
  * This single bundle provides everything the DOM component needs:
  *   1. CSS variable definitions (variables.css)
  *   2. Tailwind preflight + all utility classes used by canvas-editor
  *   3. canvas-editor.css pseudo-element / :has() rules
  *   4. Theme token mappings (CSS vars → Tailwind utilities)
+ *
+ * Die Ausgabe liegt in dist/STYLES/, nicht direkt in dist/, und das ist keine
+ * Kosmetik: tailwindcss inlined `@import` ohne die url()-Pfade umzuschreiben.
+ * Das Bundle erbt also die Pfade von src/styles/ und muss dieselbe Tiefe unter
+ * dem Paketwurzelverzeichnis haben, sonst zeigen die @font-face-Regeln ins
+ * Leere. Wer den Ausgabepfad ändert, muss typography.css mitändern — der Guard
+ * in src/styles/__tests__/typography-fonts.vitest.ts prüft genau das.
  */
 
 @import "tailwindcss";
