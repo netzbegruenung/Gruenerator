@@ -62,6 +62,12 @@ import {
   decideEditToolLoop,
 } from './services/agenticLoop/routing.js';
 import { type PersistedStep } from './services/agenticLoop/types.js';
+import {
+  ARTIFACT_CONFIRMATION_TEXTS,
+  buildPostWithSharepicsConfirmation,
+  buildSharepicConfirmation,
+  buildSharepicsWithoutPostConfirmation,
+} from './services/artifactConfirmations.js';
 import { extractArtifactFromResponse } from './services/artifactExtraction.js';
 import { injectImageAttachments } from './services/attachmentProcessingService.js';
 import { extractCompoundTopic } from './services/compoundTopicExtractor.js';
@@ -1429,10 +1435,13 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         ...(actualThreadId != null && { actualThreadId }),
         userId,
       };
-      /** A referential follow-up ("mach eine Tabelle dazu") inherits the prior
-       *  turn's subject instead of building the artifact about the bare
-       *  instruction. */
+      /** What the artifact is ABOUT. A referential follow-up ("mach eine
+       *  Tabelle dazu") names no subject, so the classifier resolves one against
+       *  the history; `resolveReferentialTopic` covers the turns that never
+       *  reached the LLM. The material to build FROM is separate and comes from
+       *  runCreateTurn's transcript + source briefing. */
       const createTopic = (): string =>
+        classifiedState.creationTopic ||
         resolveReferentialTopic(
           lastUserMessage ? extractTextContent(lastUserMessage.content) : '',
           classifiedState.messages ?? []
@@ -1543,7 +1552,15 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // because a bare "@sharepic" / "zitat sharepic" has the intent but no subject.
       if (classifiedState.intent === 'sharepic' && actualThreadId && !sharepicRefinement) {
         const sharepicText = lastUserTextNoMentions;
-        if (isSharepicTopicMissing(sharepicText as string)) {
+        // Ask only when the THREAD has no subject either. "Jetzt noch ein
+        // normales sharepic" carries none of its own, but the turn before it
+        // does — and runSharepicGeneration resolves exactly that. Asking here
+        // would throw away a topic the pipeline already knows. Both resolution
+        // paths count, in the order the generator tries them.
+        const topicResolvable =
+          !!classifiedState.creationTopic ||
+          resolveReferentialTopic(sharepicText as string, classifiedState.messages ?? []).inherited;
+        if (isSharepicTopicMissing(sharepicText as string) && !topicResolvable) {
           log.info('[ChatGraph] Sharepic topic missing — asking user for the topic');
 
           const stepId = `clarify_${Date.now()}`;
@@ -1685,27 +1702,20 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               // the user of something they never asked for (live: a plain
               // request for an English version of their own post).
               socialPostRefusalIsPolicy
-              ? `Diese Anfrage kann ich nicht umsetzen: Dabei entstünde ein erfundenes Zitat oder eine ` +
-                `irreführende Aussage im Namen der Partei. Wenn du mir ein echtes Zitat mit Quelle gibst, ` +
-                `gestalte ich dir daraus gern einen Post.`
-              : `Daraus konnte ich keinen Post erzeugen. Sag mir bitte konkret, worum es gehen soll — ` +
-                `oder, wenn du dich auf einen vorhandenen Post beziehst, was ich damit machen soll.`
+              ? ARTIFACT_CONFIRMATION_TEXTS.postRefusedPolicy
+              : ARTIFACT_CONFIRMATION_TEXTS.postRefusedGeneric
             : hasText && n > 0
-              ? `Hier ist dein Post mit ${n} passenden Sharepic-${n === 1 ? 'Variante' : 'Varianten'}. ` +
-                `Sag mir, was ich am Text oder an der Grafik anpassen soll.`
+              ? buildPostWithSharepicsConfirmation(n)
               : // A post is text-only unless the user named a sharepic. Without
                 // this split, every ordinary post reported a FAILED sharepic
                 // that was never requested.
                 hasText && !sharepicLicensed
-                ? `Hier ist dein Post. Sag mir, was ich am Text anpassen soll — oder ob ich ` +
-                  `dir ein Sharepic dazu gestalten soll.`
+                ? ARTIFACT_CONFIRMATION_TEXTS.postTextOnly
                 : hasText
-                  ? `Hier ist dein Post. Die Sharepic-Erstellung hat leider nicht geklappt — ` +
-                    `sag mir, was ich am Text anpassen soll, oder versuch es für die Grafik noch einmal.`
+                  ? ARTIFACT_CONFIRMATION_TEXTS.postSharepicFailed
                   : n > 0
-                    ? `Ich habe dir ${n} Sharepic-${n === 1 ? 'Variante' : 'Varianten'} erstellt. ` +
-                      `Der Post-Text hat leider nicht geklappt — magst du es noch einmal versuchen?`
-                    : `Das hat leider nicht geklappt. Magst du es mit einem anderen Thema noch einmal versuchen?`;
+                    ? buildSharepicsWithoutPostConfirmation(n)
+                    : ARTIFACT_CONFIRMATION_TEXTS.genericFailed;
           sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
           sse.send('text_delta', { text: fullText });
         } else if (finalState.intent === 'sharepic') {
@@ -1717,13 +1727,8 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           const deckSlides = sharepicVariants[0]?.pages?.length;
           fullText =
             n > 0
-              ? deckSlides
-                ? `Ich habe dir ein Slider-Karussell mit ${deckSlides} Folien erstellt. ` +
-                  `Sag mir, was ich an einzelnen Folien anpassen soll, oder öffne es im Studio.`
-                : `Ich habe dir ${n} Sharepic-${n === 1 ? 'Variante' : 'Varianten'} erstellt. ` +
-                  `Wähle eine aus oder sag mir, was ich am Text oder Bild anpassen soll.`
-              : `Die Sharepic-Erstellung hat leider nicht geklappt. Magst du es mit einem ` +
-                `anderen Thema noch einmal versuchen?`;
+              ? buildSharepicConfirmation(n, deckSlides)
+              : ARTIFACT_CONFIRMATION_TEXTS.sharepicFailed;
           sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
           sse.send('text_delta', { text: fullText });
         } else {
