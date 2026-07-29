@@ -189,28 +189,46 @@ export async function handleNotebookStream(
       resultCount: searchContext?.sortedResults.length ?? 0,
     });
 
-    // Fast mode: rerank results to reduce context size
-    if (isFast && searchContext) {
+    // Rerank in BOTH modes.
+    //
+    // This used to be gated on `isFast`, which left "Tiefenrecherche" — the
+    // path that retrieves the MOST candidates (30-40 vs the chat path's 12
+    // after rerank) — as the only one without a cross-encoder. That is inverse
+    // to what the UI promises: the mode advertised as the thorough one was
+    // handing the model the raw hybrid-search order.
+    //
+    // The two modes differ in HOW MUCH survives, not in WHETHER it is ranked.
+    // Deep keeps a bigger, ranked window (18 of up to 40 candidates); fast
+    // keeps the tight one (10 of 20). rerankNotebookResults degrades openly —
+    // with Regolo unconfigured it returns the original order rather than
+    // throwing — so this cannot make the deep path fail where it used to work.
+    if (searchContext) {
       const reranked = await rerankNotebookResults({
         results: searchContext.sortedResults,
         referencesMap: searchContext.referencesMap,
         question,
-        limit: 10,
+        limit: isFast ? 10 : 18,
+        inputLimit: isFast ? 20 : 40,
       });
       searchContext.sortedResults = reranked.results;
       searchContext.referencesMap = reranked.referencesMap;
       searchContext.contextSummary = reranked.contextSummary;
 
       log.debug(
-        `⏱ Rerank: ${reranked.rerankTimeMs}ms, ${searchContext.sortedResults.length} results kept`
+        `⏱ Rerank (${isFast ? 'fast' : 'deep'}): ${reranked.rerankTimeMs}ms, ${searchContext.sortedResults.length} results kept`
       );
 
-      const isSystemCollection =
-        searchContext.effectiveCollectionIds?.some((id) => !!getSystemCollectionConfig(id)) ??
-        false;
-      searchContext.systemPrompt = isSystemCollection
-        ? buildConcisePromptGrundsatz(searchContext.collectionName || 'Grüne Dokumente').system
-        : buildConcisePromptGeneral(searchContext.collectionName || 'Ihre Dokumente').system;
+      // The concise prompt stays fast-only: it exists to shrink the answer to
+      // match a shrunken context. Deep is asked for a thorough answer and keeps
+      // the prompt getSearchContext chose.
+      if (isFast) {
+        const isSystemCollection =
+          searchContext.effectiveCollectionIds?.some((id) => !!getSystemCollectionConfig(id)) ??
+          false;
+        searchContext.systemPrompt = isSystemCollection
+          ? buildConcisePromptGrundsatz(searchContext.collectionName || 'Grüne Dokumente').system
+          : buildConcisePromptGeneral(searchContext.collectionName || 'Ihre Dokumente').system;
+      }
     }
 
     // Apply custom system prompt if provided (e.g. Gruen-O-Mat persona)
