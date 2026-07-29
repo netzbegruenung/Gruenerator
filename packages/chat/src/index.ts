@@ -195,6 +195,7 @@ export { CitationBadge } from './components/message-parts/CitationPopover';
 export { Citation as CitationCard } from './components/tool-ui/citation/ProjectCitation';
 export { GeneratedImageDisplay } from './components/message-parts/GeneratedImageDisplay';
 export { MessageActions } from './components/message-parts/MessageActions';
+export { MessageSourcesButton } from './components/message-parts/MessageSourcesButton';
 export { MessageTTSButton } from './components/message-parts/MessageTTSButton';
 export { useMessageTTS, type TTSState } from './hooks/useMessageTTS';
 
