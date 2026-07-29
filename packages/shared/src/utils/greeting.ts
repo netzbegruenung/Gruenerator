@@ -4,7 +4,8 @@
  * voice.
  *
  * The template is stable for a whole day (seeded by the day number) so it does not
- * reshuffle on every render, and switches to a rainbow Pride greeting in June.
+ * reshuffle on every render, switches to a rainbow Pride greeting in June, and to
+ * the launch announcement for the week after a release cut-off.
  */
 
 function pickStable<T>(options: readonly T[], seed: number): T {
@@ -19,6 +20,26 @@ const GENERAL_DE = [
 ] as const;
 
 const PRIDE_GREETING = 'Happy Pride, @Vorname!';
+
+// No `@Vorname` token: the name is appended by getGreeting, so a user without a
+// first name gets a clean "Willkommen im neuen Grünerator" instead of "…, du".
+const LAUNCH_GREETING = 'Willkommen im neuen Grünerator';
+
+/**
+ * Launch week: the release announcement takes over the hero for seven days from
+ * the cut-off, then falls back to the normal rotation with no manual revert.
+ *
+ * Local time on purpose — the window flips at the user's midnight, like the day
+ * seed. Month is 0-based, so `7` is August.
+ */
+export const LAUNCH_GREETING_START = new Date(2026, 7, 1);
+export const LAUNCH_GREETING_DAYS = 7;
+
+const isLaunchWeek = (): boolean => {
+  const start = LAUNCH_GREETING_START.getTime();
+  const now = Date.now();
+  return now >= start && now < start + LAUNCH_GREETING_DAYS * 86_400_000;
+};
 
 /**
  * Pride month = June (month index 5). Evaluated live so it flips on/off at the
@@ -48,6 +69,12 @@ function pickTemplate(locale: string | null | undefined, hour: number, short: bo
     const allowed = short ? options.filter(isShortTemplate) : options;
     return pickStable(allowed.length > 0 ? allowed : options, seed);
   };
+
+  // Launch week outranks Pride: it is a dated one-week announcement, Pride runs
+  // a whole month and loses at most a few days to it.
+  if (isLaunchWeek()) {
+    return LAUNCH_GREETING;
+  }
 
   if (isPrideMonth()) {
     return PRIDE_GREETING;
