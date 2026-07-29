@@ -49,7 +49,6 @@ vi.mock('../../../services/presentations/PresentationGenerationService.js', () =
 }));
 vi.mock('../../../services/pdf/PdfGenerationService.js', () => ({
   PDF_GENERATION_PROMPT: 'pdf',
-  parsePdfStructure: () => null,
   validatePdfStructure: () => ({ ok: false, error: 'blocks: Required' }),
   createPdfDocument: vi.fn(),
 }));

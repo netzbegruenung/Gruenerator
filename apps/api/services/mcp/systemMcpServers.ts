@@ -50,16 +50,44 @@ const ENV_BY_KEY: Record<SystemMcpKey, { url: string; token: string }> = {
 
 /**
  * Which sources a system intent mounts. `bahn`/`wetter`/`news` are the pure
- * single-source intents; `reise` is the umbrella travel intent mounting train
- * timetables + hotel search + destination weather in ONE loop turn, so "plane
- * meine Fahrt zum Länderrat: Zug und Hotel" needs no intent split.
+ * single-source intents.
+ *
+ * `reise` — the umbrella travel intent that mounted train timetables + hotel
+ * search + destination weather in ONE loop turn — is OFF for now. It was the only
+ * intent mixing audiences (Deutsche Bahn is German-only, hotels and weather are
+ * global), so "is this intent available?" could not be answered without knowing
+ * the user's country: on a deploy with only the Bahn URL set, an Austrian travel
+ * turn forced the agentic loop and mounted nothing at all.
+ *
+ * Off rather than patched, because half an answer is worse than an honest web
+ * search — without an ÖBB counterpart an Austrian "Wien→Graz" turn can offer
+ * hotels and weather but no train. The enum value stays (F0, wire contract) and
+ * `SYSTEM_MCP_INTENTS` still lists it, so a `reise` verdict degrades to `web`.
  */
 const INTENT_SOURCES: Record<string, SystemMcpKey[]> = {
   bahn: ['bahn'],
-  reise: ['bahn', 'hotel', 'wetter'],
+  // reise: ['bahn', 'hotel', 'wetter'],
   hotel: ['hotel'],
   wetter: ['wetter'],
   news: ['news'],
+};
+
+/**
+ * Audience per SOURCE rather than per intent. With `reise` off, every remaining
+ * intent maps to exactly one source, so the two levels currently coincide — the
+ * per-source grain is kept for whatever brings a multi-source intent back (an
+ * ÖBB counterpart, a travel umbrella): that is the case an intent-level audience
+ * cannot express, because it could only drop the whole intent for Austria or
+ * keep the wrong tools.
+ *
+ * Deutsche Bahn has no ÖBB counterpart wired up, and tagesschau covers Austria
+ * as foreign news. Weather (Open-Meteo) and hotels (trivago) are global.
+ */
+const SOURCE_AUDIENCE: Record<SystemMcpKey, 'de-DE' | 'all'> = {
+  bahn: 'de-DE',
+  news: 'de-DE',
+  wetter: 'all',
+  hotel: 'all',
 };
 
 const DEFINITIONS: Array<Omit<SystemMcpSource, 'url' | 'authType' | 'token'>> = [
@@ -146,24 +174,40 @@ export const SYSTEM_TOOL_INTENTS: ReadonlySet<SearchIntent> = new Set([
   'hilfe',
 ] as SearchIntent[]);
 
-/** The env-configured sources the given system intent mounts (possibly []). */
-export function getSourcesForIntent(intent: string): SystemMcpSource[] {
+/**
+ * The env-configured sources the given system intent mounts (possibly []).
+ *
+ * `locale` drops sources whose data does not cover that country. It is optional
+ * so callers with no user context (health checks, catalog listings) keep the
+ * full set, but every CHAT path must pass it — without it an Austrian traveller
+ * gets Deutsche-Bahn tools mounted for a Vienna→Graz trip.
+ */
+export function getSourcesForIntent(intent: string, locale?: string | null): SystemMcpSource[] {
   const keys = INTENT_SOURCES[intent];
   if (!keys) return [];
   const active = getSystemMcpSources();
-  return keys.flatMap((k) => active.filter((s) => s.key === k));
+  const allowed = locale
+    ? keys.filter((k) => SOURCE_AUDIENCE[k] === 'all' || SOURCE_AUDIENCE[k] === locale)
+    : keys;
+  return allowed.flatMap((k) => active.filter((s) => s.key === k));
 }
 
 /** True when the intent has at least one configured system source behind it. */
-export function isSystemIntentAvailable(intent: string): boolean {
-  return getSourcesForIntent(intent).length > 0;
+export function isSystemIntentAvailable(intent: string, locale?: string | null): boolean {
+  return getSourcesForIntent(intent, locale).length > 0;
 }
 
-/** Sources whose data covers Germany only — de-AT users get the web fallback. */
-export const DE_ONLY_SYSTEM_INTENTS: ReadonlySet<SearchIntent> = new Set([
-  'bahn',
-  'news',
-] as SearchIntent[]);
+/**
+ * System intents with NO source left for a de-AT user — they degrade to the web
+ * fallback. Derived from `SOURCE_AUDIENCE` rather than hand-listed, so a source
+ * whose coverage changes cannot leave this set stale. `reise` is absent because
+ * it has no sources at all now; it degrades via the availability check instead.
+ */
+export const DE_ONLY_SYSTEM_INTENTS: ReadonlySet<SearchIntent> = new Set(
+  Object.keys(INTENT_SOURCES).filter((intent) =>
+    (INTENT_SOURCES[intent] ?? []).every((k) => SOURCE_AUDIENCE[k] === 'de-DE')
+  ) as SearchIntent[]
+);
 
 export function toSystemConnectionConfig(source: SystemMcpSource): McpConnectionConfig {
   return {

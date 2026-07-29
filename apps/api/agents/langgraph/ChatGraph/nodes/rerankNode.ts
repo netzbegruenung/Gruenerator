@@ -17,13 +17,24 @@ import {
 import { createLogger } from '../../../../utils/logger.js';
 import { SOURCE_PREFIX, type ChatGraphState } from '../types.js';
 
+import { MAX_SOURCES } from './citableSources.js';
+
 const log = createLogger('ChatGraph:Rerank');
 
 /** Excerpt per candidate handed to the cross-encoder. */
 const RERANK_EXCERPT_CHARS = 1200;
 
+/** Upper bound on survivors. Was the notebook path's hardcoded value. */
+const RERANK_OUTPUT_CEILING = 12;
+
 function getSourceTag(source: string): string {
   if (source.startsWith(SOURCE_PREFIX.GRUENERATOR)) return 'Parteidokument';
+  // Official DIP records. Untagged they fell through to the generic 'Quelle'
+  // while the instruct below tells the cross-encoder to prefer "official party
+  // documents" — harmless while a turn is all-DIP (one tag for every
+  // candidate), but it would rank a crawled web text above a Plenarprotokoll
+  // the moment DIP and collection results ever share one pool.
+  if (source === SOURCE_PREFIX.BUNDESTAG) return 'Parlamentsdokument';
   if (source.startsWith(SOURCE_PREFIX.DOCUMENT)) return 'Nutzerdokument';
   if (source === SOURCE_PREFIX.WEB) return 'Web';
   if (source === SOURCE_PREFIX.EXAMPLES) return 'Beispiel';
@@ -42,8 +53,28 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
     (state.notebookCollectionIds?.length ?? 0) > 0 ||
     (state.defaultNotebookCollectionIds?.length ?? 0) > 0 ||
     (state.notebookDocumentIds?.length ?? 0) > 0;
-  const inputLimit = isNotebookScoped ? 20 : rerankCfg.inputLimit;
-  const outputLimit = isNotebookScoped ? 12 : rerankCfg.outputLimit;
+
+  // The window follows what actually arrived, not a fixed config value.
+  // RERANK_INPUT_LIMIT (16) sits BELOW what the top search tier fetches
+  // (`tiefenrecherche`: 20 via searchDepth.ts TIER_CONFIG), so the last results
+  // were paid for at Linkup and then dropped before the cross-encoder ever
+  // scored them — a silent loss on the most expensive tier. Deriving the window
+  // from `searchResults.length` makes that impossible by construction and needs
+  // no `tier` field on ChatGraphState.
+  //
+  // MAX_SOURCES is the ceiling on what can reach the prompt at all, so scoring
+  // beyond it would be work whose result is discarded — and it keeps a wide
+  // multi-source fan-out from running away.
+  const inputLimit = Math.min(
+    MAX_SOURCES,
+    Math.max(isNotebookScoped ? MAX_SOURCES : rerankCfg.inputLimit, searchResults.length)
+  );
+  // Survivors scale with the input: never fewer than configured, never more than
+  // the 12 the notebook path already used before this was unified.
+  const outputLimit = Math.min(
+    RERANK_OUTPUT_CEILING,
+    Math.max(rerankCfg.outputLimit, searchResults.length)
+  );
 
   if (searchResults.length <= 2) {
     log.info(`[Rerank] Skipping — only ${searchResults.length} results`);

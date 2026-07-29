@@ -50,7 +50,7 @@ const form: PdfDocumentSpec = {
     { type: 'field', kind: 'select', label: 'Gliederung', options: ['KV Nord', 'KV Süd'] },
     { type: 'field', kind: 'radio', label: 'Teilnahmeform', options: ['Vor Ort', 'Digital'] },
     { type: 'field', kind: 'checkbox', label: 'Ich benötige eine barrierefreie Zufahrt' },
-    { type: 'field', kind: 'multiline', label: 'Anmerkungen', rows: 3 },
+    { type: 'field', kind: 'multiline', label: 'Anmerkungen', lines: 3 },
     { type: 'signature', labels: ['Ort, Datum', 'Unterschrift'] },
   ],
 };

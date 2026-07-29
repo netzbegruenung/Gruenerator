@@ -244,8 +244,12 @@ SCHRITT 6 - MEHRERE SUCHQUELLEN:
 Manche Anfragen brauchen SOWOHL interne Dokumente ALS AUCH Web-Recherche:
 - "Was sagen die Grünen zum Klimaschutz und was sind die aktuellen Entwicklungen?" → searchSources: ["documents", "web"]
 - "Grüne Position zur Energiewende und aktuelle Nachrichten dazu" → searchSources: ["documents", "web"]
+- Grüne Position UND parlamentarischer Vorgang (Drucksache, Plenardebatte, Gesetzgebungsverfahren) → searchSources: ["documents", "bundestag"]
+  - "Was ist unsere Position zur Wärmewende und was wurde dazu im Bundestag debattiert?" → ["documents", "bundestag"]
+  - "Grüne Haltung zur Kindergrundsicherung und der Stand des Gesetzentwurfs" → ["documents", "bundestag"]
 - Nur Parteiprogramm → searchSources: [] (normaler search-Intent reicht)
 - Nur aktuelle Nachrichten → searchSources: [] (normaler web-Intent reicht)
+- Nur Parlamentsdokumente ohne grüne Position → searchSources: [] (der bundestag-Intent reicht)
 
 SCHRITT 7 - METADATEN-FILTER ERKENNEN:
 Wenn die Anfrage SPEZIFISCHE Filterkriterien enthält, extrahiere sie:
@@ -309,7 +313,7 @@ Antworte NUR mit JSON:
   "searchQuery": "ORIGINALTEXT des Benutzers (KEINE Korrekturen an Eigennamen!)" | null,
   "optimizedSearchQuery": "nur das faktische Thema aus dem ORIGINALTEXT, ohne Aufgabenanweisung" | null,
   "subQueries": ["thema1", "thema2"] | null,
-  "searchSources": ["documents", "web"] | [],
+  "searchSources": ["documents", "web"] | ["documents", "bundestag"] | [],
   "filters": {
     "content_type": null | "presse" | "beschluss" | "antrag" | "blog" | "wahlprogramm" | "position" | "rede",
     "landesverband": null | "HH" | "SH" | "TH" | "BY",

@@ -149,6 +149,7 @@
     "prepare": "husky || true",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck --concurrency=3",
+    "typecheck:affected": "cross-env TURBO_SCM_BASE=origin/master turbo run typecheck --affected --concurrency=1",
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint:fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yaml,yml}\"",

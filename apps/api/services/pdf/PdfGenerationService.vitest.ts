@@ -4,17 +4,39 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { createPdfDocument, parsePdfStructure } from './PdfGenerationService.js';
+import { jsonCandidatesFromText } from '../ai/generateStructured.js';
 
-describe('parsePdfStructure', () => {
+import { createPdfDocument, validatePdfStructure } from './PdfGenerationService.js';
+
+/**
+ * These used to run through `parsePdfStructure`, which did extraction AND
+ * validation in one swallow-the-error step. The two halves are now separate —
+ * `jsonCandidatesFromText` (generateStructured) pulls the JSON out, this gate
+ * judges it — so the cases are asserted through the pair.
+ */
+const firstValid = (text: string): ReturnType<typeof validatePdfStructure> => {
+  const candidates = jsonCandidatesFromText(text);
+  let firstRejection: ReturnType<typeof validatePdfStructure> | null = null;
+  for (const candidate of candidates) {
+    const validated = validatePdfStructure(candidate);
+    if (validated.ok) return validated;
+    firstRejection ??= validated;
+  }
+  return firstRejection ?? { ok: false, error: 'kein JSON in der Antwort' };
+};
+
+describe('validating a model answer', () => {
   it('parses a direct JSON object and applies schema defaults', () => {
-    const parsed = parsePdfStructure(
+    const parsed = firstValid(
       JSON.stringify({ title: 'Radwege', blocks: [{ type: 'paragraph', text: 'Text' }] })
     );
-    expect(parsed?.title).toBe('Radwege');
-    expect(parsed?.kind).toBe('document');
-    expect(parsed?.language).toBe('de-DE');
-    expect(parsed?.blocks).toHaveLength(1);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(parsed.value.title).toBe('Radwege');
+      expect(parsed.value.kind).toBe('document');
+      expect(parsed.value.language).toBe('de-DE');
+      expect(parsed.value.blocks).toHaveLength(1);
+    }
   });
 
   it('parses fenced JSON with letter fields', () => {
@@ -29,13 +51,16 @@ describe('parsePdfStructure', () => {
       }),
       '```',
     ].join('\n');
-    const parsed = parsePdfStructure(raw);
-    expect(parsed?.kind).toBe('letter');
-    expect(parsed?.letter?.recipient).toBe('Stadtrat\nRathausplatz 1');
+    const parsed = firstValid(raw);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(parsed.value.kind).toBe('letter');
+      expect(parsed.value.letter?.recipient).toBe('Stadtrat\nRathausplatz 1');
+    }
   });
 
   it('parses a form with field blocks', () => {
-    const parsed = parsePdfStructure(
+    const parsed = firstValid(
       JSON.stringify({
         title: 'Mitgliedsantrag',
         kind: 'form',
@@ -45,17 +70,25 @@ describe('parsePdfStructure', () => {
         ],
       })
     );
-    expect(parsed?.kind).toBe('form');
-    expect(parsed?.blocks[0]).toMatchObject({ type: 'field', kind: 'text', label: 'Vorname' });
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(parsed.value.kind).toBe('form');
+      expect(parsed.value.blocks[0]).toMatchObject({
+        type: 'field',
+        kind: 'text',
+        label: 'Vorname',
+      });
+    }
   });
 
-  it('rejects structurally invalid output', () => {
-    expect(parsePdfStructure('{"title": "nur Titel"}')).toBeNull();
-    expect(parsePdfStructure('{"blocks": []}')).toBeNull();
-    expect(parsePdfStructure('kein JSON weit und breit')).toBeNull();
-    expect(
-      parsePdfStructure('{"title":"T","blocks":[{"type":"gibtsnicht","text":"x"}]}')
-    ).toBeNull();
+  it('rejects structurally invalid output and NAMES the offending field', () => {
+    expect(firstValid('{"title": "nur Titel"}')).toMatchObject({
+      ok: false,
+      error: expect.stringContaining('blocks'),
+    });
+    expect(firstValid('{"blocks": []}').ok).toBe(false);
+    expect(firstValid('kein JSON weit und breit').ok).toBe(false);
+    expect(firstValid('{"title":"T","blocks":[{"type":"gibtsnicht","text":"x"}]}').ok).toBe(false);
   });
 });
 

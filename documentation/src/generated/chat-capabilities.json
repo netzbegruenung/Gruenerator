@@ -73,6 +73,21 @@
       "description": "Eigene Canva-Designs einfügen",
       "mention": "@canva"
     },
+    "chart": {
+      "title": "Diagramm",
+      "description": "Zahlen als Diagramm darstellen",
+      "mention": "@diagramm"
+    },
+    "chat_history": {
+      "title": "Chatverlauf",
+      "description": "Frühere Chats nach Inhalten durchsuchen",
+      "mention": "@verlauf"
+    },
+    "compute": {
+      "title": "Rechnen",
+      "description": "Berechnungen und Datenauswertung mit Python",
+      "mention": "@rechnen"
+    },
     "connect-trigger": {
       "title": "Verbundene Accounts",
       "description": "Dateien aus verbundenen Diensten einfügen",
@@ -87,6 +102,11 @@
       "title": "Dokument erstellen",
       "description": "Erstellt ein Dokument aus dem Chatverlauf",
       "mention": "@dokument-erstellen"
+    },
+    "examples": {
+      "title": "Beispiele",
+      "description": "Echte Social-Media-Posts als Vorlage und Inspiration",
+      "mention": "@beispiele"
     },
     "hilfe": {
       "title": "Hilfe & Anleitungen",
@@ -118,6 +138,11 @@
       "description": "Erstellt eine Präsentation (Foliensatz) aus dem Chatverlauf",
       "mention": "@praesentation-erstellen"
     },
+    "pressemitteilung_examples": {
+      "title": "Pressemitteilungen",
+      "description": "Echte PMs der Landesverbände als Vorlage",
+      "mention": "@pressemitteilungen"
+    },
     "research": {
       "title": "Recherche",
       "description": "Web & Quellen – automatische Suchtiefe",
@@ -130,12 +155,18 @@
     },
     "sharepic": {
       "title": "Sharepic",
-      "description": "Sharepic-Varianten erstellen und per Chat bearbeiten (Text, Bild, Farben, Position)"
+      "description": "Sharepic-Varianten erstellen und per Chat bearbeiten (Text, Bild, Farben, Position)",
+      "mention": "@sharepic"
     },
     "sheet-erstellen": {
       "title": "Tabelle erstellen",
       "description": "Erstellt eine Tabelle (Spreadsheet) aus dem Chatverlauf",
       "mention": "@tabelle-erstellen"
+    },
+    "social_post": {
+      "title": "Social Post",
+      "description": "Post-Text mit passendem Sharepic in einem Zug",
+      "mention": "@social"
     },
     "summary": {
       "title": "Zusammenfassung",
@@ -156,6 +187,11 @@
       "title": "Webseite",
       "description": "Inhalt einer Webseite per URL anhängen",
       "mention": "@web"
+    },
+    "wetter": {
+      "title": "Wetter",
+      "description": "Wettervorhersage für einen Ort (Open-Meteo)",
+      "mention": "@wetter"
     },
     "wolke-trigger": {
       "title": "Wolke",
@@ -240,11 +276,6 @@
     ],
     "news": [
       "news"
-    ],
-    "reise": [
-      "bahn",
-      "hotel",
-      "wetter"
     ],
     "wetter": [
       "wetter"

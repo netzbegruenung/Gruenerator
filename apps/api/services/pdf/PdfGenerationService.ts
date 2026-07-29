@@ -12,7 +12,7 @@
 import { storeBinaryAsset } from '../../routes/chat/services/computeAssetStorage.js';
 import { createLogger } from '../../utils/logger.js';
 
-import { pdfDocumentSchema, type PdfDocumentSpec } from './pdfDocument.js';
+import { pdfDocumentFromModelSchema, type PdfDocumentSpec } from './pdfDocument.js';
 import {
   PDF_TYPE_AREA,
   renderPdf,
@@ -53,7 +53,7 @@ FORMULARE ("kind":"form"): Erzeuge echte, am Rechner ausfüllbare Felder.
 - kind: "text" | "multiline" | "date" | "checkbox" | "radio" | "select"
 - "options": Liste für "radio" und "select"
 - "width":"half" → zwei Felder nebeneinander (wirkt nur bei zwei aufeinanderfolgenden halben Feldern)
-- "rows": Zeilenhöhe bei "multiline"
+- "lines": Zeilenhöhe bei "multiline"
 - "help": kurzer Hinweis unter dem Feld
 - Gliedere längere Formulare mit heading-Blöcken in Abschnitte und schließe mit einem signature-Block ab.
 
@@ -62,6 +62,7 @@ REGELN:
 - "letter" nur bei Brief/Anschreiben ausfüllen ("kind":"letter"); dann enthalten die blocks NUR den Brieftext (Anrede, Gruß und Signatur stehen im letter-Objekt) und KEINE Überschriften.
 - BRIEFE werden im Fensterkuvert versendet. "recipient" ist deshalb Pflicht und muss maschinenlesbar sein (DIN 5008 / Deutsche Post): höchstens 6 Zeilen, KEINE Leerzeile dazwischen, Reihenfolge Firma/Organisation → Person → Zusatz (z. B. Abteilung) → Straße und Hausnummer bzw. Postfach → PLZ und Ort in EINER Zeile. Kein Land bei Inlandspost, keine Sonderzeichen außer Umlauten, PLZ nie unterstreichen. Ist keine Anschrift bekannt, erzeuge KEINEN Brief, sondern "kind":"document".
 - Bei "kind":"document" KEINE H1 mit dem Dokumenttitel — der Titel wird separat gesetzt.
+- Optionale Felder, die nicht zutreffen, LÄSST DU WEG. Schreibe nie "caption": null oder "subtitle": null.
 - Barrierefreiheit: aussagekräftiger Titel, sprechende Überschriften in sinnvoller Reihenfolge (keine Ebene überspringen), Tabellen IMMER mit "columns" (Kopfzeile), jedes Feld mit klarem "label". Das System ergänzt daraus die technischen Tags.
 - NIEMALS ein Datum erfinden; "place" nur bei bekanntem Ort.
 - NIEMALS Platzhalter ausgeben ("Beispielautor*in", "Kernpunkt 1", "hier eintragen", example.com). Gibt der Auftrag zu einem Abschnitt nichts her, lass ihn weg. Ein kurzes, vollständig ausgefülltes Dokument ist richtig — ein langes Formular zum Selbstausfüllen ist falsch.
@@ -104,7 +105,12 @@ export interface CreatePdfResult {
 }
 
 /**
- * Validate an already-parsed object against the strict schema.
+ * Validate an already-parsed object from the MODEL.
+ *
+ * Goes through `pdfDocumentFromModelSchema`, which normalizes the model's
+ * dialect (`"caption": null` for "not applicable") before the strict gate —
+ * see the comment there for why the leniency lives at this edge and not in the
+ * schema itself.
  *
  * The error carries the issue PATHS, not just the message: the old log read
  * "structure rejected: Required", which named no field and left a production
@@ -114,7 +120,7 @@ export interface CreatePdfResult {
 export function validatePdfStructure(
   input: unknown
 ): { ok: true; value: PdfDocumentSpec } | { ok: false; error: string } {
-  const parsed = pdfDocumentSchema.safeParse(input);
+  const parsed = pdfDocumentFromModelSchema.safeParse(input);
   if (parsed.success) return { ok: true, value: parsed.data };
   const error = parsed.error.issues
     .slice(0, 3)
@@ -123,31 +129,12 @@ export function validatePdfStructure(
   return { ok: false, error };
 }
 
-/** Parse the model's JSON (with fenced-block and brace fallbacks, like sheets/boards). */
-export function parsePdfStructure(content: string): PdfDocumentSpec | null {
-  const tryParse = (raw: string): PdfDocumentSpec | null => {
-    try {
-      const validated = validatePdfStructure(JSON.parse(raw));
-      if (!validated.ok) {
-        log.warn(`[PdfGeneration] structure rejected: ${validated.error}`);
-        return null;
-      }
-      return validated.value;
-    } catch {
-      return null;
-    }
-  };
-
-  const direct = tryParse(content.trim());
-  if (direct) return direct;
-  const fenced = content.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (fenced?.[1]) {
-    const fromFence = tryParse(fenced[1].trim());
-    if (fromFence) return fromFence;
-  }
-  const match = content.match(/\{[\s\S]*\}/);
-  return match ? tryParse(match[0]) : null;
-}
+// `parsePdfStructure` lived here: it pulled JSON out of a text answer (direct /
+// fenced / braced) and then validated it, returning a bare `null` on failure.
+// That null is why a rejection on the text transport reached the repair turn as
+// "Kein Tool-Aufruf in der Antwort" instead of the offending field. The
+// extraction now lives in generateStructured (jsonCandidatesFromText), which
+// feeds `validatePdfStructure` above — one gate for both transports.
 
 /**
  * Render, verify and store. `documentId` is the stored file name (uuid.pdf) —

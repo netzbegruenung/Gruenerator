@@ -19,6 +19,11 @@ import { promises as fsPromises } from 'node:fs';
 import nodePath from 'node:path';
 
 import { chatGraphContract } from '@gruenerator/contracts';
+import {
+  CHAT_INTENTS,
+  isIntentAllowedForLocale,
+  type ChatIntentId,
+} from '@gruenerator/shared/chat-intents';
 import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
@@ -447,7 +452,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // resolved here. DE-only source: for de-AT users, ignore the force and keep
       // the classifier's (already downgraded) intent so we never fetch empty data.
       const abgeordnetenwatchForced = !!forcedTools?.includes('abgeordnetenwatch');
-      if (abgeordnetenwatchForced && initialState.userLocale !== 'de-AT') {
+      if (
+        abgeordnetenwatchForced &&
+        isIntentAllowedForLocale('abgeordnetenwatch', initialState.userLocale)
+      ) {
         classifiedState.intent = 'abgeordnetenwatch';
         forcedTool = true;
         // The classifier may have returned a non-search intent (e.g. 'direct')
@@ -465,7 +473,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // @bundestag hard-pins the DIP document/speech intent — same rules as
       // @abgeordnetenwatch above (not in TOOL_PRIORITY, DE-only source).
       const bundestagForced = !!forcedTools?.includes('bundestag');
-      if (bundestagForced && initialState.userLocale !== 'de-AT') {
+      if (bundestagForced && isIntentAllowedForLocale('bundestag', initialState.userLocale)) {
         classifiedState.intent = 'bundestag';
         forcedTool = true;
         if (
@@ -497,6 +505,26 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         log.info('[ChatGraph] Intent forced to "hilfe" via @doku mention');
       }
 
+      // @umfragen hard-pins the poll intent — same shape as @doku above, and for
+      // the same reason: without this branch the mention put `umfragen` into
+      // forcedTools and then fell through EVERY resolver (it is in neither
+      // TOOL_PRIORITY nor createRoutes nor a branch of its own), so the turn
+      // depended entirely on the classifier happening to pick `umfragen` by
+      // itself — the silent no-op the `hilfe` comment above warns about.
+      // Not locale-gated: PolitPro covers the Austrian parliaments too.
+      if (forcedTools?.includes('umfragen')) {
+        classifiedState.intent = 'umfragen';
+        forcedTool = true;
+        if (
+          (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
+          lastUserMessage
+        ) {
+          const userText = lastUserTextNoMentions.trim();
+          if (userText) classifiedState.searchQuery = userText;
+        }
+        log.info('[ChatGraph] Intent forced to "umfragen" via @umfragen mention');
+      }
+
       // A per-server mention (@notion/@brevo) arrives as `mcp:<serverId>` and
       // scopes the tool-loop to that one server. Bare `mcp` (legacy @mcp tokens in
       // old threads; no mention emits it anymore) still runs unscoped over all
@@ -512,6 +540,56 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         log.info('[ChatGraph] Intent forced to "mcp" via mention', {
           scope: classifiedState.mcpServerScope ?? 'all',
         });
+      }
+
+      // Mentions whose forced tool IS the intent name and whose only extra need
+      // is a query backfill — the shape `hilfe` and `umfragen` spell out above.
+      // Kept as a table rather than seven more if-blocks; anything needing a
+      // locale gate, a scope or a style variant stays an explicit branch.
+      //
+      // The pipeline each one reaches differs (`examples` and
+      // `pressemitteilung_examples` run in the search node, the rest in the
+      // loop), but forcing the intent is the same act for all of them.
+      const SIMPLE_FORCED_INTENTS = [
+        'examples',
+        'pressemitteilung_examples',
+        'chat_history',
+        'wetter',
+        'social_post',
+        'chart',
+        'compute',
+      ] as const satisfies readonly ChatIntentId[];
+      for (const candidate of SIMPLE_FORCED_INTENTS) {
+        if (!forcedTools?.includes(candidate)) continue;
+        if (!isIntentAllowedForLocale(candidate, initialState.userLocale)) continue;
+        // A forced mention must clear the SAME availability bar the classifier
+        // applies, or it bypasses it: the classifier degrades an unconfigured
+        // system-MCP intent (no SYSTEM_MCP_*_URL) to web, but that runs BEFORE
+        // this force. `wetter` has only an explicit no-op case in the search
+        // node — its tools live in the loop — so forcing it without a
+        // configured source produced a turn that fetched nothing and answered
+        // anyway. Skipping the force leaves the classifier's own routing (and
+        // its degrade) in charge.
+        if (
+          CHAT_INTENTS[candidate].availability === 'system-mcp' &&
+          !isSystemIntentAvailable(candidate, initialState.userLocale)
+        ) {
+          log.info(
+            `[ChatGraph] @${candidate} mention ignored — no configured system source for this locale`
+          );
+          continue;
+        }
+        classifiedState.intent = candidate;
+        forcedTool = true;
+        if (
+          (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
+          lastUserMessage
+        ) {
+          const userText = lastUserTextNoMentions.trim();
+          if (userText) classifiedState.searchQuery = userText;
+        }
+        log.info(`[ChatGraph] Intent forced to "${candidate}" via @-mention`);
+        break;
       }
 
       if (forcedTools && forcedTools.length > 0) {
@@ -999,11 +1077,18 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // decideRunAgentic would keep the turn single-pass, where
       // `gruenerator_docs_search` does not exist — the mention would silently
       // do nothing.
+      // The locale belongs in the availability question: forcing the loop for an
+      // intent whose sources are all dropped for this country mounts nothing and
+      // lets the model answer from memory. `reise` was the reachable case (it
+      // survived the audience degrade by design, hotel + weather covering
+      // Austria) and is switched off now — this stays as prevention for the next
+      // multi-source intent.
       const isMcpTurn =
         classifiedState.intent === 'mcp' ||
         classifiedState.intent === 'umfragen' ||
         classifiedState.intent === 'hilfe' ||
-        (classifiedState.intent != null && isSystemIntentAvailable(classifiedState.intent));
+        (classifiedState.intent != null &&
+          isSystemIntentAvailable(classifiedState.intent, classifiedState.userLocale));
       const isSystemToolIntent =
         classifiedState.intent != null && SYSTEM_TOOL_INTENTS.has(classifiedState.intent);
       const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';

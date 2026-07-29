@@ -86,6 +86,35 @@ const ABSTRACT_MAX = 400;
 export type BtSort = 'relevance' | 'newest' | 'oldest';
 
 /**
+ * Substantive DIP document types, as accepted by `bundestag_semantic_search`'s
+ * `entityTypes` filter.
+ *
+ * Unfiltered, the semantic layer answers a topic query mostly with the
+ * PROCEDURAL paperwork a bill accretes — `Beschluss`, `Empfehlungen`,
+ * `Stellungnahme` (none of which the server even lists as a valid filter
+ * value). Those records repeat the bill's title verbatim, so a single law fills
+ * every slot with near-duplicates, and their `abstract` is null: the reranker
+ * then scores four identical titles with no body text to go on. Most of them
+ * are BUNDESRAT papers on top of that, which is not what someone asking about
+ * the Bundestag wants.
+ *
+ * Restricting to the types that carry parliamentary substance is what surfaces
+ * the Gesetzentwürfe and Anträge instead. If the filter ever over-narrows, the
+ * topic path's existing DIP-title-search fallback still catches the empty
+ * result — so this cannot make a query go dark.
+ */
+export const SUBSTANTIVE_ENTITY_TYPES = [
+  'Gesetzentwurf',
+  'Antrag',
+  'Kleine Anfrage',
+  'Große Anfrage',
+  'Beschlussempfehlung und Bericht',
+  'Entschließungsantrag',
+  'Unterrichtung',
+  'Bericht',
+] as const;
+
+/**
  * List result of the trimmed wrappers. `wpFallback` is true when the default
  * current-Wahlperiode filter found nothing and the period-free retry did —
  * the enriched service turns that into a user-visible note.
@@ -205,8 +234,15 @@ function mapPerson(raw: z.infer<typeof rawPersonSchema>): BtPerson | null {
   };
 }
 
+/**
+ * The activity's SUBJECT is `vorgangsbezug[0].titel`; the record's own `titel`
+ * is the MP's display line and therefore identical on every row — an
+ * activity list built from it reads as the same name eight times and tells the
+ * model nothing. Fall back to `titel` only when there is no Vorgang reference.
+ */
 function mapAktivitaet(raw: z.infer<typeof rawAktivitaetSchema>): BtAktivitaet | null {
-  const titel = raw.titel?.trim();
+  const subject = raw.vorgangsbezug?.find((v) => v.titel?.trim())?.titel?.trim();
+  const titel = subject || raw.titel?.trim();
   if (!titel) return null;
   return {
     titel,
@@ -454,15 +490,23 @@ class BundestagMCPClient {
     wahlperiode?: number;
     limit?: number;
     sort?: BtSort;
+    entityTypes?: readonly string[];
   }): Promise<BtListResult<BtSemanticHit>> {
-    const { query, wahlperiode, limit = 6, sort } = opts;
-    const key = `${CACHE_NS}:sem:${query.toLowerCase()}:${wahlperiode ?? 'cur'}:${limit}:${sort ?? 'rel'}`;
+    const { query, wahlperiode, limit = 6, sort, entityTypes } = opts;
+    const typeKey = entityTypes?.length ? entityTypes.join(',') : 'all';
+    const key = `${CACHE_NS}:sem:${query.toLowerCase()}:${wahlperiode ?? 'cur'}:${limit}:${sort ?? 'rel'}:${typeKey}`;
     return this.safeList(key, btSemanticHitSchema, () =>
       this.withWpFallback(
         (wp) =>
           this.fetchTrimmed(
             'bundestag_semantic_search',
-            { query, wahlperiode: wp, limit, sort },
+            {
+              query,
+              wahlperiode: wp,
+              limit,
+              sort,
+              ...(entityTypes?.length ? { entityTypes: [...entityTypes] } : {}),
+            },
             rawSemanticHitSchema,
             mapSemanticHit
           ),
