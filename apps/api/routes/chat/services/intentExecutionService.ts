@@ -642,6 +642,7 @@ export async function runSharepicGeneration(opts: {
     // Slider = multi-page deck, a different artifact: ONE deck variant,
     // minted at generation time (studio open/editing need the pages).
     let variants: SharepicVariant[];
+    let declinedReason: string | null = null;
     if (preferredVariant === 'slider') {
       const userId = state.agentConfig?.userId;
       if (!userId) throw new Error('User required for slider deck creation');
@@ -654,16 +655,31 @@ export async function runSharepicGeneration(opts: {
         }),
       ];
     } else {
-      variants = await generateSharepicVariants({
+      const generated = await generateSharepicVariants({
         req: opts.req as SharepicExpressRequest,
         text: topicText,
         ...(refinement ? { refinement } : preferredVariant ? { preferredVariant } : {}),
         ...(authorName && { authorName }),
         ...(state.userLocale && { userLocale: state.userLocale }),
       });
+      variants = generated.variants;
+      declinedReason = generated.declinedReason;
     }
 
     if (variants.length === 0) {
+      // A policy decline is not an outage. The combined social_post path already
+      // says so ("dabei entstünde ein erfundenes Zitat…"); the pure sharepic
+      // path used to report the model's correct refusal as a technical failure,
+      // which invites the user to simply try again.
+      if (declinedReason) {
+        log.info(`[ChatGraph] Sharepic declined on policy grounds — ${declinedReason}`);
+        emit.send('sharepic_complete', {
+          message: `Dieses Sharepic kann ich nicht erstellen: ${declinedReason}`,
+          variants: [],
+          declined: true,
+        });
+        return [];
+      }
       emit.send('sharepic_complete', {
         message: 'Sharepic-Erstellung fehlgeschlagen',
         variants: [],

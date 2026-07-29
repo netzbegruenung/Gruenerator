@@ -21,6 +21,7 @@ import {
   buildProductKnowledgeBlock,
   isProductMetaQuestion,
 } from '../../../../services/chat/productKnowledge.js';
+import { CONTENT_INTEGRITY_ANSWER_RULE } from '../../../../services/contentPolicy.js';
 import { buildDocsPageMap } from '../../../../services/docs/docsIndex.js';
 import { localizePlaceholders } from '../../../../services/localization/index.js';
 import { type Locale } from '../../../../services/localization/types.js';
@@ -1084,7 +1085,9 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   // Custom system prompt: replaces the entire agent prompt when set
   if (state.customSystemPrompt) {
     return `${state.customSystemPrompt}
-Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSuspected ? INJECTION_WARNING_NOTE : ''}`;
+Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}
+
+${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSuspected ? INJECTION_WARNING_NOTE : ''}`;
   }
 
   // Use a neutral, non-partisan system role for document summaries
@@ -1162,7 +1165,8 @@ Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${pr
 3. Antworte auf Deutsch
 4. Erfinde keine Fakten oder Quellennamen
 5. Erstelle KEINE Quellenliste/Quellenverzeichnis am Ende — Quellen werden automatisch in der Oberfläche angezeigt
-6. Kompakte Formatierung: Maximal eine Leerzeile zwischen Absätzen. Keine doppelten Leerzeilen, keine horizontalen Trennlinien (---)${citationInstruction}${hierarchyRule}${injectionWarning}`;
+6. Kompakte Formatierung: Maximal eine Leerzeile zwischen Absätzen. Keine doppelten Leerzeilen, keine horizontalen Trennlinien (---)
+7. ${CONTENT_INTEGRITY_ANSWER_RULE}${citationInstruction}${hierarchyRule}${injectionWarning}`;
 }
 
 /**
