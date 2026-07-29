@@ -849,6 +849,16 @@ const CARRIED_SOURCES_NOTE =
 const SEARCH_GUIDANCE =
   '\nDu hast Recherche-Ergebnisse erhalten. Beantworte die Frage primär aus diesen Ergebnissen und zitiere sie inline.';
 
+// Calibration, not fabrication. "Erfinde keine Fakten" already bans inventing;
+// it says nothing about how SURE to sound about something a source itself marks
+// as unresolved. Observed live: a web-researched biography reported a disputed
+// cause of death as settled fact, because reproducing the source faithfully and
+// reproducing its hedges are different instructions and only the first existed.
+// Applies to both citation branches — a polished document that publishes a
+// contested claim as settled is the worse of the two failures.
+const SOURCE_HEDGING_RULE =
+  'Widersprechen sich die Quellen zu einer Aussage, oder markiert eine Quelle sie selbst als ungeklärt, vermutet oder offiziell, dann übernimm diese Einschränkung in die Antwort. Gib eine strittige Angabe nie als feststehend wieder.';
+
 /**
  * The artefact-action intents (save_as_doc / modify_doc / share_doc /
  * modify_board) are single-pass: the PLATFORM performs the action — Stage 4c in
@@ -1093,13 +1103,15 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
     citationInstruction = `
 5. Verwende die Suchergebnisse als Faktengrundlage, aber setze KEINE Inline-Quellenverweise [1], [2] etc. in den Text.
 6. Der Text soll als fertiges, professionelles Dokument lesbar sein. Die Quellen werden separat angezeigt.
-7. Erfinde KEINE Fakten — stütze dich auf die bereitgestellten Quellen.`;
+7. Erfinde KEINE Fakten — stütze dich auf die bereitgestellten Quellen.
+8. ${SOURCE_HEDGING_RULE}`;
   } else if (hasSources) {
     citationInstruction = `
 5. Du hast genau ${sourceCount} Quelle(n). Verwende NUR [1] bis [${sourceCount}] als Quellenverweise. Höhere Nummern existieren NICHT.
 6. Zitiere 1-2 Quellen pro Kernaussage — nicht jeder Satz braucht eine Referenz.
 7. Setze die Referenz direkt nach der Aussage, z.B.: "Die Grünen fordern ein Tempolimit [1]." Stützen mehrere Quellen dieselbe Aussage, fasse sie in EINER Klammer zusammen: [1, 3].
-8. Erfinde KEINE zusätzlichen Quellen oder Quellenverweise über [${sourceCount}] hinaus.`;
+8. Erfinde KEINE zusätzlichen Quellen oder Quellenverweise über [${sourceCount}] hinaus.
+9. ${SOURCE_HEDGING_RULE}`;
   }
 
   const today = formatGermanDate();
@@ -1221,9 +1233,9 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
 Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${productKnowledge}${docsPageMap}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
 
 ## ANTWORT-REGELN
-1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo
+1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo. Ausnahme: Bei offenen Fragen nach einer Person, Organisation oder einem Begriff gehören die einordnenden Kerndaten (Lebensdaten, Funktion, Hauptwerke) zur Antwort und gelten nicht als Zusatzinfo
 2. ${buildAnswerFormatRule(state, sourceCount)}
-3. Antworte auf Deutsch
+3. Antworte auf Deutsch. Sind Quellen fremdsprachig, formuliere SPRACHLICH eigenständig statt wörtlich zu übersetzen — INHALTLICH bleibst du exakt bei der Quelle und ergänzt nichts, was dort nicht steht. Kannst du eine Aussage nicht nachvollziehbar auf Deutsch wiedergeben, lass sie weg statt zu raten
 4. Erfinde keine Fakten oder Quellennamen
 5. Erstelle KEINE Quellenliste/Quellenverzeichnis am Ende — Quellen werden automatisch in der Oberfläche angezeigt
 6. Kompakte Formatierung: Maximal eine Leerzeile zwischen Absätzen. Keine doppelten Leerzeilen, keine horizontalen Trennlinien (---)
