@@ -4,20 +4,17 @@
  * These check text-vs-evidence consistency, not taste; the evidence (citations,
  * tool calls, earlier answers) is embedded in the prompt.
  */
-import { type TurnResult } from '../types.js';
+import { type RubricName, type TurnResult } from '../types.js';
 
 export interface JudgePrompt {
   system: string;
   user: string;
 }
 
-export type RubricName =
-  | 'groundedness'
-  | 'narration_consistency'
-  | 'known_answer'
-  | 'german_quality'
-  | 'parity'
-  | 'instruction_hierarchy';
+// Re-exported for the existing importers. The list itself is the Zod enum in
+// ../types.ts, so a corpus line naming a rubric that doesn't exist now fails
+// at load time instead of loading fine and simply never being judged.
+export { type RubricName };
 
 const VERDICT_INSTRUCTION = `Antworte AUSSCHLIESSLICH mit einem JSON-Objekt: {"pass": true|false, "reason": "<ein Satz Begründung>"}. Kein anderer Text.`;
 
