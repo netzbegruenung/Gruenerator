@@ -12,6 +12,7 @@
  * Run with: pnpm --filter @gruenerator/api test
  */
 
+import { searchIntentSchema } from '@gruenerator/contracts';
 import { describe, it, expect } from 'vitest';
 
 import {
@@ -36,49 +37,19 @@ import type {
 
 /**
  * All SearchIntent values that must be supported across the stack.
- * If you add a new intent, add it here — and the tests will tell you
- * what else needs updating.
+ *
+ * Read from the Zod enum, NOT hand-written. This is the file whose job is to
+ * catch an intent nobody wired up — and it used to keep its own copy of the
+ * list, so an intent added to `searchIntentSchema` and nowhere else was
+ * invisible to every test here. Exactly the duplication these tests exist to
+ * find, one level up.
+ *
+ * The usual backstop does not apply either: `apps/api/tsconfig.json` excludes
+ * `**` + `/*.vitest.ts`, so the `Record<SearchIntent, …>` maps below are never
+ * seen by `pnpm typecheck`. The runtime loop over this array is the only
+ * enforcement there is, which makes where it comes from load-bearing.
  */
-const ALL_INTENTS: SearchIntent[] = [
-  'research',
-  'compare',
-  'search',
-  'web',
-  'scrape_url',
-  'examples',
-  'pressemitteilung_examples',
-  'abgeordnetenwatch',
-  'bundestag',
-  'bahn',
-  'reise',
-  'hotel',
-  'wetter',
-  'news',
-  'umfragen',
-  'hilfe',
-  'image',
-  'image_edit',
-  'sharepic',
-  'social_post',
-  'summary',
-  'chart',
-  'artifact',
-  'compute',
-  'save_as_doc',
-  'create_sheet',
-  'create_presentation',
-  'create_pdf',
-  'create_recurring_task',
-  'modify_doc',
-  'edit_current_doc',
-  'edit_current_board',
-  'modify_board',
-  'share_doc',
-  'chat_history',
-  'mcp',
-  'direct',
-  'agentic',
-];
+const ALL_INTENTS: SearchIntent[] = [...searchIntentSchema.options];
 
 /**
  * All ImageStyle values that must be supported.

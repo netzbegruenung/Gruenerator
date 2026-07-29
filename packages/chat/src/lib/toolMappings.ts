@@ -2,20 +2,19 @@
  * Maps ChatGraph search intents to tool names used in the UI (tool-call parts).
  * Shared across ModelAdapter, ChatProvider, and MobileChatProvider.
  */
+import { INTENT_TO_TOOL_SHARED } from '@gruenerator/contracts';
+
 export const INTENT_TO_TOOL: Record<string, string> = {
-  search: 'gruenerator_search',
-  web: 'web_search',
-  // Research is the same web retrieval at a deeper tier since the merge — it
-  // returns a result list, not the written report the `research` renderer
-  // (`markdown-report`) expects, which would render an empty card over a good
-  // answer. Threads from before the merge carry their own persisted `research`
-  // tool call and keep the Recherche-Karte; only this live intent→tool hop moves.
-  research: 'web_search',
-  examples: 'gruenerator_examples_search',
-  pressemitteilung_examples: 'gruenerator_pressemitteilung_examples',
-  chat_history: 'search_chat_history',
+  // The retrieval intents, shared with the backend's persistence map
+  // (apps/api/routes/chat/services/postResponseService.ts). They MUST agree, or
+  // a thread renders one card while streaming and a different one after reload.
+  ...INTENT_TO_TOOL_SHARED,
+  // Client-only, and knowingly asymmetric: the backend persists no tool call for
+  // `hilfe`, so the docs-search card is LIVE-only and disappears on reload.
+  // Left as it is — making it survive means persisting a result payload for the
+  // intent, i.e. a change to what a hilfe turn writes to the database, not a
+  // mapping fix.
   hilfe: 'gruenerator_docs_search',
-  bundestag: 'bundestag',
 };
 
 /** System MCP source prefixes → display names (mirrors apps/api systemMcpServers). */
