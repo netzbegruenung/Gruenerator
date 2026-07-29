@@ -15,6 +15,7 @@ import {
   executeDirectWebSearch,
 } from '../../../../routes/chat/agents/directSearch.js';
 import { resolveExamplesLvScope } from '../../../../routes/chat/agents/lvScope.js';
+import { relevanceLabelToScore } from '../../../../routes/chat/agents/searchFormatting.js';
 import { resolveReferentialQuery } from '../../../../routes/chat/services/referentialTopic.js';
 import { getEnrichedPoliticianService } from '../../../../services/abgeordnetenwatch/index.js';
 import { type AwEnrichedResult } from '../../../../services/abgeordnetenwatch/types.js';
@@ -452,7 +453,7 @@ export async function executeDocumentSearchParallel(
         title: deriveCitationTitle(r.source, r.url, searchResult.collection),
         content: r.excerpt || '',
         url: r.url || undefined,
-        relevance: r.relevance === 'Sehr hoch' ? 0.9 : r.relevance === 'Hoch' ? 0.7 : 0.5,
+        relevance: relevanceLabelToScore(r.relevance),
         contentType: r.contentType || undefined,
         documentId: r.documentId,
         chunkIndex: r.chunkIndex,
@@ -730,7 +731,7 @@ export async function executeMultiDocFanout(
               title: deriveCitationTitle(r.source, r.url, response.collection),
               content: r.excerpt || '',
               url: r.url || undefined,
-              relevance: r.relevance === 'Sehr hoch' ? 0.9 : r.relevance === 'Hoch' ? 0.7 : 0.5,
+              relevance: relevanceLabelToScore(r.relevance),
               contentType: r.contentType || undefined,
               documentId: r.documentId,
               chunkIndex: r.chunkIndex,
@@ -1216,7 +1217,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
               title: deriveCitationTitle(r.source, r.url, searchResult.collection),
               content: r.excerpt || '',
               url: r.url || undefined,
-              relevance: r.relevance === 'Sehr hoch' ? 0.9 : r.relevance === 'Hoch' ? 0.7 : 0.5,
+              relevance: relevanceLabelToScore(r.relevance),
               contentType: r.contentType || undefined,
               documentId: r.documentId,
               chunkIndex: r.chunkIndex,
@@ -1288,7 +1289,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       //       title: r.source || r.title,
       //       content: r.excerpt || '',
       //       url: r.url || undefined,
-      //       relevance: r.relevance === 'Sehr hoch' ? 0.9 : r.relevance === 'Hoch' ? 0.7 : 0.5,
+      //       relevance: relevanceLabelToScore(r.relevance),
       //     })) || []
       //   );
       //

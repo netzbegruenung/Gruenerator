@@ -14,14 +14,12 @@ import { SOCIAL_PLATFORM_INFO, type SocialPostToolResult } from '@gruenerator/co
 
 import { rubricForPlatform } from '../../../agents/langgraph/ChatGraph/nodes/socialMediaComposerNode.js';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
-import { withRetry } from '../../../services/search/searchRetryStrategy.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
+import { finishEditTurn } from './editTurnCompletion.js';
 import { looksLikeRefusal } from './refusalDetection.js';
 import { parseSocialPostText } from './socialPostService.js';
-import { sendChatWarning } from './sseHelpers.js';
-import { createMessage, touchThread } from './threadPersistenceService.js';
 
 import type { SSEWriter } from './sseHelpers.js';
 import type { AIWorkerPool } from '../../../workers/types.js';
@@ -153,38 +151,17 @@ async function finishWithText(
   text: string,
   toolCalls?: Record<string, unknown>[]
 ): Promise<void> {
-  const { sse, threadId } = args;
-  sse.send('response_start', { message: 'Antwort wird erstellt...' });
-  sse.send('text_delta', { text });
-  sse.sendRaw('done', {
-    threadId,
-    citations: [],
-    metadata: {
-      intent: 'social_post_edit',
-      searchCount: 0,
-      totalTimeMs: Date.now() - args.startTime,
-      ...(args.classificationTimeMs != null && {
-        classificationTimeMs: args.classificationTimeMs,
-      }),
-      searchTimeMs: 0,
-    },
+  await finishEditTurn({
+    sse: args.sse,
+    threadId: args.threadId,
+    text,
+    intent: 'social_post_edit',
+    persistLabel: 'socialPostEdit:persist',
+    logPrefix: '[SocialPostEdit]',
+    startTime: args.startTime,
+    ...(args.classificationTimeMs != null && { classificationTimeMs: args.classificationTimeMs }),
+    ...(toolCalls ? { toolCalls } : {}),
   });
-  try {
-    await withRetry(
-      () =>
-        createMessage(threadId, 'assistant', text, {
-          intent: 'social_post_edit',
-          ...(toolCalls ? { toolCalls } : {}),
-        }),
-      { maxRetries: 1, delayMs: 300, isRecoverable: () => true, label: 'socialPostEdit:persist' }
-    );
-    await touchThread(threadId);
-  } catch (err) {
-    // Retry + Warnung: ein stiller Persist-Fehler lässt State und History divergieren.
-    log.error('[SocialPostEdit] Failed to persist message:', err);
-    sendChatWarning(sse, 'persist_failed');
-  }
-  sse.end();
 }
 
 /**
