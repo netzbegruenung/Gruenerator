@@ -130,6 +130,8 @@ Zustand (global state). TanStack Query v5 (server state/fetching) with axios.
 
 Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`). Atomic: one logical change per commit.
 
+**Subject nach dem Doppelpunkt klein schreiben** — commitlint (`subject-case`) bricht sonst ab. lint-staged hat dann schon formatiert und re-staged: Commit einfach neu absetzen, es geht nichts verloren.
+
 ### TypeScript
 
 Strict mode, entire stack. `import { type Foo }` (inline style, not `import type`). Never use `undefined` — widen to `| null` or omit optional fields.
