@@ -14,7 +14,6 @@ function pickStable<T>(options: readonly T[], seed: number): T {
 const GENERAL_DE = [
   'Was stricken wir heute, @Vorname?',
   'Womit machen wir die Welt heute besser, @Vorname?',
-  'Denkst du auch manchmal an Robert zurück, @Vorname?',
   'Bereit für den Wandel, @Vorname?',
   'Was steht heute auf der Agenda, @Vorname?',
 ] as const;
@@ -29,7 +28,7 @@ export const isPrideMonth = (): boolean => new Date().getMonth() === 5;
 
 /**
  * A template that embeds `@Vorname` mid-sentence is a whole sentence
- * ("Denkst du auch manchmal an Robert zurück, @Vorname?"); a bare one is a
+ * ("Womit machen wir die Welt heute besser, @Vorname?"); a bare one is a
  * greeting word that gets ", @Vorname" appended ("Guten Morgen"). That is the
  * only difference that matters for the phone, where the hero has ~411dp and a
  * sentence wraps to three lines above the composer.
