@@ -17,9 +17,24 @@
  *    fed back at temperature 0 ("field X missing — return it corrected"), which
  *    is what actually recovers a missing required field;
  *  - a TEXT fallback: a provider that ignores tools and answers with prose is
- *    handed to the caller's existing lax parser before the attempt counts as
- *    failed, so the new behaviour is a strict superset of the old one and no
- *    provider can regress.
+ *    still parsed before the attempt counts as failed, so the behaviour is a
+ *    strict superset of the pre-tool-call one and no provider can regress.
+ *
+ * ── One validator, two transports ───────────────────────────────────────────
+ * The tool call and the text answer are TRANSPORTS of the same payload; they
+ * differ only in how the candidate object is obtained. Both therefore run
+ * through the caller's `validate`.
+ *
+ * This used to be two paths: `validate` for the tool call and a separate
+ * `parseText` for prose. They drifted, in both directions that matter:
+ *  - the text path returned a bare `null`, so a rejection there was reported as
+ *    "Kein Tool-Aufruf in der Antwort" and the repair turn never learned the
+ *    actual field error. A PDF generation died in production this way — the
+ *    model sent `caption: null` twice and was never told;
+ *  - the presentation generator's `validate` rejects decks with EMPTY SLIDES,
+ *    but its `parseText` was the bare parser — so whenever the provider
+ *    answered with prose (the common case on the model this ran on) the
+ *    quality gate was silently skipped and the empty deck shipped.
  */
 
 import { jsonSchema } from 'ai';
@@ -31,6 +46,27 @@ import type { AIWorkerPool, AIWorkerResult, Tool } from '../../workers/types.js'
 const log = createLogger('GenerateStructured');
 
 const DEFAULT_ATTEMPTS = 2;
+
+/**
+ * NOTE ON THE MODEL: this module deliberately sets NO provider and NO model.
+ *
+ * The forced tool call only works on a model that makes one — GPT-OSS does
+ * not, which is what the text fallback below spent its life compensating for.
+ * That choice belongs to `providerSelector` (the creation types route to
+ * Mistral Medium 3.5), not here: a top-level `provider` on the request picks
+ * the ADAPTER without picking a matching model, which is how another route
+ * ended up posting a verdigado alias at the Mistral API (see routes/texte/
+ * website.ts).
+ */
+
+/**
+ * Above this the previous attempt is NOT echoed back into the repair turn.
+ *
+ * The old code truncated the echo to 2000 chars and then asked for a complete
+ * document — so the model saw its own output ending mid-block and "corrected"
+ * the truncation. Showing nothing and naming the error is the honest version.
+ */
+const MAX_ECHO_CHARS = 12_000;
 
 /** Caller-supplied gate. Returning an error message drives the repair turn. */
 export type StructuredValidation<T> = { ok: true; value: T } | { ok: false; error: string };
@@ -50,9 +86,11 @@ export interface GenerateStructuredOptions<T> {
    * handle deeply nested unions poorly. The strictness lives in `validate`.
    */
   schema: Record<string, unknown>;
+  /**
+   * The single gate. Runs on the tool call AND on JSON recovered from a text
+   * answer — see "One validator, two transports" above.
+   */
   validate: (input: unknown) => StructuredValidation<T>;
-  /** Last resort when a provider ignores tools and replies with text. */
-  parseText?: (text: string) => T | null;
   attempts?: number;
   temperature?: number;
   /** Log prefix, e.g. 'pdf'. */
@@ -94,6 +132,33 @@ export function withContent<T extends { content: string }>(
   };
 }
 
+/**
+ * JSON candidates from a text answer, in the order they were tried before:
+ * the bare body, a fenced block, then the widest `{…}` in the prose. Only
+ * candidates that PARSE are yielded — validation is the caller's job, so a
+ * rejection carries the field path instead of vanishing into a `null`.
+ */
+export function jsonCandidatesFromText(text: string): unknown[] {
+  // Deduplicated: a bare JSON body matches the plain and the braced shape
+  // alike, and validating the identical string twice is what produced the
+  // duplicated "structure rejected" lines that made the logs hard to read.
+  const raws = new Set([text.trim()]);
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced?.[1]) raws.add(fenced[1].trim());
+  const braced = text.match(/\{[\s\S]*\}/);
+  if (braced) raws.add(braced[0]);
+
+  const parsed: unknown[] = [];
+  for (const raw of raws) {
+    try {
+      parsed.push(JSON.parse(raw));
+    } catch {
+      // Not this shape — try the next.
+    }
+  }
+  return parsed;
+}
+
 function extractToolInput(
   result: AIWorkerResult,
   toolName: string
@@ -123,7 +188,6 @@ export async function generateStructured<T>(
     toolDescription,
     schema,
     validate,
-    parseText,
     label,
   } = opts;
   const attempts = opts.attempts ?? DEFAULT_ATTEMPTS;
@@ -142,11 +206,15 @@ export async function generateStructured<T>(
   let lastRaw = '';
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
-    const isRepair = attempt > 1 && lastRaw !== '';
+    const isRepair = attempt > 1 && lastError !== '';
     const messages = isRepair
       ? [
           { role: 'user', content: userContent },
-          { role: 'assistant', content: lastRaw },
+          // Echo the rejected attempt so the model corrects rather than rewrites
+          // — but only when it fits whole (see MAX_ECHO_CHARS).
+          ...(lastRaw && lastRaw.length <= MAX_ECHO_CHARS
+            ? [{ role: 'assistant', content: lastRaw }]
+            : []),
           {
             role: 'user',
             content:
@@ -179,31 +247,45 @@ export async function generateStructured<T>(
         continue;
       }
 
+      // Two transports, one payload. A provider that ignores the tool still
+      // answers with the JSON in prose — that was the only path before tool
+      // calls existed, so it stays, but it now goes through the SAME gate.
       const toolInput = extractToolInput(result, toolName);
-      if (toolInput) {
-        const validated = validate(toolInput);
-        if (validated.ok) return { ok: true, data: validated.value };
-        lastError = validated.error;
-        lastRaw = JSON.stringify(toolInput);
+      const transport = toolInput ? 'tool call' : 'text';
+      const candidates = toolInput ? [toolInput] : jsonCandidatesFromText(result.content ?? '');
+
+      let rejection = '';
+      let rejected = '';
+      for (const candidate of candidates) {
+        const validated = validate(candidate);
+        if (validated.ok) {
+          if (!toolInput) {
+            log.info(`[${label}] attempt ${attempt}: no tool call, recovered from text`);
+          }
+          return { ok: true, data: validated.value };
+        }
+        // Report the FIRST candidate that parsed: with prose around the JSON
+        // the bare body fails to parse and the fenced block is the real answer.
+        if (!rejection) {
+          rejection = validated.error;
+          rejected = JSON.stringify(candidate);
+        }
+      }
+
+      if (rejection) {
+        lastError = rejection;
+        lastRaw = rejected;
         log.warn(
-          `[${label}] attempt ${attempt} rejected: ${lastError}\n  raw: ${lastRaw.slice(0, 600)}`
+          `[${label}] attempt ${attempt} rejected (${transport}): ${lastError}\n` +
+            `  raw: ${rejected.slice(0, 600)}`
         );
         continue;
       }
 
-      // No tool call. Providers that ignore tools still answer with text, and
-      // that text used to be the ONLY path — try it before failing the attempt.
-      if (parseText && result.content) {
-        const fromText = parseText(result.content);
-        if (fromText) {
-          log.info(`[${label}] attempt ${attempt}: no tool call, recovered from text`);
-          return { ok: true, data: fromText };
-        }
-      }
-      lastError = 'Kein Tool-Aufruf in der Antwort';
-      lastRaw = (result.content ?? '').slice(0, 2000);
+      lastError = 'Kein Tool-Aufruf und kein verwertbares JSON in der Antwort';
+      lastRaw = '';
       log.warn(
-        `[${label}] attempt ${attempt}: no tool call (stop_reason=${result.stop_reason ?? 'unknown'})`
+        `[${label}] attempt ${attempt}: ${lastError} (stop_reason=${result.stop_reason ?? 'unknown'})`
       );
     } catch (e) {
       lastError = e instanceof Error ? e.message : String(e);
