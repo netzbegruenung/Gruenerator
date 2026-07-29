@@ -10,12 +10,12 @@ import ToolHandler from '../../services/tools/index.js';
 
 import {
   buildAiSdkTools,
+  buildAdapterResult,
   convertMessages,
   resolveToolChoice,
-  mergeMetadata,
 } from './adapterUtils.js';
 
-import type { AIRequestData, AIWorkerResult, ToolCall, ContentBlock } from '../types.js';
+import type { AIRequestData, AIWorkerResult } from '../types.js';
 
 /**
  * Convert tool handler payload to Vercel AI SDK tools format
@@ -68,81 +68,14 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
       ...(toolChoice != null && { toolChoice }),
     });
 
-    // Extract text content
-    const textContent = result.text || null;
-
-    if (result.finishReason === 'length') {
-      console.warn(
-        `[litellmAdapter ${requestId}] Output token budget exhausted (finish_reason=length) for type=${type}, model=${model}. ` +
-          `Usage: ${JSON.stringify(result.usage)}. Reasoning tokens count against max_tokens — raise the budget if answers are truncated.`
-      );
-    }
-
-    // Extract tool calls
-    const toolCalls: ToolCall[] | undefined =
-      result.toolCalls && result.toolCalls.length > 0
-        ? result.toolCalls.map((tc, index) => ({
-            id: tc.toolCallId || `litellm_tool_${index}`,
-            name: tc.toolName,
-            input: tc.input as Record<string, unknown>,
-          }))
-        : undefined;
-
-    // Validate response
-    const isToolUseResponse =
-      result.finishReason === 'tool-calls' || (toolCalls && toolCalls.length > 0);
-    if (!textContent && !isToolUseResponse) {
-      const errorMsg =
-        result.finishReason === 'length'
-          ? `Empty response from LiteLLM model=${model}: output token budget exhausted by reasoning before any answer was emitted (finish_reason=length)`
-          : `Empty response from LiteLLM model=${model}`;
-      console.error(`[litellmAdapter ${requestId}] ${errorMsg}`);
-      throw new Error(errorMsg);
-    }
-
-    // Build raw content blocks
-    const rawContentBlocks: ContentBlock[] = [];
-    if (textContent) {
-      rawContentBlocks.push({ type: 'text', text: textContent });
-    }
-    if (toolCalls) {
-      for (const tc of toolCalls) {
-        rawContentBlocks.push({
-          type: 'tool_use',
-          id: tc.id,
-          name: tc.name,
-          input: tc.input,
-        });
-      }
-    }
-
-    // Normalize finish reason
-    const stopReason =
-      result.finishReason === 'tool-calls' ? 'tool_use' : result.finishReason || 'stop';
-
-    return {
-      content: textContent,
-      stop_reason: stopReason,
-      tool_calls: toolCalls,
-      raw_content_blocks:
-        rawContentBlocks.length > 0
-          ? rawContentBlocks
-          : [{ type: 'text', text: textContent || '' }],
-      success: true,
-      metadata: mergeMetadata(requestMetadata, {
-        provider: 'litellm',
-        model: model,
-        timestamp: new Date().toISOString(),
-        requestId,
-        ...(result.usage && {
-          usage: {
-            prompt_tokens: result.usage.inputTokens,
-            completion_tokens: result.usage.outputTokens,
-            total_tokens: result.usage.totalTokens,
-          },
-        }),
-      }),
-    };
+    return buildAdapterResult({
+      provider: 'litellm',
+      model,
+      requestId,
+      type,
+      requestMetadata,
+      result,
+    });
   } catch (error: unknown) {
     const err = error as { message?: string };
     console.error(`[litellmAdapter ${requestId}] Error:`, err.message);
