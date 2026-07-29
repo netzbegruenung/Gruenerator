@@ -165,6 +165,7 @@ Cargo.lock
 !apps/desktop/src-tauri/Cargo.lock
 
 # Typecheck outputs
+*.tsbuildinfo
 apps/web/typecheck_output.txt
 apps/web/typecheck_output_full.txt
 *_typecheck_output*.txt

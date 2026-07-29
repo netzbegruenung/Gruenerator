@@ -6,7 +6,8 @@
       "outputs": ["dist/**", ".next/**", "build/**"]
     },
     "typecheck": {
-      "dependsOn": ["^typecheck"]
+      "dependsOn": ["^typecheck"],
+      "outputs": ["**/*.tsbuildinfo"]
     },
     "lint": {},
     "lint:fix": {},
