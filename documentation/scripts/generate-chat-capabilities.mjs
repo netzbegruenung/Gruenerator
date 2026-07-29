@@ -46,6 +46,11 @@ const OUT_FILE = path.join(REPO_ROOT, 'documentation/src/generated/chat-capabili
 const SRC = {
   intents: 'packages/contracts/src/schemas/chatStreamEvents.ts',
   mentionables: 'packages/chat/src/lib/mentionables.ts',
+  // The per-intent registry. The @-tool mentions were literals in
+  // `mentionables.ts` until they became derived from this file; the picker
+  // triggers and artefact creators are still literals over there, so both are
+  // read (see extractMentionables).
+  chatIntents: 'packages/shared/src/chat-intents/index.ts',
   userTools: 'packages/shared/src/agents/userTools.ts',
   systemMcp: 'apps/api/services/mcp/systemMcpServers.ts',
   // CONTROLLER_HANDLED_INTENTS says how each intent is handled and flags the
@@ -168,9 +173,79 @@ function extractExperimentalIntents() {
 }
 
 /**
- * Every mentionable literal (identifier + title + description). Covers the @-tools
- * and /-skills; agents merged in at runtime are not literals and are out of scope
- * (they have their own generated manifest via AgentTiles).
+ * The `@tool` mentions that belong to an intent, read from the intent registry.
+ *
+ * These used to be object literals in `mentionables.ts` and were picked up by
+ * `extractMentionables` below. They are derived from the registry now, so the
+ * literals live here instead — same AST technique, different file. The registry
+ * is deliberately framework-free, which is what keeps it readable this way.
+ *
+ * Shape read: `CHAT_INTENTS = { <intentId>: { audience, mention: {...},
+ * variantMentions: [{...}] } }`. `forcedTool` on a mention overrides the intent
+ * id as the identifier, because that is the string the router actually
+ * dispatches on (`@pdf-erstellen` → `create_pdf`).
+ */
+function extractIntentMentions() {
+  const sf = parse(SRC.chatIntents);
+  const decl = unwrap(findDeclaration(sf, 'CHAT_INTENTS'));
+  if (!decl || !ts.isObjectLiteralExpression(decl)) {
+    throw new Error(
+      `${SRC.chatIntents}: CHAT_INTENTS not found as an object literal. ` +
+        `It is the source for the @-tool mentions; update generate-chat-capabilities.mjs.`
+    );
+  }
+
+  const out = {};
+  const readMention = (node, intentId, audience) => {
+    const slug = stringProp(node, 'slug');
+    const title = stringProp(node, 'title');
+    if (!slug || !title) return;
+    const entry = { title };
+    const description = stringProp(node, 'description');
+    if (description) entry.description = description;
+    entry.mention = `@${slug}`;
+    if (audience && audience !== 'all') entry.audience = audience;
+    out[stringProp(node, 'forcedTool') ?? intentId] = entry;
+  };
+
+  for (const prop of decl.properties) {
+    if (!ts.isPropertyAssignment(prop) || !prop.name) continue;
+    const intentId =
+      ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name) ? prop.name.text : null;
+    const body = unwrap(prop.initializer);
+    if (!intentId || !body || !ts.isObjectLiteralExpression(body)) continue;
+    const audience = stringProp(body, 'audience');
+
+    for (const field of body.properties) {
+      if (!ts.isPropertyAssignment(field) || !ts.isIdentifier(field.name)) continue;
+      const value = unwrap(field.initializer);
+      if (field.name.text === 'mention' && value && ts.isObjectLiteralExpression(value)) {
+        readMention(value, intentId, audience);
+      }
+      if (field.name.text === 'variantMentions' && value && ts.isArrayLiteralExpression(value)) {
+        for (const el of value.elements) {
+          const variant = unwrap(el);
+          if (variant && ts.isObjectLiteralExpression(variant)) {
+            readMention(variant, intentId, audience);
+          }
+        }
+      }
+    }
+  }
+
+  if (Object.keys(out).length === 0) {
+    throw new Error(`${SRC.chatIntents}: no @-tool mentions extracted — the shape changed.`);
+  }
+  return out;
+}
+
+/**
+ * Every mentionable literal (identifier + title + description). Covers the
+ * non-intent mentionables that still live as literals — the artefact creators
+ * (`board-erstellen`, `sheet-erstellen`, …) and the picker triggers (`@wolke`,
+ * `@connect`, `@canva`, `@web`) — merged with the intent-backed `@tool` mentions
+ * from the registry. Agents merged in at runtime are not literals and are out of
+ * scope (they have their own generated manifest via AgentTiles).
  */
 function extractMentionables() {
   const sf = parse(SRC.mentionables);
@@ -190,7 +265,7 @@ function extractMentionables() {
     if (audience && audience !== 'all') entry.audience = audience;
     out[identifier] = entry;
   });
-  return out;
+  return { ...out, ...extractIntentMentions() };
 }
 
 /** `USER_SELECTABLE_TOOLS` → key → {label, description}. */

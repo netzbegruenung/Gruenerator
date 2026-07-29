@@ -124,6 +124,14 @@ export const TEMPLATE_REGISTRY: Record<CanvasConfigId, TemplateInfo> = {
     category: 'sharepic',
     audience: 'de-AT',
   },
+  'info-at': {
+    id: 'info-at',
+    label: 'Info',
+    description: 'Introline, Infotext und gelbe Schlusszeile auf Farbfläche (Österreich)',
+    previewImage: '/imagine/previews/info-at-preview.webp',
+    category: 'sharepic',
+    audience: 'de-AT',
+  },
   'freeform-at': {
     id: 'freeform-at',
     label: 'Freies Design',

@@ -13,7 +13,8 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
 
-    "noEmit": true
+    "noEmit": true,
+    "incremental": true
   },
   "include": ["src/**/*", "vitest.config.ts"],
   "exclude": ["node_modules", "dist"]
