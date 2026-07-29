@@ -1,5 +1,6 @@
 import { env } from '../../config/env.js';
 import * as providers from '../../workers/providers/index.js';
+import { AiProviderError, classifyProviderError } from '../providers/providerErrors.js';
 import * as providerFallback from '../providers/providerFallback.js';
 import * as providerSelector from '../providers/providerSelector.js';
 
@@ -32,12 +33,31 @@ const SHAREPIC_TYPES = [
 ];
 
 class AIService implements AIWorkerPool {
+  /**
+   * The one classification point. Everything below throws raw — adapters throw
+   * the SDK's `APICallError`, the fallback chain throws an aggregate carrying
+   * the last one as `cause`, the timeout throws a plain Error — and this
+   * boundary turns whatever arrives into an `AiProviderError` the route layer
+   * can branch on (`sseHelpers` distinguishes rate limit / provider down / bad
+   * request / retryable).
+   *
+   * The `worker_threads` pool used to do this after rebuilding the error from a
+   * postMessage payload; when it went, so did the only place `AiProviderError`
+   * was ever constructed, and every provider failure has been reaching the
+   * client as a bare `internal` since.
+   */
   async processRequest(
     data: AIRequestData,
     _req?: { user?: { id?: string } }
   ): Promise<AIWorkerResult> {
     const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-    return this.executeWithTimeout(requestId, { ...data });
+    try {
+      return await this.executeWithTimeout(requestId, { ...data });
+    } catch (error) {
+      if (error instanceof AiProviderError) throw error;
+      const message = error instanceof Error ? error.message : String(error);
+      throw new AiProviderError(message, classifyProviderError(error), { cause: error });
+    }
   }
 
   private async executeWithTimeout(

@@ -5,13 +5,9 @@
  *
  * This existed because errors crossing the `worker_threads` boundary lost their
  * class and status (only strings survive `postMessage`): the worker classified
- * before posting, the pool rebuilt an `AiProviderError`. That pool is gone, and
- * with it the single place `AiProviderError` was ever CONSTRUCTED — so every
- * provider failure currently reaches the client as a bare `internal`.
- *
- * `classifyProviderError` is therefore momentarily without a caller. It gets one
- * back in the next commit, at the boundary in `services/ai/aiService.ts`, which
- * is where classification belongs now that there is no boundary to cross.
+ * before posting, the pool rebuilt an `AiProviderError`. There is no boundary to
+ * cross any more, so classification happens once, at the outer edge of
+ * `services/ai/aiService.ts`. Everything below it throws raw.
  */
 
 import { APICallError } from 'ai';
@@ -94,17 +90,20 @@ export function classifyProviderError(error: unknown): ProviderErrorInfo {
 }
 
 /**
- * Typed provider failure reconstructed on the pool side of the worker
- * boundary. Downstream consumers (retry layers, SSE error emitters) branch on
- * `code`/`retryable` instead of parsing message strings.
+ * Typed provider failure. Downstream consumers (retry layers, SSE error
+ * emitters) branch on `code`/`retryable` instead of parsing message strings.
+ *
+ * Constructed at exactly one place — the boundary in `services/ai/aiService.ts`.
+ * Keep `cause` populated: the original error is what carries the status code,
+ * and callers that log it want the real stack, not this wrapper's.
  */
 export class AiProviderError extends Error {
   readonly code: ProviderErrorCode;
   readonly retryable: boolean;
   readonly statusCode?: number;
 
-  constructor(message: string, info: ProviderErrorInfo) {
-    super(message);
+  constructor(message: string, info: ProviderErrorInfo, options?: ErrorOptions) {
+    super(message, options);
     this.name = 'AiProviderError';
     this.code = info.code;
     this.retryable = info.retryable;
