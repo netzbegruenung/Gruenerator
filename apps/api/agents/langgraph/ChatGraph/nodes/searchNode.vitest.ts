@@ -20,6 +20,7 @@ vi.mock('../../../../config/vectorConfig.js', () => ({
       mmrKeepTop: 2,
       mergeOverfetch: 16,
       webScoreCeiling: 0.8,
+      dipScoreCeiling: 0.8,
     })),
     // BaseSearchService's constructor calls this at module-load time via the
     // exampleSearchService → DocumentSearchService import chain, so the mock
@@ -106,6 +107,32 @@ describe('normalizeScore', () => {
     });
     const score = normalizeScore(r);
     expect(score).toBeCloseTo(0.5 * 0.8, 2);
+  });
+
+  it('caps DIP scores at dipScoreCeiling', () => {
+    // buildBundestagResults gives the person/document header relevance 1 by
+    // position, not by similarity. Uncapped it outranks every collection chunk.
+    const r = makeResult({ source: 'bundestag', relevance: 1.0 });
+    expect(normalizeScore(r)).toBe(0.8);
+  });
+
+  it('ranks a strong collection chunk above the top DIP result', () => {
+    // The regression this ceiling exists for: without it the DIP header (1.0)
+    // beat a 0.79-similarity party document and pushed it out of the rerank
+    // input window before the cross-encoder ever saw it.
+    const dip = makeResult({ source: 'bundestag', relevance: 1.0 });
+    const doc = makeResult({
+      source: 'gruenerator:bundestagsfraktion',
+      relevance: 0.7,
+      similarityScore: 0.79,
+    });
+    expect(normalizeScore(doc)).toBeGreaterThan(normalizeScore(dip));
+  });
+
+  it('keeps DIP ordering intact within its own source', () => {
+    const first = makeResult({ source: 'bundestag', relevance: 0.9 });
+    const second = makeResult({ source: 'bundestag', relevance: 0.88 });
+    expect(normalizeScore(first)).toBeGreaterThan(normalizeScore(second));
   });
 
   it('preserves examples scores', () => {
