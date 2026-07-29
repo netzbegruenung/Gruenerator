@@ -252,20 +252,40 @@ export function validateAndInjectCitations(
 }
 
 /**
- * Renumber citations in order of appearance for logical UX
+ * Inline citation markers, single (`[1]`) and grouped (`[1, 3]`). Mirrors the
+ * pattern the chat renderer matches on
+ * (packages/chat CitationMarkdownText), because a marker form the renderer
+ * shows but this scanner misses would be renumbered inconsistently: its ids
+ * would count as uncited, drop out of the map, and keep their stale numbers.
+ * Rebuilt per use — a shared /g regex carries `lastIndex` between calls.
  */
-export function renumberCitationsInOrder(
+const CITATION_MARKER_PATTERN = /\[(\d+(?:\s*,\s*\d+)*)\]/g;
+
+function splitMarkerIds(inner: string): string[] {
+  return inner.split(',').map((id) => id.trim());
+}
+
+/**
+ * Renumber citations in order of appearance for logical UX.
+ *
+ * Generic over the map value so the chat's `Citation` shape can reuse it —
+ * `ReferencesMap` still infers as `Record<string, ReferenceData>`, so the
+ * notebook callers are unaffected. Uncited entries are dropped: an id the draft
+ * never references has no marker left to point at it.
+ */
+export function renumberCitationsInOrder<T>(
   draft: string,
-  originalReferencesMap: ReferencesMap
-): { renumberedDraft: string; newReferencesMap: ReferencesMap } {
-  const citationPattern = /\[(\d+)\]/g;
+  originalReferencesMap: Record<string, T>
+): { renumberedDraft: string; newReferencesMap: Record<string, T> } {
   const seenOrder: string[] = [];
   let match;
 
-  while ((match = citationPattern.exec(draft)) !== null) {
-    const id = match[1];
-    if (!seenOrder.includes(id) && originalReferencesMap[id]) {
-      seenOrder.push(id);
+  const scan = new RegExp(CITATION_MARKER_PATTERN);
+  while ((match = scan.exec(draft)) !== null) {
+    for (const id of splitMarkerIds(match[1])) {
+      if (!seenOrder.includes(id) && originalReferencesMap[id]) {
+        seenOrder.push(id);
+      }
     }
   }
 
@@ -274,16 +294,24 @@ export function renumberCitationsInOrder(
     oldToNew[oldId] = String(index + 1);
   });
 
-  let renumberedDraft = draft;
-  for (const [oldId, newId] of Object.entries(oldToNew)) {
-    const re = new RegExp(`\\[${oldId}\\]`, 'g');
-    renumberedDraft = renumberedDraft.replace(re, `⟦${newId}⟧`);
-  }
-  renumberedDraft = renumberedDraft.replace(/⟦(\d+)⟧/g, '[$1]');
+  // Whole markers are rewritten in one pass, so an old id can never collide with
+  // a new one and no placeholder round-trip is needed. Markers whose ids are all
+  // unknown stay verbatim — an out-of-range id the model invented is a separate
+  // problem from renumbering, and silently deleting text here would hide it.
+  const renumberedDraft = draft.replace(
+    new RegExp(CITATION_MARKER_PATTERN),
+    (full, inner: string) => {
+      const mapped = splitMarkerIds(inner)
+        .map((id) => oldToNew[id])
+        .filter((id): id is string => !!id);
+      return mapped.length > 0 ? `[${mapped.join(', ')}]` : full;
+    }
+  );
 
-  const newReferencesMap: ReferencesMap = {};
+  const newReferencesMap: Record<string, T> = {};
   for (const [oldId, newId] of Object.entries(oldToNew)) {
-    newReferencesMap[newId] = originalReferencesMap[oldId];
+    const ref = originalReferencesMap[oldId];
+    if (ref !== undefined) newReferencesMap[newId] = ref;
   }
 
   return { renumberedDraft, newReferencesMap };
