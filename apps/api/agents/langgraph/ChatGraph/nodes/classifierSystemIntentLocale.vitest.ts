@@ -1,13 +1,16 @@
 /**
- * The env-availability degrade has to ask per LOCALE.
+ * A system intent with no source behind it must not reach the agentic loop —
+ * the loop would mount nothing and answer a live question from memory.
  *
- * `reise` is the case that makes this more than tidiness: it mounts train +
- * hotel + weather, and only the train is German-only, so it is deliberately NOT
- * in DE_ONLY_SYSTEM_INTENTS — the audience degrade leaves it standing for
- * Austria on purpose. Asking availability without the locale then answers "yes"
- * on a deploy that has only the Deutsche-Bahn URL configured, the router forces
- * the agentic loop, `getSourcesForIntent(intent, 'de-AT')` mounts nothing, and
- * the model answers a live travel question from parametric memory.
+ * Two ways that happened. The env one: no URL configured for the source. The
+ * locale one: `reise` mounted train + hotel + weather and only the train was
+ * German-only, so it deliberately stayed out of DE_ONLY_SYSTEM_INTENTS and
+ * survived the audience degrade for Austria — on a bahn-only deploy an Austrian
+ * travel turn forced the loop with an empty toolbox.
+ *
+ * `reise` is switched off now, so no active intent mixes audiences and the two
+ * cases collapse into one. The locale still goes into the availability question,
+ * as prevention for whatever brings a multi-source intent back.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
@@ -144,27 +147,15 @@ afterEach(() => {
   }
 });
 
-describe('system intent availability is locale-aware', () => {
+describe('system intent availability degrades at the node', () => {
   // The phrasing has to contain a SYSTEM_MCP_PHRASING keyword ("Zugverbindung",
-  // "Hotel"). Without one, Tier 3.5 demotes the turn to `agentic` before the LLM
-  // tier runs — a "not reise" assertion would then pass without ever reaching the
-  // degrade under test. Every case asserts the LLM tier actually ran.
+  // "Hotel", "Wetter"). Without one, Tier 3.5 demotes the turn to `agentic` before
+  // the LLM tier runs — a "not reise" assertion would then pass without ever
+  // reaching the degrade under test. Every case asserts the LLM tier actually ran.
 
-  it('degrades reise for an Austrian user when only the German source is configured', async () => {
-    const state = buildState({
-      userMessage: 'Ich brauche eine Zugverbindung von Wien nach Graz',
-      llmIntent: 'reise',
-      userLocale: 'de-AT',
-    });
-    const result = await classifierNode(state);
-    expect(state.aiWorkerPool.processRequest).toHaveBeenCalled();
-    // Bahn is the only configured source and it does not cover Austria, so
-    // forcing the loop here would mount nothing at all.
-    expect(result.intent).toBe('web');
-    expect(result.searchQuery).toBeTruthy();
-  });
-
-  it('keeps reise for a German user with the same env', async () => {
+  it('degrades a reise verdict to web for a German user', async () => {
+    process.env.SYSTEM_MCP_TRIVAGO_URL = 'https://trivago.example.org/mcp';
+    process.env.SYSTEM_MCP_WEATHER_URL = 'https://meteo.example.org/mcp';
     const state = buildState({
       userMessage: 'Ich brauche eine Zugverbindung von Berlin nach Hamburg',
       llmIntent: 'reise',
@@ -172,19 +163,46 @@ describe('system intent availability is locale-aware', () => {
     });
     const result = await classifierNode(state);
     expect(state.aiWorkerPool.processRequest).toHaveBeenCalled();
-    expect(result.intent).toBe('reise');
+    // `reise` is off — its source list is commented out, so no env combination
+    // makes it available and the turn goes to the web fallback instead.
+    expect(result.intent).toBe('web');
+    expect(result.searchQuery).toBeTruthy();
   });
 
-  it('keeps reise for an Austrian user once a global source is configured', async () => {
+  it('degrades a reise verdict to web for an Austrian user too', async () => {
     process.env.SYSTEM_MCP_TRIVAGO_URL = 'https://trivago.example.org/mcp';
     const state = buildState({
-      userMessage: 'Ich suche ein Hotel in Graz',
+      userMessage: 'Ich brauche eine Zugverbindung von Wien nach Graz',
       llmIntent: 'reise',
       userLocale: 'de-AT',
     });
     const result = await classifierNode(state);
     expect(state.aiWorkerPool.processRequest).toHaveBeenCalled();
-    // Hotels are global — the Austrian keeps the intent, just without the train.
-    expect(result.intent).toBe('reise');
+    expect(result.intent).toBe('web');
+  });
+
+  it('does not over-degrade a global source for an Austrian user', async () => {
+    process.env.SYSTEM_MCP_WEATHER_URL = 'https://meteo.example.org/mcp';
+    const state = buildState({
+      userMessage: 'Wie ist das Wetter in Graz?',
+      llmIntent: 'wetter',
+      userLocale: 'de-AT',
+    });
+    const result = await classifierNode(state);
+    expect(state.aiWorkerPool.processRequest).toHaveBeenCalled();
+    // Open-Meteo covers Austria, so passing the locale must not drop it — the
+    // guard against a naive "locale ≠ de-DE ⇒ unavailable".
+    expect(result.intent).toBe('wetter');
+  });
+
+  it('degrades wetter when its source is not configured', async () => {
+    const state = buildState({
+      userMessage: 'Wie ist das Wetter in Graz?',
+      llmIntent: 'wetter',
+      userLocale: 'de-AT',
+    });
+    const result = await classifierNode(state);
+    expect(state.aiWorkerPool.processRequest).toHaveBeenCalled();
+    expect(result.intent).toBe('web');
   });
 });
