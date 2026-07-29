@@ -395,6 +395,12 @@ const MemoizedRectElement = memo(function MemoizedRectElement<
       width={width}
       height={height}
       fill={fill}
+      fillLinearGradientStartPoint={config.fillLinearGradientStartPoint}
+      fillLinearGradientEndPoint={config.fillLinearGradientEndPoint}
+      fillLinearGradientColorStops={config.fillLinearGradientColorStops}
+      // Ohne das gewinnt in Konva immer `fill` — die Vorgabe für fillPriority
+      // ist 'color', der Verlauf bliebe unsichtbar.
+      fillPriority={config.fillLinearGradientColorStops ? 'linear-gradient' : 'color'}
       cornerRadius={cornerRadius}
       listening={config.listening ?? false}
       draggable={config.draggable ?? false}
