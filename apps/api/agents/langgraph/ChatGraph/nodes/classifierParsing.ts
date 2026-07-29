@@ -353,9 +353,17 @@ export function parseClassifierResponse(
       // Extract search sources for parallel multi-source search. `chat_history`
       // is a first-class SearchSource (past-chat recall) — keep it so the model
       // can explicitly pick it, not only the regex heuristic (detectSearchSources).
-      const validSources = ['documents', 'web', 'chat_history'];
+      //
+      // This list is a silent gate: anything the model names that is absent here
+      // is dropped without a log line, so a source the prompt asks for but this
+      // list omits can never happen (that is why `examples` is reachable only
+      // via detectSearchSources). Typed as SearchSource[] so adding a member to
+      // the union surfaces here instead of failing quietly at runtime.
+      const validSources: SearchSource[] = ['documents', 'web', 'chat_history', 'bundestag'];
       const searchSources =
-        parsed.searchSources?.filter((s): s is SearchSource => validSources.includes(s)) || [];
+        parsed.searchSources?.filter((s): s is SearchSource =>
+          validSources.includes(s as SearchSource)
+        ) || [];
 
       if (searchSources.length > 1) {
         log.debug(`[Classifier] Multi-source search: ${searchSources.join(' + ')}`);
@@ -540,6 +548,22 @@ export function detectSearchSources(query: string, intent: SearchIntent): Search
   const hasPartyKeywords = partyKeywords.test(q);
   const hasTemporalKeywords = temporalKeywords.test(q);
   const hasComparative = comparativePattern.test(q);
+
+  // Parliamentary process named alongside party content → collections + DIP.
+  // Deliberately narrow: only wording that points at the parliamentary RECORD
+  // (Drucksache, Plenardebatte, Gesetzgebungsverfahren), not the mere word
+  // "Bundestag" — "was sagen die Grünen im Bundestag zum Klimaschutz" is a
+  // question about positions, and pairing it with DIP would spend a second
+  // retrieval round on documents nobody asked for. `bundestagsfraktion` is
+  // excluded for the same reason: it names our own collection, not the DIP.
+  // Suffixes are `\w*`, not `\b`, because German inflects: "der Stand des
+  // GesetzentwurfS", "in den DrucksachEN". A word-boundary-only pattern matched
+  // the nominative and quietly missed every declined form.
+  const parliamentaryKeywords =
+    /\b(drucksache\w*|drs\.?|plenar\w*|plenum|gesetzentw(urf|ürf)\w*|gesetzgebungsverfahren\w*|bundestagsdebatte\w*|debattiert|kleine anfrage\w*|große anfrage\w*|abgestimmt|beratungsstand\w*|antrag im bundestag|im bundestag (debattiert|beschlossen|eingebracht|beraten))\b/i;
+  if (hasPartyKeywords && parliamentaryKeywords.test(q)) {
+    return ['documents', 'bundestag'];
+  }
 
   // Party content + temporal/current context → both sources
   if (hasPartyKeywords && (hasTemporalKeywords || hasComparative)) {
