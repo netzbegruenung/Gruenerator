@@ -125,9 +125,8 @@ const baseZitatAtConfig = createImageTwoTextCanvas({
   calculateLayout,
   elements: [quoteMarkElement, quoteTextElement, nameTextElement, logoElement],
   features: { icons: true, shapes: true, illustrations: true },
-  gradientOpacity: Z.scrim.endOpacity,
-  gradientColor: Z.scrim.color,
-  gradientCurve: Z.scrim.curve,
+  // Kein `gradientOpacity`: über dem Foto liegt nichts. Anders als beim
+  // deutschen Zitat, das einen schwarzen Verlauf für den Textkontrast setzt.
   getCanvasText: (state) => {
     const quote = state.quote || '';
     const name = state.name || '';

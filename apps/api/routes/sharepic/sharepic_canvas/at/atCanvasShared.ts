@@ -85,7 +85,8 @@ const QUOTE_GELB_PATH = path.resolve(__dirname, '../../../../public/quote-gelb.s
  * Zitat-sujet geometry — mirrors ZITAT_AT_CONFIG in canvas-editor.
  * Anders als in Deutschland: mittig gesetzt, gelbes Anführungszeichen, Logo
  * rechts oben, und der Block hängt nicht am Blattboden, sondern wird als
- * Gruppe um `groupCenterRatio` zentriert.
+ * Gruppe um `groupCenterRatio` zentriert. Kein Verlauf über dem Foto — die
+ * österreichische CI kennt keinen.
  */
 export const ZITAT = {
   margin: 130,
@@ -100,15 +101,29 @@ export const ZITAT = {
   nameFontSizeRatio: 0.6,
   nameGapRatio: 0.75,
   logo: { width: 150, margin: 70 },
-  scrim: {
-    color: '37, 118, 57',
-    curve: [
-      { at: 0, opacity: 0 },
-      { at: 0.18, opacity: 0 },
-      { at: 0.42, opacity: 0.58 },
-      { at: 1, opacity: 0.75 },
-    ],
-  },
+} as const;
+
+/**
+ * Zitat-Pur-Geometrie — mirrors ZITAT_PURE_AT_CONFIG in canvas-editor.
+ * Ohne Foto traegt die Flaeche allein: groesserer Grad als beim Foto-Sujet,
+ * weisses Anfuehrungszeichen statt gelbem, Block genau mittig.
+ */
+export const ZITAT_PURE = {
+  margin: 115,
+  maxWidth: 850,
+  groupCenterRatio: 0.5,
+  markSizeRatio: 1.47,
+  markGapToText: 26,
+  baseFontSize: 72,
+  minFontSize: 46,
+  maxFontSize: 88,
+  lineHeightRatio: 1.15,
+  maxLines: 5,
+  growBelowLines: 3,
+  nameFontSizeRatio: 0.47,
+  nameGapRatio: 0.61,
+  topBoundary: 120,
+  bottomBoundary: 1230,
 } as const;
 
 export function registerAtFonts(): void {
