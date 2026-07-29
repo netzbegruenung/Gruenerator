@@ -8,17 +8,12 @@
  */
 import { reelEditResponseSchema, type ReelEditResponse } from '@gruenerator/contracts';
 import { formatTimeWithFraction, type SubtitleSegment } from '@gruenerator/shared/subtitle-editor';
-import { jsonSchema } from 'ai';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 
-import { createLogger } from '../../../utils/logger.js';
+import { runToolForcedEdit } from './toolForcedEdit.js';
 
-import type { AIWorkerPool, AIWorkerResult, Tool } from '../../../workers/types.js';
-
-const log = createLogger('reelEditLlm');
+import type { AIWorkerPool } from '../../../workers/types.js';
 
 export const REEL_EDIT_TOOL_NAME = 'apply_reel_subtitle_edit';
-const MAX_ATTEMPTS = 2;
 
 export interface RunReelEditArgs {
   instruction: string;
@@ -79,93 +74,17 @@ function buildSystemPrompt(segments: SubtitleSegment[], recentEditSummaries: str
   return lines.join('\n');
 }
 
-function extractToolCall(result: AIWorkerResult): Record<string, unknown> | null {
-  if (result.tool_calls) {
-    const match = result.tool_calls.find((c) => c.name === REEL_EDIT_TOOL_NAME);
-    if (match) return match.input;
-  }
-  if (result.raw_content_blocks) {
-    for (const block of result.raw_content_blocks) {
-      if (block.type === 'tool_use' && block.name === REEL_EDIT_TOOL_NAME && block.input) {
-        return block.input;
-      }
-    }
-  }
-  return null;
-}
-
 export async function runReelEdit(args: RunReelEditArgs): Promise<RunReelEditResult> {
   const { instruction, segments, recentEditSummaries, aiWorkerPool, req } = args;
 
-  const systemPrompt = buildSystemPrompt(segments, recentEditSummaries);
-  const userMessage =
-    `Setze JETZT diese Änderung mit dem Tool ${REEL_EDIT_TOOL_NAME} um:\n\n${instruction}\n\n` +
-    'Antworte ausschließlich über den Tool-Aufruf — keinen Begleittext.';
-
-  // Same jsonSchema() wrapping as runSharepicEdit — the AI SDK's asSchema
-  // helper rejects raw JSON-Schema objects.
-  const rawSchema = zodToJsonSchema(reelEditResponseSchema, {
-    target: 'jsonSchema7',
-    $refStrategy: 'none',
-  });
-  const tool: Tool = {
-    name: REEL_EDIT_TOOL_NAME,
+  return runToolForcedEdit({
+    toolName: REEL_EDIT_TOOL_NAME,
     description: 'Wendet Text-Änderungen auf die Untertitel des aktuellen Reels an.',
-    input_schema: jsonSchema(
-      rawSchema as Parameters<typeof jsonSchema>[0]
-    ) as unknown as Tool['input_schema'],
-  };
-
-  let lastError = '';
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    try {
-      const result = await aiWorkerPool.processRequest(
-        {
-          type: 'canvas_ai_suggest',
-          systemPrompt,
-          messages: [{ role: 'user', content: userMessage }],
-          options: {
-            tools: [tool],
-            tool_choice: 'required',
-            temperature: 0.2,
-          },
-        },
-        req
-      );
-
-      if (!result.success) {
-        lastError = result.error || 'AI request failed';
-        log.warn(`[reel_edit] attempt ${attempt} provider error: ${lastError}`);
-        continue;
-      }
-
-      const toolInput = extractToolCall(result);
-      if (!toolInput) {
-        lastError = 'No tool call in response';
-        log.warn(
-          `[reel_edit] attempt ${attempt}: no tool call (stop_reason=${result.stop_reason ?? 'unknown'})`
-        );
-        continue;
-      }
-
-      const parsed = reelEditResponseSchema.safeParse(toolInput);
-      if (!parsed.success) {
-        lastError = `Schema mismatch: ${parsed.error.issues
-          .slice(0, 3)
-          .map((i) => `${i.path.join('.')}: ${i.message}`)
-          .join('; ')}`;
-        log.warn(
-          `[reel_edit] attempt ${attempt}: ${lastError}\n  raw: ${JSON.stringify(toolInput).slice(0, 600)}`
-        );
-        continue;
-      }
-
-      return { ok: true, edit: parsed.data };
-    } catch (e) {
-      lastError = e instanceof Error ? e.message : String(e);
-      log.error(`[reel_edit] attempt ${attempt} threw: ${lastError}`);
-    }
-  }
-
-  return { ok: false, error: lastError || 'unknown error' };
+    schema: reelEditResponseSchema,
+    systemPrompt: buildSystemPrompt(segments, recentEditSummaries),
+    instruction,
+    logPrefix: '[reel_edit]',
+    aiWorkerPool,
+    ...(req !== undefined && { req }),
+  });
 }

@@ -16,35 +16,9 @@ import { NextcloudShareManager } from '../../../../utils/integrations/nextcloud/
 import { createLogger } from '../../../../utils/logger.js';
 import { SOURCE_PREFIX, type DocumentSource, type SearchResult } from '../types.js';
 
+import { chunkText, mimeTypeFromName } from './retrievalChunking.js';
+
 const log = createLogger('WolkeRetrieval');
-
-const CHUNK_SIZE = 1500;
-const CHUNK_OVERLAP = 100;
-
-function chunkText(text: string, perSourceLimit: number): string[] {
-  const cleaned = text.trim();
-  if (!cleaned) return [];
-  if (cleaned.length <= CHUNK_SIZE) return [cleaned];
-  const chunks: string[] = [];
-  let pos = 0;
-  const stride = CHUNK_SIZE - CHUNK_OVERLAP;
-  while (pos < cleaned.length && chunks.length < perSourceLimit) {
-    chunks.push(cleaned.slice(pos, pos + CHUNK_SIZE));
-    pos += stride;
-  }
-  return chunks;
-}
-
-function mimeTypeFromName(name: string): string {
-  const lower = name.toLowerCase();
-  if (lower.endsWith('.pdf')) return 'application/pdf';
-  if (lower.endsWith('.docx'))
-    return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-  if (lower.endsWith('.pptx'))
-    return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-  if (lower.endsWith('.txt') || lower.endsWith('.md')) return 'text/plain';
-  return 'application/octet-stream';
-}
 
 interface ShareLinkRecord {
   id: string;
