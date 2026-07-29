@@ -6,7 +6,7 @@
  * Gotham headline + gelbe Vollkorn-Betonung), vertically centred, with the
  * weiße Ein-Balken-Logo below.
  *
- * Zeilenabstand = Schriftgröße × 0,9 (CI). Reused by info_at / dreizeilen_at.
+ * Zeilenabstand = Schriftgröße × 0,9 (CI). Genutzt von dreizeilen_at (ein Info-Sujet gibt es für AT nicht).
  */
 
 import { getBrandTheme } from '../brand/theme';

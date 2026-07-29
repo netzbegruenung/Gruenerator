@@ -11,6 +11,7 @@ import { extractFilters } from './classifierFilters.js';
 import { extractSearchTopic } from './classifierHeuristics.js';
 import {
   CLASSIFIER_DOC_SUBTYPES,
+  CREATION_TOPIC_INTENTS,
   isOfferedIntent,
   NON_SEARCH_INTENTS,
 } from './classifierPrompt.js';
@@ -45,6 +46,38 @@ const log = createLogger('ChatGraph:Classifier');
  */
 export const CURRENT_THREAD_REFERENCE =
   /\b(?:vorhin|eben\s+gerade|gerade\s+eben|weiter\s+oben|hier\s+im\s+chat|in\s+diesem\s+(?:chat|gespräch|thread|verlauf)|dieses\s+gespräch[s]?|deine[rn]?\s+(?:letzte|vorherige|obige)[rn]?\s+antwort|meine\s+(?:erste|allererste|letzte)\s+frage)\b/i;
+
+/** Longer than this and the model returned prose, not a topic. */
+const MAX_CREATION_TOPIC_LENGTH = 300;
+
+/**
+ * The classifier's answer to "what should this artifact be ABOUT", validated.
+ *
+ * Deliberately structural rather than lexical — no list of filler words to keep
+ * up with. Exactly two things can go wrong and both are checkable without
+ * knowing any German: the model answers for an intent that creates nothing, or
+ * it hands back the instruction it was supposed to look past. `null` is a fine
+ * answer; the callers fall back to `resolveReferentialTopic` and, failing that,
+ * ask the user.
+ */
+export function validateCreationTopic(
+  raw: string | null | undefined,
+  intent: string,
+  userContent: string
+): string | null {
+  if (typeof raw !== 'string') return null;
+  const topic = raw.trim();
+  if (!topic) return null;
+  if (!CREATION_TOPIC_INTENTS.has(intent)) return null;
+  // Echoing the message back means the model did not resolve anything — the
+  // instruction as a topic is exactly the bug this field exists to fix.
+  const normalize = (text: string): string => text.trim().toLowerCase().replace(/\s+/g, ' ');
+  if (normalize(topic) === normalize(userContent)) {
+    log.warn(`[Classifier] creationTopic echoed the user message — dropped`);
+    return null;
+  }
+  return topic.slice(0, MAX_CREATION_TOPIC_LENGTH);
+}
 
 export const CHAT_HISTORY_KEYWORDS =
   /\b(letzte[sn]?\s+gespräch|vorher\s+besprochen|letzte\s+woche|gestern\s+besprochen|was\s+haben\s+wir|erinnere?\s+dich|wir\s+hatten|früheres?\s+chat|voriges?\s+gespräch|damals\s+besprochen|da\s+weiter|wo\s+wir\s+aufgehört|mein(e|en)?\s+(dokument|präsentation|tabelle|notiz|antrag|board|kanban|tafel|reel|video|clip)|meine\s+(dokumente|präsentationen|tabellen|notizen|boards|reels|videos|clips)|die\s+tabelle\s+die\s+ich|das\s+dokument\s+das\s+ich|das\s+board\s+das\s+ich|das\s+(reel|video)\s+(das\s+ich|zu(m)?\s|über)|welches\s+(reel|video)|in\s+welchem\s+(reel|video))\b/i;
@@ -289,6 +322,11 @@ export function parseClassifierResponse(
         }
       }
 
+      const creationTopic = validateCreationTopic(parsed.creationTopic, parsed.intent, userContent);
+      if (creationTopic) {
+        log.info(`[Classifier] Creation topic: "${creationTopic}"`);
+      }
+
       const result: ClassificationResult = {
         intent: parsed.intent,
         secondaryIntent: validSecondary,
@@ -301,6 +339,7 @@ export function parseClassifierResponse(
         needsResearch: parsed.needsResearch === true,
         documentSubtype: validDocumentSubtype,
         targetGroupName: parsed.targetGroupName || null,
+        creationTopic,
       };
 
       if (parsed.needsClarification && parsed.clarificationQuestion) {
