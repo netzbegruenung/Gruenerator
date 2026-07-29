@@ -688,6 +688,19 @@ export interface ChatGraphState {
   contentType: string | null;
   documentSubtype: string | null;
   targetGroupName: string | null;
+  /**
+   * What a create_* turn should be ABOUT, resolved by the classifier against the
+   * conversation history.
+   *
+   * Single-pass generators (sharepic, image, pdf, sheet, presentation) read only
+   * the last user message, so "jetzt noch ein normales sharepic" produced an
+   * artifact about the instruction. The classifier already runs on exactly these
+   * vague follow-ups with the history in context (`isVagueFollowup` in
+   * classifierNode) — this is that call answering the question instead of the
+   * subtractive word-list heuristic in referentialTopic.ts, which stays as the
+   * fallback for when no LLM classification happened.
+   */
+  creationTopic: string | null;
   hasTemporal: boolean;
   complexity: 'simple' | 'moderate' | 'complex';
 
@@ -921,6 +934,8 @@ export interface ClassificationResult {
   gatherSources?: GatherSource[] | undefined;
   documentSubtype?: string | null | undefined;
   targetGroupName?: string | null | undefined;
+  /** See ChatGraphState.creationTopic. Null whenever no LLM classification ran. */
+  creationTopic?: string | null | undefined;
 }
 
 /**
