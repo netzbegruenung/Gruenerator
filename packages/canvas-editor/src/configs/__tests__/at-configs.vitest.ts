@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 
 import { getBrandTheme } from '../../brand/theme';
 import { loadCanvasConfig } from '../configLoader';
@@ -15,23 +15,30 @@ const AT_IDS = [
 ] as const;
 
 describe('Österreich (de-AT) canvas configs', () => {
-  // Der erste dynamische Import zieht die gesamte Konva-Kette nach und reisst
-  // die 5-Sekunden-Vorgabe in etwa zwei von drei Laeufen — der Fall sah wie
-  // Flakiness aus, ist aber schlicht Kaltstart des ersten geladenen Sujets.
-  it.each(AT_IDS)(
-    'loads and builds config %s',
-    async (id) => {
-      const config = await loadCanvasConfig(id);
-      expect(config).toBeTruthy();
-      expect(config.id).toBe(id);
-      expect(Array.isArray(config.elements)).toBe(true);
-      expect(config.elements.length).toBeGreaterThan(0);
-      // createInitialState must not throw
-      const state = config.createInitialState({});
-      expect(state).toBeTruthy();
-    },
-    20_000
-  );
+  // Der erste dynamische Import zieht die gesamte Konva-Kette nach. Diese
+  // Kette ist allen Sujets gemeinsam, der Preis faellt also genau einmal an —
+  // gemessen 2189 ms fuer das zuerst geladene Sujet, 3-7 ms fuer jedes
+  // weitere. Solange er im ersten Testfall lag, trug ein einzelner Fall die
+  // Last des ganzen Blocks: mit 5 s riss er in etwa zwei von drei Laeufen,
+  // und auch mit 20 s noch auf den langsameren CI-Runnern (gemessen 20653 ms).
+  //
+  // Den Kaltstart hierher zu ziehen macht ihn zu dem, was er ist: Ruestzeit
+  // des Blocks, nicht Laufzeit eines Falls. Die Fallgrenzen duerfen damit
+  // wieder eng sein und messen echte Regressionen statt Modulaufloesung.
+  beforeAll(async () => {
+    await loadCanvasConfig(AT_IDS[0]);
+  }, 120_000);
+
+  it.each(AT_IDS)('loads and builds config %s', async (id) => {
+    const config = await loadCanvasConfig(id);
+    expect(config).toBeTruthy();
+    expect(config.id).toBe(id);
+    expect(Array.isArray(config.elements)).toBe(true);
+    expect(config.elements.length).toBeGreaterThan(0);
+    // createInitialState must not throw
+    const state = config.createInitialState({});
+    expect(state).toBeTruthy();
+  });
 
   it('brand theme exposes AT tokens', () => {
     const at = getBrandTheme('de-AT');
