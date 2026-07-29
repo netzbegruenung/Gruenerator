@@ -11,6 +11,9 @@ import { fileURLToPath } from 'url';
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 import { type AIWorkerPool } from '../../workers/types.js';
+import { type Locale } from '../localization/types.js';
+import { probeDurationSeconds } from '../transcription/audioDuration.js';
+import { chooseProvider, type TranscriptionProvider } from '../transcription/providerPolicy.js';
 import { recordOperation } from '../usage/UsageTrackingService.js';
 
 import { startBackgroundCompression } from './backgroundCompressionService.js';
@@ -30,39 +33,63 @@ interface TranscriptionResult {
 }
 
 /**
- * Provider chain: regolo faster-whisper (default) → voxtral (fallback)
- * Override with TRANSCRIPTION_PROVIDER env var: regolo | voxtral
+ * Picks a provider via the shared policy (duration → Regolo under 2 min,
+ * Voxtral at or above), then falls back to the other one if the first errors.
  */
 async function transcribeWithProvider(
   audioPath: string,
   requestWordTimestamps: boolean = false,
-  uploadId: string | null = null
+  uploadId: string | null = null,
+  locale: Locale = 'de-DE',
+  durationSeconds: number | null = null
 ): Promise<TranscriptionResult> {
-  const provider = env.TRANSCRIPTION_PROVIDER || 'regolo';
+  const { provider, reason } = chooseProvider({
+    durationSeconds,
+    override: env.TRANSCRIPTION_PROVIDER,
+  });
 
-  if (provider === 'regolo' && env.REGOLO_API_KEY) {
-    log.debug('Using Regolo (faster-whisper) for transcription');
-    try {
-      const result = await transcribeWithRegolo(audioPath, requestWordTimestamps, uploadId);
-      recordOperation({ unit: 'transcriptions', provider: 'regolo', model: 'faster-whisper' });
-      return result;
-    } catch (error: unknown) {
-      log.warn(
-        `Regolo transcription failed: ${error instanceof Error ? error.message : String(error)}`
-      );
+  // One line per transcription — the only place the provider decision is
+  // observable, and infrequent enough not to be noise.
+  log.info(
+    `provider=${provider} (${reason}) duration=${durationSeconds === null ? 'unknown' : `${Math.round(durationSeconds)}s`} locale=${locale}`
+  );
+
+  const attempts: TranscriptionProvider[] =
+    provider === 'regolo' ? ['regolo', 'voxtral'] : ['voxtral', 'regolo'];
+
+  for (const attempt of attempts) {
+    if (attempt === 'regolo' && env.REGOLO_API_KEY) {
+      try {
+        const result = await transcribeWithRegolo(
+          audioPath,
+          requestWordTimestamps,
+          uploadId,
+          locale
+        );
+        recordOperation({ unit: 'transcriptions', provider: 'regolo', model: 'faster-whisper' });
+        return result;
+      } catch (error: unknown) {
+        log.warn(
+          `Regolo transcription failed: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
     }
-  }
 
-  if ((provider === 'voxtral' || provider === 'regolo') && env.MISTRAL_API_KEY) {
-    log.debug('Using Voxtral for transcription');
-    try {
-      const result = await transcribeWithVoxtral(audioPath, requestWordTimestamps, uploadId);
-      recordOperation({ unit: 'transcriptions', provider: 'mistral', model: 'voxtral' });
-      return result;
-    } catch (error: unknown) {
-      log.warn(
-        `Voxtral transcription failed: ${error instanceof Error ? error.message : String(error)}`
-      );
+    if (attempt === 'voxtral' && env.MISTRAL_API_KEY) {
+      try {
+        const result = await transcribeWithVoxtral(
+          audioPath,
+          requestWordTimestamps,
+          uploadId,
+          locale
+        );
+        recordOperation({ unit: 'transcriptions', provider: 'mistral', model: 'voxtral' });
+        return result;
+      } catch (error: unknown) {
+        log.warn(
+          `Voxtral transcription failed: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
     }
   }
 
@@ -75,7 +102,9 @@ async function transcribeVideo(
   videoPath: string,
   subtitlePreference: string = 'manual',
   aiWorkerPool?: AIWorkerPool,
-  _language: string = 'de'
+  locale: Locale = 'de-DE',
+  /** Known media length; probed from the extracted audio when omitted. */
+  durationSeconds: number | null = null
 ): Promise<string> {
   try {
     log.debug(`Transkription Start - Modus: ${subtitlePreference}`);
@@ -85,6 +114,10 @@ async function transcribeVideo(
     const audioPath = path.join(outputDir, `audio_${Date.now()}.mp3`);
 
     await extractAudio(videoPath, audioPath);
+
+    // Probe the extracted audio when the caller didn't already know the length
+    // (autoProcessingService does, from its own metadata pass).
+    const effectiveDuration = durationSeconds ?? (await probeDurationSeconds(audioPath));
 
     const uploadId = path.basename(path.dirname(videoPath));
     try {
@@ -99,7 +132,13 @@ async function transcribeVideo(
     let finalTranscription: string | null = null;
 
     if (subtitlePreference === 'manual') {
-      const transcriptionResult = await transcribeWithProvider(audioPath, true, uploadId);
+      const transcriptionResult = await transcribeWithProvider(
+        audioPath,
+        true,
+        uploadId,
+        locale,
+        effectiveDuration
+      );
 
       if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
         throw new Error('Invalid transcription data received from provider');
@@ -115,7 +154,13 @@ async function transcribeVideo(
       );
     } else {
       log.warn(`Unknown mode '${subtitlePreference}', using manual mode as fallback`);
-      const transcriptionResult = await transcribeWithProvider(audioPath, true, uploadId);
+      const transcriptionResult = await transcribeWithProvider(
+        audioPath,
+        true,
+        uploadId,
+        locale,
+        effectiveDuration
+      );
 
       if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
         throw new Error('Invalid transcription data received from provider');
