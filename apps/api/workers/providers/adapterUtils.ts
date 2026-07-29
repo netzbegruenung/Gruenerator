@@ -37,6 +37,33 @@ export function buildAiSdkTools(toolsPayload: {
   return Object.keys(tools).length > 0 ? tools : undefined;
 }
 
+/** What the SDK accepts for `toolChoice`. */
+export type SdkToolChoice = 'auto' | 'none' | 'required' | { type: 'tool'; toolName: string };
+
+/**
+ * Translate a ToolHandler `tool_choice` into the SDK's shape.
+ *
+ * Was copy-pasted into all four adapters, and only the Mistral copy understood
+ * `{type:'tool', name}` — the other three folded "call exactly THIS tool" into
+ * `'auto'`, i.e. into "call one if you feel like it". No live caller passes the
+ * object form, so nothing changes today; what changes is that forcing a
+ * specific tool is no longer silently conditional on which provider happens to
+ * answer, which matters the moment the fallback chain moves a forced call.
+ *
+ * `undefined` means "tools were offered but no choice stated", which the
+ * adapters have always read as `'none'` — kept, because flipping it would let
+ * every request carrying a tool catalogue start calling tools.
+ */
+export function resolveToolChoice(choice: unknown): SdkToolChoice {
+  if (choice === 'required') return 'required';
+  if (choice === undefined || choice === 'none') return 'none';
+  if (typeof choice === 'object' && choice !== null) {
+    const c = choice as { type?: string; name?: string; toolName?: string };
+    if (c.type === 'tool') return { type: 'tool', toolName: c.toolName ?? c.name ?? '' };
+  }
+  return 'auto';
+}
+
 export function mergeMetadata(
   requestMetadata: RequestMetadata = {},
   responseMetadata: ResponseMetadata
