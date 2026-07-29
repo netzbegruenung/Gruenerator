@@ -50,24 +50,35 @@ const ENV_BY_KEY: Record<SystemMcpKey, { url: string; token: string }> = {
 
 /**
  * Which sources a system intent mounts. `bahn`/`wetter`/`news` are the pure
- * single-source intents; `reise` is the umbrella travel intent mounting train
- * timetables + hotel search + destination weather in ONE loop turn, so "plane
- * meine Fahrt zum Länderrat: Zug und Hotel" needs no intent split.
+ * single-source intents.
+ *
+ * `reise` — the umbrella travel intent that mounted train timetables + hotel
+ * search + destination weather in ONE loop turn — is OFF for now. It was the only
+ * intent mixing audiences (Deutsche Bahn is German-only, hotels and weather are
+ * global), so "is this intent available?" could not be answered without knowing
+ * the user's country: on a deploy with only the Bahn URL set, an Austrian travel
+ * turn forced the agentic loop and mounted nothing at all.
+ *
+ * Off rather than patched, because half an answer is worse than an honest web
+ * search — without an ÖBB counterpart an Austrian "Wien→Graz" turn can offer
+ * hotels and weather but no train. The enum value stays (F0, wire contract) and
+ * `SYSTEM_MCP_INTENTS` still lists it, so a `reise` verdict degrades to `web`.
  */
 const INTENT_SOURCES: Record<string, SystemMcpKey[]> = {
   bahn: ['bahn'],
-  reise: ['bahn', 'hotel', 'wetter'],
+  // reise: ['bahn', 'hotel', 'wetter'],
   hotel: ['hotel'],
   wetter: ['wetter'],
   news: ['news'],
 };
 
 /**
- * Audience per SOURCE, which is finer than per intent and has to be: `reise`
- * mounts three sources at once, and only one of them is German-only. Answering
- * "plane meine Fahrt Wien→Graz" by offering Deutsche-Bahn tools is the failure
- * this table prevents — an intent-level audience could only have chosen between
- * dropping the whole travel intent for Austria or keeping the wrong tools.
+ * Audience per SOURCE rather than per intent. With `reise` off, every remaining
+ * intent maps to exactly one source, so the two levels currently coincide — the
+ * per-source grain is kept for whatever brings a multi-source intent back (an
+ * ÖBB counterpart, a travel umbrella): that is the case an intent-level audience
+ * cannot express, because it could only drop the whole intent for Austria or
+ * keep the wrong tools.
  *
  * Deutsche Bahn has no ÖBB counterpart wired up, and tagesschau covers Austria
  * as foreign news. Weather (Open-Meteo) and hotels (trivago) are global.
@@ -189,8 +200,8 @@ export function isSystemIntentAvailable(intent: string, locale?: string | null):
 /**
  * System intents with NO source left for a de-AT user — they degrade to the web
  * fallback. Derived from `SOURCE_AUDIENCE` rather than hand-listed, so a source
- * whose coverage changes cannot leave this set stale. `reise` is deliberately
- * absent: it still has hotel and weather for Austria, just no train.
+ * whose coverage changes cannot leave this set stale. `reise` is absent because
+ * it has no sources at all now; it degrades via the availability check instead.
  */
 export const DE_ONLY_SYSTEM_INTENTS: ReadonlySet<SearchIntent> = new Set(
   Object.keys(INTENT_SOURCES).filter((intent) =>

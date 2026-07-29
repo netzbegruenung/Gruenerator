@@ -5,7 +5,7 @@
  * research brief for complex research queries. This prevents long conversation
  * history from diluting search intent.
  *
- * Only activates for complexity=complex AND intent=research.
+ * Only activates for complexity=complex OR moderate, AND intent=research.
  * All other queries pass through unchanged.
  */
 
