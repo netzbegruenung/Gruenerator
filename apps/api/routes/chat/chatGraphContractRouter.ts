@@ -19,7 +19,11 @@ import { promises as fsPromises } from 'node:fs';
 import nodePath from 'node:path';
 
 import { chatGraphContract } from '@gruenerator/contracts';
-import { isIntentAllowedForLocale, type ChatIntentId } from '@gruenerator/shared/chat-intents';
+import {
+  CHAT_INTENTS,
+  isIntentAllowedForLocale,
+  type ChatIntentId,
+} from '@gruenerator/shared/chat-intents';
 import { sanitizeMentionTokens } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
@@ -558,6 +562,23 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       for (const candidate of SIMPLE_FORCED_INTENTS) {
         if (!forcedTools?.includes(candidate)) continue;
         if (!isIntentAllowedForLocale(candidate, initialState.userLocale)) continue;
+        // A forced mention must clear the SAME availability bar the classifier
+        // applies, or it bypasses it: the classifier degrades an unconfigured
+        // system-MCP intent (no SYSTEM_MCP_*_URL) to web, but that runs BEFORE
+        // this force. `wetter` has only an explicit no-op case in the search
+        // node — its tools live in the loop — so forcing it without a
+        // configured source produced a turn that fetched nothing and answered
+        // anyway. Skipping the force leaves the classifier's own routing (and
+        // its degrade) in charge.
+        if (
+          CHAT_INTENTS[candidate].availability === 'system-mcp' &&
+          !isSystemIntentAvailable(candidate, initialState.userLocale)
+        ) {
+          log.info(
+            `[ChatGraph] @${candidate} mention ignored — no configured system source for this locale`
+          );
+          continue;
+        }
         classifiedState.intent = candidate;
         forcedTool = true;
         if (

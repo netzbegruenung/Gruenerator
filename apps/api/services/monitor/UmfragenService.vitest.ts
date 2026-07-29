@@ -57,6 +57,18 @@ describe('resolveParliamentByName', () => {
     expect(resolveParliamentByName('Sonntagsfrage Steiermark', 'AT')?.id).toBe('steiermark');
   });
 
+  it('prefers the longest matching name, not the first in the list', () => {
+    // "oesterreich" is a substring of both of these, and the NATIONAL entry
+    // comes first in the registry — so matching in registry order answered a
+    // question about Oberösterreich with the Nationalrat, confidently labelled.
+    expect(resolveParliamentByName('Umfragen in Oberösterreich', 'AT')?.id).toBe('oberoesterreich');
+    expect(resolveParliamentByName('Umfragen in Niederösterreich', 'AT')?.id).toBe(
+      'niederoesterreich'
+    );
+    // The national entry still wins when it is what was actually named.
+    expect(resolveParliamentByName('Österreich', 'AT')?.id).toBe('oesterreich');
+  });
+
   it('never crosses the border', () => {
     // Bayern is a German parliament — asking for it in the Austrian list must
     // not resolve, or a locale mix-up would silently answer with foreign data.
