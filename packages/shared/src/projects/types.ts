@@ -3,7 +3,12 @@
  * Shared between web frontend and mobile app
  */
 
-import type { SubtitleSegment } from '@gruenerator/contracts';
+import type {
+  HeightPreference,
+  StylePreference,
+  SubtitlePreference,
+  SubtitleSegment,
+} from '@gruenerator/contracts';
 
 export interface VideoMetadata {
   duration: number;
@@ -74,9 +79,11 @@ export interface SaveProjectData {
   // history — this is the final missing piece of that migration.
   subtitles?: SubtitleSegment[];
   title?: string;
-  stylePreference?: string;
-  heightPreference?: string;
-  modePreference?: string;
+  // Closed sets, derived from the contract rather than re-declared — the
+  // server validates against exactly these enums.
+  stylePreference?: StylePreference;
+  heightPreference?: HeightPreference;
+  modePreference?: SubtitlePreference;
   videoMetadata?: VideoMetadata;
   // Required by `projectDataBodySchema` (`z.string()`): the server keys
   // find-or-update on it and 500s on `undefined`. Was `?:` here, which let
@@ -93,6 +100,6 @@ export interface UpdateProjectData {
   // server-side normalization (ProjectService.updateProject) is deployed.
   subtitles?: string | SubtitleSegment[];
   title?: string;
-  stylePreference?: string;
-  heightPreference?: string;
+  stylePreference?: StylePreference;
+  heightPreference?: HeightPreference;
 }

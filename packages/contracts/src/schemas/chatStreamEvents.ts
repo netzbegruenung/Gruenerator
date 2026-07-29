@@ -519,6 +519,11 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
       canvasType: z.string().optional(),
       initialProps: flexibleRecord.optional(),
       error: z.string().optional(),
+      /** No variants because the model DECLINED on content grounds, not because
+       *  generation failed; `message` carries the German reason. Deliberately
+       *  distinct from `error` — a decline is the safety rules working, and
+       *  reporting it as a failure invites the user to simply retry. */
+      declined: z.boolean().optional(),
     })
     .passthrough(),
   sharepic_minted: z.object({ variantId: z.string(), canvasId: z.string() }).passthrough(),
