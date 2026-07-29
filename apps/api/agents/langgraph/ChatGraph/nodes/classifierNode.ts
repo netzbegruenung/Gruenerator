@@ -295,11 +295,12 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   // no tools behind it — degrade so the question still gets answered (wetter/
   // news → web has a chance; a live train query without the source doesn't).
   //
-  // The locale MUST go in. `reise` is deliberately absent from
-  // DE_ONLY_SYSTEM_INTENTS (it keeps hotel + weather for Austria), so the
-  // audience degrade above leaves it standing; asking availability without the
-  // locale then answers "yes" on a bahn-only deploy, where an Austrian gets zero
-  // travel tools mounted and the model invents the connection.
+  // The locale goes in because availability is a per-country question whenever an
+  // intent maps to more than one source. `reise` was that case — train (DE-only)
+  // plus hotel and weather (global), deliberately kept out of
+  // DE_ONLY_SYSTEM_INTENTS, so on a bahn-only deploy an Austrian travel turn
+  // looked "available" and mounted nothing. It is off now, so this argument is
+  // currently prevention rather than a live fix.
   if (
     intent &&
     SYSTEM_MCP_INTENTS.has(intent) &&

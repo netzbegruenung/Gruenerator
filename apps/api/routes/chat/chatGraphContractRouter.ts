@@ -1079,9 +1079,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // do nothing.
       // The locale belongs in the availability question: forcing the loop for an
       // intent whose sources are all dropped for this country mounts nothing and
-      // lets the model answer from memory. `reise` is the reachable case — it
-      // survives the audience degrade by design (hotel + weather cover Austria),
-      // so on a bahn-only deploy it would force the gate with an empty toolbox.
+      // lets the model answer from memory. `reise` was the reachable case (it
+      // survived the audience degrade by design, hotel + weather covering
+      // Austria) and is switched off now — this stays as prevention for the next
+      // multi-source intent.
       const isMcpTurn =
         classifiedState.intent === 'mcp' ||
         classifiedState.intent === 'umfragen' ||

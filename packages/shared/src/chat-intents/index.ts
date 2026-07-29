@@ -294,9 +294,12 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
     declineNote: DECLINE_BAHN,
     availability: 'system-mcp',
   },
-  // Umbrella travel intent. `'all'` because hotel and weather work everywhere;
-  // the per-SOURCE audience (which drops the train tools for AT) is resolved in
-  // systemMcpServers, since one intent maps to three sources here.
+  // Umbrella travel intent (train + hotel + destination weather), currently OFF:
+  // its source list in systemMcpServers is commented out, so the availability
+  // check degrades every `reise` verdict to `web`. It was the one intent mixing a
+  // German-only source with global ones, which made an Austrian travel turn force
+  // the loop with an empty toolbox. Stays in the enum (F0) and keeps `audience:
+  // 'all'` — the audience axis was never the problem, the missing ÖBB source is.
   reise: {
     id: 'reise',
     category: 'retrieval',
