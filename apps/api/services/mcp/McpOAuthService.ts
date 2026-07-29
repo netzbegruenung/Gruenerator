@@ -37,7 +37,12 @@ import { ensureConnected, redisClient } from '../../utils/redis/client.js';
 import { decryptCredential, encryptCredential } from '../../utils/validation/encryption.js';
 import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
 
-import { consumeOAuthState, generateState, saveOAuthState } from './mcpOAuthState.js';
+import {
+  consumeOAuthState,
+  generateState,
+  saveOAuthState,
+  type McpOAuthState,
+} from './mcpOAuthState.js';
 import { McpServerRegistry } from './McpServerRegistry.js';
 import { UserMCPClient } from './UserMCPClient.js';
 
@@ -47,10 +52,12 @@ const EXPIRY_SKEW_MS = 60_000;
 const REFRESH_LOCK_MS = 10_000;
 
 interface AsMetadata {
+  issuer?: string;
   authorization_endpoint?: string;
   token_endpoint?: string;
   registration_endpoint?: string;
   scopes_supported?: string[];
+  authorization_response_iss_parameter_supported?: boolean;
 }
 
 type McpOAuthErrorCode = 'dcr_rejected' | 'no_oauth_support';
@@ -104,6 +111,52 @@ async function getServer(userId: string, serverId: string): Promise<McpServer | 
   return rows[0];
 }
 
+/**
+ * RFC 9207 / SEP-2468 mix-up defence: the authorization response must come from
+ * the AS we started the flow with. Three cases:
+ *
+ *  - `iss` present and mismatched   → reject (the actual attack).
+ *  - `iss` absent, AS said it sends → reject (stripped in transit).
+ *  - `iss` absent, AS never claimed → allow (AS predates RFC 9207).
+ *
+ * A single trailing slash is normalised away; issuer identifiers are otherwise
+ * compared exactly, as the RFC requires.
+ */
+function assertIssuerMatches(st: McpOAuthState, iss?: string): void {
+  // In-flight states written before these fields existed can't be validated.
+  if (!st.expectedIssuer) return;
+  // AS predates RFC 9207 and never claimed to send `iss`.
+  if (!iss && !st.issRequired) return;
+
+  if (!iss) {
+    log.warn('MCP OAuth callback missing iss although the AS advertises it', {
+      serverId: st.serverId,
+    });
+    throw oauthError('Die Antwort des Authorization-Servers ist unvollständig (iss fehlt).', 400);
+  }
+
+  if (normaliseIssuer(iss) !== normaliseIssuer(st.expectedIssuer)) {
+    log.warn('MCP OAuth issuer mismatch — refusing to redeem the code', {
+      serverId: st.serverId,
+      expected: st.expectedIssuer,
+      received: iss,
+    });
+    throw oauthError(
+      'Die Antwort stammt von einem anderen Authorization-Server als erwartet.',
+      400
+    );
+  }
+}
+
+/**
+ * Issuer identifiers are compared exactly per RFC 9207 — this only forgives a
+ * single trailing slash, which providers are inconsistent about. Deliberately
+ * narrower than a general URL normaliser; do not widen it.
+ */
+function normaliseIssuer(value: string): string {
+  return value.replace(/\/$/, '');
+}
+
 export class McpOAuthService {
   /** The fixed server-side redirect URI to register with providers. */
   static redirectUri(): string {
@@ -146,11 +199,41 @@ export class McpOAuthService {
     const authorizationServerUrl = info.authorizationServerUrl;
 
     const redirectUri = getRedirectUri();
-    const existing = server.oauth_meta ?? null;
+    const stored = server.oauth_meta ?? null;
+
+    // SEP-2352: client credentials are bound to the AS that issued them. If
+    // discovery now resolves somewhere else (URL edited, provider moved), the
+    // stored client_id/secret must not travel to the new AS — drop them and
+    // re-register. Legacy rows without a recorded issuer are left alone.
+    const issuerChanged = Boolean(
+      stored?.clientId && stored.issuer && stored.issuer !== authorizationServerUrl
+    );
+    if (issuerChanged && stored?.scheme === 'pre_registration') {
+      // Hand-entered credentials — we must not silently DCR against an AS the
+      // user never configured. Reuses `dcr_rejected` so the UI shows its
+      // existing manual-registration form.
+      throw oauthError(
+        `Der Authorization-Server dieses Eintrags hat sich geändert (${stored.issuer} → ${authorizationServerUrl}). Registriere die App dort neu mit der Redirect-URI ${redirectUri} und trage Client-ID und Client-Secret erneut ein.`,
+        400,
+        'dcr_rejected'
+      );
+    }
+    if (issuerChanged) {
+      log.warn('MCP OAuth issuer changed; re-registering client', {
+        serverId,
+        from: stored?.issuer,
+        to: authorizationServerUrl,
+      });
+    }
+
+    // One invariant, one expression: when the issuer moved we keep neither the
+    // client_id nor the secret, so both hang off `existing`.
+    const existing = issuerChanged ? null : stored;
     let clientId = existing?.clientId;
-    let clientSecret = server.oauth_client_secret_encrypted
-      ? decryptCredential(server.oauth_client_secret_encrypted)
-      : undefined;
+    let clientSecret =
+      existing && server.oauth_client_secret_encrypted
+        ? decryptCredential(server.oauth_client_secret_encrypted)
+        : undefined;
     const scopes =
       existing?.scopes && existing.scopes.length ? existing.scopes : metadata.scopes_supported;
     let scheme: McpOidcConfig['scheme'] = clientId ? 'pre_registration' : 'dcr';
@@ -167,14 +250,20 @@ export class McpOAuthService {
       try {
         reg = await registerClient(authorizationServerUrl, {
           metadata: metadata as never,
+          // SEP-837: `application_type` must be declared, or AS's that default
+          // it to `native` reject our https redirect URI. The SDK's
+          // OAuthClientMetadata type is `.strip()`ed and has no such field, but
+          // `registerClient` spreads this object into the POST body unparsed —
+          // so the cast is on the literal only, keeping the rest type-checked.
           clientMetadata: {
             client_name: 'Grünerator',
             redirect_uris: [redirectUri],
             grant_types: ['authorization_code', 'refresh_token'],
             response_types: ['code'],
             token_endpoint_auth_method: 'client_secret_post',
+            application_type: 'web',
             ...(scopes?.length ? { scope: scopes.join(' ') } : {}),
-          },
+          } as Parameters<typeof registerClient>[1]['clientMetadata'],
           ...(scopes?.length ? { scope: scopes.join(' ') } : {}),
         });
       } catch (err) {
@@ -233,7 +322,14 @@ export class McpOAuthService {
       resource: new URL(server.url),
       ...(scopes?.length ? { scope: scopes.join(' ') } : {}),
     });
-    await saveOAuthState(state, { userId, serverId, codeVerifier, authorizationServerUrl });
+    await saveOAuthState(state, {
+      userId,
+      serverId,
+      codeVerifier,
+      authorizationServerUrl,
+      expectedIssuer: metadata.issuer ?? authorizationServerUrl,
+      issRequired: metadata.authorization_response_iss_parameter_supported === true,
+    });
 
     return { status: 'authorize', authorizationUrl: authorizationUrl.toString() };
   }
@@ -279,13 +375,26 @@ export class McpOAuthService {
     }
   }
 
-  /** Exchange the authorization code and persist encrypted tokens. */
-  static async handleCallback(code: string, state: string): Promise<{ serverId: string }> {
+  /**
+   * Exchange the authorization code and persist encrypted tokens.
+   *
+   * `iss` is the RFC 9207 authorization-response parameter; validating it is
+   * what stops an AS mix-up from steering our code to the wrong token endpoint.
+   */
+  static async handleCallback(
+    code: string,
+    state: string,
+    iss?: string
+  ): Promise<{ serverId: string }> {
     const st = await consumeOAuthState(state);
     if (!st)
       throw Object.assign(new Error('Ungültiger oder abgelaufener OAuth-State'), {
         statusCode: 400,
       });
+
+    // MUST run before the code is redeemed below — afterwards it has already
+    // left for whichever token endpoint we were steered to.
+    assertIssuerMatches(st, iss);
 
     const server = await getServer(st.userId, st.serverId);
     const oidc = server?.oauth_meta;

@@ -15,7 +15,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "smoke": "node scripts/mcp-smoke-test.mjs"
   },
   "keywords": [
     "mcp",
@@ -30,7 +31,7 @@
   "license": "MIT",
   "dependencies": {
     "@gruenerator/query": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@qdrant/js-client-rest": "^1.18.0",
     "@sentry/node": "^10.68.0",
     "cors": "^2.8.6",

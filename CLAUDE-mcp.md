@@ -47,6 +47,62 @@ Collections are defined **once** in `apps/api/config/systemCollectionsConfig.ts`
 
 The v1 MCP no longer bundles the list: `services/mcp/src/catalog.ts` fetches the `mcpExposed` subset from `GET /api/v1/collections` at boot + on a 10-min TTL, with a static fallback. **Requires `GRUENERATOR_API_URL`** — without it the MCP silently serves only the stale fallback and `notebooks_*` break. The `collection` tool params are `z.string()` (validated at runtime), so new collections work without an MCP rebuild. v2 searches in-process (`routes/chat/agents/directSearchExecutors.ts`) and needs none of this.
 
+## Spec revision 2026-07-28 — readiness
+
+**The big changes are blocked on the SDK, not skipped.** `@modelcontextprotocol/sdk`
+is at **1.30.0** (latest) and still declares `LATEST_PROTOCOL_VERSION = '2025-11-25'`.
+Everything in the revision's *Major changes* list lives in the transport/protocol
+layer that the SDK owns, so none of it is adoptable without forking the transport.
+Don't write speculative shims — they'd be untestable dead code whose shape won't
+match what the SDK eventually ships.
+
+| Change | Owner | Our posture |
+| --- | --- | --- |
+| Remove `initialize` + `notifications/initialized` | SDK | Blocked. Both servers already tolerate a bare `tools/list` (stateless), so the migration is a no-op for us. |
+| `server/discover` | SDK | Blocked. |
+| `subscriptions/listen` (replaces GET stream + `resources/subscribe`) | SDK | Blocked, and irrelevant: neither server subscribes or streams. |
+| MRTR / `InputRequiredResult`, `resultType` on every result | SDK | Blocked. |
+| Remove `Mcp-Session-Id` | SDK | **Already aligned** — see below. |
+| Remove SSE resumability / `Last-Event-ID` | SDK | **Already aligned** — no event store anywhere. |
+| `CacheableResult` (`ttlMs`, `cacheScope`) | SDK | Blocked; the fields don't exist in 1.30's types. |
+| `Mcp-Method` / `Mcp-Name` request headers | SDK | Blocked. |
+| Error-code allocation policy | us | **Done** — see below. |
+| Resource-not-found `-32002` → `-32602` | us | **Done** (v1 throws `ErrorCode.InvalidParams`, which already *is* `-32602`; v2 has no resources). |
+| Deprecate Roots / Sampling / Logging | us | No-op: neither server uses any of them. |
+| Deprecate HTTP+SSE transport | us | v1/v2 are Streamable-HTTP only. The outbound `UserMCPClient` keeps an SSE path for third-party servers whose URL ends in `/sse` — **deliberate back-compat**, not to be removed. |
+| `iss` in authorization responses (RFC 9207) | mixed | Outbound client: **done** (validated in `McpOAuthService`). v2 as AS: **blocked on Better Auth** — its `mcp` plugin builds the redirect without `iss` and advertises no `authorization_response_iss_parameter_supported`. |
+| `application_type` on DCR (SEP-837) | mixed | Outbound client: **done** (sends `web`). v2 as AS: **blocked on Better Auth** — `registerMcpClientBodySchema` has no such field and strips it. |
+| DCR deprecated in favour of Client ID Metadata Documents | Better Auth / SDK | Blocked upstream; DCR remains the only registration path. Note only. |
+
+**Two places we are already conformant — do not "fix" them backwards:**
+
+1. **Stateless, no session id.** Both servers omit `sessionIdGenerator` and build a
+   fresh `McpServer` per POST; `GET`/`DELETE` → 405. This is what keeps claude.ai
+   and ChatGPT tool discovery working, and it is the direction 2026-07-28 codifies.
+   `mcp-session-id` stays in v1's CORS `allowedHeaders` (permissive — stateful SDK
+   clients still send it) but is *exposed* by neither server.
+2. **No SSE resumability.** No event store, no `Last-Event-ID`.
+
+**Error codes.** The revision splits the server-error range: `-32000..-32019`
+implementation-defined, `-32020..-32099` reserved for the spec. Both servers now
+keep their codes in the lower window (rate limiting moved `-32029` → `-32003`);
+constants live at the top of `services/mcp/src/index.ts` and
+`apps/api/routes/mcp-server/index.ts`.
+
+**Known cosmetic mismatch:** the SDK's `McpServer` unconditionally registers
+`tools.listChanged: true` and fires `sendToolListChanged()` on every
+`registerTool`, even though a stateless transport can never deliver the
+notification. Not worth working around.
+
+**Trigger to revisit:** `services/mcp/src/protocol-version.vitest.ts` asserts the
+SDK's `LATEST_PROTOCOL_VERSION` is still `2025-11-25`. It runs in CI, so the
+dependabot PR that bumps `@modelcontextprotocol/sdk` past it goes red at exactly
+the point the question becomes answerable — don't just update the string, work
+back through this table. Separately, the smoke test
+(`pnpm --filter @gruenerator/mcp smoke`) soft-checks that the *deployed* image
+speaks the same revision, which catches image-behind-repo drift. No calendar
+reminder needed for either.
+
 ### Testing v1 with curl
 
 ```bash

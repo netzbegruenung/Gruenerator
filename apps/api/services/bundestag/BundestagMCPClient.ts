@@ -14,6 +14,7 @@
  *    fail, when the MCP server misbehaves.
  */
 
+import { LATEST_PROTOCOL_VERSION } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 import { env } from '../../config/env.js';
@@ -200,13 +201,22 @@ function mapVorgang(raw: z.infer<typeof rawVorgangSchema>): BtVorgang | null {
   };
 }
 
+/**
+ * Handshake-less by design: we POST `tools/call` straight at the remote without
+ * an `initialize` round-trip and without a session id.
+ *
+ * That is deliberate, not an oversight. mcp.bundestag-wrapped.de is our own
+ * server and runs stateless (like mcp.gruenerator.eu), the SDK's HTTP transport
+ * doesn't gate requests on a prior handshake, and spec revision 2026-07-28
+ * removes `initialize` outright — so adding one now would be a round-trip per
+ * call that we would delete again. We do send `MCP-Protocol-Version` so the
+ * remote can negotiate if it ever starts checking.
+ */
 class BundestagMCPClient {
   private baseUrl: string;
-  private sessionId: string | null;
 
   constructor(baseUrl: string = BUNDESTAG_MCP_URL) {
     this.baseUrl = baseUrl;
-    this.sessionId = null;
   }
 
   private async _callTool(
@@ -235,6 +245,7 @@ class BundestagMCPClient {
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json, text/event-stream',
+          'MCP-Protocol-Version': LATEST_PROTOCOL_VERSION,
         },
         body: JSON.stringify(body),
         signal: controller.signal,

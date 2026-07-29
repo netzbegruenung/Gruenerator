@@ -6,9 +6,13 @@
 //   MCP_URL=http://localhost:3004 node services/mcp/scripts/mcp-smoke-test.mjs
 //   MCP_API_KEY=<bearer> node services/mcp/scripts/mcp-smoke-test.mjs   # also exercises authenticated notebook tools
 //
-// Exit 0 = all hard checks passed. Checks tagged [NEW] need the post-2026-07-04
-// image (session-404, zero-result hints); they report PENDING-DEPLOY instead of
-// failing while the old image is still live.
+// Exit 0 = all hard checks passed. Checks tagged [NEW] are advisory: they report
+// PENDING instead of failing, and cover things that are expected to change (a
+// not-yet-deployed image, or the SDK finally shipping spec 2026-07-28).
+//
+// Deliberately not covered: the per-IP rate limit. Verifying it means firing
+// MCP_RATE_LIMIT_PER_MIN+ requests, which against prod is indistinguishable from
+// abuse and would leave real clients throttled for the rest of the window.
 
 const BASE = (process.argv[2] || process.env.MCP_URL || 'https://mcp.gruenerator.eu').replace(
   /\/$/,
@@ -17,6 +21,12 @@ const BASE = (process.argv[2] || process.env.MCP_URL || 'https://mcp.gruenerator
 const MCP = `${BASE}/mcp`;
 const API_KEY = process.env.MCP_API_KEY || null;
 const TIMEOUT_MS = 45000;
+
+// Highest revision the pinned SDK implements. This is a *baseline* compared
+// against the deployed image, so it stays a literal rather than importing the
+// local SDK constant. src/protocol-version.vitest.ts is what fails in CI when
+// the SDK itself moves past this.
+const PROTOCOL_VERSION = '2025-11-25';
 
 let sessionId = null;
 let idCounter = 0;
@@ -57,6 +67,16 @@ async function post(body, extraHeaders = {}) {
 
 function rpc(method, params) {
   return post({ jsonrpc: '2.0', id: ++idCounter, method, params });
+}
+
+/** GET a JSON endpoint; null on any transport/parse failure. */
+async function getJson(path) {
+  try {
+    const res = await fetch(`${BASE}${path}`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+    return await res.json();
+  } catch {
+    return null;
+  }
 }
 
 async function notify(method, params) {
@@ -103,7 +123,7 @@ function check(name, ok, detail = '') {
 function checkNew(name, ok, detail = '') {
   results.push({ name, ok: true, soft: !ok });
   console.log(
-    `  ${ok ? GREEN + 'PASS' : YELLOW + 'PENDING-DEPLOY'}${RESET}  [NEW] ${name}${detail ? ` — ${detail}` : ''}`
+    `  ${ok ? GREEN + 'PASS' : YELLOW + 'PENDING'}${RESET}  [NEW] ${name}${detail ? ` — ${detail}` : ''}`
   );
 }
 
@@ -124,25 +144,44 @@ async function main() {
     check('GET /health', false, String(err));
   }
 
+  // Statelessness is the contract, so assert the *absence* of a session. A
+  // returned Mcp-Session-Id would mean the server had silently gone stateful,
+  // which is what broke claude.ai/ChatGPT tool discovery before.
   const init = await post({
     jsonrpc: '2.0',
     id: ++idCounter,
     method: 'initialize',
     params: {
-      protocolVersion: '2025-03-26',
+      protocolVersion: PROTOCOL_VERSION,
       capabilities: {},
       clientInfo: { name: 'smoke-test', version: '1.0.0' },
     },
   });
   check(
-    'initialize + session id',
-    init.status === 200 && !!sessionId && !!init.msg?.result?.serverInfo,
-    sessionId ? `session ${sessionId.slice(0, 8)}…` : 'no session'
+    'initialize → no session (stateless)',
+    init.status === 200 && !sessionId && !!init.msg?.result?.serverInfo,
+    sessionId ? `unexpected session ${sessionId.slice(0, 8)}…` : 'no Mcp-Session-Id, as expected'
   );
   await notify('notifications/initialized', {});
 
-  const tools = await rpc('tools/list', {});
-  const toolNames = (tools.msg?.result?.tools || []).map((t) => t.name);
+  // Spec 2026-07-28 removes the initialize handshake entirely, and our own
+  // BundestagMCPClient already relies on being able to skip it. If this ever
+  // breaks, that client breaks with it.
+  const bare = await post({
+    jsonrpc: '2.0',
+    id: ++idCounter,
+    method: 'tools/list',
+    params: {},
+  });
+  check(
+    'tools/list without initialize',
+    bare.status === 200 && Array.isArray(bare.msg?.result?.tools),
+    `${bare.msg?.result?.tools?.length ?? 0} tools`
+  );
+
+  // Same request as `bare` on a stateless server, so reuse it rather than
+  // spending another round-trip.
+  const toolNames = (bare.msg?.result?.tools || []).map((t) => t.name);
   check('tools/list', toolNames.length > 0, `${toolNames.length} tools: ${toolNames.join(', ')}`);
 
   const resList = await rpc('resources/list', {});
@@ -332,20 +371,62 @@ async function main() {
     unknownTool.msg?.error?.message || 'isError'
   );
 
-  const bogus = await fetch(MCP, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json, text/event-stream',
-      'Mcp-Session-Id': '00000000-0000-0000-0000-000000000000',
-    },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 999, method: 'tools/list', params: {} }),
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  });
+  // ---- Transport contract ----
+  console.log('\nTransport:');
+
+  // A stateless server has no session table to miss in, so a bogus session id
+  // is simply ignored rather than 404'd.
+  const bogus = await post(
+    { jsonrpc: '2.0', id: ++idCounter, method: 'tools/list', params: {} },
+    { 'Mcp-Session-Id': '00000000-0000-0000-0000-000000000000' }
+  );
+  check('bogus session id ignored', bogus.status === 200, `HTTP ${bogus.status}`);
+
+  // SDK 1.30 validates Content-Type by parsed media type rather than substring
+  // match — a charset parameter must still be accepted.
+  const charset = await post(
+    { jsonrpc: '2.0', id: ++idCounter, method: 'tools/list', params: {} },
+    { 'Content-Type': 'application/json; charset=utf-8' }
+  );
+  check('Content-Type with charset accepted', charset.status === 200, `HTTP ${charset.status}`);
+
+  for (const method of ['GET', 'DELETE']) {
+    const res = await fetch(MCP, { method, signal: AbortSignal.timeout(TIMEOUT_MS) });
+    let code = null;
+    try {
+      code = (await res.json())?.error?.code;
+    } catch {
+      /* non-json */
+    }
+    check(
+      `${method} /mcp → 405 (-32000)`,
+      res.status === 405 && code === -32000,
+      `HTTP ${res.status}, code ${code}`
+    );
+  }
+
+  // The manifest derives from the same catalogue the server registers from, so
+  // an anonymous tools/list must match it exactly.
+  const manifest = await getJson('/.well-known/mcp.json');
+  const anonNames = (bare.msg?.result?.tools || []).map((t) => t.name).sort();
+  const manifestNames = (manifest?.tools || []).map((t) => t.name).sort();
+  check(
+    '/.well-known/mcp.json matches tools/list',
+    manifestNames.length > 0 && JSON.stringify(manifestNames) === JSON.stringify(anonNames),
+    `manifest ${manifestNames.length} vs list ${anonNames.length}`
+  );
+
+  // Deploy-drift detector: the running image should speak the same protocol
+  // revision as the SDK this repo pins. Soft, because during a rollout the two
+  // legitimately differ for a while. The *repo-side* canary — "has the SDK
+  // shipped 2026-07-28 yet?" — lives in src/protocol-version.vitest.ts, where
+  // it runs in CI on the dependency bump instead of after a deploy.
+  const health = await getJson('/health/mcp');
+  const newest = [...(health?.mcp?.supportedProtocolVersions || [])].sort().pop();
   checkNew(
-    'unknown session → 404 (auto-reconnect)',
-    bogus.status === 404,
-    `got HTTP ${bogus.status}`
+    `deployed image speaks ${PROTOCOL_VERSION}`,
+    newest === PROTOCOL_VERSION,
+    `newest ${newest ?? 'unknown'}`
   );
 
   // ---- Summary ----
