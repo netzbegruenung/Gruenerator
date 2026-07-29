@@ -44,14 +44,7 @@ async function render(imageBuffer: Buffer, quote: string, name: string): Promise
 
   drawCoverImage(ctx, await loadImage(imageBuffer));
 
-  // Dunkelgrüner Verlauf. Die Stützstellen sind dieselben wie in
-  // ZITAT_AT_CONFIG.scrim — der Konva-Pfad baut daraus dieselben Colorstops.
-  const gradient = ctx.createLinearGradient(0, 0, 0, CANVAS.height);
-  for (const stop of ZITAT.scrim.curve) {
-    gradient.addColorStop(stop.at, `rgba(${ZITAT.scrim.color}, ${stop.opacity})`);
-  }
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, CANVAS.width, CANVAS.height);
+  // Kein Verlauf über dem Foto — die österreichische CI kennt keinen.
 
   const fontSize = ZITAT.baseFontSize;
   const lineHeight = Math.round(fontSize * ZITAT.lineHeightRatio);

@@ -1,15 +1,17 @@
 /**
  * ZitatPure AT Full Canvas Configuration (Österreich / de-AT)
- * Quote sharepic on a solid dark-green background — centred, weißes
- * Anführungszeichen, weißes Zitat (Gotham), gelber Name (CI 2026).
  *
- * Reuses the DE zitat-pure geometry (ZITAT_PURE_CONFIG / calculateZitatPureLayout)
- * and only swaps brand tokens from getBrandTheme('de-AT').
+ * Zitat auf einfarbiger Fläche — mittig, weißes Anführungszeichen, weißes
+ * Zitat in Gotham Narrow Ultra, gelber Name.
+ *
+ * Eigene Geometrie über ZITAT_PURE_AT_CONFIG. Die deutsche ZITAT_PURE_CONFIG
+ * setzt bei 81–97 px in ein 930er Satzmaß und schätzt die Zeilenzahl mit einer
+ * Zeichenbreiten-Heuristik, die bei den schmalen AT-Schnitten um mehrere
+ * Zeilen danebenliegt — der Name schwebte dadurch frei unter dem Zitat.
  */
 
 import { getBrandTheme } from '../brand/theme';
-import { SYSTEM_ASSETS } from '../utils/canvasAssets';
-import { ZITAT_PURE_CONFIG, calculateZitatPureLayout } from '../utils/zitatPureLayout';
+import { ZITAT_PURE_AT_CONFIG, calculateZitatPureAtLayout } from '../utils/zitatPureAtLayout';
 
 import {
   createAiCapabilities,
@@ -25,9 +27,7 @@ import {
 import type { ImageElementConfig, LayoutResult } from './types';
 
 const AT = getBrandTheme('de-AT');
-
-const CANVAS_W = ZITAT_PURE_CONFIG.canvas.width;
-const QUOTE_MARK_CENTER_X = (CANVAS_W - ZITAT_PURE_CONFIG.quotationMark.size) / 2;
+const Z = ZITAT_PURE_AT_CONFIG;
 
 type ZitatPureAtState = ColorTwoTextState<'quote' | 'name'>;
 
@@ -35,27 +35,31 @@ const metaFontColor = (_state: ZitatPureAtState, layout: LayoutResult) =>
   (layout._meta as { fontColor?: string } | undefined)?.fontColor;
 
 const calculateLayout = (state: ZitatPureAtState): LayoutResult => {
-  const quote = state.quote || '';
-  const l = calculateZitatPureLayout(quote);
+  const l = calculateZitatPureAtLayout(
+    state.quote || '',
+    state.name || '',
+    state.customPrimaryFontSize
+  );
   const fontColor = AT.textColorMap[state.backgroundColor] ?? AT.colors.textOnDark;
 
   return {
     'quote-mark': {
-      x: QUOTE_MARK_CENTER_X,
+      x: l.quoteMarkX,
       y: l.quoteMarkY,
-      width: ZITAT_PURE_CONFIG.quotationMark.size,
-      height: ZITAT_PURE_CONFIG.quotationMark.size,
+      width: l.quoteMarkSize,
+      height: l.quoteMarkSize,
     },
     'quote-text': {
-      x: ZITAT_PURE_CONFIG.quote.x,
+      x: Z.margin,
       y: l.quoteY,
-      width: ZITAT_PURE_CONFIG.quote.maxWidth,
-      fontSize: state.customPrimaryFontSize ?? l.quoteFontSize,
+      width: Z.maxWidth,
+      fontSize: l.quoteFontSize,
+      lineHeight: l.lineHeight,
     },
     'name-text': {
-      x: ZITAT_PURE_CONFIG.author.x,
+      x: Z.margin,
       y: l.authorY,
-      width: ZITAT_PURE_CONFIG.quote.maxWidth,
+      width: Z.maxWidth,
       fontSize: state.customSecondaryFontSize ?? l.authorFontSize,
     },
     _meta: {
@@ -69,12 +73,12 @@ const calculateLayout = (state: ZitatPureAtState): LayoutResult => {
 const quoteMarkElement: ImageElementConfig<ZitatPureAtState> = {
   id: 'quote-mark',
   type: 'image',
-  x: fromLayout('quote-mark', 'x', QUOTE_MARK_CENTER_X),
-  y: fromLayout('quote-mark', 'y', 120),
+  x: fromLayout('quote-mark', 'x', (Z.canvas.width - 106) / 2),
+  y: fromLayout('quote-mark', 'y', 400),
   order: 1,
-  width: ZITAT_PURE_CONFIG.quotationMark.size,
-  height: ZITAT_PURE_CONFIG.quotationMark.size,
-  src: SYSTEM_ASSETS.quote.white.src,
+  width: fromLayout('quote-mark', 'width', 106),
+  height: fromLayout('quote-mark', 'height', 106),
+  src: Z.quotationMark.src,
   listening: true,
   draggable: true,
   offsetKey: 'quoteMarkOffset',
@@ -85,18 +89,14 @@ const quoteTextElement = createPrimaryText<ZitatPureAtState>({
   id: 'quote-text',
   textKey: 'quote',
   order: 2,
-  width: ZITAT_PURE_CONFIG.quote.maxWidth,
-  fontFamily: AT.fonts.quoteShort,
+  width: Z.maxWidth,
+  fontFamily: Z.quote.fontFamily,
   fontStyle: 'normal',
-  lineHeight: ZITAT_PURE_CONFIG.quote.lineHeight,
+  lineHeight: Z.quote.lineHeightRatio,
   align: 'center',
   defaultColor: AT.colors.textOnDark,
   fillFallback: metaFontColor,
-  layoutFallback: {
-    x: ZITAT_PURE_CONFIG.quote.x,
-    y: 200,
-    fontSize: ZITAT_PURE_CONFIG.quote.fontSize,
-  },
+  layoutFallback: { x: Z.margin, y: 500, fontSize: Z.quote.fontSize },
 });
 
 const nameTextElement = createSecondaryText<ZitatPureAtState>({
@@ -104,24 +104,20 @@ const nameTextElement = createSecondaryText<ZitatPureAtState>({
   textKey: 'name',
   order: 3,
   positionStateKey: 'namePosition',
-  width: ZITAT_PURE_CONFIG.quote.maxWidth,
+  width: Z.maxWidth,
   fontFamily: AT.fonts.body,
   fontStyle: 'normal',
   align: 'center',
   // Name is always the accent colour (Gelb), independent of background.
   defaultColor: AT.colors.accent,
-  layoutFallback: {
-    x: ZITAT_PURE_CONFIG.author.x,
-    y: 500,
-    fontSize: ZITAT_PURE_CONFIG.author.fontSize,
-  },
+  layoutFallback: { x: Z.margin, y: 850, fontSize: 34 },
 });
 
 const baseZitatPureAtConfig = createColorTwoTextCanvas({
   id: 'zitat-pure-at',
   canvas: {
-    width: ZITAT_PURE_CONFIG.canvas.width,
-    height: ZITAT_PURE_CONFIG.canvas.height,
+    width: Z.canvas.width,
+    height: Z.canvas.height,
   },
   primaryField: { key: 'quote', label: 'Zitat' },
   secondaryField: { key: 'name', label: 'Name' },
