@@ -8,15 +8,8 @@
  * two sampling numbers. Those live in the records below, where they can be read
  * side by side and argued about.
  *
- * The exception, and the reason this file has a `SAMPLING` record rather than
- * one set of numbers: the providers sample differently, and on the fallback path
- * that difference is not something the caller chose. mistral follows the
- * type/platform table in `services/ai/config.ts`; the other three use fixed
- * values. So the same request gets different parameters depending on who
- * answers — a Twitter post is capped at 120 output tokens on mistral and
- * uncapped on the litellm fallback. That is pinned by
- * `__tests__/sampling.vitest.ts` and unified in a separate, eval-gated commit,
- * because changing it changes generated text and is not a refactor.
+ * Sampling is likewise one decision now — see `samplingFor`. It used to be four,
+ * chosen by whichever provider the fallback chain reached.
  */
 
 import { defaultSettingsMiddleware, generateText, wrapLanguageModel } from 'ai';
@@ -47,42 +40,43 @@ const defaultDeps: ExecuteDeps = { generateText };
 interface Sampling {
   temperature: number;
   topP: number;
-  /** Omitted when the caller named no budget, so the provider default applies. */
-  maxOutputTokens?: number;
+  maxOutputTokens: number;
 }
 
-type SamplingResolver = (data: AIRequestData, options: AIRequestOptions) => Sampling;
-
-/** What the caller asked for, or the provider's fixed default. */
-const fixed =
-  (temperature: number, topP: number): SamplingResolver =>
-  (_data, options) => ({
-    temperature: options.temperature ?? temperature,
-    topP: options.top_p ?? topP,
-    ...(options.max_tokens != null && { maxOutputTokens: options.max_tokens }),
+/**
+ * Sampling parameters for a request — the same ones no matter who answers.
+ *
+ * This used to be one resolver per provider: mistral consulted the
+ * type/platform table in `services/ai/config.ts`, litellm hardcoded 0.7/1.0,
+ * regolo and greenpt hardcoded 0/0.1. Which of those a request got was decided
+ * by the fallback chain, not by the caller — so a press release drafted on the
+ * mistral primary and the same press release drafted on the litellm fallback
+ * were sampled differently, and a Twitter post was capped at 120 output tokens
+ * on one lane and uncapped on the other. Nobody chose that; it accumulated.
+ *
+ * One table now. `getGenerationConfig` already encodes the intent (formal types
+ * cool, social types warm, per-platform token budgets), and that intent belongs
+ * to the REQUEST, not to whichever provider happened to be reachable.
+ */
+function samplingFor(data: AIRequestData, options: AIRequestOptions): Sampling {
+  const config = getGenerationConfig({
+    type: data.type,
+    systemPrompt: data.systemPrompt,
+    platforms: (data.metadata as { platforms?: string[] } | undefined)?.platforms,
+    temperature: options.temperature,
+    maxTokens: options.max_tokens,
+    topP: options.top_p,
   });
 
-const SAMPLING: Record<ProviderName, SamplingResolver> = {
-  mistral: (data, options) => {
-    const config = getGenerationConfig({
-      type: data.type,
-      systemPrompt: data.systemPrompt,
-      platforms: (data.metadata as { platforms?: string[] } | undefined)?.platforms,
-      temperature: options.temperature,
-      maxTokens: options.max_tokens,
-      topP: options.top_p,
-    });
-    return {
-      temperature: config.temperature,
-      // Mistral requires top_p=1 for greedy sampling.
-      topP: config.temperature === 0 && config.topP !== 1 ? 1.0 : config.topP,
-      maxOutputTokens: config.maxTokens,
-    };
-  },
-  litellm: fixed(0.7, 1.0),
-  regolo: fixed(0, 0.1),
-  greenpt: fixed(0, 0.1),
-};
+  return {
+    temperature: config.temperature,
+    // Greedy decoding wants top_p=1; Mistral rejects the combination outright,
+    // the others merely behave oddly. `determineTopP` already returns 1.0 for
+    // temperature 0, so this only catches an explicitly passed pair.
+    topP: config.temperature === 0 && config.topP !== 1 ? 1.0 : config.topP,
+    maxOutputTokens: config.maxTokens,
+  };
+}
 
 /**
  * The model, plus JSON mode when the caller asked for it.
@@ -133,7 +127,7 @@ export async function execute(
   }
 
   const model = options.model || getDefaultModel(provider);
-  const sampling = SAMPLING[provider](data, options);
+  const sampling = samplingFor(data, options);
 
   const { system, messages: modelMessages } = await convertMessages(messages, systemPrompt);
 
@@ -161,7 +155,7 @@ export async function execute(
       messages: modelMessages,
       temperature: sampling.temperature,
       topP: sampling.topP,
-      ...(sampling.maxOutputTokens != null && { maxOutputTokens: sampling.maxOutputTokens }),
+      maxOutputTokens: sampling.maxOutputTokens,
       maxRetries: 2,
       ...(tools != null && { tools }),
       ...(toolChoice != null && { toolChoice }),
