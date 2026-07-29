@@ -85,32 +85,38 @@ describe('an explicit sampling value reaches the model', () => {
 });
 
 /**
- * The defaults, as they stand. Not an endorsement — a fixture. Whoever changes
- * these numbers is making a generation-quality decision and should have to say
- * so in a diff, not discover it later in an eval run.
+ * The defaults, now identical across providers.
+ *
+ * They were not. mistral consulted the type/platform table, litellm hardcoded
+ * 0.7/1.0, regolo and greenpt hardcoded 0/0.1 — and which one a request got was
+ * decided by the fallback chain rather than by the caller. This block is what
+ * that change had to walk through: it asserted the divergence before, so the
+ * commit unifying it could not happen quietly.
  */
-describe('per-provider defaults when the caller says nothing', () => {
-  const EXPECTED: Record<string, { temperature: number; topP: number }> = {
-    // From getGenerationConfig({type:'chat'}): no type entry, so the generic
-    // default 0.35, and topP follows from the temperature band (<= 0.5 → 0.9).
-    mistral: { temperature: 0.35, topP: 0.9 },
-    litellm: { temperature: 0.7, topP: 1.0 },
-    regolo: { temperature: 0, topP: 0.1 },
-    greenpt: { temperature: 0, topP: 0.1 },
-  };
-
-  for (const name of PROVIDERS) {
-    it(`${name} defaults to ${EXPECTED[name].temperature} / ${EXPECTED[name].topP}`, async () => {
+describe('sampling is the same wherever the request lands', () => {
+  it('every provider gets the type default', async () => {
+    // getGenerationConfig({type:'chat'}): no entry for `chat`, so the generic
+    // default 0.35, and topP follows the temperature band (<= 0.5 → 0.9).
+    for (const name of PROVIDERS) {
+      generateText.mockClear();
       await run(name, request());
-      expect(sentToSdk().temperature).toBe(EXPECTED[name].temperature);
-      expect(sentToSdk().topP).toBe(EXPECTED[name].topP);
-    });
-  }
+      expect(sentToSdk().temperature, name).toBe(0.35);
+      expect(sentToSdk().topP, name).toBe(0.9);
+    }
+  });
 
-  it('only mistral caps output tokens by type/platform', async () => {
-    // A twitter post is capped at 120 tokens on mistral (PLATFORM_MAX_TOKENS)
-    // and uncapped on the other three — so the same post is a different length
-    // depending on which provider the fallback chain reached.
+  it('a formal type is cool on every provider', async () => {
+    for (const name of PROVIDERS) {
+      generateText.mockClear();
+      await run(name, { ...request(), type: 'presse' });
+      expect(sentToSdk().temperature, name).toBe(0.3);
+    }
+  });
+
+  it('a twitter post is capped at 120 tokens on every provider', async () => {
+    // The clearest case of the old split: capped on mistral by
+    // PLATFORM_MAX_TOKENS, uncapped everywhere else — so the same post came out
+    // a different length depending on which lane the fallback chain reached.
     const social = {
       type: 'social',
       messages: [{ role: 'user' as const, content: 'Post' }],
@@ -118,13 +124,19 @@ describe('per-provider defaults when the caller says nothing', () => {
       metadata: { platforms: ['twitter'] },
     };
 
-    await run('mistral', social);
-    expect(sentToSdk().maxOutputTokens).toBe(120);
-
-    for (const provider of ['litellm', 'regolo', 'greenpt'] as const) {
+    for (const name of PROVIDERS) {
       generateText.mockClear();
-      await run(provider, social);
-      expect(sentToSdk().maxOutputTokens).toBeUndefined();
+      await run(name, social);
+      expect(sentToSdk().maxOutputTokens, name).toBe(120);
+    }
+  });
+
+  it('greedy decoding gets top_p 1 rather than a stray narrow value', async () => {
+    for (const name of PROVIDERS) {
+      generateText.mockClear();
+      await run(name, request({ temperature: 0, top_p: 0.1 }));
+      expect(sentToSdk().temperature, name).toBe(0);
+      expect(sentToSdk().topP, name).toBe(1);
     }
   });
 });
