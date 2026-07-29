@@ -315,6 +315,7 @@ export type CanvasConfigId =
   | 'zitat-at'
   | 'zitat-pure-at'
   | 'dreizeilen-at'
+  | 'dreizeilen-overlay-at'
   | 'freeform-at';
 
 /** A page in a heterogeneous multi-page document */
