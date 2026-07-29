@@ -365,6 +365,8 @@ export {
   setDocMentionables,
   getDocMentionables,
   toolMentionables,
+  visibleToolMentionables,
+  visibleNotebookMentionables,
   filterMentionablesByCategory,
   type Mentionable,
   type MentionableType,

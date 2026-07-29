@@ -92,7 +92,14 @@ export function createSearchTools(
     (localeDefault && allowedCollections.includes(localeDefault)
       ? localeDefault
       : allowedCollections[0]);
-  const examplesCountry = restrictions?.examplesCountry;
+  // Same locale fallback the deterministic search node applies (searchNode's
+  // examples branch): an explicit per-agent `examplesCountry` wins, otherwise an
+  // AT user grounds in Austrian examples. Without this an AT user on a generic
+  // agent got German social/press posts as style templates on the loop path
+  // while the single-pass path got it right — `gruene_at_documents` exists.
+  // Callers that pass no locale (e.g. the board agent) keep `undefined`.
+  const examplesCountry =
+    restrictions?.examplesCountry ?? (options.userLocale === 'de-AT' ? 'AT' : undefined);
   // Landesverband scope for example searches — derived from the agent so an LV
   // agent only grounds in its own LV's social/press examples. Without this the
   // press tool pulls PMs from all LVs and mimics the wrong one (e.g. a
