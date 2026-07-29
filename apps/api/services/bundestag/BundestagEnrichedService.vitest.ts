@@ -10,6 +10,9 @@
  */
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 
+import { SUBSTANTIVE_ENTITY_TYPES } from './BundestagMCPClient.js';
+
+import type * as BundestagMCPClientModule from './BundestagMCPClient.js';
 import type { BtListResult } from './BundestagMCPClient.js';
 
 const { clientMock, extractNameMock } = vi.hoisted(() => ({
@@ -24,7 +27,12 @@ const { clientMock, extractNameMock } = vi.hoisted(() => ({
   extractNameMock: vi.fn(),
 }));
 
-vi.mock('./BundestagMCPClient.js', () => ({
+// Spread the real module so `CURRENT_WAHLPERIODE` and `SUBSTANTIVE_ENTITY_TYPES`
+// keep their production values — the assertions below check that the service
+// forwards exactly those, which a hand-copied constant in the mock could not
+// prove. Only the client factory is replaced.
+vi.mock('./BundestagMCPClient.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof BundestagMCPClientModule>()),
   getBundestagMCPClient: () => clientMock,
 }));
 
@@ -227,6 +235,62 @@ describe('BundestagEnrichedService — topic routing', () => {
     expect(result.kind).toBe('topic');
     expect(result.topic?.hits).toHaveLength(1);
     expect(clientMock.searchSpeeches).toHaveBeenCalledWith(expect.objectContaining({ limit: 2 }));
+    // Without the type filter the six slots fill with Bundesrat
+    // Beschluss/Empfehlungen/Stellungnahme records; the overfetch to 10 exists
+    // so dedupeHits can drop duplicates and still deliver six.
+    expect(clientMock.semanticSearch).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 10, entityTypes: SUBSTANTIVE_ENTITY_TYPES })
+    );
+  });
+
+  it('collapses a bill that DIP returns as both a Bundestag and a Bundesrat record', async () => {
+    const title = 'Entwurf eines Gesetzes zur Änderung des Wärmeplanungsgesetzes';
+    clientMock.semanticSearch.mockResolvedValue(
+      listOf(
+        // Bundesrat numbering (Nummer/Jahr) arrives first, scored higher.
+        {
+          docType: 'drucksache',
+          docId: '1',
+          entityType: 'Gesetzentwurf',
+          title,
+          abstract: null,
+          dokumentnummer: '332/26',
+          date: '2026-05-29',
+          wahlperiode: 21,
+          score: 0.84,
+        },
+        // Same bill as a Bundestag Drucksache (<wahlperiode>/<Nummer>).
+        {
+          docType: 'drucksache',
+          docId: '2',
+          entityType: 'Gesetzentwurf',
+          title,
+          abstract: null,
+          dokumentnummer: '21/6587',
+          date: '2026-06-22',
+          wahlperiode: 21,
+          score: 0.83,
+        },
+        {
+          docType: 'drucksache',
+          docId: '3',
+          entityType: 'Antrag',
+          title: 'Kommunale Wärmeplanung beschleunigen',
+          abstract: null,
+          dokumentnummer: '21/1928',
+          date: '2025-10-01',
+          wahlperiode: 21,
+          score: 0.8,
+        }
+      )
+    );
+
+    const result = await new BundestagEnrichedService().search('Wärmeplanungsgesetz');
+
+    expect(result.topic?.hits).toHaveLength(2);
+    // The Bundestag document wins its group even though it scored lower.
+    expect(result.topic?.hits[0]?.dokumentnummer).toBe('21/6587');
+    expect(result.topic?.hits[1]?.dokumentnummer).toBe('21/1928');
   });
 
   it('requests more speeches when the query asks for debates/speeches', async () => {
