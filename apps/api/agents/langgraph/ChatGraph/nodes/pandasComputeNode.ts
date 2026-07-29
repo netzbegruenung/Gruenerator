@@ -89,9 +89,15 @@ function stripCodeFences(raw: string): string {
 
 /**
  * Parse the codegen response. Primary path is JSON mode ({related, code});
- * fallback treats the whole content as raw code because not every provider
- * adapter honors response_format (the native mistralAdapter drops it — only
- * the litellm/regolo OpenAI-compatible path enforces JSON).
+ * the fallback treats the whole content as raw code.
+ *
+ * That fallback used to be the ONLY path. An earlier note here said only the
+ * OpenAI-compatible adapters enforced JSON and that mistral dropped it — in
+ * fact no adapter read `response_format` at all, so every caller that believed
+ * it was in JSON mode was really just asking nicely in the prompt. The option
+ * is honoured now; the lenient fallback stays, because a model under a format
+ * constraint can still answer badly and losing the answer to a parse error
+ * would be a worse failure than the one being fixed.
  */
 export function parseCodegenResponse(raw: string): { related: boolean; code: string } {
   const stripped = stripCodeFences(raw);

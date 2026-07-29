@@ -19,7 +19,7 @@
  * because changing it changes generated text and is not a refactor.
  */
 
-import { generateText } from 'ai';
+import { defaultSettingsMiddleware, generateText, wrapLanguageModel } from 'ai';
 
 import { getGenerationConfig } from '../../services/ai/config.js';
 import { getDefaultModel, getModel, isProviderConfigured } from '../../services/ai/providers.js';
@@ -34,6 +34,7 @@ import {
 
 import type { ProviderName } from '../../services/ai/providers.js';
 import type { AIRequestData, AIRequestOptions, AIWorkerResult } from '../types.js';
+import type { LanguageModel } from 'ai';
 
 /** Injected so tests drive the executor with a fake instead of `vi.mock('ai')`
  *  — the pattern `loopEngine.ts` uses, and the one that survives an SDK rename. */
@@ -83,6 +84,32 @@ const SAMPLING: Record<ProviderName, SamplingResolver> = {
   greenpt: fixed(0, 0.1),
 };
 
+/**
+ * The model, plus JSON mode when the caller asked for it.
+ *
+ * `options.response_format` has been part of `AIRequestOptions` all along and
+ * was read by NO adapter, so the eight call sites that set
+ * `{type:'json_object'}` — the chat classifier, the compute nodes, the quality
+ * gate, query expansion, the board agent — believed they were constrained and
+ * were merely asking nicely in the prompt. Both provider packages map
+ * `responseFormat: {type:'json'}` onto the wire field, so one middleware covers
+ * all four lanes.
+ *
+ * Wrapped OUTSIDE `getModel` on purpose: `getModel` already wraps for usage
+ * accounting, and wrapping the other way round would put this between the
+ * accountant and the model.
+ */
+function modelFor(provider: ProviderName, model: string, options: AIRequestOptions): LanguageModel {
+  const base = getModel(provider, model);
+  // `LanguageModel` also admits a bare gateway id string, which cannot be
+  // wrapped. `getModel` never returns one — same narrowing as `withUsageTracking`.
+  if (options.response_format?.type !== 'json_object' || typeof base === 'string') return base;
+  return wrapLanguageModel({
+    model: base,
+    middleware: defaultSettingsMiddleware({ settings: { responseFormat: { type: 'json' } } }),
+  });
+}
+
 /** Which env var to point the operator at when a lane is unconfigured. */
 const CONFIG_HINT: Record<ProviderName, string> = {
   mistral: 'MISTRAL_API_KEY',
@@ -129,7 +156,7 @@ export async function execute(
     // against the error message, so a provider that reworded its errors silently
     // stopped being retried. The SDK reads the structured `APICallError`.
     const result = await deps.generateText({
-      model: getModel(provider, model),
+      model: modelFor(provider, model, options),
       ...(system != null && { system }),
       messages: modelMessages,
       temperature: sampling.temperature,
