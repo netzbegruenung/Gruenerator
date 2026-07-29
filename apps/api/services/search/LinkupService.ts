@@ -2,13 +2,22 @@
  * Linkup Service
  *
  * Thin client around the Linkup agentic-search API (https://docs.linkup.so).
- * Two orthogonal knobs — depth (standard|deep) and outputType:
+ * Two orthogonal knobs — depth (fast|standard|deep) and outputType:
  *   - webSearch    → outputType=searchResults, depth per call. The chat's only
  *                    retrieval door; WE write the answer and own the [N].
  *   - deepResearch → depth=deep, outputType=sourcedAnswer. LINKUP writes the
  *                    answer. Used by the Monitor's daily briefing pipeline, no
  *                    longer by the chat — a chat answer the model didn't write
  *                    cannot be cited against our own source registry.
+ *
+ * Which tier picks which depth is NOT decided here — see `searchDepth.ts`.
+ *
+ * Deliberately not using Linkup's own AI-SDK package (`linkup-ai-sdk`): it is a
+ * tool wrapper for the AI-SDK path only, while most of our searches come from the
+ * classifier path, which calls no tool — we would end up with two ways to reach
+ * Linkup, and the second one would bypass `recordOperation` below, our only
+ * per-search cost accounting. The option NAMES here mirror that package's
+ * signature so a later switch stays mechanical.
  *
  * Gated by env.LINKUP_API_KEY presence — getLinkupService() returns null when
  * the key is unset, leaving existing code paths intact.
@@ -50,32 +59,61 @@ export interface LinkupSourcedAnswerResponse {
 
 export type LinkupLocale = 'de' | 'at' | 'eu';
 
-/** The two engine depths Linkup offers. Everything the chat calls "Stufe" maps
- *  onto this plus a result count — there is no third depth to reach for. */
-export type LinkupDepth = 'standard' | 'deep';
+/**
+ * Linkup's three engine depths (docs: Search best practices → Choosing depth):
+ *
+ *   fast     — <1s, keyword-only, NO LLM. The query reaches the index verbatim;
+ *              instructions inside it are read as search terms.
+ *   standard — 1–3s, one iteration of agentic search. Interprets the query, can
+ *              fan out into parallel sub-searches, can scrape one URL from it.
+ *   deep     — 5–30s, multi-iteration search-and-scrape chaining with
+ *              evaluation. For work whose later steps depend on earlier ones.
+ *
+ * An earlier version of this type claimed there were only two and that "there is
+ * no third depth to reach for". There is, and it is the cheap one.
+ */
+export type LinkupDepth = 'fast' | 'standard' | 'deep';
+
+/**
+ * Linkup's own recommendation for buying breadth without buying depth: on
+ * `standard` the agent fans out into parallel sub-searches when the query asks
+ * it to. It goes into the query string rather than a parameter because that is
+ * how the API takes it — the query carries both what to retrieve and how.
+ *
+ * Never appended on `fast`: that depth has no LLM and would dutifully search for
+ * the words "führe", "mehrere", "Suchen".
+ */
+const ADJACENT_SEARCHES_INSTRUCTION =
+  'Führe mehrere Suchen mit angrenzenden Stichwörtern durch, um das Thema breit abzudecken.';
 
 export class LinkupService {
   constructor(private readonly apiKey: string) {}
 
   /**
-   * searchResults output at either engine depth — the chat's single retrieval
-   * door.
+   * searchResults output at any engine depth — the chat's single retrieval door.
    *
-   * `depth: 'deep'` runs Linkup's own multi-iteration agentic search and returns
-   * RAW results, which is the combination we never used: the chat had exactly
-   * two settings, `standard` here and `deep`+`sourcedAnswer` in `deepResearch`,
-   * so every question that needed more than a quick lookup jumped straight to
-   * the most expensive mode and handed answer-writing to Linkup.
+   * We keep `searchResults` (never `sourcedAnswer`) here on purpose: our model
+   * writes the answer, so every [N] resolves against our own source registry.
    */
   async webSearch(params: {
     query: string;
     depth?: LinkupDepth;
     maxResults?: number;
     fromDate?: string;
+    /** Ask the agent to fan out across adjacent keywords within this one call. */
+    adjacentSearches?: boolean;
   }): Promise<LinkupSearchResultsResponse> {
+    const depth = params.depth ?? 'standard';
+    // Guard rather than trust the caller: `fast` has no LLM, so an instruction
+    // appended here would become search terms. `resolveSearchPlan` already makes
+    // the combination unrepresentable; this keeps a hand-rolled call honest too.
+    const query =
+      params.adjacentSearches && depth !== 'fast'
+        ? `${params.query}\n${ADJACENT_SEARCHES_INSTRUCTION}`
+        : params.query;
     return this.call<LinkupSearchResultsResponse>('/search', {
-      q: params.query,
-      depth: params.depth ?? 'standard',
+      q: query,
+      depth,
       outputType: 'searchResults',
       ...(params.maxResults ? { maxResults: params.maxResults } : {}),
       ...(params.fromDate ? { fromDate: params.fromDate } : {}),

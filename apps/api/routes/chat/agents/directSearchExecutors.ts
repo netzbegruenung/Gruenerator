@@ -20,7 +20,7 @@ import { DocumentSearchService } from '../../../services/document-services/index
 import { searchExamples } from '../../../services/examples/exampleSearchService.js';
 import { withRetry } from '../../../services/search/index.js';
 import { getLinkupService } from '../../../services/search/LinkupService.js';
-import { resolveTier, type SearchTier } from '../../../services/search/searchDepth.js';
+import { resolveSearchPlan, type SearchTier } from '../../../services/search/searchDepth.js';
 import { searxngService } from '../../../services/search/SearxngService.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -446,6 +446,11 @@ export async function executeDirectPressemitteilungExamples(params: {
  * want a specific count (news widgets, compound turns); the tier only supplies
  * the default.
  *
+ * Every caller goes through `resolveSearchPlan`, so the engine depth, the result
+ * count and the adjacent-keyword instruction are decided in ONE place — the
+ * multi-source path used to hard-code `maxResults: 5` and pass no tier at all,
+ * which quietly made comparison turns the shallowest ones in the product.
+ *
  * Falls back to SearXNG when LINKUP_API_KEY is unset — SearXNG has no depth
  * concept, so every tier degrades to one flat search there. That is a
  * dev/self-host path; production has the key.
@@ -459,30 +464,48 @@ export async function executeDirectWebSearch(params: {
   language?: string;
 }): Promise<DirectWebSearchResult> {
   const { query, searchType = 'general', tier, timeRange, language = 'de-DE' } = params;
-  const tierConfig = resolveTier(tier);
-  const maxResults = params.maxResults ?? tierConfig.maxResults;
+  const plan = resolveSearchPlan({
+    ...(tier ? { tier } : {}),
+    query,
+    ...(params.maxResults != null ? { maxResults: params.maxResults } : {}),
+  });
+  const maxResults = plan.maxResults;
   // The deeper tiers exist to give the writing model more to work with; a
   // 300-char snippet would cap that no matter how many sources came back.
   // Stays under the source registry's own per-line cap (1500).
-  const snippetChars = tierConfig.depth === 'deep' ? 1200 : 300;
+  const snippetChars = plan.depth === 'deep' ? 1200 : 300;
 
+  // One line carrying the COMPLETE commissioned search. Without it there was no
+  // way to tell from the logs what a turn actually asked the engine for — which
+  // is how `searchType: 'news'` survived for months as a no-op on this path.
   log.info(
-    `[Direct Web Search] query="${query}" type="${searchType}" tier=${tier ?? 'standard'} max=${maxResults} lang=${language}`
+    `[Direct Web Search] query="${query}" type="${searchType}" tier=${plan.tier} depth=${plan.depth}${plan.fastReason ? `(${plan.fastReason})` : ''} max=${maxResults} adjacent=${plan.adjacentSearches} lang=${language}${timeRange ? ` timeRange=${timeRange}` : ''}`
   );
 
   try {
     const linkup = getLinkupService();
     if (linkup) {
-      log.info(
-        `[Direct Web Search] Routing via Linkup (${tierConfig.depth}) for "${query}" [${tier ?? 'standard'}]`
-      );
       const fromDate = timeRange ? timeRangeToFromDate(timeRange) : undefined;
-      const linkupRes = await linkup.webSearch({
-        query,
-        depth: tierConfig.depth,
-        maxResults,
-        ...(fromDate ? { fromDate } : {}),
-      });
+      const search = (depth: typeof plan.depth) =>
+        linkup.webSearch({
+          query,
+          depth,
+          maxResults,
+          adjacentSearches: plan.adjacentSearches,
+          ...(fromDate ? { fromDate } : {}),
+        });
+      // `fast` is flagged beta in Linkup's docs, so it is the one depth that could
+      // be rejected for an account without anything else being wrong. A keyword
+      // lookup must not fail over an optimisation: fall back to the depth we know
+      // works, once, and say so in the log.
+      const linkupRes = await (plan.depth === 'fast'
+        ? search('fast').catch((err: unknown) => {
+            log.warn(
+              `[Direct Web Search] fast depth rejected (${err instanceof Error ? err.message : String(err)}) — retrying at standard`
+            );
+            return search('standard');
+          })
+        : search(plan.depth));
       const linkupFormatted = linkupRes.results.slice(0, maxResults).map((r, i) => ({
         rank: i + 1,
         // Linkup returns raw HTML-entity-encoded titles/snippets (e.g. "&Ouml;sterreich").

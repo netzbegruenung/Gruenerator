@@ -140,6 +140,10 @@ export function buildChatToolCatalog(params: {
   // tool is needed (toolChoice stays 'auto').
   const base = createSearchTools(agentConfig, {
     ...(loop?.state.userLocale != null && { userLocale: loop.state.userLocale }),
+    // Whether the model may actually spend the deep engine when it asks for
+    // `tiefe: 'tiefenrecherche'`. Comes from the user's own words, not from the
+    // model's judgement — see resolveSearchTier.
+    ...(loop?.state.explicitDeepRequest === true && { explicitDeepRequest: true }),
   });
 
   const tools: ToolSet = {};
