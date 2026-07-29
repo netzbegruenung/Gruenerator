@@ -194,6 +194,22 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
       const server = ctx.serverNameFor?.(toolName);
       const serverMeta = server ? { serverName: server } : {};
 
+      // Concurrency is a DEFERRAL, not a rejection: this very call is expected
+      // back in a later step, so it must leave no trace that would then block it.
+      // Hence it runs FIRST — `checkDuplicate` below registers the call key on its
+      // way through, and a deferred call that registered would be refused as
+      // "already ran" the moment the model retries it.
+      //
+      // Deliberately no `sendStart`/`sendResult`/`recordStep`: a red "Fehler" card
+      // for a search that was merely postponed is a false statement about the
+      // turn, and the search gets its own card when it actually runs. It also
+      // skips `noteCall`, so it costs neither a search-budget slot nor a failure.
+      const deferral = ctx.guards.checkSearchConcurrency(toolName);
+      if (deferral) {
+        log.info(`[Tool] ${toolName} zurückgestellt (max. parallele Suchen erreicht)`);
+        return { error: deferral };
+      }
+
       // checkDuplicate is the only guard that mutates state (registers the
       // call key). If an earlier guard trips it isn't called, so a blocked
       // call doesn't register — harmless: failure/total caps stay tripped for

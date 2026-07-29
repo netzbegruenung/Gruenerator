@@ -488,3 +488,82 @@ describe('createToolLoopGuards — internal-first', () => {
     expect(guards.checkInternalFirst('web_search')).toBeNull();
   });
 });
+
+/**
+ * Searches must build on each other. The AI SDK runs every tool call of one model
+ * step concurrently, so a model that emits four searches gets four paid calls and
+ * no chance to reconsider between them — the fourth query was written before the
+ * first result existed. Two may overlap (a comparison's halves); the surplus is
+ * deferred until something completes.
+ */
+describe('checkSearchConcurrency', () => {
+  const searchTools = new Set(['web_search', 'gruenerator_search']);
+  const make = (max?: number) =>
+    createToolLoopGuards({
+      searchToolNames: searchTools,
+      ...(max != null ? { maxConcurrentSearches: max } : {}),
+    });
+
+  it('lets two searches run at once and defers the third', () => {
+    const guards = make();
+    expect(guards.checkSearchConcurrency('web_search')).toBeNull();
+    guards.noteCall('web_search');
+    expect(guards.checkSearchConcurrency('gruenerator_search')).toBeNull();
+    guards.noteCall('gruenerator_search');
+    expect(guards.checkSearchConcurrency('web_search')).toMatch(/Warte auf das Ergebnis/);
+  });
+
+  it('frees a slot as soon as one call completes', () => {
+    const guards = make();
+    guards.noteCall('web_search');
+    guards.noteCall('web_search');
+    expect(guards.checkSearchConcurrency('web_search')).not.toBeNull();
+    guards.noteCompletion('web_search');
+    expect(guards.checkSearchConcurrency('web_search')).toBeNull();
+  });
+
+  it('counts the whole search family, not one tool at a time', () => {
+    const guards = make();
+    guards.noteCall('web_search');
+    guards.noteCall('gruenerator_search');
+    // A third search under a DIFFERENT name is still a third paid call.
+    expect(guards.checkSearchConcurrency('web_search')).not.toBeNull();
+  });
+
+  it('never touches non-search tools', () => {
+    const guards = make();
+    guards.noteCall('web_search');
+    guards.noteCall('gruenerator_search');
+    expect(guards.checkSearchConcurrency('create_sheet')).toBeNull();
+    expect(guards.checkSearchConcurrency('summarize')).toBeNull();
+  });
+
+  /**
+   * The deferral must leave no trace, because the model is expected to repeat the
+   * very same call once a slot frees up. If the deferred call had registered its
+   * duplicate key, the retry would come back as "diese Suche lief schon".
+   */
+  it('is checked before the duplicate guard, so a deferred call may be retried verbatim', () => {
+    const guards = make();
+    guards.noteCall('web_search');
+    guards.noteCall('web_search');
+    expect(guards.checkSearchConcurrency('web_search')).not.toBeNull();
+    // Nothing registered → the identical call passes the duplicate guard later.
+    guards.noteCompletion('web_search');
+    guards.noteCompletion('web_search');
+    expect(guards.checkDuplicate('web_search', { query: 'Tempolimit' })).toBeNull();
+  });
+
+  it('honours a configured ceiling', () => {
+    const guards = make(1);
+    guards.noteCall('web_search');
+    expect(guards.checkSearchConcurrency('web_search')).toMatch(/bereits 1 Suche\b/);
+  });
+
+  it('is inert when no search family was configured', () => {
+    const guards = createToolLoopGuards();
+    guards.noteCall('web_search');
+    guards.noteCall('web_search');
+    expect(guards.checkSearchConcurrency('web_search')).toBeNull();
+  });
+});
