@@ -31,6 +31,11 @@ import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../../utils/logger.js';
 import { getContextWindow } from '../agents/providers.js';
 
+import {
+  ARTIFACT_CONFIRMATION_TEXTS,
+  buildPostWithSharepicsConfirmation,
+  buildSharepicConfirmation,
+} from './artifactConfirmations.js';
 import { persistComputeAssets } from './computeAssetStorage.js';
 import { hasBrokenComputeValues } from './computeResultSanity.js';
 import { pruneMessages } from './contextPruningService.js';
@@ -369,14 +374,13 @@ export async function runChatGraphResume({
       const fullText =
         resumedIntent === 'social_post'
           ? socialPost != null || n > 0
-            ? `Hier ist dein Post${n > 0 ? ` mit ${n} passenden Sharepic-${n === 1 ? 'Variante' : 'Varianten'}` : ''}. ` +
-              `Sag mir, was ich am Text oder an der Grafik anpassen soll.`
-            : `Das hat leider nicht geklappt. Magst du es mit einem anderen Thema noch einmal versuchen?`
+            ? n > 0
+              ? buildPostWithSharepicsConfirmation(n)
+              : ARTIFACT_CONFIRMATION_TEXTS.postWithoutSharepic
+            : ARTIFACT_CONFIRMATION_TEXTS.genericFailed
           : n > 0
-            ? `Ich habe dir ${n} Sharepic-${n === 1 ? 'Variante' : 'Varianten'} erstellt. ` +
-              `Wähle eine aus oder sag mir, was ich am Text oder Bild anpassen soll.`
-            : `Die Sharepic-Erstellung hat leider nicht geklappt. Magst du es mit einem ` +
-              `anderen Thema noch einmal versuchen?`;
+            ? buildSharepicConfirmation(n)
+            : ARTIFACT_CONFIRMATION_TEXTS.sharepicFailed;
       sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
       sse.send('text_delta', { text: fullText });
 

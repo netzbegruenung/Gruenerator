@@ -30,6 +30,7 @@ import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { needsThreadGrounding } from './agenticLoop/routing.js';
+import { renderSourceLines, withResearchedSources } from './agenticLoop/sourceRegistry.js';
 import { resolveSharepicAuthorName } from './artifactGeneration.js';
 import {
   BOARD_SPEC,
@@ -39,7 +40,12 @@ import {
   SHEET_SPEC,
 } from './artifactKinds.js';
 import { CONFIRM_ACTION_CONFIG } from './confirmActionService.js';
-import { runCreateTurn, type CreateTurnOpts } from './createTurn.js';
+import {
+  buildCreateTurnContext,
+  runCreateTurn,
+  SHAREPIC_CONTEXT_CHARS,
+  type CreateTurnOpts,
+} from './createTurn.js';
 import { failCreation, rememberArtifact } from './createTurnHelpers.js';
 import { extractTextContent } from './messageHelpers.js';
 import {
@@ -164,12 +170,12 @@ export async function handleBoardCreation(
   opts: Omit<CreateTurnOpts, 'userContent'> & { lastUserMessage: ModelMessage | undefined }
 ): Promise<boolean> {
   const lastUserText = opts.lastUserMessage ? extractTextContent(opts.lastUserMessage.content) : '';
-  // A referential follow-up ("mach ein Board davon") inherits the prior turn's
-  // subject instead of generating a board about the bare instruction.
-  const userContent = resolveReferentialTopic(
-    lastUserText,
-    opts.classifiedState.messages ?? []
-  ).text;
+  // A referential follow-up ("mach ein Board davon") names no subject; the
+  // classifier resolved one against the history, with the heuristic as fallback
+  // for turns that never reached the LLM.
+  const userContent =
+    opts.classifiedState.creationTopic ||
+    resolveReferentialTopic(lastUserText, opts.classifiedState.messages ?? []).text;
   return runCreateTurn(BOARD_SPEC, { ...opts, userContent });
 }
 
@@ -597,6 +603,37 @@ export async function handleShareDoc(opts: {
  * `sharepic_complete` (including error payloads) and returns the variants
  * ([] on failure) so callers never have to duplicate the SSE handling.
  */
+/**
+ * The material a sharepic is built from: the thread transcript plus whatever
+ * research the thread already carries.
+ *
+ * This is the same briefing `runCreateTurn` gives documents, sheets and
+ * presentations — the sharepic lane never went through it, so `{{details}}` in
+ * every sharepic template stayed empty on fresh generations and the model had
+ * to invent the substance behind a three-word topic.
+ *
+ * Never throws: a sharepic without background is the old behaviour, a 500 is
+ * not.
+ */
+async function buildSharepicBackground(
+  state: ChatGraphState,
+  threadId: string | null
+): Promise<string | null> {
+  const transcript = buildCreateTurnContext(state.messages ?? [], SHAREPIC_CONTEXT_CHARS);
+  let background = transcript.trim();
+  if (threadId) {
+    try {
+      const carried = await getRecentThreadSources(threadId, 6);
+      if (carried.length > 0) {
+        background = withResearchedSources(background, renderSourceLines(carried));
+      }
+    } catch (err) {
+      log.warn(`[Sharepic] source briefing skipped: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+  return background || null;
+}
+
 export async function runSharepicGeneration(opts: {
   state: ChatGraphState;
   sse: SSEWriter;
@@ -618,14 +655,25 @@ export async function runSharepicGeneration(opts: {
     const messageText = rawText.replace(/@sharepic\b/gi, '').trim();
     const refinement = opts.sharepicRefinement;
     const preferredVariant = refinement ? null : detectPreferredVariant(messageText);
-    // A referential follow-up ("visualisiere in einem sharepic") names no subject
-    // — inherit it from the prior turn so the sharepic is ABOUT the previous topic
-    // (the confirmed context-loss bug), not the literal instruction. Variant
+    // WHAT it is about. A follow-up like "jetzt noch ein normales sharepic"
+    // names no subject, so the classifier resolves one against the history —
+    // it already runs on exactly these vague turns with the conversation in
+    // context. `resolveReferentialTopic` is the fallback for turns that never
+    // reached the LLM (heuristic classification, forced tools). Variant
     // preference is still read from the CURRENT message above.
     const resolvedTopic = refinement
       ? { text: messageText, inherited: false }
-      : resolveReferentialTopic(messageText, state.messages ?? []);
+      : state.creationTopic
+        ? { text: state.creationTopic, inherited: true }
+        : resolveReferentialTopic(messageText, state.messages ?? []);
     const topicText = resolvedTopic.text;
+
+    // WHAT it is built FROM. Same thread transcript + carried research the
+    // document/sheet/presentation generators get from runCreateTurn; a sharepic
+    // condenses far harder, hence the smaller window.
+    const background = refinement
+      ? null
+      : await buildSharepicBackground(state, opts.threadId ?? null);
 
     // Quote sharepics are attributed to the person creating them — default the
     // author to the user's profile display name. Empty when no profile name
@@ -633,7 +681,8 @@ export async function runSharepicGeneration(opts: {
     const authorName = await resolveSharepicAuthorName(state.agentConfig?.userId);
 
     log.info(
-      `[ChatGraph] Sharepic topic: "${messageText.slice(0, 100)}"${resolvedTopic.inherited ? ' (topic inherited from prior turn)' : ''}, ` +
+      `[ChatGraph] Sharepic topic: "${topicText.slice(0, 100)}"${resolvedTopic.inherited ? ` (resolved from context, message was "${messageText.slice(0, 60)}")` : ''}, ` +
+        `background: ${background ? `${background.length} chars` : 'none'}, ` +
         `${refinement ? `refinement: "${refinement.instruction}" (${refinement.prior.canvasType})` : `preferredVariant: ${preferredVariant ?? 'all'}`}, ` +
         `author: ${authorName || '(none)'}`
     );
@@ -642,6 +691,7 @@ export async function runSharepicGeneration(opts: {
     // Slider = multi-page deck, a different artifact: ONE deck variant,
     // minted at generation time (studio open/editing need the pages).
     let variants: SharepicVariant[];
+    let declinedReason: string | null = null;
     if (preferredVariant === 'slider') {
       const userId = state.agentConfig?.userId;
       if (!userId) throw new Error('User required for slider deck creation');
@@ -654,16 +704,32 @@ export async function runSharepicGeneration(opts: {
         }),
       ];
     } else {
-      variants = await generateSharepicVariants({
+      const generated = await generateSharepicVariants({
         req: opts.req as SharepicExpressRequest,
         text: topicText,
         ...(refinement ? { refinement } : preferredVariant ? { preferredVariant } : {}),
+        ...(background && { background }),
         ...(authorName && { authorName }),
         ...(state.userLocale && { userLocale: state.userLocale }),
       });
+      variants = generated.variants;
+      declinedReason = generated.declinedReason;
     }
 
     if (variants.length === 0) {
+      // A policy decline is not an outage. The combined social_post path already
+      // says so ("dabei entstünde ein erfundenes Zitat…"); the pure sharepic
+      // path used to report the model's correct refusal as a technical failure,
+      // which invites the user to simply try again.
+      if (declinedReason) {
+        log.info(`[ChatGraph] Sharepic declined on policy grounds — ${declinedReason}`);
+        emit.send('sharepic_complete', {
+          message: `Dieses Sharepic kann ich nicht erstellen: ${declinedReason}`,
+          variants: [],
+          declined: true,
+        });
+        return [];
+      }
       emit.send('sharepic_complete', {
         message: 'Sharepic-Erstellung fehlgeschlagen',
         variants: [],

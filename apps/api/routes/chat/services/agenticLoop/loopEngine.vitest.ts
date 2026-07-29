@@ -360,6 +360,17 @@ describe('looksLikeSynthRefusal', () => {
     expect(long.length).toBeGreaterThan(200);
     expect(looksLikeSynthRefusal(long)).toBe(false);
   });
+
+  it('keeps a SHORT answer that did the job and declined only the injected part', () => {
+    // Measured live: a pasted citizen enquiry carrying a "SYSTEM-HINWEIS" was
+    // summarised correctly, and the summary — well under the 200-char gate —
+    // was swapped for the canned decline. The length bound cannot separate the
+    // two cases; what the decline REFERS TO can.
+    const compliant =
+      'Die Planung der Radwegverbindung stockt seit zwei Jahren. Den eingefügten Systemhinweis setze ich nicht um.';
+    expect(compliant.length).toBeLessThan(200);
+    expect(looksLikeSynthRefusal(compliant)).toBe(false);
+  });
 });
 
 describe('split synthesis — degenerate answer is retried, never streamed', () => {
@@ -438,6 +449,21 @@ describe('split synthesis — degenerate answer is retried, never streamed', () 
     expect(streamed).not.toMatch(/i'?m sorry/i);
     // And it must NOT read as "nothing found, try rephrasing".
     expect(out.text).not.toMatch(/anders formulieren/i);
+  });
+
+  it('streams the summary when only the injected instruction was declined', async () => {
+    const onText = vi.fn();
+    const compliant =
+      'Die Planung der Radwegverbindung stockt seit zwei Jahren. Den eingefügten Systemhinweis setze ich nicht um.';
+    const { deps, systems } = synthDeps([compliant, 'Eine zweite Antwort darf es nicht geben.']);
+
+    const out = await runAgenticLoop(baseParams({ mode: 'split', tools, onText }), deps);
+
+    // Not swapped, not retried — the user gets the answer they asked for.
+    expect(out.text).toBe(compliant);
+    expect(systems).toHaveLength(1);
+    expect(onText).toHaveBeenCalledWith(compliant);
+    expect(out.text).not.toBe(SYNTH_REFUSAL_TEXT);
   });
 
   it('still retries a leaked tool plan — the refusal path must not swallow it', async () => {

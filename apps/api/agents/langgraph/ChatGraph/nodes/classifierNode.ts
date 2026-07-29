@@ -1322,6 +1322,10 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       contentType: classification.contentType || null,
       documentSubtype: classification.documentSubtype || null,
       targetGroupName: classification.targetGroupName || null,
+      // Only the LLM path can resolve this — it is the only one that sees the
+      // conversation. Heuristic paths leave it unset, and the create_* handlers
+      // fall back to resolveReferentialTopic.
+      creationTopic: classification.creationTopic || null,
       hasTemporal: temporal.hasTemporal,
       complexity,
       classificationTimeMs,
