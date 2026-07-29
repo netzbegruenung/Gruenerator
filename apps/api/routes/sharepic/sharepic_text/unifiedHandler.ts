@@ -156,12 +156,15 @@ export interface UnifiedTextBody {
   quote?: string | undefined;
   name?: string | undefined;
   count?: number | undefined;
-  /**
-   * Brand string for `{{partyName}}`. Optional seam: the sharepic chain does
-   * not carry `userLocale` yet, so AT callers still get the DE default until
-   * the locale is plumbed through sharepicGenerationService.
-   */
+  /** Brand string for `{{partyName}}`. */
   partyName?: string | undefined;
+  /**
+   * Signed-in user's locale. When `de-AT`, a prompt named `<type>_at` is
+   * preferred over `<type>` — the Austrian sujets have their own typographic
+   * constraints (the AT Dreizeiler fits ~15 characters per line where the
+   * German one allows 35).
+   */
+  userLocale?: string | undefined;
   _campaignPrompt?: unknown;
 }
 
@@ -191,7 +194,12 @@ export async function generateUnifiedTexts(
   }
 
   const { thema, details, quote, name, count = 1 } = body;
-  const rawPromptConfig = body._campaignPrompt || prompts[type as keyof typeof prompts];
+  // de-AT prefers a locale-specific prompt where one exists, by the `<type>_at`
+  // convention. Falls back to the German prompt so a missing AT variant is a
+  // silent no-op rather than a 400.
+  const atKey = `${type}_at`;
+  const promptKey = body.userLocale === 'de-AT' && atKey in prompts ? atKey : type;
+  const rawPromptConfig = body._campaignPrompt || prompts[promptKey as keyof typeof prompts];
 
   if (!rawPromptConfig) {
     return { success: false, status: 400, error: `No prompt config for type: ${type}` };
