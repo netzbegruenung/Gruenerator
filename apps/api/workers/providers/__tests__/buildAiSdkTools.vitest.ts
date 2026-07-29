@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import ToolHandler from '../../../services/tools/index.js';
-import { buildAiSdkTools } from '../adapterUtils.js';
+import { buildAiSdkTools, resolveToolChoice } from '../adapterUtils.js';
 
 // Reproduces the mcpToolNode → prepareToolsPayload → adapter path that silently
 // produced `tools.undefined` and made the model never call a tool.
@@ -37,5 +37,43 @@ describe('buildAiSdkTools', () => {
   it('returns undefined for empty payloads', () => {
     expect(buildAiSdkTools({})).toBeUndefined();
     expect(buildAiSdkTools({ tools: [] })).toBeUndefined();
+  });
+});
+
+/**
+ * `tool_choice` translation, which was copy-pasted into all four adapters and
+ * only complete in the Mistral copy: the other three folded "call exactly THIS
+ * tool" into `'auto'` — "call one if you like". Nothing passes the object form
+ * today, so this changes no live behaviour; it stops a forced tool call from
+ * being silently conditional on which provider the fallback chain reached.
+ */
+describe('resolveToolChoice', () => {
+  it('keeps a named tool named', () => {
+    expect(resolveToolChoice({ type: 'tool', name: 'sharepic_edit' })).toEqual({
+      type: 'tool',
+      toolName: 'sharepic_edit',
+    });
+    // ToolHandler emits `name`; the SDK's own shape uses `toolName`. Read both.
+    expect(resolveToolChoice({ type: 'tool', toolName: 'sharepic_edit' })).toEqual({
+      type: 'tool',
+      toolName: 'sharepic_edit',
+    });
+  });
+
+  it('passes the plain modes through', () => {
+    expect(resolveToolChoice('required')).toBe('required');
+    expect(resolveToolChoice('none')).toBe('none');
+    expect(resolveToolChoice('auto')).toBe('auto');
+  });
+
+  it('treats "tools offered, nothing said" as none', () => {
+    // Not 'auto': flipping this would let every request that merely carries a
+    // tool catalogue start calling tools.
+    expect(resolveToolChoice(undefined)).toBe('none');
+  });
+
+  it('falls back to auto for anything else', () => {
+    expect(resolveToolChoice('any')).toBe('auto');
+    expect(resolveToolChoice({ type: 'function' })).toBe('auto');
   });
 });
