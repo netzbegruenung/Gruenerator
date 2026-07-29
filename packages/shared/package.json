@@ -52,6 +52,12 @@
       "import": "./dist/utils/index.js",
       "default": "./dist/utils/index.js"
     },
+    "./docs": {
+      "development": "./src/docs/index.ts",
+      "types": "./src/docs/index.ts",
+      "import": "./dist/docs/index.js",
+      "default": "./dist/docs/index.js"
+    },
     "./generators": {
       "development": "./src/generators/index.ts",
       "types": "./src/generators/index.ts",
