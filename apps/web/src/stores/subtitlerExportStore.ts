@@ -1,4 +1,11 @@
-import { type ApiErrorBody, type JobErrorCode, type SupportedLocale } from '@gruenerator/contracts';
+import {
+  type ApiErrorBody,
+  type HeightPreference,
+  type JobErrorCode,
+  type StylePreference,
+  type SubtitlePreference,
+  type SupportedLocale,
+} from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import axios from 'axios';
 import { create } from 'zustand';
@@ -37,9 +44,11 @@ interface Subtitle {
 interface ExportParams {
   subtitles?: Subtitle[];
   uploadId?: string;
-  subtitlePreference?: string;
-  stylePreference?: string;
-  heightPreference?: string;
+  // Closed sets, same reasoning as `locale` below — as plain strings these
+  // silently accepted anything and handed it to the export endpoint.
+  subtitlePreference?: SubtitlePreference;
+  stylePreference?: StylePreference;
+  heightPreference?: HeightPreference;
   // Closed set — mirrors the contract's localeSchema. As a plain string this
   // silently accepted anything and handed it to the export endpoint.
   locale?: SupportedLocale;
