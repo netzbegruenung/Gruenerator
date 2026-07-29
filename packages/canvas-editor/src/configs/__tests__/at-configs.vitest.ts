@@ -4,6 +4,7 @@ import { getBrandTheme } from '../../brand/theme';
 import { loadCanvasConfig } from '../configLoader';
 import { getTemplatesForLocale } from '../../utils/templateRegistry';
 import { ZITAT_AT_CONFIG, calculateZitatAtLayout } from '../../utils/zitatAtLayout';
+import { ZITAT_PURE_AT_CONFIG, calculateZitatPureAtLayout } from '../../utils/zitatPureAtLayout';
 
 const AT_IDS = [
   'zitat-at',
@@ -92,11 +93,11 @@ describe('Österreich (de-AT) canvas configs', () => {
       expect((zitat.elements.find((e) => e.id === id) as { align?: string }).align).toBe('center');
     }
 
-    // Der Verlauf ist ein echter Verlauf in Dunkelgruen, kein flacher Schleier.
-    const scrim = zitat.elements.find((e) => e.id === 'gradient-overlay') as
-      { fillLinearGradientColorStops?: Array<number | string> } | undefined;
-    expect(scrim?.fillLinearGradientColorStops?.length).toBeGreaterThan(4);
-    expect(String(scrim?.fillLinearGradientColorStops?.[1])).toContain('37, 118, 57');
+    // Ueber dem Foto liegt nichts — die AT-CI kennt keinen Verlauf, schon gar
+    // keinen gruenen. Das deutsche Zitat setzt dagegen weiterhin einen.
+    expect(zitat.elements.find((e) => e.id === 'gradient-overlay')).toBeUndefined();
+    const de = await loadCanvasConfig('zitat');
+    expect(de.elements.find((e) => e.id === 'gradient-overlay')).toBeDefined();
   });
 
   it('zentriert den Zitatblock als Gruppe statt ihn am Blattboden zu verankern', () => {
@@ -112,6 +113,60 @@ describe('Österreich (de-AT) canvas configs', () => {
     expect(Math.abs(mitte(lang) - ziel)).toBeLessThan(20);
     // Und der laengere Block waechst nach beiden Seiten, nicht nur nach unten.
     expect(lang.quoteMarkY).toBeLessThan(kurz.quoteMarkY);
+  });
+
+  it('Zitat auf Flaeche setzt eigenstaendig, nicht in deutschem Grad', async () => {
+    const pure = await loadCanvasConfig('zitat-pure-at');
+
+    // Weisses Anfuehrungszeichen — Gelb zeigt die Guideline nur auf dem Foto.
+    const mark = pure.elements.find((e) => e.id === 'quote-mark');
+    expect((mark as { src?: string } | undefined)?.src).toBe('/quote-white.svg');
+
+    // Kein Logo: die Flaechen-Sujets tragen keines, nur die mit Foto.
+    expect(pure.elements.find((e) => e.id === 'logo')).toBeUndefined();
+
+    // Satzspiegel bleibt innerhalb der Blattraender.
+    const rechts = ZITAT_PURE_AT_CONFIG.margin + ZITAT_PURE_AT_CONFIG.maxWidth;
+    expect(rechts).toBeLessThanOrEqual(
+      ZITAT_PURE_AT_CONFIG.canvas.width - ZITAT_PURE_AT_CONFIG.margin
+    );
+  });
+
+  it('haelt den Namen am Zitat und faengt kurze wie lange Zitate ab', () => {
+    const lang = calculateZitatPureAtLayout(
+      'Ein etwas laengeres Zitat einer Person zu einem tagesaktuellen Thema fuer ein Shareable.',
+      'Name Nachname'
+    );
+    const kurz = calculateZitatPureAtLayout('Ein kurzes Zitat.', 'Name Nachname');
+
+    // Der Abstand zum Namen haengt am Schriftgrad, nicht an einer geschaetzten
+    // Zeilenzahl — vorher schwebte der Name gut 200 px unter dem Zitat.
+    const lueckeLang = lang.authorY - (lang.quoteY + lang.quoteLines.length * lang.lineHeight);
+    expect(lueckeLang).toBe(Math.round(lang.quoteFontSize * 0.61));
+
+    // Kurze Zitate wachsen bis an die Obergrenze, lange bleiben im Rahmen.
+    expect(kurz.quoteFontSize).toBeGreaterThan(lang.quoteFontSize);
+    expect(kurz.quoteFontSize).toBeLessThanOrEqual(ZITAT_PURE_AT_CONFIG.quote.maxFontSize);
+    expect(lang.quoteLines.length).toBeLessThanOrEqual(ZITAT_PURE_AT_CONFIG.quote.maxLines);
+
+    // Beide sitzen mittig auf dem Blatt.
+    const ziel = ZITAT_PURE_AT_CONFIG.canvas.height * ZITAT_PURE_AT_CONFIG.groupCenterRatio;
+    for (const l of [lang, kurz]) {
+      const mitte = (l.quoteMarkY + l.authorY + l.authorFontSize) / 2;
+      expect(Math.abs(mitte - ziel)).toBeLessThan(20);
+    }
+  });
+
+  it('laesst das Autofit auch laufen, wenn die Faktory null statt undefined setzt', () => {
+    // createInitialState setzt customPrimaryFontSize auf `null`; eine Pruefung
+    // auf `undefined` haette das Autofit stumm nie ausgefuehrt.
+    const mitNull = calculateZitatPureAtLayout('Ein kurzes Zitat.', 'Name', null);
+    const ohne = calculateZitatPureAtLayout('Ein kurzes Zitat.', 'Name');
+    expect(mitNull.quoteFontSize).toBe(ohne.quoteFontSize);
+    expect(mitNull.quoteFontSize).toBeGreaterThan(ZITAT_PURE_AT_CONFIG.quote.fontSize);
+
+    // Ein ausdruecklicher Grad schaltet das Autofit dagegen ab.
+    expect(calculateZitatPureAtLayout('Ein kurzes Zitat.', 'Name', 50).quoteFontSize).toBe(50);
   });
 
   it('macht alle vier Textzonen KI-editierbar', async () => {
