@@ -3,9 +3,10 @@ import {
   type ChatBackground,
   type FeedbackButtonMode,
   type StartPage,
+  type SupportedLocale,
   type UserProfile,
 } from '@gruenerator/contracts';
-import { getContractsClient } from '@gruenerator/shared/api';
+import { getContractsClient, setApiLocale } from '@gruenerator/shared/api';
 import { toast } from '@gruenerator/ui';
 import { create } from 'zustand';
 
@@ -20,7 +21,9 @@ import { isDesktopApp } from '../utils/platform';
 // Type Definitions
 // =============================================================================
 
-export type SupportedLocale = 'de-DE' | 'de-AT';
+// Derived from the contract's localeSchema — re-exported here because most
+// consumers already import it from this store.
+export type { SupportedLocale };
 
 export interface UserMetadata {
   chat_color?: string;
@@ -159,6 +162,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   setAuthState: (data: AuthStateData) => {
     const userLocale: SupportedLocale =
       (data.user?.locale as SupportedLocale) || detectBrowserLocale();
+    // Let every API client advertise the profile locale from here on. Until
+    // this point the header carries the browser guess, which is wrong for an
+    // AT user on a German-language browser.
+    setApiLocale(userLocale);
 
     set({
       user: data.user,
@@ -221,6 +228,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     // user-defaults RQ cache is cleared via win.queryClient.clear() above
     useUserProfileStore.getState().reset();
 
+    // No profile any more — fall back to the browser guess, in the store and on
+    // the wire alike, so the next (anonymous) request stops claiming the old
+    // user's locale.
+    const browserLocaleOnLogout = detectBrowserLocale();
+    setApiLocale(browserLocaleOnLogout);
+
     // Reset store to default state
     set({
       user: null,
@@ -230,7 +243,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       error: null,
       isLoggingOut: false,
       selectedMessageColor: '#008939',
-      locale: detectBrowserLocale(),
+      locale: browserLocaleOnLogout,
     });
   },
 
@@ -633,6 +646,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       }
 
       // Update store
+      setApiLocale(newLocale);
       set({ locale: newLocale });
 
       return true;

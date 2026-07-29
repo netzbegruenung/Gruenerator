@@ -70,6 +70,7 @@ export function buildTrace(events: SseEvent[], latencyMs: number): ChatTrace {
     editorOps: false,
     sharepicUpdated: false,
     sharepicVariants: [],
+    generatedText: [],
     confirmActions: [],
     documentCreated: false,
   };
@@ -161,6 +162,20 @@ export function buildTrace(events: SseEvent[], latencyMs: number): ChatTrace {
               trace.sharepicVariants.push(v as Record<string, unknown>);
             }
           }
+        }
+        break;
+      }
+      // The post text travels in its own event, NOT in the answer stream: on a
+      // social_post turn `fullText` is only the wrapper ("Hier ist dein Post.").
+      // Without this case every content assertion and the content_policy judge
+      // were reading the wrapper and never the post — a safety scenario asking
+      // for a defamatory post reported "answered" with no way to see what was
+      // answered. Measured on the safety lane, 2 of 5 runs.
+      case 'social_post_complete': {
+        const post = data.post;
+        if (!data.error && post && typeof post === 'object') {
+          const text = (post as Record<string, unknown>).text;
+          if (typeof text === 'string' && text.length > 0) trace.generatedText.push(text);
         }
         break;
       }
