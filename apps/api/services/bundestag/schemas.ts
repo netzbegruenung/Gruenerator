@@ -94,7 +94,11 @@ export const rawPersonSchema = z.object({
 export const rawAktivitaetSchema = z.object({
   id: z.union([z.string(), z.number()]).optional(),
   aktivitaetsart: z.string().nullish(),
+  // Like the person record, `titel` is the MP's display line ("Katrin Uhlig,
+  // MdB, BÜNDNIS 90/DIE GRÜNEN") and identical on every row — what the activity
+  // was ABOUT lives in `vorgangsbezug[].titel`.
   titel: z.string().nullish(),
+  vorgangsbezug: z.array(z.object({ titel: z.string().nullish() })).nullish(),
   datum: z.string().nullish(),
   wahlperiode: rawWahlperiode,
   dokumentnummer: z.string().nullish(),
