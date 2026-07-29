@@ -7,6 +7,7 @@ import { createMistral } from '@ai-sdk/mistral';
 import { createOpenAI } from '@ai-sdk/openai';
 
 import { env } from '../../../config/env.js';
+import { greenptFetchWithThinkingDisabled } from '../../../services/ai/greenptThinkingFetch.js';
 import { litellmFetchWithThinkingDisabled } from '../../../services/ai/litellmThinkingFetch.js';
 import { isVisionCapable } from '../../../services/ai/modelDiscovery.js';
 import { regoloFetchWithThinkingDisabled } from '../../../services/ai/regoloThinkingFetch.js';
@@ -373,6 +374,7 @@ function getGreenPTProvider() {
       baseURL: 'https://api.greenpt.ai/v1',
       apiKey,
       name: 'greenpt',
+      fetch: greenptFetchWithThinkingDisabled,
     });
   }
   return greenptInstance;
