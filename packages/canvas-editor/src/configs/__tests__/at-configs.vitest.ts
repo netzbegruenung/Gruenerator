@@ -5,12 +5,16 @@ import { loadCanvasConfig } from '../configLoader';
 import { getTemplatesForLocale } from '../../utils/templateRegistry';
 import { ZITAT_AT_CONFIG, calculateZitatAtLayout } from '../../utils/zitatAtLayout';
 import { ZITAT_PURE_AT_CONFIG, calculateZitatPureAtLayout } from '../../utils/zitatPureAtLayout';
+import { INFO_AT_CONFIG, calculateInfoAtLayout } from '../../utils/infoAtLayout';
+import { OVERLAY_AT_CONFIG, calculateOverlayAtLayout } from '../../utils/overlayAtLayout';
+import { measureTextWidthWithFont } from '../../utils/textUtils';
 
 const AT_IDS = [
   'zitat-at',
   'zitat-pure-at',
   'dreizeilen-at',
   'dreizeilen-overlay-at',
+  'info-at',
   'freeform-at',
 ] as const;
 
@@ -58,13 +62,81 @@ describe('Österreich (de-AT) canvas configs', () => {
     const de = getTemplatesForLocale('de-DE').map((t) => t.id);
     expect(at).toEqual(expect.arrayContaining([...AT_IDS]));
     expect(de).toContain('info');
-    // Info gibt es ausschliesslich für de-DE — für AT existiert gar kein Sujet,
-    // weder 'info' noch ein 'info-at'.
-    expect(at.filter((id) => id.startsWith('info'))).toEqual([]);
+    // Beide Locales haben ein Info-Sujet, aber es sind zwei verschiedene:
+    // 'info' fuer de-DE, 'info-at' fuer de-AT. Keines taucht beim anderen auf.
+    expect(at.filter((id) => id.startsWith('info'))).toEqual(['info-at']);
+    expect(de.filter((id) => id.startsWith('info'))).toEqual(['info']);
   });
 
-  it('kennt kein info-at mehr', async () => {
-    await expect(loadCanvasConfig('info-at' as never)).rejects.toThrow();
+  it('Info AT setzt Introline, Infotext und gelbe Schlusszeile', async () => {
+    const info = await loadCanvasConfig('info-at');
+
+    // Logo rechts oben — anders als bei den uebrigen Flaechen-Sujets.
+    expect(info.elements.find((e) => e.id === 'logo')).toBeDefined();
+
+    // Drei mittige Textzonen, die gelbe traegt Vollkorn kursiv.
+    for (const id of ['introline-text', 'text-text', 'accent-text']) {
+      expect((info.elements.find((e) => e.id === id) as { align?: string }).align).toBe('center');
+    }
+    const accent = info.elements.find((e) => e.id === 'accent-text') as {
+      fontStyle?: string;
+      fontFamily?: string;
+      fill?: string;
+    };
+    expect(accent.fontStyle).toBe('italic');
+    expect(accent.fontFamily).toContain('Vollkorn');
+    expect(accent.fill).toBe('#FCEC00');
+
+    // Alle drei Zonen sind KI-editierbar — sonst bliebe die Schlusszeile stumm.
+    const fields = info.ai
+      ?.describeForAi(info.createInitialState({}))
+      .textFields.map((f) => f.field);
+    expect(fields).toEqual(['introline', 'text', 'accent']);
+  });
+
+  it('laesst kurze Aussagen wachsen und lange weichen', () => {
+    const kurz = calculateInfoAtLayout('Wien, 29. Juli', 'Sauberer Strom ist', 'billiger.');
+    const lang = calculateInfoAtLayout(
+      'Eine Introline steht hier.',
+      'Hier steht ein laengerer Infotext, zum Beispiel ein Zitat oder eine',
+      'Infoheadline.'
+    );
+    expect(kurz.zones[1].fontSize).toBeGreaterThan(lang.zones[1].fontSize);
+    expect(kurz.zones[1].fontSize).toBeLessThanOrEqual(INFO_AT_CONFIG.text.maxFontSize);
+    expect(lang.zones[1].fontSize).toBeGreaterThanOrEqual(INFO_AT_CONFIG.text.minFontSize);
+
+    // Der gemeinsame Faktor haelt das Verhaeltnis Introline zu Infotext stabil.
+    const ratio = (l: ReturnType<typeof calculateInfoAtLayout>) =>
+      l.zones[0].fontSize / l.zones[1].fontSize;
+    expect(Math.abs(ratio(kurz) - ratio(lang))).toBeLessThan(0.02);
+
+    // Beide bleiben innerhalb der Satzhoehe.
+    for (const l of [kurz, lang]) {
+      expect(l.zones[0].y).toBeGreaterThanOrEqual(INFO_AT_CONFIG.topBoundary - 1);
+      expect(l.zones[2].y).toBeLessThan(INFO_AT_CONFIG.bottomBoundary);
+    }
+  });
+
+  it('schrumpft, wenn ein einzelnes Wort breiter als die Spalte ist', () => {
+    // Aus dem Realtest (Mistral Medium 3.5): „unabhängigkeit" misst in Vollkorn
+    // kursiv bei 118 px 824 px gegen 760 px Satzmaß. Konva brach daraufhin
+    // MITTEN im Wort, waehrend wrapTextAccurate — das nur an Leerzeichen bricht
+    // — es weiter als eine Zeile meldete. Die Wachstumsschleife prueft die
+    // Wortbreite nur fuer den NAECHSTEN Schritt, die Ausgangsgroesse selbst
+    // wurde nie geprueft.
+    const l = calculateInfoAtLayout(
+      'Österreichs Strommix',
+      '87 Prozent kommen bereits aus Erneuerbaren mehr',
+      'unabhängigkeit'
+    );
+    expect(l.zones[2].fontSize).toBeLessThan(INFO_AT_CONFIG.text.fontSize);
+    const breite = measureTextWidthWithFont(
+      'unabhängigkeit',
+      l.zones[2].fontSize,
+      INFO_AT_CONFIG.accent.fontFamily,
+      INFO_AT_CONFIG.accent.fontStyle
+    );
+    expect(breite).toBeLessThanOrEqual(INFO_AT_CONFIG.maxWidth);
   });
 
   it('Fläche traegt kein Logo — die CI setzt sie als reine Typografie', async () => {
@@ -183,5 +255,44 @@ describe('Österreich (de-AT) canvas configs', () => {
       ?.describeForAi(flaeche.createInitialState({}))
       .textFields.map((f) => f.field);
     expect(flaecheFields).toEqual(['line1', 'accent', 'line3']);
+  });
+
+  it('schrumpft das Overlay, bis jede Headline-Zeile auf eine Zeile passt', () => {
+    // Die Box verengt das Satzmass auf 720 px; bei der Startgroesse von 118 px
+    // passen dort nur rund zwoelf Zeichen. Die Hoehenpruefung allein liess
+    // „Mehr Windkraft" umbrechen — vier Zeilen stehen vertikal noch bequem in
+    // der Box, aus dem Dreizeiler wurde ein Absatz.
+    const O = OVERLAY_AT_CONFIG;
+    const headline = (text: string) => ({
+      text,
+      fontSize: O.headline.fontSize,
+      fontFamily: O.headline.fontFamily,
+      fontStyle: O.headline.fontStyle,
+    });
+    const layout = calculateOverlayAtLayout([
+      headline('Mehr Windkraft'),
+      {
+        text: 'für Österreich',
+        fontSize: O.accent.fontSize,
+        fontFamily: O.accent.fontFamily,
+        fontStyle: O.accent.fontStyle,
+      },
+      headline('und für uns'),
+      {
+        text: '',
+        fontSize: O.subline.fontSize,
+        fontFamily: O.subline.fontFamily,
+        fontStyle: O.subline.fontStyle,
+      },
+    ]);
+
+    expect(layout.zones[0].fontSize).toBeLessThan(O.headline.fontSize);
+    const breite = measureTextWidthWithFont(
+      'Mehr Windkraft',
+      layout.zones[0].fontSize,
+      O.headline.fontFamily,
+      O.headline.fontStyle
+    );
+    expect(breite).toBeLessThanOrEqual(O.maxWidth);
   });
 });
