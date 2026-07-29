@@ -20,8 +20,10 @@ vi.mock('../../providers/providerFallback.js', () => ({
   trySharepicFallbackProviders: (...args: unknown[]) => mockTrySharepicFallbackProviders(...args),
 }));
 
-vi.mock('../../../workers/worker.config.js', () => ({
-  default: { worker: { requestTimeout: 5000 } },
+// The timeout used to come from `workers/worker.config.ts`, which wrapped this
+// same env value in ~18 settings nothing read. It is now read straight from env.
+vi.mock('../../../config/env.js', () => ({
+  env: { REQUEST_TIMEOUT: 5000 },
 }));
 
 import { AIService } from '../aiService.js';
