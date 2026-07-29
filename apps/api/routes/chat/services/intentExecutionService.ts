@@ -25,7 +25,7 @@ import { partitionSearchErrors } from '../../../agents/langgraph/ChatGraph/types
 import { env } from '../../../config/env.js';
 import { type ExpressRequest as SharepicExpressRequest } from '../../../services/chat/sharepicGenerationService.js';
 import { createRecurringTask } from '../../../services/recurringTasks/recurringTasksRepository.js';
-import { resolveTier, tierFromClassification } from '../../../services/search/searchDepth.js';
+import { resolveSearchTier, resolveTier } from '../../../services/search/searchDepth.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -1271,9 +1271,9 @@ export async function executeIntentPipeline(opts: {
         // The progress line now follows the TIER, not the intent: "recherchiere"
         // no longer means a different engine, so promising "dauert 15–20s" on
         // every such turn would be a lie about a search that takes two.
-        const searchTier = tierFromClassification({
+        const searchTier = resolveSearchTier({
           intent: currentIntent,
-          complexity: searchInputState.complexity ?? null,
+          explicitDeep: searchInputState.explicitDeepRequest ?? false,
         });
         if (!reused) {
           sse.send('search_start', {

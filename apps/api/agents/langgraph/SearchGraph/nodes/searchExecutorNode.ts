@@ -9,7 +9,7 @@
 import { createLogger } from '../../../../utils/logger.js';
 import {
   executeDocumentSearchParallel,
-  executeWebSearchParallel,
+  executeWebSearch,
   mergeSearchResults,
   buildCitations,
 } from '../../ChatGraph/nodes/searchNode.js';
@@ -70,7 +70,7 @@ export async function searchExecutorNode(
   state: SearchGraphState
 ): Promise<Partial<SearchGraphState>> {
   const start = Date.now();
-  const { searchQuery, subQueries, aiWorkerPool, userLocale, agentConfig } = state;
+  const { searchQuery, subQueries, userLocale, agentConfig } = state;
 
   if (!searchQuery) {
     log.warn('[SearchExecutor] No search query, skipping');
@@ -109,10 +109,12 @@ export async function searchExecutorNode(
     );
   }
 
-  // Web search (SearXNG + query expansion)
+  // Web search. `/suche` "Schnell" is a deliberate user choice for the quick
+  // mode, so it stays on the cheap tier — the deep engine lives behind the
+  // "Tiefe Recherche" toggle, which routes to deepResearchNode instead.
   if (state.searchSources.includes('web')) {
     searchPromises.push(
-      executeWebSearchParallel(searchQuery, aiWorkerPool)
+      executeWebSearch(searchQuery, { tier: 'standard' })
         .then(({ results }) => ({ source: 'web', results }))
         .catch((err: unknown) => {
           log.warn(
