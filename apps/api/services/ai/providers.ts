@@ -14,6 +14,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { env } from '../../config/env.js';
 import { withUsageTracking } from '../usage/usageModelMiddleware.js';
 
+import { greenptFetchWithThinkingDisabled } from './greenptThinkingFetch.js';
 import { regoloFetchWithThinkingDisabled } from './regoloThinkingFetch.js';
 
 import type { LanguageModel } from 'ai';
@@ -127,6 +128,7 @@ function getGreenPTProvider(): ReturnType<typeof createOpenAI> {
       baseURL: GREENPT_BASE_URL,
       apiKey,
       name: 'greenpt',
+      fetch: greenptFetchWithThinkingDisabled,
     });
   }
   return greenptInstance;
