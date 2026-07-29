@@ -31,11 +31,19 @@ import type { ModelMessage } from 'ai';
 export type { WolkeFileRef, ConnectFileRef, CurrentBoard, SocialPostPayload };
 
 /**
- * Search source backends that can be queried in parallel.
- * When multiple sources are specified, the search node runs them concurrently
- * and merges/deduplicates the results before reranking.
+ * Retrieval backends the classifier can request for one turn. When several are
+ * named, the search node runs them concurrently, caps each source's share of
+ * the merge window, and merges/deduplicates before reranking.
+ *
+ * `bundestag` is also a `SearchIntent`; the two are not redundant. The intent is
+ * the exclusive "this turn is DIP research" route, this is the "DIP alongside
+ * the party collections" route — the pairing a question like "was sagen wir zur
+ * Wärmewende und was lief dazu im Bundestag" needs, which no single intent could
+ * serve. Not a wire enum (`chatStreamEvents` types it `z.array(z.string())`), so
+ * adding a member is additive.
  */
-export type SearchSource = 'documents' | 'web' | 'examples' | 'chat_history' | 'wolke' | 'connect';
+export type SearchSource =
+  'documents' | 'web' | 'examples' | 'chat_history' | 'wolke' | 'connect' | 'bundestag';
 
 /**
  * Supported user locales for locale-aware collection routing.

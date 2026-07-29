@@ -160,6 +160,8 @@ interface RerankConfig {
   mmrKeepTop: number;
   mergeOverfetch: number;
   webScoreCeiling: number;
+  /** Same idea as `webScoreCeiling`, for DIP results whose relevance is positional. */
+  dipScoreCeiling: number;
 }
 
 interface FullConfig {
@@ -339,6 +341,7 @@ class VectorConfig {
         mmrKeepTop: env.RERANK_MMR_KEEP_TOP,
         mergeOverfetch: env.RERANK_MERGE_OVERFETCH,
         webScoreCeiling: env.RERANK_WEB_SCORE_CEILING,
+        dipScoreCeiling: env.RERANK_DIP_SCORE_CEILING,
       },
     };
   }
@@ -408,6 +411,10 @@ class VectorConfig {
 
     if (config.rerank.webScoreCeiling < 0 || config.rerank.webScoreCeiling > 1) {
       throw new Error('RERANK_WEB_SCORE_CEILING must be between 0 and 1');
+    }
+
+    if (config.rerank.dipScoreCeiling < 0 || config.rerank.dipScoreCeiling > 1) {
+      throw new Error('RERANK_DIP_SCORE_CEILING must be between 0 and 1');
     }
 
     const positiveValues = [
