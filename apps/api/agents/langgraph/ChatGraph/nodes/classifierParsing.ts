@@ -9,7 +9,11 @@ import { createLogger } from '../../../../utils/logger.js';
 
 import { extractFilters } from './classifierFilters.js';
 import { extractSearchTopic } from './classifierHeuristics.js';
-import { CLASSIFIER_DOC_SUBTYPES, NON_SEARCH_INTENTS } from './classifierPrompt.js';
+import {
+  CLASSIFIER_DOC_SUBTYPES,
+  isOfferedIntent,
+  NON_SEARCH_INTENTS,
+} from './classifierPrompt.js';
 
 import type { SearchIntent, SearchSource, ClassificationResult } from '../types.js';
 import type { ClassifierLLMResponse } from './classifierFilters.js';
@@ -120,38 +124,6 @@ export function parseClassifierResponse(
   content: string,
   userContent: string
 ): ClassificationResult {
-  // Valid intents (person removed - feature disabled)
-  const validIntents = [
-    'research',
-    'compare',
-    'search',
-    'web',
-    'examples',
-    'social_post',
-    'abgeordnetenwatch',
-    'bundestag',
-    'bahn',
-    'reise',
-    'hotel',
-    'wetter',
-    'news',
-    'umfragen',
-    'hilfe',
-    'sharepic',
-    'image',
-    'image_edit',
-    'summary',
-    'chart',
-    'artifact',
-    'compute',
-    'save_as_doc',
-    'create_pdf',
-    'modify_doc',
-    'modify_board',
-    'chat_history',
-    'direct',
-  ];
-
   /**
    * Process parsed response and build classification result.
    * Uses optimizedSearchQuery when available for better retrieval precision.
@@ -200,7 +172,13 @@ export function parseClassifierResponse(
       };
     }
 
-    if (parsed.intent && validIntents.includes(parsed.intent)) {
+    // Accept exactly what the prompt offered — `CLASSIFIER_OFFERED_INTENTS` is
+    // the same constant that renders the prompt's `"intent"` enum line, so
+    // "advertised to the model" and "accepted from the model" can no longer
+    // drift apart. Anything else is a hallucination or a router-only
+    // disposition (agentic, scrape_url, compare, edit_current_*) and falls
+    // through to the regex chain below.
+    if (parsed.intent && isOfferedIntent(parsed.intent)) {
       const suffix = extracted ? ' (extracted)' : '';
       const isSearchIntent = !NON_SEARCH_INTENTS.has(parsed.intent);
 
@@ -312,7 +290,7 @@ export function parseClassifierResponse(
       }
 
       const result: ClassificationResult = {
-        intent: parsed.intent as SearchIntent,
+        intent: parsed.intent,
         secondaryIntent: validSecondary,
         searchQuery: effectiveSearchQuery,
         subQueries,

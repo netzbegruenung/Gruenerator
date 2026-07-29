@@ -1210,6 +1210,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         hasTemporal: temporal.hasTemporal,
         complexity,
         classificationTimeMs,
+        ...(heuristic.targetGroupName != null && { targetGroupName: heuristic.targetGroupName }),
       };
     }
 

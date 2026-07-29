@@ -461,6 +461,41 @@ export interface HeuristicResult extends ClassificationResult {
 }
 
 /**
+ * Consumes the share trigger plus any article and the filler word "Gruppe", so
+ * what remains starts at the group name itself. Deliberately does NOT eat the
+ * `AG`/`KV`/`OV` prefix — that is part of the name ("AG Umwelt"), even though
+ * the intent-detection pattern above uses it as a trigger token.
+ */
+const SHARE_TARGET_TRIGGER =
+  /\b(?:teil[e]?\s+(?:das\s+)?(?:mit|an)|share\s+mit|freigeben\s+f(?:ü|ue)r|send[e]?\s+an)\s+(?:der|die|das|den|dem|meiner|meinem|unserer|unserem)?\s*(?:gruppe\s+)?/i;
+
+/** Trailing clause that is no longer part of the name ("… und gib ihnen Rechte"). */
+const SHARE_TARGET_TAIL = /\s+(?:und|sowie|damit|zum|als|mit)\b.*$/i;
+
+/**
+ * Pull the group name out of a share request.
+ *
+ * The LLM tier gets `targetGroupName` from the prompt, but this heuristic fires
+ * at 0.88 and skips the LLM entirely — without this the name was dropped and
+ * handleShareDoc asked "mit welcher Gruppe?" while the group sat in the very
+ * sentence that triggered the intent.
+ *
+ * Extraction only has to be close: the consumer fuzzy-matches against the
+ * user's own group list (`findBestMatch(..., 0.5)`), and an unmatched name
+ * still lists the available groups rather than failing blindly.
+ */
+export function extractShareTargetGroup(text: string): string | null {
+  const trigger = SHARE_TARGET_TRIGGER.exec(text);
+  if (!trigger) return null;
+  const name = text
+    .slice(trigger.index + trigger[0].length)
+    .split(/[,;.!?\n]/)[0]
+    .replace(SHARE_TARGET_TAIL, '')
+    .trim();
+  return name.length >= 2 && name.length <= 60 ? name : null;
+}
+
+/**
  * Confidence threshold for skipping LLM.
  * Above this value, we trust heuristics and save an LLM call.
  */
@@ -760,11 +795,15 @@ export function heuristicClassify(
       q
     )
   ) {
+    // From the original casing, not `q` — the name is echoed back to the user
+    // in handleShareDoc's "keine passende Gruppe" message.
+    const targetGroupName = extractShareTargetGroup(userContent);
     return {
       intent: 'share_doc',
       searchQuery: null,
       reasoning: 'Share document request detected',
       confidence: 0.88,
+      ...(targetGroupName != null && { targetGroupName }),
     };
   }
 
