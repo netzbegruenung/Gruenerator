@@ -1,11 +1,16 @@
 /**
  * ChatGraph Public Exports
  *
- * LangGraph-based agentic chat system.
- * Pipeline: classify → search → rerank → qualityGate → respond
+ * The node functions of the chat pipeline (classify → search → rerank →
+ * respond) plus its state initialiser.
+ *
+ * There is deliberately NO compiled graph here. The routers sequence these
+ * nodes themselves — see `routes/chat/chatGraphContractRouter.ts`. The compiled
+ * `chatGraph` that used to be exported had zero production callers and was
+ * removed; do not reintroduce one without also moving the routers onto it.
  */
 
-export { chatGraph, runChatGraph, initializeChatState } from './ChatGraph.js';
+export { initializeChatState } from './ChatGraph.js';
 export {
   classifierNode,
   briefGeneratorNode,
