@@ -178,6 +178,12 @@
       "import": "./dist/notebooks/index.js",
       "default": "./dist/notebooks/index.js"
     },
+    "./chat-intents": {
+      "development": "./src/chat-intents/index.ts",
+      "types": "./src/chat-intents/index.ts",
+      "import": "./dist/chat-intents/index.js",
+      "default": "./dist/chat-intents/index.js"
+    },
     "./chat": {
       "development": "./src/chat/index.ts",
       "types": "./src/chat/index.ts",
