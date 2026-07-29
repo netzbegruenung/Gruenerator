@@ -18,7 +18,8 @@
     "verbatimModuleSyntax": false,
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
-    "exactOptionalPropertyTypes": true
+    "exactOptionalPropertyTypes": true,
+    "incremental": true
   },
   "include": ["**/*.ts", "**/*.mts", "**/*.js", "**/*.mjs", "types/**/*.d.ts"],
   // NOTE: `**/*.vitest.ts` is excluded, so `pnpm typecheck` never sees a test
