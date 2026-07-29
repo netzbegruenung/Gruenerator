@@ -195,6 +195,15 @@ export interface ImageTwoTextOptions<
 
   /** Optional: Gradient overlay opacity (default: none) */
   gradientOpacity?: number;
+
+  /**
+   * Optional: template-specific state keys that must survive
+   * createInitialState (e.g. the AT overlay's `accent` / `subline` / `boxColor`).
+   * Without this the initial-state whitelist silently drops keys written by
+   * chat edits, so card renders and remote-sync re-seeds lose them.
+   * Mirrors the same option on createColorTwoTextCanvas.
+   */
+  passthroughStateKeys?: string[];
 }
 
 // ============================================================================
@@ -219,6 +228,7 @@ export function createImageTwoTextCanvas<
     maxPages = 10,
     getCanvasText,
     gradientOpacity,
+    passthroughStateKeys = [],
   } = options;
 
   // Build base elements
@@ -418,6 +428,10 @@ export function createImageTwoTextCanvas<
         frameInstances: [],
         chartInstances: [],
         userImageInstances: [],
+
+        ...Object.fromEntries(
+          passthroughStateKeys.filter((k) => k in props).map((k) => [k, props[k]])
+        ),
       }) as State,
 
     createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => {
