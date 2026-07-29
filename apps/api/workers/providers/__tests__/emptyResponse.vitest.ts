@@ -27,25 +27,18 @@ vi.mock('../../../services/tools/index.js', () => ({
   default: { prepareToolsPayload: vi.fn(() => ({})) },
 }));
 
-const { execute: mistral } = await import('../mistralAdapter.js');
-const { execute: litellm } = await import('../litellmAdapter.js');
-const { execute: regolo } = await import('../regoloAdapter.js');
-const { execute: greenpt } = await import('../greenptAdapter.js');
+const { execute } = await import('../execute.js');
 
-type Execute = (requestId: string, data: never) => Promise<unknown>;
-const ADAPTERS: Array<[string, Execute]> = [
-  ['mistral', mistral as Execute],
-  ['litellm', litellm as Execute],
-  ['regolo', regolo as Execute],
-  ['greenpt', greenpt as Execute],
-];
+const PROVIDERS = ['mistral', 'litellm', 'regolo', 'greenpt'] as const;
+type Provider = (typeof PROVIDERS)[number];
+const run = (provider: Provider, data: unknown) => execute(provider, 'req', data as never);
 
 const request = { type: 'chat', messages: [{ role: 'user' as const, content: 'Hallo' }] };
 
 beforeEach(() => vi.clearAllMocks());
 
 describe('an exhausted output budget', () => {
-  for (const [name, execute] of ADAPTERS) {
+  for (const name of PROVIDERS) {
     it(`${name} returns the empty answer instead of throwing`, async () => {
       generateText.mockResolvedValue({
         text: '',
@@ -53,7 +46,7 @@ describe('an exhausted output budget', () => {
         usage: { inputTokens: 900, outputTokens: 4096, totalTokens: 4996 },
       });
 
-      const result = (await execute('req', request as never)) as {
+      const result = (await run(name, request)) as {
         content: string | null;
         success: boolean;
         raw_content_blocks?: unknown;
@@ -71,7 +64,7 @@ describe('an exhausted output budget', () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
       generateText.mockResolvedValue({ text: '', finishReason: 'length', usage: {} });
 
-      await execute('req', request as never);
+      await run(name, request);
 
       expect(warn).toHaveBeenCalledWith(expect.stringContaining('finish_reason=length'));
       warn.mockRestore();
@@ -80,11 +73,11 @@ describe('an exhausted output budget', () => {
 });
 
 describe('a normal answer is unaffected', () => {
-  for (const [name, execute] of ADAPTERS) {
+  for (const name of PROVIDERS) {
     it(`${name} returns text and a text block`, async () => {
       generateText.mockResolvedValue({ text: 'Antwort', finishReason: 'stop' });
 
-      const result = (await execute('req', request as never)) as {
+      const result = (await run(name, request)) as {
         content: string | null;
         stop_reason?: string;
         raw_content_blocks?: Array<{ type: string; text?: string }>;

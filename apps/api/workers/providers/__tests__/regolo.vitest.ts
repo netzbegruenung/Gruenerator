@@ -9,12 +9,11 @@ import {
 } from '../../../services/ai/providers.js';
 import { isProviderAvailable } from '../../../services/providers/providerFallback.js';
 import { determineProviderFromModel } from '../../../services/providers/providerSelector.js';
-import { adapters, executeProvider } from '../index.js';
+import { executeProvider, KNOWN_PROVIDERS } from '../index.js';
 
 describe('Regolo provider — unit tests', () => {
-  it('adapters record includes regolo with execute function', () => {
-    expect(adapters['regolo']).toBeDefined();
-    expect(typeof adapters['regolo'].execute).toBe('function');
+  it('regolo is a known provider', () => {
+    expect(KNOWN_PROVIDERS).toContain('regolo');
   });
 
   it('getDefaultModel returns expected default', () => {

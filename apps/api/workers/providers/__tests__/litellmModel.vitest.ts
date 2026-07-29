@@ -28,7 +28,7 @@ vi.mock('../../../services/tools/index.js', () => ({
   default: { prepareToolsPayload: vi.fn(() => ({})) },
 }));
 
-const { execute } = await import('../litellmAdapter.js');
+const { execute } = await import('../execute.js');
 
 function request(options: Record<string, unknown> = {}) {
   return {
@@ -45,19 +45,19 @@ beforeEach(() => {
 
 describe('litellmAdapter — model selection', () => {
   it('uses the model the caller asked for', async () => {
-    await execute('req', request({ model: 'verdigado-think' }) as never);
+    await execute('litellm', 'req', request({ model: 'verdigado-think' }) as never);
     expect(getModel).toHaveBeenCalledWith('litellm', 'verdigado-think');
   });
 
   it('falls back to the provider default when no model is named', async () => {
-    await execute('req', request() as never);
+    await execute('litellm', 'req', request() as never);
     expect(getModel).toHaveBeenCalledWith('litellm', 'verdigado-pro');
   });
 
   it('reports the model it used in the response metadata', async () => {
     // The metadata used to say `verdigado-pro` no matter what ran, so nothing
     // downstream — logs, usage attribution, debugging — could see the truth.
-    const result = await execute('req', request({ model: 'verdigado-think' }) as never);
+    const result = await execute('litellm', 'req', request({ model: 'verdigado-think' }) as never);
     expect((result as { metadata?: { model?: string } }).metadata?.model).toBe('verdigado-think');
   });
 });
