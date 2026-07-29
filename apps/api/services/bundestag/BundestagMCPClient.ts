@@ -331,7 +331,20 @@ class BundestagMCPClient {
    * @returns Person details
    */
   async getPerson(id: string | number): Promise<SearchResult> {
-    return this._callTool('bundestag_get_person', { id: String(id) });
+    const result = await this._callTool('bundestag_get_person', { id: String(id) });
+    // Unlike every list endpoint, `bundestag_get_person` returns the record
+    // under `data` — `_callTool` only normalizes `results` → `documents`, so the
+    // envelope reached consumers with nothing they could read. That silently
+    // emptied EnrichedPersonSearchService's whole profile enrichment
+    // (wahlkreis, geburtsdatum, geburtsort, beruf, biografie, vita,
+    // wahlperioden are read off this object and were always undefined).
+    // Surface the record both flat and as `documents` — callers use both.
+    const data = result.data;
+    if (data !== null && typeof data === 'object' && !Array.isArray(data)) {
+      const record = data as Record<string, unknown>;
+      return { ...result, ...record, documents: [record] };
+    }
+    return result;
   }
 
   /**
