@@ -220,6 +220,100 @@ export function localeToSearchScope(locale: ResearchLocale): {
   }
 }
 
+type WebSearchHit = Awaited<ReturnType<typeof executeDirectWebSearch>>['results'][number];
+type DocSearchHit = Awaited<ReturnType<typeof executeDirectSearch>>['results'][number];
+
+/**
+ * Rank decay is deliberately steeper here (0.1) than in searchNode (0.15):
+ * this value is the FINAL sort key feeding applyMMR and the maxSources cut,
+ * whereas searchNode's feeds normalizeScore before a cross-encoder rerank.
+ * Do not unify the two — it retunes research source selection.
+ */
+function toWebSource(result: WebSearchHit, id: number): CollectedSource {
+  return {
+    id,
+    title: result.title,
+    url: result.url,
+    domain: result.domain,
+    snippet: result.snippet,
+    relevance: 1 - (result.rank - 1) * 0.1,
+    sourceType: 'web',
+  };
+}
+
+function toDocSource(result: DocSearchHit, id: number, domain: string): CollectedSource {
+  return {
+    id,
+    title: result.source,
+    url: result.url || '',
+    domain,
+    snippet: result.excerpt,
+    // Lossy: executeDirectSearch also ships the raw `score`, which this path
+    // discards. See the note in searchNode's normalizeScore.
+    relevance: result.relevance === 'Sehr hoch' ? 0.9 : result.relevance === 'Hoch' ? 0.7 : 0.5,
+    sourceType: 'document',
+  };
+}
+
+/**
+ * Shared tail of both research paths: strip citations the sources don't
+ * support, fall back to template synthesis when most of them were invented,
+ * then project the sources into citations.
+ */
+function finalizeResearchResult(params: {
+  question: string;
+  answer: string;
+  confidence: ResearchResult['confidence'];
+  limitedSources: CollectedSource[];
+  strategy: string;
+  searchSteps: ResearchResult['searchSteps'];
+  logPrefix: string;
+  /** Template synthesis produces no citations to validate. */
+  validateGrounding: boolean;
+}): ResearchResult {
+  const { question, limitedSources, strategy, searchSteps, logPrefix } = params;
+  let { answer, confidence } = params;
+
+  if (params.validateGrounding && answer) {
+    const groundingResult = validateCitations(
+      answer,
+      limitedSources.map((s) => ({ id: s.id, content: s.snippet }))
+    );
+
+    if (groundingResult.ungroundedCitations.length > 0) {
+      log.warn(
+        `${logPrefix} ${groundingResult.ungroundedCitations.length} ungrounded citations removed: [${groundingResult.ungroundedCitations.join(', ')}]`
+      );
+      answer = stripUngroundedCitations(answer, groundingResult.ungroundedCitations);
+
+      if (groundingResult.confidence < 0.5 && groundingResult.totalCitations > 2) {
+        log.warn(`${logPrefix} >50% citations ungrounded, falling back to template synthesis`);
+        const fallback = synthesizeAnswer(question, limitedSources, strategy);
+        answer = fallback.answer;
+        confidence = fallback.confidence;
+      }
+    }
+  }
+
+  const citations: ResearchCitation[] = limitedSources.map((s) => ({
+    id: s.id,
+    title: s.title,
+    url: s.url,
+    domain: s.domain,
+    snippet: truncateText(s.snippet, 150),
+  }));
+
+  log.info(`${logPrefix} Complete: ${citations.length} citations, confidence: ${confidence}`);
+
+  return {
+    answer,
+    citations,
+    followUpQuestions: generateFollowUpQuestions(question, limitedSources),
+    searchSteps,
+    confidence,
+  };
+}
+
 /**
  * Execute deep research via Linkup. Replaces our planner+orchestrator when
  * LINKUP_API_KEY is set. Maps Linkup's `sourcedAnswer` response onto our
@@ -369,15 +463,7 @@ async function executeDeepSearches(
       const web = data as Awaited<ReturnType<typeof executeDirectWebSearch>>;
       searchSteps.push({ tool: 'web_search', query, resultsCount: web.resultsCount });
       for (const result of web.results) {
-        sources.push({
-          id: sourceId++,
-          title: result.title,
-          url: result.url,
-          domain: result.domain,
-          snippet: result.snippet,
-          relevance: 1 - (result.rank - 1) * 0.1,
-          sourceType: 'web',
-        });
+        sources.push(toWebSource(result, sourceId++));
       }
     } else {
       const doc = data as Awaited<ReturnType<typeof executeDirectSearch>>;
@@ -387,16 +473,7 @@ async function executeDeepSearches(
         resultsCount: doc.resultsCount,
       });
       for (const result of doc.results) {
-        sources.push({
-          id: sourceId++,
-          title: result.source,
-          url: result.url || '',
-          domain: docDomain,
-          snippet: result.excerpt,
-          relevance:
-            result.relevance === 'Sehr hoch' ? 0.9 : result.relevance === 'Hoch' ? 0.7 : 0.5,
-          sourceType: 'document',
-        });
+        sources.push(toDocSource(result, sourceId++, docDomain));
       }
     }
   }
@@ -504,15 +581,7 @@ async function executeSearches(
               resultsCount: webResults.resultsCount,
             });
             for (const result of webResults.results) {
-              sources.push({
-                id: sourceId++,
-                title: result.title,
-                url: result.url,
-                domain: result.domain,
-                snippet: result.snippet,
-                relevance: 1 - (result.rank - 1) * 0.1,
-                sourceType: 'web',
-              });
+              sources.push(toWebSource(result, sourceId++));
             }
           }
           break;
@@ -530,16 +599,7 @@ async function executeSearches(
             resultsCount: docResults.resultsCount,
           });
           for (const result of docResults.results) {
-            sources.push({
-              id: sourceId++,
-              title: result.source,
-              url: result.url || '',
-              domain: docDomain,
-              snippet: result.excerpt,
-              relevance:
-                result.relevance === 'Sehr hoch' ? 0.9 : result.relevance === 'Hoch' ? 0.7 : 0.5,
-              sourceType: 'document',
-            });
+            sources.push(toDocSource(result, sourceId++, docDomain));
           }
           break;
         }
@@ -952,7 +1012,7 @@ export async function executeResearch(params: {
   // Phase 3: Synthesize answer
   const limitedSources = diverseSources.slice(0, maxSources);
   log.info(`[Research] Synthesizing with ${useLLMSynthesis ? 'LLM (mistral-small)' : 'template'}`);
-  let { answer, confidence } = await synthesizeWithFallback(
+  const { answer, confidence } = await synthesizeWithFallback(
     question,
     limitedSources,
     plan.synthesisStrategy,
@@ -960,50 +1020,16 @@ export async function executeResearch(params: {
     brief
   );
 
-  // B4: Validate citation grounding
-  if (useLLMSynthesis && answer) {
-    const groundingResult = validateCitations(
-      answer,
-      limitedSources.map((s) => ({ id: s.id, content: s.snippet }))
-    );
-
-    if (groundingResult.ungroundedCitations.length > 0) {
-      log.warn(
-        `[Research] ${groundingResult.ungroundedCitations.length} ungrounded citations removed: [${groundingResult.ungroundedCitations.join(', ')}]`
-      );
-      answer = stripUngroundedCitations(answer, groundingResult.ungroundedCitations);
-
-      // If >50% ungrounded, fall back to template synthesis
-      if (groundingResult.confidence < 0.5 && groundingResult.totalCitations > 2) {
-        log.warn('[Research] >50% citations ungrounded, falling back to template synthesis');
-        const fallback = synthesizeAnswer(question, limitedSources, plan.synthesisStrategy);
-        answer = fallback.answer;
-        confidence = fallback.confidence;
-      }
-    }
-  }
-
-  // Generate follow-up questions
-  const followUpQuestions = generateFollowUpQuestions(question, limitedSources);
-
-  // Build citations list
-  const citations: ResearchCitation[] = limitedSources.map((s) => ({
-    id: s.id,
-    title: s.title,
-    url: s.url,
-    domain: s.domain,
-    snippet: truncateText(s.snippet, 150),
-  }));
-
-  log.info(`[Research] Complete: ${citations.length} citations, confidence: ${confidence}`);
-
-  return {
+  return finalizeResearchResult({
+    question,
     answer,
-    citations,
-    followUpQuestions,
-    searchSteps,
     confidence,
-  };
+    limitedSources,
+    strategy: plan.synthesisStrategy,
+    searchSteps,
+    logPrefix: '[Research]',
+    validateGrounding: useLLMSynthesis,
+  });
 }
 
 /**
@@ -1097,7 +1123,7 @@ async function executeDeepResearch(args: {
     plan.reportShape === 'positional' || plan.reportShape === 'comparative'
       ? 'policy_overview'
       : 'factual_synthesis';
-  let { answer, confidence } = await synthesizeWithFallback(
+  const { answer, confidence } = await synthesizeWithFallback(
     question,
     limitedSources,
     strategy,
@@ -1106,42 +1132,15 @@ async function executeDeepResearch(args: {
     plan.reportShape
   );
 
-  // Citation grounding (same as single-shot path).
-  if (answer) {
-    const groundingResult = validateCitations(
-      answer,
-      limitedSources.map((s) => ({ id: s.id, content: s.snippet }))
-    );
-    if (groundingResult.ungroundedCitations.length > 0) {
-      log.warn(
-        `[Research/Deep] ${groundingResult.ungroundedCitations.length} ungrounded citations removed`
-      );
-      answer = stripUngroundedCitations(answer, groundingResult.ungroundedCitations);
-      if (groundingResult.confidence < 0.5 && groundingResult.totalCitations > 2) {
-        log.warn('[Research/Deep] >50% citations ungrounded, falling back to template');
-        const fallback = synthesizeAnswer(question, limitedSources, strategy);
-        answer = fallback.answer;
-        confidence = fallback.confidence;
-      }
-    }
-  }
-
-  const followUpQuestions = generateFollowUpQuestions(question, limitedSources);
-  const citations: ResearchCitation[] = limitedSources.map((s) => ({
-    id: s.id,
-    title: s.title,
-    url: s.url,
-    domain: s.domain,
-    snippet: truncateText(s.snippet, 150),
-  }));
-
-  log.info(`[Research/Deep] Complete: ${citations.length} citations, confidence: ${confidence}`);
-
-  return {
+  return finalizeResearchResult({
+    question,
     answer,
-    citations,
-    followUpQuestions,
-    searchSteps: allSearchSteps,
     confidence,
-  };
+    limitedSources,
+    strategy,
+    searchSteps: allSearchSteps,
+    logPrefix: '[Research/Deep]',
+    // The deep path is always LLM-synthesized.
+    validateGrounding: true,
+  });
 }
