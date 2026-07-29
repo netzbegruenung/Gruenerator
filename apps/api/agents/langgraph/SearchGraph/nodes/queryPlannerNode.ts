@@ -92,7 +92,11 @@ ${context}`,
         messages: [{ role: 'user', content: `Aktuelle Anfrage: "${rawQuery}"` }],
         options: {
           provider: 'litellm',
-          model: 'mistral-small',
+          // What this has always run on: the litellm adapter used to ignore
+          // `model` outright and substitute the verdigado default. `mistral-small`
+          // is not a verdigado alias — it appears nowhere else in the repo — so
+          // naming it here only ever described a request that was never sent.
+          model: 'verdigado-pro',
           max_tokens: 80,
           temperature: 0.0,
         },

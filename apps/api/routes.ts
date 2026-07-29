@@ -92,6 +92,7 @@ import backgroundRemovalRoute from './routes/sharepic/backgroundRemoval.js';
 import editSessionRouter from './routes/sharepic/editSession.js';
 import promptRoute from './routes/sharepic/promptRoute.js';
 import dreizeilenAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/dreizeilen_at_canvas.js';
+import dreizeilenOverlayAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/dreizeilen_overlay_at_canvas.js';
 import zitatAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/zitat_at_canvas.js';
 import zitatPureAtCanvasRoute from './routes/sharepic/sharepic_canvas/at/zitat_pure_at_canvas.js';
 import campaignCanvasRoute from './routes/sharepic/sharepic_canvas/campaign_canvas.js';
@@ -508,6 +509,12 @@ export async function setupRoutes(app: Application): Promise<void> {
     standardMutationLimiter,
     requireAuth,
     dreizeilenAtCanvasRoute
+  );
+  app.use(
+    '/api/dreizeilen_overlay_at_canvas',
+    standardMutationLimiter,
+    requireAuth,
+    dreizeilenOverlayAtCanvasRoute
   );
   app.use(
     '/api/imagine_label_canvas',
