@@ -1,43 +1,12 @@
 /**
  * Shared service access for the /api/share routers.
  *
- * Lazy-loads SharedMediaService + the subtitler ProjectService (heavy modules
- * pulled in on first use) and exposes the background-render orchestration used
- * by the video-from-project flow. Consumed by both the file router and the
- * read contract router.
+ * Lazy-loads SharedMediaService (a heavy module pulled in on first use).
+ * Consumed by the file router, the read contract router, the workplace
+ * activity feed and the canvas repository.
  */
 
-import fs from 'fs';
-import path from 'path';
-
-import { createLogger } from '../../utils/logger.js';
-
 import type { SharedMediaRow, ShareResult } from '../../types/media.js';
-
-const fsPromises = fs.promises;
-const log = createLogger('share');
-
-export interface ExportData {
-  status: string;
-  outputPath: string;
-  duration?: number;
-}
-
-export interface Project {
-  id?: string;
-  video_path?: string;
-  thumbnail_path?: string;
-  subtitled_video_path?: string;
-  subtitles?: unknown;
-  title?: string;
-  video_metadata?: {
-    width?: number;
-    height?: number;
-    duration?: number;
-  };
-  style_preference?: string;
-  height_preference?: string;
-}
 
 export interface CreateImageShareParams {
   imageBase64: string;
@@ -121,18 +90,8 @@ export interface SharedMediaService {
   ): Promise<SharedMediaRow | null>;
 }
 
-export interface ProjectService {
-  ensureInitialized(): Promise<void>;
-  getProject(userId: string, projectId: string): Promise<Project>;
-  getVideoPath(relativePath: string): string;
-  getSubtitledVideoPath(relativePath: string): string;
-  getThumbnailPath(relativePath: string): string;
-  updateSubtitledVideoPath(userId: string, projectId: string, relativePath: string): Promise<void>;
-}
-
-// Lazy-loaded services
+// Lazy-loaded service
 let sharedMediaService: SharedMediaService | null = null;
-let projectService: ProjectService | null = null;
 
 export async function getSharedMediaService(): Promise<SharedMediaService> {
   if (!sharedMediaService) {
@@ -142,61 +101,4 @@ export async function getSharedMediaService(): Promise<SharedMediaService> {
     await sharedMediaService.ensureInitialized();
   }
   return sharedMediaService;
-}
-
-export async function getProjectService(): Promise<ProjectService> {
-  if (!projectService) {
-    const { getSubtitlerProjectService } = await import('../../services/subtitler/index.js');
-    projectService = getSubtitlerProjectService() as unknown as ProjectService;
-    await projectService.ensureInitialized();
-  }
-  return projectService;
-}
-
-export async function triggerBackgroundRender(
-  userId: string,
-  projectId: string,
-  shareToken: string,
-  project: Project
-): Promise<void> {
-  try {
-    const projService = await getProjectService();
-    const { processProjectExport } = await import('../../services/subtitler/exportService.js');
-
-    log.info(`Background render starting for share ${shareToken}`);
-
-    const result = await processProjectExport(
-      project as {
-        id: string;
-        video_path: string;
-        subtitles: string;
-        style_preference?: string;
-        height_preference?: string;
-      },
-      projService,
-      userId
-    );
-
-    const subtitledVideoRelativePath = `${userId}/${projectId}/subtitled_${Date.now()}.mp4`;
-    const subtitledVideoFullPath = projService.getSubtitledVideoPath(subtitledVideoRelativePath);
-
-    await fsPromises.mkdir(path.dirname(subtitledVideoFullPath), { recursive: true });
-    await fsPromises.copyFile(result.outputPath, subtitledVideoFullPath);
-    await projService.updateSubtitledVideoPath(userId, projectId, subtitledVideoRelativePath);
-
-    const service = await getSharedMediaService();
-    await service.finalizeVideoShare(shareToken, subtitledVideoFullPath);
-
-    try {
-      await fsPromises.unlink(result.outputPath);
-    } catch {
-      // Ignore cleanup errors
-    }
-
-    log.info(`Background render complete for share ${shareToken}`);
-  } catch (error) {
-    log.error(`Background render failed for ${shareToken}:`, error);
-    const service = await getSharedMediaService();
-    await service.markShareFailed(shareToken);
-  }
 }
