@@ -123,7 +123,8 @@ export const BRAND_THEMES: Record<BrandLocale, BrandTheme> = {
       src: SYSTEM_ASSETS.logoAt.weiss.src,
       label: SYSTEM_ASSETS.logoAt.weiss.label,
     },
-    quoteMark: { src: SYSTEM_ASSETS.quote.white.src },
+    // Anders als in Deutschland steht das Anführungszeichen in Gelb.
+    quoteMark: { src: SYSTEM_ASSETS.quote.gelb.src },
   },
 };
 

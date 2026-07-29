@@ -163,6 +163,13 @@ export interface RectElementConfig<
   width: PositionValue<TState>;
   height: PositionValue<TState>;
   fill: FillValue<TState>;
+  /**
+   * Optionaler linearer Verlauf, Punkte relativ zur linken oberen Ecke des
+   * Rechtecks. Ist er gesetzt, gewinnt er in Konva gegen `fill`.
+   */
+  fillLinearGradientStartPoint?: { x: number; y: number };
+  fillLinearGradientEndPoint?: { x: number; y: number };
+  fillLinearGradientColorStops?: Array<number | string>;
   listening?: boolean;
   /** Corner radius for rounded rectangles. Single number for uniform radius, or array of 4 for per-corner [topLeft, topRight, bottomRight, bottomLeft] */
   cornerRadius?: PositionValue<TState> | number[];
