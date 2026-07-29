@@ -18,6 +18,7 @@
 import { redisClient, ensureConnected } from '../../utils/redis/client.js';
 
 import { getBundestagEnrichedService } from './BundestagEnrichedService.js';
+import { SUBSTANTIVE_ENTITY_TYPES } from './BundestagMCPClient.js';
 
 import type { BtEnrichedResult } from './types.js';
 
@@ -61,6 +62,37 @@ function expectPerson(surname: string): (r: BtEnrichedResult) => string | null {
   };
 }
 
+/**
+ * A topic result is only useful if its slots hold DIFFERENT, substantive
+ * documents. Unfiltered, DIP answers with the procedural paperwork around a
+ * bill — Beschluss / Empfehlungen / Stellungnahme, mostly Bundesrat, all
+ * repeating the bill's title verbatim — so one law used to fill every slot.
+ */
+function expectTopic(r: BtEnrichedResult): string | null {
+  if (!r.topic) return `kind=${r.kind}, expected "topic"`;
+  const { hits, speeches, documents, vorgaenge } = r.topic;
+  if (
+    hits.length === 0 &&
+    speeches.length === 0 &&
+    documents.length === 0 &&
+    vorgaenge.length === 0
+  ) {
+    return 'no topic hits, speeches, documents or vorgaenge';
+  }
+  const titles = hits.map((h) => h.title.toLowerCase().trim());
+  const duplicate = titles.find((t, i) => titles.indexOf(t) !== i);
+  if (duplicate) {
+    return `duplicate hit title ("${duplicate.slice(0, 60)}…") — dedupeHits did not collapse it`;
+  }
+  const chaff = hits.filter(
+    (h) => h.entityType && !SUBSTANTIVE_ENTITY_TYPES.includes(h.entityType as never)
+  );
+  if (chaff.length > 0) {
+    return `${chaff.length} procedural hit(s) despite the entityTypes filter (e.g. "${chaff[0].entityType}")`;
+  }
+  return null;
+}
+
 const SCENARIOS: Scenario[] = [
   {
     tag: 'person',
@@ -80,15 +112,20 @@ const SCENARIOS: Scenario[] = [
   {
     tag: 'topic',
     question: 'Was wurde im Bundestag zum Klimaschutz debattiert?',
-    expect: (r) =>
-      r.topic && (r.topic.hits.length > 0 || r.topic.speeches.length > 0)
-        ? null
-        : `kind=${r.kind}, no topic hits or speeches`,
+    expect: expectTopic,
   },
   {
     tag: 'topic',
     question: 'Welche Anträge gab es zuletzt zur Kindergrundsicherung?',
-    expect: (r) => (r.kind === 'none' ? 'no results at all' : null),
+    expect: expectTopic,
+  },
+  {
+    // The query that exposed the problem: unfiltered, all six slots came back
+    // as Bundesrat Beschluss/Empfehlungen/Stellungnahme records, four of them
+    // the same Geothermie law.
+    tag: 'topic',
+    question: 'Wärmewende und Heizungsgesetz im Bundestag',
+    expect: expectTopic,
   },
   {
     tag: 'document',
