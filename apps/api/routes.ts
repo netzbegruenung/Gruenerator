@@ -727,17 +727,28 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Auth + rate-limiting must run before the contract mount — createExpressEndpoints
   // registers handlers directly on the app, bypassing the legacy prefix middleware.
   // Same pattern as /api/transfer below.
-  //   - project routes require auth (reject unauthenticated)
   //   - share routes: optionalAuth populates req.user so write handlers can
   //     check it, without rejecting the public getShare/thumbnail/preview reads
+  //   - everything else requires auth. The reel UI is auth-gated on every
+  //     platform (only /subtitler/share/:shareToken is `public: true`), so an
+  //     anonymous process-auto is a bug, not a use case — and a guaranteed
+  //     req.user is what lets extractLocaleFromRequest read the profile locale
+  //     (fresh from the DB via tryResolveUser's localeCache overlay) instead of
+  //     falling through to the browser-derived X-User-Locale header. That
+  //     fall-through is why AT users got German subtitle styles in the auto
+  //     pipeline and German party names in generate-social.
   //   - standardMutationLimiter guards writes across the whole prefix (it skips
   //     GETs, so the 2s progress-polling endpoints are unaffected)
-  app.use('/api/subtitler/projects', requireAuth);
   app.use('/api/subtitler/share', optionalAuth);
   // Read limiter for the public share GETs (getShare / listMyShares) — the
   // prefix-wide standardMutationLimiter below skips GETs, so without this the
   // migrated share reads would be unthrottled. Writes get both limiters.
   app.use('/api/subtitler/share', publicReadLimiter);
+  app.use('/api/subtitler', (req, res, next) => {
+    // req.path is relative to the mount point here.
+    if (req.path.startsWith('/share')) return next();
+    void requireAuth(req, res, next);
+  });
   app.use('/api/subtitler', standardMutationLimiter);
   mountSubtitlerContractRouter(app);
   // Legacy routers — binary/streaming routes only (contract handles all JSON).

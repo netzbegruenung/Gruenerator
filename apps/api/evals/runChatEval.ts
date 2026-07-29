@@ -5,6 +5,12 @@
  * a structured trace, runs the deterministic assertions, prints a scorecard and
  * diffs against a saved baseline so regressions surface as red deltas.
  *
+ * Two surfaces (scenario `surface`, default 'chat'): the chat endpoint
+ * /api/chat-graph/stream, and the notebook endpoint
+ * /api/chat-service/notebook/stream. They differ in wire shape (UIMessage
+ * `parts` vs ModelMessage `content`) and in event vocabulary, so each gets its
+ * own trace builder — see parseTraceNotebook.ts.
+ *
  *   pnpm --filter @gruenerator/api eval:chat
  *
  * Env:
@@ -13,6 +19,7 @@
  *   EVAL_MODEL_ID   force a model lane for every case (e.g. 'mistral' / 'gemma-4')
  *   EVAL_FILTER     only run cases whose id/category contains this substring
  *   EVAL_SLOW=1     include scenarios tagged `slow` (golden long threads)
+ *   EVAL_NOTEBOOK=1 include notebook-surface scenarios (tagged `notebookLane`)
  *   EVAL_CONCURRENCY  scenarios to run in parallel (default 1; turns stay serial)
  *   EVAL_BASELINE   baseline JSON path (default ./evals/baseline.json)
  *   EVAL_UPDATE_BASELINE=1  overwrite the baseline with this run's results
@@ -22,17 +29,18 @@
  * Deterministic assertions only — no model calls here. The LLM-judge pass
  * (eval:judge) consumes the enriched last-run.json this writes.
  */
-import { mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { runAssertions } from './assertions.js';
+import { loadCorpus } from './corpus.js';
 import { buildFillerHistory } from './fixtures/fillerTurns.js';
 import { parseSseEvents, buildTrace } from './parseTrace.js';
+import { buildNotebookTrace } from './parseTraceNotebook.js';
 import {
   type CaseResult,
   type ChatTrace,
-  type EvalCase,
   type EvalScenario,
   type EvalTurn,
   type ScenarioContext,
@@ -65,57 +73,12 @@ function wireMessage(id: string, role: 'user' | 'assistant', text: string): Wire
   return { id, role, parts: [{ type: 'text', text }] };
 }
 
-function isScenario(line: EvalCase | EvalScenario): line is EvalScenario {
-  return Array.isArray((line as EvalScenario).turns);
-}
-
-function normalize(line: EvalCase | EvalScenario): EvalScenario {
-  if (isScenario(line)) return line;
-  return {
-    id: line.id,
-    category: line.category,
-    ...(line.modelId ? { modelId: line.modelId } : {}),
-    ...(line.knownFailure ? { knownFailure: true } : {}),
-    turns: [{ prompt: line.prompt, expect: line.expect ?? {} }],
-  };
-}
-
-function loadCorpus(): EvalScenario[] {
-  // Glob evals/corpus/*.jsonl plus the legacy single-file corpus.
-  const files: string[] = [];
-  const legacy = join(HERE, 'chat-corpus.jsonl');
-  if (existsSync(legacy)) files.push(legacy);
-  const corpusDir = join(HERE, 'corpus');
-  if (existsSync(corpusDir)) {
-    for (const f of readdirSync(corpusDir).sort()) {
-      if (f.endsWith('.jsonl')) files.push(join(corpusDir, f));
-    }
-  }
-
-  const scenarios: EvalScenario[] = [];
-  const seen = new Set<string>();
-  for (const file of files) {
-    for (const l of readFileSync(file, 'utf8').split('\n')) {
-      const line = l.trim();
-      if (!line) continue;
-      const scenario = normalize(JSON.parse(line) as EvalCase | EvalScenario);
-      if (seen.has(scenario.id)) {
-        throw new Error(`Duplicate scenario id "${scenario.id}" (${file})`);
-      }
-      seen.add(scenario.id);
-      scenarios.push(scenario);
-    }
-  }
-
-  return scenarios.filter((s) => {
-    if (s.slow && !SLOW) return false;
-    if (s.mcpLane && process.env.EVAL_MCP !== '1') return false;
-    if (!FILTER) return true;
-    // Comma-separated OR match on id or category substrings.
-    return FILTER.split(',')
-      .map((f) => f.trim())
-      .filter(Boolean)
-      .some((f) => s.id.includes(f) || s.category.includes(f));
+function selectedCorpus(): EvalScenario[] {
+  return loadCorpus(HERE, {
+    filter: FILTER,
+    slow: SLOW,
+    mcp: process.env.EVAL_MCP === '1',
+    notebook: process.env.EVAL_NOTEBOOK === '1',
   });
 }
 
@@ -182,14 +145,30 @@ async function runTurn(
           canvasType: typeof v.canvasType === 'string' ? v.canvasType : 'sharepic',
         }
       : null;
-  const body = {
-    messages,
-    ...(modelId ? { modelId } : {}),
-    ...(ctx.threadId ? { threadId: ctx.threadId } : {}),
-    ...(currentSharepic ? { currentSharepic } : {}),
-  };
+  const isNotebook = scenario.surface === 'notebook';
+  // The notebook endpoint reads ModelMessage (`content`), not the UIMessage
+  // `parts` wire shape the chat endpoint reads. Same history, two encodings.
+  const body = isNotebook
+    ? {
+        messages: messages.map((m) => ({
+          role: m.role,
+          content: m.parts.map((p) => p.text).join(''),
+        })),
+        collectionIds: scenario.collectionIds ?? [],
+        ...(scenario.notebookMode ? { mode: scenario.notebookMode } : {}),
+        ...(ctx.threadId ? { threadId: ctx.threadId } : {}),
+      }
+    : {
+        messages,
+        ...(modelId ? { modelId } : {}),
+        ...(ctx.threadId ? { threadId: ctx.threadId } : {}),
+        ...(currentSharepic ? { currentSharepic } : {}),
+      };
 
-  const { rawBody, networkError } = await postSse('/api/chat-graph/stream', body);
+  const { rawBody, networkError } = await postSse(
+    isNotebook ? '/api/chat-service/notebook/stream' : '/api/chat-graph/stream',
+    body
+  );
   record(scenario.id, turnIdx, '', rawBody);
   let events = parseSseEvents(rawBody);
   let resumeError: string | null = null;
@@ -219,7 +198,9 @@ async function runTurn(
   }
 
   const latencyMs = Date.now() - started;
-  const trace: ChatTrace = buildTrace(events, latencyMs);
+  const trace: ChatTrace = isNotebook
+    ? buildNotebookTrace(events, latencyMs)
+    : buildTrace(events, latencyMs);
   // On follow-up turns the backend only emits thread_created when it MINTS a
   // thread — silence means it accepted the one we sent. A re-mint therefore
   // shows up as a thread_created with a DIFFERENT id, which sameThread catches.
@@ -409,7 +390,7 @@ function report(results: CaseResult[]): void {
 }
 
 async function main(): Promise<void> {
-  const corpus = loadCorpus();
+  const corpus = selectedCorpus();
   if (corpus.length === 0) {
     console.error('No cases matched EVAL_FILTER.');
     process.exit(1);

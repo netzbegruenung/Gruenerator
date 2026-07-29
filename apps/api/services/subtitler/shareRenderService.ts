@@ -37,7 +37,8 @@ export async function triggerBackgroundRender(
         style_preference: project.style_preference,
         height_preference: project.height_preference,
       },
-      projService
+      projService,
+      userId
     );
 
     const subtitledVideoRelativePath = `${userId}/${projectId}/subtitled_${Date.now()}.mp4`;

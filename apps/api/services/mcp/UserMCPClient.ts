@@ -63,6 +63,13 @@ export interface McpConnectionConfig {
   authType: 'none' | 'bearer' | 'oauth';
   /** Decrypted access token for bearer/oauth. */
   token?: string | null;
+  /**
+   * Approved tool-definition fingerprints from `mcp_servers.tool_fingerprints`.
+   * Carried on the config so the catalog can diff without a second query.
+   * `null`/absent = no baseline yet; that load records one instead of blocking
+   * (see services/mcp/mcpToolDrift.ts).
+   */
+  approvedFingerprints?: Record<string, string> | null;
 }
 
 export interface McpToolDescriptor {
