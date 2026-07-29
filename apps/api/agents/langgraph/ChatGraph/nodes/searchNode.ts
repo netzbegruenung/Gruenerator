@@ -36,9 +36,12 @@ import {
 } from '../../../../services/search/CrawlingService.js';
 import { expandQuery } from '../../../../services/search/QueryExpansionService.js';
 import { DEFAULT_RELEVANCE } from '../../../../services/search/rerankPipeline.js';
-import { resolveTier, tierFromClassification } from '../../../../services/search/searchDepth.js';
+import {
+  resolveSearchTier,
+  resolveTier,
+  type SearchTier,
+} from '../../../../services/search/searchDepth.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { type AIWorkerPool } from '../../../../workers/types.js';
 import {
   SOURCE_PREFIX,
   type ChatGraphState,
@@ -500,58 +503,62 @@ export async function executeDocumentSearchParallel(
 }
 
 /**
- * Execute web search with query expansion and crawling (extracted from case 'web').
+ * The ONE web retrieval path in this node — used by the single-source `web`/
+ * `research` case, by the multi-source fan-in, by the empty-documents fallback
+ * and by SearchGraph's executor.
+ *
+ * It used to be two functions. `executeWebSearchParallel` (multi-source, empty-doc
+ * fallback, SearchGraph) hard-coded `maxResults: 5` and passed no tier at all,
+ * while `case 'web'` honoured the tier — so a comparison question, which is
+ * exactly what routes to multi-source, ended up shallower than a plain one.
+ *
+ * Query expansion is gone. It bought breadth by paying for 2–3 calls; Linkup
+ * offers the same fan-out inside one call (`adjacentSearches` on the upper
+ * tiers), and on the deep tier the engine iterates by itself anyway. The
+ * behavioural replacement for "one phrasing missed" is a prompt rule telling the
+ * loop to reformulate ONCE after a weak result — a decision made with the
+ * results in hand instead of variants bought blind.
  */
 export interface WebSearchParallelResult {
   results: SearchResult[];
   errors: SearchErrorEntry[];
 }
 
-export async function executeWebSearchParallel(
+export interface ExecuteWebSearchOptions {
+  tier?: SearchTier;
+  /** Crawl this many top results for full page content. 0 / omitted = no crawl. */
+  crawlTopUrls?: number;
+  crawlTimeoutMs?: number;
+}
+
+export async function executeWebSearch(
   query: string,
-  aiWorkerPool: AIWorkerPool
+  options: ExecuteWebSearchOptions = {}
 ): Promise<WebSearchParallelResult> {
   const collectedErrors: SearchErrorEntry[] = [];
-  let allWebQueries = [query];
-  try {
-    const expanded = await expandQuery(query, aiWorkerPool);
-    if (expanded.alternatives.length > 0) {
-      allWebQueries = [query, ...expanded.alternatives];
-      log.info(`[Search] Expanded web query into ${allWebQueries.length} variants`);
-    }
-  } catch (err: unknown) {
-    log.warn(
-      `[Search] Query expansion failed, using original: ${err instanceof Error ? err.message : String(err)}`
-    );
-  }
 
-  const webPromises = allWebQueries.map((q) =>
-    executeDirectWebSearch({
-      query: q,
-      searchType: 'general',
-      maxResults: 5,
-    }).catch((err: unknown) => {
-      const msg = err instanceof Error ? err.message : String(err);
-      log.warn(`[Search] Web search failed for variant "${q}": ${msg}`);
-      collectedErrors.push({ source: 'web', message: msg });
-      return null;
-    })
-  );
-  const webResults = await Promise.all(webPromises);
+  const webResult = await executeDirectWebSearch({
+    query,
+    searchType: 'general',
+    ...(options.tier ? { tier: options.tier } : {}),
+  }).catch((err: unknown) => {
+    const msg = err instanceof Error ? err.message : String(err);
+    log.warn(`[Search] Web search failed for "${query}": ${msg}`);
+    collectedErrors.push({ source: 'web', message: msg });
+    return null;
+  });
 
   const seenWebUrls = new Set<string>();
-  const allWebResults: SearchResult[] = [];
+  let allWebResults: SearchResult[] = [];
 
-  for (const webResult of webResults) {
-    if (!webResult?.results) continue;
-    // Same resolved-not-thrown failure shape as the document search above.
-    if (webResult.error) {
-      collectedErrors.push({
-        source: 'web',
-        message: webResult.message ?? 'Websuche fehlgeschlagen',
-      });
-      continue;
-    }
+  // A backend failure resolves rather than throws, so the .catch above never
+  // fires for it — an outage would otherwise read as "the web has nothing".
+  if (webResult?.error) {
+    collectedErrors.push({
+      source: 'web',
+      message: webResult.message ?? 'Websuche fehlgeschlagen',
+    });
+  } else if (webResult?.results) {
     for (const r of webResult.results) {
       if (r.url && seenWebUrls.has(r.url)) continue;
       if (r.url) seenWebUrls.add(r.url);
@@ -566,9 +573,36 @@ export async function executeWebSearchParallel(
   }
 
   allWebResults.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
-  // Only surface when zero usable results — partial variant failures are normal.
+  allWebResults = allWebResults.slice(0, FANIN_CANDIDATE_LIMIT);
+
+  if (options.crawlTopUrls && allWebResults.length > 0) {
+    try {
+      const crawled = await selectAndCrawlTopUrls(
+        allWebResults.filter((r) => r.url) as CrawlableResult[],
+        query,
+        { maxUrls: options.crawlTopUrls, timeout: options.crawlTimeoutMs ?? 3000 }
+      );
+      allWebResults = crawled.map((r) => ({
+        ...r,
+        content: r.fullContent || r.content || '',
+        source: (r.source as string) || 'web',
+        title: r.title || '',
+      }));
+      const crawledCount = crawled.filter((r) => r.crawled).length;
+      if (crawledCount > 0) {
+        log.info(`[Search] Crawled ${crawledCount} web results for full content`);
+      }
+    } catch (err: unknown) {
+      log.warn(
+        `[Search] Crawling failed, using snippets: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+  }
+
+  // Only surface when nothing usable came back — a partial failure that still
+  // produced results is a warn, not a user-facing degradation.
   const errors = allWebResults.length === 0 ? collectedErrors : [];
-  return { results: allWebResults.slice(0, FANIN_CANDIDATE_LIMIT), errors };
+  return { results: allWebResults, errors };
 }
 
 /**
@@ -820,6 +854,15 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     log.info(`[Search] Applying metadata filters: ${JSON.stringify(detectedFilters)}`);
   }
 
+  // Resolved ONCE for every path that touches the web in this node — the single
+  // `web`/`research` case, the multi-source fan-in and the empty-documents
+  // fallback. They used to disagree: only the first honoured the tier, so the
+  // comparison questions that route to multi-source got the shallowest search.
+  const webTier = resolveSearchTier({
+    intent,
+    explicitDeep: state.explicitDeepRequest ?? false,
+  });
+
   const displayQuery = searchQuery || state.researchBrief || '(no query)';
   log.info(
     `[Search] Executing ${intent} search: "${displayQuery.slice(0, 50)}..." (locale=${state.userLocale})`
@@ -960,7 +1003,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
       if (searchSources.includes('web')) {
         sourcePromises.push(
-          executeWebSearchParallel(query, state.aiWorkerPool)
+          executeWebSearch(query, { tier: webTier })
             .then((r) => ({ results: r.results, collections: ['web'], errors: r.errors }))
             .catch((err) => {
               const msg = err instanceof Error ? err.message : String(err);
@@ -1317,7 +1360,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         // different question than the one asked. There, empty means empty.
         if (results.length === 0 && !isNotebookScoped && query.length > 0) {
           log.info('[Search] internal collections returned nothing — falling back to the web');
-          const webFallback = await executeWebSearchParallel(query, state.aiWorkerPool);
+          const webFallback = await executeWebSearch(query, { tier: webTier });
           if (webFallback.results.length > 0) {
             results = webFallback.results;
             citations = buildCitations(results);
@@ -1426,108 +1469,19 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       // [N] in a research answer is now backed by our own source registry.
       case 'research':
       case 'web': {
-        const tier = tierFromClassification({
-          intent: effectiveIntent,
-          complexity: state.complexity ?? null,
-        });
-        const tierConfig = resolveTier(tier);
         // The brief is a fallback only: it orients the synthesis LLM, but a
         // 460-char paragraph as a search string returns near-random hits.
         const query = truncateQuery(searchQuery || state.researchBrief || '');
-        log.info(
-          `[Search] Web tier=${tier} (intent=${effectiveIntent}, complexity=${state.complexity ?? 'none'}, depth=${tierConfig.depth}, max=${tierConfig.maxResults})`
-        );
-        state.onResearchProgress?.(tierConfig.progress);
+        state.onResearchProgress?.(resolveTier(webTier).progress);
 
-        // A2: Expand query for broader coverage — but only at `standard`.
-        // Expansion exists to compensate for a shallow engine; the deep tiers
-        // run Linkup's own multi-iteration agentic search, so expanding on top
-        // pays for the same fan-out twice (and multiplies the deep call).
-        let allWebQueries = [query];
-        if (tierConfig.depth === 'standard') {
-          try {
-            const expanded = await expandQuery(query, state.aiWorkerPool);
-            if (expanded.alternatives.length > 0) {
-              allWebQueries = [query, ...expanded.alternatives];
-              log.info(`[Search] Expanded web query into ${allWebQueries.length} variants`);
-            }
-          } catch (err: unknown) {
-            log.warn(
-              `[Search] Query expansion failed, using original: ${err instanceof Error ? err.message : String(err)}`
-            );
-          }
-        }
-
-        // Search all query variants in parallel
-        const webPromises = allWebQueries.map((q) =>
-          executeDirectWebSearch({
-            query: q,
-            searchType: 'general',
-            tier,
-          }).catch((err: unknown) => {
-            const msg = err instanceof Error ? err.message : String(err);
-            log.warn(`[Search] Web search failed for variant "${q}": ${msg}`);
-            singleSourceErrors.push({ source: 'web', message: msg });
-            return null;
-          })
-        );
-        const webResults = await Promise.all(webPromises);
-
-        // Merge and deduplicate by URL
-        const seenWebUrls = new Set<string>();
-        const allWebResults: SearchResult[] = [];
-
-        for (const webResult of webResults) {
-          if (!webResult?.results) continue;
-          if (webResult.error) {
-            singleSourceErrors.push({
-              source: 'web',
-              message: webResult.message ?? 'Websuche fehlgeschlagen',
-            });
-            continue;
-          }
-          for (const r of webResult.results) {
-            if (r.url && seenWebUrls.has(r.url)) continue;
-            if (r.url) seenWebUrls.add(r.url);
-            allWebResults.push({
-              source: 'web',
-              title: r.title,
-              content: r.snippet || '',
-              url: r.url,
-              relevance: 1 - (r.rank - 1) * 0.15,
-            });
-          }
-        }
-
-        // Sort by relevance and limit
-        allWebResults.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
-        results = allWebResults.slice(0, FANIN_CANDIDATE_LIMIT);
-
-        // A1: Crawl top 2 web results for full content
-        try {
-          const crawled = await selectAndCrawlTopUrls(
-            results.filter((r) => r.url) as CrawlableResult[],
-            query,
-            {
-              maxUrls: 2,
-              timeout: 3000,
-            }
-          );
-          results = crawled.map((r) => ({
-            ...r,
-            content: r.fullContent || r.content || '',
-            source: (r.source as string) || 'web',
-            title: r.title || '',
-          }));
-          const crawledCount = crawled.filter((r) => r.crawled).length;
-          if (crawledCount > 0) {
-            log.info(`[Search] Crawled ${crawledCount} web results for full content`);
-          }
-        } catch (err: unknown) {
-          log.warn(
-            `[Search] Crawling failed, using snippets: ${err instanceof Error ? err.message : String(err)}`
-          );
-        }
+        const web = await executeWebSearch(query, {
+          tier: webTier,
+          // A1: full page content for the top hits — snippets alone leave the
+          // writing model with too little on a multi-aspect question.
+          crawlTopUrls: 2,
+        });
+        results = web.results;
+        singleSourceErrors.push(...web.errors);
 
         citations = buildCitations(results);
         break;
