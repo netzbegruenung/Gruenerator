@@ -189,15 +189,19 @@ const VARIANT_LABEL_BY_CANVAS_TYPE: Partial<Record<CanvasTemplateType, string>> 
   'dreizeilen-at': 'Dreizeiler',
   'zitat-pure-at': 'Zitat',
   'zitat-at': 'Zitat',
-  'info-at': 'Info',
 };
 
-/** de-AT overrides: base canvas type → Austrian variant. */
+/**
+ * de-AT overrides: base canvas type → Austrian variant.
+ *
+ * `info` fehlt bewusst — das Info-Sujet gibt es nur für de-DE. AT-Anfragen
+ * werden schon vor der Generierung auf `dreizeilen` umgelenkt
+ * (siehe resolveVariantTypes), damit das Modell ein mainSlogan-Payload liefert.
+ */
 const AT_CANVAS_TYPE: Partial<Record<CanvasTemplateType, CanvasTemplateType>> = {
   dreizeilen: 'dreizeilen-at',
   'zitat-pure': 'zitat-pure-at',
   zitat: 'zitat-at',
-  info: 'info-at',
 };
 
 function mapSharepicTypeToCanvasType(
@@ -255,14 +259,6 @@ function buildInitialPropsForType(
         body: sharepic.body ?? sharepic.subheader ?? '',
       };
     }
-    // AT info: headline (white) + accent (gelb, Betonung) + body (subline)
-    case 'info-at': {
-      return {
-        headline: sharepic.header ?? '',
-        accent: sharepic.subheader ?? '',
-        body: sharepic.body ?? '',
-      };
-    }
     // AT dreizeilen: line1 + accent (gelbe Mittelzeile) + line3
     case 'dreizeilen-at': {
       const slogan = sharepic.mainSlogan ?? {};
@@ -311,7 +307,9 @@ const CANVAS_TYPE_TO_GEN: Record<string, string> = {
   'zitat-pure-at': 'zitat_pure',
   'zitat-at': 'zitat_pure',
   'dreizeilen-at': 'dreizeilen',
-  'info-at': 'info',
+  // 'info-at' fehlt bewusst: das Sujet gibt es nicht mehr. Verfeinerungen
+  // bereits gespeicherter info-at-Artefakte fallen über den `?? 'dreizeilen'`
+  // der Aufrufstelle auf einen Dreizeiler zurück.
 };
 
 /** One generation request: a sharepic type plus the body passed to the prompt. */
@@ -380,6 +378,23 @@ function buildRefinementRequest(
   };
 }
 
+/**
+ * Welche Varianten für diese Locale erzeugt werden.
+ *
+ * de-AT kennt kein Info-Sujet, deshalb wird `info` hier — VOR der Generierung —
+ * durch `dreizeilen` ersetzt. Erst auf Canvas-Ebene umzubiegen würde leere
+ * Sharepics erzeugen: `dreizeilen-at` liest `mainSlogan`, ein Info-Ergebnis
+ * liefert aber `header`/`subheader`/`body`.
+ */
+function resolveVariantTypes(
+  preferred: SharepicVariantType | null | undefined,
+  userLocale?: string
+): ReadonlyArray<SharepicVariantType> {
+  const base: ReadonlyArray<SharepicVariantType> = preferred ? [preferred] : SHAREPIC_VARIANT_TYPES;
+  if (userLocale !== 'de-AT') return base;
+  return Array.from(new Set(base.map((type) => (type === 'info' ? 'dreizeilen' : type))));
+}
+
 /** Map a successful generation result to a frontend SharepicVariant. */
 function toVariant(
   sharepic: SharepicResponseShape,
@@ -405,9 +420,7 @@ export async function generateSharepicVariants(
     // Refinement: regenerate just the previous variant, seeded with its own text.
     requests = [buildRefinementRequest(args.refinement, args.authorName)];
   } else {
-    const typesToGenerate: ReadonlyArray<SharepicVariantType> = args.preferredVariant
-      ? [args.preferredVariant]
-      : SHAREPIC_VARIANT_TYPES;
+    const typesToGenerate = resolveVariantTypes(args.preferredVariant, args.userLocale);
 
     // The prompt template fills its `thema` placeholder from `thema` — the chat
     // path previously omitted it, so the AI got an empty topic. Extract the
