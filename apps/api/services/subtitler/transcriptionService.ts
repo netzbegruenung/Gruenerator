@@ -129,52 +129,30 @@ async function transcribeVideo(
       );
     }
 
-    let finalTranscription: string | null = null;
+    // Transcription is mode-agnostic: word timestamps are always requested, and
+    // `subtitlePreference` ('manual' | 'word') only changes how assSubtitleService
+    // lays the segments out later. The old if/else ran identical bodies and its
+    // else-branch logged "Unknown mode" for 'word' — a contract-valid value.
+    const transcriptionResult = await transcribeWithProvider(
+      audioPath,
+      true,
+      uploadId,
+      locale,
+      effectiveDuration
+    );
 
-    if (subtitlePreference === 'manual') {
-      const transcriptionResult = await transcribeWithProvider(
-        audioPath,
-        true,
-        uploadId,
-        locale,
-        effectiveDuration
-      );
-
-      if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
-        throw new Error('Invalid transcription data received from provider');
-      }
-
-      log.debug(
-        `Provider Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`
-      );
-
-      finalTranscription = await generateManualSubtitles(
-        transcriptionResult.text,
-        transcriptionResult.words || []
-      );
-    } else {
-      log.warn(`Unknown mode '${subtitlePreference}', using manual mode as fallback`);
-      const transcriptionResult = await transcribeWithProvider(
-        audioPath,
-        true,
-        uploadId,
-        locale,
-        effectiveDuration
-      );
-
-      if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
-        throw new Error('Invalid transcription data received from provider');
-      }
-
-      log.debug(
-        `Provider Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`
-      );
-
-      finalTranscription = await generateManualSubtitles(
-        transcriptionResult.text,
-        transcriptionResult.words || []
-      );
+    if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
+      throw new Error('Invalid transcription data received from provider');
     }
+
+    log.debug(
+      `Provider Wörter: ${transcriptionResult.words?.length || 0}, Text: ${transcriptionResult.text.length} chars`
+    );
+
+    const finalTranscription = await generateManualSubtitles(
+      transcriptionResult.text,
+      transcriptionResult.words || []
+    );
 
     try {
       await fs.unlink(audioPath);
