@@ -15,6 +15,7 @@ import { toJobError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
+import { type Locale } from '../localization/types.js';
 import { getSharedMediaService } from '../sharedMediaService.js';
 
 import AssSubtitleService from './assSubtitleService.js';
@@ -82,7 +83,7 @@ interface TrimPoints {
 interface ProcessingOptions {
   stylePreference?: string;
   heightPreference?: string;
-  locale?: string;
+  locale?: Locale;
   maxResolution?: number | null;
   userId?: string;
   originalFilename?: string;
@@ -309,7 +310,16 @@ async function processVideoAutomatically(
 
     try {
       const [transcriptionResult, scaledPath] = await Promise.all([
-        transcribeVideo(inputPath, 'manual', undefined, 'de'),
+        // The locale drives both the transcription vocabulary and, further
+        // down, the ASS style/font. Duration comes from the metadata pass
+        // above, so the provider policy needs no extra probe.
+        transcribeVideo(
+          inputPath,
+          'manual',
+          undefined,
+          locale,
+          (metadata.duration as number | undefined) ?? null
+        ),
         needsPreScale
           ? preScaleVideo(inputPath, metadata, TARGET_RESOLUTION)
           : Promise.resolve(null),
@@ -436,7 +446,7 @@ async function processVideoAutomatically(
 interface ExportOptions {
   stylePreference: string;
   heightPreference: string;
-  locale: string;
+  locale: Locale;
   maxResolution: number | null;
   autoProcessToken: string;
   uploadId: string;
@@ -690,7 +700,7 @@ interface StartAutoProcessingOptions {
   videoPath: string;
   originalFilename: string;
   userId?: string | null;
-  locale?: string;
+  locale?: Locale;
   maxResolution?: number | null;
   /**
    * Called after the result was auto-saved as a project, before the Redis

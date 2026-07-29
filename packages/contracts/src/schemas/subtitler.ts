@@ -15,6 +15,7 @@
 import { z } from 'zod';
 
 import { jobErrorCodeSchema } from './jobErrors.js';
+import { localeSchema } from './userProfile.js';
 
 // ── Canonical SubtitleSegment ───────────────────────────────────────────────
 
@@ -112,7 +113,7 @@ export type VideoSegment = z.infer<typeof videoSegmentSchema>;
 export const subtitleConfigSchema = z.object({
   stylePreference: z.string().optional(),
   heightPreference: z.string().optional(),
-  locale: z.string().optional(),
+  locale: localeSchema.optional(),
   // `segments` is required so callers don't have to handle the
   // subtitle-without-segments edge case.
   segments: z.array(
@@ -227,7 +228,7 @@ export const exportRequestSchema = z.object({
   subtitlePreference: z.string().optional(),
   stylePreference: z.string().optional(),
   heightPreference: z.string().optional(),
-  locale: z.string().optional(),
+  locale: localeSchema.optional(),
   maxResolution: z.number().nullable().optional(),
   projectId: z.string().nullable().optional(),
   userId: z.string().nullable().optional(),
@@ -298,7 +299,7 @@ export const exportSegmentsResponseSchema = z.object({
 
 export const autoProcessRequestSchema = z.object({
   uploadId: z.string(),
-  locale: z.string().optional(),
+  locale: localeSchema.optional(),
   maxResolution: z.number().nullable().optional(),
   userId: z.string().nullable().optional(),
 });
