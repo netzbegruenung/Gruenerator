@@ -5,7 +5,7 @@
 
 import { generateText, type ModelMessage } from 'ai';
 
-import { getModel, isProviderConfigured } from '../../services/ai/providers.js';
+import { getDefaultModel, getModel, isProviderConfigured } from '../../services/ai/providers.js';
 import ToolHandler from '../../services/tools/index.js';
 
 import { buildAiSdkTools, mergeMetadata } from './adapterUtils.js';
@@ -79,8 +79,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     );
   }
 
-  // Always use verdigado's official gpt-oss alias for worker requests
-  const model = 'verdigado-pro';
+  const model = options.model || getDefaultModel('litellm');
 
   // Convert messages to Vercel AI SDK format
   const { system, messages: modelMessages } = convertMessages(messages, systemPrompt);
