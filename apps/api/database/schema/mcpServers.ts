@@ -40,6 +40,23 @@ export const mcp_servers = pgTable('mcp_servers', {
   enabled: boolean('enabled').notNull().default(true),
   tools_snapshot: jsonb('tools_snapshot').$type<Array<{ name: string; description: string }>>(),
   tools_snapshot_at: timestamp('tools_snapshot_at', { withTimezone: true }),
+  /**
+   * Approved tool-definition fingerprints: `{ [toolName]: digest }` — exactly
+   * the shape `fingerprintTools()` from the AI SDK returns. Compared against a
+   * fresh fingerprint on every catalog load to catch a rug pull: a server that
+   * silently rewrites a tool's DESCRIPTION after the user approved it is
+   * rewriting instructions the model obeys.
+   *
+   * Per server, not per tool. Approval in this product is granted by connecting
+   * a server, so one row per tool would model a per-tool approval that does not
+   * exist; the map is always read and written whole.
+   *
+   * NULL = never fingerprinted (a server connected before this column existed).
+   * The next load records the baseline instead of blocking — otherwise every
+   * existing connection would break on deploy.
+   */
+  tool_fingerprints: jsonb('tool_fingerprints').$type<Record<string, string>>(),
+  tools_approved_at: timestamp('tools_approved_at', { withTimezone: true }),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
