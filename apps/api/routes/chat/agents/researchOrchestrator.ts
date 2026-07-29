@@ -21,7 +21,12 @@ import { type AIWorkerPool } from '../../../workers/types.js';
 
 import { executeDirectSearch, executeDirectWebSearch } from './directSearchExecutors.js';
 import { getIntermediateModel } from './providers.js';
-import { truncateText, deduplicateByUrl, extractDomain } from './searchFormatting.js';
+import {
+  truncateText,
+  deduplicateByUrl,
+  extractDomain,
+  relevanceLabelToScore,
+} from './searchFormatting.js';
 
 export type ResearchLocale = 'de' | 'at' | 'eu';
 export type ReportShape = 'biographical' | 'comparative' | 'positional' | 'event' | 'general';
@@ -250,7 +255,7 @@ function toDocSource(result: DocSearchHit, id: number, domain: string): Collecte
     snippet: result.excerpt,
     // Lossy: executeDirectSearch also ships the raw `score`, which this path
     // discards. See the note in searchNode's normalizeScore.
-    relevance: result.relevance === 'Sehr hoch' ? 0.9 : result.relevance === 'Hoch' ? 0.7 : 0.5,
+    relevance: relevanceLabelToScore(result.relevance),
     sourceType: 'document',
   };
 }
