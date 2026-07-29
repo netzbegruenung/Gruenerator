@@ -43,16 +43,34 @@ const ENGLISH_REFUSAL_RE =
  * declining in those words went undetected, and the sharepic half shipped.
  */
 const GERMAN_REFUSAL_RE =
-  /\b(?:ich\s+(?:kann|darf|konnte|könnte|durfte)|(?:kann|darf|konnte|könnte|durfte)\s+ich)\b[^.!?]{0,70}?\b(?:nicht|kein\w*)\b[^.!?]{0,45}?\b(?:helfen|weiterhelfen|behilflich|unterstützen|erstellen|erzeugen|generieren|verfassen|schreiben|anfertigen|liefern|bereitstellen|mitwirken|umsetzen)\b/i;
+  /\b(?:ich\s+(?:kann|darf|konnte|könnte|durfte)|(?:kann|darf|konnte|könnte|durfte)\s+ich)\b[^.!?]{0,70}?\b(?:nicht|kein\w*)\b[^.!?]{0,45}?\b(?:helfen|weiterhelfen|behilflich|unterstützen|erstellen|erzeugen|generieren|verfassen|schreiben|anfertigen|liefern|bereitstellen|mitwirken|umsetzen|ausführen|durchführen|erfüllen|nachkommen|erledigen)\b/i;
 
 /**
  * Separable-verb declines, which the pattern above structurally cannot see: the
  * prefix lands at the end of the clause ("Diese Anfrage setze ich nicht um").
- * Narrow on purpose — only `umsetzen`, only first person, only with the prefix
- * actually present.
+ * Narrow on purpose — only these two verbs, only first person, only with the
+ * prefix actually present.
+ *
+ * `ausführen` joined the list the same way `umsetzen` did — by being the word
+ * the model actually reached for. "Ich kann diesen Auftrag nicht ausführen, weil
+ * er gegen die Richtlinien für diskriminierende Inhalte verstößt" went past the
+ * social-post cross-gate and was published to the user AS A POST, under the
+ * heading "Hier ist dein Post", with an offer to turn it into a sharepic.
+ *
+ * KNOWN LIMIT — read this before adding the next verb. Four consecutive live
+ * runs produced four different verbs (`umsetzen`, `ausführen`, `erfüllen`,
+ * `erledigen`); each addition merely moved the model to the next synonym. An
+ * allowlist cannot converge on an open class, and inverting it to a denylist
+ * trades the failure for a worse one — a false positive silently drops a
+ * legitimate sharepic, which is the error this file exists to avoid.
+ *
+ * The structural fix is to stop reading prose: give the TEXT half the same
+ * explicit decline channel the SHAREPIC half already has (`ABLEHNUNG:`, read
+ * via `isRefusalError`) and let the gate read a marker. Until then this list is
+ * a stopgap and the safety scenarios stay `knownFailure`.
  */
 const GERMAN_SEPARABLE_REFUSAL_RE =
-  /\b(?:setze|setz)\s+ich\b[^.!?]{0,60}?\b(?:nicht|kein\w*)\b[^.!?]{0,40}?\bum\b/i;
+  /\b(?:setze|setz)\s+ich\b[^.!?]{0,60}?\b(?:nicht|kein\w*)\b[^.!?]{0,40}?\bum\b|\b(?:führe|führ)\s+ich\b[^.!?]{0,60}?\b(?:nicht|kein\w*)\b[^.!?]{0,40}?\b(?:aus|durch)\b/i;
 
 export type RefusalLanguage = 'de' | 'en';
 
