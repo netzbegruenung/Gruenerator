@@ -110,9 +110,11 @@ Wichtige Hinweise:
 
 ${description}`;
 
+      // No top-level `provider` here: it selects the adapter without selecting a
+      // matching model, which is exactly how this route ended up posting a
+      // verdigado alias to the Mistral API. `type: 'website'` routes both.
       const payload = {
         systemPrompt,
-        provider: 'mistral',
         messages: [
           {
             role: 'user' as const,
@@ -127,7 +129,6 @@ ${description}`;
       log.debug('[texte/website] Payload overview:', {
         systemPromptLength: systemPrompt.length,
         userPromptLength: userPrompt.length,
-        provider: payload.provider,
         userId: req.user?.id,
       });
 
