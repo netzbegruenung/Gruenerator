@@ -1,5 +1,20 @@
 # Gruenerator MCP Server — Test Report
 
+> **HISTORICAL SNAPSHOT (2026-04-05) — do not read as current state.**
+> Captured before the stateless rewrite and before v2. Known-obsolete parts:
+>
+> - Finding 2 ("session initialization fragile") and the verdict's mention of it:
+>   the server has no sessions any more — stateless JSON, a fresh `McpServer` per
+>   POST, `GET`/`DELETE /mcp` → 405.
+> - The tool inventory lists `gruenerator_ask`, `gruenerator_compare` and
+>   `notebook_ask`, none of which exist today. See `CLAUDE-mcp.md` for the
+>   current tool set.
+> - Finding 1 (`GRUENERATOR_API_URL` unset) is a deploy-config issue, set in the
+>   Salt compose since.
+>
+> Still open and worth picking up: findings 3–9 (relevance floor, excerpt
+> duplication, text-score normalisation, examples metadata, error schema).
+
 **Date**: 2026-04-05
 **Tester**: Claude Code (Opus 4.6)
 **Server**: mcp.gruenerator.eu (Streamable HTTP transport)

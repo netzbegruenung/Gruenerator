@@ -22,6 +22,21 @@ export interface McpOAuthState {
   serverId: string;
   codeVerifier: string;
   authorizationServerUrl: string;
+  /**
+   * The AS-declared issuer *identifier* to compare the callback's `iss` against
+   * (RFC 9207 mix-up defence) — note this is not the same thing as
+   * `authorizationServerUrl` above, which is a base URL used for discovery and
+   * token calls; for path-suffixed issuers the two differ. Pinned here at
+   * authorize time rather than re-discovered in the callback, so a
+   * moved/failing discovery endpoint can't weaken the check.
+   *
+   * Optional because `consumeOAuthState` casts whatever Redis holds: states
+   * written by the previous deploy (TTL 10 min) genuinely lack it, and the
+   * check tolerates that rather than failing an in-flight authorization.
+   */
+  expectedIssuer?: string;
+  /** AS advertised `authorization_response_iss_parameter_supported` — a missing `iss` is then a hard failure. Optional for the same reason as above. */
+  issRequired?: boolean;
   createdAt: number;
 }
 

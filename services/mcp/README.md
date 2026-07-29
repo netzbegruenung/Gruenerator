@@ -97,25 +97,30 @@ npm start
 npm run dev
 ```
 
-### With Coolify
+### Production deploy
 
-1. Create a new project
-2. Connect Git repository: `https://github.com/Movm/Gruenerator-MCP`
-3. Set environment variables (see below)
-4. Deploy
+Via **Salt** (`states/gruenerator-docker`, external infra repo) — **not** Coolify. The
+in-repo artifacts are the image `ghcr.io/netzbegruenung/gruenerator-mcp`, the `mcp`
+service in `docker-compose.prod.yml` (port 3004) and the `mcp.*` block in `nginx.conf`.
+See `CLAUDE-mcp.md` for the full picture.
 
 ## Configuration
 
 ### Environment Variables
 
-| Variable          | Description                         | Required           |
-| ----------------- | ----------------------------------- | ------------------ |
-| `QDRANT_URL`      | URL to Qdrant instance              | Yes                |
-| `QDRANT_API_KEY`  | API key for Qdrant                  | Yes                |
-| `MISTRAL_API_KEY` | API key for Mistral embeddings      | Yes                |
-| `PORT`            | Server port                         | No (default: 3000) |
-| `PUBLIC_URL`      | Public URL for config generation    | No                 |
-| `LOG_LEVEL`       | Log level: DEBUG, INFO, WARN, ERROR | No (default: INFO) |
+| Variable                       | Description                                                                                                                      | Required           |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| `QDRANT_URL`                   | URL to Qdrant instance                                                                                                           | Yes                |
+| `QDRANT_API_KEY`               | API key for Qdrant                                                                                                               | Yes                |
+| `MISTRAL_API_KEY`              | API key for Mistral embeddings                                                                                                   | Yes                |
+| `GRUENERATOR_API_URL`          | Backend API for the runtime collection catalog + `notebooks_*`. Without it the server silently serves the stale static fallback. | Yes (prod)         |
+| `PORT`                         | Server port                                                                                                                      | No (default: 3004) |
+| `PUBLIC_URL`                   | Public URL for config generation                                                                                                 | No                 |
+| `LOG_LEVEL`                    | Log level: DEBUG, INFO, WARN, ERROR                                                                                              | No (default: INFO) |
+| `MCP_ALLOWED_ORIGINS`          | Comma-separated CORS allowlist                                                                                                   | No (default: `*`)  |
+| `MCP_RATE_LIMIT_PER_MIN`       | Per-IP request budget                                                                                                            | No (default: 120)  |
+| `MCP_DNS_REBINDING_PROTECTION` | `true` enables Host/Origin validation                                                                                            | No                 |
+| `MCP_ALLOWED_HOSTS`            | Comma-separated hosts, required when the above is `true`                                                                         | No                 |
 
 ### MCP Client Setup
 
