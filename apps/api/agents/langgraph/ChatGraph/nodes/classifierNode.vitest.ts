@@ -7,6 +7,7 @@ import {
   detectSocialPlatform,
   nounNearCreateVerb,
   NOUN_TRIGGER_MAX_LENGTH,
+  extractShareTargetGroup,
 } from './classifierHeuristics.js';
 import {
   extractSearchTopic,
@@ -20,6 +21,7 @@ import {
   HEURISTIC_CONFIDENCE_THRESHOLD,
 } from './classifierNode.js';
 import { CHAT_HISTORY_KEYWORDS } from './classifierParsing.js';
+import { CLASSIFIER_OFFERED_INTENTS, CLASSIFIER_PROMPT } from './classifierPrompt.js';
 
 // ─── extractSearchTopic ───────────────────────────────────────────────────
 
@@ -93,6 +95,99 @@ describe('extractUrls', () => {
 
   it('ignores bare domains without http(s) scheme', () => {
     expect(extractUrls('Schau auf gruene.de nach')).toEqual([]);
+  });
+});
+
+// ─── extractShareTargetGroup ──────────────────────────────────────────────
+
+describe('extractShareTargetGroup', () => {
+  // The share heuristic fires at 0.88 and skips the LLM, so without this the
+  // group name was dropped and handleShareDoc asked "mit welcher Gruppe?"
+  // while the group sat in the triggering sentence.
+  it.each([
+    ['Teile das mit der AG Umwelt', 'AG Umwelt'],
+    ['Teile das mit der AG Umwelt und gib ihnen Bearbeitungsrechte', 'AG Umwelt'],
+    ['teile das mit AG Umwelt', 'AG Umwelt'],
+    ['Share mit KV München', 'KV München'],
+    ['Sende an Gruppe Grüne Jugend', 'Grüne Jugend'],
+    ['Sende an OV Nord', 'OV Nord'],
+    ['Teile das mit der Gruppe Klimateam, bitte nur lesen', 'Klimateam'],
+    ['Freigeben für unserer AG Verkehr', 'AG Verkehr'],
+  ])('%s → %s', (input, expected) => {
+    expect(extractShareTargetGroup(input)).toBe(expected);
+  });
+
+  it('returns null when no share trigger is present', () => {
+    expect(extractShareTargetGroup('Schreib eine Pressemitteilung')).toBeNull();
+  });
+
+  it('returns null when nothing follows the trigger', () => {
+    expect(extractShareTargetGroup('Teile das mit')).toBeNull();
+  });
+
+  it('carries the group name through the heuristic verdict', () => {
+    const result = heuristicClassify('Teile das mit der AG Umwelt und gib ihnen Rechte');
+    expect(result?.intent).toBe('share_doc');
+    expect(result?.targetGroupName).toBe('AG Umwelt');
+  });
+});
+
+// ─── parseClassifierResponse (offered-intent accept list) ─────────────────
+
+describe('parseClassifierResponse – accepts every intent the prompt offers', () => {
+  // Regression guard. The prompt's `"intent"` enum line and the parser's
+  // accept-list used to be two hand-maintained lists. Five intents were only
+  // in the prompt (create_sheet, create_presentation, create_recurring_task,
+  // share_doc, mcp), so the LLM's verdict was dropped and the turn fell
+  // through to `direct`. For create_recurring_task — the one intent with no
+  // heuristic fast path — that broke the chat entry point outright.
+  it.each(CLASSIFIER_OFFERED_INTENTS)('round-trips %s', (intent) => {
+    const result = parseClassifierResponse(
+      JSON.stringify({ intent, searchQuery: null, reasoning: 'test' }),
+      'egal was'
+    );
+    expect(result.intent).toBe(intent);
+  });
+
+  it('keeps targetGroupName on share_doc', () => {
+    const result = parseClassifierResponse(
+      JSON.stringify({
+        intent: 'share_doc',
+        searchQuery: null,
+        targetGroupName: 'AG Umwelt',
+        reasoning: 'share',
+      }),
+      'Teile das mit der AG Umwelt'
+    );
+    expect(result.intent).toBe('share_doc');
+    expect(result.targetGroupName).toBe('AG Umwelt');
+  });
+
+  it('renders the prompt enum line from the same constant', () => {
+    for (const intent of CLASSIFIER_OFFERED_INTENTS) {
+      expect(CLASSIFIER_PROMPT).toContain(`"${intent}"`);
+    }
+  });
+
+  // Router-only dispositions: a deterministic step assigns these, so accepting
+  // them from the LLM would let a hallucination hijack routing.
+  it.each(['agentic', 'scrape_url', 'compare', 'edit_current_doc'])(
+    'rejects the router-only intent %s',
+    (intent) => {
+      const result = parseClassifierResponse(
+        JSON.stringify({ intent, searchQuery: null, reasoning: 'test' }),
+        'egal was'
+      );
+      expect(result.intent).not.toBe(intent);
+    }
+  );
+
+  it('rejects an unknown intent', () => {
+    const result = parseClassifierResponse(
+      JSON.stringify({ intent: 'erfundenes_intent', searchQuery: null, reasoning: 'test' }),
+      'egal was'
+    );
+    expect(result.intent).toBe('direct');
   });
 });
 

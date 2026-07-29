@@ -33,11 +33,11 @@ import {
   insertCanvasVersion,
   listCanvasVersions,
 } from '../../../services/canvas/canvasVersionRepository.js';
-import { withRetry } from '../../../services/search/searchRetryStrategy.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { getModel } from '../agents/providers.js';
 
+import { finishEditTurn } from './editTurnCompletion.js';
 import {
   applyOpsInputSchema,
   applySliderOpsInputSchema,
@@ -56,8 +56,6 @@ import {
   resolveTarget,
   type HandleSharepicEditArgs,
 } from './sharepicEditService.js';
-import { sendChatWarning } from './sseHelpers.js';
-import { createMessage, touchThread } from './threadPersistenceService.js';
 
 const log = createLogger('SharepicAgentic');
 
@@ -598,38 +596,16 @@ async function endTurn(
   text: string,
   opts?: { streamed?: boolean }
 ): Promise<void> {
-  const { sse, threadId } = args;
-  if (!opts?.streamed) {
-    sse.send('response_start', { message: 'Antwort wird erstellt...' });
-    sse.send('text_delta', { text });
-  }
-  sse.sendRaw('done', {
-    threadId,
-    citations: [],
-    metadata: {
-      intent: 'sharepic_edit',
-      searchCount: 0,
-      totalTimeMs: Date.now() - args.startTime,
-      ...(args.classificationTimeMs != null && {
-        classificationTimeMs: args.classificationTimeMs,
-      }),
-      searchTimeMs: 0,
-    },
+  await finishEditTurn({
+    sse: args.sse,
+    threadId: args.threadId,
+    text,
+    intent: 'sharepic_edit',
+    persistLabel: 'sharepicAgentic:persist',
+    logPrefix: '[Agentic]',
+    startTime: args.startTime,
+    ...(args.classificationTimeMs != null && { classificationTimeMs: args.classificationTimeMs }),
+    toolCalls: steps as unknown as Record<string, unknown>[],
+    streamed: opts?.streamed === true,
   });
-  try {
-    await withRetry(
-      () =>
-        createMessage(threadId, 'assistant', text, {
-          intent: 'sharepic_edit',
-          ...(steps.length > 0 ? { toolCalls: steps as unknown as Record<string, unknown>[] } : {}),
-        }),
-      { maxRetries: 1, delayMs: 300, isRecoverable: () => true, label: 'sharepicAgentic:persist' }
-    );
-    await touchThread(threadId);
-  } catch (err) {
-    // Retry + Warnung: ein stiller Persist-Fehler lässt State und History divergieren.
-    log.error('[Agentic] Failed to persist message:', err);
-    sendChatWarning(sse, 'persist_failed');
-  }
-  sse.end();
 }
