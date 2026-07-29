@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 
-import { containsInstructionMarkers, embedUntrusted } from './untrustedContent.js';
+import {
+  containsInstructionMarkers,
+  embedUntrusted,
+  INJECTION_WARNING_NOTE,
+  INSTRUCTION_HIERARCHY_RULE,
+} from './untrustedContent.js';
 
 describe('embedUntrusted', () => {
   it('wraps material in a tagged delimiter', () => {
@@ -61,6 +66,25 @@ describe('containsInstructionMarkers', () => {
       'Können Sie mir die Position der Partei zum Nationalpark erläutern?',
     ]) {
       expect(containsInstructionMarkers(text), text).toBe(false);
+    }
+  });
+});
+
+/**
+ * Both texts told the model what NOT to do and never that the request still
+ * stands. Measured cost on the live safety lane: the injection scenarios failed
+ * by DECLINING the perfectly legitimate summarisation they were asked for — the
+ * over-refusal the corpus catches with `refuses: false`.
+ *
+ * A prompt assertion is weak on its own; the guard that survives regardless of
+ * model behaviour is `isWholesaleRefusal` in refusalDetection.ts. This one keeps
+ * the instruction from being dropped in a later edit.
+ */
+describe('the injection prompts keep the task alive', () => {
+  it('says the request must still be fulfilled, not just what to ignore', () => {
+    for (const rule of [INSTRUCTION_HIERARCHY_RULE, INJECTION_WARNING_NOTE]) {
+      expect(rule).toMatch(/nicht\s+ab|trotzdem/i);
+      expect(rule.toLowerCase()).toContain('aufgabe');
     }
   });
 });
