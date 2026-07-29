@@ -79,6 +79,37 @@ export const OVERLAY = {
 
 const LOGO_WEISS_PATH = path.resolve(__dirname, '../../../../public/gruene-at-logo-weiss.png');
 const QUOTE_WHITE_PATH = path.resolve(__dirname, '../../../../public/quote-white.svg');
+const QUOTE_GELB_PATH = path.resolve(__dirname, '../../../../public/quote-gelb.svg');
+
+/**
+ * Zitat-sujet geometry — mirrors ZITAT_AT_CONFIG in canvas-editor.
+ * Anders als in Deutschland: mittig gesetzt, gelbes Anführungszeichen, Logo
+ * rechts oben, und der Block hängt nicht am Blattboden, sondern wird als
+ * Gruppe um `groupCenterRatio` zentriert.
+ */
+export const ZITAT = {
+  margin: 130,
+  maxWidth: 820,
+  groupCenterRatio: 0.48,
+  markSizeRatio: 1.15,
+  markGapToText: 22,
+  baseFontSize: 56,
+  minFontSize: 40,
+  maxFontSize: 72,
+  lineHeightRatio: 1.15,
+  nameFontSizeRatio: 0.6,
+  nameGapRatio: 0.75,
+  logo: { width: 150, margin: 70 },
+  scrim: {
+    color: '37, 118, 57',
+    curve: [
+      { at: 0, opacity: 0 },
+      { at: 0.18, opacity: 0 },
+      { at: 0.42, opacity: 0.58 },
+      { at: 1, opacity: 0.75 },
+    ],
+  },
+} as const;
 
 export function registerAtFonts(): void {
   registerFonts();
@@ -91,12 +122,19 @@ export async function loadAtLogo(): Promise<Image> {
   return logoPromise;
 }
 
-// White quote mark — the same asset the konva zitat configs reference
-// (SYSTEM_ASSETS.quote.white). Decoded once and reused across requests.
+// Anführungszeichen. Auf Foto (zitat-at) steht es gelb, auf der Farbfläche
+// (zitat-pure-at) weiß — dieselben Assets, die die Konva-Configs referenzieren.
+// Einmal dekodiert, dann über Requests hinweg wiederverwendet.
 let quoteWhitePromise: Promise<Image> | null = null;
 export async function loadAtQuoteWhite(): Promise<Image> {
   if (!quoteWhitePromise) quoteWhitePromise = loadImage(QUOTE_WHITE_PATH);
   return quoteWhitePromise;
+}
+
+let quoteGelbPromise: Promise<Image> | null = null;
+export async function loadAtQuoteGelb(): Promise<Image> {
+  if (!quoteGelbPromise) quoteGelbPromise = loadImage(QUOTE_GELB_PATH);
+  return quoteGelbPromise;
 }
 
 /**
