@@ -13,10 +13,11 @@ import path from 'path';
 
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
+import { scalewayBaseUrl, SCALEWAY_WHISPER_MODEL } from '../ai/scalewayEndpoint.js';
 import { extractAudio, cleanupFiles } from '../subtitler/videoUploadService.js';
 import { probeBufferDurationSeconds } from '../transcription/audioDuration.js';
 import { mimeTypeFromFilename } from '../transcription/mimeTypes.js';
-import { chooseProvider } from '../transcription/providerPolicy.js';
+import { chooseProvider, type TranscriptionProvider } from '../transcription/providerPolicy.js';
 import { recordOperation } from '../usage/UsageTrackingService.js';
 
 import mistralVoiceService from './mistralVoiceService.js';
@@ -100,21 +101,27 @@ export async function extractAudioFromVideo(
   }
 }
 
-export async function transcribeWithRegoloWhisper(
+/**
+ * One Whisper caller for both hosts.
+ *
+ * Regolo and Scaleway expose the same OpenAI-compatible endpoint and differ
+ * only in base URL, model id and key. This path asks for SEGMENT granularity,
+ * which both return; the word-level asymmetry that keeps Scaleway out of the
+ * subtitler is handled in providerPolicy, not here.
+ */
+async function transcribeWithWhisperHost(
+  host: { name: string; baseUrl: string; model: string; apiKey: string },
   audioBuffer: Buffer,
   filename: string,
-  options: TranscriptionOptions = {}
+  options: TranscriptionOptions
 ): Promise<TranscriptionResult> {
-  const apiKey = env.REGOLO_API_KEY;
-  if (!apiKey) throw new Error('REGOLO_API_KEY is not configured');
-
   const { language = 'de', timestamp_granularities } = options;
   const requestTimestamps = !!timestamp_granularities?.length;
 
   const blob = new Blob([new Uint8Array(audioBuffer)], { type: mimeTypeFromFilename(filename) });
   const form = new FormData();
   form.append('file', blob, filename);
-  form.append('model', WHISPER_MODEL);
+  form.append('model', host.model);
   form.append('language', language);
 
   if (requestTimestamps) {
@@ -122,15 +129,15 @@ export async function transcribeWithRegoloWhisper(
     form.append('timestamp_granularities[]', 'segment');
   }
 
-  const response = await fetch(`${REGOLO_BASE_URL}/audio/transcriptions`, {
+  const response = await fetch(`${host.baseUrl}/audio/transcriptions`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}` },
+    headers: { Authorization: `Bearer ${host.apiKey}` },
     body: form,
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Regolo transcription failed (${response.status}): ${errorText}`);
+    throw new Error(`${host.name} transcription failed (${response.status}): ${errorText}`);
   }
 
   const data = (await response.json()) as WhisperVerboseResponse;
@@ -143,6 +150,38 @@ export async function transcribeWithRegoloWhisper(
   }
 
   return result;
+}
+
+export async function transcribeWithRegoloWhisper(
+  audioBuffer: Buffer,
+  filename: string,
+  options: TranscriptionOptions = {}
+): Promise<TranscriptionResult> {
+  const apiKey = env.REGOLO_API_KEY;
+  if (!apiKey) throw new Error('REGOLO_API_KEY is not configured');
+
+  return transcribeWithWhisperHost(
+    { name: 'Regolo', baseUrl: REGOLO_BASE_URL, model: WHISPER_MODEL, apiKey },
+    audioBuffer,
+    filename,
+    options
+  );
+}
+
+export async function transcribeWithScalewayWhisper(
+  audioBuffer: Buffer,
+  filename: string,
+  options: TranscriptionOptions = {}
+): Promise<TranscriptionResult> {
+  const apiKey = env.SCALEWAY_API_KEY;
+  if (!apiKey) throw new Error('SCALEWAY_API_KEY is not configured');
+
+  return transcribeWithWhisperHost(
+    { name: 'Scaleway', baseUrl: scalewayBaseUrl(), model: SCALEWAY_WHISPER_MODEL, apiKey },
+    audioBuffer,
+    filename,
+    options
+  );
 }
 
 async function transcribeWithVoxtral(
@@ -159,10 +198,41 @@ async function transcribeWithVoxtral(
   };
 }
 
+/** Per-provider key, billing label and caller. Keeps the chain loop flat. */
+const RUNNERS: Record<
+  TranscriptionProvider,
+  {
+    apiKey: () => string | undefined;
+    usage: { provider: string; model: string } | null;
+    run: (
+      audioBuffer: Buffer,
+      filename: string,
+      options: TranscriptionOptions
+    ) => Promise<TranscriptionResult>;
+  }
+> = {
+  scaleway: {
+    apiKey: () => env.SCALEWAY_API_KEY,
+    usage: { provider: 'scaleway', model: SCALEWAY_WHISPER_MODEL },
+    run: transcribeWithScalewayWhisper,
+  },
+  regolo: {
+    apiKey: () => env.REGOLO_API_KEY,
+    usage: { provider: 'regolo', model: WHISPER_MODEL },
+    run: transcribeWithRegoloWhisper,
+  },
+  // transcribeWithVoxtral records its own operation.
+  voxtral: { apiKey: () => env.MISTRAL_API_KEY, usage: null, run: transcribeWithVoxtral },
+};
+
 /**
  * Provider selection via the shared policy — the same rules the subtitler uses
  * (this router used to carry its own, and ignored TRANSCRIPTION_PROVIDER).
- * Whichever provider loses is still the fallback if the winner errors.
+ * Every provider the policy did not pick stays in the chain as failover.
+ *
+ * This path never asks for word-level timestamps (`timestamp_granularities` is
+ * typed `'segment'[]`), so Scaleway's Whisper is fully usable here and leads
+ * the chain.
  */
 export async function transcribeBuffer(
   audioBuffer: Buffer,
@@ -174,7 +244,7 @@ export async function transcribeBuffer(
   const durationSeconds =
     options.durationSeconds ?? (await probeBufferDurationSeconds(audioBuffer, filename));
 
-  const { provider, reason } = chooseProvider({
+  const { provider, reason, chain } = chooseProvider({
     durationSeconds,
     ...(options.diarize !== undefined && { diarize: options.diarize }),
     ...(options.contextBias !== undefined && { requestedContextBias: options.contextBias }),
@@ -182,20 +252,29 @@ export async function transcribeBuffer(
   });
 
   log.info(
-    `[Voice] provider=${provider} (${reason}) duration=${durationSeconds === null ? 'unknown' : `${Math.round(durationSeconds)}s`}`
+    `[Voice] provider=${provider} (${reason}) chain=${chain.join('→')} duration=${durationSeconds === null ? 'unknown' : `${Math.round(durationSeconds)}s`}`
   );
 
-  if (provider === 'regolo' && env.REGOLO_API_KEY) {
+  let lastError: Error | null = null;
+
+  for (const attempt of chain) {
+    const runner = RUNNERS[attempt];
+    if (!runner.apiKey()) continue;
+
     try {
-      const result = await transcribeWithRegoloWhisper(audioBuffer, filename, options);
-      recordOperation({ unit: 'transcriptions', provider: 'regolo', model: WHISPER_MODEL });
+      const result = await runner.run(audioBuffer, filename, options);
+      if (runner.usage) recordOperation({ unit: 'transcriptions', ...runner.usage });
       return result;
     } catch (error) {
-      log.warn(
-        `[Voice] Regolo Whisper failed, falling back to Voxtral: ${(error as Error).message}`
-      );
+      lastError = error as Error;
+      log.warn(`[Voice] ${attempt} transcription failed: ${lastError.message}`);
     }
   }
 
-  return transcribeWithVoxtral(audioBuffer, filename, options);
+  throw (
+    lastError ??
+    new Error(
+      'No transcription provider configured. Set SCALEWAY_API_KEY or REGOLO_API_KEY (Whisper) or MISTRAL_API_KEY (Voxtral).'
+    )
+  );
 }
