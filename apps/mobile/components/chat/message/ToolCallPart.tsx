@@ -1,6 +1,7 @@
 import { useAuiState } from '@assistant-ui/react-native';
 import {
   getToolMeta,
+  isSearchProgressTool,
   parseGenericFallback,
   resolveToolEntry,
   selectNarration,
@@ -61,6 +62,10 @@ function AssistantToolCallPart(props: ToolCallProps) {
   const theme = useTheme();
   const { toolName, args, result, addResult } = props;
 
+  // Retrieval steps report through the one status line above the message
+  // (ChatProgressIndicator, fed by selectSearchStatusLabel) — no card, running
+  // or finished, so nothing is left standing once the answer text arrives.
+  if (isSearchProgressTool(toolName)) return null;
   // Interactive: asks a clarifying question and submits the answer back into the
   // run (handles both the awaiting-input and the answered states itself).
   if (toolName === 'ask_human') {

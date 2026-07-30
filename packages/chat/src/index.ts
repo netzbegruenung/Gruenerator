@@ -388,6 +388,14 @@ export {
 } from './lib/mentionableSync';
 export { INTENT_TO_TOOL, DEEP_TOOL_MAP } from './lib/toolMappings';
 
+// Which tool calls live in the shimmering status line instead of drawing a card.
+export {
+  isSearchProgressTool,
+  selectHasVisibleToolCard,
+  selectSearchStatusLabel,
+  type StatusPartLike,
+} from './lib/toolStatusLine';
+
 // Tool-result parsing & metadata (platform-agnostic; kept in sync with index.native.ts)
 export {
   getString,
