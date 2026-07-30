@@ -1027,10 +1027,49 @@ const STRUCTURE_SOURCE_THRESHOLD = 4;
  * two-fact answer into a padded stub, which is the failure the sibling comment
  * about "padded section stacks" already warns about.
  */
+/**
+ * The syntax has to be named. Asked only for "Überschriften", the model answered
+ * with bold lines (`**Leben und Karriere**`) — which the renderer shows as bold
+ * body text, not as a heading, so the visual hierarchy the rule exists to create
+ * never appeared. `h1`–`h3` are styled in `AssistantMessage` and in
+ * `citationMarkdownComponents`; `##` is the level both give a real step in size.
+ */
+const HEADING_SYNTAX = 'Markdown-Überschriften (`## Titel`, nicht fett gesetzter Text)';
+
 const ENUMERABLE_CLAUSE =
   'Zählt ein Teil der Antwort mehrere gleichartige Dinge auf (Filme, Ämter, Forderungen, Daten), setze sie als Aufzählung statt in Fließtext — sonst geht die Übersicht verloren. Hebe Namen, Jahreszahlen und Kennzahlen mit **Fettung** hervor.';
 
-function buildAnswerFormatRule(state: ChatGraphState, sourceCount: number): string {
+/**
+ * Retrieval intents whose answers draw on a body of external sources. `agentic`
+ * belongs here and was missing: it is what the classifier's Tier-3.5 demotion
+ * produces, i.e. the label most loop turns actually carry. Without it a demoted
+ * turn could not reach the expanded rule even once the source count was right.
+ */
+const EXTERNAL_RESEARCH_INTENTS: ReadonlySet<string> = new Set(['research', 'web', 'agentic']);
+
+function buildAnswerFormatRule(
+  state: ChatGraphState,
+  sourceCount: number,
+  /**
+   * The turn is about to enter the agentic loop, so retrieval has NOT run yet
+   * and `sourceCount` is structurally 0 — the system message is built before the
+   * model calls a single tool.
+   *
+   * That made the source threshold below unreachable on the loop path: EVERY
+   * loop turn fell through to `standard` ("2-4 Absätze"), whose text never
+   * mentions headings, and the answer came back as flat prose no matter how much
+   * material the loop had gathered. The decision map showed it in one line —
+   * `respond.answer_format = standard {"sourceCount": 0}` on a turn that ended
+   * up with ten sources.
+   *
+   * The count is the honest measure where it is known (single-pass, where
+   * retrieval already ran). Where it cannot be known yet, the honest measure is
+   * that retrieval is about to run at the normal tier, which now guarantees ten
+   * sources. Both are decided before the prompt is written; neither is a guess
+   * about the model.
+   */
+  retrievalExpected = false
+): string {
   // A multi-document turn already has its format prescribed by the comparison /
   // multi-doc block (table, per-doc bullets, grounded prose). A second structure
   // directive here is how "Antworte als zusammenhängende Prosa" and "Strukturiere
@@ -1044,6 +1083,10 @@ function buildAnswerFormatRule(state: ChatGraphState, sourceCount: number): stri
         complexity: state.complexity,
         intent: String(state.intent),
         sourceCount,
+        // Without this the map cannot tell "four sources were counted" from
+        // "none were counted yet, but the loop is about to fetch ten" — and
+        // those two are the whole reason this rule was wrong.
+        retrievalExpected,
         // A mode NAME, not a flag — keep the name, it distinguishes the
         // multi-doc shapes that share the `synthesis_*` branches.
         synthesisMode: state.synthesisMode ?? 'none',
@@ -1059,27 +1102,48 @@ function buildAnswerFormatRule(state: ChatGraphState, sourceCount: number): stri
 
   if (state.complexity === 'complex') {
     note('structured_headings');
-    return `Strukturiere mit Überschriften, bis zu 6 Absätze. ${ENUMERABLE_CLAUSE}`;
+    return `Strukturiere mit ${HEADING_SYNTAX}, bis zu 6 Absätze. ${ENUMERABLE_CLAUSE}`;
   }
   if (state.complexity === 'simple') {
     note('brief');
     return 'Kurze, präzise Antworten (1-2 Absätze)';
   }
 
-  const isExternalResearch = state.intent === 'research' || state.intent === 'web';
-  if (isExternalResearch && sourceCount >= STRUCTURE_SOURCE_THRESHOLD) {
+  const isExternalResearch = EXTERNAL_RESEARCH_INTENTS.has(String(state.intent));
+  if (isExternalResearch && (retrievalExpected || sourceCount >= STRUCTURE_SOURCE_THRESHOLD)) {
     note('research_expanded');
-    return `Bis zu 6 Absätze. Hat die Antwort mehrere eigenständige Aspekte, darfst du sie mit Überschriften gliedern — Pflicht ist das nicht. ${ENUMERABLE_CLAUSE}`;
+    // "darfst du gliedern — Pflicht ist das nicht" was permission nobody took:
+    // measured against a reference answer to the same question, ours had zero
+    // headings where the comparison had five. With ten sources and a subject
+    // that falls into distinct phases, structure is the normal case, so it is
+    // asked for. The anti-padding guard moves into the same sentence rather than
+    // being dropped — a heading over a single aspect is not structure, and a
+    // forced section stack on a two-fact answer is the failure this rule set
+    // already warns about twice.
+    return `Bis zu 6 Absätze. Zerfällt die Antwort in mehrere eigenständige Aspekte (Lebensabschnitte, Positionen verschiedener Akteure, Vorher/Nachher, mehrere Teilfragen), gliedere sie mit ${HEADING_SYNTAX}. Trägt sie nur EINEN Aspekt, bleibt es bei Fließtext — eine Überschrift über allem ist keine Gliederung. ${ENUMERABLE_CLAUSE}`;
   }
 
   note('standard');
   return `2-4 Absätze mit klarer Struktur. ${ENUMERABLE_CLAUSE}`;
 }
 
+export interface SystemMessageOptions {
+  /**
+   * Set by the router on the agentic branch: this prompt is being written BEFORE
+   * the loop retrieves, so `state.citations` is empty for a reason that has
+   * nothing to do with how much material the answer will have. See the parameter
+   * of the same name on {@link buildAnswerFormatRule} — it is the only consumer.
+   */
+  retrievalExpected?: boolean;
+}
+
 /**
  * Build the complete system message with agent role and search context.
  */
-export async function buildSystemMessage(state: ChatGraphState): Promise<string> {
+export async function buildSystemMessage(
+  state: ChatGraphState,
+  opts: SystemMessageOptions = {}
+): Promise<string> {
   // Composer paths (press, social-media): a sibling composer node has already
   // produced an intent-specific system prompt and stored it on state.responseText.
   // Use it verbatim — bypassing the generic search-context / anchor / citation
@@ -1272,7 +1336,7 @@ Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${pr
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo. Ausnahme: Bei offenen Fragen nach einer Person, Organisation oder einem Begriff gehören die einordnenden Kerndaten (Lebensdaten, Funktion, Hauptwerke) zur Antwort und gelten nicht als Zusatzinfo
-2. ${buildAnswerFormatRule(state, sourceCount)}
+2. ${buildAnswerFormatRule(state, sourceCount, opts.retrievalExpected ?? false)}
 3. Antworte auf Deutsch. Sind Quellen fremdsprachig, formuliere SPRACHLICH eigenständig statt wörtlich zu übersetzen — INHALTLICH bleibst du exakt bei der Quelle und ergänzt nichts, was dort nicht steht. Kannst du eine Aussage nicht nachvollziehbar auf Deutsch wiedergeben, lass sie weg statt zu raten
 4. Erfinde keine Fakten oder Quellennamen
 5. Erstelle KEINE Quellenliste/Quellenverzeichnis am Ende — Quellen werden automatisch in der Oberfläche angezeigt

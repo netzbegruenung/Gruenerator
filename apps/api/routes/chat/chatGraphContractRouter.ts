@@ -1768,7 +1768,13 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         // Agentic path: the model holds the search tools and loops until it can
         // answer, writing the reply in the same streamed turn. Stage 2's
         // pre-decided single search is skipped entirely.
-        const systemMessage = await buildSystemMessage(classifiedState);
+        // `retrievalExpected`: this prompt is written before the loop calls a
+        // single tool, so the citation count it would otherwise read is 0 on
+        // every agentic turn — not because the answer will be thin, but because
+        // the search has not happened yet.
+        const systemMessage = await buildSystemMessage(classifiedState, {
+          retrievalExpected: true,
+        });
         const prunedValidMessages = pruneMessages(
           validMessages as Parameters<typeof pruneMessages>[0],
           contextWindowTokens
