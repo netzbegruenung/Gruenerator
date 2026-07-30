@@ -217,8 +217,20 @@ export type SearchResultPayload = z.infer<typeof searchResultPayloadSchema>;
  */
 export const searchImagePayloadSchema = z.object({
   title: z.string(),
+  /** The image on its source host. Always present; this is what the link opens. */
   url: z.string(),
   domain: z.string(),
+  /**
+   * Same-origin path that serves the image through our backend, so displaying it
+   * costs the reader no request to `domain`. Signed and short-lived — see
+   * `imageProxySignature.ts`.
+   *
+   * Optional on purpose: with no signing secret configured the backend omits it,
+   * and the client MUST then fall back to rendering a plain link. A client that
+   * assumes this field would put the third-party request back exactly where the
+   * proxy was built to remove it.
+   */
+  proxyUrl: z.string().optional(),
 });
 export type SearchImagePayload = z.infer<typeof searchImagePayloadSchema>;
 
