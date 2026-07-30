@@ -1,4 +1,4 @@
-import { type ChatProgress, usePacedLabel } from '@gruenerator/chat';
+import { type ChatProgress, type SerializableCitation, usePacedLabel } from '@gruenerator/chat';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { chatType, colors, spacing } from '../../theme';
@@ -7,6 +7,7 @@ import { type Theme } from '../../theme/colors';
 import { GrueneratorLoadingIcon } from './GrueneratorLoadingIcon';
 import { selectProgressStep } from './message/progressStepLabel';
 import { ShimmerStatusLine } from './ShimmerStatusLine';
+import { StatusLineDetails } from './StatusLineDetails';
 
 // Native counterpart of web's streaming progress label (packages/chat
 // ProgressIndicator + GrueneratorHomeIconLoading). Pairs the spinning Grünerator
@@ -16,17 +17,35 @@ import { ShimmerStatusLine } from './ShimmerStatusLine';
 interface ChatProgressIndicatorProps {
   progress: ChatProgress;
   theme: Theme;
+  /** The running retrieval step ("Websuche „Klimageld""). Retrieval draws no
+   *  card of its own, so this line is where it gets reported. */
+  toolStatus?: string | null;
+  /** Dropdown content: the model's thinking so far. */
+  reasoningText?: string | null;
+  /** Dropdown content: what the retrieval steps have found so far. */
+  sources?: ReadonlyArray<SerializableCitation>;
 }
 
-export function ChatProgressIndicator({ progress, theme }: ChatProgressIndicatorProps) {
-  // Three sources, most specific first. The agentic loop's own step ("Lese
-  // Beschlüsse") beats the generic stage word ("Durchsuche …") — that is what
-  // web splits into a separate ProgressTracker component; here it is one more
+const NO_SOURCES: ReadonlyArray<SerializableCitation> = [];
+
+export function ChatProgressIndicator({
+  progress,
+  theme,
+  toolStatus,
+  reasoningText = null,
+  sources = NO_SOURCES,
+}: ChatProgressIndicatorProps) {
+  // Four sources, most specific first. Planner prose beats the running
+  // retrieval step, which beats the agentic loop's own step ("Lese Beschlüsse"),
+  // which beats the generic stage word ("Durchsuche …") — that last split is
+  // what web puts in a separate ProgressTracker component; here it is one more
   // rung on the same ladder, because the line looks identical either way.
   const step = selectProgressStep(progress.steps);
   const pending = progress.pendingNarration;
   const rawLabel =
-    pending && pending.length > 0 ? pending[pending.length - 1] : (step?.label ?? progress.message);
+    pending && pending.length > 0
+      ? pending[pending.length - 1]
+      : (toolStatus ?? step?.label ?? progress.message);
   // Paced (shared usePacedLabel) so a burst stays readable. Hook runs before the
   // early return.
   const label = usePacedLabel(rawLabel);
@@ -55,7 +74,11 @@ export function ChatProgressIndicator({ progress, theme }: ChatProgressIndicator
     );
   }
 
-  return <ShimmerStatusLine label={label} theme={theme} />;
+  return (
+    <StatusLineDetails reasoningText={reasoningText} sources={sources} theme={theme}>
+      <ShimmerStatusLine label={label} theme={theme} />
+    </StatusLineDetails>
+  );
 }
 
 const styles = StyleSheet.create({

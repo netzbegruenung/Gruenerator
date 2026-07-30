@@ -183,61 +183,48 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
     const wrappedExecute: ExecuteFn = async (input, options) => {
       const stepId = options.toolCallId;
       const args = asRecord(input);
+      // MCP connector server title (undefined for internal tools) — persisted so
+      // a later turn can identify + replay which server this call hit.
+      const server = ctx.serverNameFor?.(toolName);
+      const serverMeta = server ? { serverName: server } : {};
+
+      // Guard order is load-bearing. Concurrency runs FIRST because it is a
+      // DEFERRAL — this very call is expected back in a later step, so it must
+      // leave no trace that would then block it, while `checkDuplicate` at the
+      // end of the chain registers the call key on its way through.
+      //
+      // checkDuplicate is in fact the only guard that mutates state. If an
+      // earlier one trips it isn't called, so a blocked call doesn't register —
+      // harmless: failure/total caps stay tripped for the turn and maxSteps
+      // bounds any spin.
+      const block =
+        ctx.guards.checkSearchConcurrency(toolName) ??
+        ctx.guards.checkFailureCap(toolName) ??
+        ctx.guards.checkTotalFailureBudget() ??
+        ctx.guards.checkSearchBudget(toolName) ??
+        // Connector tools (server != null) skip the search-tuned near-dup
+        // heuristic: structured args collide falsely and corrective retries
+        // after a validation error would be wrongly blocked as "too similar".
+        ctx.guards.checkDuplicate(toolName, input, { skipNearDuplicate: !!server });
+      if (block) {
+        // No `sendStart`/`sendResult`/`recordStep`, for ANY guard: the tool did
+        // not run, so a card claiming it did — captioned with steering text
+        // meant for the planner ("Formuliere eine WIRKLICH ANDERE Suche …") — is
+        // a false statement about the turn. It also skips `noteCall`, so a blocked
+        // call costs neither a search-budget slot nor a failure. The narration
+        // buffer stays undrained on purpose: the announcement belongs to
+        // whichever call actually runs next.
+        const verb = block.kind === 'defer' ? 'zurückgestellt' : 'blockiert';
+        log.info(`[Tool] ${toolName} ${verb} (${block.guard}) — ${block.modelMessage}`);
+        return { error: block.modelMessage };
+      }
+
       // Captured at tool START (before execution) — the semantics of textOffset.
       const textOffset = ctx.getTextOffset?.();
       // Drained once at START: the planner sentence(s) that announced this call.
       // Parallel siblings in one model step share the announcement, so only the
       // first sendStart gets it — the rest drain empty. Split mode only.
       const narration = ctx.takeNarration?.() ?? null;
-      // MCP connector server title (undefined for internal tools) — persisted so
-      // a later turn can identify + replay which server this call hit.
-      const server = ctx.serverNameFor?.(toolName);
-      const serverMeta = server ? { serverName: server } : {};
-
-      // Concurrency is a DEFERRAL, not a rejection: this very call is expected
-      // back in a later step, so it must leave no trace that would then block it.
-      // Hence it runs FIRST — `checkDuplicate` below registers the call key on its
-      // way through, and a deferred call that registered would be refused as
-      // "already ran" the moment the model retries it.
-      //
-      // Deliberately no `sendStart`/`sendResult`/`recordStep`: a red "Fehler" card
-      // for a search that was merely postponed is a false statement about the
-      // turn, and the search gets its own card when it actually runs. It also
-      // skips `noteCall`, so it costs neither a search-budget slot nor a failure.
-      const deferral = ctx.guards.checkSearchConcurrency(toolName);
-      if (deferral) {
-        log.info(`[Tool] ${toolName} zurückgestellt (max. parallele Suchen erreicht)`);
-        return { error: deferral };
-      }
-
-      // checkDuplicate is the only guard that mutates state (registers the
-      // call key). If an earlier guard trips it isn't called, so a blocked
-      // call doesn't register — harmless: failure/total caps stay tripped for
-      // the turn and maxSteps bounds any spin.
-      const guardError =
-        ctx.guards.checkFailureCap(toolName) ??
-        ctx.guards.checkTotalFailureBudget() ??
-        ctx.guards.checkSearchBudget(toolName) ??
-        ctx.guards.checkInternalFirst(toolName) ??
-        // Connector tools (server != null) skip the search-tuned near-dup
-        // heuristic: structured args collide falsely and corrective retries
-        // after a validation error would be wrongly blocked as "too similar".
-        ctx.guards.checkDuplicate(toolName, input, { skipNearDuplicate: !!server });
-      if (guardError) {
-        const result = { error: guardError };
-        sendStart(stepId, args, narration);
-        sendResult(stepId, false, result);
-        ctx.recordStep({
-          toolCallId: stepId,
-          toolName,
-          args,
-          result,
-          ...serverMeta,
-          ...(textOffset != null && { textOffset }),
-          ...(narration ? { narration } : {}),
-        });
-        return result;
-      }
 
       ctx.guards.noteCall(toolName);
       sendStart(stepId, args, narration);

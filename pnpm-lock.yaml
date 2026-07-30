@@ -378,6 +378,9 @@ importers:
       turndown:
         specifier: ^7.2.4
         version: 7.2.4
+      undici:
+        specifier: '>=8.5.0'
+        version: 8.7.0
       uuid:
         specifier: '>=14.0.0'
         version: 14.0.1
