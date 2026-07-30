@@ -51,17 +51,27 @@ interface TierConfig {
 }
 
 const TIER_CONFIG: Readonly<Record<SearchTier, TierConfig>> = {
+  // The two labels are SWAPPED relative to what the ids suggest, deliberately.
+  // `gruendlich` is now the normal case (see the `tiefe` default in
+  // searchTools.ts), so its label has to read as ordinary — a user who sees
+  // "Gründliche Suche läuft" on every single question learns that the words mean
+  // nothing. `standard` became the narrow case and gets the label that says so.
+  //
+  // The IDS cannot follow. They are F1: they reach the model in the tool schema
+  // and are persisted in tool-call arguments that later turns replay, so a
+  // rename would break replay of every stored call. The ids keep their
+  // historical spelling; the meaning lives in the description and these labels.
   standard: {
     depth: 'standard',
     maxResults: 5,
     adjacentSearches: false,
-    progress: 'Suche im Web…',
+    progress: 'Kurze Suche…',
   },
   gruendlich: {
     depth: 'standard',
     maxResults: 10,
     adjacentSearches: true,
-    progress: 'Gründliche Suche läuft (mehrere Quellen)…',
+    progress: 'Suche im Web…',
   },
   tiefenrecherche: {
     depth: 'deep',

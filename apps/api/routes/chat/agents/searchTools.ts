@@ -231,8 +231,8 @@ NUTZE WENN:
 - Der Benutzer "recherchiere", "finde heraus" oder "belege für" sagt → höhere Stufe
 
 WÄHLE DIE STUFE NACH AUFWAND, NICHT NACH WORTLAUT:
-- standard: eine klare Faktenfrage, ein Datum, eine Zahl, eine Nachricht. Der Normalfall.
-- gruendlich: mehrere Aspekte oder ein Vergleich. Deckt das Thema breiter ab, dauert kaum länger.
+- gruendlich: DER NORMALFALL. Alles, was mehr als einen einzelnen Datenpunkt braucht — wer jemand war, was etwas ist, wie etwas funktioniert, ein Vergleich, ein Überblick. Doppelt so viele Quellen wie standard, kostet ca. eine Sekunde mehr.
+- standard: NUR wenn die Antwort genau EIN Datum, EINE Zahl oder EINE Meldung ist ("wann wurde X geboren", "wie hoch ist der Beitragssatz"). Bei allem anderen reichen 5 Quellen nicht für eine vollständige Antwort.
 - tiefenrecherche: nur wenn der Benutzer ausdrücklich eine gründliche Recherche verlangt hat. Dauert 15–30 Sekunden.
 
 EINE SUCHE ZUR ZEIT: Starte eine Suche, lies das Ergebnis, und suche erst dann weiter, wenn wirklich etwas fehlt. Höchstens zwei Suchen gleichzeitig. War ein Ergebnis schwach, formuliere die Anfrage EINMAL anders (notfalls englisch) — schicke keine Varianten auf Vorrat los.
@@ -252,12 +252,19 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
         // moved to `zeitraum` — on the Linkup path it only ever set a SearXNG
         // category, i.e. nothing at all. It now buys a 30-day window.
         .describe('Suchtyp: general (allgemein) oder news (nur die letzten 30 Tage)'),
+      // Default `gruendlich`, not `standard`. Both use Linkup's SAME engine depth
+      // and the SAME single paid call — `gruendlich` only raises maxResults 5→10
+      // and asks for the adjacent-keyword fan-out inside that call. Measured on
+      // three queries: 1978ms → 2986ms, i.e. one second for twice the material.
+      // `standard` as the default meant an open question ("wer war X") was
+      // answered from five snippets, which is not enough for a complete answer
+      // and read to users as the product being thin.
       tiefe: z
         .enum(SEARCH_TIERS)
         .optional()
-        .default('standard')
+        .default('gruendlich')
         .describe(
-          'Rechercheaufwand: standard (schnell), gruendlich (mehrere Quellen), tiefenrecherche (nur auf ausdrücklichen Wunsch, langsam)'
+          'Rechercheaufwand: gruendlich (Normalfall, 10 Quellen), standard (nur für einen einzelnen Datenpunkt, 5 Quellen), tiefenrecherche (nur auf ausdrücklichen Wunsch, langsam)'
         ),
       zeitraum: z
         .enum(['anytime', 'day', 'week', 'month', 'year'])
