@@ -46,7 +46,11 @@ import {
   SYSTEM_TOOL_INTENTS,
   isSystemIntentAvailable,
 } from '../../services/mcp/systemMcpServers.js';
-import { buildAiTelemetry, withLangfuseTrace } from '../../services/telemetry/langfuseTelemetry.js';
+import {
+  BOTH_LANES_FAILED,
+  buildAiTelemetry,
+  withLangfuseTrace,
+} from '../../services/telemetry/langfuseTelemetry.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { withTimeout } from '../../utils/withTimeout.js';
@@ -1733,6 +1737,24 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         sse.setTextListener((kind, text) => activeWriter.onText(kind, text));
       }
 
+      /**
+       * Both answer-writing paths open the same `chat-turn` trace — the agentic
+       * loop and the single-pass respond call. `intent` is the only field that
+       * differs: the loop answers under the classifier's intent, the pipeline
+       * may have rewritten it by the time it reaches the respond model.
+       */
+      const buildTurnTrace = (intent: string) => ({
+        name: 'chat-turn',
+        ...(userId && { userId }),
+        ...(actualThreadId && { sessionId: actualThreadId }),
+        metadata: {
+          requestId,
+          intent,
+          ...(agentId && { agentId }),
+          ...(modelId && { modelId }),
+        },
+      });
+
       if (runAgentic) {
         // Agentic path: the model holds the search tools and loops until it can
         // answer, writing the reply in the same streamed turn. Stage 2's
@@ -1751,16 +1773,28 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             )
           : { systemMessage, messages: prunedValidMessages };
 
-        const outcome = await streamAgenticResponse({
-          finalState: classifiedState,
-          systemMessage: finalSystemMessage,
-          messages: contextMessages as ModelMessage[],
-          ...(modelId != null && { modelId }),
-          requestId,
-          sse,
-          req,
-          threadId: actualThreadId ?? null,
-        });
+        // The loop's gather/synth generations nest under this root span — they
+        // pass buildAiTelemetry() from inside loopEngine. Until this existed the
+        // most expensive turns in the product were the only untraced ones, and
+        // the client got no traceId, so their thumbs buttons never rendered.
+        const outcome = await withLangfuseTrace(
+          buildTurnTrace(classifiedState.intent ?? 'agentic'),
+          async (trace) => {
+            langfuseTraceId = trace.traceId;
+            const result = await streamAgenticResponse({
+              finalState: classifiedState,
+              systemMessage: finalSystemMessage,
+              messages: contextMessages as ModelMessage[],
+              ...(modelId != null && { modelId }),
+              requestId,
+              sse,
+              req,
+              threadId: actualThreadId ?? null,
+            });
+            trace.update({ input: lastUserText, output: result.fullText });
+            return result;
+          }
+        );
 
         finalState = classifiedState;
         finalState.citations = outcome.citations;
@@ -1944,32 +1978,19 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             );
           }
 
-          const respondTelemetry = buildAiTelemetry('chat-graph.respond', {
-            requestId,
-            intent: finalState.intent,
-            ...(agentId && { agentId }),
-            ...(modelId && { modelId }),
-          });
+          // Context (requestId/intent/agentId/modelId) rides on the trace below —
+          // AI SDK 7 telemetry has no metadata field.
+          const respondTelemetry = buildAiTelemetry('chat-graph.respond');
 
           try {
             // One Langfuse trace per chat turn: the respond generation (and any
             // sibling-fallback retry) nest under this `chat-turn` root span, and
             // `traceId` is captured for the client feedback score.
             fullText = await withLangfuseTrace(
-              {
-                name: 'chat-turn',
-                ...(userId && { userId }),
-                ...(actualThreadId && { sessionId: actualThreadId }),
-                metadata: {
-                  requestId,
-                  intent: finalState.intent,
-                  ...(agentId && { agentId }),
-                  ...(modelId && { modelId }),
-                },
-              },
-              async (traceId) => {
-                langfuseTraceId = traceId;
-                return streamWithFallback({
+              buildTurnTrace(finalState.intent ?? 'unknown'),
+              async (trace) => {
+                langfuseTraceId = trace.traceId;
+                const text = await streamWithFallback({
                   primary: resolution,
                   sse,
                   logPrefix: '[ChatGraph]',
@@ -1988,6 +2009,15 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
                       ...(respondTelemetry && { telemetry: respondTelemetry }),
                     }),
                 });
+                // streamWithFallback swallows a dead primary AND a dead sibling
+                // into `null` instead of throwing, so without this the failed
+                // turn would sit in Langfuse as a successful one.
+                trace.update(
+                  text === null
+                    ? { input: lastUserText, level: 'ERROR', statusMessage: BOTH_LANES_FAILED }
+                    : { input: lastUserText, output: text }
+                );
+                return text;
               }
             );
           } finally {
