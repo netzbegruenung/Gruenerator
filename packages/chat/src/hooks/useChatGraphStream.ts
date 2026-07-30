@@ -16,6 +16,7 @@ import type {
   ChatCitation,
   GeneratedImagePayload,
   SearchResultPayload,
+  SearchImagePayload,
   ChartPayload,
   ArtifactPayload,
   ComputePayload,
@@ -135,6 +136,12 @@ export type Citation = ChatCitation;
 
 // Wire shape shared with apps/api sseHelpers via @gruenerator/contracts.
 export type SearchResult = SearchResultPayload;
+
+/**
+ * An image hit from the web search. A named LINK, never a rendered picture — see
+ * `searchImagePayloadSchema` for why there is no thumbnail field.
+ */
+export type SearchImage = SearchImagePayload;
 
 export interface StreamMetadata {
   intent: SearchIntent;

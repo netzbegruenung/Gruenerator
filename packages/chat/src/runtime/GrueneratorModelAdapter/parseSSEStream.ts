@@ -38,6 +38,7 @@ import type {
   Citation,
   FallbackInfo,
   SearchResult,
+  SearchImage,
   StreamMetadata,
   ProgressStep,
   ChartData,
@@ -134,6 +135,7 @@ export async function* parseSSEStream(
   }
 
   let receivedSearchResults: SearchResult[] = [];
+  let receivedSearchImages: SearchImage[] = [];
   let receivedCitations: Citation[] = [];
   let receivedImage: GeneratedImage | null = null;
   let receivedSharepicData: SharepicData | null = null;
@@ -263,6 +265,7 @@ export async function* parseSSEStream(
       progress: { ...currentProgress, steps: [...progressSteps] },
     };
     if (receivedSearchResults.length > 0) custom.searchResults = receivedSearchResults;
+    if (receivedSearchImages.length > 0) custom.searchImages = receivedSearchImages;
     if (receivedCitations.length > 0) custom.citations = receivedCitations;
     if (receivedImage) custom.generatedImage = receivedImage;
     if (receivedSharepicData) custom.sharepicData = receivedSharepicData;
@@ -467,14 +470,19 @@ export async function* parseSSEStream(
         }
 
         case 'search_complete': {
-          const { message, resultCount, results, researchMeta, examplesResult } = data as {
+          const { message, resultCount, results, images, researchMeta, examplesResult } = data as {
             message: string;
             resultCount: number;
             results?: SearchResult[];
+            images?: SearchImage[];
             researchMeta?: unknown;
             examplesResult?: { press?: unknown[]; social?: unknown[]; message?: string };
           };
           if (results) receivedSearchResults = results;
+          // Deliberately NOT merged into `receivedSearchResults`: those feed the
+          // tool card's result data and the source list, and an image carries no
+          // text to cite. They travel as their own metadata field instead.
+          if (images?.length) receivedSearchImages = images;
           // Update searching step label with result count
           const searchStep = progressSteps.find((s) => s.stage === 'searching');
           if (searchStep) {
