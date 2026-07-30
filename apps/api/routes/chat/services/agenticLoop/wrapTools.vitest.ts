@@ -182,56 +182,47 @@ describe('wrapToolsForLoop', () => {
     expect(ctx.guards.checkSearchBudget('web_search')).not.toBeNull();
   });
 
-  it('internal-first block emits no card and no step — the tool never ran', async () => {
+  /**
+   * The regression the internal-first gate caused: "wer war marilyn monroe?"
+   * has no party documents behind it, the gate refused the web anyway, and the
+   * turn was answered from model memory — wrong film title, zero sources.
+   */
+  it('runs web_search straight away — no internal search required first', async () => {
     const { ctx, events, steps } = makeCtx({
       guards: createToolLoopGuards({
-        internalFirst: {
-          requiredTool: 'gruenerator_search',
-          gatedTools: new Set(['web_search']),
-          exempt: false,
-        },
+        internalFallback: { requiredTool: 'gruenerator_search', fallbackTool: 'web_search' },
+        searchToolNames: new Set(['web_search', 'gruenerator_search']),
       }),
     });
-    const execute = vi.fn(async () => ({ results: [] }));
+    const execute = vi.fn(async () => ({ results: [{ title: 'Marilyn Monroe' }] }));
     const tools = wrapToolsForLoop({ web_search: { execute } } as unknown as ToolSet, ctx);
 
-    const out = (await run(tools, 'web_search', { query: 'marilyn monroe' })) as { error: string };
-    expect(out.error).toMatch(/zuerst gruenerator_search/);
-    expect(execute).not.toHaveBeenCalled();
-    expect(events).toHaveLength(0);
-    expect(steps).toHaveLength(0);
+    const out = (await run(tools, 'web_search', { query: 'wer war marilyn monroe' })) as {
+      results: unknown[];
+    };
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(out.results).toHaveLength(1);
+    expect(events.map((e) => e.event)).toEqual(['tool_step_start', 'tool_step_result']);
+    expect(steps).toHaveLength(1);
   });
 
-  it('internal-first blocks web_search until gruenerator_search executed', async () => {
+  it('forces the web after an internal search that found nothing', async () => {
     const { ctx } = makeCtx({
       guards: createToolLoopGuards({
-        internalFirst: {
-          requiredTool: 'gruenerator_search',
-          gatedTools: new Set(['web_search']),
-          exempt: false,
-        },
+        internalFallback: { requiredTool: 'gruenerator_search', fallbackTool: 'web_search' },
+        getSourceCount: () => 0,
       }),
     });
-    const webExecute = vi.fn(async () => ({ results: [] }));
-    const internalExecute = vi.fn(async () => ({ results: [] }));
     const tools = wrapToolsForLoop(
       {
-        web_search: { execute: webExecute },
-        gruenerator_search: { execute: internalExecute },
+        gruenerator_search: { execute: async () => ({ results: [] }) },
       } as unknown as ToolSet,
       ctx
     );
 
-    const blocked = (await run(tools, 'web_search', { query: 'x' })) as { error: string };
-    expect(blocked.error).toMatch(/zuerst gruenerator_search/);
-    expect(webExecute).not.toHaveBeenCalled();
-
-    await run(tools, 'gruenerator_search', { query: 'x' }, 'call_2');
-    const allowed = (await run(tools, 'web_search', { query: 'x' }, 'call_3')) as {
-      results: unknown[];
-    };
-    expect(allowed.results).toEqual([]);
-    expect(webExecute).toHaveBeenCalledTimes(1);
+    expect(ctx.guards.emptyResultFallback()).toBeNull();
+    await run(tools, 'gruenerator_search', { query: 'x' });
+    expect(ctx.guards.emptyResultFallback()).toBe('web_search');
   });
 
   it('truncates the model-facing payload but records the full result', async () => {

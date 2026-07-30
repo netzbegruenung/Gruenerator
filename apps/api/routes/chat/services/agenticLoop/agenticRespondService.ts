@@ -16,10 +16,7 @@ import { type ChatIntentId } from '@gruenerator/shared/chat-intents';
 import { type ModelMessage } from 'ai';
 
 import { forbidsNewResearch } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
-import {
-  getSourcesForIntent,
-  SYSTEM_TOOL_INTENTS,
-} from '../../../../services/mcp/systemMcpServers.js';
+import { getSourcesForIntent } from '../../../../services/mcp/systemMcpServers.js';
 import { applyContextCap } from '../../../../utils/contextCap.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { loadMcpCatalog, type McpCatalog } from '../../agents/mcpCatalog.js';
@@ -279,7 +276,7 @@ export function buildToolUsageBlock(maxSteps: number, researchBanned = false): s
   return [
     'ARBEITSWEISE MIT TOOLS:',
     '- Du hast Tools, um grüne Parteiprogramme/Positionen, Beispiele und das Web zu durchsuchen, Bundestags-Dokumente (DIP), Abgeordneten-Abstimmungsdaten (abgeordnetenwatch) und aktuelle Wahlumfragen (Sonntagsfrage, bundesweit + Bundesländer) abzurufen sowie Dokumente zusammenzufassen.',
-    '- Für grüne Positionen, Programme und Beschlüsse ZUERST die interne Dokumentsuche (gruenerator_search). Nutze die Websuche NUR ergänzend, wenn intern nichts Passendes zu finden ist oder es um tagesaktuelle Ereignisse geht.',
+    '- Für grüne Positionen, Programme und Beschlüsse ZUERST die interne Dokumentsuche (gruenerator_search). Nutze die Websuche NUR ergänzend, wenn intern nichts Passendes zu finden ist oder es um tagesaktuelle Ereignisse geht. Bei Fragen OHNE Parteibezug (Allgemeinwissen, Personen, Ereignisse, Zahlen) gehst du DIREKT ins Web — gruenerator_search kennt ausschließlich Parteidokumente und hat dazu nichts.',
     '- NUTZE das passende Tool DIREKT, statt anzubieten es zu tun. Frage NIEMALS "Soll ich das für dich suchen/tun?" — wenn du ein Tool dafür hast, ruf es einfach auf. Frag nur zurück, wenn dir eine echte Angabe fehlt (z.B. um welche Person/Abstimmung es geht).',
     '- Rufe so WENIGE Tools wie möglich auf. Sobald die ersten Ergebnisse deine Frage beantworten, antworte SOFORT — such nicht zur Absicherung weiter und wiederhole keine ähnlichen Suchen. Verfeinere oder wechsle das Tool NUR, wenn ein Ergebnis leer oder unpassend ist (z.B. Websuche statt Programmsuche, oder das Bundestag-Tool für Fraktions-/Gesetzesfragen).',
     '- SUCHEN BAUEN AUFEINANDER AUF: Starte EINE Suche, lies ihr Ergebnis, und suche erst danach weiter — höchstens ZWEI Suchen gleichzeitig. Weitere Suchen im selben Schritt werden zurückgestellt; du kannst sie danach unverändert erneut starten.',
@@ -403,22 +400,14 @@ export async function streamAgenticResponse(params: {
     // thread with prior research would have been told it had "already found
     // enough" before running a single search.
     getSourceCount: () => sourceRegistry.freshSize,
-    internalFirst: {
+    // The web is NOT gated behind the internal document search — no exemption
+    // list either, because there is nothing left to be exempt from. Which
+    // retrieval a question needs is the classifier's call, made with the whole
+    // message and the thread in hand. All the loop still does is refuse to let
+    // an internal search that found NOTHING end in an answer from model memory.
+    internalFallback: {
       requiredTool: 'gruenerator_search',
-      gatedTools: new Set(['web_search', 'scrape_url']),
-      emptyResultFallbackTool: 'web_search',
-      // Explicit web intent or a user-pasted URL may go to the web/scrape
-      // directly. `hasTemporal` was REMOVED: "aktuelle Position der Grünen"
-      // trips it but is answerable from internal docs — it over-opened the web.
-      // Genuinely tagesaktuell queries return few/no internal hits, so the
-      // "internal came up short" path (minSourcesToSkipWeb) lets the web in.
-      // System-tool turns are exempt too: their source can be down, and the
-      // systemNote explicitly offers web search as the honest fallback — the
-      // guard must not force a party-document search in front of it.
-      exempt:
-        finalState.intent === 'web' ||
-        (finalState.intent != null && SYSTEM_TOOL_INTENTS.has(finalState.intent)) ||
-        (finalState.detectedUrls?.length ?? 0) > 0,
+      fallbackTool: 'web_search',
     },
   });
   const steps: PersistedStep[] = [];
