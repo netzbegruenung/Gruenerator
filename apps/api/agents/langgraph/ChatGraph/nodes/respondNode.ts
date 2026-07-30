@@ -1028,6 +1028,36 @@ const STRUCTURE_SOURCE_THRESHOLD = 4;
  * about "padded section stacks" already warns about.
  */
 /**
+ * Rule 1 of ANTWORT-REGELN — and the reason rule 2 had no visible effect for as
+ * long as it did.
+ *
+ * It used to read: "Beantworte NUR was gefragt wurde - keine ungebetene
+ * Zusatzinfo. Ausnahme: Bei offenen Fragen nach einer Person, Organisation oder
+ * einem Begriff gehören die einordnenden Kerndaten (Lebensdaten, Funktion,
+ * Hauptwerke) zur Antwort und gelten nicht als Zusatzinfo."
+ *
+ * That exception is a WHITELIST OF THREE ITEMS, and the model followed it
+ * exactly: every measured answer to "wer war Marilyn Monroe" carried her dates,
+ * her occupations and three films — and nothing else. Not her childhood, not her
+ * three marriages, not the circumstances of her death, all of which sat in the
+ * sources. The model was never disobeying the format rule; it was obeying THIS
+ * one, which is narrower, more specific, and printed above it.
+ *
+ * Worse, the two rules were consistent: under this cap the answer genuinely has
+ * ONE aspect, and rule 2's own condition then says to keep it as prose. Adding
+ * headings, sources or paragraphs to rule 2 could never have worked.
+ *
+ * So this rule keeps what it was FOR — no drifting to another topic, no
+ * unsolicited offers — and gives up what it had quietly taken: how much to say
+ * about the topic that WAS asked. That axis belongs to rule 2 alone, which is
+ * the same "one axis, one instruction, one place" the comments there insist on.
+ * The brevity of a genuinely small question is unaffected: rule 2's `simple`
+ * branch still answers it in one or two paragraphs.
+ */
+const SCOPE_RULE =
+  'Bleib beim Gefragten: keine Ausflüge zu anderen Themen, keine unaufgeforderten Angebote ("soll ich dazu ein Sharepic bauen?"). Aber bei einer offenen Frage nach einer Person, einer Organisation oder einem Begriff IST der Gegenstand selbst das Thema — alles, was zu seinem Verständnis gehört (Werdegang, Wirken, Hauptwerke, Wendepunkte, Ende, Bedeutung), ist damit gefragt und keine Zusatzinfo. Wie ausführlich, entscheidet allein Regel 2.';
+
+/**
  * The syntax has to be named. Asked only for "Überschriften", the model answered
  * with bold lines (`**Leben und Karriere**`) — which the renderer shows as bold
  * body text, not as a heading, so the visual hierarchy the rule exists to create
@@ -1335,7 +1365,7 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
 Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${productKnowledge}${docsPageMap}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
 
 ## ANTWORT-REGELN
-1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo. Ausnahme: Bei offenen Fragen nach einer Person, Organisation oder einem Begriff gehören die einordnenden Kerndaten (Lebensdaten, Funktion, Hauptwerke) zur Antwort und gelten nicht als Zusatzinfo
+1. ${SCOPE_RULE}
 2. ${buildAnswerFormatRule(state, sourceCount, opts.retrievalExpected ?? false)}
 3. Antworte auf Deutsch. Sind Quellen fremdsprachig, formuliere SPRACHLICH eigenständig statt wörtlich zu übersetzen — INHALTLICH bleibst du exakt bei der Quelle und ergänzt nichts, was dort nicht steht. Kannst du eine Aussage nicht nachvollziehbar auf Deutsch wiedergeben, lass sie weg statt zu raten
 4. Erfinde keine Fakten oder Quellennamen
