@@ -6,6 +6,8 @@
  * (searchNode imports heavyweight services that break under Vitest).
  */
 
+import { renumberCitationsInOrder } from '../../../../services/search/SearchResultProcessor.js';
+
 import { buildCitableSources, type CitableSource } from './citableSources.js';
 
 import type { SearchResult, Citation } from '../types.js';
@@ -156,4 +158,42 @@ export function buildCitations(results: SearchResult[]): Citation[] {
   return buildCitableSources(results)
     .filter((s) => (s.representative.content?.length ?? 0) > 0)
     .map(projectCitation);
+}
+
+/**
+ * Close the gaps a partially-citing answer leaves behind.
+ *
+ * The prompt numbers every retrieved source 1..N up front and the model then
+ * cites a subset, so an answer using 1, 2 and 4 shipped a visible hole where 3
+ * should be — and the reader cannot tell a skipped source from a lost one. The
+ * notebook path has renumbered since #2137 (NotebookQAService,
+ * notebookStreamCore); the web path never got wired up. This is that wiring.
+ *
+ * Uncited sources are dropped, matching the notebook behaviour: with no marker
+ * pointing at them they are unreachable from the text. What the search actually
+ * found stays visible through the tool-call chip and persisted `searchResults`.
+ *
+ * `Citation.id` is rewritten alongside the array order — the renderer resolves
+ * `[N]` through both, so leaving either stale would swap the chips' targets.
+ */
+export function renumberAnswerCitations(
+  text: string,
+  citations: Citation[]
+): { text: string; citations: Citation[] } {
+  if (!text || citations.length === 0) return { text, citations };
+
+  const byId: Record<string, Citation> = {};
+  for (const citation of citations) byId[String(citation.id)] = citation;
+
+  const { renumberedDraft, newReferencesMap } = renumberCitationsInOrder(text, byId);
+
+  const renumbered = Object.entries(newReferencesMap)
+    .map(([newId, citation]) => ({ ...citation, id: Number(newId) }))
+    .sort((a, b) => a.id - b.id);
+
+  // An answer that cited nothing at all: keep the original list rather than
+  // emptying the sources panel.
+  if (renumbered.length === 0) return { text, citations };
+
+  return { text: renumberedDraft, citations: renumbered };
 }

@@ -14,8 +14,7 @@ import {
   getCustomAgentMentionables,
   getMcpServerMentionables,
   getTextformMentionables,
-  getMentionLocale,
-  toolMentionables,
+  visibleToolMentionables,
   type Mentionable,
 } from './mentionables';
 
@@ -44,12 +43,15 @@ export function quickSkillMentionables(favorites: readonly string[]): Mentionabl
  * Built-in chat functions (`@recherche`, `@bildgenerieren`, …), filtered for the
  * current locale like the recipes are — `@abgeordnetenwatch` and `@bundestag`
  * are `audience: 'de-DE'` and have no meaning for an Austrian user.
+ *
+ * The predicate itself lives in `mentionables` so the `@`-typeahead and both
+ * plus-menu renderers cannot answer the question differently. They did: this
+ * function applied the filter while the web plus-menu and the typeahead read
+ * the raw list, so an Austrian user got `@bundestag` offered on web and not on
+ * mobile.
  */
 export function functionMentionables(): Mentionable[] {
-  const locale = getMentionLocale();
-  return toolMentionables.filter(
-    (m) => m.audience === undefined || m.audience === 'all' || m.audience === locale
-  );
+  return visibleToolMentionables();
 }
 
 /** Connected MCP servers, pinnable to hold their scope across follow-ups. */

@@ -121,7 +121,7 @@ export function docKindToCitableKind(kind: DocumentSourceKind): CitableSourceKin
  * widened its slice to 12, so four retrieved documents were dropped again on
  * the way to the prompt.
  */
-const MAX_SOURCES = 20;
+export const MAX_SOURCES = 20;
 
 /**
  * Group chunked search results into one entry per logical source. Both

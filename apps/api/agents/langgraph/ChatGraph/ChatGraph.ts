@@ -209,6 +209,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     reasoning: '',
     hasTemporal: false,
     complexity: 'moderate' as const,
+    explicitDeepRequest: false,
     contentType: null,
     documentSubtype: null,
     targetGroupName: null,

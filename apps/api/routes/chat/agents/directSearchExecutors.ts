@@ -20,7 +20,7 @@ import { DocumentSearchService } from '../../../services/document-services/index
 import { searchExamples } from '../../../services/examples/exampleSearchService.js';
 import { withRetry } from '../../../services/search/index.js';
 import { getLinkupService } from '../../../services/search/LinkupService.js';
-import { resolveTier, type SearchTier } from '../../../services/search/searchDepth.js';
+import { resolveSearchPlan, type SearchTier } from '../../../services/search/searchDepth.js';
 import { searxngService } from '../../../services/search/SearxngService.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -446,6 +446,11 @@ export async function executeDirectPressemitteilungExamples(params: {
  * want a specific count (news widgets, compound turns); the tier only supplies
  * the default.
  *
+ * Every caller goes through `resolveSearchPlan`, so the engine depth, the result
+ * count and the adjacent-keyword instruction are decided in ONE place — the
+ * multi-source path used to hard-code `maxResults: 5` and pass no tier at all,
+ * which quietly made comparison turns the shallowest ones in the product.
+ *
  * Falls back to SearXNG when LINKUP_API_KEY is unset — SearXNG has no depth
  * concept, so every tier degrades to one flat search there. That is a
  * dev/self-host path; production has the key.
@@ -457,32 +462,82 @@ export async function executeDirectWebSearch(params: {
   maxResults?: number;
   timeRange?: string;
   language?: string;
+  /**
+   * Site scope, applied by the engine before we pay. `include` narrows the search
+   * to these hosts ("such auf zeit.de"); `exclude` keeps them out and carries the
+   * low-value default list. Bare hosts, no scheme.
+   */
+  includeDomains?: readonly string[];
+  excludeDomains?: readonly string[];
+  /** Explicit ISO window (YYYY-MM-DD). Wins over `timeRange`, which is a preset. */
+  fromDate?: string;
+  toDate?: string;
 }): Promise<DirectWebSearchResult> {
   const { query, searchType = 'general', tier, timeRange, language = 'de-DE' } = params;
-  const tierConfig = resolveTier(tier);
-  const maxResults = params.maxResults ?? tierConfig.maxResults;
+  const plan = resolveSearchPlan({
+    ...(tier ? { tier } : {}),
+    query,
+    ...(params.maxResults != null ? { maxResults: params.maxResults } : {}),
+  });
+  const maxResults = plan.maxResults;
+
+  // An include scope and the default block list are not the same kind of
+  // statement: naming sites is a positive instruction, so the block list must not
+  // ride along and silently subtract from it. (Linkup applies both if both are
+  // sent, and "search zeit.de but not amazon.de" is a scope nobody asked for.)
+  const includeDomains = params.includeDomains ?? [];
+  const excludeDomains = includeDomains.length > 0 ? [] : (params.excludeDomains ?? []);
+
+  // `searchType: 'news'` was a documented parameter that did nothing at all on
+  // the Linkup path — the branch below only ever used it for SearXNG's category.
+  // A news search is a recency constraint, so that is what it now buys.
+  const NEWS_WINDOW_DAYS = 30;
+  const fromDate =
+    params.fromDate ??
+    (timeRange ? timeRangeToFromDate(timeRange) : undefined) ??
+    (searchType === 'news' ? daysAgoIso(NEWS_WINDOW_DAYS) : undefined);
   // The deeper tiers exist to give the writing model more to work with; a
   // 300-char snippet would cap that no matter how many sources came back.
   // Stays under the source registry's own per-line cap (1500).
-  const snippetChars = tierConfig.depth === 'deep' ? 1200 : 300;
+  const snippetChars = plan.depth === 'deep' ? 1200 : 300;
 
+  // One line carrying the COMPLETE commissioned search. Without it there was no
+  // way to tell from the logs what a turn actually asked the engine for — which
+  // is how `searchType: 'news'` survived for months as a no-op on this path.
   log.info(
-    `[Direct Web Search] query="${query}" type="${searchType}" tier=${tier ?? 'standard'} max=${maxResults} lang=${language}`
+    `[Direct Web Search] query="${query}" type="${searchType}" tier=${plan.tier} depth=${plan.depth}${plan.fastReason ? `(${plan.fastReason})` : ''} max=${maxResults} adjacent=${plan.adjacentSearches} lang=${language}${
+      includeDomains.length > 0 ? ` include=[${includeDomains.join(',')}]` : ''
+    }${excludeDomains.length > 0 ? ` exclude=${excludeDomains.length}` : ''}${
+      fromDate ? ` from=${fromDate}` : ''
+    }${params.toDate ? ` to=${params.toDate}` : ''}${timeRange ? ` timeRange=${timeRange}` : ''}`
   );
 
   try {
     const linkup = getLinkupService();
     if (linkup) {
-      log.info(
-        `[Direct Web Search] Routing via Linkup (${tierConfig.depth}) for "${query}" [${tier ?? 'standard'}]`
-      );
-      const fromDate = timeRange ? timeRangeToFromDate(timeRange) : undefined;
-      const linkupRes = await linkup.webSearch({
-        query,
-        depth: tierConfig.depth,
-        maxResults,
-        ...(fromDate ? { fromDate } : {}),
-      });
+      const search = (depth: typeof plan.depth) =>
+        linkup.webSearch({
+          query,
+          depth,
+          maxResults,
+          adjacentSearches: plan.adjacentSearches,
+          ...(includeDomains.length > 0 ? { includeDomains } : {}),
+          ...(excludeDomains.length > 0 ? { excludeDomains } : {}),
+          ...(fromDate ? { fromDate } : {}),
+          ...(params.toDate ? { toDate: params.toDate } : {}),
+        });
+      // `fast` is flagged beta in Linkup's docs, so it is the one depth that could
+      // be rejected for an account without anything else being wrong. A keyword
+      // lookup must not fail over an optimisation: fall back to the depth we know
+      // works, once, and say so in the log.
+      const linkupRes = await (plan.depth === 'fast'
+        ? search('fast').catch((err: unknown) => {
+            log.warn(
+              `[Direct Web Search] fast depth rejected (${err instanceof Error ? err.message : String(err)}) — retrying at standard`
+            );
+            return search('standard');
+          })
+        : search(plan.depth));
       const linkupFormatted = linkupRes.results.slice(0, maxResults).map((r, i) => ({
         rank: i + 1,
         // Linkup returns raw HTML-entity-encoded titles/snippets (e.g. "&Ouml;sterreich").
@@ -490,7 +545,11 @@ export async function executeDirectWebSearch(params: {
         url: r.url,
         snippet: truncateText(decodeHtmlEntities(r.content), snippetChars),
         domain: extractDomain(r.url),
-        publishedDate: null as string | null,
+        // Was hard-coded `null`, so `recencyBoost`/`resolveSourceDate` scored
+        // nothing for web hits — the one source type where freshness matters
+        // most. Normalised rather than passed through: a value the ranking
+        // cannot parse is worse than none, because it looks like data.
+        publishedDate: normalizePublishedDate(r.date),
       }));
       log.info(
         `[Direct Web Search] Linkup returned ${linkupFormatted.length} results for "${query}"`
@@ -580,6 +639,32 @@ export async function executeDirectWebSearch(params: {
  * Map a SearXNG-style `time_range` ("day"|"week"|"month"|"year") to a Linkup
  * `fromDate` (YYYY-MM-DD). Unknown values yield no constraint.
  */
+/** ISO date (YYYY-MM-DD) `days` in the past. */
+function daysAgoIso(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Linkup's `date` field as something the recency ranking can use, or `null`.
+ *
+ * Returning `null` for anything unparseable is deliberate: a bogus date is worse
+ * than a missing one, because the ranking would treat it as a real signal and
+ * boost or bury a source on the strength of a string nobody validated. Future
+ * dates are rejected for the same reason — a page dated next year is metadata
+ * noise, not a fresh source.
+ */
+export function normalizePublishedDate(raw: string | undefined): string | null {
+  if (!raw || raw.trim().length === 0) return null;
+  const parsed = new Date(raw);
+  const time = parsed.getTime();
+  if (Number.isNaN(time)) return null;
+  // One day of slack for timezone skew rather than an exact comparison.
+  if (time > Date.now() + 24 * 60 * 60 * 1000) return null;
+  return parsed.toISOString();
+}
+
 function timeRangeToFromDate(timeRange: string): string | undefined {
   const days: Record<string, number> = { day: 1, week: 7, month: 30, year: 365 };
   const offset = days[timeRange.toLowerCase()];

@@ -576,12 +576,18 @@ describe('searchNode – web intent', () => {
     expect(mockExecuteDirectWebSearch).toHaveBeenCalled();
   });
 
-  it('expands query for web search', async () => {
+  /**
+   * One search decision = ONE paid call. The web path used to expand the query
+   * into 2–3 variants and search them all in parallel, which bought breadth by
+   * paying for it several times over — Linkup delivers the same fan-out inside a
+   * single `standard` call (`adjacentSearches` on the upper tiers). Document
+   * expansion stays: Qdrant is our own index and costs nothing per query.
+   */
+  it('runs exactly one web search — no query expansion on the web path', async () => {
     await searchNode(makeState({ intent: 'web' }));
 
-    expect(mockExpandQuery).toHaveBeenCalledWith('Klimapolitik', null);
-    // Original + expanded variant = 2 web searches
-    expect(mockExecuteDirectWebSearch).toHaveBeenCalledTimes(2);
+    expect(mockExpandQuery).not.toHaveBeenCalled();
+    expect(mockExecuteDirectWebSearch).toHaveBeenCalledTimes(1);
   });
 });
 
