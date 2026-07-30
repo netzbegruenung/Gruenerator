@@ -1305,11 +1305,21 @@ export async function executeIntentPipeline(opts: {
           explicitDeep: searchInputState.explicitDeepRequest ?? false,
         });
         if (!reused) {
+          const baseProgress =
+            searchTier === 'standard'
+              ? PROGRESS_MESSAGES.searchStart
+              : resolveTier(searchTier).progress;
+          // A site scope must be VISIBLE. It was extracted heuristically from the
+          // user's wording, so a wrong read has to be recognisable as such —
+          // otherwise the user sees results missing and has no way to tell that
+          // the search was narrowed at all. Named in the progress line rather than
+          // a new event field, because that line is already rendered everywhere.
+          const scopeDomains = searchInputState.webSiteScope?.include ?? [];
           sse.send('search_start', {
             message:
-              searchTier === 'standard'
-                ? PROGRESS_MESSAGES.searchStart
-                : resolveTier(searchTier).progress,
+              scopeDomains.length > 0
+                ? `${baseProgress.replace(/[…\s]+$/, '')} — nur auf ${scopeDomains.join(', ')}…`
+                : baseProgress,
             ...(finalState.subQueries?.length && { subQueries: finalState.subQueries }),
           });
           if (searchTier !== 'standard') {
