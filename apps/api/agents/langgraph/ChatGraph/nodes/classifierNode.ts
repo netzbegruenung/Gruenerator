@@ -42,6 +42,7 @@ import {
   extractSearchTopic,
   extractMessageText,
   extractUrls,
+  extractDomainScope,
   formatConversationHistory,
   hasImageEditVerb,
   isImageRegenRequest,
@@ -347,6 +348,23 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     );
   }
 
+  // "such auf zeit.de und orf.at nach X" — a search RESTRICTION, not a page to
+  // read, and until now it had no way into the engine at all: bare domains stayed
+  // words in the query string, where they narrowed nothing. Deterministic, so the
+  // classifier's JSON schema does not grow — every field there costs prompt budget
+  // and measurably drags on intent accuracy.
+  //
+  // `extractDomainScope` drops any domain that also appears as a full URL, so this
+  // cannot steal a `scrape_url` turn: a URL with a path is a read instruction, a
+  // bare domain is a scope. Both in one message is allowed and each keeps its role.
+  const webSiteScope = extractDomainScope(userText);
+  const hasSiteScope = webSiteScope.include.length > 0 || webSiteScope.exclude.length > 0;
+  if (hasSiteScope) {
+    log.info(
+      `[Classifier] Site scope: include=[${webSiteScope.include.join(',')}] exclude=[${webSiteScope.exclude.join(',')}]`
+    );
+  }
+
   // A question about THIS conversation needs no retrieval — the messages are in
   // context already. Routing it to chat_history sent it through a Qdrant recall
   // over PAST threads, which returned nothing, and the turn then reported having
@@ -395,6 +413,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
       : {}),
     secondaryIntent,
     detectedUrls,
+    ...(hasSiteScope ? { webSiteScope } : {}),
     documentSources,
     synthesisMode,
   };

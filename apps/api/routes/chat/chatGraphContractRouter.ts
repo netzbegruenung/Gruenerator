@@ -592,6 +592,39 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         break;
       }
 
+      // @deepresearch — a VARIANT of `research`, routed like one, but the only
+      // token that authorises Linkup's `sourcedAnswer` endpoint. It is not in
+      // TOOL_PRIORITY below (and must not be: it is not a competing tool), so the
+      // block after this one leaves the intent alone.
+      //
+      // `explicitDeepRequest` is set too: whichever way the turn ends up going —
+      // quota free or quota spent — asking for a dossier is by definition asking
+      // for depth, so the fallback lands on `tiefenrecherche` rather than being
+      // clamped back to `gruendlich`.
+      if (forcedTools?.includes('deepresearch')) {
+        classifiedState.intent = 'research';
+        classifiedState.deepResearchRequested = true;
+        classifiedState.explicitDeepRequest = true;
+        forcedTool = true;
+        if (
+          (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
+          lastUserMessage
+        ) {
+          const userText = lastUserTextNoMentions.trim();
+          if (userText) {
+            // Same referential trap as the forced-search branch below: "recherchier
+            // das mal gründlich" taken verbatim becomes the research question, and
+            // Linkup answers about the sentence instead of the topic.
+            const resolved = resolveReferentialQuery(userText, classifiedState.messages ?? []);
+            classifiedState.searchQuery = resolved.query;
+            classifiedState.searchQueryInherited = resolved.inherited;
+          }
+        }
+        log.info(
+          `[ChatGraph] @deepresearch mention — intent forced to "research", deep-research path requested`
+        );
+      }
+
       if (forcedTools && forcedTools.length > 0) {
         const searchClassTools = ['research', 'web', 'search'];
         const hasSearchTool = forcedTools.some((t) => searchClassTools.includes(t));
@@ -1815,6 +1848,29 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               ? buildSharepicConfirmation(n, deckSlides)
               : ARTIFACT_CONFIRMATION_TEXTS.sharepicFailed;
           sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
+          sse.send('text_delta', { text: fullText });
+        } else if (finalState.deepResearchAnswer) {
+          // @deepresearch: the dossier is ALREADY WRITTEN (see deepResearchTurn.ts)
+          // and is served verbatim as the assistant message. No tool card, no
+          // artefact — the text lands in the transcript like any other answer, so
+          // a follow-up ("kürz mir den zweiten Abschnitt") can actually refer to
+          // it. That was impossible with the old research card, where the dossier
+          // lived only in a tool result the model never saw.
+          //
+          // Skipping the synthesis pass is the point, not an optimisation: a model
+          // run over a finished text paraphrases what we just paid for, costs a
+          // second LLM pass, and renumbers citations it has no way to verify.
+          //
+          // One delta rather than chunks: the whole text is already in hand, so
+          // splitting it would only fake a stream — and the smooth-streaming hook
+          // has a history of breaking on prefix boundaries.
+          fullText = finalState.deepResearchAnswer;
+          sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
+          //
+          // No `completion` follow-up: that event exists to REPLACE streamed text
+          // after a correction, and there is nothing to correct here — the
+          // out-of-range clamp already ran before the text left deepResearchTurn.
+          // `done` carries the citations, as on every other path.
           sse.send('text_delta', { text: fullText });
         } else {
           sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });

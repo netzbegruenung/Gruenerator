@@ -41,6 +41,16 @@ const BEFORE: Row[] = [
     audience: 'all',
     aliases: ['websearch'],
   },
+  // Variant mention of `research`, added with the @deepresearch gate: same intent,
+  // same routing, but the only token that authorises Linkup's paid dossier
+  // endpoint. Sorts right behind @recherche via TOOL_MENTION_ORDER.
+  {
+    identifier: 'deepresearch',
+    mention: 'deepresearch',
+    title: 'Tiefenrecherche',
+    audience: 'all',
+    aliases: ['tiefenrecherche', 'dossier'],
+  },
   { identifier: 'search', mention: 'dokumente', title: 'Dokumente', audience: 'all' },
   {
     identifier: 'hilfe',

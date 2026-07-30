@@ -6,6 +6,7 @@
  * it always searches.
  */
 
+import { isLowValueDomain } from '../../../../services/search/domainFilters.js';
 import { createLogger } from '../../../../utils/logger.js';
 import {
   executeDocumentSearchParallel,
@@ -17,19 +18,6 @@ import {
 import type { SearchGraphState, ChatSearchResult } from '../types.js';
 
 const log = createLogger('SearchGraph:SearchExecutor');
-
-/** Domains that rarely provide useful search context */
-const LOW_VALUE_DOMAINS = new Set([
-  'tripadvisor.de',
-  'tripadvisor.com',
-  'booking.com',
-  'expedia.de',
-  'kurz-mal-weg.de',
-  'holidaycheck.de',
-  'verbraucherzentrale.de',
-  'ebay.de',
-  'amazon.de',
-]);
 
 /**
  * Filter web results by query term overlap and domain quality.
@@ -44,14 +32,7 @@ function filterWebResults(results: ChatSearchResult[], query: string): ChatSearc
 
   return results.filter((r) => {
     // Check domain blacklist
-    if (r.url) {
-      try {
-        const domain = new URL(r.url).hostname.replace(/^www\./, '');
-        if (LOW_VALUE_DOMAINS.has(domain)) return false;
-      } catch {
-        /* ignore */
-      }
-    }
+    if (isLowValueDomain(r.url)) return false;
 
     // Require at least one query term in title or content
     const text = `${r.title} ${r.content}`.toLowerCase();

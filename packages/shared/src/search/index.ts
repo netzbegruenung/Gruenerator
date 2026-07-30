@@ -3,10 +3,12 @@
  * Platform-agnostic search functionality for web, deep research, and vector search
  */
 
-// Web search types and hooks
+// Web search types. The `useSearch` hook and its source-formatting helpers that
+// used to be re-exported here are gone: no app mounted them any more, so they
+// were 300+ lines of client code for two endpoints nothing called. The endpoints
+// themselves stay — see `searchController` — because they are contracted and a
+// shipped mobile binary can still reach them.
 export * from './types.js';
-export * from './hooks/index.js';
-export * from './utils/index.js';
 
 // Vector search infrastructure (for API and MCP)
 export * as vector from './vector/index.js';
