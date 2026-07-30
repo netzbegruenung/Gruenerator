@@ -83,7 +83,6 @@
       "@blocknote/xl-ai": "^0.52.1",
       "@blocknote/xl-docx-exporter": "^0.52.1",
       "@blocknote/xl-odt-exporter": "^0.52.1",
-      "@blocknote/xl-pdf-exporter": "^0.52.1",
       "@assistant-ui/core": "^0.2.21",
       "@assistant-ui/store": "^0.2.20",
       "@assistant-ui/react": "^0.14.27",
