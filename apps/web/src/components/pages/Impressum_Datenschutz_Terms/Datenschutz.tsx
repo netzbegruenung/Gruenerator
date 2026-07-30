@@ -38,6 +38,7 @@ const Datenschutz = () => {
       </p>
       <ul>
         <li>Mistral AI (Frankreich)</li>
+        <li>Scaleway (Frankreich) — betreibt für uns das Modell Mistral Medium 3.5</li>
         <li>KI-Modelle der netzbegrünung e.V. (eigene Server, EU)</li>
         <li>Seeweb/Regolo AI (Italien)</li>
       </ul>
@@ -45,10 +46,10 @@ const Datenschutz = () => {
       <p>
         <strong>
           Wenn Du die Sprachaufnahme-Funktion oder den Reel-Grünerator nutzt, werden Deine Audio-
-          und Videodaten auf unserem Server verarbeitet. Die Audiodaten werden zur Transkription
-          vorrangig an <strong>Regolo</strong> (EU, Zero Data Retention) oder alternativ an{' '}
-          <strong>Mistral AI Voxtral</strong> (EU) übermittelt. Die verarbeiteten Daten werden nicht
-          dauerhaft bei uns gespeichert.
+          und Videodaten auf unserem Server verarbeitet. Die Audiodaten werden zur Transkription an{' '}
+          <strong>Scaleway</strong> (EU, Frankreich), <strong>Regolo</strong> (EU, Zero Data
+          Retention) oder <strong>Mistral AI Voxtral</strong> (EU) übermittelt. Die verarbeiteten
+          Daten werden nicht dauerhaft bei uns gespeichert.
         </strong>
       </p>
       <p>
@@ -121,9 +122,10 @@ const Datenschutz = () => {
         info@hetzner.com gehostet. Der Hoster empfängt die oben genannten Daten als
         Auftragsverarbeiter. Bei Nutzung des Grünerator Imagine fungiert Black Forest Labs als
         Auftragsverarbeiter für die Bildbearbeitung mittels FLUX-KI (Verarbeitung in der EU). Beim
-        Reel-Grünerator fungiert <strong>Regolo AI</strong> als Auftragsverarbeiter für die
-        Audiotranskription mit Zero Data Retention (EU-Datenverarbeitung). Als Fallback wird{' '}
-        <strong>Mistral AI Voxtral</strong> für die Transkription eingesetzt.
+        Reel-Grünerator fungieren <strong>Scaleway</strong> und <strong>Regolo AI</strong> (Zero
+        Data Retention) als Auftragsverarbeiter für die Audiotranskription (jeweils
+        EU-Datenverarbeitung). Als Fallback wird <strong>Mistral AI Voxtral</strong> für die
+        Transkription eingesetzt.
       </p>
 
       <p>
@@ -174,7 +176,28 @@ const Datenschutz = () => {
       </ul>
 
       <p>
-        <strong>2. Black Forest Labs</strong> (FLUX-Bildgenerierung)
+        {/* TODO(legal): Ladungsfähige Anschrift der Scaleway SAS ergänzen — die
+            übrigen Einträge nennen eine, hier fehlt sie noch. */}
+        <strong>2. Scaleway SAS</strong> (Frankreich)
+      </p>
+      <ul>
+        <li>
+          Zweck: Betrieb des KI-Textmodells Mistral Medium 3.5 sowie Spracherkennung (Whisper Large
+          v3)
+        </li>
+        <li>Server: EU (Paris, Frankreich)</li>
+        <li>
+          Besonderheit: Scaleway stellt die Rechenleistung bereit; das Modell selbst stammt von
+          Mistral AI. Fällt Scaleway aus, wird dieselbe Anfrage direkt an Mistral AI weitergeleitet.
+        </li>
+        <li>Verarbeitete Daten: Eingabetexte bzw. Audiodaten, Ausgaben, Metadaten</li>
+        <li>
+          Details: <a href="https://www.scaleway.com/en/privacy-policy/">Datenschutzerklärung</a>
+        </li>
+      </ul>
+
+      <p>
+        <strong>3. Black Forest Labs</strong> (FLUX-Bildgenerierung)
       </p>
       <ul>
         <li>Zweck: Bildbearbeitung und -generierung (FLUX-Modell im Grünerator Imagine)</li>
@@ -188,7 +211,7 @@ const Datenschutz = () => {
       </ul>
 
       <p>
-        <strong>3. Seeweb S.r.l. / Regolo AI</strong> (C.so Lazio 9/a, 03100 Frosinone, Italien)
+        <strong>4. Seeweb S.r.l. / Regolo AI</strong> (C.so Lazio 9/a, 03100 Frosinone, Italien)
       </p>
       <ul>
         <li>
@@ -211,7 +234,7 @@ const Datenschutz = () => {
       </ul>
 
       <p>
-        <strong>4. netzbegrünung e.V.</strong> (Deutschland)
+        <strong>5. netzbegrünung e.V.</strong> (Deutschland)
       </p>
       <ul>
         <li>Zweck: Kerninfrastruktur des GRUENERATOR</li>
@@ -234,7 +257,7 @@ const Datenschutz = () => {
       </ul>
 
       <p>
-        <strong>5. SearXNG (selbstgehostet)</strong>
+        <strong>6. SearXNG (selbstgehostet)</strong>
       </p>
       <ul>
         <li>Zweck: Suchfunktion (Metasuchmaschine für Web-Informationen)</li>
@@ -243,7 +266,7 @@ const Datenschutz = () => {
       </ul>
 
       <p>
-        <strong>6. Linkup Technologies</strong> (Linkup Technologies SAS, 28 avenue des Pépinières,
+        <strong>7. Linkup Technologies</strong> (Linkup Technologies SAS, 28 avenue des Pépinières,
         94260 Fresnes, Frankreich; Handelsregister Créteil 930 910 740)
       </p>
       <ul>
@@ -261,7 +284,7 @@ const Datenschutz = () => {
       </ul>
 
       <p>
-        <strong>7. GlitchTip (selbstgehostet)</strong>
+        <strong>8. GlitchTip (selbstgehostet)</strong>
       </p>
       <ul>
         <li>Zweck: Fehlerüberwachung und Anwendungsmonitoring (Error Tracking)</li>
@@ -425,8 +448,8 @@ const Datenschutz = () => {
       </p>
       <ul>
         <li>
-          Sprache-zu-Text (primär): Regolo / Seeweb (EU-Server, Zero Data Retention, Modell
-          faster-whisper-large-v3)
+          Sprache-zu-Text (primär): Scaleway (EU-Server Paris, Modell whisper-large-v3) bzw. Regolo
+          / Seeweb (EU-Server, Zero Data Retention, Modell faster-whisper-large-v3)
         </li>
         <li>Sprache-zu-Text (Fallback): Mistral Voxtral (EU-Server, max. 30 Tage)</li>
         <li>Details zu externen Dienstleistern: siehe Auftragsverarbeiter-Sektion oben</li>
