@@ -1019,6 +1019,17 @@ const STRUCTURE_SOURCE_THRESHOLD = 4;
  * Headings are PERMITTED, never required: rule 1 caps the scope, and an
  * obligation here would inflate short answers into padded section stacks.
  */
+/**
+ * Every format rule below spoke only of "Absätze" and, at the top tier,
+ * "Überschriften". Lists were never mentioned anywhere in the prompt chain — so
+ * enumerable content (a filmography, three marriages, four demands) came back as
+ * prose that buried it. Permission, not obligation: a forced list turns a
+ * two-fact answer into a padded stub, which is the failure the sibling comment
+ * about "padded section stacks" already warns about.
+ */
+const ENUMERABLE_CLAUSE =
+  'Zählt ein Teil der Antwort mehrere gleichartige Dinge auf (Filme, Ämter, Forderungen, Daten), setze sie als Aufzählung statt in Fließtext — sonst geht die Übersicht verloren. Hebe Namen, Jahreszahlen und Kennzahlen mit **Fettung** hervor.';
+
 function buildAnswerFormatRule(state: ChatGraphState, sourceCount: number): string {
   // A multi-document turn already has its format prescribed by the comparison /
   // multi-doc block (table, per-doc bullets, grounded prose). A second structure
@@ -1048,7 +1059,7 @@ function buildAnswerFormatRule(state: ChatGraphState, sourceCount: number): stri
 
   if (state.complexity === 'complex') {
     note('structured_headings');
-    return 'Strukturiere mit Überschriften, bis zu 6 Absätze';
+    return `Strukturiere mit Überschriften, bis zu 6 Absätze. ${ENUMERABLE_CLAUSE}`;
   }
   if (state.complexity === 'simple') {
     note('brief');
@@ -1058,11 +1069,11 @@ function buildAnswerFormatRule(state: ChatGraphState, sourceCount: number): stri
   const isExternalResearch = state.intent === 'research' || state.intent === 'web';
   if (isExternalResearch && sourceCount >= STRUCTURE_SOURCE_THRESHOLD) {
     note('research_expanded');
-    return 'Bis zu 6 Absätze. Hat die Antwort mehrere eigenständige Aspekte, darfst du sie mit Überschriften gliedern — Pflicht ist das nicht';
+    return `Bis zu 6 Absätze. Hat die Antwort mehrere eigenständige Aspekte, darfst du sie mit Überschriften gliedern — Pflicht ist das nicht. ${ENUMERABLE_CLAUSE}`;
   }
 
   note('standard');
-  return '2-4 Absätze mit klarer Struktur';
+  return `2-4 Absätze mit klarer Struktur. ${ENUMERABLE_CLAUSE}`;
 }
 
 /**
