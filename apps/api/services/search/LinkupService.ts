@@ -27,9 +27,23 @@ import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 import { recordOperation } from '../usage/UsageTrackingService.js';
 
-import { withRetry } from './searchRetryStrategy.js';
+import { withRetry, CircuitBreaker } from './searchRetryStrategy.js';
 
 const log = createLogger('Linkup');
+
+/**
+ * Breaker for the Linkup API. Two consecutive failures open it for five minutes —
+ * the same thresholds as `searxngCircuit`, because the failure it guards against
+ * is the same one: a provider that is down for everyone, retried per query.
+ *
+ * Deliberately NOT gated on the response status: a 429 and a 503 both mean "stop
+ * asking for a while", and we pay per search either way.
+ */
+export const linkupCircuit = new CircuitBreaker({
+  failureThreshold: 2,
+  resetTimeMs: 5 * 60 * 1000,
+  label: 'Linkup',
+});
 
 const LINKUP_API_BASE = 'https://api.linkup.so/v1';
 const LINKUP_TIMEOUT_MS = 60_000;
@@ -46,6 +60,16 @@ export interface LinkupSearchResult {
   url: string;
   content: string;
   type?: string;
+  /**
+   * Publication date, when Linkup knows one. ISO-ish string, not guaranteed
+   * parseable — the mapper treats it as a hint, not a fact.
+   *
+   * The field was in the API all along and we never read it, so `publishedDate`
+   * was hard-coded `null` for every web hit and the recency ranking
+   * (`recencyBoost` / `resolveSourceDate`) silently scored nothing at all on the
+   * one source type where freshness matters most.
+   */
+  date?: string;
 }
 
 export interface LinkupSearchResultsResponse {
@@ -99,7 +123,19 @@ export class LinkupService {
     query: string;
     depth?: LinkupDepth;
     maxResults?: number;
+    /**
+     * Restrict the search to these domains, or keep them out of it. Bare hosts
+     * ("zeit.de"), no scheme. Applied by the engine BEFORE we pay for the
+     * results — which is the whole point: our old low-value-domain list threw
+     * hits away after the call, so we were paying for results we discarded.
+     * (LobeChat and Open WebUI both filter after the call too; LobeChat's
+     * adapters even declare these very parameters and never fill them.)
+     */
+    includeDomains?: readonly string[];
+    excludeDomains?: readonly string[];
+    /** ISO date (YYYY-MM-DD). Index-side time window. */
     fromDate?: string;
+    toDate?: string;
     /** Ask the agent to fan out across adjacent keywords within this one call. */
     adjacentSearches?: boolean;
   }): Promise<LinkupSearchResultsResponse> {
@@ -116,7 +152,13 @@ export class LinkupService {
       depth,
       outputType: 'searchResults',
       ...(params.maxResults ? { maxResults: params.maxResults } : {}),
+      // Empty arrays are omitted, not sent: `includeDomains: []` reads to the API
+      // as "restrict to nothing at all", which would return zero results for a
+      // caller that merely had no preference.
+      ...(params.includeDomains?.length ? { includeDomains: [...params.includeDomains] } : {}),
+      ...(params.excludeDomains?.length ? { excludeDomains: [...params.excludeDomains] } : {}),
       ...(params.fromDate ? { fromDate: params.fromDate } : {}),
+      ...(params.toDate ? { toDate: params.toDate } : {}),
     });
   }
 
@@ -137,6 +179,14 @@ export class LinkupService {
 
   private async call<T>(path: string, body: Record<string, unknown>): Promise<T> {
     const url = `${LINKUP_API_BASE}${path}`;
+    // A Linkup outage used to cost 2 attempts × 60s PER QUERY, and every query in
+    // the turn paid it again — a dead provider turned a 3s answer into minutes of
+    // waiting before the fallback ran. The breaker makes the second query fail
+    // instantly so the caller reaches its SearXNG/empty path while the user is
+    // still watching. Same instance shape as `searxngCircuit`.
+    if (linkupCircuit.isOpen()) {
+      throw new Error('Linkup circuit open — provider considered unavailable');
+    }
     // One logical search per call — withRetry retries inside, so this counts
     // user-visible researches rather than HTTP attempts.
     recordOperation({
@@ -144,6 +194,17 @@ export class LinkupService {
       provider: 'linkup',
       model: typeof body.depth === 'string' ? body.depth : 'standard',
     });
+    try {
+      const result = await this.request<T>(url, body);
+      linkupCircuit.recordSuccess();
+      return result;
+    } catch (error) {
+      linkupCircuit.recordFailure();
+      throw error;
+    }
+  }
+
+  private async request<T>(url: string, body: Record<string, unknown>): Promise<T> {
     return withRetry(
       async () => {
         const controller = new AbortController();
