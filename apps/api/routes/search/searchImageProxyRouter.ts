@@ -115,18 +115,24 @@ const VERIFY_STATUS: Record<VerifyFailure, number> = {
  * how IPv6 literals get range-checked at all: the validator's private-IP test is
  * written for dotted-quad.
  */
-async function resolvePublicAddresses(hostname: string): Promise<LookupAddress[] | null> {
+async function resolvePublicAddresses(
+  hostname: string
+): Promise<{ ok: true; addresses: LookupAddress[] } | { ok: false; why: string }> {
   let addresses: LookupAddress[];
   try {
     // `verbatim` keeps the resolver's own ordering; we check every entry anyway,
     // so reordering could only ever hide one behind another.
     addresses = await dnsLookup(hostname, { all: true, verbatim: true });
   } catch {
-    return null;
+    // Kept apart from the rejection below on purpose: a name that does not
+    // resolve is a dead link, a name that resolves privately is an attempt. One
+    // shared message would send someone hunting an attack that never happened.
+    return { ok: false, why: 'DNS lookup failed' };
   }
-  if (addresses.length === 0) return null;
-  if (addresses.some((entry) => isPrivateAddress(entry.address))) return null;
-  return addresses;
+  if (addresses.length === 0) return { ok: false, why: 'DNS returned no addresses' };
+  const priv = addresses.find((entry) => isPrivateAddress(entry.address));
+  if (priv) return { ok: false, why: `resolves to private address ${priv.address}` };
+  return { ok: true, addresses };
 }
 
 /**
@@ -172,11 +178,11 @@ async function checkHop(
     return { ok: false, why: result.error ?? 'validation failed' };
   }
 
-  const addresses = await resolvePublicAddresses(result.url.hostname);
-  if (!addresses) {
-    return { ok: false, why: 'host does not resolve to public addresses only' };
+  const resolved = await resolvePublicAddresses(result.url.hostname);
+  if (!resolved.ok) {
+    return { ok: false, why: resolved.why };
   }
-  pinned.set(result.url.hostname, addresses);
+  pinned.set(result.url.hostname, resolved.addresses);
   return { ok: true, url: result.url };
 }
 
