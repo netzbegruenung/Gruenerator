@@ -62,6 +62,23 @@ describe('searchStatusLabel', () => {
     const label = searchStatusLabel('web_search', 'x'.repeat(120));
     expect(label).toBe(`Websuche „${'x'.repeat(60)}…“`);
   });
+
+  it('strips a run of trailing ellipses without backtracking on it', () => {
+    expect(searchStatusLabel('web_search', 'Klimageld………')).toBe('Websuche „Klimageld“');
+
+    // The shape that made `/…+$/` quadratic: a long run of ellipses that does
+    // NOT end the string, so the end anchor fails and the engine retries the
+    // whole run from every start position. The deadline IS the assertion; the
+    // label is elided to 60 chars either way and says nothing about the cost.
+    // Sized so the deadline actually discriminates: measured on this input the
+    // loop takes 0.05 ms and `/…+$/` takes ~6.8 s. At 20k the regex was 274 ms
+    // and would have passed a 1 s deadline — the test would have proved nothing.
+    const adversarial = `${'…'.repeat(100_000)}x`;
+    const started = performance.now();
+    const label = searchStatusLabel('web_search', adversarial);
+    expect(performance.now() - started).toBeLessThan(1000);
+    expect(label.length).toBeLessThan(100);
+  });
 });
 
 describe('selectSearchStatusLabel', () => {
