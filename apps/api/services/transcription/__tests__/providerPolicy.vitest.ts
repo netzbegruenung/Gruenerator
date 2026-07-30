@@ -75,20 +75,31 @@ describe('toWhisperLanguage', () => {
 });
 
 describe('buildContextBias', () => {
+  // Entries are single words since the HTTP 400 fix — Mistral rejects anything
+  // containing whitespace, a comma or a slash. Multi-word names therefore
+  // appear as their parts; see contextBiasNormalization.vitest.ts.
   it('returns country-specific vocabulary', () => {
     const at = buildContextBias('de-AT');
     const de = buildContextBias('de-DE');
 
     expect(at).toContain('Jänner');
     expect(at).toContain('Landeshauptmann');
-    expect(at).toContain('Leonore Gewessler');
+    expect(at).toContain('Gewessler');
     expect(de).toContain('Bundestag');
-    expect(de).toContain('Bündnis 90/Die Grünen');
+    expect(de).toContain('Bürgergeld');
   });
 
   it('keeps the two lists disjoint where it matters', () => {
+    // Only on DISTINCTIVE terms. Splitting made generic parts ('Die', 'Grünen')
+    // common to both lists, which says nothing about locale separation — the
+    // German-only institutions do.
     const at = new Set(buildContextBias('de-AT'));
-    for (const germanOnly of ['Bundestag', 'Ministerpräsident', 'Bündnis 90/Die Grünen']) {
+    for (const germanOnly of [
+      'Bundestag',
+      'Ministerpräsident',
+      'Bürgergeld',
+      'Deutschlandticket',
+    ]) {
       expect(at.has(germanOnly)).toBe(false);
     }
   });
