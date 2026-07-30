@@ -2,10 +2,8 @@
  * Shared AI-SDK search/research tools for grounded generation.
  *
  * Shared between the chat handler and the async board agent so both author
- * with the same grounded tool set. The chat handler runs these as a router
- * (toolChoice:'required') and needs the `direct_response` escape hatch;
- * document authoring runs them on-demand (toolChoice:'auto') and omits it —
- * hence the `includeDirectResponse` option.
+ * with the same grounded tool set. Both run them on-demand
+ * (`toolChoice: 'auto'`) — a turn that needs no tool simply answers.
  */
 import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
@@ -44,12 +42,6 @@ const LOCALE_DEFAULT_COLLECTION: Record<string, string> = {
 };
 
 export interface CreateSearchToolsOptions {
-  /**
-   * Add the router-style `direct_response` escape hatch. The chat handler needs
-   * it (it forces a tool call via toolChoice:'required'); document authoring runs
-   * tools on-demand and leaves it out.
-   */
-  includeDirectResponse?: boolean;
   /**
    * Whose collections to search when the model names none. Without it every
    * turn defaulted to `deutschland` — an AT user asking about Austria searched
@@ -395,30 +387,12 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
   // stays ours. `executeResearch` itself lives on for the Monitor's daily
   // briefing (HotTopicPipeline), which genuinely wants a ready-made report.
 
-  // Direct response tool: router escape hatch for non-search cases (chat handler only)
-  if (options.includeDirectResponse) {
-    tools.direct_response = tool({
-      description: `Antworte direkt ohne externe Suche.
-
-NUTZE DIESES TOOL WENN:
-- Begrüßungen/Verabschiedungen ("Hallo", "Danke", "Tschüss")
-- Allgemeine Konversation ohne Informationsbedarf
-- Kreative Aufgaben mit bereits gegebenen Infos (z.B. Instagram-Posts, Texte schreiben)
-- Klarstellende Nachfragen
-- Der Benutzer explizit KEINE Suche möchte
-- Einfache Folgefragen zu bereits besprochenen Themen
-
-NICHT NUTZEN wenn Fakten, aktuelle Infos oder Belege gefragt sind.`,
-      inputSchema: z.object({
-        content: z.string().describe('Die vollständige Antwort an den Benutzer'),
-        reason: z.string().optional().describe('Optional: Warum keine Suche nötig war'),
-      }),
-      execute: async ({ content, reason }) => {
-        log.debug(`[Direct Response] Content length: ${content?.length}, Reason: ${reason}`);
-        return { type: 'direct', content, reason };
-      },
-    });
-  }
+  // `direct_response` used to be mounted here behind an `includeDirectResponse`
+  // flag: a router escape hatch from the days of `toolChoice: 'required'`, where
+  // a turn that needed no search still had to call SOMETHING. The loop uses
+  // `toolChoice: 'auto'` and simply answers without a tool call, so neither of
+  // the two callers of this factory (`toolCatalog.ts`, the board agent) ever set
+  // the flag — the tool and its 400-character description were unreachable.
 
   // Optional per-agent gating: recurring agents honor their picker selection.
   // Undefined → keep everything (board/chat behavior unchanged).
