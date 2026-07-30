@@ -8,7 +8,7 @@ router.run_agentic               = single_pass                    forcedTool=fal
 router.intent_override           = (not reached)
 router.persistent_action_gate    = (not reached)
 classifier.tier                  = tier3_short_message            confidence=0.95 heuristicIntent=direct
-respond.answer_format            = brief                          complexity=simple intent=direct sourceCount=0 synthesisMode=none
+respond.answer_format            = brief                          complexity=simple intent=direct retrievalExpected=false sourceCount=0 synthesisMode=none
 loop.tool_guard                  = (none)
 loop.synth_verdict               = (not reached)
 -- wire --
