@@ -59,8 +59,11 @@ The API traces the chat flow to a self-hosted Langfuse when **all three** vars a
 
 - `LANGFUSE_PUBLIC_KEY` (`pk-lf-…`), `LANGFUSE_SECRET_KEY` (`sk-lf-…`) — from the Langfuse project settings.
 - `LANGFUSE_BASE_URL` — the instance URL (must be **HTTPS**; chat prompts/completions travel over it).
+- `LANGFUSE_RELEASE` — *optional* fourth var: image tag or commit sha, stamped onto every trace so a quality regression can be pinned to a deploy. Unset = traces stay unversioned, nothing else changes.
 
-One trace per chat turn (`chat-turn`), grouped by user + thread. Thumbs up/down in the chat UI post to `POST /api/chat-service/feedback`, which writes a `user-feedback` score onto the turn's trace (also a no-op when the vars are unset). Set the project's **data retention to 30 days** in the Langfuse UI to match the Datenschutzerklärung. Init lives in `apps/api/instrument.ts` (runs in every cluster worker via `--import`); worker-thread LLM calls (classifier etc.) are not yet traced.
+**Tracing is opt-in per call.** An LLM call reaches Langfuse only if it passes the settings from `buildAiTelemetry()` — today `chat-graph.respond`, `chat-graph.resume` and `notebook-chat.respond`. Everything else in the API (voice transcripts, receipt extraction, docs/boards/sheets/presentation generation, monitor, mem0) stays silent, which is what keeps the traced surface inside what the Datenschutzerklärung declares. Do **not** call `registerTelemetry()` — AI SDK 7 then treats telemetry as opt-out and every LLM call in the API ships its full input/output as an unnamed orphan trace. New call sites that should be traced must route through `buildAiTelemetry()` and sit inside a `withLangfuseTrace(...)`.
+
+One trace per chat turn (`chat-turn`), grouped by user + thread. Thumbs up/down in the chat UI post to `POST /api/chat-service/feedback`, which writes a `user-feedback` score onto the turn's trace (also a no-op when the vars are unset). Set the project's **data retention to 30 days** in the Langfuse UI to match the Datenschutzerklärung. Init lives in `apps/api/instrument.ts` (runs in every cluster worker via `--import`); worker-thread LLM calls (classifier etc.) are not traced.
 
 ## Docs Expo (Android APK)
 
