@@ -8,7 +8,6 @@
 import { createLogger } from '../../../../utils/logger.js';
 
 import { extractFilters } from './classifierFilters.js';
-import { extractSearchTopic } from './classifierHeuristics.js';
 import {
   CLASSIFIER_DOC_SUBTYPES,
   CLASSIFIER_OFFERED_INTENTS,
@@ -289,51 +288,31 @@ export function parseClassifierResponse(
       const isSearchIntent = !NON_SEARCH_INTENTS.has(parsed.intent);
 
       // Prefer optimizedSearchQuery for search intents
-      let effectiveSearchQuery = isSearchIntent
+      const effectiveSearchQuery = isSearchIntent
         ? parsed.optimizedSearchQuery || parsed.searchQuery || userContent
         : null;
 
-      // Defense-in-depth: detect if typoAnalysis corrupted the search query.
-      // The LLM sometimes "corrects" a proper noun it doesn't recognise —
-      // "Stocker" → "Stocher" — and the search then looks for a person who
-      // doesn't exist.
+      // NO corruption check on the optimized query. There used to be one: it
+      // measured how much of the query was word-backed by the LAST MESSAGE and
+      // replaced the whole query with `extractSearchTopic(userContent)` below
+      // 60%. It cost more than it bought.
       //
-      // Measured as PRECISION (how much of the QUERY is backed by the original),
-      // not recall (how much of the original survived). Recall punished exactly
-      // what query optimisation is supposed to do: a good query drops the
-      // filler. Live, "Recherchiere bitte mit Quellen: Wie hoch war 2025 der
-      // Anteil erneuerbarer Energien …" distilled to a clean 12-word query,
-      // scored 36% recall, was thrown away — and the raw sentence, preamble and
-      // all, went to Linkup instead. A corrupted word has no counterpart in the
-      // original and therefore shows up here; a dropped word does not.
-      if (effectiveSearchQuery && parsed.typoAnalysis && isSearchIntent) {
-        const significant = (s: string): string[] =>
-          s
-            .toLowerCase()
-            .split(/\s+/)
-            .map((w) => w.replace(/[^\p{L}\p{N}]/gu, ''))
-            .filter((w) => w.length > 3);
-        const originalWords = significant(userContent);
-        const queryWords = significant(effectiveSearchQuery);
-        const backed = queryWords.filter((qw) =>
-          originalWords.some((w) => qw.includes(w) || w.includes(qw))
-        );
-        const backedRatio = queryWords.length > 0 ? backed.length / queryWords.length : 1;
-
-        // Same 0.6 bar as before — only what it measures changed. Keeping the
-        // number means a single corrected proper noun in a three-word query
-        // (0.67) still passes, exactly as it did under the old ratio.
-        if (backedRatio < 0.6) {
-          const fallback = extractSearchTopic(userContent);
-          log.warn(
-            `[Classifier] Typo correction may have corrupted query: "${effectiveSearchQuery}" ` +
-              `(only ${Math.round(backedRatio * 100)}% of its words appear in the question). ` +
-              `Falling back to: "${fallback}"`
-          );
-          effectiveSearchQuery = fallback;
-        }
-      }
-
+      // It could not tell query optimisation from corruption, because both look
+      // like "words that aren't in the message":
+      //   - A referential follow-up scores 0% BY CONSTRUCTION — its subject
+      //     comes from the thread, exactly as the classifier prompt instructs.
+      //     Live: "recherchiere über sie im web" was correctly resolved to
+      //     "Marilyn Monroe Leben Wirken", scored 0%, was discarded — and the
+      //     bare pronoun sentence went to Linkup, which answered with grammar
+      //     pages about the word "sie".
+      //   - It had already been re-tuned once (recall → precision) after
+      //     throwing away a clean 12-word research query for the same reason.
+      // What it protected against — the typo pass "correcting" a proper noun it
+      // doesn't know ("Stocker" → "Stocher") — is both rarer and milder: a
+      // search engine forgives a misspelled name, while a subject-less query
+      // retrieves nothing at all. The prompt already forbids typoAnalysis from
+      // touching searchQuery (it is logged above), and duplicate/near-duplicate
+      // detection downstream absorbs a wasted search.
       if (parsed.optimizedSearchQuery && isSearchIntent) {
         log.debug(
           `[Classifier] Query optimized: "${parsed.searchQuery}" → "${parsed.optimizedSearchQuery}"`
