@@ -63,6 +63,7 @@ import {
 import { pendingActionStore } from './pendingActionStore.js';
 import { resolveReferentialTopic } from './referentialTopic.js';
 import { looksLikeRefusal } from './refusalDetection.js';
+import { withImageProxy } from './searchImagePayload.js';
 import {
   detectPreferredVariant,
   generateSharepicVariants,
@@ -1397,7 +1398,9 @@ export async function executeIntentPipeline(opts: {
           // Only present on a turn that explicitly asked for images. Travels
           // beside `results`, never inside it — an image has no text, so as a
           // source it would be a numbered citation with an empty snippet.
-          ...(finalState.webImageResults?.length ? { images: finalState.webImageResults } : {}),
+          ...(finalState.webImageResults?.length
+            ? { images: finalState.webImageResults.map(withImageProxy) }
+            : {}),
           ...((currentIntent === 'examples' || currentIntent === 'pressemitteilung_examples') &&
           finalState.examplesResult
             ? { examplesResult: finalState.examplesResult }
