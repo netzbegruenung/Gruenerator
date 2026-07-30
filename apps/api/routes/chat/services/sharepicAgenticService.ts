@@ -256,10 +256,10 @@ export async function handleSharepicAgenticEdit(args: HandleSharepicEditArgs): P
           'Wendet 1–8 Operationen auf das Sharepic an (Texte, Schriftgrößen, Farben, Elemente, Hintergrundbild-Suche). Operationen werden validiert; abgelehnte kommen mit Begründung zurück.',
         inputSchema: applyOpsInputSchema,
         execute: async (input, { toolCallId }) => {
-          const guardError =
+          const block =
             guards.checkFailureCap('apply_sharepic_ops') ??
             guards.checkDuplicate('apply_sharepic_ops', input);
-          if (guardError) return { error: guardError };
+          if (block) return { error: block.modelMessage };
 
           const outcome = await applySharepicOpsToCanvas({
             canvasId,
@@ -318,10 +318,10 @@ export async function handleSharepicAgenticEdit(args: HandleSharepicEditArgs): P
           'Stellt eine frühere Version des Sharepics wieder her (als neue Version, nichts geht verloren). Nur auf ausdrücklichen Nutzer*innen-Wunsch.',
         inputSchema: restoreInputSchema,
         execute: async (input, { toolCallId }) => {
-          const guardError =
+          const block =
             guards.checkFailureCap('restore_version') ??
             guards.checkDuplicate('restore_version', input);
-          if (guardError) return { error: guardError };
+          if (block) return { error: block.modelMessage };
 
           const snapshot = await getCanvasVersion(canvasId, input.version);
           if (!snapshot) {
@@ -386,10 +386,10 @@ export async function handleSharepicAgenticEdit(args: HandleSharepicEditArgs): P
           'Wendet 1–6 Deck-Operationen auf das Karussell an (Folien-Texte/-Schriftgrößen ändern, Farbschema deck-weit wechseln, Folien hinzufügen/entfernen). Operationen werden validiert; abgelehnte kommen mit Begründung zurück.',
         inputSchema: applySliderOpsInputSchema,
         execute: async (input, { toolCallId }) => {
-          const guardError =
+          const block =
             guards.checkFailureCap('apply_slider_ops') ??
             guards.checkDuplicate('apply_slider_ops', input);
-          if (guardError) return { error: guardError };
+          if (block) return { error: block.modelMessage };
 
           const outcome = await applySliderOpsToDeck({
             canvasId,
@@ -443,10 +443,10 @@ export async function handleSharepicAgenticEdit(args: HandleSharepicEditArgs): P
           'Stellt eine frühere Version des Karussells wieder her (als neue Version, nichts geht verloren). Nur auf ausdrücklichen Nutzer*innen-Wunsch.',
         inputSchema: restoreInputSchema,
         execute: async (input, { toolCallId }) => {
-          const guardError =
+          const block =
             guards.checkFailureCap('restore_version') ??
             guards.checkDuplicate('restore_version', input);
-          if (guardError) return { error: guardError };
+          if (block) return { error: block.modelMessage };
 
           const snapshot = await getCanvasVersion(canvasId, input.version);
           const restoredPages = snapshot ? (snapshot.state as { pages?: unknown }).pages : null;
