@@ -22,7 +22,6 @@
  * flow only.
  */
 
-import { OpenTelemetry } from '@ai-sdk/otel';
 import { LangfuseSpanProcessor } from '@langfuse/otel';
 import {
   getLangfuseTracer,
@@ -30,6 +29,7 @@ import {
   setLangfuseTracerProvider,
   startActiveObservation,
 } from '@langfuse/tracing';
+import { LangfuseVercelAiSdkIntegration } from '@langfuse/vercel-ai-sdk';
 import { context } from '@opentelemetry/api';
 import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks';
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
@@ -51,7 +51,7 @@ interface LangfuseConfig {
 let config: LangfuseConfig | null = null;
 let provider: NodeTracerProvider | null = null;
 /** Shared per-call telemetry integration; see `buildAiTelemetry`. */
-let aiIntegration: OpenTelemetry | null = null;
+let aiIntegration: LangfuseVercelAiSdkIntegration | null = null;
 
 const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]*[\w]/g;
 /** Two letters, two check digits, then 11–30 alphanumerics (IBANs are 15–34). */
@@ -68,10 +68,10 @@ const PHONE_RE = /(?<![\w.])(?:\+\d{1,3}|0)[\d\s/-]{7,18}\d(?![\w.])/g;
  * itself is deliberately NOT masked — quality assurance on prompts and answers
  * is the declared purpose of the tracing; a blanket filter would empty it out.
  *
- * Note the SDK applies this to Langfuse-namespaced attributes only (trace and
- * observation input/output/metadata), not to the raw `gen_ai.*` attributes the
- * AI SDK writes. Today that means the trace metadata; it starts carrying real
- * weight once the root span gets input/output.
+ * The SDK applies this to Langfuse-namespaced attributes only — trace and
+ * observation input/output/metadata. That covers everything we emit, because
+ * the Langfuse AI SDK integration writes generations in the Langfuse shape
+ * rather than as raw `gen_ai.*` attributes.
  */
 export function maskSensitive(data: unknown): unknown {
   if (typeof data === 'string') {
@@ -146,7 +146,14 @@ export function initLangfuseTelemetry(): void {
     // API to opt-out tracing (see the module header). `buildAiTelemetry` passes
     // this one instance per call; it keeps its state keyed by call id, so
     // sharing it across concurrent requests is intended.
-    aiIntegration = new OpenTelemetry({ tracer: getLangfuseTracer() });
+    //
+    // Langfuse's own integration rather than the generic `@ai-sdk/otel` one:
+    // that one emits plain OTel spans with `gen_ai.*` attributes, which Langfuse
+    // has to reverse-engineer into generations — and which `mask` above cannot
+    // reach, because it only walks `langfuse.*` attributes. This one writes the
+    // Langfuse shape directly (generation type, model, usage, cost) and links
+    // `langfusePrompt` runtime context to prompt versions.
+    aiIntegration = new LangfuseVercelAiSdkIntegration({ tracer: getLangfuseTracer() });
 
     console.info(`[langfuse] telemetry enabled → ${cfg.baseUrl}`);
   } catch (err) {
