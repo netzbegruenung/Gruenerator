@@ -1394,6 +1394,10 @@ export async function executeIntentPipeline(opts: {
               : PROGRESS_MESSAGES.searchComplete(resultCount),
           resultCount,
           results: payloadResults,
+          // Only present on a turn that explicitly asked for images. Travels
+          // beside `results`, never inside it — an image has no text, so as a
+          // source it would be a numbered citation with an empty snippet.
+          ...(finalState.webImageResults?.length ? { images: finalState.webImageResults } : {}),
           ...((currentIntent === 'examples' || currentIntent === 'pressemitteilung_examples') &&
           finalState.examplesResult
             ? { examplesResult: finalState.examplesResult }

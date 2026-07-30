@@ -43,6 +43,7 @@ import {
   extractMessageText,
   extractUrls,
   extractDomainScope,
+  wantsImageResults,
   formatConversationHistory,
   hasImageEditVerb,
   isImageRegenRequest,
@@ -403,11 +404,21 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     log.info('[Classifier] Explicit deep-research request — top search tier unlocked');
   }
 
+  // Same reasoning as the deep-research consent above: it decides what we pay
+  // for, so it is deterministic and testable without a model. Only meaningful on
+  // a web turn — an image-GENERATION turn returned long before this point with
+  // `intent: 'image'`, so the two can never both be true.
+  const webWantsImages = wantsImageResults(userText);
+  if (webWantsImages) {
+    log.info('[Classifier] Image results requested — web search will include image hits');
+  }
+
   return {
     ...result,
     intent: intent ?? result.intent,
     injectionSuspected,
     explicitDeepRequest,
+    ...(webWantsImages ? { webWantsImages } : {}),
     ...(downgradedSearchQuery != null && !result.searchQuery
       ? { searchQuery: downgradedSearchQuery }
       : {}),

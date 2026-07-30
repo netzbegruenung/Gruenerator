@@ -3,6 +3,7 @@ import type {
   ChatProgress,
   Citation,
   SearchResult,
+  SearchImage,
   StreamMetadata,
   SharepicData,
   ChartData,
@@ -22,6 +23,12 @@ import type { BahnPayload } from '@gruenerator/contracts';
 export type GrueneratorMessageMetadata = {
   progress?: ChatProgress;
   searchResults?: SearchResult[];
+  /**
+   * Image hits from the web search, rendered as named links. Its own field rather
+   * than entries in `searchResults`, because an image carries no text: as a search
+   * result it would become a numbered source with an empty snippet.
+   */
+  searchImages?: SearchImage[];
   citations?: Citation[];
   generatedImage?: GeneratedImage;
   sharepicData?: SharepicData;

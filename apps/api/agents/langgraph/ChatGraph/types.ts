@@ -278,6 +278,26 @@ export interface SearchResult {
 }
 
 /**
+ * An image hit from the web search: a NAMED LINK, deliberately not a picture.
+ *
+ * There is no `snippet`/`content` because the engine gives none, and no thumbnail
+ * because rendering one would make the user's browser request a file from an
+ * arbitrary third-party host — exactly the pattern removed from the citation
+ * glyphs, where a favicon fetch reported the user's IP and the source they were
+ * about to read to Google. A backend proxy would change that calculus; until one
+ * exists, these stay links.
+ *
+ * Kept out of `SearchResult` on purpose: no text means no citation, and a
+ * separate type is what keeps a web image from being mistaken for usable image
+ * material in the sharepic/social path.
+ */
+export interface WebImageResult {
+  title: string;
+  url: string;
+  domain: string;
+}
+
+/**
  * Citation structure for response attribution.
  * Enriched with provenance data for inline popovers and grouped source cards.
  */
@@ -763,6 +783,32 @@ export interface ChatGraphState {
    * search restriction, a full URL with a path is a read instruction (`scrape_url`).
    */
   webSiteScope?: { include: string[]; exclude: string[] } | null;
+
+  /**
+   * The user asked to SEE images from the web this turn ("zeig mir Bilder von der
+   * Demo"), from the deterministic `wantsImageResults` heuristic.
+   *
+   * Never a default. Image hits cost the same call but are useful on a vanishing
+   * minority of turns, so a factual question must not quietly pay for pictures
+   * nobody looks at. The flag has to be EARNED by an explicit ask — either this
+   * heuristic or the loop's `bilder: true` argument.
+   *
+   * Distinct from the `image` intent, which GENERATES a picture. Same nouns,
+   * different verb, different subsystem.
+   */
+  webWantsImages?: boolean;
+
+  /**
+   * Image hits from this turn's web search — named links, never rendered as
+   * `<img>` (see `WebImageResult`).
+   *
+   * Deliberately its own field rather than entries in `searchResults`: an image
+   * carries no text, so a source registry entry for it would be a numbered
+   * citation with an empty snippet. Keeping the lists apart is also what stops
+   * these from reaching the sharepic/social path, where a web image would be
+   * treated as usable material rather than as research context.
+   */
+  webImageResults?: WebImageResult[];
 
   // Platform hint for the `examples` / `social_post` intents. Set by the
   // classifier when the user prompt names a platform; null otherwise. Consumed

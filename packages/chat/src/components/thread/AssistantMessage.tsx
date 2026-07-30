@@ -138,6 +138,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
     [custom]
   );
   const additionalSources = custom?.additionalSources as AdditionalSource[] | undefined;
+  const searchImages = custom?.searchImages;
 
   const actionsMetadata = useMemo(() => {
     if (!custom) return undefined;
@@ -150,7 +151,11 @@ export const AssistantMessage = memo(function AssistantMessage() {
     };
   }, [custom]);
 
-  const showSearchResults = !isStreaming && citations.length > 0;
+  // Images alone are enough to open the section: an image-only turn ("zeig mir
+  // Fotos von der Demo") has nothing to cite, and gating on citations would drop
+  // the one result the user asked for.
+  const showSearchResults =
+    !isStreaming && (citations.length > 0 || (searchImages?.length ?? 0) > 0);
 
   // Owned here, not in SearchResultsSection: the trigger sits in the action row
   // and the list below it, so neither of the two can hold the state alone.
@@ -263,6 +268,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
           <SearchResultsSection
             citations={citations}
             additionalSources={additionalSources}
+            {...(searchImages?.length ? { images: searchImages } : {})}
             {...(showActions ? { open: sourcesOpen, onOpenChange: setSourcesOpen } : {})}
           />
         )}
