@@ -163,3 +163,16 @@ export const ReasoningGroup: ReasoningGroupComponent = ({ children, startIndex, 
     </ReasoningRoot>
   );
 };
+
+/**
+ * The chat thread's reasoning slots. They render nothing: on that surface the
+ * thinking hangs under the status line's chevron (`StatusLineDetails`), which
+ * reads the same reasoning parts and retires with the line once the answer text
+ * starts. The slots still have to EXIST — assistant-ui falls back to its own
+ * default renderer for an unset one, which would put the block back.
+ *
+ * `Reasoning`/`ReasoningGroup` above stay for surfaces that want the classic
+ * standalone "Grünerators Gedanken" block.
+ */
+export const HiddenReasoning: ReasoningMessagePartComponent = () => null;
+export const HiddenReasoningGroup: ReasoningGroupComponent = () => null;

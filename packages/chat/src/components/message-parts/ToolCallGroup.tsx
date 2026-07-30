@@ -4,9 +4,12 @@ import { type MessagePrimitive, useAuiState } from '@assistant-ui/react';
 import { ChevronDown } from 'lucide-react';
 import { useMemo, useState, type ComponentProps } from 'react';
 import { useShallow } from 'zustand/shallow';
-import { ShimmerText } from './ShimmerText';
+
 import { computeToolGroupView } from '../../lib/narrationView';
 import { toolCountLabel } from '../../lib/toolMappings';
+import { visibleToolNames } from '../../lib/toolStatusLine';
+
+import { ShimmerText } from './ShimmerText';
 
 /** Derived from the `MessagePrimitive.Parts` slot so the props can't drift. */
 type ToolGroupComponent = NonNullable<
@@ -68,13 +71,21 @@ export const ToolCallGroup: ToolGroupComponent = ({ startIndex, endIndex, childr
     })
   );
 
+  // Group chrome describes the CARDS, and retrieval steps no longer draw one
+  // (they live in the status line) — counting them would promise "3 Suchen"
+  // above a stack that renders two things.
   const toolNames = useMemo(
-    () => (toolNamesKey ? toolNamesKey.split(NAME_SEPARATOR) : []),
+    () => visibleToolNames(toolNamesKey ? toolNamesKey.split(NAME_SEPARATOR) : []),
     [toolNamesKey]
   );
 
   const view = useMemo(
-    () => computeToolGroupView({ toolNames, sameParentRun, isStreaming }),
+    () =>
+      computeToolGroupView({
+        toolNames,
+        sameParentRun: sameParentRun && toolNames.length >= 2,
+        isStreaming,
+      }),
     [toolNames, sameParentRun, isStreaming]
   );
 

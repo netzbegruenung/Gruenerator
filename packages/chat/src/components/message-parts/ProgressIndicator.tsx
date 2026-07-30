@@ -2,10 +2,11 @@
 
 import { Search, Image } from 'lucide-react';
 
-import { cn } from '../../lib/utils';
-import { ShimmerText } from './ShimmerText';
 import { usePacedLabel } from '../../hooks/usePacedLabel';
+import { cn } from '../../lib/utils';
+
 import { type ProgressDisplay } from './progressDisplayContext';
+import { ShimmerText } from './ShimmerText';
 
 import type { ChatProgress } from '../../hooks/useChatGraphStream';
 
@@ -14,18 +15,23 @@ interface ProgressIndicatorProps {
   agentColor: string;
   /** `box` (default): tinted pill + agent dot. `plain`: shimmering text only. */
   variant?: ProgressDisplay;
+  /** The running retrieval step ("Websuche „Klimageld""). Retrieval draws no
+   *  card of its own, so this line is where it gets reported. */
+  toolStatus?: string;
 }
 
 export function ProgressIndicator({
   progress,
   agentColor,
   variant = 'box',
+  toolStatus,
 }: ProgressIndicatorProps) {
-  // Prefer the latest pending narration sentence (split-gather) over the raw
-  // stage message, and pace it so bursts stay readable. Hook runs before any
-  // early return.
+  // Three sources, most specific first: split-gather narration → the running
+  // retrieval step → the raw stage message. Paced so bursts stay readable.
+  // Hook runs before any early return.
   const pending = progress.pendingNarration;
-  const rawMessage = pending && pending.length > 0 ? pending[pending.length - 1] : progress.message;
+  const rawMessage =
+    pending && pending.length > 0 ? pending[pending.length - 1] : (toolStatus ?? progress.message);
   const message = usePacedLabel(rawMessage);
 
   if (
