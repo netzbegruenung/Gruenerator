@@ -144,6 +144,13 @@ export function buildChatToolCatalog(params: {
     // `tiefe: 'tiefenrecherche'`. Comes from the user's own words, not from the
     // model's judgement — see resolveSearchTier.
     ...(loop?.state.explicitDeepRequest === true && { explicitDeepRequest: true }),
+    // What a narrowing `seiten` argument is checked against. The mention-free
+    // form, for the same reason the sharepic licence reads it: a mention LABEL
+    // ("@[Recherche](tool:web_search)") is not something the user typed about a
+    // site. Absent outside the loop → the check is skipped, not inverted.
+    ...(loop != null && {
+      userText: loop.state.lastUserTextNoMentions ?? lastUserText(loop.state),
+    }),
   });
 
   const tools: ToolSet = {};

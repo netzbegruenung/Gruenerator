@@ -64,8 +64,27 @@ describe('resolveSearchTier', () => {
     ).toBe('gruendlich');
   });
 
-  it('passes the cheaper model-requested tiers through untouched', () => {
-    expect(resolveSearchTier({ intent: 'direct', requestedTier: 'standard' })).toBe('standard');
+  /**
+   * The same rule downward. The tool description named "wer jemand war" as the
+   * textbook `gruendlich` case, and the planner model still asked for `standard`
+   * on exactly that question and answered from five snippets — so the normal
+   * case is enforced, not advertised. Free to enforce: both tiers are one paid
+   * call at the same engine depth.
+   */
+  it('raises a model-requested standard back to the normal case', () => {
+    expect(resolveSearchTier({ intent: 'direct', requestedTier: 'standard' })).toBe('gruendlich');
+    expect(
+      resolveSearchTier({ intent: 'web', requestedTier: 'standard', explicitDeep: true })
+    ).toBe('gruendlich');
+  });
+
+  /**
+   * The clamp reaches the MODEL's choice only. The classifier path passes no
+   * `requestedTier`, so its intent-derived `standard` — the narrow lookups, and
+   * the progress copy that keys on that tier — stays as it was.
+   */
+  it('leaves the intent-derived standard alone', () => {
+    expect(resolveSearchTier({ intent: 'web' })).toBe('standard');
     expect(resolveSearchTier({ intent: 'direct', requestedTier: 'gruendlich' })).toBe('gruendlich');
   });
 });

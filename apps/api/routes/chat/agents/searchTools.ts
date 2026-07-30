@@ -73,6 +73,38 @@ export interface CreateSearchToolsOptions {
    * not enforcement, and a paid engine setting needs enforcement.
    */
   explicitDeepRequest?: boolean;
+  /**
+   * The user's own last message, mention tokens removed. Same role as
+   * `explicitDeepRequest`: it is what a narrowing tool argument is checked
+   * against. Only `seiten` uses it today — the model invents domains, and an
+   * invented site scope is invisible in the answer (see `namedByUser`). Callers
+   * without a user turn (board agent, document authoring) leave it unset and the
+   * check is skipped.
+   */
+  userText?: string | null;
+}
+
+/**
+ * Did the user actually name this site?
+ *
+ * A model-supplied `seiten` is a REQUEST like the tier is, and it is the most
+ * damaging one to get wrong: it silently reduces "the web" to three hosts, and
+ * the answer looks perfectly normal afterwards. Observed live on "recherchiere
+ * im netz: wer war Marilyn Monroe" — the planner sent
+ * `seiten: ["wikipedia.de","spiegel.de","faz.net"]`, which the user had not
+ * mentioned, and every source came back from Spiegel and FAZ.
+ *
+ * Matched on the bare host or on its registrable label, because people write
+ * "auf zeit.de", "bei der Zeit" and "Zeit Online" for the same wish. Label
+ * matching is word-bounded so "orf" does not match inside another word.
+ */
+function namedByUser(host: string, userText: string): boolean {
+  const haystack = userText.toLowerCase();
+  const needle = host.toLowerCase();
+  if (haystack.includes(needle)) return true;
+  const label = needle.split('.')[0];
+  if (label == null || label.length < 3) return false;
+  return new RegExp(`\\b${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(haystack);
 }
 
 /**
@@ -231,8 +263,7 @@ NUTZE WENN:
 - Der Benutzer "recherchiere", "finde heraus" oder "belege für" sagt → höhere Stufe
 
 WÄHLE DIE STUFE NACH AUFWAND, NICHT NACH WORTLAUT:
-- gruendlich: DER NORMALFALL. Alles, was mehr als einen einzelnen Datenpunkt braucht — wer jemand war, was etwas ist, wie etwas funktioniert, ein Vergleich, ein Überblick. Doppelt so viele Quellen wie standard, kostet ca. eine Sekunde mehr.
-- standard: NUR wenn die Antwort genau EIN Datum, EINE Zahl oder EINE Meldung ist ("wann wurde X geboren", "wie hoch ist der Beitragssatz"). Bei allem anderen reichen 5 Quellen nicht für eine vollständige Antwort.
+- gruendlich: DER NORMALFALL, lass tiefe einfach weg. 10 Quellen.
 - tiefenrecherche: nur wenn der Benutzer ausdrücklich eine gründliche Recherche verlangt hat. Dauert 15–30 Sekunden.
 
 EINE SUCHE ZUR ZEIT: Starte eine Suche, lies das Ergebnis, und suche erst dann weiter, wenn wirklich etwas fehlt. Höchstens zwei Suchen gleichzeitig. War ein Ergebnis schwach, formuliere die Anfrage EINMAL anders (notfalls englisch) — schicke keine Varianten auf Vorrat los.
@@ -259,12 +290,16 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
       // `standard` as the default meant an open question ("wer war X") was
       // answered from five snippets, which is not enough for a complete answer
       // and read to users as the product being thin.
+      // The enum keeps all three tiers even though only two are offered above:
+      // `standard` is F0 — it sits in persisted tool-call arguments that later
+      // turns replay, so dropping it from the schema would fail validation on
+      // stored calls. `resolveSearchTier` raises it back to `gruendlich`.
       tiefe: z
         .enum(SEARCH_TIERS)
         .optional()
         .default('gruendlich')
         .describe(
-          'Rechercheaufwand: gruendlich (Normalfall, 10 Quellen), standard (nur für einen einzelnen Datenpunkt, 5 Quellen), tiefenrecherche (nur auf ausdrücklichen Wunsch, langsam)'
+          'Rechercheaufwand: gruendlich (Normalfall, 10 Quellen) oder tiefenrecherche (nur auf ausdrücklichen Wunsch, langsam)'
         ),
       zeitraum: z
         .enum(['anytime', 'day', 'week', 'month', 'year'])
@@ -288,10 +323,11 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
         .describe(
           'Bild-Treffer mitliefern (als Links, keine Vorschaubilder). NUR wenn der Benutzer ausdrücklich Bilder oder Fotos sehen will — nicht bei einer Faktenfrage. Für ein NEUES Bild ist das falsche Tool: dann keine Suche.'
         ),
-      maxResults: z
-        .number()
-        .optional()
-        .describe('Optional: Anzahl Ergebnisse überschreiben (sonst aus der Stufe)'),
+      // No `maxResults`: the tier owns the source count. Offered to the model it
+      // became a second, unlabelled way to under-buy — measured live, a
+      // `tiefe: gruendlich` call arrived with `maxResults: 5` and undid the tier.
+      // Unknown keys are stripped by the schema, so a replayed stored call that
+      // still carries one is simply ignored rather than rejected.
     }),
     execute: async ({
       query,
@@ -301,27 +337,39 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
       seiten,
       seitenAusschliessen,
       bilder,
-      maxResults,
     }) => {
       try {
-        // The model's tier is a request; `resolveSearchTier` clamps it to what the
-        // user actually consented to. Without this the deep engine is one
-        // hallucinated argument away, on every turn.
+        // The model's tier is a request in both directions; `resolveSearchTier`
+        // clamps it up to the normal case and down to what the user actually
+        // consented to. Without this the deep engine is one hallucinated
+        // argument away, and a five-snippet answer one skipped instruction away.
         const tier = resolveSearchTier({
           intent: 'web',
           requestedTier: tiefe,
           explicitDeep: options.explicitDeepRequest ?? false,
         });
         if (tier !== tiefe) {
-          log.info(
-            `[Tools] web_search tier clamped: ${tiefe} → ${tier} (no explicit deep request)`
-          );
+          log.info(`[Tools] web_search tier clamped: ${tiefe} → ${tier}`);
         }
         // Hostnames are normalised here rather than trusted: the model reliably
         // writes "https://zeit.de/" or "www.zeit.de" when the user did, and the
         // API wants a bare host. A scheme left in place matches nothing, and the
         // failure looks like "the site had no results".
-        const includeDomains = normalizeDomainList(seiten);
+        const normalizedSites = normalizeDomainList(seiten);
+        // Same rule as the tier: the model may pass a site scope on, it may not
+        // invent one. An exclusion is left alone — it widens the loss to one
+        // host, where an invented inclusion throws the rest of the web away.
+        const userText = options.userText;
+        const includeDomains =
+          userText != null && userText.length > 0
+            ? normalizedSites.filter((host) => namedByUser(host, userText))
+            : normalizedSites;
+        const invented = normalizedSites.filter((host) => !includeDomains.includes(host));
+        if (invented.length > 0) {
+          log.info(
+            `[Tools] web_search site scope dropped (not named by the user): ${invented.join(', ')}`
+          );
+        }
         const excludeDomains = normalizeDomainList(seitenAusschliessen);
         return await executeDirectWebSearch({
           query,
@@ -331,7 +379,6 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
           ...(includeDomains.length > 0 ? { includeDomains } : {}),
           ...(excludeDomains.length > 0 ? { excludeDomains } : {}),
           ...(bilder === true ? { includeImages: true } : {}),
-          ...(maxResults != null ? { maxResults } : {}),
         });
       } catch (error) {
         log.error('Direct web search error:', error);
