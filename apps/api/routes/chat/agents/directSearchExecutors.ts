@@ -534,10 +534,29 @@ export async function executeDirectWebSearch(params: {
   // 300-char snippet would cap that no matter how many sources came back.
   // Stays under the source registry's own per-line cap (1500).
   const snippetChars = plan.depth === 'deep' ? 1200 : 300;
-  // Images ride in the same array as the text hits and are capped separately, so
-  // asking for them cannot eat into `maxResults` and leave the answer with fewer
-  // sources than the tier promised.
   const includeImages = params.includeImages === true;
+  /**
+   * Extra headroom on `maxResults` when images are requested.
+   *
+   * Image entries arrive INSIDE the same `results` array as the text hits, and
+   * Linkup's reference does not say whether they count toward `maxResults` — it
+   * only promises "the number of results will always be ≤ maxResults". If they do
+   * count, then asking for images silently costs the answer its sources: with
+   * `maxResults: 5` and three images returned, the model gets two text hits and
+   * the tier's promise quietly breaks.
+   *
+   * So the images are asked for ON TOP rather than hoped about. This is free:
+   * Linkup prices a search by `depth` × `outputType` only ($0.005 standard /
+   * $0.05 deep for searchResults, +$0.001 for sourcedAnswer) — `maxResults` is
+   * not a pricing dimension. And it is harmless under either reading of the docs:
+   * if images do NOT count, we merely receive a few more text hits and slice back
+   * down to `maxResults` below.
+   *
+   * An earlier comment here asserted that images "cannot eat into maxResults".
+   * That was true only of OUR OWN capping below; it said nothing about what the
+   * engine returns, which is where the loss would actually happen.
+   */
+  const requestedResults = includeImages ? maxResults + MAX_IMAGE_HITS : maxResults;
 
   // One line carrying the COMPLETE commissioned search. Without it there was no
   // way to tell from the logs what a turn actually asked the engine for — which
@@ -548,7 +567,7 @@ export async function executeDirectWebSearch(params: {
     }${excludeDomains.length > 0 ? ` exclude=${excludeDomains.length}` : ''}${
       fromDate ? ` from=${fromDate}` : ''
     }${params.toDate ? ` to=${params.toDate}` : ''}${timeRange ? ` timeRange=${timeRange}` : ''}${
-      includeImages ? ' images=on' : ''
+      includeImages ? ` images=on(+${MAX_IMAGE_HITS} headroom)` : ''
     }`
   );
 
@@ -559,7 +578,7 @@ export async function executeDirectWebSearch(params: {
         linkup.webSearch({
           query,
           depth,
-          maxResults,
+          maxResults: requestedResults,
           adjacentSearches: plan.adjacentSearches,
           ...(includeDomains.length > 0 ? { includeDomains } : {}),
           ...(excludeDomains.length > 0 ? { excludeDomains } : {}),
