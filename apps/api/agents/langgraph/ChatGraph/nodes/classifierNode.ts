@@ -11,6 +11,8 @@
  *   Tier 4: LLM classification (full context)
  */
 
+import { degradeTargetForLocale } from '@gruenerator/shared/chat-intents';
+
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
 import { looksLikeToolableQuestion } from '../../../../routes/chat/services/agenticLoop/routing.js';
 import { containsInstructionMarkers } from '../../../../routes/chat/services/untrustedContent.js';
@@ -20,10 +22,10 @@ import {
   type McpClassifierServer,
 } from '../../../../services/mcp/McpServerRegistry.js';
 import {
-  DE_ONLY_SYSTEM_INTENTS,
   SYSTEM_MCP_INTENTS,
   isSystemIntentAvailable,
 } from '../../../../services/mcp/systemMcpServers.js';
+import { isExplicitDeepRequest } from '../../../../services/search/searchDepth.js';
 import { analyzeTemporality } from '../../../../services/search/TemporalAnalyzer.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { INTERMEDIATE_MODEL } from '../llmConfig.js';
@@ -40,6 +42,7 @@ import {
   extractSearchTopic,
   extractMessageText,
   extractUrls,
+  extractDomainScope,
   formatConversationHistory,
   hasImageEditVerb,
   isImageRegenRequest,
@@ -186,21 +189,6 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     intent = 'compare';
   }
 
-  // Abgeordnetenwatch covers German parliaments only (Bundestag/Landtage), not
-  // the Austrian Nationalrat. For de-AT users never route here — fall back to
-  // web so the question still gets answered instead of returning empty data.
-  if (intent === 'abgeordnetenwatch' && state.userLocale === 'de-AT') {
-    log.info('[Classifier] abgeordnetenwatch downgraded to web for de-AT locale (DE-only source)');
-    intent = 'web';
-  }
-
-  // Same DE-only rule for the Bundestag DIP: it covers the Deutsche Bundestag
-  // only, never the Austrian Nationalrat — downgrade to web for de-AT users.
-  if (intent === 'bundestag' && state.userLocale === 'de-AT') {
-    log.info('[Classifier] bundestag downgraded to web for de-AT locale (DE-only source)');
-    intent = 'web';
-  }
-
   // Conservative MCP guard: the LLM tier can return `mcp` but can't name a
   // concrete connected server. Only the deterministic name-match tier (which
   // sets mcpServerScope) or an explicit @notion/@brevo mention (resolved later
@@ -279,18 +267,47 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     intent = 'sharepic';
   }
 
-  // DE-only system sources (DB IRIS timetables, tagesschau) — de-AT users get
-  // the web fallback, mirroring the abgeordnetenwatch/bundestag rule above.
-  if (intent && DE_ONLY_SYSTEM_INTENTS.has(intent) && state.userLocale === 'de-AT') {
-    log.info(`[Classifier] ${intent} downgraded to web for de-AT locale (DE-only source)`);
-    intent = 'web';
-    downgradedSearchQuery = userText;
+  // A source that does not cover the user's country is never routed to — the
+  // question degrades (normally to web search) so it still gets answered
+  // instead of returning empty data.
+  //
+  // Which intents those are, and where each degrades to, is declared once in
+  // the intent registry (`audience` / `degradeTo`). Before, this was three
+  // separate hand-written `=== 'de-AT'` blocks: one for abgeordnetenwatch, one
+  // for bundestag, one for the DE-only system sources — in two different places
+  // in this file, and only the last of them carried the search query over.
+  //
+  // Carrying `userText` over now applies to all of them. A degraded turn keeps
+  // whatever query the classifier produced (see the guard at the return); this
+  // only fills the gap where it produced none, which is the same reason the
+  // router backfills a query for forced search intents.
+  if (intent) {
+    const degraded = degradeTargetForLocale(intent, state.userLocale);
+    if (degraded) {
+      log.info(
+        `[Classifier] ${intent} downgraded to ${degraded} for ${state.userLocale ?? 'de-DE'} ` +
+          `(source does not cover this country)`
+      );
+      intent = degraded;
+      if (degraded === 'web') downgradedSearchQuery = userText;
+    }
   }
 
   // System MCP sources are env-gated: without the deploy env URL the intent has
   // no tools behind it — degrade so the question still gets answered (wetter/
   // news → web has a chance; a live train query without the source doesn't).
-  if (intent && SYSTEM_MCP_INTENTS.has(intent) && !isSystemIntentAvailable(intent)) {
+  //
+  // The locale goes in because availability is a per-country question whenever an
+  // intent maps to more than one source. `reise` was that case — train (DE-only)
+  // plus hotel and weather (global), deliberately kept out of
+  // DE_ONLY_SYSTEM_INTENTS, so on a bahn-only deploy an Austrian travel turn
+  // looked "available" and mounted nothing. It is off now, so this argument is
+  // currently prevention rather than a live fix.
+  if (
+    intent &&
+    SYSTEM_MCP_INTENTS.has(intent) &&
+    !isSystemIntentAvailable(intent, state.userLocale)
+  ) {
     const fallback = intent === 'bahn' ? 'direct' : 'web';
     log.info(`[Classifier] ${intent} downgraded to ${fallback} (system MCP source not configured)`);
     intent = fallback;
@@ -331,6 +348,23 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     );
   }
 
+  // "such auf zeit.de und orf.at nach X" — a search RESTRICTION, not a page to
+  // read, and until now it had no way into the engine at all: bare domains stayed
+  // words in the query string, where they narrowed nothing. Deterministic, so the
+  // classifier's JSON schema does not grow — every field there costs prompt budget
+  // and measurably drags on intent accuracy.
+  //
+  // `extractDomainScope` drops any domain that also appears as a full URL, so this
+  // cannot steal a `scrape_url` turn: a URL with a path is a read instruction, a
+  // bare domain is a scope. Both in one message is allowed and each keeps its role.
+  const webSiteScope = extractDomainScope(userText);
+  const hasSiteScope = webSiteScope.include.length > 0 || webSiteScope.exclude.length > 0;
+  if (hasSiteScope) {
+    log.info(
+      `[Classifier] Site scope: include=[${webSiteScope.include.join(',')}] exclude=[${webSiteScope.exclude.join(',')}]`
+    );
+  }
+
   // A question about THIS conversation needs no retrieval — the messages are in
   // context already. Routing it to chat_history sent it through a Qdrant recall
   // over PAST threads, which returned nothing, and the turn then reported having
@@ -359,15 +393,27 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     log.warn('[Classifier] Instruction-shaped markers in this turn material — warning the model');
   }
 
+  // Deep-research consent, read off the user's own words. Sits here with the
+  // other deterministic signals (URLs, injection markers) rather than in the
+  // classifier's JSON schema: it gates the one paid engine setting, so it must be
+  // testable without a model, and adding a field to that schema costs prompt
+  // budget on every single turn.
+  const explicitDeepRequest = isExplicitDeepRequest(userText);
+  if (explicitDeepRequest) {
+    log.info('[Classifier] Explicit deep-research request — top search tier unlocked');
+  }
+
   return {
     ...result,
     intent: intent ?? result.intent,
     injectionSuspected,
+    explicitDeepRequest,
     ...(downgradedSearchQuery != null && !result.searchQuery
       ? { searchQuery: downgradedSearchQuery }
       : {}),
     secondaryIntent,
     detectedUrls,
+    ...(hasSiteScope ? { webSiteScope } : {}),
     documentSources,
     synthesisMode,
   };

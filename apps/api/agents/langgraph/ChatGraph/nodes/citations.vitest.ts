@@ -3,12 +3,14 @@ import { describe, it, expect } from 'vitest';
 import {
   buildCitations,
   deriveCitationTitle,
+  renumberAnswerCitations,
   extractDomain,
   resolveCollectionName,
   COLLECTION_LABELS,
   CONTENT_TYPE_LABELS,
 } from './citationUtils.js';
-import type { SearchResult } from '../types.js';
+
+import type { SearchResult, Citation } from '../types.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -354,5 +356,84 @@ describe('CONTENT_TYPE_LABELS', () => {
 
   it('maps wahlprogramm to Wahlprogramm', () => {
     expect(CONTENT_TYPE_LABELS.wahlprogramm).toBe('Wahlprogramm');
+  });
+});
+
+// ─── renumberAnswerCitations ──────────────────────────────────────────────────
+
+function makeCitation(id: number): Citation {
+  return {
+    id,
+    title: `Quelle ${id}`,
+    url: `https://example.org/${id}`,
+    snippet: `Auszug ${id}`,
+    source: 'web',
+  };
+}
+
+describe('renumberAnswerCitations', () => {
+  // The reported bug: four sources in the prompt, the answer cites 1, 2 and 4,
+  // and the reader sees a hole where 3 should be.
+  it('closes the gap left by a partially citing answer', () => {
+    const { text, citations } = renumberAnswerCitations(
+      'Erstens [1]. Zweitens [2]. Drittens [4].',
+      [1, 2, 3, 4].map(makeCitation)
+    );
+
+    expect(text).toBe('Erstens [1]. Zweitens [2]. Drittens [3].');
+    expect(citations.map((c) => c.id)).toEqual([1, 2, 3]);
+    // The uncited source is dropped, and [3] now resolves to the old [4].
+    expect(citations[2]?.title).toBe('Quelle 4');
+  });
+
+  it('numbers by first appearance, not by original order', () => {
+    const { text, citations } = renumberAnswerCitations('Zuerst [3], dann [1].', [
+      makeCitation(1),
+      makeCitation(2),
+      makeCitation(3),
+    ]);
+
+    expect(text).toBe('Zuerst [1], dann [2].');
+    expect(citations.map((c) => c.title)).toEqual(['Quelle 3', 'Quelle 1']);
+  });
+
+  // The prompt tells the model to combine supporting sources as `[1, 3]`, and
+  // the renderer matches that form. A scanner that only saw `[N]` would treat
+  // both ids as uncited, drop them, and leave the stale numbers in the text.
+  it('renumbers grouped markers', () => {
+    const { text, citations } = renumberAnswerCitations(
+      'Beides belegt [2, 4]. Und separat [3].',
+      [1, 2, 3, 4].map(makeCitation)
+    );
+
+    expect(text).toBe('Beides belegt [1, 2]. Und separat [3].');
+    expect(citations.map((c) => c.title)).toEqual(['Quelle 2', 'Quelle 4', 'Quelle 3']);
+  });
+
+  it('leaves an already gapless answer untouched', () => {
+    const input = 'Eins [1]. Zwei [2].';
+    const { text, citations } = renumberAnswerCitations(input, [makeCitation(1), makeCitation(2)]);
+
+    expect(text).toBe(input);
+    expect(citations.map((c) => c.id)).toEqual([1, 2]);
+  });
+
+  it('keeps the source list when the answer cites nothing', () => {
+    const { text, citations } = renumberAnswerCitations('Keine Belege hier.', [
+      makeCitation(1),
+      makeCitation(2),
+    ]);
+
+    expect(text).toBe('Keine Belege hier.');
+    expect(citations).toHaveLength(2);
+  });
+
+  it('ignores a marker the source list has no entry for', () => {
+    const { text, citations } = renumberAnswerCitations('Echt [1], erfunden [9].', [
+      makeCitation(1),
+    ]);
+
+    expect(text).toBe('Echt [1], erfunden [9].');
+    expect(citations.map((c) => c.id)).toEqual([1]);
   });
 });

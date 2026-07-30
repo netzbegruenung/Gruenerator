@@ -496,6 +496,13 @@ export async function* parseSSEStream(
           // - gruenerator_examples_search → { examples: social[], results }
           // - everything else → { results }
           const resultForTool = (toolName: string) => {
+            /**
+             * @deprecated `researchMeta` is the legacy dossier shape — no path emits
+             * it since 2026-07-30, dossiers ship as message text now. Pre-2026-07-30
+             * turns still carry their dossier ONLY in this field (the assistant
+             * message itself was just two framing sentences); keep until a backfill
+             * moves `researchMeta.answer` into message content.
+             */
             if (toolName === 'research' && researchMeta != null) {
               return researchMeta as Record<string, unknown>;
             }

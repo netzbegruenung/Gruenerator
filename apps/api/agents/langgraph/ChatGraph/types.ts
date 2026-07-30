@@ -31,11 +31,19 @@ import type { ModelMessage } from 'ai';
 export type { WolkeFileRef, ConnectFileRef, CurrentBoard, SocialPostPayload };
 
 /**
- * Search source backends that can be queried in parallel.
- * When multiple sources are specified, the search node runs them concurrently
- * and merges/deduplicates the results before reranking.
+ * Retrieval backends the classifier can request for one turn. When several are
+ * named, the search node runs them concurrently, caps each source's share of
+ * the merge window, and merges/deduplicates before reranking.
+ *
+ * `bundestag` is also a `SearchIntent`; the two are not redundant. The intent is
+ * the exclusive "this turn is DIP research" route, this is the "DIP alongside
+ * the party collections" route — the pairing a question like "was sagen wir zur
+ * Wärmewende und was lief dazu im Bundestag" needs, which no single intent could
+ * serve. Not a wire enum (`chatStreamEvents` types it `z.array(z.string())`), so
+ * adding a member is additive.
  */
-export type SearchSource = 'documents' | 'web' | 'examples' | 'chat_history' | 'wolke' | 'connect';
+export type SearchSource =
+  'documents' | 'web' | 'examples' | 'chat_history' | 'wolke' | 'connect' | 'bundestag';
 
 /**
  * Supported user locales for locale-aware collection routing.
@@ -704,6 +712,57 @@ export interface ChatGraphState {
   creationTopic: string | null;
   hasTemporal: boolean;
   complexity: 'simple' | 'moderate' | 'complex';
+
+  /**
+   * The user asked for a thorough/deep research in so many words — the ONLY route
+   * to Linkup's expensive `deep` engine depth (`tiefenrecherche`).
+   *
+   * Set deterministically in the classifier's post-pass (`isExplicitDeepRequest`),
+   * not by the LLM: it gates a paid setting, so it has to be inspectable and
+   * testable without a model in the loop. Deliberately NOT derived from
+   * `complexity` — that used to buy the deep tier, and since `detectComplexity`
+   * returns `complex` for any "vergleich"/"ausführlich" in the text, the most
+   * expensive engine setting had become the default for ordinary questions.
+   */
+  explicitDeepRequest: boolean;
+
+  /**
+   * The user typed `@deepresearch`. The ONLY route from the chat to Linkup's
+   * `sourcedAnswer` endpoint, where LINKUP writes the dossier — a synthesis
+   * surcharge on top of the already-expensive deep engine, hence one per day.
+   *
+   * Not a classifier output and not derivable from the wording: an intent a model
+   * inferred cannot be a spending authorisation. Set in the router from the
+   * mention token, checked against the quota in `intentExecutionService`.
+   * Optional so existing state initialisations stay valid — absent means "not
+   * requested", which is the safe reading.
+   */
+  deepResearchRequested?: boolean;
+
+  /**
+   * Linkup's finished dossier, set only when the gated `@deepresearch` path ran.
+   *
+   * Present means the answer is ALREADY WRITTEN and must be served verbatim: the
+   * router streams it as the assistant message and skips synthesis entirely.
+   * Running a model over it would paraphrase a text we already paid for, cost a
+   * second LLM pass, and break the [N]↔source-order coupling this path relies on.
+   */
+  deepResearchAnswer?: string | null;
+
+  /**
+   * Domains the user named for THIS turn ("such auf zeit.de und orf.at"), from the
+   * deterministic `extractDomainScope` heuristic — no classifier field, no prompt
+   * budget.
+   *
+   * Deliberately not sticky. A scope that quietly keeps applying to later questions
+   * is worse than none: the user sees results going missing with no way to tell
+   * why. It is also visible in the tool card, so a wrong extraction is correctable
+   * rather than mysterious.
+   *
+   * Collides with `detectedUrls` by design and loses to it: a bare domain is a
+   * search restriction, a full URL with a path is a read instruction (`scrape_url`).
+   */
+  webSiteScope?: { include: string[]; exclude: string[] } | null;
 
   // Platform hint for the `examples` / `social_post` intents. Set by the
   // classifier when the user prompt names a platform; null otherwise. Consumed

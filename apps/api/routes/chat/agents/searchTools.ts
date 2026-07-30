@@ -10,7 +10,8 @@
 import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 
-import { SEARCH_TIERS } from '../../../services/search/searchDepth.js';
+import { normalizeDomainList } from '../../../services/search/domainFilters.js';
+import { resolveSearchTier, SEARCH_TIERS } from '../../../services/search/searchDepth.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import {
@@ -64,6 +65,14 @@ export interface CreateSearchToolsOptions {
    * Undefined leaves the full set (chat + board defaults unchanged).
    */
   enabledToolKeys?: readonly string[];
+  /**
+   * Did the user ask for a thorough research in so many words? Only then may a
+   * `tiefe: 'tiefenrecherche'` tool call actually reach Linkup's deep engine;
+   * otherwise it is clamped one step down. The tier the model names is a REQUEST,
+   * not authority — "nutze sie sparsam" in a tool description is documentation,
+   * not enforcement, and a paid engine setting needs enforcement.
+   */
+  explicitDeepRequest?: boolean;
 }
 
 /**
@@ -92,7 +101,14 @@ export function createSearchTools(
     (localeDefault && allowedCollections.includes(localeDefault)
       ? localeDefault
       : allowedCollections[0]);
-  const examplesCountry = restrictions?.examplesCountry;
+  // Same locale fallback the deterministic search node applies (searchNode's
+  // examples branch): an explicit per-agent `examplesCountry` wins, otherwise an
+  // AT user grounds in Austrian examples. Without this an AT user on a generic
+  // agent got German social/press posts as style templates on the loop path
+  // while the single-pass path got it right — `gruene_at_documents` exists.
+  // Callers that pass no locale (e.g. the board agent) keep `undefined`.
+  const examplesCountry =
+    restrictions?.examplesCountry ?? (options.userLocale === 'de-AT' ? 'AT' : undefined);
   // Landesverband scope for example searches — derived from the agent so an LV
   // agent only grounds in its own LV's social/press examples. Without this the
   // press tool pulls PMs from all LVs and mimics the wrong one (e.g. a
@@ -216,8 +232,12 @@ NUTZE WENN:
 
 WÄHLE DIE STUFE NACH AUFWAND, NICHT NACH WORTLAUT:
 - standard: eine klare Faktenfrage, ein Datum, eine Zahl, eine Nachricht. Der Normalfall.
-- gruendlich: mehrere Aspekte, ein Vergleich, oder der Benutzer bittet ausdrücklich um Recherche.
-- tiefenrecherche: breite Themen, bei denen viele Quellen gegeneinander gehalten werden müssen. Dauert spürbar länger — nutze sie sparsam.
+- gruendlich: mehrere Aspekte oder ein Vergleich. Deckt das Thema breiter ab, dauert kaum länger.
+- tiefenrecherche: nur wenn der Benutzer ausdrücklich eine gründliche Recherche verlangt hat. Dauert 15–30 Sekunden.
+
+EINE SUCHE ZUR ZEIT: Starte eine Suche, lies das Ergebnis, und suche erst dann weiter, wenn wirklich etwas fehlt. Höchstens zwei Suchen gleichzeitig. War ein Ergebnis schwach, formuliere die Anfrage EINMAL anders (notfalls englisch) — schicke keine Varianten auf Vorrat los.
+
+SCOPE GEHÖRT IN DIE PARAMETER, NICHT IN DIE ANFRAGE: Nennt der Benutzer Seiten ("such auf zeit.de und orf.at"), setze seiten; nennt er einen Zeitraum ("seit Januar", "letzte Woche"), setze zeitraum. Schreibe beides NICHT in query — dort werden es bloß Suchwörter, und die Suchmaschine filtert nichts.
 
 NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
     inputSchema: z.object({
@@ -226,25 +246,74 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
         .enum(['general', 'news'])
         .optional()
         .default('general')
-        .describe('Suchtyp: general (allgemein) oder news (Nachrichten)'),
+        // F0: persisted in tool-call arguments, so the name stays. Its function
+        // moved to `zeitraum` — on the Linkup path it only ever set a SearXNG
+        // category, i.e. nothing at all. It now buys a 30-day window.
+        .describe('Suchtyp: general (allgemein) oder news (nur die letzten 30 Tage)'),
       tiefe: z
         .enum(SEARCH_TIERS)
         .optional()
         .default('standard')
         .describe(
-          'Rechercheaufwand: standard (schnell), gruendlich (mehrere Quellen), tiefenrecherche (viele Quellen, langsam)'
+          'Rechercheaufwand: standard (schnell), gruendlich (mehrere Quellen), tiefenrecherche (nur auf ausdrücklichen Wunsch, langsam)'
         ),
+      zeitraum: z
+        .enum(['anytime', 'day', 'week', 'month', 'year'])
+        .optional()
+        .describe(
+          'Nur Treffer aus diesem Zeitfenster. Setze es, wenn der Benutzer einen Zeitbezug nennt — nicht vorsorglich, ein zu enges Fenster liefert nichts.'
+        ),
+      seiten: z
+        .array(z.string())
+        .optional()
+        .describe(
+          'Nur auf diesen Domains suchen, z.B. ["zeit.de","orf.at"] — reine Hostnamen ohne https://. Nur wenn der Benutzer Seiten genannt hat.'
+        ),
+      seitenAusschliessen: z
+        .array(z.string())
+        .optional()
+        .describe('Diese Domains überspringen, z.B. ["reddit.com"]. Reine Hostnamen.'),
       maxResults: z
         .number()
         .optional()
         .describe('Optional: Anzahl Ergebnisse überschreiben (sonst aus der Stufe)'),
     }),
-    execute: async ({ query, searchType, tiefe, maxResults }) => {
+    execute: async ({
+      query,
+      searchType,
+      tiefe,
+      zeitraum,
+      seiten,
+      seitenAusschliessen,
+      maxResults,
+    }) => {
       try {
+        // The model's tier is a request; `resolveSearchTier` clamps it to what the
+        // user actually consented to. Without this the deep engine is one
+        // hallucinated argument away, on every turn.
+        const tier = resolveSearchTier({
+          intent: 'web',
+          requestedTier: tiefe,
+          explicitDeep: options.explicitDeepRequest ?? false,
+        });
+        if (tier !== tiefe) {
+          log.info(
+            `[Tools] web_search tier clamped: ${tiefe} → ${tier} (no explicit deep request)`
+          );
+        }
+        // Hostnames are normalised here rather than trusted: the model reliably
+        // writes "https://zeit.de/" or "www.zeit.de" when the user did, and the
+        // API wants a bare host. A scheme left in place matches nothing, and the
+        // failure looks like "the site had no results".
+        const includeDomains = normalizeDomainList(seiten);
+        const excludeDomains = normalizeDomainList(seitenAusschliessen);
         return await executeDirectWebSearch({
           query,
           searchType,
-          tier: tiefe,
+          tier,
+          ...(zeitraum && zeitraum !== 'anytime' ? { timeRange: zeitraum } : {}),
+          ...(includeDomains.length > 0 ? { includeDomains } : {}),
+          ...(excludeDomains.length > 0 ? { excludeDomains } : {}),
           ...(maxResults != null ? { maxResults } : {}),
         });
       } catch (error) {

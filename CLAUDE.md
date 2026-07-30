@@ -93,6 +93,7 @@ Mistral AI (primary, EU), self-hosted GPT-OSS/Gemma via LiteLLM/verdigado, Seewe
 - **Before PR**: `git fetch origin master` to ensure fresh remote ref.
 - **Regular merge only** (not squash). `test-branch` is long-lived; squash breaks commit identity.
 - **PR merges require admin.** `gh pr merge` fails — ask user to merge via GitHub UI.
+- **Worktree weg, sobald alles gepusht ist** — nicht erst nach dem Merge. Ein offener PR braucht kein lokales Verzeichnis, er lebt auf `origin`. Kriterium: `git status --porcelain` **und** `git log @{u}..` beide leer → `git worktree remove <pfad>` (Branch bleibt stehen). Nach dem Merge zusätzlich `git branch -d <br> && git worktree prune`. Nie `--force`, nie fremde Worktrees — andere Agenten arbeiten parallel.
 
 ### Expo Apps
 
@@ -128,6 +129,8 @@ Zustand (global state). TanStack Query v5 (server state/fetching) with axios.
 ### Commits
 
 Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`). Atomic: one logical change per commit.
+
+**Subject nach dem Doppelpunkt klein schreiben** — commitlint (`subject-case`) bricht sonst ab. lint-staged hat dann schon formatiert und re-staged: Commit einfach neu absetzen, es geht nichts verloren.
 
 ### TypeScript
 
@@ -174,7 +177,12 @@ ESLint (flat config), Prettier, Husky pre-commit (lint-staged), Knip (unused cod
 
 **Knip** (`pnpm knip`, nicht in CI) findet toten Code — die Entry-Punkte in `knip.json` sind load-bearing: was knip nicht als Entry kennt, sieht es als „unbenutzt" und alles darunter gleich mit. Dynamisch geladene Dateien müssen deshalb explizit als Entry stehen (`apps/api/workers/aiWorker.ts` wird über einen berechneten Pfad in `new Worker()` geladen; `apps/mobile/app/**` kommt aus dem Expo Router; Web-Worker unter `apps/web/src/services/*.worker.ts`). Tests/Skripte gehören als **Entry** eingetragen, nicht in `ignore` — sonst zählen ihre Importe nicht als Nutzung und die Deps, die nur sie brauchen, gelten als unbenutzt. `apps/desktop` (Tauri-Wrapper) und `apps/wordpress` (Einstiege liegen in PHP) sind bewusst per `ignoreWorkspaces` ausgenommen.
 
-**Typecheck only when finished.** During a multi-file implementation, do NOT run `pnpm typecheck`/build after each change — keep editing and run a single consolidated typecheck (and lint) pass at the very end, fixing all surfaced errors together.
+**Check-Budget.** 16 GB RAM, oft ~5 Agenten parallel. `pnpm typecheck` startet 3 parallele `tsc` (`apps/web` allein 2,6 GB / 85 s) → **~6 GB pro Agent**. Deshalb:
+
+- Während der Arbeit paketweise: `pnpm --filter @gruenerator/<pkg> exec tsc --noEmit`, `npx eslint <dateien>`, `npx vitest run <eine.vitest.ts>`.
+- Voll-Check (`pnpm ci`) **einmal am Ende**, in einem Worktree — nicht als Zwischenstand, nicht als Statusbericht.
+- Nie ganze Test-Verzeichnisse (`vitest run routes/chat agents/langgraph …` = 113 Dateien / 275 s / ~9 Forks).
+- `--force` nur nach Änderungen an Build-Outputs geteilter Pakete, dann mit `--filter`. Nie als Reflex am Ende.
 
 ### Frontend component testing
 

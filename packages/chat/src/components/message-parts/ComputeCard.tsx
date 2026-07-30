@@ -102,7 +102,7 @@ export function ComputeCard({ data }: { data: ComputeData }) {
 
   return (
     <div
-      className="my-2 w-full rounded-lg border border-border bg-background p-3"
+      className="my-5 w-full rounded-xl border border-border bg-background px-4 py-3"
       role="group"
       aria-label={`Berechnung: ${data.operation}`}
     >

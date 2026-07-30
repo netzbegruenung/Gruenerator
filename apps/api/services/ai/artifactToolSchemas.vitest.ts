@@ -20,7 +20,11 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { PDF_DOCUMENT_TOOL_SCHEMA, pdfDocumentSchema } from '../pdf/pdfDocument.js';
+import {
+  PDF_DOCUMENT_TOOL_SCHEMA,
+  pdfDocumentFromModelSchema,
+  pdfDocumentSchema,
+} from '../pdf/pdfDocument.js';
 
 vi.mock('../../database/services/PostgresService/PostgresService.js', () => ({
   getPostgresInstance: () => ({}),
@@ -141,5 +145,193 @@ describe('the loose pdf wire schema still feeds the strict Zod gate', () => {
     if (!parsed.success) {
       expect(parsed.error.issues.map((i) => i.path.join('.'))).toContain('blocks');
     }
+  });
+});
+
+/**
+ * Every block type with every optional field filled, plus the list of fields a
+ * model may legitimately leave out.
+ *
+ * Extend this when a block type or an optional field is added — that is the
+ * point: the null case below is derived from it, so a new optional field is
+ * covered without anyone remembering to write a test for it.
+ */
+const BLOCK_CASES: Array<{ kind: string; block: Record<string, unknown>; optional: string[] }> = [
+  { kind: 'heading', block: { type: 'heading', level: 2, text: 'Maßnahmen' }, optional: ['level'] },
+  { kind: 'paragraph', block: { type: 'paragraph', text: 'Fließtext.' }, optional: [] },
+  {
+    kind: 'list',
+    block: { type: 'list', ordered: true, items: ['Erstens', 'Zweitens'] },
+    optional: ['ordered'],
+  },
+  {
+    kind: 'table',
+    block: {
+      type: 'table',
+      columns: ['Nr.', 'Quelle'],
+      rows: [['1', 'Bundestag']],
+      caption: 'Quellen',
+    },
+    optional: ['caption'],
+  },
+  {
+    kind: 'quote',
+    block: { type: 'quote', text: 'Zitat.', source: 'Plenarprotokoll' },
+    optional: ['source'],
+  },
+  { kind: 'note', block: { type: 'note', title: 'Hinweis', text: 'Kasten.' }, optional: ['title'] },
+  {
+    kind: 'keyvalue',
+    block: { type: 'keyvalue', entries: [{ label: 'Datum', value: '01.03.2026' }] },
+    optional: [],
+  },
+  { kind: 'divider', block: { type: 'divider' }, optional: [] },
+  { kind: 'pagebreak', block: { type: 'pagebreak' }, optional: [] },
+  {
+    kind: 'field (multiline)',
+    block: {
+      type: 'field',
+      kind: 'multiline',
+      label: 'Begründung',
+      name: 'begruendung',
+      lines: 6,
+      required: true,
+      help: 'Kurz halten.',
+      width: 'full',
+    },
+    optional: ['kind', 'name', 'lines', 'required', 'help', 'width'],
+  },
+  {
+    kind: 'field (select)',
+    block: {
+      type: 'field',
+      kind: 'select',
+      label: 'Gliederung',
+      options: ['Kreisverband', 'Landesverband'],
+    },
+    optional: ['options'],
+  },
+  {
+    kind: 'signature',
+    block: { type: 'signature', labels: ['Ort, Datum', 'Unterschrift'] },
+    optional: [],
+  },
+];
+
+const asDocument = (block: Record<string, unknown>): unknown => ({
+  title: 'Testdokument',
+  blocks: [block],
+});
+
+/**
+ * The failure this suite exists for: `[PdfGeneration] structure rejected:
+ * blocks.13.caption: Expected string, received null` — the model filled an
+ * optional field with `null` ("not applicable") and the whole document was
+ * discarded. `.optional()` accepts only `undefined`, so EVERY optional field
+ * was a live version of this bug. The old suite tested only the obedient model.
+ */
+describe('model output survives the dialect the model actually speaks', () => {
+  for (const { kind, block, optional } of BLOCK_CASES) {
+    it(`accepts a fully specified ${kind} block`, () => {
+      expect(pdfDocumentFromModelSchema.safeParse(asDocument(block)).success).toBe(true);
+    });
+
+    for (const field of optional) {
+      it(`tolerates null in ${kind}.${field}`, () => {
+        const parsed = pdfDocumentFromModelSchema.safeParse(
+          asDocument({ ...block, [field]: null })
+        );
+        expect(parsed.success).toBe(true);
+      });
+    }
+  }
+
+  it('tolerates null in the document-level optionals', () => {
+    const parsed = pdfDocumentFromModelSchema.safeParse({
+      title: 'Testdokument',
+      subtitle: null,
+      letter: null,
+      kind: null,
+      language: null,
+      blocks: [{ type: 'paragraph', text: 'Text.' }],
+    });
+
+    expect(parsed.success).toBe(true);
+    // Dropping the null lets the schema default apply — it does not leak through.
+    if (parsed.success) {
+      expect(parsed.data.kind).toBe('document');
+      expect(parsed.data.language).toBe('de-DE');
+    }
+  });
+
+  it('keeps table geometry when a CELL is null', () => {
+    // Dropping the cell would shift every later cell one column left, and
+    // renderTable pads short rows at the END — the data would end up filed
+    // under the wrong heading instead of being visibly empty.
+    const parsed = pdfDocumentFromModelSchema.safeParse(
+      asDocument({
+        type: 'table',
+        columns: ['Nr.', 'Quelle', 'URL'],
+        rows: [['1', null, 'https://example.org']],
+      })
+    );
+
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      const table = parsed.data.blocks[0];
+      expect(table?.type === 'table' && table.rows[0]).toEqual(['1', '', 'https://example.org']);
+    }
+  });
+
+  it('still rejects broken structure — leniency covers absent values, not damage', () => {
+    const cases: unknown[] = [
+      { title: null, blocks: [{ type: 'paragraph', text: 'Text.' }] }, // required field
+      asDocument({ type: 'paragraph', text: null }), // required field of a block
+      asDocument({ type: 'gibberish', text: 'Text.' }), // unknown block type
+      { title: 'Leer', blocks: [] },
+    ];
+
+    for (const input of cases) {
+      expect(pdfDocumentFromModelSchema.safeParse(input).success).toBe(false);
+    }
+  });
+});
+
+/**
+ * The flat wire schema has ONE type per property NAME across all block types.
+ * A name used with two different types in `pdfDocumentSchema` is therefore not
+ * a style question but a defect: the model follows the wire schema and the Zod
+ * gate rejects the result. `rows` was exactly that — the table's `string[][]`
+ * and the form field's line count — until the field was renamed to `lines`.
+ */
+describe('wire schema and Zod gate agree on every property name', () => {
+  const blockProps = ((PDF_DOCUMENT_TOOL_SCHEMA.properties as Record<string, JsonSchema>).blocks
+    .items?.properties ?? {}) as Record<string, JsonSchema>;
+
+  it('declares rows as the table shape and lines as the field height', () => {
+    expect(blockProps.rows?.type).toBe('array');
+    expect(blockProps.lines?.type).toBe('integer');
+  });
+
+  it('offers every property some block type actually accepts', () => {
+    // Each wire property must be reachable: it appears on at least one block in
+    // BLOCK_CASES, which the suite above proves the gate accepts.
+    const used = new Set(BLOCK_CASES.flatMap(({ block }) => Object.keys(block)));
+    const unreachable = Object.keys(blockProps).filter((name) => !used.has(name));
+
+    expect(unreachable).toEqual([]);
+  });
+
+  it('documents that nested list items stay export-only', () => {
+    // pdfDocumentSchema allows `{text, level}` items (contentToBlocks emits them
+    // from nested HTML lists), the wire schema deliberately does not: expressing
+    // string|object needs `anyOf`, which the provider guard above forbids. So
+    // chat-generated lists are flat by design, not by accident.
+    expect(blockProps.items?.items?.type).toBe('string');
+    expect(
+      pdfDocumentSchema.safeParse(
+        asDocument({ type: 'list', items: [{ text: 'Unterpunkt', level: 1 }] })
+      ).success
+    ).toBe(true);
   });
 });

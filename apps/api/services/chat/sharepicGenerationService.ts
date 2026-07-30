@@ -6,6 +6,8 @@ import { fileURLToPath } from 'url';
 import { errorText, isRefusalError } from '../../routes/chat/services/refusalDetection.js';
 import dreizeilenOverlayAtCanvasRouter from '../../routes/sharepic/sharepic_canvas/at/dreizeilen_overlay_at_canvas.js';
 import infoAtCanvasRouter from '../../routes/sharepic/sharepic_canvas/at/info_at_canvas.js';
+import zitatAtCanvasRouter from '../../routes/sharepic/sharepic_canvas/at/zitat_at_canvas.js';
+import zitatPureAtCanvasRouter from '../../routes/sharepic/sharepic_canvas/at/zitat_pure_at_canvas.js';
 import campaignCanvasRouter from '../../routes/sharepic/sharepic_canvas/campaign_canvas.js';
 import dreizeilenCanvasRouter from '../../routes/sharepic/sharepic_canvas/dreizeilen_canvas.js';
 import infoCanvasRouter from '../../routes/sharepic/sharepic_canvas/info_canvas.js';
@@ -416,24 +418,40 @@ const buildInfoCanvasPayload = ({
 };
 
 /**
+ * Welcher Canvas serverseitig rendert — die einzige Stelle, an der die Locale
+ * über das Sujet entscheidet.
+ *
+ * Alle AT-Routen nehmen dieselben Bodies wie ihre deutschen Gegenstücke: die
+ * Zitat-Sujets `{ quote, name }`, das Overlay `mainSlogan` (es liest `line2` als
+ * Alias für die gelbe Mittelzeile und `subline` als Ergänzung). Deshalb genügt
+ * hier der Tausch des Routers.
+ *
+ * Vorher rannten alle drei AT-Pfade durch den deutschen Canvas. In der
+ * Variantenliste des Chats fällt das nicht auf — die Karten rendern
+ * clientseitig über StandaloneCanvas und werfen `sharepic.image` weg. Auf den
+ * übrigen Aufrufwegen von `generateSharepicForChat` (routes.ts, PRAgent,
+ * DefaultSharepicService) ist es genau das Bild, das ausgeliefert wird.
+ */
+const CANVAS_ROUTERS = {
+  dreizeilen: { de: dreizeilenCanvasRouter, at: dreizeilenOverlayAtCanvasRouter },
+  zitat: { de: zitatCanvasRouter, at: zitatAtCanvasRouter },
+  zitat_pure: { de: zitatPureCanvasRouter, at: zitatPureAtCanvasRouter },
+} as const;
+
+const canvasRouterFor = (sujet: keyof typeof CANVAS_ROUTERS, requestBody: RequestBody): Router => {
+  const paar = CANVAS_ROUTERS[sujet];
+  return requestBody.userLocale === 'de-AT' ? paar.at : paar.de;
+};
+
+/**
  * Info-Sujet für Österreich: Introline, Infotext und gelbe Schlusszeile.
  *
- * Eigener Zweig, weil `mainInfo` hier andere Schlüssel trägt — der Textpfad
- * wählt über die `<type>_at`-Konvention die Feldliste `introline/text/akzent`.
- * Gegen die deutsche Destrukturierung gelesen wären alle drei `undefined`
- * gewesen und der Canvas hätte ein leeres Bild bekommen.
+ * Eigener Zweig statt eines Router-Tauschs, weil `mainInfo` hier andere
+ * Schlüssel trägt — der Textpfad wählt über die `<type>_at`-Konvention die
+ * Feldliste `introline/text/akzent`. Gegen die deutsche Destrukturierung
+ * gelesen wären alle drei `undefined` gewesen und der Canvas hätte ein leeres
+ * Bild bekommen.
  */
-/**
- * Welcher Dreizeiler-Canvas serverseitig rendert.
- *
- * Österreich bekommt das Overlay-Sujet: dieselben drei Zeilen, aber auf einer
- * Farbfläche über dem Foto. Der Router liest `line2` als Alias für die gelbe
- * Mittelzeile und `subline` als Ergänzung — `mainSlogan` passt also unverändert
- * als Body. Vorher lief auch der AT-Pfad durch den deutschen Canvas.
- */
-const dreizeilenRouterFor = (requestBody: RequestBody): Router =>
-  requestBody.userLocale === 'de-AT' ? dreizeilenOverlayAtCanvasRouter : dreizeilenCanvasRouter;
-
 const generateInfoAtSharepic = async (
   expressReq: ExpressRequest,
   requestBody: RequestBody
@@ -560,7 +578,10 @@ const generateZitatPureSharepic = async (
       ? requestBody.name
       : (textResponse.name as string) || '';
 
-  const { payload: canvasPayload } = await callCanvasRoute(zitatPureCanvasRouter, { quote, name });
+  const { payload: canvasPayload } = await callCanvasRoute(
+    canvasRouterFor('zitat_pure', requestBody),
+    { quote, name }
+  );
 
   if (!canvasPayload?.image) {
     throw new Error('Zitat Pure canvas did not return an image');
@@ -604,7 +625,7 @@ const _generateDreizeilenSharepic = async (
   log.debug('[SharepicGeneration] Dreizeilen mainSlogan received:', JSON.stringify(mainSlogan));
 
   const { payload: canvasPayload } = await callCanvasRoute(
-    dreizeilenRouterFor(requestBody),
+    canvasRouterFor('dreizeilen', requestBody),
     mainSlogan as Record<string, unknown>
   );
 
@@ -684,7 +705,7 @@ const generateZitatWithImageSharepic = async (
     };
 
     const { payload: canvasPayload } = await callCanvasRoute(
-      zitatCanvasRouter,
+      canvasRouterFor('zitat', requestBody),
       mockReq.body,
       mockReq.file
     );
@@ -767,7 +788,7 @@ const generateDreizeilenWithImageSharepic = async (
     };
 
     const { payload: canvasPayload } = await callCanvasRoute(
-      dreizeilenRouterFor(requestBody),
+      canvasRouterFor('dreizeilen', requestBody),
       mockReq.body as Record<string, unknown>,
       mockReq.file as { buffer: Buffer; mimetype: string; originalname: string }
     );
@@ -844,7 +865,7 @@ const generateDreizeilenWithAIImageSharepic = async (
     };
 
     const { payload: canvasPayload } = await callCanvasRoute(
-      dreizeilenRouterFor(requestBody),
+      canvasRouterFor('dreizeilen', requestBody),
       mockReq.body as Record<string, unknown>,
       mockReq.file as { buffer: Buffer; mimetype: string; originalname: string }
     );

@@ -18,10 +18,28 @@
  *   - internal-first — web search / scraping is refused until the internal
  *     document search ran at least once (structural enforcement of the
  *     "erst interne Dokumente" policy the prompt alone failed to deliver).
+ *   - search concurrency — at most `maxConcurrentSearches` search-family calls
+ *     may be in flight at once. The surplus is DEFERRED, not failed: the model
+ *     is told to read the running results first, so its next query is chosen
+ *     with evidence in hand instead of guessed alongside it.
  */
 
 export const MAX_FAILURES_PER_TOOL = 2;
 export const MAX_TOTAL_FAILURES = 5;
+/**
+ * How many search-family calls may run at the same time.
+ *
+ * The AI SDK executes every tool call of one model step concurrently, so a model
+ * that emits four searches in a step gets four paid calls and no chance to
+ * reconsider between them — the fourth query was written before the first result
+ * existed. Two keeps the obvious parallelism (a comparison's two halves) and
+ * makes everything beyond that sequential and therefore informed.
+ *
+ * Not enforced via the providers' `parallelToolCalls: false` (available on
+ * @ai-sdk/mistral and @ai-sdk/openai): that would cap the step at ONE tool call
+ * for every tool, not two for searches.
+ */
+export const MAX_CONCURRENT_SEARCHES = 2;
 // Raised for multi-topic questions: a "compare A, B, C, D" turn legitimately
 // needs one search per topic. Redundancy is stopped by the Jaccard near-dup
 // guard (sameness), NOT by a low call ceiling (volume).
@@ -59,6 +77,8 @@ export interface ToolLoopGuardOptions {
   /** Tools counted against the search budget. */
   searchToolNames?: ReadonlySet<string>;
   maxSearchCalls?: number;
+  /** In-flight ceiling for search-family calls. Default MAX_CONCURRENT_SEARCHES. */
+  maxConcurrentSearches?: number;
   maxSources?: number;
   /** Live source count (sourceRegistry.size) — a context-safety ceiling only. */
   getSourceCount?: () => number;
@@ -84,6 +104,13 @@ export interface ToolLoopGuards {
   checkTotalFailureBudget(): string | null;
   /** Non-null once the search budget (call count or source count) is spent. */
   checkSearchBudget(toolName: string): string | null;
+  /**
+   * Non-null while `maxConcurrentSearches` search-family calls are already in
+   * flight. A DEFERRAL, not a failure: the same call may be repeated verbatim in
+   * a later step, which is why the caller must run this BEFORE `checkDuplicate`
+   * (that one registers the call key on the way through).
+   */
+  checkSearchConcurrency(toolName: string): string | null;
   /** Non-null when a web/scrape tool is called before the internal search. */
   checkInternalFirst(toolName: string): string | null;
   /** Records an executed call (after all guards passed). */
@@ -189,6 +216,7 @@ export function createToolLoopGuards(options: ToolLoopGuardOptions = {}): ToolLo
   const duplicateScope = options.duplicateScope ?? 'turn';
   const searchToolNames = options.searchToolNames ?? new Set<string>();
   const maxSearchCalls = options.maxSearchCalls ?? MAX_SEARCH_CALLS;
+  const maxConcurrentSearches = options.maxConcurrentSearches ?? MAX_CONCURRENT_SEARCHES;
   const maxSources = options.maxSources ?? MAX_SOURCES;
   const nearDuplicateJaccard =
     duplicateScope === 'turn' ? (options.nearDuplicateJaccard ?? NEAR_DUPLICATE_JACCARD) : 0;
@@ -281,6 +309,21 @@ export function createToolLoopGuards(options: ToolLoopGuardOptions = {}): ToolLo
       const sourceCount = options.getSourceCount?.() ?? 0;
       if (searchCalls >= maxSearchCalls || sourceCount >= maxSources) {
         return 'Du hast bereits ausführlich gesucht — führe KEINE weitere Suche aus und beantworte die Frage jetzt mit den vorhandenen Quellen.';
+      }
+      return null;
+    },
+    checkSearchConcurrency(toolName) {
+      if (!searchToolNames.has(toolName)) return null;
+      // In flight = called but not yet completed. `noteCall` bumps synchronously
+      // before the tool is awaited and `noteCompletion` after its result lands,
+      // so within one model step the first calls pass and the surplus sees a full
+      // count — the same window `checkInternalFirst` already relies on.
+      let inFlight = 0;
+      for (const name of searchToolNames) {
+        inFlight += (callCounts.get(name) ?? 0) - (completedCounts.get(name) ?? 0);
+      }
+      if (inFlight >= maxConcurrentSearches) {
+        return `Es ${maxConcurrentSearches === 1 ? 'läuft' : 'laufen'} bereits ${maxConcurrentSearches} Suche${maxConcurrentSearches === 1 ? '' : 'n'}. Warte auf das Ergebnis, bewerte es — und suche erst dann weiter, wenn wirklich etwas fehlt. Diese Suche kannst du danach unverändert erneut starten.`;
       }
       return null;
     },

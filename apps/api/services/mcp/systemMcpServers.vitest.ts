@@ -54,25 +54,27 @@ describe('getSystemMcpSources (env matrix)', () => {
     expect(isSystemIntentAvailable('news')).toBe(true);
   });
 
-  it('reise umbrella mounts bahn + hotel + wetter (configured subset)', () => {
+  it('each remaining intent maps to exactly its own source', () => {
     process.env.SYSTEM_MCP_DB_URL = 'https://db.example.org/mcp';
     process.env.SYSTEM_MCP_TRIVAGO_URL = 'https://trivago.example.org/mcp';
-    // wetter NOT configured → reise mounts only the configured pair.
-    expect(getSourcesForIntent('reise').map((s) => s.key)).toEqual(['bahn', 'hotel']);
-    expect(isSystemIntentAvailable('reise')).toBe(true);
-
     process.env.SYSTEM_MCP_WEATHER_URL = 'https://meteo.example.org/mcp';
-    expect(getSourcesForIntent('reise').map((s) => s.key)).toEqual(['bahn', 'hotel', 'wetter']);
-    // single-source intents stay single-source.
     expect(getSourcesForIntent('bahn').map((s) => s.key)).toEqual(['bahn']);
     expect(getSourcesForIntent('hotel').map((s) => s.key)).toEqual(['hotel']);
     expect(getSourcesForIntent('wetter').map((s) => s.key)).toEqual(['wetter']);
   });
 
-  it('reise stays available while ANY of its sources is configured', () => {
+  it('reise is switched off — no source, whatever the env says', () => {
+    // The travel umbrella used to mount bahn + hotel + wetter in one turn. It was
+    // the only intent mixing a German-only source with global ones, so an Austrian
+    // travel turn could force the loop and mount nothing. Off until there is an
+    // ÖBB counterpart; the enum value stays, the intent degrades to web.
+    process.env.SYSTEM_MCP_DB_URL = 'https://db.example.org/mcp';
     process.env.SYSTEM_MCP_TRIVAGO_URL = 'https://trivago.example.org/mcp';
-    expect(isSystemIntentAvailable('reise')).toBe(true);
-    expect(isSystemIntentAvailable('bahn')).toBe(false);
+    process.env.SYSTEM_MCP_WEATHER_URL = 'https://meteo.example.org/mcp';
+    expect(getSourcesForIntent('reise')).toEqual([]);
+    expect(isSystemIntentAvailable('reise')).toBe(false);
+    expect(isSystemIntentAvailable('reise', 'de-DE')).toBe(false);
+    expect(isSystemIntentAvailable('reise', 'de-AT')).toBe(false);
   });
 
   it('non-system intents are never "available"', () => {
@@ -112,5 +114,60 @@ describe('getSystemMcpSources (env matrix)', () => {
       expect(s.capability.length).toBeGreaterThan(10);
       expect(s.promptHint.length).toBeGreaterThan(10);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Locale gating. A source is dropped when its data does not cover the user's
+// country — resolved per SOURCE, not per intent, because `reise` mounts three
+// at once and only the train one is German-only.
+// ---------------------------------------------------------------------------
+
+describe('locale gating', () => {
+  const allConfigured = () => {
+    process.env.SYSTEM_MCP_DB_URL = 'https://db.example';
+    process.env.SYSTEM_MCP_WEATHER_URL = 'https://weather.example';
+    process.env.SYSTEM_MCP_ARD_URL = 'https://ard.example';
+    process.env.SYSTEM_MCP_TRIVAGO_URL = 'https://trivago.example';
+  };
+
+  it('keeps every source for a German user', () => {
+    allConfigured();
+    expect(getSourcesForIntent('bahn', 'de-DE')).toHaveLength(1);
+    expect(getSourcesForIntent('news', 'de-DE')).toHaveLength(1);
+    expect(getSourcesForIntent('wetter', 'de-DE')).toHaveLength(1);
+    expect(getSourcesForIntent('hotel', 'de-DE')).toHaveLength(1);
+  });
+
+  it('drops only the German-only sources for an Austrian user', () => {
+    allConfigured();
+    expect(getSourcesForIntent('bahn', 'de-AT')).toHaveLength(0);
+    expect(getSourcesForIntent('news', 'de-AT')).toHaveLength(0);
+    // Global sources are untouched.
+    expect(getSourcesForIntent('wetter', 'de-AT')).toHaveLength(1);
+    expect(getSourcesForIntent('hotel', 'de-AT')).toHaveLength(1);
+  });
+
+  it('keeps the full set when no locale is given (health checks, catalogs)', () => {
+    allConfigured();
+    expect(getSourcesForIntent('bahn')).toHaveLength(1);
+    expect(getSourcesForIntent('news')).toHaveLength(1);
+  });
+
+  it('reports availability per locale', () => {
+    allConfigured();
+    expect(isSystemIntentAvailable('bahn', 'de-DE')).toBe(true);
+    expect(isSystemIntentAvailable('bahn', 'de-AT')).toBe(false);
+    // Global sources survive the Austrian gate.
+    expect(isSystemIntentAvailable('wetter', 'de-AT')).toBe(true);
+    expect(isSystemIntentAvailable('hotel', 'de-AT')).toBe(true);
+  });
+
+  it('derives DE_ONLY_SYSTEM_INTENTS instead of hand-listing it', async () => {
+    const { DE_ONLY_SYSTEM_INTENTS } = await import('./systemMcpServers.js');
+    expect([...DE_ONLY_SYSTEM_INTENTS].sort()).toEqual(['bahn', 'news']);
+    // `reise` is absent for a different reason than before: it has no sources at
+    // all now, so it degrades via the availability check, not the audience one.
+    expect(DE_ONLY_SYSTEM_INTENTS.has('reise' as never)).toBe(false);
   });
 });

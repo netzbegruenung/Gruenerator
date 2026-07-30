@@ -1,35 +1,46 @@
 'use client';
 
-import { memo, useState } from 'react';
+import { ActionBarPrimitive } from '@assistant-ui/react';
 import { Copy, Check, Download, Loader2, RefreshCw, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { memo, useState } from 'react';
 import { HiOutlineDocumentText } from 'react-icons/hi';
-import { useMessageRuntime, ActionBarPrimitive } from '@assistant-ui/react';
-import type { ExportToDocsBody, ExportToDocsResponse } from '@gruenerator/contracts';
-import { useChatConfigStore } from '../../stores/chatConfigStore';
-import { useAgentStore } from '../../stores/chatStore';
+
 import { useExtraActions } from '../../context/ExtraActionsContext';
 import { useRegenerateMessage } from '../../hooks/useRegenerateMessage';
 // import { MessageTTSButton } from './MessageTTSButton';
 import { formatSourcesMarkdown } from '../../lib/formatSourcesMarkdown';
 import { notifyError } from '../../lib/notify';
+import { useChatConfigStore } from '../../stores/chatConfigStore';
+import { useChatDensity } from '../thread/chatDensityContext';
 
 import { MessageBranchPicker } from './MessageBranchPicker';
+import { MessageSourcesButton } from './MessageSourcesButton';
 
-import type { ChatMessage } from '../../hooks/useChatGraphStream';
+import type { Citation, ChatMessage } from '../../hooks/useChatGraphStream';
+import type { ExportToDocsBody, ExportToDocsResponse } from '@gruenerator/contracts';
 
 interface MessageActionsProps {
   content: string;
   metadata?: ChatMessage['metadata'];
   /** Show thumbs up/down — only when this turn produced a Langfuse trace. */
   showFeedback?: boolean;
+  /** Sources of this turn. Rendered as a glyph stack at the end of the row;
+   *  the list itself stays in `SearchResultsSection` below. */
+  sources?: Citation[];
+  sourcesOpen?: boolean;
+  onToggleSources?: () => void;
 }
 
 export const MessageActions = memo(function MessageActions({
   content,
   metadata,
   showFeedback = false,
+  sources,
+  sourcesOpen = false,
+  onToggleSources,
 }: MessageActionsProps) {
   const extraActions = useExtraActions();
+  const isCompact = useChatDensity() === 'compact';
   const handleRegenerate = useRegenerateMessage();
   const [copied, setCopied] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -135,7 +146,7 @@ export const MessageActions = memo(function MessageActions({
   };
 
   return (
-    <div className="mt-2 flex items-center gap-1">
+    <div className={`${isCompact ? 'mt-2' : 'mt-4'} flex items-center gap-1`}>
       <button
         onClick={handleCopy}
         className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
@@ -206,6 +217,9 @@ export const MessageActions = memo(function MessageActions({
             <ThumbsDown className="h-4 w-4" />
           </ActionBarPrimitive.FeedbackNegative>
         </>
+      )}
+      {sources && sources.length > 0 && onToggleSources && (
+        <MessageSourcesButton citations={sources} open={sourcesOpen} onToggle={onToggleSources} />
       )}
     </div>
   );

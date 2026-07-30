@@ -25,7 +25,7 @@ import { partitionSearchErrors } from '../../../agents/langgraph/ChatGraph/types
 import { env } from '../../../config/env.js';
 import { type ExpressRequest as SharepicExpressRequest } from '../../../services/chat/sharepicGenerationService.js';
 import { createRecurringTask } from '../../../services/recurringTasks/recurringTasksRepository.js';
-import { resolveTier, tierFromClassification } from '../../../services/search/searchDepth.js';
+import { resolveSearchTier, resolveTier } from '../../../services/search/searchDepth.js';
 import { toUserFacingMessage } from '../../../utils/errors/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -47,6 +47,7 @@ import {
   type CreateTurnOpts,
 } from './createTurn.js';
 import { failCreation, rememberArtifact } from './createTurnHelpers.js';
+import { runDeepResearchTurn } from './deepResearchTurn.js';
 import { extractTextContent } from './messageHelpers.js';
 import {
   recallPastChats,
@@ -1214,6 +1215,34 @@ export async function executeIntentPipeline(opts: {
       if (toolEnabled) {
         let searchInputState = finalState;
 
+        // @deepresearch: Linkup writes the dossier, so this path replaces BOTH
+        // halves of the turn — retrieval and synthesis. It must therefore skip
+        // everything below, not just the search node: reranking reorders
+        // `searchResults`, and Linkup's [N] point at the original order.
+        //
+        // `null` means "not served" (quota spent, no key, failed call) and falls
+        // through to the ordinary research path with the warning already sent.
+        if (searchInputState.deepResearchRequested === true) {
+          const dossier = await runDeepResearchTurn({ state: searchInputState, sse });
+          if (dossier) {
+            finalState = { ...searchInputState, ...dossier } as ChatGraphState;
+            sse.send('search_complete', {
+              message: PROGRESS_MESSAGES.searchComplete(finalState.searchResults?.length ?? 0),
+              resultCount: finalState.searchResults?.length ?? 0,
+              results: (finalState.searchResults ?? []).slice(0, 10).map((r) => {
+                const result: SearchResultPayload = {
+                  source: r.source,
+                  title: r.title,
+                  content: r.content,
+                };
+                if (r.url != null) result.url = r.url;
+                return result;
+              }),
+            });
+            continue;
+          }
+        }
+
         // A retry of a research turn whose GENERATION failed: the sources are
         // already on the thread. Re-running Linkup costs ~17s and a paid call
         // to answer the identical question a second time (observed live, 36s
@@ -1271,16 +1300,26 @@ export async function executeIntentPipeline(opts: {
         // The progress line now follows the TIER, not the intent: "recherchiere"
         // no longer means a different engine, so promising "dauert 15–20s" on
         // every such turn would be a lie about a search that takes two.
-        const searchTier = tierFromClassification({
+        const searchTier = resolveSearchTier({
           intent: currentIntent,
-          complexity: searchInputState.complexity ?? null,
+          explicitDeep: searchInputState.explicitDeepRequest ?? false,
         });
         if (!reused) {
+          const baseProgress =
+            searchTier === 'standard'
+              ? PROGRESS_MESSAGES.searchStart
+              : resolveTier(searchTier).progress;
+          // A site scope must be VISIBLE. It was extracted heuristically from the
+          // user's wording, so a wrong read has to be recognisable as such —
+          // otherwise the user sees results missing and has no way to tell that
+          // the search was narrowed at all. Named in the progress line rather than
+          // a new event field, because that line is already rendered everywhere.
+          const scopeDomains = searchInputState.webSiteScope?.include ?? [];
           sse.send('search_start', {
             message:
-              searchTier === 'standard'
-                ? PROGRESS_MESSAGES.searchStart
-                : resolveTier(searchTier).progress,
+              scopeDomains.length > 0
+                ? `${baseProgress.replace(/[…\s]+$/, '')} — nur auf ${scopeDomains.join(', ')}…`
+                : baseProgress,
             ...(finalState.subQueries?.length && { subQueries: finalState.subQueries }),
           });
           if (searchTier !== 'standard') {
