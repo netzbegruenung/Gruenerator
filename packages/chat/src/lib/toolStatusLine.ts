@@ -46,13 +46,31 @@ export interface StatusPartLike extends PartLike {
 /** Longest query echoed in the status line before it is elided. */
 const MAX_QUERY_CHARS = 60;
 
+const ELLIPSIS = '…';
+
+/**
+ * Drop trailing ellipses (the server often sends an already-elided query, and
+ * appending our own would read `„Klimageld……"`).
+ *
+ * Deliberately a loop, not `/…+$/`. An end-anchored `+` backtracks: for a string
+ * of N ellipses that fails the anchor, the engine retries from every start
+ * position, which is quadratic in N — CodeQL `js/polynomial-redos`, and the input
+ * is a tool argument, so its length is not ours to bound. Scanning from the end
+ * is linear and needs no reasoning about the engine.
+ */
+function stripTrailingEllipses(value: string): string {
+  let end = value.length;
+  while (end > 0 && value[end - 1] === ELLIPSIS) end--;
+  return value.slice(0, end);
+}
+
 /**
  * The status-line label for one retrieval step, e.g. `Websuche „Wer war Marilyn
  * Monroe?"`. Without a usable query it degrades to the bare tool label.
  */
 export function searchStatusLabel(toolName: string, query: string | null): string {
   const label = getToolMeta(toolName).label;
-  const q = (query ?? '').trim().replace(/…+$/, '').trim();
+  const q = stripTrailingEllipses((query ?? '').trim()).trim();
   // `tool_step_start` falls back to the card TITLE as `query` when the server
   // sends no args — „Websuche „Websuche"" reads like a bug, so drop it.
   if (!q || q.toLowerCase() === label.toLowerCase()) return label;
