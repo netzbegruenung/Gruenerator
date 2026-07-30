@@ -14,6 +14,7 @@ import { CLASSIFIER_CONTEXT_MESSAGES, CLASSIFIER_CONTEXT_MAX_CHARS } from './cla
 import {
   hasExplicitSharepicWord,
   isMetaQuestionAbout,
+  isNegatedArtifactRequest,
   negatedOrMeta,
   stripQuotedSpans,
 } from './fastPathGuards.js';
@@ -265,6 +266,77 @@ export function hasImageEditVerb(text: string): boolean {
  */
 export function mentionsImageNoun(text: string): boolean {
   return IMAGE_NOUN_PATTERN.test(text);
+}
+
+// Verbs that ask to SEE something that already exists, as opposed to having it
+// made. Kept separate from SEARCH_LOOKUP_VERB_PATTERN below: that one gates a
+// scope restriction and may under-fire safely, while this one decides whether we
+// pay for image hits, so it lists the showing verbs ("zeig", "hast du") that a
+// search-verb pattern has no reason to know about.
+const IMAGE_LOOKUP_VERB_PATTERN =
+  /\b(?:zeig\w*|find\w*|such\w*|schick\w*|gib\s+mir|hast\s+du|gibt\s+es|gibts|existier\w*|recherchier\w*|google\w*)\b/i;
+
+// Verbs that ask for a NEW image. Their presence vetoes the lookup reading even
+// when a showing verb is also there ("such ein Motiv und erstell daraus ein
+// Bild") — buying stock links for a generation request is the expensive mistake,
+// and the image intent already owns that turn.
+const IMAGE_CREATE_VERB_PATTERN =
+  /\b(?:erstell\w*|generier\w*|erzeug\w*|zeichne\w*|male\w*|mal\s|illustrier\w*|entwirf\w*|entwerf\w*|bau\w*)\b/i;
+
+// "Bilder von der Demo" as a whole message: a bare noun phrase with no verb at
+// all is still unambiguously a request to see them. Anchored at the start so it
+// cannot match the noun buried in prose ("… erklärt das Bild von der Demo").
+const BARE_IMAGE_REQUEST_PATTERN =
+  /^\s*(?:bitte\s+)?(?:bilder|fotos|photos|images|pictures|aufnahmen)\b/i;
+
+// Image nouns INCLUDING their German plurals, for the lookup gate below.
+//
+// Deliberately not `IMAGE_NOUN_PATTERN`/`IMAGE_GEN_NOUN_PATTERN`: both of those
+// stop at "bild" and "foto" and reject "Bilder"/"Fotos", because their alternation
+// is followed by a boundary assertion and "bild" inside "bilder" has none. Those
+// two patterns gate the image-EDIT and image-GENERATION paths, where the singular
+// is what people write ("bearbeite das Foto"), so widening them would change
+// routing that has nothing to do with this feature. Here the plural is the
+// dominant phrasing — nobody asks for "ein Bild von der Demo" when they mean
+// several — so the gate needs its own pattern, and using the SAME one for the
+// presence check and the negation check is what keeps those two from drifting
+// apart (a noun the gate accepts but the negation guard cannot see is a hole).
+const IMAGE_LOOKUP_NOUN_PATTERN =
+  /\b(?:bild(?:er)?|foto(?:s)?|photo(?:s)?|image(?:s)?|picture(?:s)?|aufnahme(?:n)?)\b/i;
+
+/**
+ * True when the user wants to SEE existing images from the web, not to have one
+ * generated — the only signal that may switch `includeImages` on.
+ *
+ * This distinction is the whole reason the function exists. "Erstell ein Bild von
+ * einem Windrad" and "zeig mir Bilder von Windrädern" share every noun and differ
+ * only in the verb, yet they route to entirely different subsystems: one to image
+ * generation, the other to the web search. Getting it wrong in the expensive
+ * direction means paying for stock links on a generation turn; getting it wrong in
+ * the cheap direction means the user sees no images and asks again.
+ *
+ * Deliberately narrow. Images are never a default (a factual question would pay
+ * for pictures nobody looks at), so an under-firing heuristic costs one clarifying
+ * turn while an over-firing one costs money on every turn that happens to mention
+ * a photo. The `bilder: true` tool argument is the escape hatch for the phrasings
+ * this misses — in the loop, the model can say what it wants directly.
+ */
+export function wantsImageResults(text: string): boolean {
+  if (!IMAGE_LOOKUP_NOUN_PATTERN.test(text)) return false;
+  // "ohne Bilder" / "keine Fotos" — a refusal must never be read as a request.
+  // Fed the SAME pattern as the gate above: with the singular-only pattern this
+  // guard was a no-op on exactly the phrasings the gate accepts, so "zeig mir
+  // keine Fotos" passed straight through it.
+  //
+  // Only the NEGATION half, not `negatedOrMeta`. The meta-question half stands
+  // every artifact fast path down when the message opens with a question word,
+  // because "Was macht ein gutes Sharepic aus?" must not build a sharepic. For a
+  // LOOKUP that reasoning inverts: "gibt es Fotos von dem Protest?" is the
+  // request, and `gibt es` is literally one of the openings that pattern rejects.
+  if (isNegatedArtifactRequest(text, IMAGE_LOOKUP_NOUN_PATTERN)) return false;
+  if (IMAGE_CREATE_VERB_PATTERN.test(text)) return false;
+  if (hasImageEditVerb(text)) return false;
+  return IMAGE_LOOKUP_VERB_PATTERN.test(text) || BARE_IMAGE_REQUEST_PATTERN.test(text);
 }
 
 // Document mutation verbs — used by classifierNode to route `edit_current_doc`

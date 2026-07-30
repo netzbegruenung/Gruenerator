@@ -239,6 +239,8 @@ EINE SUCHE ZUR ZEIT: Starte eine Suche, lies das Ergebnis, und suche erst dann w
 
 SCOPE GEHÖRT IN DIE PARAMETER, NICHT IN DIE ANFRAGE: Nennt der Benutzer Seiten ("such auf zeit.de und orf.at"), setze seiten; nennt er einen Zeitraum ("seit Januar", "letzte Woche"), setze zeitraum. Schreibe beides NICHT in query — dort werden es bloß Suchwörter, und die Suchmaschine filtert nichts.
 
+BILDER: Will der Benutzer Bilder oder Fotos SEHEN ("zeig mir Fotos von der Demo"), setze bilder: true — er bekommt sie als Links. Bild-Treffer sind Recherchematerial zum Anschauen, KEIN verwendbares Bildmaterial: verwende sie nie für Sharepics oder Social-Posts, und behaupte nicht, sie seien frei nutzbar. Will der Benutzer ein NEUES Bild erstellt haben, ist die Websuche das falsche Tool.
+
 NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
     inputSchema: z.object({
       query: z.string().describe('Suchanfrage in deutscher Sprache'),
@@ -273,6 +275,12 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
         .array(z.string())
         .optional()
         .describe('Diese Domains überspringen, z.B. ["reddit.com"]. Reine Hostnamen.'),
+      bilder: z
+        .boolean()
+        .optional()
+        .describe(
+          'Bild-Treffer mitliefern (als Links, keine Vorschaubilder). NUR wenn der Benutzer ausdrücklich Bilder oder Fotos sehen will — nicht bei einer Faktenfrage. Für ein NEUES Bild ist das falsche Tool: dann keine Suche.'
+        ),
       maxResults: z
         .number()
         .optional()
@@ -285,6 +293,7 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
       zeitraum,
       seiten,
       seitenAusschliessen,
+      bilder,
       maxResults,
     }) => {
       try {
@@ -314,6 +323,7 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
           ...(zeitraum && zeitraum !== 'anytime' ? { timeRange: zeitraum } : {}),
           ...(includeDomains.length > 0 ? { includeDomains } : {}),
           ...(excludeDomains.length > 0 ? { excludeDomains } : {}),
+          ...(bilder === true ? { includeImages: true } : {}),
           ...(maxResults != null ? { maxResults } : {}),
         });
       } catch (error) {

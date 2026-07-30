@@ -59,6 +59,12 @@ export interface LinkupSearchResult {
   name: string;
   url: string;
   content: string;
+  /**
+   * `'text'` | `'image'`. Image entries carry `name` + `url` and an EMPTY
+   * `content`, so this discriminates two shapes inside one array. Left as a
+   * widened `string` on purpose: an unknown future type must still reach the
+   * caller as a text hit rather than fail validation.
+   */
   type?: string;
   /**
    * Publication date, when Linkup knows one. ISO-ish string, not guaranteed
@@ -138,6 +144,14 @@ export class LinkupService {
     toDate?: string;
     /** Ask the agent to fan out across adjacent keywords within this one call. */
     adjacentSearches?: boolean;
+    /**
+     * Include image hits. They arrive INSIDE `results`, marked `type: 'image'`
+     * and carrying no `content` — callers must split on `type` before mapping,
+     * or content-less entries end up as numbered sources (see
+     * `partitionLinkupResults`). Off unless asked for: a factual question would
+     * otherwise pay for images nobody looks at.
+     */
+    includeImages?: boolean;
   }): Promise<LinkupSearchResultsResponse> {
     const depth = params.depth ?? 'standard';
     // Guard rather than trust the caller: `fast` has no LLM, so an instruction
@@ -159,6 +173,7 @@ export class LinkupService {
       ...(params.excludeDomains?.length ? { excludeDomains: [...params.excludeDomains] } : {}),
       ...(params.fromDate ? { fromDate: params.fromDate } : {}),
       ...(params.toDate ? { toDate: params.toDate } : {}),
+      ...(params.includeImages ? { includeImages: true } : {}),
     });
   }
 
