@@ -96,8 +96,15 @@ export const DECISION_POINTS = {
       'standard',
       'structured_headings',
       'research_expanded',
-      'synthesis_brief',
-      'synthesis_full',
+      // The turn's shape is prescribed elsewhere in the SAME prompt — by a
+      // synthesis mode or by an intent whose guidance block owns the output
+      // format. This rule then points at that block instead of adding a second
+      // directive on the same axis; `inputs.formatOwner` names the owner.
+      //
+      // Replaces `synthesis_brief`/`synthesis_full`, which WERE that second
+      // directive: a `table` synthesis was told "Kurze, präzise Antworten"
+      // right next to a prescription for a 3–6-dimension comparison table.
+      'own_format',
     ],
   },
 
