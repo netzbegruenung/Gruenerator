@@ -20,7 +20,9 @@
 //      records is dead registry — a guard nobody asks about.
 //   4. `recordDecision` never appears in a `*.vitest.ts` file. The journal is
 //      production instrumentation; a test that writes its own entries
-//      falsifies the decision map it is supposed to describe.
+//      falsifies the decision map it is supposed to describe. One file is
+//      allowlisted below — the test of the recording MECHANISM itself, which
+//      cannot prove the store binds without writing an entry through it.
 //
 // No dependencies — runs before `pnpm install` in the Quality job.
 
@@ -34,6 +36,15 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', '.turbo', 'coverage'
 
 const JOURNAL_FILE = path.join(ROOT, 'apps/api/utils/decisionJournal.ts');
 const TIME_SHAPED_KEY_RE = /ms$|time|date|latency|duration/i;
+
+/**
+ * Test files permitted to call `recordDecision`. An explicit list of paths, not
+ * a pattern: the exception exists for tests of the recording mechanism itself
+ * (does the AsyncLocalStorage store bind, does the sink write what was
+ * recorded), and it must not generalise into "any test near the journal".
+ * Adding a scenario file here would defeat rule 4 entirely.
+ */
+const RECORD_DECISION_TEST_ALLOWLIST = new Set(['apps/api/utils/decisionLog.vitest.ts']);
 
 function walk(dir, out) {
   let entries;
@@ -212,7 +223,9 @@ for (const file of files) {
   if (!content.includes('recordDecision')) continue;
 
   const calls = findRecordDecisionCalls(content);
-  const isVitestFile = file.endsWith('.vitest.ts') || file.endsWith('.vitest.tsx');
+  const isVitestFile =
+    (file.endsWith('.vitest.ts') || file.endsWith('.vitest.tsx')) &&
+    !RECORD_DECISION_TEST_ALLOWLIST.has(relFile);
 
   for (const call of calls) {
     if (isVitestFile) {
