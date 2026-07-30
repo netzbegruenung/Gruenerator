@@ -3,25 +3,20 @@
  * deterministic engine (authority) before drawing, so a tampered client total
  * can never reach the PDF.
  *
- * v1 renders a clean, self-contained A4 layout that mirrors the official form's
- * sections. To emit the pixel-exact official Landesverband form instead, drop
- * the original AcroForm/flat PDF at `assets/reisekosten/<lv>.pdf` and overlay
- * values via `page.drawText` at the field coordinates (same pdf-lib API).
+ * Goes through the shared block renderer (`services/pdf/pdfRenderer`) rather
+ * than drawing on pdf-lib directly. The hand-positioned predecessor marched a
+ * single `y` down one fixed A4 page: a long trip with many Verpflegungstage ran
+ * off the bottom and silently lost rows. The renderer paginates, and its output
+ * is tagged (PDF/UA) — a Reisekostenabrechnung is a document people submit, so
+ * a screen reader has to be able to read it back.
  */
-import fs from 'fs/promises';
-import path, { dirname } from 'path';
-import { fileURLToPath } from 'url';
-
 import { type ReisekostenState } from '@gruenerator/contracts';
 import { computeReisekosten } from '@gruenerator/shared/reisekosten';
-import fontkit from '@pdf-lib/fontkit';
 
+import { type PdfBlock, type PdfDocumentSpec } from '../../services/pdf/pdfDocument.js';
+import { renderPdf, type PdfLocale } from '../../services/pdf/pdfRenderer.js';
 import { createLogger } from '../../utils/logger.js';
 
-import type { PDFFont, RGB } from 'pdf-lib';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 const log = createLogger('reisekostenPdf');
 
 const EUR = (n: number) =>
@@ -46,158 +41,135 @@ const TAG_LABEL: Record<string, string> = {
   abreise: 'Abreisetag',
 };
 
+/**
+ * `rateKey` carries the locale of the rate set it belongs to (`de-DE/nrw`), so
+ * an AT rate set later picks the AT theme without another switch here.
+ */
+function localeFromRateKey(rateKey: string): PdfLocale {
+  return rateKey.startsWith('de-AT') ? 'de-AT' : 'de-DE';
+}
+
 export async function buildReisekostenPdf(state: ReisekostenState): Promise<Buffer> {
   const c = computeReisekosten(state);
-  const { PDFDocument, rgb } = await import('pdf-lib');
+  const { stammdaten, reise } = state;
 
-  const pdfDoc = await PDFDocument.create();
-  pdfDoc.registerFontkit(fontkit);
-  const page = pdfDoc.addPage([595.28, 841.89]); // A4
-  const { width, height } = page.getSize();
-  const margin = 48;
+  const blocks: PdfBlock[] = [];
 
-  const fontsDir = path.join(__dirname, '..', '..', 'public', 'fonts');
-  const [titleBytes, regularBytes, boldBytes] = await Promise.all([
-    fs.readFile(path.join(fontsDir, 'GrueneTypeNeue-Regular.ttf')),
-    fs.readFile(path.join(fontsDir, 'PTSans-Regular.ttf')),
-    fs.readFile(path.join(fontsDir, 'PTSans-Bold.ttf')),
-  ]);
-  const titleFont = await pdfDoc.embedFont(titleBytes);
-  const font = await pdfDoc.embedFont(regularBytes);
-  const bold = await pdfDoc.embedFont(boldBytes);
-
-  const ink = rgb(0.15, 0.15, 0.15);
-  const muted = rgb(0.4, 0.4, 0.4);
-  const gruen = rgb(0.0, 0.36, 0.22);
-  let y = height - margin;
-
-  const text = (
-    s: string,
-    x: number,
-    yy: number,
-    opts: { font?: PDFFont; size?: number; color?: RGB } = {}
-  ) => {
-    page.drawText(s, {
-      x,
-      y: yy,
-      size: opts.size ?? 10,
-      font: opts.font ?? font,
-      color: opts.color ?? ink,
-    });
-  };
-  const right = (
-    s: string,
-    xRight: number,
-    yy: number,
-    opts: { font?: PDFFont; size?: number; color?: RGB } = {}
-  ) => {
-    const f = opts.font ?? font;
-    const size = opts.size ?? 10;
-    const w = f.widthOfTextAtSize(s, size);
-    text(s, xRight - w, yy, opts);
-  };
-  const rowRight = width - margin;
-
-  // ── Header ──
-  text('Reisekostenabrechnung', margin, y, { font: titleFont, size: 22, color: gruen });
-  right('BÜNDNIS 90 / DIE GRÜNEN', rowRight, y + 4, { font: bold, size: 11, color: gruen });
-  y -= 12;
-  right(state.rateKey, rowRight, y, { size: 8, color: muted });
-  y -= 22;
-
-  const line = (label: string, value: string, opts: { bold?: boolean } = {}) => {
-    text(label, margin, y, { color: muted });
-    text(value, margin + 130, y, { font: opts.bold ? bold : font });
-    y -= 16;
-  };
-  const section = (title: string) => {
-    y -= 6;
-    text(title, margin, y, { font: bold, size: 12, color: gruen });
-    y -= 6;
-    page.drawLine({
-      start: { x: margin, y },
-      end: { x: rowRight, y },
-      thickness: 0.5,
-      color: rgb(0.8, 0.8, 0.8),
-    });
-    y -= 14;
-  };
-  const amount = (label: string, value: number, opts: { bold?: boolean } = {}) => {
-    text(label, margin, y, { font: opts.bold ? bold : font, color: opts.bold ? ink : muted });
-    right(EUR(value), rowRight, y, { font: opts.bold ? bold : font });
-    y -= 16;
-  };
-
-  // ── Antragsteller ──
-  section('Antragsteller*in');
-  line('Name', state.stammdaten.name || '—');
-  if (state.stammdaten.funktion) line('Funktion', state.stammdaten.funktion);
-  line(
-    'Anschrift',
-    `${state.stammdaten.strasse} ${state.stammdaten.hausnr}, ${state.stammdaten.plz} ${state.stammdaten.ort}`
-  );
-  line('E-Mail', state.stammdaten.email || '—');
-  if (state.stammdaten.telefon) line('Telefon', state.stammdaten.telefon);
-
-  // ── Reise ──
-  section('Reise');
-  line('Anlass', state.reise.anlass || '—');
-  line('Ziel', state.reise.ziel || '—');
-  line('Reisebeginn', fmtDateTime(state.reise.reisebeginn));
-  line('Rückkehr', fmtDateTime(state.reise.rueckkehr));
-
-  // ── Fahrtkosten ──
-  section('1. Fahrtkosten');
-  if (c.fahrtkosten.bahn) amount('Bahn', c.fahrtkosten.bahn);
-  if (c.fahrtkosten.oepnv) amount('ÖPNV', c.fahrtkosten.oepnv);
-  if (c.fahrtkosten.kfz) amount('Kfz', c.fahrtkosten.kfz);
-  if (c.fahrtkosten.miete) amount('Miete / Carsharing', c.fahrtkosten.miete);
-  if (c.fahrtkosten.taxi) amount('Taxi', c.fahrtkosten.taxi);
-  if (c.fahrtkosten.sonstiges) amount('Sonstiges', c.fahrtkosten.sonstiges);
-  amount('Summe Fahrtkosten', c.fahrtkosten.summe, { bold: true });
-
-  // ── Verpflegung ──
-  section('2. Verpflegungsmehraufwand');
-  for (const t of c.verpflegung.tage) {
-    const label = `${t.datum} · ${TAG_LABEL[t.typ] ?? t.typ}${t.abzug ? ` (Abzug ${EUR(t.abzug)})` : ''}`;
-    amount(label, t.summe);
-  }
-  amount('Summe Verpflegung', c.verpflegung.summe, { bold: true });
-
-  // ── Übernachtung ──
-  if (state.uebernachtung) {
-    section('3. Übernachtung');
-    amount('Summe Übernachtung', c.uebernachtung.summe, { bold: true });
-  }
-
-  // ── Gesamt ──
-  y -= 8;
-  page.drawLine({
-    start: { x: margin, y },
-    end: { x: rowRight, y },
-    thickness: 1,
-    color: gruen,
+  blocks.push({ type: 'heading', level: 2, text: 'Antragsteller*in' });
+  blocks.push({
+    type: 'keyvalue',
+    entries: [
+      { label: 'Name', value: stammdaten.name || '—' },
+      ...(stammdaten.funktion ? [{ label: 'Funktion', value: stammdaten.funktion }] : []),
+      {
+        label: 'Anschrift',
+        value: `${stammdaten.strasse} ${stammdaten.hausnr}, ${stammdaten.plz} ${stammdaten.ort}`,
+      },
+      { label: 'E-Mail', value: stammdaten.email || '—' },
+      ...(stammdaten.telefon ? [{ label: 'Telefon', value: stammdaten.telefon }] : []),
+    ],
   });
-  y -= 18;
-  amount('Gesamtbetrag', c.gesamt, { bold: true });
-  if (c.spende) {
-    amount('Davon Spende an BÜNDNIS 90 / DIE GRÜNEN', c.spende);
-    amount('Auszahlungsbetrag', c.auszahlung, { bold: true });
+
+  blocks.push({ type: 'heading', level: 2, text: 'Reise' });
+  blocks.push({
+    type: 'keyvalue',
+    entries: [
+      { label: 'Anlass', value: reise.anlass || '—' },
+      { label: 'Ziel', value: reise.ziel || '—' },
+      { label: 'Reisebeginn', value: fmtDateTime(reise.reisebeginn) },
+      { label: 'Rückkehr', value: fmtDateTime(reise.rueckkehr) },
+    ],
+  });
+
+  // Nur besetzte Posten auflisten — eine Zeile "Taxi 0,00 €" liest sich wie ein
+  // vergessener Beleg.
+  const fahrtPosten: Array<{ label: string; value: number }> = [
+    { label: 'Bahn', value: c.fahrtkosten.bahn },
+    { label: 'ÖPNV', value: c.fahrtkosten.oepnv },
+    { label: 'Kfz', value: c.fahrtkosten.kfz },
+    { label: 'Miete / Carsharing', value: c.fahrtkosten.miete },
+    { label: 'Taxi', value: c.fahrtkosten.taxi },
+    { label: 'Sonstiges', value: c.fahrtkosten.sonstiges },
+  ].filter((p) => p.value !== 0);
+
+  blocks.push({ type: 'heading', level: 2, text: '1. Fahrtkosten' });
+  blocks.push({
+    type: 'keyvalue',
+    entries: [
+      ...fahrtPosten.map((p) => ({ label: p.label, value: EUR(p.value) })),
+      { label: 'Summe Fahrtkosten', value: EUR(c.fahrtkosten.summe) },
+    ],
+  });
+
+  blocks.push({ type: 'heading', level: 2, text: '2. Verpflegungsmehraufwand' });
+  if (c.verpflegung.tage.length) {
+    // Tabelle statt keyvalue: die Tage sind echte Datensätze mit gleichen
+    // Spalten, und der Abzug steht als eigene Spalte statt in Klammern im
+    // Label — vorlesbar und beim Prüfen nachvollziehbar. keyvalue deckelt
+    // ausserdem bei 60 Einträgen, die Tabelle bei 200 Zeilen.
+    blocks.push({
+      type: 'table',
+      columns: ['Datum', 'Art', 'Abzug', 'Betrag'],
+      rows: c.verpflegung.tage.map((t) => [
+        t.datum,
+        TAG_LABEL[t.typ] ?? t.typ,
+        t.abzug ? EUR(t.abzug) : '—',
+        EUR(t.summe),
+      ]),
+    });
+  }
+  blocks.push({
+    type: 'keyvalue',
+    entries: [{ label: 'Summe Verpflegung', value: EUR(c.verpflegung.summe) }],
+  });
+
+  if (state.uebernachtung) {
+    blocks.push({ type: 'heading', level: 2, text: '3. Übernachtung' });
+    blocks.push({
+      type: 'keyvalue',
+      entries: [{ label: 'Summe Übernachtung', value: EUR(c.uebernachtung.summe) }],
+    });
   }
 
-  // ── Bankverbindung ──
-  y -= 10;
-  text(
-    `IBAN: ${state.stammdaten.iban || '—'}${state.stammdaten.bic ? `   BIC: ${state.stammdaten.bic}` : ''}`,
-    margin,
-    y,
-    {
-      size: 9,
-      color: muted,
-    }
-  );
+  blocks.push({ type: 'divider' });
+  blocks.push({
+    type: 'keyvalue',
+    entries: [
+      { label: 'Gesamtbetrag', value: EUR(c.gesamt) },
+      ...(c.spende
+        ? [
+            { label: 'Davon Spende an BÜNDNIS 90 / DIE GRÜNEN', value: EUR(c.spende) },
+            { label: 'Auszahlungsbetrag', value: EUR(c.auszahlung) },
+          ]
+        : []),
+    ],
+  });
 
-  const bytes = await pdfDoc.save();
-  log.info(`[reisekosten] PDF built (${bytes.length} bytes), gesamt=${c.gesamt}`);
-  return Buffer.from(bytes);
+  blocks.push({ type: 'heading', level: 2, text: 'Bankverbindung' });
+  blocks.push({
+    type: 'keyvalue',
+    entries: [
+      { label: 'IBAN', value: stammdaten.iban || '—' },
+      ...(stammdaten.bic ? [{ label: 'BIC', value: stammdaten.bic }] : []),
+    ],
+  });
+
+  const locale = localeFromRateKey(state.rateKey);
+  const spec: PdfDocumentSpec = {
+    title: 'Reisekostenabrechnung',
+    subtitle: `Sätze: ${state.rateKey}`,
+    kind: 'document',
+    language: locale,
+    blocks,
+  };
+
+  const rendered = await renderPdf(spec, { locale, sender: null });
+
+  if (rendered.missingGlyphs.length) {
+    log.warn(
+      `[reisekosten] ${rendered.droppedGlyphCount} Zeichen ohne Glyphe entfernt: ${rendered.missingGlyphs.join(' ')}`
+    );
+  }
+  log.info(`[reisekosten] PDF built (${rendered.bytes.length} bytes), gesamt=${c.gesamt}`);
+  return rendered.bytes;
 }
