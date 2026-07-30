@@ -1077,6 +1077,23 @@ const ENUMERABLE_CLAUSE =
  */
 const EXTERNAL_RESEARCH_INTENTS: ReadonlySet<string> = new Set(['research', 'web', 'agentic']);
 
+/**
+ * Intents whose own guidance block (see `getModeGuidance`) already prescribes
+ * the complete output shape — a single confirming sentence, prose only, an
+ * explanation plus exactly one code block. For these, the generic format rule
+ * must stay silent rather than contradict them.
+ *
+ * Deliberately NOT every intent with a guidance block: `summary`, `direct` and
+ * `compute` only say what to talk about, not how to shape it, so the generic
+ * rule still applies to them.
+ */
+const INTENTS_WITH_OWN_FORMAT: ReadonlySet<string> = new Set([
+  'edit_current_doc',
+  'image_edit',
+  'chart',
+  'artifact',
+]);
+
 function buildAnswerFormatRule(
   state: ChatGraphState,
   sourceCount: number,
@@ -1107,9 +1124,13 @@ function buildAnswerFormatRule(
   // `complexity` travels in `inputs` rather than as its own decision point: it
   // has no user-visible consequence of its own, and the consequence it DOES have
   // is this rule. One line in the map, with the reason next to it.
-  const note = (chose: BranchOf<'respond.answer_format'>): void => {
+  const note = (
+    chose: BranchOf<'respond.answer_format'>,
+    extra: Record<string, string> = {}
+  ): void => {
     recordDecision('respond.answer_format', chose, {
       inputs: {
+        ...extra,
         complexity: state.complexity,
         intent: String(state.intent),
         sourceCount,
@@ -1124,10 +1145,29 @@ function buildAnswerFormatRule(
     });
   };
 
-  if (state.synthesisMode) {
-    const brief = state.complexity === 'simple';
-    note(brief ? 'synthesis_brief' : 'synthesis_full');
-    return brief ? 'Kurze, präzise Antworten' : 'Bis zu 6 Absätze';
+  // Some turns already carry a complete output prescription elsewhere in this
+  // same prompt. Saying anything about form here is then a SECOND directive on
+  // the same axis — the failure this rule set warns about twice, and it was
+  // live in two places:
+  //
+  //   `edit_current_doc`: "EINEN EINZIGEN kurzen Satz … Keine Aufzählungen,
+  //   keine Markdown-Formatierung" — while rule 2 asked for "2-4 Absätze mit
+  //   klarer Struktur … setze sie als Aufzählung".
+  //
+  //   `synthesisMode: 'table'`: a 3–6-dimension comparison table with per-cell
+  //   citations — while rule 2 asked for "Kurze, präzise Antworten".
+  //
+  // So the rule steps aside and points at the owner. It cannot simply return
+  // an empty string: the numbered list would show a bare "2." and the citation
+  // block below counts on rules 1–4 existing.
+  const formatOwner = state.synthesisMode
+    ? `synthesis:${state.synthesisMode}`
+    : INTENTS_WITH_OWN_FORMAT.has(String(state.intent))
+      ? `intent:${String(state.intent)}`
+      : null;
+  if (formatOwner != null) {
+    note('own_format', { formatOwner });
+    return 'Form und Umfang dieser Antwort sind oben bereits vorgegeben — halte dich genau daran.';
   }
 
   if (state.complexity === 'complex') {
