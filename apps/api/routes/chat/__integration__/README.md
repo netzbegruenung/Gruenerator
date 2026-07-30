@@ -101,6 +101,24 @@ from the registry.
 Regenerate with `SIM_UPDATE=1`. A **missing** map is a failure, never a silent
 create — otherwise a renamed scenario blesses itself.
 
+### Two files, because `vi.mock` is per file
+
+`simulatedRun.vitest.ts` replaces `streamAgenticResponse`, which is what makes
+the ~2000 lines of router sequencing testable — but it also means the loop never
+executes, so both loop decision points render as `(not reached)` there.
+
+`loopRun.vitest.ts` keeps that service real and replaces `ai`'s `streamText`
+instead. `loopEngine` builds its `defaultDeps` from that import at module scope
+and `runAgenticLoop(p, deps = defaultDeps)` reads them from there, so the seam
+already existed — **no production change was needed**. `harness/loopScript.ts`
+queues one response per expected `streamText` call and throws on an unconsumed
+one, because a leftover entry means the turn took a different shape (unified
+instead of split, or a synth retry that never happened) than the scenario claims.
+
+It does **not** replay the AI SDK's step loop. Scripted tool calls are executed
+directly, in order — enough for the guards, which read call history, and
+deliberately not enough to support any claim about how a real model would step.
+
 ### The same map from a real backend
 
 The journal is bound in-process here, which is exactly what the live lane cannot
@@ -146,13 +164,16 @@ across the two lanes, and the word `eval` is reserved for the live one.
 
 ## Not yet covered
 
-- **The two loop decision points** (`loop.tool_guard`, `loop.synth_verdict`) are
-  instrumented but no scenario reaches them yet: this harness doubles out
-  `streamAgenticResponse`, so the real loop never runs. Reaching them needs an
-  async-local `modelDeps` seam (`loopEngine` already accepts injected
-  `streamText`/`generateText`; `agenticRespondService` just never passes them)
-  plus a scripted tool-result override in `wrapTools`. The maps show both as
-  `(not reached)`, which is honest rather than silent.
+- **`loop.tool_guard`** — the six guard branches need the fake to drive tool
+  calls, which `harness/loopScript.ts` supports (`ScriptedCall`) but no scenario
+  uses yet. `duplicate` and `search_budget` are reachable in two or three
+  scripted steps; `failure_cap` and `failure_budget` additionally need tools that
+  throw. `search_concurrency` is a **deferral** whose outcome depends on await
+  interleaving — a scenario for it must assert the NUMBER of deferrals, never
+  which call lost, and the renderer already sorts that point by content rather
+  than by `seq` for the same reason. Note the standing cost: a tool override
+  skips the real implementations, so the source registry stays empty and
+  `cited`/`grounded` are meaningless in this lane.
 - **`/resume`** — the interrupt → `pipelineStateStore` → resume round trip. The
   valuable assertion there is field-by-field lockstep between the 14-field
   `requestContext` the router stores and what `resumePipeline` reads back; the
