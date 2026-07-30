@@ -77,8 +77,6 @@ const log = createLogger('AgenticRespond');
 
 /**
  * Chat intents the agentic loop owns. Deliberately excludes:
- *  - `research` — its own inline-citation system collides with the loop's [N]
- *    numbering (stays on the deep-research path);
  *  - `direct` — greetings/creative turns keep the zero-tool fast path (plain
  *    respond), so "hallo" never pays tool-loop overhead.
  * `mcp` (Phase 2) enters the loop when a user has connected servers — see the
@@ -91,6 +89,23 @@ const log = createLogger('AgenticRespond');
 const AGENTIC_INTENT_IDS = [
   'search',
   'web',
+  // `research` was excluded while it WAS a second engine: it called Linkup's
+  // `sourcedAnswer`, so Linkup wrote the prose and numbered its own citations,
+  // which could not be merged with the loop's `[N]` registry. That engine is
+  // gone (see searchNode's `case 'research'` and CATALOG_TOOLS, both of which
+  // were updated at the time) — research is now the same retrieval at a deeper
+  // tier, and the exclusion outlived its reason. Keeping it here cost a
+  // measured 3 sources in 31s against 10 in 15s for the identical question
+  // without the word "recherchiere": the single-pass path searched the user's
+  // sentence VERBATIM ("recherchiere im netz: wer war marilyn monroe"), then
+  // the reranker's diversity filter cut 9 hits to 3. So the intent that
+  // promises more delivered less.
+  //
+  // The dossier path is untouched: `@deepresearch`/`@recherche` set
+  // `forcedTool`, and the gate in `decideRunAgentic` keeps every forced turn
+  // single-pass. Compound and secondary-intent research turns keep their own
+  // kill-switches there too.
+  'research',
   'examples',
   'pressemitteilung_examples',
   'compare',
