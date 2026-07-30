@@ -11,11 +11,20 @@
  * thumbnails without giving the trade back.
  *
  * WHY IT IS NOT `safeFetch`. That helper validates the URL string and then calls
- * `fetch(urlString)` with default redirect following. For a proxy both halves are
- * holes: the fetch re-resolves the name (so a host that passed validation can
- * answer from a private address a moment later), and a 302 to
- * `169.254.169.254` walks straight past the check that just ran. Here every hop
- * is validated, redirects are followed manually, and the cap is small.
+ * `fetch(urlString)` with default redirect following, so its check only ever
+ * covers the first URL in the chain: a 302 to `169.254.169.254` walks straight
+ * past it. Here redirects are followed by hand with `redirect: 'manual'` and
+ * every hop is re-validated in full, with a small cap.
+ *
+ * WHAT IS STILL OPEN, stated rather than implied: the name is resolved twice —
+ * once by `validateUrlForFetch`, once by the runtime when it opens the socket —
+ * and only the first answer is checked. A host that answers publicly during
+ * validation and privately a moment later (DNS rebinding), or one whose record
+ * lists both a public and a private address, is not stopped by anything here.
+ * Closing that means pinning the connection to the validated address (a custom
+ * undici `connect.lookup`), which this route does not yet do. The residual risk
+ * is bounded by the signature — only URLs a web search returned are reachable at
+ * all — but it is a gap, not a solved problem.
  *
  * The threat model is an attacker who can influence what a web search returns —
  * which is not exotic, because SEO is a profession. The signature (see
