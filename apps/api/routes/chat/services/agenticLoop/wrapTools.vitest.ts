@@ -150,11 +150,17 @@ describe('wrapToolsForLoop', () => {
     const out = (await run(tools, 'search', { query: 'x' })) as { error: string };
     expect(out.error).toBeTruthy();
     expect(execute).not.toHaveBeenCalled();
-    // The blocked call is still recorded as a step so the UI reflects it.
-    expect(steps).toHaveLength(1);
+    // The tool never ran, so there is nothing to show or persist.
+    expect(steps).toHaveLength(0);
   });
 
-  it('search-budget-blocked call emits card + step but never executes or counts', async () => {
+  /**
+   * The guard messages are STEERING TEXT for the planner, not status reports. A
+   * card would tell the user the assistant searched and failed, about a call
+   * that never left the wrapper — live: a "Websuche" card captioned "Nutze
+   * zuerst gruenerator_search (interne Dokumente)".
+   */
+  it('search-budget-blocked call is silent: no card, no step, no counter change', async () => {
     const { ctx, events, steps } = makeCtx({
       guards: createToolLoopGuards({
         searchToolNames: new Set(['web_search']),
@@ -170,42 +176,53 @@ describe('wrapToolsForLoop', () => {
     const out = (await run(tools, 'web_search', { query: 'b' }, 'call_2')) as { error: string };
     expect(out.error).toMatch(/bereits ausführlich gesucht/);
     expect(execute).toHaveBeenCalledTimes(1); // second call never executed
-    expect(events.filter((e) => e.event === 'tool_step_start')).toHaveLength(2);
-    expect(steps).toHaveLength(2);
+    expect(events.filter((e) => e.event === 'tool_step_start')).toHaveLength(1);
+    expect(steps).toHaveLength(1);
     // The blocked call didn't advance the budget counter further (still capped, not negative).
     expect(ctx.guards.checkSearchBudget('web_search')).not.toBeNull();
   });
 
-  it('internal-first blocks web_search until gruenerator_search executed', async () => {
-    const { ctx } = makeCtx({
+  /**
+   * The regression the internal-first gate caused: "wer war marilyn monroe?"
+   * has no party documents behind it, the gate refused the web anyway, and the
+   * turn was answered from model memory — wrong film title, zero sources.
+   */
+  it('runs web_search straight away — no internal search required first', async () => {
+    const { ctx, events, steps } = makeCtx({
       guards: createToolLoopGuards({
-        internalFirst: {
-          requiredTool: 'gruenerator_search',
-          gatedTools: new Set(['web_search']),
-          exempt: false,
-        },
+        internalFallback: { requiredTool: 'gruenerator_search', fallbackTool: 'web_search' },
+        searchToolNames: new Set(['web_search', 'gruenerator_search']),
       }),
     });
-    const webExecute = vi.fn(async () => ({ results: [] }));
-    const internalExecute = vi.fn(async () => ({ results: [] }));
+    const execute = vi.fn(async () => ({ results: [{ title: 'Marilyn Monroe' }] }));
+    const tools = wrapToolsForLoop({ web_search: { execute } } as unknown as ToolSet, ctx);
+
+    const out = (await run(tools, 'web_search', { query: 'wer war marilyn monroe' })) as {
+      results: unknown[];
+    };
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(out.results).toHaveLength(1);
+    expect(events.map((e) => e.event)).toEqual(['tool_step_start', 'tool_step_result']);
+    expect(steps).toHaveLength(1);
+  });
+
+  it('forces the web after an internal search that found nothing', async () => {
+    const { ctx } = makeCtx({
+      guards: createToolLoopGuards({
+        internalFallback: { requiredTool: 'gruenerator_search', fallbackTool: 'web_search' },
+        getSourceCount: () => 0,
+      }),
+    });
     const tools = wrapToolsForLoop(
       {
-        web_search: { execute: webExecute },
-        gruenerator_search: { execute: internalExecute },
+        gruenerator_search: { execute: async () => ({ results: [] }) },
       } as unknown as ToolSet,
       ctx
     );
 
-    const blocked = (await run(tools, 'web_search', { query: 'x' })) as { error: string };
-    expect(blocked.error).toMatch(/zuerst gruenerator_search/);
-    expect(webExecute).not.toHaveBeenCalled();
-
-    await run(tools, 'gruenerator_search', { query: 'x' }, 'call_2');
-    const allowed = (await run(tools, 'web_search', { query: 'x' }, 'call_3')) as {
-      results: unknown[];
-    };
-    expect(allowed.results).toEqual([]);
-    expect(webExecute).toHaveBeenCalledTimes(1);
+    expect(ctx.guards.emptyResultFallback()).toBeNull();
+    await run(tools, 'gruenerator_search', { query: 'x' });
+    expect(ctx.guards.emptyResultFallback()).toBe('web_search');
   });
 
   it('truncates the model-facing payload but records the full result', async () => {
@@ -324,10 +341,8 @@ describe('wrapToolsForLoop', () => {
     expect('textOffset' in steps[0]).toBe(false);
   });
 
-  it('stamps textOffset=0 (falsy but valid) on a guard-blocked step', async () => {
+  it('stamps textOffset=0 (falsy but valid) on the recorded step', async () => {
     const { ctx, steps } = makeCtx({ getTextOffset: () => 0 });
-    ctx.guards.noteFailure('search');
-    ctx.guards.noteFailure('search'); // at cap
     const tools = wrapToolsForLoop(
       { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
       ctx
@@ -378,15 +393,34 @@ describe('wrapToolsForLoop', () => {
     expect('narration' in steps[1]).toBe(false);
   });
 
-  it('stamps narration on a guard-blocked step too', async () => {
-    const { ctx, steps } = makeCtx({ takeNarration: () => 'Kurz geprüft.' });
+  /**
+   * A blocked call must not consume the announcement: the planner said "Ich
+   * schaue kurz nach" once, and the call that actually runs is the one it
+   * announced. Draining it into a step nobody ever sees loses the sentence.
+   */
+  it('leaves the narration buffer undrained on a guard-blocked call', async () => {
+    let drains = 0;
+    const { ctx, steps } = makeCtx({
+      takeNarration: () => {
+        drains += 1;
+        return 'Kurz geprüft.';
+      },
+    });
     ctx.guards.noteFailure('search');
     ctx.guards.noteFailure('search'); // at cap
     const tools = wrapToolsForLoop(
-      { search: { execute: async () => ({ results: [] }) } } as unknown as ToolSet,
+      {
+        search: { execute: async () => ({ results: [] }) },
+        other: { execute: async () => ({ results: [] }) },
+      } as unknown as ToolSet,
       ctx
     );
     await run(tools, 'search', { query: 'x' });
+    expect(drains).toBe(0);
+    expect(steps).toHaveLength(0);
+
+    // The next call that really runs gets the announcement.
+    await run(tools, 'other', { query: 'x' }, 'call_2');
     expect(steps[0].narration).toBe('Kurz geprüft.');
   });
 

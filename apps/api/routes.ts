@@ -82,6 +82,7 @@ import scannerRouter from './routes/scanner/index.js';
 import { mountGlobalSearchContractRouter } from './routes/search/globalSearchContractRouter.js';
 import {
   searchController as searchRouter,
+  searchImageProxyRouter,
   webSearchController as webSearchRouter,
 } from './routes/search/index.js';
 import { mountSearchGraphContractRouter } from './routes/search/searchGraphContractRouter.js';
@@ -905,6 +906,12 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountUnsplashContractRouter(app);
   app.use('/api/unsplash', publicReadLimiter, unsplashRouter);
   app.use('/api/web-search', requireAuth, publicReadLimiter, webSearchRouter);
+  // Serves a web-search image hit through us so the reader's browser never
+  // contacts the source host. requireAuth on the prefix even though every handle
+  // is HMAC-signed: the signature says "we returned this URL", not "this caller
+  // may spend our bandwidth", and an unauthenticated fetcher is an abuse target
+  // regardless of how narrow its target set is.
+  app.use('/api/search-image', requireAuth, authenticatedReadLimiter, searchImageProxyRouter);
   // Apply auth + rate limiting on the prefix BEFORE mounting the ts-rest
   // router (createExpressEndpoints registers routes directly on `app`, so the
   // prefix middleware must be in place first to gate them).
