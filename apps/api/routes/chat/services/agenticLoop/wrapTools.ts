@@ -202,7 +202,6 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         ctx.guards.checkFailureCap(toolName) ??
         ctx.guards.checkTotalFailureBudget() ??
         ctx.guards.checkSearchBudget(toolName) ??
-        ctx.guards.checkInternalFirst(toolName) ??
         // Connector tools (server != null) skip the search-tuned near-dup
         // heuristic: structured args collide falsely and corrective retries
         // after a validation error would be wrongly blocked as "too similar".
@@ -210,8 +209,8 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
       if (block) {
         // No `sendStart`/`sendResult`/`recordStep`, for ANY guard: the tool did
         // not run, so a card claiming it did — captioned with steering text
-        // meant for the planner ("Nutze zuerst gruenerator_search …") — is a
-        // false statement about the turn. It also skips `noteCall`, so a blocked
+        // meant for the planner ("Formuliere eine WIRKLICH ANDERE Suche …") — is
+        // a false statement about the turn. It also skips `noteCall`, so a blocked
         // call costs neither a search-budget slot nor a failure. The narration
         // buffer stays undrained on purpose: the announcement belongs to
         // whichever call actually runs next.
