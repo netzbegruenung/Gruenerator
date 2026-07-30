@@ -68,8 +68,61 @@ loads the developer's `.env`, and several of these are read at call time — an
 unpinned `SYSTEM_MCP_*_URL` changes which branch a turn takes, so the same test
 would mean different things on different machines. A guard test asserts the pins.
 
+## Simulated runs and the decision map
+
+`simulatedRun.vitest.ts` takes the same harness one step further: realistic
+prompts through the real router, the real classifier and the real guards, with
+the model scripted, recording **which decisions were taken** on the way.
+
+The recorder is `apps/api/utils/decisionJournal.ts` — an AsyncLocalStorage
+journal in the idiom of `utils/usageContext.ts`, bound here by a middleware and
+by nothing at all in production, where `recordDecision` is a `getStore()` and a
+return. It exists because the wire shows only outcomes: which guard fired, why
+the classifier demoted, which of the loop's three silent answer-substitutions
+took effect are all invisible from outside, and that is where the expensive bugs
+were.
+
+Each run renders to a committed map under `decisions/`. Three states per point,
+which is what makes a regression readable:
+
+```
+router.persistent_action_gate  = demoted_primary_to_direct   family=document
+router.run_agentic             = single_pass                 gateOpen=false …
+loop.synth_verdict             = (not reached)
+loop.tool_guard                = (none)
+```
+
+`(not reached)` is the valuable one: a refactor that routes _around_ a gate
+shows up there and nowhere else. When a guard stops firing, the diff names the
+guard, the branch that won instead, and the user-visible consequence — four
+lines, and nothing else moves, because the columns are fixed and the order comes
+from the registry.
+
+Regenerate with `SIM_UPDATE=1`. A **missing** map is a failure, never a silent
+create — otherwise a renamed scenario blesses itself.
+
+### What a green simulated run does and does not mean
+
+It proves the branches ran as scripted. It proves **nothing** about what a real
+model does: every scripted verdict is an assumption, which is why each scenario
+carries a required `note` stating that assumption and when it was last checked.
+If the real classifier stops producing that verdict, the scenario stays green
+while the product is broken.
+
+Groundedness, citation correctness, refusal and over-refusal behaviour, and
+German/Austrian register are measured **only** by the manual live lane plus the
+LLM judge in `apps/api/evals/`. There is deliberately no combined pass rate
+across the two lanes, and the word `eval` is reserved for the live one.
+
 ## Not yet covered
 
+- **The two loop decision points** (`loop.tool_guard`, `loop.synth_verdict`) are
+  instrumented but no scenario reaches them yet: this harness doubles out
+  `streamAgenticResponse`, so the real loop never runs. Reaching them needs an
+  async-local `modelDeps` seam (`loopEngine` already accepts injected
+  `streamText`/`generateText`; `agenticRespondService` just never passes them)
+  plus a scripted tool-result override in `wrapTools`. The maps show both as
+  `(not reached)`, which is honest rather than silent.
 - **`/resume`** — the interrupt → `pipelineStateStore` → resume round trip. The
   valuable assertion there is field-by-field lockstep between the 14-field
   `requestContext` the router stores and what `resumePipeline` reads back; the

@@ -1,0 +1,14 @@
+# dokument-erlaubt — negative-action
+# Simulated decision map. Regenerate with SIM_UPDATE=1.
+# A green diff proves the BRANCHES ran as scripted. It proves nothing
+# about what a real model would have done.
+
+## turn 0: "Halte die Ergebnisse fest und leg sie als Dokument ab."
+router.run_agentic               = single_pass                    forcedTool=false gateOpen=false hasImageAttachments=false inLoopSet=false intent=save_as_doc isCompound=false isMcpTurn=false isPdfFillRequest=false loopEnabled=true secondaryAllowed=true
+router.intent_override           = (not reached)
+router.persistent_action_gate    = allowed                        family=document intent=save_as_doc
+classifier.tier                  = tier4_llm                      intent=save_as_doc needsClarification=false
+loop.tool_guard                  = (none)
+loop.synth_verdict               = (not reached)
+-- wire --
+intent=save_as_doc agentic=false tools=[] warnings=[] interrupts=0 confirmActions=[] documentCreated=false sharepicGenerated=false answerChars=24

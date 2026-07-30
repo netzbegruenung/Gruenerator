@@ -1,7 +1,7 @@
 import { createServer, type Server } from 'node:http';
 import { type AddressInfo } from 'node:net';
 
-import express, { type Application } from 'express';
+import express, { type Application, type RequestHandler } from 'express';
 
 import { type UserProfile } from '../../../../services/user/types.js';
 import { type AIWorkerPool } from '../../../../workers/types.js';
@@ -25,6 +25,8 @@ export interface ChatAppOptions {
   user?: Partial<UserProfile> | null;
   /** `null` leaves `app.locals` empty — the `provider_unavailable` path. */
   aiWorkerPool?: AIWorkerPool | null;
+  /** Binds a per-request decision journal (see journalCapture.ts). */
+  decisionJournal?: RequestHandler;
 }
 
 export interface ChatApp {
@@ -42,6 +44,9 @@ export async function startChatApp(options: ChatAppOptions = {}): Promise<ChatAp
   }
   if (options.aiWorkerPool !== null) {
     app.locals.aiWorkerPool = options.aiWorkerPool;
+  }
+  if (options.decisionJournal) {
+    app.use(options.decisionJournal);
   }
 
   mountChatGraphContractRouter(app);
