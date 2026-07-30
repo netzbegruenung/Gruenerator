@@ -29,9 +29,9 @@ import {
 import { memo, useState } from 'react';
 
 import {
-  visibleToolMentionables,
-  visibleNotebookMentionables,
+  toolMentionables,
   notebookMentionables,
+  getNotebookMentionables,
   type Mentionable,
 } from '../../lib/mentionables';
 import { connectorId, connectorMentionables, quickSkillMentionables } from '../../lib/plusMenu';
@@ -291,7 +291,7 @@ export const PlusMenu = memo(function PlusMenu({
           </span>
         </DropdownMenuSubTrigger>
         <DropdownMenuSubContent className="max-h-[24rem] overflow-y-auto">
-          {visibleNotebookMentionables().map((notebook) => {
+          {getNotebookMentionables().map((notebook) => {
             const NbIcon = notebook.icon ?? BookOpen;
             const isActive =
               showModes && threadMode === 'notebook' && selectedNotebookId === notebook.identifier;
@@ -315,7 +315,7 @@ export const PlusMenu = memo(function PlusMenu({
           Funktionen
         </DropdownMenuSubTrigger>
         <DropdownMenuSubContent>
-          {visibleToolMentionables().map((tool) => {
+          {toolMentionables.map((tool) => {
             const Icon = tool.icon;
             return (
               <DropdownMenuItem key={tool.identifier} onClick={() => onInsertMention(tool)}>
@@ -485,7 +485,7 @@ export const PlusMenu = memo(function PlusMenu({
       )}
 
       <ResponsiveMenuSection title="Notebooks">
-        {visibleNotebookMentionables().map((notebook) => {
+        {getNotebookMentionables().map((notebook) => {
           const NbIcon = notebook.icon ?? BookOpen;
           return (
             <ResponsiveMenuItem
@@ -503,7 +503,7 @@ export const PlusMenu = memo(function PlusMenu({
       </ResponsiveMenuSection>
 
       <ResponsiveMenuSection title="Funktionen">
-        {visibleToolMentionables().map((tool) => {
+        {toolMentionables.map((tool) => {
           const Icon = tool.icon;
           return (
             <ResponsiveMenuItem

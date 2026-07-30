@@ -11,6 +11,7 @@ import {
   connectorMentionables,
   connectorId,
   notebookMentionables,
+  getNotebookMentionables,
   useSkillFavoritesStore,
   type ComposerIconKey,
   type Mentionable,
@@ -198,7 +199,8 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
       ));
     }
     if (detail === 'notebook') {
-      return notebookMentionables.map((notebook, i) => (
+      const notebooks = getNotebookMentionables();
+      return notebooks.map((notebook, i) => (
         <ListRow
           key={notebook.identifier}
           icon="book-outline"
@@ -209,7 +211,7 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
             setDetail(null);
           }}
           selected={selectedNotebookId === notebook.identifier}
-          last={i === notebookMentionables.length - 1}
+          last={i === notebooks.length - 1}
         />
       ));
     }

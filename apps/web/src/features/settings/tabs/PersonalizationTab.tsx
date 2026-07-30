@@ -1,9 +1,11 @@
+import { mergeRoleBlock } from '@gruenerator/shared/roles';
 import { Button, toast } from '@gruenerator/ui';
 import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 
 import { SettingsFormSkeleton } from '../components/SettingsSkeleton';
 
+import { extractRoleBlock, readCustomPrompt, stripRoleBlock } from './customPromptField';
 import RolesSection from './RolesSection';
 
 import { QUERY_KEYS, useProfile } from '@/features/auth/hooks/useProfileData';
@@ -35,17 +37,23 @@ const CustomPromptSection = () => {
   const savedPromptRef = useRef('');
   const isInitialized = useRef(false);
 
+  // The textarea shows only the hand-written half. The role wizard owns the
+  // fenced block in the same column, so it is stripped for display and spliced
+  // back on save — otherwise saving here would delete every stored role prompt.
   useEffect(() => {
     if (!profile || isInitialized.current) return;
-    const initialPrompt = (profile as { custom_prompt?: string }).custom_prompt || '';
+    const initialPrompt = stripRoleBlock(readCustomPrompt(profile));
     setCustomPrompt(initialPrompt);
     savedPromptRef.current = initialPrompt;
     isInitialized.current = true;
   }, [profile]);
 
   const saveMutation = useMutation({
-    mutationFn: async () =>
-      profileApiService.updateProfile({ custom_prompt: customPrompt || null }),
+    mutationFn: async () => {
+      const roleBlock = extractRoleBlock(readCustomPrompt(profile));
+      const merged = mergeRoleBlock(customPrompt, roleBlock);
+      return profileApiService.updateProfile({ custom_prompt: merged || null });
+    },
     onSuccess: (updatedProfile: Profile) => {
       if (user?.id) {
         queryClient.setQueryData(['profileData', user.id], (oldData: Profile | undefined) => ({

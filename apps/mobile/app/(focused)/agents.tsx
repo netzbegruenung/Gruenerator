@@ -7,6 +7,8 @@ import {
   getVisibleSystemAgentsForLocale,
   isAgentVisibleForPlatform,
   isLandesverbandIdentifier,
+  isLvItemVisibleForRoles,
+  landesverbandHeadings,
   landesverbandLabel,
   landesverbandRegion,
   type Agent,
@@ -32,6 +34,7 @@ import { ChipGroup, ListGroup, ListRow } from '../../components/common';
 import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
 import { usePublicUserAgents } from '../../hooks/agents/usePublicUserAgents';
 import { useUserAgents } from '../../hooks/agents/useUserAgents';
+import { useUserLandesverbaende } from '../../hooks/useUserLandesverbaende';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
 import { routeWithParams } from '../../types/routes';
 
@@ -58,6 +61,8 @@ export default function AgentsScreen() {
   const [search, setSearch] = useState('');
   const query = search.trim().toLowerCase();
 
+  const { lvIds } = useUserLandesverbaende();
+  const lvHeadings = useMemo(() => landesverbandHeadings(lvIds), [lvIds]);
   const { data: userAgents = [], isLoading, error } = useUserAgents();
   const {
     data: publicAgents = [],
@@ -74,9 +79,15 @@ export default function AgentsScreen() {
     () => systemAgents.filter((a) => !isLandesverbandIdentifier(a.identifier)),
     [systemAgents]
   );
+  // Landesverband agents and recipes belong to the people who work there: shown
+  // only when a profile role names that Bundesland (roles are set on web).
   const lvSystemAgents = useMemo(
-    () => systemAgents.filter((a) => isLandesverbandIdentifier(a.identifier)),
-    [systemAgents]
+    () =>
+      systemAgents.filter(
+        (a) =>
+          isLandesverbandIdentifier(a.identifier) && isLvItemVisibleForRoles(a.identifier, lvIds)
+      ),
+    [systemAgents, lvIds]
   );
 
   // "Von der Basis": publicly-listed community agents, minus the ones the user
@@ -106,8 +117,12 @@ export default function AgentsScreen() {
     [locale]
   );
   const lvSkills = useMemo(
-    () => skills.filter((s) => isLandesverbandIdentifier(s.identifier)),
-    [skills]
+    () =>
+      skills.filter(
+        (s) =>
+          isLandesverbandIdentifier(s.identifier) && isLvItemVisibleForRoles(s.identifier, lvIds)
+      ),
+    [skills, lvIds]
   );
   const skillsByCategory = useMemo(() => {
     const map = new Map<string, AgentListItem[]>();
@@ -264,7 +279,7 @@ export default function AgentsScreen() {
         {lvSorted.length > 0 &&
           section(
             'lv',
-            'Landesverbände',
+            lvHeadings.agents,
             group(
               lvSorted.map((e, i) => (
                 <ListRow
@@ -281,7 +296,7 @@ export default function AgentsScreen() {
         {lvSkills.length > 0 &&
           section(
             'lv-skills',
-            'Rezepte der Landesverbände',
+            lvHeadings.skills,
             group(lvSkills.map((s, i) => skillRow(s, i === lvSkills.length - 1)))
           )}
         {SKILL_CATEGORY_ORDER.map((cat) => {

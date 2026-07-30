@@ -193,3 +193,9 @@ apps/video/
 ds-bundle/
 .design-sync/.cache/
 .design-sync/learnings/
+
+# Landesverband press corpora dumped by apps/api/scripts/extract-lv-pms.ts and
+# extract-lv-instagram.ts. Intermediate input for draft-lv-skill.ts, regenerable
+# from Qdrant, and stale the moment a Landesverband publishes again — the
+# distilled recipe under packages/shared/src/agents/skills/ is the artefact.
+documentation/docs/wissen/landesverbaende/_raw/

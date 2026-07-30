@@ -10,6 +10,7 @@
  * Requires: QDRANT_URL, QDRANT_API_KEY, QDRANT_BASIC_AUTH_USERNAME, QDRANT_BASIC_AUTH_PASSWORD
  */
 
+import { LANDESVERBAENDE } from '@gruenerator/shared/agents';
 import * as dotenv from 'dotenv';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -21,6 +22,8 @@ const QDRANT_API_KEY = process.env.QDRANT_API_KEY ?? '';
 const BASIC_USER = process.env.QDRANT_BASIC_AUTH_USERNAME;
 const BASIC_PASS = process.env.QDRANT_BASIC_AUTH_PASSWORD;
 const COLLECTION = 'landesverbaende_documents';
+/** Austria is not a `landesverband` in the shared collection — it has its own. */
+const COLLECTION_AT = 'oesterreich_gruene_documents';
 const OUTPUT_DIR = path.resolve(process.cwd(), 'documentation/docs/wissen/landesverbaende/_raw');
 const TOP_N = 20;
 
@@ -31,21 +34,26 @@ interface LvTarget {
   display: string;
   lvCode: string;
   fraktionCode: string | null;
+  collection: string;
 }
 
-const TARGETS: LvTarget[] = [
-  { slug: 'berlin', display: 'Berlin', lvCode: 'BE', fraktionCode: 'BE-F' },
-  { slug: 'hamburg', display: 'Hamburg', lvCode: 'HH', fraktionCode: null },
-  {
-    slug: 'mecklenburg-vorpommern',
-    display: 'Mecklenburg-Vorpommern',
-    lvCode: 'MV',
-    fraktionCode: 'MV-F',
-  },
-  { slug: 'thueringen', display: 'Thüringen', lvCode: 'TH', fraktionCode: 'TH-F' },
-  { slug: 'brandenburg', display: 'Brandenburg', lvCode: 'BB', fraktionCode: null },
-  { slug: 'bayern', display: 'Bayern', lvCode: 'BY', fraktionCode: 'BY-F' },
-];
+/**
+ * Derived from the Landesverband registry instead of a hand-kept list, which had
+ * frozen at the six LVs that already have a hand-tuned recipe — the ones still
+ * missing one (Hessen, Sachsen-Anhalt, Saarland) were exactly the ones the
+ * extractor could not reach. `codes` is `'BB'` or `['BE','BE-F']`; the second
+ * entry is always the Fraktion.
+ */
+const TARGETS: LvTarget[] = LANDESVERBAENDE.map((lv) => {
+  const codes = typeof lv.codes === 'string' ? [lv.codes] : [...lv.codes];
+  return {
+    slug: lv.id,
+    display: lv.title,
+    lvCode: codes[0]!,
+    fraktionCode: codes[1] ?? null,
+    collection: lv.id === 'oesterreich' ? COLLECTION_AT : COLLECTION,
+  };
+});
 
 interface QdrantPoint {
   id: string | number;
@@ -104,27 +112,33 @@ function asStringArray(v: unknown): string[] {
   return v.filter((x): x is string => typeof x === 'string');
 }
 
-async function scrollAll(lvCode: string, sourceType: SourceType): Promise<QdrantPoint[]> {
+async function scrollAll(
+  target: LvTarget,
+  lvCode: string,
+  sourceType: SourceType
+): Promise<QdrantPoint[]> {
   const points: QdrantPoint[] = [];
   let offset: string | number | null = null;
   const pageSize = 256;
 
   while (true) {
+    const must: Record<string, unknown>[] = [{ key: 'content_type', match: { value: 'presse' } }];
+    // The Austrian collection holds only Austrian documents, so it carries
+    // neither a `landesverband` nor a `source_type` field to filter on.
+    if (target.collection === COLLECTION) {
+      must.unshift({ key: 'landesverband', match: { value: lvCode } });
+      must.push({ key: 'source_type', match: { value: sourceType } });
+    }
+
     const body: Record<string, unknown> = {
       limit: pageSize,
       with_payload: true,
       with_vector: false,
-      filter: {
-        must: [
-          { key: 'landesverband', match: { value: lvCode } },
-          { key: 'content_type', match: { value: 'presse' } },
-          { key: 'source_type', match: { value: sourceType } },
-        ],
-      },
+      filter: { must },
     };
     if (offset !== null) body.offset = offset;
 
-    const data = await qdrantPost(`/collections/${COLLECTION}/points/scroll`, body);
+    const data = await qdrantPost(`/collections/${target.collection}/points/scroll`, body);
     const batch = data.result?.points ?? [];
     if (batch.length === 0) break;
     points.push(...batch);
@@ -183,9 +197,11 @@ async function processTarget(
   code: string
 ): Promise<void> {
   const label = `${target.slug}-${sourceType}`;
-  console.log(`\n→ ${label} (filter landesverband=${code}, source_type=${sourceType})`);
+  console.log(
+    `\n→ ${label} (${target.collection}, landesverband=${code}, source_type=${sourceType})`
+  );
 
-  const points = await scrollAll(code, sourceType);
+  const points = await scrollAll(target, code, sourceType);
   console.log(`  scrolled ${points.length} chunks`);
 
   const deduped = dedupeByDocument(points);

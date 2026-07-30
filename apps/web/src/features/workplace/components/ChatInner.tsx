@@ -10,7 +10,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useFirstName } from '../../../hooks/useFirstName';
 
-import { WORKPLACE_PRESETS } from './workplacePresets';
+import { useWorkplacePresets } from './workplacePresets';
 
 import { cn } from '@/utils/cn';
 
@@ -62,6 +62,7 @@ const ChatInnerReady: React.FC = () => {
   const threadRuntime = useThreadRuntime({ optional: true });
   const assistantRuntime = useAssistantRuntime();
   const onChat = location.pathname.startsWith('/chat');
+  const presets = useWorkplacePresets();
 
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
 
@@ -101,7 +102,7 @@ const ChatInnerReady: React.FC = () => {
         variant="pill"
         onNavigate={handleNavigate}
         firstName={firstName}
-        presets={WORKPLACE_PRESETS}
+        presets={presets}
         requireProfileHydration
       />
     </ThreadPrimitive.Root>

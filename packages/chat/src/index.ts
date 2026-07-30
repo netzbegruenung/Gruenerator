@@ -167,7 +167,7 @@ export { type ComposerPreset } from './components/thread/PlusMenu';
 export { FileMentionPopover } from './components/thread/FileMentionPopover';
 export { DocumentChatPicker } from './components/thread/DocumentChatPicker';
 export { SkillLibraryModal } from './components/skills/SkillLibraryModal';
-export { useSkillFavoritesStore } from './stores/skillFavoritesStore';
+export { useSkillFavoritesStore, setSkillFavoritesPersister } from './stores/skillFavoritesStore';
 export { PlusMenu } from './components/thread/PlusMenu';
 export { UserMessage } from './components/thread/UserMessage';
 export { AssistantMessage } from './components/thread/AssistantMessage';
@@ -355,6 +355,8 @@ export {
   getAllMentionables,
   getAgentMentionables,
   setMentionLocale,
+  setMentionLandesverbaende,
+  getNotebookMentionables,
   getMentionLocale,
   setCustomAgents,
   getCustomAgentMentionables,

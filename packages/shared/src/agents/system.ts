@@ -1,7 +1,7 @@
 import { getDisabledNotebookIds } from '../notebooks/index.js';
 
 import { SYSTEM_AGENT_DEFINITIONS } from './definitions/index.generated.js';
-import { LV_HUBS } from './landesverbandHubs.js';
+import { LANDESVERBAENDE } from './landesverbaende.js';
 import { LV_BUERGER_AGENTS, type LV_BUERGER_SPECS } from './lvBuergerAgents.js';
 import { LV_PR_AGENTS, type LV_PR_SPECS } from './lvPrAgents.js';
 
@@ -24,15 +24,18 @@ const RAW_SYSTEM_AGENTS: readonly Agent[] = [
   ...LV_BUERGER_AGENTS,
 ];
 
-// A Landesverband's two specialist agents (PR + Bürger*innenanfragen) are owned by
-// its hub, which pins the LV notebook. When that notebook is turned off
-// (`enabled: false`), hide both agents from discovery — same single switch, no
-// per-agent flag. LV_HUBS (itself derived from the LV registry) is the
-// authoritative notebook→agents map, so we resolve both agent ids from it.
+// A Landesverband's two specialist agents (PR + Bürger*innenanfragen) pin the LV
+// notebook. When that notebook is turned off (`enabled: false`), hide both
+// agents from discovery — same single switch, no per-agent flag.
+//
+// Resolved from LANDESVERBAENDE, not from LV_HUBS: a hub exists only for LVs
+// that declare one, and an LV without a hub is typically exactly the LV whose
+// notebook is off (Schleswig-Holstein). Going through the hubs made the switch
+// skip those — the one case it most needed to catch.
 const disabledLvAgentIds = new Set<string>(
-  LV_HUBS.filter((hub) => getDisabledNotebookIds().has(hub.notebookId)).flatMap((hub) => [
-    hub.prAgentId,
-    hub.buergerAgentId,
+  LANDESVERBAENDE.filter((lv) => getDisabledNotebookIds().has(lv.notebookId)).flatMap((lv) => [
+    lv.prAgentId,
+    lv.buergerAgentId,
   ])
 );
 

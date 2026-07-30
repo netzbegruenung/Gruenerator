@@ -124,7 +124,7 @@ export {
 } from './lib/composerControls';
 
 export { useDocumentChatStore } from './stores/documentChatStore';
-export { useSkillFavoritesStore } from './stores/skillFavoritesStore';
+export { useSkillFavoritesStore, setSkillFavoritesPersister } from './stores/skillFavoritesStore';
 
 // Live head of the combined social post's text half. The shared SSE parser
 // already writes here on `social_post_complete` / `social_post_updated`, so a
@@ -311,6 +311,8 @@ export {
   getAllMentionables,
   getAgentMentionables,
   setMentionLocale,
+  setMentionLandesverbaende,
+  getNotebookMentionables,
   getMentionLocale,
   setCustomAgents,
   getCustomAgentMentionables,

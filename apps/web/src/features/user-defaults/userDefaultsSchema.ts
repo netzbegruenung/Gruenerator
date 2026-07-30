@@ -3,6 +3,12 @@ import { type UserRole } from '@gruenerator/chat';
 export interface UserDefaultsRegistry {
   profile: {
     roles: UserRole[];
+    /**
+     * Starred recipe mentions, lowercased (`'presse-berlin'`). F0 — the key and
+     * the value format are read by shipped clients, so extend rather than
+     * rename. Mirrored into `useSkillFavoritesStore` for instant rendering.
+     */
+    skillFavorites: string[];
   };
   notifications: Record<string, boolean>;
   boards: Record<string, boolean>;

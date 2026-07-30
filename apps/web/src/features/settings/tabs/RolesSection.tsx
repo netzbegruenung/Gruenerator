@@ -1,4 +1,9 @@
-import { type UserRole } from '@gruenerator/chat';
+import { useSkillFavoritesStore, type UserRole } from '@gruenerator/chat';
+import {
+  landesverbandIdsForRoles,
+  landesverbandTitle,
+  lvSkillMentionsForRoles,
+} from '@gruenerator/shared/agents';
 import { getContractsClient } from '@gruenerator/shared/api';
 import {
   type EbeneConfig,
@@ -14,6 +19,7 @@ import {
   LOCAL_NAME_PLACEHOLDERS,
   needsAbgeordneteName,
   generateProfilePrompt,
+  mergeRoleBlock,
   searchMdBs,
 } from '@gruenerator/shared/roles';
 import {
@@ -28,12 +34,17 @@ import {
   SmartInput,
   type SmartInputOption,
 } from '@gruenerator/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback, useEffect, useMemo, useRef, memo } from 'react';
 import { HiOutlineArrowLeft, HiOutlineTrash, HiPlus } from 'react-icons/hi2';
 
+import { QUERY_KEYS } from '../../../features/auth/hooks/useProfileData';
+import { profileApiService, type Profile } from '../../../features/auth/services/profileApiService';
 import { useAuthStore } from '../../../stores/authStore';
 import { platformFetch } from '../../../utils/platformFetch';
 import { useSetUserDefault, useUserDefault } from '../../user-defaults/userDefaultsQueries';
+
+import { readCustomPrompt } from './customPromptField';
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
@@ -109,6 +120,8 @@ type WizardStep = 'ebene' | 'bundesland' | 'gliederung' | 'rolle' | 'instruction
 
 export default function RolesSection() {
   const locale = useAuthStore((s) => s.locale);
+  const userId = useAuthStore((s) => s.user?.id);
+  const queryClient = useQueryClient();
   const isAustrian = locale === 'de-AT';
   const { value: serverRoles } = useUserDefault('profile', 'roles');
   const setRolesMutation = useSetUserDefault<'profile', 'roles'>();
@@ -243,7 +256,14 @@ export default function RolesSection() {
           key: 'roles',
           value: nextRoles,
         });
-        const prompt = generateProfilePrompt(nextRoles, isAustrian);
+        // `custom_prompt` is shared with the free-text "Anweisungen" field one
+        // section up in this very tab, so the role part gets spliced between
+        // markers rather than overwriting the column. Read the live value
+        // (cache first, network as fallback) — a snapshot taken at render time
+        // would drop instructions typed in the same sitting.
+        const cached = queryClient.getQueryData<Profile>(QUERY_KEYS.profile(userId));
+        const existing = readCustomPrompt(cached ?? (await profileApiService.getProfile()));
+        const prompt = mergeRoleBlock(existing, generateProfilePrompt(nextRoles, isAustrian));
         // Empty prompt clears the field: the backend converts '' -> null. The
         // contract body types custom_prompt as string, so send '' (not null).
         const res = await getContractsClient().userProfile.updateProfile({
@@ -252,13 +272,26 @@ export default function RolesSection() {
         if (res.status !== 200) {
           throw new Error(`Profil-Update fehlgeschlagen (HTTP ${res.status})`);
         }
+        queryClient.setQueryData<Profile>(QUERY_KEYS.profile(userId), (current) =>
+          current ? { ...current, custom_prompt: prompt } : current
+        );
+
+        // Pre-star the recipes of the Landesverband this role points at, so the
+        // Berlin press recipe is one click away instead of a search. Additive
+        // only: removing a role does NOT unstar, because by then the star may be
+        // a deliberate choice, and silently taking recipes away is worse than
+        // leaving one too many.
+        useSkillFavoritesStore
+          .getState()
+          .addFavorites(lvSkillMentionsForRoles(nextRoles, locale || 'de-DE'));
+
         return { ok: true };
       } catch (error) {
         const detail = error instanceof Error ? error.message : 'Unbekannter Fehler';
         return { ok: false, detail };
       }
     },
-    [isAustrian, setRolesMutation]
+    [isAustrian, locale, setRolesMutation, queryClient, userId]
   );
 
   const handleAddRole = useCallback(async () => {
@@ -314,14 +347,24 @@ export default function RolesSection() {
 
     // Auto-persist immediately so the user can never end up with an unsaved
     // role that disappears on reload.
+    const starredBefore = useSkillFavoritesStore.getState().favorites.length;
     const result = await persistRoles(nextRoles);
     if (result.ok) {
+      // Name the recipes that were pre-starred — the composer changing on its
+      // own is confusing if nothing says why.
+      const added = useSkillFavoritesStore.getState().favorites.length - starredBefore;
+      const lvTitle = landesverbandIdsForRoles(nextRoles, locale || 'de-DE')
+        .map(landesverbandTitle)
+        .filter(Boolean)
+        .slice(-1)[0];
       setSuccessMessage(
         promptGenFailed
           ? 'Rolle gespeichert (System-Prompt-Generierung fehlgeschlagen)'
-          : 'Rolle gespeichert'
+          : added > 0 && lvTitle
+            ? `Rolle gespeichert · ${added} ${added === 1 ? 'Rezept' : 'Rezepte'} für ${lvTitle} vorgemerkt`
+            : 'Rolle gespeichert'
       );
-      setTimeout(() => setSuccessMessage(null), 3000);
+      setTimeout(() => setSuccessMessage(null), 5000);
     } else {
       setErrorMessage(
         `Rolle wurde hinzugefügt, aber Speichern fehlgeschlagen: ${result.detail}. Bitte „Speichern" klicken.`
@@ -337,6 +380,7 @@ export default function RolesSection() {
     wizAbgeordnete,
     wizInstructions,
     isAustrian,
+    locale,
     ebenen,
     roles,
     persistRoles,

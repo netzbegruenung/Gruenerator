@@ -1,4 +1,5 @@
 import {
+  setMentionLandesverbaende,
   setMentionLocale,
   syncBoards,
   syncCustomAgents,
@@ -13,6 +14,8 @@ import { getGlobalApiClient } from '@gruenerator/shared/api';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
+
+import { useUserLandesverbaende } from './useUserLandesverbaende';
 
 /**
  * Mobile counterpart to web's `useMentionablesQuery`.
@@ -62,6 +65,14 @@ export function useMentionablesSync(): void {
   useEffect(() => {
     if (locale) setMentionLocale(locale);
   }, [locale]);
+
+  // Scopes the notebook picker to the Landesverbände the user's profile roles
+  // name, so the "+" sheet stops listing all of them to everyone. Roles are set
+  // on web; mobile only reads them.
+  const { lvIds } = useUserLandesverbaende();
+  useEffect(() => {
+    setMentionLandesverbaende(lvIds);
+  }, [lvIds]);
 
   const common = { staleTime: STALE_TIME, retry: 1, enabled: isAuthenticated } as const;
 
