@@ -19,7 +19,10 @@ import {
 import { DocumentSearchService } from '../../../services/document-services/index.js';
 import { searchExamples } from '../../../services/examples/exampleSearchService.js';
 import { withRetry } from '../../../services/search/index.js';
-import { getLinkupService } from '../../../services/search/LinkupService.js';
+import {
+  getLinkupService,
+  type LinkupSearchResult,
+} from '../../../services/search/LinkupService.js';
 import { resolveSearchPlan, type SearchTier } from '../../../services/search/searchDepth.js';
 import { searxngService } from '../../../services/search/SearxngService.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -34,6 +37,14 @@ import type {
 } from '../../../services/search/types.js';
 
 const log = createLogger('DirectSearch');
+
+/**
+ * Cap on image hits carried out of a single search. Capped independently of
+ * `maxResults` because images are a side panel, not sources: eight named links
+ * fill the list without pushing the text results the answer is written from out
+ * of the tier's budget.
+ */
+const MAX_IMAGE_HITS = 8;
 
 export interface DirectSearchResult {
   collection: string;
@@ -89,6 +100,17 @@ export interface DirectPressemitteilungExamplesResult {
   message?: string;
 }
 
+/**
+ * An image hit from the web search. Carries no `snippet`, because Linkup's image
+ * entries carry no `content` — that absence is the whole reason these must not
+ * travel with the text results.
+ */
+export interface WebImageHit {
+  title: string;
+  url: string;
+  domain: string;
+}
+
 export interface DirectWebSearchResult {
   query: string;
   searchType: string;
@@ -101,6 +123,12 @@ export interface DirectWebSearchResult {
     domain: string;
     publishedDate?: string | null;
   }>;
+  /**
+   * Image hits, kept strictly apart from `results`. Only ever non-empty when the
+   * caller asked for images (`includeImages`) — see the split in
+   * `executeDirectWebSearch` for why they may never be mixed in.
+   */
+  images?: WebImageHit[];
   suggestions?: string[];
   error?: boolean;
   message?: string;
@@ -472,6 +500,12 @@ export async function executeDirectWebSearch(params: {
   /** Explicit ISO window (YYYY-MM-DD). Wins over `timeRange`, which is a preset. */
   fromDate?: string;
   toDate?: string;
+  /**
+   * Ask the engine for image hits alongside the text ones. Never a default: on a
+   * factual question the images are paid for and then looked at by nobody, and
+   * they arrive mixed into the same result array (see the split below).
+   */
+  includeImages?: boolean;
 }): Promise<DirectWebSearchResult> {
   const { query, searchType = 'general', tier, timeRange, language = 'de-DE' } = params;
   const plan = resolveSearchPlan({
@@ -500,6 +534,10 @@ export async function executeDirectWebSearch(params: {
   // 300-char snippet would cap that no matter how many sources came back.
   // Stays under the source registry's own per-line cap (1500).
   const snippetChars = plan.depth === 'deep' ? 1200 : 300;
+  // Images ride in the same array as the text hits and are capped separately, so
+  // asking for them cannot eat into `maxResults` and leave the answer with fewer
+  // sources than the tier promised.
+  const includeImages = params.includeImages === true;
 
   // One line carrying the COMPLETE commissioned search. Without it there was no
   // way to tell from the logs what a turn actually asked the engine for — which
@@ -509,7 +547,9 @@ export async function executeDirectWebSearch(params: {
       includeDomains.length > 0 ? ` include=[${includeDomains.join(',')}]` : ''
     }${excludeDomains.length > 0 ? ` exclude=${excludeDomains.length}` : ''}${
       fromDate ? ` from=${fromDate}` : ''
-    }${params.toDate ? ` to=${params.toDate}` : ''}${timeRange ? ` timeRange=${timeRange}` : ''}`
+    }${params.toDate ? ` to=${params.toDate}` : ''}${timeRange ? ` timeRange=${timeRange}` : ''}${
+      includeImages ? ' images=on' : ''
+    }`
   );
 
   try {
@@ -525,6 +565,7 @@ export async function executeDirectWebSearch(params: {
           ...(excludeDomains.length > 0 ? { excludeDomains } : {}),
           ...(fromDate ? { fromDate } : {}),
           ...(params.toDate ? { toDate: params.toDate } : {}),
+          ...(includeImages ? { includeImages: true } : {}),
         });
       // `fast` is flagged beta in Linkup's docs, so it is the one depth that could
       // be rejected for an account without anything else being wrong. A keyword
@@ -538,7 +579,16 @@ export async function executeDirectWebSearch(params: {
             return search('standard');
           })
         : search(plan.depth));
-      const linkupFormatted = linkupRes.results.slice(0, maxResults).map((r, i) => ({
+      // Linkup mixes image entries into the SAME array as the text ones, and an
+      // image entry has `name` + `url` but NO `content`. The `type` field has
+      // existed on the result shape all along and nothing read it, so every entry
+      // was mapped as a text result — which was harmless only for as long as no
+      // caller asked for images. The moment one does, an unsplit mapping puts
+      // content-less entries into the source registry, where they become numbered
+      // citations backing a claim with an empty snippet. Splitting first is
+      // therefore not cleanup, it is the precondition for `includeImages`.
+      const { text: textEntries, images: imageEntries } = partitionLinkupResults(linkupRes.results);
+      const linkupFormatted = textEntries.slice(0, maxResults).map((r, i) => ({
         rank: i + 1,
         // Linkup returns raw HTML-entity-encoded titles/snippets (e.g. "&Ouml;sterreich").
         title: decodeHtmlEntities(r.name) || 'Unbekannt',
@@ -551,14 +601,20 @@ export async function executeDirectWebSearch(params: {
         // cannot parse is worse than none, because it looks like data.
         publishedDate: normalizePublishedDate(r.date),
       }));
+      const linkupImages = imageEntries.slice(0, MAX_IMAGE_HITS).map((r) => ({
+        title: decodeHtmlEntities(r.name) || extractDomain(r.url) || 'Bild',
+        url: r.url,
+        domain: extractDomain(r.url),
+      }));
       log.info(
-        `[Direct Web Search] Linkup returned ${linkupFormatted.length} results for "${query}"`
+        `[Direct Web Search] Linkup returned ${linkupFormatted.length} results${linkupImages.length > 0 ? ` + ${linkupImages.length} images` : ''} for "${query}"`
       );
       return {
         query,
         searchType,
         resultsCount: linkupFormatted.length,
         results: linkupFormatted,
+        ...(linkupImages.length > 0 ? { images: linkupImages } : {}),
       };
     }
 
@@ -655,6 +711,32 @@ function daysAgoIso(days: number): string {
  * dates are rejected for the same reason — a page dated next year is metadata
  * noise, not a fresh source.
  */
+/**
+ * Split Linkup's single result array into text hits and image hits.
+ *
+ * Classification is by exclusion, not by allow-list: anything NOT marked
+ * `type: 'image'` counts as text. Linkup documents `text` and `image`, and a
+ * hypothetical third type would still carry `content` — mapping it as text keeps
+ * the source, while an allow-list would silently drop it. An entry claiming to be
+ * an image but carrying no usable URL is dropped from both lists: a link is the
+ * only thing we do with it.
+ */
+export function partitionLinkupResults(results: readonly LinkupSearchResult[]): {
+  text: LinkupSearchResult[];
+  images: LinkupSearchResult[];
+} {
+  const text: LinkupSearchResult[] = [];
+  const images: LinkupSearchResult[] = [];
+  for (const r of results) {
+    if (r.type === 'image') {
+      if (r.url && r.url.trim().length > 0) images.push(r);
+      continue;
+    }
+    text.push(r);
+  }
+  return { text, images };
+}
+
 export function normalizePublishedDate(raw: string | undefined): string | null {
   if (!raw || raw.trim().length === 0) return null;
   const parsed = new Date(raw);
