@@ -4,6 +4,8 @@ import {
   isSearchProgressTool,
   searchStatusLabel,
   selectHasVisibleToolCard,
+  selectReasoningText,
+  selectSearchSources,
   selectSearchStatusLabel,
   visibleToolNames,
   type StatusPartLike,
@@ -129,5 +131,101 @@ describe('visibleToolNames', () => {
 
   it('can empty the run entirely', () => {
     expect(visibleToolNames(['web_search', 'web_search'])).toEqual([]);
+  });
+});
+
+describe('selectReasoningText', () => {
+  it('joins every reasoning part in order', () => {
+    expect(
+      selectReasoningText([
+        { type: 'reasoning', text: 'Erst ' },
+        { type: 'text', text: 'Antwort' },
+        { type: 'reasoning', text: 'dann.' },
+      ])
+    ).toBe('Erst dann.');
+  });
+
+  it('is null without reasoning, and for whitespace-only thinking', () => {
+    expect(selectReasoningText([{ type: 'text', text: 'Antwort' }])).toBeNull();
+    expect(selectReasoningText([{ type: 'reasoning', text: '  \n ' }])).toBeNull();
+  });
+
+  it('ignores a non-string text field', () => {
+    expect(selectReasoningText([{ type: 'reasoning', text: 42 }])).toBeNull();
+  });
+});
+
+describe('selectSearchSources', () => {
+  const hit = (url: string, title: string) => ({ url, title, snippet: 's' });
+
+  it('collects the hits of finished retrieval steps', () => {
+    const sources = selectSearchSources([
+      {
+        type: 'tool-call',
+        toolCallId: 't1',
+        toolName: 'web_search',
+        args: { query: 'a' },
+        result: { results: [hit('https://a.de/1', 'A')] },
+      },
+    ]);
+    expect(sources.map((s) => s.href)).toEqual(['https://a.de/1']);
+    expect(sources[0].title).toBe('A');
+  });
+
+  it('skips a step that has not returned yet', () => {
+    expect(
+      selectSearchSources([
+        { type: 'tool-call', toolCallId: 't1', toolName: 'web_search', args: { query: 'a' } },
+      ])
+    ).toEqual([]);
+  });
+
+  it('skips tools that keep their own card', () => {
+    expect(
+      selectSearchSources([
+        {
+          type: 'tool-call',
+          toolCallId: 't1',
+          toolName: 'scrape_url',
+          args: {},
+          result: { results: [hit('https://a.de/1', 'A')] },
+        },
+      ])
+    ).toEqual([]);
+  });
+
+  it('dedupes the same URL across two steps', () => {
+    const sources = selectSearchSources([
+      {
+        type: 'tool-call',
+        toolCallId: 't1',
+        toolName: 'web_search',
+        args: {},
+        result: { results: [hit('https://a.de/1', 'A')] },
+      },
+      {
+        type: 'tool-call',
+        toolCallId: 't2',
+        toolName: 'gruenerator_search',
+        args: {},
+        result: { results: [hit('https://a.de/1', 'A nochmal'), hit('https://b.de/2', 'B')] },
+      },
+    ]);
+    expect(sources.map((s) => s.href)).toEqual(['https://a.de/1', 'https://b.de/2']);
+  });
+
+  it('caps the panel at 8 sources', () => {
+    // Each tool parser itself takes only the first 5 hits, so the cap needs
+    // several steps to bite — exactly the agentic-loop shape it exists for.
+    const step = (n: number): StatusPartLike => ({
+      type: 'tool-call',
+      toolCallId: `t${n}`,
+      toolName: 'web_search',
+      args: {},
+      result: {
+        results: Array.from({ length: 5 }, (_, i) => hit(`https://s${n}.de/${i}`, `S${n}-${i}`)),
+      },
+    });
+    expect(selectSearchSources([step(1), step(2), step(3)])).toHaveLength(8);
   });
 });
