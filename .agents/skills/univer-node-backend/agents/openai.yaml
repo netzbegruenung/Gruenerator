@@ -1,0 +1,6 @@
+interface:
+  display_name: "Univer Node.js Backend"
+  short_description: "Run Univer spreadsheet engine in Node.js for headless processing and server-side automation"
+  default_prompt: "Use $univer-node-backend to help me run Univer in a Node.js backend environment for batch report generation, server-side formula calculation, or automated workbook manipulation."
+policy:
+  allow_implicit_invocation: true
