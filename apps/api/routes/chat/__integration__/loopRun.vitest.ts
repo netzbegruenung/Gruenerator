@@ -55,6 +55,21 @@ vi.mock('../services/sharepicEditService.js', async (orig) => {
   const { sharepicEditMock } = await import('./harness/mocks.js');
   return sharepicEditMock((await orig()) as Record<string, unknown>);
 });
+// Only the retrieval BACKEND — the tool definitions, `wrapTools` and every guard
+// stay real. Without this each search errors out, `noteFailure` fires, and the
+// failure caps (2 per tool, 5 overall) trip before the search budget (6 calls)
+// ever can: four of the six guard branches would be unreachable and the other
+// two would fire for the wrong reason.
+vi.mock('../agents/directSearch.js', async (orig) => {
+  const stub = await import('./harness/searchBackendStub.js');
+  return {
+    ...((await orig()) as Record<string, unknown>),
+    executeDirectSearch: stub.fakeExecuteDirectSearch,
+    executeDirectWebSearch: stub.fakeExecuteDirectWebSearch,
+    executeDirectExamplesSearch: stub.fakeExecuteDirectExamplesSearch,
+    executeDirectPressemitteilungExamples: stub.fakeExecuteDirectPressemitteilungExamples,
+  };
+});
 // NOT mocked here, unlike every sibling file: agenticRespondService. Doubling it
 // is exactly what puts the loop out of reach.
 //
@@ -91,6 +106,7 @@ const { resetThreadStore } = await import('./harness/fakeThreadStore.js');
 const { resetMockControls } = await import('./harness/mocks.js');
 const { respond } = await import('./harness/respondScript.js');
 const { loopScript } = await import('./harness/loopScript.js');
+const { searchBackend } = await import('./harness/searchBackendStub.js');
 const { renderDecisionMap } = await import('../../../evals/renderDecisionMap.js');
 const { LOOP_SCENARIOS } = await import('./loopScenarios.js');
 
@@ -121,6 +137,7 @@ beforeEach(() => {
   pool.reset();
   capture.reset();
   loopScript.reset();
+  searchBackend.reset();
 });
 
 describe('loop decision maps', () => {
@@ -130,6 +147,7 @@ describe('loop decision maps', () => {
       `${scenario.id} needs a model-assumption note`
     ).toBeGreaterThan(0);
 
+    searchBackend.failNext = scenario.backendFailures ?? 0;
     loopScript.script(...scenario.streams);
 
     // No `expectError` escape hatch on purpose. Even the both-passes-degenerate
@@ -166,6 +184,21 @@ describe('loop decision maps', () => {
             .map((e) => e.chose)
             .join(', ') || '(not reached)')
       ).toBeDefined();
+    }
+
+    for (const expected of scenario.decisionCounts ?? []) {
+      const taken = journal.entries.filter(
+        (e) => e.point === expected.point && e.chose === expected.chose
+      );
+      expect(
+        taken.length,
+        `${scenario.id}: expected ${expected.point} = ${expected.chose} exactly ` +
+          `${expected.count}x, journal has ` +
+          (journal.entries
+            .filter((e) => e.point === expected.point)
+            .map((e) => e.chose)
+            .join(', ') || '(not reached)')
+      ).toBe(expected.count);
     }
 
     for (const point of scenario.notReached ?? []) {

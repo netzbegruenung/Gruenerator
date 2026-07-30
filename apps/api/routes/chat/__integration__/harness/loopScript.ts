@@ -47,6 +47,18 @@ export interface ScriptedResponse {
   parts?: ScriptedPart[];
   /** Executed before the parts stream, in order. Drives the tool guards. */
   calls?: ScriptedCall[];
+  /**
+   * Start this step's calls together instead of one after another — what the
+   * real SDK does within one model step, and the ONLY way to reach
+   * `checkSearchConcurrency`, which measures in-flight calls.
+   *
+   * Deterministic in one specific sense and no further: each wrapped `execute`
+   * runs its guard chain and `noteCall` synchronously before its first await, so
+   * the order in which the surplus call sees a full counter is fixed. WHICH call
+   * is deferred is an await-interleaving artefact — a scenario must assert the
+   * NUMBER of deferrals, never the identity of the loser.
+   */
+  parallel?: boolean;
 }
 
 export interface StreamTextRecord {
@@ -136,25 +148,39 @@ export function fakeLoopStreamText(options: {
     );
   }
 
+  const runCall = async (call: ScriptedCall, i: number): Promise<void> => {
+    const entry = (tools as Record<string, { execute?: unknown }>)[call.tool];
+    if (!entry || typeof entry.execute !== 'function') {
+      throw new Error(
+        `scripted tool "${call.tool}" is not mounted on this turn; mounted: ` +
+          `${Object.keys(tools).join(', ') || 'none'}`
+      );
+    }
+    // Validate + apply defaults exactly as the SDK does before invoking a tool.
+    // Skipping this is not a shortcut, it silently changes behaviour:
+    // `gruenerator_search` defaults `collection` through its schema, and a raw
+    // call left it undefined, so the tool returned "Sammlung nicht verfügbar"
+    // before reaching any search. Every guard downstream then saw a failure the
+    // product would never have produced — a green map of an invented world,
+    // which is the one thing this tier must not produce.
+    const schema = (entry as { inputSchema?: { parse?: (v: unknown) => unknown } }).inputSchema;
+    const input = typeof schema?.parse === 'function' ? schema.parse(call.args) : call.args;
+
+    const execute = entry.execute as (
+      input: unknown,
+      opts: { toolCallId: string; messages: never[] }
+    ) => unknown;
+    const result = await execute(input, { toolCallId: `t${callIndex}-${i}`, messages: [] });
+    loopScript.toolCalls.push({ tool: call.tool, result });
+  };
+
   return {
     stream: (async function* () {
-      for (const [i, call] of (response.calls ?? []).entries()) {
-        const entry = (tools as Record<string, { execute?: unknown }>)[call.tool];
-        if (!entry || typeof entry.execute !== 'function') {
-          throw new Error(
-            `scripted tool "${call.tool}" is not mounted on this turn; mounted: ` +
-              `${Object.keys(tools).join(', ') || 'none'}`
-          );
-        }
-        const execute = entry.execute as (
-          input: unknown,
-          opts: { toolCallId: string; messages: never[] }
-        ) => unknown;
-        const result = await execute(call.args, {
-          toolCallId: `t${callIndex}-${i}`,
-          messages: [],
-        });
-        loopScript.toolCalls.push({ tool: call.tool, result });
+      const calls = response.calls ?? [];
+      if (response.parallel) {
+        await Promise.all(calls.map((call, i) => runCall(call, i)));
+      } else {
+        for (const [i, call] of calls.entries()) await runCall(call, i);
       }
       yield* partsOf(response);
     })(),
