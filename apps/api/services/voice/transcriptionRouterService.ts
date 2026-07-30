@@ -13,7 +13,6 @@ import path from 'path';
 
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
-import { scalewayBaseUrl, SCALEWAY_WHISPER_MODEL } from '../ai/scalewayEndpoint.js';
 import { extractAudio, cleanupFiles } from '../subtitler/videoUploadService.js';
 import { probeBufferDurationSeconds } from '../transcription/audioDuration.js';
 import { mimeTypeFromFilename } from '../transcription/mimeTypes.js';
@@ -102,12 +101,11 @@ export async function extractAudioFromVideo(
 }
 
 /**
- * One Whisper caller for both hosts.
+ * Whisper caller, parameterised by host.
  *
- * Regolo and Scaleway expose the same OpenAI-compatible endpoint and differ
- * only in base URL, model id and key. This path asks for SEGMENT granularity,
- * which both return; the word-level asymmetry that keeps Scaleway out of the
- * subtitler is handled in providerPolicy, not here.
+ * Kept generic although only Regolo uses it today: the request shape is plain
+ * OpenAI-compatible, so a second Whisper host is a config object rather than a
+ * copy of this function.
  */
 async function transcribeWithWhisperHost(
   host: { name: string; baseUrl: string; model: string; apiKey: string },
@@ -168,22 +166,6 @@ export async function transcribeWithRegoloWhisper(
   );
 }
 
-export async function transcribeWithScalewayWhisper(
-  audioBuffer: Buffer,
-  filename: string,
-  options: TranscriptionOptions = {}
-): Promise<TranscriptionResult> {
-  const apiKey = env.SCALEWAY_API_KEY;
-  if (!apiKey) throw new Error('SCALEWAY_API_KEY is not configured');
-
-  return transcribeWithWhisperHost(
-    { name: 'Scaleway', baseUrl: scalewayBaseUrl(), model: SCALEWAY_WHISPER_MODEL, apiKey },
-    audioBuffer,
-    filename,
-    options
-  );
-}
-
 async function transcribeWithVoxtral(
   audioBuffer: Buffer,
   filename: string,
@@ -211,11 +193,6 @@ const RUNNERS: Record<
     ) => Promise<TranscriptionResult>;
   }
 > = {
-  scaleway: {
-    apiKey: () => env.SCALEWAY_API_KEY,
-    usage: { provider: 'scaleway', model: SCALEWAY_WHISPER_MODEL },
-    run: transcribeWithScalewayWhisper,
-  },
   regolo: {
     apiKey: () => env.REGOLO_API_KEY,
     usage: { provider: 'regolo', model: WHISPER_MODEL },
@@ -230,9 +207,6 @@ const RUNNERS: Record<
  * (this router used to carry its own, and ignored TRANSCRIPTION_PROVIDER).
  * Every provider the policy did not pick stays in the chain as failover.
  *
- * This path never asks for word-level timestamps (`timestamp_granularities` is
- * typed `'segment'[]`), so Scaleway's Whisper is fully usable here and leads
- * the chain.
  */
 export async function transcribeBuffer(
   audioBuffer: Buffer,
@@ -274,7 +248,7 @@ export async function transcribeBuffer(
   throw (
     lastError ??
     new Error(
-      'No transcription provider configured. Set SCALEWAY_API_KEY or REGOLO_API_KEY (Whisper) or MISTRAL_API_KEY (Voxtral).'
+      'No transcription provider configured. Set REGOLO_API_KEY (faster-whisper) or MISTRAL_API_KEY (Voxtral).'
     )
   );
 }

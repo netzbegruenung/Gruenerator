@@ -8,7 +8,7 @@
 
 import { type Locale } from '../localization/types.js';
 
-export type TranscriptionProvider = 'regolo' | 'voxtral' | 'scaleway';
+export type TranscriptionProvider = 'regolo' | 'voxtral';
 export type TranscriptionProviderOverride = TranscriptionProvider | 'auto';
 
 /**
@@ -16,42 +16,24 @@ export type TranscriptionProviderOverride = TranscriptionProvider | 'auto';
  * minutes to prevent hallucinations and duplicate transcriptions." Longer
  * audio goes to Voxtral, which has no such caveat.
  *
- * Applied to Scaleway's Whisper too: both serve whisper-large-v3, so the caveat
- * is a property of the model rather than of Regolo's deployment.
+ * Reproduced live 2026-07-31 on a 180 s broadcast excerpt: Regolo repeated a
+ * whole sentence twice at the end ("Jetzt gehört euch, … ihr wart ärmer, …"),
+ * Voxtral did not. The threshold is not folklore.
  */
 export const REGOLO_MAX_SECONDS = 120;
 
 /**
- * Whisper providers in preference order, best first.
+ * Transcription providers in preference order, best first.
  *
- * Scaleway leads — same whisper-large-v3, and it is where the Mistral traffic
- * already runs. Regolo stays ahead of Voxtral so a Whisper request tries the
- * second Whisper implementation before falling back to a different model.
+ * Callers walk the chain and skip providers whose API key is unset, so a
+ * deployment missing one of them degrades instead of failing.
  *
- * Callers walk the chain and skip providers whose key is unset, so a deployment
- * without SCALEWAY_API_KEY behaves exactly as it did before.
+ * Both deliver genuine per-word timestamps — Regolo under `words`, Voxtral
+ * under `segments` with exactly one word per entry (verified: 498 entries,
+ * median 1 word each). The differing key names are a naming accident, not a
+ * capability difference.
  */
-export const WHISPER_CHAIN: readonly TranscriptionProvider[] = ['scaleway', 'regolo', 'voxtral'];
-
-/**
- * The chain for callers that need per-word timestamps — Scaleway removed.
- *
- * Measured 2026-07-30: Scaleway's whisper-large-v3 returns `words: null` even
- * when asked for `timestamp_granularities[]=word`, producing segments only.
- * Regolo returns real per-word `start`/`end`/`probability`.
- *
- * This exclusion is why the capability gate exists instead of one flat chain. A
- * wordless response is not an ERROR, so a provider loop counts it as success
- * and never falls through: the subtitler would silently ship word-mode
- * subtitles with no word timings rather than failing over to a provider that
- * has them.
- */
-export const WORD_TIMESTAMP_CHAIN: readonly TranscriptionProvider[] = ['regolo', 'voxtral'];
-
-/** Whether a provider returns per-word timestamps. See WORD_TIMESTAMP_CHAIN. */
-export function supportsWordTimestamps(provider: TranscriptionProvider): boolean {
-  return provider !== 'scaleway';
-}
+export const WHISPER_CHAIN: readonly TranscriptionProvider[] = ['regolo', 'voxtral'];
 
 export interface ProviderChoiceInput {
   /** Audio length in seconds, or null when it could not be probed. */
@@ -69,13 +51,6 @@ export interface ProviderChoiceInput {
   requestedContextBias?: string[] | undefined;
   /** TRANSCRIPTION_PROVIDER; 'auto' (the default) means "apply the rules". */
   override?: TranscriptionProviderOverride;
-  /**
-   * The caller needs per-word timestamps (the subtitler does; the voice routes
-   * do not). Excludes Scaleway, which only returns segments — see
-   * WORD_TIMESTAMP_CHAIN for why that has to be decided here and cannot be left
-   * to the fallback loop.
-   */
-  needsWordTimestamps?: boolean;
 }
 
 export interface ProviderChoice {
@@ -84,35 +59,13 @@ export interface ProviderChoice {
   reason: 'override' | 'capability' | 'unknown-duration' | 'duration';
   /**
    * Every provider to try, winner first. Callers walk it and skip the ones
-   * whose API key is unset; a provider that is unfit for the request (Scaleway
-   * when word timestamps are required) never appears at all.
+   * whose API key is unset.
    */
   chain: readonly TranscriptionProvider[];
 }
 
-/** Winner first, then the remaining fit providers as failover. */
-function withFailover(
-  winner: TranscriptionProvider,
-  needsWordTimestamps: boolean
-): readonly TranscriptionProvider[] {
-  const fit = (needsWordTimestamps ? WORD_TIMESTAMP_CHAIN : WHISPER_CHAIN).filter(
-    (p) => p !== winner
-  );
-  // An override naming a provider that cannot do the job is honoured as far as
-  // it can be — dropped from the chain rather than allowed to return a
-  // response the caller cannot use.
-  const winnerIsFit = !needsWordTimestamps || supportsWordTimestamps(winner);
-  return winnerIsFit ? [winner, ...fit] : fit;
-}
-
 export function chooseProvider(input: ProviderChoiceInput): ProviderChoice {
-  const {
-    durationSeconds,
-    diarize,
-    requestedContextBias,
-    override = 'auto',
-    needsWordTimestamps = false,
-  } = input;
+  const { durationSeconds, diarize, requestedContextBias, override = 'auto' } = input;
 
   const choose = (
     provider: TranscriptionProvider,
@@ -120,7 +73,7 @@ export function chooseProvider(input: ProviderChoiceInput): ProviderChoice {
   ): ProviderChoice => ({
     provider,
     reason,
-    chain: withFailover(provider, needsWordTimestamps),
+    chain: [provider, ...WHISPER_CHAIN.filter((p) => p !== provider)],
   });
 
   // 1. Explicit override wins — the emergency switch when a provider degrades.
@@ -143,12 +96,8 @@ export function chooseProvider(input: ProviderChoiceInput): ProviderChoice {
     return choose('voxtral', 'unknown-duration');
   }
 
-  // 4. The actual rule. The Whisper side of it is Scaleway when the caller can
-  //    use segment timestamps, Regolo when it needs word-level ones.
-  if (durationSeconds >= REGOLO_MAX_SECONDS) {
-    return choose('voxtral', 'duration');
-  }
-  return choose(needsWordTimestamps ? 'regolo' : 'scaleway', 'duration');
+  // 4. The actual rule.
+  return choose(durationSeconds < REGOLO_MAX_SECONDS ? 'regolo' : 'voxtral', 'duration');
 }
 
 /**
