@@ -276,7 +276,7 @@ describe('GET /api/search-image', () => {
       // honest signal left is to break the response — the client sees a failed
       // transfer, not a silently truncated image. Either outcome is acceptable
       // here; what must NOT happen is a complete 9 MB body.
-      let delivered = Number.POSITIVE_INFINITY;
+      let delivered: number;
       try {
         const res = await get(signedPath('https://zeit.de/luegner.png'));
         delivered = (await res.arrayBuffer()).byteLength;
