@@ -371,122 +371,73 @@ describe('createToolLoopGuards — search budget', () => {
   });
 });
 
-describe('createToolLoopGuards — internal-first', () => {
-  const policy = {
-    requiredTool: 'gruenerator_search',
-    gatedTools: new Set(['web_search', 'scrape_url']),
-    exempt: false,
-  };
+/**
+ * The web is not gated behind the internal document search. What is left is a
+ * one-way fallback: being ALLOWED to search the web was never enough —
+ * permission the planner was free to ignore, and did. The same question was
+ * researched properly in one session and answered ungrounded in the next,
+ * decided by nothing but sampling.
+ */
+describe('createToolLoopGuards — internal fallback', () => {
+  const policy = { requiredTool: 'gruenerator_search', fallbackTool: 'web_search' };
 
-  it('blocks web/scrape before the internal search ran, unblocks when internal COMPLETED but came up SHORT', () => {
+  it('forces the web only after the internal search COMPLETED with nothing', () => {
+    const guards = createToolLoopGuards({ internalFallback: policy, getSourceCount: () => 0 });
+    // Never called — nothing to fall back FROM.
+    expect(guards.emptyResultFallback()).toBeNull();
+    guards.noteCall('gruenerator_search');
+    // In flight: the result may still land. Forcing here would race.
+    expect(guards.emptyResultFallback()).toBeNull();
+    guards.noteCompletion('gruenerator_search');
+    expect(guards.emptyResultFallback()).toBe('web_search');
+  });
+
+  it('stays quiet when the internal search actually found something', () => {
     let sources = 0;
-    const guards = createToolLoopGuards({ internalFirst: policy, getSourceCount: () => sources });
-    expect(guards.checkInternalFirst('web_search')).not.toBeNull();
-    expect(guards.checkInternalFirst('scrape_url')).not.toBeNull();
+    const guards = createToolLoopGuards({
+      internalFallback: policy,
+      getSourceCount: () => sources,
+    });
     guards.noteCall('gruenerator_search');
     guards.noteCompletion('gruenerator_search');
-    sources = 1; // internal completed but yielded little → web is allowed as a fallback
-    expect(guards.checkInternalFirst('web_search')).toBeNull();
-    expect(guards.checkInternalFirst('scrape_url')).toBeNull();
+    sources = 1;
+    expect(guards.emptyResultFallback()).toBeNull();
   });
 
-  it('holds web while the internal search is IN FLIGHT (same-step parallel race)', () => {
-    const guards = createToolLoopGuards({ internalFirst: policy, getSourceCount: () => 0 });
-    // Internal call started (noteCall) but not yet completed — the register-lag
-    // window where web_search used to slip through. Must be blocked.
-    guards.noteCall('gruenerator_search');
-    expect(guards.checkInternalFirst('web_search')).not.toBeNull();
-    // Once internal completes with 0 sources, web is allowed (empty → fall back).
-    guards.noteCompletion('gruenerator_search');
-    expect(guards.checkInternalFirst('web_search')).toBeNull();
-  });
-
-  it('prefer-internal: once internal yields enough sources, web/scrape are refused', () => {
-    let sources = 0;
-    const guards = createToolLoopGuards({ internalFirst: policy, getSourceCount: () => sources });
+  it('does not force a second time once the web has run', () => {
+    const guards = createToolLoopGuards({ internalFallback: policy, getSourceCount: () => 0 });
     guards.noteCall('gruenerator_search');
     guards.noteCompletion('gruenerator_search');
-    sources = 5; // enough internal evidence → do not web-search on top
-    expect(guards.checkInternalFirst('web_search')).not.toBeNull();
-    // Also blocks a model-invented scrape URL (Q2 gruene.de/positionen/atomkraft 404).
-    expect(guards.checkInternalFirst('scrape_url')).not.toBeNull();
-  });
-
-  /**
-   * `checkInternalFirst` only stops BLOCKING the web once internal comes back
-   * empty — permission the planner was free to ignore, and did: the same
-   * question researched properly in one session and was answered ungrounded in
-   * the next, decided by nothing but sampling. These pin the promotion from
-   * "allowed" to "forced".
-   */
-  describe('emptyResultFallback', () => {
-    const forcing = { ...policy, emptyResultFallbackTool: 'web_search' };
-
-    it('forces the web only after the internal search COMPLETED with nothing', () => {
-      const guards = createToolLoopGuards({ internalFirst: forcing, getSourceCount: () => 0 });
-      // Never called — internal must go first, nothing to fall back from.
-      expect(guards.emptyResultFallback()).toBeNull();
-      guards.noteCall('gruenerator_search');
-      // In flight: the result may still land. Forcing here would race.
-      expect(guards.emptyResultFallback()).toBeNull();
-      guards.noteCompletion('gruenerator_search');
-      expect(guards.emptyResultFallback()).toBe('web_search');
-    });
-
-    it('stays quiet when the internal search actually found something', () => {
-      let sources = 0;
-      const guards = createToolLoopGuards({
-        internalFirst: forcing,
-        getSourceCount: () => sources,
-      });
-      guards.noteCall('gruenerator_search');
-      guards.noteCompletion('gruenerator_search');
-      sources = 1;
-      expect(guards.emptyResultFallback()).toBeNull();
-    });
-
-    it('does not force a second time once the web has run', () => {
-      const guards = createToolLoopGuards({ internalFirst: forcing, getSourceCount: () => 0 });
-      guards.noteCall('gruenerator_search');
-      guards.noteCompletion('gruenerator_search');
-      expect(guards.emptyResultFallback()).toBe('web_search');
-      guards.noteCall('web_search');
-      // Otherwise an empty web search would be forced over and over until the
-      // step budget ran out.
-      expect(guards.emptyResultFallback()).toBeNull();
-    });
-
-    it('respects the exemption and the opt-in', () => {
-      const exempt = createToolLoopGuards({
-        internalFirst: { ...forcing, exempt: true },
-        getSourceCount: () => 0,
-      });
-      exempt.noteCall('gruenerator_search');
-      exempt.noteCompletion('gruenerator_search');
-      expect(exempt.emptyResultFallback()).toBeNull();
-
-      // No tool named = previous behaviour, nothing is forced.
-      const optedOut = createToolLoopGuards({ internalFirst: policy, getSourceCount: () => 0 });
-      optedOut.noteCall('gruenerator_search');
-      optedOut.noteCompletion('gruenerator_search');
-      expect(optedOut.emptyResultFallback()).toBeNull();
-    });
-  });
-
-  it('never blocks non-gated tools', () => {
-    const guards = createToolLoopGuards({ internalFirst: policy });
-    expect(guards.checkInternalFirst('gruenerator_search')).toBeNull();
-    expect(guards.checkInternalFirst('bundestag')).toBeNull();
-  });
-
-  it('exempt bypasses the policy entirely', () => {
-    const guards = createToolLoopGuards({ internalFirst: { ...policy, exempt: true } });
-    expect(guards.checkInternalFirst('web_search')).toBeNull();
+    expect(guards.emptyResultFallback()).toBe('web_search');
+    guards.noteCall('web_search');
+    // Otherwise an empty web search would be forced over and over until the
+    // step budget ran out.
+    expect(guards.emptyResultFallback()).toBeNull();
   });
 
   it('is inert without a policy', () => {
-    const guards = createToolLoopGuards();
-    expect(guards.checkInternalFirst('web_search')).toBeNull();
+    const guards = createToolLoopGuards({ getSourceCount: () => 0 });
+    guards.noteCall('gruenerator_search');
+    guards.noteCompletion('gruenerator_search');
+    expect(guards.emptyResultFallback()).toBeNull();
+  });
+
+  /**
+   * The regression this whole change is about: a general-knowledge question
+   * ("wer war marilyn monroe?") must reach the web without an internal party-
+   * document search in front of it. Nothing in the guards may refuse it.
+   */
+  it('never refuses web_search or scrape_url', () => {
+    const guards = createToolLoopGuards({
+      internalFallback: policy,
+      searchToolNames: new Set(['web_search', 'gruenerator_search', 'scrape_url']),
+      getSourceCount: () => 9,
+    });
+    expect(guards.checkSearchBudget('web_search')).toBeNull();
+    expect(guards.checkSearchConcurrency('web_search')).toBeNull();
+    expect(guards.checkDuplicate('web_search', { query: 'wer war marilyn monroe' })).toBeNull();
+    expect(guards.checkSearchConcurrency('scrape_url')).toBeNull();
+    expect(guards.checkDuplicate('scrape_url', { url: 'https://de.wikipedia.org/x' })).toBeNull();
   });
 });
 
