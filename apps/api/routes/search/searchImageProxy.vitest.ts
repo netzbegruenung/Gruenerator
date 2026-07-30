@@ -185,6 +185,23 @@ describe('GET /api/search-image', () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
+    it('resolves the redirect target and refuses a host that answers privately', async () => {
+      // Distinct from the literal-IP case above, and not a duplicate of it: a
+      // literal `169.254.169.254` is rejected by the address check that runs
+      // BEFORE any DNS lookup, so that test passes even if the redirect hop never
+      // resolves names at all. Verified by mutation — deleting the DNS check from
+      // the redirect path left the whole suite green until this test existed.
+      // A hostname is the shape that actually reaches the resolver, and the shape
+      // an attacker controls: the name is public, the answer is not.
+      fetchMock
+        .mockResolvedValueOnce(redirectTo('https://rebind.example/bild.png'))
+        .mockResolvedValueOnce(imageResponse(PNG));
+      const res = await get(signedPath('https://zeit.de/bild.png'));
+
+      expect(res.status).toBe(400);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
     it('follows a public redirect and validates it', async () => {
       fetchMock
         .mockResolvedValueOnce(redirectTo('https://cdn.example.org/echt.png'))
