@@ -65,20 +65,33 @@ export async function startChatApp(options: ChatAppOptions = {}): Promise<ChatAp
   };
 }
 
-function post(baseUrl: string, path: string, body: unknown): Promise<Response> {
+function post(
+  baseUrl: string,
+  path: string,
+  body: unknown,
+  headers?: Record<string, string>
+): Promise<Response> {
   return fetch(`${baseUrl}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify(body),
   });
 }
 
-export function postStream(baseUrl: string, body: unknown): Promise<Response> {
-  return post(baseUrl, '/api/chat-graph/stream', body);
+export function postStream(
+  baseUrl: string,
+  body: unknown,
+  headers?: Record<string, string>
+): Promise<Response> {
+  return post(baseUrl, '/api/chat-graph/stream', body, headers);
 }
 
-export function postResume(baseUrl: string, body: unknown): Promise<Response> {
-  return post(baseUrl, '/api/chat-graph/resume', body);
+export function postResume(
+  baseUrl: string,
+  body: unknown,
+  headers?: Record<string, string>
+): Promise<Response> {
+  return post(baseUrl, '/api/chat-graph/resume', body, headers);
 }
 
 /**

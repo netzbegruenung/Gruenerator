@@ -84,7 +84,7 @@ const { pinChatEnv } = await import('./harness/env.js');
 const { resetThreadStore } = await import('./harness/fakeThreadStore.js');
 const { resetMockControls } = await import('./harness/mocks.js');
 const { respond } = await import('./harness/respondScript.js');
-const { renderDecisionMap } = await import('./renderDecisionMap.js');
+const { renderDecisionMap } = await import('../../../evals/renderDecisionMap.js');
 const { SIM_SCENARIOS } = await import('./scenarios.js');
 
 const MAPS_DIR = path.join(import.meta.dirname, 'decisions');

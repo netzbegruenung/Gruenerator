@@ -13,9 +13,13 @@
  * return. Nothing is logged, serialised or written; truncation and redaction
  * belong to whoever renders the journal, never to the recording site.
  *
- * There is deliberately NO env flag to switch this on in production: that would
- * mean an unbounded per-request array, and every site here already sits next to
- * a `log.info`.
+ * There is deliberately NO way to switch this on in production. The one sink
+ * that exists (`decisionLog.ts`) is gated on `NODE_ENV === 'development'` and
+ * checked at construction, so in a production build the middleware is never
+ * created and no request ever binds a journal. That gate, not the absence of a
+ * flag, is what keeps this free: every site here already sits next to a
+ * `log.info`, and the per-turn array is what a production deployment must not
+ * start paying for by accident.
  */
 
 import { AsyncLocalStorage } from 'node:async_hooks';

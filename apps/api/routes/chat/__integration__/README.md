@@ -101,6 +101,36 @@ from the registry.
 Regenerate with `SIM_UPDATE=1`. A **missing** map is a failure, never a silent
 create — otherwise a renamed scenario blesses itself.
 
+### The same map from a real backend
+
+The journal is bound in-process here, which is exactly what the live lane cannot
+do — there the runner and the backend are two processes, so nothing binds a
+recorder and every `recordDecision` is the no-op it is in production. The result
+was inverted: the only lane that sees real model behaviour was the only lane
+with no view of why the turn went that way.
+
+`utils/decisionLog.ts` closes that without putting decision ids on the wire —
+they are F1, and emitting them would make them F0, a contract shipped clients
+could come to depend on. Instead the journal leaves through the filesystem,
+under a name the client picks:
+
+```bash
+CHAT_DECISION_LOG_DIR=/tmp/maps pnpm dev:backend      # NODE_ENV=development only
+EVAL_DECISION_DIR=/tmp/maps EVAL_BYPASS_TOKEN=… pnpm --filter @gruenerator/api eval:chat
+```
+
+The runner sends `x-decision-log-id: <scenario>.t<n>`, reads the file back and
+renders one `<scenario>.map.txt` per scenario with `renderDecisionMap(…, 'live')`
+— the same renderer, a different caveat printed into the artefact. A live map is
+**one sample, not a baseline**: the same prompt can classify differently on the
+next run, so a diff between two live maps is evidence to read, never an assertion
+to fail on. Nothing is committed.
+
+The gate is `NODE_ENV === 'development'`, checked when the middleware is
+constructed, so in production it is never created and no request binds a journal.
+`decisionLogRoundTrip.vitest.ts` owns the transport: header → file → reader →
+map, including the `/resume` merge.
+
 ### What a green simulated run does and does not mean
 
 It proves the branches ran as scripted. It proves **nothing** about what a real

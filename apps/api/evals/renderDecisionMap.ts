@@ -1,11 +1,12 @@
-import { type ChatTrace } from '../../../evals/types.js';
 import {
   DECISION_POINTS,
   type DecisionEntry,
   type DecisionInputs,
   type DecisionJournal,
   type DecisionPointId,
-} from '../../../utils/decisionJournal.js';
+} from '../utils/decisionJournal.js';
+
+import { type ChatTrace } from './types.js';
 
 /**
  * Renders one turn's decisions as a fixed-width, registry-ordered block.
@@ -97,17 +98,38 @@ export interface DecisionMapTurn {
   trace: ChatTrace;
 }
 
+/**
+ * Which lane produced the map. The two carry OPPOSITE caveats and must never
+ * be mistaken for one another, so the caveat is printed into the artefact
+ * rather than left to whoever files the directory:
+ *
+ *  - `simulated` is reproducible but the model output is an assumption.
+ *  - `live` is real model output but a single unrepeatable sample; the same
+ *    prompt can take a different path on the next run, so a diff between two
+ *    live maps is evidence to READ, never an assertion to fail on.
+ */
+export type DecisionMapLane = 'simulated' | 'live';
+
+const LANE_HEADER: Record<DecisionMapLane, string[]> = {
+  simulated: [
+    '# Simulated decision map. Regenerate with SIM_UPDATE=1.',
+    '# A green diff proves the BRANCHES ran as scripted. It proves nothing',
+    '# about what a real model would have done.',
+  ],
+  live: [
+    '# LIVE decision map — recorded from a real backend with a real model.',
+    '# One sample, not a baseline: the same prompt may classify differently on',
+    '# the next run. Read the diff, never assert on it.',
+  ],
+};
+
 export function renderDecisionMap(
   scenarioId: string,
   category: string,
-  turns: DecisionMapTurn[]
+  turns: DecisionMapTurn[],
+  lane: DecisionMapLane = 'simulated'
 ): string {
-  const out: string[] = [
-    `# ${scenarioId} — ${category}`,
-    `# Simulated decision map. Regenerate with SIM_UPDATE=1.`,
-    `# A green diff proves the BRANCHES ran as scripted. It proves nothing`,
-    `# about what a real model would have done.`,
-  ];
+  const out: string[] = [`# ${scenarioId} — ${category}`, ...LANE_HEADER[lane]];
 
   turns.forEach((turn, index) => {
     out.push('', `## turn ${index}: ${JSON.stringify(turn.prompt)}`);
