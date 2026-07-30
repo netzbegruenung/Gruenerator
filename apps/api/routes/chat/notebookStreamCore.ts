@@ -22,7 +22,11 @@ import {
   validateAndInjectCitations,
   groupSourcesByCollection,
 } from '../../services/search/index.js';
-import { buildAiTelemetry, withLangfuseTrace } from '../../services/telemetry/langfuseTelemetry.js';
+import {
+  BOTH_LANES_FAILED,
+  buildAiTelemetry,
+  withLangfuseTrace,
+} from '../../services/telemetry/langfuseTelemetry.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { containsPromptLeakage } from '../gruenomat/topicGuard.js';
@@ -338,8 +342,8 @@ export async function handleNotebookStream(
           ...(userId && { userId }),
           ...(collectionId && { sessionId: collectionId }),
         },
-        async () =>
-          streamWithFallback({
+        async (trace) => {
+          const text = await streamWithFallback({
             primary: primaryResolution,
             sse,
             logPrefix: '[Notebook]',
@@ -355,7 +359,15 @@ export async function handleNotebookStream(
                 ...(notebookTelemetry && { telemetry: notebookTelemetry }),
               });
             },
-          })
+          });
+          // Both lanes dead → null, not a throw; the span has to say so itself.
+          trace.update(
+            text === null
+              ? { input: userContent, level: 'ERROR', statusMessage: BOTH_LANES_FAILED }
+              : { input: userContent, output: text }
+          );
+          return text;
+        }
       );
     } finally {
       if (primaryResolution.releaseSlot) {

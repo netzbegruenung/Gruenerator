@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildAiTelemetry, maskSensitive } from './langfuseTelemetry.js';
+import { buildAiTelemetry, maskSensitive, withLangfuseTrace } from './langfuseTelemetry.js';
 
 describe('maskSensitive', () => {
   it('redacts email addresses', () => {
@@ -44,5 +44,34 @@ describe('buildAiTelemetry', () => {
   // what keeps an unconfigured environment from emitting spans at all.
   it('returns undefined when telemetry was never initialised', () => {
     expect(buildAiTelemetry('chat-graph.respond')).toBeUndefined();
+  });
+});
+
+describe('withLangfuseTrace (disabled)', () => {
+  it('runs the callback and returns its value', async () => {
+    await expect(withLangfuseTrace({ name: 'chat-turn' }, async () => 'answer')).resolves.toBe(
+      'answer'
+    );
+  });
+
+  // The client renders the thumbs buttons on `traceId != null`. Handing out a
+  // synthetic id here (as this did before) produced a button whose score the
+  // feedback endpoint then silently dropped.
+  it('hands out no trace id, so the client hides the feedback buttons', async () => {
+    let seen: string | undefined | symbol = Symbol('unset');
+    await withLangfuseTrace({ name: 'chat-turn' }, async (trace) => {
+      seen = trace.traceId;
+      return null;
+    });
+    expect(seen).toBeUndefined();
+  });
+
+  it('accepts update() without a span behind it', async () => {
+    await expect(
+      withLangfuseTrace({ name: 'chat-turn' }, async (trace) => {
+        trace.update({ input: 'q', level: 'ERROR', statusMessage: 'boom' });
+        return 'ok';
+      })
+    ).resolves.toBe('ok');
   });
 });

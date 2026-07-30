@@ -22,8 +22,6 @@
  * flow only.
  */
 
-import { randomBytes } from 'node:crypto';
-
 import { OpenTelemetry } from '@ai-sdk/otel';
 import { LangfuseSpanProcessor } from '@langfuse/otel';
 import {
@@ -38,6 +36,7 @@ import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
 
 import { env } from '../../config/env.js';
 
+import type { LangfuseSpanAttributes } from '@langfuse/tracing';
 import type { streamText } from 'ai';
 
 /** Telemetry settings shape the AI SDK accepts on `experimental_telemetry`. */
@@ -196,17 +195,44 @@ interface TraceOptions {
 }
 
 /**
- * Run `fn` inside one Langfuse trace (root span). `fn` receives the trace id
- * (= OTel trace id, 32-hex) so callers can surface it to the client for
- * feedback scoring. When Langfuse is disabled we still hand `fn` a synthetic
- * 32-hex id — the thumbs feedback buttons stay visible by default, and the
- * feedback endpoint silently no-ops the score (see feedbackController).
+ * Status message for a turn whose primary AND sibling lane both died.
+ * `streamWithFallback` reports that as `null` rather than throwing, so the root
+ * span has to be marked by hand — a shared constant keeps the Langfuse filter
+ * on it from silently missing a call site that phrased it differently.
+ */
+export const BOTH_LANES_FAILED = 'generation failed on both model lanes';
+
+/** What a traced turn gets to talk back to its own root span. */
+export interface LangfuseTrace {
+  /**
+   * OTel trace id (32 hex) so callers can surface it to the client for feedback
+   * scoring. `undefined` when Langfuse is disabled — the client hides the thumbs
+   * buttons on that signal rather than offering a control that drops the score.
+   */
+  readonly traceId: string | undefined;
+  /**
+   * Record input/output/level on the turn's ROOT span. No-op when disabled.
+   *
+   * Observation-level, not trace-level: `setActiveTraceIO` is deprecated in the
+   * SDK and only exists for legacy trace-level evaluators. Everything that reads
+   * a turn's I/O today — annotation queues, LLM-as-a-judge, dataset runs — reads
+   * it off the root observation.
+   */
+  update(attrs: LangfuseSpanAttributes): void;
+}
+
+/** Disabled-mode handle: an id nobody can score, and a no-op writer. */
+const INERT_TRACE: LangfuseTrace = { traceId: undefined, update: () => {} };
+
+/**
+ * Run `fn` inside one Langfuse trace (root span). Every LLM call it makes with
+ * `buildAiTelemetry()` settings nests under that span.
  */
 export function withLangfuseTrace<T>(
   opts: TraceOptions,
-  fn: (traceId: string | undefined) => Promise<T>
+  fn: (trace: LangfuseTrace) => Promise<T>
 ): Promise<T> {
-  if (!isLangfuseEnabled()) return fn(randomBytes(16).toString('hex'));
+  if (!isLangfuseEnabled()) return fn(INERT_TRACE);
 
   const attrs: Parameters<typeof propagateAttributes>[0] = {
     traceName: opts.name,
@@ -218,9 +244,12 @@ export function withLangfuseTrace<T>(
 
   return propagateAttributes(attrs, () =>
     startActiveObservation(opts.name, async (span) => {
-      const traceId = span.otelSpan.spanContext().traceId;
+      const trace: LangfuseTrace = {
+        traceId: span.otelSpan.spanContext().traceId,
+        update: (patch) => span.update(patch),
+      };
       try {
-        return await fn(traceId);
+        return await fn(trace);
       } catch (err) {
         span.update({
           level: 'ERROR',
