@@ -741,6 +741,21 @@ export interface ChatGraphState {
    */
   deepResearchAnswer?: string | null;
 
+  /**
+   * Domains the user named for THIS turn ("such auf zeit.de und orf.at"), from the
+   * deterministic `extractDomainScope` heuristic — no classifier field, no prompt
+   * budget.
+   *
+   * Deliberately not sticky. A scope that quietly keeps applying to later questions
+   * is worse than none: the user sees results going missing with no way to tell
+   * why. It is also visible in the tool card, so a wrong extraction is correctable
+   * rather than mysterious.
+   *
+   * Collides with `detectedUrls` by design and loses to it: a bare domain is a
+   * search restriction, a full URL with a path is a read instruction (`scrape_url`).
+   */
+  webSiteScope?: { include: string[]; exclude: string[] } | null;
+
   // Platform hint for the `examples` / `social_post` intents. Set by the
   // classifier when the user prompt names a platform; null otherwise. Consumed
   // by searchNode to filter social examples (instagram/facebook only — the
