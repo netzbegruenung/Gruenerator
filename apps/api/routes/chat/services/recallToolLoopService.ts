@@ -197,10 +197,10 @@ export async function handleRecallToolLoop(args: HandleRecallLoopArgs): Promise<
           maxTokens: z.number().int().min(200).max(4000).optional(),
         }),
         execute: async ({ id, type, maxTokens }, { toolCallId }) => {
-          const guardError =
+          const block =
             guards.checkFailureCap('read_user_content') ??
             guards.checkDuplicate('read_user_content', { id, type });
-          if (guardError) return { error: guardError };
+          if (block) return { error: block.modelMessage };
 
           const budgetChars = Math.max(
             1_000,
