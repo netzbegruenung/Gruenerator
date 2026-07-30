@@ -198,6 +198,16 @@ export { parseSSELine, type SSECurrentEvent, type SSEParseResult } from './lib/s
 export { selectNarration, type PartLike } from './lib/narrationView';
 export { usePacedLabel } from './hooks/usePacedLabel';
 
+// Which tool calls live in the shimmering status line instead of drawing a card.
+export {
+  isSearchProgressTool,
+  selectHasVisibleToolCard,
+  selectReasoningText,
+  selectSearchSources,
+  selectSearchStatusLabel,
+  type StatusPartLike,
+} from './lib/toolStatusLine';
+
 // URL Utilities
 export { domainHue, domainInitial, extractDomain, getHostname } from './lib/urlUtils';
 

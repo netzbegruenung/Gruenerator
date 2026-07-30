@@ -8,8 +8,14 @@ import { CitationProvider, useFetchFullText } from '../../context/CitationContex
 import { agentsList, getDefaultAgent } from '../../lib/agents';
 import { resolveCitations } from '../../lib/citationUtils';
 import { phosphorAgentIcon } from '../../lib/phosphorAgentIcon';
+import {
+  selectReasoningText,
+  selectSearchSources,
+  selectSearchStatusLabel,
+  type StatusPartLike,
+} from '../../lib/toolStatusLine';
 import { useUserAgentsRegistry } from '../../stores/userAgentsRegistry';
-import { Reasoning, ReasoningGroup } from '../assistant-ui/reasoning';
+import { HiddenReasoning, HiddenReasoningGroup } from '../assistant-ui/reasoning';
 import { GrueneratorHomeIconLoading } from '../icons';
 import { ArtifactCard } from '../message-parts/ArtifactCard';
 import { BahnCard } from '../message-parts/BahnCard';
@@ -60,10 +66,12 @@ function AssistantMessageTextPart() {
   );
 }
 
+// Reasoning renders NOTHING in document order: the thinking hangs under the
+// status line's chevron instead (StatusLineDetails), and retires with it.
 const partComponents = {
   Text: AssistantMessageTextPart,
-  Reasoning,
-  ReasoningGroup,
+  Reasoning: HiddenReasoning,
+  ReasoningGroup: HiddenReasoningGroup,
   ToolGroup: ToolCallGroup,
 };
 
@@ -131,7 +139,18 @@ export const AssistantMessage = memo(function AssistantMessage() {
     .join('');
 
   const isStreaming = message.status?.type === 'running';
-  const hasToolCall = message.content.some((p) => p.type === 'tool-call');
+
+  // Everything the status line needs, read off the same parts it lives on.
+  // Retrieval steps and reasoning draw no block of their own: the running search
+  // IS the label, the thinking and the hits hang under its chevron, and
+  // `hasOwnDetail` retires the lot the moment the answer text starts.
+  const statusParts = message.content as ReadonlyArray<StatusPartLike>;
+  const hasOwnDetail =
+    message.content.some((p) => p.type === 'tool-call') ||
+    message.content.some((p) => p.type === 'reasoning');
+  const toolStatus = selectSearchStatusLabel(statusParts);
+  const reasoningText = selectReasoningText(statusParts);
+  const statusSources = useMemo(() => selectSearchSources(statusParts), [statusParts]);
 
   const citations = useMemo(
     () => resolveCitations(custom as Record<string, unknown> | undefined),
@@ -205,11 +224,14 @@ export const AssistantMessage = memo(function AssistantMessage() {
 
         <StreamingStatusLine
           isStreaming={isStreaming}
-          hasToolCall={hasToolCall}
+          hasOwnDetail={hasOwnDetail}
           textContent={textContent}
           custom={custom}
           progressDisplay={progressDisplay}
           agentColor={messageAgent?.backgroundColor || '#316049'}
+          toolStatus={toolStatus}
+          reasoningText={reasoningText}
+          sources={statusSources}
         />
 
         {custom?.socialPostData && (
