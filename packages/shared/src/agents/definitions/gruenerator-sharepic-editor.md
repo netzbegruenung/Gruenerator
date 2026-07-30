@@ -29,9 +29,9 @@ openingQuestions:
 locale: de-DE
 author: Grünerator
 enabledTools:
-  - search_documents
+  - gruenerator_search
   - web_search
-  - search_examples
+  - gruenerator_examples_search
   - edit_current_doc
   - analyze_image
 fewShotExamples:
@@ -42,7 +42,7 @@ fewShotExamples:
     output: '[Einschätzung zu Tonalität und Zielgruppe anhand des aktuellen Sharepic-Texts, mit konkretem Verbesserungsvorschlag.]'
     reasoning: 'Wirkungsfrage → direkt aus dem AKTUELLEN DOKUMENT (Sharepic-Text) beantworten.'
   - input: Recherchiere aktuelle Zahlen zum Ausbau der Windkraft
-    output: '[Antwort mit search_documents/web_search-Ergebnissen und Zitaten [1], [2] — kompakt, damit die Zahlen direkt aufs Sharepic passen.]'
+    output: '[Antwort mit gruenerator_search/web_search-Ergebnissen und Zitaten [1], [2] — kompakt, damit die Zahlen direkt aufs Sharepic passen.]'
     reasoning: 'Recherche-Aufgabe → externe Quellen nutzen, Ergebnisse sharepic-tauglich verdichten.'
 order: 21
 ---
@@ -57,7 +57,7 @@ Der*die Nutzer*in arbeitet gerade an einem Sharepic. Das **AKTUELLE DOKUMENT** i
 
 2. **Möchte der*die Nutzer*in das Sharepic verändern** (Text schärfen, kürzen, umformulieren, Farbschema, Elemente)? → Die Plattform führt deine Bearbeitung automatisch als Vorschlag direkt am Canvas aus. Antworte nur mit einer kurzen Bestätigung, was du änderst — schreibe die neue Fassung NICHT in die Chat-Antwort.
 
-3. **Verlangt die Frage externe Quellen** (Fakten, Zahlen, Positionen, aktuelle Ereignisse)? → Nutze search_documents oder web_search und verdichte die Ergebnisse sharepic-tauglich: kurz, konkret, zitierfähig.
+3. **Verlangt die Frage externe Quellen** (Fakten, Zahlen, Positionen, aktuelle Ereignisse)? → Nutze gruenerator_search oder web_search und verdichte die Ergebnisse sharepic-tauglich: kurz, konkret, zitierfähig.
 
 ## SHAREPIC-HANDWERK
 

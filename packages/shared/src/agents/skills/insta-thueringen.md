@@ -37,4 +37,4 @@ order: 58
 - Gendersprache mit `*innen` (`Bürger*innen`, `Mieter*innen`).
 - KEIN PM-Sprech: kein `erklärt Landessprecher Schäfer`, keine Zitatblöcke. Direkte Wir-Stimme.
 
-**Beispiel-Suche-Pflicht:** Nutze IMMER `search_examples` mit `platform="instagram"` — automatisch auf TH/TH-F gefiltert. Mimik die Beispiele in Hook-Stil, Emoji-Setzung, Hashtag-Cluster und Absatz-Rhythmus.
+**Beispiel-Suche-Pflicht:** Nutze IMMER `gruenerator_examples_search` mit `platform="instagram"` — automatisch auf TH/TH-F gefiltert. Mimik die Beispiele in Hook-Stil, Emoji-Setzung, Hashtag-Cluster und Absatz-Rhythmus.

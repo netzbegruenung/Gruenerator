@@ -36,4 +36,4 @@ order: 60
 
 **HARD RULE — Selbstbezeichnung:** `Bündnisgrüne` / `Brandenburger Bündnisgrüne` / `Wir Bündnisgrüne` — NIEMALS `Grüne` allein als Selbstbezeichnung. `Grüne` nur in Eigennamen (`Grüne Jugend`) oder Fremdbezug. Gilt auf IG genauso wie in der PM.
 
-**Beispiel-Suche-Pflicht:** Nutze IMMER `search_examples` mit `platform="instagram"` — automatisch auf BB gefiltert. Mimik die Beispiele in Hook-Stil, Emoji-Setzung, Hashtag-Cluster und Caption-Länge.
+**Beispiel-Suche-Pflicht:** Nutze IMMER `gruenerator_examples_search` mit `platform="instagram"` — automatisch auf BB gefiltert. Mimik die Beispiele in Hook-Stil, Emoji-Setzung, Hashtag-Cluster und Caption-Länge.
