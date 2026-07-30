@@ -8,6 +8,7 @@ router.run_agentic               = single_pass                    forcedTool=fal
 router.intent_override           = (not reached)
 router.persistent_action_gate    = allowed                        family=document intent=save_as_doc
 classifier.tier                  = tier4_llm                      intent=save_as_doc needsClarification=false
+respond.answer_format            = standard                       complexity=moderate intent=save_as_doc sourceCount=0 synthesisMode=none
 loop.tool_guard                  = (none)
 loop.synth_verdict               = (not reached)
 -- wire --
