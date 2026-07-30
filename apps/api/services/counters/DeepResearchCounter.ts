@@ -139,4 +139,6 @@ export class DeepResearchCounter {
   }
 }
 
-export default DeepResearchCounter;
+// Deliberately no default export, unlike ImageGenerationCounter: that one carries
+// one only for call sites predating the barrel. A second name for the same class
+// is a second thing to keep in sync, for no gain.
