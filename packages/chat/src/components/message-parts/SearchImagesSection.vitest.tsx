@@ -1,30 +1,78 @@
-import { render } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { SearchImagesSection } from './SearchImagesSection';
 
 /**
- * The load-bearing assertion in this file is a NEGATIVE one: no `<img>`.
+ * This component has two modes and the difference between them is a privacy
+ * property, not a layout preference.
  *
- * A thumbnail here would make the reader's browser fetch a file from whatever
- * host the web search happened to turn up — the same trade we removed from the
- * citation glyphs, where a favicon request reported the user's IP and the page
- * they were about to open to a third party. "Render the images we found" is the
- * obvious next change someone will make to this component, and it is the one that
- * must not happen without a backend proxy. So it is pinned here rather than left
- * to a comment.
+ * With a `proxyUrl` the thumbnail is served from OUR origin. Without one it must
+ * fall back to a plain link — because the alternative, `<img src={image.url}>`,
+ * makes the reader's browser announce their IP and the page they are reading to
+ * whatever host a search engine returned. That is the pattern we removed from the
+ * citation glyphs, and "the proxy secret is unset in this environment" must not be
+ * the thing that quietly brings it back.
+ *
+ * So the load-bearing assertion is negative and appears in both modes: no element
+ * anywhere may point at a third-party host.
  */
 describe('SearchImagesSection', () => {
+  /** No proxy configured — the link fallback. */
   const images = [
     { title: 'Demo in Leipzig', url: 'https://zeit.de/bild-1.jpg', domain: 'zeit.de' },
     { title: 'Kundgebung am Markt', url: 'https://spiegel.de/foto.png', domain: 'spiegel.de' },
   ];
 
-  it('renders no image element at all', () => {
+  /** Proxy configured — thumbnails, served same-origin. */
+  const proxied = images.map((image, i) => ({
+    ...image,
+    proxyUrl: `/api/search-image?url=x${i}&exp=1&sig=s`,
+  }));
+
+  it('renders no image element when there is no proxy', () => {
     const { container } = render(<SearchImagesSection images={images} />);
     expect(container.querySelector('img')).toBeNull();
     // Also nothing that loads a remote asset by another route.
     expect(container.querySelector('picture, source, iframe')).toBeNull();
+  });
+
+  it('renders thumbnails through the proxy, never from the source host', () => {
+    const { container } = render(<SearchImagesSection images={proxied} />);
+    const imgs = Array.from(container.querySelectorAll('img'));
+    expect(imgs).toHaveLength(2);
+    for (const img of imgs) {
+      const src = img.getAttribute('src') ?? '';
+      // Same-origin path only. This is the assertion the whole PR exists for.
+      expect(src.startsWith('/api/search-image?')).toBe(true);
+      expect(src).not.toMatch(/^https?:\/\//);
+    }
+    // And no element anywhere points at zeit.de/spiegel.de except the <a href>.
+    const remote = Array.from(container.querySelectorAll('[src]')).filter((el) =>
+      (el.getAttribute('src') ?? '').includes('://')
+    );
+    expect(remote).toHaveLength(0);
+  });
+
+  it('keeps every thumbnail linked to its source and described for screen readers', () => {
+    const { container } = render(<SearchImagesSection images={proxied} />);
+    expect(container.querySelectorAll('a')).toHaveLength(2);
+    for (const img of Array.from(container.querySelectorAll('img'))) {
+      expect(img.getAttribute('alt')).toBeTruthy();
+      expect(img.getAttribute('loading')).toBe('lazy');
+    }
+  });
+
+  it('falls back to a link when a thumbnail fails to load', () => {
+    // The proxy legitimately fails (source 404, over the size cap, refused
+    // type). A broken-image icon would leave the user with nothing, so the tile
+    // degrades to the same link the no-proxy path renders.
+    const { container } = render(<SearchImagesSection images={[proxied[0]!]} />);
+    const img = container.querySelector('img');
+    expect(img).not.toBeNull();
+    fireEvent.error(img!);
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector('a')?.getAttribute('href')).toBe(proxied[0]!.url);
   });
 
   it('renders each hit as a link that opens safely in a new tab', () => {
