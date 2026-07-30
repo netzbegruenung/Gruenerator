@@ -37,7 +37,16 @@ export interface LoopScenario {
    * different shape than the scenario claims.
    */
   streams: ScriptedResponse[];
+  /** Make the first N search-backend calls fail, for the failure-cap branches. */
+  backendFailures?: number;
   mustDecide?: Array<{ point: DecisionPointId; chose: string }>;
+  /**
+   * Exact number of times a branch was taken. The only honest assertion for
+   * `search_concurrency`: which of several parallel calls loses the race is an
+   * await-interleaving artefact, but HOW MANY are deferred is a property of the
+   * ceiling.
+   */
+  decisionCounts?: Array<{ point: DecisionPointId; chose: string; count: number }>;
   notReached?: DecisionPointId[];
 }
 
@@ -93,5 +102,122 @@ export const LOOP_SCENARIOS: readonly LoopScenario[] = [
     prompt: LOOP_PROMPT,
     streams: [{ text: '' }, { text: LEAKED_PLAN }, { text: LEAKED_PLAN }],
     mustDecide: [{ point: 'loop.synth_verdict', chose: 'retry_failed_empty' }],
+  },
+
+  // ── Tool guards ────────────────────────────────────────────────────────────
+  // Thresholds these encode, from loopGuards.ts: 2 failures per tool, 5 overall,
+  // 6 search calls, 2 concurrent searches, Jaccard 0.6 for near-duplicates. They
+  // are asserted through the guards rather than restated, so a changed constant
+  // shows up as a moved line in the map instead of a stale copy here.
+  {
+    id: 'loop-guard-duplikat',
+    category: 'tool-guard',
+    note: 'Zweimal wortgleich, danach eine andere Frage. Der dritte Aufruf ist das Gegenstueck im selben Turn: er beweist, dass die Sperre die WIEDERHOLUNG trifft und nicht das Tool.',
+    prompt: LOOP_PROMPT,
+    streams: [
+      {
+        calls: [
+          { tool: 'gruenerator_search', args: { query: 'Windkraft Ausbau Kommunen' } },
+          { tool: 'gruenerator_search', args: { query: 'Windkraft Ausbau Kommunen' } },
+          { tool: 'gruenerator_search', args: { query: 'Kindergrundsicherung Hoehe' } },
+        ],
+      },
+      { text: GERMAN_ANSWER },
+    ],
+    decisionCounts: [{ point: 'loop.tool_guard', chose: 'duplicate', count: 1 }],
+  },
+  {
+    id: 'loop-guard-aehnliche-suche',
+    category: 'tool-guard',
+    note: 'Keine Wiederholung, sondern eine Teilmenge derselben Tokens — genau das, was der exakte Schluessel durchlaesst. Das ist FINDINGS.md-Befund 2: Umformulierungen kollabieren nicht von selbst.',
+    prompt: LOOP_PROMPT,
+    streams: [
+      {
+        calls: [
+          { tool: 'gruenerator_search', args: { query: 'Windkraft Ausbau Kommunen' } },
+          { tool: 'gruenerator_search', args: { query: 'Windkraft Ausbau' } },
+        ],
+      },
+      { text: GERMAN_ANSWER },
+    ],
+    decisionCounts: [{ point: 'loop.tool_guard', chose: 'near_duplicate', count: 1 }],
+  },
+  {
+    id: 'loop-guard-suchbudget',
+    category: 'tool-guard',
+    note: 'Sieben thematisch verschiedene Suchen. Keine ist Duplikat oder aehnlich, jede gelingt — die Sperre kann also nur die Anzahl sein. Der Stub liefert bewusst EINE Quelle pro Aufruf, sonst risse die Quellen-Obergrenze (20) frueher als die Aufruf-Obergrenze (6).',
+    prompt: LOOP_PROMPT,
+    streams: [
+      {
+        calls: [
+          { tool: 'gruenerator_search', args: { query: 'Windkraft Ausbau' } },
+          { tool: 'gruenerator_search', args: { query: 'Kindergrundsicherung Hoehe' } },
+          { tool: 'gruenerator_search', args: { query: 'Mietendeckel Staedte' } },
+          { tool: 'gruenerator_search', args: { query: 'Tempolimit Autobahn' } },
+          { tool: 'gruenerator_search', args: { query: 'Buergergeld Reform' } },
+          { tool: 'gruenerator_search', args: { query: 'Kohleausstieg Datum' } },
+          { tool: 'gruenerator_search', args: { query: 'Wasserstoff Industrie' } },
+        ],
+      },
+      { text: GERMAN_ANSWER },
+    ],
+    decisionCounts: [{ point: 'loop.tool_guard', chose: 'search_budget', count: 1 }],
+  },
+  {
+    id: 'loop-guard-fehlerdeckel',
+    category: 'tool-guard',
+    note: 'Zwei Fehlschlaege desselben Tools, dann ein dritter Versuch. Die Sperre laeuft VOR der Duplikatspruefung, deshalb sind die Fragen verschieden — sonst benennte die Karte den falschen Grund.',
+    prompt: LOOP_PROMPT,
+    backendFailures: 2,
+    streams: [
+      {
+        calls: [
+          { tool: 'gruenerator_search', args: { query: 'Windkraft Ausbau' } },
+          { tool: 'gruenerator_search', args: { query: 'Kindergrundsicherung Hoehe' } },
+          { tool: 'gruenerator_search', args: { query: 'Mietendeckel Staedte' } },
+        ],
+      },
+      { text: GERMAN_ANSWER },
+    ],
+    decisionCounts: [{ point: 'loop.tool_guard', chose: 'failure_cap', count: 1 }],
+  },
+  {
+    id: 'loop-guard-fehlerbudget',
+    category: 'tool-guard',
+    note: 'Fuenf Fehlschlaege ueber drei Tools verteilt, damit der Deckel pro Tool (2) nicht zuerst greift. Der sechste Aufruf trifft das Gesamtbudget — die Versicherung dagegen, dass ein kaputter Anbieter den ganzen Turn verheizt.',
+    prompt: LOOP_PROMPT,
+    backendFailures: 5,
+    streams: [
+      {
+        calls: [
+          { tool: 'gruenerator_search', args: { query: 'Windkraft Ausbau' } },
+          { tool: 'gruenerator_search', args: { query: 'Kindergrundsicherung Hoehe' } },
+          { tool: 'web_search', args: { query: 'Mietendeckel aktuelle Lage' } },
+          { tool: 'web_search', args: { query: 'Tempolimit Debatte heute' } },
+          { tool: 'gruenerator_examples_search', args: { query: 'Buergergeld Reform' } },
+          { tool: 'gruenerator_examples_search', args: { query: 'Kohleausstieg Datum' } },
+        ],
+      },
+      { text: GERMAN_ANSWER },
+    ],
+    decisionCounts: [{ point: 'loop.tool_guard', chose: 'failure_budget', count: 1 }],
+  },
+  {
+    id: 'loop-guard-nebenlaeufig',
+    category: 'tool-guard',
+    note: 'Drei Suchen in EINEM Modellschritt. Das Deckel liegt bei zwei gleichzeitigen, also wird genau eine zurueckgestellt — zurueckgestellt, nicht abgelehnt: der Aufruf darf danach unveraendert erneut laufen. Zugesichert wird die ANZAHL, nie welcher Aufruf verlor.',
+    prompt: LOOP_PROMPT,
+    streams: [
+      {
+        parallel: true,
+        calls: [
+          { tool: 'gruenerator_search', args: { query: 'Windkraft Ausbau' } },
+          { tool: 'gruenerator_search', args: { query: 'Kindergrundsicherung Hoehe' } },
+          { tool: 'gruenerator_search', args: { query: 'Mietendeckel Staedte' } },
+        ],
+      },
+      { text: GERMAN_ANSWER },
+    ],
+    decisionCounts: [{ point: 'loop.tool_guard', chose: 'search_concurrency', count: 1 }],
   },
 ];
