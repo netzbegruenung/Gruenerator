@@ -39,7 +39,7 @@ const log = createLogger('Linkup');
  * Deliberately NOT gated on the response status: a 429 and a 503 both mean "stop
  * asking for a while", and we pay per search either way.
  */
-export const linkupCircuit = new CircuitBreaker({
+const linkupCircuit = new CircuitBreaker({
   failureThreshold: 2,
   resetTimeMs: 5 * 60 * 1000,
   label: 'Linkup',
