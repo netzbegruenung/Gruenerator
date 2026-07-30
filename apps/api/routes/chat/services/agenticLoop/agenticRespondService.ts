@@ -132,6 +132,19 @@ export const AGENTIC_INTENTS: ReadonlySet<ChatIntentId> = new Set(AGENTIC_INTENT
 
 export { isAgenticLoopEnabled } from './flags.js';
 
+/** Catalog keys that can produce a user-visible artifact. Gates the synth's
+ *  capability note — see its call site. */
+const ARTIFACT_TOOL_NAMES = [
+  'generate_image',
+  'sharepic',
+  'create_presentation',
+  'create_sheet',
+  'create_document',
+  'create_pdf',
+  'create_board',
+  'edit_document',
+] as const;
+
 /** Compound generation kind → the catalog key of its fat tool (for the
  *  guaranteed post-gather generation fallback). */
 const COMPOUND_TOOL_FOR: Record<string, string> = {
@@ -781,11 +794,6 @@ ANTWORTE KONKRET: Steht die Antwort in einer Quelle, dann NENNE SIE im Klartext 
         .filter(Boolean)
         .map((n) => `\n\n${n}`)
         .join('');
-      // The platform CAN generate sharepics/images (via loop tools) — the synth
-      // model has no tools of its own, so without this it defaults to "I'm just
-      // a text model, I can't make images" and refuses (observed live).
-      const capabilityNote =
-        '\n\nWICHTIG: Du bist Teil einer Plattform, die Sharepics, Bilder, Präsentationen, Tabellen, Dokumente und Boards über Tools ERSTELLEN kann. Behaupte NIEMALS, du seist "nur ein Textmodell" oder nutztest "ein textbasiertes Format", und biete NIEMALS ein Text-Konzept/Storyboard als Ersatz für eine echte Präsentation/Tabelle/ein Dokument an. Wurde in diesem Turn ein Artefakt erstellt, kündige es knapp an und fasse die recherchierten Kerninhalte zusammen; wurde eines angefragt aber nicht erstellt, sag knapp, dass die Erstellung nicht geklappt hat.';
       // Turn-outcome honesty: with no gathered sources the model must not claim
       // it researched — the classic follow-up lie ("laut meiner Recherche …"
       // with zero tool calls). Skip when an artifact WAS produced (those turns
@@ -796,6 +804,20 @@ ANTWORTE KONKRET: Steht die Antwort in einer Quelle, dann NENNE SIE im Klartext 
         finalState.createdDocument != null ||
         finalState.createdBoard != null ||
         finalState.editorEditsSummary != null;
+      // The platform CAN generate sharepics/images (via loop tools) — the synth
+      // model has no tools of its own, so without this it defaults to "I'm just
+      // a text model, I can't make images" and refuses (observed live).
+      //
+      // Attached only when an artifact tool was actually mounted this turn, or
+      // one was produced — not unconditionally. On a pure knowledge turn it was
+      // ~550 characters advertising Sharepics nobody had asked about, and it
+      // worked AGAINST answer rule 1, which then had to forbid the very offers
+      // this note invites. Two rules cancelling each other out.
+      const artifactToolMounted = ARTIFACT_TOOL_NAMES.some((name) => tools[name] != null);
+      const capabilityNote =
+        artifactToolMounted || producedArtifact
+          ? '\n\nWICHTIG: Du bist Teil einer Plattform, die Sharepics, Bilder, Präsentationen, Tabellen, Dokumente und Boards über Tools ERSTELLEN kann. Behaupte NIEMALS, du seist "nur ein Textmodell" oder nutztest "ein textbasiertes Format", und biete NIEMALS ein Text-Konzept/Storyboard als Ersatz für eine echte Präsentation/Tabelle/ein Dokument an. Wurde in diesem Turn ein Artefakt erstellt, kündige es knapp an und fasse die recherchierten Kerninhalte zusammen; wurde eines angefragt aber nicht erstellt, sag knapp, dass die Erstellung nicht geklappt hat.'
+          : '';
       // Real per-turn MCP outcomes (success/error) so the tool-less synth can
       // report them truthfully instead of guessing — MCP tools don't register
       // sources, so this is the ONLY channel the synth has for connector results.
