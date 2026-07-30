@@ -2,6 +2,8 @@ import { agentsList, useSkillFavoritesStore, type AgentListItem } from '@gruener
 import {
   getAgentSlug,
   getVisibleSystemAgentsForLocale,
+  isLvItemVisibleForRoles,
+  landesverbandHeadings,
   type Agent,
 } from '@gruenerator/shared/agents';
 import { sortByUsage, type UsageMap } from '@gruenerator/shared/utils';
@@ -56,6 +58,7 @@ import {
   type AgenturaCategoryKey,
   type AgenturaSort,
 } from './lib/categories';
+import { useUserLandesverbaende } from './hooks/useUserLandesverbaende';
 import { isLandesverbandIdentifier, landesverbandRegion } from './lib/lookups';
 
 import type { IconType } from 'react-icons';
@@ -165,6 +168,7 @@ function AgenturaPage() {
 
   const favorites = useSkillFavoritesStore((s) => s.favorites);
   const toggleFavorite = useSkillFavoritesStore((s) => s.toggleFavorite);
+  const { lvIds } = useUserLandesverbaende();
 
   const { data: userAgents = [] } = useUserAgents();
   const { data: sharedSystemAgents = [] } = useSharedSystemAgents();
@@ -220,13 +224,25 @@ function AgenturaPage() {
     () => systemAgents.filter((a) => !isLandesverbandIdentifier(a.identifier)),
     [systemAgents]
   );
+  // Landesverband agents and recipes are shown only to people who actually work
+  // in that Landesverband — the aisle used to list all of them for everyone.
+  // Membership comes from the profile roles; before those are hydrated we keep
+  // the previous frame rather than flashing the cards away and back.
   const lvSystemAgents = useMemo(
-    () => systemAgents.filter((a) => isLandesverbandIdentifier(a.identifier)),
-    [systemAgents]
+    () =>
+      systemAgents.filter(
+        (a) =>
+          isLandesverbandIdentifier(a.identifier) && isLvItemVisibleForRoles(a.identifier, lvIds)
+      ),
+    [systemAgents, lvIds]
   );
   const lvSkills = useMemo(
-    () => allSkills.filter((s) => isLandesverbandIdentifier(s.identifier)),
-    [allSkills]
+    () =>
+      allSkills.filter(
+        (s) =>
+          isLandesverbandIdentifier(s.identifier) && isLvItemVisibleForRoles(s.identifier, lvIds)
+      ),
+    [allSkills, lvIds]
   );
 
   const favoriteSkills = useMemo(
@@ -328,6 +344,8 @@ function AgenturaPage() {
     });
   const sortSkills = (skills: AgentListItem[]) => sortBy(skills, sort, (s) => s.title);
 
+  const lvHeading = useMemo(() => landesverbandHeadings(lvIds).agents, [lvIds]);
+
   // Landesverband agent + skill cards, grouped by region (agents before skills).
   const lvCards = (): ReactNode[] =>
     [
@@ -413,8 +431,10 @@ function AgenturaPage() {
         },
       ];
       const lv = lvCards();
+      // The aisle is now personal, so name the Landesverband it belongs to
+      // instead of the generic plural. Empty (no matching role) → no section.
       if (lv.length)
-        sections.push({ key: 'off-lv', heading: 'Landesverbände', icon: PiMapPin, cards: lv });
+        sections.push({ key: 'off-lv', heading: lvHeading, icon: PiMapPin, cards: lv });
       for (const cat of SKILL_CATEGORY_ORDER) {
         const cards = sortSkills(byCategory.get(cat) ?? []).map(skillCard);
         if (cards.length)

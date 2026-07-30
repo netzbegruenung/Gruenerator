@@ -1,6 +1,8 @@
 import {
   getAgentSlug,
   getVisibleSystemAgentsForLocale,
+  isLvItemVisibleForRoles,
+  LANDESVERBAENDE,
   type Agent,
 } from '@gruenerator/shared/agents';
 import { Button, CardGrid } from '@gruenerator/ui';
@@ -9,6 +11,7 @@ import {
   PiArrowLeft,
   PiChatCircleText,
   PiInfo,
+  PiMapPin,
   PiPencilSimple,
   PiShareNetwork,
   PiStar,
@@ -22,6 +25,7 @@ import { PhosphorIcon } from '../agents/icons/PhosphorIcon';
 import { AgentCard } from './components/cards';
 import { ExamplePreview } from './components/ExamplePreview';
 import { ShareAgentModal } from './components/ShareAgentModal';
+import { useUserLandesverbaende } from './hooks/useUserLandesverbaende';
 import { relatedAgents, useAgentBySlug } from './lib/lookups';
 
 import { Markdown } from '@/components/common/Markdown';
@@ -61,6 +65,18 @@ function AgentDetailPage() {
     const pool: Agent[] = [...getVisibleSystemAgentsForLocale(userLocale), ...userAgents];
     return relatedAgents(agent, pool);
   }, [agent, userAgents, userLocale]);
+
+  // Whose Landesverband this is — shown only when the visitor has no role there,
+  // i.e. exactly when the Agentura no longer lists it for them.
+  const { lvIds } = useUserLandesverbaende();
+  const lvNotice = useMemo(() => {
+    const identifier = agent?.identifier;
+    if (!identifier || isLvItemVisibleForRoles(identifier, lvIds)) return null;
+    const lv = LANDESVERBAENDE.find(
+      (entry) => entry.prAgentId === identifier || entry.buergerAgentId === identifier
+    );
+    return lv?.title ?? null;
+  }, [agent, lvIds]);
 
   if (isLoading) {
     return (
@@ -142,6 +158,23 @@ function AgentDetailPage() {
           </p>
         </div>
       </header>
+
+      {/* Landesverband agents no longer appear in the Agentura aisle unless a
+          role points there, so someone arriving via a shared link needs to be
+          told whose agent this is — and how to get it listed. Access itself is
+          never blocked; discovery and access are separate questions. */}
+      {lvNotice && (
+        <div className="mb-lg flex flex-wrap items-center gap-xs rounded-lg border border-grey-200 bg-background-alt px-md py-sm text-sm text-foreground-muted dark:border-grey-700">
+          <PiMapPin className="shrink-0 text-secondary-600" />
+          <span>
+            Gehört zum Landesverband {lvNotice}. Hinterlege eine passende{' '}
+            <Link to="/settings/personalisierung" className="underline underline-offset-2">
+              Rolle
+            </Link>
+            , damit er in deiner Agentura auftaucht.
+          </span>
+        </div>
+      )}
 
       <div className="mb-lg flex flex-wrap items-center gap-xs">
         <Button variant="brand" onClick={() => navigate(`/agents/${chatSlug}`)}>

@@ -1,7 +1,5 @@
-import { allIntentMentions, forcedToolFor } from '@gruenerator/shared/chat-intents';
 import {
   PiFlask,
-  PiMagnifyingGlass,
   PiFiles,
   PiNote,
   PiPaintBrush,
@@ -19,20 +17,10 @@ import {
   PiPlugsConnected,
   PiChartBar,
   PiBooks,
-  PiLightbulb,
-  PiNewspaper,
-  PiClockCounterClockwise,
-  PiCloudSun,
-  PiShareNetwork,
-  PiChartLine,
-  PiCalculator,
 } from '@gruenerator/shared/icons';
+import { isLvNotebookVisibleForRoles } from '@gruenerator/shared/agents';
 import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
-import {
-  NOTEBOOK_REGISTRY,
-  isNotebookEnabled,
-  getNotebooksForAudience,
-} from '@gruenerator/shared/notebooks';
+import { NOTEBOOK_REGISTRY, isNotebookEnabled } from '@gruenerator/shared/notebooks';
 import { mcpBrandColor, slugifyName } from '@gruenerator/shared/utils';
 
 import { agentsList, type AgentListItem, type SkillCategory } from './agents';
@@ -186,40 +174,32 @@ export function getAgentMentionables(): Mentionable[] {
   );
 }
 
-/**
- * The built-in `@tool` mentions a user in the CURRENT locale should see.
- *
- * Must stay a function. `mentionLocale` is module state that the host app sets
- * after mount (`ChatPage`, `useMentionablesSync`), so a `const` array would
- * freeze `'de-DE'` at import time — which is precisely why the raw
- * `toolMentionables` was still leaking `@bundestag` to Austrian users even
- * though the audience field was set correctly.
- *
- * `toolMentionables` stays exported unfiltered because `resolveMentionable`
- * needs it: an `@bundestag` typed in an old thread must still resolve for
- * everyone, or the message would render a broken mention. Discovery is
- * filtered; resolution is not. Same split the notebooks use.
- */
-export function visibleToolMentionables(): Mentionable[] {
-  return toolMentionables.filter(
-    (m) => m.audience === undefined || m.audience === 'all' || m.audience === mentionLocale
-  );
+// The user's Landesverbände, derived from their profile roles. Set by the host
+// app alongside `setMentionLocale` — the chat package has no store access of its
+// own. Empty means "no Landesverband role", which hides every LV notebook from
+// the pickers; resolution is unaffected.
+let mentionLvIds: readonly string[] = [];
+
+export function setMentionLandesverbaende(lvIds: readonly string[]): void {
+  mentionLvIds = lvIds;
 }
 
 /**
- * System notebooks visible for the current locale — the same
- * `getNotebooksForAudience` the web and mobile galleries use. The chat picker
- * was the one surface that never asked, so an Austrian user was offered every
- * German Landesverband notebook.
+ * Notebooks the picker offers: enabled, matching the user's locale, and — for
+ * the per-Landesverband ones — matching a role the user actually holds.
  *
- * `notebookMentionables` (enabled-only) stays the input; `allNotebookMentionables`
- * remains what `resolveMentionable` reads, so a disabled or foreign notebook
- * mentioned in an old thread still resolves.
+ * The `+` menu used to list all thirteen notebooks to everyone regardless of
+ * locale, so an Austrian user browsed past nine German Landesverbände. Use the
+ * unfiltered `notebookMentionables` for lookups by identifier (active-notebook
+ * labels, page wiring) — filtering those would blank out a notebook the user
+ * has legitimately selected.
  */
-export function visibleNotebookMentionables(): Mentionable[] {
-  const locale = mentionLocale === 'de-AT' ? 'de-AT' : 'de-DE';
-  const allowed = new Set<string>(getNotebooksForAudience(locale).map((n) => n.id));
-  return notebookMentionables.filter((m) => allowed.has(m.identifier));
+export function getNotebookMentionables(): Mentionable[] {
+  return notebookMentionables.filter(
+    (m) =>
+      (m.audience === undefined || m.audience === 'all' || m.audience === mentionLocale) &&
+      isLvNotebookVisibleForRoles(m.identifier, mentionLvIds)
+  );
 }
 
 let customAgentMentionables: Mentionable[] = [];
@@ -286,114 +266,196 @@ const allNotebookMentionables: Mentionable[] = NOTEBOOK_REGISTRY.map((nb) => ({
   icon: NOTEBOOK_ICONS[nb.id],
   backgroundColor: nb.mention.backgroundColor,
   mention: nb.mention.alias,
+  // Carried through so the picker can filter by locale the same way it does for
+  // agents. The registry has always tagged this; nothing read it until now.
+  audience: nb.audience,
 }));
 
 export const notebookMentionables: Mentionable[] = allNotebookMentionables.filter((m) =>
   isNotebookEnabled(m.identifier)
 );
 
-/**
- * Icon per tool-mention slug. Icons cannot live in the registry — it is
- * framework-free so the backend and React Native can read it too — so the slug
- * is the shared key, exactly as `NOTEBOOK_ICONS` does it for notebooks.
- * Completeness is asserted at runtime in `mentionables.vitest.ts`: a registry
- * mention with no icon here fails that test instead of rendering blank.
- */
-const TOOL_MENTION_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  recherche: PiFlask,
-  deepresearch: PiMagnifyingGlass,
-  dokumente: PiFiles,
-  doku: PiBooks,
-  umfragen: PiChartBar,
-  abgeordnetenwatch: PiClipboardText,
-  bundestag: PiBank,
-  zusammenfassung: PiNote,
-  'pdf-erstellen': PiFilePdf,
-  bildgenerieren: PiPaintBrush,
-  stadtbegruenen: PiTreeEvergreen,
-  bildbearbeiten: PiImage,
-  sharepic: PiImagesSquare,
-  beispiele: PiLightbulb,
-  pressemitteilungen: PiNewspaper,
-  verlauf: PiClockCounterClockwise,
-  wetter: PiCloudSun,
-  social: PiShareNetwork,
-  diagramm: PiChartLine,
-  rechnen: PiCalculator,
-};
-
-/**
- * Picker order. The registry is ordered by the wire enum, which groups intents
- * by when they were added rather than by what a user reaches for — so the
- * display order lives here, carried over unchanged from the hand-written array
- * this derivation replaced. A slug missing from the list sorts to the end in
- * registry order: forgetting one is a cosmetic slip, not a disappearance.
- */
-const TOOL_MENTION_ORDER: readonly string[] = [
-  'recherche',
-  'deepresearch',
-  'dokumente',
-  'doku',
-  'umfragen',
-  'abgeordnetenwatch',
-  'bundestag',
-  'zusammenfassung',
-  'pdf-erstellen',
-  'bildgenerieren',
-  'stadtbegruenen',
-  'bildbearbeiten',
-  'sharepic',
-  'social',
-  'diagramm',
-  'rechnen',
-  'beispiele',
-  'pressemitteilungen',
-  'verlauf',
-  'wetter',
+export const toolMentionables: Mentionable[] = [
+  {
+    // Merged search tool (formerly two separate tools "Websuche" + "Recherche").
+    // The backend auto-scales depth: simple/news queries route to a fast web
+    // search, complex ones to deep multi-source research (see ChatGraph
+    // classifier + executeResearch complexity scaling). `websearch` stays a
+    // resolving alias so old @websearch mentions keep working.
+    type: 'tool',
+    category: 'function',
+    trigger: '@',
+    identifier: 'research',
+    title: 'Recherche',
+    description: 'Web & Quellen – automatische Suchtiefe',
+    avatar: '🔬',
+    icon: PiFlask,
+    backgroundColor: '#7C3AED',
+    mention: 'recherche',
+    aliases: ['websearch'],
+  },
+  {
+    type: 'tool',
+    category: 'function',
+    trigger: '@',
+    identifier: 'search',
+    title: 'Dokumente',
+    description: 'Parteiprogramme & Beschlüsse durchsuchen',
+    avatar: '📄',
+    icon: PiFiles,
+    backgroundColor: '#316049',
+    mention: 'dokumente',
+  },
+  {
+    // Grünerator user documentation (doku.gruenerator.eu). `audience: 'all'` —
+    // unlike bundestag/abgeordnetenwatch this describes the PRODUCT, so it is
+    // equally valid for AT users. `hilfe`/`anleitung` resolve as aliases so the
+    // picker finds it however the user phrases it.
+    type: 'tool',
+    category: 'function',
+    trigger: '@',
+    identifier: 'hilfe',
+    title: 'Hilfe & Anleitungen',
+    description: 'Anleitungen zum Grünerator aus der Doku',
+    avatar: '📖',
+    icon: PiBooks,
+    backgroundColor: '#0891B2',
+    mention: 'doku',
+    aliases: ['hilfe', 'anleitung'],
+    audience: 'all',
+  },
+  {
+    type: 'tool',
+    category: 'function',
+    trigger: '@',
+    identifier: 'umfragen',
+    title: 'Umfragen',
+    description: 'Meinungsumfragen & Sonntagsfrage durchsuchen',
+    avatar: '📊',
+    icon: PiChartBar,
+    backgroundColor: '#F59E0B',
+    mention: 'umfragen',
+    promptTemplate: 'Suche aktuelle Umfragen zu ',
+    audience: 'all',
+  },
+  {
+    // German MP transparency data (Abgeordnetenwatch): voting behaviour,
+    // Nebentätigkeiten, roll-call results. DE-only source — gated to de-DE so
+    // the picker hides it for Austrian users (Nationalrat isn't covered).
+    type: 'tool',
+    category: 'function',
+    trigger: '@',
+    identifier: 'abgeordnetenwatch',
+    title: 'Abgeordnetenwatch',
+    description: 'Abstimmungen & Nebentätigkeiten von Abgeordneten',
+    avatar: '🗳️',
+    icon: PiClipboardText,
+    backgroundColor: '#4B5563',
+    mention: 'abgeordnetenwatch',
+    audience: 'de-DE',
+  },
+  {
+    // Official Bundestag documents via the DIP (Drucksachen, plenary speeches,
+    // legislative processes). DE-only source — gated to de-DE so the picker
+    // hides it for Austrian users (Nationalrat isn't covered).
+    type: 'tool',
+    category: 'function',
+    trigger: '@',
+    identifier: 'bundestag',
+    title: 'Bundestag',
+    description: 'Drucksachen, Reden & Gesetzgebung aus dem Bundestag',
+    avatar: '🏛️',
+    icon: PiBank,
+    backgroundColor: '#4B5563',
+    mention: 'bundestag',
+    audience: 'de-DE',
+  },
+  {
+    type: 'tool',
+    category: 'function',
+    trigger: '@',
+    identifier: 'summary',
+    title: 'Zusammenfassung',
+    description: 'Dokument(e) zusammenfassen',
+    avatar: '📝',
+    icon: PiNote,
+    backgroundColor: '#0891B2',
+    mention: 'zusammenfassung',
+  },
+  {
+    // Forced-tool pseudo-mention: routes into forcedTools ('pdf-erstellen') like
+    // the create-* entries; the backend maps it to the create_pdf intent.
+    type: 'tool',
+    category: 'function',
+    trigger: '@',
+    identifier: 'pdf-erstellen',
+    title: 'PDF erstellen',
+    description:
+      'Erstellt ein barrierefreies PDF (PDF/UA-1) — Dokument, Brief mit Briefkopf oder ausfüllbares Formular',
+    avatar: '📄',
+    icon: PiFilePdf,
+    backgroundColor: '#316049',
+    mention: 'pdf-erstellen',
+    aliases: ['pdf', 'formular', 'briefkopf'],
+  },
+  {
+    type: 'tool',
+    category: 'function',
+    trigger: '@',
+    identifier: 'image',
+    title: 'Bildgenerierung',
+    description: 'Bild mit KI generieren (Flux)',
+    avatar: '🎨',
+    icon: PiPaintBrush,
+    backgroundColor: '#D97706',
+    mention: 'bildgenerieren',
+  },
+  {
+    type: 'tool',
+    category: 'function',
+    trigger: '@',
+    identifier: 'image_edit',
+    title: 'Stadt begrünen',
+    description: 'Stadtbild mit Grün transformieren',
+    avatar: '🌳',
+    icon: PiTreeEvergreen,
+    backgroundColor: '#059669',
+    mention: 'stadtbegruenen',
+  },
+  {
+    type: 'tool',
+    category: 'function',
+    trigger: '@',
+    identifier: 'image_edit_universal',
+    title: 'Bild bearbeiten',
+    description: 'Angehängtes Bild frei bearbeiten (z.B. "jünger machen", "mehr Grün")',
+    avatar: '🖼️',
+    icon: PiImage,
+    backgroundColor: '#059669',
+    mention: 'bildbearbeiten',
+  },
+  // Sharepic is web-only: the canvas editor that renders/edits it has no
+  // React-Native runtime, so the mention is gated on a browser environment
+  // (`document` exists) — but NOT on NODE_ENV. The chat sharepic pipeline is
+  // production-ready on web, so it shows in prod-web typeahead too.
+  ...(typeof document !== 'undefined'
+    ? [
+        {
+          type: 'tool' as const,
+          category: 'function' as const,
+          trigger: '@' as const,
+          identifier: 'sharepic',
+          title: 'Sharepic',
+          description:
+            'Sharepic-Varianten erstellen und per Chat bearbeiten (Text, Bild, Farben, Position)',
+          avatar: '🖼️',
+          icon: PiImagesSquare,
+          backgroundColor: '#46962b',
+          mention: 'sharepic',
+        },
+      ]
+    : []),
 ];
-
-/**
- * The built-in `@tool` mentions, derived from the intent registry
- * (`@gruenerator/shared/chat-intents`).
- *
- * `identifier` is the string the parser puts into `forcedTools` and the backend
- * router resolves. It is NOT always the intent id — `@pdf-erstellen` forces
- * `create_pdf`, `@bildbearbeiten` forces the universal-style variant of
- * `image_edit` — which is exactly why the registry names it explicitly.
- *
- * `availability: 'web-only'` (sharepic) gates on a browser environment, NOT on
- * NODE_ENV: the canvas editor that renders and edits a sharepic has no React
- * Native runtime, but the pipeline is production-ready on web.
- */
-function buildToolMentionables(): Mentionable[] {
-  const rank = (slug: string) => {
-    const i = TOOL_MENTION_ORDER.indexOf(slug);
-    return i === -1 ? TOOL_MENTION_ORDER.length : i;
-  };
-  return allIntentMentions()
-    .filter(({ intent }) => intent.availability !== 'web-only' || typeof document !== 'undefined')
-    .map(({ intent, mention }) => {
-      const icon = TOOL_MENTION_ICONS[mention.slug];
-      return {
-        type: 'tool' as const,
-        category: 'function' as const,
-        trigger: '@' as const,
-        identifier: mention.forcedTool ?? forcedToolFor(intent),
-        title: mention.title,
-        description: mention.description,
-        avatar: mention.avatar,
-        backgroundColor: mention.backgroundColor,
-        mention: mention.slug,
-        audience: intent.audience,
-        ...(mention.aliases ? { aliases: [...mention.aliases] } : {}),
-        ...(mention.promptTemplate ? { promptTemplate: mention.promptTemplate } : {}),
-        ...(icon ? { icon } : {}),
-      };
-    })
-    .sort((a, b) => rank(a.mention) - rank(b.mention));
-}
-
-export const toolMentionables: Mentionable[] = buildToolMentionables();
 
 export interface BoardMentionable {
   id: string;
@@ -850,19 +912,14 @@ export interface VorlageToken {
   thumbnailUrl?: string;
 }
 
-/**
- * Everything the current user could pick, locale-filtered like the picker.
- * Resolution of an existing mention does NOT go through here — that is
- * `resolveMentionable`, which stays locale-agnostic on purpose.
- */
 export function getAllMentionables(): Mentionable[] {
   return [
     ...getAgentMentionables(),
     ...customAgentMentionables,
     ...textformMentionables,
     ...dynamicUserNotebookMentionables,
-    ...visibleNotebookMentionables(),
-    ...visibleToolMentionables(),
+    ...notebookMentionables,
+    ...toolMentionables,
     ...dynamicMcpServerMentionables,
     ...boardToolMentionables,
     ...dynamicBoardMentionables,
@@ -958,13 +1015,9 @@ export function filterMentionables(query: string): {
     return {
       agents: getAgentMentionables(),
       customAgents: [...customAgentMentionables, ...textformMentionables],
-      notebooks: visibleNotebookMentionables(),
+      notebooks: getNotebookMentionables(),
       userNotebooks: dynamicUserNotebookMentionables,
-      tools: [
-        ...visibleToolMentionables(),
-        ...dynamicMcpServerMentionables,
-        ...webpageMentionables,
-      ],
+      tools: [...toolMentionables, ...dynamicMcpServerMentionables, ...webpageMentionables],
       boards: allBoards,
       docs: allDocs,
       documents: documentMentionables,
@@ -994,16 +1047,14 @@ export function filterMentionables(query: string): {
     agents: getAgentMentionables().filter(matchFn),
     customAgents: [...customAgentMentionables, ...textformMentionables].filter(matchFn),
     notebooks: isNotebookCategoryQuery
-      ? visibleNotebookMentionables()
-      : visibleNotebookMentionables().filter(matchFn),
+      ? getNotebookMentionables()
+      : getNotebookMentionables().filter(matchFn),
     userNotebooks: isNotebookCategoryQuery
       ? dynamicUserNotebookMentionables
       : dynamicUserNotebookMentionables.filter(matchFn),
-    tools: [
-      ...visibleToolMentionables(),
-      ...dynamicMcpServerMentionables,
-      ...webpageMentionables,
-    ].filter(matchFn),
+    tools: [...toolMentionables, ...dynamicMcpServerMentionables, ...webpageMentionables].filter(
+      matchFn
+    ),
     boards: 'board'.startsWith(q) || q.startsWith('board') ? allBoards : allBoards.filter(matchFn),
     docs: 'dok'.startsWith(q) || q.startsWith('dok') ? allDocs : allDocs.filter(matchFn),
     documents: documentMentionables.filter(matchFn),

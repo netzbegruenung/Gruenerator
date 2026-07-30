@@ -1,16 +1,23 @@
 'use client';
 
+import {
+  landesverbandHeadings,
+  landesverbandIdsForRoles,
+  lvSkillMentionsForRoles,
+} from '@gruenerator/shared/agents';
 import { X, Star, Search } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ComponentType, type ReactNode } from 'react';
 import { PiSparkle } from 'react-icons/pi';
 
 import { agentsList, SKILL_CATEGORY_LABELS, type SkillCategory } from '../../lib/agents';
 import {
   agentToMentionable,
   getCustomAgentMentionables,
+  getMentionLocale,
   type Mentionable,
 } from '../../lib/mentionables';
 import { useSkillFavoritesStore } from '../../stores/skillFavoritesStore';
+import { useUserProfileStore } from '../../stores/userProfileStore';
 
 interface SkillLibraryModalProps {
   open: boolean;
@@ -20,12 +27,83 @@ interface SkillLibraryModalProps {
 
 const CATEGORY_ORDER: SkillCategory[] = ['presse', 'social', 'dokumente', 'recherche', 'sonstiges'];
 
+function Group({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="mb-1">
+      <div className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
+        {label}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** One row: pick the recipe, or star it. Shared by all three groups — the
+ *  markup was copied per group before, which is how they drifted apart. */
+function SkillRow({
+  skill,
+  isFavorite,
+  fallbackIcon: FallbackIcon,
+  onSelect,
+  onToggleFavorite,
+}: {
+  skill: Mentionable;
+  isFavorite: boolean;
+  fallbackIcon?: ComponentType<{ className?: string }>;
+  onSelect: (mentionable: Mentionable) => void;
+  onToggleFavorite: (mention: string) => void;
+}) {
+  const Icon = skill.icon ?? FallbackIcon;
+  const favLabel = isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen';
+  return (
+    <div className="flex items-center gap-1">
+      <button
+        type="button"
+        className="flex flex-1 items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-primary/5"
+        onClick={() => onSelect(skill)}
+      >
+        <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-secondary-600">
+          {Icon ? <Icon className="h-5 w-5" /> : null}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-foreground">{skill.title}</p>
+          <p className="text-xs text-foreground-muted">{skill.description}</p>
+        </div>
+      </button>
+      <button
+        type="button"
+        onClick={() => onToggleFavorite(skill.mention)}
+        className="flex-shrink-0 rounded-lg p-2 transition-colors hover:bg-grey-100 dark:hover:bg-grey-800"
+        aria-label={favLabel}
+        title={favLabel}
+      >
+        <Star
+          className={`h-4 w-4 ${isFavorite ? 'fill-secondary-600 text-secondary-600' : 'text-foreground-muted'}`}
+        />
+      </button>
+    </div>
+  );
+}
+
 export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModalProps) {
   const [search, setSearch] = useState('');
   const { favorites, toggleFavorite } = useSkillFavoritesStore();
   const customAgents = getCustomAgentMentionables();
 
   const allSkills = useMemo(() => agentsList.map(agentToMentionable), []);
+
+  // Recipes of the Landesverbände the user's profile roles point at. They are
+  // pre-starred when a role is saved; showing them under their own heading is
+  // what explains that, instead of two stars appearing out of nowhere.
+  const roles = useUserProfileStore((s) => s.roles);
+  const lvMentions = useMemo(
+    () => new Set(lvSkillMentionsForRoles(roles, getMentionLocale())),
+    [roles]
+  );
+  const lvHeading = useMemo(
+    () => landesverbandHeadings(landesverbandIdsForRoles(roles, getMentionLocale())).skills,
+    [roles]
+  );
 
   const filtered = useMemo(() => {
     if (!search) return allSkills;
@@ -38,9 +116,16 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
     );
   }, [allSkills, search]);
 
+  const lvSkills = useMemo(
+    () => filtered.filter((s) => lvMentions.has(s.mention.toLowerCase())),
+    [filtered, lvMentions]
+  );
+
   const grouped = useMemo(() => {
     const map = new Map<SkillCategory, Mentionable[]>();
     for (const skill of filtered) {
+      // Already listed above under the Landesverband heading.
+      if (lvMentions.has(skill.mention.toLowerCase())) continue;
       const cat = skill.skillCategory ?? 'sonstiges';
       const list = map.get(cat) ?? [];
       list.push(skill);
@@ -51,7 +136,7 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
       label: SKILL_CATEGORY_LABELS[c],
       items: map.get(c)!,
     }));
-  }, [filtered]);
+  }, [filtered, lvMentions]);
 
   if (!open) return null;
 
@@ -103,88 +188,52 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
         </div>
 
         <div className="flex-1 overflow-y-auto px-2 py-2">
+          {lvSkills.length > 0 && (
+            <Group label={lvHeading}>
+              {lvSkills.map((skill) => (
+                <SkillRow
+                  key={skill.mention}
+                  skill={skill}
+                  isFavorite={favorites.includes(skill.mention.toLowerCase())}
+                  onSelect={onSelect}
+                  onToggleFavorite={toggleFavorite}
+                />
+              ))}
+            </Group>
+          )}
+
           {grouped.map(({ category, label, items }) => (
-            <div key={category} className="mb-1">
-              <div className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
-                {label}
-              </div>
-              {items.map((skill) => {
-                const isFav = favorites.includes(skill.mention.toLowerCase());
-                const Icon = skill.icon;
-                return (
-                  <div key={skill.mention} className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      className="flex flex-1 items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-primary/5"
-                      onClick={() => onSelect(skill)}
-                    >
-                      <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-secondary-600">
-                        {Icon ? <Icon className="h-5 w-5" /> : null}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-foreground">{skill.title}</p>
-                        <p className="text-xs text-foreground-muted">{skill.description}</p>
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => toggleFavorite(skill.mention)}
-                      className="flex-shrink-0 rounded-lg p-2 transition-colors hover:bg-grey-100 dark:hover:bg-grey-800"
-                      aria-label={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                      title={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                    >
-                      <Star
-                        className={`h-4 w-4 ${isFav ? 'fill-secondary-600 text-secondary-600' : 'text-foreground-muted'}`}
-                      />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
+            <Group key={category} label={label}>
+              {items.map((skill) => (
+                <SkillRow
+                  key={skill.mention}
+                  skill={skill}
+                  isFavorite={favorites.includes(skill.mention.toLowerCase())}
+                  onSelect={onSelect}
+                  onToggleFavorite={toggleFavorite}
+                />
+              ))}
+            </Group>
           ))}
 
           {customAgents.length > 0 && (
-            <div className="mb-1">
-              <div className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
-                Meine Skills
-              </div>
-              {customAgents.map((skill) => {
-                const isFav = favorites.includes(skill.mention.toLowerCase());
-                const Icon = skill.icon ?? PiSparkle;
-                return (
-                  <div key={skill.mention} className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      className="flex flex-1 items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-primary/5"
-                      onClick={() => onSelect(skill)}
-                    >
-                      <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-secondary-600">
-                        <Icon className="h-5 w-5" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-foreground">{skill.title}</p>
-                        <p className="text-xs text-foreground-muted">{skill.description}</p>
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => toggleFavorite(skill.mention)}
-                      className="flex-shrink-0 rounded-lg p-2 transition-colors hover:bg-grey-100 dark:hover:bg-grey-800"
-                      aria-label={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                    >
-                      <Star
-                        className={`h-4 w-4 ${isFav ? 'fill-secondary-600 text-secondary-600' : 'text-foreground-muted'}`}
-                      />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
+            <Group label="Meine Rezepte">
+              {customAgents.map((skill) => (
+                <SkillRow
+                  key={skill.mention}
+                  skill={skill}
+                  isFavorite={favorites.includes(skill.mention.toLowerCase())}
+                  fallbackIcon={PiSparkle}
+                  onSelect={onSelect}
+                  onToggleFavorite={toggleFavorite}
+                />
+              ))}
+            </Group>
           )}
 
-          {grouped.length === 0 && customAgents.length === 0 && (
+          {lvSkills.length === 0 && grouped.length === 0 && customAgents.length === 0 && (
             <div className="px-3 py-8 text-center text-sm text-foreground-muted">
-              Kein Skill gefunden
+              Kein Rezept gefunden
             </div>
           )}
         </div>

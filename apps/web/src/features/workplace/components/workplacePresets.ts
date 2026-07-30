@@ -1,4 +1,9 @@
 import { agentsList, type AgentListItem, type ComposerPreset } from '@gruenerator/chat';
+import { isLvItemVisibleForRoles } from '@gruenerator/shared/agents';
+import { useMemo } from 'react';
+
+import { useUserLandesverbaende } from '@/features/agentura/hooks/useUserLandesverbaende';
+import { useAuthStore } from '@/stores/authStore';
 
 const EXAMPLE_PROMPTS: Record<string, string> = {
   presse:
@@ -34,8 +39,46 @@ function buildPresetText(agent: AgentListItem): string {
   return seed ? `/${agent.mention} ${seed}` : `/${agent.mention} `;
 }
 
-export const WORKPLACE_PRESETS: ComposerPreset[] = agentsList.map((agent) => ({
-  key: agent.identifier,
-  title: agent.title,
-  text: buildPresetText(agent),
-}));
+function toPreset(agent: AgentListItem): ComposerPreset {
+  return {
+    // `mention`, not `identifier`: a recipe's identifier is its OWNING AGENT, and
+    // twenty recipes share ten of them — six of them `gruenerator-oeffentlichkeitsarbeit`
+    // alone (Presse, Instagram, Facebook, Twitter, LinkedIn, Reel). Keying the
+    // rendered list by it handed React six identical keys.
+    key: agent.mention,
+    title: agent.title,
+    text: buildPresetText(agent),
+  };
+}
+
+/**
+ * The "Vorlagen" list in the Workplace composer's "+" menu.
+ *
+ * Every recipe used to become a preset, so the list carried all eleven
+ * per-Landesverband entries ("PM Berlin", "Insta Brandenburg", …) for everyone,
+ * regardless of locale or which Landesverband the user actually works in. Now
+ * it matches the rest of the LV surfaces: locale first, then the roles from the
+ * user's profile.
+ *
+ * A hook rather than a module constant because the answer depends on the signed-in
+ * user. `resolveSkillMention` is untouched — typing `/presse-berlin` still works
+ * for anyone, this only governs what the menu offers.
+ */
+export function useWorkplacePresets(): ComposerPreset[] {
+  const { lvIds } = useUserLandesverbaende();
+  const userLocale = useAuthStore((s) => s.locale) ?? 'de-DE';
+
+  return useMemo(
+    () =>
+      agentsList
+        .filter(
+          (agent) =>
+            (agent.audience === undefined ||
+              agent.audience === 'all' ||
+              agent.audience === userLocale) &&
+            isLvItemVisibleForRoles(agent.identifier, lvIds)
+        )
+        .map(toPreset),
+    [lvIds, userLocale]
+  );
+}

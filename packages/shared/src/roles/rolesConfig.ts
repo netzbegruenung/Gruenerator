@@ -2,6 +2,9 @@
 // Shared between web (apps/web profile) and mobile (apps/mobile profile) so the
 // AT/DE role taxonomy stays single-sourced — Austria is a first-class locale.
 
+import { LANDESVERBAENDE } from '../agents/landesverbaende.js';
+import { getDisabledNotebookIds } from '../notebooks/index.js';
+
 export interface EbeneConfig {
   id: string;
   label: string;
@@ -71,24 +74,39 @@ export const AT_ROLLEN: Record<string, string[]> = {
   gemeinde: ['Mitarbeiter*in Gemeindegruppe', 'Gemeinderät*in', 'Presse & Social-Media'],
 };
 
-export const DE_BUNDESLAENDER: BundeslandConfig[] = [
-  { label: 'Baden-Württemberg' },
-  { label: 'Bayern', notebookId: 'bayern-notebook' },
-  { label: 'Berlin', notebookId: 'berlin-notebook' },
-  { label: 'Brandenburg', notebookId: 'brandenburg-notebook' },
-  { label: 'Bremen' },
-  { label: 'Hamburg', notebookId: 'hamburg-notebook' },
-  { label: 'Hessen' },
-  { label: 'Mecklenburg-Vorpommern', notebookId: 'mecklenburg-vorpommern-notebook' },
-  { label: 'Niedersachsen' },
-  { label: 'Nordrhein-Westfalen' },
-  { label: 'Rheinland-Pfalz' },
-  { label: 'Saarland' },
-  { label: 'Sachsen' },
-  { label: 'Sachsen-Anhalt' },
-  { label: 'Schleswig-Holstein', notebookId: 'schleswig-holstein-notebook' },
-  { label: 'Thüringen', notebookId: 'thueringen-notebook' },
-];
+/** All sixteen, in the order the wizard offers them. */
+const DE_BUNDESLAND_LABELS = [
+  'Baden-Württemberg',
+  'Bayern',
+  'Berlin',
+  'Brandenburg',
+  'Bremen',
+  'Hamburg',
+  'Hessen',
+  'Mecklenburg-Vorpommern',
+  'Niedersachsen',
+  'Nordrhein-Westfalen',
+  'Rheinland-Pfalz',
+  'Saarland',
+  'Sachsen',
+  'Sachsen-Anhalt',
+  'Schleswig-Holstein',
+  'Thüringen',
+] as const;
+
+/**
+ * `notebookId` is derived from the Landesverband registry, never typed by hand —
+ * the previous hand-maintained version had drifted: Hessen, Sachsen-Anhalt and
+ * Saarland lacked an id despite having notebooks, and Schleswig-Holstein carried
+ * one although its notebook is switched off. That drove the wrong "● Notebook"
+ * hint in the wizard. `label` matching `LandesverbandEntry.title` is
+ * load-bearing — it is the join key `landesverbandIdsForRoles` uses.
+ */
+export const DE_BUNDESLAENDER: BundeslandConfig[] = DE_BUNDESLAND_LABELS.map((label) => {
+  const entry = LANDESVERBAENDE.find((lv) => lv.title === label);
+  const enabled = entry && !getDisabledNotebookIds().has(entry.notebookId);
+  return enabled ? { label, notebookId: entry.notebookId } : { label };
+});
 
 export const AT_BUNDESLAENDER: BundeslandConfig[] = [
   { label: 'Wien' },

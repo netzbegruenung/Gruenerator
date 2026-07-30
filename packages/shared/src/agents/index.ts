@@ -63,6 +63,16 @@ export {
 } from './landesverbaende.js';
 
 export {
+  landesverbandHeadings,
+  landesverbandIdsForRoles,
+  landesverbandTitle,
+  isLvItemVisibleForRoles,
+  isLvNotebookVisibleForRoles,
+  lvSkillMentionsForRoles,
+  type RoleLandesverbandInput,
+} from './landesverbandForRoles.js';
+
+export {
   LV_HUBS,
   type LvHub,
   getLandesverbandHubBySlug,
