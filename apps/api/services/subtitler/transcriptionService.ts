@@ -11,7 +11,6 @@ import { fileURLToPath } from 'url';
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 import { type AIWorkerPool } from '../../workers/types.js';
-import { SCALEWAY_WHISPER_MODEL } from '../ai/scalewayEndpoint.js';
 import { type Locale } from '../localization/types.js';
 import { probeDurationSeconds } from '../transcription/audioDuration.js';
 import { chooseProvider, type TranscriptionProvider } from '../transcription/providerPolicy.js';
@@ -20,7 +19,6 @@ import { recordOperation } from '../usage/UsageTrackingService.js';
 import { startBackgroundCompression } from './backgroundCompressionService.js';
 import { generateManualSubtitles } from './manualSubtitleGeneratorService.js';
 import { transcribeWithRegolo } from './regoloTranscriptionService.js';
-import { transcribeWithScaleway } from './scalewayTranscriptionService.js';
 import { extractAudio } from './videoUploadService.js';
 import { transcribeWithVoxtral } from './voxtralTranscriptionService.js';
 
@@ -48,11 +46,6 @@ const RUNNERS: Record<
     ) => Promise<TranscriptionResult>;
   }
 > = {
-  scaleway: {
-    apiKey: () => env.SCALEWAY_API_KEY,
-    usage: { provider: 'scaleway', model: SCALEWAY_WHISPER_MODEL },
-    run: transcribeWithScaleway,
-  },
   regolo: {
     apiKey: () => env.REGOLO_API_KEY,
     usage: { provider: 'regolo', model: 'faster-whisper' },
@@ -68,11 +61,6 @@ const RUNNERS: Record<
 /**
  * Picks a provider via the shared policy, then works down its chain, skipping
  * providers whose key is unset and retrying the next one on error.
- *
- * `needsWordTimestamps` is what keeps Scaleway out of the chain whenever the
- * caller asked for word timings — Scaleway's Whisper returns segments only, and
- * because a wordless response is not an ERROR the loop below would accept it
- * and never fail over. See WORD_TIMESTAMP_CHAIN in providerPolicy.
  */
 async function transcribeWithProvider(
   audioPath: string,
@@ -84,7 +72,6 @@ async function transcribeWithProvider(
   const { provider, reason, chain } = chooseProvider({
     durationSeconds,
     override: env.TRANSCRIPTION_PROVIDER,
-    needsWordTimestamps: requestWordTimestamps,
   });
 
   // One line per transcription — the only place the provider decision is
@@ -109,7 +96,7 @@ async function transcribeWithProvider(
   }
 
   throw new Error(
-    'No transcription provider configured. Set SCALEWAY_API_KEY or REGOLO_API_KEY (Whisper) or MISTRAL_API_KEY (Voxtral).'
+    'No transcription provider configured. Set REGOLO_API_KEY (faster-whisper) or MISTRAL_API_KEY (Voxtral).'
   );
 }
 
