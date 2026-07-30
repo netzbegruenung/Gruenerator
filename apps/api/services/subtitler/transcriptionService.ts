@@ -11,6 +11,7 @@ import { fileURLToPath } from 'url';
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 import { type AIWorkerPool } from '../../workers/types.js';
+import { SCALEWAY_WHISPER_MODEL } from '../ai/scalewayEndpoint.js';
 import { type Locale } from '../localization/types.js';
 import { probeDurationSeconds } from '../transcription/audioDuration.js';
 import { chooseProvider, type TranscriptionProvider } from '../transcription/providerPolicy.js';
@@ -19,6 +20,7 @@ import { recordOperation } from '../usage/UsageTrackingService.js';
 import { startBackgroundCompression } from './backgroundCompressionService.js';
 import { generateManualSubtitles } from './manualSubtitleGeneratorService.js';
 import { transcribeWithRegolo } from './regoloTranscriptionService.js';
+import { transcribeWithScaleway } from './scalewayTranscriptionService.js';
 import { extractAudio } from './videoUploadService.js';
 import { transcribeWithVoxtral } from './voxtralTranscriptionService.js';
 
@@ -32,9 +34,45 @@ interface TranscriptionResult {
   words?: Array<{ word: string; start: number; end: number }>;
 }
 
+/** What each provider needs and how it is billed, so the loop below stays flat. */
+const RUNNERS: Record<
+  TranscriptionProvider,
+  {
+    apiKey: () => string | undefined;
+    usage: { provider: string; model: string };
+    run: (
+      audioPath: string,
+      requestWordTimestamps: boolean,
+      uploadId: string | null,
+      locale: Locale
+    ) => Promise<TranscriptionResult>;
+  }
+> = {
+  scaleway: {
+    apiKey: () => env.SCALEWAY_API_KEY,
+    usage: { provider: 'scaleway', model: SCALEWAY_WHISPER_MODEL },
+    run: transcribeWithScaleway,
+  },
+  regolo: {
+    apiKey: () => env.REGOLO_API_KEY,
+    usage: { provider: 'regolo', model: 'faster-whisper' },
+    run: transcribeWithRegolo,
+  },
+  voxtral: {
+    apiKey: () => env.MISTRAL_API_KEY,
+    usage: { provider: 'mistral', model: 'voxtral' },
+    run: transcribeWithVoxtral,
+  },
+};
+
 /**
- * Picks a provider via the shared policy (duration → Regolo under 2 min,
- * Voxtral at or above), then falls back to the other one if the first errors.
+ * Picks a provider via the shared policy, then works down its chain, skipping
+ * providers whose key is unset and retrying the next one on error.
+ *
+ * `needsWordTimestamps` is what keeps Scaleway out of the chain whenever the
+ * caller asked for word timings — Scaleway's Whisper returns segments only, and
+ * because a wordless response is not an ERROR the loop below would accept it
+ * and never fail over. See WORD_TIMESTAMP_CHAIN in providerPolicy.
  */
 async function transcribeWithProvider(
   audioPath: string,
@@ -43,58 +81,35 @@ async function transcribeWithProvider(
   locale: Locale = 'de-DE',
   durationSeconds: number | null = null
 ): Promise<TranscriptionResult> {
-  const { provider, reason } = chooseProvider({
+  const { provider, reason, chain } = chooseProvider({
     durationSeconds,
     override: env.TRANSCRIPTION_PROVIDER,
+    needsWordTimestamps: requestWordTimestamps,
   });
 
   // One line per transcription — the only place the provider decision is
   // observable, and infrequent enough not to be noise.
   log.info(
-    `provider=${provider} (${reason}) duration=${durationSeconds === null ? 'unknown' : `${Math.round(durationSeconds)}s`} locale=${locale}`
+    `provider=${provider} (${reason}) chain=${chain.join('→')} duration=${durationSeconds === null ? 'unknown' : `${Math.round(durationSeconds)}s`} locale=${locale}`
   );
 
-  const attempts: TranscriptionProvider[] =
-    provider === 'regolo' ? ['regolo', 'voxtral'] : ['voxtral', 'regolo'];
+  for (const attempt of chain) {
+    const runner = RUNNERS[attempt];
+    if (!runner.apiKey()) continue;
 
-  for (const attempt of attempts) {
-    if (attempt === 'regolo' && env.REGOLO_API_KEY) {
-      try {
-        const result = await transcribeWithRegolo(
-          audioPath,
-          requestWordTimestamps,
-          uploadId,
-          locale
-        );
-        recordOperation({ unit: 'transcriptions', provider: 'regolo', model: 'faster-whisper' });
-        return result;
-      } catch (error: unknown) {
-        log.warn(
-          `Regolo transcription failed: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-    }
-
-    if (attempt === 'voxtral' && env.MISTRAL_API_KEY) {
-      try {
-        const result = await transcribeWithVoxtral(
-          audioPath,
-          requestWordTimestamps,
-          uploadId,
-          locale
-        );
-        recordOperation({ unit: 'transcriptions', provider: 'mistral', model: 'voxtral' });
-        return result;
-      } catch (error: unknown) {
-        log.warn(
-          `Voxtral transcription failed: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
+    try {
+      const result = await runner.run(audioPath, requestWordTimestamps, uploadId, locale);
+      recordOperation({ unit: 'transcriptions', ...runner.usage });
+      return result;
+    } catch (error: unknown) {
+      log.warn(
+        `${attempt} transcription failed: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
   throw new Error(
-    'No transcription provider configured. Set REGOLO_API_KEY (faster-whisper) or MISTRAL_API_KEY (Voxtral).'
+    'No transcription provider configured. Set SCALEWAY_API_KEY or REGOLO_API_KEY (Whisper) or MISTRAL_API_KEY (Voxtral).'
   );
 }
 
