@@ -10,6 +10,7 @@
 import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 
+import { normalizeDomainList } from '../../../services/search/domainFilters.js';
 import { resolveSearchTier, SEARCH_TIERS } from '../../../services/search/searchDepth.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -236,6 +237,8 @@ WÄHLE DIE STUFE NACH AUFWAND, NICHT NACH WORTLAUT:
 
 EINE SUCHE ZUR ZEIT: Starte eine Suche, lies das Ergebnis, und suche erst dann weiter, wenn wirklich etwas fehlt. Höchstens zwei Suchen gleichzeitig. War ein Ergebnis schwach, formuliere die Anfrage EINMAL anders (notfalls englisch) — schicke keine Varianten auf Vorrat los.
 
+SCOPE GEHÖRT IN DIE PARAMETER, NICHT IN DIE ANFRAGE: Nennt der Benutzer Seiten ("such auf zeit.de und orf.at"), setze seiten; nennt er einen Zeitraum ("seit Januar", "letzte Woche"), setze zeitraum. Schreibe beides NICHT in query — dort werden es bloß Suchwörter, und die Suchmaschine filtert nichts.
+
 NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
     inputSchema: z.object({
       query: z.string().describe('Suchanfrage in deutscher Sprache'),
@@ -243,7 +246,10 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
         .enum(['general', 'news'])
         .optional()
         .default('general')
-        .describe('Suchtyp: general (allgemein) oder news (Nachrichten)'),
+        // F0: persisted in tool-call arguments, so the name stays. Its function
+        // moved to `zeitraum` — on the Linkup path it only ever set a SearXNG
+        // category, i.e. nothing at all. It now buys a 30-day window.
+        .describe('Suchtyp: general (allgemein) oder news (nur die letzten 30 Tage)'),
       tiefe: z
         .enum(SEARCH_TIERS)
         .optional()
@@ -251,12 +257,36 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
         .describe(
           'Rechercheaufwand: standard (schnell), gruendlich (mehrere Quellen), tiefenrecherche (nur auf ausdrücklichen Wunsch, langsam)'
         ),
+      zeitraum: z
+        .enum(['anytime', 'day', 'week', 'month', 'year'])
+        .optional()
+        .describe(
+          'Nur Treffer aus diesem Zeitfenster. Setze es, wenn der Benutzer einen Zeitbezug nennt — nicht vorsorglich, ein zu enges Fenster liefert nichts.'
+        ),
+      seiten: z
+        .array(z.string())
+        .optional()
+        .describe(
+          'Nur auf diesen Domains suchen, z.B. ["zeit.de","orf.at"] — reine Hostnamen ohne https://. Nur wenn der Benutzer Seiten genannt hat.'
+        ),
+      seitenAusschliessen: z
+        .array(z.string())
+        .optional()
+        .describe('Diese Domains überspringen, z.B. ["reddit.com"]. Reine Hostnamen.'),
       maxResults: z
         .number()
         .optional()
         .describe('Optional: Anzahl Ergebnisse überschreiben (sonst aus der Stufe)'),
     }),
-    execute: async ({ query, searchType, tiefe, maxResults }) => {
+    execute: async ({
+      query,
+      searchType,
+      tiefe,
+      zeitraum,
+      seiten,
+      seitenAusschliessen,
+      maxResults,
+    }) => {
       try {
         // The model's tier is a request; `resolveSearchTier` clamps it to what the
         // user actually consented to. Without this the deep engine is one
@@ -271,10 +301,19 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
             `[Tools] web_search tier clamped: ${tiefe} → ${tier} (no explicit deep request)`
           );
         }
+        // Hostnames are normalised here rather than trusted: the model reliably
+        // writes "https://zeit.de/" or "www.zeit.de" when the user did, and the
+        // API wants a bare host. A scheme left in place matches nothing, and the
+        // failure looks like "the site had no results".
+        const includeDomains = normalizeDomainList(seiten);
+        const excludeDomains = normalizeDomainList(seitenAusschliessen);
         return await executeDirectWebSearch({
           query,
           searchType,
           tier,
+          ...(zeitraum && zeitraum !== 'anytime' ? { timeRange: zeitraum } : {}),
+          ...(includeDomains.length > 0 ? { includeDomains } : {}),
+          ...(excludeDomains.length > 0 ? { excludeDomains } : {}),
           ...(maxResults != null ? { maxResults } : {}),
         });
       } catch (error) {

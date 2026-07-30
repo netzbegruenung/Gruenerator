@@ -284,6 +284,10 @@ export function buildToolUsageBlock(maxSteps: number, researchBanned = false): s
     '- Rufe so WENIGE Tools wie möglich auf. Sobald die ersten Ergebnisse deine Frage beantworten, antworte SOFORT — such nicht zur Absicherung weiter und wiederhole keine ähnlichen Suchen. Verfeinere oder wechsle das Tool NUR, wenn ein Ergebnis leer oder unpassend ist (z.B. Websuche statt Programmsuche, oder das Bundestag-Tool für Fraktions-/Gesetzesfragen).',
     '- SUCHEN BAUEN AUFEINANDER AUF: Starte EINE Suche, lies ihr Ergebnis, und suche erst danach weiter — höchstens ZWEI Suchen gleichzeitig. Weitere Suchen im selben Schritt werden zurückgestellt; du kannst sie danach unverändert erneut starten.',
     '- War ein Suchergebnis schwach, formuliere die Anfrage EINMAL anders (notfalls englisch) statt mehrere Varianten gleichzeitig loszuschicken.',
+    // Linkup's own pitfall note: a scope written into the query text becomes search
+    // TERMS. "such auf zeit.de" made "zeit.de" a keyword and restricted nothing at
+    // all. The parameters exist now; the model has to know to reach for them.
+    '- SCOPE GEHÖRT IN DIE PARAMETER: Nennt der*die Nutzer*in Seiten ("such auf zeit.de und orf.at") oder einen Zeitraum ("seit Januar", "letzte Woche"), setze bei web_search `seiten` bzw. `zeitraum` — schreibe es NICHT in `query`. Im Suchtext werden daraus bloß Suchwörter, eingeschränkt wird nichts.',
     '- Ein Validierungsfehler (fehlende/ungültige Parameter) heißt NICHT aufgeben — pass die Argumente an oder wähle ein besser passendes Tool desselben Dienstes; bevorzuge ein parameterfreies „letzte/liste"-Tool gegenüber einem „suche"-Tool mit Pflichtfeldern.',
     `- Du hast maximal ${maxSteps} Schritte. Danach antwortest du mit dem, was du hast.`,
     '- Belege Fakten mit [N]-Markern, die den nummerierten Quellen im Feld "sources" der Tool-Ergebnisse entsprechen.',
