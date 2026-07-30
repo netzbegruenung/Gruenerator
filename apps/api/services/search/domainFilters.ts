@@ -10,7 +10,7 @@
  * classifier ahead of the call, and both discard unwanted domains only after
  * the request already happened.
  *
- * `LOW_VALUE_DOMAIN_SET` / `isLowValueDomain` stay exported as a client-side
+ * `isLowValueDomain` stays exported as a client-side
  * net for results that arrive by a path that never saw `excludeDomains` — the
  * SearXNG fallback in particular — not as the primary mechanism. Once a
  * source hands the exclude list to the paid call, this check should rarely
@@ -30,8 +30,9 @@ export const LOW_VALUE_DOMAINS: readonly string[] = [
   'amazon.de',
 ];
 
-/** Set form of {@link LOW_VALUE_DOMAINS} for the post-call membership check. */
-export const LOW_VALUE_DOMAIN_SET: ReadonlySet<string> = new Set(LOW_VALUE_DOMAINS);
+/** Set form of {@link LOW_VALUE_DOMAINS} for the post-call membership check.
+ *  Module-private: callers want the predicate below, not the raw set. */
+const LOW_VALUE_DOMAIN_SET: ReadonlySet<string> = new Set(LOW_VALUE_DOMAINS);
 
 /**
  * Whether a result URL's host is on the low-value domain list.
