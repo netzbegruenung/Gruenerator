@@ -8,6 +8,7 @@ router.run_agentic               = single_pass                    forcedTool=fal
 router.intent_override           = (not reached)
 router.persistent_action_gate    = (not reached)
 classifier.tier                  = tier3_heuristic                confidence=0.93 effectiveConfidence=0.93 heuristicIntent=sharepic isVagueFollowup=null needsDecomposition=false
+respond.answer_format            = (not reached)
 loop.tool_guard                  = (none)
 loop.synth_verdict               = (not reached)
 -- wire --

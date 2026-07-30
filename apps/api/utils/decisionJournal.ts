@@ -80,6 +80,27 @@ export const DECISION_POINTS = {
     ],
   },
 
+  /**
+   * Which length/structure rule the answer prompt carried.
+   *
+   * Invisible from outside by construction: the wire shows a short answer, and
+   * a short answer because the model had little to say is indistinguishable
+   * from a short answer because the prompt capped it at two paragraphs. That
+   * ambiguity hid a real defect — question LENGTH was standing in for answer
+   * SCOPE, so "wer war marilyn monroe" was capped while the same question with
+   * "ausführlich" appended was not.
+   */
+  'respond.answer_format': {
+    branches: [
+      'brief',
+      'standard',
+      'structured_headings',
+      'research_expanded',
+      'synthesis_brief',
+      'synthesis_full',
+    ],
+  },
+
   /** A tool call the loop refused. Blocks only — a call that RAN is already
    *  on the wire as `tool_step_start`. Journal what the wire cannot see. */
   'loop.tool_guard': {
@@ -101,7 +122,13 @@ export const DECISION_POINTS = {
 } as const satisfies Record<string, { readonly branches: readonly string[] }>;
 
 export type DecisionPointId = keyof typeof DECISION_POINTS;
-type BranchOf<P extends DecisionPointId> = (typeof DECISION_POINTS)[P]['branches'][number];
+/**
+ * Exported so a call site that funnels several branches through one local helper
+ * can type that helper against the registry instead of casting. A cast there
+ * would reopen exactly the hole this registry exists to close — a wrong branch
+ * label silently accepted.
+ */
+export type BranchOf<P extends DecisionPointId> = (typeof DECISION_POINTS)[P]['branches'][number];
 
 /**
  * Flat on purpose. Nested objects and arrays-of-objects do not diff usefully,

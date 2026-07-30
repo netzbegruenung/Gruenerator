@@ -8,6 +8,7 @@ router.run_agentic               = (not reached)
 router.intent_override           = sharepic_unlicensed_fixed_text intentBefore=sharepic sharepicLicensed=false threadHasSharepic=false
 router.persistent_action_gate    = (not reached)
 classifier.tier                  = tier4_llm                      intent=sharepic needsClarification=false
+respond.answer_format            = (not reached)
 loop.tool_guard                  = (none)
 loop.synth_verdict               = (not reached)
 -- wire --

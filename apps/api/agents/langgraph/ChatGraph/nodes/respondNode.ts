@@ -26,6 +26,7 @@ import { buildDocsPageMap } from '../../../../services/docs/docsIndex.js';
 import { localizePlaceholders } from '../../../../services/localization/index.js';
 import { type Locale } from '../../../../services/localization/types.js';
 import { getTextFormForInjection } from '../../../../services/user/textFormRepository.js';
+import { recordDecision, type BranchOf } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { formatGermanDate } from '../../../../utils/stringUtils.js';
 import { isSourceAvailabilityError, renderDegradationNotes } from '../types.js';
@@ -1023,18 +1024,44 @@ function buildAnswerFormatRule(state: ChatGraphState, sourceCount: number): stri
   // multi-doc block (table, per-doc bullets, grounded prose). A second structure
   // directive here is how "Antworte als zusammenhängende Prosa" and "Strukturiere
   // mit Überschriften" ended up in the same prompt.
+  // `complexity` travels in `inputs` rather than as its own decision point: it
+  // has no user-visible consequence of its own, and the consequence it DOES have
+  // is this rule. One line in the map, with the reason next to it.
+  const note = (chose: BranchOf<'respond.answer_format'>): void => {
+    recordDecision('respond.answer_format', chose, {
+      inputs: {
+        complexity: state.complexity,
+        intent: String(state.intent),
+        sourceCount,
+        // A mode NAME, not a flag — keep the name, it distinguishes the
+        // multi-doc shapes that share the `synthesis_*` branches.
+        synthesisMode: state.synthesisMode ?? 'none',
+      },
+    });
+  };
+
   if (state.synthesisMode) {
-    return state.complexity === 'simple' ? 'Kurze, präzise Antworten' : 'Bis zu 6 Absätze';
+    const brief = state.complexity === 'simple';
+    note(brief ? 'synthesis_brief' : 'synthesis_full');
+    return brief ? 'Kurze, präzise Antworten' : 'Bis zu 6 Absätze';
   }
 
-  if (state.complexity === 'complex') return 'Strukturiere mit Überschriften, bis zu 6 Absätze';
-  if (state.complexity === 'simple') return 'Kurze, präzise Antworten (1-2 Absätze)';
+  if (state.complexity === 'complex') {
+    note('structured_headings');
+    return 'Strukturiere mit Überschriften, bis zu 6 Absätze';
+  }
+  if (state.complexity === 'simple') {
+    note('brief');
+    return 'Kurze, präzise Antworten (1-2 Absätze)';
+  }
 
   const isExternalResearch = state.intent === 'research' || state.intent === 'web';
   if (isExternalResearch && sourceCount >= STRUCTURE_SOURCE_THRESHOLD) {
+    note('research_expanded');
     return 'Bis zu 6 Absätze. Hat die Antwort mehrere eigenständige Aspekte, darfst du sie mit Überschriften gliedern — Pflicht ist das nicht';
   }
 
+  note('standard');
   return '2-4 Absätze mit klarer Struktur';
 }
 
