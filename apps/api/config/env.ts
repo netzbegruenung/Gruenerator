@@ -33,6 +33,13 @@ const envSchema = z.object({
 
   // ── Session / Auth core ────────────────────────────────────────────────
   SESSION_SECRET: z.string().optional(),
+  /**
+   * Signing key for search-image proxy handles. Optional: falls back to
+   * SESSION_SECRET, and with neither set the proxy stays off and search images
+   * remain plain links. Set it separately only to rotate proxy handles without
+   * invalidating every session.
+   */
+  SEARCH_IMAGE_PROXY_SECRET: z.string().optional(),
   ADMIN_TOKEN: z.string().optional(),
   // Comma-separated emails elevated to is_admin = true at session-parse time.
   // Runtime override — no DB write. Empty/unset → no overrides.
