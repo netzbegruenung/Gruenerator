@@ -4,6 +4,8 @@ import {
   getCustomAgentMentionables,
   getDefaultAgent,
   selectHasVisibleToolCard,
+  selectReasoningText,
+  selectSearchSources,
   selectSearchStatusLabel,
   useFetchFullText,
   type ChatMessageMetadata,
@@ -33,14 +35,16 @@ import { BranchPicker } from './BranchPicker';
 import { MessageCitationsContext } from './citationContext';
 import { resolveMessageAgent, shouldShowAgentBadge } from './messageAgent';
 import { messageLayout } from './messageLayout';
-import { AssistantReasoningPart } from './ReasoningBlock';
+import { HiddenReasoningPart } from './ReasoningBlock';
 import { AssistantToolCallPartWithNarration } from './ToolCallPart';
 import { TypingIndicator } from './TypingIndicator';
 
+// Reasoning renders NOTHING in document order: the thinking hangs under the
+// status line's chevron (StatusLineDetails), and retires with it.
 const partsComponents = {
   Text: AssistantTextPart,
   tools: { Fallback: AssistantToolCallPartWithNarration },
-  Reasoning: AssistantReasoningPart,
+  Reasoning: HiddenReasoningPart,
   Empty: TypingIndicator,
 };
 
@@ -76,9 +80,13 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const isLast = useAuiState((s) => s.message.isLast);
   const isStreaming = isRunning && isLast;
   const statusParts = message.content as ReadonlyArray<StatusPartLike>;
-  const hasToolCall = message.content.some((p) => p.type === 'tool-call');
+  const hasOwnDetail =
+    message.content.some((p) => p.type === 'tool-call') ||
+    message.content.some((p) => p.type === 'reasoning');
   const hasToolCard = selectHasVisibleToolCard(statusParts);
   const toolStatus = selectSearchStatusLabel(statusParts);
+  const reasoningText = selectReasoningText(statusParts);
+  const statusSources = useMemo(() => selectSearchSources(statusParts), [statusParts]);
   const progress = metadata.progress;
 
   const fetchFullText = useFetchFullText();
@@ -101,10 +109,11 @@ export const AssistantMessage = memo(function AssistantMessage() {
       .join('');
   }, [message.content]);
 
-  // A tool CARD owns the affordance outright; a cardless retrieval turn keeps
-  // the line, but only until the answer text starts (web's !textContent gate).
+  // A tool CARD owns the affordance outright; a turn whose only detail is
+  // cardless (retrieval, reasoning) keeps the line, but only until the answer
+  // text starts (web's !textContent gate).
   const showsProgress =
-    isStreaming && !!progress && !hasToolCard && (!hasToolCall || messageText.length === 0);
+    isStreaming && !!progress && !hasToolCard && (!hasOwnDetail || messageText.length === 0);
 
   return (
     <MessagePrimitive.Root style={[messageLayout.row, messageLayout.assistantRow]}>
@@ -113,7 +122,13 @@ export const AssistantMessage = memo(function AssistantMessage() {
           <AgentBadge agent={agent} theme={theme} />
         )}
         {showsProgress && progress && (
-          <ChatProgressIndicator progress={progress} theme={theme} toolStatus={toolStatus} />
+          <ChatProgressIndicator
+            progress={progress}
+            theme={theme}
+            toolStatus={toolStatus}
+            reasoningText={reasoningText}
+            sources={statusSources}
+          />
         )}
         {/* Above the prose, like web: when a turn produced a post, the post is
             the answer and the surrounding text is commentary on it. */}

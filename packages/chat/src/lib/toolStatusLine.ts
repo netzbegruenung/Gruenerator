@@ -4,9 +4,11 @@
 // web via GrueneratorToolUIs / ToolCallGroup / StreamingStatusLine, mobile via
 // ToolCallPart / ChatProgressIndicator.
 
+import { resolveToolEntry } from './toolRegistry';
 import { getToolMeta, getToolQuery } from './toolResults';
 
 import type { PartLike } from './narrationView';
+import type { SerializableCitation } from '../components/tool-ui/citation/schema';
 
 /**
  * Retrieval tools that get NO card. A search pill only ever said "ich suche
@@ -88,4 +90,52 @@ export function selectHasVisibleToolCard(parts: ReadonlyArray<StatusPartLike>): 
 /** The tool names that still produce a card — the basis for all group chrome. */
 export function visibleToolNames(toolNames: ReadonlyArray<string>): ReadonlyArray<string> {
   return toolNames.filter((name) => !isSearchProgressTool(name));
+}
+
+// ---------------------------------------------------------------------------
+// What the status line can drop down to show. Both selectors read the SAME
+// message parts the line already lives on, so the panel and the label can never
+// disagree about which turn they describe.
+// ---------------------------------------------------------------------------
+
+/**
+ * The model's thinking so far, or null. Reasoning is never persisted (no thread
+ * storage writes it), so this only ever has content mid-stream — which is
+ * exactly as long as the status line lives.
+ */
+export function selectReasoningText(parts: ReadonlyArray<StatusPartLike>): string | null {
+  const text = parts
+    .filter((p) => p.type === 'reasoning' && typeof p.text === 'string')
+    .map((p) => p.text as string)
+    .join('');
+  return text.trim().length > 0 ? text : null;
+}
+
+/** Most sources the dropdown lists before it stops — a panel, not an archive. */
+const MAX_PANEL_SOURCES = 8;
+
+/**
+ * What the retrieval steps have found so far, deduped by URL. Parsed through
+ * the shared registry, so each tool's own citation shape is honoured rather
+ * than re-guessed here.
+ */
+export function selectSearchSources(
+  parts: ReadonlyArray<StatusPartLike>
+): ReadonlyArray<SerializableCitation> {
+  const seen = new Set<string>();
+  const sources: SerializableCitation[] = [];
+  for (const part of parts) {
+    if (part.type !== 'tool-call' || !part.toolName) continue;
+    if (!isSearchProgressTool(part.toolName) || part.result == null) continue;
+    const vm = resolveToolEntry(part.toolName).parse(part.args, part.result);
+    if (vm.kind !== 'citations') continue;
+    for (const citation of vm.citations) {
+      const key = citation.href || citation.title;
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      sources.push(citation);
+      if (sources.length >= MAX_PANEL_SOURCES) return sources;
+    }
+  }
+  return sources;
 }

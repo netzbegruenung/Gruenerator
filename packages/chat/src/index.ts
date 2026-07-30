@@ -392,6 +392,8 @@ export { INTENT_TO_TOOL, DEEP_TOOL_MAP } from './lib/toolMappings';
 export {
   isSearchProgressTool,
   selectHasVisibleToolCard,
+  selectReasoningText,
+  selectSearchSources,
   selectSearchStatusLabel,
   type StatusPartLike,
 } from './lib/toolStatusLine';

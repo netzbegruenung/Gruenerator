@@ -7,22 +7,31 @@ import { ProgressTracker } from '../tool-ui/progress-tracker/ProgressTracker';
 
 import { type ProgressDisplay } from './progressDisplayContext';
 import { ProgressIndicator } from './ProgressIndicator';
+import { StatusLineDetails } from './StatusLineDetails';
 import { TypingIndicator } from './TypingIndicator';
 
 import type { ChatMessageMetadata } from '../../types/messageMetadata';
+import type { SerializableCitation } from '../tool-ui/citation/schema';
 
 interface StreamingStatusLineProps {
   isStreaming: boolean;
-  /** Any tool ran this turn — including a cardless retrieval step, which is
-   *  what keeps this line retiring the moment the answer text starts. */
-  hasToolCall: boolean;
+  /** The turn has detail of its own (a tool step or reasoning). Such a line
+   *  only shows BEFORE the answer text starts — a turn with neither keeps the
+   *  older behaviour of narrating alongside the streaming prose. */
+  hasOwnDetail: boolean;
   textContent: string;
   custom: ChatMessageMetadata | undefined;
   progressDisplay: ProgressDisplay;
   agentColor: string;
   /** The running retrieval step ("Websuche „Klimageld"") — see toolStatusLine. */
   toolStatus?: string | null;
+  /** Dropdown content: the model's thinking so far. */
+  reasoningText?: string | null;
+  /** Dropdown content: what the retrieval steps have found so far. */
+  sources?: ReadonlyArray<SerializableCitation>;
 }
+
+const NO_SOURCES: ReadonlyArray<SerializableCitation> = [];
 
 /**
  * The single streaming status element (typing dots / progress tracker / paced
@@ -31,24 +40,28 @@ interface StreamingStatusLineProps {
  * (via the unit-tested `useDelayedUnmount`) instead of vanishing instantly.
  * The paced/crossfaded label itself lives inside Progress{Tracker,Indicator}.
  *
- * Retrieval steps have no card of their own; `toolStatus` is how they get said,
- * overriding the generic stage word so the line names the actual search — and
- * disappearing with the whole line the moment the answer text starts.
+ * Retrieval steps and reasoning have no block of their own; `toolStatus` is how
+ * a search gets said, and `reasoningText`/`sources` hang under the line as a
+ * dropdown. All of it disappears with the line the moment the answer text
+ * starts — the thinking is not persisted anyway, and the sources reappear in
+ * the message's Quellen-Liste.
  */
 export function StreamingStatusLine({
   isStreaming,
-  hasToolCall,
+  hasOwnDetail,
   textContent,
   custom,
   progressDisplay,
   agentColor,
   toolStatus = null,
+  reasoningText = null,
+  sources = NO_SOURCES,
 }: StreamingStatusLineProps): ReactNode {
   const stage = custom?.progress?.stage;
   const progress = custom?.progress;
   const concrete = stage === 'searching' || stage === 'generating' || stage === 'generating_image';
 
-  const progressEl =
+  const labelEl =
     progress &&
     (progress.steps ? (
       <ProgressTracker
@@ -67,8 +80,14 @@ export function StreamingStatusLine({
       />
     ));
 
+  const progressEl = labelEl && (
+    <StatusLineDetails reasoningText={reasoningText} sources={sources}>
+      {labelEl}
+    </StatusLineDetails>
+  );
+
   let node: ReactNode = null;
-  if (!hasToolCall) {
+  if (!hasOwnDetail) {
     if (concrete && progressEl) node = progressEl;
     else if (!textContent) node = <TypingIndicator />;
   } else if (!textContent && progressEl && (stage === 'generating' || stage === 'searching')) {

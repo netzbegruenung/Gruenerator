@@ -202,6 +202,8 @@ export { usePacedLabel } from './hooks/usePacedLabel';
 export {
   isSearchProgressTool,
   selectHasVisibleToolCard,
+  selectReasoningText,
+  selectSearchSources,
   selectSearchStatusLabel,
   type StatusPartLike,
 } from './lib/toolStatusLine';
