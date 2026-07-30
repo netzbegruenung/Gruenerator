@@ -4,8 +4,8 @@
 
 /**
  * Minimal Redis client interface for counter operations.
- * Structurally compatible with both the `redis` package (RedisClientType)
- * and `ioredis` (Redis), so counters can be used with either client.
+ * Deliberately structural (not `RedisClientType`) so counters stay decoupled
+ * from the concrete client and testable with a plain stub.
  */
 export interface RedisClient {
   get(key: string): Promise<string | null>;
@@ -16,9 +16,8 @@ export interface RedisClient {
 
 /**
  * Extension required by ImageGenerationCounter to support per-call increment
- * amounts (centi-credits per model). node-redis exposes `incrBy`; ioredis
- * uses lowercase `incrby`. We keep this off the base RedisClient interface so
- * other counters remain structurally compatible with both clients.
+ * amounts (centi-credits per model). Kept off the base RedisClient interface
+ * so the other counters need only the four core commands.
  */
 export interface RedisIncrByClient extends RedisClient {
   incrBy(key: string, increment: number): Promise<number>;
