@@ -7,6 +7,7 @@ import type {
   ChartData,
   ComputeData,
   SearchResult,
+  SearchImage,
   StreamMetadata,
 } from '../hooks/useChatGraphStream';
 import type { Citation as RawCitation, Source, LinkConfig } from '../runtime/NotebookModelAdapter';
@@ -63,6 +64,13 @@ export type ChatMessageMetadata = {
   agentMention?: string;
   // Regular chat specific
   searchResults?: SearchResult[];
+  /**
+   * Image hits from the web search, rendered as named links by
+   * `SearchImagesSection`. Separate from `searchResults` because an image carries
+   * no text: as a search result it would become a numbered source with an empty
+   * snippet.
+   */
+  searchImages?: SearchImage[];
   generatedImage?: GeneratedImage;
   sharepicData?: SharepicData;
   /** Text half of the EXPERIMENTAL combined social post (SocialPostCard). */

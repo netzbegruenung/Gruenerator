@@ -203,6 +203,26 @@ export const searchResultPayloadSchema = z.object({
 export type SearchResultPayload = z.infer<typeof searchResultPayloadSchema>;
 
 /**
+ * An image hit from the web search. Its own payload, never an entry in
+ * `searchResultPayloadSchema`: there is no `content`, so a shared shape would put
+ * a content-less item into the source list and produce a numbered citation with
+ * an empty snippet.
+ *
+ * The client renders these as NAMED LINKS. A `<img src>` here would make the
+ * reader's browser fetch a file from an arbitrary third-party host — the exact
+ * pattern removed from the citation glyphs, where a favicon request reported the
+ * user's IP and the page they were about to open to Google. There is deliberately
+ * no `thumbnailUrl` field: adding one is the same decision again, and it needs the
+ * backend proxy first.
+ */
+export const searchImagePayloadSchema = z.object({
+  title: z.string(),
+  url: z.string(),
+  domain: z.string(),
+});
+export type SearchImagePayload = z.infer<typeof searchImagePayloadSchema>;
+
+/**
  * Union of every style either side can produce: the generator emits
  * 'illustration' … 'universal'; the sharepic flow stamps 'sharepic'.
  * (Server and client previously declared two drifting subsets.)
@@ -490,6 +510,8 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
       message: z.string(),
       resultCount: z.number(),
       results: z.array(searchResultPayloadSchema.passthrough()).optional(),
+      /** Image hits, separate from `results` — see `searchImagePayloadSchema`. */
+      images: z.array(searchImagePayloadSchema.passthrough()).optional(),
       researchMeta: z.unknown().optional(),
       examplesResult: z
         .object({
