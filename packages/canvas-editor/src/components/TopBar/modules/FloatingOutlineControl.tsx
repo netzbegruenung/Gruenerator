@@ -1,5 +1,5 @@
 import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
-import * as Slider from '@radix-ui/react-slider';
+import { Slider } from 'radix-ui';
 import React from 'react';
 import { PiTextAa } from 'react-icons/pi';
 

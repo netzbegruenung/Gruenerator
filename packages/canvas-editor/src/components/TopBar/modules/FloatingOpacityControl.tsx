@@ -1,4 +1,4 @@
-import * as Slider from '@radix-ui/react-slider';
+import { Slider } from 'radix-ui';
 import React from 'react';
 import { PiDrop } from 'react-icons/pi';
 

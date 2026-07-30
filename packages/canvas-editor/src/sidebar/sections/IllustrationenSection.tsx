@@ -1,4 +1,4 @@
-import * as Slider from '@radix-ui/react-slider';
+import { Slider } from 'radix-ui';
 import React, { useEffect, useRef } from 'react';
 import { FaTrash, FaCopy } from 'react-icons/fa';
 import {
