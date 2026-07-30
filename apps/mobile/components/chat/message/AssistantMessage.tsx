@@ -3,9 +3,14 @@ import {
   agentMentionables,
   getCustomAgentMentionables,
   getDefaultAgent,
+  selectHasVisibleToolCard,
+  selectReasoningText,
+  selectSearchSources,
+  selectSearchStatusLabel,
   useFetchFullText,
   type ChatMessageMetadata,
   type Citation,
+  type StatusPartLike,
 } from '@gruenerator/chat';
 import { memo, useMemo, useState } from 'react';
 import { View } from 'react-native';
@@ -30,14 +35,16 @@ import { BranchPicker } from './BranchPicker';
 import { MessageCitationsContext } from './citationContext';
 import { resolveMessageAgent, shouldShowAgentBadge } from './messageAgent';
 import { messageLayout } from './messageLayout';
-import { AssistantReasoningPart } from './ReasoningBlock';
+import { HiddenReasoningPart } from './ReasoningBlock';
 import { AssistantToolCallPartWithNarration } from './ToolCallPart';
 import { TypingIndicator } from './TypingIndicator';
 
+// Reasoning renders NOTHING in document order: the thinking hangs under the
+// status line's chevron (StatusLineDetails), and retires with it.
 const partsComponents = {
   Text: AssistantTextPart,
   tools: { Fallback: AssistantToolCallPartWithNarration },
-  Reasoning: AssistantReasoningPart,
+  Reasoning: HiddenReasoningPart,
   Empty: TypingIndicator,
 };
 
@@ -65,12 +72,21 @@ export const AssistantMessage = memo(function AssistantMessage() {
 
   // While this (last) message is still streaming, surface the cycling stage word
   // + spinning cog the same way web does — the label rides on metadata.progress,
-  // written by the shared SSE adapter. Once a tool-call part exists, the tool UI
-  // owns the progress affordance, so we step aside (mirrors web's !hasToolCall).
+  // written by the shared SSE adapter. Once a tool CARD exists, the tool UI owns
+  // the progress affordance, so we step aside. Retrieval steps draw no card;
+  // they ride this line instead, naming the running search rather than the
+  // generic stage word — and, like web, only until the answer text starts.
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const isLast = useAuiState((s) => s.message.isLast);
   const isStreaming = isRunning && isLast;
-  const hasToolCall = message.content.some((p) => p.type === 'tool-call');
+  const statusParts = message.content as ReadonlyArray<StatusPartLike>;
+  const hasOwnDetail =
+    message.content.some((p) => p.type === 'tool-call') ||
+    message.content.some((p) => p.type === 'reasoning');
+  const hasToolCard = selectHasVisibleToolCard(statusParts);
+  const toolStatus = selectSearchStatusLabel(statusParts);
+  const reasoningText = selectReasoningText(statusParts);
+  const statusSources = useMemo(() => selectSearchSources(statusParts), [statusParts]);
   const progress = metadata.progress;
 
   const fetchFullText = useFetchFullText();
@@ -93,14 +109,26 @@ export const AssistantMessage = memo(function AssistantMessage() {
       .join('');
   }, [message.content]);
 
+  // A tool CARD owns the affordance outright; a turn whose only detail is
+  // cardless (retrieval, reasoning) keeps the line, but only until the answer
+  // text starts (web's !textContent gate).
+  const showsProgress =
+    isStreaming && !!progress && !hasToolCard && (!hasOwnDetail || messageText.length === 0);
+
   return (
     <MessagePrimitive.Root style={[messageLayout.row, messageLayout.assistantRow]}>
       <View style={messageLayout.assistantContent}>
         {shouldShowAgentBadge(agent, getDefaultAgent()) && (
           <AgentBadge agent={agent} theme={theme} />
         )}
-        {isStreaming && !hasToolCall && progress && (
-          <ChatProgressIndicator progress={progress} theme={theme} />
+        {showsProgress && progress && (
+          <ChatProgressIndicator
+            progress={progress}
+            theme={theme}
+            toolStatus={toolStatus}
+            reasoningText={reasoningText}
+            sources={statusSources}
+          />
         )}
         {/* Above the prose, like web: when a turn produced a post, the post is
             the answer and the surrounding text is commentary on it. */}

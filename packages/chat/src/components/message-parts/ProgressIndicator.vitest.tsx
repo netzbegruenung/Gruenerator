@@ -38,6 +38,29 @@ describe('ProgressIndicator', () => {
     expect(screen.getByText('Recherche läuft')).toBeInTheDocument();
   });
 
+  it('prefers the running retrieval step over the generic stage message', () => {
+    render(
+      <ProgressIndicator
+        progress={progress({ message: 'Durchsuche Quellen…' })}
+        agentColor="#0a0"
+        toolStatus="Websuche „Klimageld“"
+      />
+    );
+    expect(screen.getByText('Websuche „Klimageld“')).toBeInTheDocument();
+    expect(screen.queryByText('Durchsuche Quellen…')).not.toBeInTheDocument();
+  });
+
+  it('still lets planner narration win over the retrieval step', () => {
+    render(
+      <ProgressIndicator
+        progress={progress({ pendingNarration: ['Ich schaue kurz nach.'] })}
+        agentColor="#0a0"
+        toolStatus="Websuche „Klimageld“"
+      />
+    );
+    expect(screen.getByText('Ich schaue kurz nach.')).toBeInTheDocument();
+  });
+
   it('renders the error message with error styling in "box" variant', () => {
     render(
       <ProgressIndicator
