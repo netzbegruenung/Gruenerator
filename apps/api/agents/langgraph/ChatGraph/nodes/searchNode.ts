@@ -51,6 +51,7 @@ import {
   type Citation,
   type ExamplesToolResult,
   type SearchErrorEntry,
+  type WebImageResult,
 } from '../types.js';
 
 import {
@@ -523,6 +524,8 @@ export async function executeDocumentSearchParallel(
 export interface WebSearchParallelResult {
   results: SearchResult[];
   errors: SearchErrorEntry[];
+  /** Image hits — only ever populated when the caller passed `includeImages`. */
+  images: WebImageResult[];
 }
 
 export interface ExecuteWebSearchOptions {
@@ -539,6 +542,13 @@ export interface ExecuteWebSearchOptions {
   /** ISO window (YYYY-MM-DD), from the classifier's `filters.date_from/date_to`. */
   fromDate?: string;
   toDate?: string;
+  /**
+   * Ask for image hits too. Deliberately NOT part of the shared `webScope` object:
+   * only the single-source `web`/`research` path collects the images, so setting it
+   * on the fan-in or the empty-document fallback would pay for hits their callers
+   * throw away — the very mistake the pre-call domain filtering fixed.
+   */
+  includeImages?: boolean;
 }
 
 export async function executeWebSearch(
@@ -554,6 +564,7 @@ export async function executeWebSearch(
     ...(options.includeDomains?.length ? { includeDomains: options.includeDomains } : {}),
     ...(options.fromDate ? { fromDate: options.fromDate } : {}),
     ...(options.toDate ? { toDate: options.toDate } : {}),
+    ...(options.includeImages ? { includeImages: true } : {}),
     // The default block list now rides along on every classifier-path search, so
     // the domains we used to throw away AFTER paying are never fetched. Dropped
     // automatically when an include scope is set (see executeDirectWebSearch):
@@ -620,7 +631,10 @@ export async function executeWebSearch(
   // Only surface when nothing usable came back — a partial failure that still
   // produced results is a warn, not a user-facing degradation.
   const errors = allWebResults.length === 0 ? collectedErrors : [];
-  return { results: allWebResults, errors };
+  // Images bypass the dedup, rerank, crawl and cap above entirely: none of it
+  // applies to a link with no text, and running them through the result pipeline
+  // is precisely how they would end up as content-less citations.
+  return { results: allWebResults, errors, images: webResult?.images ?? [] };
 }
 
 /**
@@ -921,6 +935,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     let citations: Citation[] = [];
     let searchedCollections: string[] = [];
     let examplesResult: ExamplesToolResult | null = null;
+    let webImageResults: WebImageResult[] = [];
     // Backend failures on the single-source paths. The multi-source paths have
     // collected these all along; here they were only logged, so a Qdrant or
     // SearXNG outage reached the user as "0 Treffer" — and the model then
@@ -1519,9 +1534,13 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           // A1: full page content for the top hits — snippets alone leave the
           // writing model with too little on a multi-aspect question.
           crawlTopUrls: 2,
+          // The ONLY path that asks for images: it is also the only one that
+          // carries them out (see `ExecuteWebSearchOptions.includeImages`).
+          ...(state.webWantsImages ? { includeImages: true } : {}),
         });
         results = web.results;
         singleSourceErrors.push(...web.errors);
+        webImageResults = web.images;
 
         citations = buildCitations(results);
         break;
@@ -1725,6 +1744,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       searchTimeMs,
       examplesResult,
       ...(searchedCollections.length > 0 && { searchedCollections }),
+      ...(webImageResults.length > 0 && { webImageResults }),
       // Only when the turn ends up with nothing: a backend failure that still
       // left usable results is a warn, not a user-facing degradation. With
       // zero results the distinction is exactly what the user needs — "there

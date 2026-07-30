@@ -11,9 +11,9 @@
 
 import { describe, it, expect } from 'vitest';
 
-import { partitionLinkupResults } from './directSearchExecutors.js';
-
 import { type LinkupSearchResult } from '../../../services/search/LinkupService.js';
+
+import { partitionLinkupResults } from './directSearchExecutors.js';
 
 function hit(over: Partial<LinkupSearchResult>): LinkupSearchResult {
   return { name: 'Titel', url: 'https://example.org/a', content: 'Text', ...over };
