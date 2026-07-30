@@ -267,6 +267,54 @@ export function mentionsImageNoun(text: string): boolean {
   return IMAGE_NOUN_PATTERN.test(text);
 }
 
+// Verbs that ask to SEE something that already exists, as opposed to having it
+// made. Kept separate from SEARCH_LOOKUP_VERB_PATTERN below: that one gates a
+// scope restriction and may under-fire safely, while this one decides whether we
+// pay for image hits, so it lists the showing verbs ("zeig", "hast du") that a
+// search-verb pattern has no reason to know about.
+const IMAGE_LOOKUP_VERB_PATTERN =
+  /\b(?:zeig\w*|find\w*|such\w*|schick\w*|gib\s+mir|hast\s+du|gibt\s+es|gibts|existier\w*|recherchier\w*|google\w*)\b/i;
+
+// Verbs that ask for a NEW image. Their presence vetoes the lookup reading even
+// when a showing verb is also there ("such ein Motiv und erstell daraus ein
+// Bild") — buying stock links for a generation request is the expensive mistake,
+// and the image intent already owns that turn.
+const IMAGE_CREATE_VERB_PATTERN =
+  /\b(?:erstell\w*|generier\w*|erzeug\w*|zeichne\w*|male\w*|mal\s|illustrier\w*|entwirf\w*|entwerf\w*|bau\w*)\b/i;
+
+// "Bilder von der Demo" as a whole message: a bare noun phrase with no verb at
+// all is still unambiguously a request to see them. Anchored at the start so it
+// cannot match the noun buried in prose ("… erklärt das Bild von der Demo").
+const BARE_IMAGE_REQUEST_PATTERN =
+  /^\s*(?:bitte\s+)?(?:bilder|fotos|photos|images|pictures|aufnahmen)\b/i;
+
+/**
+ * True when the user wants to SEE existing images from the web, not to have one
+ * generated — the only signal that may switch `includeImages` on.
+ *
+ * This distinction is the whole reason the function exists. "Erstell ein Bild von
+ * einem Windrad" and "zeig mir Bilder von Windrädern" share every noun and differ
+ * only in the verb, yet they route to entirely different subsystems: one to image
+ * generation, the other to the web search. Getting it wrong in the expensive
+ * direction means paying for stock links on a generation turn; getting it wrong in
+ * the cheap direction means the user sees no images and asks again.
+ *
+ * Deliberately narrow. Images are never a default (a factual question would pay
+ * for pictures nobody looks at), so an under-firing heuristic costs one clarifying
+ * turn while an over-firing one costs money on every turn that happens to mention
+ * a photo. The `bilder: true` tool argument is the escape hatch for the phrasings
+ * this misses — in the loop, the model can say what it wants directly.
+ */
+export function wantsImageResults(text: string): boolean {
+  if (!IMAGE_NOUN_PATTERN.test(text)) return false;
+  // "ohne Bilder" / "keine Fotos" — the same guard the image fast path uses, so a
+  // refusal cannot be read as a request.
+  if (negatedOrMeta(text, IMAGE_GEN_NOUN_PATTERN)) return false;
+  if (IMAGE_CREATE_VERB_PATTERN.test(text)) return false;
+  if (hasImageEditVerb(text)) return false;
+  return IMAGE_LOOKUP_VERB_PATTERN.test(text) || BARE_IMAGE_REQUEST_PATTERN.test(text);
+}
+
 // Document mutation verbs — used by classifierNode to route `edit_current_doc`
 // (open doc in editor) and `modify_doc` (collaborative doc mention) intents.
 // Same `(?:^|\W)` anchor reasoning as IMAGE_EDIT_VERB_PATTERN above: JS `\b` is
