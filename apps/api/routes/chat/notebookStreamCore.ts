@@ -328,12 +328,9 @@ export async function handleNotebookStream(
 
     let fullText: string | null;
     try {
-      const notebookTelemetry = buildAiTelemetry('notebook-chat.respond', {
-        ...(userId && { userId }),
-        ...(collectionId && { sessionId: collectionId }),
-      });
+      const notebookTelemetry = buildAiTelemetry('notebook-chat.respond');
       // Wrap in a trace so propagateAttributes sets trace-level user/session —
-      // plain AI-SDK metadata keys aren't hoisted by Langfuse, so without this
+      // AI SDK telemetry carries no metadata of its own, so without this
       // notebook traces would show empty User/Session.
       fullText = await withLangfuseTrace(
         {

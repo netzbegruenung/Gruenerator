@@ -1944,12 +1944,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             );
           }
 
-          const respondTelemetry = buildAiTelemetry('chat-graph.respond', {
-            requestId,
-            intent: finalState.intent,
-            ...(agentId && { agentId }),
-            ...(modelId && { modelId }),
-          });
+          // Context (requestId/intent/agentId/modelId) rides on the trace below —
+          // AI SDK 7 telemetry has no metadata field.
+          const respondTelemetry = buildAiTelemetry('chat-graph.respond');
 
           try {
             // One Langfuse trace per chat turn: the respond generation (and any

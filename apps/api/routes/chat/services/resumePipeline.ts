@@ -582,13 +582,10 @@ export async function runChatGraphResume({
 
     let fullText: string | null;
     let resumeTraceId: string | undefined;
-    const resumeTelemetry = buildAiTelemetry('chat-graph.resume', {
-      ...(requestContext.userId && { userId: requestContext.userId }),
-      ...(requestContext.actualThreadId && { sessionId: requestContext.actualThreadId }),
-    });
+    const resumeTelemetry = buildAiTelemetry('chat-graph.resume');
     try {
       // One trace per resumed turn — propagateAttributes sets trace-level
-      // user/session (plain metadata keys aren't hoisted by Langfuse) and the
+      // user/session (AI SDK telemetry carries no metadata of its own) and the
       // traceId feeds the feedback button.
       fullText = await withLangfuseTrace(
         {
