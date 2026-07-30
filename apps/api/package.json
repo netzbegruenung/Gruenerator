@@ -58,7 +58,6 @@
   "dependencies": {
     "@ai-sdk/mistral": "^4.0.14",
     "@ai-sdk/openai": "^4.0.19",
-    "@ai-sdk/otel": "^1.0.37",
     "@anthropic-ai/sdk": "^0.115.0",
     "@better-auth/drizzle-adapter": "^1.6.25",
     "@blocknote/xl-ai": "^0.52.1",
@@ -71,6 +70,7 @@
     "@langchain/langgraph": "^1.4.8",
     "@langfuse/otel": "^5.9.1",
     "@langfuse/tracing": "^5.9.1",
+    "@langfuse/vercel-ai-sdk": "^5.9.1",
     "@mistralai/mistralai": "^2.5.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@nangohq/node": "^0.71.2",
