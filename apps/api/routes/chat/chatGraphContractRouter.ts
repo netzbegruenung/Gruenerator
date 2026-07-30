@@ -48,6 +48,7 @@ import {
 } from '../../services/mcp/systemMcpServers.js';
 import { buildAiTelemetry, withLangfuseTrace } from '../../services/telemetry/langfuseTelemetry.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { recordDecision } from '../../utils/decisionJournal.js';
 import { createLogger } from '../../utils/logger.js';
 import { withTimeout } from '../../utils/withTimeout.js';
 
@@ -1042,9 +1043,15 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           // (wrong template, ambiguous, not actually an edit). Answering
           // normally beats minting a surprise second sharepic.
           log.info('[ChatGraph] Unlicensed sharepic intent, thread has one → direct');
+          recordDecision('router.intent_override', 'sharepic_unlicensed_to_direct', {
+            inputs: { intentBefore: 'sharepic', sharepicLicensed, threadHasSharepic: true },
+          });
           classifiedState.intent = 'direct';
         } else {
           log.info('[ChatGraph] Unlicensed sharepic intent, nothing to edit → fixed reply');
+          recordDecision('router.intent_override', 'sharepic_unlicensed_fixed_text', {
+            inputs: { intentBefore: 'sharepic', sharepicLicensed, threadHasSharepic: false },
+          });
           return await finishTurnWithFixedText(NO_SHAREPIC_TO_EDIT_TEXT, 'sharepic');
         }
       }
@@ -1075,17 +1082,28 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         log.info(
           `[ChatGraph] Turn forbids ${secondaryFamily} action → dropping secondaryIntent ${classifiedState.secondaryIntent}`
         );
+        recordDecision('router.persistent_action_gate', 'dropped_secondary', {
+          inputs: { family: secondaryFamily, secondaryIntent: classifiedState.secondaryIntent },
+        });
         classifiedState.secondaryIntent = null;
       }
       const primaryFamily = forbiddenBy[classifiedState.intent];
-      if (
-        primaryFamily &&
-        forbidsPersistentAction(lastUserTextNoMentions, ARTIFACT_NOUN_BY_KIND[primaryFamily])
-      ) {
-        log.info(
-          `[ChatGraph] Turn forbids ${primaryFamily} action → demoting intent ${classifiedState.intent} to direct`
+      if (primaryFamily) {
+        const forbidden = forbidsPersistentAction(
+          lastUserTextNoMentions,
+          ARTIFACT_NOUN_BY_KIND[primaryFamily]
         );
-        classifiedState.intent = 'direct';
+        recordDecision(
+          'router.persistent_action_gate',
+          forbidden ? 'demoted_primary_to_direct' : 'allowed',
+          { inputs: { family: primaryFamily, intent: classifiedState.intent } }
+        );
+        if (forbidden) {
+          log.info(
+            `[ChatGraph] Turn forbids ${primaryFamily} action → demoting intent ${classifiedState.intent} to direct`
+          );
+          classifiedState.intent = 'direct';
+        }
       }
 
       sse.send('progress_step', {
@@ -1216,6 +1234,13 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         !rawCurrentBoard &&
         !forcedTool
       ) {
+        recordDecision('router.intent_override', 'modify_board_to_agentic', {
+          inputs: {
+            intentBefore: 'modify_board',
+            hasRawBoardIds: !!rawBoardIds && rawBoardIds.length > 0,
+            hasOpenBoard: !!rawCurrentBoard,
+          },
+        });
         classifiedState.intent = 'agentic';
       }
 
@@ -1250,6 +1275,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // of the loop must not strand in executeIntentPipeline, which has no
       // 'agentic' branch — degrade to plain search.
       if (!runAgentic && classifiedState.intent === 'agentic') {
+        recordDecision('router.intent_override', 'agentic_to_search', {
+          inputs: { intentBefore: 'agentic', runAgentic },
+        });
         classifiedState.intent = 'search';
       }
       // Same insurance for system tool intents: their tools exist only in the
@@ -1257,6 +1285,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // Backfill the query — these intents are NON_SEARCH, so the classifier
       // nulled searchQuery and the web branch would otherwise search ''.
       if (!runAgentic && isSystemToolIntent) {
+        recordDecision('router.intent_override', 'system_tool_to_web', {
+          inputs: { intentBefore: classifiedState.intent, runAgentic, isSystemToolIntent },
+        });
         classifiedState.intent = 'web';
         if (!classifiedState.searchQuery && lastUserText) {
           classifiedState.searchQuery = lastUserText;
