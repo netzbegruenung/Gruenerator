@@ -2,8 +2,8 @@
  * Per-turn guard state for an agentic tool loop. Pure and dependency-light so
  * it unit-tests without the AI SDK / DB.
  *
- * Guards (all return a German error string the model sees and self-corrects
- * on, instead of the tool executing):
+ * Guards (all return a {@link GuardBlock} whose `modelMessage` the model sees
+ * and self-corrects on, instead of the tool executing):
  *   - duplicate-call detection — turn-wide with query normalization by
  *     default (LobeHub/OpenWebUI have nothing comparable; both rely on the
  *     iteration cap alone, which live testing showed models burn on
@@ -23,6 +23,60 @@
  *     is told to read the running results first, so its next query is chosen
  *     with evidence in hand instead of guessed alongside it.
  */
+
+/** Which guard refused a call. Backend logs and tests only — never user-facing. */
+export type GuardName =
+  | 'duplicate'
+  | 'near_duplicate'
+  | 'failure_cap'
+  | 'failure_budget'
+  | 'search_budget'
+  | 'search_concurrency'
+  | 'internal_first';
+
+/**
+ * A guard's refusal of one tool call.
+ *
+ * `modelMessage` is STEERING TEXT addressed to the planner ("Nutze zuerst X",
+ * "Formuliere eine andere Suche") — an instruction, not a status report. It must
+ * never be rendered to the user: as a red tool-card error it claims the
+ * assistant tried something and it failed, about a call that never ran. Live
+ * example: "wer war marilyn monroe?" showed a Websuche card with
+ * "Nutze zuerst gruenerator_search (interne Dokumente)" underneath it.
+ *
+ * Callers therefore hand `modelMessage` to the MODEL as the tool result and log
+ * it; the user-facing signal is the answer the model produces afterwards. The
+ * separate type exists so this cannot be forgotten at a call site: a
+ * `GuardBlock` does not fit anywhere a tool result is expected without being
+ * unwrapped deliberately.
+ */
+export interface GuardBlock {
+  guard: GuardName;
+  /**
+   * `reject` — the call must not run as issued; the model has to change course.
+   * `defer`  — the IDENTICAL call is expected back in a later step, so the guard
+   *            left no trace of it (no counter, no duplicate key) and the caller
+   *            must not leave one either.
+   */
+  kind: 'reject' | 'defer';
+  /** German steering text handed to the model as this call's tool result. */
+  modelMessage: string;
+}
+
+/** `null` = the call may proceed. */
+export type GuardVerdict = GuardBlock | null;
+
+const reject = (guard: GuardName, modelMessage: string): GuardBlock => ({
+  guard,
+  kind: 'reject',
+  modelMessage,
+});
+
+const defer = (guard: GuardName, modelMessage: string): GuardBlock => ({
+  guard,
+  kind: 'defer',
+  modelMessage,
+});
 
 export const MAX_FAILURES_PER_TOOL = 2;
 export const MAX_TOTAL_FAILURES = 5;
@@ -96,23 +150,23 @@ export interface ToolLoopGuards {
     toolName: string,
     input: unknown,
     opts?: { skipNearDuplicate?: boolean }
-  ): string | null;
+  ): GuardVerdict;
   noteFailure(toolName: string): void;
   /** Non-null once a single tool has failed `maxFailuresPerTool` times. */
-  checkFailureCap(toolName: string): string | null;
+  checkFailureCap(toolName: string): GuardVerdict;
   /** Non-null once total failures across all tools hit `maxTotalFailures`. */
-  checkTotalFailureBudget(): string | null;
+  checkTotalFailureBudget(): GuardVerdict;
   /** Non-null once the search budget (call count or source count) is spent. */
-  checkSearchBudget(toolName: string): string | null;
+  checkSearchBudget(toolName: string): GuardVerdict;
   /**
    * Non-null while `maxConcurrentSearches` search-family calls are already in
    * flight. A DEFERRAL, not a failure: the same call may be repeated verbatim in
    * a later step, which is why the caller must run this BEFORE `checkDuplicate`
    * (that one registers the call key on the way through).
    */
-  checkSearchConcurrency(toolName: string): string | null;
+  checkSearchConcurrency(toolName: string): GuardVerdict;
   /** Non-null when a web/scrape tool is called before the internal search. */
-  checkInternalFirst(toolName: string): string | null;
+  checkInternalFirst(toolName: string): GuardVerdict;
   /** Records an executed call (after all guards passed). */
   noteCall(toolName: string): void;
   /** Records that a call finished (result available). Lets checkInternalFirst
@@ -246,9 +300,12 @@ export function createToolLoopGuards(options: ToolLoopGuardOptions = {}): ToolLo
       const isRepeat = duplicateScope === 'turn' ? seenKeys.has(key) : key === lastKey;
       if (isRepeat) {
         const prior = priorInputs.get(toolName) ?? [];
-        return duplicateScope === 'turn'
-          ? `Diese Suche lief schon (bereits mit ${toolName}: ${prior.join(' | ')}). Formuliere eine WIRKLICH ANDERE Suche oder antworte jetzt mit den vorhandenen Ergebnissen.`
-          : 'Identischer Aufruf wiederholt — ändere die Parameter oder antworte dem*der Nutzer*in direkt.';
+        return reject(
+          'duplicate',
+          duplicateScope === 'turn'
+            ? `Diese Suche lief schon (bereits mit ${toolName}: ${prior.join(' | ')}). Formuliere eine WIRKLICH ANDERE Suche oder antworte jetzt mit den vorhandenen Ergebnissen.`
+            : 'Identischer Aufruf wiederholt — ändere die Parameter oder antworte dem*der Nutzer*in direkt.'
+        );
       }
 
       // Near-duplicate (turn scope): a re-phrasing that shares ≥ threshold tokens
@@ -271,7 +328,10 @@ export function createToolLoopGuards(options: ToolLoopGuardOptions = {}): ToolLo
           )
         ) {
           const prior = priorInputs.get(toolName) ?? [];
-          return `Zu ähnlich zu einer bereits gelaufenen Suche (${prior.join(' | ')}). Wechsle das THEMA oder antworte jetzt mit den vorhandenen Ergebnissen.`;
+          return reject(
+            'near_duplicate',
+            `Zu ähnlich zu einer bereits gelaufenen Suche (${prior.join(' | ')}). Wechsle das THEMA oder antworte jetzt mit den vorhandenen Ergebnissen.`
+          );
         }
       }
 
@@ -291,13 +351,19 @@ export function createToolLoopGuards(options: ToolLoopGuardOptions = {}): ToolLo
     },
     checkFailureCap(toolName) {
       if ((failures.get(toolName) ?? 0) >= maxPerTool) {
-        return 'Zu viele Fehlversuche mit diesem Tool — erkläre dem*der Nutzer*in, was nicht geklappt hat.';
+        return reject(
+          'failure_cap',
+          'Zu viele Fehlversuche mit diesem Tool — erkläre dem*der Nutzer*in, was nicht geklappt hat.'
+        );
       }
       return null;
     },
     checkTotalFailureBudget() {
       if (totalFailures >= maxTotal) {
-        return 'Zu viele fehlgeschlagene Tool-Aufrufe insgesamt — beantworte die Anfrage jetzt mit dem, was du bereits weißt.';
+        return reject(
+          'failure_budget',
+          'Zu viele fehlgeschlagene Tool-Aufrufe insgesamt — beantworte die Anfrage jetzt mit dem, was du bereits weißt.'
+        );
       }
       return null;
     },
@@ -308,7 +374,10 @@ export function createToolLoopGuards(options: ToolLoopGuardOptions = {}): ToolLo
       // an early stop, or two rich searches on topic 1 would starve topics 2-N.
       const sourceCount = options.getSourceCount?.() ?? 0;
       if (searchCalls >= maxSearchCalls || sourceCount >= maxSources) {
-        return 'Du hast bereits ausführlich gesucht — führe KEINE weitere Suche aus und beantworte die Frage jetzt mit den vorhandenen Quellen.';
+        return reject(
+          'search_budget',
+          'Du hast bereits ausführlich gesucht — führe KEINE weitere Suche aus und beantworte die Frage jetzt mit den vorhandenen Quellen.'
+        );
       }
       return null;
     },
@@ -323,7 +392,10 @@ export function createToolLoopGuards(options: ToolLoopGuardOptions = {}): ToolLo
         inFlight += (callCounts.get(name) ?? 0) - (completedCounts.get(name) ?? 0);
       }
       if (inFlight >= maxConcurrentSearches) {
-        return `Es ${maxConcurrentSearches === 1 ? 'läuft' : 'laufen'} bereits ${maxConcurrentSearches} Suche${maxConcurrentSearches === 1 ? '' : 'n'}. Warte auf das Ergebnis, bewerte es — und suche erst dann weiter, wenn wirklich etwas fehlt. Diese Suche kannst du danach unverändert erneut starten.`;
+        return defer(
+          'search_concurrency',
+          `Es ${maxConcurrentSearches === 1 ? 'läuft' : 'laufen'} bereits ${maxConcurrentSearches} Suche${maxConcurrentSearches === 1 ? '' : 'n'}. Warte auf das Ergebnis, bewerte es — und suche erst dann weiter, wenn wirklich etwas fehlt. Diese Suche kannst du danach unverändert erneut starten.`
+        );
       }
       return null;
     },
@@ -332,7 +404,10 @@ export function createToolLoopGuards(options: ToolLoopGuardOptions = {}): ToolLo
       if (!policy || policy.exempt || !policy.gatedTools.has(toolName)) return null;
       const internalCalls = callCounts.get(policy.requiredTool) ?? 0;
       if (internalCalls === 0) {
-        return `Nutze zuerst ${policy.requiredTool} (interne Dokumente), bevor du das Web durchsuchst.`;
+        return reject(
+          'internal_first',
+          `Nutze zuerst ${policy.requiredTool} (interne Dokumente), bevor du das Web durchsuchst.`
+        );
       }
       // In-flight guard: an internal search was CALLED but hasn't COMPLETED yet
       // (noteCall bumps at call start, results register only after execute). When
@@ -342,14 +417,22 @@ export function createToolLoopGuards(options: ToolLoopGuardOptions = {}): ToolLo
       // the model fall to the web (the whole point of internal-FIRST).
       const internalCompleted = completedCounts.get(policy.requiredTool) ?? 0;
       if (internalCalls > internalCompleted) {
-        return `Warte auf die Ergebnisse von ${policy.requiredTool}, bevor du das Web durchsuchst.`;
+        // A deferral, not a course correction: the identical web call is welcome
+        // back as soon as the internal search lands.
+        return defer(
+          'internal_first',
+          `Warte auf die Ergebnisse von ${policy.requiredTool}, bevor du das Web durchsuchst.`
+        );
       }
       // Internal-PREFERRED: if the internal search already yielded enough, don't
       // web-search / scrape on top of it. Only fall to the web when internal
       // came up short (or empty). Also blocks model-invented scrape URLs.
       const minSources = policy.minSourcesToSkipWeb ?? MIN_INTERNAL_SOURCES_TO_SKIP_WEB;
       if ((options.getSourceCount?.() ?? 0) >= minSources) {
-        return 'Du hast bereits genügend interne Dokumente gefunden — beantworte die Frage damit. Nutze die Websuche/Scraping NUR, wenn intern nichts Passendes zu finden war (oder es klar um tagesaktuelle Ereignisse geht).';
+        return reject(
+          'internal_first',
+          'Du hast bereits genügend interne Dokumente gefunden — beantworte die Frage damit. Nutze die Websuche/Scraping NUR, wenn intern nichts Passendes zu finden war (oder es klar um tagesaktuelle Ereignisse geht).'
+        );
       }
       return null;
     },

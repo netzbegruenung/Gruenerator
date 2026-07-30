@@ -6,6 +6,7 @@ import {
   MAX_TOTAL_FAILURES,
   MAX_SEARCH_CALLS,
   MAX_SOURCES,
+  type GuardVerdict,
 } from './loopGuards.js';
 
 describe('createToolLoopGuards — duplicate detection', () => {
@@ -41,7 +42,7 @@ describe('createToolLoopGuards — duplicate detection', () => {
     const guards = createToolLoopGuards();
     guards.checkDuplicate('search', { query: 'Kindergrundsicherung Position' });
     const error = guards.checkDuplicate('search', { query: 'Position Kindergrundsicherung' });
-    expect(error).toContain('Kindergrundsicherung Position');
+    expect(error?.modelMessage).toContain('Kindergrundsicherung Position');
   });
 
   it('turn scope: same query on a DIFFERENT tool is allowed', () => {
@@ -117,7 +118,7 @@ describe('createToolLoopGuards — duplicate detection', () => {
     guards.checkDuplicate('search', { query: 'klima' });
     guards.checkDuplicate('search', { query: 'klima' });
     const error = guards.checkDuplicate('search', { query: 'klima' });
-    expect(error?.match(/klima/g)).toHaveLength(1);
+    expect(error?.modelMessage.match(/klima/g)).toHaveLength(1);
   });
 
   it('tool names are namespaced: "a" with query "b c" ≠ "a b" with query "c"', () => {
@@ -184,7 +185,7 @@ describe('createToolLoopGuards — near-duplicate (Jaccard)', () => {
     const guards = createToolLoopGuards({
       searchToolNames: new Set(['gruenerator_search']),
     });
-    const search = (q: string): string | null =>
+    const search = (q: string): GuardVerdict =>
       guards.checkSearchBudget('gruenerator_search') ??
       guards.checkDuplicate('gruenerator_search', { query: q }) ??
       (guards.noteCall('gruenerator_search'), null);
@@ -510,7 +511,9 @@ describe('checkSearchConcurrency', () => {
     guards.noteCall('web_search');
     expect(guards.checkSearchConcurrency('gruenerator_search')).toBeNull();
     guards.noteCall('gruenerator_search');
-    expect(guards.checkSearchConcurrency('web_search')).toMatch(/Warte auf das Ergebnis/);
+    expect(guards.checkSearchConcurrency('web_search')?.modelMessage).toMatch(
+      /Warte auf das Ergebnis/
+    );
   });
 
   it('frees a slot as soon as one call completes', () => {
@@ -557,7 +560,7 @@ describe('checkSearchConcurrency', () => {
   it('honours a configured ceiling', () => {
     const guards = make(1);
     guards.noteCall('web_search');
-    expect(guards.checkSearchConcurrency('web_search')).toMatch(/bereits 1 Suche\b/);
+    expect(guards.checkSearchConcurrency('web_search')?.modelMessage).toMatch(/bereits 1 Suche\b/);
   });
 
   it('is inert when no search family was configured', () => {
