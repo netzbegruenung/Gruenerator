@@ -16,17 +16,23 @@ import { ShimmerStatusLine } from './ShimmerStatusLine';
 interface ChatProgressIndicatorProps {
   progress: ChatProgress;
   theme: Theme;
+  /** The running retrieval step ("Websuche „Klimageld""). Retrieval draws no
+   *  card of its own, so this line is where it gets reported. */
+  toolStatus?: string | null;
 }
 
-export function ChatProgressIndicator({ progress, theme }: ChatProgressIndicatorProps) {
-  // Three sources, most specific first. The agentic loop's own step ("Lese
-  // Beschlüsse") beats the generic stage word ("Durchsuche …") — that is what
-  // web splits into a separate ProgressTracker component; here it is one more
+export function ChatProgressIndicator({ progress, theme, toolStatus }: ChatProgressIndicatorProps) {
+  // Four sources, most specific first. Planner prose beats the running
+  // retrieval step, which beats the agentic loop's own step ("Lese Beschlüsse"),
+  // which beats the generic stage word ("Durchsuche …") — that last split is
+  // what web puts in a separate ProgressTracker component; here it is one more
   // rung on the same ladder, because the line looks identical either way.
   const step = selectProgressStep(progress.steps);
   const pending = progress.pendingNarration;
   const rawLabel =
-    pending && pending.length > 0 ? pending[pending.length - 1] : (step?.label ?? progress.message);
+    pending && pending.length > 0
+      ? pending[pending.length - 1]
+      : (toolStatus ?? step?.label ?? progress.message);
   // Paced (shared usePacedLabel) so a burst stays readable. Hook runs before the
   // early return.
   const label = usePacedLabel(rawLabel);

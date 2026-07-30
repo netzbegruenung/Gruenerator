@@ -1,15 +1,19 @@
 'use client';
 
 import { type ComponentProps, type ComponentType, type ReactNode } from 'react';
-import type { Toolkit } from '@assistant-ui/react';
-import { ToolCallUI } from '../ToolCallUI';
-import { ToolNarration } from '../message-parts/ToolNarration';
+
 import { UI_TOOL_NAMES, type UiToolName } from '../../lib/toolRegistry';
+import { isSearchProgressTool } from '../../lib/toolStatusLine';
+import { ToolNarration } from '../message-parts/ToolNarration';
+import { ToolCallUI } from '../ToolCallUI';
+
 import { AskHumanToolUI } from './AskHumanToolUI';
 import { McpToolUI } from './McpToolUI';
 import { PressemitteilungExamplesToolRender } from './PressemitteilungExamplesToolRender';
 import { ResearchToolRender } from './ResearchToolRender';
 import { RunPythonToolUI } from './RunPythonToolUI';
+
+import type { Toolkit } from '@assistant-ui/react';
 
 // The persistent planner narration (split-gather mode) renders above every tool
 // card, whatever its dedicated renderer, so the between-tool prose stays visible
@@ -53,9 +57,20 @@ const DEDICATED_RENDERS: Partial<Record<UiToolName, (props: ToolRenderProps) => 
   mcp_tool: ({ args, result }) => <McpToolUI args={args ?? {}} result={result} />,
 };
 
+// Retrieval steps report through the shimmering status line above the message
+// (StreamingStatusLine → selectSearchStatusLabel), so they draw no card at all.
+// Their narration is prose, not chrome, and still renders in document order.
+const renderNothing = () => null;
+
 export const grueneratorToolkit: Toolkit = Object.fromEntries(
   UI_TOOL_NAMES.options.map((name) => [
     name,
-    { render: withNarration(DEDICATED_RENDERS[name] ?? createToolRender(name)) },
+    {
+      render: withNarration(
+        isSearchProgressTool(name)
+          ? renderNothing
+          : (DEDICATED_RENDERS[name] ?? createToolRender(name))
+      ),
+    },
   ])
 );

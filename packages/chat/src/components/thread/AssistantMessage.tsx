@@ -8,6 +8,7 @@ import { CitationProvider, useFetchFullText } from '../../context/CitationContex
 import { agentsList, getDefaultAgent } from '../../lib/agents';
 import { resolveCitations } from '../../lib/citationUtils';
 import { phosphorAgentIcon } from '../../lib/phosphorAgentIcon';
+import { selectSearchStatusLabel, type StatusPartLike } from '../../lib/toolStatusLine';
 import { useUserAgentsRegistry } from '../../stores/userAgentsRegistry';
 import { Reasoning, ReasoningGroup } from '../assistant-ui/reasoning';
 import { GrueneratorHomeIconLoading } from '../icons';
@@ -131,7 +132,12 @@ export const AssistantMessage = memo(function AssistantMessage() {
     .join('');
 
   const isStreaming = message.status?.type === 'running';
+
   const hasToolCall = message.content.some((p) => p.type === 'tool-call');
+  // Retrieval steps draw no card — while one runs, its label IS the status line
+  // (StreamingStatusLine), and `hasToolCall` keeps that line retiring the moment
+  // the answer text starts.
+  const toolStatus = selectSearchStatusLabel(message.content as ReadonlyArray<StatusPartLike>);
 
   const citations = useMemo(
     () => resolveCitations(custom as Record<string, unknown> | undefined),
@@ -210,6 +216,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
           custom={custom}
           progressDisplay={progressDisplay}
           agentColor={messageAgent?.backgroundColor || '#316049'}
+          toolStatus={toolStatus}
         />
 
         {custom?.socialPostData && (

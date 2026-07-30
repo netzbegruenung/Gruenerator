@@ -1,0 +1,91 @@
+// Which tool calls live in the shimmering status line instead of their own card.
+//
+// Platform-neutral (zero react/DOM imports) so web and mobile share one rule:
+// web via GrueneratorToolUIs / ToolCallGroup / StreamingStatusLine, mobile via
+// ToolCallPart / ChatProgressIndicator.
+
+import { getToolMeta, getToolQuery } from './toolResults';
+
+import type { PartLike } from './narrationView';
+
+/**
+ * Retrieval tools that get NO card. A search pill only ever said "ich suche
+ * gerade", and its hits are re-surfaced in the message's Quellen-Liste
+ * (`SearchResultsSection`) — so the running search belongs in the one shimmer
+ * line above the answer, ChatGPT-style, and nothing is left behind once the
+ * answer arrives.
+ *
+ * Deliberately NOT in here, because their card IS the result and has no second
+ * surface: `research` (the written Deep-Research report), `scrape_url` (link
+ * preview), the personal-content tools (`find_content`, `documents`,
+ * `notebooks`, `boards_tasks`, `groups`, `media`, `search_user_content`,
+ * `search_chat_history`), and everything that produces an artifact.
+ */
+const SEARCH_PROGRESS_TOOLS: ReadonlySet<string> = new Set([
+  'web_search',
+  'gruenerator_search',
+  'gruenerator_docs_search',
+  'search_sources',
+  'bundestag',
+]);
+
+/** Whether this tool reports through the status line instead of a card. */
+export function isSearchProgressTool(toolName: string): boolean {
+  return SEARCH_PROGRESS_TOOLS.has(toolName);
+}
+
+/** Message-part shape the selectors below read (assistant-ui `message.parts`). */
+export interface StatusPartLike extends PartLike {
+  readonly text?: unknown;
+  readonly args?: unknown;
+  readonly result?: unknown;
+}
+
+/** Longest query echoed in the status line before it is elided. */
+const MAX_QUERY_CHARS = 60;
+
+/**
+ * The status-line label for one retrieval step, e.g. `Websuche „Wer war Marilyn
+ * Monroe?"`. Without a usable query it degrades to the bare tool label.
+ */
+export function searchStatusLabel(toolName: string, query: string | null): string {
+  const label = getToolMeta(toolName).label;
+  const q = (query ?? '').trim().replace(/…+$/, '').trim();
+  // `tool_step_start` falls back to the card TITLE as `query` when the server
+  // sends no args — „Websuche „Websuche"" reads like a bug, so drop it.
+  if (!q || q.toLowerCase() === label.toLowerCase()) return label;
+  const shown = q.length > MAX_QUERY_CHARS ? `${q.slice(0, MAX_QUERY_CHARS)}…` : q;
+  return `${label} „${shown}“`;
+}
+
+/**
+ * Label for the retrieval step that is still running, newest first, or null.
+ * A finished step returns null on purpose: the next stage ("Formuliere
+ * Antwort…") owns the line from then on.
+ */
+export function selectSearchStatusLabel(parts: ReadonlyArray<StatusPartLike>): string | null {
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const part = parts[i];
+    if (part.type !== 'tool-call') continue;
+    const name = part.toolName;
+    if (!name || !isSearchProgressTool(name)) continue;
+    if (part.result != null) return null;
+    return searchStatusLabel(name, getToolQuery(part.args));
+  }
+  return null;
+}
+
+/**
+ * Whether the message still renders a tool CARD. Search steps no longer do, so
+ * a search-only turn must keep the status line the way a tool-less turn does.
+ */
+export function selectHasVisibleToolCard(parts: ReadonlyArray<StatusPartLike>): boolean {
+  return parts.some(
+    (p) => p.type === 'tool-call' && !!p.toolName && !isSearchProgressTool(p.toolName)
+  );
+}
+
+/** The tool names that still produce a card — the basis for all group chrome. */
+export function visibleToolNames(toolNames: ReadonlyArray<string>): ReadonlyArray<string> {
+  return toolNames.filter((name) => !isSearchProgressTool(name));
+}
