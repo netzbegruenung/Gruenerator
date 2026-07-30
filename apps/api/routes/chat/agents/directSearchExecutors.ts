@@ -105,7 +105,7 @@ export interface DirectPressemitteilungExamplesResult {
  * entries carry no `content` — that absence is the whole reason these must not
  * travel with the text results.
  */
-export interface WebImageHit {
+interface WebImageHit {
   title: string;
   url: string;
   domain: string;
