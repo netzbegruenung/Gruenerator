@@ -2,15 +2,18 @@
  * The proxy fetches a URL the user never typed, from our servers, with our IP.
  * These tests are about the ways that turns into SSRF or an open relay.
  *
- * The one that matters most is the redirect case. `validateUrlForFetch` only ever
- * sees the URL you hand it; a 302 to `169.254.169.254` walks past a check that has
- * already run. The default `fetch` follows redirects silently, so "we validated
- * the URL" is not the same claim as "we only fetched validated URLs" — and the
- * difference is invisible in any test that never redirects.
+ * Two cases carry the weight. The redirect case: `validateUrlForFetch` only ever
+ * sees the URL you hand it, so a 302 to `169.254.169.254` walks past a check that
+ * has already run, and a default-following `fetch` makes "we validated the URL" a
+ * different claim from "we only fetched validated URLs". And the pinning case: the
+ * name must not be resolved a second time when the socket opens, because the
+ * second answer is the one an attacker controls. Both are invisible in any test
+ * that only ever fetches one well-behaved host.
  */
 
+import { type LookupAddress } from 'node:dns';
 import { createServer, type Server } from 'node:http';
-import { type AddressInfo } from 'node:net';
+import { type AddressInfo, type LookupFunction } from 'node:net';
 
 import express from 'express';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -21,47 +24,100 @@ const envMock = {
 };
 vi.mock('../../config/env.js', () => ({ env: envMock }));
 
+/**
+ * What each name answers with. Lists, not single addresses: a record with one
+ * public and one private entry is the case a check on `dns.lookup`'s single
+ * answer cannot see, and it needs to be expressible here.
+ */
+const DNS: Record<string, string[]> = {
+  'zeit.de': ['93.184.216.34'],
+  'cdn.example.org': ['93.184.216.35'],
+  'evil.example': ['93.184.216.36'],
+  // Public name, private answer — the rebinding shape.
+  'rebind.example': ['169.254.169.254'],
+  // Public first, private second. Accepting the first address and connecting to
+  // "an" address is exactly the bug this entry exists to catch.
+  'split.example': ['93.184.216.37', '10.0.0.5'],
+  // A link-local address smuggled in as IPv4-mapped IPv6, which none of the
+  // dotted-quad ranges match without normalisation.
+  'mapped.example': ['::ffff:169.254.169.254'],
+};
+
 // Only the DNS hop is faked: the private-range and hostname rules are the real
 // ones, so a change to them shows up here instead of being mocked away.
 vi.mock('dns', () => ({
-  // Shaped like the real `dns.lookup` AFTER promisify: the caller destructures
-  // `{ address }`, so a bare string here would silently yield `undefined` and
-  // every private-IP check would pass by accident.
+  // Both call shapes, because both are in use: `{ all: true }` from the proxy's
+  // own resolver, the bare form from `validateUrlForFetch`. Shaped like the real
+  // `dns.lookup` AFTER promisify — the non-`all` caller destructures
+  // `{ address }`, so a bare string would silently yield `undefined` and every
+  // private-IP check would pass by accident.
   lookup: (
     host: string,
-    cb: (e: Error | null, a?: { address: string; family: number }) => void
+    options: unknown,
+    maybeCb?: (e: Error | null, a?: LookupAddress | LookupAddress[]) => void
   ) => {
-    const map: Record<string, string> = {
-      'zeit.de': '93.184.216.34',
-      'cdn.example.org': '93.184.216.35',
-      'evil.example': '93.184.216.36',
-      // Resolves public on paper, private in fact — the rebinding shape.
-      'rebind.example': '169.254.169.254',
-    };
-    const addr = map[host];
-    if (!addr) return cb(new Error('ENOTFOUND'));
-    cb(null, { address: addr, family: 4 });
+    const cb = (typeof options === 'function' ? options : maybeCb) as (
+      e: Error | null,
+      a?: LookupAddress | LookupAddress[]
+    ) => void;
+    const all = typeof options === 'object' && options !== null && 'all' in options;
+    const addrs = DNS[host];
+    if (!addrs) return cb(new Error('ENOTFOUND'));
+    const entries = addrs.map((address) => ({
+      address,
+      family: address.includes(':') ? 6 : 4,
+    }));
+    cb(null, all ? entries : entries[0]);
+  },
+}));
+
+/** Every `connect.lookup` the route handed to an Agent, newest last. */
+const pinnedLookups: LookupFunction[] = [];
+const agentDestroy = vi.fn<() => Promise<void>>();
+const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>();
+
+/**
+ * The route talks to undici directly rather than to the global `fetch`, so that
+ * is what gets replaced. The fake `Agent` keeps the `connect.lookup` it was built
+ * with — without capturing it there is no way to assert what the socket layer
+ * would have been allowed to do, and the pinning would be untested.
+ */
+vi.mock('undici', () => ({
+  fetch: (input: unknown, init?: unknown) => fetchMock(String(input), init as RequestInit),
+  Agent: class {
+    constructor(options?: { connect?: { lookup?: LookupFunction } }) {
+      if (options?.connect?.lookup) pinnedLookups.push(options.connect.lookup);
+    }
+    destroy(): Promise<void> {
+      return agentDestroy();
+    }
   },
 }));
 
 const { buildImageProxyPath } = await import('../../services/search/imageProxySignature.js');
-const { default: searchImageProxyRouter } = await import('./searchImageProxyRouter.js');
+const { default: searchImageProxyRouter, createPinnedLookup } =
+  await import('./searchImageProxyRouter.js');
 
 let server: Server;
 let baseUrl = '';
 
-/**
- * Upstream calls only. The stub is installed globally, so it has to let the
- * test's own request to our server through to the real implementation —
- * otherwise the request under test would be answered by its own mock.
- */
-const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>();
+/** Our own requests go out over the real fetch; only upstream is faked. */
 const realFetch = globalThis.fetch;
-vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => {
-  const url = typeof input === 'string' ? input : input.toString();
-  if (baseUrl && url.startsWith(baseUrl)) return realFetch(input, init);
-  return fetchMock(url, init);
-});
+
+/** Resolve a captured lookup as undici would call it. */
+function askLookup(
+  lookup: LookupFunction,
+  hostname: string
+): Promise<{ err: Error | null; addresses: LookupAddress[] }> {
+  return new Promise((resolve) => {
+    lookup(hostname, {}, (err, addresses) =>
+      resolve({
+        err: err as Error | null,
+        addresses: (Array.isArray(addresses) ? addresses : []) as LookupAddress[],
+      })
+    );
+  });
+}
 
 beforeAll(async () => {
   const app = express();
@@ -108,6 +164,9 @@ function signedPath(url: string): string {
 describe('GET /api/search-image', () => {
   beforeEach(() => {
     fetchMock.mockReset();
+    agentDestroy.mockReset();
+    agentDestroy.mockResolvedValue(undefined);
+    pinnedLookups.length = 0;
     envMock.SEARCH_IMAGE_PROXY_SECRET = 'test-secret';
   });
 
@@ -221,6 +280,90 @@ describe('GET /api/search-image', () => {
 
       expect(res.status).toBe(200);
       expect(fetchMock.mock.calls[1]![0]).toBe('https://zeit.de/anders.png');
+    });
+
+    it('refuses a host whose record also lists a private address', async () => {
+      // The first address is public, so a check on `dns.lookup`'s single answer
+      // passes — and then the runtime is free to connect to the second. Only
+      // requiring ALL addresses to be public closes that.
+      const res = await get(signedPath('https://split.example/bild.png'));
+      expect(res.status).toBe(400);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('refuses a link-local address dressed as ipv4-mapped ipv6', async () => {
+      // `::ffff:169.254.169.254` matches none of the dotted-quad ranges as
+      // written, so without normalisation this is a hole an AAAA record opens.
+      const res = await get(signedPath('https://mapped.example/bild.png'));
+      expect(res.status).toBe(400);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('pins the socket to the address it validated', async () => {
+      fetchMock.mockResolvedValueOnce(imageResponse(PNG));
+      await get(signedPath('https://zeit.de/bild.png'));
+
+      const lookup = pinnedLookups.at(-1)!;
+      // The lookup handed to undici answers from the check, not from the
+      // resolver: whatever DNS would say now, this is the address we vetted.
+      const hit = await askLookup(lookup, 'zeit.de');
+      expect(hit.err).toBeNull();
+      expect(hit.addresses.map((a) => a.address)).toEqual(['93.184.216.34']);
+
+      // The decisive one: a name this request never validated has no entry, so
+      // the socket layer cannot open a connection to it at all. This is what a
+      // rebinding attempt runs into — the second resolution never happens.
+      const miss = await askLookup(lookup, 'evil.example');
+      expect(miss.err).toBeInstanceOf(Error);
+      expect(miss.addresses).toEqual([]);
+    });
+
+    it('pins each redirect hop too, and nothing beyond them', async () => {
+      fetchMock
+        .mockResolvedValueOnce(redirectTo('https://cdn.example.org/echt.png'))
+        .mockResolvedValueOnce(imageResponse(PNG));
+      await get(signedPath('https://zeit.de/bild.png'));
+
+      const lookup = pinnedLookups.at(-1)!;
+      for (const host of ['zeit.de', 'cdn.example.org']) {
+        expect((await askLookup(lookup, host)).err).toBeNull();
+      }
+      // A hop we rejected earlier in some other request must not be reachable
+      // here — the pin set belongs to this request, not to the process.
+      expect((await askLookup(lookup, 'rebind.example')).err).toBeInstanceOf(Error);
+    });
+
+    it('gives a request its own pin set', async () => {
+      fetchMock.mockResolvedValueOnce(imageResponse(PNG));
+      await get(signedPath('https://zeit.de/bild.png'));
+      fetchMock.mockResolvedValueOnce(imageResponse(PNG));
+      await get(signedPath('https://cdn.example.org/bild.png'));
+
+      expect(pinnedLookups.length).toBe(2);
+      // The second request validated cdn.example.org, not zeit.de. If the map
+      // were module-level, this would resolve and the isolation would be gone.
+      expect((await askLookup(pinnedLookups[1]!, 'zeit.de')).err).toBeInstanceOf(Error);
+    });
+
+    it('refuses an unpinned host even when the map is empty', async () => {
+      // createPinnedLookup is the invariant in isolation: no entry, no socket.
+      // Default-deny, not default-resolve.
+      const lookup = createPinnedLookup(new Map());
+      expect((await askLookup(lookup, 'zeit.de')).err).toBeInstanceOf(Error);
+    });
+
+    it('releases the connection pool when the request is over', async () => {
+      fetchMock.mockResolvedValueOnce(imageResponse(PNG));
+      await get(signedPath('https://zeit.de/bild.png'));
+      // A pooled socket outliving the pin set that authorised it would be a
+      // connection nothing is currently vouching for.
+      expect(agentDestroy).toHaveBeenCalled();
+    });
+
+    it('releases the pool when the target is rejected before any fetch', async () => {
+      const res = await get(signedPath('https://rebind.example/bild.png'));
+      expect(res.status).toBe(400);
+      expect(agentDestroy).toHaveBeenCalled();
     });
 
     it('gives up rather than following a redirect chain', async () => {

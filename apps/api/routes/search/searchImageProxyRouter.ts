@@ -16,15 +16,16 @@
  * past it. Here redirects are followed by hand with `redirect: 'manual'` and
  * every hop is re-validated in full, with a small cap.
  *
- * WHAT IS STILL OPEN, stated rather than implied: the name is resolved twice —
- * once by `validateUrlForFetch`, once by the runtime when it opens the socket —
- * and only the first answer is checked. A host that answers publicly during
- * validation and privately a moment later (DNS rebinding), or one whose record
- * lists both a public and a private address, is not stopped by anything here.
- * Closing that means pinning the connection to the validated address (a custom
- * undici `connect.lookup`), which this route does not yet do. The residual risk
- * is bounded by the signature — only URLs a web search returned are reachable at
- * all — but it is a gap, not a solved problem.
+ * The other half of `safeFetch`'s problem is subtler and is why this route does
+ * not call the global `fetch` either: the name would be resolved twice — once by
+ * the validator, once by the runtime when it opens the socket — and only the
+ * first answer would be checked. A host that answers publicly during validation
+ * and privately a moment later (DNS rebinding) would walk through. So the
+ * connection is PINNED: we resolve the name once, require every address it
+ * answers with to be public, and hand undici a `connect.lookup` that can only
+ * return addresses from that check. A hostname we never validated has no entry
+ * and the socket is refused outright — the check and the connect see the same
+ * address by construction, not by timing.
  *
  * The threat model is an attacker who can influence what a web search returns —
  * which is not exotic, because SEO is a profession. The signature (see
@@ -32,16 +33,28 @@
  * below assumes that limit can fail and re-checks anyway.
  */
 
+import { lookup as dnsLookupCb } from 'dns';
+import { promisify } from 'util';
+
 import express, { type Request, type Response, type Router } from 'express';
+import { Agent, fetch as undiciFetch } from 'undici';
 
 import { verifyImageUrl, type VerifyFailure } from '../../services/search/imageProxySignature.js';
 import { createLogger } from '../../utils/logger.js';
-import { validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
+import { isPrivateAddress, validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
+
+import type { LookupAddress } from 'dns';
+import type { LookupFunction } from 'net';
 
 const log = createLogger('SearchImageProxy');
 
-/** The fetch Response — Express's `Response` shadows the global in this file. */
-type FetchResponse = globalThis.Response;
+const dnsLookup = promisify(dnsLookupCb);
+
+/** The upstream Response — Express's `Response` shadows the global in this file. */
+type FetchResponse = Awaited<ReturnType<typeof undiciFetch>>;
+
+/** Hostname → the addresses we resolved AND checked for it. */
+type PinnedHosts = Map<string, LookupAddress[]>;
 
 const router: Router = express.Router();
 
@@ -90,20 +103,80 @@ const VERIFY_STATUS: Record<VerifyFailure, number> = {
 };
 
 /**
- * Validate one URL as a fetch target. Returns the validated absolute URL, or a
- * reason for the log.
+ * Resolve a hostname and accept it only if EVERY address it answers with is
+ * public.
+ *
+ * `all: true` is the load-bearing option. A plain `dns.lookup` hands back one
+ * address, so a record listing a public and a private address passes a check on
+ * whichever came first and then connects to whichever the runtime picks. Taking
+ * all of them, and requiring all of them, removes that choice.
+ *
+ * An IP literal resolves to itself, so literals come through here too — which is
+ * how IPv6 literals get range-checked at all: the validator's private-IP test is
+ * written for dotted-quad.
  */
-async function checkHop(raw: string): Promise<{ ok: true; url: URL } | { ok: false; why: string }> {
+async function resolvePublicAddresses(hostname: string): Promise<LookupAddress[] | null> {
+  let addresses: LookupAddress[];
+  try {
+    // `verbatim` keeps the resolver's own ordering; we check every entry anyway,
+    // so reordering could only ever hide one behind another.
+    addresses = await dnsLookup(hostname, { all: true, verbatim: true });
+  } catch {
+    return null;
+  }
+  if (addresses.length === 0) return null;
+  if (addresses.some((entry) => isPrivateAddress(entry.address))) return null;
+  return addresses;
+}
+
+/**
+ * The `connect.lookup` undici uses. It answers only from `pinned`, so a name that
+ * did not pass `checkHop` cannot be connected to at all — including a name that
+ * passed once and would resolve differently now.
+ *
+ * Exported for the test that matters most here: the assertion is not "a private
+ * address is rejected" but "an unvalidated hostname never reaches a socket".
+ */
+export function createPinnedLookup(pinned: PinnedHosts): LookupFunction {
+  return (hostname, _options, callback) => {
+    const addresses = pinned.get(hostname);
+    if (!addresses || addresses.length === 0) {
+      callback(new Error(`unpinned host: ${hostname}`), []);
+      return;
+    }
+    callback(null, addresses);
+  };
+}
+
+/**
+ * Validate one URL as a fetch target and pin the addresses it may be reached at.
+ * Returns the validated absolute URL, or a reason for the log.
+ */
+async function checkHop(
+  raw: string,
+  pinned: PinnedHosts
+): Promise<{ ok: true; url: URL } | { ok: false; why: string }> {
   const result = await validateUrlForFetch(raw, {
     // Only these two. `validateUrlForFetch` defaults to the same pair, but a
     // proxy is exactly the place where a later default change must not silently
     // widen what we will fetch.
     allowedProtocols: ['http:', 'https:'],
     allowPrivateIPs: false,
+    // We resolve the name ourselves below and pin the socket to that answer, so
+    // the helper's own lookup would be a second, unrelated resolution — the gap
+    // this route exists to close. Its other checks (shape, protocol, blocked
+    // names, private IPv4 literals) still run.
+    skipDnsCheck: true,
   });
   if (!result.isValid || !result.url) {
     return { ok: false, why: result.error ?? 'validation failed' };
   }
+
+  const addresses = await resolvePublicAddresses(result.url.hostname);
+  if (!addresses) {
+    return { ok: false, why: 'host does not resolve to public addresses only' };
+  }
+  pinned.set(result.url.hostname, addresses);
   return { ok: true, url: result.url };
 }
 
@@ -116,15 +189,21 @@ async function checkHop(raw: string): Promise<{ ok: true; url: URL } | { ok: fal
  */
 async function fetchImage(
   startUrl: URL,
+  pinned: PinnedHosts,
+  dispatcher: Agent,
   signal: AbortSignal
 ): Promise<{ ok: true; response: FetchResponse } | { ok: false; status: number; why: string }> {
   let current = startUrl;
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-    const upstream = await fetch(current.toString(), {
+    const upstream = await undiciFetch(current.toString(), {
       method: 'GET',
       redirect: 'manual',
       signal,
+      // Routes every connection through the pinned lookup above. Without this the
+      // runtime resolves the name a second time and the address we validated is
+      // not necessarily the address we talk to.
+      dispatcher,
       headers: {
         Accept: 'image/*',
         // No cookies, no Authorization, no Referer: fetch sends none of these by
@@ -157,7 +236,7 @@ async function fetchImage(
     } catch {
       return { ok: false, status: 502, why: 'unparseable redirect target' };
     }
-    const checked = await checkHop(next.toString());
+    const checked = await checkHop(next.toString(), pinned);
     if (!checked.ok) {
       return { ok: false, status: 400, why: `redirect target rejected: ${checked.why}` };
     }
@@ -182,10 +261,16 @@ router.get('/', async (req: Request, res: Response) => {
     return;
   }
 
-  const checked = await checkHop(verified.url);
+  // Per request, not shared: the pin set is exactly the hosts THIS request
+  // validated, so nothing another request checked can be reached from here.
+  const pinned: PinnedHosts = new Map();
+  const dispatcher = new Agent({ connect: { lookup: createPinnedLookup(pinned) } });
+
+  const checked = await checkHop(verified.url, pinned);
   if (!checked.ok) {
     log.warn(`[ImageProxy] Rejected target: ${checked.why}`);
     res.status(400).json({ error: 'Bildquelle nicht erlaubt.' });
+    void dispatcher.destroy();
     return;
   }
 
@@ -193,7 +278,7 @@ router.get('/', async (req: Request, res: Response) => {
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
-    const fetched = await fetchImage(checked.url, controller.signal);
+    const fetched = await fetchImage(checked.url, pinned, dispatcher, controller.signal);
     if (!fetched.ok) {
       log.warn(`[ImageProxy] ${fetched.why} for ${checked.url.host}`);
       res.status(fetched.status).json({ error: 'Bild konnte nicht geladen werden.' });
@@ -245,8 +330,11 @@ router.get('/', async (req: Request, res: Response) => {
     // Streamed rather than buffered: a host that lies about Content-Length is
     // stopped at the cap instead of being allowed to fill our memory first.
     for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
+      // undici types the chunk as `any`. A byte stream yields Uint8Array, and the
+      // cap below depends on `byteLength` being real — asserted here rather than
+      // left implicit, because an untyped chunk would make the cap unchecked.
+      const { done, value } = (await reader.read()) as ReadableStreamReadResult<Uint8Array>;
+      if (done || !value) break;
       written += value.byteLength;
       if (written > MAX_BYTES) {
         log.warn(`[ImageProxy] Exceeded size cap from ${checked.url.host}`);
@@ -274,6 +362,10 @@ router.get('/', async (req: Request, res: Response) => {
     }
   } finally {
     clearTimeout(timeout);
+    // The body has been read (or the response broken) by now, so the pooled
+    // sockets have no further use. Left open they would outlive the pin set that
+    // authorised them.
+    void dispatcher.destroy();
   }
 });
 
