@@ -76,6 +76,10 @@ const TOOL_MENTIONS_ADDED: Array<[string, string, string | undefined]> = [
   ['social', 'social_post', undefined],
   ['diagramm', 'chart', undefined],
   ['rechnen', 'compute', undefined],
+  // Variant mention of `research`: the only token that authorises Linkup's paid
+  // dossier endpoint (1× per user per day). A variant rather than an intent of its
+  // own, so `searchIntentSchema` is untouched.
+  ['deepresearch', 'deepresearch', undefined],
 ];
 
 describe('registry totality', () => {
