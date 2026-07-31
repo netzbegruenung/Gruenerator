@@ -3,6 +3,7 @@
 import { useRef, type ReactNode } from 'react';
 
 import { useDelayedUnmount } from '../../hooks/useDelayedUnmount';
+import { selectStatusLineView } from '../../lib/statusLineView';
 import { ProgressTracker } from '../tool-ui/progress-tracker/ProgressTracker';
 
 import { type ProgressDisplay } from './progressDisplayContext';
@@ -59,7 +60,6 @@ export function StreamingStatusLine({
 }: StreamingStatusLineProps): ReactNode {
   const stage = custom?.progress?.stage;
   const progress = custom?.progress;
-  const concrete = stage === 'searching' || stage === 'generating' || stage === 'generating_image';
 
   const labelEl =
     progress &&
@@ -86,13 +86,18 @@ export function StreamingStatusLine({
     </StatusLineDetails>
   );
 
+  // Which of the three elements to show — the rule itself lives in
+  // `selectStatusLineView`, shared verbatim with mobile's ChatStatusLine.
+  const view = selectStatusLineView({
+    hasOwnDetail,
+    hasText: textContent.length > 0,
+    stage,
+    hasProgress: progress != null,
+  });
+
   let node: ReactNode = null;
-  if (!hasOwnDetail) {
-    if (concrete && progressEl) node = progressEl;
-    else if (!textContent) node = <TypingIndicator />;
-  } else if (!textContent && progressEl && (stage === 'generating' || stage === 'searching')) {
-    node = progressEl;
-  }
+  if (view === 'progress') node = progressEl ?? null;
+  else if (view === 'typing') node = <TypingIndicator />;
 
   const active = isStreaming && node !== null;
   const { mounted, exiting } = useDelayedUnmount(active);
