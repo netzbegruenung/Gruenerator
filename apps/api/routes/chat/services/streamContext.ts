@@ -637,6 +637,10 @@ export async function buildStreamContext({
     // the slot only ever remembers the newest one.
     const [toolContext, artifacts] = await Promise.all([
       getThreadToolContext(actualThreadId).catch(() => null),
+      // Eine verlorene Artefakt-Liste heisst „Thread ohne Gedächtnis": der Turn
+      // läuft mit dem heutigen Verhalten weiter, statt an einer Komfortfunktion
+      // zu scheitern — dieselbe Abwägung wie in der Zeile darüber.
+      // swallow-ok: best-effort Thread-Gedächtnis, Fallback ist das Ist-Verhalten
       listThreadArtifacts(actualThreadId).catch(() => []),
     ]);
     initialState.lastToolContext = toolContext;
