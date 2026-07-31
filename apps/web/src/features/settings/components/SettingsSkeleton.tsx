@@ -62,6 +62,26 @@ export function SettingsCardsSkeleton({ cards = 3 }: { cards?: number }) {
   );
 }
 
+/** Intro line plus the grid of preview tiles the background picker renders. */
+export function SettingsTilesSkeleton({ tiles = 6 }: { tiles?: number }) {
+  return (
+    <LoadingRegion>
+      <div className="flex flex-col gap-lg">
+        <Skeleton className="h-3 w-full max-w-prose" />
+        <div className="grid grid-cols-2 gap-md sm:grid-cols-3">
+          {Array.from({ length: tiles }, (_, i) => (
+            <div key={i} className="flex flex-col gap-xs">
+              <Skeleton className="aspect-[16/10] w-full rounded-xl" />
+              <Skeleton className="h-4 w-24 max-w-full" />
+              <Skeleton className="h-3 w-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </LoadingRegion>
+  );
+}
+
 /** Intro paragraph plus a textarea-sized block. */
 export function SettingsFormSkeleton() {
   return (
@@ -112,6 +132,7 @@ export function SettingsStatsSkeleton() {
 
 const TAB_SKELETONS: Record<SettingsTab, () => React.ReactElement> = {
   allgemein: () => <SettingsRowsSkeleton rows={6} />,
+  hintergrund: () => <SettingsTilesSkeleton />,
   barrierefreiheit: () => <SettingsRowsSkeleton rows={3} />,
   friends: () => <SettingsCardsSkeleton cards={4} />,
   personalisierung: () => <SettingsFormSkeleton />,
