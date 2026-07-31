@@ -1169,6 +1169,12 @@ export async function executeIntentPipeline(opts: {
             ...(dateTo && { endDate: new Date(`${dateTo}T23:59:59.999Z`) }),
             ...(spaceScope && { threadIds: spaceScope.threadIds }),
           }),
+          // BEKANNTE LÜCKE: das Datumsfenster geht nur an den Chat-Recall.
+          // `searchOfficeContent`/`searchReels` nehmen keine Datumsparameter, ein
+          // Durchreichen wäre also eine Änderung an beiden Suchdiensten und ihrem
+          // SQL — eigener Schnitt. Folge heute: „meine Dokumente vom letzten
+          // Monat" filtert die CHATS auf den Monat, die Dokumente und Reels aber
+          // nicht. Das untertreibt nie (es fehlt kein Treffer), es übertreibt.
           recallOfficeDocuments(userId, query, 5),
           recallReels(userId, query, 5),
         ]);
