@@ -12,6 +12,7 @@ import { createLogger } from '../../../../utils/logger.js';
 
 import { CLASSIFIER_CONTEXT_MESSAGES, CLASSIFIER_CONTEXT_MAX_CHARS } from './classifierPrompt.js';
 import {
+  creationOrderPattern,
   hasExplicitSharepicWord,
   isMetaQuestionAbout,
   isNegatedArtifactRequest,
@@ -233,8 +234,10 @@ const IMAGE_EDIT_VERB_PATTERN =
 const IMAGE_NOUN_PATTERN =
   /(?:^|\W)(bild|bilds|foto|fotos|image|images|picture|pictures|photo|photos)(?:$|\W)/i;
 
-// Bare image-generation nouns, for the negation/meta guard on the image fast path.
-const IMAGE_GEN_NOUN_PATTERN = /\b(bild|grafik|illustration|foto|image|poster)\b/i;
+// Bare image-generation nouns, for the negation/meta guard on the image fast path
+// and for IMAGE_CREATE_PATTERN below — one list, two readers.
+const IMAGE_GEN_NOUN_SRC = 'bild|grafik|illustration|foto|image|poster';
+const IMAGE_GEN_NOUN_PATTERN = new RegExp(`\\b(?:${IMAGE_GEN_NOUN_SRC})\\b`, 'i');
 
 // Regenerate-the-last-image phrasings that carry no edit verb/noun ("nochmal,
 // aber abends", "neue Version", "mach es wärmer"). Used ONLY with an image
@@ -744,6 +747,42 @@ export function looksMultiTopic(query: string): boolean {
 // boundary is `(?![a-zäöüß0-9])`, not `\b` — JS \b is ASCII-only, so `fuß\b`
 // before a space can never match. Module scope: new RegExp compiles per
 // call, unlike regex literals.
+// Finished PDFs, incl. letterhead and fillable forms. The nouns are deliberately
+// qualified ("als PDF", "ein PDF", "PDF-Dokument") rather than a bare "pdf": a
+// bare noun plus a nearby creation verb also describes work ON an existing file
+// ("erstell eine Zusammenfassung des PDFs").
+const PDF_CREATE_PATTERN = creationOrderPattern(
+  'als\\s+pdf|ein\\s+pdf|pdf[\\s-]?(?:dokument|datei|formular|vorlage)|briefkopf' +
+    '|offiziell[a-zäöü]*\\s+(?:brief|schreiben|anschreiben)' +
+    '|(?:ausfüllbar|ausfuellbar)[a-zäöü]*\\s+(?:formular|vorlage|dokument)' +
+    '|formular\\s+zum\\s+ausfüllen|fragebogen|anmeldebogen|antragsformular|anmeldeformular',
+  { extraVerbs: 'schreib', forward: 60 }
+);
+
+const PRESENTATION_NOUN_SRC = 'präsentation|foliensatz|folien|slides?|pitch[\\s-]?deck';
+const PRESENTATION_CREATE_PATTERN = creationOrderPattern(PRESENTATION_NOUN_SRC);
+
+const SHEET_NOUN_SRC = 'tabelle|spreadsheet|sheets?|kalkulation(?:stabelle)?';
+const SHEET_CREATE_PATTERN = creationOrderPattern(SHEET_NOUN_SRC, { extraVerbs: 'leg' });
+
+// Images replace the core verb list instead of extending it: `mach`, `bau` and
+// `gestalte` are how an image EDIT is phrased ("Mach das Foto heller"), and the
+// edit path — which owns those turns via lastToolContext — sits behind this one.
+const IMAGE_CREATE_PATTERN = creationOrderPattern(IMAGE_GEN_NOUN_SRC, {
+  verbs: 'erstell|erzeug|generier|entwirf|visualisier|zeichne|male|illustrier',
+  forward: 20,
+});
+
+// "erstell mir das als Dokument" / "das als Notiz anlegen". The noun stays
+// qualified by "als" for the same reason as the PDF one: a bare "Dokument" near
+// a creation verb is usually a reference to material the turn works FROM
+// ("erstell eine Zusammenfassung des Dokuments"), not the artifact to produce.
+// The save-verb branches below cover "speicher das als Dokument" separately.
+const DOC_CREATE_AS_PATTERN = creationOrderPattern(
+  'als\\s+(?:neues\\s+)?(?:dokument|protokoll|notiz|checkliste)',
+  { extraVerbs: 'schreib|leg|anleg', forward: 60 }
+);
+
 const UNIT_ALTERNATION =
   '(?:mm|cm|m|km|zoll|inch(?:es)?|ft|feet|fu(?:ß|ss)|yd|mi|miles?|meilen?|meter|kilometer|mg|g|kg|t|gramm|kilogramm|lbs?|pfund|oz|s|min|h|std|sekunden?|minuten?|stunden?|tage?|kb|mb|gb|tb|°?[cf]|grad|celsius|fahrenheit|kelvin)';
 const UNIT_CONVERT_PATTERN = new RegExp(
@@ -1014,15 +1053,9 @@ export function heuristicClassify(
   // High confidence (0.92): Image generation requests - very explicit patterns.
   // The `.{0,20}` window between verb and noun can swallow a negation ("erstell
   // daraus bitte KEINE Grafik"), so the negation guard runs on the whole message.
-  const imageKeywords =
-    /\b(erstell|generier|visualisier|zeichne|male|illustrier).{0,20}(bild|grafik|illustration|foto|image|poster)\b/i;
-  const imageKeywordsAlt =
-    /\b(bild|grafik|illustration|foto|poster).{0,20}(erstell|generier|erzeug|mach)\b/i;
-  if (
-    !isLongPaste &&
-    (imageKeywords.test(qc) || imageKeywordsAlt.test(qc)) &&
-    !negatedOrMeta(qc, IMAGE_GEN_NOUN_PATTERN)
-  ) {
+  // Ambiguous "Grafik"/"Kachel" asks never reach this point — Tier 2.95 in
+  // classifierNode asks which of the three products is meant.
+  if (!isLongPaste && IMAGE_CREATE_PATTERN.test(qc) && !negatedOrMeta(qc, IMAGE_GEN_NOUN_PATTERN)) {
     return {
       intent: 'image',
       searchQuery: null,
@@ -1034,13 +1067,12 @@ export function heuristicClassify(
   // High confidence (0.90): Save as document requests.
   // High confidence (0.9): Finished-PDF creation, including fillable forms.
   // Checked BEFORE save_as_doc so "mach ein PDF-Dokument daraus" isn't stolen by
-  // machDarausPattern. Requires a creation verb, so reading an attachment ("fass
-  // das PDF zusammen") and filling one in ("füll das Formular aus") never match;
-  // deck nouns are excluded — "Präsentation als PDF" still builds a deck.
-  const pdfCreatePattern =
-    /\b(erstell|mach|generier|bau|entwirf|erzeug|schreib)[a-zäöü]*\b.{0,60}\b(als\s+pdf|ein\s+pdf|pdf[\s-]?(dokument|datei|formular|vorlage)|briefkopf|offiziell[a-zäöü]*\s+(brief|schreiben|anschreiben)|(ausfüllbar|ausfuellbar)[a-zäöü]*\s+(formular|vorlage|dokument)|formular\s+zum\s+ausfüllen|fragebogen|anmeldebogen|antragsformular|anmeldeformular)\b/i;
+  // machDarausPattern. Requires a creation verb (in either word order, see
+  // PDF_CREATE_PATTERN), so reading an attachment ("fass das PDF zusammen") and
+  // filling one in ("füll das Formular aus") never match; deck nouns are
+  // excluded — "Präsentation als PDF" still builds a deck.
   const deckNounPattern = /\b(präsentation|foliensatz|folien|slides?|pitch[\s-]?deck)\b/i;
-  if (!isLongPaste && pdfCreatePattern.test(q) && !deckNounPattern.test(q)) {
+  if (!isLongPaste && PDF_CREATE_PATTERN.test(q) && !deckNounPattern.test(q)) {
     return {
       intent: 'create_pdf',
       searchQuery: null,
@@ -1063,6 +1095,7 @@ export function heuristicClassify(
   if (
     !isLongPaste &&
     ((saveAsBarePattern.test(qc) && saveImperative.test(qc)) ||
+      DOC_CREATE_AS_PATTERN.test(qc) ||
       docWithVerbPattern.test(qc) ||
       machDarausPattern.test(qc)) &&
     !negatedOrMeta(qc, DOC_ARTIFACT_NOUN_PATTERN)
@@ -1080,12 +1113,10 @@ export function heuristicClassify(
   // on this newer intent — so an explicit "erstelle eine Präsentation über X"
   // was falling back to a prose slide outline instead of building a deck.
   // Fast-path the unambiguous phrasing (creation verb + deck noun).
-  const PRESENTATION_NOUN_PATTERN = /\b(präsentation|foliensatz|folien|slides?|pitch[\s-]?deck)\b/i;
-  const presentationCreatePattern =
-    /\b(erstell|mach|generier|bau|entwirf|erzeug)[a-zäöü]*\b.{0,40}\b(präsentation|foliensatz|folien|slides?|pitch[\s-]?deck)\b/i;
+  const PRESENTATION_NOUN_PATTERN = new RegExp(`\\b(?:${PRESENTATION_NOUN_SRC})\\b`, 'i');
   if (
     !isLongPaste &&
-    presentationCreatePattern.test(qc) &&
+    PRESENTATION_CREATE_PATTERN.test(qc) &&
     !negatedOrMeta(qc, PRESENTATION_NOUN_PATTERN)
   ) {
     return {
@@ -1160,10 +1191,8 @@ export function heuristicClassify(
   // stays chart) and BEFORE compute ("berechne die Tabelle" stays compute — none
   // of these creation verbs is a compute verb). The tabular-attachment compute
   // gate above (0.92) still outranks this for attached-sheet questions.
-  const SHEET_NOUN_PATTERN = /\b(tabelle|spreadsheet|sheets?|kalkulation(?:stabelle)?)\b/i;
-  const sheetCreatePattern =
-    /\b(erstell|mach|generier|bau|entwirf|erzeug|leg)[a-zäöü]*\b.{0,40}\b(tabelle|spreadsheet|sheets?|kalkulation(?:stabelle)?)\b/i;
-  if (!isLongPaste && sheetCreatePattern.test(qc) && !negatedOrMeta(qc, SHEET_NOUN_PATTERN)) {
+  const SHEET_NOUN_PATTERN = new RegExp(`\\b(?:${SHEET_NOUN_SRC})\\b`, 'i');
+  if (!isLongPaste && SHEET_CREATE_PATTERN.test(qc) && !negatedOrMeta(qc, SHEET_NOUN_PATTERN)) {
     return {
       intent: 'create_sheet',
       searchQuery: null,
