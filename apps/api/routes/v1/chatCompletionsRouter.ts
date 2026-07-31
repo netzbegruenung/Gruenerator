@@ -111,7 +111,11 @@ router.post(
     }
 
     if (body.stream !== true) {
-      const data = await result.response.json().catch(() => null);
+      // `unknown`, nicht der `any` aus `Response.json()`: der Rumpf ist ein
+      // fremdes OpenAI-Schema, das wir bewusst unveraendert durchreichen. Ein
+      // `any` waere hier kein Wissen, sondern ein abgeschalteter Typ — und er
+      // pflanzt sich in jede Zeile fort, die ihn anfasst.
+      const data: unknown = await result.response.json().catch(() => null);
       if (data === null) {
         res.status(502).json({ error: 'Upstream returned a malformed response' });
         return;
