@@ -1,0 +1,15 @@
+# loop-aus-degradiert — routing
+# Simulated decision map. Regenerate with SIM_UPDATE=1.
+# A green diff proves the BRANCHES ran as scripted. It proves nothing
+# about what a real model would have done.
+
+## turn 0: "Was ist die Position der Gruenen zur Windkraft?"
+router.run_agentic               = single_pass                    forcedTool=false gateOpen=false hasImageAttachments=false inLoopSet=true intent=direct isCompound=false isMcpTurn=false isPdfFillRequest=false loopEnabled=false secondaryAllowed=true
+router.intent_override           = (not reached)
+router.persistent_action_gate    = (not reached)
+classifier.tier                  = tier4_llm_error_fallback       fallbackIntent=direct
+respond.answer_format            = standard                       complexity=moderate intent=direct retrievalExpected=false sourceCount=0 synthesisMode=none
+loop.tool_guard                  = (none)
+loop.synth_verdict               = (not reached)
+-- wire --
+intent=direct agentic=false tools=[] warnings=[classifier_degraded] interrupts=0 confirmActions=[] documentCreated=false sharepicGenerated=false answerChars=24

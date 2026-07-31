@@ -1,7 +1,7 @@
 import { createServer, type Server } from 'node:http';
 import { type AddressInfo } from 'node:net';
 
-import express, { type Application } from 'express';
+import express, { type Application, type RequestHandler } from 'express';
 
 import { type UserProfile } from '../../../../services/user/types.js';
 import { type AIWorkerPool } from '../../../../workers/types.js';
@@ -25,6 +25,8 @@ export interface ChatAppOptions {
   user?: Partial<UserProfile> | null;
   /** `null` leaves `app.locals` empty — the `provider_unavailable` path. */
   aiWorkerPool?: AIWorkerPool | null;
+  /** Binds a per-request decision journal (see journalCapture.ts). */
+  decisionJournal?: RequestHandler;
 }
 
 export interface ChatApp {
@@ -43,6 +45,9 @@ export async function startChatApp(options: ChatAppOptions = {}): Promise<ChatAp
   if (options.aiWorkerPool !== null) {
     app.locals.aiWorkerPool = options.aiWorkerPool;
   }
+  if (options.decisionJournal) {
+    app.use(options.decisionJournal);
+  }
 
   mountChatGraphContractRouter(app);
 
@@ -60,20 +65,33 @@ export async function startChatApp(options: ChatAppOptions = {}): Promise<ChatAp
   };
 }
 
-function post(baseUrl: string, path: string, body: unknown): Promise<Response> {
+function post(
+  baseUrl: string,
+  path: string,
+  body: unknown,
+  headers?: Record<string, string>
+): Promise<Response> {
   return fetch(`${baseUrl}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify(body),
   });
 }
 
-export function postStream(baseUrl: string, body: unknown): Promise<Response> {
-  return post(baseUrl, '/api/chat-graph/stream', body);
+export function postStream(
+  baseUrl: string,
+  body: unknown,
+  headers?: Record<string, string>
+): Promise<Response> {
+  return post(baseUrl, '/api/chat-graph/stream', body, headers);
 }
 
-export function postResume(baseUrl: string, body: unknown): Promise<Response> {
-  return post(baseUrl, '/api/chat-graph/resume', body);
+export function postResume(
+  baseUrl: string,
+  body: unknown,
+  headers?: Record<string, string>
+): Promise<Response> {
+  return post(baseUrl, '/api/chat-graph/resume', body, headers);
 }
 
 /**

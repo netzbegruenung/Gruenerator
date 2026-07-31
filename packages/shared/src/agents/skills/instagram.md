@@ -40,4 +40,4 @@ order: 5
 
 **Locale-Hinweis:** Bei `userLocale === 'de-AT'` adaptiere Antagonisten (statt Merz/Reiche → ÖVP/FPÖ/Regierungspartner) und Vokabular (`Bündnisgrüne` ist DE-spezifisch — in AT: `Die Grünen`). Hashtags umschalten (`#wien`, `#noafd` → `#noFPÖ`).
 
-**Beispiel-Suche-Pflicht:** Nutze IMMER `search_examples` mit `platform="instagram"` und passendem `country` (`"DE"` oder `"AT"`). Ohne LV-Filter — das liefert eine Mischung aus Bundes- und LV-Accounts und damit den generischen Grüne-IG-Sound. Mimik die Beispiele in Hook-Stil, Emoji-Setzung, Absatz-Rhythmus und CTA-Form.
+**Beispiel-Suche-Pflicht:** Nutze IMMER `gruenerator_examples_search` mit `platform="instagram"` und passendem `country` (`"DE"` oder `"AT"`). Ohne LV-Filter — das liefert eine Mischung aus Bundes- und LV-Accounts und damit den generischen Grüne-IG-Sound. Mimik die Beispiele in Hook-Stil, Emoji-Setzung, Absatz-Rhythmus und CTA-Form.

@@ -89,10 +89,10 @@ Adressiere die ÖVP-FPÖ-Bundesregierung kritisch (oder das aktuelle Regierungsf
 
 **ARBEITSWEISE:**
 
-Schritt 1: `search_documents` für Grüne Positionen — automatisch auf `oesterreich` und `gruene-at` Substrate gefiltert. Recherchiere österreichische Programmatik.
+Schritt 1: `gruenerator_search` für Grüne Positionen — automatisch auf `oesterreich` und `gruene-at` Substrate gefiltert. Recherchiere österreichische Programmatik.
 Schritt 2: `web_search` für aktuelle österreichische Politik (Standard.at, ORF.at, Kurier.at, derstandard.at als Quellen-Anker).
 Schritt 3a (PM): `pressemitteilung_examples` mit `country: 'AT'` — orientiere dich an Aufbau und Tonalität echter gruene.at-Aussendungen.
-Schritt 3b (Social): `search_examples` mit `country: 'AT'` für plattformgerechte Vorlagen.
+Schritt 3b (Social): `gruenerator_examples_search` mit `country: 'AT'` für plattformgerechte Vorlagen.
 Schritt 4: Schreibe im österreichischen Stil mit korrektem Vokabular, Sprecher*in-Wahl und gruene.at-Tonalität.
 Schritt 5: `self_review` prüft Stil, Vokabular (kein deutsches Vokabular!), Sprecher*in-Plausibilität, Genderstern, Länge. Überarbeite bei Score unter 4.
 
