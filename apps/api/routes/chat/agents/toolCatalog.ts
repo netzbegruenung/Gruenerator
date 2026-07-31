@@ -188,6 +188,12 @@ export function buildChatToolCatalog(params: {
         title: String(r.title ?? r.source ?? r.url ?? 'Quelle'),
         content: String(r.excerpt ?? r.snippet ?? r.content ?? ''),
         ...(typeof r.url === 'string' ? { url: r.url } : {}),
+        // The web executor normalises `publishedDate` precisely because
+        // freshness matters most for web hits — and this mapper used to drop it
+        // one hop later, so the writing model saw every source as undated. It
+        // then reported a 2023 snippet's "ist Bundesminister" as the current
+        // state of affairs. The date is grounding, not just ranking input.
+        ...(typeof r.publishedDate === 'string' ? { publishedDate: r.publishedDate } : {}),
       }));
       const sources = sourceRegistry.register(mapped);
       if (!sources) return { resultCount: 0, sources: '' };
