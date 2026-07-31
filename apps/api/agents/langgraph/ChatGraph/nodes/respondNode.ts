@@ -55,6 +55,9 @@ const ATTACHMENT_LIMITS = {
   TOTAL_BUDGET_CHARS: 20000,
 };
 
+/** Chars reserved for the "[...N Zeichen gekürzt...]" marker. */
+const TRUNCATION_MARKER_CHARS = 60;
+
 /**
  * Smart document truncation.
  * Keeps the introduction (60%) and conclusion (40%) for better context.
@@ -66,20 +69,31 @@ export function truncateDocument(
 ): string {
   if (!text || text.length <= limit) return text;
 
-  log.warn(
-    `[respondNode:attachment] cap hit: ${text.length} → ${limit} chars ` +
-      `(${text.length - limit} dropped from the middle)`
-  );
+  const removedChars = text.length - limit;
+  const marker = `\n\n[...${removedChars.toLocaleString('de-DE')} Zeichen gekürzt...]\n\n`;
 
   // Smart truncation: keep intro (60%) + conclusion (40%)
   const introLength = Math.floor(limit * 0.6);
-  const outroLength = limit - introLength - 60; // 60 chars for marker
+  const outroLength = limit - introLength - TRUNCATION_MARKER_CHARS;
 
-  const intro = text.slice(0, introLength);
-  const outro = text.slice(-outroLength);
+  // Below ~150 chars there is no room for a meaningful tail, and the naive
+  // arithmetic inverts the function: at outroLength === 0, `slice(-0)` is
+  // `slice(0)` and the WHOLE text comes back; below zero, `slice(-(-20))`
+  // returns all but the first 20 chars. The cap would silently expand instead
+  // of capping — and 150 is exactly the per-chunk floor in formatSourceChunks.
+  if (outroLength <= 0) {
+    log.warn(
+      `[respondNode:attachment] cap hit: ${text.length} → ${limit} chars (head only, no room for a tail)`
+    );
+    return `${text.slice(0, Math.max(0, limit - TRUNCATION_MARKER_CHARS))}${marker}`;
+  }
 
-  const removedChars = text.length - limit;
-  return `${intro}\n\n[...${removedChars.toLocaleString('de-DE')} Zeichen gekürzt...]\n\n${outro}`;
+  log.warn(
+    `[respondNode:attachment] cap hit: ${text.length} → ${limit} chars ` +
+      `(${removedChars} dropped from the middle)`
+  );
+
+  return `${text.slice(0, introLength)}${marker}${text.slice(-outroLength)}`;
 }
 
 /**
