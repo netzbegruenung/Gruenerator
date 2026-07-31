@@ -95,12 +95,19 @@ export const CLASSIFIER_OFFERED_INTENTS = [
   'share_doc',
   'chat_history',
   'mcp',
-  'direct',
+  // `produktion` replaced `direct` on 2026-07-31. `direct` was the prompt's
+  // catch-all AND its supplied-substance case at once, so every turn the model
+  // could not place inherited "no tool, no search, no citations" by default.
+  // `produktion` carries only the narrow half (SCHRITT 2's three conditions);
+  // what the model cannot place now falls to `agentic`, where the loop's own
+  // model decides whether it needs a tool.
+  'produktion',
+  'agentic',
   // `greeting` is deliberately NOT offered here. It is decided by
   // GREETING_PREFIX_PATTERN before the LLM ever runs; offering it as well would
-  // hand the model a SECOND catch-all next to `direct`, and a turn mislabelled
+  // hand the model a SECOND catch-all next to `agentic`, and a turn mislabelled
   // `greeting` loses reasoning, sources and the tool loop in one step. A
-  // greeting that slips the gate lands on `direct`, which costs nothing.
+  // greeting that slips the gate lands on the residual, which costs nothing.
 ] as const satisfies readonly SearchIntent[];
 
 export type OfferedIntent = (typeof CLASSIFIER_OFFERED_INTENTS)[number];
@@ -128,13 +135,13 @@ VERFÜGBARE TOOLS:
 - search: NUR bei expliziten FRAGEN zu Grünen Parteiprogrammen, Positionen, Beschlüssen
 - web: Aktuelle Nachrichten, externe Fakten, EXPLIZITE Web-Suche ("suche im netz")
 - examples: Social-Media-Vorlagen/Beispiele ANSEHEN ("zeig mir Beispiele", "gibt es eine Vorlage für X"). Nur anschauen, nichts Neues erstellen.
-- social_post: Social-Media-Post ERSTELLEN — NUR TEXT - STANDARD für "erstelle/schreib einen Post/Tweet/Insta-/Facebook-/LinkedIn-Beitrag zu X", "Social-Media-Post über Y". Eine Sharepic-Grafik entsteht dabei NUR, wenn im selben Satz ausdrücklich ein Sharepic verlangt wird ("Post mit Sharepic"). Ein Post ist KEINE direct-Aufgabe.
+- social_post: Social-Media-Post ERSTELLEN — NUR TEXT - STANDARD für "erstelle/schreib einen Post/Tweet/Insta-/Facebook-/LinkedIn-Beitrag zu X", "Social-Media-Post über Y". Eine Sharepic-Grafik entsteht dabei NUR, wenn im selben Satz ausdrücklich ein Sharepic verlangt wird ("Post mit Sharepic"). Ein Post ist KEINE produktion-Aufgabe.
 - abgeordnetenwatch: Transparenzdaten zu deutschen Abgeordneten (Bundestag/Landtage) via Abgeordnetenwatch - Abstimmungsverhalten ("wie hat X gestimmt", "Abstimmungsverhalten von"), Nebentätigkeiten/Nebeneinkünfte ("welche Nebentätigkeiten hat X"), Mandate, sowie namentliche Abstimmungen ("wie ging die Abstimmung zu Y aus", "Ergebnis der namentlichen Abstimmung"). NUR für konkrete Abgeordnete oder konkrete Parlamentsabstimmungen, NICHT für allgemeine Parteipositionen (→ search) und NICHT für Dokumente/Reden/Gesetzgebung (→ bundestag).
 - bundestag: Offizielle Parlamentsdokumente des Deutschen Bundestags (DIP) - Drucksachen, Gesetzentwürfe, Anträge, Kleine/Große Anfragen, Plenardebatten und Reden ("was wurde im Bundestag zu X debattiert", "Rede von X zu Y", "Drucksache 21/123", "Stand des Gesetzgebungsverfahrens"). NICHT für Abstimmungsverhalten oder Nebentätigkeiten (→ abgeordnetenwatch), NICHT für Grüne Positionen (→ search), NICHT für aktuelle Nachrichten (→ web).
 - umfragen: WAHLUMFRAGEN und Meinungsbilder - Sonntagsfrage/Umfragewerte bundesweit oder pro Bundesland ("wie stehen die Grünen aktuell in Umfragen", "Sonntagsfrage Bayern", "aktuelle Umfragewerte der AfD") sowie Zustimmung zu Themen ("wie denken die Leute über Tempolimit"). NUR Umfragedaten, NICHT Parteipositionen (→ search), NICHT Wahlergebnisse oder namentliche Abstimmungen (→ abgeordnetenwatch/web).
 - summary: Zusammenfassung eines Dokuments - "fasse zusammen", "zusammenfassung", "kurzfassung"
 - chart: Datenvisualisierung - "erstelle Diagramm", "Balkendiagramm", "Kreisdiagramm", "visualisiere als Chart", "Statistik darstellen"
-- compute: Deterministische Berechnung oder Zählung - "zähl die Zeichen/Wörter", "wie viele Zeichen/Wörter hat der Text", "wie viele Zeichen sind das", "20% von 340", "5 km in Meilen", "wie viele Tage bis Weihnachten". NUR echtes Rechnen/Zählen — KEIN Diagramm (→ chart) und keine allgemeine Sachfrage (→ direct/search).
+- compute: Deterministische Berechnung oder Zählung - "zähl die Zeichen/Wörter", "wie viele Zeichen/Wörter hat der Text", "wie viele Zeichen sind das", "20% von 340", "5 km in Meilen", "wie viele Tage bis Weihnachten". NUR echtes Rechnen/Zählen — KEIN Diagramm (→ chart) und keine allgemeine Sachfrage (→ agentic/search).
 - artifact: Darstellbares HTML/SVG-Artefakt - "baue eine HTML-Tabelle", "erstelle eine SVG-Grafik", "mach ein HTML-Mockup", "eine Landingpage als HTML" (NICHT für Diagramme aus Daten → das ist chart)
 - save_as_doc: Antwort als Dokument speichern - "speichere als Dokument", "mach ein Dokument daraus", "als Protokoll speichern"
 - create_sheet: Eigenständige, rechnende Tabelle (Spreadsheet) erstellen - "erstelle eine Tabelle", "mach ein Spreadsheet", "Budgetplan als Tabelle", "Kalkulation", "Datenliste mit Formeln". ABGRENZUNG: Eine einfache Tabelle IN einem Textdokument ("füge eine Tabelle ins Dokument ein", "als Dokument mit Tabelle") → save_as_doc mit documentSubtype "tabelle". Eine eigenständige Tabelle mit Daten/Formeln/Berechnungen → create_sheet. Eine HTML-Tabelle zum Anschauen → artifact.
@@ -145,9 +152,10 @@ VERFÜGBARE TOOLS:
 - modify_board: Erwähntes Board bearbeiten (NUR wenn ein @Board erwähnt wurde UND Änderungsabsicht) - "füge Aufgabe hinzu", "neue Karte", "aktualisiere Board", "erstelle Aufgaben"
 - share_doc: Dokument mit Gruppe teilen - "teile mit Gruppe", "teile das mit", "share mit AG", "an Gruppe senden", "Gruppe X freigeben"
 - chat_history: Frühere INHALTE DIESES Nutzers durchsuchen oder wieder aufgreifen — vergangene Chats ("was haben wir letztes Mal besprochen", "finde unseren Chat über X", "mach da weiter wo wir aufgehört haben"), eigene Dokumente/Präsentationen/Tabellen/Boards ("finde meine Präsentation zu X", "mein Dokument über Y", "die Tabelle die ich erstellt habe", "mein Board/Kanban zu Z", "meine Notizen von letzter Woche") UND eigene Reels/untertitelte Videos, die auch nach ihrem GESPROCHENEN Inhalt gefunden werden ("such mein Reel zum Thema X", "in welchem Video habe ich über Y geredet", "das Reel über Z — schreib mir eine Caption dazu"). NICHT für Grüne Positionen/Programme (→ search) und NICHT für Web-Inhalte (→ web). NICHT wenn ein NEUES Reel erstellt oder die Untertitel eines angehängten Reels geändert werden sollen — das ist die Reel-Bearbeitung, nicht die Suche.
-- hilfe: BEDIENUNG DES GRÜNERATORS - Anleitungen und Erklärungen zu Funktionen des Grünerators aus der offiziellen Dokumentation ("wie erstelle ich ein Sharepic", "wie lege ich ein Notebook an", "wie binde ich die Grüne Wolke ein", "wo finde ich die Konnektoren", "welche KI-Modelle gibt es im Grünerator", "Anleitung für den Reel-Grünerator", "was ist die Agentura"). NUR für die NUTZUNG des Produkts. NICHT für inhaltliche/politische Fragen (→ search), NICHT für allgemeine KI-/Technikfragen ohne Grünerator-Bezug (→ direct/web), NICHT für eigene Inhalte des Nutzers wie Dokumente oder Boards (→ chat_history).
-- mcp: (EXPERIMENTELL) Aktion über einen vom Nutzer verbundenen externen Dienst/Tool (MCP-Server) - NUR wenn der Nutzer explizit einen verbundenen Dienst oder ein Tool nennt (z.B. "@mcp", "über meinen verbundenen Server", "mit dem Linear-Tool") oder eine Aktion verlangt, die eindeutig ein solches externes Tool ausführt. Bei Unsicherheit NICHT wählen (→ direct).
-- direct: STANDARD-INTENT. Begrüßungen, Dank, kreative Aufgaben, Textbearbeitung, Umformulierungen
+- hilfe: BEDIENUNG DES GRÜNERATORS - Anleitungen und Erklärungen zu Funktionen des Grünerators aus der offiziellen Dokumentation ("wie erstelle ich ein Sharepic", "wie lege ich ein Notebook an", "wie binde ich die Grüne Wolke ein", "wo finde ich die Konnektoren", "welche KI-Modelle gibt es im Grünerator", "Anleitung für den Reel-Grünerator", "was ist die Agentura"). NUR für die NUTZUNG des Produkts. NICHT für inhaltliche/politische Fragen (→ search), NICHT für allgemeine KI-/Technikfragen ohne Grünerator-Bezug (→ agentic/web), NICHT für eigene Inhalte des Nutzers wie Dokumente oder Boards (→ chat_history).
+- mcp: (EXPERIMENTELL) Aktion über einen vom Nutzer verbundenen externen Dienst/Tool (MCP-Server) - NUR wenn der Nutzer explizit einen verbundenen Dienst oder ein Tool nennt (z.B. "@mcp", "über meinen verbundenen Server", "mit dem Linear-Tool") oder eine Aktion verlangt, die eindeutig ein solches externes Tool ausführt. Bei Unsicherheit NICHT wählen (→ agentic).
+- produktion: Schreiben, dessen SUBSTANZ SCHON VORLIEGT. Nur die drei Fälle aus Schritt 2: mitgelieferte Inhalte, Bearbeitung vorhandenen Textes, reine Wortkunst. Auch: eine Rückfrage, die aus dem laufenden Gespräch beantwortbar ist.
+- agentic: STANDARD-INTENT für alles, was du nicht sicher einordnen kannst. Das antwortende Modell hat selbst Werkzeuge und entscheidet dann, ob es sucht. Wähle das lieber als eine geratene Kategorie — ein Fehlgriff auf produktion kostet die Wahrheit, ein Fehlgriff auf agentic nur Zeit.
 
 SCHRITT 1 - ORIGINALTEXT BEWAHREN:
 Verwende den ORIGINALEN Wortlaut des Benutzers für searchQuery und optimizedSearchQuery.
@@ -169,12 +177,12 @@ SCHRITT 2 - INHALTSTYP ANALYSIEREN:
 SCHREIBAUFTRÄGE — die entscheidende Frage lautet NICHT "kreativ oder sachlich",
 sondern: LIEGT DIE SUBSTANZ SCHON VOR?
 
-direct NUR wenn eine dieser drei Bedingungen zutrifft:
+produktion NUR wenn eine dieser drei Bedingungen zutrifft:
 1. Der Nutzer liefert die Inhalte selbst mit (kopierter Text, Stichpunkte, Bio-Daten, Eckdaten, angehängtes Dokument) — dann ist Schreiben reines Formulieren.
 2. Es geht um vorhandenen Text: Umformulierung, Kürzung, Verbesserung, Übersetzung, Tonwechsel.
 3. Reine Wortkunst, für die es nichts nachzuschlagen gibt: Gedicht, Witz, Slogan, Motto, Claim, Einzeiler, Glückwunsch, Geburtstagskarte.
 
-Sonst NICHT direct. Ein Text ÜBER die Welt — Pressemitteilung, Rede, Artikel,
+Sonst NICHT produktion. Ein Text ÜBER die Welt — Pressemitteilung, Rede, Artikel,
 Statement, Dossier, Steckbrief, Porträt, Analyse, Bericht, Antrag,
 Argumentationspapier — braucht Fakten, die der Nutzer nicht mitgeliefert hat.
 Wähle dann web oder research, damit echte Quellen in die Antwort gehen.
@@ -182,10 +190,10 @@ Begründung: solche Aufträge wurden bisher aus dem Gedächtnis des Modells
 beantwortet und widersprachen dabei sogar dem eigenen Gesprächsverlauf.
 
 Ein Thema allein ist KEINE Substanz: "Schreib eine Rede über den Klimaschutz"
-nennt nur das Thema, nicht den Inhalt → nicht direct. "Schreib eine Rede aus
-diesen Stichpunkten: …" liefert den Inhalt → direct.
+nennt nur das Thema, nicht den Inhalt → nicht produktion. "Schreib eine Rede
+aus diesen Stichpunkten: …" liefert den Inhalt → produktion.
 
-- AUSNAHME: Ein Social-Media-POST (Tweet, Insta-/Facebook-/LinkedIn-Beitrag) ist KEINE direct-Aufgabe. Post erstellen → social_post. Siehe Schritt 3, Regel 6.
+- AUSNAHME: Ein Social-Media-POST (Tweet, Insta-/Facebook-/LinkedIn-Beitrag) ist KEINE produktion-Aufgabe. Post erstellen → social_post. Siehe Schritt 3, Regel 6.
 
 RECHERCHE NUR WENN:
 - Nutzer EXPLIZIT nach Fakten/Quellen fragt: "recherchiere", "finde Fakten zu", "belege für"
@@ -194,10 +202,10 @@ RECHERCHE NUR WENN:
 
 needsResearch = true genau dann, wenn du die Anfrage NICHT wahrheitsgemäß beantworten kannst, ohne etwas nachzuschlagen (aktuelle Ereignisse, Zahlen, Positionen, Personen, Zitate).
 BILDER: Setze bilder=true, wenn das Thema etwas Sichtbares ist — eine Person, ein Ort, ein Bauwerk, ein Ereignis, ein Produkt, ein Tier, ein Kunstwerk, eine Veranstaltung. Setze bilder=false bei abstrakten Themen: Rechtslage, Verfahren, Berechnungen, Strategie, Textarbeit. Der Benutzer sieht die Treffer über der Antwort; sie kosten nichts extra, aber Bilder zu einer Paragrafenfrage sind nur Rauschen.
-KONSISTENZ (verbindlich): Setzt du needsResearch auf true, darf der intent NICHT "direct" sein — wähle search, web oder research. "direct" heißt: alles Nötige steht bereits in der Nachricht oder es ist eine rein kreative/umformulierende Aufgabe.
+KONSISTENZ (verbindlich): Setzt du needsResearch auf true, darf der intent NICHT "produktion" sein — wähle search, web oder research. "produktion" heißt: alles Nötige steht bereits in der Nachricht oder es ist eine rein kreative/umformulierende Aufgabe.
 
 FALSCHE PRÄMISSEN ERKENNEN:
-Wenn eine Anfrage ein konkretes Ereignis mit einer Zeit-/Jahresangabe nennt, die so nicht stattgefunden haben könnte (z.B. eine Wahl, Abstimmung oder ein Termin, den es in dieser Form nicht gibt) — verlasse dich NICHT darauf, dass die genannte Zeitangabe stimmt. Wähle trotzdem intent web (oder umfragen je nach Ereignisart), NICHT direct, damit eine echte Suche die tatsächlichen Fakten liefert. Nur mit echten Suchergebnissen kann eine falsche Prämisse im Antwortschritt richtiggestellt werden, statt unwidersprochen zu bleiben oder mit "dazu habe ich keine Informationen" abgetan zu werden.
+Wenn eine Anfrage ein konkretes Ereignis mit einer Zeit-/Jahresangabe nennt, die so nicht stattgefunden haben könnte (z.B. eine Wahl, Abstimmung oder ein Termin, den es in dieser Form nicht gibt) — verlasse dich NICHT darauf, dass die genannte Zeitangabe stimmt. Wähle trotzdem intent web (oder umfragen je nach Ereignisart), NICHT produktion, damit eine echte Suche die tatsächlichen Fakten liefert. Nur mit echten Suchergebnissen kann eine falsche Prämisse im Antwortschritt richtiggestellt werden, statt unwidersprochen zu bleiben oder mit "dazu habe ich keine Informationen" abgetan zu werden.
 
 SCHRITT 3 - TOOL WÄHLEN:
 0. Kommt eines der Wörter Sharepic/Share-Pic/Spruchbild/Zitatbild/Dreizeiler wörtlich vor? → sharepic (VOR image prüfen!). Ohne eines dieser Wörter NIEMALS sharepic — "Grafik" und "Kachel" sind kein Sharepic.
@@ -212,7 +220,7 @@ SCHRITT 3 - TOOL WÄHLEN:
 4d. Fertiges PDF zum Herunterladen/Ausdrucken, offizieller Brief mit Briefkopf oder ein ausfüllbares Formular? → create_pdf
 4e. Wiederkehrende, regelmäßig automatisch laufende Aufgabe (mit Rhythmus + Uhrzeit)? → create_recurring_task
 5. Dokument mit Gruppe teilen? → share_doc
-5a-. Bezug auf DIESES laufende Gespräch ("vorhin", "in diesem Chat", "deine letzte Antwort", "meine erste Frage")? → NICHT chat_history. Der Verlauf liegt bereits im Kontext; wähle den Intent, der zur eigentlichen Sachfrage passt (meist direct, bei Faktenfragen search/web).
+5a-. Bezug auf DIESES laufende Gespräch ("vorhin", "in diesem Chat", "deine letzte Antwort", "meine erste Frage")? → NICHT chat_history. Der Verlauf liegt bereits im Kontext; wähle den Intent, der zur eigentlichen Sachfrage passt (meist produktion, weil die Substanz schon im Verlauf steht; bei Faktenfragen search/web).
 5b. Bezug auf ein FRÜHERES, ABGESCHLOSSENES GESPRÄCH oder einen EIGENEN INHALT des Nutzers — Dokument/Präsentation/Tabelle/Board/Reel ("letztes Mal", "unser Chat über", "mach da weiter", "meine Präsentation zu", "mein Dokument über", "die Tabelle die ich erstellt habe", "mein Board/Kanban zu", "such mein Reel zu", "in welchem Video habe ich über … gesprochen")? → chat_history
    Auch dann, wenn direkt eine Folgeaufgabe drangehängt wird ("… und schreib mir eine Caption dazu") — erst suchen, der Text entsteht danach aus dem gefundenen Transkript.
 6. Social-Media-Post ERSTELLEN (Insta/Facebook/Tweet/LinkedIn oder generisch)? → social_post (auch "Post MIT Sharepic" → social_post; ohne das Wort "Sharepic" entsteht nur Text)
@@ -225,7 +233,8 @@ SCHRITT 3 - TOOL WÄHLEN:
 8. EXPLIZITE FRAGE zu Grüner Politik/Programm/Position? → search
 9. Aktuelle News/Ereignisse? → web
 10. Schreibauftrag, dessen Substanz der Nutzer NICHT mitliefert (Rede/PM/Artikel/Dossier über ein Thema) → web bzw. research. Siehe Schritt 2.
-11. Alles andere (Wortkunst, Textbearbeitung, mitgelieferte Inhalte, Small Talk) → direct
+11. Wortkunst, Textbearbeitung, mitgelieferte Inhalte, Rückfrage zum laufenden Gespräch → produktion
+12. Alles andere, auch alles Unklare → agentic. Das ist der Auffangwert; produktion ist es NICHT.
 
 SCHRITT 4 - SUCHQUERY OPTIMIEREN:
 Wenn intent search/research/web/examples/social_post/chat_history ist, erstelle eine optimierte Suchquery:
@@ -330,7 +339,7 @@ Antworte NUR mit JSON:
 {
   "typoAnalysis": {"original": "...", "corrected": "..."} | null,
   "contentType": "pressemitteilung" | "artikel" | "rede" | "argumentation" | "tweet" | "slogan" | null,
-  "needsResearch": true | false,   // true = ohne Nachschlagen nicht wahrheitsgemäß beantwortbar; dann NIEMALS intent "direct"
+  "needsResearch": true | false,   // true = ohne Nachschlagen nicht wahrheitsgemäß beantwortbar; dann NIEMALS intent "produktion"
   "bilder": true | false,          // true = das Thema ist etwas Sichtbares, Bilder gehören neben die Antwort
   "intent": ${INTENT_ENUM_LINE},
   "secondaryIntent": "image" | "examples" | "save_as_doc" | null,
@@ -355,7 +364,7 @@ Antworte NUR mit JSON:
   "reasoning": "..."
 }
 
-Bei "direct", "sharepic", "image" und "image_edit" setze searchQuery, optimizedSearchQuery, subQueries, searchSources und filters auf null/[]. creationTopic ist davon NICHT betroffen (siehe Schritt 4b).
+Bei "produktion", "agentic", "sharepic", "image" und "image_edit" setze searchQuery, optimizedSearchQuery, subQueries, searchSources und filters auf null/[]. creationTopic ist davon NICHT betroffen (siehe Schritt 4b).
 Bei "save_as_doc" setze documentSubtype auf den passenden Dokumenttyp:
 - "checkliste" für Aufgabenlisten, Todo-Listen, Checklisten, Aufgaben zum Abhaken
 - "protokoll" für Sitzungsprotokolle, Versammlungsprotokolle
@@ -389,6 +398,9 @@ export const CREATION_TOPIC_INTENTS = new Set([
  * Intents that don't trigger search/retrieval — used to skip query optimization.
  */
 export const NON_SEARCH_INTENTS = new Set([
+  'produktion',
+  // Deprecated as a verdict, still reachable via the parser fallback and the
+  // heuristic hint — and both mean "no retrieval", same as before.
   'direct',
   'greeting',
   'sharepic',
