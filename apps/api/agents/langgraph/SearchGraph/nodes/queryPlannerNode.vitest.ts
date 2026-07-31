@@ -1,6 +1,5 @@
 /**
  * Tests for SearchGraph queryPlannerNode
- * Run with: npx vitest run apps/api/agents/langgraph/SearchGraph/nodes/queryPlannerNode.test.ts
  */
 
 import { describe, it, expect, vi } from 'vitest';
