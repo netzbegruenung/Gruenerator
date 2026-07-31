@@ -40,6 +40,23 @@ import type { Citation, SearchResult } from '../../../../agents/langgraph/ChatGr
  */
 const SNIPPET_CHARS = 1500;
 
+/**
+ * Budget for the WHOLE source block handed to the synth, across all sources.
+ *
+ * 18k ≈ 12 sources at the full 1500, which is the point where a research thread
+ * with carried sources starts growing the synth prompt without bound (measured
+ * live: a thread at 19 sources produced a ~27k block). Above it every source
+ * keeps its number and its line and they shorten together — see `renderAll`.
+ */
+const SOURCE_BLOCK_CHARS = 18_000;
+
+/** Floor for the shared cap. Below this a snippet stops being evidence and
+ *  becomes a headline, and the model starts reporting "dazu steht nichts in den
+ *  Quellen" — the failure SNIPPET_CHARS was raised to 1500 to fix. */
+const MIN_SNIPPET_CHARS = 500;
+
+const contentLength = (e: { result: SearchResult }): number => (e.result.content ?? '').length;
+
 export interface SourceRegistry {
   /** Add raw results (search/web/research/examples). Returns the numbered
    *  snippet block for exactly the newly-added results so the calling tool can
@@ -224,6 +241,25 @@ export function createSourceRegistry(): SourceRegistry {
       return [...fresh, ...prior].slice(0, limit);
     },
     renderAll() {
+      // Total budget across ALL sources, not a per-source cap.
+      //
+      // `register` bounds each source at SNIPPET_CHARS but nothing bounded the
+      // COUNT, so the block grew linearly: 10 sources ≈ 15k chars, 18 ≈ 27k, and
+      // a long research thread keeps accumulating because carried sources are
+      // seeded on every loop turn. The reference implementations this file
+      // already cites (Open WebUI, LobeChat) bound retrieval by count instead.
+      //
+      // Dropping sources is what we must NOT do: `renderReference` promises the
+      // same numbering, `buildCitations` numbers the chips in this order, and a
+      // missing entry silently shifts every later [N] onto the wrong source.
+      // So every source keeps its number and its line — they just get shorter
+      // together once the block would exceed the budget. Below the budget
+      // nothing changes at all.
+      const effectiveCap = (() => {
+        const total = entries.reduce((sum, e) => sum + Math.min(e.cap, contentLength(e)), 0);
+        if (total <= SOURCE_BLOCK_CHARS || entries.length === 0) return null;
+        return Math.max(MIN_SNIPPET_CHARS, Math.floor(SOURCE_BLOCK_CHARS / entries.length));
+      })();
       // Retrieved snippets are third-party text — a scraped page, a web result,
       // an MCP server's return — and go into the prompt as DATA, delimited the
       // same way the single-pass path delimits search results (respondNode).
@@ -232,7 +268,9 @@ export function createSourceRegistry(): SourceRegistry {
       // from an actual system rule. The notes and the provenance line below are
       // OUR statements about the turn, so they stay outside the wrapper.
       const snippets = entries
-        .map((e, i) => snippetLine(i + 1, e.result, e.cap, e.prior))
+        .map((e, i) =>
+          snippetLine(i + 1, e.result, Math.min(e.cap, effectiveCap ?? e.cap), e.prior)
+        )
         .join('\n');
       const current = snippets ? embedUntrusted('suchergebnis', snippets) : '';
       // Unnumbered and explicitly labelled: the synth must be able to REPORT
