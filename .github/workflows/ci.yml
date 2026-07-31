@@ -23,25 +23,54 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
+# The Turborepo remote cache belongs in EVERY job that runs a turbo task, not
+# just `build`. typecheck and lint are the two most expensive things this
+# workflow does (261s and 242s of a 613s job) and both were running stone cold
+# on every single run because these two variables were scoped to the build job
+# alone. On a PR that touches one package, the other 22 typecheck tasks and 12
+# lint tasks are cache hits.
+#
+# Fork PRs get empty strings here; turbo then silently runs without a remote
+# cache instead of failing.
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+
 jobs:
-  quality:
-    name: Quality Checks
+  # Bare-node guards: no pnpm store restore (27s), no install (20s). They cost
+  # about a second each and are the cheapest possible signal, so they get their
+  # own job and nothing waits on them — a failure here shows up red next to the
+  # slower jobs rather than gating them.
+  guards:
+    name: Guards
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
           node-version: '22'
-          cache: 'pnpm'
 
       - name: Singleton dependency versions
         run: node scripts/check-singleton-versions.mjs
+
+      # Dependabot cannot edit pnpm.overrides, so a bump of an overridden
+      # package lands the new version in the lockfile's overrides block only.
+      # `pnpm install --frozen-lockfile` then dies with
+      # ERR_PNPM_LOCKFILE_CONFIG_MISMATCH, which reads like a corrupt lockfile
+      # instead of the one-line manifest edit it is (#2097, #2098). Runs before
+      # install, on bare node, so the failure names the real cause.
+      - name: pnpm.overrides in sync with the lockfile
+        run: node scripts/sync-pnpm-overrides.mjs --check
+
+      # Kein `@gruenerator/*`-Name ist auf npm registriert. Ein interner
+      # Dependency-Spec, der nicht `workspace:` sagt, wandert damit zur
+      # öffentlichen Registry — genau die Lücke, die ein Angreifer besetzen
+      # kann (Dependency Confusion, gemeldet 30.07.2026).
+      - name: Workspace packages private and workspace-resolved
+        run: node scripts/check-workspace-packages.mjs
 
       # Tours target elements via [data-tour="..."] selectors; a refactor that
       # renames or drops the attribute breaks the tour silently (waitForElement
@@ -77,14 +106,68 @@ jobs:
       - name: No orphaned test files
         run: node scripts/check-orphan-tests.mjs
 
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: TypeScript type check
         run: pnpm typecheck
 
+  lint:
+    name: ESLint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
       - name: ESLint
         run: pnpm lint
+
+  format:
+    name: Format & Generated
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Prettier format check
         run: pnpm format:check
@@ -107,10 +190,14 @@ jobs:
           # staleness check, which existed in package.json but had no caller.
           pnpm --filter @gruenerator/documentation capabilities:check
 
+  # No `needs:` on test/build. Gating them behind the quality job bought
+  # nothing — Actions minutes are free on a public repo, wall-clock is the
+  # scarce resource, and the gate was costing it dearly: on run 30631684791 the
+  # tests sat in the queue for 721s and Build web for 1260s, almost all of it
+  # waiting for a job whose failure they do not depend on.
   test:
     name: Tests
     runs-on: ubuntu-latest
-    needs: quality
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -133,7 +220,6 @@ jobs:
   build:
     name: Build ${{ matrix.app }}
     runs-on: ubuntu-latest
-    needs: quality
     strategy:
       fail-fast: false
       matrix:
@@ -155,7 +241,4 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts --filter @gruenerator/${{ matrix.app }}...
 
       - name: Build ${{ matrix.app }}
-        env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: pnpm turbo run build --filter=@gruenerator/${{ matrix.app }}

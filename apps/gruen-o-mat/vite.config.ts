@@ -37,7 +37,9 @@ export default defineConfig(({ command }) => ({
   },
   build: {
     target: 'es2022',
-    sourcemap: 'hidden',
+    // See apps/web/vite.config.ts: 'hidden' still emits publicly fetchable
+    // .map files and nothing consumes them.
+    sourcemap: process.env.VITE_SOURCEMAP === '1' ? 'hidden' : false,
     outDir: 'dist',
   },
   server: {
