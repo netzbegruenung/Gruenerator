@@ -49,8 +49,19 @@ const GEMMA_4 = 'gemma4-31b';
  * route believed it had asked for Mistral.
  */
 export const AI_LANES = {
-  /** Anything unrouted. */
-  default: { provider: 'litellm', model: VERDIGADO_PRO, structuredMode: 'tool' },
+  /**
+   * Anything unrouted.
+   *
+   * Mistral Medium 3.5 since the 2026-07-31 GPT-OSS wind-down. GPT-OSS was the
+   * worst possible catch-all for this slot: every lane here declares
+   * `structuredMode: 'tool'`, and GPT-OSS answers a forced tool call with
+   * prose — the exact failure the artefact note below records, where two
+   * attempts came back `stop_reason=stop` with no tool call and a production
+   * PDF generation died. The artefact lanes were moved to Medium 3.5 for that
+   * reason; the fallthrough now lands somewhere that can satisfy the mode it
+   * promises.
+   */
+  default: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
 
   // — Notebook / QA. Mistral Medium 3.5 is the notebook default.
   notebook_enrich: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
