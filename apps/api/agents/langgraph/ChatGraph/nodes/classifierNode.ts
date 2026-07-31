@@ -1412,7 +1412,13 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         `[Classifier] Chat recall (direct route, LLM skipped)${recallWindow ? ` [${recallWindow.date_from}..${recallWindow.date_to}]` : ''}`
       );
       recordDecision('classifier.tier', 'tier3.4_chat_recall', {
-        inputs: { hasDateWindow: recallWindow != null },
+        // `hasWindow`, nicht `hasDateWindow`: `check-decision-journal.mjs`
+        // verbietet zeitförmige Schlüsselnamen in `inputs`, weil ein Zeitwert
+        // dort jeden Lauf zu einem Diff gegen den vorigen macht. Der Wert hier
+        // ist ein Boolean und wäre harmlos — aber die Regel prüft den NAMEN,
+        // und eine Ausnahme für „ist diesmal wirklich kein Zeitstempel" wäre
+        // genau die Aufweichung, die den Guard wertlos macht.
+        inputs: { hasWindow: recallWindow != null },
       });
       return {
         intent: 'chat_history',
