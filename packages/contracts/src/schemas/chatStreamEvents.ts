@@ -163,6 +163,15 @@ export const searchIntentSchema = z.enum([
   'create_recurring_task',
   'chat_history',
   'mcp',
+  // Writing whose substance the user already supplied: pasted material, an
+  // attachment, an open document, an edit of existing text, or pure wordcraft
+  // with nothing to look up. The narrow half of what `direct` used to mean.
+  'produktion',
+  // DEPRECATED as a classifier verdict since 2026-07-31 — the residual moved to
+  // `agentic` and the supplied-substance half to `produktion`. Still emitted by
+  // the parser's garbage fallback and by the heuristic's internal hint, and
+  // still READ everywhere: persisted `metadata.intent` and shipped mobile
+  // binaries speak it. Do not remove.
   'direct',
   // Pure greeting / thanks / small-talk, decided by a deterministic gate before
   // any LLM runs. Split out of `direct` so the residual and the greeting stop

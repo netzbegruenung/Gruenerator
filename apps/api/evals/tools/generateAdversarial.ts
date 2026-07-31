@@ -45,7 +45,7 @@ for (const p of PREFIXES) {
       // greeting prefix, and since the split there are TWO ways to answer it
       // without retrieval. Asserting only against `direct` would let the
       // greeting gate swallow these silently.
-      routingNot: ['direct', 'greeting'],
+      routingNot: ['produktion', 'direct', 'greeting'],
       noCapabilityRefusal: true,
     });
   }
@@ -60,7 +60,7 @@ const UMLAUT_TAILS = [
 ];
 for (const v of UMLAUT_VERBS) {
   for (const t of UMLAUT_TAILS) {
-    emit('umlaut-verbfirst', `${v} ${t}`, { routingNot: ['direct', 'greeting'] });
+    emit('umlaut-verbfirst', `${v} ${t}`, { routingNot: ['produktion', 'direct', 'greeting'] });
   }
 }
 

@@ -80,12 +80,14 @@ export const GROUPS: CapabilityGroup[] = [
  * without inventing example questions for them.
  */
 export const INTERNAL_INTENTS: Record<string, string> = {
+  produktion:
+    'Schreiben, dessen Inhalt du selbst mitlieferst: eingefügter Text, Stichpunkte, ein Anhang — oder das Überarbeiten von vorhandenem Text.',
   direct:
-    'Standardfall — der Grünerator antwortet direkt, ohne Werkzeug. Gilt für Umformulierungen und freies Schreiben.',
+    'Historischer Standardfall, wird seit 07/2026 nicht mehr neu vergeben. Alte Chats zeigen ihn weiterhin.',
   greeting:
     'Begrüßung, Dank oder kurzer Small Talk. Wird ohne KI-Modell erkannt und daher sofort beantwortet.',
   agentic:
-    'Interne Weiche: Ist unklar, welches Werkzeug passt, entscheidet das Modell selbst während der Antwort.',
+    'Auffangwert: Ist unklar, welches Werkzeug passt, entscheidet das antwortende Modell selbst, ob es sucht.',
 };
 
 export const EXAMPLES: CapabilityExample[] = [
