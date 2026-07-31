@@ -388,16 +388,12 @@ export function buildArtifactNotes(
     state.generatedImage
       ? 'HINWEIS: In diesem Turn wurde bereits ein Bild erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an. Behaupte NIEMALS, die Bildgenerierung sei fehlgeschlagen: sie ist geglückt, das Bild steht sichtbar im Chat.'
       : '',
-    // Artefakte aus FRÜHEREN Turns. Der Schreiber sah bisher nur, was
-    // dieser Turn erzeugt hat — `lastToolContext` steuerte ausschliesslich
-    // die Klassifikation und erreichte den Prompt nie. Live beobachtet:
-    // direkt unter einem erzeugten Bild antwortete der Loop „Da ich bisher
-    // kein Bild generiert habe …", während das Bild im selben Thread stand.
-    // Getrennt formuliert vom Hinweis darüber, weil die Zeitform die ganze
-    // Aussage ist: dieser Turn hat nichts erzeugt, der Thread schon.
-    state.generatedImage == null && state.lastToolContext?.kind === 'image'
-      ? 'HINWEIS: Früher in diesem Gespräch wurde bereits ein Bild erzeugt; es steht sichtbar im Chat. Behaupte NICHT, es gebe kein Bild oder du hättest keines erstellt. Beziehe dich darauf, ohne zu behaupten, du hättest es GERADE erzeugt.'
-      : '',
+    // Artefakte aus FRÜHEREN Turns stehen NICHT mehr hier, sondern im
+    // ARTEFAKTE-Block von `systemMessage` (respondNode → artifactInventory).
+    // Der Hinweis stand kurz an dieser Stelle und deckte genau eine Art ab
+    // (Bild) aus genau einer Quelle (dem einen `lastToolContext`-Slot). Die
+    // Liste dort kommt aus `threadArtifacts`, kennt alle Arten und erreicht
+    // beide Pfade — dieselbe Zeile hier wäre eine zweite, ärmere Wahrheit.
     (state.sharepicVariants?.length ?? 0) > 0
       ? 'HINWEIS: In diesem Turn wurde bereits ein Sharepic erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und biete Anpassungen an.'
       : '',
