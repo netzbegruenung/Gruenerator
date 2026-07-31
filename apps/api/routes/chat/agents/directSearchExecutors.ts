@@ -532,8 +532,18 @@ export async function executeDirectWebSearch(params: {
     (searchType === 'news' ? daysAgoIso(NEWS_WINDOW_DAYS) : undefined);
   // The deeper tiers exist to give the writing model more to work with; a
   // 300-char snippet would cap that no matter how many sources came back.
-  // Stays under the source registry's own per-line cap (1500).
-  const snippetChars = plan.depth === 'deep' ? 1200 : 300;
+  //
+  // Linkup returns the longer text either way — the old flat 300 threw it away
+  // and left `gruendlich` (the DEFAULT tier) writing its answer from 10 x 300 =
+  // 3000 chars total. Scaled by result count so a wide search stays inside the
+  // registry's SOURCE_BLOCK_CHARS budget instead of triggering its shared
+  // shrink. Always <= SNIPPET_CHARS (1500), the registry's per-line cap.
+  //
+  // Load-bearing precondition: `truncateResultForModel` must exempt the
+  // `sources` field (see agenticLoop/truncate.ts). Without that exemption the
+  // block crosses the 6000-char ceiling and the model gets 750 chars for ALL
+  // sources combined — strictly worse than the 300 this replaces.
+  const snippetChars = plan.depth === 'deep' ? 1500 : plan.maxResults >= 10 ? 900 : 1200;
   const includeImages = params.includeImages === true;
   /**
    * Extra headroom on `maxResults` when images are requested.
