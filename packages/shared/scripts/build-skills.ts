@@ -65,8 +65,8 @@ function detectDuplicates(skills: readonly ParsedSkill[]): void {
 
 /**
  * The prompt body is party-internal and must not enter this repo. It lives in
- * the directory the API reads at runtime (`SKILLS_INTERN_DIR`, see
- * apps/api/services/skills/internalSkillPrompts.ts); these files carry
+ * the directory the API reads at runtime (`INTERN_CONTENT_DIR`, see
+ * apps/api/services/skills/internalPrompts.ts); these files carry
  * frontmatter only.
  *
  * This is the seam where a leak would happen, so it fails here rather than in
@@ -80,7 +80,7 @@ function detectPromptBodies(skills: readonly ParsedSkill[]): void {
   throw new Error(
     `[build-skills] Prompt body found in ${offenders.length} public skill file(s):\n` +
       offenders.map((s) => `  · ${s.filename} (${s.body.length} chars)`).join('\n') +
-      `\n\nSkill prompts are party-internal. Move the body to <SKILLS_INTERN_DIR>/<mention>.md` +
+      `\n\nSkill prompts are party-internal. Move the body to <INTERN_CONTENT_DIR>/skills/<mention>.md` +
       ` (dev: .external/gruenerator-intern/skills/) and leave only frontmatter here.`
   );
 }

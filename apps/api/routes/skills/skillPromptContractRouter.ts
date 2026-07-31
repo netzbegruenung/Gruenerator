@@ -2,7 +2,7 @@ import { skillPromptContract } from '@gruenerator/contracts';
 import { SKILLS } from '@gruenerator/shared/agents';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
-import { getInternalSkillPrompt } from '../../services/skills/internalSkillPrompts.js';
+import { getInternalSkillPrompt } from '../../services/skills/internalPrompts.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 

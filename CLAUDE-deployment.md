@@ -49,23 +49,36 @@ A push that touches **only** `.github/**` or files outside the `web:` filter lis
 
 Production deployment is owned outside this repo (no `deploy-prod.yml` here). Coordinate with infrastructure when promoting `master`.
 
-### Party-internal skill prompts (`SKILLS_INTERN_DIR`)
+### Party-internal prompts (`INTERN_CONTENT_DIR`)
 
-This repo is public, and `packages/shared` is bundled into the web app and into every shipped mobile binary. So skill recipes are split: `packages/shared/src/agents/skills/*.md` carries **frontmatter only** (title, icon, category, mention), and the prompt body lives in the private repo **`netzbegruenung/gruenerator-intern`** (`skills/<mention>.md`, filename = mention, so `presse.md` not `pressemitteilung.md`).
-
-**Salt owns the rollout**: check the private repo out onto the server and point `SKILLS_INTERN_DIR` (API env) at its `skills/` directory. Unset falls back to `.external/gruenerator-intern/skills` — a gitignored dev checkout, not a production path.
-
-Read at boot and cached, so a changed prompt needs an API restart. `apps/api/services/skills/internalSkillPrompts.ts` is the loader; `respondNode` appends the body as the `## AKTIVE PLATTFORM` block, and `GET /api/skills/:mention/prompt` (behind `requireAuth`) serves it to the Agentura detail view.
-
-**A missing directory is a silent quality regression, not a crash.** Recipes fall back to the agent's base systemRole and chat keeps working — output just gets generic. The only signal is one warning line at boot:
+This repo is public, and `packages/shared` is bundled into the web app and into every shipped mobile binary. So both prompt registries are split: `agents/skills/*.md` (recipes) and `agents/definitions/*.md` (system agents) carry **frontmatter only**, and the prompt text lives in the private repo **`netzbegruenung/gruenerator-intern`**:
 
 ```
-[internalSkillPrompts] No internal skill prompts at <dir> — recipes fall back to …
+skills/<mention>.md        e.g. presse.md — the skill's mention, not its filename
+agents/<identifier>.md     e.g. gruenerator-antrag.md
 ```
 
-Check for `Loaded 20 internal skill prompt(s)` after a deploy. Nothing user-facing breaks if the rollout is missed, which is exactly why it needs looking at.
+**Salt owns the rollout**: clone the private repo onto the server and point `INTERN_CONTENT_DIR` (API env) at its root. Unset falls back to `.external/gruenerator-intern` — a gitignored dev checkout, not a production path.
 
-Guards against putting the prompts back: `build-skills.ts` refuses to emit a body, and `scripts/check-internal-content.mjs` (CI, `pnpm check:internal`) fails on a body in a public skill file, a `skillSystemPrompt` in the generated file, or anything tracked under `.external/` or `documentation/docs/intern/`.
+Read at boot and cached, so a changed prompt needs an API restart. `apps/api/services/skills/internalPrompts.ts` is the loader; `respondNode` appends a recipe body as the `## AKTIVE PLATTFORM` block, `routes/chat/agents/agentLoader.ts` fills in each system agent's `systemRole`, and `GET /api/skills/:mention/prompt` (behind `requireAuth`) serves recipes to the Agentura detail view.
+
+**A missing directory does not crash the API — it quietly makes it worse.** Two different degradations:
+
+- **Recipes** fall back to the agent's base systemRole; output gets generic.
+- **Agents** get a generic substitute persona, because an empty `systemRole` makes `promptAssemblyGraph.buildSystemText` throw. One error line per agent.
+
+After a deploy, check the log for both counts:
+
+```
+[internalPrompts] Loaded 20 internal skills prompt(s) from …
+[internalPrompts] Loaded 25 internal agents prompt(s) from …
+```
+
+Nothing user-facing breaks if the rollout is missed, which is exactly why it needs looking at.
+
+The LV agents (`lvPrAgents.ts` / `lvBuergerAgents.ts`) keep their systemRole in code — one template fans out to N agents, and its content is generic craft guidance plus a regional topic list.
+
+Guards against putting the prompts back: `build-skills.ts` and `build-agents.ts` refuse to emit a body, and `scripts/check-internal-content.mjs` (CI, `pnpm check:internal`) fails on a body in a public skill or agent file, a `skillSystemPrompt` or non-empty `systemRole` in a generated file, or anything tracked under `.external/` or `documentation/docs/intern/`.
 
 ### System MCP sources (bahn/reise/wetter/news chat intents)
 

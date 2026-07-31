@@ -233,7 +233,7 @@ export interface Skill {
   audience?: AgentAudience;
   // NOTE: there is deliberately no `skillSystemPrompt` here. A skill's prompt
   // body is party-internal and lives outside this repo; the API loads it at
-  // runtime (apps/api/services/skills/internalSkillPrompts.ts) and serves it to
+  // runtime (apps/api/services/skills/internalPrompts.ts) and serves it to
   // authenticated clients. This type is bundled into web and mobile, so a field
   // here would publish every prompt — .gitignore cannot help once codegen has
   // read it. Keep the shape metadata-only.
