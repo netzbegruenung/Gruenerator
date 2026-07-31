@@ -130,19 +130,30 @@ export const INTERMEDIATE_LANES = {
    * Die Qualitätslatte: Zusammenfassungen, der Boards-Agent, die
    * mem0-Extraktion, Deep-Research-Planung.
    *
-   * Gemma 4 statt Small 4, aus drei Gründen (Messung 31.07.2026):
-   *   - Trefferquote 100 % gegen 94,1 % auf der compute-Suite (51 Läufe);
+   * Gemma 4 statt Small 4, aus zwei belegten Gründen (Messung 31.07.2026):
    *   - Gliederung: der Zusammenfassungs-Prompt verlangt Überschriften „für
    *     Hauptthemen", Small 4 liefert im Mittel EINE (also nur einen Titel),
-   *     Gemma 4 drei bis vier;
+   *     Gemma 4 drei bis vier (n = 2 Dokumente);
    *   - und der Grund, der ohne Messung unsichtbar bleibt: **Regolo bedient
-   *     strukturierte Anfragen auf `mistral-small-4-119b` still mit
-   *     `qwen3.5-9b`.** Reproduzierbar 6/6 über `json_schema` UND erzwungenen
-   *     Tool-Call. Das betrifft genau die `generateObject`-Konsumenten dieser
-   *     Stufe (mem0-Gatekeeper, `extractService`, Deep-Planner) — sie liefen
-   *     also auf einem 9-Mrd.-Qwen, obwohl sie ein 119-Mrd.-Modell benennen,
-   *     und qwen steht in `AVOID_AS_SYNTH`. Bei `gemma4-31b` antwortet 6/6 das
-   *     angeforderte Modell.
+   *     `json_schema`- und Tool-Call-Anfragen auf `mistral-small-4-119b` still
+   *     mit `qwen3.5-9b`** — 12/12 bei flachem Schema, 3/3 bei jedem der drei
+   *     echten Schemas dieser Stufe. Die `generateObject`-Konsumenten
+   *     (mem0-Gatekeeper, `extractService`, Deep-Planner) liefen also auf einem
+   *     9-Mrd.-Qwen, obwohl sie ein 119-Mrd.-Modell benennen, und qwen steht in
+   *     `AVOID_AS_SYNTH`.
+   *
+   * WICHTIG, weil naheliegend falsch: Gemma 4 behebt das NICHT vollständig.
+   * Ausschlaggebend ist die SCHEMA-VERSCHACHTELUNG, nicht das Modell. Mit
+   * `gemma4-31b` gemessen, je 3 Läufe gegen die echten Schemas:
+   *   - `extractService` (flach, nullable Felder)       → gemma4-31b   3/3
+   *   - `DeepPlanSchema` (Array von Objekten)           → gemma4-31b   3/3
+   *   - mem0 `GatekeeperResult` (5 verschachtelte Obj.) → GEMISCHT, teils qwen
+   * Zwei von drei Konsumenten bekommen das benannte Modell, der Gatekeeper
+   * nicht zuverlässig. Wer dort debuggt: das Feld `model` der ANTWORT lesen,
+   * nicht den Request.
+   *
+   * Die compute-Suite (100 % gegen 94,1 %) taugt NICHT als Beleg für diese
+   * Stufe — ihre Konsumenten sind mit diesem PR nach `compute` gezogen.
    *
    * KEIN akuter Fehler daraus: `regoloFetchWithThinkingDisabled` hängt
    * `enable_thinking:false` an, und damit liefert auch das untergeschobene Qwen
