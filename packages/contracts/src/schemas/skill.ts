@@ -1,10 +1,12 @@
 /**
  * Zod schema for the frontmatter of a markdown-defined system skill.
  *
- * Mirrors the runtime shape of `Skill` (packages/shared/src/agents/types.ts)
- * minus the `skillSystemPrompt` field — that comes from the markdown body
- * during codegen. Used by `packages/shared/scripts/build-skills.ts` to
- * validate every `*.md` skill file before emitting `index.generated.ts`.
+ * Mirrors the runtime shape of `Skill` (packages/shared/src/agents/types.ts).
+ * Frontmatter is the *whole* public file: the prompt body is party-internal,
+ * lives outside this repo and is served at runtime by the API — see
+ * `skillPromptResponseSchema` below and apps/api/services/skills/
+ * internalSkillPrompts.ts. Used by `packages/shared/scripts/build-skills.ts`
+ * to validate every `*.md` skill file before emitting `index.generated.ts`.
  *
  * Identifier values are TS-narrowed to `SystemAgentId` at codegen time via
  * the `satisfies SystemSkill` cast in the generated file, so the Zod side
@@ -50,3 +52,24 @@ export const skillFrontmatterSchema = z.object({
 
 export type SkillFrontmatter = z.infer<typeof skillFrontmatterSchema>;
 export type SkillCategoryValue = z.infer<typeof skillCategorySchema>;
+
+/**
+ * The party-internal prompt body of one skill, fetched by the Agentura recipe
+ * detail view. Deliberately not part of `SKILLS`: that array is bundled into
+ * the web and mobile clients and would publish every prompt to anyone who
+ * opens the JS chunk. Behind `requireAuth`.
+ *
+ * `prompt: null` is the normal degraded answer, not an error — it means the
+ * internal directory was not rolled out on this host (a fork, a fresh clone, a
+ * failed Salt run). The UI falls back to the skill's public description.
+ */
+export const skillPromptResponseSchema = z.object({
+  mention: z.string().min(1),
+  prompt: z.string().nullable(),
+});
+
+export const skillPromptErrorResponseSchema = z.object({
+  error: z.string(),
+});
+
+export type SkillPromptResponse = z.infer<typeof skillPromptResponseSchema>;

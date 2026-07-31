@@ -229,7 +229,12 @@ export interface Skill {
   skillCategory?: SkillCategory;
   promptTemplate?: string;
   isSystemDefault?: boolean;
-  skillSystemPrompt?: string;
   /** Locale visibility, same semantics as `AgentAudience` on agents. Undefined ≈ `'all'`. */
   audience?: AgentAudience;
+  // NOTE: there is deliberately no `skillSystemPrompt` here. A skill's prompt
+  // body is party-internal and lives outside this repo; the API loads it at
+  // runtime (apps/api/services/skills/internalSkillPrompts.ts) and serves it to
+  // authenticated clients. This type is bundled into web and mobile, so a field
+  // here would publish every prompt — .gitignore cannot help once codegen has
+  // read it. Keep the shape metadata-only.
 }

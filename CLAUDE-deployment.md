@@ -49,6 +49,24 @@ A push that touches **only** `.github/**` or files outside the `web:` filter lis
 
 Production deployment is owned outside this repo (no `deploy-prod.yml` here). Coordinate with infrastructure when promoting `master`.
 
+### Party-internal skill prompts (`SKILLS_INTERN_DIR`)
+
+This repo is public, and `packages/shared` is bundled into the web app and into every shipped mobile binary. So skill recipes are split: `packages/shared/src/agents/skills/*.md` carries **frontmatter only** (title, icon, category, mention), and the prompt body lives in the private repo **`netzbegruenung/gruenerator-intern`** (`skills/<mention>.md`, filename = mention, so `presse.md` not `pressemitteilung.md`).
+
+**Salt owns the rollout**: check the private repo out onto the server and point `SKILLS_INTERN_DIR` (API env) at its `skills/` directory. Unset falls back to `.external/gruenerator-intern/skills` — a gitignored dev checkout, not a production path.
+
+Read at boot and cached, so a changed prompt needs an API restart. `apps/api/services/skills/internalSkillPrompts.ts` is the loader; `respondNode` appends the body as the `## AKTIVE PLATTFORM` block, and `GET /api/skills/:mention/prompt` (behind `requireAuth`) serves it to the Agentura detail view.
+
+**A missing directory is a silent quality regression, not a crash.** Recipes fall back to the agent's base systemRole and chat keeps working — output just gets generic. The only signal is one warning line at boot:
+
+```
+[internalSkillPrompts] No internal skill prompts at <dir> — recipes fall back to …
+```
+
+Check for `Loaded 20 internal skill prompt(s)` after a deploy. Nothing user-facing breaks if the rollout is missed, which is exactly why it needs looking at.
+
+Guards against putting the prompts back: `build-skills.ts` refuses to emit a body, and `scripts/check-internal-content.mjs` (CI, `pnpm check:internal`) fails on a body in a public skill file, a `skillSystemPrompt` in the generated file, or anything tracked under `.external/` or `documentation/docs/intern/`.
+
 ### System MCP sources (bahn/reise/wetter/news chat intents)
 
 The Deutsche-Bahn / Open-Meteo / ARD-Tagesschau / trivago chat sources are env-gated: set `SYSTEM_MCP_DB_URL`, `SYSTEM_MCP_WEATHER_URL`, `SYSTEM_MCP_ARD_URL`, `SYSTEM_MCP_TRIVAGO_URL` (+ optional `…_TOKEN` for shared bearer auth) in the API's deploy env to activate them. The `reise` umbrella intent mounts bahn + hotel + wetter together. Unset URL = intent degrades gracefully (web/direct fallback). The first-party endpoints live only in deploy env — never commit them; users never see them (trivago's hosted URL is public: `https://mcp.trivago.com/mcp`).

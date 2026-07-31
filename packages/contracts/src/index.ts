@@ -73,6 +73,7 @@ export {
   userAgentsContract,
   userAgentsSharingContract,
   userTextFormsContract,
+  skillPromptContract,
   recurringTasksContract,
   canvasAiContract,
   canvasContract,

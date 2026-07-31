@@ -98,7 +98,6 @@ export default function AgentsScreen() {
   const skills = useMemo(
     () =>
       agentsList.filter((s) => {
-        if (!s.skillSystemPrompt) return false;
         if (s.audience !== undefined && s.audience !== 'all' && s.audience !== locale) return false;
         const owner = getSystemAgent(s.identifier);
         return !owner || isAgentVisibleForPlatform(owner, 'mobile');
