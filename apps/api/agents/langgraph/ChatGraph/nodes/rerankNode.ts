@@ -212,8 +212,15 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
     ];
   });
 
+  // Named so the two adjustments are auditable in production: a shrink that
+  // never fires means the distillation never reached the reranker, and a
+  // recency count of 0/n on a temporal turn means the dates were dropped
+  // upstream again — the exact failure this replaced.
+  const distilledCount = reranked.filter((r) => r.distilled === true).length;
+  const datedCount = reranked.filter((r) => r.publishedDate != null).length;
   log.info(
-    `[Rerank] Complete: ${candidates.length} → ${reranked.length} results (diversity applied) in ${rerankTimeMs}ms`
+    `[Rerank] Complete: ${candidates.length} → ${reranked.length} results (diversity applied) in ${rerankTimeMs}ms` +
+      ` distilled=${distilledCount} dated=${datedCount}${hasTemporal ? ' recency=on' : ''}`
   );
 
   // Top cross-encoder confidence — quality gate reads this to decide whether
