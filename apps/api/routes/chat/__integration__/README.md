@@ -1,0 +1,80 @@
+# Chat handler — in-process integration tests
+
+The missing middle tier. Below it, ~150 unit test files cover the ChatGraph
+nodes and the chat services. Above it, the live eval lane
+(`apps/api/evals/`) fires real prompts at a real backend. Between them sat
+`chatGraphContractRouter.ts` — 2306 lines, the sole handler for
+`/api/chat-graph/*`, imported by no test at all.
+
+These tests mount that router on a bare `express()` app, drive it over real
+HTTP, and parse the SSE stream with the **same** code the live lane uses
+(`evals/parseTrace.ts`, `evals/assertions.ts` — reused, never re-implemented).
+
+## What these tests own
+
+The sequencing and precedence between `buildStreamContext` and `sse.end()`:
+which gate consults which predicate on which text, in which order, and what
+reaches the wire as a result.
+
+## What they do not own
+
+| Concern                                                                | Where it lives                                                        |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Model behaviour, the tool loop                                         | `services/agenticLoop/loopEngine.vitest.ts` (its own `LoopDeps` seam) |
+| The routing decision table                                             | `services/agenticLoop/routing.vitest.ts` (48 cases)                   |
+| The guard predicates themselves                                        | `ChatGraph/nodes/fastPathGuards.vitest.ts`                            |
+| Persistence SQL                                                        | `services/threadPersistenceService` tests                             |
+| HTTP 401/403 and session resolution                                    | `middleware/authMiddleware.vitest.ts`                                 |
+| Answer QUALITY — groundedness, citations, refusals, German/AT register | the manual live lane + LLM judge (`apps/api/evals/`)                  |
+
+A green run here says the branches ran as intended. It says nothing about
+whether the product answers well.
+
+## Running
+
+```bash
+npx vitest run apps/api/routes/chat/__integration__ --root apps/api
+```
+
+No backend, no database, no network, no secrets — ~10 s, dominated by the
+router's import graph. `installNetworkGuard()` throws on any outbound request,
+so a missing mock fails by name instead of silently reaching the internet.
+
+## The four rails that keep these tests honest
+
+Each exists because its absence produces a suite that passes while testing
+nothing. None of them should be "simplified" away.
+
+1. **`runTurn` asserts `trace.error === null` by default.** The router's outer
+   catch turns every unmocked dependency into an SSE `error`, and `buildTrace`
+   stamps a missing terminal event. This one line converts a silently broken
+   mock into a named failure.
+2. **The classifier double delegates to the real `classifierNode`.** Tests opt
+   into scripting. Otherwise a test named "sharepic licence" passes without
+   `hasExplicitSharepicWord` ever executing.
+3. **The `aiWorkerPool` stub throws on an unscripted request type, and
+   `assertScriptsConsumed()` throws on a scripted reply nobody asked for.**
+   Most phrasings resolve in the classifier's heuristic tiers without any model
+   call. Without both halves, a test that scripts an LLM verdict can silently
+   pin a path the turn never took — this actually happened while writing these
+   tests, in four separate cases.
+4. **Routing assertions check the recorded call alongside the SSE flag.** The
+   router reads the same `runAgentic` boolean twice (once to stamp
+   `intent.agentic`, once to pick the branch). Asserting either alone leaves a
+   regression class uncovered.
+
+Related: `pinChatEnv()` pins every env var that steers routing. `vitest.config.ts`
+loads the developer's `.env`, and several of these are read at call time — an
+unpinned `SYSTEM_MCP_*_URL` changes which branch a turn takes, so the same test
+would mean different things on different machines. A guard test asserts the pins.
+
+## Not yet covered
+
+- **`/resume`** — the interrupt → `pipelineStateStore` → resume round trip. The
+  valuable assertion there is field-by-field lockstep between the 14-field
+  `requestContext` the router stores and what `resumePipeline` reads back; the
+  router's own comment warns that three hand-maintained copies of that shape
+  "guaranteed a new field would eventually land in only two".
+- **The citation clamp** (`stripOutOfRangeCitations` → `completion` only when the
+  text actually changed) — needs sources on the state, so it wants the search
+  path stubbed rather than the respond boundary.
