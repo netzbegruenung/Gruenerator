@@ -143,7 +143,19 @@ a dark background, and leave at least one slide's Schriftgröße on "Auto".
 3. Check against the screen: a two-column (`split`) slide must not break a bullet
    across columns; an image must keep its aspect ratio; an AT deck's quote must be
    set in Vollkorn.
-4. **As a share-link guest** (private window): the PowerPoint entry must not be
+4. **Content-Varianten**: a "Karten" slide must show a two-column grid of rounded
+   tinted cards (not a single column of bullets); a "Nummeriert" slide must show
+   round accent pills carrying the index in the heading font (not PowerPoint's own
+   `1.` numbering).
+5. **Title spacing**: a slide _without_ a title must start its body at the top
+   padding edge, not a third of the way down. A slide with a two-line title must
+   push its body further down than a one-line one. Compare side by side with the
+   editor canvas.
+6. **Auto-Fit**: the deliberately overflowing "Auto" slide from scenario 8 must
+   already be shrunk **on open**, in LibreOffice Impress and in Keynote — not only
+   after clicking into the text box in PowerPoint. That is the whole point of
+   measuring server-side; `<a:normAutofit/>` alone never fired in those viewers.
+7. **As a share-link guest** (private window): the PowerPoint entry must not be
    offered at all — the endpoint is behind `requireAuth`. "Als PDF" must work.
 
 ## 10. Recent activity
@@ -158,6 +170,6 @@ a dark background, and leave at least one slide's Schriftgröße on "Auto".
 
 ```bash
 pnpm --filter @gruenerator/presentations test   # useSlides ops + apply ops
-pnpm --filter @gruenerator/api exec vitest run routes/presentations/presentationPptxExport.vitest.ts
+pnpm --filter @gruenerator/api exec vitest run routes/presentations/
 pnpm typecheck                                    # whole monorepo
 ```
