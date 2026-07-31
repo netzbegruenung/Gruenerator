@@ -174,9 +174,11 @@ export function buildChatToolCatalog(params: {
     // `tiefe: 'tiefenrecherche'`. Comes from the user's own words, not from the
     // model's judgement — see resolveSearchTier.
     ...(loop?.state.explicitDeepRequest === true && { explicitDeepRequest: true }),
-    // Nothing here for images: `web_search` asks for them on every call now, so
-    // there is no signal left to route. `state.webWantsImages` still exists for
-    // the single-pass path, which has its own branch for it.
+    // Whether this turn's searches bring image hits back. Decided by the
+    // classifier — from the user's own words or from its judgement of the
+    // subject — and merely carried here. The same signal the single-pass path
+    // reads in `searchNode`, so both paths show pictures on the same turns.
+    ...(loop?.state.webWantsImages === true && { wantsImages: true }),
     // What a narrowing `seiten` argument is checked against. The mention-free
     // form, for the same reason the sharepic licence reads it: a mention LABEL
     // ("@[Recherche](tool:web_search)") is not something the user typed about a

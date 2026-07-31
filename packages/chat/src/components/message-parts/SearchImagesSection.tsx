@@ -153,6 +153,28 @@ const ImageTile = memo(function ImageTile({
   onMore?: () => void;
 }) {
   const [failed, setFailed] = useState(false);
+  const isCounter = moreCount != null && onMore != null;
+
+  // The counter tile keeps its button even with no picture in it. Falling back to
+  // a text link here — which is what every other tile does — would take the only
+  // way into the rest of the set down with it, and a set of nine would be a set of
+  // three again. Checked BEFORE the generic fallback for exactly that reason.
+  if (isCounter && (!image.proxyUrl || failed)) {
+    return (
+      <li className={className}>
+        <button
+          type="button"
+          onClick={onMore}
+          className={`flex items-center justify-center bg-muted text-xs font-medium text-foreground-muted transition-colors hover:bg-muted/70 hover:text-foreground ${square ? 'aspect-[4/3] w-full' : 'h-full w-full'}`}
+          aria-label={`${moreCount} weitere Bildquellen anzeigen`}
+        >
+          <span className="flex items-center gap-1">
+            <Images className="h-3.5 w-3.5" aria-hidden="true" />+{moreCount}
+          </span>
+        </button>
+      </li>
+    );
+  }
 
   if (!image.proxyUrl || failed) {
     return (
@@ -179,7 +201,7 @@ const ImageTile = memo(function ImageTile({
 
   const shell = square ? 'aspect-[4/3] w-full' : 'h-full w-full';
 
-  if (moreCount != null && onMore) {
+  if (isCounter) {
     return (
       <li className={className}>
         <button

@@ -66,6 +66,18 @@ export interface CreateSearchToolsOptions {
    */
   explicitDeepRequest?: boolean;
   /**
+   * Does this turn get image hits? The CLASSIFIER decides, not the planner —
+   * either because the user asked for pictures in so many words, or because it
+   * judged the subject to be something you can look at (`bilder` in its JSON).
+   *
+   * The model has no argument for this any more. It used to (`bilder: true`), and
+   * that made an explicit image request depend on the planner remembering a flag
+   * one node after the question had already been answered. Briefly it was
+   * unconditional instead, which put stock photos under every question about a
+   * paragraph of law.
+   */
+  wantsImages?: boolean;
+  /**
    * The user's own last message, mention tokens removed. Same role as
    * `explicitDeepRequest`: it is what a narrowing tool argument is checked
    * against. Only `seiten` uses it today — the model invents domains, and an
@@ -262,7 +274,7 @@ EINE SUCHE ZUR ZEIT: Starte eine Suche, lies das Ergebnis, und suche erst dann w
 
 SCOPE GEHÖRT IN DIE PARAMETER, NICHT IN DIE ANFRAGE: Nennt der Benutzer Seiten ("such auf zeit.de und orf.at"), setze seiten; nennt er einen Zeitraum ("seit Januar", "letzte Woche"), setze zeitraum. Schreibe beides NICHT in query — dort werden es bloß Suchwörter, und die Suchmaschine filtert nichts.
 
-BILDER: Jede Websuche liefert automatisch Bild-Treffer mit, sie werden dem Benutzer über deiner Antwort angezeigt — du musst nichts dafür setzen. Es ist Recherchematerial zum Anschauen, KEIN verwendbares Bildmaterial: verwende es nie für Sharepics oder Social-Posts, und behaupte nicht, es sei frei nutzbar. Will der Benutzer ein NEUES Bild erstellt haben, ist die Websuche das falsche Tool.
+BILDER: Ob eine Suche Bild-Treffer mitliefert, ist vorher entschieden — du hast dafür kein Argument. Kommen welche, sieht der Benutzer sie über deiner Antwort. Es ist Recherchematerial zum Anschauen, KEIN verwendbares Bildmaterial: verwende es nie für Sharepics oder Social-Posts, und behaupte nicht, es sei frei nutzbar. Will der Benutzer ein NEUES Bild erstellt haben, ist die Websuche das falsche Tool.
 
 NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
     inputSchema: z.object({
@@ -309,11 +321,10 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
         .array(z.string())
         .optional()
         .describe('Diese Domains überspringen, z.B. ["reddit.com"]. Reine Hostnamen.'),
-      // No `bilder`: image hits now ride along on every web search (see the
-      // `includeImages` call below). The argument existed to keep us from paying
-      // for pictures nobody looks at — but Linkup prices a search by depth ×
-      // outputType, never by what comes back, so it was buying nothing while
-      // making an explicit image request depend on the model remembering a flag.
+      // No `bilder`: the classifier decides (see `wantsImages` in the options).
+      // As a tool argument it made an explicit image request depend on the
+      // planner remembering a flag — one node after the classifier had already
+      // read the question and answered exactly that.
       // No `maxResults`: the tier owns the source count. Offered to the model it
       // became a second, unlabelled way to under-buy — measured live, a
       // `tiefe: gruendlich` call arrived with `maxResults: 5` and undid the tier.
@@ -361,12 +372,10 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
           ...(zeitraum && zeitraum !== 'anytime' ? { timeRange: zeitraum } : {}),
           ...(includeDomains.length > 0 ? { includeDomains } : {}),
           ...(excludeDomains.length > 0 ? { excludeDomains } : {}),
-          // Always. A web answer is better with pictures next to it, the engine
-          // charges by depth rather than by what it returns, and the extra
-          // `maxResults` headroom keeps the images from eating the text hits.
-          // The client shows three and holds the rest behind a counter, so the
-          // proxy serves three files, not eight.
-          includeImages: true,
+          // The classifier's verdict, passed through — see `wantsImages`. The
+          // `maxResults` headroom keeps the images from eating the text hits, and
+          // the client shows three of them, so the proxy serves three files.
+          ...(options.wantsImages === true ? { includeImages: true } : {}),
         });
       } catch (error) {
         log.error('Direct web search error:', error);

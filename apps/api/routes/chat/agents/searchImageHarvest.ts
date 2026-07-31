@@ -93,16 +93,22 @@ export function harvestSearchImages(result: unknown, collected: WebImageResult[]
  * things: in `unified` the model sees the tool results, in `split` the synth sees
  * only the source block. Same sentence either way, so the two cannot drift.
  *
- * "Erwähne sie in einem kurzen Satz" is there for the turn that asked for
- * nothing else: "zeig mir Fotos von der Demo" has no factual answer to give, and
- * an answer that ignores the request reads as a failure even while the images
- * render right underneath it.
+ * Mentioning them is CONDITIONAL, and that condition is the whole point of the
+ * sentence. An earlier version said "erwähne sie in einem kurzen Satz" flat out.
+ * That was written while images only arrived when someone asked for them — once
+ * every web search brought them along, the same sentence turned into an order to
+ * announce a gallery in every research answer ever written.
+ *
+ * So the note now has two jobs, and only one of them is unconditional: the model
+ * may never claim the images are ours to use, and it should only talk about them
+ * when the user asked to see pictures.
  */
 export function imageDeliveryNote(count: number): string {
   if (count <= 0) return '';
   return (
-    `${count} Bildtreffer aus der Websuche werden dem Benutzer unter deiner Antwort angezeigt. ` +
-    `Erwähne sie in einem kurzen Satz. Verlinke sie NICHT und beschreibe sie NICHT — du siehst sie nicht. ` +
+    `${count} Bildtreffer aus der Websuche werden dem Benutzer ÜBER deiner Antwort angezeigt. ` +
+    `Erwähne sie NUR, wenn er nach Bildern oder Fotos gefragt hat — sonst schreibe deine Antwort, ` +
+    `als wären sie nicht da. Verlinke sie NICHT und beschreibe sie NICHT, du siehst sie nicht. ` +
     `Es ist Recherchematerial: Die Rechte liegen bei den Urheber*innen, behaupte nie, die Bilder seien frei nutzbar, ` +
     `und verwende sie nicht für Sharepics oder Social-Posts.`
   );

@@ -18,6 +18,8 @@ export interface ClassifierLLMResponse {
   typoAnalysis?: { original: string; corrected: string } | null;
   contentType?: string | null;
   needsResearch?: boolean;
+  /** Would pictures belong beside this answer? See `wantsImages` on ClassificationResult. */
+  bilder?: boolean;
   intent: string;
   secondaryIntent?: string | null;
   searchQuery: string | null;
