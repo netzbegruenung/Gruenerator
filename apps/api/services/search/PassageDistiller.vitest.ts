@@ -285,9 +285,9 @@ describe('distillPassages', () => {
     it('never scores, so the named page is not filtered by relevance', async () => {
       const out = await distillPassages({
         ...base,
-        text: FOUR_BLOCKS,
+        text: page(['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOXTROT'], 250),
         mode: 'faithful',
-        targetChars: 2000,
+        targetChars: 8000,
       });
       expect(rerankPipeline).not.toHaveBeenCalled();
       // Keeps a document-order prefix rather than the top-scoring passages —
@@ -296,16 +296,19 @@ describe('distillPassages', () => {
       expect(out.digest).toContain('BRAVO');
     });
 
+    // Faithful chunks are 4000 chars (they only ever get condensed, never
+    // scored), so this needs a page long enough to produce more than one.
     it('condensation is what makes a long page fit', async () => {
       process.env.CHAT_PASSAGE_DISTILL_LLM = 'true';
       const out = await distillPassages({
         ...base,
-        text: FOUR_BLOCKS,
+        text: page(['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOXTROT'], 250),
         mode: 'faithful',
         targetChars: 2000,
         aiWorkerPool: makePool(),
       });
       expect(out.method).toBe('llm');
+      expect(out.totalChunks).toBeGreaterThan(1);
       expect(out.keptChunks).toBe(out.totalChunks);
     });
   });

@@ -14,6 +14,7 @@
 
 import { INTERMEDIATE_MODEL } from '../../services/ai/providers.js';
 import { createLogger } from '../../utils/logger.js';
+import { parallelLimit } from '../../utils/parallelLimit.js';
 import { withTimeout } from '../../utils/withTimeout.js';
 
 import { getCachedDistill, setCachedDistill } from './distillCache.js';
@@ -82,6 +83,21 @@ const DEFAULT_FAITHFUL_TIMEOUT_MS = 9000;
 const RERANK_SKIP_THRESHOLD = 2;
 const MAX_LLM_CHUNKS = 8;
 const LLM_MAX_TOKENS = 700;
+
+/**
+ * Chunk size per mode.
+ *
+ * `query-focused` matches RERANK_EXCERPT_CHARS so the cross-encoder scores a
+ * whole passage. `faithful` never goes near the cross-encoder — its chunks
+ * exist only to be condensed, and an LLM reads 4k as happily as 1.2k. At the
+ * smaller size an 81k Wikipedia page produced 60 chunks, which meant 60
+ * concurrent model calls AND a silent loss of everything past chunk 60.
+ */
+const CHUNK_CHARS_QUERY_FOCUSED = 1200;
+const CHUNK_CHARS_FAITHFUL = 4000;
+
+/** Concurrent condensation calls. Bounded so one page cannot flood the provider. */
+const LLM_CONCURRENCY = 6;
 
 const EXTRACTOR_PROMPT = `Du bist ein Fakten-Extraktor. Du bekommst einen Ausschnitt einer Webseite und die Frage, für die er gelesen wird. Gib die Fakten aus dem Ausschnitt wieder, die zur Beantwortung beitragen.
 
@@ -305,7 +321,9 @@ export async function distillPassages(args: DistillArgs): Promise<DistillResult>
     }
   }
 
-  const chunks = chunkPageForDistill(text);
+  const chunks = chunkPageForDistill(text, {
+    targetChars: mode === 'faithful' ? CHUNK_CHARS_FAITHFUL : CHUNK_CHARS_QUERY_FOCUSED,
+  });
   if (chunks.length === 0) return passthrough(text, targetChars, startedAt);
   if (chunks.length === 1) {
     const only = chunks[0];
@@ -354,8 +372,10 @@ export async function distillPassages(args: DistillArgs): Promise<DistillResult>
   if (useLlm && args.aiWorkerPool) {
     const timeoutMs =
       args.timeoutMs ?? (isFaithful ? DEFAULT_FAITHFUL_TIMEOUT_MS : DEFAULT_SELECT_TIMEOUT_MS * 2);
-    const condensed = await Promise.all(
-      inDocumentOrder.map((e) => condense(e.chunk, query, args.aiWorkerPool!, timeoutMs))
+    const pool = args.aiWorkerPool;
+    const condensed = await parallelLimit(
+      inDocumentOrder.map((e) => () => condense(e.chunk, query, pool, timeoutMs)),
+      LLM_CONCURRENCY
     );
     // Per-passage degradation: a failed call keeps the raw passage rather than
     // losing it. Only claim `llm` if at least one call actually returned facts.
