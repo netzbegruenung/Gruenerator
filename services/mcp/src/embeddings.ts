@@ -1,6 +1,8 @@
 import { config } from './config.ts';
 
-const MISTRAL_API_URL = 'https://api.mistral.ai/v1/embeddings';
+// Regional (EU) endpoint — same vectors as global for the same model, so the
+// existing Qdrant collections stay valid.
+const MISTRAL_API_URL = 'https://api.eu.mistral.ai/v1/embeddings';
 
 interface MistralEmbeddingResponse {
   data: Array<{ embedding: number[] }>;

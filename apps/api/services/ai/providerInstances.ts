@@ -32,7 +32,28 @@ const log = createLogger('providerInstances');
 export const LITELLM_DEFAULT_BASE_URL = 'https://litellm.netzbegruenung.verdigado.net';
 export const REGOLO_BASE_URL = 'https://api.regolo.ai/v1';
 export const GREENPT_BASE_URL = 'https://api.greenpt.ai/v1';
-export const MISTRAL_API_URL = 'https://api.mistral.ai/v1';
+
+/**
+ * Mistral regional inference.
+ *
+ * `MISTRAL_API_URL` is the regional endpoint (EU by default): requests are
+ * processed in EU/EFTA data centres and the payload never leaves the region —
+ * which is what the Datenschutz page already promises users. Billed at 1.1×
+ * list price.
+ *
+ * Probed against both endpoints on 2026-07-31 with our production key:
+ *   EU serves the identical 60-model catalogue (zero models missing) and
+ *   /v1/chat/completions incl. function calling, /v1/embeddings (byte-identical
+ *   vectors to global — no Qdrant re-index needed), /v1/ocr and
+ *   /v1/audio/{transcriptions,speech} all work.
+ *   404 "no Route matched" on EU: /v1/files, /v1/conversations (Agents) and
+ *   /v1/audio/voices. Those three keep using `MISTRAL_GLOBAL_API_URL` — see
+ *   `mistralGlobalClient` in `workers/mistralClient.ts` for who and why.
+ */
+export const MISTRAL_GLOBAL_API_URL = 'https://api.mistral.ai/v1';
+export const MISTRAL_EU_API_URL = 'https://api.eu.mistral.ai/v1';
+export const MISTRAL_API_URL =
+  env.MISTRAL_REGION === 'global' ? MISTRAL_GLOBAL_API_URL : MISTRAL_EU_API_URL;
 
 let mistralInstance: ReturnType<typeof createMistral> | null = null;
 let litellmInstance: ReturnType<typeof createOpenAI> | null = null;
@@ -43,10 +64,14 @@ let greenptInstance: ReturnType<typeof createOpenAI> | null = null;
  * Mistral. Does NOT throw on a missing key — `createMistral` reads
  * `MISTRAL_API_KEY` from the environment itself, and the call fails at request
  * time with the provider's own error, which is more informative than ours.
+ *
+ * Chat completions and tool calling are fully supported regionally, so this
+ * lane needs no global fallback.
  */
 export function getMistralProvider(): ReturnType<typeof createMistral> {
   if (!mistralInstance) {
     mistralInstance = createMistral({
+      baseURL: MISTRAL_API_URL,
       ...(env.MISTRAL_API_KEY && { apiKey: env.MISTRAL_API_KEY }),
     });
   }

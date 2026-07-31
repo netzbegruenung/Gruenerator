@@ -109,6 +109,12 @@ const envSchema = z.object({
 
   // ── AI providers ───────────────────────────────────────────────────────
   MISTRAL_API_KEY: z.string().optional(),
+  // Regional inference: 'eu' pins every request to api.eu.mistral.ai, so
+  // inference happens in EU/EFTA data centres and the payload never leaves the
+  // region. Costs 1.1× list price. Three surfaces do NOT exist regionally and
+  // stay on the global endpoint regardless (see providerInstances.ts):
+  // /v1/files, /v1/conversations (Agents) and /v1/audio/voices.
+  MISTRAL_REGION: z.enum(['eu', 'global']).default('eu'),
   LITELLM_API_KEY: z.string().optional(),
   LITELLM_BASE_URL: z.string().optional(),
   REGOLO_API_KEY: z.string().optional(),
