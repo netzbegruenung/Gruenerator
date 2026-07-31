@@ -62,6 +62,12 @@ jobs:
       - name: No unenforced exhaustive maps in tests
         run: node scripts/check-unenforced-exhaustive-maps.mjs
 
+      # A test file named `.test.ts` instead of `.vitest.ts` is invisible to
+      # every vitest config's `include` glob — it never runs, in CI or
+      # locally, no matter what its own header comment claims.
+      - name: No orphaned test files
+        run: node scripts/check-orphan-tests.mjs
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
