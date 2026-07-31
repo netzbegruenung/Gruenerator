@@ -560,19 +560,75 @@ describe('compoundGenerationKind', () => {
     ).toBe('pdf');
   });
 
-  it('returns null without a research signal (pure generation stays single-pass)', () => {
-    expect(compoundGenerationKind('agentic', 'Mach mir eine Tabelle für die Mitgliederliste')).toBe(
-      null
-    );
+  it('returns null for a NAMED generation intent without a research signal', () => {
+    // These keep their single-pass dispatcher: null means "the dispatcher builds
+    // it", which is the correct and faster route.
     expect(compoundGenerationKind('create_sheet', 'Erstelle eine Tabelle zu Solarenergie')).toBe(
       null
     );
     expect(compoundGenerationKind('sharepic', 'Mach ein Sharepic zu Solarenergie')).toBe(null);
   });
 
+  // The mirror of the case above, and deliberately the OPPOSITE answer. A
+  // demoted turn has no dispatcher behind it: null would mean the loop runs with
+  // no generation tool mounted, and the model then reports it cannot build the
+  // artifact — which is exactly what "das bitte schön als PDF erstellen"
+  // received while create_pdf sat unmounted.
+  it('mounts the tool on a DEMOTED turn even without a research signal', () => {
+    expect(compoundGenerationKind('agentic', 'Mach mir eine Tabelle für die Mitgliederliste')).toBe(
+      'sheet'
+    );
+    expect(compoundGenerationKind('agentic', 'gut, danke. das bitte schön als PDF erstellen')).toBe(
+      'pdf'
+    );
+    expect(compoundGenerationKind('agentic', 'kannst du daraus eine Präsentation machen')).toBe(
+      'presentation'
+    );
+    // `produktion` sits on this branch too, and is the likeliest verdict for the
+    // live failure: a writing order whose substance is already in the thread is
+    // exactly what the research gate could never license.
+    expect(
+      compoundGenerationKind('produktion', 'gut, danke. das bitte schön als PDF erstellen')
+    ).toBe('pdf');
+    expect(compoundGenerationKind('produktion', 'mach mir daraus eine Tabelle')).toBe('sheet');
+  });
+
   it('returns null for a non-generation turn even with a research signal', () => {
     expect(compoundGenerationKind('search', 'Recherchiere die Position zum Tempolimit')).toBe(null);
     expect(compoundGenerationKind('agentic', 'Wie hat die Fraktion abgestimmt?')).toBe(null);
+  });
+
+  // A creation VERB pointing at the noun is what licenses the demoted branch —
+  // the kind does not merely mount the tool, forceCompoundGeneration guarantees
+  // the artifact, so a bare mention must not spawn one.
+  // The router's negative-action gate keys on the INTENT, so a kind recovered
+  // from the text would otherwise slip under it — and the kind does not merely
+  // mount the tool, forceCompoundGeneration guarantees the artifact.
+  it('returns null when a demoted turn FORBIDS the artifact', () => {
+    expect(
+      compoundGenerationKind('agentic', 'Halte die Ergebnisse fest, aber erstelle kein Dokument.')
+    ).toBe(null);
+    expect(
+      compoundGenerationKind('agentic', 'Rechne das durch, aber erstelle keine Tabelle.')
+    ).toBe(null);
+    expect(compoundGenerationKind('agentic', 'Formuliere den Text, aber kein PDF erstellen.')).toBe(
+      null
+    );
+    // Per-noun, not per-turn: the forbidden sibling must not block the ask.
+    expect(
+      compoundGenerationKind('agentic', 'Erstelle eine Präsentation, aber keine Tabelle dazu')
+    ).toBe('presentation');
+  });
+
+  it('returns null when a demoted turn only MENTIONS an artifact', () => {
+    expect(compoundGenerationKind('agentic', 'Was steht im PDF auf Seite 3?')).toBe(null);
+    expect(compoundGenerationKind('agentic', 'In der Tabelle stehen die Werte von 2024')).toBe(
+      null
+    );
+    expect(compoundGenerationKind('direct', 'Das Sharepic von gestern war richtig gut')).toBe(null);
+    expect(
+      compoundGenerationKind('agentic', 'Was steht in der Präsentation, die ich erstellt habe?')
+    ).toBe(null);
   });
 
   it('prefers the most specific artifact when the text names several', () => {
