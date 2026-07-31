@@ -56,6 +56,10 @@ const KIND_TO_INTENT = {
   bild: 'image',
   tabelle: 'create_sheet',
   praesentation: 'create_presentation',
+  // Beide Schreibweisen: das Modell antwortet natürlich mit Umlaut, obwohl der
+  // Prompt die ASCII-Form vorgibt. Nur die vorgegebene zu kennen hiess, dieses
+  // Verdikt immer zu verwerfen und den 27k-Prompt trotzdem zu zahlen.
+  präsentation: 'create_presentation',
   pdf: 'create_pdf',
   diagramm: 'chart',
   social: 'social_post',
@@ -191,7 +195,12 @@ function parseKind(raw: string | undefined | null): GenerationVerdict | null {
   for (const [kind, intent] of Object.entries(KIND_TO_INTENT)) {
     consider(at(kind), { intent });
   }
-  consider(at('keine'), 'keine');
+  // `keine?` — die unflektierte Form ist der Regelfall in einer Ablehnung, und
+  // ohne sie las der Parser „kein Dokument" als BESTELLUNG eines Dokuments:
+  // `keine` matcht nicht, `dokument` schon, und der Auflöser erzeugte genau das
+  // Artefakt, das er gerade abgelehnt hatte. Zwei Token liegen bequem innerhalb
+  // von `max_tokens: 8`, das ist also keine Randform.
+  consider(at('keine?'), 'keine');
   return best === null ? null : (best as { verdict: GenerationVerdict }).verdict;
 }
 

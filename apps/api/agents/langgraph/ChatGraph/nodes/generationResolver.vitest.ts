@@ -87,6 +87,23 @@ describe('resolveGenerationScope — der Parser', () => {
     await expect(resolve('"sharepic".')).resolves.toEqual({ intent: 'sharepic' });
   });
 
+  it('liest eine ABLEHNUNG nicht als Bestellung', async () => {
+    // „kein Dokument" sind zwei Token und liegen bequem in `max_tokens: 8`, also
+    // die naheliegendste Antwortform überhaupt. Ohne die unflektierte Form matcht
+    // nur `dokument` — und der Auflöser erzeugte genau das Artefakt, das er
+    // gerade abgelehnt hatte.
+    await expect(resolve('kein Dokument')).resolves.toBe('keine');
+    await expect(resolve('Es soll kein Dokument entstehen, also keine')).resolves.toBe('keine');
+    await expect(resolve('kein Sharepic')).resolves.toBe('keine');
+  });
+
+  it('nimmt die Umlaut-Schreibweise der Präsentation', async () => {
+    // Der Prompt gibt „praesentation" vor, das Modell antwortet natürlich mit
+    // Umlaut. Nur die Vorgabe zu kennen hiess, dieses Verdikt immer zu verwerfen
+    // und den 27k-Prompt trotzdem zu zahlen.
+    await expect(resolve('präsentation')).resolves.toEqual({ intent: 'create_presentation' });
+  });
+
   it('liest keine Art aus einer Begründung heraus', async () => {
     // Das Modell rechtfertigt sich gern. Eine Teilstring-Suche läse hier
     // „dokument" und erzeugte eine Datei, die gerade abgelehnt wurde.

@@ -186,13 +186,17 @@ export const CHAT_HISTORY_KEYWORDS =
  *  - bare `letzte woche` — "Was war letzte Woche in der Ukraine los?" is news;
  *  - bare `was haben wir` — "was haben wir für Optionen?" is a plain question,
  *    so the verb has to say that a CONVERSATION is meant;
- *  - bare `wir hatten` — usually narration inside an ordinary answer.
+ *  - bare `wir hatten` — usually narration inside an ordinary answer;
+ *  - `da weiter` — "mach da weiter" is a plain continuation at least as often
+ *    as it is a reference to a finished thread, and the recall runs with
+ *    `excludeThreadId: currentThread`, so reading it wrong answers a "carry on"
+ *    out of somebody else's conversation.
  *
  * Everything here names either an earlier conversation or a piece of the user's
  * own content, and cannot plausibly mean anything else.
  */
 export const CHAT_HISTORY_DIRECT =
-  /(?<!\p{L})(letzte[sn]?\s+gespräch|vorher\s+besprochen|gestern\s+besprochen|damals\s+besprochen|erinnere?\s+dich|früheres?\s+chat|voriges?\s+gespräch|unser(?:e[nmrs]?)?\s+(?:chat|gespräch|unterhaltung)|was\s+haben\s+wir\s+(?:\p{L}+\s+){0,4}?(?:besprochen|geredet|gesprochen|erarbeitet|entschieden|festgehalten)|da\s+weiter|wo\s+wir\s+aufgehört|mein(?:e|en)?\s+(?:dokument|präsentation|tabelle|notiz|antrag|board|kanban|tafel|reel|video|clip)|meine\s+(?:dokumente|präsentationen|tabellen|notizen|boards|reels|videos|clips)|die\s+tabelle\s+die\s+ich|das\s+dokument\s+das\s+ich|das\s+board\s+das\s+ich|das\s+(?:reel|video)\s+(?:das\s+ich|zum?\s|über)|welches\s+(?:reel|video)|in\s+welchem\s+(?:reel|video))(?!\p{L})/iu;
+  /(?<!\p{L})(letzte[sn]?\s+gespräch|vorher\s+besprochen|gestern\s+besprochen|damals\s+besprochen|erinnere?\s+dich|früheres?\s+chat|voriges?\s+gespräch|unser(?:e[nmrs]?)?\s+(?:chat|gespräch|unterhaltung)|was\s+haben\s+wir\s+(?:\p{L}+\s+){0,4}?(?:besprochen|geredet|gesprochen|erarbeitet|entschieden|festgehalten)|wo\s+wir\s+aufgehört|mein(?:e|en)?\s+(?:dokument|präsentation|tabelle|notiz|antrag|board|kanban|tafel|reel|video|clip)|meine\s+(?:dokumente|präsentationen|tabellen|notizen|boards|reels|videos|clips)|die\s+tabelle\s+die\s+ich|das\s+dokument\s+das\s+ich|das\s+board\s+das\s+ich|das\s+(?:reel|video)\s+(?:das\s+ich|zum?\s|über)|welches\s+(?:reel|video)|in\s+welchem\s+(?:reel|video))(?!\p{L})/iu;
 
 /**
  * A standing order: something that should happen again and again, not once.
@@ -208,14 +212,47 @@ export const CHAT_HISTORY_DIRECT =
  * this pattern only has to answer "is a recurrence being asked for", not "what
  * recurrence" — which is why it can stay a regex.
  */
+// `\p{L}*` hinter den Adverbien, nicht bloss das nackte Wort: „eine WÖCHENTLICHE
+// Aufgabe" ist die natürliche Formulierung, und die flektierte Form scheiterte am
+// abschliessenden `(?!\p{L})` — dieselbe Familie wie die Umlaut-Falle, nur eine
+// Silbe weiter hinten.
 const RECURRENCE_CADENCE =
-  /(?<!\p{L})(jede[nrs]?\s+(?:tag|woche|monat|morgen|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)|t[äa]glich|w[öo]chentlich|monatlich|werkt[äa]glich|alle\s+\d{1,2}\s+(?:tage|wochen|monate)|immer\s+(?:montags|dienstags|mittwochs|donnerstags|freitags|samstags|sonntags|morgens|abends|mittags)|(?:montags|dienstags|mittwochs|donnerstags|freitags|samstags|sonntags))(?!\p{L})/iu;
+  /(?<!\p{L})(jede[nrs]?\s+(?:tag|woche|monat|morgen|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)|t[äa]glich\p{L}*|w[öo]chentlich\p{L}*|monatlich\p{L}*|werkt[äa]glich\p{L}*|alle\s+\d{1,2}\s+(?:tage|wochen|monate)|immer\s+(?:montags|dienstags|mittwochs|donnerstags|freitags|samstags|sonntags|morgens|abends|mittags)|(?:montags|dienstags|mittwochs|donnerstags|freitags|samstags|sonntags))(?!\p{L})/iu;
 
+/**
+ * Die Zustellung muss AN MICH GERICHTET und ein AUFTRAG sein.
+ *
+ * Die erste Fassung prüfte nur auf ein Zustellwort irgendwo im Satz, und das
+ * war zu wenig: „Was steht täglich im Newsletter-Update?" und „Ich lese jeden
+ * Tag den Bericht" erfüllten Takt + Zustellung und legten eine tägliche Aufgabe
+ * an, statt die Frage zu beantworten. `create_recurring_task` ist nicht in
+ * `AGENTIC_INTENTS`, der Dispatcher legt also OHNE Rückfrage an — ein Fehlalarm
+ * hier schreibt in die Datenbank.
+ *
+ * Deshalb steht das Verb jetzt zusammen mit seinem Objekt: „erinnere MICH",
+ * „schick MIR", „melde DICH". Ein blosses „Update" oder „Bericht" genügt nicht.
+ */
 const RECURRENCE_DELIVERY =
-  /(?<!\p{L})(erinner\p{L}*|aufgabe|task|schick\p{L}*|sende|senden|zusammenfassung|[üu]bersicht|report|bericht|briefing|update|benachrichtig\p{L}*|melde\p{L}*|informier\p{L}*)(?!\p{L})/iu;
+  /(?<!\p{L})(erinner\p{L}*\s+mich|schick\p{L}*\s+mir|send\p{L}*\s+mir|melde\p{L}*\s+dich|informier\p{L}*\s+mich|benachrichtig\p{L}*\s+mich|leg\p{L}*\s+(?:\p{L}+\s+){0,4}?(?:aufgabe|task|erinnerung)|erstell\p{L}*\s+(?:\p{L}+\s+){0,4}?(?:aufgabe|task|erinnerung))(?!\p{L})/iu;
+
+/**
+ * Eine Absage ist keine Bestellung — und eine Frage erst recht nicht.
+ *
+ * Beides fehlte und beides schlug durch: „Schick mir bitte nicht mehr täglich
+ * eine Übersicht" legte eine tägliche Übersicht AN. Die elf Tier-3-Schnellwege
+ * tragen alle einen `negatedOrMeta`-Guard; dieser hier hatte keinen.
+ */
+const RECURRENCE_CANCELLATION =
+  /(?<!\p{L})(nicht\s+mehr|kein(?:e|en)?\s+\p{L}+\s+mehr|keine\s+erinnerung\p{L}*|stopp?|beende|beenden|abbestell\p{L}*|abschalt\p{L}*|aufh[öo]ren|deaktivier\p{L}*|l[öo]sch\p{L}*)(?!\p{L})/iu;
+
+/** Eine Frage über etwas Wiederkehrendes bestellt nichts. */
+const RECURRENCE_QUESTION = /\?|^(?:was|wer|wann|warum|wieso|welche[rs]?|wo|wie)(?!\p{L})/iu;
 
 export function looksLikeRecurringOrder(raw: string): boolean {
   const t = (raw ?? '').trim();
+  if (!t) return false;
+  if (RECURRENCE_QUESTION.test(t)) return false;
+  if (RECURRENCE_CANCELLATION.test(t)) return false;
   return RECURRENCE_CADENCE.test(t) && RECURRENCE_DELIVERY.test(t);
 }
 
