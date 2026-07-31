@@ -3,4 +3,4 @@
 {"id":"at-kogler","prompt":"Welche Rolle hatte Werner Kogler in der letzten Bundesregierung?","category":"locale-at","expect":{"judge":["known_answer"],"judgeFacts":["Werner Kogler war Vizekanzler Österreichs und Bundessprecher der Grünen"]}}
 {"id":"at-de-compare","prompt":"Vergleiche die Klimapolitik der Grünen in Deutschland und Österreich","category":"locale-at","expect":{"grounded":true,"topicsCovered":["Österreich","Deutschland"],"judge":["groundedness","german_quality"]}}
 {"id":"at-wien-verkehr","prompt":"Was fordern die Wiener Grünen zur Verkehrsberuhigung in der Innenstadt?","category":"locale-at","expect":{"grounded":true,"noInventedUrls":true}}
-{"id":"at-terminology","prompt":"Erklär den Unterschied zwischen Nationalrat und Bundesrat in Österreich","category":"locale-at","expect":{"routingNot":["direct"],"judge":["german_quality"]}}
+{"id":"at-terminology","prompt":"Erklär den Unterschied zwischen Nationalrat und Bundesrat in Österreich","category":"locale-at","expect":{"routingNot":["direct","greeting"],"judge":["german_quality"]}}

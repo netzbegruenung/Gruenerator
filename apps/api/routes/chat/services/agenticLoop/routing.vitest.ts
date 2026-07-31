@@ -113,6 +113,26 @@ describe('decideRunAgentic', () => {
     expect(decide({ intent: 'direct', lastUserText: 'Hallo, wer bist du?' })).toBe(false);
   });
 
+  it('`greeting` is excluded structurally, not by phrasing', () => {
+    // All three `direct` rescues key on the intent being `direct`. A greeting
+    // now carries its own intent, so no phrasing and no classifier
+    // self-contradiction can pull it into the loop — the previous test relied
+    // on looksLikeToolableQuestion rejecting the wording, which is a weaker
+    // guarantee than the intent simply not matching.
+    expect(decide({ intent: 'greeting', lastUserText: 'Wie hat Robert Habeck abgestimmt?' })).toBe(
+      false
+    );
+    expect(
+      decide({
+        intent: 'greeting',
+        lastUserText: 'Schreib eine Pressemitteilung zur Verkehrswende',
+      })
+    ).toBe(false);
+    expect(
+      decide({ intent: 'greeting', lastUserText: 'Hallo', classifierContradictedResearch: true })
+    ).toBe(false);
+  });
+
   it('never loops a generation intent (fixed UX contract)', () => {
     expect(decide({ intent: 'sharepic' })).toBe(false);
     expect(decide({ intent: 'social_post' })).toBe(false);

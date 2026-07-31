@@ -65,6 +65,18 @@ describe('carryThreadSourcesIfNeeded', () => {
     expect(out.sourcesCarriedFromThread).toBeUndefined();
   });
 
+  it('never fires for a greeting turn, however it is phrased', async () => {
+    // The INTENT gate, not the text gate: "Mehr dazu bitte" passes
+    // needsThreadGrounding, so only `intent !== 'direct'` keeps the DB
+    // round-trip out of the cheapest turn in the product.
+    const out = await carryThreadSourcesIfNeeded(
+      state('Mehr dazu bitte', { intent: 'greeting' } as Partial<ChatGraphState>),
+      't1'
+    );
+    expect(getRecentThreadSources).not.toHaveBeenCalled();
+    expect(out.sourcesCarriedFromThread).toBeUndefined();
+  });
+
   it('does not fire on a rewrite instruction', async () => {
     await carryThreadSourcesIfNeeded(state('Mach das kürzer'), 't1');
     expect(getRecentThreadSources).not.toHaveBeenCalled();

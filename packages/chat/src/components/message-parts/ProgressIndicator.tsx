@@ -35,7 +35,8 @@ export function ProgressIndicator({ progress, toolStatus }: ProgressIndicatorPro
     progress.stage === 'idle' ||
     progress.stage === 'complete' ||
     progress.stage === 'classifying' ||
-    progress.intent === 'direct'
+    progress.intent === 'direct' ||
+    progress.intent === 'greeting'
   ) {
     return null;
   }

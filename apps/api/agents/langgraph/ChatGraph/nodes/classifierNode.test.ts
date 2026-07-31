@@ -111,16 +111,16 @@ const heuristicTests: TestCase[] = [
     description: 'Exact match: party program',
   },
 
-  // Non-search queries should remain as direct
+  // Non-search queries route to the greeting gate or stay direct
   {
     input: 'hallo wie geht es dir',
-    expectedIntent: 'direct',
-    description: 'Greeting should be direct',
+    expectedIntent: 'greeting',
+    description: 'Greeting should be greeting',
   },
   {
     input: 'danke für die hilfe',
-    expectedIntent: 'direct',
-    description: 'Thanks should be direct',
+    expectedIntent: 'greeting',
+    description: 'Thanks should be greeting',
   },
   {
     input: 'schreib mir einen tweet',
