@@ -134,6 +134,14 @@ Zustand (global state). TanStack Query v5 (server state/fetching) with axios.
 
 **Sprachregelungen (Produkt-Wording):** Plural **„Grüneratoren"**, Singular **„Grünerator-Agent"** (nie „Agent" allein — „der Grünerator" meint das Produkt); **„Rezepte"** (nicht „Skills"); **„Projekte"** (nicht „Gruppen"/„Spaces"). Neue Produktnamen hier eintragen, bevor das Feature gebaut wird.
 
+### Parteiinterne Inhalte gehören nicht in dieses Repo
+
+**Dieses Repo ist öffentlich, und `packages/shared` landet im Web-Bundle und in jeder ausgelieferten Mobile-Binary.** Was dort hineingerät, ist veröffentlicht — `.gitignore` kommt zu spät, und eine ausgelieferte Binary holt man nicht zurück.
+
+Betroffen sind vor allem **Rezept-Prompts**: `packages/shared/src/agents/skills/*.md` trägt nur Frontmatter, der Prompt-Body liegt im privaten Repo `netzbegruenung/gruenerator-intern` und wird zur Laufzeit aus `SKILLS_INTERN_DIR` gelesen (`apps/api/services/skills/internalSkillPrompts.ts`). Dasselbe gilt für Korpus-Rohdaten und Sprachanalysen unter `documentation/docs/intern/`.
+
+`pnpm check:internal` (in `pnpm ci` und in der CI) bewacht die Grenze. Neue interne Pfade in `PRIVATE_PREFIXES` in `scripts/check-internal-content.mjs` eintragen — **nicht** nur in `.gitignore`: eine bereits getrackte Datei ignoriert git weiter fröhlich mit (genau so lagen 26 Dateien aus `documentation/docs/intern/` auf `origin/master`, obwohl der Pfad seit Langem in `.gitignore` stand).
+
 ### Commits
 
 Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`). Atomic: one logical change per commit.

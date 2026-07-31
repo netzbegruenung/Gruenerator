@@ -14,6 +14,7 @@ import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
 import { mountGroupsContractRouter } from './routes/auth/groups/groupsContract/index.js';
 import { mountImageModelPreferenceContractRouter } from './routes/auth/imageModelPreferenceContractRouter.js';
+import { mountSkillPromptContractRouter } from './routes/skills/skillPromptContractRouter.js';
 import authInitRouter from './routes/auth/initController.js';
 import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferencesContractRouter.js';
 import { mountPromptsContractRouter } from './routes/auth/promptsContractRouter.js';
@@ -824,6 +825,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountNotificationsContractRouter(app);
   mountModelPreferencesContractRouter(app);
   mountImageModelPreferenceContractRouter(app);
+  // Skill prompt bodies. requireAuth at the prefix: the recipe catalogue is
+  // public (it ships in the bundle), the prompt text behind it is not.
+  app.use('/api/skills', requireAuth);
+  mountSkillPromptContractRouter(app);
   // Per-user external MCP server registry (EXPERIMENTAL). requireAuth at the
   // prefix — every route is user-scoped and handles user-entered credentials.
   app.use('/api/mcp/servers', requireAuth);
