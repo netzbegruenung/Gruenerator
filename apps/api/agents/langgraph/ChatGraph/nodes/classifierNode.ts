@@ -79,6 +79,7 @@ import {
   stripQuotedSpans,
   type ForbiddableArtifact,
 } from './fastPathGuards.js';
+import { refineSearchQuery } from './queryRefineResolver.js';
 
 import type { ChatGraphState, GatherSource, SearchIntent } from '../types.js';
 
@@ -1592,75 +1593,49 @@ async function classifyWithForcedSearch(opts: {
     `[Classifier] ${reason} detected (${docCount} item(s)), forcing search intent with LLM query optimization${topicalContext ? ' + topical context' : ''}`
   );
 
-  try {
-    const userMessageContent = [
-      topicalContext,
-      conversationContext,
-      `Aktuelle Nachricht: "${userContent}"`,
-    ]
-      .filter((p): p is string => !!p)
-      .join('\n\n');
+  // The intent is already decided (forced to `search` below); the only open
+  // question is WHAT to search for. That used to go through CLASSIFIER_PROMPT —
+  // 27.6k characters of tool taxonomy to produce a search string, whose intent
+  // verdict was then discarded by the hardcoded `intent: 'search'`.
+  //
+  // Of the six fields the old call kept, two are load-bearing here and both
+  // survive: `searchQuery` and `subQueries` come from the resolver,
+  // `detectedFilters` from the deterministic heuristic the catch branch already
+  // used. `documentSubtype` and `targetGroupName` are read only by document-
+  // CREATION and share paths, which a forced-search turn never reaches.
+  //
+  // `secondaryIntent` is the one real behaviour change: it is now always null
+  // here, so these turns stop being kicked out of the agentic loop by
+  // `decideRunAgentic`'s secondary kill-switch. A document/notebook turn now
+  // reaches the loop, where the model can actually call the retrieval tools.
+  const refined = await refineSearchQuery({
+    userContent,
+    conversationContext,
+    topicalContext,
+    aiWorkerPool,
+  });
+  const optimizedQuery = refined?.query || extractSearchTopic(userContent) || userContent;
 
-    const response = await aiWorkerPool.processRequest(
-      {
-        type: 'chat_intent_classification',
-        provider: INTERMEDIATE_MODEL.provider,
-        systemPrompt: CLASSIFIER_PROMPT,
-        messages: [
-          {
-            role: 'user',
-            content: userMessageContent || `Analysiere: "${userContent}"`,
-          },
-        ],
-        options: {
-          model: INTERMEDIATE_MODEL.model,
-          max_tokens: 1000,
-          temperature: 0.1,
-          response_format: { type: 'json_object' },
-        },
-      },
-      null
-    );
+  log.info(
+    `[Classifier] ${reason}: query "${userContent.slice(0, 50)}" → "${optimizedQuery}"${
+      refined ? '' : ' (heuristic fallback)'
+    }`
+  );
 
-    const classification = parseClassifierResponse(response.content || '', userContent);
-    const classificationTimeMs = Date.now() - startTime;
-    const optimizedQuery = classification.searchQuery || extractSearchTopic(userContent);
-
-    log.info(`[Classifier] ${reason} + LLM: query "${userContent}" → "${optimizedQuery}"`);
-
-    return {
-      intent: 'search',
-      secondaryIntent: classification.secondaryIntent || null,
-      searchSources: [],
-      searchQuery: optimizedQuery,
-      subQueries: classification.subQueries || null,
-      detectedFilters: classification.filters || null,
-      reasoning: `${reason} forces search intent; LLM optimized query`,
-      hasTemporal: temporal.hasTemporal,
-      complexity,
-      classificationTimeMs,
-      documentSubtype: classification.documentSubtype || null,
-      targetGroupName: classification.targetGroupName || null,
-      ...(gatherSources ? { gatherSources } : {}),
-    };
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    log.warn(
-      `[Classifier] LLM failed for ${reason.toLowerCase()} query, using heuristic: ${errorMessage}`
-    );
-    const optimizedQuery = extractSearchTopic(userContent);
-    return {
-      intent: 'search',
-      searchSources: [],
-      searchQuery: optimizedQuery || userContent,
-      detectedFilters: heuristicExtractFilters(userContent),
-      reasoning: `${reason} forces search intent (LLM failed, heuristic fallback)`,
-      hasTemporal: temporal.hasTemporal,
-      complexity,
-      classificationTimeMs: Date.now() - startTime,
-      ...(gatherSources ? { gatherSources } : {}),
-    };
-  }
+  return {
+    intent: 'search',
+    searchSources: [],
+    searchQuery: optimizedQuery,
+    subQueries: refined?.subQueries ?? null,
+    detectedFilters: heuristicExtractFilters(userContent),
+    reasoning: refined
+      ? `${reason} forces search intent; query refined`
+      : `${reason} forces search intent (refine unavailable, heuristic fallback)`,
+    hasTemporal: temporal.hasTemporal,
+    complexity,
+    classificationTimeMs: Date.now() - startTime,
+    ...(gatherSources ? { gatherSources } : {}),
+  };
 }
 
 // Re-export all test-facing symbols for backward compatibility
