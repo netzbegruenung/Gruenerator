@@ -53,6 +53,17 @@ import type {
 } from '../../types/messageMetadata';
 import type { ChatModelRunResult } from '@assistant-ui/react';
 
+/**
+ * Verdicts under which nothing is looked up — the progress bar goes straight to
+ * "generating". `direct` is kept for threads and older backends that still send
+ * it; `agentic` is absent because the loop DOES retrieve.
+ */
+const NO_RETRIEVAL_STAGE_INTENTS: ReadonlySet<string> = new Set([
+  'produktion',
+  'direct',
+  'greeting',
+]);
+
 /** Display titles for agentic sharepic-loop steps (tool_step_start events). */
 const TOOL_STEP_TITLES: Record<string, string> = {
   read_sharepic_state: 'Lese aktuellen Zustand…',
@@ -401,8 +412,7 @@ export async function* parseSSEStream(
               agentic?: boolean;
             };
           let stage: ProgressStage = 'searching';
-          if (intent === 'direct' || intent === 'greeting' || intent === 'artifact')
-            stage = 'generating';
+          if (NO_RETRIEVAL_STAGE_INTENTS.has(intent) || intent === 'artifact') stage = 'generating';
           else if (intent === 'image' || intent === 'sharepic' || intent === 'social_post')
             stage = 'generating_image';
           else if (intent === 'summary') stage = 'summarizing';

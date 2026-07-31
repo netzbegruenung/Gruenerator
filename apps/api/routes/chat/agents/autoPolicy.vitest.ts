@@ -205,6 +205,16 @@ describe('autoPolicy — complexity grading', () => {
     }
   });
 
+  it('produktion keeps the lane and grading direct had', () => {
+    // The split renamed the verdict, not the work: formulating supplied
+    // substance is the same task on the same lane.
+    for (const complexity of COMPLEXITIES) {
+      expect(resolveAutoSelection({ intent: 'produktion', complexity })).toEqual(
+        resolveAutoSelection({ intent: 'direct', complexity })
+      );
+    }
+  });
+
   it('a complex direct question earns some thought; a greeting does not', () => {
     expect(resolveAutoSelection({ intent: 'direct', complexity: 'simple' }).reasoning).toBe('off');
     expect(resolveAutoSelection({ intent: 'direct', complexity: 'complex' }).reasoning).toBe('low');

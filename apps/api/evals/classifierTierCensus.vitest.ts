@@ -42,7 +42,7 @@ import type { ModelMessage } from 'ai';
  *     den Produktionsverkehr.
  *  2. `blindFollowUps` ist die Fehlerschranke nach oben. Ein Turn, der den
  *     grossen Prompt erreicht, hat für den Zähler kein Verdikt — der Stub sagt
- *     `direct`, und das heisst „kein Artefakt". Wo der Korpus kein `routing`
+ *     `produktion`, und das heisst „kein Artefakt". Wo der Korpus kein `routing`
  *     erwartet, weiss die Kette ab da nicht mehr, was in ihr entstanden ist,
  *     und ihre Folgeaufträge finden keine deterministische Tür. Direkt
  *     nachgemessen: `doc-create-edit#2` und `golden-doc-at-depth#11` werden mit
@@ -163,7 +163,12 @@ function makeCountingPool(counts: { big: number; small: number }) {
         counts.big += 1;
         return {
           content: JSON.stringify({
-            intent: 'direct',
+            // Muss ein AKTUELL angebotener Intent sein. `direct` steht seit dem
+            // Split nicht mehr in CLASSIFIER_OFFERED_INTENTS: der Parser hätte
+            // die Stub-Antwort verworfen und über die Malformed-Kette
+            // aufgelöst — der Zähler hätte dann einen Fehlerpfad gemessen statt
+            // den echten. Semantik unverändert: „kein Artefakt".
+            intent: 'produktion',
             searchQuery: null,
             reasoning: 'Zähler-Stub',
           }),
@@ -272,7 +277,7 @@ async function runCensus(): Promise<Census> {
       // Welches Verdikt das Gedächtnis fortschreibt.
       //
       // Erreichte der Turn den grossen Prompt, kam sein Intent vom Stub und ist
-      // wertlos — und `direct` ist nicht neutral, es heisst „kein Artefakt".
+      // wertlos — und `produktion` ist nicht neutral, es heisst „kein Artefakt".
       // Genau daran verhungerte die Simulation: eine Kette, deren ERSTER Turn
       // bei Tier 4 landet, erzeugt nie ein Artefakt, und jeder Folgeauftrag
       // darin findet keine deterministische Tür mehr. Gemessen am 31.07.2026

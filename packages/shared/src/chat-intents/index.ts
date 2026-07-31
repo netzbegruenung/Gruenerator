@@ -576,6 +576,7 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
   },
 
   // ── internal ─────────────────────────────────────────────────────────────
+  produktion: { id: 'produktion', category: 'internal', audience: 'all' },
   direct: { id: 'direct', category: 'internal', audience: 'all' },
   greeting: { id: 'greeting', category: 'internal', audience: 'all' },
   agentic: { id: 'agentic', category: 'internal', audience: 'all' },

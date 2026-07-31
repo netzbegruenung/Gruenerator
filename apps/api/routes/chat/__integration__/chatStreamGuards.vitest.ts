@@ -110,7 +110,7 @@ describe('sharepic licence', () => {
     });
     suite.pool.assertScriptsConsumed();
 
-    expect(trace.intent).toBe('direct');
+    expect(trace.intent).toBe('produktion');
     expect(trace.fullText).not.toContain(NO_SHAREPIC_TO_EDIT_TEXT.slice(0, 40));
     expect(trace.sharepicGenerated).toBe(false);
   });
@@ -183,7 +183,7 @@ describe('negative action constraints', () => {
     expect(trace.confirmActions).toEqual([]);
   });
 
-  it('demotes an artifact intent to direct, and only because it was forbidden', async () => {
+  it('demotes an artifact intent to produktion, and only because it was forbidden', async () => {
     // The pair is the point: a gate that never fires at all would look exactly
     // like a gate that works, so the control run must reach the artifact path.
     scriptIntent('save_as_doc');
@@ -191,7 +191,7 @@ describe('negative action constraints', () => {
       messages: [userTurn('Halte die Ergebnisse fest, aber erstelle diesmal kein Dokument.')],
     });
     suite.pool.assertScriptsConsumed();
-    expect(forbidden.trace.intent).toBe('direct');
+    expect(forbidden.trace.intent).toBe('produktion');
     expect(forbidden.trace.documentCreated).toBe(false);
 
     suite.pool.reset();
@@ -200,7 +200,7 @@ describe('negative action constraints', () => {
       messages: [userTurn('Halte die Ergebnisse fest und leg sie als Dokument ab.')],
     });
     suite.pool.assertScriptsConsumed();
-    expect(allowed.trace.intent).not.toBe('direct');
+    expect(allowed.trace.intent).not.toBe('produktion');
   });
 });
 
