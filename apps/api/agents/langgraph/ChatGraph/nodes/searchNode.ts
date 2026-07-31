@@ -31,6 +31,7 @@ import {
   type ExampleKind,
 } from '../../../../services/examples/exampleSearchService.js';
 import {
+  crawlAndDistill,
   selectAndCrawlTopUrls,
   type CrawlableResult,
 } from '../../../../services/search/CrawlingService.js';
@@ -91,6 +92,13 @@ const log = createLogger('ChatGraph:Search');
  * reranker is the thing that decides, not the fan-in.
  */
 const FANIN_CANDIDATE_LIMIT = 24;
+
+/**
+ * Char budget per page for a user-pasted URL. Generous, because the user named
+ * this page: the alternative to a big budget is answering "fass das zusammen"
+ * from the headline.
+ */
+const SCRAPE_URL_TARGET_CHARS = 12_000;
 
 // ── Abgeordnetenwatch → SearchResult mapping ──────────────────────────────────
 const AW_VOTE_LABELS: Record<string, string> = {
@@ -1563,15 +1571,22 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           relevance: 1 - idx * 0.1,
         }));
         try {
-          const crawled = await selectAndCrawlTopUrls(seeds, searchQuery || '', {
+          // `faithful`: the "query" on this path is often a writing instruction
+          // ("fass das zusammen", "schreib einen Post dazu"), not a retrieval
+          // query. Scoring passages against it would drop the parts of the page
+          // the user actually pointed at.
+          const crawled = await crawlAndDistill(seeds, searchQuery || '', {
             maxUrls: 3,
             timeout: 8000,
+            mode: 'faithful',
+            targetChars: SCRAPE_URL_TARGET_CHARS,
+            aiWorkerPool: state.aiWorkerPool,
           });
           results = crawled
-            .filter((r) => r.crawled && (r.fullContent || r.content))
+            .filter((r) => r.crawled && (r.content || r.fullContent))
             .map((r) => ({
               ...r,
-              content: r.fullContent || r.content || '',
+              content: r.content || r.fullContent || '',
               source: 'web',
               title: r.title || r.url || '',
             }));

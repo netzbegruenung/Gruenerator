@@ -42,7 +42,7 @@ import type { Request } from 'express';
 
 /**
  * `summarize`: map-reduce digest of the turn's attached documents (or, absent
- * any, the conversation) via `summarizeNode` on INTERMEDIATE_MODEL. Emits
+ * any, the conversation) via `summarizeNode` on the `heavy` stage. Emits
  * `summary_start`/`summary_complete` so the progress indicator transitions
  * exactly as on the single-pass path; returns the digest for the loop model to
  * write the answer over. No citations.

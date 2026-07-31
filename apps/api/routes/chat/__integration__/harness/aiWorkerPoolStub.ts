@@ -10,6 +10,16 @@ export interface AiWorkerStub extends AIWorkerPool {
   /** Queue one or more replies for a request `type`, consumed in order. */
   script: (type: string, ...replies: Responder[]) => void;
   /**
+   * Queue a reply for ONE small resolver, matched by its system-prompt prefix.
+   *
+   * The only way left to put a chosen verdict into a turn: with the LLM tier
+   * deleted, every model-answered classifier decision comes from a resolver with
+   * a closed answer space, and those are matched by prompt rather than by
+   * request type (they all share `chat_intent_classification`). Scripting by
+   * type would hand the reply to whichever resolver runs first.
+   */
+  scriptResolver: (prefix: string, ...replies: string[]) => void;
+  /**
    * Throws when a scripted reply was never consumed. A scripted classifier
    * verdict that nothing asked for means the turn resolved in an earlier
    * heuristic tier — so the test believes it pinned a verdict it never set,
@@ -52,6 +62,7 @@ const RESOLVER_DEFAULTS: ReadonlyArray<{ prefix: string; reply: string }> = [
 
 export function createAiWorkerPoolStub(): AiWorkerStub {
   const queues = new Map<string, Responder[]>();
+  const resolverQueues = new Map<string, string[]>();
   const calls: AIRequestData[] = [];
 
   return {
@@ -59,8 +70,14 @@ export function createAiWorkerPoolStub(): AiWorkerStub {
     script(type: string, ...replies: Responder[]): void {
       queues.set(type, [...(queues.get(type) ?? []), ...replies]);
     },
+    scriptResolver(prefix: string, ...replies: string[]): void {
+      resolverQueues.set(prefix, [...(resolverQueues.get(prefix) ?? []), ...replies]);
+    },
     assertScriptsConsumed(): void {
-      const leftover = [...queues.entries()].filter(([, q]) => q.length > 0);
+      const leftover = [
+        ...[...queues.entries()].filter(([, q]) => q.length > 0),
+        ...[...resolverQueues.entries()].filter(([, q]) => q.length > 0),
+      ];
       if (leftover.length > 0) {
         throw new Error(
           `scripted aiWorkerPool replies were never consumed: ` +
@@ -71,23 +88,25 @@ export function createAiWorkerPoolStub(): AiWorkerStub {
     },
     reset(): void {
       queues.clear();
+      resolverQueues.clear();
       calls.length = 0;
     },
     processRequest(data: AIRequestData): Promise<AIWorkerResult> {
       calls.push(data);
       const type = String(data.type);
-      // The small resolvers share the `chat_intent_classification` type with the
-      // big classifier prompt, so they are matched by their prompt instead. They
-      // answer "no opinion" here — the fail-safe every resolver already treats
-      // as "carry on to the next tier".
+      // The small resolvers all share the `chat_intent_classification` type, so
+      // they are matched by their prompt instead — first from whatever the
+      // scenario scripted for that specific resolver, otherwise with "no
+      // opinion", the fail-safe every resolver already treats as "carry on to
+      // the next tier".
       //
-      // They must NOT draw from the queue: a scenario scripts a verdict for the
-      // LLM tier, and letting a resolver consume it would give the classifier
-      // the reply meant for the tier under test while the resolver's own answer
-      // decides the turn. A scenario that needs a specific resolver answer has
-      // to extend this list rather than queue one.
+      // They must NOT draw from the type queue: several of them can run in one
+      // turn, and the first to be asked would swallow a reply meant for another.
       const resolver = RESOLVER_DEFAULTS.find((r) => data.systemPrompt?.startsWith(r.prefix));
-      if (resolver) return Promise.resolve({ content: resolver.reply } as AIWorkerResult);
+      if (resolver) {
+        const scripted = resolverQueues.get(resolver.prefix)?.shift();
+        return Promise.resolve({ content: scripted ?? resolver.reply } as AIWorkerResult);
+      }
       const queue = queues.get(type);
       if (!queue || queue.length === 0) {
         const seen = calls.filter((c) => String(c.type) === type).length;
@@ -102,34 +121,5 @@ export function createAiWorkerPoolStub(): AiWorkerStub {
     shutdown(): Promise<void> {
       return Promise.resolve();
     },
-  };
-}
-
-/**
- * The classifier reads only `response.content`, parsed as JSON. Named rather
- * than inlined with an index signature: the index signature made every caller's
- * narrower literal unassignable under `exactOptionalPropertyTypes`.
- */
-export interface ClassifierVerdictInput {
-  intent: string;
-  secondaryIntent?: string | null;
-  searchQuery?: string | null;
-  reasoning?: string;
-  needsResearch?: boolean;
-  needsClarification?: boolean;
-}
-
-export function classifierVerdict(verdict: ClassifierVerdictInput): AIWorkerResult {
-  return {
-    success: true,
-    content: JSON.stringify({
-      secondaryIntent: null,
-      searchQuery: null,
-      reasoning: 'integration test verdict',
-      needsResearch: false,
-      needsClarification: false,
-      ...verdict,
-    }),
-    metadata: { provider: 'stub', timestamp: new Date().toISOString() },
   };
 }
