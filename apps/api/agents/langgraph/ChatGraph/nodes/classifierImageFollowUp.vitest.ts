@@ -116,11 +116,32 @@ describe('classifierNode — Bild-Folgeauftrag', () => {
     expect(result.intent).toBe('image_edit');
   });
 
+  it.each(['Mach das Plakat heller', 'Mach das Poster heller'])(
+    'nimmt "%s" als Bildbearbeitung',
+    async (text) => {
+      // Plakat/Poster benennen hier dasselbe wie „Bild"/„Motiv": das ganze
+      // Artefakt. „Poster" bestand die Prüfung vorher nur durch Zufall — das
+      // Neu-Würfel-Muster sucht „mach das …er", und Poster endet auf -er.
+      const result = await classifierNode(
+        buildState({ userMessage: text, lastToolContext: afterImage })
+      );
+      expect(result.intent).toBe('image_edit');
+    }
+  );
+
   it.each([
     ['Was ist auf dem Bild zu sehen?', 'Frage über das Bild, keine Anweisung'],
     ['Erklär mir das nochmal', 'Wiederholung der ANTWORT, nicht des Bildes'],
     ['Zeig mir Bilder von Windrädern', 'Suche nach fremden Bildern'],
     ['Schreib eine Pressemitteilung dazu', 'anderes Artefakt'],
+    // Bitte um Rat: Verb und Bildteil wie eine Bearbeitung, gemeint ist das
+    // Gegenteil. Ohne Wächter lud der Router das Bild nach und schickte es an
+    // FLUX — der Nutzer bekam ein verändertes Bild statt einer Meinung.
+    ['Mach mal einen Vorschlag, wie der Hintergrund besser wirken könnte', 'Bitte um Rat'],
+    ['Gib mir Ideen, wie man das Motiv stärker macht', 'Bitte um Ideen'],
+    // Verneinung: die Anweisung steht da, das Verbot dahinter. Beide Stufen
+    // müssen es lesen — was Tier 1 beansprucht, prüft danach niemand mehr.
+    ['Ändere das Bild nicht, sag mir nur was drauf ist', 'ausdrückliches Verbot'],
   ])('lässt "%s" in Ruhe (%s)', async (text) => {
     const result = await classifierNode(
       buildState({ userMessage: text, lastToolContext: afterImage })
