@@ -154,22 +154,43 @@ const GPT_OSS_OVERFLOW: ModelConfigOverflow = {
  * `tryAcquireVerdigadoSlot`. Swapped, Regolo would hold a slot it does not
  * need, and Verdigado would serve precisely when that slot was busy — i.e.
  * exactly when it must not run. The slot exists because Verdigado has a single
- * inference slot, and the rule already established in this file is that
- * fallback paths never take the Verdigado side (see the `single` fallback
- * branch). A plain single lane keeps that rule rather than inverting it.
+ * inference slot. A plain single lane sidesteps that inversion.
  *
- * Verdigado is therefore no longer reachable for Gemma, and its conservative
- * ceiling went with it: Regolo serves the full model context.
+ * Verdigado is still reachable, but only as the failover below, never as the
+ * lane that serves a normal turn. Its conservative context ceiling went with
+ * it: on the Regolo path this lane serves the full model context.
  */
 const GEMMA_4_REGOLO: ModelConfigSingle = {
   kind: 'single',
   provider: 'regolo',
   model: 'gemma4-31b',
   contextWindow: CTX_FULL,
-  // Mistral rather than a Verdigado lane, for the reason above. Medium 3.5 is
-  // the other strong German writer here, so a Regolo outage degrades style
-  // instead of taking the lane down.
-  fallback: 'mistral-medium-3.5',
+  // Verdigado keeps the same weights and stays the failover, so a Regolo
+  // outage answers in the same model family rather than switching writer.
+  // Two costs were weighed and accepted when this was chosen:
+  //   - it is a SLOW failover (20s to first token). The path that uses it is a
+  //     first-token timeout, i.e. the user is already waiting.
+  //   - it runs WITHOUT the Verdigado slot, which the `single` fallback branch
+  //     below avoids for every other lane. A timeout failover is rare enough
+  //     that colliding with a GPT-OSS turn holding the slot means queueing,
+  //     not breakage — but it is a real, deliberate exception to that rule.
+  fallback: 'gemma-4-verdigado',
+};
+
+/**
+ * The Verdigado side of Gemma 4, reachable ONLY as the failover above.
+ *
+ * Not in the user-facing catalog (packages/core/src/models/catalog.ts) and not
+ * an auto-policy target: selecting it deliberately would opt into the 38s path.
+ * It exists as its own entry because `fallback` resolves through
+ * AVAILABLE_MODELS, and every other Gemma id now points at Regolo.
+ */
+const GEMMA_4_VERDIGADO: ModelConfigSingle = {
+  kind: 'single',
+  provider: 'litellm',
+  model: 'verdigado-think',
+  // Ollama truncates silently above this — see CTX_VERDIGADO.
+  contextWindow: CTX_VERDIGADO,
 };
 
 export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
@@ -239,6 +260,8 @@ AVAILABLE_MODELS['litellm'] = GPT_OSS_OVERFLOW;
 AVAILABLE_MODELS['gpt-oss-regolo'] = GPT_OSS_OVERFLOW;
 AVAILABLE_MODELS['gemma-litellm'] = GEMMA_4_REGOLO;
 AVAILABLE_MODELS['gemma-regolo'] = GEMMA_4_REGOLO;
+// Failover target only — see GEMMA_4_VERDIGADO.
+AVAILABLE_MODELS['gemma-4-verdigado'] = GEMMA_4_VERDIGADO;
 
 /**
  * Get model configuration by user-facing model ID.

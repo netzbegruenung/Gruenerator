@@ -176,9 +176,12 @@ export function selectProviderAndModel({
   metadata = {},
   env = process.env,
 }: SelectProviderParams): ProviderResult {
-  // Base defaults — GPT-OSS 120B via LiteLLM as primary model
-  let provider: ProviderName = (options.provider as ProviderName) || 'litellm';
-  let model: ModelName = options.model || 'verdigado-pro';
+  // Base defaults — Mistral Medium 3.5 since the 2026-07-31 GPT-OSS wind-down.
+  // Must stay in step with the `default` lane in services/ai/lanes.ts: the
+  // parity test in lanes.vitest.ts asserts both tables answer an unrouted type
+  // identically, and this is the half that used to say GPT-OSS.
+  let provider: ProviderName = (options.provider as ProviderName) || 'mistral';
+  let model: ModelName = options.model || STRUCTURE_MODEL;
 
   // Type-based defaults
   // Notebook enrichment - fast model
