@@ -23,7 +23,7 @@ const log = createLogger('ChatGraph:PandasCompute');
 // Codegen quality is the whole point of this node (wrong column names or a
 // wrong aggregation = a wrong number presented as ground truth), so pin
 // Mistral Medium — the same model the notebooks use — instead of the smaller
-// INTERMEDIATE_MODEL. Output is ~100 tokens, latency impact is negligible.
+// the `heavy` intermediate stage. Output is ~100 tokens, latency impact is negligible.
 const CODEGEN_MODEL = {
   provider: 'mistral' as const,
   model: 'mistral-medium-2604',

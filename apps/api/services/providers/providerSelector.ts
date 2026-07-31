@@ -3,7 +3,7 @@
  * Handles routing between Mistral, LiteLLM, and other providers
  */
 
-import { INTERMEDIATE_MODEL } from '../ai/providers.js';
+import { intermediateLane } from '../ai/intermediateLanes.js';
 
 import type {
   ProviderName,
@@ -12,6 +12,9 @@ import type {
   RequestMetadata,
   ProviderResult,
 } from './types.js';
+
+/** @see services/ai/intermediateLanes.ts */
+const LANE = intermediateLane('standard');
 
 /**
  * Check if a model name is compatible with LiteLLM
@@ -230,8 +233,8 @@ export function selectProviderAndModel({
     type === 'gruenerator_ask' ||
     type === 'gruenerator_ask_grundsatz'
   ) {
-    provider = INTERMEDIATE_MODEL.provider;
-    model = options.model || INTERMEDIATE_MODEL.model;
+    provider = LANE.provider;
+    model = options.model || LANE.model;
   }
 
   // Respect explicit provider at top-level if present (routes may set data.provider)

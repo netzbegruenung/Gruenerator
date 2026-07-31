@@ -11,10 +11,13 @@
  */
 
 import { createLogger } from '../../../../utils/logger.js';
-import { INTERMEDIATE_MODEL } from '../llmConfig.js';
+import { intermediateLane } from '../llmConfig.js';
 
 import type { AIWorkerPool } from '../../../../workers/types.js';
 import type { ChatGraphState } from '../types.js';
+
+/** @see services/ai/intermediateLanes.ts */
+const LANE = intermediateLane('heavy');
 
 const log = createLogger('ChatGraph:Summarize');
 
@@ -69,7 +72,7 @@ async function singlePassSummarize(
   const response = await aiWorkerPool.processRequest(
     {
       type: 'chat_summarize',
-      provider: INTERMEDIATE_MODEL.provider,
+      provider: LANE.provider,
       systemPrompt: SINGLE_PASS_PROMPT,
       messages: [
         {
@@ -78,7 +81,7 @@ async function singlePassSummarize(
         },
       ],
       options: {
-        model: INTERMEDIATE_MODEL.model,
+        model: LANE.model,
         max_tokens: 1200,
         temperature: 0.2,
       },
@@ -126,7 +129,7 @@ async function mapReduceSummarize(
         const response = await aiWorkerPool.processRequest(
           {
             type: 'chat_summarize_map',
-            provider: INTERMEDIATE_MODEL.provider,
+            provider: LANE.provider,
             systemPrompt: MAP_PROMPT,
             messages: [
               {
@@ -135,7 +138,7 @@ async function mapReduceSummarize(
               },
             ],
             options: {
-              model: INTERMEDIATE_MODEL.model,
+              model: LANE.model,
               max_tokens: 400,
               temperature: 0.2,
             },
@@ -168,7 +171,7 @@ async function mapReduceSummarize(
   const response = await aiWorkerPool.processRequest(
     {
       type: 'chat_summarize_reduce',
-      provider: INTERMEDIATE_MODEL.provider,
+      provider: LANE.provider,
       systemPrompt: REDUCE_PROMPT,
       messages: [
         {
@@ -177,7 +180,7 @@ async function mapReduceSummarize(
         },
       ],
       options: {
-        model: INTERMEDIATE_MODEL.model,
+        model: LANE.model,
         max_tokens: 1200,
         temperature: 0.2,
       },
@@ -218,7 +221,7 @@ async function summarizeConversation(state: ChatGraphState): Promise<string> {
   const response = await aiWorkerPool.processRequest(
     {
       type: 'chat_summarize_conversation',
-      provider: INTERMEDIATE_MODEL.provider,
+      provider: LANE.provider,
       systemPrompt: CONVERSATION_SUMMARY_PROMPT,
       messages: [
         {
@@ -227,7 +230,7 @@ async function summarizeConversation(state: ChatGraphState): Promise<string> {
         },
       ],
       options: {
-        model: INTERMEDIATE_MODEL.model,
+        model: LANE.model,
         max_tokens: 800,
         temperature: 0.2,
       },
