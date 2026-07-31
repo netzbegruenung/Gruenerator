@@ -87,9 +87,19 @@ const log = createLogger('toolCatalog');
  * into generate_image by the gather prompt's creation push (seen live: a Tally
  * form request rendered as a FLUX image). Confidently classified `image` turns
  * bypass this — the classifier already vetted the phrasing.
+ *
+ * Diese Liste ist die Zwillingsschwester von `IMAGE_GEN_NOUN_SRC` im
+ * Klassifikator, und sie war auseinandergelaufen: `poster` steht dort, hier
+ * fehlte es. Folge war kein Fehlverhalten an der sicheren Stelle, sondern genau
+ * dort, wo das Gitter gebraucht wird — „Erstell ein Poster" traf die zuversicht-
+ * liche Regel und bekam sein Bild, „Gestalte mir ein Poster" wurde demotiert und
+ * lief in einen Loop OHNE Bildwerkzeug: Prosa auf einen Bildauftrag. `plakat`
+ * kannte keine der beiden Listen; es steht nur hier, weil ein Plakat mit Text
+ * ebensogut ein Sharepic sein kann — diese Entscheidung gehört dem Planner, und
+ * die trifft er nur, wenn das Werkzeug überhaupt hängt.
  */
 const IMAGE_REQUEST_PATTERN =
-  /\b(bild(er)?|foto|illustration|grafik|motiv|zeichnung|zeichne|male|visualisier\w*|image|sujet)\b/i;
+  /\b(bild(er)?|foto|illustration|grafik|motiv|zeichnung|zeichne|male|visualisier\w*|image|sujet|poster|plakat)\b/i;
 
 /** Tools exposed to the Phase-1 agentic loop. `research` used to be excluded
  *  here as a second, more expensive search door; it no longer exists — the
