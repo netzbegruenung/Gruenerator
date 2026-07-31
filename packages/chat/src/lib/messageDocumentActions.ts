@@ -49,7 +49,10 @@ export function buildDocumentActions({
  */
 export function messageTitle(content: string): string {
   const heading = content.match(/^\s{0,3}#{1,6}\s+(.+)$/m)?.[1];
-  const source = heading ?? content.replace(/^\s*[#>\-*\d.\s]+/, '');
+  // No leading `\s*` before the class: `\s` is already in it, and the two
+  // overlapping made the match backtrack on long runs of whitespace (CodeQL
+  // 1417).
+  const source = heading ?? content.replace(/^[#>\-*\d.\s]+/, '');
   const text = source
     .replace(/[*_`~[\]]/g, '')
     .replace(/\s+/g, ' ')

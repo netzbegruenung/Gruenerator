@@ -201,6 +201,33 @@ describe('parseFormattedContent — HTML', () => {
     expect(allText(blocks)).toContain('Erst');
     expect(allText(blocks)).toContain('dritt');
   });
+
+  it('treats a lone "<" as text, not as a tag', () => {
+    expect(allText(parseFormattedContent('<p>5 < 7 und 9 > 3</p>'))).toBe('5 < 7 und 9 > 3');
+  });
+
+  it('keeps a ">" that sits inside a quoted attribute out of the tag end', () => {
+    const blocks = parseFormattedContent('<p title="a > b">Inhalt</p>');
+    expect(allText(blocks)).toBe('Inhalt');
+  });
+
+  // The regex this replaced let the tag-name class and the attribute class both
+  // match `-`, so `<a` plus a run of dashes backtracked quadratically: 16k
+  // dashes blocked the event loop for 350ms, 100k for seconds. Export content
+  // is user-supplied and the API worker is single-threaded.
+  it('scans pathological input in linear time', () => {
+    const pathological = [
+      '<a' + '-'.repeat(50_000),
+      '<a"' + '"<a"'.repeat(12_500),
+      '<a<a'.repeat(12_500),
+    ];
+
+    for (const input of pathological) {
+      const started = performance.now();
+      parseFormattedContent(input);
+      expect(performance.now() - started).toBeLessThan(1_000);
+    }
+  });
 });
 
 describe('decodeEntities', () => {

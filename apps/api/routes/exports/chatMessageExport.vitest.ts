@@ -42,6 +42,23 @@ async function postMessage(body: unknown): Promise<Response> {
   });
 }
 
+/**
+ * One pass, so `&amp;lt;` reads back as the literal `&lt;`. Unescaping `&amp;`
+ * in its own `.replace` first would feed the `&` it produces into the next one
+ * and report `<` — a helper that lies about what the document says.
+ */
+const XML_ENTITIES: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+};
+
+function unescapeXml(value: string): string {
+  return value.replace(/&(amp|lt|gt|quot|apos);/g, (_match, name: string) => XML_ENTITIES[name]);
+}
+
 interface Docx {
   document: string;
   numbering: string;
@@ -60,14 +77,9 @@ async function exportDocx(body: unknown): Promise<Docx> {
   return {
     document,
     numbering: read('word/numbering.xml'),
-    text: [...document.matchAll(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g)]
-      .map((match) => match[1])
-      .join('')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&apos;/g, "'"),
+    text: unescapeXml(
+      [...document.matchAll(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g)].map((match) => match[1]).join('')
+    ),
   };
 }
 
