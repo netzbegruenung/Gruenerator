@@ -54,8 +54,21 @@ export const usageFootprintSchema = z.object({
   emissions_g: z.number(),
   /** 0..1 — share of the counted energy that was measured rather than estimated. */
   measured_share: z.number(),
-  /** 0..1 — share of the window's text tokens that any footprint covers. */
+  /**
+   * 0..1 — share of the window's GENERATED tokens that a footprint covers.
+   * Weighted by output rather than by all tokens because output drives energy
+   * 100-760x, and real traffic is ~14:1 input-heavy.
+   */
   covered_share: z.number(),
+  /**
+   * The same requests costed against GPT-4o (Jegham et al., arXiv:2505.09598 —
+   * chosen because its system boundary matches ours exactly). Covers only the
+   * traffic `covered_share` accounts for, so both sides describe the same work.
+   * Energy can come out WORSE than ours on some lanes and better on others; the
+   * UI must not present the pair as a guaranteed saving.
+   */
+  reference_energy_wh: z.number(),
+  reference_emissions_g: z.number(),
 });
 
 export const usageDayEntrySchema = z.object({

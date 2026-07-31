@@ -2404,6 +2404,14 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
     "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Quellen",
+    "anchor": "#quellen",
+    "category": "Über den Grünerator",
+    "text": "Alle Zahlen dieser Seite sind nachprüfbar. Unsere Anbieter Scaleway Impact Report 2025 — Scope 1/2/3, PUE je Rechenzentrum, WUE Hetzner: Nachhaltigkeit — PUE 1,10–1,16, Wasserkraft seit 2008, EMAS DHH Group Sustainability Report 2024 — Seeweb (Regolo), Stromverbrauch und PUE GreenPT: Sustainability — Methode der CO₂-Berechnung, stündliche Netzdaten von Nodera GreenPT: Partner — Infrastruktur läuft bei Scaleway in Paris Regolo: Sustainable AI Mistral AI: Ökobilanz mit ADEME und Carbone 4 Strommix Umweltbundesamt: CO₂-Emissionen pro Kilowattstunde Strom — Deutschland, verbrauchsbasiert RTE: Bilan électrique — Frankreich Ember: Yearly Electricity Data — Italien und Ländervergleich Methode und Vergleichszahlen Jegham et al., „How Hungry is AI?\" (arXiv:2505.09598) — Grundlage des ChatGPT-Vergleichs GHG Protocol Scope 2 Guidance — standortbasiert vs. marktbasiert Unsere eigene Messreihe ist im Code dokumentiert und wiederholbar: apps/api/services/usage/energyFootprint.ts und apps/api/scripts/probeGreenptImpact.ts Die genannten Zahlen sind Anbieterangaben (Stand Juli 2026). Und auch grüne KI verbraucht Ressourcen — Nachhaltigkeit heißt beim Grünerator nicht „kostenlos für die Umwelt\", son"
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
     "heading": "Regolo (Seeweb, Italien) — 100 % erneuerbar",
     "anchor": "#regolo-seeweb-italien--100--erneuerbar",
     "category": "Über den Grünerator",
@@ -2440,6 +2448,14 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#was-die-zahl-nicht-enthält",
     "category": "Über den Grünerator",
     "text": "Keine Herstellung, kein Training. Wir zählen den Strom der Anfrage selbst. Der CO₂-Rucksack aus GPU-Produktion und Modelltraining fehlt. Keine Bilder, keine Transkription, keine Recherche. Dafür liefert kein Anbieter Messwerte — GreenPTs Transkriptions-Endpunkt etwa gibt gar kein impact-Feld zurück. Diese Schritte fehlen vollständig. Nicht jedes Modell. Für einige Lanes betreibt GreenPT kein Gegenstück. Wir schätzen sie nicht über die Modellgröße, weil die Messreihe zeigt, dass das nicht trägt: GPT-OSS mit 120 Mrd. Parametern verbraucht je Token weniger als ein Sechstel von Mistral Medium mit 128 Mrd. Die Anzeige nennt dir stattdessen, welcher Anteil deiner Tokens erfasst ist. Wie groß der fehlende Teil ist, zeigt Scaleways eigene Bilanz besonders klar: Dem Betriebsstrom (Scope 2) mit 3.155 t CO₂e stehen 13.387 t allein für die Server gegenüber — die Hardware-Herstellung wiegt dort das 4,2-fache des Stroms, den sie verbraucht. Mistrals unabhängig geprüfte Ökobilanz kommt in dieselbe Richtung: Sie nennt für eine 400-Token-Antwort rund 1,14 g CO₂e, wo unsere Rechnung für ein vergleichbares Modell bei etwa 0,10 g landet. Wer eine vollständige Bilanz will, muss unsere Zahl als Untergre"
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Was dieselbe Arbeit mit ChatGPT gekostet hätte",
+    "anchor": "#was-dieselbe-arbeit-mit-chatgpt-gekostet-hätte",
+    "category": "Über den Grünerator",
+    "text": "Die Nutzungs-Übersicht stellt deinem Verbrauch eine Vergleichszahl gegenüber. Sie beruht auf Jegham et al. (2025) — der einzigen veröffentlichten Rechnung zu GPT-4o mit derselben Systemgrenze wie unserer: nur Betriebsstrom, kein Training, keine Hardware-Herstellung, PUE eingerechnet, standortbasierter Emissionsfaktor. Alles andere wäre ein Vergleich von Äpfeln mit Birnen. Für eine Kurzanfrage (100 Token rein, 300 raus) nennt die Arbeit 0,42 Wh und damit rund 147 mg CO₂e. Unsere Modelle in derselben Konfiguration: Modell und Standort | Energie | CO₂ | --------------------------- | ------- | ------ | Gemma 4 bei Regolo | 0,21 Wh | 56 mg | GPT-OSS 120B bei Regolo | 0,24 Wh | 66 mg | Gemma 4 bei verdigado | 0,20 Wh | 71 mg | Mistral Medium bei Scaleway | 1,37 Wh | 30 mg | GPT-4o (Jegham et al.) | 0,42 Wh | 147 mg | Daraus ergibt sich die Spanne, die die Übersicht zeigt: rund 2- bis 5-mal weniger CO₂ je vergleichbarer Anfrage. Zwei Ehrlichkeiten gehören dazu. Erstens: Beim Strom gewinnen wir nicht durchgehend. Die kompakten Modelle liegen knapp doppelt so gut, unser Standardmodell Mistral Medium aber gut dreimal schlechter. Dass es beim CO₂ trotzdem den besten Wert erzielt, verdankt sic"
   },
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
