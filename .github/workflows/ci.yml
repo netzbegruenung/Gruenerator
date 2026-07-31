@@ -43,6 +43,13 @@ jobs:
       - name: Singleton dependency versions
         run: node scripts/check-singleton-versions.mjs
 
+      # Kein `@gruenerator/*`-Name ist auf npm registriert. Ein interner
+      # Dependency-Spec, der nicht `workspace:` sagt, wandert damit zur
+      # öffentlichen Registry — genau die Lücke, die ein Angreifer besetzen
+      # kann (Dependency Confusion, gemeldet 30.07.2026).
+      - name: Workspace packages private and workspace-resolved
+        run: node scripts/check-workspace-packages.mjs
+
       # Tours target elements via [data-tour="..."] selectors; a refactor that
       # renames or drops the attribute breaks the tour silently (waitForElement
       # times out, the step never shows). Keep selectors and JSX anchors 1:1.
