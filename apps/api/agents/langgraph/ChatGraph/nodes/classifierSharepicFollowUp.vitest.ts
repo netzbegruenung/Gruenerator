@@ -153,7 +153,15 @@ describe('classifierNode — Sharepic-Folgeauftrag vs. image_edit', () => {
   });
 
   it('greift nicht ohne vorheriges Artefakt', async () => {
+    // Der Kontrollfall zur deterministischen Stufe darüber: dieselbe
+    // Formulierung, aber nichts, worauf sie sich beziehen könnte. Geprüft wird
+    // die AUSSAGE — Tier 2.7 darf ohne Artefakt nicht `sharepic` zurückgeben.
+    // Vorher stand hier `image_edit`, was nur ein Stellvertreter dafür war,
+    // dass die LLM-Stufe entschieden hat; seit der Default-Inversion landet ein
+    // Turn ohne Artefakt, ohne Material und ohne Frageform im Loop. Ein
+    // Fehlfeuer von Tier 2.7 fiele hier weiterhin auf, denn das ergäbe
+    // `sharepic`.
     const result = await classifierNode(buildState({ userMessage: 'Mach den Text größer' }));
-    expect(result.intent).toBe('image_edit');
+    expect(result.intent).not.toBe('sharepic');
   });
 });

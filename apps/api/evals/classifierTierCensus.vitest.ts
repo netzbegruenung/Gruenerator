@@ -32,6 +32,10 @@ import { runClassifierCensus } from './classifierCensusHarness.js';
  *                   Nicht gesondert gemessen, sondern beim Aufsetzen der
  *                   Dispositionszählung mitgefallen: die Aufteilung nahm dem
  *                   grossen Prompt fünf Turns ab, ohne dass der Deckel folgte.
+ *   11,4 %  19/166  nach der Default-Inversion und den beiden Tier-3.4-
+ *                   Direktrouten: der Auffangwert der Heuristik loopt, statt
+ *                   den grossen Prompt zu fragen, was „nichts erkannt"
+ *                   bedeutet. Der grösste Einzelsprung der Serie.
  *
  * Nicht vergleichbar mit den 19,3 % der ersten Ad-hoc-Sonde: die mass jeden
  * Turn einzeln, also einen Chat ohne Gedächtnis. Mit Verlauf und simuliertem
@@ -43,7 +47,7 @@ import { runClassifierCensus } from './classifierCensusHarness.js';
  * melden, nicht bei jeder Nachkommastelle rot werden. Sinkt die Quote, wird er
  * mitgesenkt — ein Deckel, der über dem Ist-Zustand stehen bleibt, misst nichts.
  */
-const TIER4_SHARE_CEILING = 0.16;
+const TIER4_SHARE_CEILING = 0.12;
 
 describe('Klassifikator-Tier-Zählung über den Eval-Korpus', () => {
   it(`erreicht den grossen Prompt bei höchstens ${(TIER4_SHARE_CEILING * 100).toFixed(0)} % der Prompts`, async () => {

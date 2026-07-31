@@ -4,7 +4,7 @@
 # about what a real model would have done.
 
 ## turn 0: "Halte die Ergebnisse fest, aber erstelle diesmal kein Dokument."
-router.run_agentic               = single_pass                    forcedTool=false gateOpen=false hasImageAttachments=false hasOwnMaterial=false inLoopSet=false intent=produktion isCompound=false isMcpTurn=false isPdfFillRequest=false loopEnabled=true secondaryAllowed=true unsourcedWriting=false
+router.run_agentic               = single_pass                    forcedTool=false gateOpen=false hasImageAttachments=false hasOwnMaterial=false inLoopSet=false intent=produktion isCompound=false isMcpTurn=false isPdfFillRequest=false loopEnabled=true secondaryAllowed=true selfContained=true unsourcedWriting=false
 router.intent_override           = (not reached)
 router.persistent_action_gate    = demoted_primary_to_direct      family=document intent=save_as_doc
 classifier.tier                  = tier4_llm                      intent=save_as_doc needsClarification=false
