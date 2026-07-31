@@ -122,6 +122,13 @@ const envSchema = z.object({
   // GreenPT — OpenAI-compatible, https://api.greenpt.ai/v1
   GREENPT_API_KEY: z.string().optional(),
   GREENPT_DEFAULT_MODEL: z.string().optional(),
+  // Scaleway Generative APIs (Paris) — OpenAI-compatible. NOT a selectable
+  // lane: it is the upstream that serves Mistral Medium 3.5, with the Mistral
+  // API itself as the fallback. See services/ai/providerInstances.ts.
+  // The base URL embeds the Scaleway project id, so it is configuration, not a
+  // constant — a second project (staging, another org) needs no code change.
+  SCALEWAY_API_KEY: z.string().optional(),
+  SCALEWAY_BASE_URL: z.string().optional(),
   BFL_API_KEY: z.string().optional(),
 
   // ── Web Search Providers ───────────────────────────────────────────────
@@ -140,7 +147,13 @@ const envSchema = z.object({
   // 'auto' applies the duration rule (services/transcription/providerPolicy);
   // naming a provider pins every request to it. An enum because as a free
   // string a typo silently matched neither branch of the old provider chain.
-  TRANSCRIPTION_PROVIDER: z.enum(['auto', 'regolo', 'voxtral']).default('auto'),
+  // 'regolo' is still ACCEPTED but no longer selectable: it left the
+  // transcription chain, and an env var is externally frozen — a deployment
+  // that still pins it must degrade to the normal rules, not fail to boot.
+  TRANSCRIPTION_PROVIDER: z
+    .enum(['auto', 'voxtral', 'greenpt', 'regolo'])
+    .default('auto')
+    .transform((provider) => (provider === 'regolo' ? ('auto' as const) : provider)),
   VOXTRAL_DEFAULT_VOICE_ID: z.string().optional(),
   VISION_DEFAULT_MODEL: z.string().optional(),
 
