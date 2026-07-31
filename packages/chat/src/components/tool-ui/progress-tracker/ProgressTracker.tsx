@@ -10,7 +10,6 @@ import type { ProgressStep } from '../../../hooks/useChatGraphStream';
 
 interface ProgressTrackerComponentProps {
   steps: ProgressStep[];
-  agentColor?: string;
   totalTimeMs?: number;
   /** Live split-gather narration awaiting a tool card. When present its latest
    *  sentence is shown (paced) instead of the static step label, so the running

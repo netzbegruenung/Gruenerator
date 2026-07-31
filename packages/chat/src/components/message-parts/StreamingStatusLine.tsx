@@ -5,7 +5,6 @@ import { useRef, type ReactNode } from 'react';
 import { useDelayedUnmount } from '../../hooks/useDelayedUnmount';
 import { ProgressTracker } from '../tool-ui/progress-tracker/ProgressTracker';
 
-import { type ProgressDisplay } from './progressDisplayContext';
 import { ProgressIndicator } from './ProgressIndicator';
 import { StatusLineDetails } from './StatusLineDetails';
 import { TypingIndicator } from './TypingIndicator';
@@ -21,8 +20,6 @@ interface StreamingStatusLineProps {
   hasOwnDetail: boolean;
   textContent: string;
   custom: ChatMessageMetadata | undefined;
-  progressDisplay: ProgressDisplay;
-  agentColor: string;
   /** The running retrieval step ("Websuche „Klimageld"") — see toolStatusLine. */
   toolStatus?: string | null;
   /** Dropdown content: the model's thinking so far. */
@@ -51,8 +48,6 @@ export function StreamingStatusLine({
   hasOwnDetail,
   textContent,
   custom,
-  progressDisplay,
-  agentColor,
   toolStatus = null,
   reasoningText = null,
   sources = NO_SOURCES,
@@ -66,18 +61,12 @@ export function StreamingStatusLine({
     (progress.steps ? (
       <ProgressTracker
         steps={progress.steps}
-        agentColor={agentColor}
         totalTimeMs={custom?.streamMetadata?.totalTimeMs}
         {...(progress.pendingNarration ? { pendingNarration: progress.pendingNarration } : {})}
         {...(toolStatus ? { toolStatus } : {})}
       />
     ) : (
-      <ProgressIndicator
-        progress={progress}
-        agentColor={agentColor}
-        variant={progressDisplay}
-        {...(toolStatus ? { toolStatus } : {})}
-      />
+      <ProgressIndicator progress={progress} {...(toolStatus ? { toolStatus } : {})} />
     ));
 
   const progressEl = labelEl && (
