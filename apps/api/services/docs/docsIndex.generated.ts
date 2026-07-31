@@ -2207,7 +2207,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Exportieren",
     "anchor": "#exportieren",
     "category": "Office",
-    "text": "Es gibt zwei Wege heraus: Als PDF — öffnet die Präsentation in einer druckfertigen Ansicht, aus der du über den Druckdialog ein PDF erzeugst. Das klappt immer und sieht aus wie im Vortragsmodus. Als PowerPoint (.pptx) — erzeugt eine Datei, die sich in PowerPoint und LibreOffice öffnen lässt. Der .pptx-Export braucht ein Zusatzprogramm auf dem Server. Fehlt es in der Umgebung, in der du arbeitest, bekommst du eine entsprechende Meldung statt einer Datei — nimm dann den PDF-Weg."
+    "text": "Über Download in der Kopfzeile stehen zwei Formate zur Wahl: Als PDF — öffnet die Präsentation in einem neuen Tab in einer druckfertigen Ansicht und dann den Druckdialog. Wähle dort als Ziel „Als PDF speichern\"; Querformat und Hintergrundgrafiken sind bereits gesetzt. Du bekommst eine Seite pro Folie, im selben Design wie im Vortragsmodus. Als PowerPoint (.pptx) — erzeugt eine bearbeitbare Datei für PowerPoint und LibreOffice Impress: Texte, Aufzählungen, Farben, Logo und Sprechernotizen bleiben erhalten. Die Datei verweist auf die Grünen-Hausschriften, kann sie aber nicht mitliefern. Auf einem Rechner ohne diese Schriften ersetzt PowerPoint sie durch eine ähnliche — der Text bleibt vollständig, das Schriftbild weicht ab. Wenn das Aussehen zählt, nimm den PDF-Weg. Wer die Präsentation nur über einen Freigabe-Link geöffnet hat, kann sie als PDF exportieren, aber nicht als .pptx."
   },
   {
     "url": "/docs/office/praesentationen",
@@ -2367,7 +2367,15 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Black Forest Labs (Freiburg) — Bilder aus der EU",
     "anchor": "#black-forest-labs-freiburg--bilder-aus-der-eu",
     "category": "Über den Grünerator",
-    "text": "Black Forest Labs aus Freiburg entwickelt die FLUX-Bildmodelle. Der Grünerator nutzt ausschließlich den EU-Endpunkt (api.eu.bfl.ai) mit flux-2-pro — die Bilderzeugung läuft damit im europäischen Strommix, der deutlich CO₂-ärmer ist als der US-amerikanische, wo die meisten Bild-KIs rechnen. Die genannten Zahlen sind Anbieterangaben (Stand Juli 2026). Und auch grüne KI verbraucht Ressourcen — Nachhaltigkeit heißt beim Grünerator nicht „kostenlos für die Umwelt\", sondern: bewusst kleine Modelle, bewusst grüne Anbieter, bewusst europäische Infrastruktur. Warum die Anbieter außerdem alle in Europa sitzen, liest du unter Grünerator Pro-EU."
+    "text": "Black Forest Labs aus Freiburg entwickelt die FLUX-Bildmodelle. Der Grünerator nutzt ausschließlich den EU-Endpunkt (api.eu.bfl.ai) mit flux-2-pro — die Bilderzeugung läuft damit im europäischen Strommix, der deutlich CO₂-ärmer ist als der US-amerikanische, wo die meisten Bild-KIs rechnen."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Erzeugte Bilder",
+    "anchor": "#erzeugte-bilder",
+    "category": "Über den Grünerator",
+    "text": "Ein einzelnes Bild wiegt schwerer als alles andere in der Übersicht: Ein Sharepic mit Flux Pro entspricht rund 25 erzeugten Pressemitteilungen. Deshalb zeigt die Übersicht den Bildanteil getrennt an — eine Summe allein würde nahelegen, dass Chatten das Problem ist. Auch hier meldet kein Anbieter Messwerte, und GreenPT betreibt kein Bildmodell, mit dem wir kalibrieren könnten. Die Werte stammen aus einer veröffentlichten Messreihe: Iyengar et al. (2025) vermessen gängige Diffusionsmodelle auf einer A100 über das gesamte Raster aus Auflösung, Schritten, Rechengenauigkeit und Guidance. Genau das macht die Arbeit brauchbar — wir können die Zelle nehmen, die zu unserer Nutzung passt, statt eine Schlagzeile zu zitieren. Bei 1024×1024, 50 Schritten, fp16, mit CFG: Modell | Energie je Bild (nur GPU) | ----------------------------- | ------------------------- | Qwen-Image (läuft bei Regolo) | 3,58 Wh | FLUX.1 [dev] | 4,28 Wh | Zwei Korrekturen sind nötig, bevor man das übernehmen darf. Erstens misst die Arbeit ausschließlich die GPU und zieht deren Leerlauf ab. In einem echten Rechenzentrum zahlt man beides: den Leerlauf ohnehin, dazu CPU, Arbeitsspeicher, Netzwerk, Lüfter und Verluste im N"
   },
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
@@ -2404,6 +2412,22 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
     "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Modelle ohne Messwert: Obergrenze statt Schätzung",
+    "anchor": "#modelle-ohne-messwert-obergrenze-statt-schätzung",
+    "category": "Über den Grünerator",
+    "text": "Für einige Lanes betreibt GreenPT kein Gegenstück — Mistral Small 4 (119 Mrd.), Qwen 3.5 (122 Mrd.) und Pixtral Large. Sie einfach wegzulassen wäre die bequemste Lösung und die falscheste: Bei realer Nutzung läuft ein Großteil des Volumens genau dort. Über die Modellgröße lässt sich das nicht schätzen — die Messreihe widerlegt den Zusammenhang direkt: GPT-OSS mit 120 Mrd. Parametern verbraucht je Token weniger als ein Sechstel von Mistral Medium mit 128 Mrd. Wir haben deshalb einen zweiten Weg geprüft: Antwortgeschwindigkeit als Energie-Proxy. Auf identischer Regolo-Hardware sollte ein Modell, das doppelt so lange für ein Token braucht, ungefähr doppelt so viel ziehen. Als Kontrolle haben wir den Proxy an zwei Modellen getestet, deren Energieverbrauch wir kennen: | Verhältnis GPT-OSS 120B zu Gemma 4 | --------------------------- | ---------------------------------- | laut Geschwindigkeits-Proxy | 0,43× | laut Messung | 1,12× | Der Proxy lag um 62 % daneben — und zwar in der schmeichelhaften Richtung. Geschwindigkeit sagt vor allem, über wie viele GPUs ein Modell verteilt ist, nicht wie viel es zieht. Die daraus abgeleiteten Zahlen haben wir verworfen. Was bleibt, ist die gemessene "
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Quellen",
+    "anchor": "#quellen",
+    "category": "Über den Grünerator",
+    "text": "Alle Zahlen dieser Seite sind nachprüfbar. Unsere Anbieter Scaleway Impact Report 2025 — Scope 1/2/3, PUE je Rechenzentrum, WUE Hetzner: Nachhaltigkeit — PUE 1,10–1,16, Wasserkraft seit 2008, EMAS DHH Group Sustainability Report 2024 — Seeweb (Regolo), Stromverbrauch und PUE GreenPT: Sustainability — Methode der CO₂-Berechnung, stündliche Netzdaten von Nodera GreenPT: Partner — Infrastruktur läuft bei Scaleway in Paris Regolo: Sustainable AI Mistral AI: Ökobilanz mit ADEME und Carbone 4 Strommix Umweltbundesamt: CO₂-Emissionen pro Kilowattstunde Strom — Deutschland, verbrauchsbasiert RTE: Bilan électrique — Frankreich Ember: Yearly Electricity Data — Italien und Ländervergleich Methode und Vergleichszahlen Jegham et al., „How Hungry is AI?\" (arXiv:2505.09598) — Grundlage des ChatGPT-Vergleichs Iyengar et al., „Energy Scaling Laws for Diffusion Models\" (arXiv:2511.17031) — Grundlage der Bildwerte; Tabelle 3 (FLUX.1) und Tabelle 6 (Qwen-Image) Scope3: Sustainable AI — Image Generation — unabhängige Gegenprobe für Bilder Uptime Institute Global Data Center Survey — weltweiter PUE-Durchschnitt 1,56 GHG Protocol Scope 2 Guidance — standortbasiert vs. marktbasiert Unsere eigene Messreihe"
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
     "heading": "Regolo (Seeweb, Italien) — 100 % erneuerbar",
     "anchor": "#regolo-seeweb-italien--100--erneuerbar",
     "category": "Über den Grünerator",
@@ -2416,6 +2440,54 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#sparsame-modelle-statt-größenwahn",
     "category": "Über den Grünerator",
     "text": "Die größten kommerziellen KI-Modelle brauchen für jede einzelne Antwort ein Vielfaches der Energie eines kompakten Modells. Der Grünerator setzt deshalb bewusst auf kleine und mittlere Modelle — vom 31-Milliarden-Parameter-Modell Gemma 4 bis zum mittelgroßen Mistral Medium. Das sind die Modelle, die tatsächlich im Einsatz sind: Aufgabe | Modell | Läuft bei | ------------------------------------ | -------------------------------------------------------------- | ---------------------------------------------- | Chat & Texte (Standard) | Mistral Medium 3.5 (mistral-medium-2604) | Mistral AI 🇫🇷 | Kreativtexte, Antworten schreiben | Gemma 4 — 31 Mrd. Parameter (gemma4-31b) | verdigado 🇩🇪 / Regolo 🇮🇹 | Schnelle Antworten | GPT-OSS 120B (gpt-oss-120b) | verdigado 🇩🇪 / Regolo 🇮🇹 | Anfragen einordnen, Zwischenschritte | Mistral Small 4 (mistral-small-4-119b) | Regolo 🇮🇹 | Werkzeuge planen und aufrufen | Mistral Small (mistral-small-latest) | Mistral AI 🇫🇷 | Bilder verstehen | Gemma 4 (gemma4-31b), Pixtral Large | Regolo 🇮🇹 / Mistral AI 🇫🇷 | Bilder erzeugen & bearbeiten | FLUX 2 Pro (flux-2-pro), Qwen-Image | Black Forest Labs 🇩🇪 (EU-Endpunkt) / Regolo 🇮🇹 | Untertitel & "
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Warum Ökostrom die Zahl nicht auf null bringt",
+    "anchor": "#warum-ökostrom-die-zahl-nicht-auf-null-bringt",
+    "category": "Über den Grünerator",
+    "text": "Alle drei Anbieter beziehen nach eigenen Angaben erneuerbare Energie — Seeweb ausschließlich, Hetzner seit 2008 Wasserkraft, Scaleway zu 100 %. Trotzdem steht in unserer Rechnung der jeweilige Netzmix. Das ist keine Nachlässigkeit, sondern der Punkt. Scaleway macht es selbst genau so. Der Impact Report weist den Ökostrom ausdrücklich als Guarantee of Origin aus, also als Herkunftsnachweise — und rechnet die Emissionen trotzdem standortbasiert. Ein Anbieter, der sich mit einem Federstrich auf nahe null hätte rechnen können, tut es nicht. Dem folgen wir. Bei Regolo kommt hinzu, dass es gar keine Zahl gäbe, die man einsetzen könnte: Der Nachhaltigkeitsbericht der DHH-Gruppe 2024 nennt für Seeweb zwar 7,3 GWh Stromverbrauch und null Prozent fossilen Anteil, hält aber fest, dass die Gruppengesellschaften ihre Treibhausgasemissionen derzeit nicht messen („the Group companies do not currently measure greenhouse gas emissions\"). Bei Hetzner ist es dasselbe Bild — die Nachhaltigkeitsseite nennt PUE und Wasserkraft, aber keine Scope-2-Bilanz. Wo Berichte konkret werden, rechnen wir es an: Seewebs PUE unter 1,20 und Hetzners 1,13 senken beide Werte gegenüber unserem Referenzwert. Sobald einer"
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Was dein eigener Verbrauch kostet",
+    "anchor": "#was-dein-eigener-verbrauch-kostet",
+    "category": "Über den Grünerator",
+    "text": "Unter Einstellungen → Nutzung siehst du Energie- und CO₂-Verbrauch deiner eigenen Anfragen. Diese Zahl ist teils gemessen, teils hochgerechnet — hier steht, wie sie zustande kommt."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Was die Zahl nicht enthält",
+    "anchor": "#was-die-zahl-nicht-enthält",
+    "category": "Über den Grünerator",
+    "text": "Keine Herstellung, kein Training. Wir zählen den Strom der Anfrage selbst. Der CO₂-Rucksack aus GPU-Produktion und Modelltraining fehlt. Keine Transkription, keine Recherche. Dafür liefert kein Anbieter Messwerte — GreenPTs Transkriptions-Endpunkt etwa gibt gar kein impact-Feld zurück. Diese Schritte fehlen vollständig. Wie groß der fehlende Teil ist, zeigt Scaleways eigene Bilanz besonders klar: Dem Betriebsstrom (Scope 2) mit 3.155 t CO₂e stehen 13.387 t allein für die Server gegenüber — die Hardware-Herstellung wiegt dort das 4,2-fache des Stroms, den sie verbraucht. Mistrals unabhängig geprüfte Ökobilanz kommt in dieselbe Richtung: Sie nennt für eine 400-Token-Antwort rund 1,14 g CO₂e, wo unsere Rechnung für ein vergleichbares Modell bei etwa 0,10 g landet. Wer eine vollständige Bilanz will, muss unsere Zahl als Untergrenze lesen — die Größenordnung des Fehlenden liegt eher beim Vier- bis Zehnfachen als bei ein paar Prozent."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Was dieselbe Arbeit mit ChatGPT gekostet hätte",
+    "anchor": "#was-dieselbe-arbeit-mit-chatgpt-gekostet-hätte",
+    "category": "Über den Grünerator",
+    "text": "Die Nutzungs-Übersicht stellt deinem Verbrauch eine Vergleichszahl gegenüber. Sie beruht auf Jegham et al. (2025) — der einzigen veröffentlichten Rechnung zu GPT-4o mit derselben Systemgrenze wie unserer: nur Betriebsstrom, kein Training, keine Hardware-Herstellung, PUE eingerechnet, standortbasierter Emissionsfaktor. Alles andere wäre ein Vergleich von Äpfeln mit Birnen. Für eine Kurzanfrage (100 Token rein, 300 raus) nennt die Arbeit 0,42 Wh und damit rund 147 mg CO₂e. Unsere Modelle in derselben Konfiguration: Modell und Standort | Energie | CO₂ | --------------------------- | ------- | ------ | Gemma 4 bei Regolo | 0,21 Wh | 56 mg | GPT-OSS 120B bei Regolo | 0,24 Wh | 66 mg | Gemma 4 bei verdigado | 0,20 Wh | 71 mg | Mistral Medium bei Scaleway | 1,37 Wh | 30 mg | GPT-4o (Jegham et al.) | 0,42 Wh | 147 mg | Daraus ergibt sich die Spanne, die die Übersicht zeigt: rund 2- bis 5-mal weniger CO₂ je vergleichbarer Anfrage. Der Vergleich gilt nur für Text. Für erzeugte Bilder gibt es keine OpenAI-Zahl mit vergleichbar sauber benannter Systemgrenze; eine Herstellerschätzung gegen eine grenzkorrigierte Messung zu stellen würde die Sorgfalt entwerten, um die es hier geht. Bilder bleiben"
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Wie wir Emissionen berechnen",
+    "anchor": "#wie-wir-emissionen-berechnen",
+    "category": "Über den Grünerator",
+    "text": "Emissionen sind Energie mal Kohlenstoffintensität des Stroms. Wir rechnen standortbasiert, also mit dem realen Strommix am jeweiligen Rechenzentrumsstandort — nicht mit unseren Ökostromverträgen. Das ist bewusst die strengere Variante, und wir folgen damit GreenPT selbst: Der Anbieter wirbt mit 100 % erneuerbarer Energie und rechnet seine Emissionen trotzdem nicht auf null, sondern nutzt stündliche Netzdaten je Standort. Ein Ökostromvertrag ändert nichts daran, welcher Strom im selben Moment physisch durch die Leitung fließt. Die grüne Beschaffung bleibt richtig und wirksam — sie ist nur kein Rabatt auf die Bilanz. Wir rechnen mit diesen Werten (Jahresmittel 2024, nur Verbrennungsemissionen): Standort | g CO₂/kWh | Quelle | ----------------------------------- | --------- | ------------------------------------------------ | Scaleway (Paris) | 24 | Scaleway Impact Report 2025, eigene Scope-2-Zahl | Frankreich (Mistral) | 22 | RTE, Bilan électrique 2024 | Italien (Regolo/Seeweb) | 270 | Ember, Yearly Electricity Data | Deutschland (verdigado auf Hetzner) | 363 | Umweltbundesamt | Bei Scaleway müssen wir nicht auf den Landesdurchschnitt ausweichen: Der Impact Report weist Scope 2 stand"
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Woher die Messwerte kommen",
+    "anchor": "#woher-die-messwerte-kommen",
+    "category": "Über den Grünerator",
+    "text": "Von unseren Anbietern liefert nur GreenPT die Umweltkosten einer Anfrage mit: Jede Antwort trägt ein impact-Objekt mit Energieverbrauch und Emissionen. Diese Werte übernehmen wir unverändert. Für alle anderen rechnen wir hoch — mit Werten, die an genau denselben Modellen gemessen wurden. GreenPT betreibt Gemma 4, GPT-OSS 120B und Mistral Medium 3.5 ebenfalls, also verrät eine Messung dort, was dasselbe Modell bei Regolo oder verdigado kostet. Gemessen am 31.07.2026 über 35 Läufe mit unterschiedlich langen Antworten: Modell | Energie je erzeugtem Token | typische Antwort (400 Token) | ----------------------------- | -------------------------- | ---------------------------- | Mistral Small 3.2 (24 Mrd.) | 0,70 mWh | 0,28 Wh | Gemma 4 (31 Mrd.) | 0,72 mWh | 0,29 Wh | GPT-OSS 120B | 0,81 mWh | 0,34 Wh | Mistral Medium 3.5 (128 Mrd.) | 4,52 mWh | 1,84 Wh | Qwen 3.5 (397 Mrd.) | 7,47 mWh | 3,08 Wh | Das ist die harte Zahl unter dem, was weiter oben über sparsame Modelle steht: Mistral Medium braucht das 6,3-fache von Gemma 4, das größte gemessene Modell das 10,3-fache. Genau deshalb schreibt bei uns ein kompaktes Modell die Antworten. Nebenbei zeigt die Messung, dass der Prompt fast nich"
   },
   {
     "url": "/docs/ueber-den-gruenerator/notebook",

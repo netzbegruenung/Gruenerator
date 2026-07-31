@@ -8,11 +8,21 @@
  * (the old `\w*` behavior, now including umlaut continuations).
  */
 
+// `ergänz`/`hinzufüg`/`einfüg` are ADD verbs, and their absence was a hole, not
+// a scope decision: "Und jetzt noch die Uhrzeit 15 Uhr ergänzen" after a
+// sharepic matched no edit verb anywhere, so neither the classifier's Tier 2.7
+// branch nor either of the router's two edit lanes claimed it. The turn ended as
+// a plain text answer and the sharepic was never touched. Adding to an existing
+// artifact is an edit by any reading — the pattern simply only knew how to
+// CHANGE and to REMOVE.
 const EDIT_VERB_PATTERN =
-  /(?<!\p{L})(änder|aender|mach|verschieb|beweg|setz|tausch|ersetz|wechsel|vergrößer|vergroesser|verklein|größer|groesser|kleiner|höher|hoeher|tiefer|kürz|kuerz|verläng|verlaeng|anpass|entfern|ausblend|einblend|zeig|versteck|nach\s+(?:oben|unten|links|rechts)|anderes?|neues?)/iu;
+  /(?<!\p{L})(änder|aender|mach|verschieb|beweg|setz|tausch|ersetz|wechsel|vergrößer|vergroesser|verklein|größer|groesser|kleiner|höher|hoeher|tiefer|kürz|kuerz|verläng|verlaeng|anpass|entfern|ausblend|einblend|zeig|versteck|ergänz|ergaenz|hinzufüg|hinzufueg|einfüg|einfueg|nach\s+(?:oben|unten|links|rechts)|anderes?|neues?)/iu;
 
+// `uhrzeit`/`datum` for the same reason: an invitation sharepic is exactly the
+// template where they are the fields being edited. Kept to the two unambiguous
+// nouns — a bare `zeit` would match "Zeitung", "zur Zeit", "Zeitpunkt".
 const EDIT_NOUN_PATTERN =
-  /(?<!\p{L})(zeile\s*[123]?|text|balken|schrift|font|farb|hintergrund|bild|foto|motiv|sonnenblume|logo|zitat|überschrift|ueberschrift|header|sharepic|variante|slides?|folien?|seite\s*\d*|karussell|slider|deck|cover|abschluss(folie)?|headline|untertext|zusatztext|label)/iu;
+  /(?<!\p{L})(zeile\s*[123]?|text|balken|schrift|font|farb|hintergrund|bild|foto|motiv|sonnenblume|logo|zitat|überschrift|ueberschrift|header|sharepic|variante|slides?|folien?|seite\s*\d*|karussell|slider|deck|cover|abschluss(folie)?|headline|untertext|zusatztext|label|uhrzeit|datum)/iu;
 
 /** Phrases that mean "generate fresh variants" — never treated as an edit. */
 const NEW_VARIANTS_PATTERN =
