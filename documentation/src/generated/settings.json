@@ -5,6 +5,10 @@
       "label": "Allgemein"
     },
     {
+      "value": "hintergrund",
+      "label": "Hintergrund"
+    },
+    {
       "value": "personalisierung",
       "label": "Personalisierung"
     },
@@ -64,10 +68,10 @@
       "title": "Aussehen",
       "description": "Farbschema der Oberfläche"
     },
-    "allgemein.chatHintergrund": {
-      "tab": "allgemein",
-      "title": "Chat-Hintergrund",
-      "description": "Färbt den Schimmer hinter dem Chat-Start und den Senden-Button"
+    "hintergrund.startseite": {
+      "tab": "hintergrund",
+      "title": "Startseiten-Hintergrund",
+      "description": "Färbt den Schimmer hinter dem Chat-Start und den Senden-Button darauf"
     },
     "allgemein.sprache": {
       "tab": "allgemein",

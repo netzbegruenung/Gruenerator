@@ -29,6 +29,7 @@ interface SettingsTabModule {
 // als Erstes im Speicher.
 const LOADERS: Record<SettingsTab, () => Promise<SettingsTabModule>> = {
   allgemein: () => import('./tabs/GeneralTab'),
+  hintergrund: () => import('./tabs/BackgroundTab'),
   personalisierung: () => import('./tabs/PersonalizationTab'),
   erinnerungen: () => import('./tabs/MemoriesSection'),
   'texte-anlernen': () => import('./tabs/TexteAnlernenTab'),
