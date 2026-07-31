@@ -5,6 +5,7 @@ import {
   formatTabularComputeGuidance,
   getModeGuidance,
   citableSourcesAvailable,
+  truncateDocument,
 } from './respondNode.js';
 
 import type { ChatGraphState, ComputeData, SearchResult } from '../types.js';
@@ -60,6 +61,44 @@ function makeComputeResult(overrides: Partial<ComputeData> = {}): ComputeData {
     ...overrides,
   };
 }
+
+describe('truncateDocument', () => {
+  const long = 'A'.repeat(10_000);
+
+  it('returns short text untouched', () => {
+    expect(truncateDocument('kurz', 500)).toBe('kurz');
+  });
+
+  it('keeps intro and outro at a generous limit', () => {
+    const out = truncateDocument(long + 'ZZZ', 2000);
+    expect(out.startsWith('AAAA')).toBe(true);
+    expect(out.endsWith('ZZZ')).toBe(true);
+    expect(out).toContain('Zeichen gekürzt');
+  });
+
+  // The arithmetic used to produce outroLength === 0 here, and `slice(-0)` is
+  // `slice(0)` — the cap returned the WHOLE text. 150 is exactly the per-chunk
+  // floor in formatSourceChunks, so this fired on the multi-chunk path.
+  it('caps instead of expanding at the 150-char floor', () => {
+    const out = truncateDocument(long, 150);
+    expect(out.length).toBeLessThan(300);
+    expect(out).not.toBe(long);
+  });
+
+  it('caps instead of expanding below the floor', () => {
+    for (const limit of [10, 50, 100, 149]) {
+      const out = truncateDocument(long, limit);
+      expect(out.length, `limit=${limit}`).toBeLessThan(200);
+      expect(out, `limit=${limit}`).not.toBe(long);
+    }
+  });
+
+  it('never returns more than it was given', () => {
+    for (const limit of [1, 60, 149, 150, 151, 400, 5000]) {
+      expect(truncateDocument(long, limit).length, `limit=${limit}`).toBeLessThan(long.length);
+    }
+  });
+});
 
 describe('getModeGuidance turn-outcome honesty (direct path)', () => {
   it('a direct turn carries the no-research/no-artifact honesty note', () => {

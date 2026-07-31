@@ -130,21 +130,15 @@ describe('loop entry', () => {
   });
 });
 
-describe('degrade insurance', () => {
-  it('re-routes an agentic intent to a runnable one when the loop is off', async () => {
-    // With the kill switch thrown, `intent: 'agentic'` names a path that no
-    // longer exists. Left alone the turn would answer from model memory with no
-    // retrieval at all, so the router forces it onto a real intent.
-    pinChatEnv({ CHAT_AGENT_LOOP: 'false' });
-
-    const { trace } = await runTurn(suite.baseUrl(), { messages: [userTurn(FACTUAL)] });
-
-    expect(trace.intent).not.toBe('agentic');
-    expect(trace.agentic).toBe(false);
-    expect(respond.agenticCalls).toHaveLength(0);
-    expect(respond.singlePassCalls).toHaveLength(1);
-  });
-});
+// GELÖSCHT: „degrade insurance".
+//
+// Der Fall setzte `CHAT_AGENT_LOOP=false` und erwartete, dass der Router einen
+// `agentic`-Intent auf einen laufbaren umbiegt. Mit ausgeschaltetem Schalter
+// demotiert Tier 3.5 gar nicht mehr, und die zweite Quelle für `agentic` — der
+// Auffangwert der LLM-Stufe — ist gelöscht. Innerhalb eines Requests kann der
+// Intent also nicht mehr entstehen; erreichbar bleibt der Guard nur über eine
+// wiederaufgenommene Konversation, die dieser Aufbau nicht herstellt. Der Guard
+// steht weiter im Router und benennt seine fehlende Abdeckung dort.
 
 describe('context window', () => {
   it('prunes against the resolved model window, not the pre-classifier default', async () => {

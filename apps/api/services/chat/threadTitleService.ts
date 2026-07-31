@@ -12,10 +12,13 @@ import { eq } from 'drizzle-orm';
 
 import { chatThreads } from '../../database/schema/chat.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
-import { INTERMEDIATE_MODEL } from '../../routes/chat/agents/providers.js';
 import { createLogger } from '../../utils/logger.js';
+import { intermediateLane } from '../ai/intermediateLanes.js';
 
 import type { AIWorkerPool } from '../../workers/types.js';
+
+/** @see services/ai/intermediateLanes.ts */
+const LANE = intermediateLane('trivial');
 
 const log = createLogger('ThreadTitle');
 
@@ -120,7 +123,7 @@ export async function generateThreadTitle(
 
   const aiRequest = {
     type: 'chat_thread_title',
-    provider: INTERMEDIATE_MODEL.provider,
+    provider: LANE.provider,
     systemPrompt: TITLE_PROMPT,
     messages: [
       {
@@ -129,7 +132,7 @@ export async function generateThreadTitle(
       },
     ],
     options: {
-      model: INTERMEDIATE_MODEL.model,
+      model: LANE.model,
       max_tokens: 30,
       temperature: 0.3,
     },
