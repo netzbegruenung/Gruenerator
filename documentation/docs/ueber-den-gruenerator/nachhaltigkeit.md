@@ -101,23 +101,30 @@ Das ist bewusst die strengere Variante, und wir folgen damit GreenPT selbst: Der
 
 Wir rechnen mit diesen Werten (Jahresmittel 2024, nur Verbrennungsemissionen):
 
-| Standort                            | g CO₂/kWh | Quelle                         |
-| ----------------------------------- | --------- | ------------------------------ |
-| Frankreich (Mistral, Scaleway)      | 22        | RTE, Bilan électrique 2024     |
-| Italien (Regolo/Seeweb)             | 270       | Ember, Yearly Electricity Data |
-| Deutschland (verdigado auf Hetzner) | 363       | Umweltbundesamt                |
+| Standort                            | g CO₂/kWh | Quelle                                           |
+| ----------------------------------- | --------- | ------------------------------------------------ |
+| Scaleway (Paris)                    | 24        | Scaleway Impact Report 2025, eigene Scope-2-Zahl |
+| Frankreich (Mistral)                | 22        | RTE, Bilan électrique 2024                       |
+| Italien (Regolo/Seeweb)             | 270       | Ember, Yearly Electricity Data                   |
+| Deutschland (verdigado auf Hetzner) | 363       | Umweltbundesamt                                  |
 
-Dazu kommt die Effizienz des Rechenzentrums selbst (PUE — wie viel Strom zusätzlich für Kühlung und Infrastruktur draufgeht). GreenPTs Messwerte enthalten einen PUE von 1,25; wo unsere Anbieter besser sind, rechnen wir die Differenz gut: Hetzner gibt 1,13 an, Seeweb unter 1,20.
+Bei Scaleway müssen wir nicht auf den Landesdurchschnitt ausweichen: Der Impact Report weist Scope 2 standortbasiert mit 3.155 t CO₂e bei 132.881 MWh aus — macht 23,7 g/kWh aus erster Hand.
+
+Dazu kommt die Effizienz des Rechenzentrums selbst (PUE — wie viel Strom zusätzlich für Kühlung und Infrastruktur draufgeht). GreenPTs Messwerte enthalten einen PUE von 1,25; wo unsere Anbieter besser sind, rechnen wir die Differenz gut: Hetzner gibt 1,13 an (Spanne 1,10–1,16), Seeweb unter 1,20.
+
+**Ein Glücksfall für die Genauigkeit:** GreenPT rechnet selbst bei Scaleway in Paris („Every GreenPT request runs on Scaleway's 100 % renewable-powered compute in Paris"), und Scaleway stellt sämtliche KI-Server in ein einziges Rechenzentrum — DC5, PUE 1,25. Unser Standardmodell Mistral Medium läuft ebenfalls über Scaleway. Für dieses Modell ist unsere Messung also **keine Übertragung auf fremde Hardware**, sondern dieselbe Maschinenklasse im selben Gebäude. Nur für die Gemma- und GPT-OSS-Lanes bei Regolo und verdigado bleibt es eine Übertragung — dort ist das „≈" wörtlich zu nehmen.
 
 Eine Unschärfe bleibt und sei benannt: Der deutsche Wert des Umweltbundesamts ist verbrauchsbasiert (Stromimporte eingerechnet), die französische und italienische Zahl sind erzeugungsbasiert. Italien importiert viel französischen Atomstrom, sein verbrauchsbasierter Wert läge also **unter** 270. Der Fehler geht damit zu Lasten Italiens, nicht zu seinen Gunsten.
 
-### Warum Regolo trotz Ökostrom nicht bei null landet
+### Warum Ökostrom die Zahl nicht auf null bringt
 
-Regolo bezieht nach Angaben seines Betreibers Seeweb **ausschließlich erneuerbare Energie**, ist als Green-Web-Foundation-Provider verifiziert und Mitglied im Climate Neutral Datacenter Pact. Trotzdem steht in unserer Rechnung der italienische Netzmix.
+Alle drei Anbieter beziehen nach eigenen Angaben erneuerbare Energie — Seeweb ausschließlich, Hetzner seit 2008 Wasserkraft, Scaleway zu 100 %. Trotzdem steht in unserer Rechnung der jeweilige Netzmix. Das ist keine Nachlässigkeit, sondern der Punkt.
 
-Der Grund ist nicht Misstrauen, sondern Datenlage: Der Nachhaltigkeitsbericht der DHH-Gruppe 2024 weist für Seeweb zwar 7,3 GWh Stromverbrauch und einen Anteil fossiler Energie von null aus, hält aber ausdrücklich fest, dass die Gruppengesellschaften ihre Treibhausgasemissionen **derzeit nicht messen** („the Group companies do not currently measure greenhouse gas emissions"). Es gibt also keine geprüfte marktbasierte Emissionszahl, die wir einsetzen könnten — und welcher Beschaffungsweg hinter dem Ökostrom steht (Direktlieferverträge oder Herkunftsnachweise), nennt der Bericht nicht.
+**Scaleway macht es selbst genau so.** Der Impact Report weist den Ökostrom ausdrücklich als _Guarantee of Origin_ aus, also als Herkunftsnachweise — und rechnet die Emissionen trotzdem standortbasiert. Ein Anbieter, der sich mit einem Federstrich auf nahe null hätte rechnen können, tut es nicht. Dem folgen wir.
 
-Wo der Bericht konkret wird, rechnen wir es an: der PUE von unter 1,20 senkt Regolos Wert gegenüber unserem Referenzwert. Sobald Seeweb eine Scope-2-Bilanz veröffentlicht, nehmen wir sie auf.
+Bei **Regolo** kommt hinzu, dass es gar keine Zahl gäbe, die man einsetzen könnte: Der Nachhaltigkeitsbericht der DHH-Gruppe 2024 nennt für Seeweb zwar 7,3 GWh Stromverbrauch und null Prozent fossilen Anteil, hält aber fest, dass die Gruppengesellschaften ihre Treibhausgasemissionen **derzeit nicht messen** („the Group companies do not currently measure greenhouse gas emissions"). Bei **Hetzner** ist es dasselbe Bild — die Nachhaltigkeitsseite nennt PUE und Wasserkraft, aber keine Scope-2-Bilanz.
+
+Wo Berichte konkret werden, rechnen wir es an: Seewebs PUE unter 1,20 und Hetzners 1,13 senken beide Werte gegenüber unserem Referenzwert. Sobald einer der beiden eine Scope-2-Bilanz veröffentlicht, nehmen wir sie auf — bei Scaleway ist genau das schon passiert.
 
 ### Was die Zahl _nicht_ enthält
 
@@ -125,7 +132,9 @@ Wo der Bericht konkret wird, rechnen wir es an: der PUE von unter 1,20 senkt Reg
 - **Keine Bilder, keine Transkription, keine Recherche.** Dafür liefert kein Anbieter Messwerte — GreenPTs Transkriptions-Endpunkt etwa gibt gar kein `impact`-Feld zurück. Diese Schritte fehlen vollständig.
 - **Nicht jedes Modell.** Für einige Lanes betreibt GreenPT kein Gegenstück. Wir schätzen sie **nicht** über die Modellgröße, weil die Messreihe zeigt, dass das nicht trägt: GPT-OSS mit 120 Mrd. Parametern verbraucht je Token weniger als ein Sechstel von Mistral Medium mit 128 Mrd. Die Anzeige nennt dir stattdessen, welcher Anteil deiner Tokens erfasst ist.
 
-Wie groß der fehlende Teil ist, lässt sich abschätzen: Mistrals unabhängig geprüfte Ökobilanz (siehe oben) nennt für eine 400-Token-Antwort rund **1,14 g CO₂e** — unsere Rechnung kommt für ein vergleichbares Modell auf etwa **0,10 g**. Der Faktor 11 ist kein Widerspruch, sondern die Systemgrenze: Mistral rechnet Hardware-Herstellung und anteiliges Training mit, wir nur den Betriebsstrom. **Wer eine vollständige Bilanz will, muss unsere Zahl als Untergrenze lesen.**
+Wie groß der fehlende Teil ist, zeigt Scaleways eigene Bilanz besonders klar: Dem Betriebsstrom (Scope 2) mit 3.155 t CO₂e stehen **13.387 t allein für die Server** gegenüber — die Hardware-Herstellung wiegt dort das **4,2-fache** des Stroms, den sie verbraucht. Mistrals unabhängig geprüfte Ökobilanz kommt in dieselbe Richtung: Sie nennt für eine 400-Token-Antwort rund 1,14 g CO₂e, wo unsere Rechnung für ein vergleichbares Modell bei etwa 0,10 g landet.
+
+**Wer eine vollständige Bilanz will, muss unsere Zahl als Untergrenze lesen** — die Größenordnung des Fehlenden liegt eher beim Vier- bis Zehnfachen als bei ein paar Prozent.
 
 :::info[Ehrlich bleiben]
 Die genannten Zahlen sind Anbieterangaben (Stand Juli 2026). Und auch grüne KI verbraucht Ressourcen — Nachhaltigkeit heißt beim Grünerator nicht „kostenlos für die Umwelt", sondern: bewusst kleine Modelle, bewusst grüne Anbieter, bewusst europäische Infrastruktur.
