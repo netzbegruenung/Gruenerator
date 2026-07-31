@@ -156,8 +156,12 @@ const STRUCTURE_MODEL = 'mistral-medium-2604';
 /**
  * Gemma 4 lives on Regolo. Naming it explicitly is not optional: the Regolo
  * DEFAULT is `qwen3.5-122b`, and qwen is excluded by policy (AVOID_AS_SYNTH).
- * `gemma-litellm` is NOT the same thing — it resolves to `verdigado-think`, a
- * slow reasoning lane the chat path rewrites away for exactly this reason.
+ *
+ * The chat lane now agrees. `gemma-litellm` used to resolve to the slow
+ * `verdigado-think` host, which is why this constant had to spell out the
+ * Regolo pair; it points at these same weights on Regolo now (see
+ * GEMMA_4_REGOLO in routes/chat/agents/providers.ts). The two paths no longer
+ * disagree about where Gemma 4 runs.
  */
 const TEXT_PROVIDER = 'regolo';
 const TEXT_MODEL = 'gemma4-31b';
@@ -172,9 +176,12 @@ export function selectProviderAndModel({
   metadata = {},
   env = process.env,
 }: SelectProviderParams): ProviderResult {
-  // Base defaults — GPT-OSS 120B via LiteLLM as primary model
-  let provider: ProviderName = (options.provider as ProviderName) || 'litellm';
-  let model: ModelName = options.model || 'verdigado-pro';
+  // Base defaults — Mistral Medium 3.5 since the 2026-07-31 GPT-OSS wind-down.
+  // Must stay in step with the `default` lane in services/ai/lanes.ts: the
+  // parity test in lanes.vitest.ts asserts both tables answer an unrouted type
+  // identically, and this is the half that used to say GPT-OSS.
+  let provider: ProviderName = (options.provider as ProviderName) || 'mistral';
+  let model: ModelName = options.model || STRUCTURE_MODEL;
 
   // Type-based defaults
   // Notebook enrichment - fast model
