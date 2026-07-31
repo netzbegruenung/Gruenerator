@@ -25,7 +25,7 @@ import {
   type AnalyzedMessage,
   type ClassifierRule,
 } from './analyzedMessage.js';
-import { CLASSIFIER_CONTEXT_MESSAGES, CLASSIFIER_CONTEXT_MAX_CHARS } from './classifierPrompt.js';
+import { CLASSIFIER_CONTEXT_MESSAGES, CLASSIFIER_CONTEXT_MAX_CHARS } from './classifierSignals.js';
 import {
   creationOrderPattern,
   hasExplicitSharepicWord,

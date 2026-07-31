@@ -1,7 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 import { classifierNode } from './classifierNode.js';
-import { CLASSIFIER_PROMPT } from './classifierPrompt.js';
 
 import type { ChatGraphState, SearchIntent } from '../types.js';
 
@@ -35,14 +34,10 @@ const STUB_AGENT_CONFIG = {
   isSystemDefault: true,
 };
 
-/** The LLM tier answers `direct`, so any doc routing in these cases can only
- *  have come from the deterministic tiers under test. */
+/** Neutrale Auflöser-Antwort, damit jedes Dokument-Routing unten nur aus den
+ *  deterministischen Stufen stammen kann, um die es hier geht. */
 function makeWorkerPool() {
-  return {
-    processRequest: vi.fn(async () => ({
-      content: JSON.stringify({ intent: 'direct', reasoning: 'stub', searchQuery: null }),
-    })),
-  };
+  return { processRequest: vi.fn(async () => ({ content: 'keine' })) };
 }
 
 function buildState(userMessage: string, overrides: Partial<ChatGraphState> = {}): ChatGraphState {
@@ -96,49 +91,13 @@ describe('Tier 2.7 — Folgeauftrag auf das letzte Dokument', () => {
   });
 });
 
-describe('Tool-Kontext-Hinweis an den LLM-Tier', () => {
-  // Loop demotion (Tier 3.5) short-circuits a low-confidence `direct` straight
-  // to `agentic` and never calls the LLM — with the loop on by default these
-  // cases would assert on a prompt that was never built. Turning it off is what
-  // exposes the tier under test.
-  const ORIGINAL_FLAG = process.env.CHAT_AGENT_LOOP;
-  beforeEach(() => {
-    process.env.CHAT_AGENT_LOOP = 'false';
-  });
-  afterEach(() => {
-    if (ORIGINAL_FLAG === undefined) delete process.env.CHAT_AGENT_LOOP;
-    else process.env.CHAT_AGENT_LOOP = ORIGINAL_FLAG;
-  });
-
-  /** Runs the LLM tier and returns the prompt it was handed. */
-  async function promptFor(userMessage: string): Promise<string> {
-    const pool = makeWorkerPool();
-    // A message with no deterministic signal at all, so classification is
-    // guaranteed to reach the LLM tier where the hint lives.
-    await classifierNode(
-      buildState(userMessage, { lastToolContext: AFTER_DOC, aiWorkerPool: pool })
-    );
-    // Nicht calls[0]: seit Tier 3.7 geht der kleine Quellen-Auflöser zuerst an
-    // denselben Pool. Gesucht ist der Aufruf mit dem grossen Prompt — sonst
-    // prüft der Fall den Prompt des Auflösers und ist immer grün.
-    const llmCall = pool.processRequest.mock.calls.find(
-      (call) => (call[0] as { systemPrompt?: string })?.systemPrompt === CLASSIFIER_PROMPT
-    );
-    expect(llmCall).toBeDefined();
-    return JSON.stringify(llmCall);
-  }
-
-  it('nennt das letzte Dokument normalerweise', async () => {
-    expect(await promptFor('Und wie sieht es beim Termin aus?')).toContain('Dokument-Erstellung');
-  });
-
-  it('schweigt, wenn der Turn Dokumentaktionen ausschließt', async () => {
-    // The hint reads "vage Folgeaufträge beziehen sich meist darauf" — next to a
-    // prohibition it argues for exactly what the user just ruled out, and the
-    // LLM followed it (observed live as an unasked-for save_as_doc
-    // secondaryIntent).
-    expect(await promptFor('Und wie sieht es beim Termin aus? Keine Dokumentaktion')).not.toContain(
-      'Dokument-Erstellung'
-    );
-  });
-});
+// GELÖSCHT: „Tool-Kontext-Hinweis an den LLM-Tier".
+//
+// Der Hinweis war eine Prosa-Zeile im 27k-Prompt („der vorherige Turn arbeitete
+// mit der Dokument-Erstellung, vage Folgeaufträge beziehen sich meist darauf"),
+// und der Fall darunter prüfte, dass sie neben einem Verbot SCHWEIGT — weil das
+// Modell ihr sonst folgte und ein ungefragtes `save_as_doc` als
+// `secondaryIntent` lieferte. Prompt und Modell sind weg; das Artefakt-Gedächtnis
+// liest jetzt Tier 2.7 direkt aus `lastToolContext`, und dort steht das Verbot
+// als `forbidsPersistentAction` im Zweig selbst — geprüft von den beiden Fällen
+// oben, deterministisch statt als Formulierung.

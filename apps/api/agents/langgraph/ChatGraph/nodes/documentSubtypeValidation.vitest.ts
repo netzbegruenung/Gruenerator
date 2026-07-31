@@ -1,44 +1,72 @@
 import { describe, it, expect } from 'vitest';
 
-import { CLASSIFIER_DOC_SUBTYPES } from './classifierPrompt.js';
-import { parseClassifierResponse } from './classifierParsing.js';
+import { CLASSIFIER_DOC_SUBTYPES, detectDocumentSubtype } from './classifierSignals.js';
 
 /**
- * The classifier's `documentSubtype` travels downstream as `subtypeOverride`,
- * which WINS over the document generator's own validated subtype. An invented
- * value therefore reaches the INSERT, where only the DB check constraint stops
- * it — the turn fails and the chat says nothing. Validate at the source.
+ * Welchen Dokumenttyp der Nutzer GENANNT hat.
+ *
+ * Vorher beantwortete das die LLM-Stufe, und die Prüfung hier war eine
+ * Validierung: das Modell erfand gelegentlich einen plausiblen Wert ausserhalb
+ * der erlaubten Menge („brief"), der als `subtypeOverride` an jeder weiteren
+ * Prüfung vorbei bis ins INSERT reiste, wo erst
+ * `collaborative_documents_document_subtype_check` ihn abwies — der Turn schlug
+ * fehl und der Chat sagte nichts.
+ *
+ * Deterministisch kann dieser Fehler nicht mehr auftreten (die Funktion gibt nur
+ * Werte aus der Liste zurück, der Compiler erzwingt es). Was jetzt zu prüfen
+ * ist, ist die andere Richtung: erkennt sie das Wort überhaupt, und schweigt sie
+ * da, wo keins steht.
+ *
+ * Warum ein Wortmuster hier ausreicht und kein Verlust ist: das Feld war nie ein
+ * Urteil, sondern ein Rücklesen. Auf dem Erzeugungspfad wählt der
+ * Dokumentgenerator seinen Subtyp ohnehin selbst aus dem fertigen Inhalt und
+ * validiert ihn; der Override ist nur ein Hinweis. Entschieden hat er an genau
+ * einer Stelle etwas — in der Bestätigungs-Aktion (`buildPendingAction`), wo
+ * ohne ihn jedes Dokument als `docs` in die Datenbank ging.
  */
 
-describe('classifier documentSubtype validation', () => {
-  it('drops a value the model invented outside the allowed set', () => {
-    const response = JSON.stringify({
-      intent: 'save_as_doc',
-      documentSubtype: 'brief',
-      reasoning: 'save',
-    });
-
-    const result = parseClassifierResponse(response, 'Schreib mir einen Brief als Dokument');
-
-    expect(result.intent).toBe('save_as_doc');
-    expect(result.documentSubtype).toBeNull();
+describe('detectDocumentSubtype', () => {
+  it.each([
+    ['Speicher das als Pressemitteilung', 'pressemitteilung'],
+    ['Mach eine PM daraus', 'pressemitteilung'],
+    ['Schreib mir einen Antrag für mehr Straßenbäume', 'antrag'],
+    ['Das als Protokoll ablegen', 'protokoll'],
+    ['Leg einen Redaktionsplan an', 'redaktionsplan'],
+    ['Als Checkliste speichern', 'checkliste'],
+    ['Mach eine Einladung daraus', 'einladung'],
+    ['Speicher das als Notizen', 'notizen'],
+  ])('%s → %s', (text, expected) => {
+    expect(detectDocumentSubtype(text)).toBe(expected);
   });
 
-  it('keeps every subtype the prompt actually offers', () => {
-    for (const subtype of CLASSIFIER_DOC_SUBTYPES) {
-      const response = JSON.stringify({
-        intent: 'save_as_doc',
-        documentSubtype: subtype,
-        reasoning: 'save',
-      });
-
-      expect(parseClassifierResponse(response, 'Speichern').documentSubtype).toBe(subtype);
-    }
+  it('schweigt, wo kein Typ genannt ist', () => {
+    // Der wichtigste Fall: `null` heisst „der Generator entscheidet selbst".
+    // Ein geratener Typ wäre schlechter als keiner — er GEWINNT stromabwärts
+    // gegen das Urteil des Generators, der den fertigen Text gesehen hat.
+    expect(detectDocumentSubtype('Speicher das als Dokument')).toBeNull();
+    expect(detectDocumentSubtype('Kannst du das festhalten?')).toBeNull();
+    expect(detectDocumentSubtype('')).toBeNull();
   });
 
-  it('treats a missing subtype as null rather than inventing one', () => {
-    const response = JSON.stringify({ intent: 'save_as_doc', reasoning: 'save' });
+  it('nimmt bei zwei Nennungen die letzte als Ziel', () => {
+    // „Mach aus dem Protokoll eine Pressemitteilung" nennt erst die Quelle,
+    // dann das Ziel. Die umgekehrte Formulierung ist ein bekannter Fehlgriff
+    // und kostet den Hinweis, nicht den Typ — siehe Kommentar an der Funktion.
+    expect(detectDocumentSubtype('Mach aus dem Protokoll eine Pressemitteilung')).toBe(
+      'pressemitteilung'
+    );
+  });
 
-    expect(parseClassifierResponse(response, 'Speichern').documentSubtype).toBeNull();
+  it('liefert ausschliesslich Werte, die die Datenbank akzeptiert', () => {
+    // Die Zusicherung, die den ursprünglichen Produktionsfehler ersetzt: was
+    // hier herauskommt, muss in der Menge liegen, gegen die die
+    // Check-Constraint prüft.
+    // Über die Konstante selbst iteriert, nicht über eine zweite Liste daneben:
+    // ein neuer Subtyp ohne Muster fällt damit sofort auf, statt still zu fehlen.
+    const found = CLASSIFIER_DOC_SUBTYPES.map((s) =>
+      detectDocumentSubtype(`Speicher das als ${s}`)
+    );
+
+    expect(found).toEqual([...CLASSIFIER_DOC_SUBTYPES]);
   });
 });

@@ -27,7 +27,7 @@ import {
   NAMED_RETRIEVAL_INTENTS,
 } from '../../../../routes/chat/services/agenticLoop/agenticRespondService.js';
 import { decideRunAgentic } from '../../../../routes/chat/services/agenticLoop/routing.js';
-import { NO_RETRIEVAL_VERDICTS } from './classifierParsing.js';
+import { NO_RETRIEVAL_VERDICTS } from './classifierSignals.js';
 
 const sorted = (s: Iterable<string>): string[] => [...s].sort();
 
