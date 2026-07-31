@@ -1,7 +1,7 @@
 import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useAutoFitScale } from './useAutoFitScale.js';
+import { SLIDE_REFIT_EVENT, useAutoFitScale } from './useAutoFitScale.js';
 
 const CAPACITY = 540;
 
@@ -176,5 +176,62 @@ describe('useAutoFitScale', () => {
     expect(surface().dataset.scale).toBe('0.7');
     unmount();
     expect(observers[0]?.disconnect).toHaveBeenCalled();
+  });
+});
+
+/**
+ * The PDF export path. Until reveal's PrintView has rebuilt the deck, every
+ * slide but the current one is display:none and measures 0, and none of the
+ * passive triggers above can recover it: the contentKey effect ran at mount,
+ * fonts.ready is one-shot, and the IntersectionObserver is viewport-rooted so
+ * it never fires for slides in a print stack nobody scrolls. Without the
+ * broadcast, slides 2..N stay at scale 1 and `.gruene-slide { overflow: hidden }`
+ * clips them — silently, in the PDF.
+ */
+describe('SLIDE_REFIT_EVENT', () => {
+  it('re-fits a surface that measured 0 while it was hidden', () => {
+    stubLayout(700, 0); // reveal keeps non-current slides display:none
+    render(<Surface enabled contentKey="a" />);
+    expect(surface().dataset.scale).toBe('1');
+
+    stubLayout(700); // PrintView made every section visible
+    act(() => {
+      window.dispatchEvent(new Event(SLIDE_REFIT_EVENT));
+    });
+    expect(surface().dataset.scale).toBe('0.7');
+  });
+
+  it('fits synchronously during dispatch, without waiting for a frame', () => {
+    // The listener binds `fit`, not `schedule`. PresentMode relies on this: it
+    // dispatches and then calls window.print() with no rAF in between on the
+    // fallback path, so a deferred fit would print the unfitted scale.
+    vi.stubGlobal('requestAnimationFrame', () => 1);
+    stubLayout(700, 0);
+    render(<Surface enabled contentKey="a" />);
+    stubLayout(700);
+    act(() => {
+      window.dispatchEvent(new Event(SLIDE_REFIT_EVENT));
+    });
+    expect(surface().style.getPropertyValue('--gs-font-scale')).toBe('0.7');
+  });
+
+  it('ignores the broadcast when disabled — an explicit preset wins', () => {
+    stubLayout(5000);
+    render(<Surface enabled={false} contentKey="a" />);
+    act(() => {
+      window.dispatchEvent(new Event(SLIDE_REFIT_EVENT));
+    });
+    expect(surface().dataset.scale).toBe('1');
+    expect(surface().style.getPropertyValue('--gs-font-scale')).toBe('');
+  });
+
+  it('unsubscribes on unmount — the listener is global, one per slide', () => {
+    stubLayout(400);
+    const remove = vi.spyOn(window, 'removeEventListener');
+    const { unmount } = render(<Surface enabled contentKey="a" />);
+    unmount();
+    expect(remove).toHaveBeenCalledWith(SLIDE_REFIT_EVENT, expect.any(Function));
+    // A late broadcast must not resurrect the unmounted surface.
+    expect(() => window.dispatchEvent(new Event(SLIDE_REFIT_EVENT))).not.toThrow();
   });
 });
