@@ -20,6 +20,13 @@ const mockWebSearch = vi.fn();
 vi.mock('../../../services/search/LinkupService.js', () => ({
   getLinkupService: () => ({ webSearch: mockWebSearch }),
 }));
+// Pin the cheap GreenPT lane off. Every assertion here is about the object
+// handed to LINKUP, and the lane is gated on ambient env a developer may have
+// set — without this the file would measure a different engine on their machine.
+vi.mock('../../../services/search/GreenPTSearchService.js', () => ({
+  getGreenPTSearchService: () => null,
+  GREENPT_MAX_RESULTS: 10,
+}));
 
 const { executeDirectWebSearch } = await import('./directSearchExecutors.js');
 
