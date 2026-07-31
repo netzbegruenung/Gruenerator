@@ -231,9 +231,18 @@ const RECURRENCE_CADENCE =
  *
  * Deshalb steht das Verb jetzt zusammen mit seinem Objekt: „erinnere MICH",
  * „schick MIR", „melde DICH". Ein blosses „Update" oder „Bericht" genügt nicht.
+ *
+ * `richt`/`setz` neben `leg`/`erstell`, weil „richte mir eine Erinnerung ein"
+ * die naheliegendste Formulierung überhaupt ist und in der ersten Fassung
+ * fehlte — gemessen an einem echten Turn, nicht ausgedacht.
+ *
+ * Zwischen Verb und Objekt steht `[^.!?\n]{0,60}?` statt einer Wortkette: „richte
+ * mir bitte gleich jeden Montag um 9 UHR eine Erinnerung ein" enthält eine
+ * ZIFFER, und `\p{L}+` bricht dort ab. Dasselbe Fenster-Idiom wie bei
+ * `NEGATOR_BEFORE_RE` in `fastPathGuards` — es bleibt innerhalb eines Satzes.
  */
 const RECURRENCE_DELIVERY =
-  /(?<!\p{L})(erinner\p{L}*\s+mich|schick\p{L}*\s+mir|send\p{L}*\s+mir|melde\p{L}*\s+dich|informier\p{L}*\s+mich|benachrichtig\p{L}*\s+mich|leg\p{L}*\s+(?:\p{L}+\s+){0,4}?(?:aufgabe|task|erinnerung)|erstell\p{L}*\s+(?:\p{L}+\s+){0,4}?(?:aufgabe|task|erinnerung))(?!\p{L})/iu;
+  /(?<!\p{L})(erinner\p{L}*\s+mich|schick\p{L}*\s+mir|send\p{L}*\s+mir|melde\p{L}*\s+dich|informier\p{L}*\s+mich|benachrichtig\p{L}*\s+mich|(?:leg|erstell|richt|setz)\p{L}*\s+[^.!?\n]{0,60}?(?:aufgabe|task|erinnerung)\p{L}*)(?!\p{L})/iu;
 
 /**
  * Eine Absage ist keine Bestellung — und eine Frage erst recht nicht.
@@ -248,12 +257,42 @@ const RECURRENCE_CANCELLATION =
 /** Eine Frage über etwas Wiederkehrendes bestellt nichts. */
 const RECURRENCE_QUESTION = /\?|^(?:was|wer|wann|warum|wieso|welche[rs]?|wo|wie)(?!\p{L})/iu;
 
+/**
+ * SATZWEISE, nicht auf die ganze Nachricht.
+ *
+ * Die erste Fassung prüfte den Gesamttext, und der Frage-Guard schaltete damit
+ * die Erkennung für ALLES ab, sobald irgendwo ein „?" stand. Live gemessen:
+ * „Wie funktioniert die Erinnerungsfunktion hier eigentlich? Und richte mir
+ * bitte gleich jeden Montag um 9 Uhr eine ein." — das Fragezeichen im ERSTEN
+ * Satz löschte den echten Dauerauftrag im ZWEITEN. Der Turn fiel in den Loop,
+ * der Planer machte null Schritte, und die Antwort erklärte dem Nutzer, das
+ * Produkt könne keine Erinnerungen setzen — eine Funktion, die es hat.
+ *
+ * Ein Satz ist die richtige Einheit: Takt, Zustellung, Verneinung und Frageform
+ * beziehen sich alle auf einen Satz, nicht auf einen Absatz. Beansprucht wird
+ * der Turn, sobald EIN Satz eine Bestellung ist — die übrigen Sätze beantwortet
+ * der Dispatcher ohnehin mit.
+ */
+function splitSentences(text: string): string[] {
+  return text
+    .split(/(?<=[.!?])\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
 export function looksLikeRecurringOrder(raw: string): boolean {
   const t = (raw ?? '').trim();
   if (!t) return false;
-  if (RECURRENCE_QUESTION.test(t)) return false;
+  // Eine Absage gilt für den ganzen Turn: „Beende das, schick mir stattdessen
+  // jeden Montag …" ist ein Grenzfall, den ein Modell entscheiden soll, kein
+  // Regex — und die sichere Richtung ist, nichts anzulegen.
   if (RECURRENCE_CANCELLATION.test(t)) return false;
-  return RECURRENCE_CADENCE.test(t) && RECURRENCE_DELIVERY.test(t);
+  return splitSentences(t).some(
+    (sentence) =>
+      !RECURRENCE_QUESTION.test(sentence) &&
+      RECURRENCE_CADENCE.test(sentence) &&
+      RECURRENCE_DELIVERY.test(sentence)
+  );
 }
 
 /**
