@@ -1208,6 +1208,7 @@ export async function executeIntentPipeline(opts: {
       }
     } else if (
       currentIntent !== 'direct' &&
+      currentIntent !== 'greeting' &&
       currentIntent !== 'save_as_doc' &&
       currentIntent !== 'modify_doc' &&
       currentIntent !== 'modify_board'

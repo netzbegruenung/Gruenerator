@@ -286,6 +286,8 @@ describe('every SearchIntent has a handler path', () => {
     social_post:
       'handled via social_post branch in executeIntentPipeline — parallel sharepic generation + examples-grounded text (EXPERIMENTAL combined post), fixed Stage-3 confirmation',
     direct: 'falls through to response generation',
+    greeting:
+      'falls through to response generation like direct, but never carries thread sources, never cites and never enters the agentic loop — decided by GREETING_PREFIX_PATTERN before any LLM runs',
     research: 'handled via search branch (intent !== direct)',
     compare: 'handled via search branch — multi-document comparison, same path as research',
     search: 'handled via search branch (intent !== direct)',

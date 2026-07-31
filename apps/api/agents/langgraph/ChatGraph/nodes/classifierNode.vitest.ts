@@ -462,7 +462,7 @@ describe('detectComplexity', () => {
 describe('heuristicClassify', () => {
   it('detects greetings with high confidence', () => {
     const result = heuristicClassify('Hallo, wie geht es?');
-    expect(result.intent).toBe('direct');
+    expect(result.intent).toBe('greeting');
     expect(result.confidence).toBeGreaterThanOrEqual(0.9);
   });
 
@@ -1115,9 +1115,9 @@ describe('heuristicClassify: greeting rule needs a word boundary', () => {
   });
 
   it('real greetings keep the fast path', () => {
-    expect(heuristicClassify('Hallo, wie geht es dir?').intent).toBe('direct');
-    expect(heuristicClassify('Hi! Kannst du mir helfen?').intent).toBe('direct');
-    expect(heuristicClassify('Danke dir, das passt so!').intent).toBe('direct');
+    expect(heuristicClassify('Hallo, wie geht es dir?').intent).toBe('greeting');
+    expect(heuristicClassify('Hi! Kannst du mir helfen?').intent).toBe('greeting');
+    expect(heuristicClassify('Danke dir, das passt so!').intent).toBe('greeting');
   });
 });
 
@@ -1253,14 +1253,14 @@ describe('heuristicClassify – fast-path hardening', () => {
       heuristicClassify('Hallo, erstell mir bitte ein Sharepic zur Verkehrswende').intent
     ).toBe('sharepic');
   });
-  it('keeps pure greetings and small-talk as direct@0.95', () => {
+  it('keeps pure greetings and small-talk as greeting@0.95', () => {
     for (const q of [
       'Hallo, wie geht es dir?',
       'Hi! Kannst du mir helfen?',
       'Danke dir, das passt so!',
     ]) {
       const r = heuristicClassify(q);
-      expect(r.intent).toBe('direct');
+      expect(r.intent).toBe('greeting');
       expect(r.reasoning).toBe('Greeting detected');
     }
   });

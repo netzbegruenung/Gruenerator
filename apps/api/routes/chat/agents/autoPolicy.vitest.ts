@@ -208,6 +208,16 @@ describe('autoPolicy — complexity grading', () => {
   it('a complex direct question earns some thought; a greeting does not', () => {
     expect(resolveAutoSelection({ intent: 'direct', complexity: 'simple' }).reasoning).toBe('off');
     expect(resolveAutoSelection({ intent: 'direct', complexity: 'complex' }).reasoning).toBe('low');
+    // `greeting` is ungraded on purpose: the complexity detector reads the raw
+    // message, and a long-ish "Guten Morgen, wie geht es dir denn heute?" can
+    // grade `moderate` — which would buy reasoning tokens for "Hallo".
+    for (const complexity of COMPLEXITIES) {
+      const sel = resolveAutoSelection({ intent: 'greeting', complexity });
+      expect(sel.reasoning, complexity).toBe('off');
+      expect(sel.modelId, complexity).toBe(
+        resolveAutoSelection({ intent: 'direct', complexity: 'simple' }).modelId
+      );
+    }
   });
 
   it('the Small 4 lane never thinks — measured, not assumed', () => {
