@@ -289,6 +289,80 @@ export function mentionsImageNoun(text: string): boolean {
   return IMAGE_NOUN_PATTERN.test(text);
 }
 
+// ─── Folgeauftrag auf ein erzeugtes Bild ────────────────────────────────
+//
+// Die beiden Prädikate oben decken zusammen genau zwei Formen ab: das
+// ausdrückliche Bearbeiten-Verb ("bearbeite das Foto") und das Neu-Würfeln
+// ("nochmal, aber abends"). Die häufigste Form fehlte — die vergleichende
+// Anweisung mit benanntem Bildteil: „Mach den Hintergrund dunkler", „Entferne
+// das Logo", „Das Motiv etwas kleiner". Solange die LLM-Stufe darunter lag,
+// fing sie diese Turns auf; ohne sie fielen alle sechs gemessenen Formulierungen
+// ins Residual und wurden mit Prosa beantwortet, obwohl ein Bild zum Bearbeiten
+// dalag. Derselbe Bauform-Fehler wie beim Sharepic-Folgeauftrag, nur eine
+// Artefaktart weiter.
+//
+// Eigenes Vokabular statt Mitbenutzung von `sharepicEditHeuristics`: dessen
+// Nomen beschreiben eine Vorlage (zeile, balken, karussell, folie), nicht ein
+// Foto, und die Bildteile hier (licht, himmel, gesicht, stil) kennt es nicht.
+// Die Geschwister-Module (`socialPostEditHeuristics`, `reelEditHeuristics`)
+// halten es genauso — ein Vokabular pro Artefaktart.
+//
+// `(?<!\p{L})` statt `\b`, weil JS-`\b` nur ASCII kennt: vor „ä" gibt es keine
+// Wortgrenze, `\bändere` matcht nie.
+//
+// Die Hinzufüge-Verben (`setz`, `füg`, `ergänz`, `pack`) stehen mit drin, weil
+// ihr Fehlen beim Sharepic schon einmal einen ganzen Turn gekostet hat: etwas zu
+// einem vorhandenen Artefakt hinzuzufügen ist eine Bearbeitung, das Muster
+// konnte nur ÄNDERN und ENTFERNEN.
+const IMAGE_EDIT_INSTRUCTION_VERB_PATTERN =
+  /(?<!\p{L})(mach|änder|aender|entfern|ersetz|tausch|verschieb|vergrößer|vergroesser|verklein|größer|groesser|kleiner|heller|dunkler|wärmer|waermer|kälter|kaelter|schärfer|schaerfer|weniger|mehr|ohne|statt|setz|füg|fueg|ergänz|ergaenz|pack)/iu;
+
+// Bildteile, die eine Anweisung benennen kann. BEWUSST getrennt von
+// `IMAGE_NOUN_PATTERN`: das gattet Tier 1, wo ein blosses „Text"/„Hintergrund"
+// ohne jedes Bild `image_edit` erzwingen würde. Hier hat der Aufrufer bereits
+// festgestellt, dass das letzte Artefakt des Threads ein Bild IST — das Nomen
+// muss nur noch sagen, WAS sich ändert.
+//
+// `plakat`/`poster` stehen mit dabei, weil sie hier dasselbe benennen wie
+// `bild`/`motiv`: das ganze Artefakt. „Mach das Plakat heller" fiel ohne sie ins
+// Residual. `poster` traf vorher nur durch Zufall — `IMAGE_REGEN_PATTERN` sucht
+// „mach das …er", und „Poster" endet auf -er. Ein Wort, das die Prüfung nur
+// wegen seiner letzten zwei Buchstaben besteht, ist nicht abgedeckt.
+const IMAGE_ELEMENT_NOUN_PATTERN =
+  /(?<!\p{L})(bild|foto|motiv|plakat|poster|hintergrund|vordergrund|text|schrift|logo|farb|licht|beleuchtung|himmel|person|gesicht|detail|stil|ausschnitt|perspektive)/iu;
+
+// „Mach mir ein neues Bild" ist kein Folgeauftrag, sondern ein neuer Auftrag —
+// Verb und Nomen sind dieselben. Unterschieden wird am unbestimmten Artikel,
+// dieselbe Idiomatik wie in `sharepicEditHeuristics.NEW_ARTIFACT_PATTERN`.
+// Höchstens ein Adjektiv dazwischen, sonst verschluckt der Wächter echte
+// Bearbeitungen („setz eine Sonnenblume ins Bild").
+const NEW_IMAGE_REQUEST_PATTERN =
+  /(?<!\p{L})(?:ein(?:e|en|em)?|neue[srn]?)(?:\s+neue[srn]?)?\s+(?:bild|foto|grafik|illustration|poster)(?!\p{L})/iu;
+
+// Wer um einen Vorschlag bittet, erteilt keinen Auftrag — „Mach mal einen
+// Vorschlag, wie der Hintergrund besser wirken könnte" trägt Verb und Bildteil
+// wie eine Bearbeitung und meint das Gegenteil: eine Antwort in Prosa. Ohne
+// diesen Wächter lädt der Router das letzte Bild nach und schickt es an FLUX,
+// der Nutzer bekommt ein verändertes Bild statt einer Meinung.
+//
+// Die Frageform-Wächter darunter reichen dafür nicht: diese Bitten fangen mit
+// einem Imperativ an ("Mach mal …", "Gib mir …"), nicht mit einem Fragewort.
+const ADVICE_REQUEST_PATTERN =
+  /(?<!\p{L})(vorschlag|vorschl(?:ä|ae)ge|idee|ideen|tipp|tipps|empfehlung|ratschlag|meinung|feedback|findest du|h(?:ä|ae)ltst du|meinst du|(?:k(?:ö|oe)nnte|kann)\s+man)/iu;
+
+/**
+ * True when a follow-up reads like an instruction to change the image that was
+ * just generated. Only meaningful with an image `lastToolContext` — the caller
+ * checks that, which is why a bare element noun is allowed to carry the turn.
+ */
+export function isImageEditInstruction(text: string): boolean {
+  if (NEW_IMAGE_REQUEST_PATTERN.test(text)) return false;
+  if (ANSWER_REPEAT_PATTERN.test(text)) return false;
+  if (ADVICE_REQUEST_PATTERN.test(text)) return false;
+  if (/^\s*(was|wie|wer|warum|wieso|welche|wann|wo)(?!\p{L})/iu.test(text)) return false;
+  return IMAGE_EDIT_INSTRUCTION_VERB_PATTERN.test(text) && IMAGE_ELEMENT_NOUN_PATTERN.test(text);
+}
+
 // Verbs that ask to SEE something that already exists, as opposed to having it
 // made. Kept separate from SEARCH_LOOKUP_VERB_PATTERN below: that one gates a
 // scope restriction and may under-fire safely, while this one decides whether we
