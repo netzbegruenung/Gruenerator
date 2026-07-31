@@ -18,6 +18,10 @@ import {
 } from '../../../config/systemCollectionsConfig.js';
 import { DocumentSearchService } from '../../../services/document-services/index.js';
 import { searchExamples } from '../../../services/examples/exampleSearchService.js';
+import {
+  getGreenPTSearchService,
+  GREENPT_MAX_RESULTS,
+} from '../../../services/search/GreenPTSearchService.js';
 import { withRetry } from '../../../services/search/index.js';
 import {
   getLinkupService,
@@ -532,8 +536,18 @@ export async function executeDirectWebSearch(params: {
     (searchType === 'news' ? daysAgoIso(NEWS_WINDOW_DAYS) : undefined);
   // The deeper tiers exist to give the writing model more to work with; a
   // 300-char snippet would cap that no matter how many sources came back.
-  // Stays under the source registry's own per-line cap (1500).
-  const snippetChars = plan.depth === 'deep' ? 1200 : 300;
+  //
+  // Linkup returns the longer text either way — the old flat 300 threw it away
+  // and left `gruendlich` (the DEFAULT tier) writing its answer from 10 x 300 =
+  // 3000 chars total. Scaled by result count so a wide search stays inside the
+  // registry's SOURCE_BLOCK_CHARS budget instead of triggering its shared
+  // shrink. Always <= SNIPPET_CHARS (1500), the registry's per-line cap.
+  //
+  // Load-bearing precondition: `truncateResultForModel` must exempt the
+  // `sources` field (see agenticLoop/truncate.ts). Without that exemption the
+  // block crosses the 6000-char ceiling and the model gets 750 chars for ALL
+  // sources combined — strictly worse than the 300 this replaces.
+  const snippetChars = plan.depth === 'deep' ? 1500 : plan.maxResults >= 10 ? 900 : 1200;
   const includeImages = params.includeImages === true;
   /**
    * Extra headroom on `maxResults` when images are requested.
@@ -572,6 +586,64 @@ export async function executeDirectWebSearch(params: {
   );
 
   try {
+    // ── Cheap lane: GreenPT for simple lookups, Linkup for everything else ──
+    //
+    // Only searches that ask for nothing GreenPT cannot do are eligible. The
+    // endpoint has NO date field on its results (keys are exactly url, title,
+    // description, position, favicon), no image hits, no exclude list, and a
+    // hard ceiling of 10 — so a time window, a news window, images or a deeper
+    // tier all have to stay on Linkup rather than be silently dropped.
+    //
+    // Domain scope is excluded even though `site:` was observed to work
+    // (10/10 on-domain): GreenPT's own docs say operators are STRIPPED before
+    // searching, so that behaviour is undocumented and free to vanish. When it
+    // does, the search would not fail — it would quietly return unscoped
+    // results for "such auf zeit.de", which is the failure we would never see.
+    //
+    // Unknown parameters are accepted and ignored rather than rejected (a
+    // made-up parameter returned byte-identical results to `fromDate` and
+    // `freshness`), so none of these constraints can be probed at runtime —
+    // they have to be gated here.
+    const greenptEligible =
+      includeDomains.length === 0 &&
+      excludeDomains.length === 0 &&
+      !fromDate &&
+      !params.toDate &&
+      !timeRange &&
+      searchType !== 'news' &&
+      !includeImages &&
+      plan.depth !== 'deep' &&
+      maxResults <= GREENPT_MAX_RESULTS;
+
+    const greenpt = greenptEligible ? getGreenPTSearchService() : null;
+    if (greenpt) {
+      try {
+        const hits = await greenpt.webSearch({ query, maxResults, language });
+        const formatted = hits.slice(0, maxResults).map((r, i) => ({
+          rank: i + 1,
+          title: decodeHtmlEntities(r.title) || 'Unbekannt',
+          url: r.url,
+          snippet: truncateText(decodeHtmlEntities(r.description ?? ''), snippetChars),
+          domain: extractDomain(r.url),
+          // GreenPT carries no date at all, so recency ranking scores nothing
+          // for these hits. Null rather than invented: `resolveSourceDate`
+          // treats an unparseable value as a real signal.
+          publishedDate: null,
+        }));
+        log.info(`[Direct Web Search] GreenPT returned ${formatted.length} results for "${query}"`);
+        return { query, searchType, resultsCount: formatted.length, results: formatted };
+      } catch (err: unknown) {
+        // Every GreenPT failure — including an EMPTY result set, which is how
+        // its throttle manifests (HTTP 200, no error) — falls through to Linkup
+        // rather than surfacing. An empty list passed to the caller would read
+        // as "the web has nothing on this" and the model would answer
+        // ungrounded with nothing in the logs to explain it.
+        log.info(
+          `[Direct Web Search] GreenPT unavailable (${err instanceof Error ? err.message : String(err)}) — falling back to Linkup`
+        );
+      }
+    }
+
     const linkup = getLinkupService();
     if (linkup) {
       const search = (depth: typeof plan.depth) =>

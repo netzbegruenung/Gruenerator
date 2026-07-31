@@ -32,6 +32,13 @@ vi.mock('../../../services/search/LinkupService.js', () => ({
   getLinkupService: vi.fn(() => null),
 }));
 
+// Same reasoning for the cheap lane: left live it would make a real GreenPT
+// call whenever a developer has GREENPT_SEARCH_ENABLED set.
+vi.mock('../../../services/search/GreenPTSearchService.js', () => ({
+  getGreenPTSearchService: vi.fn(() => null),
+  GREENPT_MAX_RESULTS: 10,
+}));
+
 vi.mock('../../../utils/logger.js', () => ({
   createLogger: () => ({
     info: vi.fn(),

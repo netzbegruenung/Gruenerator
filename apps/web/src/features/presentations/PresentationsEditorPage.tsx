@@ -23,8 +23,6 @@ import {
   FiBookOpen,
   FiCornerUpLeft,
   FiCornerUpRight,
-  FiDownload,
-  FiFileText,
   FiMessageSquare,
   FiPlay,
   FiShare2,
@@ -34,7 +32,6 @@ import { useLocation, useNavigate, useParams, useSearchParams } from 'react-rout
 
 import { CollaboratorAvatars } from '../../components/editor/CollaboratorAvatars';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
-import apiClient from '../../components/utils/apiClient';
 import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { useAuthStore } from '../../stores/authStore';
@@ -44,6 +41,7 @@ import { GuestBadge, GUEST_ANIMALS } from '../docs/GuestBadge';
 import { getOrCreateGuestIdentity } from '../docs/guestIdentity';
 import { useTourAutostart } from '../tours/useTourAutostart';
 
+import { PresentationExportMenu } from './PresentationExportMenu';
 import { PresentationsChatPanel } from './PresentationsChatPanel';
 
 const ShareModal = lazyWithRetry(() =>
@@ -177,45 +175,6 @@ function PresentationsEditorContent() {
 
   const isEditable = canEdit && !authError;
 
-  const openPdfExport = useCallback(() => {
-    if (!id) return;
-    window.open(`/office/${id}?present=1&print-pdf`, '_blank', 'noopener');
-  }, [id]);
-
-  const handlePptxExport = useCallback(async () => {
-    if (!id) return;
-    const { toast } = await import('sonner');
-    try {
-      // Go through the shared apiClient (not a raw fetch) so the download
-      // carries auth like every other request and recovers from transient
-      // 401s during cookie rotation via its onUnauthorized retry.
-      // Body must be {} not null: the apiClient forces application/json, which
-      // serializes null to the string "null" — rejected by strict express.json().
-      const res = await apiClient.post<Blob>(
-        `/presentations/${id}/export/pptx`,
-        {},
-        {
-          responseType: 'blob',
-        }
-      );
-      const url = window.URL.createObjectURL(res.data as Blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${docData?.title || 'Praesentation'}.pptx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      const status = (err as { response?: { status?: number } }).response?.status;
-      toast.error(
-        status === 501
-          ? 'PowerPoint-Export ist auf diesem Server nicht verfügbar (pandoc fehlt).'
-          : 'PowerPoint-Export fehlgeschlagen.'
-      );
-    }
-  }, [id, docData]);
-
   if (docIsLoading || !isAuthResolved) {
     return (
       <div className="flex flex-col h-full">
@@ -321,22 +280,6 @@ function PresentationsEditorContent() {
             >
               <FiBookOpen />
             </button>
-            <button
-              className="glass-btn"
-              onClick={openPdfExport}
-              aria-label="Als PDF exportieren"
-              title="Als PDF exportieren"
-            >
-              <FiDownload />
-            </button>
-            <button
-              className="glass-btn"
-              onClick={() => void handlePptxExport()}
-              aria-label="Als PowerPoint exportieren"
-              title="Als PowerPoint (.pptx) exportieren"
-            >
-              <FiFileText />
-            </button>
             {!isGuest && (
               <button
                 onClick={() => setShowShareModal(true)}
@@ -368,6 +311,9 @@ function PresentationsEditorContent() {
             <span className="max-sm:hidden">
               <CollaboratorAvatars collaborators={collaborators} />
             </span>
+            {id && (
+              <PresentationExportMenu documentId={id} title={docData.title} isGuest={isGuest} />
+            )}
             {!isGuest && (
               <button
                 className={`glass-btn ${chatOpen ? 'active' : ''}`}
