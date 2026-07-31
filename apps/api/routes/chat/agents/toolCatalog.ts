@@ -75,6 +75,7 @@ import { createSearchTools } from './searchTools.js';
 
 import type { AgentConfig } from './types.js';
 import type { ChatGraphState, SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
+import type { AIWorkerPool } from '../../../workers/types.js';
 import type { SourceRegistry } from '../services/agenticLoop/sourceRegistry.js';
 import type { SSEWriter } from '../services/sseHelpers.js';
 import type { Request } from 'express';
@@ -128,6 +129,32 @@ const CRAWL_SNIPPET_CHARS = 8_000;
 /** Char budget handed to the distiller for a deliberately named page. */
 const CRAWL_DISTILL_TARGET_CHARS = 8_000;
 
+/**
+ * Crawl budget for `tiefenrecherche` — the ONE tier that reads pages.
+ *
+ * Until this existed the loop never crawled: `directSearchExecutors` does not
+ * contain the word, so even a turn the user explicitly asked to research deeply
+ * was written from Linkup snippets, while the single-pass path handed the same
+ * question distilled full pages. That made the dominant path the thinner one on
+ * exactly the turns that paid for depth.
+ *
+ * Only on `tiefenrecherche` because only there is the latency licensed: the tier
+ * is reachable solely through `resolveSearchTier`, i.e. from the user's own
+ * words (`explicitDeepRequest`), and its progress label already promises
+ * 15–20 s. On `standard`/`gruendlich` — every ordinary turn — nothing changes.
+ *
+ * 3 URLs at 4k each is what fits: the tier returns 20 results, and 3×4k + 17×1500
+ * is the number `SOURCE_BLOCK_CHARS` was raised to cover. Crawling more would
+ * only trigger the registry's shared shrink and take the extra text back out.
+ */
+const DEEP_CRAWL_URLS = 3;
+const DEEP_CRAWL_TARGET_CHARS = 4_000;
+/** How far down the hit list to look for three crawlable URLs. */
+const DEEP_CRAWL_SCAN_LIMIT = 8;
+/** Below `scrape_url`'s 8 s: there the page IS the request, here it is an
+ *  enrichment inside a loop that already has a wall-clock budget. */
+const DEEP_CRAWL_TIMEOUT_MS = 5_000;
+
 type ExecuteFn = (input: unknown, options: { toolCallId: string }) => Promise<unknown>;
 
 type LoopContext = { sse: SSEWriter; state: ChatGraphState };
@@ -156,6 +183,92 @@ function takeSearchImages(result: unknown, loop: LoopContext | undefined): strin
   loop.sse.send('search_images', { images: images.map(withImageProxy) });
   log.info(`[toolCatalog] ${added} Bildtreffer an den Client gesendet (gesamt ${images.length})`);
   return imageDeliveryNote(images.length);
+}
+
+/**
+ * Read the top hits of a `tiefenrecherche` search and keep the part that answers
+ * the question.
+ *
+ * Gated on the tier the executor reports having SPENT, never on the `tiefe`
+ * argument: that argument is the model's request, and `resolveSearchTier` clamps
+ * it against what the user actually consented to. Reading it here instead would
+ * put the crawl one hallucinated token away.
+ *
+ * URLs are SSRF-validated even though they come from the search engine rather
+ * than from the model. A page that ranks for a query is still third-party text
+ * chosen by a third party, and this is a server-side fetch — the same reason
+ * `scrape_url` validates. (The single-pass crawl path does not yet; that is a
+ * gap there, not a licence here.)
+ *
+ * Never throws: a crawl that fails, times out or is blocked returns the snippets
+ * untouched, which is exactly the behaviour this replaces.
+ */
+async function crawlDeepHits(
+  mapped: SearchResult[],
+  result: unknown,
+  aiWorkerPool: AIWorkerPool | null
+): Promise<{ results: SearchResult[]; crawledCount: number }> {
+  const meta = (result ?? {}) as { tier?: unknown; query?: unknown };
+  if (meta.tier !== 'tiefenrecherche') return { results: mapped, crawledCount: 0 };
+
+  const query = typeof meta.query === 'string' ? meta.query : '';
+  // Seeds carry only what the crawler needs. Deliberately NOT the whole
+  // `SearchResult`: the crawl result is merged back field by field below, and
+  // spreading it wholesale would drag `fullContent` — the raw page — into the
+  // registry and from there into `chat_messages.tool_results`.
+  const seeds: Array<{ url: string; title: string; content: string; relevance: number }> = [];
+  // Bounded scan: validation is a DNS round trip each, and `tiefenrecherche`
+  // hands us 20 hits. Without the bound a run of blocked hosts would turn the
+  // search into 20 serial lookups before the first page is even fetched.
+  for (const r of mapped.slice(0, DEEP_CRAWL_SCAN_LIMIT)) {
+    if (seeds.length >= DEEP_CRAWL_URLS) break;
+    if (typeof r.url !== 'string' || !r.url) continue;
+    const check = await validateUrlForFetch(r.url);
+    if (!check.isValid || !check.url) {
+      log.warn(`[toolCatalog] deep crawl skipped ${r.url}: ${check.error ?? 'invalid'}`);
+      continue;
+    }
+    seeds.push({ url: r.url, title: r.title, content: r.content, relevance: r.relevance ?? 0 });
+  }
+  if (seeds.length === 0) return { results: mapped, crawledCount: 0 };
+
+  try {
+    const crawled = await crawlAndDistill(seeds, query, {
+      maxUrls: DEEP_CRAWL_URLS,
+      timeout: DEEP_CRAWL_TIMEOUT_MS,
+      // `query-focused`, unlike `scrape_url`: nobody named these pages, they are
+      // search hits standing in for an answer. Selecting against the question is
+      // the whole reason to read them rather than trust the snippet.
+      mode: 'query-focused',
+      targetChars: DEEP_CRAWL_TARGET_CHARS,
+      ...(aiWorkerPool ? { aiWorkerPool } : {}),
+    });
+    const byUrl = new Map(crawled.filter((r) => r.crawled && r.content).map((r) => [r.url, r]));
+    if (byUrl.size === 0) return { results: mapped, crawledCount: 0 };
+    log.info(
+      `[toolCatalog] deep crawl: ${byUrl.size}/${seeds.length} Seiten gelesen für "${query.slice(0, 50)}"`
+    );
+    return {
+      results: mapped.map((r) => {
+        const hit = typeof r.url === 'string' ? byUrl.get(r.url) : undefined;
+        if (!hit?.content) return r;
+        return {
+          ...r,
+          content: hit.content,
+          crawled: true,
+          ...(hit.distilled != null ? { distilled: hit.distilled } : {}),
+          ...(hit.distilledChunks ? { distilledChunks: hit.distilledChunks } : {}),
+          ...(hit.sourceChars != null ? { sourceChars: hit.sourceChars } : {}),
+        };
+      }),
+      crawledCount: byUrl.size,
+    };
+  } catch (err) {
+    log.warn(
+      `[toolCatalog] deep crawl failed, keeping snippets: ${err instanceof Error ? err.message : String(err)}`
+    );
+    return { results: mapped, crawledCount: 0 };
+  }
 }
 
 export interface ChatToolCatalog {
@@ -248,11 +361,18 @@ export function buildChatToolCatalog(params: {
       // registry keys on `content`, so without this normalisation every result
       // was skipped as "empty", the model was handed `{ resultCount: 0 }`, and
       // it answered from its own knowledge with no [N] citations.
-      const mapped: SearchResult[] = raw.map((r) => ({
+      const mapped: SearchResult[] = raw.map((r, i) => ({
         source: String(r.source ?? r.domain ?? 'web'),
         title: String(r.title ?? r.source ?? r.url ?? 'Quelle'),
         content: String(r.excerpt ?? r.snippet ?? r.content ?? ''),
         ...(typeof r.url === 'string' ? { url: r.url } : {}),
+        // The engine's own ranking, made explicit. `selectAndCrawlTopUrls` picks
+        // its crawl targets by `relevance`, and a web hit arrives without a
+        // numeric one — so every candidate would tie at 0 and which three pages
+        // get read would fall out of sort stability instead of out of the ranking
+        // we paid for. (The document search does carry a `relevance`, but as the
+        // string 'high'/'medium' — hence the type check rather than a `??`.)
+        relevance: typeof r.relevance === 'number' ? r.relevance : 1 - i / raw.length,
         // The web executor normalises `publishedDate` precisely because
         // freshness matters most for web hits — and this mapper used to drop it
         // one hop later, so the writing model saw every source as undated. It
@@ -260,13 +380,20 @@ export function buildChatToolCatalog(params: {
         // state of affairs. The date is grounding, not just ranking input.
         ...(typeof r.publishedDate === 'string' ? { publishedDate: r.publishedDate } : {}),
       }));
-      const sources = sourceRegistry.register(mapped);
+      const enriched = await crawlDeepHits(mapped, result, loop?.state.aiWorkerPool ?? null);
+      const sources = sourceRegistry.register(
+        enriched.results,
+        // One cap for the whole batch, sized for the crawled pages. Harmless for
+        // the uncrawled hits alongside them: the cap is a ceiling, and a 1500-char
+        // snippet does not grow by being allowed to.
+        enriched.crawledCount > 0 ? { snippetChars: DEEP_CRAWL_TARGET_CHARS } : undefined
+      );
       if (!sources) return { resultCount: 0, sources: '', ...(bilder ? { bilder } : {}) };
       // Lean model-facing shape: the numbered `sources` block is the grounding
       // (the raw content lives in the registry → done.citations). Dropping the
       // heavy `results[]` here keeps `sources` intact under result truncation
       // and halves the tokens the model pays per search.
-      return { resultCount: mapped.length, sources, ...(bilder ? { bilder } : {}) };
+      return { resultCount: enriched.results.length, sources, ...(bilder ? { bilder } : {}) };
     };
     tools[name] = { ...def, execute: decorated } as ToolSet[string];
   }
