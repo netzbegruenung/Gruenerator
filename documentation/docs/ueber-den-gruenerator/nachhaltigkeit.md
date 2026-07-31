@@ -99,6 +99,26 @@ Emissionen sind Energie mal Kohlenstoffintensität des Stroms. Wir rechnen **sta
 
 Das ist bewusst die strengere Variante, und wir folgen damit GreenPT selbst: Der Anbieter wirbt mit 100 % erneuerbarer Energie und rechnet seine Emissionen trotzdem nicht auf null, sondern nutzt stündliche Netzdaten je Standort. Ein Ökostromvertrag ändert nichts daran, welcher Strom im selben Moment physisch durch die Leitung fließt. Die grüne Beschaffung bleibt richtig und wirksam — sie ist nur kein Rabatt auf die Bilanz.
 
+Wir rechnen mit diesen Werten (Jahresmittel 2024, nur Verbrennungsemissionen):
+
+| Standort                            | g CO₂/kWh | Quelle                         |
+| ----------------------------------- | --------- | ------------------------------ |
+| Frankreich (Mistral, Scaleway)      | 22        | RTE, Bilan électrique 2024     |
+| Italien (Regolo/Seeweb)             | 270       | Ember, Yearly Electricity Data |
+| Deutschland (verdigado auf Hetzner) | 363       | Umweltbundesamt                |
+
+Dazu kommt die Effizienz des Rechenzentrums selbst (PUE — wie viel Strom zusätzlich für Kühlung und Infrastruktur draufgeht). GreenPTs Messwerte enthalten einen PUE von 1,25; wo unsere Anbieter besser sind, rechnen wir die Differenz gut: Hetzner gibt 1,13 an, Seeweb unter 1,20.
+
+Eine Unschärfe bleibt und sei benannt: Der deutsche Wert des Umweltbundesamts ist verbrauchsbasiert (Stromimporte eingerechnet), die französische und italienische Zahl sind erzeugungsbasiert. Italien importiert viel französischen Atomstrom, sein verbrauchsbasierter Wert läge also **unter** 270. Der Fehler geht damit zu Lasten Italiens, nicht zu seinen Gunsten.
+
+### Warum Regolo trotz Ökostrom nicht bei null landet
+
+Regolo bezieht nach Angaben seines Betreibers Seeweb **ausschließlich erneuerbare Energie**, ist als Green-Web-Foundation-Provider verifiziert und Mitglied im Climate Neutral Datacenter Pact. Trotzdem steht in unserer Rechnung der italienische Netzmix.
+
+Der Grund ist nicht Misstrauen, sondern Datenlage: Der Nachhaltigkeitsbericht der DHH-Gruppe 2024 weist für Seeweb zwar 7,3 GWh Stromverbrauch und einen Anteil fossiler Energie von null aus, hält aber ausdrücklich fest, dass die Gruppengesellschaften ihre Treibhausgasemissionen **derzeit nicht messen** („the Group companies do not currently measure greenhouse gas emissions"). Es gibt also keine geprüfte marktbasierte Emissionszahl, die wir einsetzen könnten — und welcher Beschaffungsweg hinter dem Ökostrom steht (Direktlieferverträge oder Herkunftsnachweise), nennt der Bericht nicht.
+
+Wo der Bericht konkret wird, rechnen wir es an: der PUE von unter 1,20 senkt Regolos Wert gegenüber unserem Referenzwert. Sobald Seeweb eine Scope-2-Bilanz veröffentlicht, nehmen wir sie auf.
+
 ### Was die Zahl _nicht_ enthält
 
 - **Keine Herstellung, kein Training.** Wir zählen den Strom der Anfrage selbst. Der CO₂-Rucksack aus GPU-Produktion und Modelltraining fehlt.

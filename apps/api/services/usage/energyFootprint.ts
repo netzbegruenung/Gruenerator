@@ -95,12 +95,24 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
  * Erring high is the safer direction for a footprint claim.
  */
 const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
-  mistral: 56, // France (nuclear-heavy)
-  scaleway: 56, // France, Paris region
-  litellm: 350, // Germany — verdigado/netzbegruenung on Hetzner
-  regolo: 330, // Italy (gas-heavy grid, despite Seeweb's renewable contracts)
-  greenpt: 30, // only a fallback; GreenPT rows carry measured emissions
+  // All figures are 2024 annual averages, combustion emissions only (no
+  // upstream/lifecycle), so the three stay comparable to each other.
+  mistral: 22, // France, RTE Bilan électrique 2024 — nuclear-dominated
+  scaleway: 22, // France, Paris region
+  litellm: 363, // Germany 2024, Umweltbundesamt (consumption-based, see caveat)
+  regolo: 270, // Italy 2024, Ember Yearly Electricity Data
+  greenpt: 30, // fallback only; GreenPT rows carry measured emissions
 };
+
+/**
+ * CAVEAT on the German figure: UBA publishes a CONSUMPTION-based number (net
+ * imports included) while the French and Italian figures above are
+ * PRODUCTION-based. Italy imports a lot of French nuclear power, so its
+ * consumption-based intensity is lower than 270 — meaning this table is, if
+ * anything, unkind to Regolo rather than to anyone else. Left as is because the
+ * error points in the conservative direction; revisit if a consistent
+ * consumption-based set for all three becomes available.
+ */
 
 /**
  * Power Usage Effectiveness. GreenPT states 1.25 and its `impact` figures
@@ -110,6 +122,9 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
 const GREENPT_PUE = 1.25;
 const PUE_BY_PROVIDER: Readonly<Record<string, number>> = {
   litellm: 1.13, // Hetzner, per its own sustainability disclosure
+  // Seeweb (Regolo's operator), DHH Group sustainability report 2024, p. 8:
+  // "achieving a PUE (Power Usage Effectiveness) below 1,20".
+  regolo: 1.2,
 };
 
 export interface Footprint {
