@@ -91,7 +91,9 @@ export function makeBundestagTool(ctx: {
   return tool({
     description: `Durchsucht die offizielle Bundestags-Dokumentation (DIP): Drucksachen, Plenarprotokolle, Reden, Personen und Vorgänge.
 
-NUTZE WENN nach Aktivitäten, Reden, Abstimmungen oder Dokumenten des Deutschen Bundestags gefragt wird. Übergib einen präzisen Suchbegriff (Person, Thema oder Drucksachennummer). Nur für Deutschland verfügbar.`,
+NUTZE WENN nach Aktivitäten, Reden, Gesetzgebungsverfahren oder Dokumenten des Deutschen Bundestags gefragt wird. Übergib einen präzisen Suchbegriff (Person, Thema oder Drucksachennummer). Nur für Deutschland verfügbar.
+
+NICHT für das Abstimmungsverhalten oder die Nebentätigkeiten einer konkreten Person — dafür gibt es abgeordnetenwatch. DIP kennt Abstimmungen nur als Station eines Vorgangs, nicht als Stimme einer*eines Abgeordneten.`,
     inputSchema: z.object({
       query: z.string().min(1).describe('Suchbegriff: Person, Thema oder Drucksachennummer'),
     }),
