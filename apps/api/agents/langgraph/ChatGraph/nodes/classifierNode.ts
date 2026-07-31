@@ -430,13 +430,24 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     log.info('[Classifier] Deep-research request landed on direct — handing the turn to the loop');
   }
 
-  // Same reasoning as the deep-research consent above: it decides what we pay
-  // for, so it is deterministic and testable without a model. Only meaningful on
-  // a web turn — an image-GENERATION turn returned long before this point with
-  // `intent: 'image'`, so the two can never both be true.
-  const webWantsImages = wantsImageResults(userText);
+  // Whether the answer gets pictures beside it. TWO sources, and neither can do
+  // the other's job:
+  //
+  //  - The user's own words ("zeig mir Fotos von der Demo"). Deterministic, so it
+  //    holds on every tier — including the ones that never reach the model.
+  //  - The classifier's judgement of the SUBJECT (`bilder` in its JSON). A regex
+  //    cannot tell "wer war Marilyn Monroe" (a person, worth showing) from "wie
+  //    berechne ich die Grunderwerbsteuer" (a procedure, pictures are noise), and
+  //    the classifier is already reading the turn to decide everything else.
+  //
+  // Only meaningful on a web turn — an image-GENERATION turn returned long before
+  // this point with `intent: 'image'`, so the two can never both be true.
+  const askedForImages = wantsImageResults(userText);
+  const webWantsImages = askedForImages || result.webWantsImages === true;
   if (webWantsImages) {
-    log.info('[Classifier] Image results requested — web search will include image hits');
+    log.info(
+      `[Classifier] Web search will include image hits (${askedForImages ? 'user asked' : 'subject is visual'})`
+    );
   }
 
   return {
@@ -1580,6 +1591,11 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       // is the one that actually produces the self-contradiction, had none.
       classifierContradictedResearch:
         classification.needsResearch === true && classification.intent === 'direct',
+      // The classifier's verdict on whether the SUBJECT is worth showing. Merged
+      // with the user's own phrasing at the end of `classifierNode` — this is the
+      // half a regex cannot produce, and the tiers that never reach the model
+      // leave it unset on purpose.
+      webWantsImages: classification.wantsImages === true,
       contentType: classification.contentType || null,
       documentSubtype: classification.documentSubtype || null,
       targetGroupName: classification.targetGroupName || null,
