@@ -37,7 +37,13 @@ const STUB_AGENT_CONFIG = {
 
 function makeWorkerPool(response: Record<string, unknown>) {
   return {
-    processRequest: vi.fn(async () => ({ content: JSON.stringify(response) })),
+    // Kleine Auflöser antworten getrennt — sonst entscheidet einer von ihnen den
+    // Turn, bevor die grosse Stufe die geprüfte Antwort liefern kann.
+    processRequest: vi.fn(async (req: { systemPrompt?: string }) =>
+      req.systemPrompt?.startsWith('Entscheide, ob diese')
+        ? { content: 'keine' }
+        : { content: JSON.stringify(response) }
+    ),
   };
 }
 
@@ -77,10 +83,22 @@ const SCREENSHOT_THREAD = [
   { role: 'user' as const, content: 'jetzt noch ein normales sharepic' },
 ];
 
+/**
+ * Ein Folgeauftrag OHNE Erzeugungswort. Der Generierungs-Auflöser (Tier 3.8)
+ * hängt an `GENERATION_SIGNAL`; diese Formulierung trifft es nicht, der Turn
+ * erreicht also weiterhin die grosse Stufe — und nur dort entsteht
+ * `creationTopic`. Ohne diesen Verlauf prüfte die Durchreiche nichts mehr.
+ */
+const REACHES_LLM_THREAD = [
+  { role: 'user' as const, content: 'zitat sharepic für klimaanlagen in schulen für hitzeschutz' },
+  { role: 'assistant' as const, content: buildSharepicConfirmation(1) },
+  { role: 'user' as const, content: 'jetzt noch eins davon, bitte etwas ruhiger' },
+];
+
 describe('classifierNode — creationTopic', () => {
   it('reicht das aufgelöste Thema an den State durch', async () => {
     const result = await classifierNode(
-      buildState(SCREENSHOT_THREAD, {
+      buildState(REACHES_LLM_THREAD, {
         intent: 'sharepic',
         searchQuery: null,
         creationTopic: 'Klimaanlagen in Schulen als Hitzeschutz',
@@ -93,7 +111,7 @@ describe('classifierNode — creationTopic', () => {
 
   it('bleibt null, wenn das Modell keins liefert', async () => {
     const result = await classifierNode(
-      buildState(SCREENSHOT_THREAD, {
+      buildState(REACHES_LLM_THREAD, {
         intent: 'sharepic',
         searchQuery: null,
         creationTopic: null,
@@ -101,6 +119,35 @@ describe('classifierNode — creationTopic', () => {
       })
     );
     expect(result.creationTopic).toBeNull();
+  });
+
+  it('der Auflöser entscheidet die ART, aber liefert kein Thema', async () => {
+    // Der Verlauf aus dem Fehlerbericht trägt das Wort „sharepic", erreicht den
+    // Auflöser also — und wird dort entschieden, ohne die grosse Stufe. Damit
+    // gibt es auf diesem Weg KEIN `creationTopic` mehr; das Thema kommt aus
+    // `createTopic()` im Router, der genau für „Turns, die die LLM-Stufe nie
+    // erreicht haben" auf `resolveReferentialTopic` zurückfällt.
+    const state = buildState(SCREENSHOT_THREAD, {
+      intent: 'sharepic',
+      searchQuery: null,
+      creationTopic: 'darf nicht durchkommen',
+      reasoning: 'grosse Stufe',
+    });
+    (state.aiWorkerPool as unknown as { processRequest: unknown }).processRequest = async (req: {
+      systemPrompt?: string;
+    }) =>
+      req.systemPrompt?.startsWith('Entscheide, ob diese Nachricht ein ARTEFAKT')
+        ? { content: 'sharepic' }
+        : {
+            content: JSON.stringify({
+              intent: 'sharepic',
+              creationTopic: 'darf nicht durchkommen',
+            }),
+          };
+
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('sharepic');
+    expect(result.creationTopic ?? null).toBeNull();
   });
 });
 
