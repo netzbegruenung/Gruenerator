@@ -194,7 +194,7 @@ ESLint (flat config), Prettier, Husky pre-commit (lint-staged), Knip (unused cod
 
 ### Frontend component testing
 
-`apps/web` and `packages/chat` have a jsdom vitest lane (`*.vitest.tsx`) running **alongside** the fast node lane (`*.vitest.ts`) — never flip the whole config to jsdom. Pick the tool by component shape: **RTL** for render/branching/interaction, **MSW** for `getContractsClient()` data hooks (success/error/empty branches), **axe** (`axe` from `test-utils`) wherever `aria-*`/`role=` is hand-written. Full guide, reference tests, the component→tool matrix, the sweep plan, and the load-bearing gotchas (jsdom pinned to 26.1.0; react aliased + react-query inlined in the dom project) live in **`apps/web/CLAUDE-testing.md`** — read it before adding component tests.
+`apps/web` and `packages/chat` have a jsdom vitest lane (`*.vitest.tsx`) running **alongside** the fast node lane (`*.vitest.ts`) — never flip the whole config to jsdom. Pick the tool by component shape: **RTL** for render/branching/interaction, **MSW** for `getContractsClient()` data hooks (success/error/empty branches), **axe** (`axe` from `test-utils`) wherever `aria-*`/`role=` is hand-written. Full guide, reference tests, the component→tool matrix, the sweep plan, and the load-bearing gotchas (react aliased + react-query inlined in the dom project) live in **`apps/web/CLAUDE-testing.md`** — read it before adding component tests. jsdom is pinned exactly in `pnpm.overrides` (now `30.0.0`, was `26.1.0` while jsdom 29 broke against the `undici >=8.5.0` override) so the three vitest lanes and jest-expo's `jest-environment-jsdom` share one copy — a bump therefore needs the override line too, see `pnpm overrides:fix`.
 
 ### Newsletter
 
