@@ -305,7 +305,20 @@ interface ImageEnergy {
   basis: EnergyCoefficients['basis'];
 }
 
-/** FLUX.1 [dev] @ 1024x1024 / 50 steps / fp16 / CFG, x2 boundary uplift. */
+/**
+ * FLUX.1 [dev] @ 1024x1024 / 50 steps / fp16 / CFG, x2 boundary uplift.
+ *
+ * RESOLUTION CAVEAT, and it only applies to the BFL entries: Regolo snaps
+ * everything to 1024x1024, but BFL receives the real dimensions, and our
+ * formats run up to 1088x1360 (Instagram) — 1.41x the pixels of the anchor
+ * cell. Energy scales roughly with pixel count, so a portrait Flux image costs
+ * more than this number says.
+ *
+ * Not corrected for, because `user_usage_daily` records only a count per model
+ * and no resolution: sizing per format would need a schema change first. The
+ * gap is smaller than the headroom already in the x2 uplift, and it is named
+ * here rather than left to be discovered.
+ */
 const FLUX_ANCHOR_MWH = 8556;
 
 const IMAGE_ENERGY: Readonly<Record<string, ImageEnergy>> = {
@@ -321,9 +334,19 @@ const IMAGE_ENERGY: Readonly<Record<string, ImageEnergy>> = {
   'flux-2-max': { mWhPerImage: FLUX_ANCHOR_MWH * 2, basis: 'bound' },
   // Outpainting runs the same generator over a larger canvas; billed like pro.
   'flux-tools/outpainting-v1': { mWhPerImage: FLUX_ANCHOR_MWH, basis: 'bound' },
-  // The one image lane where the paper measured OUR model: Qwen-Image, and
-  // Regolo caps at 1024x1024 (RegoloImageService snaps every request to
-  // 256/512/1024), so the measured cell is also the worst case we can hit.
+  // The one image lane where the paper measured OUR model AT OUR RESOLUTION.
+  // `snapToSupportedSize` offers 256/512/1024, but every aspect ratio in
+  // FluxPromptBuilder has an edge >= 1024 (square 1024, classic 1152, the rest
+  // 1360-1680), so all of them fall through to the 1024 fallback — and the
+  // paths that pass no dimensions at all default to 1024 too. In practice the
+  // smaller branches are unreachable and EVERY Qwen request is 1024x1024, the
+  // exact cell measured. Steps we never override, and Qwen-Image defaults to
+  // 50 with CFG, which is the cell as well.
+  //
+  // So the only soft parts left here are the x2 boundary uplift and Regolo's
+  // hardware differing from an A100. That is a far better footing than the
+  // Flux entries above — but the uplift alone is our own choice, so this stays
+  // 'bound' rather than getting promoted to 'measured'.
   // 3.583 Wh GPU-only x2 = 7166.
   'Qwen-Image': { mWhPerImage: 7166, basis: 'bound' },
 };
