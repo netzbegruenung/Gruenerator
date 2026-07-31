@@ -8,7 +8,7 @@ describe('chooseProvider', () => {
     expect(chooseProvider({ durationSeconds: 30 })).toEqual({
       provider: 'regolo',
       reason: 'duration',
-      chain: ['regolo', 'voxtral'],
+      chain: ['regolo', 'voxtral', 'greenpt'],
     });
   });
 
@@ -27,10 +27,16 @@ describe('chooseProvider', () => {
   });
 
   it('routes diarization to Voxtral regardless of length', () => {
-    // Whisper returns no speaker ids; the voice layer keys identifySpeakers off
-    // the `[speaker_` marker that only diarized Voxtral responses produce.
     expect(chooseProvider({ durationSeconds: 10, diarize: true }).provider).toBe('voxtral');
     expect(chooseProvider({ durationSeconds: 10, diarize: true }).reason).toBe('capability');
+  });
+
+  it('drops providers that cannot diarize out of a diarized chain', () => {
+    // Regolo's Whisper returns no speaker ids, and the voice layer keys
+    // identifySpeakers off the `[speaker_` marker. Failing over to it would
+    // yield a valid transcript with every speaker merged — worse than failing.
+    const chain = chooseProvider({ durationSeconds: 10, diarize: true }).chain;
+    expect(chain).toEqual(['voxtral', 'greenpt']);
   });
 
   it('routes caller-requested context bias to Voxtral regardless of length', () => {
@@ -43,14 +49,31 @@ describe('chooseProvider', () => {
     );
   });
 
-  it('lets the env override beat every rule', () => {
+  it('leaves no failover for context bias, which only Voxtral accepts', () => {
+    expect(
+      chooseProvider({ durationSeconds: 10, requestedContextBias: ['Gewessler'] }).chain
+    ).toEqual(['voxtral']);
+  });
+
+  it('lets the env override beat the duration rule', () => {
     const pinned = chooseProvider({ durationSeconds: 3600, override: 'regolo' });
     expect(pinned.provider).toBe('regolo');
     expect(pinned.reason).toBe('override');
     expect(chooseProvider({ durationSeconds: 10, override: 'voxtral' }).provider).toBe('voxtral');
-    expect(
-      chooseProvider({ durationSeconds: 10, diarize: true, override: 'regolo' }).provider
-    ).toBe('regolo');
+  });
+
+  it('does not let the override defeat a hard capability requirement', () => {
+    // TRANSCRIPTION_PROVIDER is a deployment setting; it cannot know that this
+    // particular request needs speaker ids. The request wins.
+    const choice = chooseProvider({ durationSeconds: 10, diarize: true, override: 'regolo' });
+    expect(choice.provider).toBe('voxtral');
+    expect(choice.reason).toBe('capability');
+  });
+
+  it('honours an override that does satisfy the requirement', () => {
+    const choice = chooseProvider({ durationSeconds: 10, diarize: true, override: 'greenpt' });
+    expect(choice.provider).toBe('greenpt');
+    expect(choice.reason).toBe('override');
   });
 
   it("treats 'auto' as no override", () => {

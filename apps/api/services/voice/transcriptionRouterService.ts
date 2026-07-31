@@ -15,6 +15,11 @@ import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 import { extractAudio, cleanupFiles } from '../subtitler/videoUploadService.js';
 import { probeBufferDurationSeconds } from '../transcription/audioDuration.js';
+import {
+  GREENPT_STT_MODEL,
+  groupGreenptWords,
+  listenWithGreenpt,
+} from '../transcription/greenptListen.js';
 import { mimeTypeFromFilename } from '../transcription/mimeTypes.js';
 import { chooseProvider, type TranscriptionProvider } from '../transcription/providerPolicy.js';
 import { recordOperation } from '../usage/UsageTrackingService.js';
@@ -180,6 +185,34 @@ async function transcribeWithVoxtral(
   };
 }
 
+/**
+ * GreenPT returns a flat word list, so segments and the `[speaker_N]` markers
+ * that `identifySpeakers` keys off are assembled here. Same marker format as
+ * Voxtral's — the protocol layer must not be able to tell which provider ran.
+ */
+async function transcribeWithGreenpt(
+  audioBuffer: Buffer,
+  filename: string,
+  options: TranscriptionOptions
+): Promise<TranscriptionResult> {
+  const diarize = options.diarize === true;
+  const { text, words } = await listenWithGreenpt(audioBuffer, filename, { diarize });
+
+  const wantsTimestamps = !!options.timestamp_granularities?.length || diarize;
+  if (!wantsTimestamps || words.length === 0) {
+    return { text, hasTimestamps: false };
+  }
+
+  const segments = groupGreenptWords(words);
+  const hasSpeakers = segments.some((s) => s.speaker !== null);
+
+  return {
+    text: hasSpeakers ? segments.map((s) => `[speaker_${s.speaker}] ${s.text}`).join('\n') : text,
+    segments: segments.map((s) => ({ start: s.start, end: s.end, text: s.text })),
+    hasTimestamps: true,
+  };
+}
+
 /** Per-provider key, billing label and caller. Keeps the chain loop flat. */
 const RUNNERS: Record<
   TranscriptionProvider,
@@ -200,6 +233,11 @@ const RUNNERS: Record<
   },
   // transcribeWithVoxtral records its own operation.
   voxtral: { apiKey: () => env.MISTRAL_API_KEY, usage: null, run: transcribeWithVoxtral },
+  greenpt: {
+    apiKey: () => env.GREENPT_API_KEY,
+    usage: { provider: 'greenpt', model: GREENPT_STT_MODEL },
+    run: transcribeWithGreenpt,
+  },
 };
 
 /**
@@ -248,7 +286,7 @@ export async function transcribeBuffer(
   throw (
     lastError ??
     new Error(
-      'No transcription provider configured. Set REGOLO_API_KEY (faster-whisper) or MISTRAL_API_KEY (Voxtral).'
+      'No transcription provider configured. Set MISTRAL_API_KEY (Voxtral), GREENPT_API_KEY (green-s-pro) or REGOLO_API_KEY (faster-whisper).'
     )
   );
 }

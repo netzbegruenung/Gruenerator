@@ -8,7 +8,7 @@
 
 import { type Locale } from '../localization/types.js';
 
-export type TranscriptionProvider = 'regolo' | 'voxtral';
+export type TranscriptionProvider = 'regolo' | 'voxtral' | 'greenpt';
 export type TranscriptionProviderOverride = TranscriptionProvider | 'auto';
 
 /**
@@ -28,17 +28,33 @@ export const REGOLO_MAX_SECONDS = 120;
  * Callers walk the chain and skip providers whose API key is unset, so a
  * deployment missing one of them degrades instead of failing.
  *
- * Both deliver genuine per-word timestamps — Regolo under `words`, Voxtral
+ * All three deliver genuine per-word timestamps — Regolo under `words`, Voxtral
  * under `segments` with exactly one word per entry (verified: 498 entries,
- * median 1 word each). The differing key names are a naming accident, not a
- * capability difference.
+ * median 1 word each), GreenPT under `words`. The differing key names are a
+ * naming accident, not a capability difference.
+ *
+ * Voxtral leads on quality (measured on three 90 s broadcast excerpts: it
+ * reads proper nouns the other two garble) and is the only one that takes a
+ * vocabulary hint. GreenPT sits ahead of Regolo because it is 4–6× faster and
+ * carries no length caveat; Regolo stays last as the third opinion.
  */
-export const WHISPER_CHAIN: readonly TranscriptionProvider[] = ['regolo', 'voxtral'];
+export const WHISPER_CHAIN: readonly TranscriptionProvider[] = ['voxtral', 'greenpt', 'regolo'];
+
+/**
+ * Diarization is a hard requirement, not a preference: the voice layer keys
+ * `identifySpeakers` off the `[speaker_N]` marker, so a provider that cannot
+ * produce one must not appear in the chain at all — it would return a
+ * perfectly valid transcript with every speaker silently merged.
+ */
+const DIARIZATION_CAPABLE: readonly TranscriptionProvider[] = ['voxtral', 'greenpt'];
+
+/** `context_bias` is a Voxtral request parameter; nobody else accepts one. */
+const CONTEXT_BIAS_CAPABLE: readonly TranscriptionProvider[] = ['voxtral'];
 
 export interface ProviderChoiceInput {
   /** Audio length in seconds, or null when it could not be probed. */
   durationSeconds: number | null;
-  /** Speaker diarization — Whisper cannot do it at all. */
+  /** Speaker diarization — Voxtral and GreenPT can, Regolo's Whisper cannot. */
   diarize?: boolean;
   /**
    * Vocabulary biasing the CALLER asked for (the voice API's contextBias
@@ -67,27 +83,40 @@ export interface ProviderChoice {
 export function chooseProvider(input: ProviderChoiceInput): ProviderChoice {
   const { durationSeconds, diarize, requestedContextBias, override = 'auto' } = input;
 
+  const needsDiarization = diarize === true;
+  const needsContextBias = requestedContextBias !== undefined && requestedContextBias.length > 0;
+
+  // Hard request requirements shrink the chain itself, not just its head: a
+  // provider that cannot diarize would answer a diarized request with a valid
+  // transcript in which every speaker is silently merged. Failing over to one
+  // is worse than failing.
+  const eligible = WHISPER_CHAIN.filter(
+    (provider) =>
+      (!needsDiarization || DIARIZATION_CAPABLE.includes(provider)) &&
+      (!needsContextBias || CONTEXT_BIAS_CAPABLE.includes(provider))
+  );
+
   const choose = (
     provider: TranscriptionProvider,
     reason: ProviderChoice['reason']
   ): ProviderChoice => ({
     provider,
     reason,
-    chain: [provider, ...WHISPER_CHAIN.filter((p) => p !== provider)],
+    chain: [provider, ...eligible.filter((p) => p !== provider)],
   });
 
   // 1. Explicit override wins — the emergency switch when a provider degrades.
-  if (override !== 'auto') {
+  //    But only among the eligible: TRANSCRIPTION_PROVIDER is a deployment
+  //    setting and cannot know that this particular request needs speaker ids.
+  if (override !== 'auto' && eligible.includes(override)) {
     return choose(override, 'override');
   }
 
-  // 2. Capability gate, BEFORE the duration rule. Whisper returns no speaker
-  //    ids, and the voice layer keys `identifySpeakers` off the `[speaker_`
-  //    marker that only diarized Voxtral responses produce — routing a
-  //    diarized request to Regolo would break it silently. context_bias is
-  //    likewise a Voxtral-only parameter.
-  if (diarize === true || (requestedContextBias !== undefined && requestedContextBias.length > 0)) {
-    return choose('voxtral', 'capability');
+  // 2. Capability gate, BEFORE the duration rule. Voxtral leads the eligible
+  //    list, so a diarized request still lands there — GreenPT is now a real
+  //    failover behind it rather than a silent downgrade.
+  if (needsDiarization || needsContextBias) {
+    return choose(eligible[0] ?? 'voxtral', 'capability');
   }
 
   // 3. Unknown duration: assume it could be long. Voxtral has no length caveat,
