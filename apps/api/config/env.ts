@@ -130,7 +130,13 @@ const envSchema = z.object({
   // 'auto' applies the duration rule (services/transcription/providerPolicy);
   // naming a provider pins every request to it. An enum because as a free
   // string a typo silently matched neither branch of the old provider chain.
-  TRANSCRIPTION_PROVIDER: z.enum(['auto', 'regolo', 'voxtral', 'greenpt']).default('auto'),
+  // 'regolo' is still ACCEPTED but no longer selectable: it left the
+  // transcription chain, and an env var is externally frozen — a deployment
+  // that still pins it must degrade to the normal rules, not fail to boot.
+  TRANSCRIPTION_PROVIDER: z
+    .enum(['auto', 'voxtral', 'greenpt', 'regolo'])
+    .default('auto')
+    .transform((provider) => (provider === 'regolo' ? ('auto' as const) : provider)),
   VOXTRAL_DEFAULT_VOICE_ID: z.string().optional(),
   VISION_DEFAULT_MODEL: z.string().optional(),
 

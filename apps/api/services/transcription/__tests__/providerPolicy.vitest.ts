@@ -1,99 +1,76 @@
 import { describe, expect, it } from 'vitest';
 
-import { chooseProvider, REGOLO_MAX_SECONDS, toWhisperLanguage } from '../providerPolicy.js';
+import { chooseProvider, toTranscriptionLanguage } from '../providerPolicy.js';
 import { buildContextBias, MAX_CONTEXT_BIAS_TERMS } from '../transcriptionBias.js';
 
 describe('chooseProvider', () => {
-  it('sends short audio to Regolo', () => {
-    expect(chooseProvider({ durationSeconds: 30 })).toEqual({
-      provider: 'regolo',
-      reason: 'duration',
-      chain: ['regolo', 'voxtral', 'greenpt'],
+  it('defaults to Voxtral, with GreenPT behind it', () => {
+    expect(chooseProvider()).toEqual({
+      provider: 'voxtral',
+      reason: 'default',
+      chain: ['voxtral', 'greenpt'],
     });
   });
 
-  it('sends audio at or above the threshold to Voxtral', () => {
-    // Regolo's own guidance is "less than 2 minutes", so the boundary itself
-    // already belongs to Voxtral — reproduced live on a 180 s excerpt, where
-    // Regolo repeated a whole sentence and Voxtral did not.
-    expect(chooseProvider({ durationSeconds: REGOLO_MAX_SECONDS - 1 }).provider).toBe('regolo');
-    expect(chooseProvider({ durationSeconds: REGOLO_MAX_SECONDS }).provider).toBe('voxtral');
-    expect(chooseProvider({ durationSeconds: 3600 }).provider).toBe('voxtral');
-  });
-
-  it('assumes long audio when the duration is unknown', () => {
-    expect(chooseProvider({ durationSeconds: null }).provider).toBe('voxtral');
-    expect(chooseProvider({ durationSeconds: null }).reason).toBe('unknown-duration');
-  });
-
-  it('routes diarization to Voxtral regardless of length', () => {
-    expect(chooseProvider({ durationSeconds: 10, diarize: true }).provider).toBe('voxtral');
-    expect(chooseProvider({ durationSeconds: 10, diarize: true }).reason).toBe('capability');
-  });
-
-  it('drops providers that cannot diarize out of a diarized chain', () => {
-    // Regolo's Whisper returns no speaker ids, and the voice layer keys
-    // identifySpeakers off the `[speaker_` marker. Failing over to it would
-    // yield a valid transcript with every speaker merged — worse than failing.
-    const chain = chooseProvider({ durationSeconds: 10, diarize: true }).chain;
-    expect(chain).toEqual(['voxtral', 'greenpt']);
-  });
-
-  it('routes caller-requested context bias to Voxtral regardless of length', () => {
-    expect(
-      chooseProvider({ durationSeconds: 10, requestedContextBias: ['Gewessler'] }).provider
-    ).toBe('voxtral');
-    // An empty array is not a request.
-    expect(chooseProvider({ durationSeconds: 10, requestedContextBias: [] }).provider).toBe(
-      'regolo'
-    );
+  it('keeps both providers in a diarized chain, since both can diarize', () => {
+    const choice = chooseProvider({ diarize: true });
+    expect(choice.provider).toBe('voxtral');
+    expect(choice.reason).toBe('capability');
+    expect(choice.chain).toEqual(['voxtral', 'greenpt']);
   });
 
   it('leaves no failover for context bias, which only Voxtral accepts', () => {
-    expect(
-      chooseProvider({ durationSeconds: 10, requestedContextBias: ['Gewessler'] }).chain
-    ).toEqual(['voxtral']);
+    // The capability filter shrinks the chain itself. A provider that ignores
+    // context_bias would answer with a valid transcript that quietly lacks the
+    // requested vocabulary — worse than failing.
+    const choice = chooseProvider({ requestedContextBias: ['Gewessler'] });
+    expect(choice.provider).toBe('voxtral');
+    expect(choice.chain).toEqual(['voxtral']);
   });
 
-  it('lets the env override beat the duration rule', () => {
-    const pinned = chooseProvider({ durationSeconds: 3600, override: 'regolo' });
-    expect(pinned.provider).toBe('regolo');
+  it('treats an empty context-bias array as no request', () => {
+    expect(chooseProvider({ requestedContextBias: [] }).chain).toEqual(['voxtral', 'greenpt']);
+  });
+
+  it('lets the env override pick the provider', () => {
+    const pinned = chooseProvider({ override: 'greenpt' });
+    expect(pinned.provider).toBe('greenpt');
     expect(pinned.reason).toBe('override');
-    expect(chooseProvider({ durationSeconds: 10, override: 'voxtral' }).provider).toBe('voxtral');
+    expect(pinned.chain).toEqual(['greenpt', 'voxtral']);
   });
 
   it('does not let the override defeat a hard capability requirement', () => {
     // TRANSCRIPTION_PROVIDER is a deployment setting; it cannot know that this
-    // particular request needs speaker ids. The request wins.
-    const choice = chooseProvider({ durationSeconds: 10, diarize: true, override: 'regolo' });
+    // particular request asked for a vocabulary hint. The request wins.
+    const choice = chooseProvider({ requestedContextBias: ['Gewessler'], override: 'greenpt' });
     expect(choice.provider).toBe('voxtral');
     expect(choice.reason).toBe('capability');
   });
 
   it('honours an override that does satisfy the requirement', () => {
-    const choice = chooseProvider({ durationSeconds: 10, diarize: true, override: 'greenpt' });
+    const choice = chooseProvider({ diarize: true, override: 'greenpt' });
     expect(choice.provider).toBe('greenpt');
     expect(choice.reason).toBe('override');
   });
 
   it("treats 'auto' as no override", () => {
-    expect(chooseProvider({ durationSeconds: 10, override: 'auto' }).reason).toBe('duration');
+    expect(chooseProvider({ override: 'auto' }).reason).toBe('default');
   });
 
   it('keeps the chosen provider at the head of its own fallback chain', () => {
-    const choice = chooseProvider({ durationSeconds: 10, override: 'voxtral' });
+    const choice = chooseProvider({ override: 'voxtral' });
     expect(choice.chain[0]).toBe('voxtral');
-    expect(choice.chain).toContain('regolo');
+    expect(choice.chain).toContain('greenpt');
     expect(new Set(choice.chain).size).toBe(choice.chain.length);
   });
 });
 
-describe('toWhisperLanguage', () => {
+describe('toTranscriptionLanguage', () => {
   it('maps both locales to the ISO-639-1 code', () => {
     // Measured against Regolo 2026-07-29: 'de-AT', 'at' and 'de_AT' all return
     // HTTP 422 listing the 100 accepted Whisper codes — 'de' is the only German.
-    expect(toWhisperLanguage('de-DE')).toBe('de');
-    expect(toWhisperLanguage('de-AT')).toBe('de');
+    expect(toTranscriptionLanguage('de-DE')).toBe('de');
+    expect(toTranscriptionLanguage('de-AT')).toBe('de');
   });
 });
 

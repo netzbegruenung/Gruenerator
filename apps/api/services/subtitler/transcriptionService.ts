@@ -12,7 +12,6 @@ import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 import { type AIWorkerPool } from '../../workers/types.js';
 import { type Locale } from '../localization/types.js';
-import { probeDurationSeconds } from '../transcription/audioDuration.js';
 import { GREENPT_STT_MODEL } from '../transcription/greenptListen.js';
 import { chooseProvider, type TranscriptionProvider } from '../transcription/providerPolicy.js';
 import { recordOperation } from '../usage/UsageTrackingService.js';
@@ -20,7 +19,6 @@ import { recordOperation } from '../usage/UsageTrackingService.js';
 import { startBackgroundCompression } from './backgroundCompressionService.js';
 import { transcribeWithGreenPT } from './greenptTranscriptionService.js';
 import { generateManualSubtitles } from './manualSubtitleGeneratorService.js';
-import { transcribeWithRegolo } from './regoloTranscriptionService.js';
 import { extractAudio } from './videoUploadService.js';
 import { transcribeWithVoxtral } from './voxtralTranscriptionService.js';
 
@@ -48,11 +46,6 @@ const RUNNERS: Record<
     ) => Promise<TranscriptionResult>;
   }
 > = {
-  regolo: {
-    apiKey: () => env.REGOLO_API_KEY,
-    usage: { provider: 'regolo', model: 'faster-whisper' },
-    run: transcribeWithRegolo,
-  },
   voxtral: {
     apiKey: () => env.MISTRAL_API_KEY,
     usage: { provider: 'mistral', model: 'voxtral' },
@@ -73,19 +66,15 @@ async function transcribeWithProvider(
   audioPath: string,
   requestWordTimestamps: boolean = false,
   uploadId: string | null = null,
-  locale: Locale = 'de-DE',
-  durationSeconds: number | null = null
+  locale: Locale = 'de-DE'
 ): Promise<TranscriptionResult> {
   const { provider, reason, chain } = chooseProvider({
-    durationSeconds,
     override: env.TRANSCRIPTION_PROVIDER,
   });
 
   // One line per transcription — the only place the provider decision is
   // observable, and infrequent enough not to be noise.
-  log.info(
-    `provider=${provider} (${reason}) chain=${chain.join('→')} duration=${durationSeconds === null ? 'unknown' : `${Math.round(durationSeconds)}s`} locale=${locale}`
-  );
+  log.info(`provider=${provider} (${reason}) chain=${chain.join('→')} locale=${locale}`);
 
   for (const attempt of chain) {
     const runner = RUNNERS[attempt];
@@ -103,7 +92,7 @@ async function transcribeWithProvider(
   }
 
   throw new Error(
-    'No transcription provider configured. Set MISTRAL_API_KEY (Voxtral), GREENPT_API_KEY (green-s-pro) or REGOLO_API_KEY (faster-whisper).'
+    'No transcription provider configured. Set MISTRAL_API_KEY (Voxtral) or GREENPT_API_KEY (green-s-pro).'
   );
 }
 
@@ -111,9 +100,7 @@ async function transcribeVideo(
   videoPath: string,
   subtitlePreference: string = 'manual',
   aiWorkerPool?: AIWorkerPool,
-  locale: Locale = 'de-DE',
-  /** Known media length; probed from the extracted audio when omitted. */
-  durationSeconds: number | null = null
+  locale: Locale = 'de-DE'
 ): Promise<string> {
   try {
     log.debug(`Transkription Start - Modus: ${subtitlePreference}`);
@@ -123,10 +110,6 @@ async function transcribeVideo(
     const audioPath = path.join(outputDir, `audio_${Date.now()}.mp3`);
 
     await extractAudio(videoPath, audioPath);
-
-    // Probe the extracted audio when the caller didn't already know the length
-    // (autoProcessingService does, from its own metadata pass).
-    const effectiveDuration = durationSeconds ?? (await probeDurationSeconds(audioPath));
 
     const uploadId = path.basename(path.dirname(videoPath));
     try {
@@ -142,13 +125,7 @@ async function transcribeVideo(
     // `subtitlePreference` ('manual' | 'word') only changes how assSubtitleService
     // lays the segments out later. The old if/else ran identical bodies and its
     // else-branch logged "Unknown mode" for 'word' — a contract-valid value.
-    const transcriptionResult = await transcribeWithProvider(
-      audioPath,
-      true,
-      uploadId,
-      locale,
-      effectiveDuration
-    );
+    const transcriptionResult = await transcribeWithProvider(audioPath, true, uploadId, locale);
 
     if (!transcriptionResult || typeof transcriptionResult.text !== 'string') {
       throw new Error('Invalid transcription data received from provider');
