@@ -36,6 +36,12 @@ import { runClassifierCensus } from './classifierCensusHarness.js';
  *                   Direktrouten: der Auffangwert der Heuristik loopt, statt
  *                   den grossen Prompt zu fragen, was „nichts erkannt"
  *                   bedeutet. Der grösste Einzelsprung der Serie.
+ *    3,0 %   5/166  nach dem Generierungs-Auflöser vor Tier 4. Die 14 Turns,
+ *                   die er übernimmt, antwortet der Stub hier immer mit
+ *                   „keine" — die Zählung misst, WELCHE Stufe entscheidet,
+ *                   nicht was ein echtes Modell sagen würde. Die Verteilung
+ *                   der Intents in der Dispositionszählung ist für diese 14
+ *                   Turns deshalb Stub-Artefakt, der Tier-Anteil nicht.
  *
  * Nicht vergleichbar mit den 19,3 % der ersten Ad-hoc-Sonde: die mass jeden
  * Turn einzeln, also einen Chat ohne Gedächtnis. Mit Verlauf und simuliertem
@@ -47,7 +53,7 @@ import { runClassifierCensus } from './classifierCensusHarness.js';
  * melden, nicht bei jeder Nachkommastelle rot werden. Sinkt die Quote, wird er
  * mitgesenkt — ein Deckel, der über dem Ist-Zustand stehen bleibt, misst nichts.
  */
-const TIER4_SHARE_CEILING = 0.12;
+const TIER4_SHARE_CEILING = 0.05;
 
 describe('Klassifikator-Tier-Zählung über den Eval-Korpus', () => {
   it(`erreicht den grossen Prompt bei höchstens ${(TIER4_SHARE_CEILING * 100).toFixed(0)} % der Prompts`, async () => {

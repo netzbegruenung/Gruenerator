@@ -47,6 +47,7 @@ const RESOLVER_DEFAULTS: ReadonlyArray<{ prefix: string; reply: string }> = [
   { prefix: 'Entscheide, ob diese Anfrage Daten', reply: 'keine' },
   // editTargetResolver — the follow-up targets none of the thread's artifacts
   { prefix: 'Ein Gespräch hat mehrere Artefakte', reply: '0' },
+  { prefix: 'Entscheide, ob diese Nachricht ein ARTEFAKT', reply: 'keine' },
 ];
 
 export function createAiWorkerPoolStub(): AiWorkerStub {
