@@ -78,7 +78,7 @@ vi.mock('../services/responseStreamingService.js', async (orig) => {
 
 const { startChatApp, userTurn } = await import('./harness/testApp.js');
 const { runTurn, installNetworkGuard } = await import('./harness/trace.js');
-const { createAiWorkerPoolStub, classifierVerdict } = await import('./harness/aiWorkerPoolStub.js');
+const { createAiWorkerPoolStub } = await import('./harness/aiWorkerPoolStub.js');
 const { createJournalCapture } = await import('./harness/journalCapture.js');
 const { pinChatEnv } = await import('./harness/env.js');
 const { resetThreadStore } = await import('./harness/fakeThreadStore.js');
@@ -123,8 +123,8 @@ describe('simulated decision maps', () => {
     ).toBeGreaterThan(0);
 
     if (scenario.env) pinChatEnv(scenario.env);
-    if (scenario.verdict) {
-      pool.script('chat_intent_classification', classifierVerdict(scenario.verdict));
+    if (scenario.generationKind) {
+      pool.scriptResolver('Entscheide, ob diese Nachricht ein ARTEFAKT', scenario.generationKind);
     }
 
     const { trace } = await runTurn(app.baseUrl, {
@@ -132,9 +132,9 @@ describe('simulated decision maps', () => {
       ...scenario.body,
     });
 
-    // A scripted verdict nobody consumed means the turn resolved earlier than
+    // A scripted resolver answer nobody consumed means the turn resolved earlier than
     // the scenario claims — it would pin a path it never took.
-    if (scenario.verdict) pool.assertScriptsConsumed();
+    if (scenario.generationKind) pool.assertScriptsConsumed();
 
     const journal = capture.last();
 

@@ -1,11 +1,15 @@
 /**
  * Classifier Tier 3.5 — loop demotion battle tests.
  *
- * A low-confidence toolable heuristic verdict must SKIP the LLM classifier
- * (asserted via the aiWorkerPool mock's call count — a thrown pool error would
- * be swallowed by the heuristic fallback, so throws prove nothing) and return
- * `intent: 'agentic'`. Everything with a gate, fixed UX contract or recall
- * dependency must still reach the LLM tier.
+ * A low-confidence toolable heuristic verdict must return `intent: 'agentic'`.
+ * Everything with a gate or a fixed UX contract must NOT be swallowed by the
+ * demotion — it has to reach the tier that owns it.
+ *
+ * Die Zusicherungen sind mit dem Löschen der LLM-Stufe umgeschrieben: „erreicht
+ * die LLM-Stufe" war eine Aussage über einen Aufruf, den es nicht mehr gibt.
+ * Was in jedem dieser Fälle wirklich gemeint war, ist „wird an dieser Stelle
+ * NICHT demotiert" — und wo eine Stufe danach entscheidet, wird jetzt SIE
+ * geprüft (der Live-Quellen-Auflöser an seinem Systemprompt).
  *
  * The prompts run against the REAL heuristics — several are verbatim from the
  * live battle-test sessions that motivated the demotion.
@@ -13,7 +17,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { classifierNode } from './classifierNode.js';
-import { CLASSIFIER_PROMPT } from './classifierPrompt.js';
 
 import type { ChatGraphState, SearchIntent } from '../types.js';
 
@@ -29,32 +32,13 @@ const STUB_AGENT_CONFIG = {
   isSystemDefault: true,
 };
 
-/** LLM tier mock: returns a well-formed classification so the non-demoted
- *  path completes; call count is the assertion surface. */
-function makeWorkerPool() {
-  return {
-    processRequest: vi.fn(async () => ({
-      content: JSON.stringify({
-        intent: 'search',
-        reasoning: 'llm',
-        searchQuery: 'x',
-      }),
-    })),
-  };
-}
-
 /**
- * Calls that carried the BIG classifier prompt — the LLM tier proper.
- *
- * A raw call count stopped meaning that with Tier 3.7: the same pool now also
- * receives the small source-scope resolver on every turn that reaches the LLM
- * tier. Counting raw calls would have made these gate tests fail for a reason
- * that has nothing to do with the gates.
+ * Neutrale Auflöser-Antwort: „keine" heisst bei jedem der drei kleinen Auflöser
+ * „ich entscheide hier nichts". Damit stammt jedes Verdikt unten aus einer
+ * deterministischen Stufe, und das ist die Aussage dieser Datei.
  */
-function llmTierCalls(pool: ReturnType<typeof makeWorkerPool>): number {
-  return pool.processRequest.mock.calls.filter(
-    (call) => (call[0] as { systemPrompt?: string })?.systemPrompt === CLASSIFIER_PROMPT
-  ).length;
+function makeWorkerPool() {
+  return { processRequest: vi.fn(async () => ({ content: 'keine' })) };
 }
 
 function buildState(
@@ -258,71 +242,90 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
     expect(result.intent).not.toBe('agentic');
   });
 
-  it('chat-recall phrasing is vetoed — and now decided outright at Tier 3.4', async () => {
-    // The veto still exists and still holds this turn out of demotion; what
-    // changed is where it lands afterwards. "was haben wir … besprochen" is
-    // unambiguous enough for the direct route, so it no longer buys the 27k
-    // prompt just to be told what the phrasing already said.
+  it('chat-recall phrasing is decided outright at Tier 3.4', async () => {
+    // "was haben wir … besprochen" ist eindeutig genug für die Direktroute.
     const state = buildState({
       userMessage: 'Was haben wir letztes Mal zur Kampagnenplanung besprochen?',
     });
     const result = await classifierNode(state);
     expect(result.intent).toBe('chat_history');
-    expect(llmTierCalls(state.aiWorkerPool)).toBe(0);
+    expect(state.aiWorkerPool.processRequest).not.toHaveBeenCalled();
   });
 
-  it('an AMBIGUOUS chat-recall phrasing is still only vetoed, not decided', async () => {
-    // The pair that keeps the two patterns honest: `CHAT_HISTORY_KEYWORDS` is
-    // the recall gate, `CHAT_HISTORY_DIRECT` the precision one. A bare "letzte
-    // Woche" can mean the news, so it must reach a tier that can tell — a
-    // direct route here would run a Qdrant recall over the user's own threads
-    // and answer "keine Quellen gefunden".
+  it('an AMBIGUOUS chat-recall phrasing goes to the loop, not to a recall', async () => {
+    // Das Paar, das die beiden Muster ehrlich hält: `CHAT_HISTORY_KEYWORDS` ist
+    // das Recall-Gitter, `CHAT_HISTORY_DIRECT` das Präzisionsmuster. Ein blosses
+    // „letzte Woche" kann die Nachrichtenlage meinen — eine Direktroute liefe
+    // hier eine Qdrant-Suche über die EIGENEN Threads des Nutzers und antwortete
+    // „keine Quellen gefunden".
+    //
+    // Bis zum Löschen der LLM-Stufe hielt ein Veto den Turn aus der Demotion
+    // zurück, damit die Stufe entscheiden konnte. Ohne Ziel schickte dasselbe
+    // Veto ihn ins Residual, also in eine werkzeuglose Antwort auf eine
+    // Nachrichtenfrage — gemessen, nicht vermutet. Jetzt loopt er.
     const state = buildState({
       userMessage: 'Was war letzte Woche in der Ukraine los?',
     });
     const result = await classifierNode(state);
-    expect(result.intent).not.toBe('agentic');
     expect(result.intent).not.toBe('chat_history');
-    expect(llmTierCalls(state.aiWorkerPool)).toBe(1);
+    expect(result.intent).toBe('agentic');
   });
 
-  it('system-MCP phrasing is vetoed (hotel/reise reach the LLM tier, not demoted)', async () => {
+  /**
+   * Der Live-Quellen-Auflöser (Tier 3.7) wurde gefragt.
+   *
+   * Das ist die Nachfolge-Aussage von „erreicht die LLM-Stufe": das Gitter hält
+   * den Turn aus der Demotion zurück, DAMIT diese Frage gestellt wird. Was der
+   * Auflöser antwortet, ist hier egal — der Stub sagt immer „keine", und der
+   * Turn geht danach zurück in die Demotion. Geprüft wird das Zurückhalten.
+   */
+  function askedSourceResolver(pool: ReturnType<typeof makeWorkerPool>): boolean {
+    return pool.processRequest.mock.calls.some((call) =>
+      (call[0] as { systemPrompt?: string })?.systemPrompt?.startsWith(
+        'Entscheide, ob diese Anfrage Daten'
+      )
+    );
+  }
+
+  it('system-MCP phrasing is held back from demotion and asked (hotel/reise)', async () => {
     const state = buildState({ userMessage: 'suche hotels für berlin' });
-    const result = await classifierNode(state);
-    expect(result.intent).not.toBe('agentic');
-    expect(llmTierCalls(state.aiWorkerPool)).toBe(1);
+    await classifierNode(state);
+    expect(askedSourceResolver(state.aiWorkerPool)).toBe(true);
   });
 
-  it('a Bahn timetable phrasing also reaches the LLM tier', async () => {
+  it('a Bahn timetable phrasing is asked too', async () => {
     const state = buildState({ userMessage: 'wann fährt der nächste zug nach hamburg' });
-    const result = await classifierNode(state);
-    expect(result.intent).not.toBe('agentic');
-    expect(llmTierCalls(state.aiWorkerPool)).toBe(1);
+    await classifierNode(state);
+    expect(askedSourceResolver(state.aiWorkerPool)).toBe(true);
   });
 
   // Live failure (11:34): bare "bahnen" slipped the compound-only phrasing list
   // (which only had zugverbindung/fahrplan/zug+nach) → demoted to agentic → the
   // bahn intent never got a chance. The guard now covers bare Bahn/Bahnen/Zug.
-  it('bare "bahnen" (welche bahnen fahren) reaches the LLM tier, not demotion', async () => {
+  it('bare "bahnen" (welche bahnen fahren) is asked, not demoted unseen', async () => {
     const state = buildState({ userMessage: 'welche bahnen fahren gerade nach berlin' });
-    const result = await classifierNode(state);
-    expect(result.intent).not.toBe('agentic');
-    expect(llmTierCalls(state.aiWorkerPool)).toBe(1);
+    await classifierNode(state);
+    expect(askedSourceResolver(state.aiWorkerPool)).toBe(true);
   });
 
   // Live failure (11:34): bare "wetter" slipped the list (only wettervorhersage/
   // wetterbericht) → demoted → wetter intent never assigned. Now guarded.
-  it('bare "wetter" (wie ist das wetter) reaches the LLM tier, not demotion', async () => {
+  it('bare "wetter" (wie ist das wetter) is asked, not demoted unseen', async () => {
     const state = buildState({ userMessage: 'wie ist das wetter gerade in hamburg' });
-    const result = await classifierNode(state);
-    expect(result.intent).not.toBe('agentic');
-    expect(llmTierCalls(state.aiWorkerPool)).toBe(1);
+    await classifierNode(state);
+    expect(askedSourceResolver(state.aiWorkerPool)).toBe(true);
   });
 
   // The bare-noun additions must stay policy-safe: "Bahnreform"/"Bahnpolitik"/
   // "Wetterextreme" are single words where the trailing \b can't fall, so they
   // must NOT be caught by the guard — they demote/search like any policy ask.
   it('policy compounds (Bahnreform, Wetterextreme) are NOT caught by the guard', async () => {
+    // Diese beiden dürfen den Auflöser gar nicht erst kosten.
+    const bahnState = buildState({
+      userMessage: 'was fordern die grünen bei der bahnreform genau',
+    });
+    await classifierNode(bahnState);
+    expect(bahnState.aiWorkerPool.processRequest).not.toHaveBeenCalled();
     const bahn = await classifierNode(
       buildState({ userMessage: 'was fordern die grünen bei der bahnreform genau' })
     );
@@ -358,16 +361,16 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
     expect(state.aiWorkerPool.processRequest).not.toHaveBeenCalled();
   });
 
-  it('flag off: the demoted band goes back to the LLM tier', async () => {
+  it("flag off: the demoted band keeps the rule table's own verdict", async () => {
     // 'false' disables in BOTH flag variants (opt-in on the PR branch,
-    // default-on on test-branch).
+    // default-on on test-branch). Ohne Loop UND ohne LLM-Stufe bleibt genau das
+    // übrig, was die Regeltabelle gefunden hat — hier `search`.
     process.env.CHAT_AGENT_LOOP = 'false';
     const state = buildState({
       userMessage: 'Welche Position haben die Grünen zur Vorratsdatenspeicherung?',
     });
     const result = await classifierNode(state);
-    expect(result.intent).not.toBe('agentic');
-    expect(llmTierCalls(state.aiWorkerPool)).toBe(1);
+    expect(result.intent).toBe('search');
   });
 });
 
@@ -384,17 +387,17 @@ describe('Tier 3.5 — wrapper interactions (URL, edge cases)', () => {
     expect(state.aiWorkerPool.processRequest).not.toHaveBeenCalled();
   });
 
-  it('a pure URL paste (no question) is NOT demoted — LLM tier + scrape secondary intact', async () => {
+  it('a pure URL paste (no question) is NOT demoted — it IS the scrape turn', async () => {
     const state = buildState({
       userMessage: 'https://www.tagesschau.de/inland/tempolimit-100.html',
     });
     const result = await classifierNode(state);
-    // One non-question token is not toolable → LLM tier decides (mocked here);
-    // the URL wrapper still records the link for the scrape path.
-    expect(result.intent).not.toBe('agentic');
-    expect(llmTierCalls(state.aiWorkerPool)).toBe(1);
+    // One non-question token is not toolable → kein Loop. Der Scrape-Pfad war
+    // vorher der SEKUNDÄR-Intent, weil die LLM-Stufe den primären besetzte;
+    // jetzt behält die Regeltabelle ihr eigenes Verdikt, und das ist genau
+    // dieser Pfad. Ein Sekundär-Intent daneben wäre eine Dopplung.
+    expect(result.intent).toBe('scrape_url');
     expect(result.detectedUrls).toHaveLength(1);
-    expect(result.secondaryIntent).toBe('scrape_url');
   });
 
   it('doc attachments force search BEFORE tier 3.5 — never demoted', async () => {
