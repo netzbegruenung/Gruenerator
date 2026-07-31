@@ -11,6 +11,7 @@
 import { env } from '../../config/env.js';
 import { withUsageTracking } from '../usage/usageModelMiddleware.js';
 
+import { intermediateLane } from './intermediateLanes.js';
 import {
   getGreenPTProvider,
   getLiteLLMProvider,
@@ -22,6 +23,7 @@ import {
 } from './providerInstances.js';
 import { regoloTextDefault } from './textModelPolicy.js';
 
+import type { IntermediateLaneId } from './intermediateLanes.js';
 import type { RouteOptions } from './providerInstances.js';
 import type { LanguageModel } from 'ai';
 
@@ -37,16 +39,17 @@ const PROVIDER_DEFAULTS = {
 } as const;
 
 /**
- * Central config for all intermediate/agent processing tasks.
- * Change this once to switch all intermediate tasks to a different provider/model.
+ * A language model for one of the intermediate stages.
+ *
+ * The lane is REQUIRED — the old parameterless `getIntermediateModel()` is what
+ * put a thread title and `computeNode` on the same model, and a default value
+ * here would rebuild exactly that. Which stage a caller belongs to is a
+ * decision, not a fallback; `services/ai/intermediateLanes.ts` holds the table
+ * and the measurements behind it.
  */
-export const INTERMEDIATE_MODEL = {
-  provider: 'regolo' as const,
-  model: 'mistral-small-4-119b',
-};
-
-export function getIntermediateModel(): LanguageModel {
-  return getModel(INTERMEDIATE_MODEL.provider, INTERMEDIATE_MODEL.model);
+export function getIntermediateModel(lane: IntermediateLaneId): LanguageModel {
+  const { provider, model } = intermediateLane(lane);
+  return getModel(provider, model);
 }
 
 // Provider clients are constructed in ONE place — see ./providerInstances.ts

@@ -12,11 +12,15 @@ import { env } from '../../config/env.js';
 import { createQdrantClient } from '../../database/services/QdrantService/connection.js';
 import { extractJsonObject, extractLastJsonObject } from '../../utils/jsonParser.js';
 import { createLogger } from '../../utils/logger.js';
-import { INTERMEDIATE_MODEL, REGOLO_BASE_URL } from '../ai/providers.js';
+import { intermediateLane } from '../ai/intermediateLanes.js';
+import { REGOLO_BASE_URL } from '../ai/providers.js';
 import { regoloFetchWithThinkingDisabled } from '../ai/regoloThinkingFetch.js';
 import { MistralEmbeddingService } from '../mistral/MistralEmbeddingService/MistralEmbeddingService.js';
 
 import type { MemoryConfig } from 'mem0ai/oss';
+
+/** @see services/ai/intermediateLanes.ts */
+const LANE = intermediateLane('heavy');
 
 const log = createLogger('Mem0Config');
 
@@ -208,7 +212,7 @@ Füge bei jeder Erinnerung die Kategorie und Konfidenz als Metadaten hinzu.`;
 
     // LLM for memory extraction and synthesis.
     // Regolo's mistral-small (the same model the gatekeeper uses via
-    // INTERMEDIATE_MODEL) with thinking disabled — it returns clean JSON,
+    // the `heavy` stage) with thinking disabled — it returns clean JSON,
     // unlike gpt-oss:120b via Verdigado which emitted chain-of-thought preamble
     // and routinely failed the JSON parse, dropping all extracted memories.
     llm: {
@@ -217,7 +221,7 @@ Füge bei jeder Erinnerung die Kategorie und Konfidenz als Metadaten hinzu.`;
         model: new LiteLLMAdapter(
           REGOLO_BASE_URL,
           env.REGOLO_API_KEY || '',
-          INTERMEDIATE_MODEL.model,
+          LANE.model,
           regoloFetchWithThinkingDisabled
         ),
       },
@@ -257,7 +261,7 @@ export function validateMem0Environment(): string[] {
   const missing: string[] = [];
 
   // Gate on the keys mem0 actually uses: Regolo for the extraction LLM
-  // (buildMem0Config) and the gatekeeper (INTERMEDIATE_MODEL → regolo),
+  // (buildMem0Config) and the gatekeeper (`heavy` stage → regolo),
   // Mistral for embeddings, and Qdrant for the vector store. LiteLLM is NOT
   // part of the mem0 stack, so requiring LITELLM_API_KEY here previously made
   // the feature report "available" while every extraction LLM call failed
