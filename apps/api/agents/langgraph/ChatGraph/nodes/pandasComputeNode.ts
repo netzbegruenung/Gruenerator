@@ -13,6 +13,7 @@
 
 import { isTabularAttachment } from '../../../../routes/chat/services/attachmentProcessingService.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { intermediateLane } from '../llmConfig.js';
 
 import { lastUserText } from './classifierHeuristics.js';
 
@@ -21,13 +22,12 @@ import type { ChatGraphState } from '../types.js';
 const log = createLogger('ChatGraph:PandasCompute');
 
 // Codegen quality is the whole point of this node (wrong column names or a
-// wrong aggregation = a wrong number presented as ground truth), so pin
-// Mistral Medium — the same model the notebooks use — instead of the smaller
-// the `heavy` intermediate stage. Output is ~100 tokens, latency impact is negligible.
-const CODEGEN_MODEL = {
-  provider: 'mistral' as const,
-  model: 'mistral-medium-2604',
-};
+// wrong aggregation = a wrong number presented as ground truth). That is the
+// same reason the `compute` stage exists, and this node had already made the
+// decision on its own — it pinned Mistral Medium here while `computeNode` sat
+// on the shared intermediate model. One place now; the stage carries the
+// rationale and the measurement.
+const LANE = intermediateLane('compute');
 
 const CODEGEN_PROMPT = `Du bist ein Python/pandas-Codegenerator. Im Browser läuft ein Python-Interpreter, in dem die Tabelle der*des Nutzer*in bereits als pandas-DataFrame \`df\` vorgeladen ist (pandas ist als \`pd\` importiert).
 
@@ -210,11 +210,11 @@ Schreibe den Python-Code.`;
     const response = await state.aiWorkerPool.processRequest(
       {
         type: 'chat_pandas_codegen',
-        provider: CODEGEN_MODEL.provider,
+        provider: LANE.provider,
         systemPrompt: isFill ? FILL_PROMPT : CODEGEN_PROMPT,
         messages: [{ role: 'user', content: userMessage }],
         options: {
-          model: CODEGEN_MODEL.model,
+          model: LANE.model,
           max_tokens: isFill ? 1500 : 500,
           temperature: 0.1,
           response_format: { type: 'json_object' },

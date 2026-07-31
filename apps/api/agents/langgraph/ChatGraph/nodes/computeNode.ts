@@ -29,7 +29,7 @@ import {
 import type { ChatGraphState } from '../types.js';
 
 /** @see services/ai/intermediateLanes.ts */
-const LANE = intermediateLane('heavy');
+const LANE = intermediateLane('compute');
 
 const log = createLogger('ChatGraph:Compute');
 
