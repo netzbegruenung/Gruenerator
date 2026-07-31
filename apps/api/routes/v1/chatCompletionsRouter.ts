@@ -20,7 +20,7 @@ import { once } from 'node:events';
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 
-import { requireApiKey, assertScope } from '../../middleware/apiKeyMiddleware.js';
+import { assertScope } from '../../middleware/apiKeyMiddleware.js';
 import { apiKeyRateLimit } from '../../middleware/apiKeyRateLimitMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import {
@@ -34,11 +34,13 @@ import {
 } from '../../services/ai/litellmPassthrough.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { requireAddinAuth } from './addinAuth.js';
+
 const log = createLogger('v1.chatCompletions');
 
 const router: Router = Router();
 
-router.use(requireApiKey);
+router.use(requireAddinAuth);
 router.use(apiKeyRateLimit('chat-completions'));
 
 const REQUIRED_SCOPE = 'chat:completions';
@@ -158,7 +160,7 @@ export default router;
  */
 export const modelsRouter: Router = Router();
 
-modelsRouter.use(requireApiKey);
+modelsRouter.use(requireAddinAuth);
 modelsRouter.use(apiKeyRateLimit('chat-completions'));
 
 modelsRouter.get('/', (req: Request, res: Response) => {
