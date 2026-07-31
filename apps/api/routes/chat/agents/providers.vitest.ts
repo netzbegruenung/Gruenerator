@@ -158,7 +158,8 @@ describe('resolveModelTuple — size-aware overflow routing', () => {
   // Gemma 4 left the overflow scheme on 2026-07-31: Verdigado's Gemma answers
   // in 38s against Regolo's 4s and thinks unstoppably (no flag disables it on
   // that host), so there is no load-balancing decision left to make — see
-  // GEMMA_4_REGOLO. These pin that it never reaches Verdigado again.
+  // GEMMA_4_REGOLO. Verdigado stays reachable as the failover ONLY; these pin
+  // that a normal turn never lands there.
   it('always resolves Gemma 4 to Regolo, never to Verdigado', async () => {
     const tuple = await resolveModelTuple('gemma-4', 'req-primary');
     expect(tuple).not.toBeNull();
@@ -176,11 +177,12 @@ describe('resolveModelTuple — size-aware overflow routing', () => {
     expect(tuple!.releaseSlot).toBeUndefined();
   });
 
-  it('falls back to Mistral, not to a Verdigado lane, when Regolo hangs', async () => {
+  it('fails over to the Verdigado side of the same weights when Regolo hangs', async () => {
     const tuple = await resolveModelTuple('gemma-4', 'req-fallback');
-    // Routing the timeout sibling back to verdigado-think would answer a
-    // stalled 4s lane with a 38s one.
-    expect(tuple!.sibling).toEqual({ provider: 'mistral', model: 'mistral-medium-2604' });
+    // Same model family rather than a different writer. Deliberately accepted:
+    // this failover is SLOW (20s to first token) and runs without the Verdigado
+    // slot — see the note on GEMMA_4_REGOLO.
+    expect(tuple!.sibling).toEqual({ provider: 'litellm', model: 'verdigado-think' });
   });
 
   it('preferOverflow is a no-op for Gemma 4 now that it is a single lane', async () => {

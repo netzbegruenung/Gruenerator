@@ -104,7 +104,19 @@ const GEMMA: AutoLaneId = 'gemma-litellm';
 /** Lane C — Mistral Medium 3.5. Only where the model calls tools ITSELF and
  *  the unified loop should kick in. */
 const MEDIUM: AutoLaneId = 'mistral-medium-3.5';
-/** Lane D — GPT-OSS. The speed lane. */
+/**
+ * Lane D — GPT-OSS. The speed lane, and as of 2026-07-31 reserved for `direct`
+ * ALONE.
+ *
+ * GPT-OSS is being wound down as a general-purpose lane. It keeps `direct`
+ * because that turn is pure latency — no tools, no sources — and GPT-OSS is
+ * the fastest thing available (verdigado-pro 1.4s to first token, its Regolo
+ * overflow side 0.7s). Everywhere else it was picked for speed it is now
+ * matched by Gemma 4 on Regolo (4.0s end to end, measured 2026-07-31) without
+ * GPT-OSS's known weakness: it answers a forced tool call with prose, which is
+ * what put a production PDF generation on the floor — see the artefact note in
+ * services/ai/lanes.ts.
+ */
 const FAST: AutoLaneId = 'litellm';
 
 /**
@@ -120,7 +132,17 @@ const FAST: AutoLaneId = 'litellm';
 export const AUTO_POLICY_EXEMPT = ['sharepic'] as const satisfies readonly SearchIntent[];
 type ExemptIntent = (typeof AUTO_POLICY_EXEMPT)[number];
 
-const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
+/**
+ * Exported for the drift guard in autoPolicy.vitest.ts.
+ *
+ * The type already forces completeness at compile time; the runtime guard used
+ * to re-check it by resolving an unknown intent and comparing the RESULT to
+ * each real intent's result. That only worked while DEFAULT_ENTRY's lane was
+ * unique — pointing the default at Gemma 4 made two legitimate Gemma intents
+ * look like silent fallthroughs. Checking the keys is what the guard actually
+ * means.
+ */
+export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   // ── Lane A: Small 4 ──
   // Synth summarises tool output; the planner makes the MCP calls.
   mcp: { modelId: SMALL, reasoning: 'off' },
@@ -142,7 +164,9 @@ const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   // above (planner fetches, synth summarises). Was silently taking the speed
   // lane via DEFAULT_ENTRY; kept on a lane of the same tier so this commit
   // fixes the omission without also changing what a hilfe turn costs.
-  hilfe: { modelId: FAST, reasoning: 'off' },
+  // Moved off GPT-OSS with the 2026-07-31 wind-down. Same tier as before —
+  // Gemma 4 on Regolo answers in 4.0s — so a hilfe turn does not get slower.
+  hilfe: { modelId: GEMMA, reasoning: 'off' },
   // `research_wrapper` lived here while a research turn only framed a
   // ready-made answer in two sentences — a Lane-A task. With the research/web
   // merge the model writes the whole answer from raw sources, so a research
@@ -205,8 +229,15 @@ const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   direct: { modelId: FAST, reasoning: graded('off', 'off', 'low') },
 };
 
-/** Unknown/absent intent → the speed lane. */
-const DEFAULT_ENTRY: AutoEntry = { modelId: FAST, reasoning: graded('off', 'off', 'low') };
+/**
+ * Unknown/absent intent → Gemma 4.
+ *
+ * This was the GPT-OSS speed lane until the 2026-07-31 wind-down. A catch-all
+ * is exactly where GPT-OSS is most dangerous: an unlisted intent may well be
+ * one that forces a tool call, and GPT-OSS answers those with prose. Gemma 4 on
+ * Regolo costs no meaningful latency here (4.0s) and writes the better German.
+ */
+const DEFAULT_ENTRY: AutoEntry = { modelId: GEMMA, reasoning: graded('off', 'off', 'low') };
 
 /**
  * Intents with no inherent task shape — a greeting and a "just answer me" turn
