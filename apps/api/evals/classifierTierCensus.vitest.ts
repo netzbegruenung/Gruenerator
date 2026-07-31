@@ -30,11 +30,30 @@ import type { ModelMessage } from 'ai';
  *    beiden Felder, an denen die deterministischen Folgeauftrags-Stufen hängen.
  *    Ohne diese Simulation misst der Zähler einen Chat ohne Gedächtnis und
  *    schreibt jeder Stufe, die davon lebt, eine Wirkung von null zu.
+ *  - Die kleinen Auflöser bekommen ihre neutrale Antwort (RESOLVER_DEFAULTS),
+ *    nicht die JSON-Attrappe des grossen Prompts. Sonst misst der Zähler seinen
+ *    eigenen Stub statt der Erreichbarkeit.
  *
- * EHRLICHKEITSGRENZE: Der Korpus ist adversarial gebaut. Die Quote ist eine
- * Obergrenze für SCHWIERIGE Prompts, nicht die Alltagsverteilung — die kennt
- * niemand von uns. Der Wert taugt zum Vergleich mit sich selbst, nicht als
- * Aussage über den Produktionsverkehr.
+ * ZWEI EHRLICHKEITSGRENZEN, beide gemessen und nicht geschätzt:
+ *
+ *  1. Der Korpus ist adversarial gebaut. Die Quote ist eine Obergrenze für
+ *     SCHWIERIGE Prompts, nicht die Alltagsverteilung — die kennt niemand von
+ *     uns. Der Wert taugt zum Vergleich mit sich selbst, nicht als Aussage über
+ *     den Produktionsverkehr.
+ *  2. `blindFollowUps` ist die Fehlerschranke nach oben. Ein Turn, der den
+ *     grossen Prompt erreicht, hat für den Zähler kein Verdikt — der Stub sagt
+ *     `direct`, und das heisst „kein Artefakt". Wo der Korpus kein `routing`
+ *     erwartet, weiss die Kette ab da nicht mehr, was in ihr entstanden ist,
+ *     und ihre Folgeaufträge finden keine deterministische Tür. Direkt
+ *     nachgemessen: `doc-create-edit#2` und `golden-doc-at-depth#11` werden mit
+ *     korrektem Gedächtnis ohne einen einzigen Modellaufruf zu `modify_doc`.
+ *     Der Zähler zählt sie trotzdem — geraten wird hier nichts, ausgewiesen
+ *     schon. Der wahre Wert liegt zwischen (bigPrompt − blindFollowUps) und
+ *     bigPrompt.
+ *
+ * Der Zähler misst NICHT das Verhalten der Auflöser, nur ob sie gefragt werden.
+ * Ob ein `wetter`-Turn auch als `wetter` beantwortet wird, belegt das A/B mit
+ * echtem Modell, nicht diese Datei.
  */
 
 const CORPUS_DIR = join(dirname(fileURLToPath(import.meta.url)), 'corpus');
@@ -44,6 +63,8 @@ const CORPUS_DIR = join(dirname(fileURLToPath(import.meta.url)), 'corpus');
  *
  *   22,3 %  37/166  Stand vor dem Sharepic-Zweig in Tier 2.7
  *   19,9 %  33/166  danach (31.07.2026)
+ *   18,1 %  30/166  nach dem Erreichbarkeits-Fix am Live-Quellen-Gitter,
+ *                   davon 6 blind (siehe unten) → wahrer Wert 14,5–18,1 %
  *
  * Nicht vergleichbar mit den 19,3 % der ersten Ad-hoc-Sonde: die mass jeden
  * Turn einzeln, also einen Chat ohne Gedächtnis. Mit Verlauf und simuliertem
@@ -55,12 +76,18 @@ const CORPUS_DIR = join(dirname(fileURLToPath(import.meta.url)), 'corpus');
  * melden, nicht bei jeder Nachkommastelle rot werden. Sinkt die Quote, wird er
  * mitgesenkt — ein Deckel, der über dem Ist-Zustand stehen bleibt, misst nichts.
  */
-const TIER4_SHARE_CEILING = 0.21;
+const TIER4_SHARE_CEILING = 0.19;
+
+interface CorpusTurn {
+  prompt: string;
+  expect?: { routing?: string };
+}
 
 interface CorpusEntry {
   id: string;
   prompt?: string;
-  turns?: Array<{ prompt: string }>;
+  expect?: { routing?: string };
+  turns?: CorpusTurn[];
 }
 
 function loadCorpus(): CorpusEntry[] {
@@ -99,18 +126,52 @@ interface Census {
   prompts: number;
   bigPrompt: number;
   smallResolver: number;
-  byId: Array<{ id: string; intent: string }>;
+  byId: Array<{ id: string; intent: string; blind: boolean }>;
+  blindFollowUps: number;
 }
+
+/**
+ * Was die kleinen Auflöser antworten, wenn niemand fragt.
+ *
+ * Der Zähler misst ERREICHBARKEIT, nicht Modellverhalten — er hat kein Netz.
+ * Für jeden Auflöser gibt es aber genau eine Antwort, die keine Entscheidung
+ * vorwegnimmt, und die muss der Stub liefern, sonst misst der Zähler seinen
+ * eigenen Stub:
+ *
+ *  - Live-Quelle → „keine". Ohne diese Zeile liest `parseScope` aus der
+ *    JSON-Antwort unten gar nichts heraus und gibt `null` zurück — was „nichts
+ *    entschieden, weiter zu Tier 4" heisst. Jeder Turn, den `SYSTEM_MCP_PHRASING`
+ *    von der Demotion zurückhält, landete dann im Zähler beim grossen Prompt,
+ *    und ein VERBREITERTER Regex sähe wie ein Rückschritt aus, obwohl er in
+ *    Produktion das Gegenteil bewirkt.
+ *  - Bearbeitungsziel → „0" (keines), damit der Auflöser das Verhalten ohne ihn
+ *    nicht verändert.
+ *
+ * Gespiegelt von `RESOLVER_DEFAULTS` im Integrations-Stub — dieselbe Aufgabe,
+ * dieselbe Antwort.
+ */
+const RESOLVER_DEFAULTS: ReadonlyArray<{ prefix: string; reply: string }> = [
+  { prefix: 'Entscheide, ob diese Anfrage Daten', reply: 'keine' },
+  { prefix: 'Ein Gespräch hat mehrere Artefakte', reply: '0' },
+];
 
 /** Zählt Modellaufrufe und trennt den grossen Prompt von den kleinen Auflösern. */
 function makeCountingPool(counts: { big: number; small: number }) {
   return {
     processRequest: async (req: { systemPrompt?: string }) => {
-      if (req.systemPrompt === CLASSIFIER_PROMPT) counts.big += 1;
-      else counts.small += 1;
-      return {
-        content: JSON.stringify({ intent: 'direct', searchQuery: null, reasoning: 'Zähler-Stub' }),
-      };
+      if (req.systemPrompt === CLASSIFIER_PROMPT) {
+        counts.big += 1;
+        return {
+          content: JSON.stringify({
+            intent: 'direct',
+            searchQuery: null,
+            reasoning: 'Zähler-Stub',
+          }),
+        };
+      }
+      counts.small += 1;
+      const resolver = RESOLVER_DEFAULTS.find((r) => req.systemPrompt?.startsWith(r.prefix));
+      return { content: resolver?.reply ?? 'keine' };
     },
   };
 }
@@ -164,15 +225,26 @@ function buildState(
 async function runCensus(): Promise<Census> {
   const counts = { big: 0, small: 0 };
   const pool = makeCountingPool(counts);
-  const census: Census = { prompts: 0, bigPrompt: 0, smallResolver: 0, byId: [] };
+  const census: Census = {
+    prompts: 0,
+    bigPrompt: 0,
+    smallResolver: 0,
+    byId: [],
+    blindFollowUps: 0,
+  };
 
   for (const entry of loadCorpus()) {
-    const prompts =
-      entry.prompt != null ? [entry.prompt] : (entry.turns ?? []).map((t) => t.prompt);
+    const turns: CorpusTurn[] =
+      entry.prompt != null
+        ? [{ prompt: entry.prompt, ...(entry.expect && { expect: entry.expect }) }]
+        : (entry.turns ?? []);
     const history: ModelMessage[] = [];
     let artifacts: ThreadToolContext[] = [];
+    /** Ab hier weiss die Kette nicht mehr, was in ihr entstanden ist. */
+    let blind = false;
 
-    for (const [i, prompt] of prompts.entries()) {
+    for (const [i, turn] of turns.entries()) {
+      const prompt = turn.prompt;
       const before = counts.big;
       let intent = 'ERR';
       try {
@@ -181,16 +253,46 @@ async function runCensus(): Promise<Census> {
       } catch (err) {
         intent = `ERR:${(err as Error).message.slice(0, 50)}`;
       }
+      const reachedBigPrompt = counts.big > before;
       census.prompts += 1;
-      if (counts.big > before) {
+      if (reachedBigPrompt) {
         census.bigPrompt += 1;
-        census.byId.push({ id: prompts.length > 1 ? `${entry.id}#${i + 1}` : entry.id, intent });
+        if (blind) census.blindFollowUps += 1;
+        census.byId.push({
+          id: turns.length > 1 ? `${entry.id}#${i + 1}` : entry.id,
+          intent,
+          blind,
+        });
       }
 
       // Thread fortschreiben: Verlauf plus simuliertes Artefakt-Gedächtnis.
       history.push({ role: 'user', content: prompt });
       history.push({ role: 'assistant', content: '(Antwort)' });
-      const kind = ARTIFACT_KIND_BY_INTENT[intent];
+
+      // Welches Verdikt das Gedächtnis fortschreibt.
+      //
+      // Erreichte der Turn den grossen Prompt, kam sein Intent vom Stub und ist
+      // wertlos — und `direct` ist nicht neutral, es heisst „kein Artefakt".
+      // Genau daran verhungerte die Simulation: eine Kette, deren ERSTER Turn
+      // bei Tier 4 landet, erzeugt nie ein Artefakt, und jeder Folgeauftrag
+      // darin findet keine deterministische Tür mehr. Gemessen am 31.07.2026
+      // traf das `doc-create-edit#2` und `golden-doc-at-depth#11`: beide werden
+      // mit korrektem Gedächtnis ohne einen einzigen Modellaufruf zu
+      // `modify_doc` — der Zähler meldete sie als Tier-4-Treffer.
+      //
+      // Wo der Korpus das erwartete Routing selbst nennt, wird es genommen. Wo
+      // nicht, bleibt der Turn unbekannt: das Gedächtnis wird nicht geraten,
+      // sondern die Kette ab hier als `blind` gezählt und ausgewiesen. Ein
+      // geratenes Artefakt wäre eine erfundene Messung, eine ausgewiesene Lücke
+      // ist eine Fehlerschranke.
+      const declaredRouting = turn.expect?.routing;
+      let effectiveIntent: string | null = intent;
+      if (reachedBigPrompt) {
+        effectiveIntent = declaredRouting ?? null;
+        if (effectiveIntent == null) blind = true;
+      }
+
+      const kind = effectiveIntent ? ARTIFACT_KIND_BY_INTENT[effectiveIntent] : undefined;
       if (kind) {
         artifacts = [
           {
@@ -219,7 +321,9 @@ describe('Klassifikator-Tier-Zählung über den Eval-Korpus', () => {
       `\n[Tier-Zählung] ${census.bigPrompt}/${census.prompts} Prompts erreichen den 27k-Prompt ` +
         `(${(share * 100).toFixed(1)} %), Deckel ${(TIER4_SHARE_CEILING * 100).toFixed(0)} %.\n` +
         `[Tier-Zählung] Kleine Auflöser: ${census.smallResolver} Aufrufe.\n` +
-        census.byId.map((r) => `  [${r.intent}] ${r.id}`).join('\n')
+        `[Tier-Zählung] Davon in einer Kette ohne Artefakt-Gedächtnis: ${census.blindFollowUps} ` +
+        `— Fehlerschranke nach oben, nicht bewiesene Tier-4-Fälle.\n` +
+        census.byId.map((r) => `  [${r.intent}]${r.blind ? ' (blind)' : ''} ${r.id}`).join('\n')
     );
 
     expect(census.prompts).toBeGreaterThan(150);

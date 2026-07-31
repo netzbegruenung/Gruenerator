@@ -77,6 +77,7 @@ export const DECISION_POINTS = {
       'tier3_heuristic',
       'tier3.5_loop_demotion',
       'tier3.7_source_scope',
+      'tier3.7_no_live_source',
       'tier4_llm',
       'tier4_llm_error_fallback',
     ],
