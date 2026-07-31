@@ -30,9 +30,9 @@ describe('gridIntensityFor', () => {
   it('separates the French and German upstreams', () => {
     // The recorded provider is the upstream, so Scaleway-routed Mistral Medium
     // must not inherit the German mix.
-    expect(gridIntensityFor('scaleway')).toBe(56);
-    expect(gridIntensityFor('mistral')).toBe(56);
-    expect(gridIntensityFor('litellm')).toBe(350);
+    expect(gridIntensityFor('scaleway')).toBe(22);
+    expect(gridIntensityFor('mistral')).toBe(22);
+    expect(gridIntensityFor('litellm')).toBe(363);
   });
 
   it('falls back to the German mix for an unknown provider', () => {
@@ -90,16 +90,19 @@ describe('estimateFootprint', () => {
     ).toBeNull();
   });
 
-  it('credits back the better PUE of the self-hosted lane', () => {
-    // Same Gemma 4 weights, verdigado (Hetzner, PUE 1.13) vs GreenPT's 1.25.
+  it('credits back a better PUE than GreenPT reference', () => {
+    // Same Gemma 4 weights on three hosts. Both of ours beat GreenPT's 1.25:
+    // Hetzner 1.13, Seeweb 1.20 (DHH sustainability report 2024, p. 8).
     const shape = { inputTokens: 600, outputTokens: 400, requests: 1 };
+    const greenpt = estimateFootprint({ ...shape, provider: 'greenpt', model: 'gemma4-31b' });
     const regolo = estimateFootprint({ ...shape, provider: 'regolo', model: 'gemma4-31b' });
     const verdigado = estimateFootprint({
       ...shape,
       provider: 'litellm',
       model: 'verdigado-think',
     });
-    expect((verdigado?.energyWms ?? 0) / (regolo?.energyWms ?? 1)).toBeCloseTo(1.13 / 1.25, 2);
+    expect((regolo?.energyWms ?? 0) / (greenpt?.energyWms ?? 1)).toBeCloseTo(1.2 / 1.25, 2);
+    expect((verdigado?.energyWms ?? 0) / (greenpt?.energyWms ?? 1)).toBeCloseTo(1.13 / 1.25, 2);
   });
 
   it('applies the upstream grid, not the lane name', () => {
