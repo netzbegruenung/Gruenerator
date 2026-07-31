@@ -24,8 +24,52 @@ const QUOTED_SPAN_PATTERNS: readonly RegExp[] = [
   /‚[^‘’]{0,240}[‘’]/g, // German single ‚…'
 ];
 
-/** Replace quoted spans with a space so noun tests don't fire on reported speech. */
+/**
+ * Die ganze Nachricht IST das Zitat — Anführungszeichen ganz aussen, sonst
+ * nichts. Bewusst ohne Längenkappung (anders als QUOTED_SPAN_PATTERNS): die
+ * Länge entscheidet hier nichts, die Position tut es.
+ */
+const WHOLLY_QUOTED_PATTERNS: readonly RegExp[] = [
+  /^\s*„[\s\S]*["“”]\s*$/,
+  /^\s*»[\s\S]*«\s*$/,
+  /^\s*«[\s\S]*»\s*$/,
+  /^\s*"[\s\S]*"\s*$/,
+  /^\s*“[\s\S]*”\s*$/,
+];
+
+/**
+ * Replace quoted spans with a space so noun tests don't fire on reported speech.
+ *
+ * AUSSER die Anführungszeichen umschliessen die GANZE Nachricht. Dann ist sie
+ * keine fremde Rede, sondern der Auftrag selbst — nur mit Anführungszeichen
+ * eingefügt, wie es Nutzer ständig tun.
+ *
+ * Ohne diese Ausnahme war die Arbeitsteilung im Aufrufer asymmetrisch und damit
+ * gefährlich: die ERKENNER (`DOCUMENT_CREATE_RE` & Co. in
+ * `compoundGenerationKind`) lesen den rohen Text, die SCHUTZPRÜFUNGEN
+ * (`forbidsPersistentAction`, `hasExplicitSharepicWord`) den gestrippten. Eine
+ * eingeklammerte Nachricht wurde also als Auftrag ERKANNT, während ihre Guards
+ * ins Leere sahen. Zwei live beobachtete Folgen, beide aus derselben Zeile:
+ *
+ *  - „…, aber erstelle bitte kein Dokument daraus." → das Verbot unsichtbar,
+ *    `compoundGenerationKind` lieferte `document`, und die Garantie in
+ *    `forceCompoundGeneration` baute genau das verbotene Dokument.
+ *  - „… Mach mir daraus ein Sharepic." → das Wort unsichtbar, das Lizenz-Gate
+ *    verweigerte, und der Turn antwortete „In diesem Chat gibt es noch kein
+ *    Sharepic", statt die Frage zu beantworten.
+ *
+ * Tückisch war zusätzlich die Längenabhängigkeit: die Muster oben kappen bei 240
+ * Zeichen, eine kürzere eingeklammerte Nachricht wurde also geschluckt, eine
+ * längere nicht.
+ *
+ * Die Prüfung ist auf POSITION gestellt, nicht auf „wie viel bleibt übrig".
+ * Eine Restwort-Schwelle sah zunächst naheliegender aus, hätte aber echte
+ * fremde Rede mit kurzem Rahmen zerstört — `Titel "Grafik des Jahres" prüfen`
+ * und `Antworte auf: „…"` lassen beide nur zwei Wörter stehen und sind trotzdem
+ * genau das, wofür das Strippen existiert.
+ */
 export function stripQuotedSpans(text: string): string {
+  if (WHOLLY_QUOTED_PATTERNS.some((p) => p.test(text))) return text;
   let out = text;
   for (const p of QUOTED_SPAN_PATTERNS) out = out.replace(p, ' ');
   return out;
