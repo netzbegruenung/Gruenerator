@@ -90,27 +90,34 @@ describe('web_search tool — argument mapping onto executeDirectWebSearch', () 
   });
 
   /**
-   * Images are no longer something the model asks for. The `bilder` argument is
-   * gone: it existed to avoid paying for pictures nobody looks at, but the engine
-   * charges by depth rather than by what it returns — so all it ever did was make
-   * an explicit image request depend on the planner remembering a flag.
+   * Images are not something the model asks for any more. The `bilder` argument
+   * is gone: it made an explicit image request depend on the planner remembering
+   * a flag, one node after the classifier had already answered that question.
    */
-  it('asks for image hits on every search, with no argument to forget', async () => {
-    await webSearchTool().execute(
-      { query: 'Windkraft Ausbau', searchType: 'general', tiefe: 'standard' },
+  it('asks for image hits when the classifier said so', async () => {
+    await webSearchTool({ wantsImages: true }).execute(
+      { query: 'Marilyn Monroe', searchType: 'general', tiefe: 'standard' },
       TOOL_OPTS
     );
     expect(lastArgs().includeImages).toBe(true);
   });
 
-  it('ignores a stored `bilder` from a replayed pre-rollout call', async () => {
-    // Persisted tool calls still carry the old argument. The schema strips
-    // unknown keys, so a replay must neither throw nor change what is commissioned.
+  it('leaves them out otherwise — pictures beside a paragraph of law are noise', async () => {
     await webSearchTool().execute(
-      { query: 'Fotos von der Klimademo', searchType: 'general', tiefe: 'standard', bilder: false },
+      { query: 'Grunderwerbsteuer berechnen', searchType: 'general', tiefe: 'standard' },
       TOOL_OPTS
     );
-    expect(lastArgs().includeImages).toBe(true);
+    expect(lastArgs()).not.toHaveProperty('includeImages');
+  });
+
+  it('ignores a stored `bilder` from a replayed pre-rollout call', async () => {
+    // Persisted tool calls still carry the old argument. The schema strips
+    // unknown keys, so a replay must neither throw nor resurrect the old switch.
+    await webSearchTool().execute(
+      { query: 'Fotos von der Klimademo', searchType: 'general', tiefe: 'standard', bilder: true },
+      TOOL_OPTS
+    );
+    expect(lastArgs()).not.toHaveProperty('includeImages');
   });
 });
 

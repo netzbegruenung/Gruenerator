@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { wantsImageResults } from './classifierHeuristics.js';
+import { parseClassifierResponse } from './classifierParsing.js';
 
 /**
  * `wantsImageResults` decides whether the web search should ask Linkup for
@@ -12,6 +13,12 @@ import { wantsImageResults } from './classifierHeuristics.js';
  * turn; getting it wrong in the cheap direction costs one clarifying turn. So
  * the heuristic is deliberately narrow, and `bilder: true` as an explicit tool
  * argument is the escape hatch for phrasings this heuristic misses.
+ *
+ * It is now only HALF the decision. The other half is the classifier's own
+ * `bilder` verdict on the subject, which is what makes "wer war Marilyn Monroe"
+ * show pictures without anyone having asked for them — a regex cannot separate a
+ * person from a tax calculation. This heuristic stays because it is the half that
+ * survives every tier that never reaches the model.
  *
  * The plural cases are not decoration. The gate's first draft reused the
  * singular-only image-noun patterns that gate the edit and generation paths, and
@@ -143,5 +150,46 @@ describe('wantsImageResults', () => {
       expect(wantsImageResults('zeig mir den Bildschirm')).toBe(false);
       expect(wantsImageResults('such mir Bilderrahmen')).toBe(false);
     });
+  });
+});
+
+/**
+ * The classifier's half of the decision: does the SUBJECT deserve pictures?
+ *
+ * Read off the `bilder` field of its JSON answer, through the real parser rather
+ * than a copy of the one line that reads it — a test that restates the
+ * implementation agrees with it by construction and guards nothing.
+ */
+describe('classifier image verdict', () => {
+  const answer = (fields: Record<string, unknown>) =>
+    JSON.stringify({
+      intent: 'web',
+      searchQuery: 'Marilyn Monroe',
+      reasoning: 'Person',
+      ...fields,
+    });
+
+  it('carries a true verdict through', () => {
+    expect(
+      parseClassifierResponse(answer({ bilder: true }), 'wer war marilyn monroe').wantsImages
+    ).toBe(true);
+  });
+
+  it('reads a missing field as no, not as undefined', () => {
+    expect(parseClassifierResponse(answer({}), 'wer war marilyn monroe').wantsImages).toBe(false);
+  });
+
+  it('says no for a subject with nothing to look at', () => {
+    expect(
+      parseClassifierResponse(answer({ bilder: false }), 'wie berechne ich die grunderwerbsteuer')
+        .wantsImages
+    ).toBe(false);
+  });
+
+  it('does not accept a truthy non-boolean', () => {
+    // Models return `"true"` often enough that the difference matters: a string
+    // would sail through a truthiness check and turn the verdict into "always".
+    expect(parseClassifierResponse(answer({ bilder: 'true' }), 'x').wantsImages).toBe(false);
+    expect(parseClassifierResponse(answer({ bilder: 1 }), 'x').wantsImages).toBe(false);
   });
 });

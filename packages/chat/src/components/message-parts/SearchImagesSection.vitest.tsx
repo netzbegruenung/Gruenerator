@@ -183,3 +183,32 @@ describe('SearchImagesSection mosaic', () => {
     }
   });
 });
+
+/**
+ * The counter must survive its own picture failing.
+ *
+ * Every other tile degrades to a text link when the proxy cannot serve it. If the
+ * counter tile did that too, the only way into the remaining hits would leave with
+ * it — a set of nine would silently become a set of three. This is the same
+ * failure the section already had once, when the whole block lived inside the
+ * sources disclosure and an image-only turn had no trigger to open.
+ */
+describe('SearchImagesSection counter resilience', () => {
+  const many = Array.from({ length: 9 }, (_, i) => ({
+    title: `Bild ${i}`,
+    url: `https://example.test/${i}.jpg`,
+    domain: 'example.test',
+    proxyUrl: `/api/search-image?url=${i}&exp=1&sig=s`,
+  }));
+
+  it('keeps the counter when its own thumbnail fails', () => {
+    const { container, getByRole } = render(<SearchImagesSection images={many} />);
+    const tiles = Array.from(container.querySelectorAll('img'));
+    fireEvent.error(tiles[tiles.length - 1]!);
+
+    const button = getByRole('button', { name: '6 weitere Bildquellen anzeigen' });
+    expect(button).toBeTruthy();
+    fireEvent.click(button);
+    expect(container.querySelectorAll('img').length).toBeGreaterThan(3);
+  });
+});
