@@ -274,6 +274,24 @@ export interface SearchResult {
   chunkIndex?: number | undefined;
   similarityScore?: number | undefined;
   collectionId?: string | undefined;
+  /**
+   * Crawl/distill provenance. Declared explicitly even though the index
+   * signature below would accept them untyped — that is exactly how the
+   * multi-source fan-in was able to silently stop setting `crawled`, which then
+   * forced respondNode into a `content.length > 500` guess about what had been
+   * crawled. A named field makes the omission a compile error.
+   */
+  crawled?: boolean | undefined;
+  distilled?: boolean | undefined;
+  /** Scored passages behind a distilled `content`, for score-aware budget cuts. */
+  distilledChunks?:
+    Array<{ text: string; score: number; order: number; start: number }> | undefined;
+  /** Length of the crawled page BEFORE distillation, for telemetry. */
+  sourceChars?: number | undefined;
+  /** ISO date the source was published, where the engine reports one. */
+  publishedDate?: string | null | undefined;
+  // `fullContent` stays deliberately untyped: it is the raw crawl payload and
+  // must not survive into graph state or the database (see forPersistence).
   [key: string]: unknown;
 }
 
