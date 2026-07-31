@@ -88,6 +88,7 @@ import {
   stripQuotedSpans,
   type ForbiddableArtifact,
 } from './fastPathGuards.js';
+import { GENERATION_SIGNAL, resolveGenerationScope } from './generationResolver.js';
 import { refineSearchQuery } from './queryRefineResolver.js';
 import { parseRelativeDateRange } from './relativeDates.js';
 import { resolveSourceScope } from './sourceScopeResolver.js';
@@ -1607,6 +1608,56 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // big prompt still routes that to a usable answer (locale degradation).
     if (heldBackForLiveSource && sourceScope === 'keine') {
       return demoteToLoop('tier3.7_no_live_source');
+    }
+
+    // ── TIER 3.8: generation scope ────────────────────────────────────────
+    // The other half of what the big prompt was still being paid for. Placed at
+    // its door for the same reason as Tier 3.7: Tier 4 is the only place these
+    // verdicts were ever produced, so a resolver sitting in front of it has
+    // exactly the prompt's reach and nothing can slip past that the prompt would
+    // have caught. `GENERATION_SIGNAL` is the recall gate — a miss costs the 27k
+    // prompt, a false positive costs one ~900-character call and lands here
+    // anyway.
+    //
+    // A decided `keine` ends the turn as `produktion`: the model said there is
+    // no artifact, and asking the tool taxonomy the same question again is what
+    // this tier exists to stop. `null` (timeout/failure/garbage) falls through.
+    // A PROHIBITION never reaches the resolver. `isNegatedArtifactRequest` already
+    // KNOWS the answer, and letting a model re-decide it would trade a
+    // deterministic guarantee for a probable one — on the one turn shape where
+    // being wrong means minting the artifact the user forbade. Falling through
+    // to Tier 4 also keeps the router's persistent-action gate in the path: it
+    // only ever sees ARTIFACT intents, so an early `produktion` here would quietly
+    // retire the gate instead of satisfying it.
+    if (
+      GENERATION_SIGNAL.test(userContent) &&
+      !isNegatedArtifactRequest(userContent, GENERATION_SIGNAL)
+    ) {
+      const generation = await resolveGenerationScope({
+        userContent,
+        conversationContext,
+        aiWorkerPool,
+      });
+      if (generation !== null) {
+        const resolvedIntent = generation === 'keine' ? 'produktion' : generation.intent;
+        log.info(`[Classifier] Generation scope → ${resolvedIntent} (LLM tier skipped)`);
+        recordDecision('classifier.tier', 'tier3.8_generation_scope', {
+          inputs: { resolved: resolvedIntent, decidedNoArtifact: generation === 'keine' },
+        });
+        return {
+          intent: resolvedIntent,
+          searchSources: [],
+          searchQuery: (extractSearchTopic(userContent) || userContent).slice(0, 500),
+          detectedFilters: heuristicExtractFilters(userContent),
+          reasoning:
+            generation === 'keine'
+              ? 'Kein Artefakt gefragt (deterministisch aufgelöst)'
+              : `Artefakt erkannt: ${resolvedIntent}`,
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
     }
 
     // ── TIER 4: LLM classification ──

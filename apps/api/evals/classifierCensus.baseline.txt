@@ -17,7 +17,7 @@ anchor                            0    0.0 %     0
 artifact                         28   16.9 %     0
 gated                             3    1.8 %     0
 loop                            112   67.5 %     0
-prose                            23   13.9 %    19
+prose                            23   13.9 %     5
 (unbekannt)                       0    0.0 %     0
 
 ## Entscheidungspunkte — wie entschieden wurde (Zweighäufigkeit)
@@ -34,7 +34,8 @@ classifier.tier  (160)
     tier3.5_loop_demotion       101
     tier3.7_source_scope          0
     tier3.7_no_live_source        5
-    tier4_llm                    19
+    tier3.8_generation_scope     14
+    tier4_llm                     5
     tier4_llm_error_fallback      0
 
 ## Intents — feinste Körnung, in Enum-Reihenfolge
@@ -74,7 +75,7 @@ create_pdf                        0  artifact
 create_recurring_task             0  gated
 chat_history                      1  gated
 mcp                               0  gated
-produktion                        3  prose
-direct                           19  prose
+produktion                       17  prose
+direct                            5  prose
 greeting                          1  prose
 agentic                         106  loop
