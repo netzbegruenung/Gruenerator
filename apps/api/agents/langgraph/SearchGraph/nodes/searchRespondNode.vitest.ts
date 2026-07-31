@@ -1,6 +1,5 @@
 /**
  * Tests for SearchGraph searchRespondNode
- * Run with: npx vitest run apps/api/agents/langgraph/SearchGraph/nodes/searchRespondNode.test.ts
  */
 
 import { describe, it, expect } from 'vitest';
@@ -107,8 +106,8 @@ describe('searchRespondNode', () => {
     expect(result.responseText).toContain('JEDE Aussage');
 
     // Should contain citation rules
-    expect(result.responseText).toContain('[1]');
-    expect(result.responseText).toContain('[2]');
+    expect(result.responseText).toContain('[cite:1]');
+    expect(result.responseText).toContain('[cite:2]');
     expect(result.responseText).toContain('GENAU 2 Quellen');
   });
 
