@@ -100,6 +100,8 @@ export const SIM_SCENARIOS: readonly SimScenario[] = [
   {
     id: 'gruss-bleibt-direct',
     category: 'routing',
+    // Id bleibt (F1: Registry-IDs werden nicht umbenannt) — die Karte darunter
+    // heisst genauso. Der Gruss traegt seit dem Split den Intent `greeting`.
     note: 'Gegenstueck zur Demotion: ein Gruss darf niemals ein Werkzeug ausloesen.',
     prompt: 'Hallo!',
     mustDecide: [

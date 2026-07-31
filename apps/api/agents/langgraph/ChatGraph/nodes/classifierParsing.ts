@@ -22,6 +22,18 @@ import type { ClassifierLLMResponse } from './classifierFilters.js';
 const log = createLogger('ChatGraph:Classifier');
 
 /**
+ * Verdicts under which nothing is ever looked up. Two rules below used to name
+ * `direct` alone; since the split there are three such values, and a rule that
+ * checks only one of them stops firing for the other two without ever failing.
+ * `agentic` is NOT a member — the loop's own model retrieves.
+ */
+export const NO_RETRIEVAL_VERDICTS: ReadonlySet<string> = new Set([
+  'produktion',
+  'direct',
+  'greeting',
+]);
+
+/**
  * Scan order for the malformed-JSON fallback, in DESCENDING priority.
  *
  * Only a partial list: it exists because a malformed response can mention the
@@ -49,7 +61,7 @@ const FALLBACK_PRIORITY = [
   'share_doc',
   'chart',
   'summary',
-  // System MCP intents — specific tokens, safe before the broad direct/search.
+  // System MCP intents — specific tokens, safe before the broad produktion/search.
   'reise',
   'bahn',
   'wetter',
@@ -57,6 +69,7 @@ const FALLBACK_PRIORITY = [
   'hotel',
   'umfragen',
   'hilfe',
+  'produktion',
   'direct',
   // social_post before examples: 'examples' would otherwise never lose to it
   // in malformed responses that mention both.
@@ -274,17 +287,20 @@ export function parseClassifierResponse(
     // The model contradicting itself: it answered "yes, this needs research"
     // and then picked the one intent under which nothing is ever looked up.
     // Loud on purpose — for the field's whole lifetime this was invisible.
-    if (parsed.needsResearch === true && parsed.intent === 'direct') {
+    if (parsed.needsResearch === true && NO_RETRIEVAL_VERDICTS.has(parsed.intent)) {
       log.warn(
-        `[Classifier] needsResearch=true but intent=direct — the turn will be forced to call a tool. Reasoning: ${parsed.reasoning}`
+        `[Classifier] needsResearch=true but intent=${parsed.intent} — the turn will be forced to call a tool. Reasoning: ${parsed.reasoning}`
       );
     }
 
     // Defensive upgrade: the LLM sometimes calls a clear past-conversation
-    // reference "direct". If the text plainly points at an earlier chat, route
-    // it to the chat_history tool instead.
-    if (parsed.intent === 'direct' && CHAT_HISTORY_KEYWORDS.test(userContent)) {
-      log.info('[Classifier] Upgraded direct → chat_history (past-conversation reference)');
+    // reference "produktion" — the substance looks supplied because it was
+    // supplied, just in a DIFFERENT chat. If the text plainly points at an
+    // earlier conversation, route it to the chat_history tool instead.
+    if (NO_RETRIEVAL_VERDICTS.has(parsed.intent) && CHAT_HISTORY_KEYWORDS.test(userContent)) {
+      log.info(
+        `[Classifier] Upgraded ${parsed.intent} → chat_history (past-conversation reference)`
+      );
       parsed.intent = 'chat_history';
     }
 
@@ -484,13 +500,17 @@ export function parseClassifierResponse(
     };
   }
 
-  // Final fallback: default to direct (cheapest path).
+  // Final fallback: the response was unreadable, so we know NOTHING about the
+  // turn. That is the one state in which the cheapest path is the wrong
+  // default — it silently promises "nothing needed looking up" about a message
+  // nobody managed to read. `agentic` says the honest thing instead: hand it to
+  // the loop's model, which holds the tools and can still decide.
   // The heuristic already ran in classifierNode — re-running it here
   // reintroduces the same false positives (e.g. party keywords → search).
   return {
-    intent: 'direct',
+    intent: 'agentic',
     searchQuery: null,
-    reasoning: 'Fallback: no intent detected, defaulting to direct',
+    reasoning: 'Fallback: no intent detected, handing the turn to the loop',
   };
 }
 
