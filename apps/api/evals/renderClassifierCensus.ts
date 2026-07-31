@@ -1,9 +1,13 @@
 import { searchIntentSchema } from '@gruenerator/contracts';
+import {
+  dispositionOf,
+  DISPOSITION_ORDER,
+  type Disposition,
+} from '@gruenerator/shared/chat-intents';
 
 import { DECISION_POINTS, type DecisionPointId } from '../utils/decisionJournal.js';
 
 import { type CensusRun } from './classifierCensusHarness.js';
-import { dispositionOf, DISPOSITION_ORDER, type Disposition } from './classifierDisposition.js';
 
 /**
  * Rendert einen Klassifikator-Lauf als feste, registry-geordnete Tabelle.

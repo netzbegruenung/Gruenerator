@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
 
 import { runClassifierCensus } from './classifierCensusHarness.js';
-import { dispositionOf } from './classifierDisposition.js';
+import { dispositionOf } from '@gruenerator/shared/chat-intents';
 import { renderClassifierCensus } from './renderClassifierCensus.js';
 
 /**

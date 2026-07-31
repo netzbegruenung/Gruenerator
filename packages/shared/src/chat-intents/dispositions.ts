@@ -1,7 +1,20 @@
-import { type ChatIntentId } from '@gruenerator/shared/chat-intents';
+import { type ChatIntentId } from './index.js';
 
 /**
  * Was der Klassifikator bei diesem Verdikt eigentlich ENTSCHIEDEN hat.
+ *
+ * Liegt neben der Registry und nicht IN ihr — eine totale Karte statt 40
+ * Einzelfelder. Der Compiler-Schutz ist derselbe (`Record<ChatIntentId, …>`
+ * bricht bei jedem neuen Intent), aber die Partition ist nur so lesbar: eine
+ * Disposition ist eine Aussage über die GRUPPE, und verteilt auf 40 Objekte
+ * kann niemand mehr sehen, dass `hilfe` und `summary` dieselbe Antwort geben.
+ * Genau diese Unlesbarkeit hat die handgepflegten Duplikate erzeugt, die hier
+ * abgelöst werden.
+ *
+ * Die Disposition ist NICHT aus `category` ableitbar und deshalb eine eigene
+ * Achse: `category: 'artifact'` enthält `save_as_doc` (artifact) neben
+ * `share_doc` und `create_recurring_task` (beide gated), `category: 'internal'`
+ * enthält `agentic` (loop) neben `direct` (prose).
  *
  * Der Umbau auf Dispositionen behauptet, dass der Klassifikator heute eine
  * feinere Frage beantwortet als nötig: 40 Intents, von denen der agentische Loop
@@ -107,4 +120,19 @@ export const DISPOSITION_ORDER: readonly Disposition[] = [
 
 export function dispositionOf(intent: string): Disposition | null {
   return DISPOSITION_BY_INTENT[intent as ChatIntentId] ?? null;
+}
+
+/**
+ * Alle Intents einer Disposition, als Set.
+ *
+ * Der Grund, warum die Karte hier und nicht in `apps/api` liegt: mehrere
+ * handgepflegte Mengen beschreiben dieselbe Partition und driften auseinander,
+ * weil sie sie je neu aufschreiben. Wer eine davon braucht, leitet sie ab.
+ */
+export function intentsWithDisposition(disposition: Disposition): ReadonlySet<ChatIntentId> {
+  return new Set(
+    (Object.keys(DISPOSITION_BY_INTENT) as ChatIntentId[]).filter(
+      (id) => DISPOSITION_BY_INTENT[id] === disposition
+    )
+  );
 }
