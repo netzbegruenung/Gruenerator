@@ -60,7 +60,15 @@ export const CLASSIFIER_OFFERED_INTENTS = [
   'abgeordnetenwatch',
   'bundestag',
   'bahn',
-  'reise',
+  // `reise` is deliberately absent: its source mapping in INTENT_SOURCES
+  // (services/mcp/systemMcpServers.ts) is commented out, so the intent mounts
+  // NOTHING. Offering it here only taught the model a boundary whose verdict
+  // then degraded to `web` anyway — a full paragraph of prompt for a route that
+  // cannot fire. This removes it ONLY from what the classifier may invent;
+  // everything that handles a `reise` value keeps working (the F0 enum value,
+  // NON_SEARCH_INTENTS, AGENTIC_INTENTS, searchNode's case, the registry entry),
+  // because it can still arrive from a persisted `metadata.intent`. Put it back
+  // together with the source mapping, not before.
   'hotel',
   'umfragen',
   'wetter',
@@ -112,8 +120,7 @@ VERFÜGBARE TOOLS:
 - abgeordnetenwatch: Transparenzdaten zu deutschen Abgeordneten (Bundestag/Landtage) via Abgeordnetenwatch - Abstimmungsverhalten ("wie hat X gestimmt", "Abstimmungsverhalten von"), Nebentätigkeiten/Nebeneinkünfte ("welche Nebentätigkeiten hat X"), Mandate, sowie namentliche Abstimmungen ("wie ging die Abstimmung zu Y aus", "Ergebnis der namentlichen Abstimmung"). NUR für konkrete Abgeordnete oder konkrete Parlamentsabstimmungen, NICHT für allgemeine Parteipositionen (→ search) und NICHT für Dokumente/Reden/Gesetzgebung (→ bundestag).
 - bundestag: Offizielle Parlamentsdokumente des Deutschen Bundestags (DIP) - Drucksachen, Gesetzentwürfe, Anträge, Kleine/Große Anfragen, Plenardebatten und Reden ("was wurde im Bundestag zu X debattiert", "Rede von X zu Y", "Drucksache 21/123", "Stand des Gesetzgebungsverfahrens"). NICHT für Abstimmungsverhalten oder Nebentätigkeiten (→ abgeordnetenwatch), NICHT für Grüne Positionen (→ search), NICHT für aktuelle Nachrichten (→ web).
 - bahn: Konkrete BAHNAUSKUNFT der Deutschen Bahn - Zugverbindungen, Abfahrts-/Ankunftszeiten, Fahrpläne, Verspätungen, Gleise, Bahnhofsausstattung ("welche Zugverbindung von X nach Y", "wann fährt der nächste Zug nach", "Abfahrten in Köln", "hat mein Zug Verspätung", "gibt es Parkplätze am Hbf"). NUR für reine Zug-/Bahnhofsauskünfte, NICHT für Bahnpolitik/Bahnreform/Grüne Verkehrspositionen (→ search) und NICHT für Nachrichten über die Bahn (→ news/web).
-- reise: Kombinierte REISEPLANUNG - mehrere Reiseaspekte in EINER Anfrage (Zug + Hotel + Wetter): "plane meine Reise nach Berlin", "Zug und Unterkunft für den Parteitag", "Dienstreise nach X organisieren". Reine Zugauskunft → bahn; NUR Hotel → hotel; reine Wetterfrage → wetter; Tourismuspolitik → search.
-- hotel: Hotel-/Unterkunftssuche OHNE weitere Reiseplanung - "Hotel in Berlin für 2 Nächte", "Unterkunft in Nürnberg", "wo kann ich in X übernachten". Mit Zug/Anreise kombiniert → reise.
+- hotel: Hotel-/Unterkunftssuche - "Hotel in Berlin für 2 Nächte", "Unterkunft in Nürnberg", "wo kann ich in X übernachten". Sind Unterkunft UND Anreise in einer Anfrage: hotel, wenn die Übernachtung die Hauptfrage ist, sonst bahn. Tourismuspolitik → search.
 - umfragen: WAHLUMFRAGEN und Meinungsbilder - Sonntagsfrage/Umfragewerte bundesweit oder pro Bundesland ("wie stehen die Grünen aktuell in Umfragen", "Sonntagsfrage Bayern", "aktuelle Umfragewerte der AfD") sowie Zustimmung zu Themen ("wie denken die Leute über Tempolimit"). NUR Umfragedaten, NICHT Parteipositionen (→ search), NICHT Wahlergebnisse oder namentliche Abstimmungen (→ abgeordnetenwatch/web).
 - wetter: Konkrete WETTERAUSKUNFT - Vorhersage, aktuelles Wetter, Temperatur, Regen, Luftqualität für einen Ort/Zeitraum ("wie wird das Wetter morgen in X", "regnet es am Samstag", "wie warm wird es", "Pollenbelastung in Y"). NUR für konkrete Wetterdaten, NICHT für Klimapolitik/Klimawandel-Fragen (→ search/web).
 - news: Aktuelle NACHRICHTENLAGE via tagesschau - Schlagzeilen, Meldungen zu einem Thema, Ressort- oder Regional-Nachrichten ("was gibt es Neues zu X", "aktuelle Nachrichten aus Bayern", "was meldet die tagesschau", "Nachrichtenlage zu Y"). Für die aktuelle Berichterstattung; bei allgemeiner Web-Recherche ohne News-Charakter → web.
@@ -191,7 +198,7 @@ SCHRITT 3 - TOOL WÄHLEN:
 6a. Social-Media-Vorlage/Beispiel ANSEHEN ("zeig mir Beispiele")? → examples
 6b. Abstimmungsverhalten/Nebentätigkeiten einer konkreten Person ODER Ergebnis einer namentlichen Abstimmung? → abgeordnetenwatch
 6c. Bundestagsdokumente, Plenardebatten, Reden oder Gesetzgebungsverfahren (Drucksachen, Protokolle)? → bundestag
-6d. Kombinierte Reiseplanung (Zug + Hotel/Wetter)? → reise; NUR Hotel/Unterkunft? → hotel
+6d. Hotel/Unterkunft gesucht? → hotel
 6e. REINE Zugverbindung/Abfahrtszeit/Fahrplan/Bahnhofsauskunft? → bahn (Bahnpolitik → search)
 6f. Konkrete Wettervorhersage/aktuelles Wetter für einen Ort? → wetter (Klimapolitik → search)
 6g. Aktuelle Nachrichtenlage/Schlagzeilen/tagesschau-Meldungen zu einem Thema? → news
@@ -293,14 +300,13 @@ SCHRITT 9 - SEKUNDÄREN INTENT ERKENNEN:
 Wenn die Anfrage ZUSÄTZLICH zur Hauptaufgabe eine zweite Aktion erfordert, setze secondaryIntent:
 - "Recherchiere X und erstelle ein Bild dazu" → intent: "research", secondaryIntent: "image"
 - "Suche nach Y und zeige Beispiele" → intent: "search", secondaryIntent: "examples"
-- "Fasse das Dokument zusammen und erstelle ein Diagramm" → intent: "summary", secondaryIntent: "chart"
 - Einfache Anfragen → secondaryIntent: null (Standard)
 
 REGELN:
 - secondaryIntent MUSS sich vom intent unterscheiden
 - Maximal EIN secondaryIntent
 - search/research/web können NICHT secondaryIntent sein — sie liefern Kontext und sind immer primary
-- Typische secondaryIntents: image, examples, chart, save_as_doc
+- Typische secondaryIntents: image, examples, save_as_doc
 
 Antworte NUR mit JSON:
 {
@@ -308,7 +314,7 @@ Antworte NUR mit JSON:
   "contentType": "pressemitteilung" | "artikel" | "rede" | "argumentation" | "tweet" | "slogan" | null,
   "needsResearch": true | false,   // true = ohne Nachschlagen nicht wahrheitsgemäß beantwortbar; dann NIEMALS intent "direct"
   "intent": ${INTENT_ENUM_LINE},
-  "secondaryIntent": "image" | "examples" | "chart" | "save_as_doc" | null,
+  "secondaryIntent": "image" | "examples" | "save_as_doc" | null,
   "documentSubtype": ${DOC_SUBTYPE_ENUM_LINE} | null,
   "searchQuery": "ORIGINALTEXT des Benutzers (KEINE Korrekturen an Eigennamen!)" | null,
   "optimizedSearchQuery": "nur das faktische Thema aus dem ORIGINALTEXT, ohne Aufgabenanweisung" | null,
