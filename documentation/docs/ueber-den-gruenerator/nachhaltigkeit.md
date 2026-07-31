@@ -12,6 +12,7 @@ Modell-Stand aus dem Code (bei Änderungen dort auch hier nachziehen):
 - apps/api/services/flux/RegoloImageService.ts (Qwen-Image)
 - apps/api/services/subtitler/regoloTranscriptionService.ts (faster-whisper-large-v3)
 - apps/api/services/mistral/MistralEmbeddingService/ (mistral-embed)
+- apps/api/services/usage/energyFootprint.ts (Energie-Koeffizienten, Netzintensitäten)
   */}
 
 # Wie nachhaltig ist der Grünerator?
@@ -69,6 +70,42 @@ Auch innerhalb einer Antwort ist die Arbeit geteilt: Ein **kleines, schnelles Mo
 ### Black Forest Labs (Freiburg) — Bilder aus der EU
 
 **[Black Forest Labs](https://bfl.ai/)** aus Freiburg entwickelt die FLUX-Bildmodelle. Der Grünerator nutzt ausschließlich den **EU-Endpunkt** (`api.eu.bfl.ai`) mit `flux-2-pro` — die Bilderzeugung läuft damit im europäischen Strommix, der deutlich CO₂-ärmer ist als der US-amerikanische, wo die meisten Bild-KIs rechnen.
+
+## Was dein eigener Verbrauch kostet
+
+Unter **Einstellungen → Nutzung** siehst du Energie- und CO₂-Verbrauch deiner eigenen Anfragen. Diese Zahl ist teils gemessen, teils hochgerechnet — hier steht, wie sie zustande kommt.
+
+### Woher die Messwerte kommen
+
+Von unseren Anbietern liefert nur **GreenPT** die Umweltkosten einer Anfrage mit: Jede Antwort trägt ein `impact`-Objekt mit Energieverbrauch und Emissionen. Diese Werte übernehmen wir unverändert.
+
+Für alle anderen rechnen wir hoch — mit Werten, die an **genau denselben Modellen** gemessen wurden. GreenPT betreibt Gemma 4, GPT-OSS 120B und Mistral Medium 3.5 ebenfalls, also verrät eine Messung dort, was dasselbe Modell bei Regolo oder verdigado kostet. Gemessen am 31.07.2026 über 35 Läufe mit unterschiedlich langen Antworten:
+
+| Modell                        | Energie je erzeugtem Token | typische Antwort (400 Token) |
+| ----------------------------- | -------------------------- | ---------------------------- |
+| Mistral Small 3.2 (24 Mrd.)   | 0,70 mWh                   | 0,28 Wh                      |
+| Gemma 4 (31 Mrd.)             | 0,72 mWh                   | 0,29 Wh                      |
+| GPT-OSS 120B                  | 0,81 mWh                   | 0,34 Wh                      |
+| Mistral Medium 3.5 (128 Mrd.) | 4,52 mWh                   | 1,84 Wh                      |
+| Qwen 3.5 (397 Mrd.)           | 7,47 mWh                   | 3,08 Wh                      |
+
+Das ist die harte Zahl unter dem, was weiter oben über sparsame Modelle steht: **Mistral Medium braucht das 6,3-fache von Gemma 4**, das größte gemessene Modell das 10,3-fache. Genau deshalb schreibt bei uns ein kompaktes Modell die Antworten.
+
+Nebenbei zeigt die Messung, dass der **Prompt fast nichts kostet**: Ein gesendetes Token verbraucht 100- bis 760-mal weniger Energie als ein erzeugtes. Lange Kontexte sind ökologisch billig, lange Antworten nicht.
+
+### Wie wir Emissionen berechnen
+
+Emissionen sind Energie mal Kohlenstoffintensität des Stroms. Wir rechnen **standortbasiert**, also mit dem realen Strommix am jeweiligen Rechenzentrumsstandort — nicht mit unseren Ökostromverträgen.
+
+Das ist bewusst die strengere Variante, und wir folgen damit GreenPT selbst: Der Anbieter wirbt mit 100 % erneuerbarer Energie und rechnet seine Emissionen trotzdem nicht auf null, sondern nutzt stündliche Netzdaten je Standort. Ein Ökostromvertrag ändert nichts daran, welcher Strom im selben Moment physisch durch die Leitung fließt. Die grüne Beschaffung bleibt richtig und wirksam — sie ist nur kein Rabatt auf die Bilanz.
+
+### Was die Zahl _nicht_ enthält
+
+- **Keine Herstellung, kein Training.** Wir zählen den Strom der Anfrage selbst. Der CO₂-Rucksack aus GPU-Produktion und Modelltraining fehlt.
+- **Keine Bilder, keine Transkription, keine Recherche.** Dafür liefert kein Anbieter Messwerte — GreenPTs Transkriptions-Endpunkt etwa gibt gar kein `impact`-Feld zurück. Diese Schritte fehlen vollständig.
+- **Nicht jedes Modell.** Für einige Lanes betreibt GreenPT kein Gegenstück. Wir schätzen sie **nicht** über die Modellgröße, weil die Messreihe zeigt, dass das nicht trägt: GPT-OSS mit 120 Mrd. Parametern verbraucht je Token weniger als ein Sechstel von Mistral Medium mit 128 Mrd. Die Anzeige nennt dir stattdessen, welcher Anteil deiner Tokens erfasst ist.
+
+Wie groß der fehlende Teil ist, lässt sich abschätzen: Mistrals unabhängig geprüfte Ökobilanz (siehe oben) nennt für eine 400-Token-Antwort rund **1,14 g CO₂e** — unsere Rechnung kommt für ein vergleichbares Modell auf etwa **0,10 g**. Der Faktor 11 ist kein Widerspruch, sondern die Systemgrenze: Mistral rechnet Hardware-Herstellung und anteiliges Training mit, wir nur den Betriebsstrom. **Wer eine vollständige Bilanz will, muss unsere Zahl als Untergrenze lesen.**
 
 :::info[Ehrlich bleiben]
 Die genannten Zahlen sind Anbieterangaben (Stand Juli 2026). Und auch grüne KI verbraucht Ressourcen — Nachhaltigkeit heißt beim Grünerator nicht „kostenlos für die Umwelt", sondern: bewusst kleine Modelle, bewusst grüne Anbieter, bewusst europäische Infrastruktur.

@@ -6,10 +6,11 @@
  * (generated images, transcriptions, web researches). The daily chart is plain
  * CSS bars — a charting library would be a lot of bundle for ten numbers.
  */
-import { type UsageFeature } from '@gruenerator/contracts';
+import { type UsageFeature, type UsageFootprintDto } from '@gruenerator/contracts';
 import { type QueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
+import { getDocsUrl } from '../../../utils/docsUrl';
 import { SettingsStatsSkeleton } from '../components/SettingsSkeleton';
 import { usageStatsQuery, useUsageStats } from '../hooks/useUsageStats';
 
@@ -62,6 +63,33 @@ function formatTokens(value: number): string {
   return numberFormat.format(value);
 }
 
+const oneDecimal = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 });
+const twoDecimals = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 });
+
+/** Footprints span four orders of magnitude between a trial and a heavy month. */
+function formatGrams(grams: number): string {
+  if (grams >= 1000) return `${twoDecimals.format(grams / 1000)} kg`;
+  if (grams >= 1) return `${oneDecimal.format(grams)} g`;
+  return `${numberFormat.format(Math.round(grams * 1000))} mg`;
+}
+
+function formatEnergy(wh: number): string {
+  if (wh >= 1000) return `${twoDecimals.format(wh / 1000)} kWh`;
+  return `${oneDecimal.format(wh)} Wh`;
+}
+
+/**
+ * Average CO2 of the German car fleet, g/km (UBA). Only ever used to make an
+ * abstract milligram figure imaginable — never as a claim of its own.
+ */
+const CAR_G_PER_KM = 150;
+
+function carComparison(grams: number): string {
+  const metres = (grams / CAR_G_PER_KM) * 1000;
+  if (metres >= 1000) return `${oneDecimal.format(metres / 1000)} km Autofahrt`;
+  return `${numberFormat.format(Math.round(metres))} m Autofahrt`;
+}
+
 function formatDay(day: string): string {
   const date = new Date(`${day}T00:00:00Z`);
   return Number.isNaN(date.getTime())
@@ -79,6 +107,34 @@ function StatTile({ label, value, hint }: { label: string; value: string; hint?:
   );
 }
 
+/**
+ * The number above is part measurement, part extrapolation, and covers only the
+ * text models. Saying so is not optional garnish — an unqualified CO2 figure on
+ * a Green party's tool is exactly the kind of claim that gets checked.
+ */
+function FootprintNote({ footprint }: { footprint: UsageFootprintDto }) {
+  const measuredPct = Math.round(footprint.measured_share * 100);
+  const coveredPct = Math.round(footprint.covered_share * 100);
+  return (
+    <p className="m-0 rounded-xl border border-grey-200 p-md text-xs leading-relaxed text-grey-500 dark:border-grey-700">
+      {measuredPct > 0
+        ? `${formatCount(measuredPct)} % dieser Zahl sind Messwerte, die unser Anbieter GreenPT mitliefert. Der Rest ist `
+        : 'Die Zahl ist '}
+      aus deinen Token-Zahlen hochgerechnet — mit Energiewerten, die an genau denselben Modellen
+      gemessen wurden. Abgedeckt sind {formatCount(coveredPct)} % der Text-Tokens im Zeitraum.
+      Bilder, Transkription und Web-Recherche fehlen, weil dafür keine Messwerte vorliegen.{' '}
+      <a
+        href={`${getDocsUrl()}/docs/ueber-den-gruenerator/nachhaltigkeit`}
+        target="_blank"
+        rel="noreferrer"
+        className="underline hover:text-foreground"
+      >
+        Wie wir rechnen
+      </a>
+    </p>
+  );
+}
+
 export default function UsageTab() {
   const [days, setDays] = useState<number>(DEFAULT_DAYS);
   const { data, isPending, isError } = useUsageStats(days);
@@ -93,7 +149,7 @@ export default function UsageTab() {
     );
   }
 
-  const { totals, daily, byFeature, byModel } = data;
+  const { totals, footprint, daily, byFeature, byModel } = data;
   const maxDayTokens = daily.reduce((max, d) => Math.max(max, d.input_tokens + d.output_tokens), 0);
   const hasAnything = totals.requests > 0 || totals.images > 0 || totals.transcriptions > 0;
 
@@ -138,7 +194,16 @@ export default function UsageTab() {
             <StatTile label="Bilder" value={formatCount(totals.images)} />
             <StatTile label="Transkriptionen" value={formatCount(totals.transcriptions)} />
             <StatTile label="Web-Recherchen" value={formatCount(totals.searches)} />
+            {footprint.covered_share > 0 && (
+              <StatTile
+                label="CO₂ der Textmodelle"
+                value={`≈ ${formatGrams(footprint.emissions_g)}`}
+                hint={`${formatEnergy(footprint.energy_wh)} · so viel wie ${carComparison(footprint.emissions_g)}`}
+              />
+            )}
           </div>
+
+          {footprint.covered_share > 0 && <FootprintNote footprint={footprint} />}
 
           <section className="flex flex-col gap-sm">
             <h3 className="m-0 text-sm font-semibold text-foreground-heading">Tokens pro Tag</h3>

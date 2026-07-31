@@ -13,6 +13,7 @@ import { and, eq, gte } from 'drizzle-orm';
 
 import { userUsageDaily } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
+import { estimateFootprint } from '../../services/usage/energyFootprint.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
@@ -101,10 +102,43 @@ export const userUsageContractRouter = s.router(userUsageContract, {
         }
       >();
 
+      // Footprint accumulators. `covered`/`uncovered` count TOKENS, so the
+      // honesty ratio reflects the share of work accounted for, not the share
+      // of rows — a row is a whole day of one model.
+      let energyWms = 0;
+      let emissionsUg = 0;
+      let measuredEnergyWms = 0;
+      let coveredTokens = 0;
+      let textTokens = 0;
+
       for (const row of rows) {
         const unit = usageUnitFallback(row.unit);
         const feature = usageFeatureFallback(row.feature);
         const tokens = row.inputTokens + row.outputTokens;
+
+        if (unit === 'tokens') {
+          textTokens += tokens;
+          if (row.energyWms > 0) {
+            // Measured beats estimated: GreenPT already told us the truth.
+            energyWms += row.energyWms;
+            measuredEnergyWms += row.energyWms;
+            emissionsUg += row.emissionsUg;
+            coveredTokens += tokens;
+          } else {
+            const estimate = estimateFootprint({
+              provider: row.provider,
+              model: row.model,
+              inputTokens: row.inputTokens,
+              outputTokens: row.outputTokens,
+              requests: row.requests,
+            });
+            if (estimate) {
+              energyWms += estimate.energyWms;
+              emissionsUg += estimate.emissionsUg;
+              coveredTokens += tokens;
+            }
+          }
+        }
 
         totals.requests += row.requests;
         totals.input_tokens += row.inputTokens;
@@ -156,6 +190,12 @@ export const userUsageContractRouter = s.router(userUsageContract, {
           days,
           since: sinceDay,
           totals,
+          footprint: {
+            energy_wh: energyWms / 3_600_000,
+            emissions_g: emissionsUg / 1_000_000,
+            measured_share: energyWms > 0 ? measuredEnergyWms / energyWms : 0,
+            covered_share: textTokens > 0 ? coveredTokens / textTokens : 0,
+          },
           daily: [...daily.entries()]
             .map(([day, entry]) => ({
               day,

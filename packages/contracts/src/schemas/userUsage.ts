@@ -36,6 +36,28 @@ export const usageTotalsSchema = z.object({
   searches: z.number(),
 });
 
+/**
+ * Environmental footprint of the text generation in the window.
+ *
+ * Partly measured — GreenPT reports energy and emissions on every response —
+ * and otherwise derived from token counts via coefficients measured against
+ * those same models (apps/api/services/usage/energyFootprint.ts).
+ *
+ * The two share fields are what keep the number honest: a footprint computed
+ * from 40% of the tokens must not be rendered as the whole truth, and an
+ * estimate must not be dressed up as a measurement.
+ */
+export const usageFootprintSchema = z.object({
+  /** Watt-hours. */
+  energy_wh: z.number(),
+  /** Grams CO2e, location-based accounting. */
+  emissions_g: z.number(),
+  /** 0..1 — share of the counted energy that was measured rather than estimated. */
+  measured_share: z.number(),
+  /** 0..1 — share of the window's text tokens that any footprint covers. */
+  covered_share: z.number(),
+});
+
 export const usageDayEntrySchema = z.object({
   day: z.string(),
   requests: z.number(),
@@ -66,6 +88,7 @@ export const getUserUsageResponseSchema = z.object({
   days: z.number(),
   since: z.string(),
   totals: usageTotalsSchema,
+  footprint: usageFootprintSchema,
   daily: z.array(usageDayEntrySchema),
   byFeature: z.array(usageByFeatureEntrySchema),
   byModel: z.array(usageByModelEntrySchema),
@@ -78,6 +101,7 @@ export const userUsageErrorResponseSchema = z.object({
 export type UsageFeature = z.infer<typeof usageFeatureSchema>;
 export type UsageUnit = z.infer<typeof usageUnitSchema>;
 export type UsageTotalsDto = z.infer<typeof usageTotalsSchema>;
+export type UsageFootprintDto = z.infer<typeof usageFootprintSchema>;
 export type UsageDayEntryDto = z.infer<typeof usageDayEntrySchema>;
 export type UsageByFeatureEntryDto = z.infer<typeof usageByFeatureEntrySchema>;
 export type UsageByModelEntryDto = z.infer<typeof usageByModelEntrySchema>;
