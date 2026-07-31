@@ -322,8 +322,14 @@ const IMAGE_EDIT_INSTRUCTION_VERB_PATTERN =
 // ohne jedes Bild `image_edit` erzwingen würde. Hier hat der Aufrufer bereits
 // festgestellt, dass das letzte Artefakt des Threads ein Bild IST — das Nomen
 // muss nur noch sagen, WAS sich ändert.
+//
+// `plakat`/`poster` stehen mit dabei, weil sie hier dasselbe benennen wie
+// `bild`/`motiv`: das ganze Artefakt. „Mach das Plakat heller" fiel ohne sie ins
+// Residual. `poster` traf vorher nur durch Zufall — `IMAGE_REGEN_PATTERN` sucht
+// „mach das …er", und „Poster" endet auf -er. Ein Wort, das die Prüfung nur
+// wegen seiner letzten zwei Buchstaben besteht, ist nicht abgedeckt.
 const IMAGE_ELEMENT_NOUN_PATTERN =
-  /(?<!\p{L})(bild|foto|motiv|hintergrund|vordergrund|text|schrift|logo|farb|licht|beleuchtung|himmel|person|gesicht|detail|stil|ausschnitt|perspektive)/iu;
+  /(?<!\p{L})(bild|foto|motiv|plakat|poster|hintergrund|vordergrund|text|schrift|logo|farb|licht|beleuchtung|himmel|person|gesicht|detail|stil|ausschnitt|perspektive)/iu;
 
 // „Mach mir ein neues Bild" ist kein Folgeauftrag, sondern ein neuer Auftrag —
 // Verb und Nomen sind dieselben. Unterschieden wird am unbestimmten Artikel,
@@ -333,6 +339,17 @@ const IMAGE_ELEMENT_NOUN_PATTERN =
 const NEW_IMAGE_REQUEST_PATTERN =
   /(?<!\p{L})(?:ein(?:e|en|em)?|neue[srn]?)(?:\s+neue[srn]?)?\s+(?:bild|foto|grafik|illustration|poster)(?!\p{L})/iu;
 
+// Wer um einen Vorschlag bittet, erteilt keinen Auftrag — „Mach mal einen
+// Vorschlag, wie der Hintergrund besser wirken könnte" trägt Verb und Bildteil
+// wie eine Bearbeitung und meint das Gegenteil: eine Antwort in Prosa. Ohne
+// diesen Wächter lädt der Router das letzte Bild nach und schickt es an FLUX,
+// der Nutzer bekommt ein verändertes Bild statt einer Meinung.
+//
+// Die Frageform-Wächter darunter reichen dafür nicht: diese Bitten fangen mit
+// einem Imperativ an ("Mach mal …", "Gib mir …"), nicht mit einem Fragewort.
+const ADVICE_REQUEST_PATTERN =
+  /(?<!\p{L})(vorschlag|vorschl(?:ä|ae)ge|idee|ideen|tipp|tipps|empfehlung|ratschlag|meinung|feedback|findest du|h(?:ä|ae)ltst du|meinst du|(?:k(?:ö|oe)nnte|kann)\s+man)/iu;
+
 /**
  * True when a follow-up reads like an instruction to change the image that was
  * just generated. Only meaningful with an image `lastToolContext` — the caller
@@ -341,6 +358,7 @@ const NEW_IMAGE_REQUEST_PATTERN =
 export function isImageEditInstruction(text: string): boolean {
   if (NEW_IMAGE_REQUEST_PATTERN.test(text)) return false;
   if (ANSWER_REPEAT_PATTERN.test(text)) return false;
+  if (ADVICE_REQUEST_PATTERN.test(text)) return false;
   if (/^\s*(was|wie|wer|warum|wieso|welche|wann|wo)(?!\p{L})/iu.test(text)) return false;
   return IMAGE_EDIT_INSTRUCTION_VERB_PATTERN.test(text) && IMAGE_ELEMENT_NOUN_PATTERN.test(text);
 }
