@@ -130,44 +130,33 @@ export const INTERMEDIATE_LANES = {
    * Die Qualitätslatte: Zusammenfassungen, der Boards-Agent, die
    * mem0-Extraktion, Deep-Research-Planung.
    *
-   * Gemma 4 statt Small 4, aus zwei belegten Gründen (Messung 31.07.2026):
-   *   - Gliederung: der Zusammenfassungs-Prompt verlangt Überschriften „für
-   *     Hauptthemen", Small 4 liefert im Mittel EINE (also nur einen Titel),
-   *     Gemma 4 drei bis vier (n = 2 Dokumente);
-   *   - und der Grund, der ohne Messung unsichtbar bleibt: **Regolo bedient
-   *     `json_schema`- und Tool-Call-Anfragen auf `mistral-small-4-119b` still
-   *     mit `qwen3.5-9b`** — 12/12 bei flachem Schema, 3/3 bei jedem der drei
-   *     echten Schemas dieser Stufe. Die `generateObject`-Konsumenten
-   *     (mem0-Gatekeeper, `extractService`, Deep-Planner) liefen also auf einem
-   *     9-Mrd.-Qwen, obwohl sie ein 119-Mrd.-Modell benennen, und qwen steht in
-   *     `AVOID_AS_SYNTH`.
+   * Gemma 4 statt Small 4. Belegt ist EIN Grund, und der ist schmal: der
+   * Zusammenfassungs-Prompt verlangt Überschriften „für Hauptthemen", Small 4
+   * liefert im Mittel EINE (also nur einen Titel), Gemma 4 drei bis vier —
+   * bei n = 2 Dokumenten. Wer diese Stufe wieder anfasst, sollte breiter messen.
    *
-   * WICHTIG, weil naheliegend falsch: Gemma 4 behebt das NICHT vollständig.
-   * Ausschlaggebend ist die SCHEMA-VERSCHACHTELUNG, nicht das Modell. Mit
-   * `gemma4-31b` gemessen, je 3 Läufe gegen die echten Schemas:
-   *   - `extractService` (flach, nullable Felder)       → gemma4-31b   3/3
-   *   - `DeepPlanSchema` (Array von Objekten)           → gemma4-31b   3/3
-   *   - mem0 `GatekeeperResult` (5 verschachtelte Obj.) → GEMISCHT, teils qwen
-   * Zwei von drei Konsumenten bekommen das benannte Modell, der Gatekeeper
-   * nicht zuverlässig. Wer dort debuggt: das Feld `model` der ANTWORT lesen,
-   * nicht den Request.
+   * Dazu kommt, was keine Messung ist, aber zählt: Gemma 4 ist das
+   * produktionserprobteste Modell im System — es bedient bereits alle
+   * `TEXT_TYPES` und den Synth-Slot des Chat-Loops. Die Stufe zieht auf
+   * denselben Host, bleibt in derselben Fallback-Kette, und hat als einziger
+   * Kandidat einen gemessenen Energie-Koeffizienten (0,722 mWh/Ausgabe-Token),
+   * womit `heavy` in der CO₂-Übersicht überhaupt erst auftaucht.
    *
    * Die compute-Suite (100 % gegen 94,1 %) taugt NICHT als Beleg für diese
    * Stufe — ihre Konsumenten sind mit diesem PR nach `compute` gezogen.
    *
-   * KEIN akuter Fehler daraus: `regoloFetchWithThinkingDisabled` hängt
-   * `enable_thinking:false` an, und damit liefert auch das untergeschobene Qwen
-   * gültiges JSON. Ohne das Flag ist die Antwort leer — die beiden Bausteine
-   * hängen also zusammen, ohne dass es irgendwo steht.
+   * NICHT als Begründung verwendet, weil unbewiesen: auf dem
+   * `json_schema`-/Tool-Call-Pfad meldet Regolo im Antwortfeld `model` einen
+   * anderen Namen zurück, als der Request angefragt hat. Das ist eine
+   * Selbstauskunft des Gateways und kann ebenso gut eine falsche Beschriftung
+   * sein; ohne einen unterscheidenden Test (zeichengleiche Antworten bei
+   * Temperatur 0) trägt das keine Modellentscheidung. Erwähnt, damit niemand
+   * beim Debuggen über das Feld stolpert und es für gesichert hält.
    *
    * Preis: rund doppelte Latenz bei Zusammenfassungen (4,9–6,1 s gegen
    * 2,2–3,0 s) bei gleicher Token-Zahl, also echt langsamer pro Token. Tragbar,
    * weil `REQUEST_TIMEOUT` bei 120 s liegt — es gibt hier keine Zeitklippe wie
    * bei den Auflösern, nur Wartezeit.
-   *
-   * Gemma 4 ist ausserdem das produktionserprobteste Modell im System: es
-   * bedient bereits alle `TEXT_TYPES` und den Synth-Slot des Chat-Loops. Diese
-   * Stufe zieht auf denselben Host, nicht auf einen neuen.
    *
    * ACHTUNG mem0: `services/mem0/config.ts` baut seinen Extraktions-Client aus
    * `REGOLO_BASE_URL` + `REGOLO_API_KEY` PLUS dem Modellnamen dieser Stufe.
