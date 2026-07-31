@@ -15,7 +15,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { CHAT_HISTORY_DIRECT, looksLikeRecurringOrder } from './classifierParsing.js';
+import { CHAT_HISTORY_DIRECT, looksLikeRecurringOrder } from './classifierSignals.js';
 
 describe('looksLikeRecurringOrder — beansprucht', () => {
   it.each([

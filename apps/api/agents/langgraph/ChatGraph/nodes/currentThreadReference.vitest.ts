@@ -9,7 +9,7 @@
  */
 import { describe, it, expect } from 'vitest';
 
-import { CHAT_HISTORY_KEYWORDS, CURRENT_THREAD_REFERENCE } from './classifierParsing.js';
+import { CHAT_HISTORY_KEYWORDS, CURRENT_THREAD_REFERENCE } from './classifierSignals.js';
 
 describe('CURRENT_THREAD_REFERENCE', () => {
   it('matches references to the running conversation', () => {
