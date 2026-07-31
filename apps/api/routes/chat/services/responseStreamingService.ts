@@ -12,6 +12,7 @@ import { streamText, type ModelMessage, type LanguageModel } from 'ai';
 import { isReasoningCapable } from '../../../services/ai/modelDiscovery.js';
 import {
   isReasoningStreamModel,
+  ReasoningStreamUnavailableError,
   streamWithReasoning,
   type ThinkingEffort,
 } from '../../../services/ai/regoloReasoningStream.js';
@@ -812,7 +813,26 @@ export async function streamForResolution(params: {
     if (logPrefix) args.logPrefix = logPrefix;
     // `thinking` is true here, so the setting is one of low/medium/high.
     args.effort = resolution.reasoningEffort as ThinkingEffort;
-    return streamAndAccumulateWithReasoningOrThrow(args);
+    try {
+      return await streamAndAccumulateWithReasoningOrThrow(args);
+    } catch (err) {
+      // Only the Mistral lane has a second home: Scaleway serves its thinking
+      // turns, and `resolution.model` is already the Mistral API model (see
+      // the needsReasoning pin in resolveModel), so falling through to the SDK
+      // path below re-runs the turn against Mistral with reasoning intact.
+      // Every other lane has nowhere to fall back to, so its error propagates.
+      //
+      // Safe only because ReasoningStreamUnavailableError means the upstream
+      // never answered — nothing has reached the user's screen yet. A
+      // mid-stream failure throws a plain Error and is deliberately not caught
+      // here; retrying would replay tokens the user has already seen.
+      if (resolution.provider !== 'mistral' || !(err instanceof ReasoningStreamUnavailableError)) {
+        throw err;
+      }
+      log.warn(
+        `${logPrefix ?? '[ChatGraph]'} Scaleway reasoning unavailable (${err.status}) — falling back to the Mistral API`
+      );
+    }
   }
 
   const args: Parameters<typeof streamAndAccumulateOrThrow>[0] = {
