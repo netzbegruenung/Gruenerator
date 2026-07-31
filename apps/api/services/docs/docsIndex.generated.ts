@@ -2367,7 +2367,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Black Forest Labs (Freiburg) — Bilder aus der EU",
     "anchor": "#black-forest-labs-freiburg--bilder-aus-der-eu",
     "category": "Über den Grünerator",
-    "text": "Black Forest Labs aus Freiburg entwickelt die FLUX-Bildmodelle. Der Grünerator nutzt ausschließlich den EU-Endpunkt (api.eu.bfl.ai) mit flux-2-pro — die Bilderzeugung läuft damit im europäischen Strommix, der deutlich CO₂-ärmer ist als der US-amerikanische, wo die meisten Bild-KIs rechnen. Die genannten Zahlen sind Anbieterangaben (Stand Juli 2026). Und auch grüne KI verbraucht Ressourcen — Nachhaltigkeit heißt beim Grünerator nicht „kostenlos für die Umwelt\", sondern: bewusst kleine Modelle, bewusst grüne Anbieter, bewusst europäische Infrastruktur. Warum die Anbieter außerdem alle in Europa sitzen, liest du unter Grünerator Pro-EU."
+    "text": "Black Forest Labs aus Freiburg entwickelt die FLUX-Bildmodelle. Der Grünerator nutzt ausschließlich den EU-Endpunkt (api.eu.bfl.ai) mit flux-2-pro — die Bilderzeugung läuft damit im europäischen Strommix, der deutlich CO₂-ärmer ist als der US-amerikanische, wo die meisten Bild-KIs rechnen."
   },
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
@@ -2416,6 +2416,38 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#sparsame-modelle-statt-größenwahn",
     "category": "Über den Grünerator",
     "text": "Die größten kommerziellen KI-Modelle brauchen für jede einzelne Antwort ein Vielfaches der Energie eines kompakten Modells. Der Grünerator setzt deshalb bewusst auf kleine und mittlere Modelle — vom 31-Milliarden-Parameter-Modell Gemma 4 bis zum mittelgroßen Mistral Medium. Das sind die Modelle, die tatsächlich im Einsatz sind: Aufgabe | Modell | Läuft bei | ------------------------------------ | -------------------------------------------------------------- | ---------------------------------------------- | Chat & Texte (Standard) | Mistral Medium 3.5 (mistral-medium-2604) | Mistral AI 🇫🇷 | Kreativtexte, Antworten schreiben | Gemma 4 — 31 Mrd. Parameter (gemma4-31b) | verdigado 🇩🇪 / Regolo 🇮🇹 | Schnelle Antworten | GPT-OSS 120B (gpt-oss-120b) | verdigado 🇩🇪 / Regolo 🇮🇹 | Anfragen einordnen, Zwischenschritte | Mistral Small 4 (mistral-small-4-119b) | Regolo 🇮🇹 | Werkzeuge planen und aufrufen | Mistral Small (mistral-small-latest) | Mistral AI 🇫🇷 | Bilder verstehen | Gemma 4 (gemma4-31b), Pixtral Large | Regolo 🇮🇹 / Mistral AI 🇫🇷 | Bilder erzeugen & bearbeiten | FLUX 2 Pro (flux-2-pro), Qwen-Image | Black Forest Labs 🇩🇪 (EU-Endpunkt) / Regolo 🇮🇹 | Untertitel & "
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Was dein eigener Verbrauch kostet",
+    "anchor": "#was-dein-eigener-verbrauch-kostet",
+    "category": "Über den Grünerator",
+    "text": "Unter Einstellungen → Nutzung siehst du Energie- und CO₂-Verbrauch deiner eigenen Anfragen. Diese Zahl ist teils gemessen, teils hochgerechnet — hier steht, wie sie zustande kommt."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Was die Zahl nicht enthält",
+    "anchor": "#was-die-zahl-nicht-enthält",
+    "category": "Über den Grünerator",
+    "text": "Keine Herstellung, kein Training. Wir zählen den Strom der Anfrage selbst. Der CO₂-Rucksack aus GPU-Produktion und Modelltraining fehlt. Keine Bilder, keine Transkription, keine Recherche. Dafür liefert kein Anbieter Messwerte — GreenPTs Transkriptions-Endpunkt etwa gibt gar kein impact-Feld zurück. Diese Schritte fehlen vollständig. Nicht jedes Modell. Für einige Lanes betreibt GreenPT kein Gegenstück. Wir schätzen sie nicht über die Modellgröße, weil die Messreihe zeigt, dass das nicht trägt: GPT-OSS mit 120 Mrd. Parametern verbraucht je Token weniger als ein Sechstel von Mistral Medium mit 128 Mrd. Die Anzeige nennt dir stattdessen, welcher Anteil deiner Tokens erfasst ist. Wie groß der fehlende Teil ist, lässt sich abschätzen: Mistrals unabhängig geprüfte Ökobilanz (siehe oben) nennt für eine 400-Token-Antwort rund 1,14 g CO₂e — unsere Rechnung kommt für ein vergleichbares Modell auf etwa 0,10 g. Der Faktor 11 ist kein Widerspruch, sondern die Systemgrenze: Mistral rechnet Hardware-Herstellung und anteiliges Training mit, wir nur den Betriebsstrom. Wer eine vollständige Bilanz will, muss unsere Zahl als Untergrenze lesen. Die genannten Zahlen sind Anbieterangaben (Stand Juli 20"
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Wie wir Emissionen berechnen",
+    "anchor": "#wie-wir-emissionen-berechnen",
+    "category": "Über den Grünerator",
+    "text": "Emissionen sind Energie mal Kohlenstoffintensität des Stroms. Wir rechnen standortbasiert, also mit dem realen Strommix am jeweiligen Rechenzentrumsstandort — nicht mit unseren Ökostromverträgen. Das ist bewusst die strengere Variante, und wir folgen damit GreenPT selbst: Der Anbieter wirbt mit 100 % erneuerbarer Energie und rechnet seine Emissionen trotzdem nicht auf null, sondern nutzt stündliche Netzdaten je Standort. Ein Ökostromvertrag ändert nichts daran, welcher Strom im selben Moment physisch durch die Leitung fließt. Die grüne Beschaffung bleibt richtig und wirksam — sie ist nur kein Rabatt auf die Bilanz."
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Woher die Messwerte kommen",
+    "anchor": "#woher-die-messwerte-kommen",
+    "category": "Über den Grünerator",
+    "text": "Von unseren Anbietern liefert nur GreenPT die Umweltkosten einer Anfrage mit: Jede Antwort trägt ein impact-Objekt mit Energieverbrauch und Emissionen. Diese Werte übernehmen wir unverändert. Für alle anderen rechnen wir hoch — mit Werten, die an genau denselben Modellen gemessen wurden. GreenPT betreibt Gemma 4, GPT-OSS 120B und Mistral Medium 3.5 ebenfalls, also verrät eine Messung dort, was dasselbe Modell bei Regolo oder verdigado kostet. Gemessen am 31.07.2026 über 35 Läufe mit unterschiedlich langen Antworten: Modell | Energie je erzeugtem Token | typische Antwort (400 Token) | ----------------------------- | -------------------------- | ---------------------------- | Mistral Small 3.2 (24 Mrd.) | 0,70 mWh | 0,28 Wh | Gemma 4 (31 Mrd.) | 0,72 mWh | 0,29 Wh | GPT-OSS 120B | 0,81 mWh | 0,34 Wh | Mistral Medium 3.5 (128 Mrd.) | 4,52 mWh | 1,84 Wh | Qwen 3.5 (397 Mrd.) | 7,47 mWh | 3,08 Wh | Das ist die harte Zahl unter dem, was weiter oben über sparsame Modelle steht: Mistral Medium braucht das 6,3-fache von Gemma 4, das größte gemessene Modell das 10,3-fache. Genau deshalb schreibt bei uns ein kompaktes Modell die Antworten. Nebenbei zeigt die Messung, dass der Prompt fast nich"
   },
   {
     "url": "/docs/ueber-den-gruenerator/notebook",
