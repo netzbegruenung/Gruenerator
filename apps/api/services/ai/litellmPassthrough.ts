@@ -17,16 +17,35 @@ import { getContextWindow } from '../../routes/chat/agents/providers.js';
 import { LITELLM_DEFAULT_BASE_URL } from './providerInstances.js';
 
 /**
- * The only models this endpoint may reach.
+ * Die einzigen Modelle, die dieser Endpoint erreichen darf.
  *
- * Closed on purpose, for two independent reasons: `verdigado-pro` (gpt-oss)
- * failed the Excel tool-loop probe with enum violations and wrong ranges, and
- * an open `model` parameter would turn any API key into general-purpose access
- * to our LiteLLM account.
+ * Eine geschlossene Liste, nicht ein Durchreichen von LiteLLMs `/v1/models`:
+ * dort stehen auch Embedding-Modelle (`nomic-embed-text`), die ein Client
+ * ansonsten auswählt und die auf einen Chat-Request unbrauchbar antworten.
+ * Und ein offener `model`-Parameter machte aus jedem API-Schlüssel einen
+ * Generalzugang zu unserem LiteLLM-Konto.
+ *
+ * `gemma` fehlt bewusst — der Alias zeigt auf ein kleineres Modell mit einem
+ * Achtel Kontext und ist auch im Chat-Stack aus der Auswahl genommen.
  */
-export const ALLOWED_MODELS = ['verdigado-think'] as const;
+export const ALLOWED_MODELS = ['verdigado-think', 'verdigado-pro'] as const;
 export type AllowedModel = (typeof ALLOWED_MODELS)[number];
 
+/**
+ * Anzeigenamen für die Modellauswahl im Client. Ein Client, der `/models`
+ * abfragt, bekommt sonst nur die technischen Kennungen zu sehen.
+ */
+export const MODEL_LABELS: Record<AllowedModel, string> = {
+  'verdigado-think': 'Gemma 4 31B',
+  'verdigado-pro': 'GPT-OSS 120B',
+};
+
+/**
+ * Gemma 4 ist Standard, nicht GPT-OSS: im Tool-Loop-Test gegen Excel-Tools
+ * brauchte `verdigado-think` 3 Runden ohne Schema-Verstoß, `verdigado-pro`
+ * 4 Runden mit zwei Enum-Verstößen und falsch gesetzten Bereichen. Wählbar
+ * bleibt es trotzdem — für Fließtext ist es die stärkere Wahl.
+ */
 export const DEFAULT_MODEL: AllowedModel = 'verdigado-think';
 
 export function isAllowedModel(model: string): model is AllowedModel {

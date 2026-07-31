@@ -29,6 +29,7 @@ import {
   isAllowedModel,
   ALLOWED_MODELS,
   DEFAULT_MODEL,
+  MODEL_LABELS,
   MAX_PROMPT_TOKENS,
 } from '../../services/ai/litellmPassthrough.js';
 import { createLogger } from '../../utils/logger.js';
@@ -173,6 +174,9 @@ modelsRouter.get('/', (req: Request, res: Response) => {
       id,
       object: 'model',
       owned_by: 'gruenerator',
+      // Nicht Teil der OpenAI-Spezifikation, aber von Clients als Anzeigename
+      // gelesen — sonst steht in der Auswahl nur die technische Kennung.
+      name: MODEL_LABELS[id],
     })),
   });
 });
