@@ -138,8 +138,11 @@ export type Citation = ChatCitation;
 export type SearchResult = SearchResultPayload;
 
 /**
- * An image hit from the web search. A named LINK, never a rendered picture — see
- * `searchImagePayloadSchema` for why there is no thumbnail field.
+ * An image hit from the web search.
+ *
+ * Shown as a thumbnail ONLY via `proxyUrl` (same-origin, signed, short-lived);
+ * with no proxy handle it stays the named link it used to be. Never rendered
+ * from `url` — see `SearchImagesSection`.
  */
 export type SearchImage = SearchImagePayload;
 

@@ -188,6 +188,7 @@ RECHERCHE NUR WENN:
 - Nutzer NICHT alle Informationen mitliefert UND Fakten benötigt werden
 
 needsResearch = true genau dann, wenn du die Anfrage NICHT wahrheitsgemäß beantworten kannst, ohne etwas nachzuschlagen (aktuelle Ereignisse, Zahlen, Positionen, Personen, Zitate).
+BILDER: Setze bilder=true, wenn das Thema etwas Sichtbares ist — eine Person, ein Ort, ein Bauwerk, ein Ereignis, ein Produkt, ein Tier, ein Kunstwerk, eine Veranstaltung. Setze bilder=false bei abstrakten Themen: Rechtslage, Verfahren, Berechnungen, Strategie, Textarbeit. Der Benutzer sieht die Treffer über der Antwort; sie kosten nichts extra, aber Bilder zu einer Paragrafenfrage sind nur Rauschen.
 KONSISTENZ (verbindlich): Setzt du needsResearch auf true, darf der intent NICHT "direct" sein — wähle search, web oder research. "direct" heißt: alles Nötige steht bereits in der Nachricht oder es ist eine rein kreative/umformulierende Aufgabe.
 
 FALSCHE PRÄMISSEN ERKENNEN:
@@ -325,6 +326,7 @@ Antworte NUR mit JSON:
   "typoAnalysis": {"original": "...", "corrected": "..."} | null,
   "contentType": "pressemitteilung" | "artikel" | "rede" | "argumentation" | "tweet" | "slogan" | null,
   "needsResearch": true | false,   // true = ohne Nachschlagen nicht wahrheitsgemäß beantwortbar; dann NIEMALS intent "direct"
+  "bilder": true | false,          // true = das Thema ist etwas Sichtbares, Bilder gehören neben die Antwort
   "intent": ${INTENT_ENUM_LINE},
   "secondaryIntent": "image" | "examples" | "save_as_doc" | null,
   "documentSubtype": ${DOC_SUBTYPE_ENUM_LINE} | null,

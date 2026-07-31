@@ -44,6 +44,7 @@ import { selectAndCrawlTopUrls } from '../../../services/search/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
 import { isEditorSurface } from '../services/agenticLoop/routing.js';
+import { withImageProxy } from '../services/searchImagePayload.js';
 
 import {
   makeAbgeordnetenwatchTool,
@@ -69,6 +70,7 @@ import {
   makeNotebooksTool,
   type PersonalToolCtx,
 } from './personalDataTools.js';
+import { harvestSearchImages, imageDeliveryNote } from './searchImageHarvest.js';
 import { createSearchTools } from './searchTools.js';
 
 import type { AgentConfig } from './types.js';
@@ -108,6 +110,34 @@ const CRAWL_SNIPPET_CHARS = 25_000;
 
 type ExecuteFn = (input: unknown, options: { toolCallId: string }) => Promise<unknown>;
 
+type LoopContext = { sse: SSEWriter; state: ChatGraphState };
+
+/**
+ * Move a tool result's image hits onto the turn and out to the client, and give
+ * the model back the one thing it may know about them: how many there are.
+ *
+ * Returns null (and sends nothing) when there is nothing new — including on
+ * every non-loop caller, where there is no stream to send on. The turn's list
+ * lives on `state.webImageResults`, the same field the single-pass path fills,
+ * so everything downstream of the state sees one shape regardless of which path
+ * produced it.
+ *
+ * The proxy handles are minted HERE, at the moment of handing out, because that
+ * is what makes the proxy's capability check mean anything (see
+ * `searchImagePayload`). The full accumulated list is re-sent on every search
+ * rather than a delta: the client then just replaces its list, and no ordering
+ * or dedup logic has to exist twice.
+ */
+function takeSearchImages(result: unknown, loop: LoopContext | undefined): string | null {
+  if (!loop) return null;
+  const { images, added } = harvestSearchImages(result, loop.state.webImageResults ?? []);
+  if (added === 0) return null;
+  loop.state.webImageResults = images;
+  loop.sse.send('search_images', { images: images.map(withImageProxy) });
+  log.info(`[toolCatalog] ${added} Bildtreffer an den Client gesendet (gesamt ${images.length})`);
+  return imageDeliveryNote(images.length);
+}
+
 export interface ChatToolCatalog {
   tools: ToolSet;
   toolNames: string[];
@@ -144,6 +174,11 @@ export function buildChatToolCatalog(params: {
     // `tiefe: 'tiefenrecherche'`. Comes from the user's own words, not from the
     // model's judgement — see resolveSearchTier.
     ...(loop?.state.explicitDeepRequest === true && { explicitDeepRequest: true }),
+    // Whether this turn's searches bring image hits back. Decided by the
+    // classifier — from the user's own words or from its judgement of the
+    // subject — and merely carried here. The same signal the single-pass path
+    // reads in `searchNode`, so both paths show pictures on the same turns.
+    ...(loop?.state.webWantsImages === true && { wantsImages: true }),
     // What a narrowing `seiten` argument is checked against. The mention-free
     // form, for the same reason the sharepic licence reads it: a mention LABEL
     // ("@[Recherche](tool:web_search)") is not something the user typed about a
@@ -171,13 +206,23 @@ export function buildChatToolCatalog(params: {
     }
     const decorated: ExecuteFn = async (input, options) => {
       const result = await original(input, options);
+      // Before the lean shape below discards everything but `sources`: image hits
+      // leave the tool result here, travel to the client as their own event, and
+      // reach the model only as a count (see searchImageHarvest).
+      const bilder = takeSearchImages(result, loop);
       const raw =
         result &&
         typeof result === 'object' &&
         Array.isArray((result as { results?: unknown }).results)
           ? ((result as { results: Record<string, unknown>[] }).results ?? [])
           : [];
-      if (raw.length === 0) return result;
+      // A search that found ONLY images is the "zeig mir Fotos" turn — the one
+      // case where an empty `results` is a success. Returning the raw result here
+      // would hand the model the image URLs it must not have, so it gets the note
+      // and nothing else.
+      if (raw.length === 0) {
+        return bilder ? { resultCount: 0, sources: '', bilder } : result;
+      }
       // CRITICAL: executeDirectSearch/executeDirectWebSearch items carry their
       // text in `excerpt` (docs) / `snippet` (web) — NOT `content`. The source
       // registry keys on `content`, so without this normalisation every result
@@ -196,12 +241,12 @@ export function buildChatToolCatalog(params: {
         ...(typeof r.publishedDate === 'string' ? { publishedDate: r.publishedDate } : {}),
       }));
       const sources = sourceRegistry.register(mapped);
-      if (!sources) return { resultCount: 0, sources: '' };
+      if (!sources) return { resultCount: 0, sources: '', ...(bilder ? { bilder } : {}) };
       // Lean model-facing shape: the numbered `sources` block is the grounding
       // (the raw content lives in the registry → done.citations). Dropping the
       // heavy `results[]` here keeps `sources` intact under result truncation
       // and halves the tokens the model pays per search.
-      return { resultCount: mapped.length, sources };
+      return { resultCount: mapped.length, sources, ...(bilder ? { bilder } : {}) };
     };
     tools[name] = { ...def, execute: decorated } as ToolSet[string];
   }

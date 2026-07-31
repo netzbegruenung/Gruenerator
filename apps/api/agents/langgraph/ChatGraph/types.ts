@@ -1042,6 +1042,17 @@ export interface ClassificationResult {
    * ChatGraphState for what that cost.
    */
   needsResearch?: boolean | undefined;
+  /**
+   * Would pictures belong beside this answer? The classifier's judgement — it is
+   * the node that already reads what the turn is about, and a regex cannot tell
+   * "wer war Marilyn Monroe" (a person: yes) from "wie berechne ich die
+   * Grunderwerbsteuer" (a procedure: no).
+   *
+   * Absent whenever no LLM classification ran, which is every tier that
+   * short-circuits earlier. That is why the deterministic "the user asked for
+   * photos" check stays beside it instead of being replaced by it.
+   */
+  wantsImages?: boolean | undefined;
   needsClarification?: boolean | undefined;
   clarificationQuestion?: string | undefined;
   clarificationOptions?: string[] | undefined;
