@@ -1333,9 +1333,19 @@ export function heuristicClassify(
     };
   }
 
-  // Medium confidence (0.68): Fact-based content types with topic markers → direct (not research)
-  // Content type is useful metadata but does NOT imply research is needed.
-  // Users on this platform typically provide their own content and want AI to write/format it.
+  // Medium confidence (0.68): fact-based content types with topic markers.
+  //
+  // This used to be justified with "users on this platform typically provide
+  // their own content and want AI to write/format it" — the same assumption the
+  // classifier prompt encoded as "Erstelle/Schreib X = IMMER direct". Both are
+  // gone: a text ABOUT the world whose substance was never supplied cannot be
+  // written truthfully from the model's own memory.
+  //
+  // The verdict stays `direct` HERE because 0.68 is below
+  // HEURISTIC_CONFIDENCE_THRESHOLD and is therefore only a hint. Tier 3.5 in
+  // classifierNode now demotes exactly this shape to `agentic` when the turn
+  // carries no material of its own; a turn WITH material still resolves to
+  // direct through the isLongPaste branch above.
   const factBasedContent =
     /\b(pressemitteilung|pressemeldung|pm|artikel|beitrag|blogpost|rede|ansprache|statement|argumentation|argumente|faktencheck|analyse|bericht|report)\b/i;
   const hasTopicMarker = /(?:^|\s)(über|zu|zum|zur|bezüglich|betreffend|thema)(?:\s|$)/i;
