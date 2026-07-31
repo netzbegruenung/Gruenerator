@@ -180,12 +180,24 @@ describe.skipIf(!HAS_LITELLM)('reasoning lanes — Verdigado (LiteLLM)', () => {
 
 // ─── Mistral lane ───────────────────────────────────────────────────────────
 
+/**
+ * `{ needsReasoning: true }` is REQUIRED on every model in this block.
+ *
+ * Mistral Medium 3.5 is served by Scaleway by default, and that lane is reached
+ * through @ai-sdk/openai — which never receives a `providerOptions.mistral`
+ * block. Without the flag these cases would exercise a model that cannot see
+ * the option at all, and the suite would stay green while the product had
+ * quietly stopped thinking. The flag pins the request to @ai-sdk/mistral, where
+ * reasoning works and is surfaced. See routeMistralModel.
+ */
+const REASONING_ROUTE = { needsReasoning: true } as const;
+
 describe.skipIf(!HAS_MISTRAL)('reasoning lanes — Mistral', () => {
   it(
     'mistral-medium-2604 thinks only when reasoningEffort is set',
     async () => {
       const withEffort = await generateText({
-        model: getModel('mistral', 'mistral-medium-2604'),
+        model: getModel('mistral', 'mistral-medium-2604', REASONING_ROUTE),
         messages: PROMPT,
         maxOutputTokens: MAX_TOKENS,
         temperature: 0.2,
@@ -206,7 +218,7 @@ describe.skipIf(!HAS_MISTRAL)('reasoning lanes — Mistral', () => {
       // 'medium' straight through would throw here, in production.
       await expect(
         generateText({
-          model: getModel('mistral', 'mistral-medium-2604'),
+          model: getModel('mistral', 'mistral-medium-2604', REASONING_ROUTE),
           messages: PROMPT,
           maxOutputTokens: 64,
           providerOptions: { mistral: { reasoningEffort: 'medium' } },
@@ -220,13 +232,38 @@ describe.skipIf(!HAS_MISTRAL)('reasoning lanes — Mistral', () => {
     'mistral-medium-2604 does not think without it (the `off` path)',
     async () => {
       const plain = await generateText({
-        model: getModel('mistral', 'mistral-medium-2604'),
+        model: getModel('mistral', 'mistral-medium-2604', REASONING_ROUTE),
         messages: PROMPT,
         maxOutputTokens: MAX_TOKENS,
         temperature: 0.2,
       });
       expect(plain.text.length).toBeGreaterThan(0);
       expect(plain.reasoningText?.length ?? 0, 'unexpected reasoning without effort').toBe(0);
+    },
+    TIMEOUT_MS
+  );
+
+  /**
+   * The trap itself, asserted rather than merely described.
+   *
+   * Without `needsReasoning` the same call resolves to Scaleway, where the
+   * mistral option is dropped in silence — no error, no reasoning, text that
+   * looks perfectly fine. If this case ever starts producing reasoning, the
+   * routing changed and the carve-out above stopped being load-bearing: remove
+   * it deliberately rather than letting it rot.
+   */
+  it.skipIf(!process.env.SCALEWAY_API_KEY)(
+    'drops the mistral reasoning option on the Scaleway upstream',
+    async () => {
+      const onScaleway = await generateText({
+        model: getModel('mistral', 'mistral-medium-2604'),
+        messages: PROMPT,
+        maxOutputTokens: MAX_TOKENS,
+        temperature: 0.2,
+        providerOptions: { mistral: { reasoningEffort: 'high' } },
+      });
+      expect(onScaleway.text.length, 'Scaleway must still answer').toBeGreaterThan(0);
+      expect(onScaleway.reasoningText?.length ?? 0).toBe(0);
     },
     TIMEOUT_MS
   );

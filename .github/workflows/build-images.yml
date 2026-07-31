@@ -56,11 +56,6 @@ on:
         required: false
         default: 'false'
         type: boolean
-      build_iconify:
-        description: 'Build Iconify image only'
-        required: false
-        default: 'false'
-        type: boolean
 permissions:
   contents: read
   packages: write
@@ -87,7 +82,6 @@ jobs:
       doku: ${{ steps.filter.outputs.doku }}
       gruen-o-mat: ${{ steps.filter.outputs.gruen-o-mat }}
       nlp: ${{ steps.filter.outputs.nlp }}
-      iconify: ${{ steps.filter.outputs.iconify }}
       shared: ${{ steps.filter.outputs.shared }}
     steps:
       - uses: actions/checkout@v7
@@ -165,8 +159,6 @@ jobs:
               - 'pnpm-lock.yaml'
             nlp:
               - 'services/nlp/**'
-            iconify:
-              - 'services/iconify/**'
             doku:
               - 'documentation/**'
   build-web:
@@ -473,56 +465,6 @@ jobs:
           cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-nlp:buildcache
           cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-nlp:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
 
-  build-iconify:
-    needs: detect-changes
-    if: >
-      needs.detect-changes.outputs.iconify == 'true' ||
-      github.event.inputs.force_all == 'true' ||
-      github.event.inputs.build_iconify == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ${{ env.IMAGE_PREFIX }}-iconify
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix=
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push
-        uses: docker/build-push-action@v7
-        with:
-          context: ./services/iconify
-          file: services/iconify/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-iconify:buildcache
-          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-iconify:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
-
   build-doku:
     needs: detect-changes
     if: >
@@ -581,16 +523,7 @@ jobs:
 
   summary:
     needs:
-      [
-        build-web,
-        build-api,
-        build-hocuspocus,
-        build-mcp,
-        build-gruen-o-mat,
-        build-nlp,
-        build-iconify,
-        build-doku,
-      ]
+      [build-web, build-api, build-hocuspocus, build-mcp, build-gruen-o-mat, build-nlp, build-doku]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -607,5 +540,4 @@ jobs:
           echo "| mcp | ${{ needs.build-mcp.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| gruen-o-mat | ${{ needs.build-gruen-o-mat.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| nlp | ${{ needs.build-nlp.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| iconify | ${{ needs.build-iconify.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| doku | ${{ needs.build-doku.result }} |" >> $GITHUB_STEP_SUMMARY

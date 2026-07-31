@@ -281,7 +281,17 @@ export async function resolveModel(
   }
 
   const result: ModelResolution = {
-    model: getModel(modelProvider, modelName),
+    // `needsReasoning` pins a thinking turn to the Mistral API. The Scaleway
+    // upstream is reached through @ai-sdk/openai, which never receives the
+    // `providerOptions.mistral` block set further down (see the streamOnce
+    // call site), so the effort would be dropped without a trace — no error,
+    // no reasoning, nothing in the logs. See routeMistralModel.
+    model: getModel(modelProvider, modelName, {
+      needsReasoning:
+        modelProvider === 'mistral' &&
+        isReasoningCapable(modelName) &&
+        mistralReasoningOption(reasoningEffort) !== null,
+    }),
     provider: modelProvider,
     modelName,
     reasoningEffort,
