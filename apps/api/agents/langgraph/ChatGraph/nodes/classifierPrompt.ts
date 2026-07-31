@@ -96,6 +96,11 @@ export const CLASSIFIER_OFFERED_INTENTS = [
   'chat_history',
   'mcp',
   'direct',
+  // `greeting` is deliberately NOT offered here. It is decided by
+  // GREETING_PREFIX_PATTERN before the LLM ever runs; offering it as well would
+  // hand the model a SECOND catch-all next to `direct`, and a turn mislabelled
+  // `greeting` loses reasoning, sources and the tool loop in one step. A
+  // greeting that slips the gate lands on `direct`, which costs nothing.
 ] as const satisfies readonly SearchIntent[];
 
 export type OfferedIntent = (typeof CLASSIFIER_OFFERED_INTENTS)[number];
@@ -385,6 +390,7 @@ export const CREATION_TOPIC_INTENTS = new Set([
  */
 export const NON_SEARCH_INTENTS = new Set([
   'direct',
+  'greeting',
   'sharepic',
   'image',
   'image_edit',

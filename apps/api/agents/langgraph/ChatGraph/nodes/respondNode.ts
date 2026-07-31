@@ -830,6 +830,13 @@ const IMAGE_EDIT_FAILED_GUIDANCE =
 const DIRECT_GUIDANCE =
   '\nDies ist eine direkte Anfrage ohne Recherche-Bedarf. Antworte natürlich und hilfsbereit aus dem verfügbaren Kontext.';
 
+// A greeting used to get DIRECT_GUIDANCE plus the full DIRECT_HONESTY_NOTE —
+// a paragraph of citation and artefact bans on the one turn in the product
+// where nobody could have claimed either. The scope sentence is what this turn
+// actually needs: the unprompted capability listing was the observed failure.
+const GREETING_GUIDANCE =
+  '\nDies ist eine reine Begrüßung, ein Dank oder kurzer Small Talk. Antworte in ein bis zwei Sätzen, freundlich und ohne Floskelkette. Zähle NICHT unaufgefordert auf, was du alles kannst. In diesem Turn wurde nichts recherchiert und nichts erstellt — behaupte weder das eine noch das andere.';
+
 // Turn-outcome honesty for the `direct` path: no tool ran, nothing was
 // researched or created this turn. A misrouted factual/generation follow-up
 // otherwise narrates research or a delivered image FROM THE HISTORY (observed
@@ -913,8 +920,12 @@ function getSynthesisGuidance(state: ChatGraphState): string {
  * suppressing citations for them produced an answer that looked researched but
  * pointed at nothing. Every other `direct` turn stays closed; that is the
  * regression guard this whole design rests on.
+ *
+ * `greeting` has no such exception: the source carry never runs for it (see
+ * carryThreadSourcesIfNeeded), so it is closed unconditionally.
  */
 export function citableSourcesAvailable(state: ChatGraphState): boolean {
+  if (state.intent === 'greeting') return false;
   return (
     state.searchResults.length > 0 &&
     (state.intent !== 'direct' || state.sourcesCarriedFromThread === true)
@@ -939,6 +950,8 @@ export function getModeGuidance(state: ChatGraphState): string {
         : IMAGE_FAILED_GUIDANCE;
     case 'image_edit':
       return state.generatedImage ? IMAGE_EDIT_SUCCESS_GUIDANCE : IMAGE_EDIT_FAILED_GUIDANCE;
+    case 'greeting':
+      return GREETING_GUIDANCE;
     case 'direct':
       return (
         DIRECT_GUIDANCE +

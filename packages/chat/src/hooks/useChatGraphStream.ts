@@ -380,7 +380,7 @@ export function useChatGraphStream(
                   reasoning?: string;
                 };
                 let stage: ProgressStage = 'searching';
-                if (intent === 'direct') {
+                if (intent === 'direct' || intent === 'greeting') {
                   stage = 'generating';
                 } else if (intent === 'image' || intent === 'image_edit') {
                   stage = 'generating_image';

@@ -137,6 +137,8 @@ export const INTENT_KEYWORDS: Record<
   Exclude<
     SearchIntent,
     | 'direct'
+    // Decided by GREETING_PREFIX_PATTERN, not by keyword scoring.
+    | 'greeting'
     | 'image_edit'
     | 'sharepic'
     | 'save_as_doc'
@@ -812,7 +814,7 @@ const GREETING_PREFIX_PATTERN =
   /^\s*(?:(?:hallo|hi|hey|servus|moin|guten(?:\s+(?:morgen|tag|abend))?|danke(?:\s+(?:dir|euch|sch(?:ö|oe)n|sehr))?|vielen\s+dank)\b[\s,.!:;–—-]*)+/i;
 
 // Remainders after a greeting that are still pure small-talk (assistant-directed,
-// no real task) — these keep the direct@0.95 greeting fast path.
+// no real task) — these keep the greeting@0.95 fast path.
 const SMALLTALK_REMAINDER_PATTERN =
   /^(wie geht(?:'?s|\s+es)?(?:\s+(?:dir|euch|ihnen))?\s*\??|wer bist du\s*\??|was kannst du(?:\s+alles)?\s*\??|kannst du (?:mir\s+)?(?:bitte\s+)?helfen\s*\??|alles (?:klar|gut)\s*[!?.]*|(?:das\s+)?passt(?:\s+so)?\s*[!.]*|(?:sehr\s+)?(?:gut|super|toll|perfekt|klasse)(?:\s+gemacht)?\s*[!.]*)$/i;
 
@@ -945,7 +947,7 @@ export function heuristicClassify(
       (restWords <= 3 && !rest.includes('?'))
     ) {
       return {
-        intent: 'direct',
+        intent: 'greeting',
         searchQuery: null,
         reasoning: 'Greeting detected',
         confidence: 0.95,
