@@ -57,7 +57,11 @@ import { isMcpReplayEnabled } from './flags.js';
 import { runAgenticLoop, type LoopMode } from './loopEngine.js';
 import { createToolLoopGuards, MAX_SOURCES } from './loopGuards.js';
 import { buildToolObservationReplay } from './mcpReplay.js';
-import { looksLikeExplicitResearchOrder, resolveEditorSurfaceKind } from './routing.js';
+import {
+  looksLikeExplicitResearchOrder,
+  resolveEditorSurfaceKind,
+  rewritesSuppliedText,
+} from './routing.js';
 import { createSourceRegistry, withResearchedSources } from './sourceRegistry.js';
 import {
   DEFAULT_LOOP_BUDGET,
@@ -729,12 +733,21 @@ export async function streamAgenticResponse(params: {
     // split made the same follow-up sourced or unsourced depending on nothing
     // but whether the turn routed through the loop.
     //
-    // Deliberately UNGATED (was: edit surfaces only). A thread that just looked
-    // something up should still know it a few messages later — dropping the
-    // research the moment the turn ends is what makes a follow-up feel amnesiac.
-    // Bounded by getRecentThreadSources itself: only the most recent assistant
-    // message carrying sources, capped at 10, snippets already trimmed.
-    if (threadId) {
+    // Weit offen, aber nicht mehr ungetort. Der Grundsatz bleibt: ein Thread,
+    // der gerade etwas nachgeschlagen hat, soll es ein paar Nachrichten später
+    // noch wissen — die Recherche mit dem Turn wegzuwerfen ist das, was einen
+    // Folgeauftrag vergesslich macht. Bounded by getRecentThreadSources itself:
+    // only the most recent assistant messages carrying sources, capped at 10,
+    // snippets already trimmed.
+    //
+    // Die eine Ausnahme ist gemessen: über den 196-Turn-Korpus bekamen genau
+    // zwei Turns hier fremde Recherche unter einen KÜRZUNGSAUFTRAG gelegt, weil
+    // der Einzelpfad `needsThreadGrounding` fragte und der Loop niemanden. Ein
+    // Kürzungsauftrag ist in dem Text gegründet, an dem er arbeitet.
+    const askForCarry =
+      finalState.lastUserTextNoMentions ??
+      extractTextContent(messages[messages.length - 1]?.content ?? '');
+    if (threadId && !rewritesSuppliedText(askForCarry)) {
       try {
         const carried = await getRecentThreadSources(threadId);
         if (carried.length > 0) {
