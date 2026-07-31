@@ -176,11 +176,6 @@ interface ResolvedBg {
 }
 
 /**
- * Fetch a remote/data image as a base64 data URL for embedding. Remote URLs are
- * SSRF-validated; relative paths (e.g. `/images/x.jpg`) and any failure resolve
- * to null so the caller can fall back to a solid fill.
- */
-/**
  * Intrinsic size of a data: URL image.
  *
  * Needed because pptxgenjs never decodes images in Node: its `sizing.contain`
@@ -212,6 +207,11 @@ function containRect(
   return { x: box.x + (box.w - w) / 2, y: box.y + (box.h - h) / 2, w, h };
 }
 
+/**
+ * Fetch a remote/data image as a base64 data URL for embedding. Remote URLs are
+ * SSRF-validated; relative paths (e.g. `/images/x.jpg`) and any failure resolve
+ * to null so the caller can fall back to a solid fill.
+ */
 async function fetchImageData(url: string): Promise<string | null> {
   if (url.startsWith('data:image/')) return url;
   if (!/^https?:\/\//i.test(url)) return null;
