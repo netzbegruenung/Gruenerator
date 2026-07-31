@@ -57,6 +57,7 @@ import {
   formatConversationHistory,
   hasImageEditVerb,
   isImageRegenRequest,
+  isImageEditInstruction,
   mentionsImageNoun,
   looksMultiTopic,
   DOC_MODIFY_PATTERN,
@@ -735,8 +736,19 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     //  2. No attachment but verb + image noun ("bearbeite das Foto") →
     //     image_edit anyway; the node returns the German "please attach an
     //     image" error from imageEditNode.ts:64-72.
+    //
+    // Das Verbots-Gitter fehlte hier, obwohl Tier 2.7 es eine Stufe tiefer
+    // längst trägt: „Ändere das Bild nicht, sag mir nur was drauf ist" hat Verb
+    // UND Nomen und wurde deshalb zur Bearbeitung — die Verneinung stand
+    // dahinter und hat nie jemand gelesen. Dieselbe Bauform wie bei den anderen
+    // Artefaktarten, nur an der frühesten Stufe, wo sie am meisten kostet: was
+    // Tier 1 beansprucht, sieht keine spätere Prüfung mehr.
     const editVerb = userContent.length > 0 && hasImageEditVerb(userContent);
-    if (editVerb && (hasImageAttachments || mentionsImageNoun(userContent))) {
+    if (
+      editVerb &&
+      (hasImageAttachments || mentionsImageNoun(userContent)) &&
+      !forbidsPersistentAction(userContent, ARTIFACT_NOUN_BY_KIND.image)
+    ) {
       log.info(
         `[Classifier] Image edit detected (attached=${hasImageAttachments}, noun=${mentionsImageNoun(userContent)}), forcing image_edit intent`
       );
@@ -1149,10 +1161,18 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       }
       // "Nochmal, aber abends mit warmem Licht" after image generation — unlocks
       // the router's last-image rehydration (gated on intent === 'image_edit').
+      //
+      // `isImageEditInstruction` ist der dritte Fall und war die Lücke: die
+      // vergleichende Anweisung mit benanntem Bildteil („Mach den Hintergrund
+      // dunkler"). Sie trägt weder ein Bearbeiten-Verb noch eine Neu-Formel, lag
+      // deshalb bis zur Löschung der LLM-Stufe bei dieser und fiel danach ins
+      // Residual — Prosa auf einen Auftrag, für den ein Bild bereitlag.
       if (
         tc.kind === 'image' &&
         !hasImageAttachments &&
-        (hasImageEditVerb(userContent) || isImageRegenRequest(userContent)) &&
+        (hasImageEditVerb(userContent) ||
+          isImageRegenRequest(userContent) ||
+          isImageEditInstruction(userContent)) &&
         !forbidsPersistentAction(userContent, ARTIFACT_NOUN_BY_KIND.image)
       ) {
         log.info('[Classifier] Follow-up image edit via lastToolContext → image_edit');
@@ -1982,12 +2002,6 @@ export {
 
 export type { HeuristicResult } from './classifierHeuristics.js';
 
-export {
-  extractFilters,
-  heuristicExtractFilters,
-  LANDESVERBAND_ALIASES,
-} from './classifierFilters.js';
-
-export type { ClassifierLLMResponse } from './classifierFilters.js';
+export { heuristicExtractFilters, LANDESVERBAND_ALIASES } from './classifierFilters.js';
 
 export { detectComplexity, detectSearchSources } from './classifierSignals.js';
