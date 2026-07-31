@@ -115,6 +115,23 @@ describe('citableSourcesAvailable', () => {
     expect(citableSourcesAvailable(makeState({ intent: 'search', searchResults: SRC }))).toBe(true);
   });
 
+  it('treats produktion exactly like direct — shut, unless sources were carried', () => {
+    expect(citableSourcesAvailable(makeState({ intent: 'produktion', searchResults: SRC }))).toBe(
+      false
+    );
+    expect(
+      citableSourcesAvailable(
+        makeState({ intent: 'produktion', searchResults: SRC, sourcesCarriedFromThread: true })
+      )
+    ).toBe(true);
+  });
+
+  it('opens for the residual: an agentic turn did its own retrieval', () => {
+    expect(citableSourcesAvailable(makeState({ intent: 'agentic', searchResults: SRC }))).toBe(
+      true
+    );
+  });
+
   it('stays shut for a greeting even with the carry flag set', () => {
     // `greeting` has no carry exception, unlike `direct`. The carry never runs
     // for it, so the flag can only arrive here through a bug — and a "Hallo"

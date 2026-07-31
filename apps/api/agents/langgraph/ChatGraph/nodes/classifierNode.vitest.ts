@@ -170,8 +170,10 @@ describe('parseClassifierResponse – accepts every intent the prompt offers', (
   });
 
   // Router-only dispositions: a deterministic step assigns these, so accepting
-  // them from the LLM would let a hallucination hijack routing.
-  it.each(['agentic', 'scrape_url', 'compare', 'edit_current_doc'])(
+  // them from the LLM would let a hallucination hijack routing. `agentic` left
+  // this list on 2026-07-31: it became the prompt's residual (rule 12), so the
+  // model choosing it is the intended answer, not a hijack.
+  it.each(['scrape_url', 'compare', 'edit_current_doc'])(
     'rejects the router-only intent %s',
     (intent) => {
       const result = parseClassifierResponse(
@@ -182,12 +184,14 @@ describe('parseClassifierResponse – accepts every intent the prompt offers', (
     }
   );
 
-  it('rejects an unknown intent', () => {
+  it('an unknown intent lands on the residual, not on a no-tool verdict', () => {
+    // Was `direct`. Defaulting an UNREADABLE verdict to "nothing needed looking
+    // up" is the one case where the cheapest path is the wrong guess.
     const result = parseClassifierResponse(
       JSON.stringify({ intent: 'erfundenes_intent', searchQuery: null, reasoning: 'test' }),
       'egal was'
     );
-    expect(result.intent).toBe('direct');
+    expect(result.intent).toBe('agentic');
   });
 });
 
@@ -675,18 +679,20 @@ describe('heuristicClassify', () => {
     expect(result.confidence).toBeGreaterThanOrEqual(0.75);
   });
 
-  it('classifies creative content tasks as direct (user provides their own facts)', () => {
-    // Fact-based content types (Pressemitteilung, Artikel, Rede, ...) are treated as
-    // creative writing tasks — users on this platform typically provide the facts
-    // themselves and want the AI to write/format. Research is not implied.
+  it('scores a fact-based content type as produktion — below the accept threshold', () => {
+    // 0.68: deliberately a HINT, not a verdict. "Pressemitteilung über X" names
+    // a topic, not substance, so Tier 3.5 demotes it to `agentic` unless the
+    // turn carries material of its own. The name changed with the split; the
+    // score, and therefore the behaviour, did not.
     const result = heuristicClassify('Schreibe eine Pressemitteilung über den Kohleausstieg');
-    expect(result.intent).toBe('direct');
+    expect(result.intent).toBe('produktion');
     expect(result.confidence).toBeGreaterThanOrEqual(0.7);
+    expect(result.confidence).toBeLessThan(HEURISTIC_CONFIDENCE_THRESHOLD);
   });
 
   it('detects creative tasks without research need', () => {
     const result = heuristicClassify('Schreibe mir einen lustigen Slogan');
-    expect(result.intent).toBe('direct');
+    expect(result.intent).toBe('produktion');
     expect(result.confidence).toBeGreaterThanOrEqual(0.7);
   });
 

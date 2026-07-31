@@ -78,6 +78,7 @@ import type { Request } from 'express';
  * why this is NOT `NON_SEARCH_INTENTS`).
  */
 const CLARIFICATION_UPGRADE_INTENTS: ReadonlySet<ChatIntentId> = new Set([
+  'produktion',
   'direct',
   'image',
   'image_edit',
