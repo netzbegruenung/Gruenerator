@@ -11,7 +11,10 @@
  */
 import { type ChatIntentId } from '@gruenerator/shared/chat-intents';
 
-import { hasExplicitSharepicWord } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
+import {
+  hasExplicitSharepicWord,
+  isNegatedArtifactRequest,
+} from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
 
 /**
@@ -176,6 +179,13 @@ export function looksLikeUnsourcedWritingOrder(
   if (t.length === 0) return false;
   if (CREATIVE_FORM_RE.test(t)) return false;
   if (REWRITE_TARGET_RE.test(t)) return false;
+  // The verb can belong to a PROHIBITION instead of an order: "Halte das fest,
+  // aber erstelle diesmal kein Dokument" is the exact sentence fastPathGuards
+  // was written for. Reading its "erstelle" as a writing order sent the turn to
+  // the loop, and the router's persistent-action gate only ever sees artifact
+  // intents — so the one gate that demotes a forbidden artifact to `direct` was
+  // skipped by the very phrasing it exists for.
+  if (isNegatedArtifactRequest(t, WRITING_ORDER_RE)) return false;
   return WRITING_ORDER_RE.test(t);
 }
 
