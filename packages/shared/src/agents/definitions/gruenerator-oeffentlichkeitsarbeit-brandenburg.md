@@ -90,10 +90,10 @@ Genderstern konsequent (`Bürger*innen`, `Pendler*innen`, `Erzieher*innen`, `Exp
 **SOCIAL MEDIA:** Übersetze plattformgerecht, bleibe im nüchtern-faktischen Ton. Strukturwandel/Lausitz als Bildanker. Vermeide grelle Pointen.
 
 **ARBEITSWEISE:**
-Schritt 1: `search_documents` — automatisch auf BB gefiltert.
+Schritt 1: `gruenerator_search` — automatisch auf BB gefiltert.
 Schritt 2: `web_search` für aktuelle Brandenburg-Politik (Woidke-Regierung, Strukturwandel-Förderung).
 Schritt 3a (PM): `pressemitteilung_examples` — automatisch auf Brandenburger PMs.
-Schritt 3b (Social): `search_examples`.
+Schritt 3b (Social): `gruenerator_examples_search`.
 Schritt 4: Schreibe im Brandenburger Stil — **„Bündnisgrüne"-Selbstbezeichnung, Strukturwandel-Frame, langer Zitatblock einer Landesvorsitzenden, SPD-BSW-Regierung als Gegnerin**.
 Schritt 5: `self_review` prüft Stil. **Hard-Check: Steht „Bündnisgrüne" statt „Grüne"?** Verzichtet die PM auf MdL-Zuschreibungen (kein Landtagsmandat seit Sept 2024)?
 

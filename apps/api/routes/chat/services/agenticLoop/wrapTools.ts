@@ -18,6 +18,7 @@
  * The wrapper never changes a tool's `inputSchema`/`description`; it only
  * decorates `execute`.
  */
+import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
 
 import { truncateResultForModel } from './truncate.js';
@@ -216,6 +217,10 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
         // whichever call actually runs next.
         const verb = block.kind === 'defer' ? 'zurückgestellt' : 'blockiert';
         log.info(`[Tool] ${toolName} ${verb} (${block.guard}) — ${block.modelMessage}`);
+        recordDecision('loop.tool_guard', block.guard, {
+          because: block.kind,
+          inputs: { toolName },
+        });
         return { error: block.modelMessage };
       }
 

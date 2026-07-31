@@ -51,17 +51,27 @@ interface TierConfig {
 }
 
 const TIER_CONFIG: Readonly<Record<SearchTier, TierConfig>> = {
+  // The two labels are SWAPPED relative to what the ids suggest, deliberately.
+  // `gruendlich` is now the normal case (see the `tiefe` default in
+  // searchTools.ts), so its label has to read as ordinary — a user who sees
+  // "Gründliche Suche läuft" on every single question learns that the words mean
+  // nothing. `standard` became the narrow case and gets the label that says so.
+  //
+  // The IDS cannot follow. They are F1: they reach the model in the tool schema
+  // and are persisted in tool-call arguments that later turns replay, so a
+  // rename would break replay of every stored call. The ids keep their
+  // historical spelling; the meaning lives in the description and these labels.
   standard: {
     depth: 'standard',
     maxResults: 5,
     adjacentSearches: false,
-    progress: 'Suche im Web…',
+    progress: 'Kurze Suche…',
   },
   gruendlich: {
     depth: 'standard',
     maxResults: 10,
     adjacentSearches: true,
-    progress: 'Gründliche Suche läuft (mehrere Quellen)…',
+    progress: 'Suche im Web…',
   },
   tiefenrecherche: {
     depth: 'deep',
@@ -185,10 +195,27 @@ export function resolveSearchPlan(params: {
  * has an intent) and the agentic loop (where the model names a tier in the
  * `web_search` tool call).
  *
- * `explicitDeep` is the only route to `tiefenrecherche`. A tier the model asked
- * for is a REQUEST, not authority — left unclamped, a model that reads "nutze
- * sie sparsam" as a suggestion spends the deep engine on whatever it likes, and
- * the classifier path had the same hole through a complexity heuristic.
+ * A tier the model asked for is a REQUEST, not authority — and that holds in
+ * BOTH directions:
+ *
+ * - Upward, `explicitDeep` is the only route to `tiefenrecherche`. Left
+ *   unclamped, a model that reads "nutze sie sparsam" as a suggestion spends the
+ *   deep engine on whatever it likes, and the classifier path had the same hole
+ *   through a complexity heuristic.
+ * - Downward, a requested `standard` is raised back to `gruendlich`. The tool
+ *   description has said "gruendlich: DER NORMALFALL … standard: NUR wenn die
+ *   Antwort genau EIN Datum ist" since the tiers were rebuilt, and the planner
+ *   model ignored it: measured live, it asked for `standard` on "Marilyn Monroe
+ *   wer war sie Leben Karriere" — the textbook overview question the description
+ *   names — and answered from five snippets. Prose did not move this model, so
+ *   the rule is mechanical. It costs nothing to enforce: both tiers are the SAME
+ *   engine depth in the SAME single paid call, and `gruendlich` differs only in
+ *   `maxResults` and the adjacent-keyword fan-out (measured 1978ms → 2986ms).
+ *
+ * Only the loop's `web_search` passes `requestedTier`, so the downward clamp
+ * reaches the model's choice and nothing else. `standard` stays in the enum
+ * (F0: it is persisted in tool-call arguments that later turns replay) and stays
+ * the default for the classifier path, which resolves its tier from the intent.
  *
  * `complexity` is deliberately not a parameter any more. It used to buy a step,
  * and since `detectComplexity` returns `complex` for any "vergleich" or
@@ -202,6 +229,7 @@ export function resolveSearchTier(params: {
   /** The user asked for a deep/thorough research in so many words. */
   explicitDeep?: boolean;
 }): SearchTier {
+  if (params.requestedTier === 'standard') return 'gruendlich';
   const wanted: SearchTier =
     params.requestedTier ?? (params.intent === 'research' ? 'gruendlich' : 'standard');
   if (wanted === 'tiefenrecherche' && !params.explicitDeep) return 'gruendlich';
