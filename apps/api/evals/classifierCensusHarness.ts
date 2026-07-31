@@ -245,7 +245,9 @@ export async function runClassifierCensus(): Promise<CensusRun> {
       const prompt = turn.prompt;
       const before = counts.big;
       const journal = createDecisionJournal();
-      let intent = 'ERR';
+      // Kein Startwert: beide Zweige weisen zu, und ein toter Vorbelegungswert
+      // wäre genau der, der bei einem künftigen dritten Zweig still stehenbliebe.
+      let intent: string;
       try {
         const result = await runWithDecisionJournal(journal, () =>
           classifierNode(buildState(prompt, history, artifacts, pool))
