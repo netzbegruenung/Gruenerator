@@ -1,27 +1,122 @@
 /**
- * Classifier Response Parsing
+ * Classifier Signals
  *
- * Parses LLM JSON responses with 3 fallback strategies,
- * plus heuristic complexity and search-source detection.
+ * The patterns and small predicates the classifier tiers decide on: which
+ * verdicts never retrieve, what a chat-recall / recurring order / docs-help
+ * phrasing looks like, how complex a query is, and which sources it names.
+ *
+ * Was `classifierParsing.ts` while a 27k-character prompt sat at the end of the
+ * tier chain and its JSON had to be parsed and repaired. That prompt is gone
+ * (see `classifierNode.ts`), and with it the parser, the three-strategy
+ * malformed-JSON recovery and the accept-list that had to be kept in sync with
+ * the prompt's own enum line. What is left never talks to a model.
  */
 
 import { intentsWithDisposition } from '@gruenerator/shared/chat-intents';
 
-import { createLogger } from '../../../../utils/logger.js';
+import type { SearchIntent, SearchSource } from '../types.js';
 
-import { extractFilters } from './classifierFilters.js';
-import {
-  CLASSIFIER_DOC_SUBTYPES,
-  CLASSIFIER_OFFERED_INTENTS,
-  CREATION_TOPIC_INTENTS,
-  isOfferedIntent,
-  NON_SEARCH_INTENTS,
-} from './classifierPrompt.js';
+/**
+ * Intents that don't trigger search/retrieval — used to skip query optimization.
+ */
+export const NON_SEARCH_INTENTS = new Set([
+  'produktion',
+  // Deprecated as a verdict, still reachable via the heuristic hint — and that
+  // means "no retrieval", same as before.
+  'direct',
+  'greeting',
+  'sharepic',
+  'image',
+  'image_edit',
+  'chart',
+  'artifact',
+  'compute',
+  'save_as_doc',
+  'create_sheet',
+  'create_presentation',
+  'create_pdf',
+  'create_recurring_task',
+  'modify_doc',
+  'modify_board',
+  'share_doc',
+  'mcp',
+  // System MCP sources: the loop's tools take the model's own arguments — no
+  // Qdrant search-query optimization involved.
+  'bahn',
+  'reise',
+  'hotel',
+  'umfragen',
+  'wetter',
+  'news',
+]);
 
-import type { SearchIntent, SearchSource, ClassificationResult } from '../types.js';
-import type { ClassifierLLMResponse } from './classifierFilters.js';
+/**
+ * Document subtypes the chat may assign.
+ *
+ * `collaborative_documents_document_subtype_check` rejects anything outside the
+ * DB's own set, and a subtype travels as `subtypeOverride` past every other
+ * check straight into the insert — so this list is a real gate, not a hint.
+ */
+export const CLASSIFIER_DOC_SUBTYPES = [
+  'antrag',
+  'pressemitteilung',
+  'protokoll',
+  'notizen',
+  'redaktionsplan',
+  'checkliste',
+  'einladung',
+  'tabelle',
+] as const;
 
-const log = createLogger('ChatGraph:Classifier');
+export type DocSubtype = (typeof CLASSIFIER_DOC_SUBTYPES)[number];
+
+/**
+ * How much conversation the classifier's resolvers see. Five messages, capped —
+ * enough to resolve "dazu"/"das", short enough to stay cheap on every turn.
+ */
+export const CLASSIFIER_CONTEXT_MESSAGES = 5;
+export const CLASSIFIER_CONTEXT_MAX_CHARS = 500;
+
+/**
+ * Which document type the user NAMED.
+ *
+ * Replaces the `documentSubtype` field of the deleted LLM tier. That field was
+ * only ever an override HINT: on the generation path the document generator
+ * picks (and validates) its own subtype from the finished content, and an
+ * unknown override was dropped. The one place it decided anything is the
+ * confirm-action payload — "speicher das als Pressemitteilung" wrote
+ * `subtype: 'docs'` without it.
+ *
+ * A word list is the right shape here precisely because it is the user's own
+ * noun that matters: the model was being asked to read a word back, not to
+ * judge anything. `null` keeps every caller's existing fallback.
+ */
+const DOC_SUBTYPE_PATTERNS: ReadonlyArray<{ subtype: DocSubtype; pattern: RegExp }> = [
+  { subtype: 'pressemitteilung', pattern: /presse(?:mitteilung|erkl[äa]rung|text)|\bPM\b/iu },
+  { subtype: 'antrag', pattern: /(?<!\p{L})antrag|antrags(?:text|entwurf)|beschlussvorlage/iu },
+  { subtype: 'protokoll', pattern: /(?<!\p{L})protokoll|ergebnisprotokoll|sitzungsprotokoll/iu },
+  { subtype: 'redaktionsplan', pattern: /redaktionsplan|redaktionskalender/iu },
+  { subtype: 'checkliste', pattern: /(?<!\p{L})check\s?liste|(?<!\p{L})to-?do-?liste/iu },
+  { subtype: 'einladung', pattern: /(?<!\p{L})einladung|(?<!\p{L})einladungs\p{L}*/iu },
+  { subtype: 'notizen', pattern: /(?<!\p{L})notiz(?:en)?(?!\p{L})/iu },
+  { subtype: 'tabelle', pattern: /(?<!\p{L})tabelle(?!\p{L})/iu },
+];
+
+export function detectDocumentSubtype(text: string): DocSubtype | null {
+  const t = (text ?? '').trim();
+  if (!t) return null;
+  // LAST mention wins, not list order. Two subtypes in one message is rare and
+  // reads one way when it happens: "mach aus dem Protokoll eine
+  // Pressemitteilung" names the source first and the target last. The reverse
+  // phrasing ("eine PM auf Basis des Protokolls") is a known miss, and a miss
+  // costs the generator's own judgement, not a wrong type.
+  let best: { subtype: DocSubtype; at: number } | null = null;
+  for (const { subtype, pattern } of DOC_SUBTYPE_PATTERNS) {
+    const at = t.search(pattern);
+    if (at >= 0 && (best == null || at > best.at)) best = { subtype, at };
+  }
+  return best?.subtype ?? null;
+}
 
 /**
  * Verdicts under which nothing is ever looked up. Two rules below used to name
@@ -35,79 +130,6 @@ const log = createLogger('ChatGraph:Classifier');
  * zu feuern. Ein neuer prose-Intent ist ab jetzt automatisch Mitglied.
  */
 export const NO_RETRIEVAL_VERDICTS: ReadonlySet<string> = intentsWithDisposition('prose');
-
-/**
- * Scan order for the malformed-JSON fallback, in DESCENDING priority.
- *
- * Only a partial list: it exists because a malformed response can mention the
- * `intent:` field more than once, and then the first match wins. That is an
- * editorial call ("sharepic before image", "social_post before examples") and
- * has to stay hand-written.
- *
- * What must NOT be hand-written is the SET. This chain used to be twenty
- * hard-coded `if`s and nothing else, so twelve of the intents the prompt offers
- * — including create_sheet, create_presentation and create_recurring_task —
- * were undetectable here and fell through to `direct`. That is the very bug
- * `isOfferedIntent` was introduced to fix on the primary path (see
- * classifierPrompt.ts): the fix landed on one of the two doors.
- *
- * Now the ranked entries are followed by every remaining offered intent, so a
- * newly offered intent is at worst LOW priority and can never again be
- * invisible. Appending rather than prepending is deliberate: it cannot change
- * the outcome of any response the old chain already resolved.
- */
-const FALLBACK_PRIORITY = [
-  'sharepic',
-  'image',
-  'save_as_doc',
-  'create_pdf',
-  'share_doc',
-  'chart',
-  'summary',
-  // System MCP intents — specific tokens, safe before the broad produktion/search.
-  'reise',
-  'bahn',
-  'wetter',
-  'news',
-  'hotel',
-  'umfragen',
-  'hilfe',
-  'produktion',
-  'direct',
-  // social_post before examples: 'examples' would otherwise never lose to it
-  // in malformed responses that mention both.
-  'social_post',
-  'examples',
-  'search',
-  'web',
-  'research',
-] as const satisfies readonly SearchIntent[];
-
-const FALLBACK_SCAN_ORDER: readonly SearchIntent[] = [
-  ...FALLBACK_PRIORITY,
-  ...CLASSIFIER_OFFERED_INTENTS.filter(
-    (i) => !(FALLBACK_PRIORITY as readonly string[]).includes(i)
-  ),
-];
-
-/**
- * Fallback intents whose executor searches the user's own text, so the raw
- * message is the query. Everything else gets `null` — the executor reads the
- * message itself and a stray query would only be noise.
- */
-const FALLBACK_CARRIES_QUERY: ReadonlySet<string> = new Set<SearchIntent>([
-  'chart',
-  'news',
-  'hilfe',
-  'social_post',
-  'examples',
-  'search',
-  'web',
-  'research',
-  'abgeordnetenwatch',
-  'bundestag',
-  'chat_history',
-]);
 
 /**
  * Phrases that reference the user's earlier work — a past conversation with the
@@ -134,38 +156,6 @@ const FALLBACK_CARRIES_QUERY: ReadonlySet<string> = new Set<SearchIntent>([
  */
 export const CURRENT_THREAD_REFERENCE =
   /\b(?:vorhin|eben\s+gerade|gerade\s+eben|weiter\s+oben|hier\s+im\s+chat|in\s+diesem\s+(?:chat|gespräch|thread|verlauf)|dieses\s+gespräch[s]?|deine[rn]?\s+(?:letzte|vorherige|obige)[rn]?\s+antwort|meine\s+(?:erste|allererste|letzte)\s+frage)\b/i;
-
-/** Longer than this and the model returned prose, not a topic. */
-const MAX_CREATION_TOPIC_LENGTH = 300;
-
-/**
- * The classifier's answer to "what should this artifact be ABOUT", validated.
- *
- * Deliberately structural rather than lexical — no list of filler words to keep
- * up with. Exactly two things can go wrong and both are checkable without
- * knowing any German: the model answers for an intent that creates nothing, or
- * it hands back the instruction it was supposed to look past. `null` is a fine
- * answer; the callers fall back to `resolveReferentialTopic` and, failing that,
- * ask the user.
- */
-export function validateCreationTopic(
-  raw: string | null | undefined,
-  intent: string,
-  userContent: string
-): string | null {
-  if (typeof raw !== 'string') return null;
-  const topic = raw.trim();
-  if (!topic) return null;
-  if (!CREATION_TOPIC_INTENTS.has(intent)) return null;
-  // Echoing the message back means the model did not resolve anything — the
-  // instruction as a topic is exactly the bug this field exists to fix.
-  const normalize = (text: string): string => text.trim().toLowerCase().replace(/\s+/g, ' ');
-  if (normalize(topic) === normalize(userContent)) {
-    log.warn(`[Classifier] creationTopic echoed the user message — dropped`);
-    return null;
-  }
-  return topic.slice(0, MAX_CREATION_TOPIC_LENGTH);
-}
 
 export const CHAT_HISTORY_KEYWORDS =
   /\b(letzte[sn]?\s+gespräch|vorher\s+besprochen|letzte\s+woche|gestern\s+besprochen|was\s+haben\s+wir|erinnere?\s+dich|wir\s+hatten|früheres?\s+chat|voriges?\s+gespräch|damals\s+besprochen|da\s+weiter|wo\s+wir\s+aufgehört|mein(e|en)?\s+(dokument|präsentation|tabelle|notiz|antrag|board|kanban|tafel|reel|video|clip)|meine\s+(dokumente|präsentationen|tabellen|notizen|boards|reels|videos|clips)|die\s+tabelle\s+die\s+ich|das\s+dokument\s+das\s+ich|das\s+board\s+das\s+ich|das\s+(reel|video)\s+(das\s+ich|zu(m)?\s|über)|welches\s+(reel|video)|in\s+welchem\s+(reel|video))\b/i;
@@ -380,266 +370,6 @@ export function looksLikeDocsHelpQuestion(text: string): boolean {
   const hasFeature = GRUENERATOR_FEATURE_NOUN.test(t);
   if (HELP_ANCHOR.test(t) && (hasFeature || INSTRUCTIONAL_QUESTION.test(t))) return true;
   return INSTRUCTIONAL_QUESTION.test(t) && hasFeature;
-}
-
-/**
- * Parse JSON response from classifier, with error handling.
- * Handles extended response format with typoAnalysis and contentType.
- */
-export function parseClassifierResponse(
-  content: string,
-  userContent: string
-): ClassificationResult {
-  /**
-   * Process parsed response and build classification result.
-   * Uses optimizedSearchQuery when available for better retrieval precision.
-   */
-  function processResponse(
-    parsed: ClassifierLLMResponse,
-    extracted = false
-  ): ClassificationResult | null {
-    // Log typo detection for debugging
-    if (parsed.typoAnalysis) {
-      log.debug(
-        `[Classifier] Typo detected: "${parsed.typoAnalysis.original}" → "${parsed.typoAnalysis.corrected}"`
-      );
-    }
-
-    // Log content-type analysis
-    if (parsed.contentType) {
-      log.debug(
-        `[Classifier] Content type: ${parsed.contentType}, needsResearch: ${parsed.needsResearch}`
-      );
-    }
-
-    // The model contradicting itself: it answered "yes, this needs research"
-    // and then picked the one intent under which nothing is ever looked up.
-    // Loud on purpose — for the field's whole lifetime this was invisible.
-    if (parsed.needsResearch === true && NO_RETRIEVAL_VERDICTS.has(parsed.intent)) {
-      log.warn(
-        `[Classifier] needsResearch=true but intent=${parsed.intent} — the turn will be forced to call a tool. Reasoning: ${parsed.reasoning}`
-      );
-    }
-
-    // Defensive upgrade: the LLM sometimes calls a clear past-conversation
-    // reference "produktion" — the substance looks supplied because it was
-    // supplied, just in a DIFFERENT chat. If the text plainly points at an
-    // earlier conversation, route it to the chat_history tool instead.
-    if (NO_RETRIEVAL_VERDICTS.has(parsed.intent) && CHAT_HISTORY_KEYWORDS.test(userContent)) {
-      log.info(
-        `[Classifier] Upgraded ${parsed.intent} → chat_history (past-conversation reference)`
-      );
-      parsed.intent = 'chat_history';
-    }
-
-    // If LLM returns 'person', route to web instead
-    if (parsed.intent === 'person') {
-      return {
-        intent: 'web',
-        searchQuery: parsed.optimizedSearchQuery || parsed.searchQuery || userContent,
-        reasoning: 'Person intent rerouted to web (feature disabled)',
-      };
-    }
-
-    // Accept exactly what the prompt offered — `CLASSIFIER_OFFERED_INTENTS` is
-    // the same constant that renders the prompt's `"intent"` enum line, so
-    // "advertised to the model" and "accepted from the model" can no longer
-    // drift apart. Anything else is a hallucination or a router-only
-    // disposition (agentic, scrape_url, compare, edit_current_*) and falls
-    // through to the regex chain below.
-    if (parsed.intent && isOfferedIntent(parsed.intent)) {
-      const suffix = extracted ? ' (extracted)' : '';
-      const isSearchIntent = !NON_SEARCH_INTENTS.has(parsed.intent);
-
-      // Prefer optimizedSearchQuery for search intents
-      const effectiveSearchQuery = isSearchIntent
-        ? parsed.optimizedSearchQuery || parsed.searchQuery || userContent
-        : null;
-
-      // NO corruption check on the optimized query. There used to be one: it
-      // measured how much of the query was word-backed by the LAST MESSAGE and
-      // replaced the whole query with `extractSearchTopic(userContent)` below
-      // 60%. It cost more than it bought.
-      //
-      // It could not tell query optimisation from corruption, because both look
-      // like "words that aren't in the message":
-      //   - A referential follow-up scores 0% BY CONSTRUCTION — its subject
-      //     comes from the thread, exactly as the classifier prompt instructs.
-      //     Live: "recherchiere über sie im web" was correctly resolved to
-      //     "Marilyn Monroe Leben Wirken", scored 0%, was discarded — and the
-      //     bare pronoun sentence went to Linkup, which answered with grammar
-      //     pages about the word "sie".
-      //   - It had already been re-tuned once (recall → precision) after
-      //     throwing away a clean 12-word research query for the same reason.
-      // What it protected against — the typo pass "correcting" a proper noun it
-      // doesn't know ("Stocker" → "Stocher") — is both rarer and milder: a
-      // search engine forgives a misspelled name, while a subject-less query
-      // retrieves nothing at all. The prompt already forbids typoAnalysis from
-      // touching searchQuery (it is logged above), and duplicate/near-duplicate
-      // detection downstream absorbs a wasted search.
-      if (parsed.optimizedSearchQuery && isSearchIntent) {
-        log.debug(
-          `[Classifier] Query optimized: "${parsed.searchQuery}" → "${parsed.optimizedSearchQuery}"`
-        );
-      }
-
-      // Extract sub-queries for multi-topic questions
-      const subQueries =
-        isSearchIntent && parsed.subQueries?.length ? parsed.subQueries.slice(0, 3) : null;
-
-      if (subQueries) {
-        log.debug(
-          `[Classifier] Decomposed into ${subQueries.length} sub-queries: ${subQueries.join(' | ')}`
-        );
-      }
-
-      // Extract search sources for parallel multi-source search. `chat_history`
-      // is a first-class SearchSource (past-chat recall) — keep it so the model
-      // can explicitly pick it, not only the regex heuristic (detectSearchSources).
-      //
-      // This list is a silent gate: anything the model names that is absent here
-      // is dropped without a log line, so a source the prompt asks for but this
-      // list omits can never happen (that is why `examples` is reachable only
-      // via detectSearchSources). Typed as SearchSource[] so adding a member to
-      // the union surfaces here instead of failing quietly at runtime.
-      const validSources: SearchSource[] = ['documents', 'web', 'chat_history', 'bundestag'];
-      const searchSources =
-        parsed.searchSources?.filter((s): s is SearchSource =>
-          validSources.includes(s as SearchSource)
-        ) || [];
-
-      if (searchSources.length > 1) {
-        log.debug(`[Classifier] Multi-source search: ${searchSources.join(' + ')}`);
-      }
-
-      // Extract metadata filters
-      const filters = extractFilters(parsed.filters);
-      if (filters) {
-        log.debug(`[Classifier] Detected filters: ${JSON.stringify(filters)}`);
-      }
-
-      // Validate secondaryIntent: must differ from intent, cannot be a context-providing intent
-      const contextIntents = new Set(['search', 'research', 'web']);
-      const validSecondary =
-        parsed.secondaryIntent &&
-        parsed.secondaryIntent !== parsed.intent &&
-        !contextIntents.has(parsed.secondaryIntent)
-          ? (parsed.secondaryIntent as SearchIntent)
-          : null;
-
-      if (validSecondary) {
-        log.info(`[Classifier] Secondary intent detected: ${validSecondary}`);
-      }
-
-      // Validate documentSubtype like secondaryIntent above. The model invents
-      // values outside the prompt's enum ("brief"), and this one is passed
-      // downstream as `subtypeOverride`, which wins over the generator's own
-      // validated subtype — so an invalid value reaches the INSERT and only the
-      // DB check constraint stops it. Dropping it here lets the document
-      // generator pick a valid subtype itself.
-      let validDocumentSubtype: string | null = null;
-      if (typeof parsed.documentSubtype === 'string' && parsed.documentSubtype) {
-        if ((CLASSIFIER_DOC_SUBTYPES as readonly string[]).includes(parsed.documentSubtype)) {
-          validDocumentSubtype = parsed.documentSubtype;
-        } else {
-          log.warn(`[Classifier] Invalid documentSubtype "${parsed.documentSubtype}" — dropped`);
-        }
-      }
-
-      const creationTopic = validateCreationTopic(parsed.creationTopic, parsed.intent, userContent);
-      if (creationTopic) {
-        log.info(`[Classifier] Creation topic: "${creationTopic}"`);
-      }
-
-      const result: ClassificationResult = {
-        intent: parsed.intent,
-        secondaryIntent: validSecondary,
-        searchQuery: effectiveSearchQuery,
-        subQueries,
-        searchSources,
-        filters,
-        reasoning: (parsed.reasoning || 'LLM classification') + suffix,
-        contentType: parsed.contentType || null,
-        needsResearch: parsed.needsResearch === true,
-        // `=== true` rather than a truthiness check: a model that omits the
-        // field must read as "no pictures", not as "undefined is falsy anyway" —
-        // the two agree today and would stop agreeing the moment the default
-        // flips.
-        wantsImages: parsed.bilder === true,
-        documentSubtype: validDocumentSubtype,
-        targetGroupName: parsed.targetGroupName || null,
-        creationTopic,
-      };
-
-      if (parsed.needsClarification && parsed.clarificationQuestion) {
-        result.needsClarification = true;
-        result.clarificationQuestion = parsed.clarificationQuestion;
-        result.clarificationOptions = parsed.clarificationOptions?.slice(0, 4) || undefined;
-        log.info(`[Classifier] Clarification needed: "${parsed.clarificationQuestion}"`);
-      }
-
-      return result;
-    }
-
-    return null;
-  }
-
-  try {
-    // Try direct JSON parse
-    const parsed = JSON.parse(content) as ClassifierLLMResponse;
-    const result = processResponse(parsed);
-    if (result) return result;
-  } catch {
-    // Try to extract JSON from text - handle nested objects with non-greedy match
-    const jsonMatch = content.match(/\{[\s\S]*?\}/);
-    if (jsonMatch) {
-      try {
-        const parsed = JSON.parse(jsonMatch[0]) as ClassifierLLMResponse;
-        const result = processResponse(parsed, true);
-        if (result) return result;
-      } catch {
-        // Try more permissive JSON extraction for nested objects
-        const deepJsonMatch = content.match(/\{[\s\S]*\}/);
-        if (deepJsonMatch) {
-          try {
-            const parsed = JSON.parse(deepJsonMatch[0]) as ClassifierLLMResponse;
-            const result = processResponse(parsed, true);
-            if (result) return result;
-          } catch {
-            // Fall through to heuristic
-          }
-        }
-      }
-    }
-  }
-
-  // Fallback: detect intent from LLM text using intent-field patterns.
-  // Only match when the LLM actually tried to output the intent value,
-  // not when it mentions a word in reasoning (e.g. "no research needed").
-  const intentFieldPattern = (intent: string) =>
-    new RegExp(`["']?intent["']?\\s*[:=]\\s*["']?${intent}\\b`, 'i');
-
-  for (const intent of FALLBACK_SCAN_ORDER) {
-    if (!intentFieldPattern(intent).test(content)) continue;
-    return {
-      intent,
-      searchQuery: FALLBACK_CARRIES_QUERY.has(intent) ? userContent : null,
-      reasoning: `Fallback: ${intent} detected in response`,
-    };
-  }
-
-  // Final fallback: the response was unreadable, so we know NOTHING about the
-  // turn. That is the one state in which the cheapest path is the wrong
-  // default — it silently promises "nothing needed looking up" about a message
-  // nobody managed to read. `agentic` says the honest thing instead: hand it to
-  // the loop's model, which holds the tools and can still decide.
-  // The heuristic already ran in classifierNode — re-running it here
-  // reintroduces the same false positives (e.g. party keywords → search).
-  return {
-    intent: 'agentic',
-    searchQuery: null,
-    reasoning: 'Fallback: no intent detected, handing the turn to the loop',
-  };
 }
 
 /**
