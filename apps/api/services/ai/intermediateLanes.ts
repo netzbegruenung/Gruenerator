@@ -11,12 +11,17 @@
  * Konsument deklariert, wie schwer seine Aufgabe ist; die Stufe entscheidet
  * Provider und Modell.
  *
- * ── STAND HEUTE: alle drei Stufen zeigen auf dasselbe Modell ──
+ * ── Vier Stufen, drei Modelle ──
  *
- * Das ist kein Versehen und keine halbe Arbeit, sondern das Messergebnis. Die
- * Umstellung trennt die AUFGABEN; welches Modell eine Stufe bekommt, ist danach
- * eine Ein-Zeilen-Änderung mit einer Eval dahinter. Was gemessen und verworfen
- * wurde, steht unten — damit niemand dieselben zwei Kandidaten noch einmal
+ *   trivial   regolo/mistral-small-4-119b   unverändert (Messung unten)
+ *   standard  regolo/mistral-small-4-119b   unverändert (Messung unten)
+ *   heavy     regolo/gemma4-31b             besser + benanntes Modell antwortet
+ *   compute   mistral-medium-2604 → Paris   einzige Stufe, wo ein Fehler eine
+ *                                           falsche ZAHL ist
+ *
+ * `trivial` und `standard` zeigen weiterhin auf dasselbe Modell wie vorher —
+ * das ist Messergebnis, nicht halbe Arbeit. Was dort geprüft und verworfen
+ * wurde, steht unten, damit niemand dieselben Kandidaten noch einmal
  * durchprobiert.
  *
  * ── Warum überhaupt: Energie ──
@@ -91,8 +96,18 @@ export interface IntermediateLaneConfig {
   readonly model: string;
 }
 
-/** Das heute einzige Ziel aller drei Stufen — siehe Messung im Kopf. */
+/** Der Ausgangszustand: was `INTERMEDIATE_MODEL` für alle 36 Stellen war. */
 const REGOLO_SMALL_4 = { provider: 'regolo', model: 'mistral-small-4-119b' } as const;
+
+/** Gemma 4 auf Regolo — dieselben Gewichte, die `TEXT_TYPES` und der Synth-Slot
+ *  fahren (TEXT_MODEL in providerSelector.ts). Regolos DEFAULT ist qwen, das
+ *  Modell muss also benannt werden. */
+const GEMMA_4 = 'gemma4-31b';
+
+/** `mistral-medium-2604` === Mistral Medium 3.5. Provider bleibt `mistral`:
+ *  `routeMistralModel` schickt genau diese ID nach Scaleway/Paris, und alles
+ *  Policy-Relevante prüft `provider === 'mistral'` (siehe CLAUDE.md). */
+const MISTRAL_MEDIUM = 'mistral-medium-2604';
 
 export const INTERMEDIATE_LANES = {
   /**
@@ -112,18 +127,69 @@ export const INTERMEDIATE_LANES = {
   standard: REGOLO_SMALL_4,
 
   /**
-   * Die Qualitätslatte: Zusammenfassungen, Rechen-Pläne, der Boards-Agent, die
-   * mem0-Extraktion. Unterscheidet sich von `standard` darin, WELCHER BELEG sie
-   * bewegen dürfte — `standard` eine Latenz- und Treffermessung, `heavy` eine
-   * Qualitäts-Eval. Das ist der Unterschied, den ein gemeinsamer Name
-   * verstecken würde.
+   * Die Qualitätslatte: Zusammenfassungen, der Boards-Agent, die
+   * mem0-Extraktion, Deep-Research-Planung.
+   *
+   * Gemma 4 statt Small 4, aus drei Gründen (Messung 31.07.2026):
+   *   - Trefferquote 100 % gegen 94,1 % auf der compute-Suite (51 Läufe);
+   *   - Gliederung: der Zusammenfassungs-Prompt verlangt Überschriften „für
+   *     Hauptthemen", Small 4 liefert im Mittel EINE (also nur einen Titel),
+   *     Gemma 4 drei bis vier;
+   *   - und der Grund, der ohne Messung unsichtbar bleibt: **Regolo bedient
+   *     strukturierte Anfragen auf `mistral-small-4-119b` still mit
+   *     `qwen3.5-9b`.** Reproduzierbar 6/6 über `json_schema` UND erzwungenen
+   *     Tool-Call. Das betrifft genau die `generateObject`-Konsumenten dieser
+   *     Stufe (mem0-Gatekeeper, `extractService`, Deep-Planner) — sie liefen
+   *     also auf einem 9-Mrd.-Qwen, obwohl sie ein 119-Mrd.-Modell benennen,
+   *     und qwen steht in `AVOID_AS_SYNTH`. Bei `gemma4-31b` antwortet 6/6 das
+   *     angeforderte Modell.
+   *
+   * KEIN akuter Fehler daraus: `regoloFetchWithThinkingDisabled` hängt
+   * `enable_thinking:false` an, und damit liefert auch das untergeschobene Qwen
+   * gültiges JSON. Ohne das Flag ist die Antwort leer — die beiden Bausteine
+   * hängen also zusammen, ohne dass es irgendwo steht.
+   *
+   * Preis: rund doppelte Latenz bei Zusammenfassungen (4,9–6,1 s gegen
+   * 2,2–3,0 s) bei gleicher Token-Zahl, also echt langsamer pro Token. Tragbar,
+   * weil `REQUEST_TIMEOUT` bei 120 s liegt — es gibt hier keine Zeitklippe wie
+   * bei den Auflösern, nur Wartezeit.
+   *
+   * Gemma 4 ist ausserdem das produktionserprobteste Modell im System: es
+   * bedient bereits alle `TEXT_TYPES` und den Synth-Slot des Chat-Loops. Diese
+   * Stufe zieht auf denselben Host, nicht auf einen neuen.
    *
    * ACHTUNG mem0: `services/mem0/config.ts` baut seinen Extraktions-Client aus
    * `REGOLO_BASE_URL` + `REGOLO_API_KEY` PLUS dem Modellnamen dieser Stufe.
    * Wandert `heavy` zu einem anderen Anbieter, muss dort die Basis-URL mit —
-   * sonst schickt es einen fremden Modellnamen an Regolo.
+   * sonst schickt es einen fremden Modellnamen an Regolo. Gemma 4 liegt auf
+   * Regolo, der Umzug ist also hier noch folgenlos.
    */
-  heavy: REGOLO_SMALL_4,
+  heavy: { provider: 'regolo', model: GEMMA_4 },
+
+  /**
+   * Rechnen. Eigene Stufe, weil hier als Einzigem ein Modellfehler als
+   * FALSCHE ZAHL beim Nutzer ankommt — überall sonst wird eine schwächere
+   * Antwort nur schwächer.
+   *
+   * Mistral Medium 3.5, das `routeMistralModel` nach Scaleway/Paris schickt.
+   * Gemessen (17 Fälle × 3) schlägt es beide Alternativen auf JEDER Achse:
+   *
+   *            Treffer   p50       out-tok   mgCO₂/Aufruf
+   *   Small 4   94,1 %    540 ms     68      nicht bezifferbar
+   *   Gemma 4  100,0 %   1264 ms     69      12,97
+   *   Medium   100,0 %   1144 ms     70       7,56
+   *
+   * Dass das GRÖSSTE Modell den kleinsten Fussabdruck hat, ist kein Fehler in
+   * der Tabelle: es braucht pro Token 6,3× mehr Energie, läuft aber am
+   * Pariser Netz (24 g/kWh statt 270). Bei ~70 Ausgabe-Tokens gewinnt der
+   * Standort. Genau deshalb ist Medium hier vertretbar und als Dauer-Lane
+   * nicht: `compute` feuert nur bei Rechen-/Zählfragen.
+   *
+   * `pandasComputeNode` hatte diese Entscheidung bereits einzeln getroffen
+   * (eigenes `CODEGEN_MODEL` mit derselben Begründung). Diese Stufe sammelt
+   * die Doppelung ein.
+   */
+  compute: { provider: 'mistral', model: MISTRAL_MEDIUM },
 } as const satisfies Record<string, IntermediateLaneConfig>;
 
 export type IntermediateLaneId = keyof typeof INTERMEDIATE_LANES;

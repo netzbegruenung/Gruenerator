@@ -20,7 +20,7 @@ import { lastUserText } from './pandasComputeNode.js';
 import type { ChatGraphState, ComputeData } from '../types.js';
 
 /** @see services/ai/intermediateLanes.ts */
-const LANE = intermediateLane('heavy');
+const LANE = intermediateLane('compute');
 
 const log = createLogger('ChatGraph:ComputeVerifier');
 
