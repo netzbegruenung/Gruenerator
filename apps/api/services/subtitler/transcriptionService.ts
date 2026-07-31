@@ -13,10 +13,12 @@ import { createLogger } from '../../utils/logger.js';
 import { type AIWorkerPool } from '../../workers/types.js';
 import { type Locale } from '../localization/types.js';
 import { probeDurationSeconds } from '../transcription/audioDuration.js';
+import { GREENPT_STT_MODEL } from '../transcription/greenptListen.js';
 import { chooseProvider, type TranscriptionProvider } from '../transcription/providerPolicy.js';
 import { recordOperation } from '../usage/UsageTrackingService.js';
 
 import { startBackgroundCompression } from './backgroundCompressionService.js';
+import { transcribeWithGreenPT } from './greenptTranscriptionService.js';
 import { generateManualSubtitles } from './manualSubtitleGeneratorService.js';
 import { transcribeWithRegolo } from './regoloTranscriptionService.js';
 import { extractAudio } from './videoUploadService.js';
@@ -55,6 +57,11 @@ const RUNNERS: Record<
     apiKey: () => env.MISTRAL_API_KEY,
     usage: { provider: 'mistral', model: 'voxtral' },
     run: transcribeWithVoxtral,
+  },
+  greenpt: {
+    apiKey: () => env.GREENPT_API_KEY,
+    usage: { provider: 'greenpt', model: GREENPT_STT_MODEL },
+    run: transcribeWithGreenPT,
   },
 };
 
@@ -96,7 +103,7 @@ async function transcribeWithProvider(
   }
 
   throw new Error(
-    'No transcription provider configured. Set REGOLO_API_KEY (faster-whisper) or MISTRAL_API_KEY (Voxtral).'
+    'No transcription provider configured. Set MISTRAL_API_KEY (Voxtral), GREENPT_API_KEY (green-s-pro) or REGOLO_API_KEY (faster-whisper).'
   );
 }
 
