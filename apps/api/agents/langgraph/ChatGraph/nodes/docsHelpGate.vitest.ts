@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { looksLikeDocsHelpQuestion } from './classifierParsing.js';
+import { looksLikeDocsHelpQuestion } from './classifierSignals.js';
 
 describe('looksLikeDocsHelpQuestion', () => {
   it('catches instructional questions about a Grünerator feature', () => {
