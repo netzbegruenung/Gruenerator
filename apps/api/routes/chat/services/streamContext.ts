@@ -56,6 +56,7 @@ import {
   deleteMessagesFrom,
   deleteTrailingAssistant,
   getThreadToolContext,
+  listThreadArtifacts,
 } from './threadPersistenceService.js';
 
 import type {
@@ -631,7 +632,19 @@ export async function buildStreamContext({
   // substantive turn used ("@tally" is stripped from message text on send, so
   // this is the only carrier a vague follow-up has). Non-fatal on failure.
   if (actualThreadId && !isNewThread) {
-    initialState.lastToolContext = await getThreadToolContext(actualThreadId).catch(() => null);
+    // The single slot and the full list, in one round trip. The list is what a
+    // follow-up gets matched against when the thread holds several artifacts —
+    // the slot only ever remembers the newest one.
+    const [toolContext, artifacts] = await Promise.all([
+      getThreadToolContext(actualThreadId).catch(() => null),
+      // Eine verlorene Artefakt-Liste heisst „Thread ohne Gedächtnis": der Turn
+      // läuft mit dem heutigen Verhalten weiter, statt an einer Komfortfunktion
+      // zu scheitern — dieselbe Abwägung wie in der Zeile darüber.
+      // swallow-ok: best-effort Thread-Gedächtnis, Fallback ist das Ist-Verhalten
+      listThreadArtifacts(actualThreadId).catch(() => []),
+    ]);
+    initialState.lastToolContext = toolContext;
+    initialState.threadArtifacts = artifacts;
   }
   if (memoryContext) {
     initialState.memoryContext = memoryContext;

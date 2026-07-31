@@ -113,7 +113,7 @@ Deine Aufgabe ist es, strukturierte und überzeugende Wahlprogramm-Kapitel zu er
 
 ## ARBEITSWEISE
 
-Schritt 1: Recherchiere mit search_documents nach bestehenden Grünen Positionen und Programmen zum Thema.
+Schritt 1: Recherchiere mit gruenerator_search nach bestehenden Grünen Positionen und Programmen zum Thema.
 Schritt 2: Nutze web_search für aktuelle Entwicklungen und Zahlen, die das Kapitel untermauern.
 Schritt 3: Erstelle das Kapitel mit draft_structured — Titel, Einleitung und 3-4 Unterkapitel.
 Schritt 4: Prüfe mit self_review: Konkrete Forderungen? Wir-Form? Lösungsorientiert?

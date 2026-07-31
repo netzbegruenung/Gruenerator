@@ -25,6 +25,10 @@
  *   EVAL_UPDATE_BASELINE=1  overwrite the baseline with this run's results
  *   EVAL_RECORD_DIR record each turn's raw SSE body to <dir>/<id>.t<n>.sse
  *                   (Playwright fixture source)
+ *   EVAL_DECISION_DIR  read the backend's decision journals back from this
+ *                   directory and render <dir>/<id>.map.txt per scenario.
+ *                   Requires that backend to run with NODE_ENV=development and
+ *                   CHAT_DECISION_LOG_DIR pointing at the SAME path.
  *
  * Deterministic assertions only — no model calls here. The LLM-judge pass
  * (eval:judge) consumes the enriched last-run.json this writes.
@@ -35,9 +39,11 @@ import { fileURLToPath } from 'node:url';
 
 import { runAssertions } from './assertions.js';
 import { loadCorpus } from './corpus.js';
+import { mergeJournals, readDecisionJournal } from './decisionLog.js';
 import { buildFillerHistory } from './fixtures/fillerTurns.js';
 import { parseSseEvents, buildTrace } from './parseTrace.js';
 import { buildNotebookTrace } from './parseTraceNotebook.js';
+import { renderDecisionMap, type DecisionMapTurn } from './renderDecisionMap.js';
 import {
   type CaseResult,
   type ChatTrace,
@@ -61,6 +67,16 @@ const CONCURRENCY = (() => {
 })();
 const BASELINE_PATH = process.env.EVAL_BASELINE ?? join(HERE, 'baseline.json');
 const RECORD_DIR = process.env.EVAL_RECORD_DIR ?? '';
+/**
+ * Where the backend was told to drop its decision journals — i.e. the SAME path
+ * that backend has in CHAT_DECISION_LOG_DIR. Setting it makes this runner send
+ * a correlation header per turn and render one decision map per scenario.
+ *
+ * Requires filesystem access to the backend host, so in practice: a local
+ * `pnpm dev:backend`. Against a deployed target the maps stay absent and the
+ * run degrades to what it always was — real answers, no visible reasoning.
+ */
+const DECISION_DIR = process.env.EVAL_DECISION_DIR ?? '';
 
 /** Vercel UIMessage wire shape (the backend reads `parts`, not `content`). */
 interface WireMessage {
@@ -84,7 +100,8 @@ function selectedCorpus(): EvalScenario[] {
 
 async function postSse(
   path: string,
-  body: Record<string, unknown>
+  body: Record<string, unknown>,
+  logId?: string
 ): Promise<{ rawBody: string; networkError: string | null }> {
   try {
     const res = await fetch(`${BASE_URL}${path}`, {
@@ -92,6 +109,9 @@ async function postSse(
       headers: {
         'content-type': 'application/json',
         ...(BYPASS ? { 'x-dev-auth-bypass': BYPASS } : {}),
+        // Names the file the backend writes its decision journal to. Ignored
+        // unless that backend runs with CHAT_DECISION_LOG_DIR in development.
+        ...(DECISION_DIR && logId ? { 'x-decision-log-id': logId } : {}),
       },
       body: JSON.stringify(body),
     });
@@ -118,7 +138,12 @@ async function runTurn(
   turn: EvalTurn,
   turnIdx: number,
   ctx: TurnCtx,
-  scenarioCtx: ScenarioContext
+  scenarioCtx: ScenarioContext,
+  /** Out-param: collects one entry per turn whose journal the backend wrote.
+   *  An out-param rather than a TurnResult field on purpose — TurnResult is
+   *  serialised into last-run.json and read by the judge, and the journal is a
+   *  local diagnostic that has no business in either. */
+  decisionTurns?: DecisionMapTurn[]
 ): Promise<TurnResult> {
   const started = Date.now();
 
@@ -165,9 +190,11 @@ async function runTurn(
         ...(currentSharepic ? { currentSharepic } : {}),
       };
 
+  const logId = `${scenario.id}.t${turnIdx}`;
   const { rawBody, networkError } = await postSse(
     isNotebook ? '/api/chat-service/notebook/stream' : '/api/chat-graph/stream',
-    body
+    body,
+    logId
   );
   record(scenario.id, turnIdx, '', rawBody);
   let events = parseSseEvents(rawBody);
@@ -187,10 +214,11 @@ async function runTurn(
     if (!threadId) {
       resumeError = 'clarification interrupt but no threadId to resume with';
     } else {
-      const resume = await postSse('/api/chat-graph/resume', {
-        threadId,
-        resume: turn.onInterrupt.resume,
-      });
+      const resume = await postSse(
+        '/api/chat-graph/resume',
+        { threadId, resume: turn.onInterrupt.resume },
+        `${logId}.resume`
+      );
       record(scenario.id, turnIdx, '.resume', resume.rawBody);
       if (resume.networkError) resumeError = `resume: ${resume.networkError}`;
       events = [...events, ...parseSseEvents(resume.rawBody)];
@@ -211,6 +239,23 @@ async function runTurn(
     // An unanswered clarification is a real finding: the backend asked a
     // question the scenario didn't anticipate (over-asking regression).
     trace.error = trace.error ?? 'unexpected clarification interrupt';
+  }
+
+  if (DECISION_DIR && decisionTurns) {
+    const primary = await readDecisionJournal(DECISION_DIR, logId);
+    if (primary === null) {
+      noteMissingDecisionLog();
+    } else {
+      const resumed =
+        interrupted && turn.onInterrupt
+          ? await readDecisionJournal(DECISION_DIR, `${logId}.resume`)
+          : null;
+      decisionTurns.push({
+        prompt: turn.prompt,
+        journal: mergeJournals([primary, resumed]),
+        trace,
+      });
+    }
   }
 
   const assertions = runAssertions(trace, turn.expect, scenarioCtx);
@@ -257,6 +302,22 @@ async function runTurn(
   };
 }
 
+/**
+ * Warns once, not once per turn: with the backend started without
+ * CHAT_DECISION_LOG_DIR every single turn misses, and 142 identical lines would
+ * bury the scorecard the run exists to produce.
+ */
+let warnedMissingDecisionLog = false;
+function noteMissingDecisionLog(): void {
+  if (warnedMissingDecisionLog) return;
+  warnedMissingDecisionLog = true;
+  console.warn(
+    `⚠ EVAL_DECISION_DIR is set but no journal appeared in ${DECISION_DIR}.\n` +
+      `  The backend must run with NODE_ENV=development and CHAT_DECISION_LOG_DIR\n` +
+      `  pointing at that same directory. Continuing without decision maps.`
+  );
+}
+
 async function runScenario(scenario: EvalScenario): Promise<CaseResult> {
   const ctx: TurnCtx = { threadId: null, history: [] };
   const scenarioCtx: ScenarioContext = {
@@ -266,12 +327,21 @@ async function runScenario(scenario: EvalScenario): Promise<CaseResult> {
     priorSourceCount: 0,
   };
   const turns: TurnResult[] = [];
+  const decisionTurns: DecisionMapTurn[] = [];
 
   for (const [i, turn] of scenario.turns.entries()) {
-    const r = await runTurn(scenario, turn, i, ctx, scenarioCtx);
+    const r = await runTurn(scenario, turn, i, ctx, scenarioCtx, decisionTurns);
     turns.push(r);
     // A dead stream poisons every later turn — stop, keep what we have.
     if (r.error) break;
+  }
+
+  if (DECISION_DIR && decisionTurns.length > 0) {
+    mkdirSync(DECISION_DIR, { recursive: true });
+    writeFileSync(
+      join(DECISION_DIR, `${scenario.id}.map.txt`),
+      renderDecisionMap(scenario.id, scenario.category, decisionTurns, 'live')
+    );
   }
 
   const first = turns[0];

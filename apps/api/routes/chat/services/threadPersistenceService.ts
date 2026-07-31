@@ -415,6 +415,109 @@ export async function setThreadToolContext(
 }
 
 /**
+ * The artifacts a thread produced, newest first.
+ *
+ * `chat_threads.last_tool_context` holds ONE slot and every substantive turn
+ * overwrites it, so a thread that made a document and then a sharepic has
+ * forgotten the document — "kürze die Begründung auf die Hälfte" then finds no
+ * deterministic door and falls through to the LLM tier, which sees only the
+ * sharepic in its prose hint. This rebuilds the list from the same message
+ * metadata the cards rehydrate from, so a follow-up can be matched against
+ * everything the thread holds rather than just the newest thing in it.
+ *
+ * Extraction mirrors `deriveToolContext` (postResponseService), including its
+ * precedence — one artifact per message, image before sharepic before document.
+ * Kept in sync by construction: both read the metadata that function's inputs
+ * are persisted into.
+ */
+export async function listThreadArtifacts(
+  threadId: string,
+  limit = 4
+): Promise<ThreadToolContext[]> {
+  const postgres = getPostgresInstance();
+  const rows = (await postgres.query(
+    `SELECT tool_results FROM chat_messages
+     WHERE thread_id = $1 AND role = 'assistant' AND tool_results IS NOT NULL
+     ORDER BY created_at DESC LIMIT 20`,
+    [threadId]
+  )) as Array<{ tool_results?: unknown }>;
+
+  const artifacts: ThreadToolContext[] = [];
+  const seen = new Set<string>();
+  for (const row of rows) {
+    const raw = row.tool_results;
+    if (!raw) continue;
+    let meta: unknown;
+    try {
+      meta = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    } catch {
+      continue; // malformed row — keep scanning older messages
+    }
+    const artifact = artifactFromMessageMetadata(meta);
+    if (!artifact) continue;
+    // Two turns editing the same document are one artifact. A sharepic carries
+    // no stable id across turns, so its kind alone dedupes — the thread's
+    // sharepic is a single editable thing, not one per refinement.
+    const key = `${artifact.kind}:${artifact.ref ?? ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    artifacts.push(artifact);
+    if (artifacts.length >= limit) break;
+  }
+  return artifacts;
+}
+
+interface ArtifactMetadataShape {
+  generatedImage?: { url?: string; prompt?: string } | null;
+  createdDocument?: { documentId?: string; title?: string; subtype?: string } | null;
+  toolCalls?: Array<{
+    toolName?: string;
+    result?: { variants?: Array<{ initialProps?: Record<string, unknown> }> };
+  }> | null;
+}
+
+/** The one artifact an assistant message produced, or null for a plain turn. */
+function artifactFromMessageMetadata(meta: unknown): ThreadToolContext | null {
+  if (!meta || typeof meta !== 'object') return null;
+  const m = meta as ArtifactMetadataShape;
+
+  const imageUrl = m.generatedImage?.url;
+  if (typeof imageUrl === 'string' && imageUrl) {
+    return { kind: 'image', ref: imageUrl, label: labelOf(m.generatedImage?.prompt) };
+  }
+
+  const variant = m.toolCalls?.find((tc) => tc?.toolName === 'sharepic')?.result?.variants?.[0];
+  if (variant) {
+    const p = variant.initialProps ?? {};
+    const text = [p['line1'], p['line2'] ?? p['accent'], p['line3'], p['quote'], p['header']]
+      .filter((v): v is string => typeof v === 'string' && v.length > 0)
+      .join(' ');
+    return { kind: 'sharepic', ref: null, label: labelOf(text) };
+  }
+
+  const doc = m.createdDocument;
+  if (doc?.documentId) {
+    const sub = doc.subtype ?? '';
+    const kind = sub.startsWith('presentation')
+      ? 'presentation'
+      : sub.startsWith('sheet')
+        ? 'sheet'
+        : sub.startsWith('pdf')
+          ? 'pdf'
+          : 'document';
+    return { kind, ref: doc.documentId, label: labelOf(doc.title) };
+  }
+  return null;
+}
+
+/** Short, single-line label for prompt injection; null when there is nothing to show. */
+function labelOf(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const clean = value.replace(/\s+/g, ' ').trim();
+  return clean ? clean.slice(0, 60) : null;
+}
+
+/**
  * URL of the most recent generated image in the thread (assistant message
  * metadata `generatedImage.url`). Lets a vague follow-up ("mach es blauer")
  * rehydrate the previous result as the image_edit input instead of erroring

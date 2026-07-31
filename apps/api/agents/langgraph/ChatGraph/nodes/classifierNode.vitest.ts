@@ -406,8 +406,34 @@ describe('detectComplexity', () => {
     expect(detectComplexity('Hallo, wie geht es dir heute?')).toBe('simple');
   });
 
-  it('returns simple for "Was ist X"', () => {
-    expect(detectComplexity('Was ist Klimaschutz?')).toBe('simple');
+  // CHANGED, deliberately: this used to assert `simple`, which capped the answer
+  // at 1-2 paragraphs. An open question about a concept or a person is short to
+  // ask and long to answer — the two are close to inverted, and treating the
+  // question's length as the answer's scope is what produced two-sentence
+  // biographies. See detectComplexity's doc comment.
+  it('returns moderate for an OPEN lookup, however short', () => {
+    expect(detectComplexity('Was ist Klimaschutz?')).toBe('moderate');
+    expect(detectComplexity('wer war marilyn monroe')).toBe('moderate');
+    expect(detectComplexity('Wer ist Robert Habeck?')).toBe('moderate');
+    expect(detectComplexity('Erkläre Föderalismus')).toBe('moderate');
+  });
+
+  it('keeps CLOSED lookups simple — a place or a date is one fact', () => {
+    expect(detectComplexity('Wo ist der Bundestag?')).toBe('simple');
+    expect(detectComplexity('Wann ist die nächste Wahl?')).toBe('simple');
+  });
+
+  it('catches umlaut-free detail requests', () => {
+    // Users type without umlauts routinely; `ausfuehrlich` used to miss the
+    // pattern, so an explicit request for depth was silently downgraded.
+    expect(detectComplexity('Wer war Marilyn Monroe? Bitte ausfuehrlich.')).toBe('complex');
+    expect(detectComplexity('Erklaere das gruendlich')).toBe('complex');
+  });
+
+  it('lets an explicit detail request outrank the open-lookup rule', () => {
+    // Ordering guard: the complex checks run before the shape checks, so
+    // "Wer ist X? Bitte ausführlich" must not stop at moderate.
+    expect(detectComplexity('Wer ist Robert Habeck? Bitte ausführlich.')).toBe('complex');
   });
 
   it('returns complex for comparison keywords', () => {

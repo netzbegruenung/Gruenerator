@@ -148,6 +148,7 @@ import { mountRecentActivityContractRouter } from './routes/workplace/recentActi
 import recentActivityRouter from './routes/workplace/recentActivityController.js';
 import * as sharepicGenerationService from './services/chat/sharepicGenerationService.js';
 import * as tusServiceModule from './services/subtitler/tusService.js';
+import { decisionLogMiddleware } from './utils/decisionLog.js';
 import { toUserFacingMessage } from './utils/errors/index.js';
 import { createLogger } from './utils/logger.js';
 import { RouteStatsTracker } from './utils/routeStats.js';
@@ -476,6 +477,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   // (large payloads: base64 image attachments).
   app.use('/api/chat-graph', express.json({ limit: '50mb' }));
   app.use('/api/chat-graph', aiGenerationLimiter);
+  // Dev-only: bind a decision journal per turn and dump it to CHAT_DECISION_LOG_DIR
+  // so the live eval lane can render a decision map. Returns null — and mounts
+  // nothing — unless NODE_ENV is development AND the directory is configured.
+  const decisionLog = decisionLogMiddleware();
+  if (decisionLog) app.use('/api/chat-graph', decisionLog);
   mountThreadsContractRouter(app);
   mountChatGraphContractRouter(app);
   app.use('/api/chat-service', authenticatedReadLimiter, chatServiceRouter);
