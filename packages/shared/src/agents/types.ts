@@ -149,6 +149,8 @@ export interface Agent {
    * creator); `'research'` is reserved for a future bucket.
    */
   autoRoutingHint?: 'creative' | 'precise' | 'research';
+  /** Fire the example search on every content-creation turn. See the frontmatter schema. */
+  alwaysSearchesExamples?: boolean;
   /**
    * System skill `mention` strings (e.g. `'presse'`, `'antrag'`) surfaced as
    * clickable quick-starts on this agent's chat landing. Each resolves via
