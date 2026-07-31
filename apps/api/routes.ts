@@ -138,7 +138,9 @@ import { mountUserWebsitesContractRouter } from './routes/user/userWebsitesContr
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
 import { mountUserAgentsSharingContractRouter } from './routes/userAgents/userAgentsSharingContractRouter.js';
 import { mountUserTextFormsContractRouter } from './routes/userTextForms/userTextFormsContractRouter.js';
-import v1ChatCompletionsRouter from './routes/v1/chatCompletionsRouter.js';
+import v1ChatCompletionsRouter, {
+  modelsRouter as v1ModelsRouter,
+} from './routes/v1/chatCompletionsRouter.js';
 import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
 import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
 import { mountVideoContractRouter } from './routes/video/videoContractRouter.js';
@@ -427,6 +429,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   // loop (Excel add-in). Same Bearer-API-key auth, plus a 'chat:completions'
   // scope check and a model allowlist inside the router.
   app.use('/api/v1/chat/completions', v1ChatCompletionsRouter);
+  // Modell-Discovery: OpenAI-kompatible Clients fragen ${baseUrl}/models ab.
+  app.use('/api/v1/models', v1ModelsRouter);
   // Public MCP collection catalog (unauthenticated, rate-limited).
   app.use('/api/v1/collections', publicReadLimiter, v1CollectionsRouter);
   // ts-rest contract router for /api/documents — mounts BEFORE the legacy documentsRouter
