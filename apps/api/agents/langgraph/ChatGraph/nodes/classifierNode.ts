@@ -15,6 +15,7 @@ import { degradeTargetForLocale } from '@gruenerator/shared/chat-intents';
 
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
 import { looksLikeToolableQuestion } from '../../../../routes/chat/services/agenticLoop/routing.js';
+import { isSharepicEditInstruction } from '../../../../routes/chat/services/sharepicEditHeuristics.js';
 import { containsInstructionMarkers } from '../../../../routes/chat/services/untrustedContent.js';
 import { escapeRegExp } from '../../../../services/BaseSearchService/textUtils.js';
 import {
@@ -71,6 +72,7 @@ import {
 } from './classifierParsing.js';
 import { CLASSIFIER_PROMPT, NON_SEARCH_INTENTS } from './classifierPrompt.js';
 import { classifyDocsIntentTiebreak } from './docsIntentTiebreak.js';
+import { resolveEditTarget } from './editTargetResolver.js';
 import {
   ARTIFACT_NOUN_BY_KIND,
   forbidsPersistentAction,
@@ -1037,13 +1039,16 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       }
     }
 
-    // ── TIER 2.7: Follow-up on the thread's last artifact ──────────────────
+    // ── TIER 2.7: Follow-up on one of the thread's artifacts ───────────────
     // chat_threads.last_tool_context is the only carrier a vague follow-up has
     // (mentions are stripped on send). Placed AFTER every explicit-anchor branch
     // (open editor surfaces, @-mentions, attachments) so it can never preempt
     // them; the deterministic tiers otherwise ignore lastToolContext and only the
     // Tier-4 LLM prose hint uses it. Belt-and-braces conditions below too.
-    const tc = state.lastToolContext;
+    //
+    // `tc` is the thread's NEWEST artifact unless the thread holds several and
+    // the resolver picked an older one — see pickThreadArtifact.
+    const tc = await pickThreadArtifact(state, userContent);
     if (tc && userContent.length > 0) {
       // "Kürze die Begründung auf die Hälfte" after a chat-created doc: the
       // modify verbs match, but every doc branch above was gated on an anchor a
@@ -1091,6 +1096,44 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
           searchQuery: null,
           detectedFilters: null,
           reasoning: 'lastToolContext(image) + edit/regenerate phrasing → image_edit',
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
+      // "Mach den Text größer" / "Anderer Hintergrund bitte" after a sharepic.
+      //
+      // This turn already had TWO corrections stacked on top of the LLM tier,
+      // which is the tell that the tier was never deciding anything: the LLM
+      // answers `image_edit` (its own reasoning names the *Sharepic*), the
+      // post-LLM patch below rewrites that to `sharepic`, and the router's
+      // refinement block then overrides the intent a third time and forces the
+      // tool regardless of what the classifier said. 27k characters, three
+      // corrections, one predetermined outcome.
+      //
+      // Narrow on the same two counts as that patch: with an image ATTACHED,
+      // image_edit is simply right, and when the user names an image ("bearbeite
+      // das Foto") take them at their word. `isSharepicEditInstruction` is the
+      // STRICTER of the two edit heuristics (verb AND noun) — it is a subset of
+      // the router's `isSharepicRefinement`, so anything this branch forwards is
+      // something the refinement block accepts. Where it doesn't fire, the turn
+      // falls through to exactly today's path.
+      if (
+        tc.kind === 'sharepic' &&
+        !hasImageAttachments &&
+        !mentionsImageNoun(userContent) &&
+        isSharepicEditInstruction(userContent)
+      ) {
+        log.info('[Classifier] Follow-up sharepic edit via thread artifact → sharepic');
+        recordDecision('classifier.tier', 'tier2.7_sharepic_followup', {
+          inputs: { artifactKind: tc.kind },
+        });
+        return {
+          intent: 'sharepic',
+          searchSources: [],
+          searchQuery: null,
+          detectedFilters: null,
+          reasoning: 'threadArtifact(sharepic) + edit instruction → sharepic refinement',
           hasTemporal: temporal.hasTemporal,
           complexity,
           classificationTimeMs: Date.now() - startTime,
@@ -1558,6 +1601,46 @@ function formatToolContextLine(
   if (family && forbidsPersistentAction(userContent, ARTIFACT_NOUN_BY_KIND[family])) return '';
   const label = tc.label ? ` („${tc.label}")` : '';
   return `\n\nHinweis: Der vorherige Turn dieses Gesprächs arbeitete mit ${hint}${label}. Vage Folgeaufträge beziehen sich meist darauf.`;
+}
+
+/**
+ * Which of the thread's artifacts this turn is about.
+ *
+ * With at most one artifact the answer is `lastToolContext` and no model is
+ * involved — that is the overwhelmingly common case and it stays free. The
+ * resolver exists for the one shape a single slot cannot express: a thread that
+ * made a document AND a sharepic, where `last_tool_context` remembers only the
+ * newest and "kürze die Begründung auf die Hälfte" has no door back to the
+ * document. `getLastSharepicVariant` reading a single message was the same class
+ * of bug one level down.
+ *
+ * Two gates keep the call rare and cheap. The message must look like an edit
+ * instruction at all — otherwise the answer is "keines" by construction and the
+ * model adds nothing. And `null` (no pick, failure, timeout) falls back to
+ * today's behaviour rather than to "no artifact": this function may only ever
+ * REDIRECT a follow-up, never suppress one.
+ */
+async function pickThreadArtifact(
+  state: ChatGraphState,
+  userContent: string
+): Promise<ChatGraphState['lastToolContext']> {
+  const fallback = state.lastToolContext ?? null;
+  const artifacts = state.threadArtifacts ?? [];
+  if (artifacts.length < 2 || userContent.length === 0) return fallback;
+
+  const looksReferential =
+    DOC_MODIFY_PATTERN.test(userContent) ||
+    hasImageEditVerb(userContent) ||
+    isImageRegenRequest(userContent) ||
+    isSharepicEditInstruction(userContent);
+  if (!looksReferential) return fallback;
+
+  const index = await resolveEditTarget({
+    userContent,
+    artifacts,
+    aiWorkerPool: state.aiWorkerPool,
+  });
+  return index == null ? fallback : artifacts[index];
 }
 
 /**

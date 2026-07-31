@@ -52,6 +52,7 @@ export const recordedSourcePersists: Array<{
 }> = [];
 
 const threadToolContextFixtures = new Map<string, ThreadToolContext | null>();
+const threadArtifactFixtures = new Map<string, ThreadToolContext[]>();
 
 export function messagesOf(threadId: string): FakeMessage[] {
   return Array.from(messages.values())
@@ -64,11 +65,17 @@ export function resetThreadStore(): void {
   messages.clear();
   recordedSourcePersists.length = 0;
   threadToolContextFixtures.clear();
+  threadArtifactFixtures.clear();
 }
 
 /** Script `getThreadToolContext`'s return for a given thread (default: null). */
 export function setThreadToolContextFixture(threadId: string, ctx: ThreadToolContext | null): void {
   threadToolContextFixtures.set(threadId, ctx);
+}
+
+/** Script `listThreadArtifacts` (newest first) for a thread that holds several. */
+export function setThreadArtifactsFixture(threadId: string, list: ThreadToolContext[]): void {
+  threadArtifactFixtures.set(threadId, list);
 }
 
 export const getUser = (req: AuthRequest | express.Request): UserProfile | undefined =>
@@ -277,6 +284,18 @@ export async function setThreadLastMcpServer(threadId: string, serverId: string)
 
 export async function getThreadToolContext(threadId: string): Promise<ThreadToolContext | null> {
   return threadToolContextFixtures.get(threadId) ?? null;
+}
+
+export async function listThreadArtifacts(
+  threadId: string,
+  limit = 4
+): Promise<ThreadToolContext[]> {
+  const scripted = threadArtifactFixtures.get(threadId);
+  if (scripted) return scripted.slice(0, limit);
+  // An unscripted thread behaves like one holding just its tool-context slot —
+  // which is what every test written before the list existed assumes.
+  const tc = threadToolContextFixtures.get(threadId);
+  return tc ? [tc] : [];
 }
 
 export async function setThreadToolContext(
