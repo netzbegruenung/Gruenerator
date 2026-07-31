@@ -778,11 +778,25 @@ export async function runSharepicGeneration(opts: {
  * thread. That is a memory horizon, not a correctness bug, but it is why the
  * predicate demands an anaphor: topical continuity is the licence.
  */
+/**
+ * Which verdicts may inherit the thread's earlier research.
+ *
+ * `produktion` is the one that matters now: the classifier prompt sends a
+ * reference to THIS running conversation there ("vorhin", "deine letzte
+ * Antwort"), which is exactly the "Mehr dazu bitte" shape this carry was built
+ * for. `direct` stays because the parser and the heuristic can still produce
+ * it. `greeting` is absent on purpose — a greeting has nothing to ground — and
+ * so is `agentic`, which does its own retrieval inside the loop and would
+ * otherwise start every turn with a stale source block.
+ */
+const CARRY_ELIGIBLE_INTENTS: ReadonlySet<string> = new Set(['produktion', 'direct']);
+
 export async function carryThreadSourcesIfNeeded(
   state: ChatGraphState,
   threadId: string | null
 ): Promise<ChatGraphState> {
-  if (state.intent !== 'direct' || state.searchResults.length > 0 || !threadId) return state;
+  if (!CARRY_ELIGIBLE_INTENTS.has(state.intent) || state.searchResults.length > 0 || !threadId)
+    return state;
   const lastUser = [...state.messages].reverse().find((m) => m.role === 'user');
   if (!needsThreadGrounding(lastUser ? extractTextContent(lastUser.content) : '')) return state;
   try {
@@ -1207,7 +1221,9 @@ export async function executeIntentPipeline(opts: {
         });
       }
     } else if (
+      currentIntent !== 'produktion' &&
       currentIntent !== 'direct' &&
+      currentIntent !== 'greeting' &&
       currentIntent !== 'save_as_doc' &&
       currentIntent !== 'modify_doc' &&
       currentIntent !== 'modify_board'

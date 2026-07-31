@@ -199,7 +199,11 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatGr
     perSourceResults: {},
     synthesisMode: null,
 
-    // Classification (will be set by classifier node)
+    // Classification (will be set by classifier node).
+    // Stays `direct` and does NOT follow the residual to `agentic`: this is the
+    // value a turn carries if classification never ran at all, and the inert
+    // no-tool verdict is the right thing to fail into. `agentic` here would put
+    // an unclassified turn into the tool loop.
     intent: 'direct' as SearchIntent,
     secondaryIntent: null,
     searchSources: [],

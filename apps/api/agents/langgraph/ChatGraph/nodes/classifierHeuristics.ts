@@ -137,6 +137,10 @@ export const INTENT_KEYWORDS: Record<
   Exclude<
     SearchIntent,
     | 'direct'
+    // Decided by GREETING_PREFIX_PATTERN, not by keyword scoring.
+    | 'greeting'
+    // Decided by the creative-task branches, not by keyword scoring.
+    | 'produktion'
     | 'image_edit'
     | 'sharepic'
     | 'save_as_doc'
@@ -812,7 +816,7 @@ const GREETING_PREFIX_PATTERN =
   /^\s*(?:(?:hallo|hi|hey|servus|moin|guten(?:\s+(?:morgen|tag|abend))?|danke(?:\s+(?:dir|euch|sch(?:ö|oe)n|sehr))?|vielen\s+dank)\b[\s,.!:;–—-]*)+/i;
 
 // Remainders after a greeting that are still pure small-talk (assistant-directed,
-// no real task) — these keep the direct@0.95 greeting fast path.
+// no real task) — these keep the greeting@0.95 fast path.
 const SMALLTALK_REMAINDER_PATTERN =
   /^(wie geht(?:'?s|\s+es)?(?:\s+(?:dir|euch|ihnen))?\s*\??|wer bist du\s*\??|was kannst du(?:\s+alles)?\s*\??|kannst du (?:mir\s+)?(?:bitte\s+)?helfen\s*\??|alles (?:klar|gut)\s*[!?.]*|(?:das\s+)?passt(?:\s+so)?\s*[!.]*|(?:sehr\s+)?(?:gut|super|toll|perfekt|klasse)(?:\s+gemacht)?\s*[!.]*)$/i;
 
@@ -945,7 +949,7 @@ export function heuristicClassify(
       (restWords <= 3 && !rest.includes('?'))
     ) {
       return {
-        intent: 'direct',
+        intent: 'greeting',
         searchQuery: null,
         reasoning: 'Greeting detected',
         confidence: 0.95,
@@ -1314,7 +1318,7 @@ export function heuristicClassify(
 
   if (isCreativeTask && isLongPaste) {
     return {
-      intent: 'direct',
+      intent: 'produktion',
       searchQuery: null,
       reasoning: 'Creative task with substantial user-provided context',
       contentType: detectContentType(q),
@@ -1325,7 +1329,7 @@ export function heuristicClassify(
   // Medium confidence (0.75): Creative tasks without explicit research need
   if (isCreativeTask) {
     return {
-      intent: 'direct',
+      intent: 'produktion',
       searchQuery: null,
       reasoning: 'Creative task without research need',
       contentType: detectContentType(q),
@@ -1341,18 +1345,18 @@ export function heuristicClassify(
   // gone: a text ABOUT the world whose substance was never supplied cannot be
   // written truthfully from the model's own memory.
   //
-  // The verdict stays `direct` HERE because 0.68 is below
+  // The verdict stays a no-retrieval one HERE because 0.68 is below
   // HEURISTIC_CONFIDENCE_THRESHOLD and is therefore only a hint. Tier 3.5 in
   // classifierNode now demotes exactly this shape to `agentic` when the turn
   // carries no material of its own; a turn WITH material still resolves to
-  // direct through the isLongPaste branch above.
+  // produktion through the isLongPaste branch above.
   const factBasedContent =
     /\b(pressemitteilung|pressemeldung|pm|artikel|beitrag|blogpost|rede|ansprache|statement|argumentation|argumente|faktencheck|analyse|bericht|report)\b/i;
   const hasTopicMarker = /(?:^|\s)(über|zu|zum|zur|bezüglich|betreffend|thema)(?:\s|$)/i;
 
   if (factBasedContent.test(q) && hasTopicMarker.test(q)) {
     return {
-      intent: 'direct',
+      intent: 'produktion',
       searchQuery: null,
       reasoning: 'Fact-based content type detected (creative task, not research)',
       contentType: detectContentType(q),
@@ -1384,7 +1388,13 @@ export function heuristicClassify(
     }
   }
 
-  // Low confidence (0.50): Default to direct for unclear queries - needs LLM
+  // Low confidence (0.50): nothing matched. Stays `direct` — this verdict never
+  // reaches the wire (0.50 is far below HEURISTIC_CONFIDENCE_THRESHOLD), it only
+  // feeds Tier 3.5 and is then overwritten by the LLM tier. Naming it
+  // `produktion` would claim the user supplied substance we never detected;
+  // naming it `agentic` would make Tier 3.5 stop recognising it and push the
+  // whole unclear band back to the 27k prompt. The residual the USER sees moves
+  // to `agentic` one layer up, in the prompt's rule 12.
   return {
     intent: 'direct',
     searchQuery: null,

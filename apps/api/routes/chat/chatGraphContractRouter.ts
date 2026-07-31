@@ -1047,11 +1047,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           // Sharepic-shaped, and there IS one — but the edit lanes declined it
           // (wrong template, ambiguous, not actually an edit). Answering
           // normally beats minting a surprise second sharepic.
-          log.info('[ChatGraph] Unlicensed sharepic intent, thread has one → direct');
+          log.info('[ChatGraph] Unlicensed sharepic intent, thread has one → produktion');
+          // Decision key unchanged (F1): the journal cards are named after it.
           recordDecision('router.intent_override', 'sharepic_unlicensed_to_direct', {
             inputs: { intentBefore: 'sharepic', sharepicLicensed, threadHasSharepic: true },
           });
-          classifiedState.intent = 'direct';
+          classifiedState.intent = 'produktion';
         } else {
           log.info('[ChatGraph] Unlicensed sharepic intent, nothing to edit → fixed reply');
           recordDecision('router.intent_override', 'sharepic_unlicensed_fixed_text', {
@@ -1105,9 +1106,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         );
         if (forbidden) {
           log.info(
-            `[ChatGraph] Turn forbids ${primaryFamily} action → demoting intent ${classifiedState.intent} to direct`
+            `[ChatGraph] Turn forbids ${primaryFamily} action → demoting intent ${classifiedState.intent} to produktion`
           );
-          classifiedState.intent = 'direct';
+          classifiedState.intent = 'produktion';
         }
       }
 
@@ -1488,7 +1489,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // The gate re-checks the raw question text (not just intent==='compute'):
       // on multi-turn threads the vague-follow-up confidence penalty pushes the
       // tabular heuristic below threshold and the LLM classifies follow-ups
-      // like "durchschnittlicher umsatz pro region?" as search/direct — which
+      // like "durchschnittlicher umsatz pro region?" as search/produktion — which
       // silently degraded them to the legacy prompt-guidance path. Guards:
       // only hijackable intents (explicit tool intents like chart/image/
       // sharepic/web keep their flow), no @-forced tools, and the matcher
@@ -1496,6 +1497,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // questions.
       const computeOverridableIntents = new Set([
         'compute',
+        'produktion',
         'direct',
         'search',
         'summary',
@@ -1631,7 +1633,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             generateAndCreateDocument({
               ...createTurnBase,
               userContent: createTopic(),
-              intent: 'direct',
+              intent: 'produktion',
             }),
         },
         {
