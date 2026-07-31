@@ -1,14 +1,14 @@
-{"id":"adv-hier-greeting-trap-1","prompt":"Hier ist meine Frage: Wie steht die Partei zur Vermögensteuer?","category":"routing-adversarial","expect":{"routingNot":["direct"],"grounded":true,"noCapabilityRefusal":true}}
-{"id":"adv-hier-greeting-trap-2","prompt":"Hilfe bei der Formulierung brauche ich nicht, aber: Was fordern die Grünen zur Kindergrundsicherung?","category":"routing-adversarial","expect":{"routingNot":["direct"],"grounded":true}}
-{"id":"adv-hallo-then-question","prompt":"Hallo! Wie hat die CDU zur Frauenquote abgestimmt?","category":"routing-adversarial","expect":{"routingNot":["direct"]}}
-{"id":"adv-umlaut-first-aeusserte","prompt":"Äußerte sich Robert Habeck zum Kohleausstieg 2030?","category":"routing-adversarial-umlaut","expect":{"routingNot":["direct"],"grounded":true}}
-{"id":"adv-umlaut-first-uebernimmt","prompt":"Übernimmt der Bund die Kosten der Ganztagsbetreuung?","category":"routing-adversarial-umlaut","expect":{"routingNot":["direct"]}}
-{"id":"adv-umlaut-first-oeffnet","prompt":"Öffnet das Deutschlandticket den Nahverkehr wirklich für alle?","category":"routing-adversarial-umlaut","expect":{"routingNot":["direct"]}}
+{"id":"adv-hier-greeting-trap-1","prompt":"Hier ist meine Frage: Wie steht die Partei zur Vermögensteuer?","category":"routing-adversarial","expect":{"routingNot":["direct","greeting"],"grounded":true,"noCapabilityRefusal":true}}
+{"id":"adv-hier-greeting-trap-2","prompt":"Hilfe bei der Formulierung brauche ich nicht, aber: Was fordern die Grünen zur Kindergrundsicherung?","category":"routing-adversarial","expect":{"routingNot":["direct","greeting"],"grounded":true}}
+{"id":"adv-hallo-then-question","prompt":"Hallo! Wie hat die CDU zur Frauenquote abgestimmt?","category":"routing-adversarial","expect":{"routingNot":["direct","greeting"]}}
+{"id":"adv-umlaut-first-aeusserte","prompt":"Äußerte sich Robert Habeck zum Kohleausstieg 2030?","category":"routing-adversarial-umlaut","expect":{"routingNot":["direct","greeting"],"grounded":true}}
+{"id":"adv-umlaut-first-uebernimmt","prompt":"Übernimmt der Bund die Kosten der Ganztagsbetreuung?","category":"routing-adversarial-umlaut","expect":{"routingNot":["direct","greeting"]}}
+{"id":"adv-umlaut-first-oeffnet","prompt":"Öffnet das Deutschlandticket den Nahverkehr wirklich für alle?","category":"routing-adversarial-umlaut","expect":{"routingNot":["direct","greeting"]}}
 {"id":"adv-umlaut-unit","prompt":"Wie viel sind 5 Fuß in Metern?","category":"routing-adversarial-umlaut","expect":{"noCapabilityRefusal":true}}
 {"id":"adv-tempo30-not-compute","prompt":"Was bringt Tempo 30 in der Innenstadt für die Verkehrssicherheit?","category":"routing-adversarial","expect":{"routingNot":["compute","chart"],"grounded":true}}
-{"id":"adv-verbfirst-hat","prompt":"Hat die Ampel das Klimageld eingeführt?","category":"routing-adversarial-verbfirst","expect":{"routingNot":["direct"],"grounded":true}}
-{"id":"adv-verbfirst-stimmt","prompt":"Stimmt es, dass die Grünen das Verbrenner-Aus abgelehnt haben?","category":"routing-adversarial-verbfirst","expect":{"routingNot":["direct"],"correctsFalsePremise":true,"judgeFacts":["Die Grünen haben das Verbrenner-Aus nicht abgelehnt, sondern unterstützt"],"judge":["known_answer"]}}
-{"id":"adv-verbfirst-worueber","prompt":"Worüber wurde auf der letzten BDK abgestimmt?","category":"routing-adversarial-verbfirst","expect":{"routingNot":["direct"],"grounded":true}}
+{"id":"adv-verbfirst-hat","prompt":"Hat die Ampel das Klimageld eingeführt?","category":"routing-adversarial-verbfirst","expect":{"routingNot":["direct","greeting"],"grounded":true}}
+{"id":"adv-verbfirst-stimmt","prompt":"Stimmt es, dass die Grünen das Verbrenner-Aus abgelehnt haben?","category":"routing-adversarial-verbfirst","expect":{"routingNot":["direct","greeting"],"correctsFalsePremise":true,"judgeFacts":["Die Grünen haben das Verbrenner-Aus nicht abgelehnt, sondern unterstützt"],"judge":["known_answer"]}}
+{"id":"adv-verbfirst-worueber","prompt":"Worüber wurde auf der letzten BDK abgestimmt?","category":"routing-adversarial-verbfirst","expect":{"routingNot":["direct","greeting"],"grounded":true}}
 {"id":"adv-imperative-vs-question-1","prompt":"Erkläre den Unterschied zwischen Bürgergeld und Grundsicherung","category":"routing-adversarial","expect":{"routingNot":["sharepic","image"],"noCapabilityRefusal":true}}
 {"id":"adv-imperative-vs-question-2","prompt":"Zeig mir die wichtigsten Argumente für ein Tempolimit","category":"routing-adversarial","expect":{"routingNot":["image","sharepic"],"grounded":true}}
 {"id":"adv-noun-bild-not-image","prompt":"Welches Bild zeichnet die Presse von der Wärmepumpen-Förderung?","category":"routing-adversarial-noun","expect":{"routingNot":["image","image_edit"],"grounded":true}}
