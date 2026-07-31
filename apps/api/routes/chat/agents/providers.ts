@@ -14,6 +14,7 @@ import {
   isProviderConfigured,
   routeMistralModel,
 } from '../../../services/ai/providerInstances.js';
+import { regoloTextDefault } from '../../../services/ai/textModelPolicy.js';
 import {
   tryAcquireVerdigadoSlot,
   releaseVerdigadoSlot,
@@ -243,7 +244,7 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
   regolo: {
     kind: 'single',
     provider: 'regolo',
-    model: env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b',
+    model: regoloTextDefault(),
     contextWindow: CTX_FULL,
   },
   // Backend-only lane, reachable via the auto policy but NOT in the model
@@ -479,7 +480,7 @@ function resolveModel(
         lastFallbackProvider = 'mistral';
         return getMistralProvider()(modelId);
       }
-      return getRegoloProvider().chat(modelId || env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b');
+      return getRegoloProvider().chat(modelId || regoloTextDefault());
     }
     case 'greenpt':
       return getGreenPTProvider().chat(
