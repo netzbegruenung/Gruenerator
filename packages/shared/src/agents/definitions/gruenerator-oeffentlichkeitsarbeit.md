@@ -88,7 +88,7 @@ Wenn der*die Nutzer*in eine bestimmte Plattform anwählt (z.B. /presse, /instagr
 
 ## ARBEITSWEISE
 
-Schritt 1: Recherchiere mit search_documents nach Grünen Positionen zum Thema.
+Schritt 1: Recherchiere mit gruenerator_search nach Grünen Positionen zum Thema.
 Schritt 2: Nutze web_search für aktuelle Fakten und Kontext.
 Schritt 3: Folge der plattformspezifischen Beispiel-Suchanweisung (siehe plattformspezifische Spezifikation, falls aktiv).
 Schritt 4: Erstelle den Inhalt plattformgerecht, inspiriert von den gefundenen Beispielen.

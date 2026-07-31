@@ -25,6 +25,7 @@ import {
 } from '../../../agents/langgraph/ChatGraph/index.js';
 import { partitionSearchErrors } from '../../../agents/langgraph/ChatGraph/types.js';
 import {
+  BOTH_LANES_FAILED,
   buildAiTelemetry,
   withLangfuseTrace,
 } from '../../../services/telemetry/langfuseTelemetry.js';
@@ -579,16 +580,15 @@ export async function runChatGraphResume({
     // without the field for the whole 10-minute TTL window.
     const prunedValidMessages = pruneMessages(validMessages, getContextWindow(modelId));
     const messagesForAI = buildMessagesForAI(systemMessage, prunedValidMessages);
+    const lastUserMsg = [...validMessages].reverse().find((m) => m.role === 'user');
+    const traceInput = lastUserMsg ? extractTextContent(lastUserMsg.content) : '';
 
     let fullText: string | null;
     let resumeTraceId: string | undefined;
-    const resumeTelemetry = buildAiTelemetry('chat-graph.resume', {
-      ...(requestContext.userId && { userId: requestContext.userId }),
-      ...(requestContext.actualThreadId && { sessionId: requestContext.actualThreadId }),
-    });
+    const resumeTelemetry = buildAiTelemetry('chat-graph.resume');
     try {
       // One trace per resumed turn — propagateAttributes sets trace-level
-      // user/session (plain metadata keys aren't hoisted by Langfuse) and the
+      // user/session (AI SDK telemetry carries no metadata of its own) and the
       // traceId feeds the feedback button.
       fullText = await withLangfuseTrace(
         {
@@ -597,9 +597,9 @@ export async function runChatGraphResume({
           ...(requestContext.actualThreadId && { sessionId: requestContext.actualThreadId }),
           metadata: { requestId: resumeRequestId, intent: finalState.intent },
         },
-        async (traceId) => {
-          resumeTraceId = traceId;
-          return streamWithFallback({
+        async (trace) => {
+          resumeTraceId = trace.traceId;
+          const text = await streamWithFallback({
             primary: resolution2,
             sse,
             logPrefix: '[ChatGraph:Resume]',
@@ -614,6 +614,14 @@ export async function runChatGraphResume({
                 ...(resumeTelemetry && { telemetry: resumeTelemetry }),
               }),
           });
+          // Both lanes dead → null, not a throw. Mark it, or the failed resume
+          // reads as a successful turn.
+          trace.update(
+            text === null
+              ? { input: traceInput, level: 'ERROR', statusMessage: BOTH_LANES_FAILED }
+              : { input: traceInput, output: text }
+          );
+          return text;
         }
       );
     } finally {
