@@ -21,6 +21,9 @@
 
 import { env } from '../../config/env.js';
 
+import { isProviderConfigured, SCALEWAY_MISTRAL_MODELS } from './providerInstances.js';
+import { scalewayBaseUrl } from './scalewayEndpoint.js';
+
 import type { ModelMessage } from 'ai';
 
 export interface ReasoningStreamChunk {
@@ -48,6 +51,12 @@ interface ReasoningStreamConfig {
   apiKey: string | undefined;
   /** Extra request-body fields that switch the upstream into thinking mode. */
   bodyExtras: Record<string, unknown>;
+  /**
+   * The id the chosen upstream knows the model by, when it differs from the
+   * lane's own id. Only the Mistral lane needs this: Scaleway serves the same
+   * weights as `mistral-medium-3.5-128b`.
+   */
+  model?: string;
 }
 
 const REGOLO_ENDPOINT = 'https://api.regolo.ai/v1/chat/completions';
@@ -72,10 +81,52 @@ const REGOLO_REASONING_MODELS = new Set([
 ]);
 const LITELLM_REASONING_MODELS = new Set(['verdigado-think', 'verdigado-pro']);
 
+/**
+ * Mistral Medium 3.5 on Scaleway, when Scaleway is configured.
+ *
+ * The `mistral` lane is the odd one out: Scaleway is an UPSTREAM, not a
+ * `ProviderName` (see routeMistralModel), so the caller still holds
+ * `provider: 'mistral'` and the lane's own id — the Scaleway swap happens
+ * below it. This function therefore keys on the lane, and returns the id
+ * Scaleway knows the same weights by.
+ *
+ * Measured 2026-07-31 against all three hosts that serve these weights:
+ * Scaleway streams thinking as `delta.reasoning` (a plain string), which is
+ * the shape `extractDelta` already reads for Ollama/LiteLLM — so this lane
+ * needs no parser work. The Mistral API, by contrast, streams
+ * `delta.content` as a block ARRAY (`[{type:'thinking',…}]`) that this module
+ * cannot read at all; that asymmetry is why the fallback for this lane is the
+ * `@ai-sdk/mistral` path and never a raw replay (see streamForResolution).
+ *
+ * Without a Scaleway key this returns null and the lane keeps its previous
+ * behaviour — thinking served by the Mistral API through the SDK.
+ */
+function scalewayReasoningModel(model: string): string | null {
+  if (!isProviderConfigured('scaleway')) return null;
+  return SCALEWAY_MISTRAL_MODELS[model] ?? null;
+}
+
 export function isReasoningStreamModel(provider: string, model: string): boolean {
   if (provider === 'regolo') return REGOLO_REASONING_MODELS.has(model);
   if (provider === 'litellm') return LITELLM_REASONING_MODELS.has(model);
+  if (provider === 'mistral') return scalewayReasoningModel(model) !== null;
   return false;
+}
+
+/**
+ * Thrown when the upstream never served the request — a non-2xx BEFORE the
+ * body is touched. Callers may safely retry on another lane, because nothing
+ * has been streamed to the user yet. A stream that dies mid-flight throws a
+ * plain Error instead and must NOT be retried: the tokens are already on
+ * screen. Same rule, and the same reason, as scalewayMistralFallbackFetch.
+ */
+export class ReasoningStreamUnavailableError extends Error {
+  readonly status: number;
+  constructor(provider: string, status: number, body: string) {
+    super(`${provider} reasoning stream unavailable: ${status} ${body.slice(0, 200)}`);
+    this.name = 'ReasoningStreamUnavailableError';
+    this.status = status;
+  }
 }
 
 /**
@@ -108,6 +159,22 @@ function resolveConfig(
       bodyExtras: { ...effortExtra },
     };
   }
+  if (provider === 'mistral') {
+    const scalewayModel = scalewayReasoningModel(model);
+    if (!scalewayModel) return null;
+    return {
+      endpoint: `${scalewayBaseUrl()}/chat/completions`,
+      apiKey: env.SCALEWAY_API_KEY,
+      model: scalewayModel,
+      // Medium 3.5's dial is BINARY, and all three hosts that serve these
+      // weights reject `low`/`medium` with a 400 (measured 2026-07-31:
+      // "supported values are: ['none','high']"). `effortExtra` is therefore
+      // deliberately not spread here — reaching this module already means
+      // "thinking on", which is exactly what 'high' encodes. This is the same
+      // collapse mistralReasoningOption performs on the SDK path.
+      bodyExtras: { reasoning_effort: 'high' },
+    };
+  }
   return null;
 }
 
@@ -137,7 +204,7 @@ export async function* streamWithReasoning(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: params.model,
+      model: config.model ?? params.model,
       messages: params.messages,
       ...(params.maxTokens != null && { max_tokens: params.maxTokens }),
       temperature: params.temperature,
@@ -149,9 +216,7 @@ export async function* streamWithReasoning(
 
   if (!response.ok || !response.body) {
     const body = await response.text().catch(() => '');
-    throw new Error(
-      `${params.provider} reasoning stream failed: ${response.status} ${body.slice(0, 200)}`
-    );
+    throw new ReasoningStreamUnavailableError(params.provider, response.status, body);
   }
 
   const reader = response.body.getReader();
