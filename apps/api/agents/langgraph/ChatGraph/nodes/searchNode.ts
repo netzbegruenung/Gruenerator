@@ -68,6 +68,7 @@ import { retrieveWolkeFile } from './wolkeRetrieval.js';
 
 import type { SubcategoryFilters } from '../../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../../routes/chat/agents/types.js';
+import type { AIWorkerPool } from '../../../../workers/types.js';
 
 // Re-export for backward compatibility and reuse by SearchGraph
 export {
@@ -99,6 +100,22 @@ const FANIN_CANDIDATE_LIMIT = 24;
  * from the headline.
  */
 const SCRAPE_URL_TARGET_CHARS = 12_000;
+
+/**
+ * Char budget per crawled SEARCH hit. Smaller than a named page: several of
+ * these share the prompt with the uncrawled snippets and the internal sources.
+ */
+const WEB_CRAWL_TARGET_CHARS = 5_000;
+
+/**
+ * Per-URL crawl ceiling on the search path.
+ *
+ * Was 3000 and set by no caller. A distillation stage that never gets material
+ * buys nothing, and the crawl runs against news sites that regularly need more
+ * than three seconds for the first byte. Still well inside the turn budget
+ * because at most two URLs are crawled, in parallel.
+ */
+const CRAWL_TIMEOUT_MS = 5_000;
 
 // ── Abgeordnetenwatch → SearchResult mapping ──────────────────────────────────
 const AW_VOTE_LABELS: Record<string, string> = {
@@ -557,6 +574,8 @@ export interface ExecuteWebSearchOptions {
    * throw away — the very mistake the pre-call domain filtering fixed.
    */
   includeImages?: boolean;
+  /** Enables LLM fact extraction on crawled pages. Selection works without it. */
+  aiWorkerPool?: AIWorkerPool | null;
 }
 
 export async function executeWebSearch(
@@ -605,6 +624,11 @@ export async function executeWebSearch(
         content: r.snippet || '',
         url: r.url,
         relevance: 1 - (r.rank - 1) * 0.15,
+        // Carried, not dropped: the web executor normalises this precisely
+        // because freshness matters most for web hits, and this mapping used to
+        // throw it away one hop later — so `rerankNode` asked the cross-encoder
+        // to "prefer recent sources" over text that contained no date at all.
+        ...(r.publishedDate ? { publishedDate: r.publishedDate } : {}),
       });
     }
   }
@@ -614,16 +638,29 @@ export async function executeWebSearch(
 
   if (options.crawlTopUrls && allWebResults.length > 0) {
     try {
-      const crawled = await selectAndCrawlTopUrls(
+      // Query-focused: a search hit is crawled BECAUSE of the question, so the
+      // passages that answer it are the ones worth keeping. Handing the raw page
+      // on instead meant the reranker judged it by its first 1200 chars (a nav
+      // bar) and respondNode then kept a positional slice of it.
+      const crawled = await crawlAndDistill(
         allWebResults.filter((r) => r.url) as CrawlableResult[],
         query,
-        { maxUrls: options.crawlTopUrls, timeout: options.crawlTimeoutMs ?? 3000 }
+        {
+          maxUrls: options.crawlTopUrls,
+          timeout: options.crawlTimeoutMs ?? CRAWL_TIMEOUT_MS,
+          mode: 'query-focused',
+          targetChars: WEB_CRAWL_TARGET_CHARS,
+          ...(options.aiWorkerPool ? { aiWorkerPool: options.aiWorkerPool } : {}),
+        }
       );
       allWebResults = crawled.map((r) => ({
         ...r,
-        content: r.fullContent || r.content || '',
+        content: r.content || r.fullContent || '',
         source: (r.source as string) || 'web',
         title: r.title || '',
+        // `fullContent` must not travel further: it is the same page a second
+        // time, and it reaches the database through the persisted turn.
+        fullContent: undefined,
       }));
       const crawledCount = crawled.filter((r) => r.crawled).length;
       if (crawledCount > 0) {
@@ -1143,16 +1180,32 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       const webResults = results.filter((r) => r.source === 'web' && r.url);
       if (webResults.length > 0) {
         try {
-          const crawled = await selectAndCrawlTopUrls(webResults as CrawlableResult[], query, {
+          const crawled = await crawlAndDistill(webResults as CrawlableResult[], query, {
             maxUrls: 2,
-            timeout: 3000,
+            timeout: CRAWL_TIMEOUT_MS,
+            mode: 'query-focused',
+            targetChars: WEB_CRAWL_TARGET_CHARS,
+            ...(state.aiWorkerPool ? { aiWorkerPool: state.aiWorkerPool } : {}),
           });
           const crawledMap = new Map(
             crawled.filter((r) => r.crawled && r.url).map((r) => [r.url, r])
           );
           results = results.map((r) => {
             const c = r.url ? crawledMap.get(r.url) : undefined;
-            return c ? { ...r, content: c.fullContent || r.content } : r;
+            // Carry the crawl provenance, not just the text. This merge used to
+            // copy `content` alone, so nothing downstream could tell a crawled
+            // page from a snippet — which is why respondNode ended up guessing
+            // from `content.length > 500`.
+            return c
+              ? {
+                  ...r,
+                  content: c.content || c.fullContent || r.content,
+                  crawled: true,
+                  ...(c.distilled ? { distilled: true } : {}),
+                  ...(c.distilledChunks ? { distilledChunks: c.distilledChunks } : {}),
+                  ...(c.sourceChars != null ? { sourceChars: c.sourceChars } : {}),
+                }
+              : r;
           });
           const crawledCount = crawled.filter((r) => r.crawled).length;
           if (crawledCount > 0) {
@@ -1542,6 +1595,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           // A1: full page content for the top hits — snippets alone leave the
           // writing model with too little on a multi-aspect question.
           crawlTopUrls: 2,
+          ...(state.aiWorkerPool ? { aiWorkerPool: state.aiWorkerPool } : {}),
           // The ONLY path that asks for images: it is also the only one that
           // carries them out (see `ExecuteWebSearchOptions.includeImages`).
           ...(state.webWantsImages ? { includeImages: true } : {}),
