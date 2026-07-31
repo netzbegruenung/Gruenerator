@@ -10,8 +10,8 @@ import {
   resolveEditorSurfaceKind,
   decideEditToolLoop,
   type EditToolLoopInput,
-  looksLikeGroundedFollowup,
   needsThreadGrounding,
+  looksLikeUnsourcedWritingOrder,
 } from './routing.js';
 
 describe('looksLikeToolableQuestion', () => {
@@ -169,12 +169,50 @@ describe('decideRunAgentic', () => {
     ).toBe(false);
   });
 
-  it('leaves a creative direct turn alone when the flag is absent', () => {
-    // The rescue must not widen `direct` in general — a creative ask carries no
-    // contradiction and stays single-pass.
-    expect(
-      decide({ intent: 'direct', lastUserText: 'Schreib eine Rede über den Klimaschutz' })
-    ).toBe(false);
+  it('a writing order enters the loop unless the user supplied the substance', () => {
+    // This pin was inverted deliberately. It used to read "leaves a creative
+    // direct turn alone" and asserted `false` for exactly this input — the rule
+    // "Erstelle/Schreib X = IMMER direct", which also lives in the classifier
+    // prompt. A speech about climate policy is a text ABOUT the world, and
+    // writing it from the model's parametric memory is how "schreibe ein
+    // Dossier über Robert" came back asserting a resigned MP was still in
+    // office. The discriminator is not creative-vs-factual, it is whether the
+    // material to write FROM is in the turn.
+    const order = { intent: 'direct', lastUserText: 'Schreib eine Rede über den Klimaschutz' };
+    expect(decide(order)).toBe(true);
+    expect(decide({ ...order, hasOwnMaterial: true })).toBe(false);
+
+    // Kill-switches still win, exactly as for the other two `direct` rescues.
+    expect(decide({ ...order, loopEnabled: false })).toBe(false);
+    expect(decide({ ...order, forcedTool: true })).toBe(false);
+    expect(decide({ ...order, hasImageAttachments: true })).toBe(false);
+  });
+
+  it('pure creative FORM stays single-pass, supplied or not', () => {
+    // "Substance" is not a meaningful category for a poem or a slogan: there is
+    // nothing to look up, so the loop's latency would buy nothing. This is the
+    // one carve-out in the rule above, and it is the same exemption the
+    // grounding gate applies (a poem must never grow [N] footnotes).
+    for (const lastUserText of [
+      'Schreib mir ein Gedicht über den Frühling',
+      'Erstelle einen Slogan zur Verkehrswende',
+      'Formulier ein Motto für unseren Parteitag',
+      'Schreib einen Glückwunsch zum 60. Geburtstag',
+    ]) {
+      expect(decide({ intent: 'direct', lastUserText }), lastUserText).toBe(false);
+    }
+  });
+
+  it('a rewrite of existing text stays single-pass', () => {
+    // A rewrite is grounded in what it rewrites — the substance is already in
+    // the thread even though nothing was pasted THIS turn.
+    for (const lastUserText of [
+      'Mach das kürzer',
+      'Formulier den folgenden Text freundlicher',
+      'Überarbeite diesen Abschnitt',
+    ]) {
+      expect(decide({ intent: 'direct', lastUserText }), lastUserText).toBe(false);
+    }
   });
 
   it('enters the loop regardless of the selected model (planner does the tools)', () => {
@@ -633,54 +671,65 @@ describe('decideEditToolLoop', () => {
  * previous answer from that answer's prose. Ungrounded, uncitable, and
  * indistinguishable from research to the reader.
  */
-describe('looksLikeGroundedFollowup', () => {
-  const yes: [string, string][] = [
-    ['the live failure', 'Mehr dazu bitte'],
-    ['expansion + anaphor', 'Und sonst noch was Wichtiges dazu?'],
-    ['bare expansion', 'Erzähl mir mehr darüber'],
-    ['depth ask', 'Hast du Details dazu'],
-    ['comparative', 'Kannst du das genauer ausführen'],
-    ['greeting prefix is strippable', 'Danke! Und was gibt es sonst noch dazu?'],
-  ];
-  it.each(yes)('is a continuation: %s', (_l, q) => {
-    expect(looksLikeGroundedFollowup(q)).toBe(true);
-  });
+describe('looksLikeUnsourcedWritingOrder', () => {
+  const unsourced = (raw: string, hasOwnMaterial = false) =>
+    looksLikeUnsourcedWritingOrder(raw, { hasOwnMaterial });
 
-  const no: [string, string][] = [
-    ['pure thanks', 'Danke!'],
-    ['pure thanks, longer', 'Danke dir, super gemacht.'],
-    ['acknowledgement', 'Passt, danke'],
-    ['rewrite instruction', 'Mach das kürzer'],
-    // "nochmal" is a regenerate verb, not a topic anaphor — deliberately out.
-    ['regenerate', 'Nochmal auf Englisch'],
-    ['new topic', 'Schreib eine Pressemitteilung zur Wärmewende'],
-    ['empty', '   '],
-  ];
-  it.each(no)('is not a continuation: %s', (_l, q) => {
-    expect(looksLikeGroundedFollowup(q)).toBe(false);
-  });
-
-  it('a message long enough to carry its own subject is not leaning on the thread', () => {
-    // The word cap is the discriminator. Without it any long message that
-    // happens to contain "mehr" would drag the thread's sources in.
+  it('catches the live failure', () => {
+    // The reported turn, verbatim. It classified `direct`, ran no tool, was
+    // handed none of the 19 sources its own thread held, and answered from
+    // parametric memory — asserting a resigned MP was still in office and
+    // inventing a book title, two turns after the thread had researched the
+    // opposite.
     expect(
-      looksLikeGroundedFollowup(
-        'Ich brauche mehr Kontext zur Kindergrundsicherung und zwar konkret zu den Zahlen von 2025'
-      )
-    ).toBe(false);
+      unsourced('schreibe ein vollständiges dossier über robert, ca. 1000 zeichen mindestens')
+    ).toBe(true);
+  });
+
+  it('a text sort alone is enough — the order need not carry a verb', () => {
+    expect(unsourced('Ein Steckbrief zu Annalena Baerbock, bitte')).toBe(true);
+    expect(unsourced('Pressemitteilung zur Wärmewende')).toBe(true);
+  });
+
+  it('supplied material takes it back off the loop', () => {
+    const order = 'Schreib eine Pressemitteilung zur Wärmewende';
+    expect(unsourced(order)).toBe(true);
+    expect(unsourced(order, true)).toBe(false);
+  });
+
+  it('is not a writing order at all → false, so callers can OR it in safely', () => {
+    for (const q of ['Wie hat die Fraktion abgestimmt?', 'Danke!', 'Hallo, wer bist du?']) {
+      expect(unsourced(q), q).toBe(false);
+    }
+  });
+
+  it('pure creative form and rewrites are exempt', () => {
+    for (const q of [
+      'Schreib mir ein Gedicht über den Frühling',
+      'Erstelle einen Slogan zur Verkehrswende',
+      'Formulier den folgenden Text freundlicher',
+      'Mach das kürzer',
+    ]) {
+      expect(unsourced(q), q).toBe(false);
+    }
   });
 });
 
 describe('needsThreadGrounding', () => {
-  it('unions both nets', () => {
-    expect(needsThreadGrounding('Mehr dazu bitte')).toBe(true); // continuation only
-    expect(needsThreadGrounding('Wie hat die Fraktion abgestimmt?')).toBe(true); // toolable only
+  it('grounds by default — the gate is negative now', () => {
+    expect(needsThreadGrounding('Mehr dazu bitte')).toBe(true);
+    expect(needsThreadGrounding('Wie hat die Fraktion abgestimmt?')).toBe(true);
+    // The class the old positive gate missed: no question word, no anaphor.
+    expect(
+      needsThreadGrounding('schreibe ein vollständiges dossier über robert, ca. 1000 zeichen')
+    ).toBe(true);
     expect(needsThreadGrounding('Danke!')).toBe(false);
   });
 
   it('leaves the fast-path turns alone', () => {
-    // Same list the loop gate keeps out — widening the gate must not quietly
-    // pull creative generation into it.
+    // A poem must never grow [N] footnotes, and a rewrite is already grounded in
+    // the text it rewrites — handing it unrelated research invites new claims
+    // into a shortening job.
     for (const q of [
       'Schreib mir ein Gedicht über den Frühling',
       'Mach das kürzer',
@@ -688,5 +737,12 @@ describe('needsThreadGrounding', () => {
     ]) {
       expect(needsThreadGrounding(q), q).toBe(false);
     }
+  });
+
+  it('a bare "nochmal" is not enough to skip grounding', () => {
+    // The regenerate exemption is bound to a format target, because "erklär mir
+    // das nochmal" is a continuation that must stay grounded.
+    expect(needsThreadGrounding('Erklär mir das nochmal')).toBe(true);
+    expect(needsThreadGrounding('Prüfe das nochmal im Web')).toBe(true);
   });
 });

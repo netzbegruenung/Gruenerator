@@ -14,7 +14,10 @@
 import { degradeTargetForLocale } from '@gruenerator/shared/chat-intents';
 
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
-import { looksLikeToolableQuestion } from '../../../../routes/chat/services/agenticLoop/routing.js';
+import {
+  looksLikeToolableQuestion,
+  looksLikeUnsourcedWritingOrder,
+} from '../../../../routes/chat/services/agenticLoop/routing.js';
 import { isSharepicEditInstruction } from '../../../../routes/chat/services/sharepicEditHeuristics.js';
 import { containsInstructionMarkers } from '../../../../routes/chat/services/untrustedContent.js';
 import { escapeRegExp } from '../../../../services/BaseSearchService/textUtils.js';
@@ -409,6 +412,24 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     log.info('[Classifier] Explicit deep-research request — top search tier unlocked');
   }
 
+  // A deep-research request that came out as `direct` is a self-contradiction:
+  // the turn asked, in so many words, to look something up, and `direct` runs no
+  // tool at all — so the flag unlocked a search tier for a search that could
+  // never happen. Observed live on "schreibe ein vollständiges Dossier über
+  // Robert": `dossier` is a DEEP_COMPOUND, the tier was logged as unlocked, and
+  // the answer came from parametric memory anyway.
+  //
+  // Expressed as classifierContradictedResearch rather than by overwriting the
+  // intent: that flag already means "the classifier's own signals disagree, let
+  // the loop decide", and the loop can still answer tool-free if the planner
+  // sees no need. Overwriting to `research` would force a paid search on a turn
+  // the model may well be able to answer from the thread.
+  const deepRequestContradictsDirect =
+    explicitDeepRequest && (intent ?? result.intent) === 'direct';
+  if (deepRequestContradictsDirect) {
+    log.info('[Classifier] Deep-research request landed on direct — handing the turn to the loop');
+  }
+
   // Same reasoning as the deep-research consent above: it decides what we pay
   // for, so it is deterministic and testable without a model. Only meaningful on
   // a web turn — an image-GENERATION turn returned long before this point with
@@ -423,6 +444,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     intent: intent ?? result.intent,
     injectionSuspected,
     explicitDeepRequest,
+    ...(deepRequestContradictsDirect ? { classifierContradictedResearch: true } : {}),
     ...(webWantsImages ? { webWantsImages } : {}),
     ...(downgradedSearchQuery != null && !result.searchQuery
       ? { searchQuery: downgradedSearchQuery }
@@ -492,6 +514,18 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     const hasImageAttachments = state.imageAttachments && state.imageAttachments.length > 0;
     const hasAnyDocuments =
       hasDocumentChat || hasDocuments || hasAttachmentContext || hasCurrentDocument;
+
+    // "Did the user supply the substance?" — the single answer the writing-order
+    // rule consults (Tier 3.5 below, and `decideRunAgentic` in the router). The
+    // paste threshold is the heuristics' own (NOUN_TRIGGER_MAX_LENGTH), reused
+    // rather than re-picked so "long enough to carry its own subject" means one
+    // thing across the classifier.
+    const turnCarriesOwnMaterial =
+      userContent.length > NOUN_TRIGGER_MAX_LENGTH ||
+      hasAttachmentContext ||
+      hasCurrentDocument ||
+      hasDocMentions ||
+      hasDocumentChat;
 
     // ── TIER 1: Mutation intents (resource + action keywords) ──
     // These are the most specific signals — a user explicitly requesting a change
@@ -1340,10 +1374,21 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Only retrieval-shaped intents demote — generation/platform-gated intents
     // (sharepic, social_post, image, ...) and chat-recall phrasings keep the
     // LLM tier so their gates/HITL/routing stay intact.
+    // A writing order whose substance the user did NOT supply demotes too. The
+    // heuristic itself already draws this line — `isCreativeTask && isLongPaste`
+    // scores 0.82 while `isCreativeTask` alone scores 0.75 — it just resolved
+    // both to `direct`. Demoting the second case is what makes "schreib eine
+    // Pressemitteilung zu X" reach a planner that can search, instead of being
+    // written from parametric memory.
+    const unsourcedWriting =
+      heuristic.intent === 'direct' &&
+      looksLikeUnsourcedWritingOrder(userContent, { hasOwnMaterial: turnCarriesOwnMaterial });
+
     const demotableApartFromLiveSource =
       isAgenticLoopEnabled() &&
       (DEMOTABLE_HEURISTIC_INTENTS.has(heuristic.intent) ||
-        (heuristic.intent === 'direct' && looksLikeToolableQuestion(userContent))) &&
+        (heuristic.intent === 'direct' &&
+          (looksLikeToolableQuestion(userContent) || unsourcedWriting))) &&
       !CHAT_HISTORY_KEYWORDS.test(userContent);
 
     // hotel/reise/bahn/wetter/news are LLM-only: don't let demotion swallow a
