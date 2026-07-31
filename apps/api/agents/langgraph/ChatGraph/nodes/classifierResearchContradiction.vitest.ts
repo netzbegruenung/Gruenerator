@@ -16,10 +16,10 @@ import { parseClassifierResponse } from './classifierParsing.js';
 describe('parseClassifierResponse — needsResearch', () => {
   const json = (o: Record<string, unknown>): string => JSON.stringify(o);
 
-  it('carries the self-contradiction (needsResearch=true, intent=direct)', () => {
+  it('carries the self-contradiction (needsResearch=true, intent=produktion)', () => {
     const result = parseClassifierResponse(
       json({
-        intent: 'direct',
+        intent: 'produktion',
         needsResearch: true,
         searchQuery: null,
         reasoning: 'Um die aktuellen Vorwürfe zu identifizieren, ist eine Web-Recherche notwendig.',
@@ -27,14 +27,14 @@ describe('parseClassifierResponse — needsResearch', () => {
       'Erklär mir die aktuellen Vorwürfe gegen die Partei'
     );
 
-    expect(result.intent).toBe('direct');
+    expect(result.intent).toBe('produktion');
     expect(result.needsResearch).toBe(true);
   });
 
   it('reports false when the model says no research is needed', () => {
     const result = parseClassifierResponse(
       json({
-        intent: 'direct',
+        intent: 'produktion',
         needsResearch: false,
         searchQuery: null,
         reasoning: 'Reine Umformulierung, alles liegt vor.',
@@ -49,7 +49,7 @@ describe('parseClassifierResponse — needsResearch', () => {
     // Older/leaner model outputs omit it entirely. Downstream reads this as a
     // boolean and forces a tool call on true — `undefined` must not leak in.
     const result = parseClassifierResponse(
-      json({ intent: 'direct', searchQuery: null, reasoning: 'kreativ' }),
+      json({ intent: 'produktion', searchQuery: null, reasoning: 'kreativ' }),
       'Schreib ein Gedicht über den Frühling'
     );
 

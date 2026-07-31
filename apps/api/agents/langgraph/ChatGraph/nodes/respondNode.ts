@@ -914,21 +914,23 @@ function getSynthesisGuidance(state: ChatGraphState): string {
 /**
  * May the model emit [N] markers this turn?
  *
- * A `direct` turn normally has no sources at all, so the intent doubled as the
- * gate. The ONE exception is a turn whose sources were carried in from earlier
- * in the thread — those are real, persisted and already shown as chips, so
- * suppressing citations for them produced an answer that looked researched but
- * pointed at nothing. Every other `direct` turn stays closed; that is the
+ * A `produktion` turn normally has no sources at all, so the intent doubled as
+ * the gate. The ONE exception is a turn whose sources were carried in from
+ * earlier in the thread — those are real, persisted and already shown as chips,
+ * so suppressing citations for them produced an answer that looked researched
+ * but pointed at nothing. Every other such turn stays closed; that is the
  * regression guard this whole design rests on.
  *
- * `greeting` has no such exception: the source carry never runs for it (see
- * carryThreadSourcesIfNeeded), so it is closed unconditionally.
+ * `greeting` has no exception at all: the source carry never runs for it (see
+ * CARRY_ELIGIBLE_INTENTS), so it is closed unconditionally.
  */
+const CITATION_GATED_INTENTS: ReadonlySet<string> = new Set(['produktion', 'direct']);
+
 export function citableSourcesAvailable(state: ChatGraphState): boolean {
   if (state.intent === 'greeting') return false;
   return (
     state.searchResults.length > 0 &&
-    (state.intent !== 'direct' || state.sourcesCarriedFromThread === true)
+    (!CITATION_GATED_INTENTS.has(state.intent) || state.sourcesCarriedFromThread === true)
   );
 }
 
@@ -952,6 +954,7 @@ export function getModeGuidance(state: ChatGraphState): string {
       return state.generatedImage ? IMAGE_EDIT_SUCCESS_GUIDANCE : IMAGE_EDIT_FAILED_GUIDANCE;
     case 'greeting':
       return GREETING_GUIDANCE;
+    case 'produktion':
     case 'direct':
       return (
         DIRECT_GUIDANCE +
