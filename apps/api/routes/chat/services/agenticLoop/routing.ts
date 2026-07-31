@@ -12,8 +12,13 @@
 import { type ChatIntentId } from '@gruenerator/shared/chat-intents';
 
 import {
+  ARTIFACT_NOUN_BY_KIND,
+  CREATION_VERB_RE,
+  creationOrderPattern,
+  forbidsPersistentAction,
   hasExplicitSharepicWord,
   isNegatedArtifactRequest,
+  type ForbiddableArtifact,
 } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
 
@@ -305,14 +310,32 @@ export function isEditorSurface(enabledTools: Record<string, boolean> | undefine
 export type CompoundGenerationKind =
   'sharepic' | 'presentation' | 'sheet' | 'document' | 'board' | 'pdf';
 
+// `sharepic` is absent on purpose: hasExplicitSharepicWord already refuses a
+// negated ask, so it needs no second guard here.
+const FORBIDDABLE_BY_KIND: Partial<Record<CompoundGenerationKind, ForbiddableArtifact>> = {
+  presentation: 'presentation',
+  sheet: 'sheet',
+  board: 'board',
+  pdf: 'pdf',
+  document: 'document',
+};
+
 // Per-artifact nouns, used to recover the generation KIND from the text when the
 // intent no longer names it (a demoted `agentic` turn, or a `direct` misroute).
-const PRESENTATION_NOUN_RE = /\b(pr[äa]sentation|presentation|folien?|slides?)\b/i;
-const SHEET_NOUN_RE = /\b(tabelle|kalkulation|spreadsheet|sheet)\b/i;
-const BOARD_NOUN_RE = /\b(board|kanban|aufgabenboard|taskboard)\b/i;
-const PDF_NOUN_RE =
-  /\b(pdf|briefkopf|antragsformular|anmeldeformular|fragebogen|(ausf(ü|ue)llbar)[a-zäöü]*\s+(formular|vorlage))\b/i;
-const DOCUMENT_NOUN_RE = /\b(dokument|schriftst[üu]ck|textdokument|entwurf)\b/i;
+// Paired with a creation verb via creationOrderPattern — the SAME builder the
+// classifier fast paths use, so both word orders are recognised here too and the
+// two layers cannot drift apart on phrasing again.
+const PRESENTATION_CREATE_RE = creationOrderPattern('pr[äa]sentation|presentation|folien?|slides?');
+const SHEET_CREATE_RE = creationOrderPattern('tabelle|kalkulation|spreadsheet|sheet');
+const BOARD_CREATE_RE = creationOrderPattern('board|kanban|aufgabenboard|taskboard');
+const PDF_CREATE_RE = creationOrderPattern(
+  'pdf|briefkopf|antragsformular|anmeldeformular|fragebogen' +
+    '|(?:ausf(?:ü|ue)llbar)[a-zäöü]*\\s+(?:formular|vorlage)',
+  { extraVerbs: 'schreib', forward: 60 }
+);
+const DOCUMENT_CREATE_RE = creationOrderPattern('dokument|schriftst[üu]ck|textdokument|entwurf', {
+  extraVerbs: 'schreib|anleg',
+});
 
 /**
  * The generation KIND a compound turn should mount a fat tool for. Prefers the
@@ -320,26 +343,61 @@ const DOCUMENT_NOUN_RE = /\b(dokument|schriftst[üu]ck|textdokument|entwurf)\b/i
  * (`direct`) turn — where the intent no longer names the artifact — it recovers
  * the kind from the noun in the text. This is why "mach mir eine Tabelle draus"
  * still creates a sheet even though the classifier only reached `direct@0.50`
- * (→ demoted to `agentic`), not `create_sheet`. Returns null when the turn is
- * not compound (no research signal, or no generation noun).
+ * (→ demoted to `agentic`), not `create_sheet`.
  */
 export function compoundGenerationKind(intent: string, raw: string): CompoundGenerationKind | null {
   const t = (raw ?? '').trim();
-  if (!looksLikeCompoundGeneration(t)) return null;
-  if (intent === 'sharepic') return 'sharepic';
-  if (intent === 'create_presentation') return 'presentation';
-  if (intent === 'create_sheet') return 'sheet';
-  if (intent === 'create_pdf') return 'pdf';
+  // A NAMED generation intent has a single-pass dispatcher of its own, so only a
+  // turn that ALSO carries a research signal is lifted into the loop; without it
+  // `null` means "the dispatcher builds it", which is correct and faster.
+  if (COMPOUND_GENERATION_INTENTS.has(intent)) {
+    if (!looksLikeCompoundGeneration(t)) return null;
+    if (intent === 'sharepic') return 'sharepic';
+    if (intent === 'create_presentation') return 'presentation';
+    if (intent === 'create_sheet') return 'sheet';
+    if (intent === 'create_pdf') return 'pdf';
+  }
   if (intent === 'agentic' || intent === 'produktion' || intent === 'direct') {
+    // No research gate on this branch, and the asymmetry is the whole point:
+    // none of these three has a dispatcher behind it. Here `null` means the loop
+    // runs with no generation tool mounted at all — which is how "das bitte
+    // schön als PDF erstellen" was answered with "ich habe keine technische
+    // Funktion, um PDFs zu erstellen" while create_pdf sat unmounted. That turn
+    // is a `produktion` one since the intent split: a writing order whose
+    // substance is already in the thread is exactly what the research gate
+    // could never license.
+    // What replaces the research signal is the creation ORDER: a verb that
+    // actually points at the artifact noun. A turn that merely MENTIONS one
+    // ("was steht im PDF?") still returns null, which matters because the kind
+    // does not just mount the tool — forceCompoundGeneration GUARANTEES the
+    // artifact when the planner skips it.
+    //
     // Order = specificity: the concrete products first, the generic "Dokument"
     // last (it's the fallback artifact when nothing more specific matches).
     // pdf before document: "PDF-Dokument" names both nouns but means a PDF.
-    if (hasExplicitSharepicWord(t)) return 'sharepic';
-    if (PRESENTATION_NOUN_RE.test(t)) return 'presentation';
-    if (SHEET_NOUN_RE.test(t)) return 'sheet';
-    if (BOARD_NOUN_RE.test(t)) return 'board';
-    if (PDF_NOUN_RE.test(t)) return 'pdf';
-    if (DOCUMENT_NOUN_RE.test(t)) return 'document';
+    const kind =
+      hasExplicitSharepicWord(t) && CREATION_VERB_RE.test(t)
+        ? 'sharepic'
+        : PRESENTATION_CREATE_RE.test(t)
+          ? 'presentation'
+          : SHEET_CREATE_RE.test(t)
+            ? 'sheet'
+            : BOARD_CREATE_RE.test(t)
+              ? 'board'
+              : PDF_CREATE_RE.test(t)
+                ? 'pdf'
+                : DOCUMENT_CREATE_RE.test(t)
+                  ? 'document'
+                  : null;
+    if (kind == null) return null;
+    // The router's negative-action gate keys on the classified INTENT, so a kind
+    // recovered from the TEXT never passes under it — "erstelle diesmal kein
+    // Dokument" on a demoted turn would mount the doc tool, and
+    // forceCompoundGeneration would then guarantee the very artifact the user
+    // forbade. Re-checked here because this is where the kind first exists.
+    const family = FORBIDDABLE_BY_KIND[kind];
+    if (family && forbidsPersistentAction(t, ARTIFACT_NOUN_BY_KIND[family])) return null;
+    return kind;
   }
   return null;
 }
