@@ -92,6 +92,42 @@ describe('loop entry', () => {
     expect(respond.agenticCalls).toHaveLength(0);
     expect(respond.singlePassCalls).toHaveLength(1);
   });
+
+  /**
+   * The word "recherchiere" used to route AWAY from the loop, and the intent
+   * that promises the most retrieval delivered the least: measured live, 3
+   * sources in 31s against 10 in 15s for the same question phrased without it.
+   * `research` sits in AGENTIC_INTENTS now, and this asserts it through the REAL
+   * set — the `decideRunAgentic` unit tests inject their own fixture, so they
+   * cannot see it drift back out.
+   */
+  it('routes a prose research ask into the loop, not onto the deterministic path', async () => {
+    const { trace } = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('Recherchiere im Netz: wer war Marilyn Monroe')],
+    });
+
+    expect(trace.intent).toBe('research');
+    expect(trace.agentic).toBe(true);
+    expect(respond.agenticCalls).toHaveLength(1);
+    expect(respond.singlePassCalls).toHaveLength(0);
+  });
+
+  /**
+   * The other half, and the reason the change is safe: `@deepresearch` is the
+   * ONLY token authorising Linkup's `sourcedAnswer` dossier, and that dossier is
+   * written on the single-pass path. It sets `forcedTool`, which the gate keeps
+   * out of the loop — so widening the intent set must not reach it.
+   */
+  it('leaves a forced @deepresearch turn on the single-pass dossier path', async () => {
+    const { trace } = await runTurn(suite.baseUrl(), {
+      messages: [userTurn('@[Deep Research](tool:deepresearch) wer war Marilyn Monroe')],
+    });
+
+    expect(trace.intent).toBe('research');
+    expect(trace.agentic).toBe(false);
+    expect(respond.agenticCalls).toHaveLength(0);
+    expect(respond.singlePassCalls).toHaveLength(1);
+  });
 });
 
 describe('degrade insurance', () => {

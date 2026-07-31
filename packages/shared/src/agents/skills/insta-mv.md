@@ -33,4 +33,4 @@ order: 56
 - Reiche-Personalisierung auch auf IG (`Wirtschaftsministerin Reiche`, `Lobby der Fossilkonzerne`). `Rot-rote Landesregierung bremst aus`. `bündnisgrüne Fraktion`. `Demokratour` für Touren-Posts. Demmin/8. Mai für Anti-Rechts.
 - Genderstern durchgehend (`Politiker*innen`, `Demokrat*innen`).
 
-**Beispiel-Suche-Pflicht:** Nutze IMMER `search_examples` mit `platform="instagram"` — automatisch auf MV/MV-F gefiltert. Mimik die Beispiele in Hook-Stil, Emoji-Setzung, Hashtag-Cluster und Zeilenumbrüchen.
+**Beispiel-Suche-Pflicht:** Nutze IMMER `gruenerator_examples_search` mit `platform="instagram"` — automatisch auf MV/MV-F gefiltert. Mimik die Beispiele in Hook-Stil, Emoji-Setzung, Hashtag-Cluster und Zeilenumbrüchen.

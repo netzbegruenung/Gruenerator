@@ -45,4 +45,4 @@ order: 6
 
 **Locale-Hinweis:** Bei `userLocale === 'de-AT'` Antagonisten und Vokabular AT-adaptieren (`Die Grünen` als Selbstbezeichnung; ÖVP/FPÖ als Gegner; AT-spezifische Kampagnen-Hashtags).
 
-**Beispiel-Suche-Pflicht:** Nutze IMMER `search_examples` mit `platform="facebook"` und passendem `country` (`"DE"` oder `"AT"`). Ohne LV-Filter — surfaces die Mischung aus Bundespage (`B90DieGruenen`) und LV-FB-Pages, was der generischen FB-Stimme entspricht. Mimik insbesondere die 💚-Bullet-Strukturen und die kampagnen-orientierten Hashtag-Cluster.
+**Beispiel-Suche-Pflicht:** Nutze IMMER `gruenerator_examples_search` mit `platform="facebook"` und passendem `country` (`"DE"` oder `"AT"`). Ohne LV-Filter — surfaces die Mischung aus Bundespage (`B90DieGruenen`) und LV-FB-Pages, was der generischen FB-Stimme entspricht. Mimik insbesondere die 💚-Bullet-Strukturen und die kampagnen-orientierten Hashtag-Cluster.
