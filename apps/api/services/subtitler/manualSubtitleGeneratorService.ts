@@ -255,6 +255,17 @@ function applyElasticTiming(segments: ManualSegmentCandidate[]): ManualSegmentCa
   return elasticSegments;
 }
 
+// Der Suchbegriff fuer die Positionszuordnung muss so aussehen wie die Stelle im
+// Volltext, sonst findet indexOf() sie nicht und das Segment faellt auf den
+// Wort-Join zurueck. Deshalb: nur aussen kappen, und Apostrophe nie -- sie sind
+// Wortbestandteil ("geht's", "'ne"), kein Satzzeichen.
+const TRIM_OUTER_PUNCTUATION = /^[.!?,:;"()[\]{}]+|[.!?,:;"()[\]{}]+$/g;
+const IS_OUTER_PUNCTUATION = /[.!?,:;"()[\]{}]/;
+
+export function trimOuterPunctuation(word: string): string {
+  return word.replace(TRIM_OUTER_PUNCTUATION, '');
+}
+
 function groupWordsIntoSegments(
   rawWords: WordTimestamp[],
   fullText: string
@@ -274,12 +285,13 @@ function groupWordsIntoSegments(
   let textPosition = 0;
   const wordPositions: WordPosition[] = words
     .map((word, index) => {
-      const cleanWord = word.word.replace(/[.!?,:;""''()[\]{}]/g, '');
+      const cleanWord = trimOuterPunctuation(word.word);
+      if (cleanWord === '') return null;
 
       const wordStart = fullText.toLowerCase().indexOf(cleanWord.toLowerCase(), textPosition);
       if (wordStart !== -1) {
         let wordEnd = wordStart + cleanWord.length;
-        while (wordEnd < fullText.length && /[.!?,:;""''()[\]{}]/.test(fullText[wordEnd])) {
+        while (wordEnd < fullText.length && IS_OUTER_PUNCTUATION.test(fullText[wordEnd])) {
           wordEnd++;
         }
         textPosition = wordEnd;
