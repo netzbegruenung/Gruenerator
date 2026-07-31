@@ -55,11 +55,26 @@ export const usageFootprintSchema = z.object({
   /** 0..1 — share of the counted energy that was measured rather than estimated. */
   measured_share: z.number(),
   /**
+   * 0..1 — share of the counted energy resting on a conservative UPPER BOUND
+   * rather than a metered coefficient, because no equivalent of that model
+   * exists to measure. Deliberately an over-estimate; the figure drops once the
+   * lane is metered. The remainder (1 - measured - bounded) is a metered
+   * coefficient transferred to the same model at another provider.
+   */
+  bounded_share: z.number(),
+  /**
    * 0..1 — share of the window's GENERATED tokens that a footprint covers.
    * Weighted by output rather than by all tokens because output drives energy
    * 100-760x, and real traffic is ~14:1 input-heavy.
    */
   covered_share: z.number(),
+  /**
+   * The image half of the two totals above, broken out. One generated image
+   * costs as much as several hundred chat turns, so a combined figure would
+   * read as a chat footprint and be wrong about where the impact sits.
+   */
+  image_energy_wh: z.number(),
+  image_emissions_g: z.number(),
   /**
    * The same requests costed against GPT-4o (Jegham et al., arXiv:2505.09598 —
    * chosen because its system boundary matches ours exactly). Covers only the

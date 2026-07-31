@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   emissionsFromEnergy,
   estimateFootprint,
+  estimateImageFootprint,
   gridIntensityFor,
   referenceFootprint,
 } from '../energyFootprint.js';
@@ -97,23 +98,43 @@ describe('estimateFootprint', () => {
     expect(ratio).toBeLessThan(7);
   });
 
-  it('returns null rather than a guess for a model with no measurement', () => {
-    // GreenPT serves no equivalent of the 119b Small or the 122b Qwen, and the
-    // series showed size alone does not predict energy. Uncovered is the honest
-    // answer; the router reports it as a coverage gap.
+  it('bounds the unmetered lanes from ABOVE and flags them as such', () => {
+    // GreenPT serves no equivalent of the 119b Small, the 122b Qwen or Pixtral
+    // Large. A throughput proxy was tried and failed its own control (it put
+    // gpt-oss at 0.43x gemma4 where the meter says 1.12x), so instead of a
+    // guess these carry the TOP of the measured span for their size class.
+    // Never silently zero, never flatteringly low.
+    const shape = { provider: 'regolo', inputTokens: 500, outputTokens: 500, requests: 1 };
+    const gemma = estimateFootprint({ ...shape, model: 'gemma4-31b' });
+
+    for (const model of ['mistral-small-4-119b', 'qwen3.5-122b']) {
+      const bounded = estimateFootprint({ ...shape, model });
+      expect(bounded?.basis).toBe('bound');
+      // An upper bound must sit above the cheapest measured model of the fleet.
+      expect(bounded?.energyWms ?? 0).toBeGreaterThan(gemma?.energyWms ?? 0);
+    }
+
+    expect(
+      estimateFootprint({ ...shape, provider: 'mistral', model: 'pixtral-large-latest' })?.basis
+    ).toBe('bound');
+  });
+
+  it('marks metered lanes as measured', () => {
+    const shape = { inputTokens: 500, outputTokens: 500, requests: 1 };
+    expect(estimateFootprint({ ...shape, provider: 'regolo', model: 'gemma4-31b' })?.basis).toBe(
+      'measured'
+    );
+    expect(
+      estimateFootprint({ ...shape, provider: 'scaleway', model: 'mistral-medium-3.5-128b' })?.basis
+    ).toBe('measured');
+  });
+
+  it('still returns null for a lane nobody registered', () => {
+    // A brand-new model id must surface as a coverage gap, not as zero energy.
     expect(
       estimateFootprint({
         provider: 'regolo',
-        model: 'mistral-small-4-119b',
-        inputTokens: 5000,
-        outputTokens: 200,
-        requests: 1,
-      })
-    ).toBeNull();
-    expect(
-      estimateFootprint({
-        provider: 'regolo',
-        model: 'qwen3.5-122b',
+        model: 'some-model-added-next-year',
         inputTokens: 500,
         outputTokens: 500,
         requests: 1,
@@ -170,6 +191,22 @@ describe('estimateFootprint', () => {
     expect(routed?.energyWms).toBe(direct?.energyWms);
   });
 
+  it('makes one image cost far more than a whole conversation', () => {
+    // The point of counting images at all. A Flux Pro sharepic is ~25 press
+    // releases' worth of CO2; if this ratio ever collapses to something modest,
+    // a coefficient has been broken and the tab is quietly misleading people
+    // about where their footprint actually sits.
+    const image = estimateImageFootprint({ provider: 'bfl', model: 'flux-2-pro', images: 1 });
+    const chatTurn = estimateFootprint({
+      provider: 'regolo',
+      model: 'gemma4-31b',
+      inputTokens: 1200,
+      outputTokens: 600,
+      requests: 1,
+    });
+    expect((image?.emissionsUg ?? 0) / (chatTurn?.emissionsUg ?? 1)).toBeGreaterThan(20);
+  });
+
   it('charges embeddings on the input side only', () => {
     const result = estimateFootprint({
       provider: 'mistral',
@@ -181,5 +218,55 @@ describe('estimateFootprint', () => {
     // Measured: 8150 Wms for 30 tokens.
     expect(result?.energyWms).toBeGreaterThan(7000);
     expect(result?.energyWms).toBeLessThan(9500);
+  });
+});
+
+describe('estimateImageFootprint', () => {
+  it('reproduces the published measurement it is built on', () => {
+    // Qwen-Image is the one image lane whose exact model was metered: Iyengar
+    // et al. Table 6, 1024x1024 / 50 steps / fp16 / CFG = 1.29e6 J per 100
+    // prompts = 3.583 Wh GPU-only. Doubled for the boundary correction, times
+    // Seeweb's 1.20 PUE. If someone edits a coefficient, this says whether the
+    // published anchor still shows through.
+    const one = estimateImageFootprint({ provider: 'regolo', model: 'Qwen-Image', images: 1 });
+    expect((one?.energyWms ?? 0) / 3_600_000).toBeCloseTo(3.583 * 2 * 1.2, 1);
+  });
+
+  it('orders the Flux variants the way BFL prices them', () => {
+    const of = (model: string) =>
+      estimateImageFootprint({ provider: 'bfl', model, images: 1 })?.energyWms ?? 0;
+    // klein 0.5x / pro 1x / max 2x — the multipliers from catalog.ts.
+    expect(of('flux-2-pro') / of('flux-2-klein-9b')).toBeCloseTo(2, 1);
+    expect(of('flux-2-max') / of('flux-2-pro')).toBeCloseTo(2, 1);
+  });
+
+  it('scales with the number of images', () => {
+    const one = estimateImageFootprint({ provider: 'bfl', model: 'flux-2-pro', images: 1 });
+    const ten = estimateImageFootprint({ provider: 'bfl', model: 'flux-2-pro', images: 10 });
+    expect((ten?.energyWms ?? 0) / (one?.energyWms ?? 1)).toBeCloseTo(10, 5);
+  });
+
+  it('charges an undisclosed operator the unkind grid and the world-average PUE', () => {
+    // BFL publishes neither location nor PUE. Regolo publishes both and beats
+    // the defaults on each, so the same image must come out cheaper there —
+    // otherwise the defaults have stopped being conservative.
+    const bfl = estimateImageFootprint({ provider: 'bfl', model: 'flux-2-pro', images: 1 });
+    const regolo = estimateImageFootprint({ provider: 'regolo', model: 'flux-2-pro', images: 1 });
+    expect(regolo?.energyWms ?? 0).toBeLessThan(bfl?.energyWms ?? 0);
+    expect(regolo?.emissionsUg ?? 0).toBeLessThan(bfl?.emissionsUg ?? 0);
+  });
+
+  it('flags every image lane as a bound, never as a measurement', () => {
+    // Nothing in the image stack reports an impact object, and the boundary
+    // uplift is our own choice — so 'measured' would be a lie here.
+    for (const model of ['flux-2-klein-9b', 'flux-2-pro', 'flux-2-max', 'Qwen-Image']) {
+      expect(estimateImageFootprint({ provider: 'bfl', model, images: 1 })?.basis).toBe('bound');
+    }
+  });
+
+  it('returns null for an image backend nobody registered', () => {
+    expect(
+      estimateImageFootprint({ provider: 'bfl', model: 'flux-3-whatever', images: 1 })
+    ).toBeNull();
   });
 });

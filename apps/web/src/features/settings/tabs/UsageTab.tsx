@@ -117,10 +117,13 @@ function StatTile({ label, value, hint }: { label: string; value: string; hint?:
  * would be the exact kind of claim this whole feature exists to avoid.
  */
 function ReferenceComparison({ footprint }: { footprint: UsageFootprintDto }) {
-  const co2Factor =
-    footprint.emissions_g > 0 ? footprint.reference_emissions_g / footprint.emissions_g : 0;
-  const energyFactor =
-    footprint.energy_wh > 0 ? footprint.reference_energy_wh / footprint.energy_wh : 0;
+  // Text only on both sides. The reference costs the same TOKENS on GPT-4o and
+  // has no image half at all, so comparing it against a total that includes
+  // Flux would invent a saving out of an accounting mismatch.
+  const textEmissions = footprint.emissions_g - footprint.image_emissions_g;
+  const textEnergy = footprint.energy_wh - footprint.image_energy_wh;
+  const co2Factor = textEmissions > 0 ? footprint.reference_emissions_g / textEmissions : 0;
+  const energyFactor = textEnergy > 0 ? footprint.reference_energy_wh / textEnergy : 0;
   if (co2Factor <= 0) return null;
 
   return (
@@ -135,7 +138,7 @@ function ReferenceComparison({ footprint }: { footprint: UsageFootprintDto }) {
             ≈ {formatGrams(footprint.reference_emissions_g)}
           </span>
           <span className="text-xs text-grey-500">
-            statt {formatGrams(footprint.emissions_g)} — {oneDecimal.format(co2Factor)}× so viel
+            statt {formatGrams(textEmissions)} — {oneDecimal.format(co2Factor)}× so viel
           </span>
         </div>
         <div className="flex flex-col gap-1">
@@ -144,7 +147,7 @@ function ReferenceComparison({ footprint }: { footprint: UsageFootprintDto }) {
             ≈ {formatEnergy(footprint.reference_energy_wh)}
           </span>
           <span className="text-xs text-grey-500">
-            statt {formatEnergy(footprint.energy_wh)} —{' '}
+            statt {formatEnergy(textEnergy)} —{' '}
             {energyFactor >= 1
               ? `${oneDecimal.format(energyFactor)}× so viel`
               : `${oneDecimal.format(1 / energyFactor)}× weniger als bei uns`}
@@ -154,7 +157,8 @@ function ReferenceComparison({ footprint }: { footprint: UsageFootprintDto }) {
       <p className="m-0 text-xs leading-relaxed text-grey-500">
         Geschätzt nach Jegham et al. (2025) für GPT-4o — die einzige veröffentlichte Rechnung mit
         derselben Systemgrenze wie unserer: nur Betriebsstrom, kein Training, keine
-        Hardware-Herstellung.{' '}
+        Hardware-Herstellung. Nur Text: für erzeugte Bilder gibt es keine vergleichbar sauber
+        abgegrenzte OpenAI-Zahl, deshalb bleiben sie hier außen vor.{' '}
         {energyFactor < 1
           ? 'Beim Strom liegen wir hier hinten; unser CO₂-Vorteil kommt vom französischen Netz, nicht von sparsamerer Technik. '
           : ''}
@@ -172,6 +176,7 @@ function ReferenceComparison({ footprint }: { footprint: UsageFootprintDto }) {
  */
 function FootprintNote({ footprint }: { footprint: UsageFootprintDto }) {
   const measuredPct = Math.round(footprint.measured_share * 100);
+  const boundedPct = Math.round(footprint.bounded_share * 100);
   const coveredPct = Math.round(footprint.covered_share * 100);
   return (
     <p className="m-0 rounded-xl border border-grey-200 p-md text-xs leading-relaxed text-grey-500 dark:border-grey-700">
@@ -179,8 +184,25 @@ function FootprintNote({ footprint }: { footprint: UsageFootprintDto }) {
         ? `${formatCount(measuredPct)} % dieser Zahl sind Messwerte, die unser Anbieter GreenPT mitliefert. Der Rest ist `
         : 'Die Zahl ist '}
       aus deinen Token-Zahlen hochgerechnet — mit Energiewerten, die an genau denselben Modellen
-      gemessen wurden. Abgedeckt sind {formatCount(coveredPct)} % der erzeugten Tokens im Zeitraum;
-      sie bestimmen den Verbrauch, gesendete Tokens kosten 100- bis 760-mal weniger. Bilder,
+      gemessen wurden.{' '}
+      {boundedPct > 0 && (
+        <>
+          Für {formatCount(boundedPct)} % gibt es kein messbares Gegenstück; dort rechnen wir
+          bewusst mit der <strong>Obergrenze</strong> der gemessenen Spanne, damit die Zahl eher zu
+          hoch als zu niedrig ausfällt.{' '}
+        </>
+      )}
+      {coveredPct < 100 && (
+        <>Erfasst sind {formatCount(coveredPct)} % der erzeugten Tokens im Zeitraum. </>
+      )}
+      Erzeugte Tokens bestimmen den Verbrauch, gesendete kosten 100- bis 760-mal weniger.{' '}
+      {footprint.image_emissions_g > 0 && (
+        <>
+          Erzeugte Bilder sind mit veröffentlichten Messungen an denselben Diffusionsmodellen
+          angesetzt (Iyengar et al., 2025) — dort ist der Aufschlag für Rechenzentrumstechnik unsere
+          eigene, bewusst großzügige Annahme.{' '}
+        </>
+      )}
       Transkription und Web-Recherche fehlen, weil dafür keine Messwerte vorliegen.{' '}
       <a
         href={`${getDocsUrl()}/docs/ueber-den-gruenerator/nachhaltigkeit`}
@@ -253,16 +275,23 @@ export default function UsageTab() {
             <StatTile label="Bilder" value={formatCount(totals.images)} />
             <StatTile label="Transkriptionen" value={formatCount(totals.transcriptions)} />
             <StatTile label="Web-Recherchen" value={formatCount(totals.searches)} />
-            {footprint.covered_share > 0 && (
+            {footprint.emissions_g > 0 && (
               <StatTile
-                label="CO₂ der Textmodelle"
+                label="CO₂ deiner KI-Nutzung"
                 value={`≈ ${formatGrams(footprint.emissions_g)}`}
-                hint={`${formatEnergy(footprint.energy_wh)} · so viel wie ${carComparison(footprint.emissions_g)}`}
+                hint={
+                  // A single generated image outweighs several hundred chat
+                  // turns, so where the number comes from matters more than the
+                  // number: without the split people optimise the wrong thing.
+                  footprint.image_emissions_g > 0
+                    ? `davon ${formatGrams(footprint.image_emissions_g)} aus Bildern · so viel wie ${carComparison(footprint.emissions_g)}`
+                    : `${formatEnergy(footprint.energy_wh)} · so viel wie ${carComparison(footprint.emissions_g)}`
+                }
               />
             )}
           </div>
 
-          {footprint.covered_share > 0 && (
+          {footprint.emissions_g > 0 && (
             <>
               <ReferenceComparison footprint={footprint} />
               <FootprintNote footprint={footprint} />
