@@ -48,7 +48,7 @@ vi.stubGlobal('fetch', (input: unknown, init?: unknown) =>
   fetchMock(String(input), init as RequestInit)
 );
 
-const { default: chatCompletionsRouter } = await import('./chatCompletionsRouter.js');
+const { default: chatCompletionsRouter, modelsRouter } = await import('./chatCompletionsRouter.js');
 const { MAX_PROMPT_TOKENS } = await import('../../services/ai/litellmPassthrough.js');
 
 let server: Server;
@@ -58,6 +58,7 @@ beforeAll(async () => {
   const app = express();
   app.use(express.json({ limit: '50mb' }));
   app.use('/api/v1/chat/completions', chatCompletionsRouter);
+  app.use('/api/v1/models', modelsRouter);
   server = createServer(app);
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -386,5 +387,43 @@ describe('POST /api/v1/chat/completions', () => {
 
       expect(res.status).toBe(502);
     });
+  });
+});
+
+describe('GET /api/v1/models', () => {
+  /**
+   * Ohne diese Route behaelt ein OpenAI-kompatibler Client, was er gegen eine
+   * fruehere baseUrl entdeckt hat — so landete ein aus LiteLLMs eigener Liste
+   * stammendes `gemma` hier und wurde abgelehnt.
+   */
+  function listModels(headers: Record<string, string> = {}): Promise<Response> {
+    return realFetch(`${baseUrl}/api/v1/models`, { headers });
+  }
+
+  it('listet genau die freigegebenen Modelle im OpenAI-Format', async () => {
+    apiKeyRow = keyRow(['chat:completions']);
+
+    const res = await listModels({ Authorization: 'Bearer plaintext-key' });
+
+    expect(res.status).toBe(200);
+    const body = await jsonOf(res);
+    expect(body.object).toBe('list');
+    expect((body.data as { id: string }[]).map((m) => m.id)).toEqual(['verdigado-think']);
+  });
+
+  it('lehnt einen Schluessel ohne chat:completions-Scope mit 403 ab', async () => {
+    apiKeyRow = keyRow(['notebooks:read']);
+
+    const res = await listModels({ Authorization: 'Bearer plaintext-key' });
+
+    expect(res.status).toBe(403);
+  });
+
+  it('lehnt ohne Schluessel mit 401 ab', async () => {
+    apiKeyRow = null;
+
+    const res = await listModels();
+
+    expect(res.status).toBe(401);
   });
 });

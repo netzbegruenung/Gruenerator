@@ -17,7 +17,7 @@
 
 import { once } from 'node:events';
 
-import { Router, type Response } from 'express';
+import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 
 import { requireApiKey, assertScope } from '../../middleware/apiKeyMiddleware.js';
@@ -145,3 +145,34 @@ router.post(
 );
 
 export default router;
+
+/**
+ * GET /api/v1/models — OpenAI-compatible model discovery.
+ *
+ * OpenAI-compatible clients probe `${baseUrl}/models` to learn what they may
+ * ask for, and they cache the answer. Without this route a client keeps
+ * whatever it discovered against an earlier base URL — which is how a stale
+ * `gemma` (picked up from LiteLLM's own list) ends up being sent here and
+ * rejected. Serving the allowlist is what lets that self-correct.
+ */
+export const modelsRouter: Router = Router();
+
+modelsRouter.use(requireApiKey);
+modelsRouter.use(apiKeyRateLimit('chat-completions'));
+
+modelsRouter.get('/', (req: Request, res: Response) => {
+  const ctx = req.apiKey;
+  if (!ctx || !assertScope(ctx, REQUIRED_SCOPE)) {
+    res.status(403).json({ error: `API key lacks the '${REQUIRED_SCOPE}' scope` });
+    return;
+  }
+
+  res.json({
+    object: 'list',
+    data: ALLOWED_MODELS.map((id) => ({
+      id,
+      object: 'model',
+      owned_by: 'gruenerator',
+    })),
+  });
+});
