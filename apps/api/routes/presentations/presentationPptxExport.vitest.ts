@@ -28,6 +28,11 @@ function bodyText(body: string): string {
   return [...body.matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)].map((m) => m[1]).join('');
 }
 
+/** Shapes (`<p:sp>`) in document order — each carries its own `<a:off>`. */
+function shapes(xml: string): string[] {
+  return [...xml.matchAll(/<p:sp>([\s\S]*?)<\/p:sp>/g)].map((m) => m[1]);
+}
+
 function slide(partial: Partial<Slide>): Slide {
   return {
     id: 'x',
@@ -133,14 +138,121 @@ describe('layout fidelity against the deck CSS', () => {
     expect(slideXml(buf)).not.toContain('<a:buAutoNum');
   });
 
-  it('keeps content variant 2 numbered', async () => {
-    // The guard above must be scoped to `split`, not disable numbering wholesale.
-    const buf = await exportPresentationToPptx(
-      [slide({ layout: 'content', title: 'Schritte', body: '- a\n- b', variant: 2 })],
-      'Deck',
-      '#316049'
+  it('numbers content variant 2 with accent pills, not PowerPoint numbering', async () => {
+    // The screen draws a 30px pill (#eaf2ee) with the index in the heading face
+    // and the accent colour. PowerPoint's own numbering cannot be styled that
+    // way, so the export draws the pills itself — and must then suppress the
+    // built-in marker, or every item would carry two.
+    const xml = slideXml(
+      await exportPresentationToPptx(
+        [slide({ layout: 'content', title: 'Schritte', body: '- a\n- b', variant: 2 })],
+        'Deck',
+        '#316049'
+      )
     );
-    expect(slideXml(buf)).toContain('<a:buAutoNum');
+    expect(xml).not.toContain('<a:buAutoNum');
+    expect([...xml.matchAll(/prst="ellipse"/g)]).toHaveLength(2);
+    expect([...xml.matchAll(/<a:srgbClr val="EAF2EE"\/>/g)]).toHaveLength(2);
+    const digits = textBodies(xml).filter((b) => ['1', '2'].includes(bodyText(b)));
+    expect(digits).toHaveLength(2);
+    // Heading face + accent, exactly like the CSS `::before`.
+    expect(digits[0]).toContain('typeface="GrueneType Neue"');
+    expect(digits[0]).toContain('<a:srgbClr val="316049"/>');
+  });
+
+  it('lays content variant 1 out as a two-column card grid', async () => {
+    // `.layout-content.variant-1 ul` is a 2-column grid of #f0f5f2 cards with
+    // the bullet suppressed. The export used to ignore the variant entirely and
+    // fall back to a single column of plain bullets.
+    const xml = slideXml(
+      await exportPresentationToPptx(
+        [slide({ layout: 'content', title: 'Karten', body: '- a\n- b\n- c', variant: 1 })],
+        'Deck',
+        '#316049'
+      )
+    );
+    expect(xml).not.toContain('<a:buChar');
+    const cards = [...xml.matchAll(/<a:srgbClr val="F0F5F2"\/>/g)];
+    expect(cards).toHaveLength(3);
+
+    // Two columns: items 1 and 2 share a row (same y, different x), item 3
+    // starts the next row back at the left edge.
+    const boxes = shapes(xml)
+      .filter((sp) => sp.includes('prst="roundRect"'))
+      .map((sp) => {
+        const off = sp.match(/<a:off x="(\d+)" y="(\d+)"\/>/);
+        return { x: Number(off?.[1]), y: Number(off?.[2]) };
+      });
+    expect(boxes).toHaveLength(3);
+    expect(boxes[1].y).toBe(boxes[0].y);
+    expect(boxes[1].x).toBeGreaterThan(boxes[0].x);
+    expect(boxes[2].x).toBe(boxes[0].x);
+    expect(boxes[2].y).toBeGreaterThan(boxes[0].y);
+  });
+
+  it('places the body under the measured title, not at a fixed offset', async () => {
+    // The screen is a flex column: 64px padding, the title at its natural
+    // wrapped height, a 20px gap, then the body. The export pinned the body at
+    // 160px, which sits 96px too low when a slide has no title at all.
+    const EMU_PER_PX = 914400 / 96;
+    const topOf = async (title: string): Promise<number> => {
+      const xml = slideXml(
+        await exportPresentationToPptx(
+          [slide({ layout: 'content', title, body: '- a' })],
+          'Deck',
+          '#316049'
+        )
+      );
+      // The one shape whose text is the bullet — the title box sits above it.
+      const body = shapes(xml).find((sp) => bodyText(sp) === 'a') ?? '';
+      return Number(body.match(/<a:off x="\d+" y="(\d+)"\/>/)?.[1] ?? -1) / EMU_PER_PX;
+    };
+
+    // One-line DE title: 64 padding + 44px × 1.1 leading + 20 gap.
+    expect(await topOf('Kurz')).toBeCloseTo(64 + 44 * 1.1 + 20, 1);
+    // No title, no gap — the body starts at the padding edge.
+    expect(await topOf('')).toBeCloseTo(64, 1);
+  });
+
+  it('shrinks an overflowing auto-size slide instead of leaving it to PowerPoint', async () => {
+    // `<a:normAutofit/>` (what `fit: 'shrink'` emits) is applied by PowerPoint
+    // only once the box is edited, and is a no-op in LibreOffice, Keynote and
+    // Google Slides — so a freshly opened deck overflowed where the web had
+    // long since shrunk. The type scale is now computed here.
+    const sizeOf = async (body: string): Promise<number> => {
+      const xml = slideXml(
+        await exportPresentationToPptx(
+          [slide({ layout: 'content', title: 'Viel Text', body })],
+          'Deck',
+          '#316049'
+        )
+      );
+      const run = textBodies(xml).find((b) => bodyText(b).includes('Zeile'));
+      return Number(run?.match(/sz="(\d+)"/)?.[1] ?? 0);
+    };
+
+    const short = await sizeOf('- Zeile eins');
+    // 28px body × 0.75 = 21pt at scale 1.
+    expect(short).toBe(2100);
+
+    const long = await sizeOf(
+      Array.from({ length: 14 }, (_, i) => `- Zeile ${i} mit reichlich Text`).join('\n')
+    );
+    expect(long).toBeLessThan(short);
+    // The ladder floor is 0.5 — never smaller, never a non-ladder step.
+    expect(long).toBeGreaterThanOrEqual(2100 * 0.5);
+  });
+
+  it('honours an explicit font size instead of auto-fitting', async () => {
+    const xml = slideXml(
+      await exportPresentationToPptx(
+        [slide({ layout: 'content', title: 'T', body: '- a', fontSize: 'xl' })],
+        'Deck',
+        '#316049'
+      )
+    );
+    const run = textBodies(xml).find((b) => bodyText(b).includes('a'));
+    expect(run).toContain(`sz="${Math.round(28 * 1.35 * 0.75 * 100)}"`);
   });
 
   it('does not auto-shrink code slides — the screen excludes them too', async () => {
