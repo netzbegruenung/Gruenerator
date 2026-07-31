@@ -20,6 +20,7 @@ import {
   useColorScheme,
 } from 'react-native';
 
+import { useChatBackground } from '../../hooks/useChatBackground';
 import { useTheme } from '../../hooks/useTheme';
 import { logout } from '../../services/auth';
 import { setChatBackground } from '../../services/chatBackground';
@@ -29,7 +30,6 @@ import { useSettingsSheetStore, type SettingsDetail } from '../../stores/setting
 import { spacing, colors, borderRadius, BODY_FONT } from '../../theme';
 import { chatBackgroundColor, chatBackgroundMesh, darkMesh } from '../../theme/chatBackgrounds';
 import { route } from '../../types/routes';
-import { useChatBackground } from '../../hooks/useChatBackground';
 import { BottomSheet } from '../common/BottomSheet';
 import { ListGroup, ListRow } from '../common/ListRow';
 import { MeshGradient } from '../common/MeshGradient';
@@ -60,7 +60,7 @@ const DETAIL_TITLES: Record<SettingsDetail, string> = {
   friend: getSettingsEntry('friends.avatar').title,
   roles: getSettingsEntry('personalisierung.rollen').title,
   theme: getSettingsEntry('allgemein.aussehen').title,
-  chatBackground: getSettingsEntry('allgemein.chatHintergrund').title,
+  chatBackground: getSettingsEntry('hintergrund.startseite').title,
   locale: getSettingsEntry('allgemein.sprache').title,
   accessibility: 'Barrierefreiheit',
 };
@@ -205,7 +205,7 @@ export function SettingsSheet() {
     if (detail === 'chatBackground') {
       return (
         <>
-          {note(getSettingsEntry('allgemein.chatHintergrund').description ?? '')}
+          {note(getSettingsEntry('hintergrund.startseite').description ?? '')}
           <View style={styles.swatches}>
             {chatBackgroundsFor('mobile').map((preset) => {
               const color = chatBackgroundColor(preset.key);
@@ -220,7 +220,7 @@ export function SettingsSheet() {
                   key={preset.key}
                   onPress={() => {
                     void setChatBackground(preset.key as ChatBackground).catch(() => {
-                      Alert.alert('Fehler', 'Chat-Hintergrund konnte nicht gespeichert werden.');
+                      Alert.alert('Fehler', 'Hintergrund konnte nicht gespeichert werden.');
                     });
                     setDetail(null);
                   }}
@@ -416,7 +416,7 @@ export function SettingsSheet() {
               />
               <ListRow
                 icon="color-palette-outline"
-                title={getSettingsEntry('allgemein.chatHintergrund').title}
+                title={getSettingsEntry('hintergrund.startseite').title}
                 value={chatBackground.label}
                 onPress={() => setDetail('chatBackground')}
               />
