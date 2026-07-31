@@ -27,6 +27,7 @@ import {
   loopPlannerModelName,
   prefersUnifiedLoop,
 } from '../../agents/providers.js';
+import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
 import { loadSystemMcpCatalog } from '../../agents/systemMcpCatalog.js';
 import { buildChatToolCatalog } from '../../agents/toolCatalog.js';
 import { extractTextContent } from '../messageHelpers.js';
@@ -1066,7 +1067,16 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
         return toolName;
       },
       buildSynthSystem,
-      getSourcesBlock: () => sourceRegistry.renderAll(),
+      // The image note rides on the source block because that is the ONLY thing
+      // the synth phase sees of the gathering — it gets no tool results, so the
+      // note the planner received in its tool result would never reach the model
+      // that actually writes the answer. Appended, never registered: an image has
+      // no text, so it must not become a numbered `[N]`.
+      getSourcesBlock: () => {
+        const sources = sourceRegistry.renderAll();
+        const note = imageDeliveryNote(finalState.webImageResults?.length ?? 0);
+        return note ? `${sources}\n\n${note}` : sources;
+      },
       // Prepend the reconstructed tool-call/result history just before the
       // current user message so tool_call↔result pairs stay adjacent + valid.
       messages:

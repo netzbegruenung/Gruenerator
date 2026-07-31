@@ -3,11 +3,9 @@
 import { ChevronRight, FileText, Globe, Paperclip } from 'lucide-react';
 import { useState, useEffect, useMemo, memo } from 'react';
 
-import { type Citation, type SearchImage } from '../../hooks/useChatGraphStream';
+import { type Citation } from '../../hooks/useChatGraphStream';
 import { cn } from '../../lib/utils';
 import { Citation as CitationCard } from '../tool-ui/citation/ProjectCitation';
-
-import { SearchImagesSection } from './SearchImagesSection';
 
 export interface AdditionalSource {
   document_id?: string;
@@ -26,12 +24,6 @@ export interface AdditionalSource {
 interface SearchResultsSectionProps {
   citations: Citation[];
   additionalSources?: AdditionalSource[];
-  /**
-   * Image hits from the web search, rendered as a separate list of links. Kept out
-   * of `citations` on purpose: an image has no text, so it can neither be cited nor
-   * numbered — see `SearchImagesSection`.
-   */
-  images?: SearchImage[];
   /**
    * Controlled mode: the trigger lives elsewhere (the message action row), so
    * this renders the list only. Leave unset and the component keeps its own
@@ -129,7 +121,6 @@ function groupAdditionalSources(sources: AdditionalSource[]): AdditionalSourceGr
 export const SearchResultsSection = memo(function SearchResultsSection({
   citations,
   additionalSources,
-  images,
   open,
   onOpenChange,
 }: SearchResultsSectionProps) {
@@ -151,11 +142,11 @@ export const SearchResultsSection = memo(function SearchResultsSection({
     [citations, hasDocumentIds]
   );
 
-  const imageCount = images?.length ?? 0;
-  // An image-only turn ("zeig mir Fotos von der Demo") can legitimately produce no
-  // citations at all — bailing on `citations.length === 0` alone would silently
-  // swallow the one thing the user asked for.
-  if (citations.length === 0 && imageCount === 0) return null;
+  // Image hits are NOT part of this section: they render on their own, directly
+  // under the answer, because they are the answer rather than a footnote to it
+  // (see AssistantMessage). Inside the disclosure an image-only turn — which has
+  // no citations — had no trigger at all.
+  if (citations.length === 0) return null;
 
   return (
     <div className={isControlled ? '' : 'mt-3'}>
@@ -165,11 +156,7 @@ export const SearchResultsSection = memo(function SearchResultsSection({
           className="flex items-center gap-1.5 text-xs font-medium text-foreground-muted hover:text-foreground transition-colors"
         >
           <Paperclip className="h-3.5 w-3.5" />
-          <span>
-            {citations.length > 0
-              ? `${citations.length} Quellen`
-              : `${imageCount} ${imageCount === 1 ? 'Bildquelle' : 'Bildquellen'}`}
-          </span>
+          <span>{citations.length} Quellen</span>
           <ChevronRight className={cn('h-3.5 w-3.5 transition-transform', isOpen && 'rotate-90')} />
         </button>
       )}
@@ -190,8 +177,6 @@ export const SearchResultsSection = memo(function SearchResultsSection({
           {additionalSources && additionalSources.length > 0 && (
             <AdditionalSourcesSection sources={additionalSources} />
           )}
-
-          {images && images.length > 0 && <SearchImagesSection images={images} />}
         </div>
       )}
     </div>
