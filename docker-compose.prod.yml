@@ -6,7 +6,6 @@
 #
 # Services:
 #   - web: Static frontend (nginx serving Vite build)
-#   - sites: Candidate website builder (nginx serving Vite build)
 #   - api: Backend API (Node.js, port 3001)
 #   - mcp: MCP server for AI integrations (Node.js, port 3004)
 #   - doku: Static Docusaurus documentation
@@ -36,14 +35,6 @@ services:
       - gruenerator
     labels:
       - 'com.gruenerator.service=web'
-
-  sites:
-    image: ghcr.io/netzbegruenung/gruenerator-sites:${TAG:-latest}
-    restart: unless-stopped
-    networks:
-      - gruenerator
-    labels:
-      - 'com.gruenerator.service=sites'
 
   api:
     image: ghcr.io/netzbegruenung/gruenerator-api:${TAG:-latest}
@@ -124,22 +115,6 @@ services:
     labels:
       - 'com.gruenerator.service=doku'
 
-  iconify:
-    image: ghcr.io/netzbegruenung/gruenerator-iconify:${TAG:-latest}
-    restart: unless-stopped
-    environment:
-      - PORT=3100
-    networks:
-      - gruenerator
-    healthcheck:
-      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:3100/collections']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    labels:
-      - 'com.gruenerator.service=iconify'
-
   nginx:
     image: nginx:alpine
     restart: unless-stopped
@@ -149,8 +124,6 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       web:
-        condition: service_started
-      sites:
         condition: service_started
       api:
         condition: service_healthy
