@@ -80,6 +80,7 @@ export const DECISION_POINTS = {
       'tier3.5_loop_demotion',
       'tier3.7_source_scope',
       'tier3.7_no_live_source',
+      'tier3.8_generation_scope',
       'tier4_llm',
       'tier4_llm_error_fallback',
     ],

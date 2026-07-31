@@ -43,14 +43,21 @@ const STUB_AGENT_CONFIG = {
  *  names the sharepic, the intent field says image_edit. */
 function makeWorkerPool() {
   return {
-    processRequest: vi.fn(async () => ({
-      content: JSON.stringify({
-        intent: 'image_edit',
-        reasoning:
-          'Der Nutzer möchte ein bereits erstelltes Sharepic aus dem vorherigen Gesprächsschritt bearbeiten.',
-        searchQuery: null,
-      }),
-    })),
+    // Die kleinen Auflöser vor der grossen Stufe müssen GETRENNT antworten.
+    // Sonst liest der Generierungs-Auflöser sein Ergebnis aus der Begründung
+    // unten heraus — dort steht das Wort „Sharepic" — und der Turn wäre
+    // entschieden, bevor die Stufe, um die es hier geht, überhaupt läuft.
+    processRequest: vi.fn(async (req: { systemPrompt?: string }) => {
+      if (req.systemPrompt?.startsWith('Entscheide, ob diese')) return { content: 'keine' };
+      return {
+        content: JSON.stringify({
+          intent: 'image_edit',
+          reasoning:
+            'Der Nutzer möchte ein bereits erstelltes Sharepic aus dem vorherigen Gesprächsschritt bearbeiten.',
+          searchQuery: null,
+        }),
+      };
+    }),
   };
 }
 
