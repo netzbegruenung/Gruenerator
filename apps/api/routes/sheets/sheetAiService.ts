@@ -27,7 +27,9 @@ const log = createLogger('SheetAI');
 const SHEET_AI_PROVIDER = 'mistral';
 const SHEET_AI_MODEL = 'mistral-medium-2604';
 
-const SHEET_TOOL_STRICT_PROMPT = `You translate a user's request into spreadsheet operations by calling the tool applySheetOperations.
+/** Exportiert nur, damit der Konsistenz-Wächter den FERTIGEN Prompt lesen kann
+ *  statt seiner Bausteine — siehe `sheetAiService.vitest.ts`. */
+export const SHEET_TOOL_STRICT_PROMPT = `You translate a user's request into spreadsheet operations by calling the tool applySheetOperations.
 
 You MUST respond ONLY by calling applySheetOperations with { "operations": [ ... ] }.
 
