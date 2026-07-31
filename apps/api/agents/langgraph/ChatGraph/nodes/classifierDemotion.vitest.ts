@@ -335,7 +335,7 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
   it('greeting stays on the short-message heuristic fast path', async () => {
     const state = buildState({ userMessage: 'Hallo!' });
     const result = await classifierNode(state);
-    expect(result.intent).toBe('direct');
+    expect(result.intent).toBe('greeting');
     expect(state.aiWorkerPool.processRequest).not.toHaveBeenCalled();
   });
 

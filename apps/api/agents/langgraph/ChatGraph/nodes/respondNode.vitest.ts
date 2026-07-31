@@ -114,6 +114,35 @@ describe('citableSourcesAvailable', () => {
   it('is unchanged for retrieval intents', () => {
     expect(citableSourcesAvailable(makeState({ intent: 'search', searchResults: SRC }))).toBe(true);
   });
+
+  it('stays shut for a greeting even with the carry flag set', () => {
+    // `greeting` has no carry exception, unlike `direct`. The carry never runs
+    // for it, so the flag can only arrive here through a bug — and a "Hallo"
+    // answered with [1]–[6] is the failure this closes.
+    expect(
+      citableSourcesAvailable(
+        makeState({ intent: 'greeting', searchResults: SRC, sourcesCarriedFromThread: true })
+      )
+    ).toBe(false);
+  });
+});
+
+describe('getModeGuidance for greeting', () => {
+  it('scopes the answer and claims neither research nor artefact', () => {
+    const out = getModeGuidance(makeState({ intent: 'greeting', searchResults: [] }));
+    expect(out).toMatch(/ein bis zwei S(ä|ae)tzen/);
+    expect(out).toMatch(/nichts recherchiert/i);
+  });
+
+  it('drops the direct path’s citation-ban paragraph', () => {
+    // The one turn in the product where nobody could have claimed a citation
+    // does not need a paragraph of citation bans.
+    const out = getModeGuidance(makeState({ intent: 'greeting', searchResults: [] }));
+    expect(out).not.toMatch(/keine Quellen\/\[N\]-Belege/);
+    expect(out.length).toBeLessThan(
+      getModeGuidance(makeState({ intent: 'direct', searchResults: [] })).length
+    );
+  });
 });
 
 describe('getModeGuidance on a carried-source direct turn', () => {

@@ -488,8 +488,8 @@ function testIntegrationFlow() {
     },
     {
       input: 'hallo wie geht es dir',
-      description: 'Greeting stays direct',
-      expectIntent: 'direct',
+      description: 'Greeting routes to the greeting gate',
+      expectIntent: 'greeting',
     },
     {
       input: 'erstelle ein bild von einem grünen wald',

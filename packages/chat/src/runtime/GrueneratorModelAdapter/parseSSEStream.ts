@@ -401,7 +401,8 @@ export async function* parseSSEStream(
               agentic?: boolean;
             };
           let stage: ProgressStage = 'searching';
-          if (intent === 'direct' || intent === 'artifact') stage = 'generating';
+          if (intent === 'direct' || intent === 'greeting' || intent === 'artifact')
+            stage = 'generating';
           else if (intent === 'image' || intent === 'sharepic' || intent === 'social_post')
             stage = 'generating_image';
           else if (intent === 'summary') stage = 'summarizing';
