@@ -35,13 +35,16 @@
   box-shadow: none;
 }
 
-/* Enhanced focus ring for keyboard navigation */
-.user-is-tabbing .form-input:focus,
-.user-is-tabbing .form-textarea:focus,
-.user-is-tabbing .form-select:focus,
-.user-is-tabbing .form-checkbox:focus {
-  outline: 1px solid var(--interactive-accent-color);
-  outline-offset: 1px;
+/* A text field carries its own focus treatment — the global :focus-visible
+   outline in accessibility.css skips text entry on purpose, because it fires
+   on a plain mouse click there. Same soft ring as the shared Input/Textarea
+   (ring-[3px] ring-ring/50), so both generations of field look alike. */
+.form-input:focus-visible,
+.form-textarea:focus-visible,
+.form-select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px
+    color-mix(in oklab, var(--color-ring-val, var(--primary-500)) 50%, transparent);
 }
 
 /* ===== Error States ===== */

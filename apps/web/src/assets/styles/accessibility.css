@@ -65,3 +65,25 @@
   outline: 2px solid var(--primary-500, #008939);
   outline-offset: 2px;
 }
+
+/* …except text-entry fields. Buttons and links only match :focus-visible when
+   someone actually navigated by keyboard; a text field matches it on a plain
+   mouse click too, so the ring showed up as a hard green frame around every
+   field you click into. Those fields carry their own focus treatment (the
+   ring on the shared Input/Textarea, the composer outline), which is what a
+   keyboard user sees — this rule was never the one they need. */
+input:not(
+    [type='button'],
+    [type='submit'],
+    [type='reset'],
+    [type='checkbox'],
+    [type='radio'],
+    [type='file'],
+    [type='range'],
+    [type='color'],
+    [type='image']
+  ):focus-visible,
+textarea:focus-visible,
+[contenteditable]:focus-visible {
+  outline: none;
+}

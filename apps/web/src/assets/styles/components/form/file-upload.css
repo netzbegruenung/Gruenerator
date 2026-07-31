@@ -61,9 +61,9 @@
   color: var(--white);
 }
 
-.file-upload-remove:focus {
-  outline: 1px solid var(--interactive-accent-color);
-  outline-offset: 1px;
+.file-upload-remove:focus-visible {
+  outline: 2px solid var(--interactive-accent-color);
+  outline-offset: 2px;
 }
 
 .file-upload-remove:disabled {
@@ -86,10 +86,11 @@
   box-shadow: none;
 }
 
-/* Enhanced focus ring for keyboard navigation */
-.user-is-tabbing .file-upload-button:focus {
-  outline: 1px solid var(--interactive-accent-color);
-  outline-offset: 1px;
+/* Keyboard focus ring. The button clears its outline in the base rule, which
+   also shuts out the global :focus-visible ring — so it states its own. */
+.file-upload-button:focus-visible {
+  outline: 2px solid var(--interactive-accent-color);
+  outline-offset: 2px;
 }
 
 /* Disabled state */
