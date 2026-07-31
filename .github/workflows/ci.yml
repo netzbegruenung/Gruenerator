@@ -43,6 +43,22 @@ jobs:
       - name: Singleton dependency versions
         run: node scripts/check-singleton-versions.mjs
 
+      # Dependabot cannot edit pnpm.overrides, so a bump of an overridden
+      # package lands the new version in the lockfile's overrides block only.
+      # `pnpm install --frozen-lockfile` then dies with
+      # ERR_PNPM_LOCKFILE_CONFIG_MISMATCH, which reads like a corrupt lockfile
+      # instead of the one-line manifest edit it is (#2097, #2098). Runs before
+      # install, on bare node, so the failure names the real cause.
+      - name: pnpm.overrides in sync with the lockfile
+        run: node scripts/sync-pnpm-overrides.mjs --check
+
+      # Kein `@gruenerator/*`-Name ist auf npm registriert. Ein interner
+      # Dependency-Spec, der nicht `workspace:` sagt, wandert damit zur
+      # öffentlichen Registry — genau die Lücke, die ein Angreifer besetzen
+      # kann (Dependency Confusion, gemeldet 30.07.2026).
+      - name: Workspace packages private and workspace-resolved
+        run: node scripts/check-workspace-packages.mjs
+
       # Tours target elements via [data-tour="..."] selectors; a refactor that
       # renames or drops the attribute breaks the tour silently (waitForElement
       # times out, the step never shows). Keep selectors and JSX anchors 1:1.

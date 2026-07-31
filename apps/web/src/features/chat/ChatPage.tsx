@@ -24,8 +24,13 @@ import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
 import { useUserAgents } from '@/features/agents/api';
 import ChatHero from '@/features/chat/ChatHero';
 import { LandesverbandHub } from '@/features/chat/LandesverbandHub';
+import { resolveChatBackground } from '@/features/workplace/chatBackgrounds';
 import { useFirstName } from '@/hooks/useFirstName';
 import { useAuthStore } from '@/stores/authStore';
+import { cn } from '@/utils/cn';
+import { isDesktopApp } from '@/utils/platform';
+
+import '@/features/workplace/workplace-sunrise.css';
 
 /**
  * AT users get this notebook when their selected agent doesn't pin its own.
@@ -35,6 +40,21 @@ import { useAuthStore } from '@/stores/authStore';
  * (no auto-switch when the agent has no preference).
  */
 const AT_DEFAULT_NOTEBOOK_ID = 'oesterreich-notebook';
+
+/**
+ * The in-thread composer: the slim pill in the browser, the taller card in the
+ * desktop shell.
+ *
+ * The two run the same bundle, so this is not a build-time difference — but it
+ * is a fixed one per install, which is why it is read once at module scope
+ * rather than per render.
+ *
+ * The pill is the same shape the new-chat hero already wears, so sending a
+ * first message no longer swaps the composer under the cursor. The desktop app
+ * keeps the card: it is a window someone leaves open, and the toolbar row that
+ * the card gives its own line stays legible there.
+ */
+const COMPOSER_VARIANT = isDesktopApp() ? 'card' : 'pill';
 
 function ChatPage() {
   const [searchParams] = useSearchParams();
@@ -51,6 +71,12 @@ function ChatPage() {
   const currentThreadTitle = useAgentStore((s) => s.currentThreadTitle);
   const firstName = useFirstName();
   const userLocale = useAuthStore((s) => s.locale) ?? 'de-DE';
+  // The background the user picked in /profile/aussehen. The hero below wears
+  // it in full; the thread wears only the band derived from it. Resolved here
+  // rather than in ChatHero because both branches need the answer — and because
+  // the hero used to hardcode `sunrise`, which meant a pick made on /workplace
+  // did not show on /chat.
+  const chatBackground = resolveChatBackground(useAuthStore((s) => s.user?.chat_background));
   const { data: userAgents } = useUserAgents();
   // Bridge the user-agents query into the chat package so its welcome screen
   // and message avatars can resolve a user agent's title/icon by identifier.
@@ -234,9 +260,17 @@ function ChatPage() {
         {hub ? (
           <LandesverbandHub hub={hub} onNavigate={handleNavigate} userLocale={userLocale} />
         ) : effectiveViewMode === 'overview' ? (
-          // New-chat empty state in the Workplace chat-tab design: sunrise
+          // New-chat empty state in the Workplace chat-tab design: the chosen
           // background, vertically centered greeting + pill composer.
-          <div className="workplace-chat-sunrise flex min-h-0 flex-1 flex-col justify-center overflow-y-auto pb-[6vh]">
+          // `workplace-chat-accent` re-points the primary token so the send
+          // button follows the preset, exactly as on the Workplace chat tab.
+          <div
+            className={cn(
+              'workplace-chat-sunrise workplace-chat-accent',
+              chatBackground.className,
+              'flex min-h-0 flex-1 flex-col justify-center overflow-y-auto pb-[6vh]'
+            )}
+          >
             <ChatHero />
           </div>
         ) : (
@@ -244,6 +278,12 @@ function ChatPage() {
             onNavigate={handleNavigate}
             firstName={firstName}
             requireProfileHydration
+            // `neutral` promises "kein Verlauf — nur der Seitenhintergrund", so
+            // it gets no band either. Every other preset does: the band is the
+            // same one regardless of which was picked, because it is the
+            // composer's light and not the page's colour.
+            {...(chatBackground.key === 'neutral' ? {} : { className: 'chat-thread-glow' })}
+            composerVariant={COMPOSER_VARIANT}
             userLocale={userLocale}
           />
         )}
