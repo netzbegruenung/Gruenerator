@@ -129,12 +129,68 @@ const GPT_OSS_OVERFLOW: ModelConfigOverflow = {
   overflowContextWindow: CTX_FULL,
 };
 
-const GEMMA_4_OVERFLOW: ModelConfigOverflow = {
-  kind: 'overflow',
-  primary: { provider: 'litellm', model: 'verdigado-think' },
-  overflow: { provider: 'regolo', model: 'gemma4-31b' },
+/**
+ * Gemma 4 — Regolo only. NOT an overflow lane, deliberately.
+ *
+ * It used to be Verdigado-primary with Regolo on overflow, the way GPT-OSS
+ * still is. Measured 2026-07-31, same prompt on both hosts:
+ *
+ *   regolo/gemma4-31b        ~76 tok/s, 0.4s to first token, 4.0s done, NO thinking
+ *   litellm/verdigado-think  23-34 tok/s, 20s to first token, 38s done
+ *
+ * The gap is not only throughput. Verdigado's Gemma thinks before every answer
+ * and no flag stops it — `think:false`, `enable_thinking:false` and
+ * `reasoning_effort:'none'` were each probed and each ignored on that host, so
+ * roughly two thirds of the output budget goes into a reasoning block. Regolo
+ * honours `enable_thinking:false` (verified: zero reasoning characters), which
+ * is why the same weights answer nine times faster there.
+ *
+ * Four places in this codebase were already routing around the slow lane
+ * (AVOID_AS_SYNTH, the agentic respond rewrite, runJudge's model note,
+ * providerSelector's comment) rather than changing it. This is the change
+ * those workarounds were compensating for.
+ *
+ * WHY NOT SIMPLY SWAP THE TWO SIDES: `resolveModelTuple` gates the PRIMARY on
+ * `tryAcquireVerdigadoSlot`. Swapped, Regolo would hold a slot it does not
+ * need, and Verdigado would serve precisely when that slot was busy — i.e.
+ * exactly when it must not run. The slot exists because Verdigado has a single
+ * inference slot. A plain single lane sidesteps that inversion.
+ *
+ * Verdigado is still reachable, but only as the failover below, never as the
+ * lane that serves a normal turn. Its conservative context ceiling went with
+ * it: on the Regolo path this lane serves the full model context.
+ */
+const GEMMA_4_REGOLO: ModelConfigSingle = {
+  kind: 'single',
+  provider: 'regolo',
+  model: 'gemma4-31b',
+  contextWindow: CTX_FULL,
+  // Verdigado keeps the same weights and stays the failover, so a Regolo
+  // outage answers in the same model family rather than switching writer.
+  // Two costs were weighed and accepted when this was chosen:
+  //   - it is a SLOW failover (20s to first token). The path that uses it is a
+  //     first-token timeout, i.e. the user is already waiting.
+  //   - it runs WITHOUT the Verdigado slot, which the `single` fallback branch
+  //     below avoids for every other lane. A timeout failover is rare enough
+  //     that colliding with a GPT-OSS turn holding the slot means queueing,
+  //     not breakage — but it is a real, deliberate exception to that rule.
+  fallback: 'gemma-4-verdigado',
+};
+
+/**
+ * The Verdigado side of Gemma 4, reachable ONLY as the failover above.
+ *
+ * Not in the user-facing catalog (packages/core/src/models/catalog.ts) and not
+ * an auto-policy target: selecting it deliberately would opt into the 38s path.
+ * It exists as its own entry because `fallback` resolves through
+ * AVAILABLE_MODELS, and every other Gemma id now points at Regolo.
+ */
+const GEMMA_4_VERDIGADO: ModelConfigSingle = {
+  kind: 'single',
+  provider: 'litellm',
+  model: 'verdigado-think',
+  // Ollama truncates silently above this — see CTX_VERDIGADO.
   contextWindow: CTX_VERDIGADO,
-  overflowContextWindow: CTX_FULL,
 };
 
 export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
@@ -194,7 +250,7 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
 
   // Overflow lanes — Verdigado primary, Regolo on overflow when slot is busy.
   'gpt-oss': GPT_OSS_OVERFLOW,
-  'gemma-4': GEMMA_4_OVERFLOW,
+  'gemma-4': GEMMA_4_REGOLO,
 };
 
 // Legacy IDs from persisted client state and DB. All point to the new overflow
@@ -202,8 +258,10 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
 // release cycle once chatStore migration v8 has propagated.
 AVAILABLE_MODELS['litellm'] = GPT_OSS_OVERFLOW;
 AVAILABLE_MODELS['gpt-oss-regolo'] = GPT_OSS_OVERFLOW;
-AVAILABLE_MODELS['gemma-litellm'] = GEMMA_4_OVERFLOW;
-AVAILABLE_MODELS['gemma-regolo'] = GEMMA_4_OVERFLOW;
+AVAILABLE_MODELS['gemma-litellm'] = GEMMA_4_REGOLO;
+AVAILABLE_MODELS['gemma-regolo'] = GEMMA_4_REGOLO;
+// Failover target only — see GEMMA_4_VERDIGADO.
+AVAILABLE_MODELS['gemma-4-verdigado'] = GEMMA_4_VERDIGADO;
 
 /**
  * Get model configuration by user-facing model ID.
@@ -508,9 +566,11 @@ export function getLoopSynthFallbackModel(
  * pass `false` — the policy's pick reaches the synth slot instead of being
  * silently replaced.
  *
- * AVOID_AS_SYNTH still applies either way: a policy pointing at
- * `gemma-litellm` resolves to `verdigado-think` (a slow reasoning lane), and
- * this rewrites it to the fast gemma4-31b host — same model family, right host.
+ * AVOID_AS_SYNTH still applies either way, but it no longer has to catch the
+ * Gemma lane: `gemma-litellm` now resolves to gemma4-31b on Regolo directly
+ * (see GEMMA_4_REGOLO), so the rewrite that used to save that lane from
+ * `verdigado-think` is a no-op for it. The guard stays for the lanes it still
+ * covers — qwen, gpt-oss, and any agent config naming a think lane by hand.
  */
 export function loopSynthChoice(
   resolvedModelName: string,
