@@ -208,12 +208,11 @@ export type SearchResultPayload = z.infer<typeof searchResultPayloadSchema>;
  * a content-less item into the source list and produce a numbered citation with
  * an empty snippet.
  *
- * The client renders these as NAMED LINKS. A `<img src>` here would make the
- * reader's browser fetch a file from an arbitrary third-party host — the exact
- * pattern removed from the citation glyphs, where a favicon request reported the
- * user's IP and the page they were about to open to Google. There is deliberately
- * no `thumbnailUrl` field: adding one is the same decision again, and it needs the
- * backend proxy first.
+ * `url` is a LINK TARGET, never an `<img src>`. Pointing an image tag at it would
+ * make the reader's browser fetch a file from an arbitrary third-party host — the
+ * exact pattern removed from the citation glyphs, where a favicon request reported
+ * the user's IP and the page they were about to open to Google. Thumbnails exist,
+ * but they go through `proxyUrl` below, which is what made them displayable at all.
  */
 export const searchImagePayloadSchema = z.object({
   title: z.string(),
@@ -533,6 +532,21 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
         .passthrough()
         .optional(),
     })
+    .passthrough(),
+  /**
+   * Image hits from a search inside the agentic loop.
+   *
+   * Its own event rather than `search_complete.images`: the loop never sends a
+   * `search_complete` (it streams `tool_step_*` cards instead), and that event
+   * also drives the progress stage — borrowing it would move the status line on
+   * every image batch. Carries the FULL list for the turn each time, so the
+   * client replaces rather than merges.
+   *
+   * A client that predates this event ignores it (unknown names pass the gate
+   * untouched) and simply shows no images — the same state as today.
+   */
+  search_images: z
+    .object({ images: z.array(searchImagePayloadSchema.passthrough()) })
     .passthrough(),
   summary_start: z.object({ message: z.string() }).passthrough(),
   summary_complete: z.object({ message: z.string() }).passthrough(),
