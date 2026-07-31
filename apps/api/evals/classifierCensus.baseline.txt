@@ -1,0 +1,78 @@
+# Klassifikator-Zählung über 166 Turns aus apps/api/evals/corpus/
+# Regenerieren mit CENSUS_UPDATE=1 — und den Diff lesen, bevor er committet wird.
+#
+# Der Korpus ist adversarial gebaut. Jede Quote hier ist eine Aussage über
+# SCHWIERIGE Prompts, nicht über den Alltagsverkehr — sie taugt zum Vergleich
+# mit sich selbst, nicht als Produktionskennzahl.
+#
+# `anchor` und Teile von `gated` sind hier strukturell UNTERGEMESSEN: der
+# Lauf baut einen Zustand ohne offenes Dokument, ohne Board, ohne Anhang und
+# ohne @-Erwähnung, also fehlen genau die Auslöser der Tier-1/2-Zweige. Eine
+# 0 in diesen Zeilen heisst „vom Korpus nicht ausgelöst", nicht „kommt nicht
+# vor". Für sie sind die Forced-Intent-Lanes zuständig, nicht diese Tabelle.
+
+## Dispositionen — was der Klassifikator entschieden hat
+disposition                       n   anteil  davon Tier 4
+anchor                            0    0.0 %     0
+artifact                         28   16.9 %     0
+gated                             2    1.2 %     0
+loop                            107   64.5 %     0
+prose                            29   17.5 %    25
+(unbekannt)                       0    0.0 %     0
+
+## Entscheidungspunkte — wie entschieden wurde (Zweighäufigkeit)
+(ohne Tier-Eintrag: 6 — Tier-1/2-Zweige journalisieren nicht)
+classifier.tier  (160)
+    tier2.7_mcp_followup          0
+    tier2.7_sharepic_followup     5
+    tier2.9_docs_help             0
+    tier2.95_ambiguous_graphic    3
+    tier3_short_message           0
+    tier3_heuristic              26
+    tier3.5_loop_demotion        96
+    tier3.7_source_scope          0
+    tier3.7_no_live_source        5
+    tier4_llm                    25
+    tier4_llm_error_fallback      0
+
+## Intents — feinste Körnung, in Enum-Reihenfolge
+research                          0  loop
+compare                           0  loop
+search                            0  loop
+web                               6  loop
+scrape_url                        0  gated
+examples                          0  loop
+pressemitteilung_examples         0  loop
+abgeordnetenwatch                 0  loop
+bundestag                         0  loop
+bahn                              0  loop
+reise                             0  loop
+hotel                             0  loop
+umfragen                          0  loop
+hilfe                             0  gated
+wetter                            0  loop
+news                              0  loop
+image                             2  artifact
+image_edit                        1  artifact
+sharepic                         17  artifact
+social_post                       5  artifact
+summary                           0  gated
+chart                             0  artifact
+compute                           2  gated
+artifact                          0  artifact
+save_as_doc                       0  artifact
+modify_doc                        0  anchor
+edit_current_doc                  0  anchor
+edit_current_board                0  anchor
+modify_board                      0  anchor
+share_doc                         0  gated
+create_sheet                      2  artifact
+create_presentation               1  artifact
+create_pdf                        0  artifact
+create_recurring_task             0  gated
+chat_history                      0  gated
+mcp                               0  gated
+produktion                        3  prose
+direct                           25  prose
+greeting                          1  prose
+agentic                         101  loop

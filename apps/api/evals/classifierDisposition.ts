@@ -1,0 +1,110 @@
+import { type ChatIntentId } from '@gruenerator/shared/chat-intents';
+
+/**
+ * Was der Klassifikator bei diesem Verdikt eigentlich ENTSCHIEDEN hat.
+ *
+ * Der Umbau auf Dispositionen behauptet, dass der Klassifikator heute eine
+ * feinere Frage beantwortet als nötig: 40 Intents, von denen der agentische Loop
+ * die Werkzeugwahl ohnehin erneut trifft. Diese Karte ist die Messlatte für
+ * genau diese Behauptung — sie ordnet jedes Verdikt der Frage zu, die es
+ * beantwortet, und macht damit sichtbar, wie viel Arbeit die Feinunterscheidung
+ * überhaupt leistet.
+ *
+ * Die Zuordnung fragt „was MUSS vor der Antwort feststehen?", nicht „wo läuft
+ * es?". Das ist der Unterschied, auf den es ankommt: `hilfe`, `summary` und
+ * `mcp` laufen im Loop wie jede Recherche, aber ihre Entscheidung fällt an einem
+ * eigenen deterministischen Gitter und ändert, welche Werkzeuge montiert werden
+ * — sie sind `gated`, nicht `loop`. Umgekehrt sind `bahn`/`wetter`/`news`
+ * `loop`: dort wählt der Auflöser nur die Quelle, der Turn geht so oder so an
+ * den Planer.
+ *
+ * Total über `ChatIntentId` und bewusst in einer typgeprüften Datei — nicht in
+ * der Testdatei daneben. `apps/api/tsconfig.json` schliesst `**\/*.vitest.ts`
+ * aus, dort wäre `Record<ChatIntentId, …>` Dekoration statt Prüfung (genau so
+ * sass eine unvollständige Intent-Karte in dem Test, der unvollständige
+ * Intent-Karten finden sollte). Hier bricht ein neuer Intent den Build, bis
+ * jemand entscheidet, welche Frage er beantwortet.
+ */
+export type Disposition =
+  /** D1 — Bearbeitung einer offenen/erwähnten Fläche. Ressourcen-Präsenz + Änderungsverb. */
+  | 'anchor'
+  /** D2 — Artefakt erzeugen. Kostet eine Generierung, braucht ein Urteil VOR der Antwort. */
+  | 'artifact'
+  /** D3 — eigenes deterministisches Gitter mit eigener Ausführung. */
+  | 'gated'
+  /** D4 — nicht vorab entschieden: der Planer im Loop wählt die Werkzeuge. */
+  | 'loop'
+  /** D5 — kein Werkzeug, Einzelpfad. */
+  | 'prose';
+
+export const DISPOSITION_BY_INTENT: Record<ChatIntentId, Disposition> = {
+  // ── D4 loop — Recherche-Familie. Der Planer entscheidet die Werkzeuge neu;
+  // die Feinunterscheidung hier ist genau die Arbeit, die der Umbau streicht.
+  research: 'loop',
+  compare: 'loop',
+  search: 'loop',
+  web: 'loop',
+  examples: 'loop',
+  pressemitteilung_examples: 'loop',
+  abgeordnetenwatch: 'loop',
+  bundestag: 'loop',
+  umfragen: 'loop',
+  // System-MCP-Quellen: `sourceScopeResolver` wählt die Quelle, aber der Turn
+  // geht so oder so in den Loop — die Quelle ist Montage, keine Disposition.
+  bahn: 'loop',
+  reise: 'loop',
+  hotel: 'loop',
+  wetter: 'loop',
+  news: 'loop',
+  /** Der Auffangwert selbst. Seit #2269 der Residualwert der LLM-Stufe. */
+  agentic: 'loop',
+
+  // ── D2 artifact — jede dieser Entscheidungen kostet Geld oder einen
+  // HITL-Vertrag und kann deshalb nicht dem Planer überlassen werden.
+  image: 'artifact',
+  image_edit: 'artifact',
+  sharepic: 'artifact',
+  social_post: 'artifact',
+  chart: 'artifact',
+  artifact: 'artifact',
+  save_as_doc: 'artifact',
+  create_sheet: 'artifact',
+  create_presentation: 'artifact',
+  create_pdf: 'artifact',
+
+  // ── D1 anchor — an eine offene Fläche oder @-Erwähnung gebunden.
+  modify_doc: 'anchor',
+  edit_current_doc: 'anchor',
+  edit_current_board: 'anchor',
+  modify_board: 'anchor',
+
+  // ── D3 gated — eigenes Gitter, eigene Ausführung. Laufen teils IM Loop
+  // (hilfe/summary/mcp), aber ihr Verdikt steuert, was dort montiert wird.
+  scrape_url: 'gated',
+  share_doc: 'gated',
+  chat_history: 'gated',
+  hilfe: 'gated',
+  create_recurring_task: 'gated',
+  summary: 'gated',
+  compute: 'gated',
+  mcp: 'gated',
+
+  // ── D5 prose — kein Werkzeug. Seit #2269 drei benannte Rollen statt einer.
+  produktion: 'prose',
+  greeting: 'prose',
+  /** Legacy-Residual (F0): wird noch gelesen, als Verdikt abgelöst. */
+  direct: 'prose',
+};
+
+/** Reihenfolge für Berichte — von „muss vorab entschieden werden" zu „nicht". */
+export const DISPOSITION_ORDER: readonly Disposition[] = [
+  'anchor',
+  'artifact',
+  'gated',
+  'loop',
+  'prose',
+];
+
+export function dispositionOf(intent: string): Disposition | null {
+  return DISPOSITION_BY_INTENT[intent as ChatIntentId] ?? null;
+}
