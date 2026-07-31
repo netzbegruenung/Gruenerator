@@ -25,7 +25,6 @@ import {
   MCP_LOGIN_PAGE,
   MCP_OAUTH_SCOPES_SUPPORTED,
   MCP_RESOURCE_URL,
-  MCP_SCOPES,
 } from './mcpServer.js';
 
 const KC_BASE = env.KEYCLOAK_BASE_URL;
@@ -548,7 +547,10 @@ export const auth = betterAuth({
         // required by OIDCOptions' type; the plugin overrides it anyway
         loginPage: MCP_LOGIN_PAGE,
         requirePKCE: true,
-        scopes: [...MCP_SCOPES],
+        // Alles, was ausgestellt werden darf — nicht nur die MCP-Rechte.
+        // Fehlt `chat:completions` hier, weist der Server die Anfrage des
+        // Excel-Add-ins als unbekannten Scope ab.
+        scopes: [...MCP_OAUTH_SCOPES_SUPPORTED],
         defaultScope: MCP_DEFAULT_SCOPE,
         accessTokenExpiresIn: 3600,
         refreshTokenExpiresIn: 60 * 60 * 24 * 30,
