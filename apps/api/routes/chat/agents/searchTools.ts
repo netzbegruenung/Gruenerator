@@ -66,6 +66,21 @@ export interface CreateSearchToolsOptions {
    */
   explicitDeepRequest?: boolean;
   /**
+   * Did the user ask to SEE images ("zeig mir Fotos von der Demo")? Decided
+   * deterministically by the classifier (`wantsImageResults`), not by the model.
+   *
+   * The mirror image of `explicitDeepRequest`, needed for the opposite reason:
+   * that one CLAMPS what the model may spend, this one GUARANTEES what the user
+   * already asked for in plain words. Left to the planner alone, an explicit
+   * image request came down to whether the model happened to set `bilder: true`
+   * — a question the classifier had already answered one node earlier, and one
+   * the single-pass path honoured deterministically before the loop took those
+   * intents over.
+   *
+   * Only ever widens: a model that asks for images gets them either way.
+   */
+  wantsImages?: boolean;
+  /**
    * The user's own last message, mention tokens removed. Same role as
    * `explicitDeepRequest`: it is what a narrowing tool argument is checked
    * against. Only `seiten` uses it today — the model invents domains, and an
@@ -370,7 +385,9 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
           ...(zeitraum && zeitraum !== 'anytime' ? { timeRange: zeitraum } : {}),
           ...(includeDomains.length > 0 ? { includeDomains } : {}),
           ...(excludeDomains.length > 0 ? { excludeDomains } : {}),
-          ...(bilder === true ? { includeImages: true } : {}),
+          // Either the model asked or the user did — the classifier's verdict is
+          // not overridable by a planner that forgot the argument.
+          ...(bilder === true || options.wantsImages === true ? { includeImages: true } : {}),
         });
       } catch (error) {
         log.error('Direct web search error:', error);
