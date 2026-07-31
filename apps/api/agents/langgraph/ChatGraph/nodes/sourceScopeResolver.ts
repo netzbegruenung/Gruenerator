@@ -19,12 +19,20 @@
  * ONLY place the prompt ever decided these intents, so a resolver in front of it
  * has exactly the same reach — no phrasing can slip past it that the prompt
  * would have caught. Hanging it off `SYSTEM_MCP_PHRASING` instead would have
- * left a gap for everything the regex misses ("Pollenbelastung in Nürnberg"),
- * and the prompt could not have been rolled back.
+ * left a gap for everything the regex misses, and the prompt could not have been
+ * rolled back.
  *
  * Shape as always (`docsIntentTiebreak.ts`): hard timeout, `null` on anything
  * unusable, `INTERMEDIATE_MODEL`, existing `chat_intent_classification` task.
- * `null` and `keine` mean "carry on to Tier 4" — never "answer without sources".
+ *
+ * `keine` and `null` are DIFFERENT answers, and the caller relies on it:
+ *   - `keine` — the model decided, and the decision is "no live source". A turn
+ *     that `SYSTEM_MCP_PHRASING` held back from loop demotion is released back
+ *     to it on this answer, which is what lets that regex be generous.
+ *   - `null` — timeout, provider failure, or an unparseable reply. Nothing was
+ *     decided, so the turn carries on to Tier 4 exactly as before.
+ * Collapsing the two (the first version returned `null` for both) would turn
+ * every provider hiccup into a silent routing change.
  */
 
 import { createLogger } from '../../../../utils/logger.js';
@@ -37,9 +45,12 @@ const log = createLogger('ChatGraph:SourceScope');
 /** One word. Same order of magnitude as the docs tiebreak's 800ms. */
 const RESOLVE_TIMEOUT_MS = 900;
 
-/** The answer space. `keine` is not in it — it is the absence of an answer. */
+/** The sources that can mount. `keine` is a verdict, not a source — see below. */
 export const SOURCE_SCOPES = ['bahn', 'hotel', 'wetter', 'news'] as const;
 export type SourceScope = (typeof SOURCE_SCOPES)[number];
+
+/** A decided "no live source", as distinct from `null` = nothing was decided. */
+export type SourceScopeVerdict = SourceScope | 'keine';
 
 /**
  * The whole boundary, in the words the big prompt used — minus the taxonomy it
@@ -66,7 +77,8 @@ interface ResolveArgs {
 }
 
 /**
- * The live source this turn needs, or `null` for "none / unusable / failed".
+ * The live source this turn needs, `'keine'` if the model decided it needs none,
+ * or `null` if nothing could be decided (timeout, failure, unusable reply).
  * Callers MUST treat `null` as "continue to the LLM tier" — the resolver decides
  * only which source may MOUNT, never which path the turn takes.
  */
@@ -74,7 +86,7 @@ export async function resolveSourceScope({
   userContent,
   conversationContext,
   aiWorkerPool,
-}: ResolveArgs): Promise<SourceScope | null> {
+}: ResolveArgs): Promise<SourceScopeVerdict | null> {
   const startTime = Date.now();
   const userMessage = conversationContext
     ? `${conversationContext}\n\nAktuelle Nachricht: "${userContent}"`
@@ -97,7 +109,7 @@ export async function resolveSourceScope({
 
     const scope = parseScope(response.content);
     log.info(
-      `[SourceScope] "${userContent.slice(0, 40)}" → ${scope ?? 'keine'} (${Date.now() - startTime}ms)`
+      `[SourceScope] "${userContent.slice(0, 40)}" → ${scope ?? 'unlesbar'} (${Date.now() - startTime}ms)`
     );
     return scope;
   } catch (err) {
@@ -113,14 +125,20 @@ export async function resolveSourceScope({
  * model likes to justify itself ("keine — das ist Bahnpolitik"), and a
  * substring match would read that as `bahn`: the exact confusion the prompt
  * spends its last paragraph ruling out.
+ *
+ * Sources are checked before `keine` so that "keine — das ist Bahnpolitik" and
+ * "wetter, keine Verspätung" both land on the word the model led with. A reply
+ * containing neither is `null`: unparseable, not a decision.
  */
-function parseScope(raw: string | undefined | null): SourceScope | null {
+function parseScope(raw: string | undefined | null): SourceScopeVerdict | null {
   if (!raw) return null;
   const text = raw.toLowerCase();
+  const wholeWord = (word: string): boolean =>
+    new RegExp(`(?<!\\p{L})${word}(?!\\p{L})`, 'u').test(text);
   for (const scope of SOURCE_SCOPES) {
-    if (new RegExp(`(?<!\\p{L})${scope}(?!\\p{L})`, 'u').test(text)) return scope;
+    if (wholeWord(scope)) return scope;
   }
-  return null;
+  return wholeWord('keine') ? 'keine' : null;
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
