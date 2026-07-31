@@ -22,9 +22,12 @@ import {
   type ChatIntentId,
 } from '@gruenerator/shared/chat-intents';
 
-import { AGENTIC_INTENTS } from '../../../../routes/chat/services/agenticLoop/agenticRespondService.js';
+import {
+  AGENTIC_INTENTS,
+  NAMED_RETRIEVAL_INTENTS,
+} from '../../../../routes/chat/services/agenticLoop/agenticRespondService.js';
 import { decideRunAgentic } from '../../../../routes/chat/services/agenticLoop/routing.js';
-import { NO_RETRIEVAL_VERDICTS } from './classifierParsing.js';
+import { NO_RETRIEVAL_VERDICTS } from './classifierSignals.js';
 
 const sorted = (s: Iterable<string>): string[] => [...s].sort();
 
@@ -90,5 +93,38 @@ describe('bewusst NICHT abgeleitet', () => {
     // Geld kostet (`image`). Wer die Liste ändert, ändert eine Aussage.
     const extras = [...AGENTIC_INTENTS].filter((id: ChatIntentId) => dispositionOf(id) !== 'loop');
     expect(sorted(extras)).toEqual(['hilfe', 'image', 'mcp', 'summary']);
+  });
+});
+
+describe('NAMED_RETRIEVAL_INTENTS — der vierte Zwang zum Werkzeugaufruf', () => {
+  it('ist die loop-Gruppe ohne den Auffangwert', () => {
+    // Die Ableitung ist die ganze Aussage: „loop" heisst, der Planer wählt die
+    // Werkzeuge — aber `agentic` ist der AUFFANGWERT dieser Gruppe. Ihn
+    // mitzuzwingen hiesse, jede unklare Frage zu einem Werkzeugaufruf zu
+    // verpflichten; für die aus einem Recherche-Verdikt demotierten Turns gibt
+    // es `loopDemotedFromRetrieval`, das die Herkunft festhält.
+    expect(NAMED_RETRIEVAL_INTENTS.has('agentic')).toBe(false);
+    expect(sorted(NAMED_RETRIEVAL_INTENTS)).toEqual(
+      sorted([...intentsWithDisposition('loop')].filter((id) => id !== 'agentic'))
+    );
+  });
+
+  it('enthält jedes Verdikt, das ohne Abruf sinnlos wäre', () => {
+    // Live gemessen, bevor es diese Menge gab: „Wie komme ich am Montag früh von
+    // Wien nach Graz?" wurde auf `web` degradiert und dann mit steps=0,
+    // sources=0 aus dem Modellgedächtnis beantwortet — samt einer erfundenen
+    // Aussage über den Nutzer.
+    for (const id of ['web', 'search', 'research', 'compare', 'news', 'bundestag'] as const) {
+      expect(NAMED_RETRIEVAL_INTENTS.has(id), `${id} müsste einen Abruf erzwingen`).toBe(true);
+    }
+  });
+
+  it('zwingt nichts, was gar nicht im Loop landet', () => {
+    // Ein Zwang auf einem Intent, der den Planer nie erreicht, wäre tot — und
+    // tote Bedingungen sind genau die, die beim nächsten Umbau falsch gelesen
+    // werden.
+    for (const id of NAMED_RETRIEVAL_INTENTS) {
+      expect(AGENTIC_INTENTS.has(id as ChatIntentId), `${id} fehlt in AGENTIC_INTENTS`).toBe(true);
+    }
   });
 });

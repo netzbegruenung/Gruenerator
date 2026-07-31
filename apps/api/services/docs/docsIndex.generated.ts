@@ -2207,7 +2207,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Exportieren",
     "anchor": "#exportieren",
     "category": "Office",
-    "text": "Es gibt zwei Wege heraus: Als PDF — öffnet die Präsentation in einer druckfertigen Ansicht, aus der du über den Druckdialog ein PDF erzeugst. Das klappt immer und sieht aus wie im Vortragsmodus. Als PowerPoint (.pptx) — erzeugt eine Datei, die sich in PowerPoint und LibreOffice öffnen lässt. Der .pptx-Export braucht ein Zusatzprogramm auf dem Server. Fehlt es in der Umgebung, in der du arbeitest, bekommst du eine entsprechende Meldung statt einer Datei — nimm dann den PDF-Weg."
+    "text": "Über Download in der Kopfzeile stehen zwei Formate zur Wahl: Als PDF — öffnet die Präsentation in einem neuen Tab in einer druckfertigen Ansicht und dann den Druckdialog. Wähle dort als Ziel „Als PDF speichern\"; Querformat und Hintergrundgrafiken sind bereits gesetzt. Du bekommst eine Seite pro Folie, im selben Design wie im Vortragsmodus. Als PowerPoint (.pptx) — erzeugt eine bearbeitbare Datei für PowerPoint und LibreOffice Impress: Texte, Aufzählungen, Farben, Logo und Sprechernotizen bleiben erhalten. Die Datei verweist auf die Grünen-Hausschriften, kann sie aber nicht mitliefern. Auf einem Rechner ohne diese Schriften ersetzt PowerPoint sie durch eine ähnliche — der Text bleibt vollständig, das Schriftbild weicht ab. Wenn das Aussehen zählt, nimm den PDF-Weg. Wer die Präsentation nur über einen Freigabe-Link geöffnet hat, kann sie als PDF exportieren, aber nicht als .pptx."
   },
   {
     "url": "/docs/office/praesentationen",

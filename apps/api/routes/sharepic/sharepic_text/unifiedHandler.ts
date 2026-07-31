@@ -365,7 +365,7 @@ export async function generateUnifiedTexts(
 
         if (!parseResult.success) {
           lastError = parseResult.error || 'Parse failed';
-          log.warn(`[${type}] Attempt ${attempts} parse error:`, lastError);
+          log.warn(`[${type}] Attempt ${attempts} parse error: ${lastError}`);
           continue;
         }
 
