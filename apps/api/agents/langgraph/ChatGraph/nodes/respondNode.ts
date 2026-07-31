@@ -26,6 +26,7 @@ import { buildDocsPageMap } from '../../../../services/docs/docsIndex.js';
 import { localizePlaceholders } from '../../../../services/localization/index.js';
 import { type Locale } from '../../../../services/localization/types.js';
 import { getTextFormForInjection } from '../../../../services/user/textFormRepository.js';
+import { recordDecision, type BranchOf } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { formatGermanDate } from '../../../../utils/stringUtils.js';
 import { isSourceAvailabilityError, renderDegradationNotes } from '../types.js';
@@ -1018,30 +1019,201 @@ const STRUCTURE_SOURCE_THRESHOLD = 4;
  * Headings are PERMITTED, never required: rule 1 caps the scope, and an
  * obligation here would inflate short answers into padded section stacks.
  */
-function buildAnswerFormatRule(state: ChatGraphState, sourceCount: number): string {
+/**
+ * Every format rule below spoke only of "Absätze" and, at the top tier,
+ * "Überschriften". Lists were never mentioned anywhere in the prompt chain — so
+ * enumerable content (a filmography, three marriages, four demands) came back as
+ * prose that buried it. Permission, not obligation: a forced list turns a
+ * two-fact answer into a padded stub, which is the failure the sibling comment
+ * about "padded section stacks" already warns about.
+ */
+/**
+ * Rule 1 of ANTWORT-REGELN — and the reason rule 2 had no visible effect for as
+ * long as it did.
+ *
+ * It used to read: "Beantworte NUR was gefragt wurde - keine ungebetene
+ * Zusatzinfo. Ausnahme: Bei offenen Fragen nach einer Person, Organisation oder
+ * einem Begriff gehören die einordnenden Kerndaten (Lebensdaten, Funktion,
+ * Hauptwerke) zur Antwort und gelten nicht als Zusatzinfo."
+ *
+ * That exception is a WHITELIST OF THREE ITEMS, and the model followed it
+ * exactly: every measured answer to "wer war Marilyn Monroe" carried her dates,
+ * her occupations and three films — and nothing else. Not her childhood, not her
+ * three marriages, not the circumstances of her death, all of which sat in the
+ * sources. The model was never disobeying the format rule; it was obeying THIS
+ * one, which is narrower, more specific, and printed above it.
+ *
+ * Worse, the two rules were consistent: under this cap the answer genuinely has
+ * ONE aspect, and rule 2's own condition then says to keep it as prose. Adding
+ * headings, sources or paragraphs to rule 2 could never have worked.
+ *
+ * So this rule keeps what it was FOR — no drifting to another topic, no
+ * unsolicited offers — and gives up what it had quietly taken: how much to say
+ * about the topic that WAS asked. That axis belongs to rule 2 alone, which is
+ * the same "one axis, one instruction, one place" the comments there insist on.
+ * The brevity of a genuinely small question is unaffected: rule 2's `simple`
+ * branch still answers it in one or two paragraphs.
+ */
+const SCOPE_RULE =
+  'Bleib beim Gefragten: keine Ausflüge zu anderen Themen, keine unaufgeforderten Angebote ("soll ich dazu ein Sharepic bauen?"). Aber bei einer offenen Frage nach einer Person, einer Organisation oder einem Begriff IST der Gegenstand selbst das Thema — alles, was zu seinem Verständnis gehört (Werdegang, Wirken, Hauptwerke, Wendepunkte, Ende, Bedeutung), ist damit gefragt und keine Zusatzinfo. Wie ausführlich, entscheidet allein Regel 2.';
+
+/**
+ * The syntax has to be named. Asked only for "Überschriften", the model answered
+ * with bold lines (`**Leben und Karriere**`) — which the renderer shows as bold
+ * body text, not as a heading, so the visual hierarchy the rule exists to create
+ * never appeared. `h1`–`h3` are styled in `AssistantMessage` and in
+ * `citationMarkdownComponents`; `##` is the level both give a real step in size.
+ */
+const HEADING_SYNTAX = 'Markdown-Überschriften (`## Titel`, nicht fett gesetzter Text)';
+
+const ENUMERABLE_CLAUSE =
+  'Zählt ein Teil der Antwort mehrere gleichartige Dinge auf (Filme, Ämter, Forderungen, Daten), setze sie als Aufzählung statt in Fließtext — sonst geht die Übersicht verloren. Hebe Namen, Jahreszahlen und Kennzahlen mit **Fettung** hervor.';
+
+/**
+ * Retrieval intents whose answers draw on a body of external sources. `agentic`
+ * belongs here and was missing: it is what the classifier's Tier-3.5 demotion
+ * produces, i.e. the label most loop turns actually carry. Without it a demoted
+ * turn could not reach the expanded rule even once the source count was right.
+ */
+const EXTERNAL_RESEARCH_INTENTS: ReadonlySet<string> = new Set(['research', 'web', 'agentic']);
+
+/**
+ * Intents whose own guidance block (see `getModeGuidance`) already prescribes
+ * the complete output shape — a single confirming sentence, prose only, an
+ * explanation plus exactly one code block. For these, the generic format rule
+ * must stay silent rather than contradict them.
+ *
+ * Deliberately NOT every intent with a guidance block: `summary`, `direct` and
+ * `compute` only say what to talk about, not how to shape it, so the generic
+ * rule still applies to them.
+ */
+const INTENTS_WITH_OWN_FORMAT: ReadonlySet<string> = new Set([
+  'edit_current_doc',
+  'image_edit',
+  'chart',
+  'artifact',
+]);
+
+function buildAnswerFormatRule(
+  state: ChatGraphState,
+  sourceCount: number,
+  /**
+   * The turn is about to enter the agentic loop, so retrieval has NOT run yet
+   * and `sourceCount` is structurally 0 — the system message is built before the
+   * model calls a single tool.
+   *
+   * That made the source threshold below unreachable on the loop path: EVERY
+   * loop turn fell through to `standard` ("2-4 Absätze"), whose text never
+   * mentions headings, and the answer came back as flat prose no matter how much
+   * material the loop had gathered. The decision map showed it in one line —
+   * `respond.answer_format = standard {"sourceCount": 0}` on a turn that ended
+   * up with ten sources.
+   *
+   * The count is the honest measure where it is known (single-pass, where
+   * retrieval already ran). Where it cannot be known yet, the honest measure is
+   * that retrieval is about to run at the normal tier, which now guarantees ten
+   * sources. Both are decided before the prompt is written; neither is a guess
+   * about the model.
+   */
+  retrievalExpected = false
+): string {
   // A multi-document turn already has its format prescribed by the comparison /
   // multi-doc block (table, per-doc bullets, grounded prose). A second structure
   // directive here is how "Antworte als zusammenhängende Prosa" and "Strukturiere
   // mit Überschriften" ended up in the same prompt.
-  if (state.synthesisMode) {
-    return state.complexity === 'simple' ? 'Kurze, präzise Antworten' : 'Bis zu 6 Absätze';
+  // `complexity` travels in `inputs` rather than as its own decision point: it
+  // has no user-visible consequence of its own, and the consequence it DOES have
+  // is this rule. One line in the map, with the reason next to it.
+  const note = (
+    chose: BranchOf<'respond.answer_format'>,
+    extra: Record<string, string> = {}
+  ): void => {
+    recordDecision('respond.answer_format', chose, {
+      inputs: {
+        ...extra,
+        complexity: state.complexity,
+        intent: String(state.intent),
+        sourceCount,
+        // Without this the map cannot tell "four sources were counted" from
+        // "none were counted yet, but the loop is about to fetch ten" — and
+        // those two are the whole reason this rule was wrong.
+        retrievalExpected,
+        // A mode NAME, not a flag — keep the name, it distinguishes the
+        // multi-doc shapes that share the `synthesis_*` branches.
+        synthesisMode: state.synthesisMode ?? 'none',
+      },
+    });
+  };
+
+  // Some turns already carry a complete output prescription elsewhere in this
+  // same prompt. Saying anything about form here is then a SECOND directive on
+  // the same axis — the failure this rule set warns about twice, and it was
+  // live in two places:
+  //
+  //   `edit_current_doc`: "EINEN EINZIGEN kurzen Satz … Keine Aufzählungen,
+  //   keine Markdown-Formatierung" — while rule 2 asked for "2-4 Absätze mit
+  //   klarer Struktur … setze sie als Aufzählung".
+  //
+  //   `synthesisMode: 'table'`: a 3–6-dimension comparison table with per-cell
+  //   citations — while rule 2 asked for "Kurze, präzise Antworten".
+  //
+  // So the rule steps aside and points at the owner. It cannot simply return
+  // an empty string: the numbered list would show a bare "2." and the citation
+  // block below counts on rules 1–4 existing.
+  const formatOwner = state.synthesisMode
+    ? `synthesis:${state.synthesisMode}`
+    : INTENTS_WITH_OWN_FORMAT.has(String(state.intent))
+      ? `intent:${String(state.intent)}`
+      : null;
+  if (formatOwner != null) {
+    note('own_format', { formatOwner });
+    return 'Form und Umfang dieser Antwort sind oben bereits vorgegeben — halte dich genau daran.';
   }
 
-  if (state.complexity === 'complex') return 'Strukturiere mit Überschriften, bis zu 6 Absätze';
-  if (state.complexity === 'simple') return 'Kurze, präzise Antworten (1-2 Absätze)';
-
-  const isExternalResearch = state.intent === 'research' || state.intent === 'web';
-  if (isExternalResearch && sourceCount >= STRUCTURE_SOURCE_THRESHOLD) {
-    return 'Bis zu 6 Absätze. Hat die Antwort mehrere eigenständige Aspekte, darfst du sie mit Überschriften gliedern — Pflicht ist das nicht';
+  if (state.complexity === 'complex') {
+    note('structured_headings');
+    return `Strukturiere mit ${HEADING_SYNTAX}, bis zu 6 Absätze. ${ENUMERABLE_CLAUSE}`;
+  }
+  if (state.complexity === 'simple') {
+    note('brief');
+    return 'Kurze, präzise Antworten (1-2 Absätze)';
   }
 
-  return '2-4 Absätze mit klarer Struktur';
+  const isExternalResearch = EXTERNAL_RESEARCH_INTENTS.has(String(state.intent));
+  if (isExternalResearch && (retrievalExpected || sourceCount >= STRUCTURE_SOURCE_THRESHOLD)) {
+    note('research_expanded');
+    // "darfst du gliedern — Pflicht ist das nicht" was permission nobody took:
+    // measured against a reference answer to the same question, ours had zero
+    // headings where the comparison had five. With ten sources and a subject
+    // that falls into distinct phases, structure is the normal case, so it is
+    // asked for. The anti-padding guard moves into the same sentence rather than
+    // being dropped — a heading over a single aspect is not structure, and a
+    // forced section stack on a two-fact answer is the failure this rule set
+    // already warns about twice.
+    return `Bis zu 6 Absätze. Zerfällt die Antwort in mehrere eigenständige Aspekte (Lebensabschnitte, Positionen verschiedener Akteure, Vorher/Nachher, mehrere Teilfragen), gliedere sie mit ${HEADING_SYNTAX}. Trägt sie nur EINEN Aspekt, bleibt es bei Fließtext — eine Überschrift über allem ist keine Gliederung. ${ENUMERABLE_CLAUSE}`;
+  }
+
+  note('standard');
+  return `2-4 Absätze mit klarer Struktur. ${ENUMERABLE_CLAUSE}`;
+}
+
+export interface SystemMessageOptions {
+  /**
+   * Set by the router on the agentic branch: this prompt is being written BEFORE
+   * the loop retrieves, so `state.citations` is empty for a reason that has
+   * nothing to do with how much material the answer will have. See the parameter
+   * of the same name on {@link buildAnswerFormatRule} — it is the only consumer.
+   */
+  retrievalExpected?: boolean;
 }
 
 /**
  * Build the complete system message with agent role and search context.
  */
-export async function buildSystemMessage(state: ChatGraphState): Promise<string> {
+export async function buildSystemMessage(
+  state: ChatGraphState,
+  opts: SystemMessageOptions = {}
+): Promise<string> {
   // Composer paths (press, social-media): a sibling composer node has already
   // produced an intent-specific system prompt and stored it on state.responseText.
   // Use it verbatim — bypassing the generic search-context / anchor / citation
@@ -1233,8 +1405,8 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
 Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${productKnowledge}${docsPageMap}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
 
 ## ANTWORT-REGELN
-1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo. Ausnahme: Bei offenen Fragen nach einer Person, Organisation oder einem Begriff gehören die einordnenden Kerndaten (Lebensdaten, Funktion, Hauptwerke) zur Antwort und gelten nicht als Zusatzinfo
-2. ${buildAnswerFormatRule(state, sourceCount)}
+1. ${SCOPE_RULE}
+2. ${buildAnswerFormatRule(state, sourceCount, opts.retrievalExpected ?? false)}
 3. Antworte auf Deutsch. Sind Quellen fremdsprachig, formuliere SPRACHLICH eigenständig statt wörtlich zu übersetzen — INHALTLICH bleibst du exakt bei der Quelle und ergänzt nichts, was dort nicht steht. Kannst du eine Aussage nicht nachvollziehbar auf Deutsch wiedergeben, lass sie weg statt zu raten
 4. Erfinde keine Fakten oder Quellennamen
 5. Erstelle KEINE Quellenliste/Quellenverzeichnis am Ende — Quellen werden automatisch in der Oberfläche angezeigt
