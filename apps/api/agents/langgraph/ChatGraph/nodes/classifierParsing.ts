@@ -417,6 +417,11 @@ export function parseClassifierResponse(
         reasoning: (parsed.reasoning || 'LLM classification') + suffix,
         contentType: parsed.contentType || null,
         needsResearch: parsed.needsResearch === true,
+        // `=== true` rather than a truthiness check: a model that omits the
+        // field must read as "no pictures", not as "undefined is falsy anyway" —
+        // the two agree today and would stop agreeing the moment the default
+        // flips.
+        wantsImages: parsed.bilder === true,
         documentSubtype: validDocumentSubtype,
         targetGroupName: parsed.targetGroupName || null,
         creationTopic,
