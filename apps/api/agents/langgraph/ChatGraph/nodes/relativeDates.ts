@@ -38,9 +38,19 @@ export interface RecallDateRange {
 
 const MS_PER_DAY = 86_400_000;
 
-/** Midnight UTC of the reference day. UTC throughout so a TZ offset cannot shift a day. */
+/**
+ * The reference day, as a UTC-midnight timestamp whose Y/M/D are the LOCAL
+ * calendar date.
+ *
+ * Both halves matter. Local components, because "heute" means the user's today:
+ * reading UTC components turned every request between midnight and 02:00 CEST
+ * into yesterday's window — an hour when a wrong answer is indistinguishable
+ * from a right one. UTC midnight for the arithmetic, because UTC has no DST, so
+ * "+ 7 days" is exactly seven days and `toISOString().slice(0, 10)` prints the
+ * date that was computed.
+ */
 function startOfDay(now: Date): number {
-  return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
 function iso(ms: number): string {
@@ -187,6 +197,12 @@ export function parseRelativeDateRange(
     return range(Date.UTC(new Date(today).getUTCFullYear(), 0, 1), today);
   }
 
+  // `seit` FIRST, because it changes the shape of whatever follows it: an open
+  // window to today, not the closed period the word names. Checking the month
+  // pattern first collapsed "seit März 2024" to March 2024 and silently dropped
+  // everything the user actually asked for.
+  const since = /(?<!\p{L})seit(?!\p{L})/iu.test(t);
+
   const month = MONTH_RE.exec(t);
   if (month) {
     const monthIndex = MONTH_INDEX[month[1].toLowerCase()];
@@ -198,7 +214,8 @@ export function parseRelativeDateRange(
       : monthIndex > new Date(today).getUTCMonth()
         ? nowYear - 1
         : nowYear;
-    return range(Date.UTC(year, monthIndex, 1), Date.UTC(year, monthIndex + 1, 0));
+    const start = Date.UTC(year, monthIndex, 1);
+    return range(start, since ? today : Date.UTC(year, monthIndex + 1, 0));
   }
 
   const year = YEAR_RE.exec(t);

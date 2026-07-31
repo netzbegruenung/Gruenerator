@@ -1158,8 +1158,15 @@ export async function executeIntentPipeline(opts: {
           recallPastChats(userId, query, {
             limit: 5,
             ...(opts.threadId != null && { excludeThreadId: opts.threadId }),
-            ...(dateFrom && { startDate: new Date(dateFrom) }),
-            ...(dateTo && { endDate: new Date(dateTo) }),
+            ...(dateFrom && { startDate: new Date(`${dateFrom}T00:00:00.000Z`) }),
+            // Das Fenster ist INKLUSIV erzeugt (`parseRelativeDateRange`), die
+            // SQL-Klausel ist `created_at <= $n`, und `new Date('2026-07-30')`
+            // ist Mitternacht. Beides zusammen machte aus jedem Ein-Tages-Fenster
+            // („gestern") einen einzigen Zeitpunkt: nur eine Nachricht, die
+            // exakt um 00:00:00 UTC geschrieben wurde, konnte noch treffen — und
+            // „letzte Woche" verlor den ganzen Sonntag. Genau die „0 Treffer →
+            // keine Quellen gefunden"-Antwort, gegen die diese Stufe gebaut ist.
+            ...(dateTo && { endDate: new Date(`${dateTo}T23:59:59.999Z`) }),
             ...(spaceScope && { threadIds: spaceScope.threadIds }),
           }),
           recallOfficeDocuments(userId, query, 5),
