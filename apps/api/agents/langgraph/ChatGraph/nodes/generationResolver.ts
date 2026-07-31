@@ -42,8 +42,22 @@ import type { ChatIntentId } from '@gruenerator/shared/chat-intents';
 const log = createLogger('ChatGraph:GenerationScope');
 
 /** Same order of magnitude as the other two resolvers. */
-const RESOLVE_TIMEOUT_MS = 900;
+/**
+ * 1500 ms statt 900. Gemessen antwortet der Auflöser in ~310 ms; blieb der
+ * Primär-Provider aber einmal leer, kostete allein die Fallback-Kette 906 ms und
+ * riss damit ein 900-ms-Budget — der Auflöser lieferte still `null`, und der
+ * Turn zahlte den 27k-Prompt. Ein Zeitbudget, das keinen einzigen Fallback-
+ * Sprung verträgt, macht den Auflöser von der Tagesform eines Anbieters
+ * abhängig; die zusätzliche knappe Sekunde ist gegen die Alternative billig.
+ */
+const RESOLVE_TIMEOUT_MS = 1500;
 
+/**
+ * 16 statt 8 Token, weil 8 gemessen nicht reichten: das Modell schreibt einen
+ * kurzen Vorspann, wird bei `finish_reason=length` gekappt, und die Antwort gilt
+ * als LEER — worauf die volle Fallback-Kette anläuft. Der Parser nimmt das
+ * Antwortwort ohnehin an beliebiger Stelle, ein Vorspann schadet also nicht.
+ */
 /**
  * German answer words → intent. German because the prompt is German and models
  * hit a native word far more reliably than a snake_case identifier; the map is
@@ -148,7 +162,7 @@ export async function resolveGenerationScope({
           provider: INTERMEDIATE_MODEL.provider,
           systemPrompt: RESOLVE_PROMPT,
           messages: [{ role: 'user', content: userMessage }],
-          options: { model: INTERMEDIATE_MODEL.model, max_tokens: 8, temperature: 0 },
+          options: { model: INTERMEDIATE_MODEL.model, max_tokens: 16, temperature: 0 },
         },
         null
       ),
@@ -199,7 +213,7 @@ function parseKind(raw: string | undefined | null): GenerationVerdict | null {
   // ohne sie las der Parser „kein Dokument" als BESTELLUNG eines Dokuments:
   // `keine` matcht nicht, `dokument` schon, und der Auflöser erzeugte genau das
   // Artefakt, das er gerade abgelehnt hatte. Zwei Token liegen bequem innerhalb
-  // von `max_tokens: 8`, das ist also keine Randform.
+  // von `max_tokens: 16`, das ist also keine Randform.
   consider(at('keine?'), 'keine');
   return best === null ? null : (best as { verdict: GenerationVerdict }).verdict;
 }
