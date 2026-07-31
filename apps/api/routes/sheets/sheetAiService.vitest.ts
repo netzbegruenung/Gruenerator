@@ -1,7 +1,7 @@
 import { sheetOperationSchema } from '@gruenerator/contracts';
 import { describe, expect, it } from 'vitest';
 
-import { normalizeRawOp } from './sheetAiService.js';
+import { normalizeRawOp, SHEET_TOOL_STRICT_PROMPT } from './sheetAiService.js';
 
 /**
  * normalizeRawOp coerces the `values` shape mistakes models make most often on
@@ -9,6 +9,51 @@ import { normalizeRawOp } from './sheetAiService.js';
  * instead of being silently dropped — which is what surfaced to users as
  * "keine Tabellen-Änderung erkannt" even though the model DID plan an edit.
  */
+/**
+ * Kein Prompt darf eine Operation anbieten, die er selbst verbietet.
+ *
+ * Genau das stand hier: die Operationsliste führte `add_chart` mit voller
+ * Syntax und vier Zeilen Erklärung, und 20 Zeilen weiter stand unter RULES, dass
+ * `add_chart` DEAKTIVIERT ist und nicht ausgegeben werden darf. Die
+ * Implementierung in `applySheetOperations.ts` lehnt die Operation ohnehin ab —
+ * ihr Kommentar behauptete sogar, der Prompt sei entsprechend angepasst.
+ *
+ * Entstanden ist das nicht durch Schlamperei, sondern durch eine
+ * Merge-Auflösung: der Deaktivierungs-Commit nahm die Zeilen heraus, ein
+ * späterer Merge holte sie zurück, und die Regel darunter blieb stehen. Ein
+ * zweiter Ort, der dieselbe Achse regelt — siehe die Systemprompt-Befunde im
+ * Chat-Klassifikator, dort dieselbe Ursache.
+ *
+ * Der Wächter ist bewusst ALLGEMEIN: er liest den fertigen Prompt, sammelt jede
+ * angebotene Operation und jede als DEAKTIVIERT markierte, und verlangt, dass
+ * die Mengen disjunkt sind. Ein Test nur auf `add_chart` hätte den nächsten
+ * Widerspruch nicht gesehen.
+ */
+describe('Prompt-Konsistenz: angeboten vs. verboten', () => {
+  /** `- { "type": "foo", … }` aus der Operationsliste. */
+  const offered = new Set(
+    [...SHEET_TOOL_STRICT_PROMPT.matchAll(/^-\s*\{\s*"type":\s*"([a-z_]+)"/gm)].map((m) => m[1])
+  );
+  /** Jede Zeile, die eine Operation als deaktiviert erklärt. */
+  const disabled = new Set(
+    SHEET_TOOL_STRICT_PROMPT.split('\n')
+      .filter((line) => /DEAKTIVIERT|deaktiviert sind|nicht verfügbar/i.test(line))
+      .flatMap((line) => [...line.matchAll(/\b([a-z]+_[a-z_]+)\b/g)].map((m) => m[1]))
+  );
+
+  it('findet überhaupt Operationen — sonst prüft der Wächter nichts', () => {
+    // Ohne diese Zeile wäre der Test grün, sobald sich das Prompt-Format ändert
+    // und die Regex ins Leere greift.
+    expect(offered.size).toBeGreaterThan(5);
+    expect(disabled.size).toBeGreaterThan(0);
+  });
+
+  it('bietet keine Operation an, die der Prompt selbst verbietet', () => {
+    const contradictory = [...disabled].filter((op) => offered.has(op));
+    expect(contradictory).toEqual([]);
+  });
+});
+
 describe('normalizeRawOp', () => {
   const parse = (raw: unknown) => sheetOperationSchema.safeParse(normalizeRawOp(raw));
 

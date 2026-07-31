@@ -3,11 +3,11 @@
 /* Default CSS variables — low specificity, overridden by host app */
 @import './variables.css';
 
-/* BlockNote editor styles are imported by the component itself:
-   @blocknote/core/fonts/inter.css
-   @blocknote/shadcn/style.css
-   @blocknote/xl-ai/style.css
-*/
-
-/* BlockNote theme overrides — targets third-party DOM elements */
-@import '../components/editor/BlockNoteEditor.css';
+/* BlockNote's own stylesheets AND our overrides on top of them are both imported
+   by BlockNoteEditor.tsx, in that order — do NOT @import the overrides here.
+   Metro turns a CSS @import into a module dependency, so anything imported from
+   this file gets its <style> tag injected the moment this file is required. In
+   apps/mobile the DOM component requires '@gruenerator/docs/styles' before the
+   editor module, which would put our overrides *ahead* of @blocknote/shadcn's
+   stylesheet — every equal-specificity rule (.bn-editor padding, the checkbox
+   styling) would then silently lose the cascade on mobile only. */

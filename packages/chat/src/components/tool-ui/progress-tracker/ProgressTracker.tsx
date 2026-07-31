@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import { memo } from 'react';
 
 import { usePacedLabel } from '../../../hooks/usePacedLabel';
+import { selectStatusLabel } from '../../../lib/statusLineView';
 import { ShimmerText } from '../../message-parts/ShimmerText';
 
 import type { ProgressStep } from '../../../hooks/useChatGraphStream';
@@ -26,29 +27,23 @@ export const ProgressTracker = memo(function ProgressTracker({
   pendingNarration,
   toolStatus,
 }: ProgressTrackerComponentProps) {
-  const failed = steps.find((s) => s.status === 'failed');
-  const active = steps.find((s) => s.status === 'in-progress') ?? steps[steps.length - 1];
-  // Three sources, most specific first: planner prose → the running retrieval
-  // step → the static stage label. Paced so a burst stays readable rather than
-  // flashing by. Hook runs unconditionally (before any early return).
-  const rawLabel =
-    pendingNarration && pendingNarration.length > 0
-      ? pendingNarration[pendingNarration.length - 1]
-      : (toolStatus ?? active?.label ?? '');
-  const pacedLabel = usePacedLabel(rawLabel);
+  // Precedence (failed step → planner prose → retrieval step → stage word) lives
+  // in `selectStatusLabel`, shared with mobile's ChatProgressIndicator. Paced so
+  // a burst stays readable rather than flashing by; the hook runs unconditionally
+  // (before any early return).
+  const status = selectStatusLabel({ steps, pendingNarration, toolStatus });
+  const pacedLabel = usePacedLabel(status?.label ?? '');
 
-  if (steps.length === 0) return null;
+  if (steps.length === 0 || !status) return null;
 
-  if (failed) {
+  if (status.failed) {
     return (
       <div className="flex items-center gap-2 rounded-lg bg-error-bg px-3 py-1.5 text-xs text-error">
         <X className="h-3.5 w-3.5" />
-        <span className="font-medium">{failed.label}</span>
+        <span className="font-medium">{status.label}</span>
       </div>
     );
   }
-
-  if (!active || active.status === 'completed') return null;
 
   return (
     <div className="px-3 py-1.5 text-sm">
