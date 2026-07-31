@@ -76,14 +76,18 @@ describe('AVAILABLE_MODELS', () => {
 });
 
 describe('getContextWindow', () => {
-  // Measured 2026-07-26, not copied from datasheets. Mistral reports its own
-  // limit on overflow (`262144 maximum context length`); the Ollama-backed
-  // Verdigado lanes silently truncate instead of erroring, and the observed
-  // truncation point was 64Ki — so they stay below that rather than at the
-  // nominal window.
+  // Measured, not copied from datasheets. Mistral reports its own limit on
+  // overflow (`262144 maximum context length`); the Ollama-backed Verdigado
+  // lanes silently truncate instead of erroring, so they stay below the
+  // measured fallback rather than at the nominal window.
+  //
+  // Re-measured 2026-07-31 (needle at prompt start): ~130k sent came back with
+  // prompt_tokens 122,956 and the needle intact, ~155k collapsed to 65,539
+  // with the needle gone. 120k sits under the highest verified value; the
+  // tag's 128k would sit in the unmeasured stretch right before the cliff.
   it('returns correct context window for known models', () => {
     expect(getContextWindow('mistral-large')).toBe(262_144);
-    expect(getContextWindow('gpt-oss')).toBe(64_000);
+    expect(getContextWindow('gpt-oss')).toBe(120_000);
     // Gemma 4 reports the FULL window since it moved off Verdigado — the 64k
     // ceiling was Ollama's silent-truncation guard, and nothing routes there
     // for this lane any more.
@@ -102,12 +106,12 @@ describe('getContextWindow', () => {
 
   it('uses provider fallback when model is unknown', () => {
     expect(getContextWindow('auto', 'mistral')).toBe(262_144);
-    expect(getContextWindow('auto', 'litellm')).toBe(64_000);
+    expect(getContextWindow('auto', 'litellm')).toBe(120_000);
     expect(getContextWindow('auto', 'regolo')).toBe(262_144);
   });
 
   it('legacy litellm ID resolves to overflow lane window', () => {
-    expect(getContextWindow('litellm', 'mistral')).toBe(64_000);
+    expect(getContextWindow('litellm', 'mistral')).toBe(120_000);
   });
 
   // The unknown-model fallback stays conservative on purpose: an unrecognised
@@ -135,7 +139,7 @@ describe('getModelConfig', () => {
     if (config!.kind === 'overflow') {
       expect(config.primary.provider).toBe('litellm');
       expect(config.overflow.provider).toBe('regolo');
-      expect(config.contextWindow).toBe(64_000);
+      expect(config.contextWindow).toBe(120_000);
     }
   });
 
