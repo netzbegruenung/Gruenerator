@@ -53,6 +53,81 @@ const SHEETS_SUFFIXES = ['.test.ts', '.test.tsx', '.spec.ts', '.spec.tsx'];
 const VITEST_IMPORT_RE = /from\s+['"]vitest['"]|import\(\s*['"]vitest['"]\s*\)/;
 const TEST_DECLARATION_RE = /\b(?:describe|it|test)\s*(?:\.\w+)?\s*\(/;
 
+/**
+ * Both regexes must see code only. Prose trips them: a harness doc comment
+ * reading "full state reset per test (beforeEach)" contains a literal
+ * `test (`, which a regex cannot tell from a test declaration — that alone
+ * reported a shared helper as an orphaned suite and turned the guard red on
+ * every branch cut from master.
+ *
+ * Strings are stripped for the declaration check only; the import check needs
+ * them, because the module specifier `'vitest'` IS a string.
+ *
+ * Not a parser, and it need not be: comments and string literals are the only
+ * constructs that can fake a declaration, and both are recognisable in one
+ * pass. Removed characters become spaces so offsets stay true.
+ *
+ * Deliberately biased towards silence over noise. It does not know regex
+ * literals (`/…\//` ending in two slashes swallows the rest of its line) and
+ * treats a lone apostrophe in JSX text as a string start. Both can only ever
+ * HIDE a declaration, never invent one — and only when the hidden declaration
+ * shares a line with the oddity, in a file that imports vitest and is not
+ * already named `.vitest.ts(x)`. A missed orphan costs one unrun suite; a
+ * false alarm turns the Quality job red on every branch cut from master, which
+ * is exactly what this stripper exists to stop.
+ */
+function stripNonCode(source, { stripStrings }) {
+  let out = '';
+  let i = 0;
+
+  while (i < source.length) {
+    const pair = source.slice(i, i + 2);
+
+    if (pair === '//') {
+      while (i < source.length && source[i] !== '\n') {
+        out += ' ';
+        i++;
+      }
+      continue;
+    }
+
+    if (pair === '/*') {
+      while (i < source.length && source.slice(i, i + 2) !== '*/') {
+        out += source[i] === '\n' ? '\n' : ' ';
+        i++;
+      }
+      out += '  ';
+      i += 2;
+      continue;
+    }
+
+    const quote = source[i];
+    if (quote === "'" || quote === '"' || quote === '`') {
+      const start = i;
+      i++;
+      while (i < source.length) {
+        if (source[i] === '\\') {
+          i += 2;
+          continue;
+        }
+        if (source[i] === quote) {
+          i++;
+          break;
+        }
+        i++;
+      }
+      const literal = source.slice(start, i);
+      out += stripStrings ? literal.replace(/[^\n]/g, ' ') : literal;
+      continue;
+    }
+
+    out += source[i];
+    i++;
+  }
+
+  return out;
+}
+
 function walk(dir, out) {
   let entries;
   try {
@@ -86,8 +161,8 @@ const violations = [];
 for (const file of files) {
   if (isCaptured(file)) continue;
   const content = readFileSync(file, 'utf-8');
-  if (!VITEST_IMPORT_RE.test(content)) continue;
-  if (!TEST_DECLARATION_RE.test(content)) continue;
+  if (!VITEST_IMPORT_RE.test(stripNonCode(content, { stripStrings: false }))) continue;
+  if (!TEST_DECLARATION_RE.test(stripNonCode(content, { stripStrings: true }))) continue;
   violations.push(path.relative(ROOT, file));
 }
 
