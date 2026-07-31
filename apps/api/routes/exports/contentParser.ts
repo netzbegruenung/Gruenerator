@@ -347,6 +347,52 @@ export function stripHtmlTags(input: string): string {
   return result;
 }
 
+interface ParsedTag {
+  closing: boolean;
+  name: string;
+  selfClosing: boolean;
+  /** Index just past the tag's `>`. */
+  end: number;
+}
+
+/** Returned when a `<` opens a tag that never closes before end of input. */
+const UNTERMINATED = Symbol('unterminated');
+
+/**
+ * Read one tag starting at `html[start] === '<'`.
+ *
+ * A hand-rolled scan rather than a regex, and deliberately so: the regex this
+ * replaces let the tag-name class `[a-zA-Z0-9-]*` and the attribute class
+ * `[^>"']` both match `-`, so `<a` followed by many dashes and no `>`
+ * backtracked quadratically (CodeQL 1416). Export content is user-supplied, and
+ * the API worker is single-threaded. This visits every character at most once.
+ */
+function readTagAt(html: string, start: number): ParsedTag | null | typeof UNTERMINATED {
+  let i = start + 1;
+  const closing = html[i] === '/';
+  if (closing) i += 1;
+
+  const nameStart = i;
+  if (!/[a-zA-Z]/.test(html[i] ?? '')) return null;
+  while (i < html.length && /[a-zA-Z0-9-]/.test(html[i])) i += 1;
+  const name = html.slice(nameStart, i).toLowerCase();
+
+  // Skip to the closing `>`, ignoring one inside a quoted attribute value.
+  let quote: string | null = null;
+  while (i < html.length) {
+    const char = html[i];
+    if (quote) {
+      if (char === quote) quote = null;
+    } else if (char === '"' || char === "'") {
+      quote = char;
+    } else if (char === '>') {
+      return { closing, name, selfClosing: html[i - 1] === '/', end: i + 1 };
+    }
+    i += 1;
+  }
+  return UNTERMINATED;
+}
+
 /**
  * Minimal, forgiving HTML parser. A stack instead of overlapping regexes:
  * `<strong>` and a stray `*` can no longer both claim the same span and emit
@@ -357,23 +403,38 @@ function parseHtmlNodes(html: string): HtmlNode[] {
   const stack: Array<{ tag: string; node: HtmlNode & { type: 'el' } }> = [
     { tag: '#root', node: root },
   ];
-  const tagRe = /<(\/?)([a-zA-Z][a-zA-Z0-9-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)(\/?)>/g;
 
   let cursor = 0;
-  let match: RegExpExecArray | null;
+  let index = 0;
 
   const appendText = (text: string): void => {
     if (!text) return;
     stack[stack.length - 1].node.children.push({ type: 'text', text: decodeEntities(text) });
   };
 
-  while ((match = tagRe.exec(html)) !== null) {
-    appendText(html.slice(cursor, match.index));
-    cursor = match.index + match[0].length;
+  while (index < html.length) {
+    if (html[index] !== '<') {
+      index += 1;
+      continue;
+    }
 
-    const closing = match[1] === '/';
-    const tag = match[2].toLowerCase();
-    const selfClosing = match[4] === '/' || VOID_TAGS.has(tag);
+    const parsed = readTagAt(html, index);
+    // A `<` that starts nothing (`a < b`) is literal text; a tag that never
+    // closes means the rest of the input holds no tag either, so it is all
+    // text — and stopping here is what keeps the scan linear.
+    if (parsed === null) {
+      index += 1;
+      continue;
+    }
+    if (parsed === UNTERMINATED) break;
+
+    appendText(html.slice(cursor, index));
+    cursor = parsed.end;
+    index = parsed.end;
+
+    const closing = parsed.closing;
+    const tag = parsed.name;
+    const selfClosing = parsed.selfClosing || VOID_TAGS.has(tag);
 
     if (closing) {
       // Search from the TOP of the stack: `findIndex` returns the OUTERMOST
