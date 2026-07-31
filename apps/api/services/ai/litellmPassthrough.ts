@@ -13,8 +13,12 @@
 
 import { env } from '../../config/env.js';
 import { getContextWindow } from '../../routes/chat/agents/providers.js';
+import { toUserFacingMessage } from '../../utils/errors/index.js';
+import { createLogger } from '../../utils/logger.js';
 
 import { LITELLM_DEFAULT_BASE_URL } from './providerInstances.js';
+
+const log = createLogger('litellmPassthrough');
 
 /**
  * Die einzigen Modelle, die dieser Endpoint erreichen darf.
@@ -115,10 +119,15 @@ export async function forwardChatCompletion(
     });
   } catch (err) {
     if (signal?.aborted) return { ok: false, status: 499, error: 'Client closed request' };
+    // Der Rohtext gehört ins Log, nicht zum Client: ein fehlgeschlagener fetch
+    // trägt die interne Adresse des Upstreams im Text ("connect ECONNREFUSED
+    // 10.x.x.x:4000"). Für die aufrufende Seite ändert das nichts — sie kann
+    // ohnehin nur neu versuchen.
+    log.error('[litellm] upstream request failed: %s', err);
     return {
       ok: false,
       status: 502,
-      error: err instanceof Error ? err.message : 'Upstream request failed',
+      error: toUserFacingMessage(err, 'Upstream request failed'),
     };
   }
 
