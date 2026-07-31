@@ -124,7 +124,7 @@ describe('resolveGenerationScope — der Parser', () => {
       resolveGenerationScope({
         userContent: 'Mach daraus ein Sharepic',
         conversationContext: null,
-        aiWorkerPool: poolAnswering('sharepic', 1500),
+        aiWorkerPool: poolAnswering('sharepic', 2500),
       })
     ).resolves.toBeNull();
   });
