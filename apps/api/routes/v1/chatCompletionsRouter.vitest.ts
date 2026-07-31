@@ -176,10 +176,21 @@ describe('POST /api/v1/chat/completions', () => {
   });
 
   describe('model allowlist', () => {
-    it('refuses verdigado-pro, which failed the tool-loop probe', async () => {
+    it('laesst verdigado-pro durch — waehlbar, aber nicht Standard', async () => {
+      fetchMock.mockResolvedValueOnce(completionResponse());
+
       const res = await authedPost({ model: 'verdigado-pro', messages: MESSAGES });
+
+      expect(res.status).toBe(200);
+      expect(sentBody().model).toBe('verdigado-pro');
+    });
+
+    it('sperrt Embedding-Modelle aus LiteLLMs eigener Liste', async () => {
+      // Sie stehen dort neben den Chat-Modellen; ein Client, der die Liste
+      // ungefiltert uebernimmt, waehlt sonst eines davon aus.
+      const res = await authedPost({ model: 'nomic-embed-text', messages: MESSAGES });
+
       expect(res.status).toBe(400);
-      expect(await jsonOf(res)).toMatchObject({ allowedModels: ['verdigado-think'] });
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
@@ -408,7 +419,15 @@ describe('GET /api/v1/models', () => {
     expect(res.status).toBe(200);
     const body = await jsonOf(res);
     expect(body.object).toBe('list');
-    expect((body.data as { id: string }[]).map((m) => m.id)).toEqual(['verdigado-think']);
+    expect((body.data as { id: string }[]).map((m) => m.id)).toEqual([
+      'verdigado-think',
+      'verdigado-pro',
+    ]);
+    // Anzeigenamen, sonst steht in der Auswahl nur die technische Kennung.
+    expect((body.data as { name?: string }[]).map((m) => m.name)).toEqual([
+      'Gemma 4 31B',
+      'GPT-OSS 120B',
+    ]);
   });
 
   it('lehnt einen Schluessel ohne chat:completions-Scope mit 403 ab', async () => {
