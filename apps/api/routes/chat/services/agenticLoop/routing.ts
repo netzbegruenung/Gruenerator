@@ -89,6 +89,9 @@ export function looksLikeToolableQuestion(raw: string): boolean {
 // ungrounded (any writing order), and where it did fire it fired by accident as
 // often as by design — "er ist doch kein MdB mehr" matched on the negation
 // particle "mehr", which the list meant as the expansion word in "erzähl mehr".
+/** Nothing but pasted link(s) — see `looksLikeSelfContainedTurn`. */
+const BARE_URL_ONLY_RE = /^(?:\s*https?:\/\/\S+)+\s*$/i;
+
 const CHITCHAT_ONLY_RE =
   /^(danke\w*|dank\s+dir|thx|ok(ay)?|alles\s+klar|super|top|passt|perfekt|prima|cool|ja|nein|gut)\b[\s,.!?–—-]*$/i;
 
@@ -199,6 +202,72 @@ export function looksLikeUnsourcedWritingOrder(
   // skipped by the very phrasing it exists for.
   if (isNegatedArtifactRequest(t, WRITING_ORDER_RE)) return false;
   return WRITING_ORDER_RE.test(t);
+}
+
+/**
+ * "Can this turn be answered from what is already on the table?"
+ *
+ * The inversion of the old default, and the reason it exists: a no-tool verdict
+ * used to be the RESIDUAL — anything the heuristics could not name became
+ * `direct`, and three separate rescue predicates (`looksLikeToolableQuestion`,
+ * `classifierContradictedResearch`, `looksLikeUnsourcedWritingOrder`) were bolted
+ * on over time to pull specific shapes back out of it. Each rescue was written
+ * after a live failure, which is the tell: the residual was answering questions
+ * it had never been asked. A bare topic ("Windkraft Bayern"), a statement to
+ * check, an imperative with no question word — none of them carried a signal any
+ * of the three looked for, so all of them were answered from parametric memory.
+ *
+ * So the burden of proof moves. A turn stays off the loop only when it POSITIVELY
+ * shows it needs nothing fetched:
+ *  - pleasantries, which want no answer at all;
+ *  - pure creative form — a poem needs no sources and must never carry [N];
+ *  - a rewrite or a regenerate, definitionally grounded in the text it acts on;
+ *  - a turn carrying its own material (long paste, attachment, open document),
+ *    where a planner would go looking for what the user already supplied.
+ *
+ * Everything else defaults into the loop, where the planner decides whether to
+ * call a tool. That is the cheap direction to be wrong in: an unnecessary loop
+ * costs latency, an unnecessary `direct` costs a confidently wrong answer.
+ *
+ * Same predicate on both sides of the wire on purpose — the classifier's
+ * demotion gate and the router's `decideRunAgentic` implement one rule, and two
+ * hand-maintained copies of one rule is the drift shape this whole series is
+ * unwinding.
+ */
+export function looksLikeSelfContainedTurn(
+  raw: string,
+  opts: { hasOwnMaterial: boolean }
+): boolean {
+  const t = (raw ?? '').trim().replace(GREETING_PREFIX_RE, '');
+  if (t.length === 0) return true;
+  // Under three words nothing can be demonstrated either way — "Und nun?",
+  // "mach weiter", "und Bayern?" are whatever the THREAD says they are, and this
+  // predicate cannot see the thread. Same floor `looksLikeToolableQuestion` uses,
+  // for the same reason: a default must not fire on absent evidence. The
+  // classifier applies a wider version of this exemption (it CAN see the thread,
+  // via the vague-follow-up penalty and `lastToolContext`); here it stays at the
+  // floor so the router never contradicts a decision the classifier made with
+  // more information.
+  if (t.split(/\s+/).filter(Boolean).length < 3) return true;
+  if (CHITCHAT_ONLY_RE.test(t) || CHITCHAT_RE.test(t)) return true;
+  // A message that is nothing but pasted link(s) names its own subject — the
+  // page IS the material. It already has a deterministic single-pass route
+  // (the classifier's URL wrapper takes the `scrape_url` slot outright), and
+  // looping it would buy a planner call to arrive at the same one tool. A link
+  // WITH prose around it is a different turn and still loops.
+  if (BARE_URL_ONLY_RE.test(t)) return true;
+  if (CREATIVE_FORM_RE.test(t)) return true;
+  if (REWRITE_TARGET_RE.test(t) || REGENERATE_RE.test(t)) return true;
+  // A PROHIBITION is not a request, and it must not reach a planner. "Halte die
+  // Ergebnisse fest, aber erstelle diesmal kein Dokument" is honoured by exactly
+  // one thing — the router's persistent-action gate — and that gate only ever
+  // sees ARTIFACT intents. Demoting this turn to `agentic` would hand the
+  // forbidden tool to a model that never saw the gate, which is the same hole
+  // `looksLikeUnsourcedWritingOrder` documents one function up; the default
+  // inversion would have re-opened it from the other side.
+  if (isNegatedArtifactRequest(t, WRITING_ORDER_RE)) return true;
+  if (opts.hasOwnMaterial) return true;
+  return false;
 }
 
 /**
@@ -548,12 +617,20 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   const unsourcedWriting = looksLikeUnsourcedWritingOrder(p.lastUserText, {
     hasOwnMaterial: p.hasOwnMaterial === true,
   });
+  // The three rescues above are now the SUBSET of a default: `looksLike-
+  // SelfContainedTurn` says which turns provably need nothing fetched, and
+  // everything else loops. They stay named in the journal because each one
+  // records a live failure, and losing the names would lose the reason.
+  const selfContained = looksLikeSelfContainedTurn(p.lastUserText, {
+    hasOwnMaterial: p.hasOwnMaterial === true,
+  });
   const inLoopSet =
     p.agenticIntents.has(p.intent) ||
     (NO_TOOL_VERDICTS.has(p.intent) &&
       (looksLikeToolableQuestion(p.lastUserText) ||
         p.classifierContradictedResearch === true ||
-        unsourcedWriting)) ||
+        unsourcedWriting ||
+        !selfContained)) ||
     p.isPdfFillRequest ||
     compoundGen;
   const secondaryAllowed =
@@ -581,6 +658,7 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
       hasImageAttachments: p.hasImageAttachments,
       isPdfFillRequest: p.isPdfFillRequest,
       unsourcedWriting,
+      selfContained,
       hasOwnMaterial: p.hasOwnMaterial === true,
     },
   });

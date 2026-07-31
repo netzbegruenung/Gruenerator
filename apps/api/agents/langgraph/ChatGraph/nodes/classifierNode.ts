@@ -15,6 +15,7 @@ import { degradeTargetForLocale } from '@gruenerator/shared/chat-intents';
 
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
 import {
+  looksLikeSelfContainedTurn,
   looksLikeToolableQuestion,
   looksLikeUnsourcedWritingOrder,
 } from '../../../../routes/chat/services/agenticLoop/routing.js';
@@ -68,11 +69,13 @@ import {
   parseClassifierResponse,
   detectComplexity,
   detectSearchSources,
+  CHAT_HISTORY_DIRECT,
   CHAT_HISTORY_KEYWORDS,
   CURRENT_THREAD_REFERENCE,
   SYSTEM_MCP_PHRASING,
   NO_RETRIEVAL_VERDICTS,
   looksLikeDocsHelpQuestion,
+  looksLikeRecurringOrder,
 } from './classifierParsing.js';
 import { CLASSIFIER_PROMPT, NON_SEARCH_INTENTS } from './classifierPrompt.js';
 import { classifyDocsIntentTiebreak } from './docsIntentTiebreak.js';
@@ -86,6 +89,7 @@ import {
   type ForbiddableArtifact,
 } from './fastPathGuards.js';
 import { refineSearchQuery } from './queryRefineResolver.js';
+import { parseRelativeDateRange } from './relativeDates.js';
 import { resolveSourceScope } from './sourceScopeResolver.js';
 
 import type { ChatGraphState, GatherSource, SearchIntent } from '../types.js';
@@ -1384,6 +1388,58 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       };
     }
 
+    // ── TIER 3.4: gated specials the heuristic table never owned ──────────
+    // Two intents were LLM-ONLY, so every turn asking for them paid for the 27k
+    // prompt — and `chat_history` additionally had to be VETOED out of Tier-3.5
+    // demotion below just to survive that far. Both decisions are deterministic
+    // once the phrasing is unambiguous, and the patterns behind them are the
+    // precision half of gates that already exist (see `CHAT_HISTORY_DIRECT`).
+    //
+    // Ambiguous phrasings keep today's route exactly: they match the recall gate
+    // but not the precision pattern, so they fall past this tier, the veto below
+    // still holds them out of demotion, and Tier 4 decides as before.
+
+    // A reference to THIS thread is not a recall — the messages are already in
+    // context, and running a Qdrant search over PAST threads for them is the
+    // live failure `CURRENT_THREAD_REFERENCE` was written for ("was war meine
+    // allererste Frage in diesem Chat?" → 0 hits → "keine Quellen verfügbar",
+    // with the answer sitting a few messages above).
+    if (CHAT_HISTORY_DIRECT.test(userContent) && !CURRENT_THREAD_REFERENCE.test(userContent)) {
+      const recallWindow = parseRelativeDateRange(userContent);
+      const recallFilters = { ...(heuristicExtractFilters(userContent) ?? {}), ...recallWindow };
+      log.info(
+        `[Classifier] Chat recall (direct route, LLM skipped)${recallWindow ? ` [${recallWindow.date_from}..${recallWindow.date_to}]` : ''}`
+      );
+      recordDecision('classifier.tier', 'tier3.4_chat_recall', {
+        inputs: { hasDateWindow: recallWindow != null },
+      });
+      return {
+        intent: 'chat_history',
+        searchSources: detectSearchSources(userContent, 'chat_history'),
+        searchQuery: (extractSearchTopic(userContent) || userContent).slice(0, 500),
+        detectedFilters: Object.keys(recallFilters).length > 0 ? recallFilters : null,
+        reasoning: 'Bezug auf frühere eigene Inhalte (deterministisch erkannt)',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
+    if (looksLikeRecurringOrder(userContent)) {
+      log.info('[Classifier] Recurring order (direct route, LLM skipped)');
+      recordDecision('classifier.tier', 'tier3.4_recurring_order', {});
+      return {
+        intent: 'create_recurring_task',
+        searchSources: [],
+        searchQuery: userContent.slice(0, 500),
+        detectedFilters: null,
+        reasoning: 'Wiederkehrender Auftrag (Takt + Zustellung erkannt)',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
     // ── TIER 3.5: Loop demotion ──
     // A low-confidence but TOOLABLE verdict skips the LLM call (~800ms) and
     // hands the turn to the agentic loop, whose model picks the tools itself.
@@ -1400,11 +1456,39 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       NO_RETRIEVAL_VERDICTS.has(heuristic.intent) &&
       looksLikeUnsourcedWritingOrder(userContent, { hasOwnMaterial: turnCarriesOwnMaterial });
 
+    // The default flips here: a no-retrieval verdict at this point is the
+    // heuristic table's RESIDUAL, not a finding — `direct@0.50` is what the
+    // rule table returns when nothing matched. Treating "nothing matched" as
+    // "needs no tool" is the bug class the three rescue predicates were each
+    // patching one shape of. Now the residual loops unless the turn positively
+    // shows it is self-contained (`looksLikeSelfContainedTurn`, which is also
+    // what the router's gate consults — one rule, one implementation).
+    //
+    // A short follow-up is exempt on purpose. It is the one case where the
+    // THREAD decides and the message text cannot: "mach es blauer" carries no
+    // signal at all, and the -0.25 penalty above exists precisely to send it to a
+    // tier that can read the conversation. Looping it would strand an artifact
+    // follow-up in a planner with nothing to plan.
+    //
+    // `lastToolContext` is the second half of that: mentions are stripped from
+    // message text on send, so a thread that just produced a sharepic is the
+    // ONLY evidence that "und jetzt noch die Uhrzeit ergänzen" is an edit rather
+    // than a topic. The word cap is what keeps it narrow — a full new question
+    // asked after a sharepic is not a follow-up, and its own heuristic verdict
+    // (search/web/…) demotes it regardless of this branch.
+    const isArtifactFollowup =
+      state.lastToolContext != null && userContent.split(/\s+/).filter(Boolean).length <= 12;
+
+    const selfContained =
+      isVagueFollowup ||
+      isArtifactFollowup ||
+      looksLikeSelfContainedTurn(userContent, { hasOwnMaterial: turnCarriesOwnMaterial });
+
     const demotableApartFromLiveSource =
       isAgenticLoopEnabled() &&
       (DEMOTABLE_HEURISTIC_INTENTS.has(heuristic.intent) ||
         (NO_RETRIEVAL_VERDICTS.has(heuristic.intent) &&
-          (looksLikeToolableQuestion(userContent) || unsourcedWriting))) &&
+          (looksLikeToolableQuestion(userContent) || unsourcedWriting || !selfContained))) &&
       !CHAT_HISTORY_KEYWORDS.test(userContent);
 
     // hotel/reise/bahn/wetter/news are LLM-only: don't let demotion swallow a
@@ -1433,6 +1517,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
           heuristicIntent: heuristic.intent,
           confidence: heuristic.confidence,
           effectiveConfidence,
+          selfContained,
           demotable,
           // Zusammen sind die beiden Felder die Signatur des Wegs: demotable=true
           // heisst „direkt bei 3.5 abgebogen", heldBack=true + demotable=false
