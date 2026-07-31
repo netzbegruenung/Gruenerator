@@ -258,12 +258,31 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
     expect(result.intent).not.toBe('agentic');
   });
 
-  it('chat-recall phrasing is vetoed (chat_history classification preserved)', async () => {
+  it('chat-recall phrasing is vetoed — and now decided outright at Tier 3.4', async () => {
+    // The veto still exists and still holds this turn out of demotion; what
+    // changed is where it lands afterwards. "was haben wir … besprochen" is
+    // unambiguous enough for the direct route, so it no longer buys the 27k
+    // prompt just to be told what the phrasing already said.
     const state = buildState({
       userMessage: 'Was haben wir letztes Mal zur Kampagnenplanung besprochen?',
     });
     const result = await classifierNode(state);
+    expect(result.intent).toBe('chat_history');
+    expect(llmTierCalls(state.aiWorkerPool)).toBe(0);
+  });
+
+  it('an AMBIGUOUS chat-recall phrasing is still only vetoed, not decided', async () => {
+    // The pair that keeps the two patterns honest: `CHAT_HISTORY_KEYWORDS` is
+    // the recall gate, `CHAT_HISTORY_DIRECT` the precision one. A bare "letzte
+    // Woche" can mean the news, so it must reach a tier that can tell — a
+    // direct route here would run a Qdrant recall over the user's own threads
+    // and answer "keine Quellen gefunden".
+    const state = buildState({
+      userMessage: 'Was war letzte Woche in der Ukraine los?',
+    });
+    const result = await classifierNode(state);
     expect(result.intent).not.toBe('agentic');
+    expect(result.intent).not.toBe('chat_history');
     expect(llmTierCalls(state.aiWorkerPool)).toBe(1);
   });
 

@@ -168,6 +168,55 @@ export const CHAT_HISTORY_KEYWORDS =
   /\b(letzte[sn]?\s+gespräch|vorher\s+besprochen|letzte\s+woche|gestern\s+besprochen|was\s+haben\s+wir|erinnere?\s+dich|wir\s+hatten|früheres?\s+chat|voriges?\s+gespräch|damals\s+besprochen|da\s+weiter|wo\s+wir\s+aufgehört|mein(e|en)?\s+(dokument|präsentation|tabelle|notiz|antrag|board|kanban|tafel|reel|video|clip)|meine\s+(dokumente|präsentationen|tabellen|notizen|boards|reels|videos|clips)|die\s+tabelle\s+die\s+ich|das\s+dokument\s+das\s+ich|das\s+board\s+das\s+ich|das\s+(reel|video)\s+(das\s+ich|zu(m)?\s|über)|welches\s+(reel|video)|in\s+welchem\s+(reel|video))\b/i;
 
 /**
+ * The subset of `CHAT_HISTORY_KEYWORDS` that can decide the turn on its own.
+ *
+ * Two patterns, two jobs — the distinction this file has paid for before (see
+ * `SYSTEM_MCP_PHRASING`: "IT IS A GATE, NOT A CLASSIFIER"). `CHAT_HISTORY_
+ * KEYWORDS` is the RECALL gate: it may be generous, because a false positive
+ * there only costs the turn its Tier-3.5 demotion and sends it one tier further.
+ * This one is the PRECISION pattern behind a direct route, where a false
+ * positive runs a Qdrant recall over the user's own threads for a question that
+ * was never about them — and then answers "keine Quellen gefunden".
+ *
+ * So the ambiguous alternatives stay OUT and keep today's behaviour (fall
+ * through to the LLM tier), namely:
+ *  - bare `letzte woche` — "Was war letzte Woche in der Ukraine los?" is news;
+ *  - bare `was haben wir` — "was haben wir für Optionen?" is a plain question,
+ *    so the verb has to say that a CONVERSATION is meant;
+ *  - bare `wir hatten` — usually narration inside an ordinary answer.
+ *
+ * Everything here names either an earlier conversation or a piece of the user's
+ * own content, and cannot plausibly mean anything else.
+ */
+export const CHAT_HISTORY_DIRECT =
+  /(?<!\p{L})(letzte[sn]?\s+gespräch|vorher\s+besprochen|gestern\s+besprochen|damals\s+besprochen|erinnere?\s+dich|früheres?\s+chat|voriges?\s+gespräch|unser(?:e[nmrs]?)?\s+(?:chat|gespräch|unterhaltung)|was\s+haben\s+wir\s+(?:\p{L}+\s+){0,4}?(?:besprochen|geredet|gesprochen|erarbeitet|entschieden|festgehalten)|da\s+weiter|wo\s+wir\s+aufgehört|mein(?:e|en)?\s+(?:dokument|präsentation|tabelle|notiz|antrag|board|kanban|tafel|reel|video|clip)|meine\s+(?:dokumente|präsentationen|tabellen|notizen|boards|reels|videos|clips)|die\s+tabelle\s+die\s+ich|das\s+dokument\s+das\s+ich|das\s+board\s+das\s+ich|das\s+(?:reel|video)\s+(?:das\s+ich|zum?\s|über)|welches\s+(?:reel|video)|in\s+welchem\s+(?:reel|video))(?!\p{L})/iu;
+
+/**
+ * A standing order: something that should happen again and again, not once.
+ *
+ * Deliberately an AND of two independent signals — a cadence AND a delivery
+ * verb. Either alone is far too common to route on: "jeden Tag" appears in
+ * ordinary prose about anything, and "erinnere mich" without a cadence is a
+ * one-off. Requiring both is what makes this affordable as a direct route to
+ * `create_recurring_task`, an intent the heuristic table never had at all (it
+ * was LLM-only, so every recurring order paid for the 27k prompt).
+ *
+ * The dispatcher still extracts the actual schedule with its own LLM call, so
+ * this pattern only has to answer "is a recurrence being asked for", not "what
+ * recurrence" — which is why it can stay a regex.
+ */
+const RECURRENCE_CADENCE =
+  /(?<!\p{L})(jede[nrs]?\s+(?:tag|woche|monat|morgen|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)|t[äa]glich|w[öo]chentlich|monatlich|werkt[äa]glich|alle\s+\d{1,2}\s+(?:tage|wochen|monate)|immer\s+(?:montags|dienstags|mittwochs|donnerstags|freitags|samstags|sonntags|morgens|abends|mittags)|(?:montags|dienstags|mittwochs|donnerstags|freitags|samstags|sonntags))(?!\p{L})/iu;
+
+const RECURRENCE_DELIVERY =
+  /(?<!\p{L})(erinner\p{L}*|aufgabe|task|schick\p{L}*|sende|senden|zusammenfassung|[üu]bersicht|report|bericht|briefing|update|benachrichtig\p{L}*|melde\p{L}*|informier\p{L}*)(?!\p{L})/iu;
+
+export function looksLikeRecurringOrder(raw: string): boolean {
+  const t = (raw ?? '').trim();
+  return RECURRENCE_CADENCE.test(t) && RECURRENCE_DELIVERY.test(t);
+}
+
+/**
  * Concrete travel / timetable / weather / news phrasings that map to a
  * system-MCP intent (hotel/reise/bahn/wetter/news). Those intents are
  * LLM-CLASSIFIED ONLY (excluded from the heuristic keyword table on purpose),
