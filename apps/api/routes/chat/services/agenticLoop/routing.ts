@@ -64,50 +64,119 @@ export function looksLikeToolableQuestion(raw: string): boolean {
   );
 }
 
-// Anaphors and expansion words — the two ways German asks for "more of what we
-// were just talking about". The da-compounds point back at the topic; the
-// expansion words ask for depth. Clause-final `das`/`es` counts too ("erzähl
-// mir mehr davon", "was gibt es noch dazu").
-//
-// `nochmal`/`erneut` are deliberately OUT (unlike MCP_CONTINUATION_REFERENTIAL,
-// where "do it again" IS the signal): here they are regenerate verbs with no
-// topical content — "Nochmal auf Englisch" wants a rewrite, not research.
-const CONTINUATION_MARKER_RE =
-  /\b(dazu|dar[üu]ber|davon|daraus|damit|daran|darauf|dabei|hierzu|mehr|weitere?[snmr]?|genauer|n[äa]her|ausf[üu]hrlicher|details?|vertief\w*|sonst\s+noch|noch\s+(mehr|was|etwas))\b/i;
-
 // Anchored: the WHOLE message is pleasantry. "Danke, und was sagt die Studie
 // dazu?" must not match.
+//
+// This is the surviving half of what used to be `looksLikeGroundedFollowup`, a
+// POSITIVE gate that demanded an anaphor ("dazu", "mehr", "genauer") before a
+// direct turn was allowed the thread's sources. It was removed with the switch
+// to the negative gate in `needsThreadGrounding`: it let a whole class through
+// ungrounded (any writing order), and where it did fire it fired by accident as
+// often as by design — "er ist doch kein MdB mehr" matched on the negation
+// particle "mehr", which the list meant as the expansion word in "erzähl mehr".
 const CHITCHAT_ONLY_RE =
   /^(danke\w*|dank\s+dir|thx|ok(ay)?|alles\s+klar|super|top|passt|perfekt|prima|cool|ja|nein|gut)\b[\s,.!?–—-]*$/i;
 
 /**
- * A vague CONTINUATION of the running conversation ("Mehr dazu bitte") rather
- * than a new topic or a pleasantry.
+ * "Does this turn need the thread's research behind it?"
  *
- * Such a turn classifies as `direct` — it carries no question word, no verb the
- * toolable net catches, nothing. On the single-pass path that used to mean the
- * previous turn's sources were neither carried nor citable, so the model
- * rewrote its own last answer from that answer's prose: ungrounded,
- * uncitable, and to the reader indistinguishable from research.
+ * A NEGATIVE gate: ground unless the turn is one of the two shapes that provably
+ * do not want the thread's sources. It used to be positive — an anaphor or a
+ * question word had to be present — and that let a whole class through
+ * ungrounded: "schreibe ein vollständiges Dossier über Robert" is neither a
+ * question nor an anaphor, so a thread holding 19 researched sources answered it
+ * from parametric memory.
  *
- * The word cap is the discriminator that matters: a message long enough to
- * carry its own subject is not leaning on the thread for one.
- */
-export function looksLikeGroundedFollowup(raw: string): boolean {
-  const t = (raw ?? '').trim().replace(GREETING_PREFIX_RE, '');
-  if (t.length === 0) return false;
-  if (CHITCHAT_ONLY_RE.test(t)) return false;
-  if (t.split(/\s+/).filter(Boolean).length > 12) return false;
-  return CONTINUATION_MARKER_RE.test(t);
-}
-
-/**
- * "Does this turn need the thread's research behind it?" — the union both the
- * loop gate and the single-pass source carry consult, so a turn cannot be
- * grounded on one path and amnesiac on the other.
+ * The old predicate was also right by accident at least as often as by design:
+ * "er ist doch kein MdB mehr" grounded only because CONTINUATION_MARKER_RE
+ * matched the negation particle "mehr", which the list means as the expansion
+ * word in "erzähl mir mehr".
+ *
+ * Cheap to be generous here: `getRecentThreadSources` returns [] on a thread
+ * with no research, so on a fresh thread this is one indexed query and a no-op.
+ * The cost of a false positive is a few hundred tokens of topically adjacent
+ * context; the cost of a false negative is a confidently wrong answer.
  */
 export function needsThreadGrounding(raw: string): boolean {
-  return looksLikeToolableQuestion(raw) || looksLikeGroundedFollowup(raw);
+  const t = (raw ?? '').trim().replace(GREETING_PREFIX_RE, '');
+  if (t.length === 0) return false;
+  // Pleasantries want nothing. Kept as the first check so a bare "Danke!" never
+  // reaches the database at all.
+  if (CHITCHAT_ONLY_RE.test(t) || CHITCHAT_RE.test(t)) return false;
+  // A rewrite or a regenerate is grounded in the text it acts on — handing it
+  // unrelated research invites the model to smuggle new claims into a
+  // shortening job, and flips citations on for an answer that cites nothing.
+  if (REWRITE_TARGET_RE.test(t) || REGENERATE_RE.test(t)) return false;
+  // A poem needs no sources, and grounding it would switch [N] on for a text
+  // that must never carry footnotes. Same exemption the loop gate applies.
+  if (CREATIVE_FORM_RE.test(t)) return false;
+  return true;
+}
+
+// ── "Hat der Mensch die Substanz mitgeliefert?" ──────────────────────────────
+//
+// The rule these three regexes implement: a writing order is `direct` ONLY when
+// the material to write FROM is already in the turn. Everything else goes to the
+// loop, where the planner decides whether to search.
+//
+// This inverts the old default, which was written down twice — as
+// "Erstelle/Schreib X = IMMER direct" in the classifier prompt and as
+// "Users on this platform typically provide their own content" above the
+// fact-based-content heuristic. Live failure: "schreibe ein vollständiges
+// Dossier über Robert" in a thread holding 19 researched sources answered from
+// the model's parametric memory, contradicting the answer two turns above
+// (Habeck as sitting Vizekanzler "Stand 2024", an invented book title).
+
+// Orders to produce text. The verbs first, then the factual TEXT SORTS, which
+// carry the order implicitly ("ein Dossier über X, 1000 Zeichen" has no verb).
+const WRITING_ORDER_RE =
+  /\b(schreib|erstell|formulier|verfass|entwirf|entwerfe|texte|dichte)[a-zäöüß]*\b|\b(pressemitteilung|pressemeldung|rede|ansprache|artikel|blogpost|statement|dossier|steckbrief|portr[äa]t|portrait|biografie|biographie|faktencheck|analyse|bericht|report|antrag|argumentationshilfe|positionspapier|hintergrundpapier|leserbrief|editorial|kommentar)[a-zäöüß]*\b/i;
+
+// Pure creative FORM — "substance" is not a meaningful category here, so these
+// stay `direct` no matter what the user did or didn't supply. A poem about
+// autumn needs no sources and must not pay the loop's latency; this is also the
+// pin `classifierDemotion.vitest.ts` guards ("creative writing is never
+// demoted").
+const CREATIVE_FORM_RE =
+  /\b(gedicht|lyrik|reim|slogan|claim|motto|spruch|witz|einzeiler|songtext|liedtext|trinkspruch|gru[ßss]wort|gl[üu]ckwunsch|geburtstagskarte|dankeskarte)[a-zäöüß]*\b/i;
+
+// The order points at material that already exists — in the message, in the
+// thread, or in the open document. A rewrite is definitionally grounded in what
+// it rewrites, so it stays `direct` even though nothing was pasted THIS turn.
+// Note the `[üu]`/`(?:^|\W)` idiom rather than `\b` before an umlaut: without
+// the `u` flag `ü` is not a `\w`, so `\büberarbeite` can never match.
+// "Do it again, in another shape" — a regenerate verb BOUND to a format or
+// language target. The binding is what makes it safe: a bare "nochmal" is not
+// enough, because "erklär mir das nochmal" is a continuation that must stay
+// grounded and "prüfe nochmal im web" is a research order. Only the redo of an
+// existing answer into another form is exempt.
+const REGENERATE_RE =
+  /\b(nochmal|noch\s+einmal|erneut|nochmals)\b[^.?!]*\b(auf\s+(englisch|deutsch|franz[öo]sisch|spanisch|italienisch|t[üu]rkisch)|k[üu]rzer|l[äa]nger|anders|f[öo]rmlicher|freundlicher|einfacher|in\s+stichpunkten)\b/i;
+
+const REWRITE_TARGET_RE =
+  /\b(k[üu]rze|k[üu]rzer|straffe|verk[üu]rze|umformulier|umschreib|[üu]berarbeit|korrigier|lektorier|vereinfach|versch[äa]rfe|gendere|[üu]bersetze?)[a-zäöüß]*\b|\b(diese[nrsm]?|obige[nrsm]?|folgende[nrsm]?)\s+(text|entwurf|abschnitt|absatz|fassung|version)\b|\b(das|es)\s+(k[üu]rzer|l[äa]nger|freundlicher|f[öo]rmlicher|einfacher)\b/i;
+
+/**
+ * A writing order whose SUBSTANCE the user did not supply.
+ *
+ * `hasOwnMaterial` is the caller's answer to "does this turn carry its own
+ * material?" — a long paste, an attachment, or an open document. It is passed in
+ * rather than sniffed here so this module stays a dependency-free leaf and the
+ * threshold (NOUN_TRIGGER_MAX_LENGTH) keeps living with the heuristics.
+ *
+ * Returns false for anything that is not a writing order at all, so callers can
+ * OR it into an existing gate without widening what they already catch.
+ */
+export function looksLikeUnsourcedWritingOrder(
+  raw: string,
+  opts: { hasOwnMaterial: boolean }
+): boolean {
+  if (opts.hasOwnMaterial) return false;
+  const t = (raw ?? '').trim();
+  if (t.length === 0) return false;
+  if (CREATIVE_FORM_RE.test(t)) return false;
+  if (REWRITE_TARGET_RE.test(t)) return false;
+  return WRITING_ORDER_RE.test(t);
 }
 
 /**
@@ -376,6 +445,10 @@ export interface AgenticDecisionInput {
    *  statements ("Erklär mir die aktuellen Vorwürfe gegen …") that carry a real
    *  retrieval need without a single question word. */
   classifierContradictedResearch?: boolean;
+  /** The turn brings its own material — a long paste, an attachment, or an open
+   *  document. Feeds `looksLikeUnsourcedWritingOrder`: a writing order WITH
+   *  material stays single-pass, without it the loop decides whether to search. */
+  hasOwnMaterial?: boolean;
 }
 
 /**
@@ -390,10 +463,22 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   // looksLikeToolableQuestion rejects it by design (content imperatives are
   // creative generation). With a PDF attached it is exactly a tool turn — and
   // the PDF form tools only exist inside the loop.
+  // A writing order with no supplied substance is the THIRD `direct` rescue.
+  // The first two both key on the turn looking like a question (`looksLike-
+  // ToolableQuestion`) or on the classifier having contradicted itself — and
+  // `classifierContradictedResearch` is only ever set in the LLM tier, so every
+  // turn that short-circuits earlier could never reach it. A "schreib eine
+  // Pressemitteilung zu X" carries neither signal and used to answer from
+  // parametric memory with no way in.
+  const unsourcedWriting = looksLikeUnsourcedWritingOrder(p.lastUserText, {
+    hasOwnMaterial: p.hasOwnMaterial === true,
+  });
   const inLoopSet =
     p.agenticIntents.has(p.intent) ||
     (p.intent === 'direct' &&
-      (looksLikeToolableQuestion(p.lastUserText) || p.classifierContradictedResearch === true)) ||
+      (looksLikeToolableQuestion(p.lastUserText) ||
+        p.classifierContradictedResearch === true ||
+        unsourcedWriting)) ||
     p.isPdfFillRequest ||
     compoundGen;
   const secondaryAllowed =
@@ -420,6 +505,8 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
       secondaryAllowed,
       hasImageAttachments: p.hasImageAttachments,
       isPdfFillRequest: p.isPdfFillRequest,
+      unsourcedWriting,
+      hasOwnMaterial: p.hasOwnMaterial === true,
     },
   });
   return runAgentic;
