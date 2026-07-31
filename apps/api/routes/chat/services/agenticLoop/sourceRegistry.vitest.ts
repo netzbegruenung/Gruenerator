@@ -32,6 +32,42 @@ describe('createSourceRegistry', () => {
     expect(reg.renderAll()).toContain('https://bfn.de/artenschutz');
   });
 
+  // A model that cannot see WHEN a source was written reads a 2023 page's
+  // present tense as today's state. Live: an answer reported Robert Habeck as a
+  // sitting MdB months after he had given up the mandate, because the stale page
+  // and the correction looked equally current in the block.
+  it('puts the publication date in the snippet line', () => {
+    const reg = createSourceRegistry();
+    const block = reg.register([
+      result({
+        url: 'https://example.org/a',
+        title: 'A',
+        content: 'alpha',
+        publishedDate: '2025-09-01T00:00:00.000Z',
+      }),
+    ]);
+    expect(block).toBe('[1] A <https://example.org/a> (2025-09-01) — alpha');
+  });
+
+  it('omits the date segment when the source carries none or an unparseable one', () => {
+    const reg = createSourceRegistry();
+    // An unusable value must read as "no date", never as data: a source line
+    // saying "(Invalid Date)" is worse than one saying nothing.
+    const block = reg.register([
+      result({ title: 'A', content: 'alpha' }),
+      result({ title: 'B', content: 'beta', publishedDate: 'gestern' }),
+      result({ title: 'C', content: 'gamma', publishedDate: '' }),
+    ]);
+    expect(block).toBe('[1] A — alpha\n[2] B — beta\n[3] C — gamma');
+  });
+
+  it('carries the date into renderAll and renderReference too', () => {
+    const reg = createSourceRegistry();
+    reg.register([result({ title: 'A', content: 'alpha', publishedDate: '2026-07-30' })]);
+    expect(reg.renderAll()).toContain('(2026-07-30)');
+    expect(reg.renderReference()).toContain('(2026-07-30)');
+  });
+
   it('omits the URL segment for sources that have none', () => {
     const reg = createSourceRegistry();
     expect(reg.register([result({ title: 'A', content: 'alpha' })])).toBe('[1] A — alpha');
