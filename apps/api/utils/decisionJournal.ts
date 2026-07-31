@@ -70,6 +70,7 @@ export const DECISION_POINTS = {
   'classifier.tier': {
     branches: [
       'tier2.7_mcp_followup',
+      'tier2.7_sharepic_followup',
       'tier2.9_docs_help',
       'tier2.95_ambiguous_graphic',
       'tier3_short_message',
