@@ -299,6 +299,14 @@
   --color-primary-900: var(--primary-900);
 }
 
+/* Vorschau-Kacheln in den Einstellungen: dieselben Klassen, nur ohne den
+   Eintritt. Zehn Flächen, die beim Öffnen des Bereichs gleichzeitig aufgehen,
+   lesen sich als Flackern — und ausgewählt wird ohnehin der Ruhezustand.
+   Gleiche Spezifität wie .workplace-chat-sunrise, steht deshalb dahinter. */
+.workplace-chat-preview {
+  animation: none;
+}
+
 @keyframes workplace-sunrise {
   from {
     --wp-sunrise-y: 82%;
