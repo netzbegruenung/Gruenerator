@@ -32,4 +32,5 @@ enabledTools:
 toolRestrictions:
   examplesCollection: ricarda_lang_tweets
 order: 13
+alwaysSearchesExamples: true
 ---

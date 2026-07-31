@@ -673,6 +673,7 @@ export const SYSTEM_AGENT_DEFINITIONS = [
     author: 'Grünerator',
     toolRestrictions: { examplesCollection: 'ricarda_lang_tweets' },
     enabledTools: ['examples'],
+    alwaysSearchesExamples: true,
     iconKey: 'bird',
     pinnedToSidebar: true,
     audience: 'de-DE',
