@@ -327,8 +327,16 @@ export async function processGraphRequestStreaming(
       });
     }
 
-    // Create the language model and stream
-    const model = getModel(effectiveProvider, effectiveModel);
+    // Create the language model and stream.
+    //
+    // `needsReasoning` pins the lane to the Mistral API whenever a `mistral`
+    // reasoning block was built above: the Scaleway upstream that otherwise
+    // serves Medium 3.5 speaks @ai-sdk/openai and never receives that
+    // namespace, which is precisely the silent drop the comment above warns
+    // about. See routeMistralModel in services/ai/providerInstances.ts.
+    const model = getModel(effectiveProvider, effectiveModel, {
+      needsReasoning: reasoningProviderOptions?.mistral !== undefined,
+    });
 
     const result = streamText({
       model,
