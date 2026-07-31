@@ -40,11 +40,6 @@ export interface ParsedElement {
   tag: string;
 }
 
-export interface ContentSection {
-  header: string | null;
-  content: string[];
-}
-
 export interface CitationSegment {
   text: string;
   isCitation: boolean;

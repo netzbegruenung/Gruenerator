@@ -75,7 +75,14 @@ export function ChatPdfLetterheadExportHost() {
   });
 
   useEffect(() => {
-    openDialog = (request) => setPending(request);
+    openDialog = (request) =>
+      setPending((previous) => {
+        // A replaced request must still settle. Its caller awaits the promise
+        // to clear the menu's busy state, so dropping the resolver leaves that
+        // message's document button spinning and disabled for good.
+        previous?.resolve();
+        return request;
+      });
     return () => {
       openDialog = null;
     };

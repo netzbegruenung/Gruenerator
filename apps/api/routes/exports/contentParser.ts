@@ -26,7 +26,7 @@
 
 import { marked, type Token, type Tokens } from 'marked';
 
-import type { FormattedSegment, FormattedBlock, ContentSection } from './types.js';
+import type { FormattedSegment, FormattedBlock } from './types.js';
 
 /** Inline styling inherited down the token tree. */
 interface InlineStyle {
@@ -376,7 +376,18 @@ function parseHtmlNodes(html: string): HtmlNode[] {
     const selfClosing = match[4] === '/' || VOID_TAGS.has(tag);
 
     if (closing) {
-      const depth = stack.findIndex((entry) => entry.tag === tag);
+      // Search from the TOP of the stack: `findIndex` returns the OUTERMOST
+      // element with this name, so `</li>` closing a nested list's item popped
+      // the outer `<li>` too — and every sibling item after the nested list
+      // ended up outside the `<ul>`, rendered as a paragraph instead of a
+      // list item.
+      let depth = -1;
+      for (let i = stack.length - 1; i > 0; i--) {
+        if (stack[i].tag === tag) {
+          depth = i;
+          break;
+        }
+      }
       if (depth > 0) stack.length = depth;
       continue;
     }
@@ -587,29 +598,4 @@ export function parseFormattedContent(input: string | null | undefined): Formatt
  */
 function looksLikeHtmlDocument(content: string): boolean {
   return /<(p|div|h[1-6]|ul|ol|li|table|blockquote|section|article)\b[^>]*>/i.test(content);
-}
-
-/**
- * Parse content into sections with headers. Used by the plain-text exporters.
- */
-export function parseSections(plain: string | null | undefined): ContentSection[] {
-  const paragraphs = (plain || '').split(/\n\s*\n/);
-  const sections: ContentSection[] = [];
-  let current: ContentSection | null = null;
-
-  for (const para of paragraphs) {
-    const p = para.trim();
-    if (!p) continue;
-
-    if (p.length < 100 && (p === p.toUpperCase() || /^.+:\s*$/.test(p))) {
-      if (current) sections.push(current);
-      current = { header: p.replace(/:$/, ''), content: [] };
-    } else {
-      if (!current) current = { header: null, content: [] };
-      current.content.push(p);
-    }
-  }
-
-  if (current) sections.push(current);
-  return sections;
 }
