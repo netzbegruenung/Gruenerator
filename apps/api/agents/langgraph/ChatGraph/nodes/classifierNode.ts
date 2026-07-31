@@ -58,6 +58,7 @@ import {
   formatConversationHistory,
   hasImageEditVerb,
   isImageRegenRequest,
+  isImageEditInstruction,
   mentionsImageNoun,
   looksMultiTopic,
   DOC_MODIFY_PATTERN,
@@ -1150,10 +1151,18 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       }
       // "Nochmal, aber abends mit warmem Licht" after image generation — unlocks
       // the router's last-image rehydration (gated on intent === 'image_edit').
+      //
+      // `isImageEditInstruction` ist der dritte Fall und war die Lücke: die
+      // vergleichende Anweisung mit benanntem Bildteil („Mach den Hintergrund
+      // dunkler"). Sie trägt weder ein Bearbeiten-Verb noch eine Neu-Formel, lag
+      // deshalb bis zur Löschung der LLM-Stufe bei dieser und fiel danach ins
+      // Residual — Prosa auf einen Auftrag, für den ein Bild bereitlag.
       if (
         tc.kind === 'image' &&
         !hasImageAttachments &&
-        (hasImageEditVerb(userContent) || isImageRegenRequest(userContent)) &&
+        (hasImageEditVerb(userContent) ||
+          isImageRegenRequest(userContent) ||
+          isImageEditInstruction(userContent)) &&
         !forbidsPersistentAction(userContent, ARTIFACT_NOUN_BY_KIND.image)
       ) {
         log.info('[Classifier] Follow-up image edit via lastToolContext → image_edit');
