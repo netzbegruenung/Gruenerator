@@ -38,6 +38,9 @@ interface UsageDelta {
   inputTokens: number;
   outputTokens: number;
   ops: number;
+  /** Measured footprint. GreenPT is the only provider that reports it. */
+  energyWms: number;
+  emissionsUg: number;
 }
 
 const buffer = new Map<string, UsageDelta>();
@@ -57,6 +60,8 @@ function add(entry: Omit<UsageDelta, 'day'>): void {
     existing.inputTokens += entry.inputTokens;
     existing.outputTokens += entry.outputTokens;
     existing.ops += entry.ops;
+    existing.energyWms += entry.energyWms;
+    existing.emissionsUg += entry.emissionsUg;
   } else {
     buffer.set(key, { ...entry, day });
   }
@@ -99,6 +104,43 @@ export function recordTokenUsage(params: {
     inputTokens: Math.max(0, Math.round(params.inputTokens || 0)),
     outputTokens: Math.max(0, Math.round(params.outputTokens || 0)),
     ops: 0,
+    energyWms: 0,
+    emissionsUg: 0,
+  });
+}
+
+/**
+ * Record the MEASURED footprint of one call, for the providers that report it.
+ *
+ * Deliberately a second write rather than a field on `recordTokenUsage`: the
+ * figures arrive from the HTTP layer (see services/ai/greenptImpact.ts), and on
+ * a streamed response they arrive after the token counts have already been
+ * booked. Both writes land on the same primary key, so Postgres sums them into
+ * one row — `requests: 0` here keeps the request count from being doubled.
+ */
+export function recordImpact(params: {
+  provider: string;
+  model: string;
+  energyWms: number;
+  emissionsUg: number;
+  userId?: string | null;
+  feature?: string | null;
+}): void {
+  const userId = params.userId ?? getUsageUserId();
+  if (!userId) return;
+
+  add({
+    userId,
+    feature: params.feature ?? getUsageFeature() ?? 'other',
+    provider: params.provider || 'unknown',
+    model: params.model || 'unknown',
+    unit: 'tokens',
+    requests: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    ops: 0,
+    energyWms: Math.max(0, Math.round(params.energyWms || 0)),
+    emissionsUg: Math.max(0, Math.round(params.emissionsUg || 0)),
   });
 }
 
@@ -126,6 +168,8 @@ export function recordOperation(params: {
     inputTokens: 0,
     outputTokens: 0,
     ops: params.count ?? 1,
+    energyWms: 0,
+    emissionsUg: 0,
   });
 }
 
@@ -157,6 +201,8 @@ export async function flushUsageBuffer(): Promise<void> {
             inputTokens: sql`${userUsageDaily.inputTokens} + excluded.input_tokens`,
             outputTokens: sql`${userUsageDaily.outputTokens} + excluded.output_tokens`,
             ops: sql`${userUsageDaily.ops} + excluded.ops`,
+            energyWms: sql`${userUsageDaily.energyWms} + excluded.energy_wms`,
+            emissionsUg: sql`${userUsageDaily.emissionsUg} + excluded.emissions_ug`,
             updatedAt: new Date(),
           },
         });

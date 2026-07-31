@@ -29,6 +29,15 @@ export const userUsageDaily = pgTable(
     inputTokens: bigint('input_tokens', { mode: 'number' }).notNull().default(0),
     outputTokens: bigint('output_tokens', { mode: 'number' }).notNull().default(0),
     ops: integer('ops').notNull().default(0),
+    /**
+     * MEASURED footprint, in GreenPT's own units (watt-milliseconds, micrograms
+     * CO2e). Only GreenPT reports these; every other provider leaves them at 0
+     * and the read path estimates from tokens instead. Storing the raw units
+     * keeps the value integral and lets a coefficient correction re-derive
+     * history without a backfill — see services/usage/energyFootprint.ts.
+     */
+    energyWms: bigint('energy_wms', { mode: 'number' }).notNull().default(0),
+    emissionsUg: bigint('emissions_ug', { mode: 'number' }).notNull().default(0),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

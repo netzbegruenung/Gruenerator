@@ -1,3 +1,5 @@
+import { captureImpact, modelFromRequestBody } from './greenptImpact.js';
+
 /**
  * GreenPT (api.greenpt.ai) fronts many backends behind one OpenAI-compatible
  * surface. Its thinking lanes (gemma4, glm-5.2, kimi-*, minimax-m2.5,
@@ -44,5 +46,8 @@ export const greenptFetchWithThinkingDisabled: typeof fetch = async (input, init
       // Non-JSON body (e.g. multipart upload), pass through unchanged
     }
   }
-  return fetch(input, init);
+  // Doubles as the impact tap: this is the last point where GreenPT's
+  // sustainability figures still exist — see greenptImpact.ts.
+  const model = modelFromRequestBody(init?.body);
+  return captureImpact(await fetch(input, init), model);
 };
