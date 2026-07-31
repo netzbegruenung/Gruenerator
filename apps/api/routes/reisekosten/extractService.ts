@@ -47,7 +47,7 @@ export async function extractBeleg(
   const rohtext = ocr.text.slice(0, 8000);
 
   const result = await generateObject({
-    model: getIntermediateModel(),
+    model: getIntermediateModel('heavy'),
     schema: extractionSchema,
     system: `${SYSTEM[belegType]}
 REGELN:

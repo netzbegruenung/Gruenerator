@@ -14,7 +14,7 @@
  */
 
 import { createLogger } from '../../../../utils/logger.js';
-import { INTERMEDIATE_MODEL } from '../llmConfig.js';
+import { intermediateLane } from '../llmConfig.js';
 
 import { extractMessageText, formatConversationHistory } from './classifierHeuristics.js';
 import {
@@ -27,6 +27,9 @@ import {
 } from './computeEngine.js';
 
 import type { ChatGraphState } from '../types.js';
+
+/** @see services/ai/intermediateLanes.ts */
+const LANE = intermediateLane('heavy');
 
 const log = createLogger('ChatGraph:Compute');
 
@@ -143,11 +146,11 @@ export async function computeNode(state: ChatGraphState): Promise<Partial<ChatGr
     const response = await aiWorkerPool.processRequest(
       {
         type: 'chat_intent_classification',
-        provider: INTERMEDIATE_MODEL.provider,
+        provider: LANE.provider,
         systemPrompt: buildExtractionPrompt(todayISO),
         messages: [{ role: 'user', content: userContent }],
         options: {
-          model: INTERMEDIATE_MODEL.model,
+          model: LANE.model,
           max_tokens: 600,
           temperature: 0,
           response_format: { type: 'json_object' },
