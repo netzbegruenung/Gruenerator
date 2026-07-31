@@ -12,7 +12,7 @@
  * `passthrough`, so callers need no try/catch and no fallback of their own.
  */
 
-import { INTERMEDIATE_MODEL } from '../../services/ai/providers.js';
+import { intermediateLane } from '../../services/ai/intermediateLanes.js';
 import { createLogger } from '../../utils/logger.js';
 import { withTimeout } from '../../utils/withTimeout.js';
 
@@ -24,6 +24,11 @@ import { rerankPipeline } from './rerankPipeline.js';
 
 import type { PassageChunk } from './passageChunker.js';
 import type { AIWorkerPool } from '../../workers/types.js';
+
+/** @see services/ai/intermediateLanes.ts — `standard`, nicht `heavy`: `condense`
+ *  läuft unter `withTimeout` (7 s / 9 s), und ein Überschreiten degradiert still
+ *  auf den lexikalischen Scorer statt zu scheitern. */
+const LANE = intermediateLane('standard');
 
 const log = createLogger('Distill');
 
@@ -233,7 +238,7 @@ async function condense(
       pool.processRequest(
         {
           type: 'chat_passage_extract',
-          provider: INTERMEDIATE_MODEL.provider,
+          provider: LANE.provider,
           systemPrompt: EXTRACTOR_PROMPT,
           messages: [
             {
@@ -242,7 +247,7 @@ async function condense(
             },
           ],
           options: {
-            model: INTERMEDIATE_MODEL.model,
+            model: LANE.model,
             max_tokens: LLM_MAX_TOKENS,
             temperature: 0.1,
           },
