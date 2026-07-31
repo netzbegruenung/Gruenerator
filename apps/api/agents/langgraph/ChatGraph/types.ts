@@ -596,6 +596,15 @@ export interface ChatGraphState {
   clientPlatform: ClientPlatform;
   /** Tool family the thread's last substantive turn used (see ThreadToolContext). */
   lastToolContext?: ThreadToolContext | null;
+  /**
+   * The thread's recent artifacts, newest first — what {@link lastToolContext}
+   * would be if it were a list instead of a single slot. `last_tool_context` is
+   * OVERWRITTEN by every substantive turn, so a thread that produced a document
+   * and then a sharepic has forgotten the document, and "kürze die Begründung"
+   * has no deterministic door back to it. Built from message metadata by
+   * `listThreadArtifacts`; empty when the thread produced none.
+   */
+  threadArtifacts?: ThreadToolContext[];
   /** Last user text with mention tokens fully REMOVED — for regex heuristics
    *  that would false-positive on labels ("Bild generieren"). The messages on
    *  state carry the label form ("@Label") instead. */

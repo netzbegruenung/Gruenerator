@@ -137,7 +137,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [web, api, docs, sites, wordpress]
+        app: [web, api, docs, wordpress]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
