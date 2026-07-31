@@ -147,6 +147,30 @@ describe('parseFormattedContent — HTML', () => {
     ]);
   });
 
+  // A closing tag must pop the INNERMOST element of that name. Popping the
+  // outermost let `</li>` of the nested list close the outer `<li>` as well, so
+  // every sibling after the nested list fell out of the `<ul>` and rendered as
+  // a paragraph.
+  it('keeps sibling items that follow a nested list', () => {
+    const blocks = parseFormattedContent('<ul><li>A<ul><li>B</li></ul></li><li>C</li></ul>');
+    const items = blocks.filter((block) => block.kind === 'listItem');
+
+    expect(items.map((item) => [textOf(item), item.level])).toEqual([
+      ['A', 0],
+      ['B', 1],
+      ['C', 0],
+    ]);
+    expect(blocks.some((block) => block.kind === 'paragraph')).toBe(false);
+  });
+
+  it('closes the inner element first when the same tag is nested', () => {
+    const blocks = parseFormattedContent(
+      '<div><div><strong>tief</strong></div><em>danach</em></div>'
+    );
+
+    expect(allText(blocks)).toBe('tief | danach');
+  });
+
   // Overlapping regexes used to let two patterns claim the same span and emit
   // the text twice.
   it('does not duplicate text across nested inline tags', () => {
