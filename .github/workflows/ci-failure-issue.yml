@@ -13,7 +13,6 @@ on:
   workflow_run:
     workflows:
       - Content Sync
-      - Nightly Chat Eval
       - Weekly Desktop Release
       - Docs Freshness Check
       - Monitor Refresh
