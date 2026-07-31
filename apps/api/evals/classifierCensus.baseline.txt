@@ -15,9 +15,9 @@
 disposition                       n   anteil  davon Tier 4
 anchor                            0    0.0 %     0
 artifact                         28   16.9 %     0
-gated                             2    1.2 %     0
-loop                            107   64.5 %     0
-prose                            29   17.5 %    25
+gated                             3    1.8 %     0
+loop                            112   67.5 %     0
+prose                            23   13.9 %    19
 (unbekannt)                       0    0.0 %     0
 
 ## Entscheidungspunkte — wie entschieden wurde (Zweighäufigkeit)
@@ -29,10 +29,12 @@ classifier.tier  (160)
     tier2.95_ambiguous_graphic    3
     tier3_short_message           0
     tier3_heuristic              26
-    tier3.5_loop_demotion        96
+    tier3.4_chat_recall           1
+    tier3.4_recurring_order       0
+    tier3.5_loop_demotion       101
     tier3.7_source_scope          0
     tier3.7_no_live_source        5
-    tier4_llm                    25
+    tier4_llm                    19
     tier4_llm_error_fallback      0
 
 ## Intents — feinste Körnung, in Enum-Reihenfolge
@@ -70,9 +72,9 @@ create_sheet                      2  artifact
 create_presentation               1  artifact
 create_pdf                        0  artifact
 create_recurring_task             0  gated
-chat_history                      0  gated
+chat_history                      1  gated
 mcp                               0  gated
 produktion                        3  prose
-direct                           25  prose
+direct                           19  prose
 greeting                          1  prose
-agentic                         101  loop
+agentic                         106  loop

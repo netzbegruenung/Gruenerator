@@ -86,10 +86,16 @@ describe('sharepic licence', () => {
     // or a secondaryIntent — a phrasing the heuristics read as "sharepic" names
     // one, and would therefore be licensed. That is the whole reason this gate
     // exists, so the prompt is deliberately one measured to reach the LLM tier.
+    //
+    // Since the default inversion that measurement moved: a bare "bereite die
+    // Kernaussage optisch auf" now loops, so it can no longer produce the
+    // unlicensed verdict this gate is about. A pure-CREATIVE-FORM order still
+    // reaches the model (self-contained by construction) and still names no
+    // sharepic — so the gate keeps its one realistic input.
     scriptIntent('sharepic');
 
     const { trace } = await runTurn(suite.baseUrl(), {
-      messages: [userTurn('Bereite die Kernaussage optisch auf')],
+      messages: [userTurn('Entwickle einen Slogan zur Kernaussage')],
     });
     suite.pool.assertScriptsConsumed();
 
@@ -106,7 +112,7 @@ describe('sharepic licence', () => {
     scriptIntent('sharepic');
 
     const { trace } = await runTurn(suite.baseUrl(), {
-      messages: [userTurn('Bereite die Kernaussage optisch auf')],
+      messages: [userTurn('Entwickle einen Slogan zur Kernaussage')],
     });
     suite.pool.assertScriptsConsumed();
 
