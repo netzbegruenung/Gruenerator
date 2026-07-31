@@ -65,6 +65,39 @@ describe('carryThreadSourcesIfNeeded', () => {
     expect(out.sourcesCarriedFromThread).toBeUndefined();
   });
 
+  it('grounds a produktion continuation — the intent the prompt now assigns', async () => {
+    // A reference to THIS running conversation goes to `produktion` (prompt
+    // rule 5a), which is exactly the "Mehr dazu bitte" shape this carry exists
+    // for. Keying it on `direct` alone would have silently retired the fix.
+    const out = await carryThreadSourcesIfNeeded(
+      state('Mehr dazu bitte', { intent: 'produktion' } as Partial<ChatGraphState>),
+      't1'
+    );
+    expect(out.searchResults).toHaveLength(2);
+    expect(out.sourcesCarriedFromThread).toBe(true);
+  });
+
+  it('never fires for an agentic turn — the loop retrieves for itself', async () => {
+    const out = await carryThreadSourcesIfNeeded(
+      state('Mehr dazu bitte', { intent: 'agentic' } as Partial<ChatGraphState>),
+      't1'
+    );
+    expect(getRecentThreadSources).not.toHaveBeenCalled();
+    expect(out.sourcesCarriedFromThread).toBeUndefined();
+  });
+
+  it('never fires for a greeting turn, however it is phrased', async () => {
+    // The INTENT gate, not the text gate: "Mehr dazu bitte" passes
+    // needsThreadGrounding, so only `intent !== 'direct'` keeps the DB
+    // round-trip out of the cheapest turn in the product.
+    const out = await carryThreadSourcesIfNeeded(
+      state('Mehr dazu bitte', { intent: 'greeting' } as Partial<ChatGraphState>),
+      't1'
+    );
+    expect(getRecentThreadSources).not.toHaveBeenCalled();
+    expect(out.sourcesCarriedFromThread).toBeUndefined();
+  });
+
   it('does not fire on a rewrite instruction', async () => {
     await carryThreadSourcesIfNeeded(state('Mach das kürzer'), 't1');
     expect(getRecentThreadSources).not.toHaveBeenCalled();

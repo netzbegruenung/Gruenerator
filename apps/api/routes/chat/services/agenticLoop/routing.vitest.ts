@@ -82,6 +82,11 @@ describe('decideRunAgentic', () => {
     'bundestag',
     'abgeordnetenwatch',
     'image',
+    // Mirrors AGENTIC_INTENT_IDS (agenticRespondService), which routing.ts is
+    // deliberately import-free of. `agentic` belongs here: since the split it
+    // is the classifier's residual, so it must own the loop outright rather
+    // than depend on one of the phrasing rescues below.
+    'agentic',
   ]);
   const base = {
     loopEnabled: true,
@@ -111,6 +116,46 @@ describe('decideRunAgentic', () => {
 
   it('keeps a greeting mislabelled `direct` on the fast path', () => {
     expect(decide({ intent: 'direct', lastUserText: 'Hallo, wer bist du?' })).toBe(false);
+  });
+
+  it('rescues a factual question mislabelled `produktion`', () => {
+    // The rescue follows the verdict, not the name: `produktion` inherited
+    // `direct`'s supplied-substance half, so it inherited the failure mode too.
+    expect(
+      decide({ intent: 'produktion', lastUserText: 'Wie hat Robert Habeck abgestimmt?' })
+    ).toBe(true);
+    expect(
+      decide({
+        intent: 'produktion',
+        lastUserText: 'Schreib eine Pressemitteilung zur Verkehrswende',
+      })
+    ).toBe(true);
+  });
+
+  it('`agentic` needs no rescue — it is in the loop set outright', () => {
+    // The residual since the split. If this ever needed a phrasing rescue, the
+    // residual would be doing `direct`'s old job again.
+    expect(decide({ intent: 'agentic', lastUserText: 'Irgendwas völlig Unklares' })).toBe(true);
+  });
+
+  it('`greeting` is excluded structurally, not by phrasing', () => {
+    // All three `direct` rescues key on the intent being `direct`. A greeting
+    // now carries its own intent, so no phrasing and no classifier
+    // self-contradiction can pull it into the loop — the previous test relied
+    // on looksLikeToolableQuestion rejecting the wording, which is a weaker
+    // guarantee than the intent simply not matching.
+    expect(decide({ intent: 'greeting', lastUserText: 'Wie hat Robert Habeck abgestimmt?' })).toBe(
+      false
+    );
+    expect(
+      decide({
+        intent: 'greeting',
+        lastUserText: 'Schreib eine Pressemitteilung zur Verkehrswende',
+      })
+    ).toBe(false);
+    expect(
+      decide({ intent: 'greeting', lastUserText: 'Hallo', classifierContradictedResearch: true })
+    ).toBe(false);
   });
 
   it('never loops a generation intent (fixed UX contract)', () => {

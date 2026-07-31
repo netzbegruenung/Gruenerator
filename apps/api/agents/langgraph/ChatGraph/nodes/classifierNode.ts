@@ -71,6 +71,7 @@ import {
   CHAT_HISTORY_KEYWORDS,
   CURRENT_THREAD_REFERENCE,
   SYSTEM_MCP_PHRASING,
+  NO_RETRIEVAL_VERDICTS,
   looksLikeDocsHelpQuestion,
 } from './classifierParsing.js';
 import { CLASSIFIER_PROMPT, NON_SEARCH_INTENTS } from './classifierPrompt.js';
@@ -212,8 +213,8 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     if (state.lastToolContext?.kind === 'mcp' && state.lastToolContext.ref) {
       log.info('[Classifier] Unscoped mcp intent kept — thread recently used an MCP server');
     } else {
-      log.info('[Classifier] Unscoped prose mcp intent downgraded to direct (no server named)');
-      intent = 'direct';
+      log.info('[Classifier] Unscoped prose mcp intent downgraded to agentic (no server named)');
+      intent = 'agentic';
     }
   }
 
@@ -317,7 +318,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     SYSTEM_MCP_INTENTS.has(intent) &&
     !isSystemIntentAvailable(intent, state.userLocale)
   ) {
-    const fallback = intent === 'bahn' ? 'direct' : 'web';
+    const fallback = intent === 'bahn' ? 'agentic' : 'web';
     log.info(`[Classifier] ${intent} downgraded to ${fallback} (system MCP source not configured)`);
     intent = fallback;
     if (fallback === 'web') downgradedSearchQuery = userText;
@@ -345,7 +346,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     ? [...new Set([...attachedUrls, ...extractUrls(userText)])]
     : [];
   if (detectedUrls.length > 0) {
-    if (!intent || intent === 'direct') {
+    if (!intent || NO_RETRIEVAL_VERDICTS.has(intent)) {
       intent = 'scrape_url';
     } else if (!secondaryIntent && intent !== 'scrape_url' && intent !== 'agentic') {
       // 'agentic' turns keep secondary null: the loop has its own scrape_url
@@ -381,12 +382,14 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   if (intent === 'chat_history' && CURRENT_THREAD_REFERENCE.test(userText)) {
     const hasPastReference = CHAT_HISTORY_KEYWORDS.test(userText);
     if (!hasPastReference) {
-      log.info('[Classifier] chat_history → direct (refers to the CURRENT thread, not a past one)');
-      intent = 'direct';
+      log.info(
+        '[Classifier] chat_history → produktion (refers to the CURRENT thread, not a past one)'
+      );
+      intent = 'produktion';
     }
   }
 
-  const synthesisMode = pickSynthesisMode(intent ?? 'direct', documentSources.length);
+  const synthesisMode = pickSynthesisMode(intent ?? 'agentic', documentSources.length);
 
   // Injection early-warning. The classifier ALREADY notices these payloads and
   // reasons about them ("enthält einen Jailbreak-Versuch, aber die Aufgabe ist
@@ -425,9 +428,11 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
   // sees no need. Overwriting to `research` would force a paid search on a turn
   // the model may well be able to answer from the thread.
   const deepRequestContradictsDirect =
-    explicitDeepRequest && (intent ?? result.intent) === 'direct';
+    explicitDeepRequest && NO_RETRIEVAL_VERDICTS.has(intent ?? result.intent ?? '');
   if (deepRequestContradictsDirect) {
-    log.info('[Classifier] Deep-research request landed on direct — handing the turn to the loop');
+    log.info(
+      '[Classifier] Deep-research request landed on a no-retrieval verdict — handing the turn to the loop'
+    );
   }
 
   // Whether the answer gets pictures beside it. TWO sources, and neither can do
@@ -834,10 +839,10 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
 
     if (hasAttachmentContext && userContent.length > 0) {
       log.info(
-        `[Classifier] File attachment detected (${state.attachmentContext!.length} chars), forcing direct intent`
+        `[Classifier] File attachment detected (${state.attachmentContext!.length} chars), forcing produktion intent`
       );
       return {
-        intent: 'direct',
+        intent: 'produktion',
         searchSources: [],
         searchQuery: null,
         detectedFilters: null,
@@ -851,10 +856,10 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Image attachments (no edit verb above) — vision model interprets in respond.
     if (hasImageAttachments) {
       log.info(
-        `[Classifier] Image attachment detected (${state.imageAttachments.length} images), forcing direct intent`
+        `[Classifier] Image attachment detected (${state.imageAttachments.length} images), forcing produktion intent`
       );
       return {
-        intent: 'direct',
+        intent: 'produktion',
         searchSources: [],
         searchQuery: null,
         detectedFilters: null,
@@ -869,10 +874,10 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     if (hasBoards && userContent.length > 0) {
       const classificationTimeMs = Date.now() - startTime;
       log.info(
-        `[Classifier] Board mention detected (${state.boardIds.length} board(s)), forcing direct intent`
+        `[Classifier] Board mention detected (${state.boardIds.length} board(s)), forcing produktion intent`
       );
       return {
-        intent: 'direct',
+        intent: 'produktion',
         searchSources: [],
         searchQuery: null,
         detectedFilters: null,
@@ -887,10 +892,10 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     if (hasDocMentions && userContent.length > 0) {
       const classificationTimeMs = Date.now() - startTime;
       log.info(
-        `[Classifier] Collaborative document mention detected (${state.docMentionIds.length} doc(s)), forcing direct intent`
+        `[Classifier] Collaborative document mention detected (${state.docMentionIds.length} doc(s)), forcing produktion intent`
       );
       return {
-        intent: 'direct',
+        intent: 'produktion',
         searchSources: [],
         searchQuery: null,
         detectedFilters: null,
@@ -1266,7 +1271,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       log.info(`[Classifier] Ambiguous "Grafik" ask — asking which kind`);
       recordDecision('classifier.tier', 'tier2.95_ambiguous_graphic');
       return {
-        intent: 'direct',
+        intent: 'produktion',
         needsClarification: true,
         clarificationQuestion:
           'Was für eine Grafik soll es werden? Ein Sharepic ist eine gebrandete Vorlage mit Text, ein KI-Bild ein frei generiertes Motiv, ein Diagramm stellt Zahlen dar.',
@@ -1392,13 +1397,13 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Pressemitteilung zu X" reach a planner that can search, instead of being
     // written from parametric memory.
     const unsourcedWriting =
-      heuristic.intent === 'direct' &&
+      NO_RETRIEVAL_VERDICTS.has(heuristic.intent) &&
       looksLikeUnsourcedWritingOrder(userContent, { hasOwnMaterial: turnCarriesOwnMaterial });
 
     const demotableApartFromLiveSource =
       isAgenticLoopEnabled() &&
       (DEMOTABLE_HEURISTIC_INTENTS.has(heuristic.intent) ||
-        (heuristic.intent === 'direct' &&
+        (NO_RETRIEVAL_VERDICTS.has(heuristic.intent) &&
           (looksLikeToolableQuestion(userContent) || unsourcedWriting))) &&
       !CHAT_HISTORY_KEYWORDS.test(userContent);
 
@@ -1590,7 +1595,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       // safety net (loopDemotedFromRetrieval) for a while; the LLM path, which
       // is the one that actually produces the self-contradiction, had none.
       classifierContradictedResearch:
-        classification.needsResearch === true && classification.intent === 'direct',
+        classification.needsResearch === true && NO_RETRIEVAL_VERDICTS.has(classification.intent),
       // The classifier's verdict on whether the SUBJECT is worth showing. Merged
       // with the user's own phrasing at the end of `classifierNode` — this is the
       // half a regex cannot produce, and the tiers that never reach the model
