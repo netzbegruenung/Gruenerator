@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { classifierNode } from './classifierNode.js';
+import { CLASSIFIER_PROMPT } from './classifierPrompt.js';
 
 import type { ChatGraphState, SearchIntent } from '../types.js';
 
@@ -117,8 +118,14 @@ describe('Tool-Kontext-Hinweis an den LLM-Tier', () => {
     await classifierNode(
       buildState(userMessage, { lastToolContext: AFTER_DOC, aiWorkerPool: pool })
     );
-    expect(pool.processRequest).toHaveBeenCalled();
-    return JSON.stringify(pool.processRequest.mock.calls[0]);
+    // Nicht calls[0]: seit Tier 3.7 geht der kleine Quellen-Auflöser zuerst an
+    // denselben Pool. Gesucht ist der Aufruf mit dem grossen Prompt — sonst
+    // prüft der Fall den Prompt des Auflösers und ist immer grün.
+    const llmCall = pool.processRequest.mock.calls.find(
+      (call) => (call[0] as { systemPrompt?: string })?.systemPrompt === CLASSIFIER_PROMPT
+    );
+    expect(llmCall).toBeDefined();
+    return JSON.stringify(llmCall);
   }
 
   it('nennt das letzte Dokument normalerweise', async () => {

@@ -46,6 +46,17 @@ const envSchema = z.object({
   ADMIN_EMAILS: z.string().optional(),
   ALLOW_DEV_AUTH_BYPASS: boolFlag(false),
   DEV_AUTH_BYPASS_TOKEN: z.string().optional(),
+  /**
+   * Directory the chat decision journal is written to, one JSON file per turn
+   * (utils/decisionLog.ts). Lets the live eval lane render the same decision
+   * map the simulated lane produces, without putting decision ids on the wire.
+   *
+   * Honoured ONLY when NODE_ENV === 'development': elsewhere the middleware is
+   * never constructed, so a stray value is inert rather than dangerous. Unset
+   * (the default) means no journal is bound anywhere and every `recordDecision`
+   * stays the no-op it is in production.
+   */
+  CHAT_DECISION_LOG_DIR: z.string().optional(),
 
   // ── URLs & domains ─────────────────────────────────────────────────────
   BASE_URL: z.string().optional(),
@@ -134,6 +145,9 @@ const envSchema = z.object({
   LANGFUSE_PUBLIC_KEY: z.string().trim().optional(),
   LANGFUSE_SECRET_KEY: z.string().trim().optional(),
   LANGFUSE_BASE_URL: z.string().trim().optional(),
+  // Optional deploy identifier (image tag / commit sha) stamped onto traces.
+  // Not part of the kill-switch triple — absence just leaves traces unversioned.
+  LANGFUSE_RELEASE: z.string().trim().optional(),
   APIFY_TOKEN: z.string().optional(),
   EVENT_REGISTRY_API_KEY: z.string().optional(),
   POLITPRO_API_KEY: z.string().optional(),

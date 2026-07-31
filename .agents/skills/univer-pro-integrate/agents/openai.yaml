@@ -1,0 +1,6 @@
+interface:
+  display_name: "Univer Pro Integrate"
+  short_description: "Embed Univer Pro with collaboration, import/export, printing, pivot tables, charts, and license management"
+  default_prompt: "Use $univer-pro-integrate to help me integrate Univer Pro features (collaboration, XLSX/DOCX import-export, printing, pivot tables, charts, shapes, license) into my project."
+policy:
+  allow_implicit_invocation: true

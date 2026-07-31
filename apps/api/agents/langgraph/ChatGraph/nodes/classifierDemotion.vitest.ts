@@ -13,6 +13,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { classifierNode } from './classifierNode.js';
+import { CLASSIFIER_PROMPT } from './classifierPrompt.js';
 
 import type { ChatGraphState, SearchIntent } from '../types.js';
 
@@ -40,6 +41,20 @@ function makeWorkerPool() {
       }),
     })),
   };
+}
+
+/**
+ * Calls that carried the BIG classifier prompt — the LLM tier proper.
+ *
+ * A raw call count stopped meaning that with Tier 3.7: the same pool now also
+ * receives the small source-scope resolver on every turn that reaches the LLM
+ * tier. Counting raw calls would have made these gate tests fail for a reason
+ * that has nothing to do with the gates.
+ */
+function llmTierCalls(pool: ReturnType<typeof makeWorkerPool>): number {
+  return pool.processRequest.mock.calls.filter(
+    (call) => (call[0] as { systemPrompt?: string })?.systemPrompt === CLASSIFIER_PROMPT
+  ).length;
 }
 
 function buildState(
@@ -249,21 +264,21 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
     });
     const result = await classifierNode(state);
     expect(result.intent).not.toBe('agentic');
-    expect(state.aiWorkerPool.processRequest).toHaveBeenCalledTimes(1);
+    expect(llmTierCalls(state.aiWorkerPool)).toBe(1);
   });
 
   it('system-MCP phrasing is vetoed (hotel/reise reach the LLM tier, not demoted)', async () => {
     const state = buildState({ userMessage: 'suche hotels für berlin' });
     const result = await classifierNode(state);
     expect(result.intent).not.toBe('agentic');
-    expect(state.aiWorkerPool.processRequest).toHaveBeenCalledTimes(1);
+    expect(llmTierCalls(state.aiWorkerPool)).toBe(1);
   });
 
   it('a Bahn timetable phrasing also reaches the LLM tier', async () => {
     const state = buildState({ userMessage: 'wann fährt der nächste zug nach hamburg' });
     const result = await classifierNode(state);
     expect(result.intent).not.toBe('agentic');
-    expect(state.aiWorkerPool.processRequest).toHaveBeenCalledTimes(1);
+    expect(llmTierCalls(state.aiWorkerPool)).toBe(1);
   });
 
   // Live failure (11:34): bare "bahnen" slipped the compound-only phrasing list
@@ -273,7 +288,7 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
     const state = buildState({ userMessage: 'welche bahnen fahren gerade nach berlin' });
     const result = await classifierNode(state);
     expect(result.intent).not.toBe('agentic');
-    expect(state.aiWorkerPool.processRequest).toHaveBeenCalledTimes(1);
+    expect(llmTierCalls(state.aiWorkerPool)).toBe(1);
   });
 
   // Live failure (11:34): bare "wetter" slipped the list (only wettervorhersage/
@@ -282,7 +297,7 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
     const state = buildState({ userMessage: 'wie ist das wetter gerade in hamburg' });
     const result = await classifierNode(state);
     expect(result.intent).not.toBe('agentic');
-    expect(state.aiWorkerPool.processRequest).toHaveBeenCalledTimes(1);
+    expect(llmTierCalls(state.aiWorkerPool)).toBe(1);
   });
 
   // The bare-noun additions must stay policy-safe: "Bahnreform"/"Bahnpolitik"/
@@ -333,7 +348,7 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
     });
     const result = await classifierNode(state);
     expect(result.intent).not.toBe('agentic');
-    expect(state.aiWorkerPool.processRequest).toHaveBeenCalledTimes(1);
+    expect(llmTierCalls(state.aiWorkerPool)).toBe(1);
   });
 });
 
@@ -358,7 +373,7 @@ describe('Tier 3.5 — wrapper interactions (URL, edge cases)', () => {
     // One non-question token is not toolable → LLM tier decides (mocked here);
     // the URL wrapper still records the link for the scrape path.
     expect(result.intent).not.toBe('agentic');
-    expect(state.aiWorkerPool.processRequest).toHaveBeenCalledTimes(1);
+    expect(llmTierCalls(state.aiWorkerPool)).toBe(1);
     expect(result.detectedUrls).toHaveLength(1);
     expect(result.secondaryIntent).toBe('scrape_url');
   });

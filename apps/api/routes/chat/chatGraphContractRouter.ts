@@ -46,8 +46,13 @@ import {
   SYSTEM_TOOL_INTENTS,
   isSystemIntentAvailable,
 } from '../../services/mcp/systemMcpServers.js';
-import { buildAiTelemetry, withLangfuseTrace } from '../../services/telemetry/langfuseTelemetry.js';
+import {
+  BOTH_LANES_FAILED,
+  buildAiTelemetry,
+  withLangfuseTrace,
+} from '../../services/telemetry/langfuseTelemetry.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { recordDecision } from '../../utils/decisionJournal.js';
 import { createLogger } from '../../utils/logger.js';
 import { withTimeout } from '../../utils/withTimeout.js';
 
@@ -1042,9 +1047,15 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           // (wrong template, ambiguous, not actually an edit). Answering
           // normally beats minting a surprise second sharepic.
           log.info('[ChatGraph] Unlicensed sharepic intent, thread has one → direct');
+          recordDecision('router.intent_override', 'sharepic_unlicensed_to_direct', {
+            inputs: { intentBefore: 'sharepic', sharepicLicensed, threadHasSharepic: true },
+          });
           classifiedState.intent = 'direct';
         } else {
           log.info('[ChatGraph] Unlicensed sharepic intent, nothing to edit → fixed reply');
+          recordDecision('router.intent_override', 'sharepic_unlicensed_fixed_text', {
+            inputs: { intentBefore: 'sharepic', sharepicLicensed, threadHasSharepic: false },
+          });
           return await finishTurnWithFixedText(NO_SHAREPIC_TO_EDIT_TEXT, 'sharepic');
         }
       }
@@ -1075,17 +1086,28 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         log.info(
           `[ChatGraph] Turn forbids ${secondaryFamily} action → dropping secondaryIntent ${classifiedState.secondaryIntent}`
         );
+        recordDecision('router.persistent_action_gate', 'dropped_secondary', {
+          inputs: { family: secondaryFamily, secondaryIntent: classifiedState.secondaryIntent },
+        });
         classifiedState.secondaryIntent = null;
       }
       const primaryFamily = forbiddenBy[classifiedState.intent];
-      if (
-        primaryFamily &&
-        forbidsPersistentAction(lastUserTextNoMentions, ARTIFACT_NOUN_BY_KIND[primaryFamily])
-      ) {
-        log.info(
-          `[ChatGraph] Turn forbids ${primaryFamily} action → demoting intent ${classifiedState.intent} to direct`
+      if (primaryFamily) {
+        const forbidden = forbidsPersistentAction(
+          lastUserTextNoMentions,
+          ARTIFACT_NOUN_BY_KIND[primaryFamily]
         );
-        classifiedState.intent = 'direct';
+        recordDecision(
+          'router.persistent_action_gate',
+          forbidden ? 'demoted_primary_to_direct' : 'allowed',
+          { inputs: { family: primaryFamily, intent: classifiedState.intent } }
+        );
+        if (forbidden) {
+          log.info(
+            `[ChatGraph] Turn forbids ${primaryFamily} action → demoting intent ${classifiedState.intent} to direct`
+          );
+          classifiedState.intent = 'direct';
+        }
       }
 
       sse.send('progress_step', {
@@ -1216,6 +1238,13 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         !rawCurrentBoard &&
         !forcedTool
       ) {
+        recordDecision('router.intent_override', 'modify_board_to_agentic', {
+          inputs: {
+            intentBefore: 'modify_board',
+            hasRawBoardIds: !!rawBoardIds && rawBoardIds.length > 0,
+            hasOpenBoard: !!rawCurrentBoard,
+          },
+        });
         classifiedState.intent = 'agentic';
       }
 
@@ -1250,6 +1279,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // of the loop must not strand in executeIntentPipeline, which has no
       // 'agentic' branch — degrade to plain search.
       if (!runAgentic && classifiedState.intent === 'agentic') {
+        recordDecision('router.intent_override', 'agentic_to_search', {
+          inputs: { intentBefore: 'agentic', runAgentic },
+        });
         classifiedState.intent = 'search';
       }
       // Same insurance for system tool intents: their tools exist only in the
@@ -1257,6 +1289,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // Backfill the query — these intents are NON_SEARCH, so the classifier
       // nulled searchQuery and the web branch would otherwise search ''.
       if (!runAgentic && isSystemToolIntent) {
+        recordDecision('router.intent_override', 'system_tool_to_web', {
+          inputs: { intentBefore: classifiedState.intent, runAgentic, isSystemToolIntent },
+        });
         classifiedState.intent = 'web';
         if (!classifiedState.searchQuery && lastUserText) {
           classifiedState.searchQuery = lastUserText;
@@ -1733,11 +1768,35 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         sse.setTextListener((kind, text) => activeWriter.onText(kind, text));
       }
 
+      /**
+       * Both answer-writing paths open the same `chat-turn` trace — the agentic
+       * loop and the single-pass respond call. `intent` is the only field that
+       * differs: the loop answers under the classifier's intent, the pipeline
+       * may have rewritten it by the time it reaches the respond model.
+       */
+      const buildTurnTrace = (intent: string) => ({
+        name: 'chat-turn',
+        ...(userId && { userId }),
+        ...(actualThreadId && { sessionId: actualThreadId }),
+        metadata: {
+          requestId,
+          intent,
+          ...(agentId && { agentId }),
+          ...(modelId && { modelId }),
+        },
+      });
+
       if (runAgentic) {
         // Agentic path: the model holds the search tools and loops until it can
         // answer, writing the reply in the same streamed turn. Stage 2's
         // pre-decided single search is skipped entirely.
-        const systemMessage = await buildSystemMessage(classifiedState);
+        // `retrievalExpected`: this prompt is written before the loop calls a
+        // single tool, so the citation count it would otherwise read is 0 on
+        // every agentic turn — not because the answer will be thin, but because
+        // the search has not happened yet.
+        const systemMessage = await buildSystemMessage(classifiedState, {
+          retrievalExpected: true,
+        });
         const prunedValidMessages = pruneMessages(
           validMessages as Parameters<typeof pruneMessages>[0],
           contextWindowTokens
@@ -1751,16 +1810,28 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             )
           : { systemMessage, messages: prunedValidMessages };
 
-        const outcome = await streamAgenticResponse({
-          finalState: classifiedState,
-          systemMessage: finalSystemMessage,
-          messages: contextMessages as ModelMessage[],
-          ...(modelId != null && { modelId }),
-          requestId,
-          sse,
-          req,
-          threadId: actualThreadId ?? null,
-        });
+        // The loop's gather/synth generations nest under this root span — they
+        // pass buildAiTelemetry() from inside loopEngine. Until this existed the
+        // most expensive turns in the product were the only untraced ones, and
+        // the client got no traceId, so their thumbs buttons never rendered.
+        const outcome = await withLangfuseTrace(
+          buildTurnTrace(classifiedState.intent ?? 'agentic'),
+          async (trace) => {
+            langfuseTraceId = trace.traceId;
+            const result = await streamAgenticResponse({
+              finalState: classifiedState,
+              systemMessage: finalSystemMessage,
+              messages: contextMessages as ModelMessage[],
+              ...(modelId != null && { modelId }),
+              requestId,
+              sse,
+              req,
+              threadId: actualThreadId ?? null,
+            });
+            trace.update({ input: lastUserText, output: result.fullText });
+            return result;
+          }
+        );
 
         finalState = classifiedState;
         finalState.citations = outcome.citations;
@@ -1944,32 +2015,19 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             );
           }
 
-          const respondTelemetry = buildAiTelemetry('chat-graph.respond', {
-            requestId,
-            intent: finalState.intent,
-            ...(agentId && { agentId }),
-            ...(modelId && { modelId }),
-          });
+          // Context (requestId/intent/agentId/modelId) rides on the trace below —
+          // AI SDK 7 telemetry has no metadata field.
+          const respondTelemetry = buildAiTelemetry('chat-graph.respond');
 
           try {
             // One Langfuse trace per chat turn: the respond generation (and any
             // sibling-fallback retry) nest under this `chat-turn` root span, and
             // `traceId` is captured for the client feedback score.
             fullText = await withLangfuseTrace(
-              {
-                name: 'chat-turn',
-                ...(userId && { userId }),
-                ...(actualThreadId && { sessionId: actualThreadId }),
-                metadata: {
-                  requestId,
-                  intent: finalState.intent,
-                  ...(agentId && { agentId }),
-                  ...(modelId && { modelId }),
-                },
-              },
-              async (traceId) => {
-                langfuseTraceId = traceId;
-                return streamWithFallback({
+              buildTurnTrace(finalState.intent ?? 'unknown'),
+              async (trace) => {
+                langfuseTraceId = trace.traceId;
+                const text = await streamWithFallback({
                   primary: resolution,
                   sse,
                   logPrefix: '[ChatGraph]',
@@ -1988,6 +2046,15 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
                       ...(respondTelemetry && { telemetry: respondTelemetry }),
                     }),
                 });
+                // streamWithFallback swallows a dead primary AND a dead sibling
+                // into `null` instead of throwing, so without this the failed
+                // turn would sit in Langfuse as a successful one.
+                trace.update(
+                  text === null
+                    ? { input: lastUserText, level: 'ERROR', statusMessage: BOTH_LANES_FAILED }
+                    : { input: lastUserText, output: text }
+                );
+                return text;
               }
             );
           } finally {
