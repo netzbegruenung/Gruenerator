@@ -277,8 +277,11 @@ export async function formatSearchContext(
 
   // Document chat gets the highest budget for focused Q&A
   const isDocumentChat = state.documentChatIds?.length > 0;
-  // Detect if any source has crawled content (longer than typical snippets)
-  const hasCrawledContent = sources.some((s) => (s.representative.content?.length ?? 0) > 500);
+  // The real flag, not a length guess. The old `content.length > 500` test gave
+  // the crawl budget to any long snippet (a deep-tier hit is 1500 chars) and to
+  // any long party-document chunk, while missing a genuinely crawled page that
+  // came back short.
+  const hasCrawledContent = sources.some((s) => s.representative.crawled === true);
   // Multi-source results get the higher budget (mixed doc + web content)
   const isMultiSource = (state.searchSources?.length || 0) > 1;
   const flatFloor = isDocumentChat
@@ -294,7 +297,7 @@ export async function formatSearchContext(
   // Crawled sources get 2x weight in budget allocation
   const weightedRelevance = sources.map((s) => {
     const base = s.representative.relevance || 0.5;
-    const crawlBoost = (s.representative.content?.length ?? 0) > 500 ? 2 : 1;
+    const crawlBoost = s.representative.crawled === true ? 2 : 1;
     return base * crawlBoost;
   });
   const totalWeightedRelevance = weightedRelevance.reduce((sum, w) => sum + w, 0) || 1;
@@ -323,6 +326,32 @@ export async function formatSearchContext(
 }
 
 /**
+ * Fit a distilled page into a budget by relevance instead of by position.
+ *
+ * Drops the lowest-scoring passages first, then restores document order so the
+ * remaining text still reads as prose rather than as a ranked list.
+ */
+function dropWeakestChunks(
+  chunks: ReadonlyArray<{ text: string; score: number; order: number }>,
+  budget: number
+): string {
+  const kept: typeof chunks = [...chunks]
+    .sort((a, b) => b.score - a.score)
+    .reduce<Array<{ text: string; score: number; order: number }>>((acc, chunk) => {
+      const used = acc.reduce((sum, c) => sum + c.text.length + 2, 0);
+      if (acc.length > 0 && used + chunk.text.length > budget) return acc;
+      acc.push(chunk);
+      return acc;
+    }, []);
+  const text = [...kept]
+    .sort((a, b) => a.order - b.order)
+    .map((c) => c.text)
+    .join('\n\n');
+  // A single passage can still exceed the budget on its own.
+  return text.length > budget ? truncateDocument(text, budget) : text;
+}
+
+/**
  * Render the chunks of a single CitableSource into a prompt block. When a
  * source has multiple chunks (e.g. several excerpts from one wolke file or
  * notebook doc), each chunk gets an `--- Auszug N:` separator so the model
@@ -333,7 +362,15 @@ function formatSourceChunks(source: CitableSource, totalCharBudget: number): str
   const chunks = source.chunks.slice(0, 4); // bounded — popover still has the full set
   if (chunks.length === 1) {
     const text = chunks[0].content ?? '';
-    return text.length > totalCharBudget ? truncateDocument(text, totalCharBudget) : text;
+    if (text.length <= totalCharBudget) return text;
+    // A distilled page knows which of its passages matter. Drop the weakest
+    // until it fits and re-join the survivors in document order — positional
+    // truncation of a digest is always wrong, in BOTH directions: `truncateDocument`
+    // keeps the tail (which here is merely the last passage, not a conclusion),
+    // and a plain head cut keeps the first (which is merely the earliest).
+    const scored = source.representative.distilledChunks;
+    if (scored && scored.length > 1) return dropWeakestChunks(scored, totalCharBudget);
+    return truncateDocument(text, totalCharBudget);
   }
   const perChunkBudget = Math.max(150, Math.floor(totalCharBudget / chunks.length));
   return chunks
