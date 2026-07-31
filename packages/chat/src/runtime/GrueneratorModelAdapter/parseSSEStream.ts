@@ -542,6 +542,20 @@ export async function* parseSSEStream(
           break;
         }
 
+        // The loop's channel for image hits. Deliberately touches NOTHING but the
+        // image list: unlike `search_complete` it must not move the progress
+        // stage, because it arrives mid-loop while the model is still working.
+        // The payload is the full list for the turn, so replacing is correct —
+        // a second search's event supersedes the first.
+        case 'search_images': {
+          const { images } = data as { images: SearchImage[] };
+          if (images.length > 0) {
+            receivedSearchImages = images;
+            yield buildResult();
+          }
+          break;
+        }
+
         case 'summary_start': {
           const { message } = data as { message: string };
           transitionStep('summarizing');

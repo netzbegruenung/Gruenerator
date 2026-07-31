@@ -425,6 +425,12 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
       ...(agentId && agentId !== 'gruenerator-universal' ? { agentId } : {}),
       citations: persistedCitations,
       searchResults: finalState.searchResults?.slice(0, MAX_SOURCES) || [],
+      // Image hits, so a reloaded turn still shows what it found. Stored BARE —
+      // the `proxyUrl` handle is deliberately NOT persisted: it is a signed 24h
+      // capability and a database row outlives it. The load path mints a fresh
+      // one (messagesController), which also keeps the "signed at the moment of
+      // handing out" rule true on reload.
+      ...(finalState.webImageResults?.length ? { searchImages: finalState.webImageResults } : {}),
       generatedImage: generatedImage
         ? {
             url: generatedImage.url,

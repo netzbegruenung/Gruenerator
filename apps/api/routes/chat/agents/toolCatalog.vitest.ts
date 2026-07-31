@@ -391,3 +391,95 @@ describe('research ban (forbidsNewResearch → no search tools)', () => {
     expect(names).toContain('scrape_url');
   });
 });
+
+/**
+ * Image hits on the loop path.
+ *
+ * The lean `{resultCount, sources}` shape used to swallow them one hop after we
+ * had paid Linkup for them: `bilder: true` reached the engine, the images came
+ * back, and neither the model nor the client ever saw one. These pin the two
+ * halves of the fix — out to the client as their own event, into the model as a
+ * count and nothing more.
+ */
+describe('toolCatalog image hits', () => {
+  beforeEach(() => {
+    searchExec.mockReset();
+    webExec.mockReset();
+  });
+
+  const image = { title: 'Windrad', url: 'https://example.test/wind.jpg', domain: 'example.test' };
+
+  function loopCatalog() {
+    const send = vi.fn();
+    const state = {
+      intent: 'web',
+      messages: [{ role: 'user', content: 'zeig mir Fotos von Windrädern' }],
+      enabledTools: {},
+    } as unknown as ChatGraphState;
+    const { tools } = buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry: createSourceRegistry(),
+      loop: { sse: { send, sendRaw: () => {}, end: () => {} } as never, state },
+    });
+    return { tools, send, state };
+  }
+
+  it('sends the images to the client and hands the model a count, not a URL', async () => {
+    webExec.mockResolvedValue({
+      query: 'Windräder',
+      resultsCount: 1,
+      results: [{ rank: 1, title: 'Windkraft', url: 'https://example.test/a', snippet: 'Text.' }],
+      images: [image],
+    });
+    const { tools, send, state } = loopCatalog();
+    const out = (await execOf(tools.web_search)({ query: 'Windräder' }, { toolCallId: 'c1' })) as {
+      sources: string;
+      bilder?: string;
+    };
+
+    const [event, payload] = send.mock.calls.find(([name]) => name === 'search_images') ?? [];
+    expect(event).toBe('search_images');
+    expect((payload as { images: unknown[] }).images).toHaveLength(1);
+    // Carried on the state too, so persistence and the synth note read one field
+    // regardless of which path produced the images.
+    expect(state.webImageResults).toHaveLength(1);
+
+    expect(out.bilder).toContain('1 Bildtreffer');
+    expect(JSON.stringify(out)).not.toContain('wind.jpg');
+  });
+
+  /**
+   * "Zeig mir Fotos" is the one turn where an empty `results` is a success. The
+   * early return used to hand the raw result — image URLs included — straight to
+   * the model, which is the one place a hotlink could enter the answer text.
+   */
+  it('an image-only search returns the note, never the raw result', async () => {
+    webExec.mockResolvedValue({ query: 'Fotos', resultsCount: 0, results: [], images: [image] });
+    const { tools, send } = loopCatalog();
+    const out = (await execOf(tools.web_search)({ query: 'Fotos' }, { toolCallId: 'c1' })) as {
+      resultCount: number;
+      bilder?: string;
+    };
+
+    expect(out.resultCount).toBe(0);
+    expect(out.bilder).toContain('1 Bildtreffer');
+    expect(JSON.stringify(out)).not.toContain('wind.jpg');
+    expect(send.mock.calls.some(([name]) => name === 'search_images')).toBe(true);
+  });
+
+  it('stays silent when the search asked for no images', async () => {
+    webExec.mockResolvedValue({
+      query: 'Windkraft',
+      resultsCount: 1,
+      results: [{ rank: 1, title: 'T', url: 'https://example.test/a', snippet: 'Text.' }],
+    });
+    const { tools, send, state } = loopCatalog();
+    const out = (await execOf(tools.web_search)({ query: 'Windkraft' }, { toolCallId: 'c1' })) as {
+      bilder?: string;
+    };
+
+    expect(out.bilder).toBeUndefined();
+    expect(send.mock.calls.some(([name]) => name === 'search_images')).toBe(false);
+    expect(state.webImageResults).toBeUndefined();
+  });
+});
