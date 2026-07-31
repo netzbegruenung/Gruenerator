@@ -187,8 +187,12 @@ export function getScalewayProvider(): ReturnType<typeof createOpenAI> {
  * embedding models are not served by this Scaleway project, so they must keep
  * going to the Mistral API — which is why this is a lookup table and not a
  * `startsWith('mistral-')` test.
+ *
+ * Exported because the reasoning streamer (services/ai/regoloReasoningStream.ts)
+ * has to answer the same question — "does Scaleway serve this id, and under what
+ * name" — for the thinking lane. Two tables would drift.
  */
-const SCALEWAY_MISTRAL_MODELS: Readonly<Record<string, string>> = {
+export const SCALEWAY_MISTRAL_MODELS: Readonly<Record<string, string>> = {
   'mistral-medium-2604': 'mistral-medium-3.5-128b',
   'mistral-medium-3.5': 'mistral-medium-3.5-128b',
   'mistral-medium-latest': 'mistral-medium-3.5-128b',
