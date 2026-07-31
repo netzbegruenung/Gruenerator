@@ -13,11 +13,14 @@
  */
 
 import { createLogger } from '../../../../utils/logger.js';
-import { INTERMEDIATE_MODEL } from '../llmConfig.js';
+import { intermediateLane } from '../llmConfig.js';
 
 import { lastUserText } from './pandasComputeNode.js';
 
 import type { ChatGraphState, ComputeData } from '../types.js';
+
+/** @see services/ai/intermediateLanes.ts */
+const LANE = intermediateLane('compute');
 
 const log = createLogger('ChatGraph:ComputeVerifier');
 
@@ -87,11 +90,11 @@ Ist das plausibel?`;
     const response = await state.aiWorkerPool.processRequest(
       {
         type: 'chat_compute_verify',
-        provider: INTERMEDIATE_MODEL.provider,
+        provider: LANE.provider,
         systemPrompt: VERIFIER_PROMPT,
         messages: [{ role: 'user', content: userMessage }],
         options: {
-          model: INTERMEDIATE_MODEL.model,
+          model: LANE.model,
           max_tokens: 200,
           temperature: 0,
           response_format: { type: 'json_object' },

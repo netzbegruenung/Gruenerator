@@ -10,9 +10,12 @@
  */
 
 import { createLogger } from '../../../../utils/logger.js';
-import { INTERMEDIATE_MODEL } from '../llmConfig.js';
+import { intermediateLane } from '../llmConfig.js';
 
 import type { ChatGraphState } from '../types.js';
+
+/** @see services/ai/intermediateLanes.ts */
+const LANE = intermediateLane('standard');
 
 const log = createLogger('ChatGraph:QualityGate');
 
@@ -88,7 +91,7 @@ export async function qualityGateNode(state: ChatGraphState): Promise<Partial<Ch
     const response = await aiWorkerPool.processRequest(
       {
         type: 'chat_quality_gate',
-        provider: INTERMEDIATE_MODEL.provider,
+        provider: LANE.provider,
         systemPrompt: QUALITY_PROMPT,
         messages: [
           {
@@ -97,7 +100,7 @@ export async function qualityGateNode(state: ChatGraphState): Promise<Partial<Ch
           },
         ],
         options: {
-          model: INTERMEDIATE_MODEL.model,
+          model: LANE.model,
           max_tokens: 80,
           temperature: 0.0,
           response_format: { type: 'json_object' },

@@ -6,39 +6,41 @@ description: Aktuelle Statistiken über die indexierten Inhalte im Grünerator
 
 # Inhaltsdatenbank
 
-> Zuletzt aktualisiert: **29.07.2026, 22:15**
+> Zuletzt aktualisiert: **31.07.2026, 23:00**
 
 ## Übersicht
 
 Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei.
-Insgesamt sind **29.720 Vektoren** in der Datenbank gespeichert.
+Insgesamt sind **33.504 Vektoren** in der Datenbank gespeichert.
 
 ## Sammlungen
 
 | Sammlung       |   Vektoren |
 | -------------- | ---------: |
-| Landesverbände |     19.651 |
-| KommunalWiki   |      6.744 |
-| Bundestag      |      3.290 |
-| Böll-Stiftung  |         35 |
-| **Gesamt**     | **29.720** |
+| Landesverbände |     19.665 |
+| KommunalWiki   |      6.773 |
+| Bundestag      |      3.304 |
+| Böll-Stiftung  |      2.209 |
+| gruene.at      |      1.007 |
+| Grünblog       |        546 |
+| **Gesamt**     | **33.504** |
 
 ## Landesverbände
 
-Die Landesverbände-Sammlung enthält **13.239 Vektoren** aus 9 Quellen.
+Die Landesverbände-Sammlung enthält **13.250 Vektoren** aus 9 Quellen.
 
 | Landesverband                   | Kürzel |   Vektoren |
 | ------------------------------- | ------ | ---------: |
 | Mecklenburg-Vorpommern Fraktion | MV-F   |      2.428 |
 | Berlin Fraktion                 | BE-F   |      2.253 |
-| Brandenburg                     | BB     |      2.153 |
+| Brandenburg                     | BB     |      2.161 |
 | Berlin                          | BE     |      1.834 |
 | Mecklenburg-Vorpommern          | MV     |      1.412 |
-| Sachsen-Anhalt Fraktion         | LSA-F  |      1.383 |
-| Thüringen                       | TH     |        770 |
+| Sachsen-Anhalt Fraktion         | LSA-F  |      1.385 |
+| Thüringen                       | TH     |        771 |
 | Bayern                          | BY     |        722 |
 | Sachsen-Anhalt                  | LSA    |        284 |
-| **Gesamt**                      |        | **13.239** |
+| **Gesamt**                      |        | **13.250** |
 
 ## Aktualisierung
 

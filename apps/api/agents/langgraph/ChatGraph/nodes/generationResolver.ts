@@ -15,7 +15,8 @@
  * Both are the same question with a closed answer space, which is what makes
  * ~900 characters enough where the tool taxonomy was not. Same shape as
  * `sourceScopeResolver` and `docsIntentTiebreak`: hard timeout,
- * INTERMEDIATE_MODEL, the existing `chat_intent_classification` task, and `null`
+ * the `standard` intermediate stage, the existing `chat_intent_classification`
+ * task, and `null`
  * for anything unusable.
  *
  * `keine` and `null` are DIFFERENT answers, exactly as in `sourceScopeResolver`:
@@ -34,10 +35,13 @@
  */
 
 import { createLogger } from '../../../../utils/logger.js';
-import { INTERMEDIATE_MODEL } from '../llmConfig.js';
+import { intermediateLane } from '../llmConfig.js';
 
 import type { AIWorkerPool } from '../../../../workers/types.js';
 import type { ChatIntentId } from '@gruenerator/shared/chat-intents';
+
+/** @see services/ai/intermediateLanes.ts */
+const LANE = intermediateLane('standard');
 
 const log = createLogger('ChatGraph:GenerationScope');
 
@@ -159,10 +163,10 @@ export async function resolveGenerationScope({
       aiWorkerPool.processRequest(
         {
           type: 'chat_intent_classification',
-          provider: INTERMEDIATE_MODEL.provider,
+          provider: LANE.provider,
           systemPrompt: RESOLVE_PROMPT,
           messages: [{ role: 'user', content: userMessage }],
-          options: { model: INTERMEDIATE_MODEL.model, max_tokens: 16, temperature: 0 },
+          options: { model: LANE.model, max_tokens: 16, temperature: 0 },
         },
         null
       ),
