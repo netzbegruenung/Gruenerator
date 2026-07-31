@@ -32,6 +32,7 @@ import { buildChatToolCatalog } from '../../agents/toolCatalog.js';
 import { extractTextContent } from '../messageHelpers.js';
 import {
   defersToSearchDespiteSources,
+  deniesSearchAbilityDespiteSearching,
   looksCutOff,
   stripFabricatedSystemClaims,
 } from '../outputSanity.js';
@@ -747,7 +748,11 @@ export async function streamAgenticResponse(params: {
         sources.trim().length > 0
           ? `\n\nGESAMMELTE QUELLEN (nummeriert):\n${sources}\n\nBeantworte die Frage auf Basis dieser Quellen. ZITIER-REGELN: Belege Fakten mit Markern in ECKIGEN KLAMMERN — z.B. [3] oder [3, 7]. Schreibe die Quellennummer NIEMALS als blanke Zahl ohne Klammern (sonst ist sie von normalen Zahlen im Text nicht zu unterscheiden). Nutze AUSSCHLIESSLICH die Nummern aus der Liste oben; erfinde keine Nummern. Deckt keine Quelle die Frage, sag es ehrlich.
 
-ANTWORTE KONKRET: Steht die Antwort in einer Quelle, dann NENNE SIE im Klartext — den Namen, die Zahl, das Datum. Verweise nicht auf die Quelle, statt zu antworten ("laut [1] gibt es dazu Informationen" ist keine Antwort). Die Recherche für diesen Turn ist bereits gelaufen: empfiehl NIEMALS eine Websuche, eine "kurze Recherche" oder das Nachschlagen auf einer offiziellen Seite. Reichen die Quellen wirklich nicht, sag genau das — knapp und ohne Suchempfehlung.`
+ANTWORTE KONKRET: Steht die Antwort in einer Quelle, dann NENNE SIE im Klartext — den Namen, die Zahl, das Datum. Verweise nicht auf die Quelle, statt zu antworten ("laut [1] gibt es dazu Informationen" ist keine Antwort).
+
+AKTUALITÄT: Hinter dem Titel steht, wo bekannt, das Veröffentlichungsdatum der Quelle. Widersprechen sich Quellen über einen JETZT-Zustand (Amt, Mandat, Mitgliedschaft, Preis, Stand eines Verfahrens), dann gilt die NEUESTE — nenne den Stand mit Datum ("seit September 2025 …"). Eine ältere Quelle im Präsens ("ist Bundesminister") beschreibt ihren Erscheinungszeitpunkt, nicht heute; übernimm sie nie als aktuellen Stand.
+
+Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. Deshalb: empfiehl NIEMALS eine Websuche, eine "kurze Recherche" oder das Nachschlagen auf einer offiziellen Seite. Behaupte aber ebenso NIEMALS, du könntest nicht suchen, hättest keinen Internetzugriff oder könntest "nur auf die bereitgestellten Ergebnisse zugreifen" — das ist falsch: gesucht wird jedes Mal neu, wenn es gebraucht wird, und in diesem Turn ist es geschehen. Reichen die Quellen wirklich nicht, benenne knapp die konkrete LÜCKE ("zum Stand nach September 2025 steht hier nichts") — ohne Suchempfehlung und ohne Aussage über deine Fähigkeiten.`
           : '';
       // Split mode has no tool returns in the synth context — without these
       // notes the synthesizer is blind to artifacts the gather phase produced.
@@ -1185,6 +1190,17 @@ ANTWORTE KONKRET: Steht die Antwort in einer Quelle, dann NENNE SIE im Klartext 
   ) {
     log.warn(
       `[Agentic] Answer recommends a search although ${sourceRegistry.size} source(s) were gathered in ${steps.length} step(s) — synth ignored its source block`
+    );
+  }
+
+  if (
+    deniesSearchAbilityDespiteSearching(text, {
+      sources: sourceRegistry.size,
+      toolCalls: steps.length,
+    })
+  ) {
+    log.warn(
+      `[Agentic] Answer denies being able to search although ${steps.length} step(s) gathered ${sourceRegistry.size} source(s) — synth prompt read as a capability limit`
     );
   }
 
