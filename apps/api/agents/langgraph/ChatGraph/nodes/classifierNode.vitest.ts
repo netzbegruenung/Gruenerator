@@ -14,7 +14,6 @@ import {
   detectSearchSources,
   detectComplexity,
   heuristicClassify,
-  extractFilters,
   heuristicExtractFilters,
   looksMultiTopic,
   HEURISTIC_CONFIDENCE_THRESHOLD,
@@ -564,41 +563,13 @@ describe('heuristicClassify', () => {
   });
 });
 
-// ─── extractFilters ─────────────────────────────────────────────────────
-
-describe('extractFilters', () => {
-  it('maps Hamburg landesverband alias', () => {
-    const result = extractFilters({ landesverband: 'hamburg' });
-    expect(result).toEqual({ region: 'HH' });
-  });
-
-  it('maps Thüringen to both TH and TH-F', () => {
-    const result = extractFilters({ landesverband: 'thüringen' });
-    expect(result).toEqual({ region: ['TH', 'TH-F'] });
-  });
-
-  it('passes through valid date_from/date_to', () => {
-    const result = extractFilters({ date_from: '2024-01-01', date_to: '2024-12-31' });
-    expect(result).toEqual({ date_from: '2024-01-01', date_to: '2024-12-31' });
-  });
-
-  it('rejects invalid date format', () => {
-    const result = extractFilters({ date_from: 'January 2024' });
-    expect(result).toBeNull();
-  });
-
-  it('extracts content_type', () => {
-    const result = extractFilters({ content_type: 'presse' });
-    expect(result).toEqual({ content_type: 'presse' });
-  });
-
-  it('returns null for empty/null filters', () => {
-    expect(extractFilters(null)).toBeNull();
-    expect(extractFilters({})).toBeNull();
-  });
-});
-
 // ─── heuristicExtractFilters ────────────────────────────────────────────
+//
+// Der `extractFilters`-Block darüber ist mit seiner Funktion weg: er las das
+// `filters`-Objekt der LLM-Stufe ein, die seit der Löschung niemand mehr fragt.
+// Die Datums-Prüfung, die er nebenbei mitgetestet hat, sitzt jetzt in
+// `relativeDates.ts` und wird dort geprüft — sie war hier ohnehin nur eine
+// Validierung fremd gelieferter ISO-Strings, keine Erkennung.
 
 describe('heuristicExtractFilters', () => {
   it('detects Pressemitteilung content type', () => {
