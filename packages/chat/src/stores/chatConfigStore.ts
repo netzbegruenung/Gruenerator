@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
-import type { ClientPlatform, CurrentBoard, EditorOperationsEvent } from '@gruenerator/contracts';
 import type { SharepicVariant } from '../hooks/useChatGraphStream';
+import type { ClientPlatform, CurrentBoard, EditorOperationsEvent } from '@gruenerator/contracts';
 
 /** A raw file handed to the in-browser Python interpreter (Pyodide worker). */
 export interface PythonFile {
@@ -65,6 +65,7 @@ export interface ChatConfig {
     threads?: string;
     summarize?: string;
     exportMessage?: string;
+    exportPdf?: string;
     exportToDocs?: string;
     chatConfirm?: string;
     feedback?: string;
@@ -78,6 +79,15 @@ export interface ChatConfig {
     title?: string,
     existingDocId?: string
   ) => Promise<string | void>;
+  /**
+   * Exports a message as a PDF carrying the user's Absender — the letterhead
+   * document and the DIN 5008 letter, which the same dialog decides between.
+   * Injected rather than built into the chat package: choosing the Absender
+   * needs the saved letterheads and the export dialog, both of which live in
+   * the host app. Omit it and the menu entry is not offered — that is how
+   * mobile hides a flow it has no dialog for.
+   */
+  onExportPdfLetterhead?: (content: string, title?: string) => Promise<void>;
   /** Opens a single sharepic variant in the canvas editor for editing. */
   onEditSharepic?: (variant: SharepicVariant, opts?: { threadId: string | null }) => void;
   /** Renders a sharepic to a base64 PNG using the canvas editor. */
@@ -163,6 +173,7 @@ export interface ResolvedEndpoints {
   threads: string;
   summarize: string;
   exportMessage: string;
+  exportPdf: string;
   exportToDocs: string;
   chatConfirm: string;
   feedback: string;
@@ -258,6 +269,7 @@ interface ChatConfigStore extends ResolvedChatConfig {
     title?: string,
     existingDocId?: string
   ) => Promise<string | void>;
+  onExportPdfLetterhead?: ChatConfig['onExportPdfLetterhead'];
   onEditSharepic?: (variant: SharepicVariant, opts?: { threadId: string | null }) => void;
   renderSharepic?: (
     canvasType: string,
@@ -328,6 +340,7 @@ const DEFAULT_ENDPOINTS: ResolvedEndpoints = {
   threads: '/api/chat-service/threads',
   summarize: '/api/chat-service/summarize',
   exportMessage: '/api/exports/chat-message',
+  exportPdf: '/api/exports/pdf',
   exportToDocs: '/api/docs/from-export',
   chatConfirm: '/api/chat-service/confirm',
   feedback: '/api/chat-service/feedback',
@@ -380,6 +393,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
   endpoints: DEFAULT_ENDPOINTS,
   docsBaseUrl: undefined,
   onEditInDocs: undefined,
+  onExportPdfLetterhead: undefined,
   wolkeConnectUrl: undefined,
   contextProviders: new Map(),
   documentEditHandlers: new Map(),
@@ -394,6 +408,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       endpoints: { ...DEFAULT_ENDPOINTS, ...config?.endpoints },
       docsBaseUrl: config?.docsBaseUrl,
       onEditInDocs: config?.onEditInDocs,
+      onExportPdfLetterhead: config?.onExportPdfLetterhead,
       onEditSharepic: config?.onEditSharepic,
       renderSharepic: config?.renderSharepic,
       runPython: config?.runPython,
