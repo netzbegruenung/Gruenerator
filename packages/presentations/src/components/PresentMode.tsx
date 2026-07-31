@@ -1,5 +1,6 @@
 import { type Slide } from '@gruenerator/contracts';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { FiGrid, FiMaximize, FiMessageSquare, FiX } from 'react-icons/fi';
 import Reveal from 'reveal.js';
 import RevealHighlight from 'reveal.js/plugin/highlight';
@@ -8,12 +9,16 @@ import RevealNotes from 'reveal.js/plugin/notes';
 import * as Y from 'yjs';
 
 import { useSlides } from '../collab/useSlides.js';
+import { SLIDE_REFIT_EVENT } from '../lib/useAutoFitScale.js';
 
 import { SlideSurface } from './SlideSurface.js';
 
 import 'reveal.js/reveal.css';
 import 'reveal.js/plugin/highlight/monokai.css';
 import './theme/gruene-deck.css';
+// Print-only; kept out of gruene-deck.css because PresentationEditor imports
+// that file too and these rules must never reach the editor chunk.
+import './theme/print-pdf.css';
 
 export interface PresentModeProps {
   ydoc: Y.Doc;
@@ -48,10 +53,42 @@ function sectionAttrs(slide: Slide): Record<string, string> {
  * slides change; applies deck options via `configure()`.
  */
 export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProps) {
-  const { slides, deckOptions } = useSlides(ydoc);
+  const { slides: liveSlides, deckOptions } = useSlides(ydoc);
   const deckRef = useRef<HTMLDivElement>(null);
   const revealRef = useRef<RevealApi | null>(null);
   const [overview, setOverview] = useState(false);
+
+  // PDF export: snapshot the deck the first time it is non-empty and render
+  // that snapshot for the rest of the export. Two structural reasons:
+  //   1. The export tab mounts us as soon as `ydoc` exists, and useCollaboration
+  //      hands out an EMPTY Y.Doc until Hocuspocus syncs. PrintView.activate()
+  //      runs exactly once and starts at `slides[0].parentNode` — against an
+  //      empty `.slides` that throws, so `pdf-ready` never fires and reveal
+  //      leaves the viewport on `loading-scroll-mode` (`visibility: hidden`).
+  //      The 3s fallback below then prints a blank sheet.
+  //   2. activate() reparents every <section> into a `div.pdf-page`. A
+  //      collaborator's edit landing after that would make React reconcile
+  //      against nodes whose position it no longer knows.
+  const [printSlides, setPrintSlides] = useState<Slide[] | null>(null);
+  useEffect(() => {
+    // Latch: fires once when the deck first arrives, then settles.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (printPdf && !printSlides && liveSlides.length > 0) setPrintSlides(liveSlides);
+  }, [printPdf, printSlides, liveSlides]);
+  const slides = printPdf ? (printSlides ?? []) : liveSlides;
+  /** Print must not boot reveal before the deck has arrived (see above). */
+  const deckReady = !printPdf || slides.length > 0;
+
+  // `deckReady` gates the init effect — and with it the 3s print fallback that
+  // lives inside it. So a deck that never syncs (Hocuspocus unreachable, an id
+  // with no document) arms no timer at all and the export tab just sits there
+  // blank: no dialog, no error, nothing to react to. Say so instead.
+  const [syncFailed, setSyncFailed] = useState(false);
+  useEffect(() => {
+    if (!printPdf || deckReady) return;
+    const timer = setTimeout(() => setSyncFailed(true), 15000);
+    return () => clearTimeout(timer);
+  }, [printPdf, deckReady]);
 
   const optsRef = useRef(deckOptions);
   optsRef.current = deckOptions;
@@ -59,7 +96,7 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
   // Initialize once (re-init only when the structural `scroll` view changes).
   useEffect(() => {
     const el = deckRef.current;
-    if (!el) return;
+    if (!el || !deckReady) return;
     const opts = optsRef.current;
     const deck = new Reveal(el, {
       embedded: false,
@@ -106,12 +143,24 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
         const doPrint = () => {
           if (printed) return;
           printed = true;
+          // Last-chance re-fit — synchronous, so print() below reads the
+          // freshly written --gs-font-scale. Idempotent (the ladder walk
+          // converges), and the only re-fit on the fallback path, where
+          // `pdf-ready` never arrived.
+          window.dispatchEvent(new Event(SLIDE_REFIT_EVENT));
           window.print();
         };
         void Promise.all([
           new Promise<void>((resolve) => deck.on('pdf-ready', () => resolve())),
           document.fonts?.ready ?? Promise.resolve(),
-        ]).then(() => requestAnimationFrame(() => requestAnimationFrame(doPrint)));
+        ]).then(() => {
+          // First moment every slide can measure: PrintView has wrapped each
+          // section in a `.pdf-page` and forced them all visible, and the CI
+          // faces are loaded. Before this, slides 2..N measure 0 and keep
+          // scale 1 — `.gruene-slide` then clips them without a trace.
+          window.dispatchEvent(new Event(SLIDE_REFIT_EVENT));
+          requestAnimationFrame(() => requestAnimationFrame(doPrint));
+        });
         // Only reached when a signal is lost; the happy path resolves well
         // inside this, so the longer deadline costs nothing in normal exports.
         setTimeout(doPrint, 3000);
@@ -126,8 +175,9 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
       }
       revealRef.current = null;
     };
+    // `deckReady` only ever flips false→true, once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scroll]);
+  }, [scroll, deckReady]);
 
   // Apply deck-option changes live (no re-init needed).
   useEffect(() => {
@@ -147,16 +197,21 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
   const structureKey = slides.map((s) => s.id).join(',');
   useEffect(() => {
     const deck = revealRef.current;
-    if (!deck) return;
+    // Print renders a frozen snapshot; a sync() after PrintView has reparented
+    // the sections into `.pdf-page` wrappers would corrupt the layout.
+    if (!deck || printPdf) return;
     deck.sync();
     deck.layout();
-  }, [structureKey]);
+  }, [structureKey, printPdf]);
 
   // ESC exits present mode. reveal binds ESC (and O) to toggleOverview, so
   // without this ESC could only ever open/close the overview, never close the
   // deck. The capture-phase listener runs before reveal's handler: on a slide
   // we exit; in overview we let reveal close the overview first (next ESC exits).
   useEffect(() => {
+    // Not in the export tab: the app shell is hidden for print, so unmounting
+    // the deck would leave a blank page behind.
+    if (printPdf) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || overview) return;
       e.stopImmediatePropagation();
@@ -164,7 +219,7 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
     };
     document.addEventListener('keydown', onKey, true);
     return () => document.removeEventListener('keydown', onKey, true);
-  }, [overview, onClose]);
+  }, [overview, onClose, printPdf]);
 
   // Keep the screen awake while presenting. Best-effort: the API is missing on
   // iOS Safari and the lock is dropped whenever the tab is backgrounded, so it
@@ -232,6 +287,54 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
     notes?.open?.();
   }, []);
 
+  const deck = (
+    <div className={`reveal gruene-deck${printPdf ? ' gruene-print-root' : ''}`} ref={deckRef}>
+      <div className="slides">
+        {slides.map((slide) => (
+          <section key={slide.id} {...sectionAttrs(slide)}>
+            <SlideSurface
+              slide={slide}
+              accent={deckOptions.accentColor}
+              brand={deckOptions.brand}
+              showLogo={deckOptions.showLogo}
+              presenting
+            />
+            {slide.notes.trim() !== '' && <aside className="notes">{slide.notes}</aside>}
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+
+  // PDF export: the deck must be a direct child of <body> and statically
+  // positioned. reveal paginates by putting `page-break-after: always` on the
+  // `.pdf-page` wrappers it injects, and Blink ignores fragmentation inside a
+  // `position: fixed` subtree — it prints the first page only, clipped to the
+  // viewport. That is the "only the first slide" bug.
+  //
+  // Portalling (rather than un-fixing the wrapper in CSS) also lets
+  // print-pdf.css remove the whole app shell with one rule, and drops the
+  // `bg-black` that would otherwise sit behind every page. The toolbar is not
+  // rendered at all: `print:hidden` kept it off paper, but it still floated
+  // over the on-screen stack in the export tab.
+  if (printPdf) {
+    // The message carries `gruene-print-root` too — print-pdf.css hides every
+    // other body child, so without the class the tab would stay blank.
+    if (syncFailed) {
+      return createPortal(
+        <div className="gruene-print-root p-8 text-center font-sans" role="alert">
+          <p className="text-lg font-bold">Die Präsentation konnte nicht geladen werden.</p>
+          <p className="mt-2 text-sm">
+            Bitte schließe diesen Tab und starte den PDF-Export erneut. Besteht das Problem, prüfe
+            deine Verbindung.
+          </p>
+        </div>,
+        document.body
+      );
+    }
+    return createPortal(deck, document.body);
+  }
+
   return (
     <div className="fixed inset-0 z-[300] bg-black">
       <div
@@ -276,22 +379,7 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
           <FiX />
         </button>
       </div>
-      <div className="reveal gruene-deck" ref={deckRef}>
-        <div className="slides">
-          {slides.map((slide) => (
-            <section key={slide.id} {...sectionAttrs(slide)}>
-              <SlideSurface
-                slide={slide}
-                accent={deckOptions.accentColor}
-                brand={deckOptions.brand}
-                showLogo={deckOptions.showLogo}
-                presenting
-              />
-              {slide.notes.trim() !== '' && <aside className="notes">{slide.notes}</aside>}
-            </section>
-          ))}
-        </div>
-      </div>
+      {deck}
     </div>
   );
 }

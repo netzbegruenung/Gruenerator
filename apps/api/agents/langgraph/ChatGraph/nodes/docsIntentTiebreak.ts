@@ -33,7 +33,15 @@ import type { AIWorkerPool } from '../../../../workers/types.js';
 
 const log = createLogger('ChatGraph:DocsTiebreak');
 
-const TIEBREAK_TIMEOUT_MS = 800;
+/**
+ * 1500 ms statt 900. Gemessen antwortet der Auflöser in ~310 ms; blieb der
+ * Primär-Provider aber einmal leer, kostete allein die Fallback-Kette 906 ms und
+ * riss damit ein 900-ms-Budget — der Auflöser lieferte still `null`, und der
+ * Turn zahlte den 27k-Prompt. Ein Zeitbudget, das keinen einzigen Fallback-
+ * Sprung verträgt, macht den Auflöser von der Tagesform eines Anbieters
+ * abhängig; die zusätzliche knappe Sekunde ist gegen die Alternative billig.
+ */
+const TIEBREAK_TIMEOUT_MS = 1500;
 
 const TIEBREAK_PROMPT = `Du bist ein Klassifizierer im Dokument-Editor von Grünerator. Der/die Nutzer*in arbeitet aktiv an einem Dokument und der KI-Bearbeitungsmodus ist eingeschaltet.
 
@@ -80,7 +88,7 @@ export async function classifyDocsIntentTiebreak({
           messages: [{ role: 'user', content: userMessage }],
           options: {
             model: INTERMEDIATE_MODEL.model,
-            max_tokens: 8,
+            max_tokens: 16,
             temperature: 0,
           },
         },

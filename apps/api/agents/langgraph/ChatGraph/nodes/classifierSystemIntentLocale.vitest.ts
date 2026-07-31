@@ -30,20 +30,29 @@ const STUB_AGENT_CONFIG = {
   isSystemDefault: true,
 };
 
-/** LLM tier mock pinned to the intent under test. */
-function makeWorkerPool(intent: string) {
+/**
+ * Der Live-Quellen-Auflöser (Tier 3.7), auf die Quelle unter Test festgenagelt.
+ *
+ * Vorher war das die LLM-Stufe. Die Frage ist dieselbe geblieben — WELCHE Quelle
+ * ist gemeint —, nur beantwortet sie jetzt ein Auflöser mit geschlossenem
+ * Antwortraum. Die Verfügbarkeitsprüfung dahinter ist unverändert, und genau um
+ * die geht es hier.
+ */
+function makeWorkerPool(scope: string) {
   return {
-    processRequest: vi.fn(async () => ({
-      content: JSON.stringify({ intent, reasoning: 'llm', searchQuery: 'wien graz' }),
-    })),
+    processRequest: vi.fn(async (req: { systemPrompt?: string }) =>
+      req.systemPrompt?.startsWith('Entscheide, ob diese Anfrage Daten')
+        ? { content: scope }
+        : { content: 'keine' }
+    ),
   };
 }
 
 function buildState(
-  overrides: Partial<ChatGraphState> & { userMessage: string; llmIntent: string }
+  overrides: Partial<ChatGraphState> & { userMessage: string; sourceScope: string }
 ): ChatGraphState & { aiWorkerPool: ReturnType<typeof makeWorkerPool> } {
-  const { userMessage, llmIntent, ...rest } = overrides;
-  const aiWorkerPool = makeWorkerPool(llmIntent);
+  const { userMessage, sourceScope, ...rest } = overrides;
+  const aiWorkerPool = makeWorkerPool(sourceScope);
   return {
     messages: [{ role: 'user' as const, content: userMessage }],
     threadId: null,
@@ -149,43 +158,49 @@ afterEach(() => {
 
 describe('system intent availability degrades at the node', () => {
   // The phrasing has to contain a SYSTEM_MCP_PHRASING keyword ("Zugverbindung",
-  // "Hotel", "Wetter"). Without one, Tier 3.5 demotes the turn to `agentic` before
-  // the LLM tier runs — a "not reise" assertion would then pass without ever
-  // reaching the degrade under test. Every case asserts the LLM tier actually ran.
+  // "Hotel", "Wetter"). Without one, Tier 3.5 demotes the turn to `agentic`
+  // before the resolver runs — a "not reise" assertion would then pass without
+  // ever reaching the degrade under test. Every case asserts the resolver ran.
 
-  it('degrades a reise verdict to web for a German user', async () => {
-    process.env.SYSTEM_MCP_TRIVAGO_URL = 'https://trivago.example.org/mcp';
-    process.env.SYSTEM_MCP_WEATHER_URL = 'https://meteo.example.org/mcp';
-    const state = buildState({
-      userMessage: 'Ich brauche eine Zugverbindung von Berlin nach Hamburg',
-      llmIntent: 'reise',
-      userLocale: 'de-DE',
-    });
-    const result = await classifierNode(state);
-    expect(state.aiWorkerPool.processRequest).toHaveBeenCalled();
-    // `reise` is off — its source list is commented out, so no env combination
-    // makes it available and the turn goes to the web fallback instead.
-    expect(result.intent).toBe('web');
-    expect(result.searchQuery).toBeTruthy();
-  });
-
-  it('degrades a reise verdict to web for an Austrian user too', async () => {
-    process.env.SYSTEM_MCP_TRIVAGO_URL = 'https://trivago.example.org/mcp';
+  it('degrades a DE-only source to web for an Austrian user', async () => {
+    // Die Locale-Hälfte der Verfügbarkeitsfrage. Der Fahrplan ist deutsch, die
+    // Frage österreichisch — also gibt es hinter dem Intent nichts, was
+    // antworten könnte, und der Turn muss in die Websuche statt an eine leere
+    // Quelle.
+    //
+    // Stand hier vorher als zwei `reise`-Fälle: `reise` ist abgeschaltet und
+    // ausserdem kein Wert im geschlossenen Antwortraum des Auflösers, die Fälle
+    // konnten also gar nicht mehr entstehen. Sie ohne Ersatz zu löschen hätte
+    // die Locale-Achse ungeprüft gelassen — sie ist der Grund, warum die
+    // Verfügbarkeitsprüfung überhaupt eine Locale nimmt.
     const state = buildState({
       userMessage: 'Ich brauche eine Zugverbindung von Wien nach Graz',
-      llmIntent: 'reise',
+      sourceScope: 'bahn',
       userLocale: 'de-AT',
     });
     const result = await classifierNode(state);
     expect(state.aiWorkerPool.processRequest).toHaveBeenCalled();
     expect(result.intent).toBe('web');
+    expect(result.searchQuery).toBeTruthy();
+  });
+
+  it('keeps a DE-only source for a German user', async () => {
+    // Die Gegenrichtung — ohne sie liesse sich der Fall oben auch mit einer
+    // Regel „degradiere immer" bestehen.
+    const state = buildState({
+      userMessage: 'Ich brauche eine Zugverbindung von Berlin nach Hamburg',
+      sourceScope: 'bahn',
+      userLocale: 'de-DE',
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('bahn');
   });
 
   it('does not over-degrade a global source for an Austrian user', async () => {
     process.env.SYSTEM_MCP_WEATHER_URL = 'https://meteo.example.org/mcp';
     const state = buildState({
       userMessage: 'Wie ist das Wetter in Graz?',
-      llmIntent: 'wetter',
+      sourceScope: 'wetter',
       userLocale: 'de-AT',
     });
     const result = await classifierNode(state);
@@ -198,7 +213,7 @@ describe('system intent availability degrades at the node', () => {
   it('degrades wetter when its source is not configured', async () => {
     const state = buildState({
       userMessage: 'Wie ist das Wetter in Graz?',
-      llmIntent: 'wetter',
+      sourceScope: 'wetter',
       userLocale: 'de-AT',
     });
     const result = await classifierNode(state);

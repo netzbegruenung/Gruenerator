@@ -39,15 +39,15 @@ const STUB_AGENT_CONFIG = {
 };
 
 /**
- * Trennt den Auflöser vom grossen Prompt am Systemprompt.
+ * Jeder Prompt, den der Klassifikator verschickt, muss von einem der drei
+ * kleinen Auflöser stammen.
  *
- * Der Zähler zählt AUSDRÜCKLICH nur, was kein kleiner Auflöser ist. Die erste
- * Fassung nahm alles ausser dem Quellen-Auflöser als grossen Prompt — und als
- * der Generierungs-Auflöser dazukam, zählte sie ihn mit. `bigPromptCalls > 0`
- * wäre damit grün geblieben, auch wenn Tier 4 nie mehr erreicht worden wäre:
- * die Behauptung des Falls wäre unbeweisbar geworden, ohne rot zu werden.
- * Deshalb ist die Liste hier explizit und wächst mit jedem neuen Auflöser mit
- * (dieselbe Pflicht wie bei den beiden `RESOLVER_DEFAULTS`-Listen).
+ * Der Zähler hiess `bigPromptCalls` und zählte Aufrufe der LLM-Stufe; die ist
+ * gelöscht, und damit dreht sich seine Aussage um: er muss LEER bleiben. Ein
+ * Aufruf mit unbekanntem Präfix heisst entweder, dass ein Auflöser dazugekommen
+ * ist, ohne in dieser Liste zu stehen (dann prüfen die Fälle unten ihren eigenen
+ * Stub), oder dass jemand wieder eine Katalogstufe eingebaut hat. Beides soll
+ * hier auffallen — dieselbe Pflicht wie bei den beiden `RESOLVER_DEFAULTS`-Listen.
  */
 const SMALL_RESOLVER_PREFIXES = [
   'Entscheide, ob diese Anfrage Daten', // sourceScopeResolver
@@ -56,7 +56,7 @@ const SMALL_RESOLVER_PREFIXES = [
 ];
 
 function makeWorkerPool(scopeAnswer: string | (() => never)) {
-  const bigPromptCalls: number[] = [];
+  const unknownPromptCalls: string[] = [];
   const processRequest = vi.fn(async (req: { systemPrompt?: string }) => {
     if (req.systemPrompt?.startsWith('Entscheide, ob diese Anfrage Daten')) {
       if (typeof scopeAnswer === 'function') scopeAnswer();
@@ -65,12 +65,10 @@ function makeWorkerPool(scopeAnswer: string | (() => never)) {
     if (SMALL_RESOLVER_PREFIXES.some((p) => req.systemPrompt?.startsWith(p))) {
       return { content: 'keine' };
     }
-    bigPromptCalls.push(1);
-    return {
-      content: JSON.stringify({ intent: 'web', reasoning: 'LLM-Stufe', searchQuery: null }),
-    };
+    unknownPromptCalls.push(req.systemPrompt ?? '(kein Systemprompt)');
+    return { content: 'keine' };
   });
-  return { processRequest, bigPromptCalls };
+  return { processRequest, unknownPromptCalls };
 }
 
 function buildState(
@@ -116,7 +114,7 @@ describe('classifierNode — Live-Quelle vor der LLM-Stufe', () => {
       buildState({ userMessage: 'Wie wird das Wetter morgen in Freiburg?', pool })
     );
     expect(result.intent).toBe('wetter');
-    expect(pool.bigPromptCalls).toHaveLength(0);
+    expect(pool.unknownPromptCalls).toEqual([]);
   });
 
   it('macht aus der Politikfrage keine Wetterauskunft', async () => {
@@ -147,28 +145,29 @@ describe('classifierNode — Live-Quelle vor der LLM-Stufe', () => {
     expect(result.intent).not.toBe('bahn');
   });
 
-  it('gibt einen Turn, der keine Live-Quelle braucht, an die LLM-Stufe weiter', async () => {
+  it('gibt einen Turn, der keine Live-Quelle braucht, ins Residual weiter', async () => {
     // Reine Wortkunst ist in sich geschlossen: nicht in den Loop demotiert, nicht
     // vom Live-Quellen-Gitter gehalten, und — anders als ein Umschreibe-Auftrag —
     // auch nicht vom Generierungs-Gitter beansprucht („kürze" steht dort drin).
     // Sie erreicht den Auflöser also auf dem regulären Weg und nach dessen
-    // `keine` die grosse Stufe.
+    // `keine` das Residual — die Regeltabelle behält ihr eigenes Verdikt.
     //
     // Zwei Formulierungen sind hier schon verbrannt: die Sachfrage, die vorher
     // stand, loopt seit der Default-Inversion; der Umschreibe-Auftrag danach
     // wird seit dem Generierungs-Auflöser vor Tier 4 entschieden. Beide Male
     // fiel es erst auf, als der Zähler oben ehrlich wurde.
     const pool = makeWorkerPool('keine');
-    await classifierNode(
+    const result = await classifierNode(
       buildState({
         userMessage: 'Schreib mir ein Gedicht über den Wald im Herbst',
         pool,
       })
     );
-    expect(pool.bigPromptCalls.length).toBeGreaterThan(0);
+    expect(result.intent).toBe('produktion');
+    expect(pool.unknownPromptCalls).toEqual([]);
   });
 
-  it('geht zur LLM-Stufe, wenn die Quelle im Deploy nicht konfiguriert ist', async () => {
+  it('degradiert auf Websuche, wenn die Quelle im Deploy nicht konfiguriert ist', async () => {
     // Ohne Deploy-Env hat der Intent keine Werkzeuge hinter sich. Ihn trotzdem
     // zu setzen hiesse, den Turn an eine Quelle zu schicken, die nicht antwortet.
     isSystemIntentAvailable.mockReturnValue(false);
@@ -176,19 +175,22 @@ describe('classifierNode — Live-Quelle vor der LLM-Stufe', () => {
     const result = await classifierNode(
       buildState({ userMessage: 'Wie wird das Wetter morgen in Freiburg?', pool })
     );
-    expect(result.intent).not.toBe('wetter');
-    expect(pool.bigPromptCalls.length).toBeGreaterThan(0);
+    // Nicht ins Residual: der Nutzer hat nach einer Vorhersage gefragt, und die
+    // Antwort darf nicht aus dem Gedächtnis kommen, bloss weil die Spezialquelle
+    // im Deploy fehlt. `web` statt Loop, weil der Planer im Loop entscheiden
+    // KÖNNTE, kein Werkzeug zu brauchen — bei genau dieser Turn-Form wäre das
+    // die falsche Entscheidung.
+    expect(result.intent).toBe('web');
   });
 
-  it('geht zur LLM-Stufe, wenn der Auflöser wegbricht', async () => {
+  it('gibt den Turn in den Loop, wenn der Auflöser wegbricht', async () => {
     const pool = makeWorkerPool(() => {
       throw new Error('provider down');
     });
     const result = await classifierNode(
       buildState({ userMessage: 'Wann fährt der nächste Zug nach Köln?', pool })
     );
-    expect(pool.bigPromptCalls.length).toBeGreaterThan(0);
-    expect(result.intent).toBeTruthy();
+    expect(result.intent).toBe('agentic');
   });
 
   it('erreicht auch die Formulierungen, die der Prompt nur behauptet hat', async () => {
@@ -206,6 +208,6 @@ describe('classifierNode — Live-Quelle vor der LLM-Stufe', () => {
       buildState({ userMessage: 'Wie hoch ist die Pollenbelastung in Nürnberg gerade?', pool })
     );
     expect(result.intent).toBe('wetter');
-    expect(pool.bigPromptCalls).toHaveLength(0);
+    expect(pool.unknownPromptCalls).toEqual([]);
   });
 });

@@ -15,7 +15,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { CHAT_HISTORY_DIRECT, looksLikeRecurringOrder } from './classifierParsing.js';
+import { CHAT_HISTORY_DIRECT, looksLikeRecurringOrder } from './classifierSignals.js';
 
 describe('looksLikeRecurringOrder — beansprucht', () => {
   it.each([
@@ -62,6 +62,37 @@ describe('looksLikeRecurringOrder — beansprucht NICHT', () => {
     '',
   ])('kein Auftrag: %s', (text) => {
     expect(looksLikeRecurringOrder(text)).toBe(false);
+  });
+});
+
+describe('looksLikeRecurringOrder — satzweise, nicht absatzweise', () => {
+  it('findet den Auftrag hinter einer Frage', () => {
+    // Live gemessen: das Fragezeichen im ERSTEN Satz löschte den echten
+    // Dauerauftrag im ZWEITEN. Der Turn fiel in den Loop, der Planer machte null
+    // Schritte, und die Antwort erklärte dem Nutzer, das Produkt könne keine
+    // Erinnerungen setzen — eine Funktion, die es hat.
+    expect(
+      looksLikeRecurringOrder(
+        'Wie funktioniert die Erinnerungsfunktion hier eigentlich? Und richte mir bitte gleich jeden Montag um 9 Uhr eine Erinnerung ein.'
+      )
+    ).toBe(true);
+  });
+
+  it('lässt eine reine Frage weiterhin in Ruhe', () => {
+    expect(
+      looksLikeRecurringOrder('Wie funktioniert die Erinnerungsfunktion hier eigentlich?')
+    ).toBe(false);
+  });
+
+  it('eine Absage gilt für den ganzen Turn', () => {
+    // Grenzfall mit Absicht konservativ: „Beende das, schick mir stattdessen
+    // jeden Montag …" soll ein Modell entscheiden, kein Regex — und die sichere
+    // Richtung ist, nichts anzulegen.
+    expect(
+      looksLikeRecurringOrder(
+        'Beende die tägliche Erinnerung. Schick mir stattdessen jeden Montag eine Übersicht.'
+      )
+    ).toBe(false);
   });
 });
 
