@@ -521,6 +521,51 @@ describe('heuristicClassify', () => {
     );
   });
 
+  // Verb-final phrasing — the word order every artifact fast path used to be
+  // blind to. Live failure: "das bitte schön als PDF erstellen" scored `direct`,
+  // got demoted to the agentic loop with no PDF tool mounted, and was answered
+  // with "ich habe keine technische Funktion, um PDFs zu erstellen".
+  it('fast-paths creation orders with the verb at the END of the clause', () => {
+    expect(heuristicClassify('gut, danke. das bitte schön als PDF erstellen').intent).toBe(
+      'create_pdf'
+    );
+    expect(heuristicClassify('Kannst du das als PDF erstellen?').intent).toBe('create_pdf');
+    expect(heuristicClassify('die Folien bitte neu bauen').intent).toBe('create_presentation');
+    expect(heuristicClassify('das als Tabelle machen bitte').intent).toBe('create_sheet');
+    expect(heuristicClassify('ein Poster dazu erstellen').intent).toBe('image');
+    expect(heuristicClassify('das bitte als Notiz anlegen').intent).toBe('save_as_doc');
+  });
+
+  // The mirror: in verb-final position only an infinitive/imperative is an
+  // order. A participle there is narration about something that already exists,
+  // and reading it as an order would spawn an artifact nobody asked for.
+  it('does NOT read a participle after the noun as a creation order', () => {
+    expect(
+      heuristicClassify('Was steht in der Präsentation, die ich erstellt habe?').intent
+    ).not.toBe('create_presentation');
+    expect(heuristicClassify('Die Tabelle, die du gestern gebaut hast, war gut').intent).not.toBe(
+      'create_sheet'
+    );
+    expect(heuristicClassify('Das PDF, das ich gestern erstellt habe, war gut').intent).not.toBe(
+      'create_pdf'
+    );
+  });
+
+  // The image fast path's "alternate" word order forgot the inflection suffix
+  // (`(erstell|generier|erzeug|mach)\b`), so it only ever matched the
+  // non-sentence "Bild mach" — never "Bild erstellen".
+  it('fast-paths noun-first image asks', () => {
+    expect(heuristicClassify('ein Bild generieren von einer Solaranlage').intent).toBe('image');
+    expect(heuristicClassify('eine Illustration dazu erstellen').intent).toBe('image');
+  });
+
+  // `mach` is NOT an image creation verb: it is how an edit is phrased, and the
+  // edit path sits behind this fast path. Widening the shared verb core to
+  // images once turned "Mach das Foto heller" into a fresh generation.
+  it('leaves image EDIT phrasings to the edit path', () => {
+    expect(heuristicClassify('Mach das Foto heller').intent).not.toBe('image');
+  });
+
   it('does NOT route PDF attachment reads or deck-as-PDF asks to create_pdf', () => {
     // Attachment read: no creation verb targeting a PDF.
     expect(heuristicClassify('Fass das PDF zusammen').intent).not.toBe('create_pdf');

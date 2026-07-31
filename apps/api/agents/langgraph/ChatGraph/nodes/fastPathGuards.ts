@@ -200,6 +200,56 @@ export function forbidsNewResearch(text: string): boolean {
 }
 
 /**
+ * A creation order in BOTH German word orders. Every artifact heuristic used to
+ * spell out only the verb-first one ("mach mir ein PDF daraus") and was blind to
+ * the verb-final one ("das bitte schön als PDF erstellen") — the subordinate and
+ * infinitive phrasings, which is how a good half of real asks are worded. The
+ * two that DID attempt the second order got it wrong in opposite ways: the image
+ * alternate forgot the inflection suffix (`(erstell|…)\b` matches "Bild mach",
+ * never "Bild erstellen"), and save_as_doc spelled its mirror out by hand for a
+ * hand-picked four verbs. One builder means a phrasing gap can no longer be
+ * closed for one artifact and stay open for the other five.
+ *
+ * The verb sets differ only where the product does: text products take
+ * `schreib`, sheets take "leg … an", images take the drawing verbs. Merging
+ * those too would widen each intent into its neighbours.
+ *
+ * Verb-final position is restricted to infinitive/imperative on purpose. That is
+ * what a REQUEST looks like at the end of a German clause ("… als PDF
+ * erstellen"); a participle in that slot is narration about something that
+ * already exists ("… die Präsentation, die ich erstellt habe"). Without the
+ * restriction the second word order would turn every mention of an existing
+ * artifact into an order to build a new one.
+ *
+ * Callers build their patterns at MODULE scope: new RegExp compiles per call,
+ * unlike a regex literal.
+ */
+export const CREATION_VERB_CORE = 'erstell|erzeug|generier|mach|bau|entwirf|entwerf|gestalte';
+
+/** Any core creation verb, any inflection, anywhere — "is this an order at all?" */
+export const CREATION_VERB_RE = new RegExp(`\\b(?:${CREATION_VERB_CORE})[a-zäöü]*\\b`, 'i');
+
+export function creationOrderPattern(
+  noun: string,
+  opts: { extraVerbs?: string; verbs?: string; forward?: number; backward?: number } = {}
+): RegExp {
+  // `verbs` REPLACES the core rather than extending it. One artifact needs that:
+  // for images `mach` is the EDIT verb ("Mach das Foto heller"), so inheriting it
+  // from the core would swallow every image_edit follow-up into generation.
+  const base = opts.verbs ?? CREATION_VERB_CORE;
+  const stem = opts.extraVerbs ? `${base}|${opts.extraVerbs}` : base;
+  const verbAnyForm = `(?:${stem})[a-zäöü]*`;
+  const verbFinalForm = `(?:${stem})(?:e|en|n|st)?`;
+  const forward = opts.forward ?? 40;
+  const backward = opts.backward ?? forward;
+  return new RegExp(
+    `\\b${verbAnyForm}\\b.{0,${forward}}\\b(?:${noun})\\b` +
+      `|\\b(?:${noun})\\b.{0,${backward}}\\b${verbFinalForm}\\b`,
+    'i'
+  );
+}
+
+/**
  * The ONLY accepted sharepic vocabulary. A sharepic is a branded party template
  * with text on it — "Grafik" and "Kachel" mean a chart or a tile just as often,
  * and inferring one from them is what made sharepics appear unasked-for.
