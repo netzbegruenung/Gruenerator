@@ -28,6 +28,7 @@ import { MessageActions } from '../message-parts/MessageActions';
 import { MessageErrorBanner } from '../message-parts/MessageErrorBanner';
 import { MessageStreamingProvider } from '../message-parts/messageStreamingContext';
 import { ProgressIndicator } from '../message-parts/ProgressIndicator';
+import { SearchImagesSection } from '../message-parts/SearchImagesSection';
 import { SearchResultsSection, type AdditionalSource } from '../message-parts/SearchResultsSection';
 import { SharepicVariantStack } from '../message-parts/SharepicVariantStack';
 import { SkillBadge } from '../message-parts/SkillBadge';
@@ -168,11 +169,22 @@ export const AssistantMessage = memo(function AssistantMessage() {
     };
   }, [custom]);
 
-  // Images alone are enough to open the section: an image-only turn ("zeig mir
-  // Fotos von der Demo") has nothing to cite, and gating on citations would drop
-  // the one result the user asked for.
-  const showSearchResults =
-    !isStreaming && (citations.length > 0 || (searchImages?.length ?? 0) > 0);
+  const showSearchResults = !isStreaming && citations.length > 0;
+
+  /**
+   * Images render on their own, NOT inside the sources disclosure.
+   *
+   * They used to live in there, and that made them unreachable in the very case
+   * they exist for: an image search registers no text sources, so `citations` is
+   * empty — and with empty citations the action row's "Quellen" trigger renders
+   * nothing at all, while the section itself was in controlled mode and had no
+   * trigger of its own. The images were in the DOM and behind no button.
+   *
+   * Putting them under the answer is also the honest place for them: a source
+   * backs a claim and belongs behind a disclosure, but these ARE the answer —
+   * they only ever arrive when the user asked to see pictures.
+   */
+  const showSearchImages = !isStreaming && (searchImages?.length ?? 0) > 0;
 
   // Owned here, not in SearchResultsSection: the trigger sits in the action row
   // and the list below it, so neither of the two can hold the state alone.
@@ -282,11 +294,12 @@ export const AssistantMessage = memo(function AssistantMessage() {
           />
         )}
 
+        {showSearchImages && searchImages && <SearchImagesSection images={searchImages} />}
+
         {showSearchResults && (
           <SearchResultsSection
             citations={citations}
             additionalSources={additionalSources}
-            {...(searchImages?.length ? { images: searchImages } : {})}
             {...(showActions ? { open: sourcesOpen, onOpenChange: setSourcesOpen } : {})}
           />
         )}
