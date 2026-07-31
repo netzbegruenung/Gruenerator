@@ -31,6 +31,14 @@
   --wp-accent: #8a6d0b;
   --wp-accent-hover: #765d09;
 
+  /* Der Composer steht auf getöntem Grund und braucht deshalb keinen Rahmen —
+     die Füllung allein trennt ihn von der Fläche. Wie in der App, die es genauso
+     macht (ComposerShell: „No border, no shadow"). Als Variable, damit dieselbe
+     Komponente an den Stellen ohne eigenen Grund (/suche, Notebook) ihren Rahmen
+     behält; die Variable wird dort nie gesetzt und fällt auf das Token zurück.
+     Der Schatten bleibt: er trägt im Web zusätzlich den Fokus-Zustand. */
+  --chat-composer-border: transparent;
+
   background-color: var(--wp-bg-base);
   background-image: radial-gradient(
     88% 58% at 50% var(--wp-sunrise-y),
@@ -240,6 +248,10 @@
   animation: none;
   --wp-accent: initial;
   --wp-accent-hover: initial;
+  /* Ohne Tönung ist der Rahmen die einzige Trennung: der Composer ist weiß, die
+     Seite auch. Neutral bekommt ihn deshalb zurück. Gleiche Spezifität wie die
+     Basisklasse, steht dahinter — dieselbe Mechanik wie beim Akzent oben. */
+  --chat-composer-border: var(--color-border);
 }
 
 /* Re-point the primary token inside the composer instead of overriding the
@@ -299,6 +311,84 @@
   --color-primary-900: var(--primary-900);
 }
 
+/* ── Das Band unter dem Composer ──────────────────────────────────────────
+   Was das Gesprächsfenster trägt, statt einer Fläche über den ganzen Schirm.
+   Der Startbildschirm behält seinen vollen Verlauf; hinter einer Wand aus
+   Nachrichten kostet Farbe Lesbarkeit, die er nie zahlen muss. Dieselbe
+   Aufteilung wie in der App (COMPOSER_GLOW, apps/mobile/theme/chatBackgrounds.ts).
+
+   Es sind Dunsts vier Farben, aber nicht Dunst: drei Dinge machen daraus ein
+   Band statt eines beschnittenen Hintergrunds —
+
+   - **Keine Grundfarbe.** Ein Grund würde das Rechteck des Bandes zeichnen.
+     Ohne ihn tönen die Wolken nur, was ohnehin da ist, und das Band hat keine
+     eigene Kante, nur die Abblendung seiner Wolken. Deshalb `background-image`
+     auf einem Element, dessen `background-color` schon steht, und nicht die
+     Kurzschreibweise.
+   - **Jede Wolke auf oder unter der Unterkante**, damit es dort am hellsten
+     ist, wo der Composer sitzt.
+   - **Jede Abblendung endet vor dem oberen Rand** (bei 70–72 % des Radius),
+     sonst läse sich die Oberkante als Naht.
+
+   Kein `background-size`, das eine 300px-Kachel an den Fuß legt: die Wolken
+   säßen dann in einem Kasten, dessen Oberkante sie nicht mehr erreichen dürfen,
+   und beim ersten Nachjustieren an einem Radius steht dort eine Linie. Gemessen
+   — die erste Fassung hatte sie links sichtbar. Stattdessen läuft der Verlauf
+   über die volle Höhe und die Zentren hängen an der Unterkante
+   (`calc(100% ± px)`); dann ist die Ausdehnung nach oben allein eine Frage der
+   Abblendung und kann gar nicht abgeschnitten werden.
+
+   Die Radien stehen in Pixeln und die Zentren relativ zur Mitte, nicht in
+   Prozent wie beim Vollbild-Dunst: die Fläche dort ist etwa 1,4:1, dieses Band
+   deutlich breiter. Prozentradien zögen dieselben Wolken zu waagerechten
+   Schlieren auseinander und die Zentren an die Bildschirmränder. In Pixeln
+   bleiben die Farbseen um den Composer stehen, egal wie breit das Fenster ist —
+   das ist die Beziehung, die auf dem Handy den Ausschlag gibt. Bezugsbreite ist
+   die Spalte des Composers (max-w-3xl, 768px); Mobiles Verhältnisse darauf
+   umgerechnet, die Höhe von 260dp auf 300px.
+
+   Die Deckkräfte liegen rund ein Viertel über Mobiles 0,34–0,42 — der einzige
+   Wert, der nicht umgerechnet ist. Dieselbe Tönung über 1400 statt 390 Pixel
+   und aus Armlänge statt aus 30cm gesehen kam am Bildschirm als Weiß an.
+
+   Ausgelassen wird es bei `neutral` — dort setzt ChatPage die Klasse gar nicht
+   erst — und im Dunkeln, siehe unten. */
+.chat-thread-glow {
+  background-image:
+    radial-gradient(
+      576px 240px at calc(50% - 307px) calc(100% - 6px),
+      rgb(248 210 202 / 0.52) 0%,
+      rgb(248 210 202 / 0) 72%
+    ),
+    radial-gradient(
+      615px 255px at calc(50% + 15px) calc(100% + 42px),
+      rgb(244 238 192 / 0.46) 0%,
+      rgb(244 238 192 / 0) 70%
+    ),
+    radial-gradient(
+      538px 240px at calc(50% + 338px) 100%,
+      rgb(203 229 217 / 0.5) 0%,
+      rgb(203 229 217 / 0) 72%
+    ),
+    radial-gradient(
+      538px 255px at calc(50% + 292px) calc(100% + 36px),
+      rgb(219 217 245 / 0.44) 0%,
+      rgb(219 217 245 / 0) 70%
+    );
+  /* Der Composer steht auf dem Band und braucht deshalb keinen Rahmen —
+     Begründung an `--chat-composer-border` in .workplace-chat-sunrise. */
+  --chat-composer-border: transparent;
+}
+
+/* Im Dunkeln kein Band — wie in der App (`hideInDark`). Damit ist die Füllung
+   des Composers dort wieder das Einzige, was ihn trägt; `dark:bg-surface` hebt
+   sich um 5 % Weiß von der Seite ab, was für sich zu wenig ist. Also auch der
+   Rahmen zurück. */
+[data-theme='dark'] .chat-thread-glow {
+  background-image: none;
+  --chat-composer-border: var(--color-border);
+}
+
 /* Vorschau-Kacheln in den Einstellungen: dieselben Klassen, nur ohne den
    Eintritt. Zehn Flächen, die beim Öffnen des Bereichs gleichzeitig aufgehen,
    lesen sich als Flackern — und ausgewählt wird ohnehin der Ruhezustand.
@@ -331,6 +421,11 @@
     rgb(0 0 0 / 0) 74%
   );
   animation: none;
+  /* Rahmen zurück, aus demselben Grund wie beim Band: die dunklen Fassungen
+     tragen zwar Farbe, aber `dark:bg-surface` ist nur 5 % Weiß über der Seite,
+     und die Presets, die keine eigene dunkle Fläche haben, tönen bei 0,1. Das
+     hält den Composer nicht. */
+  --chat-composer-border: var(--color-border);
 }
 
 [data-theme='dark'] .workplace-chat-bg--neutral {
