@@ -1,0 +1,18 @@
+{
+  // The base config excludes `**/*.vitest.ts` from typecheck (see the note in
+  // tsconfig.json — including them repo-wide surfaces ~106 pre-existing errors).
+  // TypeScript cannot negate an `exclude`, so the integration harness gets its
+  // own project instead: its whole strategy rests on doubles standing in for
+  // real services, and an unchecked double whose signature has drifted from
+  // production keeps passing while testing nothing.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "tsBuildInfoFile": "./node_modules/.cache/tsc-integration.tsbuildinfo"
+  },
+  // `types/**/*.d.ts` must come along: it carries the global `Express.User` /
+  // `Express.Locals` augmentations, and without them the router's own auth
+  // reads fail to compile here while compiling fine in the main project.
+  "include": ["routes/chat/__integration__/**/*.ts", "types/**/*.d.ts"],
+  "exclude": []
+}
