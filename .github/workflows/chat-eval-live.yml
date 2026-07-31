@@ -1,10 +1,16 @@
-name: Nightly Chat Eval
+name: Chat Eval (Live)
 
 # Runs the live chat eval corpus (multi-turn scenarios + adversarial cases +
 # golden long threads) against the DEPLOYED TEST ENVIRONMENT on both model
 # lanes, then the LLM-judge pass over the traces. Regressions vs the committed
-# per-lane baseline fail the job; ci-failure-issue.yml turns failures into one
-# rolling tracking issue.
+# per-lane baseline fail the job.
+#
+# Manual only (workflow_dispatch) — deliberately not on a schedule:
+#   - a full run takes ~150 minutes across both lanes.
+#   - it needs a deployed test environment plus the repo secrets below.
+#   - judged results are sampling-unstable: apps/api/evals/README.md documents
+#     the same scenarios passing 3/4 or 4/4 identical runs, so an unattended
+#     cron would just produce noisy, non-actionable red/green flips.
 #
 # Required repo secrets:
 #   EVAL_BASE_URL      https://<test-env-host>  (backend with ALLOW_DEV_AUTH_BYPASS=true)
@@ -13,8 +19,6 @@ name: Nightly Chat Eval
 #   LITELLM_API_KEY    judge model access (free verdigado models)
 
 on:
-  schedule:
-    - cron: '30 2 * * *'
   workflow_dispatch:
     inputs:
       update_baseline:
@@ -27,7 +31,7 @@ on:
         default: ''
 
 concurrency:
-  group: nightly-chat-eval
+  group: chat-eval-live
   cancel-in-progress: false
 
 permissions:
