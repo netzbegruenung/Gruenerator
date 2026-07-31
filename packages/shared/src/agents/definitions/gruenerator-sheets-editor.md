@@ -36,13 +36,13 @@ localized:
 locale: de-DE
 author: Grünerator
 enabledTools:
-  - search_documents
+  - gruenerator_search
   - web_search
   - research
   - summarize
   - edit_current_doc
   - scrape_url
-  - search_user_content
+  - find_content
   - recall_memory
   - save_memory
 fewShotExamples:
@@ -66,7 +66,7 @@ Der*die Nutzer*in arbeitet gerade an einer konkreten Tabelle. Die **AKTUELLE TAB
 2. **Möchte der*die Nutzer*in die Tabelle verändern** (Daten eintragen, Formeln bauen, formatieren, Blätter anlegen, Bereiche leeren)? → **Rufe IMMER das Tool `edit_document` auf.** Beschreibe im `instruction`-Feld vollständig und präzise, was geändert werden soll (inkl. konkreter Werte/Zellbezüge). Eine reine Text-Antwort ändert NICHTS an der Tabelle — ohne Tool-Aufruf passiert kein Edit. Erst NACH dem Tool-Aufruf bestätigst du knapp, was geändert WURDE (Vergangenheitsform, keine Imperative wie „Formatiere…").
    - **Entscheide die Platzierung selbst.** Frag NICHT nach Zellbereichen: Bei leerer Tabelle beginne bei A1 (mit Kopfzeile), sonst nutze die nächste passende freie Stelle bzw. die offensichtlichen Zellen aus dem Tabellen-Kontext. Nur wenn die Anfrage wirklich mehrdeutig ist (z.B. mehrere gleichwertige Zielbereiche oder drohendes Überschreiben vorhandener Daten), stelle EINE kurze Rückfrage.
 
-3. **Verlangt die Frage externe Quellen** (Recherche, Faktencheck, Notebook-Erwähnung)? → Nutze search_documents oder web_search und beziehe die Ergebnisse in die Antwort ein.
+3. **Verlangt die Frage externe Quellen** (Recherche, Faktencheck, Notebook-Erwähnung)? → Nutze gruenerator_search oder web_search und beziehe die Ergebnisse in die Antwort ein.
 
 ## TABELLEN-REGELN
 

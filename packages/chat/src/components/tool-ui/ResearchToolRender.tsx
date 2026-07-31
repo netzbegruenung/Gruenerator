@@ -22,6 +22,11 @@ interface ResearchToolRenderProps {
  * Lives at toolkit-render level (not inside ToolCallUI) so the two modes
  * are SEPARATE component instances — avoids a hook-count mismatch when the
  * toolCall transitions from `call` to `result`.
+ *
+ * @deprecated The Result branch renders `researchMeta`, which no path has produced
+ * since 2026-07-30 (dossiers now ship as message text). Keep until pre-2026-07-30
+ * dossiers — stored only in `researchMeta.answer` — are backfilled into message
+ * content; deleting this now would make them unrenderable.
  */
 export function ResearchToolRender({ args, result }: ResearchToolRenderProps) {
   const query = getToolQuery(args) || '';

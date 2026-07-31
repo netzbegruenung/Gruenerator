@@ -60,8 +60,10 @@ path-independent assertions (`grounded`, `cited`, `retainsPriorSources`) are the
 ones that hold in both configurations, and that lane is otherwise never
 exercised. Run **both lanes** — the sharepic-in-split bug was invisible on
 Mistral (unified); use `EVAL_MODEL_ID=mistral` and a split lane (e.g. `gemma-4`).
-Nightly, `.github/workflows/nightly-eval.yml` does exactly this against the
-deployed test env (matrix over both lanes, judge blocking, per-lane baselines).
+`.github/workflows/chat-eval-live.yml` ("Chat Eval (Live)") does exactly this
+against the deployed test env (matrix over both lanes, judge blocking,
+per-lane baselines) — triggered manually via `workflow_dispatch`, not on a
+schedule.
 
 ## Env
 
@@ -77,8 +79,39 @@ deployed test env (matrix over both lanes, judge blocking, per-lane baselines).
 | `EVAL_BASELINE`             | `./baseline.json`       | regression baseline (per-lane in CI)        |
 | `EVAL_UPDATE_BASELINE=1`    | —                       | overwrite the baseline with this run        |
 | `EVAL_RECORD_DIR`           | —                       | record raw SSE per turn (E2E fixtures)      |
+| `EVAL_DECISION_DIR`         | —                       | read decision journals back, render maps    |
 | `LITELLM_BASE_URL/_API_KEY` | —                       | judge only (verdigado proxy)                |
 | `EVAL_JUDGE_BLOCKING=1`     | —                       | judge failures set exit code                |
+
+## Decision maps from a live run
+
+This lane sees what a real model does; until now it could not see _why_ the turn
+went that way. The decision journal (`utils/decisionJournal.ts`) is bound
+in-process, and here the runner and the backend are two processes.
+
+`EVAL_DECISION_DIR` bridges that through the filesystem — deliberately not
+through an extra SSE event, which would turn F1 decision ids into an F0 wire
+contract that shipped clients could depend on. Point it and the backend's
+`CHAT_DECISION_LOG_DIR` at the same directory:
+
+```bash
+CHAT_DECISION_LOG_DIR=/tmp/maps pnpm dev:backend
+EVAL_DECISION_DIR=/tmp/maps EVAL_BYPASS_TOKEN=… EVAL_FILTER=greeting \
+  pnpm --filter @gruenerator/api eval:chat
+```
+
+The runner sends `x-decision-log-id: <scenario>.t<n>` per turn and writes one
+`<scenario>.map.txt` per scenario. The backend writes nothing at all unless it
+runs with `NODE_ENV=development` — the gate is checked when the middleware is
+constructed, so a production build never creates it.
+
+Two limits worth knowing before relying on this. It needs filesystem access to
+the backend host, so in practice a local `pnpm dev:backend`; against the deployed
+test env the maps stay absent and the run degrades to what it always was. And a
+live map is **one sample, not a baseline** — the same prompt can classify
+differently on the next run, so a diff between two live maps is evidence to read,
+never an assertion to fail on. The committed, diffable maps live in the simulated
+lane (`routes/chat/__integration__/decisions/`).
 
 ## Corpus
 

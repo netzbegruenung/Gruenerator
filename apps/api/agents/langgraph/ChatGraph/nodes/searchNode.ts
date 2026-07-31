@@ -34,6 +34,7 @@ import {
   selectAndCrawlTopUrls,
   type CrawlableResult,
 } from '../../../../services/search/CrawlingService.js';
+import { LOW_VALUE_DOMAINS } from '../../../../services/search/domainFilters.js';
 import { expandQuery } from '../../../../services/search/QueryExpansionService.js';
 import { DEFAULT_RELEVANCE } from '../../../../services/search/rerankPipeline.js';
 import {
@@ -50,6 +51,7 @@ import {
   type Citation,
   type ExamplesToolResult,
   type SearchErrorEntry,
+  type WebImageResult,
 } from '../types.js';
 
 import {
@@ -522,6 +524,8 @@ export async function executeDocumentSearchParallel(
 export interface WebSearchParallelResult {
   results: SearchResult[];
   errors: SearchErrorEntry[];
+  /** Image hits — only ever populated when the caller passed `includeImages`. */
+  images: WebImageResult[];
 }
 
 export interface ExecuteWebSearchOptions {
@@ -529,6 +533,22 @@ export interface ExecuteWebSearchOptions {
   /** Crawl this many top results for full page content. 0 / omitted = no crawl. */
   crawlTopUrls?: number;
   crawlTimeoutMs?: number;
+  /**
+   * Site scope the user named this turn ("such auf zeit.de"). One turn only, never
+   * sticky — a scope that silently keeps applying to later questions is worse than
+   * none, because the user cannot see why results went missing.
+   */
+  includeDomains?: readonly string[];
+  /** ISO window (YYYY-MM-DD), from the classifier's `filters.date_from/date_to`. */
+  fromDate?: string;
+  toDate?: string;
+  /**
+   * Ask for image hits too. Deliberately NOT part of the shared `webScope` object:
+   * only the single-source `web`/`research` path collects the images, so setting it
+   * on the fan-in or the empty-document fallback would pay for hits their callers
+   * throw away — the very mistake the pre-call domain filtering fixed.
+   */
+  includeImages?: boolean;
 }
 
 export async function executeWebSearch(
@@ -541,6 +561,15 @@ export async function executeWebSearch(
     query,
     searchType: 'general',
     ...(options.tier ? { tier: options.tier } : {}),
+    ...(options.includeDomains?.length ? { includeDomains: options.includeDomains } : {}),
+    ...(options.fromDate ? { fromDate: options.fromDate } : {}),
+    ...(options.toDate ? { toDate: options.toDate } : {}),
+    ...(options.includeImages ? { includeImages: true } : {}),
+    // The default block list now rides along on every classifier-path search, so
+    // the domains we used to throw away AFTER paying are never fetched. Dropped
+    // automatically when an include scope is set (see executeDirectWebSearch):
+    // "search zeit.de but not amazon.de" is a scope nobody asked for.
+    excludeDomains: LOW_VALUE_DOMAINS,
   }).catch((err: unknown) => {
     const msg = err instanceof Error ? err.message : String(err);
     log.warn(`[Search] Web search failed for "${query}": ${msg}`);
@@ -602,7 +631,10 @@ export async function executeWebSearch(
   // Only surface when nothing usable came back — a partial failure that still
   // produced results is a warn, not a user-facing degradation.
   const errors = allWebResults.length === 0 ? collectedErrors : [];
-  return { results: allWebResults, errors };
+  // Images bypass the dedup, rerank, crawl and cap above entirely: none of it
+  // applies to a link with no text, and running them through the result pipeline
+  // is precisely how they would end up as content-less citations.
+  return { results: allWebResults, errors, images: webResult?.images ?? [] };
 }
 
 /**
@@ -863,6 +895,27 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     explicitDeep: state.explicitDeepRequest ?? false,
   });
 
+  /**
+   * Scope for every web call in this node, resolved once alongside the tier.
+   *
+   * The dates come from `filters.date_from`/`date_to`, which the classifier has
+   * been emitting all along — they only ever reached the Qdrant filter, so "seit
+   * Januar" narrowed the document search and did nothing at all to the web search.
+   * The site scope is deterministic (`extractDomainScope`), so it needs no prompt
+   * budget and no model call.
+   *
+   * Spread into the options objects below rather than merged per call site: the
+   * three web paths in this node have drifted apart once already.
+   */
+  const webScope = {
+    ...(state.webSiteScope?.include.length ? { includeDomains: state.webSiteScope.include } : {}),
+    ...(detectedFilters?.date_from ? { fromDate: detectedFilters.date_from } : {}),
+    ...(detectedFilters?.date_to ? { toDate: detectedFilters.date_to } : {}),
+  } satisfies Partial<ExecuteWebSearchOptions>;
+  if (Object.keys(webScope).length > 0) {
+    log.info(`[Search] Web scope: ${JSON.stringify(webScope)}`);
+  }
+
   const displayQuery = searchQuery || state.researchBrief || '(no query)';
   log.info(
     `[Search] Executing ${intent} search: "${displayQuery.slice(0, 50)}..." (locale=${state.userLocale})`
@@ -882,6 +935,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     let citations: Citation[] = [];
     let searchedCollections: string[] = [];
     let examplesResult: ExamplesToolResult | null = null;
+    let webImageResults: WebImageResult[] = [];
     // Backend failures on the single-source paths. The multi-source paths have
     // collected these all along; here they were only logged, so a Qdrant or
     // SearXNG outage reached the user as "0 Treffer" — and the model then
@@ -1003,7 +1057,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
       if (searchSources.includes('web')) {
         sourcePromises.push(
-          executeWebSearch(query, { tier: webTier })
+          executeWebSearch(query, { tier: webTier, ...webScope })
             .then((r) => ({ results: r.results, collections: ['web'], errors: r.errors }))
             .catch((err) => {
               const msg = err instanceof Error ? err.message : String(err);
@@ -1360,7 +1414,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         // different question than the one asked. There, empty means empty.
         if (results.length === 0 && !isNotebookScoped && query.length > 0) {
           log.info('[Search] internal collections returned nothing — falling back to the web');
-          const webFallback = await executeWebSearch(query, { tier: webTier });
+          const webFallback = await executeWebSearch(query, { tier: webTier, ...webScope });
           if (webFallback.results.length > 0) {
             results = webFallback.results;
             citations = buildCitations(results);
@@ -1476,12 +1530,17 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
 
         const web = await executeWebSearch(query, {
           tier: webTier,
+          ...webScope,
           // A1: full page content for the top hits — snippets alone leave the
           // writing model with too little on a multi-aspect question.
           crawlTopUrls: 2,
+          // The ONLY path that asks for images: it is also the only one that
+          // carries them out (see `ExecuteWebSearchOptions.includeImages`).
+          ...(state.webWantsImages ? { includeImages: true } : {}),
         });
         results = web.results;
         singleSourceErrors.push(...web.errors);
+        webImageResults = web.images;
 
         citations = buildCitations(results);
         break;
@@ -1685,6 +1744,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       searchTimeMs,
       examplesResult,
       ...(searchedCollections.length > 0 && { searchedCollections }),
+      ...(webImageResults.length > 0 && { webImageResults }),
       // Only when the turn ends up with nothing: a backend failure that still
       // left usable results is a warn, not a user-facing degradation. With
       // zero results the distinction is exactly what the user needs — "there

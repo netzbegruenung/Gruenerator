@@ -1,6 +1,7 @@
 import { allIntentMentions, forcedToolFor } from '@gruenerator/shared/chat-intents';
 import {
   PiFlask,
+  PiMagnifyingGlass,
   PiFiles,
   PiNote,
   PiPaintBrush,
@@ -300,6 +301,7 @@ export const notebookMentionables: Mentionable[] = allNotebookMentionables.filte
  */
 const TOOL_MENTION_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   recherche: PiFlask,
+  deepresearch: PiMagnifyingGlass,
   dokumente: PiFiles,
   doku: PiBooks,
   umfragen: PiChartBar,
@@ -329,6 +331,7 @@ const TOOL_MENTION_ICONS: Record<string, React.ComponentType<{ className?: strin
  */
 const TOOL_MENTION_ORDER: readonly string[] = [
   'recherche',
+  'deepresearch',
   'dokumente',
   'doku',
   'umfragen',

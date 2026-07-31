@@ -191,10 +191,18 @@ describe('parseClassifierResponse – accepts every intent the prompt offers', (
   });
 });
 
-// ─── parseClassifierResponse (typo correction guard) ──────────────────────
+// ─── parseClassifierResponse (optimized query is trusted) ─────────────────
 
-describe('parseClassifierResponse – typo correction guard', () => {
-  it('falls back to original when LLM "corrects" proper nouns', () => {
+/**
+ * There is deliberately no corruption check on the optimized query anymore. It
+ * could not tell optimisation from corruption — both look like "words that
+ * aren't in the message" — and its false positives cost whole queries: a
+ * referential follow-up ("recherchiere über sie im web") scores 0% by
+ * construction, so the resolved subject was replaced by the bare pronoun
+ * sentence, which Linkup answered with grammar pages about the word "sie".
+ */
+describe('parseClassifierResponse – optimized search query', () => {
+  it('keeps the optimized query when the LLM corrected a typo in it', () => {
     const llmResponse = JSON.stringify({
       intent: 'search',
       searchQuery: 'Grüne Partei Klimaschutz',
@@ -203,30 +211,26 @@ describe('parseClassifierResponse – typo correction guard', () => {
       reasoning: 'search',
     });
     const result = parseClassifierResponse(llmResponse, 'Grüne Partai Klimaschutz');
-    // The word "Partai" should still be found or the guard should allow it since most words match
     expect(result.intent).toBe('search');
-    expect(result.searchQuery).toBeTruthy();
+    expect(result.searchQuery).toBe('Grüne Partei Klimaschutz');
   });
 
-  it('triggers guard when >40% words lost', () => {
+  it('keeps a query whose subject came from the thread, not from the message', () => {
+    // The live failure's shape: the classifier resolved "sie" from the
+    // conversation window it was given, so NONE of the query's words appear in
+    // the message itself. That is correct behaviour, not corruption.
     const llmResponse = JSON.stringify({
-      intent: 'search',
-      searchQuery: 'Klimapolitik',
-      optimizedSearchQuery: 'Klimapolitik',
-      typoAnalysis: { original: 'Grüne Partei Situation Bonn', corrected: 'Klimapolitik' },
-      reasoning: 'search',
+      intent: 'research',
+      searchQuery: 'Marilyn Monroe Leben Wirken',
+      optimizedSearchQuery: 'Marilyn Monroe Leben Wirken',
+      typoAnalysis: { original: 'recherchiere', corrected: 'recherchiere' },
+      reasoning: 'research',
     });
-    // Original: "Was sagt Müller in Tübingen über Windkraft" — LLM replaces everything
-    const result = parseClassifierResponse(
-      llmResponse,
-      'Was sagt Müller in Tübingen über Windkraft'
-    );
-    expect(result.intent).toBe('search');
-    // Guard should have replaced with extractSearchTopic fallback
-    expect(result.searchQuery).not.toBe('Klimapolitik');
+    const result = parseClassifierResponse(llmResponse, 'recherchiere über sie im web');
+    expect(result.searchQuery).toBe('Marilyn Monroe Leben Wirken');
   });
 
-  it('does not trigger guard when all words preserved', () => {
+  it('passes the optimized query through untouched', () => {
     const llmResponse = JSON.stringify({
       intent: 'search',
       searchQuery: 'Klimapolitik der Grünen',
@@ -238,7 +242,7 @@ describe('parseClassifierResponse – typo correction guard', () => {
     expect(result.searchQuery).toBe('Klimapolitik Grüne');
   });
 
-  it('does not trigger guard on genuine optimization (removing task verbs)', () => {
+  it('keeps a genuine optimization (task verbs removed)', () => {
     const llmResponse = JSON.stringify({
       intent: 'research',
       searchQuery: 'Schreib eine PM über Energiewende',
@@ -251,10 +255,12 @@ describe('parseClassifierResponse – typo correction guard', () => {
   });
 
   /**
-   * The live regression: distilling a long question into keywords drops most of
-   * the original words by design. Measured as recall that scored 36% and the
-   * clean query was thrown away — Linkup then received the raw sentence,
-   * "Recherchiere bitte mit Quellen:" preamble and all.
+   * The first live regression this cost us: distilling a long question into
+   * keywords drops most of the original words by design. The check (then
+   * measuring recall) scored 36%, threw the clean query away, and Linkup
+   * received the raw sentence, "Recherchiere bitte mit Quellen:" preamble and
+   * all. It was re-tuned to precision back then; the pronoun case below is the
+   * same failure surviving that re-tune.
    */
   it('keeps a distilled query even when most original words are gone', () => {
     const original =
@@ -273,7 +279,15 @@ describe('parseClassifierResponse – typo correction guard', () => {
     expect(parseClassifierResponse(llmResponse, original).searchQuery).toBe(optimized);
   });
 
-  it('still rejects a query whose words are not in the question at all', () => {
+  /**
+   * The accepted cost of dropping the check: a query with no word in common
+   * with the message now goes to the search engine as-is. In a fresh thread
+   * that is a bad search; in a thread it is usually a correctly resolved
+   * reference, and the two are indistinguishable from here. A wasted search is
+   * absorbed downstream (duplicate/near-duplicate detection, source ranking) —
+   * a query stripped of its subject was not.
+   */
+  it('no longer second-guesses a query that shares nothing with the message', () => {
     const llmResponse = JSON.stringify({
       intent: 'search',
       searchQuery: 'Klimapolitik Bundesregierung',
@@ -285,10 +299,10 @@ describe('parseClassifierResponse – typo correction guard', () => {
       llmResponse,
       'Was sagt Müller in Tübingen über Windkraft'
     );
-    expect(result.searchQuery).not.toBe('Klimapolitik Bundesregierung');
+    expect(result.searchQuery).toBe('Klimapolitik Bundesregierung');
   });
 
-  it('handles single-word query with empty typoAnalysis', () => {
+  it('handles a single-word query with empty typoAnalysis', () => {
     const llmResponse = JSON.stringify({
       intent: 'search',
       searchQuery: 'Klimaschutz',
@@ -392,8 +406,34 @@ describe('detectComplexity', () => {
     expect(detectComplexity('Hallo, wie geht es dir heute?')).toBe('simple');
   });
 
-  it('returns simple for "Was ist X"', () => {
-    expect(detectComplexity('Was ist Klimaschutz?')).toBe('simple');
+  // CHANGED, deliberately: this used to assert `simple`, which capped the answer
+  // at 1-2 paragraphs. An open question about a concept or a person is short to
+  // ask and long to answer — the two are close to inverted, and treating the
+  // question's length as the answer's scope is what produced two-sentence
+  // biographies. See detectComplexity's doc comment.
+  it('returns moderate for an OPEN lookup, however short', () => {
+    expect(detectComplexity('Was ist Klimaschutz?')).toBe('moderate');
+    expect(detectComplexity('wer war marilyn monroe')).toBe('moderate');
+    expect(detectComplexity('Wer ist Robert Habeck?')).toBe('moderate');
+    expect(detectComplexity('Erkläre Föderalismus')).toBe('moderate');
+  });
+
+  it('keeps CLOSED lookups simple — a place or a date is one fact', () => {
+    expect(detectComplexity('Wo ist der Bundestag?')).toBe('simple');
+    expect(detectComplexity('Wann ist die nächste Wahl?')).toBe('simple');
+  });
+
+  it('catches umlaut-free detail requests', () => {
+    // Users type without umlauts routinely; `ausfuehrlich` used to miss the
+    // pattern, so an explicit request for depth was silently downgraded.
+    expect(detectComplexity('Wer war Marilyn Monroe? Bitte ausfuehrlich.')).toBe('complex');
+    expect(detectComplexity('Erklaere das gruendlich')).toBe('complex');
+  });
+
+  it('lets an explicit detail request outrank the open-lookup rule', () => {
+    // Ordering guard: the complex checks run before the shape checks, so
+    // "Wer ist X? Bitte ausführlich" must not stop at moderate.
+    expect(detectComplexity('Wer ist Robert Habeck? Bitte ausführlich.')).toBe('complex');
   });
 
   it('returns complex for comparison keywords', () => {

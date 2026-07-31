@@ -278,6 +278,26 @@ export interface SearchResult {
 }
 
 /**
+ * An image hit from the web search: a NAMED LINK, deliberately not a picture.
+ *
+ * There is no `snippet`/`content` because the engine gives none, and no thumbnail
+ * because rendering one would make the user's browser request a file from an
+ * arbitrary third-party host — exactly the pattern removed from the citation
+ * glyphs, where a favicon fetch reported the user's IP and the source they were
+ * about to read to Google. A backend proxy would change that calculus; until one
+ * exists, these stay links.
+ *
+ * Kept out of `SearchResult` on purpose: no text means no citation, and a
+ * separate type is what keeps a web image from being mistaken for usable image
+ * material in the sharepic/social path.
+ */
+export interface WebImageResult {
+  title: string;
+  url: string;
+  domain: string;
+}
+
+/**
  * Citation structure for response attribution.
  * Enriched with provenance data for inline popovers and grouped source cards.
  */
@@ -576,6 +596,15 @@ export interface ChatGraphState {
   clientPlatform: ClientPlatform;
   /** Tool family the thread's last substantive turn used (see ThreadToolContext). */
   lastToolContext?: ThreadToolContext | null;
+  /**
+   * The thread's recent artifacts, newest first — what {@link lastToolContext}
+   * would be if it were a list instead of a single slot. `last_tool_context` is
+   * OVERWRITTEN by every substantive turn, so a thread that produced a document
+   * and then a sharepic has forgotten the document, and "kürze die Begründung"
+   * has no deterministic door back to it. Built from message metadata by
+   * `listThreadArtifacts`; empty when the thread produced none.
+   */
+  threadArtifacts?: ThreadToolContext[];
   /** Last user text with mention tokens fully REMOVED — for regex heuristics
    *  that would false-positive on labels ("Bild generieren"). The messages on
    *  state carry the label form ("@Label") instead. */
@@ -725,6 +754,70 @@ export interface ChatGraphState {
    * expensive engine setting had become the default for ordinary questions.
    */
   explicitDeepRequest: boolean;
+
+  /**
+   * The user typed `@deepresearch`. The ONLY route from the chat to Linkup's
+   * `sourcedAnswer` endpoint, where LINKUP writes the dossier — a synthesis
+   * surcharge on top of the already-expensive deep engine, hence one per day.
+   *
+   * Not a classifier output and not derivable from the wording: an intent a model
+   * inferred cannot be a spending authorisation. Set in the router from the
+   * mention token, checked against the quota in `intentExecutionService`.
+   * Optional so existing state initialisations stay valid — absent means "not
+   * requested", which is the safe reading.
+   */
+  deepResearchRequested?: boolean;
+
+  /**
+   * Linkup's finished dossier, set only when the gated `@deepresearch` path ran.
+   *
+   * Present means the answer is ALREADY WRITTEN and must be served verbatim: the
+   * router streams it as the assistant message and skips synthesis entirely.
+   * Running a model over it would paraphrase a text we already paid for, cost a
+   * second LLM pass, and break the [N]↔source-order coupling this path relies on.
+   */
+  deepResearchAnswer?: string | null;
+
+  /**
+   * Domains the user named for THIS turn ("such auf zeit.de und orf.at"), from the
+   * deterministic `extractDomainScope` heuristic — no classifier field, no prompt
+   * budget.
+   *
+   * Deliberately not sticky. A scope that quietly keeps applying to later questions
+   * is worse than none: the user sees results going missing with no way to tell
+   * why. It is also visible in the tool card, so a wrong extraction is correctable
+   * rather than mysterious.
+   *
+   * Collides with `detectedUrls` by design and loses to it: a bare domain is a
+   * search restriction, a full URL with a path is a read instruction (`scrape_url`).
+   */
+  webSiteScope?: { include: string[]; exclude: string[] } | null;
+
+  /**
+   * The user asked to SEE images from the web this turn ("zeig mir Bilder von der
+   * Demo"), from the deterministic `wantsImageResults` heuristic.
+   *
+   * Never a default. Image hits cost the same call but are useful on a vanishing
+   * minority of turns, so a factual question must not quietly pay for pictures
+   * nobody looks at. The flag has to be EARNED by an explicit ask — either this
+   * heuristic or the loop's `bilder: true` argument.
+   *
+   * Distinct from the `image` intent, which GENERATES a picture. Same nouns,
+   * different verb, different subsystem.
+   */
+  webWantsImages?: boolean;
+
+  /**
+   * Image hits from this turn's web search — named links, never rendered as
+   * `<img>` (see `WebImageResult`).
+   *
+   * Deliberately its own field rather than entries in `searchResults`: an image
+   * carries no text, so a source registry entry for it would be a numbered
+   * citation with an empty snippet. Keeping the lists apart is also what stops
+   * these from reaching the sharepic/social path, where a web image would be
+   * treated as usable material rather than as research context.
+   */
+  webImageResults?: WebImageResult[];
 
   // Platform hint for the `examples` / `social_post` intents. Set by the
   // classifier when the user prompt names a platform; null otherwise. Consumed

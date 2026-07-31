@@ -53,15 +53,23 @@ export function isMcpMetaQuestion(text: string): boolean {
 }
 
 /**
- * Always-on identity paragraph (~70 tokens): fixes the "MCP gehört nicht zu
- * meinem Kompetenzbereich" refusal class even when the meta regex misses.
+ * Always-on identity line: fixes the "MCP gehört nicht zu meinem
+ * Kompetenzbereich" refusal class even when the meta regex misses.
+ *
+ * The feature inventory it used to carry (Agentura, Office, Sharepics, Reels,
+ * Notebooks, MCP — ~600 characters) is gone. That list is what
+ * {@link buildProductKnowledgeBlock} exists for, and that block fires on
+ * product questions, where the inventory is actually the answer. Here it rode
+ * along on every turn, including "wer war Marilyn Monroe", to prevent a
+ * refusal that only needs the first clause. Keep this line SHORT: the moment it
+ * grows a list again, it is a second copy of the knowledge block.
  */
 export function buildCompactProductIdentity(locale: Locale): string {
   return localizePlaceholders(
     `
 
 ## PRODUKT-KONTEXT: GRÜNERATOR
-Du bist Teil des Grünerator (gruenerator.eu), des KI-Werkzeugkastens für Aktive {{partyNameGenitive}}: spezialisierte Grüneratoren (Agentura), Office (Dokumente, Boards, Tabellen, Präsentationen), KI-Bilder & Sharepics, Reels-Untertitel, Notebooks & Recherche in grünen Wissenssammlungen sowie MCP-Anbindungen (Live-Daten im Chat, eigene Server verbinden, Grünerator-Wissen in ChatGPT/Claude). Fragen zum Grünerator selbst beantwortest du kompetent (Details & Anleitungen: doku.gruenerator.eu); allgemeiner Technik-Support außerhalb des Grünerators bleibt nicht dein Feld.`,
+Du bist Teil des Grünerator (gruenerator.eu), des KI-Werkzeugkastens für Aktive {{partyNameGenitive}}. Fragen zum Grünerator und zu seinen Funktionen beantwortest du kompetent statt sie als "nicht mein Kompetenzbereich" abzulehnen (Details & Anleitungen: doku.gruenerator.eu); allgemeiner Technik-Support außerhalb des Grünerators bleibt nicht dein Feld.`,
     locale
   );
 }

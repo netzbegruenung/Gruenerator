@@ -8,7 +8,6 @@
 import { createLogger } from '../../../../utils/logger.js';
 
 import { extractFilters } from './classifierFilters.js';
-import { extractSearchTopic } from './classifierHeuristics.js';
 import {
   CLASSIFIER_DOC_SUBTYPES,
   CLASSIFIER_OFFERED_INTENTS,
@@ -160,21 +159,41 @@ export const CHAT_HISTORY_KEYWORDS =
  * system-MCP intent (hotel/reise/bahn/wetter/news). Those intents are
  * LLM-CLASSIFIED ONLY (excluded from the heuristic keyword table on purpose),
  * so a bare "suche hotels …" would otherwise be swallowed by Tier-3.5 loop
- * demotion → `agentic` before the LLM ever runs, and the system source never
+ * demotion → `agentic` before Tier 3.7 ever runs, and the system source never
  * mounts. This guards the demotion gate (mirrors CHAT_HISTORY_KEYWORDS, the
- * other LLM-only intent) so these phrasings fall through to the LLM tier.
- * Deliberately phrasing-specific (concrete nouns) so it does NOT grab policy
- * words like "Tourismuspolitik"/"Bahnreform"/"Klimapolitik" — those still
- * route to `search`. The bare-noun alternatives are anchored with the trailing
- * `\b` for exactly this reason: `bahn(?:en|hof…)?` matches "Bahn"/"Bahnen"/
- * "Bahnhof" but NOT "Bahnreform"/"Bahnpolitik" (a boundary can't fall mid-word);
- * bare `wetter` matches "das Wetter" but NOT "Wetterextreme"/"Unwetter". Bare
- * "bahn(en)" and "wetter" were the two live misses — "welche bahnen fahren …"
- * and "wie ist das wetter …" slipped the earlier compound-only list
- * (zugverbindung/fahrplan/wettervorhersage) and got swallowed by demotion.
+ * other LLM-only intent) so these phrasings reach the source-scope resolver.
+ *
+ * IT IS A GATE, NOT A CLASSIFIER, and since the resolver started releasing
+ * `keine` verdicts back to demotion (classifierNode, Tier 3.7) that distinction
+ * has teeth: a false positive here costs one ~700-character call and then lands
+ * exactly where it would have landed anyway. That is why this list may be
+ * generous where the old one had to be stingy — it used to send every false
+ * positive to the 27k prompt for good. Recall is what matters; precision is the
+ * resolver's job, and its prompt spends its last paragraph on precisely the
+ * policy-vs-data line ("Bahnreform", "Tourismuspolitik", "Klimapolitik").
+ *
+ * The bare-noun alternatives still carry their own boundary — `bahn(?:en|hof…)?`
+ * matches "Bahn"/"Bahnen"/"Bahnhof" but not "Bahnreform"; bare `wetter` matches
+ * "das Wetter" but not "Wetterextreme"/"Unwetter" — because keeping obvious
+ * policy compounds out of the resolver's inbox is free.
+ *
+ * BOUNDARIES ARE `\p{L}`-BASED, NOT `\b`, and that is load-bearing: `\b` needs a
+ * transition between `\w` and non-`\w`, and without the `u` flag "ü" is not
+ * `\w`. In " übernachten" both the space and the "ü" are non-`\w`, so there is
+ * no boundary and the alternative could never fire — `[üu]bernacht\w+` matched
+ * only the "ubernachten" spelling nobody writes. Every alternative that STARTS
+ * with an umlaut was dead the same way. Suffix wildcards are `\p{L}*` for the
+ * mirror-image reason: `\w*` stops at the umlaut in "Übernachtungsmöglichkeit"
+ * and the trailing boundary then fails mid-word. `parseScope` in
+ * `sourceScopeResolver.ts` already uses this idiom.
+ *
+ * Measured misses that the additions close — all four were phrasings the
+ * resolver's own prompt advertises as its job while this gate held them back:
+ * "wo kann ich in X übernachten", "wie hoch ist die Pollenbelastung",
+ * "was gibt es Neues zu X", "aktuelle Nachrichten aus Y".
  */
 export const SYSTEM_MCP_PHRASING =
-  /\b(hotels?|unterkun(ft|ft?e)|unterk[üu]nfte|[üu]bernacht\w+|absteige|pension|herberge|dienstreise\w*|reiseplan\w*|bahn(?:en|h(?:o|ö)f\w*)?|z(?:ü|ue)ge|zugverbindung\w*|fahrplan\w*|abfahrtszeit\w*|zug\s+nach|verbindung\s+nach|wetter|wettervorhersage|wetterbericht|regnet\s+es|schneit\s+es|tagesschau|schlagzeile\w*)\b/i;
+  /(?<!\p{L})(hotel\p{L}*|unterkun\p{L}*|unterk[üu]nft\p{L}*|[üu]bernacht\p{L}*|absteige|pension|herberge|dienstreise\p{L}*|reiseplan\p{L}*|bahn(?:en|h(?:o|ö)f\p{L}*)?|z(?:ü|ue)ge|zugverbindung\p{L}*|fahrplan\p{L}*|abfahrtszeit\p{L}*|versp[äa]tung\p{L}*|zug\s+nach|verbindung\s+nach|wie\s+komme\s+ich\s+(?:\p{L}+\s+){0,6}?nach|wetter|wettervorhersage|wetterbericht|regnet\s+es|schneit\s+es|pollen\p{L}*|luftqualit[äa]t\p{L}*|tagesschau|schlagzeile\p{L}*|was\s+gibt\s+es\s+neues|aktuelle\s+nachrichten|neuigkeiten)(?!\p{L})/iu;
 
 /**
  * "How do I …?" — an INSTRUCTIONAL question about operating the Grünerator,
@@ -289,51 +308,31 @@ export function parseClassifierResponse(
       const isSearchIntent = !NON_SEARCH_INTENTS.has(parsed.intent);
 
       // Prefer optimizedSearchQuery for search intents
-      let effectiveSearchQuery = isSearchIntent
+      const effectiveSearchQuery = isSearchIntent
         ? parsed.optimizedSearchQuery || parsed.searchQuery || userContent
         : null;
 
-      // Defense-in-depth: detect if typoAnalysis corrupted the search query.
-      // The LLM sometimes "corrects" a proper noun it doesn't recognise —
-      // "Stocker" → "Stocher" — and the search then looks for a person who
-      // doesn't exist.
+      // NO corruption check on the optimized query. There used to be one: it
+      // measured how much of the query was word-backed by the LAST MESSAGE and
+      // replaced the whole query with `extractSearchTopic(userContent)` below
+      // 60%. It cost more than it bought.
       //
-      // Measured as PRECISION (how much of the QUERY is backed by the original),
-      // not recall (how much of the original survived). Recall punished exactly
-      // what query optimisation is supposed to do: a good query drops the
-      // filler. Live, "Recherchiere bitte mit Quellen: Wie hoch war 2025 der
-      // Anteil erneuerbarer Energien …" distilled to a clean 12-word query,
-      // scored 36% recall, was thrown away — and the raw sentence, preamble and
-      // all, went to Linkup instead. A corrupted word has no counterpart in the
-      // original and therefore shows up here; a dropped word does not.
-      if (effectiveSearchQuery && parsed.typoAnalysis && isSearchIntent) {
-        const significant = (s: string): string[] =>
-          s
-            .toLowerCase()
-            .split(/\s+/)
-            .map((w) => w.replace(/[^\p{L}\p{N}]/gu, ''))
-            .filter((w) => w.length > 3);
-        const originalWords = significant(userContent);
-        const queryWords = significant(effectiveSearchQuery);
-        const backed = queryWords.filter((qw) =>
-          originalWords.some((w) => qw.includes(w) || w.includes(qw))
-        );
-        const backedRatio = queryWords.length > 0 ? backed.length / queryWords.length : 1;
-
-        // Same 0.6 bar as before — only what it measures changed. Keeping the
-        // number means a single corrected proper noun in a three-word query
-        // (0.67) still passes, exactly as it did under the old ratio.
-        if (backedRatio < 0.6) {
-          const fallback = extractSearchTopic(userContent);
-          log.warn(
-            `[Classifier] Typo correction may have corrupted query: "${effectiveSearchQuery}" ` +
-              `(only ${Math.round(backedRatio * 100)}% of its words appear in the question). ` +
-              `Falling back to: "${fallback}"`
-          );
-          effectiveSearchQuery = fallback;
-        }
-      }
-
+      // It could not tell query optimisation from corruption, because both look
+      // like "words that aren't in the message":
+      //   - A referential follow-up scores 0% BY CONSTRUCTION — its subject
+      //     comes from the thread, exactly as the classifier prompt instructs.
+      //     Live: "recherchiere über sie im web" was correctly resolved to
+      //     "Marilyn Monroe Leben Wirken", scored 0%, was discarded — and the
+      //     bare pronoun sentence went to Linkup, which answered with grammar
+      //     pages about the word "sie".
+      //   - It had already been re-tuned once (recall → precision) after
+      //     throwing away a clean 12-word research query for the same reason.
+      // What it protected against — the typo pass "correcting" a proper noun it
+      // doesn't know ("Stocker" → "Stocher") — is both rarer and milder: a
+      // search engine forgives a misspelled name, while a subject-less query
+      // retrieves nothing at all. The prompt already forbids typoAnalysis from
+      // touching searchQuery (it is logged above), and duplicate/near-duplicate
+      // detection downstream absorbs a wasted search.
       if (parsed.optimizedSearchQuery && isSearchIntent) {
         log.debug(
           `[Classifier] Query optimized: "${parsed.searchQuery}" → "${parsed.optimizedSearchQuery}"`
@@ -491,11 +490,57 @@ export function parseClassifierResponse(
 }
 
 /**
+ * Explicit requests for depth. The umlaut-free spellings are not padding: users
+ * type `ausfuehrlich` routinely, and without them an explicit request for detail
+ * was silently downgraded — the user asked for more and the answer rule stayed
+ * on the middle tier.
+ */
+const DETAIL_REQUEST_RE =
+  /\b(detailliert|ausführlich|ausfuehrlich|umfassend|gründlich|gruendlich|tiefgehend|vollständig|vollstaendig)\b/i;
+
+/**
+ * OPEN questions: the answer is a portrait, not a fact. "Wer war X", "Was ist Y",
+ * "Erkläre Z" — all short to ask and long to answer.
+ *
+ * Past tense included deliberately. The old pattern listed only `wer ist`, so
+ * every question about a historical person fell through to the length rule.
+ */
+const OPEN_LOOKUP_RE =
+  /^(wer|was)\s+(ist|war|sind|waren)\b|^(erkläre|erklär|erklaere|erzähl|erzaehl|beschreib)/i;
+
+/** CLOSED lookups: a place or a date is one fact, however it is phrased. */
+const CLOSED_LOOKUP_RE = /^(wo\s+(ist|liegt|war)|wann)\b/i;
+
+/**
  * Detect query complexity using heuristic patterns.
  * Determines whether a query needs simple, moderate, or complex research depth.
+ *
+ * The ordering below is the substance of this function, not housekeeping.
+ *
+ * A length shortcut (`q.length < 30 → simple`) used to run FIRST, which made the
+ * question's length a proxy for the answer's scope — and the two are close to
+ * inverted. "wer war marilyn monroe" is 22 characters; it produced a two-sentence
+ * answer that named her birth date and nothing else, while the same question
+ * with "ausführlich" appended produced four sections including her films. The
+ * cap was doing that, not the model and not the sources.
+ *
+ * It also made the pattern list below unreachable for exactly the queries it
+ * described: every `was ist X` short enough to match it had already returned.
+ *
+ * So openers are classified by whether the QUESTION is open or closed, before
+ * length is consulted at all. Length survives only as the last resort, for input
+ * that matches no shape — a bare topic word ("Klimaschutz").
+ *
+ * Consumers other than the answer-format rule: `briefGeneratorNode` and
+ * `intentExecutionService` group `moderate` with `complex`, so an open lookup
+ * that also carries `intent === 'research'` now plans before it searches. That
+ * is the intended reading — an open research question deserves a plan.
+ * `searchDepth.ts` deliberately stopped taking `complexity` as a parameter, so
+ * nothing here can buy the expensive engine tier.
  */
 export function detectComplexity(query: string): 'simple' | 'moderate' | 'complex' {
   const q = query.toLowerCase();
+  const trimmed = q.trim();
 
   // Complex: comparison, multi-topic, or explicit detail requests
   if (
@@ -503,7 +548,7 @@ export function detectComplexity(query: string): 'simple' | 'moderate' | 'comple
   ) {
     return 'complex';
   }
-  if (/\b(detailliert|ausführlich|umfassend|gründlich|tiefgehend|vollständig)\b/i.test(q)) {
+  if (DETAIL_REQUEST_RE.test(q)) {
     return 'complex';
   }
   // Multi-clause: "und" connecting distinct topics (not just filler)
@@ -511,14 +556,21 @@ export function detectComplexity(query: string): 'simple' | 'moderate' | 'comple
     return 'complex';
   }
 
-  // Simple: greetings, short questions, single-entity lookups
+  // Greetings are genuinely closed, at any length.
+  if (/^(hallo|hi|hey|guten|servus|moin|danke)/i.test(trimmed)) {
+    return 'simple';
+  }
+
+  // Shape before length — this is the fix.
+  if (OPEN_LOOKUP_RE.test(trimmed)) {
+    return 'moderate';
+  }
+  if (CLOSED_LOOKUP_RE.test(trimmed)) {
+    return 'simple';
+  }
+
+  // Last resort: no recognisable shape. A bare topic word is a simple ask.
   if (q.length < 30) {
-    return 'simple';
-  }
-  if (/^(hallo|hi|hey|guten|servus|moin|danke)/i.test(q.trim())) {
-    return 'simple';
-  }
-  if (/^(was ist|wer ist|wo ist|wann)\b/i.test(q.trim())) {
     return 'simple';
   }
 

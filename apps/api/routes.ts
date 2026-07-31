@@ -82,6 +82,7 @@ import scannerRouter from './routes/scanner/index.js';
 import { mountGlobalSearchContractRouter } from './routes/search/globalSearchContractRouter.js';
 import {
   searchController as searchRouter,
+  searchImageProxyRouter,
   webSearchController as webSearchRouter,
 } from './routes/search/index.js';
 import { mountSearchGraphContractRouter } from './routes/search/searchGraphContractRouter.js';
@@ -147,6 +148,7 @@ import { mountRecentActivityContractRouter } from './routes/workplace/recentActi
 import recentActivityRouter from './routes/workplace/recentActivityController.js';
 import * as sharepicGenerationService from './services/chat/sharepicGenerationService.js';
 import * as tusServiceModule from './services/subtitler/tusService.js';
+import { decisionLogMiddleware } from './utils/decisionLog.js';
 import { toUserFacingMessage } from './utils/errors/index.js';
 import { createLogger } from './utils/logger.js';
 import { RouteStatsTracker } from './utils/routeStats.js';
@@ -475,6 +477,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   // (large payloads: base64 image attachments).
   app.use('/api/chat-graph', express.json({ limit: '50mb' }));
   app.use('/api/chat-graph', aiGenerationLimiter);
+  // Dev-only: bind a decision journal per turn and dump it to CHAT_DECISION_LOG_DIR
+  // so the live eval lane can render a decision map. Returns null — and mounts
+  // nothing — unless NODE_ENV is development AND the directory is configured.
+  const decisionLog = decisionLogMiddleware();
+  if (decisionLog) app.use('/api/chat-graph', decisionLog);
   mountThreadsContractRouter(app);
   mountChatGraphContractRouter(app);
   app.use('/api/chat-service', authenticatedReadLimiter, chatServiceRouter);
@@ -905,6 +912,12 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountUnsplashContractRouter(app);
   app.use('/api/unsplash', publicReadLimiter, unsplashRouter);
   app.use('/api/web-search', requireAuth, publicReadLimiter, webSearchRouter);
+  // Serves a web-search image hit through us so the reader's browser never
+  // contacts the source host. requireAuth on the prefix even though every handle
+  // is HMAC-signed: the signature says "we returned this URL", not "this caller
+  // may spend our bandwidth", and an unauthenticated fetcher is an abuse target
+  // regardless of how narrow its target set is.
+  app.use('/api/search-image', requireAuth, authenticatedReadLimiter, searchImageProxyRouter);
   // Apply auth + rate limiting on the prefix BEFORE mounting the ts-rest
   // router (createExpressEndpoints registers routes directly on `app`, so the
   // prefix middleware must be in place first to gate them).

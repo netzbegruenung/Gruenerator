@@ -40,7 +40,7 @@ Single workspace: `pnpm --filter @gruenerator/api test:auth`, `pnpm --filter @gr
   - **Chat: contract router is the only handler.** `routes/chat/chatGraphContractRouter.ts` (+ `agents/langgraph/ChatGraph/` nodes: classifier → search → respond) handles `/api/chat-service/*`; tools are executed by `routes/chat/services/intentExecutionService.ts` (calling services directly — there is no LangChain tool registry). **When debugging chat behavior (intent, tool calls, prompts), check the contract router & ChatGraph nodes first** — confirm via backend logs `[ChatGraph:Classifier]` / `[chatGraphContractRouter]`.
   - **Before restructuring anything in the chat stack, read `docs/chat-architecture-evaluation.md`.** It records what the architecture actually is (the compiled LangGraph graphs have zero callers — the routers hand-sequence the nodes), which duplicates are deliberate vs. drift, what the AI SDK v7 already provides that we hand-rolled, and why Deep Agents was evaluated and declined. Note `/docs/` is gitignored — edits there need `git add -f`.
 - **`apps/docs`** — **Deprecated** collaborative editor. New docs features → `apps/web/src/features/docs/` + `packages/docs/`.
-- **`apps/mobile`** — Expo 56 / React Native 0.85 with Expo Router.
+- **`apps/mobile`** — Expo 57 / React Native 0.86 with Expo Router.
 - **`apps/desktop`** — Tauri 2 wrapper around web frontend. **ALWAYS build the desktop app from `master`, never from a feature branch.** The build bundles the web frontend, but the running app talks to the *deployed production* backend (`gruenerator.eu`). A branch frontend ships calls to endpoints / response shapes prod doesn't have yet → they 404 and the app hangs on loading skeletons. Land desktop changes on `master` first (PR + deploy backend), then build.
 - **`packages/chat`** — Shared chat UI, runtime adapters (Assistant UI), stores, hooks. Consumed at `/chat`. Composer controls (modes/models) are defined once here and rendered per-platform — see `CLAUDE-chat.md`; never hardcode mode/model/tool lists in an app.
 - **`packages/shared`** — Shared stores (Zustand), hooks, API clients, feature modules. Components in `src/components/`.
@@ -83,7 +83,11 @@ Keycloak OIDC via Passport.js. Multiple IdPs (.de, .at, .eu). Sessions in Redis.
 
 ### AI Providers
 
-Mistral AI (primary, EU), self-hosted GPT-OSS/Gemma via LiteLLM/verdigado, Seeweb/Regolo AI (EU; also transcription via faster-whisper, with Mistral Voxtral as fallback), Flux/BFL (images). NOT used in production: Together AI (historical fine-tuning experiment only, see `CLAUDE-finetuning.md`), AssemblyAI, Gladia, Bedrock/Claude. No ultra/pro/privacy mode flags — model routing is type-based in `providerSelector.ts`; explicit model choice exists only in Playground, mobile chat, and agent configs.
+Mistral AI (primary, EU), self-hosted GPT-OSS/Gemma via LiteLLM/verdigado, Seeweb/Regolo AI (EU; also transcription via faster-whisper, with Mistral Voxtral as fallback), Scaleway (EU/Paris; liefert Mistral Medium 3.5 und Whisper), Flux/BFL (images). NOT used in production: Together AI (historical fine-tuning experiment only, see `CLAUDE-finetuning.md`), AssemblyAI, Gladia, Bedrock/Claude. No ultra/pro/privacy mode flags — model routing is type-based in `providerSelector.ts`; explicit model choice exists only in Playground, mobile chat, and agent configs.
+
+**Scaleway ist ein Upstream, kein `ProviderName`.** Mistral Medium 3.5 läuft auf Scaleway, die Mistral-API ist der Fallback; die Weiche steht in `routeMistralModel` (`services/ai/providerInstances.ts`) — eine Ebene UNTER dem Lane-Namen. Grund: alles Policy-Relevante prüft `provider === 'mistral'` (`isAgenticToolCapable`, Kontextfenster, Fallback-Ketten), ein Geschwister-Provider hätte das fürs Hauptmodell still abgeschaltet. Deshalb brauchen die ~20 Aufrufer, die `mistral-medium-2604` hart benennen, keine Änderung. **Zwei Ausnahmen bleiben bewusst auf der Mistral-API:** Denk-Anfragen (`providerOptions.mistral` erreicht einen OpenAI-kompatiblen Client nie — stiller Verlust; roh erzwungen liefert Scaleway leeren `content`, weil das Reasoning gegen `max_tokens` zählt) und alles außer Medium (Pixtral, Small, Embeddings). Scaleways Whisper kann **nur Segment-**, keine Wort-Zeitstempel — `WORD_TIMESTAMP_CHAIN` in `services/transcription/providerPolicy.ts` hält es aus dem Untertitel-Pfad heraus, weil eine wortlose Antwort kein Fehler ist und die Fallback-Schleife sie sonst als Erfolg akzeptieren würde.
+
+**Websuche: Linkup** (`LinkupService.ts`, `LINKUP_API_KEY`). Die `linkup-*` Skills gelten auch für unseren Integrations-Code: `depth` ist eine Kostenentscheidung — `fast`/`standard` als Default, `deep` nur für „erst URL finden, dann scrapen".
 
 ## Development Conventions
 
@@ -95,9 +99,13 @@ Mistral AI (primary, EU), self-hosted GPT-OSS/Gemma via LiteLLM/verdigado, Seewe
 - **PR merges require admin.** `gh pr merge` fails — ask user to merge via GitHub UI.
 - **Worktree weg, sobald alles gepusht ist** — nicht erst nach dem Merge. Ein offener PR braucht kein lokales Verzeichnis, er lebt auf `origin`. Kriterium: `git status --porcelain` **und** `git log @{u}..` beide leer → `git worktree remove <pfad>` (Branch bleibt stehen). Nach dem Merge zusätzlich `git branch -d <br> && git worktree prune`. Nie `--force`, nie fremde Worktrees — andere Agenten arbeiten parallel.
 
+### Agent-Skills & versionsgenaue Doku
+
+**Bevor du Code gegen eine Library änderst (AI SDK, Tailwind v4, LangGraph, Drizzle, Zod, Qdrant, Expo, Tiptap, Better Auth, Linkup, …): erst die versionsgenaue Quelle lesen, nicht aus dem Gedächtnis schreiben.** Welche Skill bzw. welches `llms.txt` — und die Fallen dabei — stehen in `CLAUDE-agent-docs.md`. Ein Tool-Call ist billiger als ein Debug-Zyklus an einer umbenannten API.
+
 ### Expo Apps
 
-Load Expo skills for `apps/mobile` or `apps/docs-expo`. Use `npx expo install` (not `pnpm add`). See `CLAUDE-expo.md`. Always use `expo-image` (not RN `Image`) — RN can't render SVGs.
+Expo-Skills sind als Plugin `expo@claude-plugins-official` installiert (user scope) — siehe *Agent-Skills & versionsgenaue Doku*. Use `npx expo install` (not `pnpm add`). See `CLAUDE-expo.md`. Always use `expo-image` (not RN `Image`) — RN can't render SVGs.
 
 **React version is decoupled between web and mobile — never use a single global override.** RN bundles `react-native-renderer` pinned to one EXACT React version; React's runtime check rejects any mismatch (symptoms: `Incompatible React versions`, then cascading `Maximum call stack size exceeded` / `Cannot read property 'ErrorBoundary' of undefined` / phantom "missing default export" route warnings). So:
 - `apps/mobile` pins `react`/`react-dom` to the **exact** version the Expo SDK ships. Bump it **only** via `npx expo install react react-dom` during an SDK upgrade — never independently. Dependabot ignores react/react-dom for `/apps/mobile` entirely (`.github/dependabot.yml`).

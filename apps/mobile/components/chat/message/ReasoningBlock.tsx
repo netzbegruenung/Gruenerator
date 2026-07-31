@@ -40,6 +40,18 @@ export function AssistantReasoningPart(props: { text: string }) {
   return <ReasoningBlock part={props} theme={theme} />;
 }
 
+/**
+ * The chat thread's reasoning slot. Renders nothing: the thinking hangs under
+ * the status line's chevron (`StatusLineDetails`), which reads the same parts
+ * and retires with the line once the answer text starts. The slot still has to
+ * EXIST — an unset one falls back to assistant-ui's own renderer, which would
+ * put the block back. `AssistantReasoningPart` stays for surfaces that want the
+ * standalone "Gedankengang" block.
+ */
+export function HiddenReasoningPart() {
+  return null;
+}
+
 const styles = StyleSheet.create({
   container: {
     marginBottom: spacing.xsmall,

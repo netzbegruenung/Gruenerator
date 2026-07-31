@@ -336,7 +336,16 @@ function useGrueneratorThreadRuntime() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ traceId, value: type }),
-        }).catch((err) => console.warn('[Feedback] submit failed', err));
+        })
+          .then((res) => {
+            // fetch resolves on 4xx/5xx too, so the guard above would otherwise
+            // lock in a rating the backend rejected and block every retry.
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          })
+          .catch((err) => {
+            lastFeedbackRef.current.delete(traceId);
+            console.warn('[Feedback] submit failed', err);
+          });
       },
     }),
     []

@@ -31,8 +31,11 @@ vi.mock('./agents/providers.js', () => ({
   isProviderConfigured: (...args: unknown[]) => isProviderConfigured(...args),
 }));
 vi.mock('../../services/telemetry/langfuseTelemetry.js', () => ({
+  BOTH_LANES_FAILED: 'generation failed on both model lanes',
   buildAiTelemetry: () => undefined,
-  withLangfuseTrace: async (_o: unknown, fn: () => Promise<unknown>) => fn(),
+  // Mirrors the disabled-mode handle: no trace id, update() swallowed.
+  withLangfuseTrace: async (_o: unknown, fn: (t: unknown) => Promise<unknown>) =>
+    fn({ traceId: undefined, update: () => {} }),
 }));
 vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
   NotebookQdrantHelper: class {

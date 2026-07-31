@@ -25,6 +25,8 @@ import {
   InvalidToolInputError,
 } from 'ai';
 
+import { buildAiTelemetry } from '../../../../services/telemetry/langfuseTelemetry.js';
+import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { isWholesaleRefusal, refusalLanguage } from '../refusalDetection.js';
 import { createIdleDeadline } from '../streamIdleDeadline.js';
@@ -70,6 +72,18 @@ export interface LoopDeps {
 }
 const defaultDeps: LoopDeps = { streamText: streamTextReal, generateText: generateTextReal };
 
+/**
+ * Langfuse settings for one loop phase, ready to spread into a streamText call.
+ * The caller has already opened the turn's root span, so these land under it as
+ * named generations — otherwise an agentic turn shows a trace with no LLM work
+ * in it at all. Empty object when Langfuse is off, which is also what the unit
+ * tests see (they never init the telemetry module).
+ */
+const phaseTelemetry = (phase: 'unified' | 'gather' | 'synth') => {
+  const telemetry = buildAiTelemetry(`chat-graph.agentic.${phase}`);
+  return telemetry ? { experimental_telemetry: telemetry } : {};
+};
+
 /** Injected via prepareStep's `system` override on the force-finish step
  *  (LobeHub pattern: strip tools AND tell the model why, instead of a bare
  *  toolChoice:'none' it can't interpret). */
@@ -82,7 +96,7 @@ const GATHER_SUFFIX = [
   '',
   '',
   'ARBEITSPHASE (hier erledigst du die TOOL-Arbeit: Belege sammeln UND angeforderte Inhalte erstellen — die finale Textantwort schreibst du NICHT hier):',
-  '- Für grüne Positionen, Programme und Beschlüsse ZUERST gruenerator_search (interne Dokumente). Nutze die Websuche NUR, wenn die internen Dokumente die Frage nicht abdecken oder es um tagesaktuelle Ereignisse/Zahlen geht — NICHT parallel oder auf Vorrat.',
+  '- Für grüne Positionen, Programme und Beschlüsse ZUERST gruenerator_search (interne Dokumente). Nutze die Websuche NUR, wenn die internen Dokumente die Frage nicht abdecken oder es um tagesaktuelle Ereignisse/Zahlen geht — NICHT parallel oder auf Vorrat. Bei Fragen OHNE Parteibezug (Allgemeinwissen, Personen, Ereignisse, Zahlen) suchst du DIREKT im Web — gruenerator_search kennt ausschließlich Parteidokumente.',
   '- Verlass dich NICHT auf dein eigenes Wissen — belege mit Tools. Aber STOPPE, sobald die ersten 1–2 Treffer die Frage beantworten; sammle nicht auf Vorrat und wiederhole keine ähnlichen Suchen.',
   '- scrape_url NUR für URLs, die tatsächlich in Suchergebnissen erscheinen — rate keine Adressen.',
   '- Wenn der*die Nutzer*in ausdrücklich eine ERSTELLUNG wünscht (z.B. ein Sharepic, Bild, eine Präsentation, Tabelle, ein Dokument oder ein Board), MUSST du das passende Erstellungs-Tool (z.B. sharepic / generate_image / create_presentation / create_sheet / create_document / create_board) in dieser Phase aufrufen — recherchiere zuerst die Fakten, dann rufe das Tool mit dem belegten, konkreten Auftrag auf. Verweigere die Erstellung NICHT.',
@@ -338,6 +352,7 @@ async function streamWithTools(
       p.forcedToolForStep
     ),
     experimental_repairToolCall: repairToolCall,
+    ...phaseTelemetry('unified'),
   });
   return drain(result, p.onText, p.onReasoning);
 }
@@ -368,6 +383,7 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
         p.forcedToolForStep
       ),
       experimental_repairToolCall: repairToolCall,
+      ...phaseTelemetry('gather'),
     });
     const chunker = p.onNarration ? createSentenceChunker(p.onNarration) : null;
     const iterator = result.stream[Symbol.asyncIterator]();
@@ -530,6 +546,7 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: 
       // Combined so a stalled provider call is torn down, not just abandoned.
       // `writeAbortSignal` deliberately, NOT the turn budget — see its doc.
       abortSignal: AbortSignal.any([p.writeAbortSignal ?? p.abortSignal, idle.signal]),
+      ...phaseTelemetry('synth'),
     });
     try {
       const { text } = await drain(result, gate.push, p.onReasoning, idle);
@@ -573,16 +590,23 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: 
     // The discarded text goes into the line on purpose: an over-refusal is
     // invisible without it — the wire only ever shows the canned message, so a
     // wrongly swapped answer looks exactly like a correct decline in the logs.
+    const lang = refusalLanguage(first.text) ?? 'de';
     log.info(
-      `[Engine] synth declined the request (${refusalLanguage(first.text) ?? 'de'}) — ` +
+      `[Engine] synth declined the request (${lang}) — ` +
         `surfacing the German refusal instead of retrying; discarded: ${JSON.stringify(
           first.text.trim().slice(0, 120)
         )}`
     );
+    recordDecision('loop.synth_verdict', 'refusal_swapped', {
+      inputs: { refusalLanguage: lang },
+    });
     p.onText(SYNTH_REFUSAL_TEXT);
     return { text: SYNTH_REFUSAL_TEXT };
   }
   if (!looksDegenerateSynth(first.text, toolNames)) {
+    recordDecision('loop.synth_verdict', 'accepted', {
+      inputs: { textLength: first.text.length },
+    });
     first.flush();
     return { text: first.text };
   }
@@ -592,12 +616,18 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: 
       first.text.trim().slice(0, 80)
     )}) — retrying once`
   );
+  recordDecision('loop.synth_verdict', 'degenerate_retried', {
+    inputs: { textLength: first.text.length },
+  });
   const retry = await runPassWithFallback(`${baseSystem}${SYNTH_RETRY_SYSTEM_SUFFIX}`);
   if (retry.text.trim().length === 0 || looksDegenerateSynth(retry.text, toolNames)) {
     // Neither pass produced an answer — emit NEITHER (both are still buffered)
     // and return empty, so the caller's honest no-answer fallback fires instead
     // of a leaked tool-planning line.
     log.warn('[Engine] synth retry did not recover — degrading to the no-answer fallback');
+    recordDecision('loop.synth_verdict', 'retry_failed_empty', {
+      inputs: { retryTextLength: retry.text.length },
+    });
     return { text: '' };
   }
   retry.flush();

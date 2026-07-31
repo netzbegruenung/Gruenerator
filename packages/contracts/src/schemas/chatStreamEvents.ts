@@ -77,6 +77,11 @@ export const chatWarningCodeSchema = z.enum([
   'source_unavailable',
   'rerank_degraded',
   'research_plan_failed',
+  // `@deepresearch` was asked for but not served: the daily quota is spent or the
+  // call failed. Distinct from `research_plan_failed` — the turn did NOT degrade
+  // in quality accidentally, it was capped on purpose, and the message names the
+  // reset time. Always carries a `messageOverride`.
+  'deep_research_quota_spent',
   'classifier_degraded',
   'summary_partial',
   'recall_degraded',
@@ -196,6 +201,38 @@ export const searchResultPayloadSchema = z.object({
   relevance: z.number().optional(),
 });
 export type SearchResultPayload = z.infer<typeof searchResultPayloadSchema>;
+
+/**
+ * An image hit from the web search. Its own payload, never an entry in
+ * `searchResultPayloadSchema`: there is no `content`, so a shared shape would put
+ * a content-less item into the source list and produce a numbered citation with
+ * an empty snippet.
+ *
+ * The client renders these as NAMED LINKS. A `<img src>` here would make the
+ * reader's browser fetch a file from an arbitrary third-party host — the exact
+ * pattern removed from the citation glyphs, where a favicon request reported the
+ * user's IP and the page they were about to open to Google. There is deliberately
+ * no `thumbnailUrl` field: adding one is the same decision again, and it needs the
+ * backend proxy first.
+ */
+export const searchImagePayloadSchema = z.object({
+  title: z.string(),
+  /** The image on its source host. Always present; this is what the link opens. */
+  url: z.string(),
+  domain: z.string(),
+  /**
+   * Same-origin path that serves the image through our backend, so displaying it
+   * costs the reader no request to `domain`. Signed and short-lived — see
+   * `imageProxySignature.ts`.
+   *
+   * Optional on purpose: with no signing secret configured the backend omits it,
+   * and the client MUST then fall back to rendering a plain link. A client that
+   * assumes this field would put the third-party request back exactly where the
+   * proxy was built to remove it.
+   */
+  proxyUrl: z.string().optional(),
+});
+export type SearchImagePayload = z.infer<typeof searchImagePayloadSchema>;
 
 /**
  * Union of every style either side can produce: the generator emits
@@ -485,6 +522,8 @@ export const chatStreamEventSchemas: Record<string, z.ZodTypeAny> = {
       message: z.string(),
       resultCount: z.number(),
       results: z.array(searchResultPayloadSchema.passthrough()).optional(),
+      /** Image hits, separate from `results` — see `searchImagePayloadSchema`. */
+      images: z.array(searchImagePayloadSchema.passthrough()).optional(),
       researchMeta: z.unknown().optional(),
       examplesResult: z
         .object({

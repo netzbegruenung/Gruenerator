@@ -15,6 +15,7 @@ import { degradeTargetForLocale } from '@gruenerator/shared/chat-intents';
 
 import { isAgenticLoopEnabled } from '../../../../routes/chat/services/agenticLoop/flags.js';
 import { looksLikeToolableQuestion } from '../../../../routes/chat/services/agenticLoop/routing.js';
+import { isSharepicEditInstruction } from '../../../../routes/chat/services/sharepicEditHeuristics.js';
 import { containsInstructionMarkers } from '../../../../routes/chat/services/untrustedContent.js';
 import { escapeRegExp } from '../../../../services/BaseSearchService/textUtils.js';
 import {
@@ -27,6 +28,7 @@ import {
 } from '../../../../services/mcp/systemMcpServers.js';
 import { isExplicitDeepRequest } from '../../../../services/search/searchDepth.js';
 import { analyzeTemporality } from '../../../../services/search/TemporalAnalyzer.js';
+import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
@@ -42,6 +44,8 @@ import {
   extractSearchTopic,
   extractMessageText,
   extractUrls,
+  extractDomainScope,
+  wantsImageResults,
   formatConversationHistory,
   hasImageEditVerb,
   isImageRegenRequest,
@@ -68,6 +72,7 @@ import {
 } from './classifierParsing.js';
 import { CLASSIFIER_PROMPT, NON_SEARCH_INTENTS } from './classifierPrompt.js';
 import { classifyDocsIntentTiebreak } from './docsIntentTiebreak.js';
+import { resolveEditTarget } from './editTargetResolver.js';
 import {
   ARTIFACT_NOUN_BY_KIND,
   forbidsPersistentAction,
@@ -76,6 +81,8 @@ import {
   stripQuotedSpans,
   type ForbiddableArtifact,
 } from './fastPathGuards.js';
+import { refineSearchQuery } from './queryRefineResolver.js';
+import { resolveSourceScope } from './sourceScopeResolver.js';
 
 import type { ChatGraphState, GatherSource, SearchIntent } from '../types.js';
 
@@ -347,6 +354,23 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     );
   }
 
+  // "such auf zeit.de und orf.at nach X" — a search RESTRICTION, not a page to
+  // read, and until now it had no way into the engine at all: bare domains stayed
+  // words in the query string, where they narrowed nothing. Deterministic, so the
+  // classifier's JSON schema does not grow — every field there costs prompt budget
+  // and measurably drags on intent accuracy.
+  //
+  // `extractDomainScope` drops any domain that also appears as a full URL, so this
+  // cannot steal a `scrape_url` turn: a URL with a path is a read instruction, a
+  // bare domain is a scope. Both in one message is allowed and each keeps its role.
+  const webSiteScope = extractDomainScope(userText);
+  const hasSiteScope = webSiteScope.include.length > 0 || webSiteScope.exclude.length > 0;
+  if (hasSiteScope) {
+    log.info(
+      `[Classifier] Site scope: include=[${webSiteScope.include.join(',')}] exclude=[${webSiteScope.exclude.join(',')}]`
+    );
+  }
+
   // A question about THIS conversation needs no retrieval — the messages are in
   // context already. Routing it to chat_history sent it through a Qdrant recall
   // over PAST threads, which returned nothing, and the turn then reported having
@@ -385,16 +409,27 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     log.info('[Classifier] Explicit deep-research request — top search tier unlocked');
   }
 
+  // Same reasoning as the deep-research consent above: it decides what we pay
+  // for, so it is deterministic and testable without a model. Only meaningful on
+  // a web turn — an image-GENERATION turn returned long before this point with
+  // `intent: 'image'`, so the two can never both be true.
+  const webWantsImages = wantsImageResults(userText);
+  if (webWantsImages) {
+    log.info('[Classifier] Image results requested — web search will include image hits');
+  }
+
   return {
     ...result,
     intent: intent ?? result.intent,
     injectionSuspected,
     explicitDeepRequest,
+    ...(webWantsImages ? { webWantsImages } : {}),
     ...(downgradedSearchQuery != null && !result.searchQuery
       ? { searchQuery: downgradedSearchQuery }
       : {}),
     secondaryIntent,
     detectedUrls,
+    ...(hasSiteScope ? { webSiteScope } : {}),
     documentSources,
     synthesisMode,
   };
@@ -1005,13 +1040,16 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       }
     }
 
-    // ── TIER 2.7: Follow-up on the thread's last artifact ──────────────────
+    // ── TIER 2.7: Follow-up on one of the thread's artifacts ───────────────
     // chat_threads.last_tool_context is the only carrier a vague follow-up has
     // (mentions are stripped on send). Placed AFTER every explicit-anchor branch
     // (open editor surfaces, @-mentions, attachments) so it can never preempt
     // them; the deterministic tiers otherwise ignore lastToolContext and only the
     // Tier-4 LLM prose hint uses it. Belt-and-braces conditions below too.
-    const tc = state.lastToolContext;
+    //
+    // `tc` is the thread's NEWEST artifact unless the thread holds several and
+    // the resolver picked an older one — see pickThreadArtifact.
+    const tc = await pickThreadArtifact(state, userContent);
     if (tc && userContent.length > 0) {
       // "Kürze die Begründung auf die Hälfte" after a chat-created doc: the
       // modify verbs match, but every doc branch above was gated on an anchor a
@@ -1064,6 +1102,44 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
           classificationTimeMs: Date.now() - startTime,
         };
       }
+      // "Mach den Text größer" / "Anderer Hintergrund bitte" after a sharepic.
+      //
+      // This turn already had TWO corrections stacked on top of the LLM tier,
+      // which is the tell that the tier was never deciding anything: the LLM
+      // answers `image_edit` (its own reasoning names the *Sharepic*), the
+      // post-LLM patch below rewrites that to `sharepic`, and the router's
+      // refinement block then overrides the intent a third time and forces the
+      // tool regardless of what the classifier said. 27k characters, three
+      // corrections, one predetermined outcome.
+      //
+      // Narrow on the same two counts as that patch: with an image ATTACHED,
+      // image_edit is simply right, and when the user names an image ("bearbeite
+      // das Foto") take them at their word. `isSharepicEditInstruction` is the
+      // STRICTER of the two edit heuristics (verb AND noun) — it is a subset of
+      // the router's `isSharepicRefinement`, so anything this branch forwards is
+      // something the refinement block accepts. Where it doesn't fire, the turn
+      // falls through to exactly today's path.
+      if (
+        tc.kind === 'sharepic' &&
+        !hasImageAttachments &&
+        !mentionsImageNoun(userContent) &&
+        isSharepicEditInstruction(userContent)
+      ) {
+        log.info('[Classifier] Follow-up sharepic edit via thread artifact → sharepic');
+        recordDecision('classifier.tier', 'tier2.7_sharepic_followup', {
+          inputs: { artifactKind: tc.kind },
+        });
+        return {
+          intent: 'sharepic',
+          searchSources: [],
+          searchQuery: null,
+          detectedFilters: null,
+          reasoning: 'threadArtifact(sharepic) + edit instruction → sharepic refinement',
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
       // "denk dir ein muster aus" / "los, erstellen" / "wo ist das?" after an MCP
       // turn: without this the vague follow-up went to the LLM which picked
       // `direct` — the connector was never called (observed live). Re-scope to the
@@ -1086,6 +1162,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
           isImperativeContinuation)
       ) {
         log.info('[Classifier] Follow-up via lastToolContext(mcp) → mcp', { scope: tc.ref });
+        recordDecision('classifier.tier', 'tier2.7_mcp_followup', {
+          inputs: { mcpScope: tc.ref },
+        });
         return {
           intent: 'mcp',
           mcpServerScope: tc.ref,
@@ -1109,6 +1188,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // knows the `hilfe` intent too.
     if (looksLikeDocsHelpQuestion(userContent)) {
       log.info(`[Classifier] Docs help question → hilfe: "${userContent.slice(0, 60)}"`);
+      recordDecision('classifier.tier', 'tier2.9_docs_help');
       return {
         intent: 'hilfe',
         searchSources: [],
@@ -1139,6 +1219,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       isAmbiguousGraphicRequest(userContent)
     ) {
       log.info(`[Classifier] Ambiguous "Grafik" ask — asking which kind`);
+      recordDecision('classifier.tier', 'tier2.95_ambiguous_graphic');
       return {
         intent: 'direct',
         needsClarification: true,
@@ -1165,6 +1246,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       log.info(
         `[Classifier] Short message, heuristics: ${result.intent} (confidence: ${result.confidence.toFixed(2)})`
       );
+      recordDecision('classifier.tier', 'tier3_short_message', {
+        inputs: { heuristicIntent: result.intent, confidence: result.confidence },
+      });
       return {
         intent: result.intent,
         searchSources: [],
@@ -1228,6 +1312,15 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       log.info(
         `[Classifier] Heuristics (confidence: ${heuristic.confidence.toFixed(2)}): ${heuristic.intent} - ${heuristic.reasoning}${heuristicSearchSources.length > 1 ? ` [multi-source: ${heuristicSearchSources.join('+')}]` : ''}`
       );
+      recordDecision('classifier.tier', 'tier3_heuristic', {
+        inputs: {
+          heuristicIntent: heuristic.intent,
+          confidence: heuristic.confidence,
+          effectiveConfidence,
+          needsDecomposition,
+          isVagueFollowup,
+        },
+      });
       return {
         intent: heuristic.intent,
         searchSources: heuristicSearchSources,
@@ -1247,21 +1340,47 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Only retrieval-shaped intents demote — generation/platform-gated intents
     // (sharepic, social_post, image, ...) and chat-recall phrasings keep the
     // LLM tier so their gates/HITL/routing stay intact.
-    const demotable =
+    const demotableApartFromLiveSource =
       isAgenticLoopEnabled() &&
       (DEMOTABLE_HEURISTIC_INTENTS.has(heuristic.intent) ||
         (heuristic.intent === 'direct' && looksLikeToolableQuestion(userContent))) &&
-      !CHAT_HISTORY_KEYWORDS.test(userContent) &&
-      // hotel/reise/bahn/wetter/news are LLM-only: don't let demotion swallow a
-      // "suche hotels …" before the LLM tier can route it to its system source.
-      // Test URL-stripped text so a pasted link (e.g. tagesschau.de) doesn't
-      // trip a keyword — a pasted URL is a scrape job, handled above.
-      !SYSTEM_MCP_PHRASING.test(userContent.replace(/https?:\/\/\S+/gi, ' '));
-    if (demotable) {
+      !CHAT_HISTORY_KEYWORDS.test(userContent);
+
+    // hotel/reise/bahn/wetter/news are LLM-only: don't let demotion swallow a
+    // "suche hotels …" before Tier 3.7 can route it to its system source.
+    // Test URL-stripped text so a pasted link (e.g. tagesschau.de) doesn't
+    // trip a keyword — a pasted URL is a scrape job, handled above.
+    //
+    // The hold is PROVISIONAL, and that is what makes the regex affordable to
+    // widen. It used to be final: a phrasing match sent the turn to the 27k
+    // prompt for good, so every keyword added to catch a real timetable question
+    // also bought a 27k call for every policy question that shares the word.
+    // Tier 3.7 now releases the turn back to demotion when the resolver answers
+    // "keine", so a false positive costs one ~700-character call and lands
+    // exactly where it would have landed without the regex.
+    const heldBackForLiveSource =
+      demotableApartFromLiveSource &&
+      SYSTEM_MCP_PHRASING.test(userContent.replace(/https?:\/\/\S+/gi, ' '));
+    const demotable = demotableApartFromLiveSource && !heldBackForLiveSource;
+
+    const demoteToLoop = (tier: 'tier3.5_loop_demotion' | 'tier3.7_no_live_source') => {
       log.info(
-        `[Classifier] Loop demotion: heuristic ${heuristic.intent}@${effectiveConfidence.toFixed(2)} < ${HEURISTIC_CONFIDENCE_THRESHOLD} → agentic (LLM skipped)`
+        `[Classifier] Loop demotion (${tier}): heuristic ${heuristic.intent}@${effectiveConfidence.toFixed(2)} < ${HEURISTIC_CONFIDENCE_THRESHOLD} → agentic (LLM skipped)`
       );
-      return {
+      recordDecision('classifier.tier', tier, {
+        inputs: {
+          heuristicIntent: heuristic.intent,
+          confidence: heuristic.confidence,
+          effectiveConfidence,
+          demotable,
+          // Zusammen sind die beiden Felder die Signatur des Wegs: demotable=true
+          // heisst „direkt bei 3.5 abgebogen", heldBack=true + demotable=false
+          // heisst „vom Live-Quellen-Gitter festgehalten und von 3.7 zurück-
+          // gegeben". Ohne das zweite Feld sehen beide Wege gleich aus.
+          heldBackForLiveSource,
+        },
+      });
+      const demoted: Partial<ChatGraphState> = {
         intent: 'agentic',
         // The heuristic named a retrieval intent outright (web/search/examples/
         // bundestag/…), as opposed to the `direct` + toolable-question case.
@@ -1278,6 +1397,70 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         complexity,
         classificationTimeMs: Date.now() - startTime,
       };
+      return demoted;
+    };
+
+    if (demotable) return demoteToLoop('tier3.5_loop_demotion');
+
+    // ── TIER 3.7: live source scope ──────────────────────────────────────
+    // "Does this need a timetable / hotel / forecast / news feed, or is it a
+    // policy question that merely sounds like one?"
+    //
+    // This is the one classifier decision the code itself argues cannot be a
+    // regex: `SYSTEM_MCP_PHRASING` says so at length, because "Bahnreform",
+    // "Tourismuspolitik" and "Klimapolitik" share the vocabulary and a policy
+    // turn must never pull a departure board. It does NOT follow that the
+    // decision needs the whole tool taxonomy — four paragraphs and four steps of
+    // CLASSIFIER_PROMPT, replaced here by ~700 characters with five answers.
+    //
+    // Placed at the door of Tier 4 rather than behind the phrasing regex on
+    // purpose: Tier 4 is the only place the prompt ever decided these intents,
+    // so sitting in front of it gives the resolver EXACTLY the prompt's reach —
+    // which is what makes rolling those four paragraphs out of the prompt a
+    // no-loss change. `SYSTEM_MCP_PHRASING` keeps its own job: holding these
+    // turns back from Tier 3.5 demotion so they arrive here at all.
+    //
+    // Availability is re-checked because an unset deploy env means the intent
+    // has no tools behind it; without the check a `wetter` verdict would route a
+    // turn to a source that cannot answer instead of to the web fallback.
+    const sourceScope = await resolveSourceScope({
+      userContent,
+      conversationContext,
+      aiWorkerPool,
+    });
+    if (
+      sourceScope &&
+      sourceScope !== 'keine' &&
+      isSystemIntentAvailable(sourceScope, state.userLocale)
+    ) {
+      log.info(`[Classifier] Live source scope → ${sourceScope} (LLM tier skipped)`);
+      recordDecision('classifier.tier', 'tier3.7_source_scope', {
+        inputs: { scope: sourceScope },
+      });
+      return {
+        intent: sourceScope,
+        searchSources: [],
+        searchQuery: userContent.slice(0, 500),
+        detectedFilters: heuristicExtractFilters(userContent),
+        reasoning: `Live-Quelle erkannt: ${sourceScope}`,
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
+    // The phrasing regex held this turn back from demotion only so the question
+    // could be ASKED. It was asked, and the answer is "no live source" — so the
+    // turn goes where it was headed before the hold, instead of paying for the
+    // 27k prompt. Released only on an explicit `keine`: a resolver that timed
+    // out or answered garbage returns `null`, and `null` has meant "carry on to
+    // Tier 4" everywhere in this file since the first resolver landed.
+    //
+    // A named-but-unavailable scope also stays on the Tier-4 path: the user DID
+    // ask for a departure board, the deploy just has no source for it, and the
+    // big prompt still routes that to a usable answer (locale degradation).
+    if (heldBackForLiveSource && sourceScope === 'keine') {
+      return demoteToLoop('tier3.7_no_live_source');
     }
 
     // ── TIER 4: LLM classification ──
@@ -1327,6 +1510,12 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     log.info(
       `[Classifier] LLM: ${classification.intent} in ${classificationTimeMs}ms - ${classification.reasoning}${llmSearchSources.length > 1 ? ` [multi-source: ${llmSearchSources.join('+')}]` : ''}${classification.needsClarification ? ' [needs-clarification]' : ''}`
     );
+    recordDecision('classifier.tier', 'tier4_llm', {
+      inputs: {
+        intent: classification.intent,
+        needsClarification: !!classification.needsClarification,
+      },
+    });
 
     return {
       intent: classification.intent,
@@ -1370,6 +1559,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
 
     const fallbackResult = heuristicClassify(userContent, {
       hasTabularAttachment: state.hasTabularAttachment ?? false,
+    });
+    recordDecision('classifier.tier', 'tier4_llm_error_fallback', {
+      inputs: { fallbackIntent: fallbackResult.intent },
     });
 
     return {
@@ -1495,6 +1687,46 @@ function formatToolContextLine(
 }
 
 /**
+ * Which of the thread's artifacts this turn is about.
+ *
+ * With at most one artifact the answer is `lastToolContext` and no model is
+ * involved — that is the overwhelmingly common case and it stays free. The
+ * resolver exists for the one shape a single slot cannot express: a thread that
+ * made a document AND a sharepic, where `last_tool_context` remembers only the
+ * newest and "kürze die Begründung auf die Hälfte" has no door back to the
+ * document. `getLastSharepicVariant` reading a single message was the same class
+ * of bug one level down.
+ *
+ * Two gates keep the call rare and cheap. The message must look like an edit
+ * instruction at all — otherwise the answer is "keines" by construction and the
+ * model adds nothing. And `null` (no pick, failure, timeout) falls back to
+ * today's behaviour rather than to "no artifact": this function may only ever
+ * REDIRECT a follow-up, never suppress one.
+ */
+async function pickThreadArtifact(
+  state: ChatGraphState,
+  userContent: string
+): Promise<ChatGraphState['lastToolContext']> {
+  const fallback = state.lastToolContext ?? null;
+  const artifacts = state.threadArtifacts ?? [];
+  if (artifacts.length < 2 || userContent.length === 0) return fallback;
+
+  const looksReferential =
+    DOC_MODIFY_PATTERN.test(userContent) ||
+    hasImageEditVerb(userContent) ||
+    isImageRegenRequest(userContent) ||
+    isSharepicEditInstruction(userContent);
+  if (!looksReferential) return fallback;
+
+  const index = await resolveEditTarget({
+    userContent,
+    artifacts,
+    aiWorkerPool: state.aiWorkerPool,
+  });
+  return index == null ? fallback : artifacts[index];
+}
+
+/**
  * Helper for the 3 near-identical "force search intent with LLM query optimization" blocks.
  * Used by document chat, document mention, and notebook mention paths.
  */
@@ -1527,75 +1759,49 @@ async function classifyWithForcedSearch(opts: {
     `[Classifier] ${reason} detected (${docCount} item(s)), forcing search intent with LLM query optimization${topicalContext ? ' + topical context' : ''}`
   );
 
-  try {
-    const userMessageContent = [
-      topicalContext,
-      conversationContext,
-      `Aktuelle Nachricht: "${userContent}"`,
-    ]
-      .filter((p): p is string => !!p)
-      .join('\n\n');
+  // The intent is already decided (forced to `search` below); the only open
+  // question is WHAT to search for. That used to go through CLASSIFIER_PROMPT —
+  // 27.6k characters of tool taxonomy to produce a search string, whose intent
+  // verdict was then discarded by the hardcoded `intent: 'search'`.
+  //
+  // Of the six fields the old call kept, two are load-bearing here and both
+  // survive: `searchQuery` and `subQueries` come from the resolver,
+  // `detectedFilters` from the deterministic heuristic the catch branch already
+  // used. `documentSubtype` and `targetGroupName` are read only by document-
+  // CREATION and share paths, which a forced-search turn never reaches.
+  //
+  // `secondaryIntent` is the one real behaviour change: it is now always null
+  // here, so these turns stop being kicked out of the agentic loop by
+  // `decideRunAgentic`'s secondary kill-switch. A document/notebook turn now
+  // reaches the loop, where the model can actually call the retrieval tools.
+  const refined = await refineSearchQuery({
+    userContent,
+    conversationContext,
+    topicalContext,
+    aiWorkerPool,
+  });
+  const optimizedQuery = refined?.query || extractSearchTopic(userContent) || userContent;
 
-    const response = await aiWorkerPool.processRequest(
-      {
-        type: 'chat_intent_classification',
-        provider: INTERMEDIATE_MODEL.provider,
-        systemPrompt: CLASSIFIER_PROMPT,
-        messages: [
-          {
-            role: 'user',
-            content: userMessageContent || `Analysiere: "${userContent}"`,
-          },
-        ],
-        options: {
-          model: INTERMEDIATE_MODEL.model,
-          max_tokens: 1000,
-          temperature: 0.1,
-          response_format: { type: 'json_object' },
-        },
-      },
-      null
-    );
+  log.info(
+    `[Classifier] ${reason}: query "${userContent.slice(0, 50)}" → "${optimizedQuery}"${
+      refined ? '' : ' (heuristic fallback)'
+    }`
+  );
 
-    const classification = parseClassifierResponse(response.content || '', userContent);
-    const classificationTimeMs = Date.now() - startTime;
-    const optimizedQuery = classification.searchQuery || extractSearchTopic(userContent);
-
-    log.info(`[Classifier] ${reason} + LLM: query "${userContent}" → "${optimizedQuery}"`);
-
-    return {
-      intent: 'search',
-      secondaryIntent: classification.secondaryIntent || null,
-      searchSources: [],
-      searchQuery: optimizedQuery,
-      subQueries: classification.subQueries || null,
-      detectedFilters: classification.filters || null,
-      reasoning: `${reason} forces search intent; LLM optimized query`,
-      hasTemporal: temporal.hasTemporal,
-      complexity,
-      classificationTimeMs,
-      documentSubtype: classification.documentSubtype || null,
-      targetGroupName: classification.targetGroupName || null,
-      ...(gatherSources ? { gatherSources } : {}),
-    };
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    log.warn(
-      `[Classifier] LLM failed for ${reason.toLowerCase()} query, using heuristic: ${errorMessage}`
-    );
-    const optimizedQuery = extractSearchTopic(userContent);
-    return {
-      intent: 'search',
-      searchSources: [],
-      searchQuery: optimizedQuery || userContent,
-      detectedFilters: heuristicExtractFilters(userContent),
-      reasoning: `${reason} forces search intent (LLM failed, heuristic fallback)`,
-      hasTemporal: temporal.hasTemporal,
-      complexity,
-      classificationTimeMs: Date.now() - startTime,
-      ...(gatherSources ? { gatherSources } : {}),
-    };
-  }
+  return {
+    intent: 'search',
+    searchSources: [],
+    searchQuery: optimizedQuery,
+    subQueries: refined?.subQueries ?? null,
+    detectedFilters: heuristicExtractFilters(userContent),
+    reasoning: refined
+      ? `${reason} forces search intent; query refined`
+      : `${reason} forces search intent (refine unavailable, heuristic fallback)`,
+    hasTemporal: temporal.hasTemporal,
+    complexity,
+    classificationTimeMs: Date.now() - startTime,
+    ...(gatherSources ? { gatherSources } : {}),
+  };
 }
 
 // Re-export all test-facing symbols for backward compatibility
