@@ -81,7 +81,9 @@ export const GROUPS: CapabilityGroup[] = [
  */
 export const INTERNAL_INTENTS: Record<string, string> = {
   direct:
-    'Standardfall — der Grünerator antwortet direkt, ohne Werkzeug. Gilt für Begrüßungen, Umformulierungen und freies Schreiben.',
+    'Standardfall — der Grünerator antwortet direkt, ohne Werkzeug. Gilt für Umformulierungen und freies Schreiben.',
+  greeting:
+    'Begrüßung, Dank oder kurzer Small Talk. Wird ohne KI-Modell erkannt und daher sofort beantwortet.',
   agentic:
     'Interne Weiche: Ist unklar, welches Werkzeug passt, entscheidet das Modell selbst während der Antwort.',
 };
