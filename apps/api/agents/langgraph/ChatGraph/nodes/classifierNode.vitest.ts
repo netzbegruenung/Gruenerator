@@ -11,7 +11,6 @@ import {
 } from './classifierHeuristics.js';
 import {
   extractSearchTopic,
-  parseClassifierResponse,
   detectSearchSources,
   detectComplexity,
   heuristicClassify,
@@ -20,8 +19,7 @@ import {
   looksMultiTopic,
   HEURISTIC_CONFIDENCE_THRESHOLD,
 } from './classifierNode.js';
-import { CHAT_HISTORY_KEYWORDS } from './classifierParsing.js';
-import { CLASSIFIER_OFFERED_INTENTS, CLASSIFIER_PROMPT } from './classifierPrompt.js';
+import { CHAT_HISTORY_DIRECT, CHAT_HISTORY_KEYWORDS } from './classifierSignals.js';
 
 // ─── extractSearchTopic ───────────────────────────────────────────────────
 
@@ -129,193 +127,6 @@ describe('extractShareTargetGroup', () => {
     const result = heuristicClassify('Teile das mit der AG Umwelt und gib ihnen Rechte');
     expect(result?.intent).toBe('share_doc');
     expect(result?.targetGroupName).toBe('AG Umwelt');
-  });
-});
-
-// ─── parseClassifierResponse (offered-intent accept list) ─────────────────
-
-describe('parseClassifierResponse – accepts every intent the prompt offers', () => {
-  // Regression guard. The prompt's `"intent"` enum line and the parser's
-  // accept-list used to be two hand-maintained lists. Five intents were only
-  // in the prompt (create_sheet, create_presentation, create_recurring_task,
-  // share_doc, mcp), so the LLM's verdict was dropped and the turn fell
-  // through to `direct`. For create_recurring_task — the one intent with no
-  // heuristic fast path — that broke the chat entry point outright.
-  it.each(CLASSIFIER_OFFERED_INTENTS)('round-trips %s', (intent) => {
-    const result = parseClassifierResponse(
-      JSON.stringify({ intent, searchQuery: null, reasoning: 'test' }),
-      'egal was'
-    );
-    expect(result.intent).toBe(intent);
-  });
-
-  it('keeps targetGroupName on share_doc', () => {
-    const result = parseClassifierResponse(
-      JSON.stringify({
-        intent: 'share_doc',
-        searchQuery: null,
-        targetGroupName: 'AG Umwelt',
-        reasoning: 'share',
-      }),
-      'Teile das mit der AG Umwelt'
-    );
-    expect(result.intent).toBe('share_doc');
-    expect(result.targetGroupName).toBe('AG Umwelt');
-  });
-
-  it('renders the prompt enum line from the same constant', () => {
-    for (const intent of CLASSIFIER_OFFERED_INTENTS) {
-      expect(CLASSIFIER_PROMPT).toContain(`"${intent}"`);
-    }
-  });
-
-  // Router-only dispositions: a deterministic step assigns these, so accepting
-  // them from the LLM would let a hallucination hijack routing. `agentic` left
-  // this list on 2026-07-31: it became the prompt's residual (rule 12), so the
-  // model choosing it is the intended answer, not a hijack.
-  it.each(['scrape_url', 'compare', 'edit_current_doc'])(
-    'rejects the router-only intent %s',
-    (intent) => {
-      const result = parseClassifierResponse(
-        JSON.stringify({ intent, searchQuery: null, reasoning: 'test' }),
-        'egal was'
-      );
-      expect(result.intent).not.toBe(intent);
-    }
-  );
-
-  it('an unknown intent lands on the residual, not on a no-tool verdict', () => {
-    // Was `direct`. Defaulting an UNREADABLE verdict to "nothing needed looking
-    // up" is the one case where the cheapest path is the wrong guess.
-    const result = parseClassifierResponse(
-      JSON.stringify({ intent: 'erfundenes_intent', searchQuery: null, reasoning: 'test' }),
-      'egal was'
-    );
-    expect(result.intent).toBe('agentic');
-  });
-});
-
-// ─── parseClassifierResponse (optimized query is trusted) ─────────────────
-
-/**
- * There is deliberately no corruption check on the optimized query anymore. It
- * could not tell optimisation from corruption — both look like "words that
- * aren't in the message" — and its false positives cost whole queries: a
- * referential follow-up ("recherchiere über sie im web") scores 0% by
- * construction, so the resolved subject was replaced by the bare pronoun
- * sentence, which Linkup answered with grammar pages about the word "sie".
- */
-describe('parseClassifierResponse – optimized search query', () => {
-  it('keeps the optimized query when the LLM corrected a typo in it', () => {
-    const llmResponse = JSON.stringify({
-      intent: 'search',
-      searchQuery: 'Grüne Partei Klimaschutz',
-      optimizedSearchQuery: 'Grüne Partei Klimaschutz',
-      typoAnalysis: { original: 'Grüne Partai Klimaschutz', corrected: 'Grüne Partei Klimaschutz' },
-      reasoning: 'search',
-    });
-    const result = parseClassifierResponse(llmResponse, 'Grüne Partai Klimaschutz');
-    expect(result.intent).toBe('search');
-    expect(result.searchQuery).toBe('Grüne Partei Klimaschutz');
-  });
-
-  it('keeps a query whose subject came from the thread, not from the message', () => {
-    // The live failure's shape: the classifier resolved "sie" from the
-    // conversation window it was given, so NONE of the query's words appear in
-    // the message itself. That is correct behaviour, not corruption.
-    const llmResponse = JSON.stringify({
-      intent: 'research',
-      searchQuery: 'Marilyn Monroe Leben Wirken',
-      optimizedSearchQuery: 'Marilyn Monroe Leben Wirken',
-      typoAnalysis: { original: 'recherchiere', corrected: 'recherchiere' },
-      reasoning: 'research',
-    });
-    const result = parseClassifierResponse(llmResponse, 'recherchiere über sie im web');
-    expect(result.searchQuery).toBe('Marilyn Monroe Leben Wirken');
-  });
-
-  it('passes the optimized query through untouched', () => {
-    const llmResponse = JSON.stringify({
-      intent: 'search',
-      searchQuery: 'Klimapolitik der Grünen',
-      optimizedSearchQuery: 'Klimapolitik Grüne',
-      typoAnalysis: null,
-      reasoning: 'search',
-    });
-    const result = parseClassifierResponse(llmResponse, 'Klimapolitik der Grünen');
-    expect(result.searchQuery).toBe('Klimapolitik Grüne');
-  });
-
-  it('keeps a genuine optimization (task verbs removed)', () => {
-    const llmResponse = JSON.stringify({
-      intent: 'research',
-      searchQuery: 'Schreib eine PM über Energiewende',
-      optimizedSearchQuery: 'Energiewende',
-      typoAnalysis: null,
-      reasoning: 'research',
-    });
-    const result = parseClassifierResponse(llmResponse, 'Schreib eine PM über Energiewende');
-    expect(result.searchQuery).toBe('Energiewende');
-  });
-
-  /**
-   * The first live regression this cost us: distilling a long question into
-   * keywords drops most of the original words by design. The check (then
-   * measuring recall) scored 36%, threw the clean query away, and Linkup
-   * received the raw sentence, "Recherchiere bitte mit Quellen:" preamble and
-   * all. It was re-tuned to precision back then; the pronoun case below is the
-   * same failure surviving that re-tune.
-   */
-  it('keeps a distilled query even when most original words are gone', () => {
-    const original =
-      'Recherchiere bitte mit Quellen: Wie hoch war 2025 der Anteil erneuerbarer Energien am ' +
-      'Stromverbrauch in Österreich, und wie hoch sind die Treibhausgasemissionen Österreichs ' +
-      '(Mio. Tonnen CO2e, letztes verfügbares Jahr)? Nenne Zahlen, Jahr und Quelle mit Link.';
-    const optimized =
-      'Anteil erneuerbarer Energien Stromverbrauch Österreich 2025 Treibhausgasemissionen Österreich CO2e';
-    const llmResponse = JSON.stringify({
-      intent: 'research',
-      searchQuery: optimized,
-      optimizedSearchQuery: optimized,
-      typoAnalysis: { original, corrected: original },
-      reasoning: 'research',
-    });
-    expect(parseClassifierResponse(llmResponse, original).searchQuery).toBe(optimized);
-  });
-
-  /**
-   * The accepted cost of dropping the check: a query with no word in common
-   * with the message now goes to the search engine as-is. In a fresh thread
-   * that is a bad search; in a thread it is usually a correctly resolved
-   * reference, and the two are indistinguishable from here. A wasted search is
-   * absorbed downstream (duplicate/near-duplicate detection, source ranking) —
-   * a query stripped of its subject was not.
-   */
-  it('no longer second-guesses a query that shares nothing with the message', () => {
-    const llmResponse = JSON.stringify({
-      intent: 'search',
-      searchQuery: 'Klimapolitik Bundesregierung',
-      optimizedSearchQuery: 'Klimapolitik Bundesregierung',
-      typoAnalysis: { original: 'Windkraft Tübingen', corrected: 'Klimapolitik Bundesregierung' },
-      reasoning: 'search',
-    });
-    const result = parseClassifierResponse(
-      llmResponse,
-      'Was sagt Müller in Tübingen über Windkraft'
-    );
-    expect(result.searchQuery).toBe('Klimapolitik Bundesregierung');
-  });
-
-  it('handles a single-word query with empty typoAnalysis', () => {
-    const llmResponse = JSON.stringify({
-      intent: 'search',
-      searchQuery: 'Klimaschutz',
-      optimizedSearchQuery: 'Klimaschutz',
-      typoAnalysis: null,
-      reasoning: 'search',
-    });
-    const result = parseClassifierResponse(llmResponse, 'Klimaschutz');
-    expect(result.searchQuery).toBe('Klimaschutz');
   });
 });
 
@@ -949,8 +760,6 @@ describe('heuristicClassify: doc/board action intents', () => {
   });
 });
 
-// ─── parseClassifierResponse: new intents are valid ─────────────────────
-
 describe('heuristicClassify: social_post intent (EXPERIMENTAL combined post)', () => {
   it('routes creation requests to social_post', () => {
     // 0.8 sits below HEURISTIC_CONFIDENCE_THRESHOLD by design: the primary
@@ -1326,100 +1135,9 @@ describe('heuristicClassify – fast-path hardening', () => {
   });
 });
 
-describe('parseClassifierResponse: new intent values', () => {
-  it('accepts social_post intent from LLM', () => {
-    const json = JSON.stringify({
-      intent: 'social_post',
-      searchQuery: 'Tempo 30',
-      optimizedSearchQuery: 'Tempo 30 Verkehrswende',
-      reasoning: 'Combined post request',
-      contentType: null,
-      needsResearch: false,
-      needsClarification: false,
-    });
-    const result = parseClassifierResponse(json, 'Schreib einen Instagram-Post zu Tempo 30');
-    expect(result).not.toBeNull();
-    expect(result!.intent).toBe('social_post');
-  });
-
-  it('accepts chart intent from LLM', () => {
-    const json = JSON.stringify({
-      intent: 'chart',
-      searchQuery: 'Wahlergebnisse als Balkendiagramm',
-      optimizedSearchQuery: null,
-      reasoning: 'Chart request',
-      contentType: null,
-      needsResearch: false,
-      needsClarification: false,
-    });
-    const result = parseClassifierResponse(json, 'Erstelle ein Balkendiagramm');
-    expect(result).not.toBeNull();
-    expect(result!.intent).toBe('chart');
-  });
-
-  it('accepts save_as_doc intent from LLM', () => {
-    const json = JSON.stringify({
-      intent: 'save_as_doc',
-      searchQuery: null,
-      optimizedSearchQuery: null,
-      reasoning: 'User wants to save as document',
-      contentType: null,
-      needsResearch: false,
-      needsClarification: false,
-    });
-    const result = parseClassifierResponse(json, 'Speichere das als Dokument');
-    expect(result).not.toBeNull();
-    expect(result!.intent).toBe('save_as_doc');
-  });
-
-  it('accepts modify_doc intent from LLM', () => {
-    const json = JSON.stringify({
-      intent: 'modify_doc',
-      searchQuery: null,
-      optimizedSearchQuery: null,
-      reasoning: 'User wants to edit mentioned document',
-      contentType: null,
-      needsResearch: false,
-      needsClarification: false,
-    });
-    const result = parseClassifierResponse(json, 'Ändere den zweiten Absatz');
-    expect(result).not.toBeNull();
-    expect(result!.intent).toBe('modify_doc');
-  });
-
-  it('accepts modify_board intent from LLM', () => {
-    const json = JSON.stringify({
-      intent: 'modify_board',
-      searchQuery: null,
-      optimizedSearchQuery: null,
-      reasoning: 'User wants to add tasks to board',
-      contentType: null,
-      needsResearch: false,
-      needsClarification: false,
-    });
-    const result = parseClassifierResponse(json, 'Füge neue Aufgaben zum Board hinzu');
-    expect(result).not.toBeNull();
-    expect(result!.intent).toBe('modify_board');
-  });
-});
-
 // ─── chat_history: reel recall ────────────────────────────────────────────
 
 describe('CHAT_HISTORY_KEYWORDS: reels', () => {
-  const directJson = (userText: string) =>
-    parseClassifierResponse(
-      JSON.stringify({
-        intent: 'direct',
-        searchQuery: null,
-        optimizedSearchQuery: null,
-        reasoning: 'looks like a writing task',
-        contentType: null,
-        needsResearch: false,
-        needsClarification: false,
-      }),
-      userText
-    );
-
   it.each([
     'Such mein Reel zum Thema Windkraft',
     'In welchem Video habe ich über Mieten gesprochen?',
@@ -1439,15 +1157,19 @@ describe('CHAT_HISTORY_KEYWORDS: reels', () => {
     expect(CHAT_HISTORY_KEYWORDS.test(text)).toBe(false);
   });
 
-  it('upgrades a misclassified direct to chat_history for a reel search', () => {
-    const result = directJson('Such mein Reel zum Thema Windkraft und schreib eine Caption');
-    expect(result).not.toBeNull();
-    expect(result!.intent).toBe('chat_history');
+  // Die beiden Fälle darunter prüften eine VERTEIDIGENDE Nachbesserung: der
+  // Parser der LLM-Stufe hob ein `direct` auf `chat_history`, wenn der Text
+  // erkennbar auf eigene Inhalte zeigte. Parser und Stufe sind weg, und die
+  // Aufgabe liegt jetzt eine Ebene früher — bei `CHAT_HISTORY_DIRECT`, dem
+  // Präzisionsmuster hinter der Direktroute (Tier 3.4). Dieselbe Aussage, an
+  // der Stelle geprüft, an der sie heute entschieden wird.
+  it('claims a reel search outright', () => {
+    expect(
+      CHAT_HISTORY_DIRECT.test('Such mein Reel zum Thema Windkraft und schreib eine Caption')
+    ).toBe(true);
   });
 
-  it('leaves reel creation on its original intent', () => {
-    const result = directJson('Erstelle ein Reel aus diesem Video');
-    expect(result).not.toBeNull();
-    expect(result!.intent).toBe('direct');
+  it('leaves reel creation alone', () => {
+    expect(CHAT_HISTORY_DIRECT.test('Erstelle ein Reel aus diesem Video')).toBe(false);
   });
 });

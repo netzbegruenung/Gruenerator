@@ -35,13 +35,13 @@
   box-shadow: none;
 }
 
-/* A text field carries its own focus treatment — the global :focus-visible
-   outline in accessibility.css skips text entry on purpose, because it fires
-   on a plain mouse click there. Same soft ring as the shared Input/Textarea
-   (ring-[3px] ring-ring/50), so both generations of field look alike. */
-.form-input:focus-visible,
-.form-textarea:focus-visible,
-.form-select:focus-visible {
+/* Keyboard-only ring, same soft one as the shared Input/Textarea
+   (ring-[3px] ring-ring/50), so both generations of field look alike. Gated on
+   the modality attribute because :focus-visible alone also fires when someone
+   clicks into a text field — see focusModality.ts. */
+:root[data-focus-modality='keyboard'] .form-input:focus-visible,
+:root[data-focus-modality='keyboard'] .form-textarea:focus-visible,
+:root[data-focus-modality='keyboard'] .form-select:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px
     color-mix(in oklab, var(--color-ring-val, var(--primary-500)) 50%, transparent);
