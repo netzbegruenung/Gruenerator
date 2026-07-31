@@ -53,6 +53,21 @@ const SHEETS_SUFFIXES = ['.test.ts', '.test.tsx', '.spec.ts', '.spec.tsx'];
 const VITEST_IMPORT_RE = /from\s+['"]vitest['"]|import\(\s*['"]vitest['"]\s*\)/;
 const TEST_DECLARATION_RE = /\b(?:describe|it|test)\s*(?:\.\w+)?\s*\(/;
 
+// Prose trips TEST_DECLARATION_RE. The harness fixture
+// `routes/chat/__integration__/harness/suite.ts` was flagged for the sentence
+// "full state reset per test (beforeEach)" in its doc comment — `test (` is a
+// literal match. It declares no suite at all; it registers beforeAll/beforeEach
+// hooks in its IMPORTER's context, so renaming it to `.vitest.ts` (what this
+// guard's own error message tells you to do) would have been wrong twice over.
+//
+// Only WHOLE-LINE `//` comments are stripped, never trailing ones: a trailing
+// `//` can sit inside a string (`'https://…'`), and cutting the rest of that
+// line would risk hiding a real orphaned test — a false negative in the one
+// guard whose entire job is catching those.
+function stripComments(source) {
+  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '');
+}
+
 function walk(dir, out) {
   let entries;
   try {
@@ -87,7 +102,7 @@ for (const file of files) {
   if (isCaptured(file)) continue;
   const content = readFileSync(file, 'utf-8');
   if (!VITEST_IMPORT_RE.test(content)) continue;
-  if (!TEST_DECLARATION_RE.test(content)) continue;
+  if (!TEST_DECLARATION_RE.test(stripComments(content))) continue;
   violations.push(path.relative(ROOT, file));
 }
 
