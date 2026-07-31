@@ -6,10 +6,11 @@
  * (generated images, transcriptions, web researches). The daily chart is plain
  * CSS bars — a charting library would be a lot of bundle for ten numbers.
  */
-import { type UsageFeature } from '@gruenerator/contracts';
+import { type UsageFeature, type UsageFootprintDto } from '@gruenerator/contracts';
 import { type QueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
+import { getDocsUrl } from '../../../utils/docsUrl';
 import { SettingsStatsSkeleton } from '../components/SettingsSkeleton';
 import { usageStatsQuery, useUsageStats } from '../hooks/useUsageStats';
 
@@ -62,6 +63,33 @@ function formatTokens(value: number): string {
   return numberFormat.format(value);
 }
 
+const oneDecimal = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 });
+const twoDecimals = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 });
+
+/** Footprints span four orders of magnitude between a trial and a heavy month. */
+function formatGrams(grams: number): string {
+  if (grams >= 1000) return `${twoDecimals.format(grams / 1000)} kg`;
+  if (grams >= 1) return `${oneDecimal.format(grams)} g`;
+  return `${numberFormat.format(Math.round(grams * 1000))} mg`;
+}
+
+function formatEnergy(wh: number): string {
+  if (wh >= 1000) return `${twoDecimals.format(wh / 1000)} kWh`;
+  return `${oneDecimal.format(wh)} Wh`;
+}
+
+/**
+ * Average CO2 of the German car fleet, g/km (UBA). Only ever used to make an
+ * abstract milligram figure imaginable — never as a claim of its own.
+ */
+const CAR_G_PER_KM = 150;
+
+function carComparison(grams: number): string {
+  const metres = (grams / CAR_G_PER_KM) * 1000;
+  if (metres >= 1000) return `${oneDecimal.format(metres / 1000)} km Autofahrt`;
+  return `${numberFormat.format(Math.round(metres))} m Autofahrt`;
+}
+
 function formatDay(day: string): string {
   const date = new Date(`${day}T00:00:00Z`);
   return Number.isNaN(date.getTime())
@@ -79,6 +107,115 @@ function StatTile({ label, value, hint }: { label: string; value: string; hint?:
   );
 }
 
+/**
+ * "What if you had used ChatGPT instead."
+ *
+ * Deliberately reports both directions. On CO2 the European lanes win by a
+ * factor of roughly 2-5, but on raw electricity our default Mistral Medium
+ * needs MORE than GPT-4o reportedly does — the advantage comes from the French
+ * grid, not from our engineering. A block that showed only the flattering half
+ * would be the exact kind of claim this whole feature exists to avoid.
+ */
+function ReferenceComparison({ footprint }: { footprint: UsageFootprintDto }) {
+  // Text only on both sides. The reference costs the same TOKENS on GPT-4o and
+  // has no image half at all, so comparing it against a total that includes
+  // Flux would invent a saving out of an accounting mismatch.
+  const textEmissions = footprint.emissions_g - footprint.image_emissions_g;
+  const textEnergy = footprint.energy_wh - footprint.image_energy_wh;
+  const co2Factor = textEmissions > 0 ? footprint.reference_emissions_g / textEmissions : 0;
+  const energyFactor = textEnergy > 0 ? footprint.reference_energy_wh / textEnergy : 0;
+  if (co2Factor <= 0) return null;
+
+  return (
+    <section className="flex flex-col gap-sm rounded-xl border border-grey-200 p-md dark:border-grey-700">
+      <h3 className="m-0 text-sm font-semibold text-foreground-heading">
+        Was dieselbe Arbeit mit ChatGPT gekostet hätte
+      </h3>
+      <div className="grid grid-cols-2 gap-sm">
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-grey-500">CO₂</span>
+          <span className="text-lg font-semibold text-foreground-heading">
+            ≈ {formatGrams(footprint.reference_emissions_g)}
+          </span>
+          <span className="text-xs text-grey-500">
+            statt {formatGrams(textEmissions)} — {oneDecimal.format(co2Factor)}× so viel
+          </span>
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-grey-500">Energie</span>
+          <span className="text-lg font-semibold text-foreground-heading">
+            ≈ {formatEnergy(footprint.reference_energy_wh)}
+          </span>
+          <span className="text-xs text-grey-500">
+            statt {formatEnergy(textEnergy)} —{' '}
+            {energyFactor >= 1
+              ? `${oneDecimal.format(energyFactor)}× so viel`
+              : `${oneDecimal.format(1 / energyFactor)}× weniger als bei uns`}
+          </span>
+        </div>
+      </div>
+      <p className="m-0 text-xs leading-relaxed text-grey-500">
+        Geschätzt nach Jegham et al. (2025) für GPT-4o — die einzige veröffentlichte Rechnung mit
+        derselben Systemgrenze wie unserer: nur Betriebsstrom, kein Training, keine
+        Hardware-Herstellung. Nur Text: für erzeugte Bilder gibt es keine vergleichbar sauber
+        abgegrenzte OpenAI-Zahl, deshalb bleiben sie hier außen vor.{' '}
+        {energyFactor < 1
+          ? 'Beim Strom liegen wir hier hinten; unser CO₂-Vorteil kommt vom französischen Netz, nicht von sparsamerer Technik. '
+          : ''}
+        Die GPT-4o-Zahl ist selbst nur eine Schätzung — OpenAI veröffentlicht nichts, sie wurde aus
+        Antwortzeiten und GPU-Datenblättern erschlossen.
+      </p>
+    </section>
+  );
+}
+
+/**
+ * The number above is part measurement, part extrapolation, and covers only the
+ * text models. Saying so is not optional garnish — an unqualified CO2 figure on
+ * a Green party's tool is exactly the kind of claim that gets checked.
+ */
+function FootprintNote({ footprint }: { footprint: UsageFootprintDto }) {
+  const measuredPct = Math.round(footprint.measured_share * 100);
+  const boundedPct = Math.round(footprint.bounded_share * 100);
+  const coveredPct = Math.round(footprint.covered_share * 100);
+  return (
+    <p className="m-0 rounded-xl border border-grey-200 p-md text-xs leading-relaxed text-grey-500 dark:border-grey-700">
+      {measuredPct > 0
+        ? `${formatCount(measuredPct)} % dieser Zahl sind Messwerte, die unser Anbieter GreenPT mitliefert. Der Rest ist `
+        : 'Die Zahl ist '}
+      aus deinen Token-Zahlen hochgerechnet — mit Energiewerten, die an genau denselben Modellen
+      gemessen wurden.{' '}
+      {boundedPct > 0 && (
+        <>
+          Für {formatCount(boundedPct)} % gibt es kein messbares Gegenstück; dort rechnen wir
+          bewusst mit der <strong>Obergrenze</strong> der gemessenen Spanne, damit die Zahl eher zu
+          hoch als zu niedrig ausfällt.{' '}
+        </>
+      )}
+      {coveredPct < 100 && (
+        <>Erfasst sind {formatCount(coveredPct)} % der erzeugten Tokens im Zeitraum. </>
+      )}
+      Erzeugte Tokens bestimmen den Verbrauch, gesendete kosten 100- bis 760-mal weniger.{' '}
+      {footprint.image_emissions_g > 0 && (
+        <>
+          Erzeugte Bilder sind mit veröffentlichten Messungen an denselben Diffusionsmodellen
+          angesetzt (Iyengar et al., 2025) — dort ist der Aufschlag für Rechenzentrumstechnik unsere
+          eigene, bewusst großzügige Annahme.{' '}
+        </>
+      )}
+      Transkription und Web-Recherche fehlen, weil dafür keine Messwerte vorliegen.{' '}
+      <a
+        href={`${getDocsUrl()}/docs/ueber-den-gruenerator/nachhaltigkeit`}
+        target="_blank"
+        rel="noreferrer"
+        className="underline hover:text-foreground"
+      >
+        Wie wir rechnen
+      </a>
+    </p>
+  );
+}
+
 export default function UsageTab() {
   const [days, setDays] = useState<number>(DEFAULT_DAYS);
   const { data, isPending, isError } = useUsageStats(days);
@@ -93,7 +230,7 @@ export default function UsageTab() {
     );
   }
 
-  const { totals, daily, byFeature, byModel } = data;
+  const { totals, footprint, daily, byFeature, byModel } = data;
   const maxDayTokens = daily.reduce((max, d) => Math.max(max, d.input_tokens + d.output_tokens), 0);
   const hasAnything = totals.requests > 0 || totals.images > 0 || totals.transcriptions > 0;
 
@@ -138,7 +275,28 @@ export default function UsageTab() {
             <StatTile label="Bilder" value={formatCount(totals.images)} />
             <StatTile label="Transkriptionen" value={formatCount(totals.transcriptions)} />
             <StatTile label="Web-Recherchen" value={formatCount(totals.searches)} />
+            {footprint.emissions_g > 0 && (
+              <StatTile
+                label="CO₂ deiner KI-Nutzung"
+                value={`≈ ${formatGrams(footprint.emissions_g)}`}
+                hint={
+                  // A single generated image outweighs several hundred chat
+                  // turns, so where the number comes from matters more than the
+                  // number: without the split people optimise the wrong thing.
+                  footprint.image_emissions_g > 0
+                    ? `davon ${formatGrams(footprint.image_emissions_g)} aus Bildern · so viel wie ${carComparison(footprint.emissions_g)}`
+                    : `${formatEnergy(footprint.energy_wh)} · so viel wie ${carComparison(footprint.emissions_g)}`
+                }
+              />
+            )}
           </div>
+
+          {footprint.emissions_g > 0 && (
+            <>
+              <ReferenceComparison footprint={footprint} />
+              <FootprintNote footprint={footprint} />
+            </>
+          )}
 
           <section className="flex flex-col gap-sm">
             <h3 className="m-0 text-sm font-semibold text-foreground-heading">Tokens pro Tag</h3>
