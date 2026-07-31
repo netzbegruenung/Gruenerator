@@ -762,6 +762,33 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       <ComposerPrimitive.Root
         className={cn(
           'composer-root relative mx-auto flex w-full max-w-3xl flex-col border bg-white transition-shadow dark:bg-surface',
+          // The keyboard-focus indicator. The composer had none: the textarea
+          // carries an unconditional `outline-none` (see below), and the app's
+          // global `:focus-visible` ring lives in the `legacy` layer, which
+          // Tailwind's `utilities` layer outranks. What was left was a shadow
+          // stepping up one size — a blur difference, not a contrast one, so it
+          // could not meet the 3:1 that WCAG 1.4.11 asks of a focus indicator.
+          //
+          // `outline`, not a ring: `box-shadow` is dropped entirely under
+          // `forced-colors: active` (Windows-Kontrastmodus), where this surface
+          // already loses its tint. An outline survives — the system recolours
+          // it and keeps drawing it — so the one property covers both cases and
+          // needs no `@media` companion.
+          //
+          // `has-[textarea:focus]` rather than `focus-within`: the toolbar
+          // buttons inside carry their own ring from the global rule, and
+          // outlining the whole capsule while tabbing through them would read as
+          // noise. What a person means by "the composer has focus" is the text
+          // field.
+          //
+          // Two colours because no single one clears 3:1 on both grounds. Light:
+          // primary-600 (#316049) at 7.2:1 on white and 6.3:1 on the glow band's
+          // strongest tint. Dark: primary-300 (#8AC9B0) at 8.0:1 on the page and
+          // 7.0:1 on the composer's own fill. The app's usual ring colour,
+          // primary-500, drops to ~3.2:1 against the band — it was chosen for
+          // plain surfaces, not for a tinted one.
+          'has-[textarea:focus]:outline-2 has-[textarea:focus]:outline-offset-2',
+          'has-[textarea:focus]:outline-primary-600 dark:has-[textarea:focus]:outline-primary-300',
           // Design v2: the pill keeps its resting border/shadow on focus.
           isPill
             ? 'rounded-full shadow-md focus-within:shadow-lg dark:shadow-sm'
