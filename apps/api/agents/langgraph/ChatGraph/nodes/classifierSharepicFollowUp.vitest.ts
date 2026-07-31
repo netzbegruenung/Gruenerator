@@ -143,20 +143,18 @@ describe('classifierNode — Sharepic-Folgeauftrag vs. image_edit', () => {
   });
 
   it('macht aus einem echten Bild-Kontext kein Sharepic', async () => {
-    // Die Aussage, die dieser Fall immer getragen hat. Dass hier früher
-    // `image_edit` stand, war die Antwort der LLM-Stufe, nicht die einer Regel:
-    // „größer/kleiner/heller" stehen in keinem Bildbearbeitungs-Verbmuster, und
-    // ein Folgeauftrag in dieser Form landet jetzt im Residual. Bewusst NICHT
-    // hier repariert — die Bildbearbeitungs-Vokabeln sind eine eigene Frage,
-    // und ein zweites Vokabular in diesem PR zu erweitern hiesse, sie ungefragt
-    // zu beantworten.
+    // Die Aussage, die dieser Fall immer getragen hat: dieselbe Formulierung,
+    // ein anderes Artefakt, also ein anderer Intent. Dass hier zwischenzeitlich
+    // das Residual herauskam, war die Lücke, die `classifierImageFollowUp`
+    // schliesst — „größer/kleiner/heller" standen in keinem der beiden
+    // Bildbearbeitungs-Muster.
     const result = await classifierNode(
       buildState({
         userMessage: 'Mach den Text größer',
         lastToolContext: { kind: 'image', ref: 'img-1', label: 'Bild' },
       })
     );
-    expect(result.intent).not.toBe('sharepic');
+    expect(result.intent).toBe('image_edit');
   });
 
   it('greift nicht ohne vorheriges Artefakt', async () => {
