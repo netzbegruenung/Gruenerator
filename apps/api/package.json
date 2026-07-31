@@ -1,6 +1,7 @@
 {
   "name": "@gruenerator/api",
   "version": "1.0.0",
+  "private": true,
   "description": "Backend for Gruenerator project",
   "type": "module",
   "main": "server.ts",
