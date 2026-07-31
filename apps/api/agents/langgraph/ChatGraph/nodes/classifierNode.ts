@@ -27,6 +27,7 @@ import {
 } from '../../../../services/mcp/systemMcpServers.js';
 import { isExplicitDeepRequest } from '../../../../services/search/searchDepth.js';
 import { analyzeTemporality } from '../../../../services/search/TemporalAnalyzer.js';
+import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
@@ -1116,6 +1117,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
           isImperativeContinuation)
       ) {
         log.info('[Classifier] Follow-up via lastToolContext(mcp) → mcp', { scope: tc.ref });
+        recordDecision('classifier.tier', 'tier2.7_mcp_followup', {
+          inputs: { mcpScope: tc.ref },
+        });
         return {
           intent: 'mcp',
           mcpServerScope: tc.ref,
@@ -1139,6 +1143,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // knows the `hilfe` intent too.
     if (looksLikeDocsHelpQuestion(userContent)) {
       log.info(`[Classifier] Docs help question → hilfe: "${userContent.slice(0, 60)}"`);
+      recordDecision('classifier.tier', 'tier2.9_docs_help');
       return {
         intent: 'hilfe',
         searchSources: [],
@@ -1169,6 +1174,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       isAmbiguousGraphicRequest(userContent)
     ) {
       log.info(`[Classifier] Ambiguous "Grafik" ask — asking which kind`);
+      recordDecision('classifier.tier', 'tier2.95_ambiguous_graphic');
       return {
         intent: 'direct',
         needsClarification: true,
@@ -1195,6 +1201,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       log.info(
         `[Classifier] Short message, heuristics: ${result.intent} (confidence: ${result.confidence.toFixed(2)})`
       );
+      recordDecision('classifier.tier', 'tier3_short_message', {
+        inputs: { heuristicIntent: result.intent, confidence: result.confidence },
+      });
       return {
         intent: result.intent,
         searchSources: [],
@@ -1258,6 +1267,15 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       log.info(
         `[Classifier] Heuristics (confidence: ${heuristic.confidence.toFixed(2)}): ${heuristic.intent} - ${heuristic.reasoning}${heuristicSearchSources.length > 1 ? ` [multi-source: ${heuristicSearchSources.join('+')}]` : ''}`
       );
+      recordDecision('classifier.tier', 'tier3_heuristic', {
+        inputs: {
+          heuristicIntent: heuristic.intent,
+          confidence: heuristic.confidence,
+          effectiveConfidence,
+          needsDecomposition,
+          isVagueFollowup,
+        },
+      });
       return {
         intent: heuristic.intent,
         searchSources: heuristicSearchSources,
@@ -1291,6 +1309,14 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       log.info(
         `[Classifier] Loop demotion: heuristic ${heuristic.intent}@${effectiveConfidence.toFixed(2)} < ${HEURISTIC_CONFIDENCE_THRESHOLD} → agentic (LLM skipped)`
       );
+      recordDecision('classifier.tier', 'tier3.5_loop_demotion', {
+        inputs: {
+          heuristicIntent: heuristic.intent,
+          confidence: heuristic.confidence,
+          effectiveConfidence,
+          demotable,
+        },
+      });
       return {
         intent: 'agentic',
         // The heuristic named a retrieval intent outright (web/search/examples/
@@ -1357,6 +1383,12 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     log.info(
       `[Classifier] LLM: ${classification.intent} in ${classificationTimeMs}ms - ${classification.reasoning}${llmSearchSources.length > 1 ? ` [multi-source: ${llmSearchSources.join('+')}]` : ''}${classification.needsClarification ? ' [needs-clarification]' : ''}`
     );
+    recordDecision('classifier.tier', 'tier4_llm', {
+      inputs: {
+        intent: classification.intent,
+        needsClarification: !!classification.needsClarification,
+      },
+    });
 
     return {
       intent: classification.intent,
@@ -1400,6 +1432,9 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
 
     const fallbackResult = heuristicClassify(userContent, {
       hasTabularAttachment: state.hasTabularAttachment ?? false,
+    });
+    recordDecision('classifier.tier', 'tier4_llm_error_fallback', {
+      inputs: { fallbackIntent: fallbackResult.intent },
     });
 
     return {

@@ -68,8 +68,127 @@ loads the developer's `.env`, and several of these are read at call time — an
 unpinned `SYSTEM_MCP_*_URL` changes which branch a turn takes, so the same test
 would mean different things on different machines. A guard test asserts the pins.
 
+## Simulated runs and the decision map
+
+`simulatedRun.vitest.ts` takes the same harness one step further: realistic
+prompts through the real router, the real classifier and the real guards, with
+the model scripted, recording **which decisions were taken** on the way.
+
+The recorder is `apps/api/utils/decisionJournal.ts` — an AsyncLocalStorage
+journal in the idiom of `utils/usageContext.ts`, bound here by a middleware and
+by nothing at all in production, where `recordDecision` is a `getStore()` and a
+return. It exists because the wire shows only outcomes: which guard fired, why
+the classifier demoted, which of the loop's three silent answer-substitutions
+took effect are all invisible from outside, and that is where the expensive bugs
+were.
+
+Each run renders to a committed map under `decisions/`. Three states per point,
+which is what makes a regression readable:
+
+```
+router.persistent_action_gate  = demoted_primary_to_direct   family=document
+router.run_agentic             = single_pass                 gateOpen=false …
+loop.synth_verdict             = (not reached)
+loop.tool_guard                = (none)
+```
+
+`(not reached)` is the valuable one: a refactor that routes _around_ a gate
+shows up there and nowhere else. When a guard stops firing, the diff names the
+guard, the branch that won instead, and the user-visible consequence — four
+lines, and nothing else moves, because the columns are fixed and the order comes
+from the registry.
+
+Regenerate with `SIM_UPDATE=1`. A **missing** map is a failure, never a silent
+create — otherwise a renamed scenario blesses itself.
+
+### Two files, because `vi.mock` is per file
+
+`simulatedRun.vitest.ts` replaces `streamAgenticResponse`, which is what makes
+the ~2000 lines of router sequencing testable — but it also means the loop never
+executes, so both loop decision points render as `(not reached)` there.
+
+`loopRun.vitest.ts` keeps that service real and replaces `ai`'s `streamText`
+instead. `loopEngine` builds its `defaultDeps` from that import at module scope
+and `runAgenticLoop(p, deps = defaultDeps)` reads them from there, so the seam
+already existed — **no production change was needed**. `harness/loopScript.ts`
+queues one response per expected `streamText` call and throws on an unconsumed
+one, because a leftover entry means the turn took a different shape (unified
+instead of split, or a synth retry that never happened) than the scenario claims.
+
+It does **not** replay the AI SDK's step loop. Scripted tool calls are executed
+directly — enough for the guards, which read call history, and deliberately not
+enough to support any claim about how a real model would step. Two details of
+that execution are load-bearing rather than cosmetic:
+
+- **The tool's `inputSchema` is applied first**, exactly as the SDK does. Skipping
+  it looked harmless and was not: `gruenerator_search` defaults `collection`
+  through its schema, a raw call left it `undefined`, and the tool returned
+  "Sammlung nicht verfügbar" before reaching any search. Every guard downstream
+  then saw a failure the product would never produce.
+- **`parallel: true` starts a step's calls together**, which is the only way to
+  reach `checkSearchConcurrency` — it measures in-flight calls, and sequential
+  execution never exceeds one. Which call loses that race is an await-interleaving
+  artefact, so those scenarios assert `decisionCounts` (how many were deferred)
+  and never which one.
+
+The retrieval backend is stubbed too (`harness/searchBackendStub.ts`) — only the
+backend; the tool definitions, `wrapTools` and the guards stay real. Without it
+every search errors, `noteFailure` fires, and the failure caps (2 per tool, 5
+overall) trip before the search budget (6 calls) ever can: four of the six guard
+branches would be unreachable and the other two would fire for the wrong reason.
+The stub returns exactly **one** source per call, because `checkSearchBudget`
+also trips at 20 accumulated sources and a richer stub would hit that ceiling
+first — the map would then name `search_budget` while the scenario believed it
+was testing the call-count ceiling.
+
+### The same map from a real backend
+
+The journal is bound in-process here, which is exactly what the live lane cannot
+do — there the runner and the backend are two processes, so nothing binds a
+recorder and every `recordDecision` is the no-op it is in production. The result
+was inverted: the only lane that sees real model behaviour was the only lane
+with no view of why the turn went that way.
+
+`utils/decisionLog.ts` closes that without putting decision ids on the wire —
+they are F1, and emitting them would make them F0, a contract shipped clients
+could come to depend on. Instead the journal leaves through the filesystem,
+under a name the client picks:
+
+```bash
+CHAT_DECISION_LOG_DIR=/tmp/maps pnpm dev:backend      # NODE_ENV=development only
+EVAL_DECISION_DIR=/tmp/maps EVAL_BYPASS_TOKEN=… pnpm --filter @gruenerator/api eval:chat
+```
+
+The runner sends `x-decision-log-id: <scenario>.t<n>`, reads the file back and
+renders one `<scenario>.map.txt` per scenario with `renderDecisionMap(…, 'live')`
+— the same renderer, a different caveat printed into the artefact. A live map is
+**one sample, not a baseline**: the same prompt can classify differently on the
+next run, so a diff between two live maps is evidence to read, never an assertion
+to fail on. Nothing is committed.
+
+The gate is `NODE_ENV === 'development'`, checked when the middleware is
+constructed, so in production it is never created and no request binds a journal.
+`decisionLogRoundTrip.vitest.ts` owns the transport: header → file → reader →
+map, including the `/resume` merge.
+
+### What a green simulated run does and does not mean
+
+It proves the branches ran as scripted. It proves **nothing** about what a real
+model does: every scripted verdict is an assumption, which is why each scenario
+carries a required `note` stating that assumption and when it was last checked.
+If the real classifier stops producing that verdict, the scenario stays green
+while the product is broken.
+
+Groundedness, citation correctness, refusal and over-refusal behaviour, and
+German/Austrian register are measured **only** by the manual live lane plus the
+LLM judge in `apps/api/evals/`. There is deliberately no combined pass rate
+across the two lanes, and the word `eval` is reserved for the live one.
+
 ## Not yet covered
 
+- **Groundedness and citation correctness in the loop lane.** The retrieval
+  backend is stubbed there, so `[N]` markers point at invented sources. Both stay
+  with the manual live lane and the judge.
 - **`/resume`** — the interrupt → `pipelineStateStore` → resume round trip. The
   valuable assertion there is field-by-field lockstep between the 14-field
   `requestContext` the router stores and what `resumePipeline` reads back; the
