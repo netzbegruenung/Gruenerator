@@ -170,19 +170,27 @@ export async function listenWithGreenpt(
     throw new Error('GreenPT returned no transcript alternative');
   }
 
-  const rawWords: RawWord[] = Array.isArray(alternative.words) ? alternative.words : [];
+  // The one assertion in this function, at the actual type boundary: JSON we
+  // did not produce. It claims no more than "an array" — every field of
+  // RawWord is `unknown` and is narrowed individually below.
+  const rawWords: readonly RawWord[] = Array.isArray(alternative.words)
+    ? (alternative.words as RawWord[])
+    : [];
+
   const words: GreenptWord[] = [];
   for (const raw of rawWords) {
     // punctuated_word is what the transcript string is built from; the bare
     // `word` is lowercased and unpunctuated and would not align with it.
     const token = typeof raw.punctuated_word === 'string' ? raw.punctuated_word : raw.word;
-    if (typeof token !== 'string' || !Number.isFinite(raw.start) || !Number.isFinite(raw.end)) {
+    const start = typeof raw.start === 'number' && Number.isFinite(raw.start) ? raw.start : null;
+    const end = typeof raw.end === 'number' && Number.isFinite(raw.end) ? raw.end : null;
+    if (typeof token !== 'string' || start === null || end === null) {
       continue;
     }
     words.push({
       word: germanNumberWordToDigits(token) ?? token,
-      start: raw.start as number,
-      end: raw.end as number,
+      start,
+      end,
       speaker: typeof raw.speaker === 'number' ? raw.speaker : null,
     });
   }
