@@ -59,20 +59,27 @@ export const CLASSIFIER_OFFERED_INTENTS = [
   'examples',
   'abgeordnetenwatch',
   'bundestag',
-  'bahn',
-  // `reise` is deliberately absent: its source mapping in INTENT_SOURCES
-  // (services/mcp/systemMcpServers.ts) is commented out, so the intent mounts
-  // NOTHING. Offering it here only taught the model a boundary whose verdict
-  // then degraded to `web` anyway — a full paragraph of prompt for a route that
-  // cannot fire. This removes it ONLY from what the classifier may invent;
-  // everything that handles a `reise` value keeps working (the F0 enum value,
-  // NON_SEARCH_INTENTS, AGENTIC_INTENTS, searchNode's case, the registry entry),
-  // because it can still arrive from a persisted `metadata.intent`. Put it back
-  // together with the source mapping, not before.
-  'hotel',
+  // The system-MCP intents — `bahn`, `hotel`, `wetter`, `news` and `reise` —
+  // are deliberately absent, for two different reasons.
+  //
+  // `reise` mounts NOTHING: its source mapping in INTENT_SOURCES
+  // (services/mcp/systemMcpServers.ts) is commented out, so offering it only
+  // taught the model a boundary whose verdict then degraded to `web` anyway.
+  //
+  // The other four are decided BEFORE this prompt runs, by `sourceScopeResolver`
+  // at the door of Tier 4 — the only place this prompt ever decided them, so
+  // nothing it used to catch can slip past. What lived here was four paragraphs
+  // and four decision steps (6d–6g) teaching one boundary: concrete data for a
+  // place or time vs. the policy topic that sounds like it. The resolver states
+  // that boundary in ~700 characters and answers it with five values.
+  //
+  // Both removals affect ONLY what the classifier may invent. Everything that
+  // handles these values keeps working — the F0 enum values, NON_SEARCH_INTENTS,
+  // AGENTIC_INTENTS, SYSTEM_MCP_INTENTS, searchNode's cases, the registry
+  // entries — because they still arrive from the resolver and from persisted
+  // `metadata.intent`. Put `reise` back together with its source mapping, not
+  // before; put the other four back only if the resolver is removed.
   'umfragen',
-  'wetter',
-  'news',
   'hilfe',
   'summary',
   'chart',
@@ -119,11 +126,7 @@ VERFÜGBARE TOOLS:
 - social_post: Social-Media-Post ERSTELLEN — NUR TEXT - STANDARD für "erstelle/schreib einen Post/Tweet/Insta-/Facebook-/LinkedIn-Beitrag zu X", "Social-Media-Post über Y". Eine Sharepic-Grafik entsteht dabei NUR, wenn im selben Satz ausdrücklich ein Sharepic verlangt wird ("Post mit Sharepic"). Ein Post ist KEINE direct-Aufgabe.
 - abgeordnetenwatch: Transparenzdaten zu deutschen Abgeordneten (Bundestag/Landtage) via Abgeordnetenwatch - Abstimmungsverhalten ("wie hat X gestimmt", "Abstimmungsverhalten von"), Nebentätigkeiten/Nebeneinkünfte ("welche Nebentätigkeiten hat X"), Mandate, sowie namentliche Abstimmungen ("wie ging die Abstimmung zu Y aus", "Ergebnis der namentlichen Abstimmung"). NUR für konkrete Abgeordnete oder konkrete Parlamentsabstimmungen, NICHT für allgemeine Parteipositionen (→ search) und NICHT für Dokumente/Reden/Gesetzgebung (→ bundestag).
 - bundestag: Offizielle Parlamentsdokumente des Deutschen Bundestags (DIP) - Drucksachen, Gesetzentwürfe, Anträge, Kleine/Große Anfragen, Plenardebatten und Reden ("was wurde im Bundestag zu X debattiert", "Rede von X zu Y", "Drucksache 21/123", "Stand des Gesetzgebungsverfahrens"). NICHT für Abstimmungsverhalten oder Nebentätigkeiten (→ abgeordnetenwatch), NICHT für Grüne Positionen (→ search), NICHT für aktuelle Nachrichten (→ web).
-- bahn: Konkrete BAHNAUSKUNFT der Deutschen Bahn - Zugverbindungen, Abfahrts-/Ankunftszeiten, Fahrpläne, Verspätungen, Gleise, Bahnhofsausstattung ("welche Zugverbindung von X nach Y", "wann fährt der nächste Zug nach", "Abfahrten in Köln", "hat mein Zug Verspätung", "gibt es Parkplätze am Hbf"). NUR für reine Zug-/Bahnhofsauskünfte, NICHT für Bahnpolitik/Bahnreform/Grüne Verkehrspositionen (→ search) und NICHT für Nachrichten über die Bahn (→ news/web).
-- hotel: Hotel-/Unterkunftssuche - "Hotel in Berlin für 2 Nächte", "Unterkunft in Nürnberg", "wo kann ich in X übernachten". Sind Unterkunft UND Anreise in einer Anfrage: hotel, wenn die Übernachtung die Hauptfrage ist, sonst bahn. Tourismuspolitik → search.
 - umfragen: WAHLUMFRAGEN und Meinungsbilder - Sonntagsfrage/Umfragewerte bundesweit oder pro Bundesland ("wie stehen die Grünen aktuell in Umfragen", "Sonntagsfrage Bayern", "aktuelle Umfragewerte der AfD") sowie Zustimmung zu Themen ("wie denken die Leute über Tempolimit"). NUR Umfragedaten, NICHT Parteipositionen (→ search), NICHT Wahlergebnisse oder namentliche Abstimmungen (→ abgeordnetenwatch/web).
-- wetter: Konkrete WETTERAUSKUNFT - Vorhersage, aktuelles Wetter, Temperatur, Regen, Luftqualität für einen Ort/Zeitraum ("wie wird das Wetter morgen in X", "regnet es am Samstag", "wie warm wird es", "Pollenbelastung in Y"). NUR für konkrete Wetterdaten, NICHT für Klimapolitik/Klimawandel-Fragen (→ search/web).
-- news: Aktuelle NACHRICHTENLAGE via tagesschau - Schlagzeilen, Meldungen zu einem Thema, Ressort- oder Regional-Nachrichten ("was gibt es Neues zu X", "aktuelle Nachrichten aus Bayern", "was meldet die tagesschau", "Nachrichtenlage zu Y"). Für die aktuelle Berichterstattung; bei allgemeiner Web-Recherche ohne News-Charakter → web.
 - summary: Zusammenfassung eines Dokuments - "fasse zusammen", "zusammenfassung", "kurzfassung"
 - chart: Datenvisualisierung - "erstelle Diagramm", "Balkendiagramm", "Kreisdiagramm", "visualisiere als Chart", "Statistik darstellen"
 - compute: Deterministische Berechnung oder Zählung - "zähl die Zeichen/Wörter", "wie viele Zeichen/Wörter hat der Text", "wie viele Zeichen sind das", "20% von 340", "5 km in Meilen", "wie viele Tage bis Weihnachten". NUR echtes Rechnen/Zählen — KEIN Diagramm (→ chart) und keine allgemeine Sachfrage (→ direct/search).
@@ -176,7 +179,7 @@ needsResearch = true genau dann, wenn du die Anfrage NICHT wahrheitsgemäß bean
 KONSISTENZ (verbindlich): Setzt du needsResearch auf true, darf der intent NICHT "direct" sein — wähle search, web oder research. "direct" heißt: alles Nötige steht bereits in der Nachricht oder es ist eine rein kreative/umformulierende Aufgabe.
 
 FALSCHE PRÄMISSEN ERKENNEN:
-Wenn eine Anfrage ein konkretes Ereignis mit einer Zeit-/Jahresangabe nennt, die so nicht stattgefunden haben könnte (z.B. eine Wahl, Abstimmung oder ein Termin, den es in dieser Form nicht gibt) — verlasse dich NICHT darauf, dass die genannte Zeitangabe stimmt. Wähle trotzdem intent web (oder news/umfragen je nach Ereignisart), NICHT direct, damit eine echte Suche die tatsächlichen Fakten liefert. Nur mit echten Suchergebnissen kann eine falsche Prämisse im Antwortschritt richtiggestellt werden, statt unwidersprochen zu bleiben oder mit "dazu habe ich keine Informationen" abgetan zu werden.
+Wenn eine Anfrage ein konkretes Ereignis mit einer Zeit-/Jahresangabe nennt, die so nicht stattgefunden haben könnte (z.B. eine Wahl, Abstimmung oder ein Termin, den es in dieser Form nicht gibt) — verlasse dich NICHT darauf, dass die genannte Zeitangabe stimmt. Wähle trotzdem intent web (oder umfragen je nach Ereignisart), NICHT direct, damit eine echte Suche die tatsächlichen Fakten liefert. Nur mit echten Suchergebnissen kann eine falsche Prämisse im Antwortschritt richtiggestellt werden, statt unwidersprochen zu bleiben oder mit "dazu habe ich keine Informationen" abgetan zu werden.
 
 SCHRITT 3 - TOOL WÄHLEN:
 0. Kommt eines der Wörter Sharepic/Share-Pic/Spruchbild/Zitatbild/Dreizeiler wörtlich vor? → sharepic (VOR image prüfen!). Ohne eines dieser Wörter NIEMALS sharepic — "Grafik" und "Kachel" sind kein Sharepic.
@@ -198,10 +201,6 @@ SCHRITT 3 - TOOL WÄHLEN:
 6a. Social-Media-Vorlage/Beispiel ANSEHEN ("zeig mir Beispiele")? → examples
 6b. Abstimmungsverhalten/Nebentätigkeiten einer konkreten Person ODER Ergebnis einer namentlichen Abstimmung? → abgeordnetenwatch
 6c. Bundestagsdokumente, Plenardebatten, Reden oder Gesetzgebungsverfahren (Drucksachen, Protokolle)? → bundestag
-6d. Hotel/Unterkunft gesucht? → hotel
-6e. REINE Zugverbindung/Abfahrtszeit/Fahrplan/Bahnhofsauskunft? → bahn (Bahnpolitik → search)
-6f. Konkrete Wettervorhersage/aktuelles Wetter für einen Ort? → wetter (Klimapolitik → search)
-6g. Aktuelle Nachrichtenlage/Schlagzeilen/tagesschau-Meldungen zu einem Thema? → news
 6h. Wahlumfragen/Sonntagsfrage/Umfragewerte (bundesweit oder Bundesland)? → umfragen
 6i. Frage zur BEDIENUNG des Grünerators (Anleitung, "wie mache ich X im Grünerator", Funktion erklärt haben)? → hilfe (inhaltliche Fragen → search)
 7. EXPLIZITE Recherche ("recherchiere", "finde Fakten")? → research (= web mit mehr Aufwand)
