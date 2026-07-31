@@ -68,14 +68,17 @@ describe('buildArtifactNotes', () => {
     expect(capabilityNote).toContain('nicht erstellt');
   });
 
-  it('nennt ein Bild aus einem FRÜHEREN Turn, wenn dieser Turn keins erzeugt hat', () => {
+  it('überlässt frühere Artefakte dem Inventar', () => {
+    // Diese Notizen beschreiben, was DIESER Turn getan hat — jede trägt eine
+    // Handlungsanweisung („kündige es kurz an"). Was der Thread schon hält,
+    // steht im ARTEFAKTE-Block von `systemMessage` (artifactInventory), der
+    // beide Pfade erreicht und alle Arten kennt statt nur Bilder. Kurzzeitig
+    // stand hier eine zweite, ärmere Fassung davon.
     const { notes } = buildArtifactNotes(
       makeState({ lastToolContext: { kind: 'image', ref: 'img-1', label: 'Bild' } as never }),
       { artifactToolMounted: false }
     );
-    expect(notes).toContain('Früher in diesem Gespräch');
-    // Die Zeitform ist die ganze Aussage: dieser Turn hat nichts erzeugt.
-    expect(notes).not.toContain('In diesem Turn wurde bereits ein Bild erstellt');
+    expect(notes).toBe('');
   });
 
   it('sagt nicht zweimal dasselbe, wenn der Turn selbst ein Bild erzeugt hat', () => {
@@ -98,10 +101,7 @@ describe('buildArtifactNotes', () => {
     expect(capabilityNote).toBe('');
   });
 
-  it('lässt ein Sharepic aus einem früheren Turn unberührt (nur Bilder)', () => {
-    // Bewusst eng: der Hinweis entstand aus einem gemessenen Bild-Fall. Für
-    // Sharepics gibt es einen eigenen Pfad (Karten-Rehydrierung), und ein
-    // geratener zweiter Hinweis wäre nur eine weitere Zeile im Prompt.
+  it('meldet auch ein früheres Sharepic nicht — Zeitform ist die ganze Aussage', () => {
     const { notes } = buildArtifactNotes(
       makeState({ lastToolContext: { kind: 'sharepic', ref: 'c-1', label: 'Sharepic' } as never }),
       { artifactToolMounted: false }
