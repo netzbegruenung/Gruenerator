@@ -17,6 +17,11 @@
  * Prints the plaintext key ONCE — store it immediately, it cannot be recovered.
  */
 
+// Muss vor jedem Import stehen, der `config/env.js` zieht: ESM wertet Importe
+// in Quelltextreihenfolge aus, und `env.ts` parst `process.env` beim Laden.
+// Ohne diese Zeile laeuft das Skript ohne .env und findet keine Datenbank.
+import 'dotenv/config';
+
 import { randomBytes } from 'crypto';
 
 import {
