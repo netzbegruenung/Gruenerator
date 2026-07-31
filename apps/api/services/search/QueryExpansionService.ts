@@ -11,9 +11,12 @@
  * - Graceful degradation: returns just the original query on failure
  */
 
-import { INTERMEDIATE_MODEL } from '../../routes/chat/agents/providers.js';
 import { createLogger } from '../../utils/logger.js';
 import { type AIWorkerPool } from '../../workers/types.js';
+import { intermediateLane } from '../ai/intermediateLanes.js';
+
+/** @see services/ai/intermediateLanes.ts */
+const LANE = intermediateLane('standard');
 
 const log = createLogger('QueryExpansion');
 
@@ -57,11 +60,11 @@ export async function expandQuery(
     const response = await aiWorkerPool.processRequest(
       {
         type: 'chat_query_expansion',
-        provider: INTERMEDIATE_MODEL.provider,
+        provider: LANE.provider,
         systemPrompt: EXPANSION_PROMPT,
         messages: [{ role: 'user', content: `Suchanfrage: "${query}"` }],
         options: {
-          model: INTERMEDIATE_MODEL.model,
+          model: LANE.model,
           max_tokens: 100,
           temperature: 0.3,
           response_format: { type: 'json_object' },

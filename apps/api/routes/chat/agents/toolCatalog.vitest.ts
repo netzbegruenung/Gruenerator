@@ -22,13 +22,12 @@ vi.mock('./searchTools.js', () => ({
 }));
 
 const validateUrlForFetch = vi.fn<(u: string) => Promise<unknown>>();
-const selectAndCrawlTopUrls = vi.fn<(s: unknown, q: unknown, o: unknown) => Promise<unknown>>();
+const crawlAndDistill = vi.fn<(s: unknown, q: unknown, o: unknown) => Promise<unknown>>();
 vi.mock('../../../utils/validation/urlSecurity.js', () => ({
   validateUrlForFetch: (u: string) => validateUrlForFetch(u),
 }));
 vi.mock('../../../services/search/index.js', () => ({
-  selectAndCrawlTopUrls: (seeds: unknown, q: unknown, opts: unknown) =>
-    selectAndCrawlTopUrls(seeds, q, opts),
+  crawlAndDistill: (seeds: unknown, q: unknown, opts: unknown) => crawlAndDistill(seeds, q, opts),
 }));
 
 const agentConfig = { identifier: 'test' } as unknown as AgentConfig;
@@ -294,7 +293,7 @@ describe('toolCatalog domain tool mounting', () => {
 describe('toolCatalog scrape_url', () => {
   beforeEach(() => {
     validateUrlForFetch.mockReset();
-    selectAndCrawlTopUrls.mockReset();
+    crawlAndDistill.mockReset();
   });
 
   function scrapeTool() {
@@ -310,7 +309,22 @@ describe('toolCatalog scrape_url', () => {
       error?: string;
     };
     expect(out.error).toBeTruthy();
-    expect(selectAndCrawlTopUrls).not.toHaveBeenCalled();
+    expect(crawlAndDistill).not.toHaveBeenCalled();
+  });
+
+  // A named page must never be relevance-filtered — the user pointed at it.
+  it('reads a named page faithfully, not query-focused', async () => {
+    validateUrlForFetch.mockImplementation(async (u: string) => ({
+      isValid: true,
+      url: new URL(u),
+    }));
+    crawlAndDistill.mockResolvedValue([
+      { url: 'https://example.com/', crawled: true, content: 'Hallo Welt Inhalt' },
+    ]);
+    const { execute } = scrapeTool();
+    await execute({ urls: ['https://example.com/'] }, { toolCallId: 'c1' });
+    const opts = crawlAndDistill.mock.calls[0]?.[2] as { mode?: string };
+    expect(opts.mode).toBe('faithful');
   });
 
   it('crawls validated URLs and registers content as sources', async () => {
@@ -318,8 +332,8 @@ describe('toolCatalog scrape_url', () => {
       isValid: true,
       url: new URL(u),
     }));
-    selectAndCrawlTopUrls.mockResolvedValue([
-      { url: 'https://example.com/', crawled: true, fullContent: 'Hallo Welt Inhalt' },
+    crawlAndDistill.mockResolvedValue([
+      { url: 'https://example.com/', crawled: true, content: 'Hallo Welt Inhalt' },
     ]);
     const { execute, sourceRegistry } = scrapeTool();
     const out = (await execute({ urls: ['https://example.com/'] }, { toolCallId: 'c1' })) as {
@@ -336,7 +350,7 @@ describe('toolCatalog scrape_url', () => {
       isValid: true,
       url: new URL(u),
     }));
-    selectAndCrawlTopUrls.mockResolvedValue([
+    crawlAndDistill.mockResolvedValue([
       { url: 'https://example.com/', crawled: false, crawlError: 'timeout' },
     ]);
     const { execute } = scrapeTool();

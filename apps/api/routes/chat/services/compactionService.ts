@@ -145,7 +145,7 @@ Halte die Zusammenfassung kompakt aber informativ (max. 400 Wörter). Schreibe i
 
   try {
     const result = await generateText({
-      model: getIntermediateModel(),
+      model: getIntermediateModel('heavy'),
       system: systemPrompt,
       prompt: formattedMessages,
       maxOutputTokens: SUMMARY_MAX_TOKENS,

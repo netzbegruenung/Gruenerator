@@ -21,15 +21,18 @@
  *   - Hard timeout; this sits on the user's critical request path.
  *   - Fail-safe: any error, timeout or unusable output returns `null`, and the
  *     caller keeps today's behaviour (newest artifact / LLM tier).
- *   - `INTERMEDIATE_MODEL` + the existing generic `chat_intent_classification`
+ *   - `standard` intermediate stage + the existing generic `chat_intent_classification`
  *     task type, so it inherits the worker pool's provider fallback.
  */
 
 import { createLogger } from '../../../../utils/logger.js';
-import { INTERMEDIATE_MODEL } from '../llmConfig.js';
+import { intermediateLane } from '../llmConfig.js';
 
 import type { AIWorkerPool } from '../../../../workers/types.js';
 import type { ThreadToolContext } from '../types.js';
+
+/** @see services/ai/intermediateLanes.ts */
+const LANE = intermediateLane('standard');
 
 const log = createLogger('ChatGraph:EditTarget');
 
@@ -93,7 +96,7 @@ export async function resolveEditTarget({
       aiWorkerPool.processRequest(
         {
           type: 'chat_intent_classification',
-          provider: INTERMEDIATE_MODEL.provider,
+          provider: LANE.provider,
           systemPrompt: RESOLVE_PROMPT,
           messages: [
             {
@@ -101,7 +104,7 @@ export async function resolveEditTarget({
               content: `Artefakte (1 = zuletzt erzeugt):\n${list}\n\nFolgeauftrag: "${userContent}"`,
             },
           ],
-          options: { model: INTERMEDIATE_MODEL.model, max_tokens: 8, temperature: 0 },
+          options: { model: LANE.model, max_tokens: 8, temperature: 0 },
         },
         null
       ),

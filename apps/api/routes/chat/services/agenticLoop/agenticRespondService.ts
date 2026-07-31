@@ -831,7 +831,7 @@ export async function streamAgenticResponse(params: {
       : '';
     // Mistral (fast native tool-caller) runs the unified single-model loop;
     // every other model runs the planner/executor split — the fast planner
-    // (INTERMEDIATE_MODEL) gathers, the selected model writes the answer.
+    // (`standard` intermediate stage) gathers, the selected model writes the answer.
     mode = prefersUnifiedLoop(resolution.provider, resolution.modelName) ? 'unified' : 'split';
 
     // Unified mode has no synth phase, so it never sees `renderAll()` — the

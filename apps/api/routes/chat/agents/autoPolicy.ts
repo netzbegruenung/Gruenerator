@@ -21,7 +21,7 @@
  *   - sharepic → the answer text is a fixed template string in the router; the
  *     slogan comes from sharepicGenerationService. Auto has NO effect, so
  *     `sharepic` is intentionally absent from the table.
- *   - summary → summarizeNode already runs on INTERMEDIATE_MODEL (Small 4).
+ *   - summary → summarizeNode already runs on the `heavy` intermediate stage.
  *
  * ── Second-order effect ─────────────────────────────────────────────────────
  * `prefersUnifiedLoop` is true only for Mistral. Picking a Mistral lane
