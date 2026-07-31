@@ -23,7 +23,7 @@ import {
   FiSliders,
 } from 'react-icons/fi';
 import { IoAccessibilityOutline } from 'react-icons/io5';
-import { PiBrain, PiEnvelopeSimple, PiPencil, PiRobot } from 'react-icons/pi';
+import { PiBrain, PiEnvelopeSimple, PiPaintBrushBroad, PiPencil, PiRobot } from 'react-icons/pi';
 
 import { SettingsTabSkeleton } from './components/SettingsSkeleton';
 import { useSettingsDialogStore, type SettingsTab } from './settingsDialogStore';
@@ -43,6 +43,7 @@ import {
 // hideHeading: the tab's content brings its own top-level heading.
 const NAV: { value: SettingsTab; label: string; icon: IconType; hideHeading?: boolean }[] = [
   { value: 'allgemein', label: 'Allgemein', icon: FiSettings },
+  { value: 'hintergrund', label: 'Hintergrund', icon: PiPaintBrushBroad },
   { value: 'personalisierung', label: 'Personalisierung', icon: FiSliders },
   { value: 'erinnerungen', label: 'Erinnerungen', icon: PiBrain, hideHeading: true },
   { value: 'texte-anlernen', label: 'Texte anlernen', icon: PiPencil },

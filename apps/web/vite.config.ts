@@ -231,7 +231,14 @@ export default defineConfig(({ command }) => ({
   build: {
     // Use compatible targets for native WebViews (Chrome=Edge WebView2, Safari=WKWebView)
     target: isNativeBuild ? ['chrome105', 'safari15'] : ['es2022', 'safari15'],
-    sourcemap: 'hidden',
+    // `'hidden'` still EMITS the .map files — it only drops the
+    // `//# sourceMappingURL=` comment, so `<chunk>.js.map` stayed fetchable by
+    // guessing the URL and served the whole frontend source (reported
+    // 30.07.2026). Nothing consumes them: Sentry is wired at runtime
+    // (@sentry/react) but no upload step (@sentry/vite-plugin / sentry-cli)
+    // ever existed. Opt back in via VITE_SOURCEMAP=1 for a local perf/debug
+    // build — and only together with an upload+delete step if it ever ships.
+    sourcemap: process.env.VITE_SOURCEMAP === '1' ? 'hidden' : false,
     // CSS IS code-split per chunk. Combined with the natural JS splitting below
     // (only `vendor-react` is forced), each lazy route's CSS rides with its own
     // async chunk — the homepage eager-links ONLY the global `index.css`, not
