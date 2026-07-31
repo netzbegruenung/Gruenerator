@@ -23,6 +23,8 @@ export interface RunTurnOptions {
   expectError?: boolean;
   /** Drive `/resume` instead of `/stream`. */
   resume?: boolean;
+  /** Extra request headers — `x-decision-log-id` for the live-lane seam. */
+  headers?: Record<string, string>;
 }
 
 /**
@@ -41,7 +43,9 @@ export async function runTurn(
   options: RunTurnOptions = {}
 ): Promise<TurnResult> {
   const startedAt = performance.now();
-  const res = await (options.resume ? postResume(baseUrl, body) : postStream(baseUrl, body));
+  const res = await (options.resume
+    ? postResume(baseUrl, body, options.headers)
+    : postStream(baseUrl, body, options.headers));
   const rawBody = await res.text();
   const latencyMs = Math.round(performance.now() - startedAt);
 

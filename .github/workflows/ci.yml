@@ -62,6 +62,15 @@ jobs:
       - name: No unenforced exhaustive maps in tests
         run: node scripts/check-unenforced-exhaustive-maps.mjs
 
+      # Decision-point ids in DECISION_POINTS (apps/api/utils/decisionJournal.ts)
+      # land in committed decision-map snapshots, which makes them F1 —
+      # internally frozen (see CLAUDE.md). Catch drift before tsc even runs:
+      # unknown ids, time-shaped inputs keys (they'd turn every diff into
+      # noise), registry points with no call site, and recordDecision() calls
+      # made from test files.
+      - name: Decision journal registry in sync
+        run: node scripts/check-decision-journal.mjs
+
       # A test file named `.test.ts` instead of `.vitest.ts` is invisible to
       # every vitest config's `include` glob — it never runs, in CI or
       # locally, no matter what its own header comment claims.

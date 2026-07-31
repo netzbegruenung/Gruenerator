@@ -75,16 +75,21 @@ export function createAiWorkerPoolStub(): AiWorkerStub {
   };
 }
 
-/** The classifier reads only `response.content`, parsed as JSON. */
-export function classifierVerdict(verdict: {
+/**
+ * The classifier reads only `response.content`, parsed as JSON. Named rather
+ * than inlined with an index signature: the index signature made every caller's
+ * narrower literal unassignable under `exactOptionalPropertyTypes`.
+ */
+export interface ClassifierVerdictInput {
   intent: string;
   secondaryIntent?: string | null;
   searchQuery?: string | null;
   reasoning?: string;
   needsResearch?: boolean;
   needsClarification?: boolean;
-  [key: string]: unknown;
-}): AIWorkerResult {
+}
+
+export function classifierVerdict(verdict: ClassifierVerdictInput): AIWorkerResult {
   return {
     success: true,
     content: JSON.stringify({

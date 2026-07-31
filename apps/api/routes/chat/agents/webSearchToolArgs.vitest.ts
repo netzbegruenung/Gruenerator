@@ -39,8 +39,8 @@ type WebSearchTool = {
   ) => Promise<unknown>;
 };
 
-function webSearchTool(): WebSearchTool {
-  return createSearchTools(AGENT).web_search as unknown as WebSearchTool;
+function webSearchTool(options?: Parameters<typeof createSearchTools>[1]): WebSearchTool {
+  return createSearchTools(AGENT, options).web_search as unknown as WebSearchTool;
 }
 
 const TOOL_OPTS = { toolCallId: 'c1', messages: [] };
@@ -100,5 +100,71 @@ describe('web_search tool — argument mapping onto executeDirectWebSearch', () 
       TOOL_OPTS
     );
     expect(lastArgs().includeImages).toBe(true);
+  });
+});
+
+/**
+ * The narrowing arguments. Both were measured live on the same turn
+ * ("recherchiere im netz: wer war Marilyn Monroe"): the planner asked for
+ * `tiefe: gruendlich` and then capped it with `maxResults: 5`, and it scoped the
+ * whole web to three hosts the user had never mentioned. Neither shows up in the
+ * answer — it just reads thin and one-sided — so both need enforcement rather
+ * than a line in the tool description.
+ */
+describe('web_search tool — the model may not quietly narrow the search', () => {
+  it('ignores a maxResults the model still sends, leaving the tier in charge', async () => {
+    await webSearchTool().execute(
+      {
+        query: 'Marilyn Monroe Leben Karriere',
+        searchType: 'general',
+        tiefe: 'gruendlich',
+        maxResults: 5,
+      },
+      TOOL_OPTS
+    );
+    expect(lastArgs()).not.toHaveProperty('maxResults');
+  });
+
+  it('drops a site scope the user never named', async () => {
+    await webSearchTool({ userText: 'recherchiere im netz: wer war Marilyn Monroe' }).execute(
+      {
+        query: 'Marilyn Monroe Leben Karriere',
+        searchType: 'general',
+        tiefe: 'gruendlich',
+        seiten: ['wikipedia.de', 'spiegel.de', 'faz.net'],
+      },
+      TOOL_OPTS
+    );
+    expect(lastArgs()).not.toHaveProperty('includeDomains');
+  });
+
+  it('keeps the sites the user did name, however they wrote them', async () => {
+    await webSearchTool({ userText: 'Such bitte auf zeit.de und beim ORF nach dem Thema' }).execute(
+      {
+        query: 'Windkraft Ausbau',
+        searchType: 'general',
+        tiefe: 'gruendlich',
+        seiten: ['https://www.zeit.de/', 'orf.at', 'bild.de'],
+      },
+      TOOL_OPTS
+    );
+    // `bild.de` was invented; the other two survive — one written as a URL, one
+    // named only by its brand.
+    expect(lastArgs().includeDomains).toEqual(['zeit.de', 'orf.at']);
+  });
+
+  it('skips the check entirely when there is no user turn to check against', async () => {
+    // Document authoring and the board agent build the same tools without a
+    // chat message. Absent context must not silently ban every site scope.
+    await webSearchTool().execute(
+      {
+        query: 'Windkraft Ausbau',
+        searchType: 'general',
+        tiefe: 'gruendlich',
+        seiten: ['zeit.de'],
+      },
+      TOOL_OPTS
+    );
+    expect(lastArgs().includeDomains).toEqual(['zeit.de']);
   });
 });

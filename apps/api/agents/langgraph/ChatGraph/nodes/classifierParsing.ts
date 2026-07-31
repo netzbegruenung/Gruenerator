@@ -470,11 +470,57 @@ export function parseClassifierResponse(
 }
 
 /**
+ * Explicit requests for depth. The umlaut-free spellings are not padding: users
+ * type `ausfuehrlich` routinely, and without them an explicit request for detail
+ * was silently downgraded — the user asked for more and the answer rule stayed
+ * on the middle tier.
+ */
+const DETAIL_REQUEST_RE =
+  /\b(detailliert|ausführlich|ausfuehrlich|umfassend|gründlich|gruendlich|tiefgehend|vollständig|vollstaendig)\b/i;
+
+/**
+ * OPEN questions: the answer is a portrait, not a fact. "Wer war X", "Was ist Y",
+ * "Erkläre Z" — all short to ask and long to answer.
+ *
+ * Past tense included deliberately. The old pattern listed only `wer ist`, so
+ * every question about a historical person fell through to the length rule.
+ */
+const OPEN_LOOKUP_RE =
+  /^(wer|was)\s+(ist|war|sind|waren)\b|^(erkläre|erklär|erklaere|erzähl|erzaehl|beschreib)/i;
+
+/** CLOSED lookups: a place or a date is one fact, however it is phrased. */
+const CLOSED_LOOKUP_RE = /^(wo\s+(ist|liegt|war)|wann)\b/i;
+
+/**
  * Detect query complexity using heuristic patterns.
  * Determines whether a query needs simple, moderate, or complex research depth.
+ *
+ * The ordering below is the substance of this function, not housekeeping.
+ *
+ * A length shortcut (`q.length < 30 → simple`) used to run FIRST, which made the
+ * question's length a proxy for the answer's scope — and the two are close to
+ * inverted. "wer war marilyn monroe" is 22 characters; it produced a two-sentence
+ * answer that named her birth date and nothing else, while the same question
+ * with "ausführlich" appended produced four sections including her films. The
+ * cap was doing that, not the model and not the sources.
+ *
+ * It also made the pattern list below unreachable for exactly the queries it
+ * described: every `was ist X` short enough to match it had already returned.
+ *
+ * So openers are classified by whether the QUESTION is open or closed, before
+ * length is consulted at all. Length survives only as the last resort, for input
+ * that matches no shape — a bare topic word ("Klimaschutz").
+ *
+ * Consumers other than the answer-format rule: `briefGeneratorNode` and
+ * `intentExecutionService` group `moderate` with `complex`, so an open lookup
+ * that also carries `intent === 'research'` now plans before it searches. That
+ * is the intended reading — an open research question deserves a plan.
+ * `searchDepth.ts` deliberately stopped taking `complexity` as a parameter, so
+ * nothing here can buy the expensive engine tier.
  */
 export function detectComplexity(query: string): 'simple' | 'moderate' | 'complex' {
   const q = query.toLowerCase();
+  const trimmed = q.trim();
 
   // Complex: comparison, multi-topic, or explicit detail requests
   if (
@@ -482,7 +528,7 @@ export function detectComplexity(query: string): 'simple' | 'moderate' | 'comple
   ) {
     return 'complex';
   }
-  if (/\b(detailliert|ausführlich|umfassend|gründlich|tiefgehend|vollständig)\b/i.test(q)) {
+  if (DETAIL_REQUEST_RE.test(q)) {
     return 'complex';
   }
   // Multi-clause: "und" connecting distinct topics (not just filler)
@@ -490,14 +536,21 @@ export function detectComplexity(query: string): 'simple' | 'moderate' | 'comple
     return 'complex';
   }
 
-  // Simple: greetings, short questions, single-entity lookups
+  // Greetings are genuinely closed, at any length.
+  if (/^(hallo|hi|hey|guten|servus|moin|danke)/i.test(trimmed)) {
+    return 'simple';
+  }
+
+  // Shape before length — this is the fix.
+  if (OPEN_LOOKUP_RE.test(trimmed)) {
+    return 'moderate';
+  }
+  if (CLOSED_LOOKUP_RE.test(trimmed)) {
+    return 'simple';
+  }
+
+  // Last resort: no recognisable shape. A bare topic word is a simple ask.
   if (q.length < 30) {
-    return 'simple';
-  }
-  if (/^(hallo|hi|hey|guten|servus|moin|danke)/i.test(q.trim())) {
-    return 'simple';
-  }
-  if (/^(was ist|wer ist|wo ist|wann)\b/i.test(q.trim())) {
     return 'simple';
   }
 
