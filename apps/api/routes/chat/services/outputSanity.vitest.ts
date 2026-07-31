@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
 
-import { looksCutOff, looksLikeToolCallLeak, stripFabricatedSystemClaims } from './outputSanity.js';
+import {
+  defersToSearchDespiteSources,
+  deniesSearchAbilityDespiteSearching,
+  looksCutOff,
+  looksLikeToolCallLeak,
+  stripFabricatedSystemClaims,
+} from './outputSanity.js';
 
 describe('looksCutOff', () => {
   it('flags the live truncated answer', () => {
@@ -119,5 +125,52 @@ describe('looksCutOff — short answers are not evidence', () => {
 
   it('still flags the shortest real cut it exists for', () => {
     expect(looksCutOff('Im Vergleich zu anderen rechtspopulistischen Pa')).toBe(true);
+  });
+});
+
+const SEARCHED = { sources: 10, toolCalls: 2 };
+
+describe('deniesSearchAbilityDespiteSearching', () => {
+  // Verbatim from the live turn this detector exists for: "prüfe nochmal im web"
+  // ran a fresh search, got ten sources, and the answer opened by denying it
+  // could search — then cited those very sources.
+  const LIVE =
+    'Ich kann keine neue Websuche durchführen, da ich nur auf die bereits bereitgestellten Recherche-Ergebnisse zugreifen kann.';
+
+  it('catches the observed refusal', () => {
+    expect(deniesSearchAbilityDespiteSearching(LIVE, SEARCHED)).toBe(true);
+  });
+
+  it.each([
+    'Ich habe keinen Zugriff auf das Internet.',
+    'Ich kann nicht im Internet suchen.',
+    'Ich kann leider keine aktuelle Recherche durchführen.',
+    'Dazu kann ich nur auf die vorliegenden Quellen zugreifen.',
+  ])('catches the phrasing: %s', (text) => {
+    expect(deniesSearchAbilityDespiteSearching(text, SEARCHED)).toBe(true);
+  });
+
+  it.each([
+    // Naming a gap in the sources is the DESIRED behaviour, not a refusal.
+    'Zum Stand nach September 2025 steht in den Quellen nichts.',
+    'Die Quellen decken die Frage nicht ab.',
+    'Ich kann die Änderung nicht vornehmen.',
+    'Robert Habeck hat sein Mandat im September 2025 niedergelegt.',
+  ])('leaves an honest answer alone: %s', (text) => {
+    expect(deniesSearchAbilityDespiteSearching(text, SEARCHED)).toBe(false);
+  });
+
+  it('stays silent when the turn genuinely searched nothing', () => {
+    expect(deniesSearchAbilityDespiteSearching(LIVE, { sources: 0, toolCalls: 0 })).toBe(false);
+  });
+
+  it('is a different signal from the search RECOMMENDATION detector', () => {
+    // Both fire on "the answer mishandles search", but they must not collapse
+    // into one counter: one hands work back to the user, the other misdescribes
+    // what the product can do, and the fixes differ.
+    expect(defersToSearchDespiteSources(LIVE, SEARCHED)).toBe(false);
+    const recommendation = 'Dazu empfehle ich dir eine kurze Websuche.';
+    expect(defersToSearchDespiteSources(recommendation, SEARCHED)).toBe(true);
+    expect(deniesSearchAbilityDespiteSearching(recommendation, SEARCHED)).toBe(false);
   });
 });

@@ -154,11 +154,29 @@ export function withResearchedSources(brief: string, sourcesBlock: string): stri
   return `${brief}\n\nNutze diese recherchierten Quellen für die Inhalte:\n${sourcesBlock}${rule}`;
 }
 
-// The URL is part of the line because the snippet block is the ONLY view of a
-// source any writing model gets. Without it an artifact tool (PDF, deck, sheet)
-// can cite `[N]` but is structurally unable to reproduce the original link —
-// "erstelle ein PDF mit den Originalquellen" then yields placeholder URLs.
-// `[N]` stays the citation marker; the URL is the payload behind it.
+/** ISO timestamp → `YYYY-MM-DD`, or '' when the source carries no usable date.
+ *  Day precision on purpose: an hour in a snippet line reads like data we do
+ *  not have. */
+function publishedDay(r: SearchResult): string {
+  const raw = r['publishedDate'];
+  if (typeof raw !== 'string' || !raw.trim()) return '';
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
+}
+
+// The URL and the publication date are part of the line because this block is
+// the ONLY view of a source any writing model gets.
+//
+// Without the URL an artifact tool (PDF, deck, sheet) can cite `[N]` but is
+// structurally unable to reproduce the original link — "erstelle ein PDF mit den
+// Originalquellen" then yields placeholder URLs. `[N]` stays the citation
+// marker; the URL is the payload behind it.
+//
+// Without the date the model cannot tell a 2023 page from last week's, so a
+// stale "ist Bundesminister" arrives looking exactly as current as the
+// correction — which is how an answer reported a mandate given up months
+// earlier. The ranking already reads `publishedDate` (recencyBoost); showing it
+// closes the gap between what ranks the sources and what writes the answer.
 function snippetLine(index: number, r: SearchResult, cap = SNIPPET_CHARS, prior = false): string {
   const title = (r.title || r.source || 'Quelle').trim();
   const body = applyContextCap(
@@ -168,8 +186,10 @@ function snippetLine(index: number, r: SearchResult, cap = SNIPPET_CHARS, prior 
     false
   );
   const url = typeof r.url === 'string' && r.url.trim() ? ` <${r.url.trim()}>` : '';
+  const day = publishedDay(r);
+  const date = day ? ` (${day})` : '';
   const mark = prior ? ' (frühere Recherche)' : '';
-  return `[${index}]${mark} ${title}${url}${body ? ` — ${body}` : ''}`;
+  return `[${index}]${mark} ${title}${url}${date}${body ? ` — ${body}` : ''}`;
 }
 
 /** One entry per source. `prior` is the ONLY thing separating a carried source
