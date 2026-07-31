@@ -8,11 +8,36 @@ import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { ThreadId, UserId } from '../../utils/types/branded.js';
 
+import { withImageProxy } from './services/searchImagePayload.js';
 import { canAccessThread } from './services/threadAccessService.js';
 import { getUser } from './services/threadPersistenceService.js';
 
+import type { WebImageResult } from '../../agents/langgraph/ChatGraph/types.js';
+
 const log = createLogger('MessagesController');
 const router = createAuthenticatedRouter();
+
+/**
+ * Persisted image hits → render-ready payloads with a fresh proxy handle.
+ *
+ * Validates rather than casts: these rows were written by an older build in the
+ * general case, and an entry without a usable URL would render as a tile with
+ * `undefined` in its `src`.
+ */
+function rehydrateSearchImages(raw: unknown[]): unknown[] {
+  const images: WebImageResult[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object') continue;
+    const { url, title, domain } = entry as Record<string, unknown>;
+    if (typeof url !== 'string' || url.trim().length === 0) continue;
+    images.push({
+      url,
+      title: typeof title === 'string' ? title : '',
+      domain: typeof domain === 'string' ? domain : '',
+    });
+  }
+  return images.map(withImageProxy);
+}
 
 router.get('/', async (req, res) => {
   try {
@@ -105,6 +130,7 @@ router.get('/', async (req, res) => {
             traceId?: string;
             citations?: unknown[];
             searchResults?: unknown[];
+            searchImages?: unknown[];
             roleName?: string;
             generatedImage?: Record<string, unknown>;
             createdDocument?: Record<string, unknown>;
@@ -148,6 +174,16 @@ router.get('/', async (req, res) => {
               ? { computeData: meta.computeData as Record<string, unknown> }
               : {}),
             ...(typeof meta.agentId === 'string' && { agentId: meta.agentId }),
+            // Web-search image hits. Re-signed on every load rather than read
+            // back verbatim: the persisted rows carry no `proxyUrl` (a signed
+            // handle expires after 24h, the row does not), so the fresh handle
+            // is minted here — the same "sign at the moment of handing out"
+            // rule the live stream follows. With no signing secret configured
+            // `withImageProxy` returns the entry unchanged and the client falls
+            // back to plain links.
+            ...(Array.isArray(meta.searchImages)
+              ? { searchImages: rehydrateSearchImages(meta.searchImages) }
+              : {}),
           };
           if (Array.isArray(meta.toolCalls)) {
             embeddedToolCalls = meta.toolCalls as EmbeddedToolCall[];
