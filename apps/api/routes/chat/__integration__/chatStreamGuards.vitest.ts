@@ -194,13 +194,16 @@ describe('negative action constraints', () => {
     expect(forbidden.trace.intent).toBe('produktion');
     expect(forbidden.trace.documentCreated).toBe(false);
 
+    // Der Kontrolllauf braucht seit #2270 kein Skript mehr: "leg sie als
+    // Dokument ab" wird in beiden Wortstellungen von der Heuristik erkannt und
+    // bei Tier 3 entschieden. Ein Skript hier waere schlimmer als keins — es
+    // wuerde nie verbraucht und damit behaupten, einen Pfad zu pinnen, den der
+    // Turn gar nicht nimmt.
     suite.pool.reset();
-    scriptIntent('save_as_doc');
     const allowed = await runTurn(suite.baseUrl(), {
       messages: [userTurn('Halte die Ergebnisse fest und leg sie als Dokument ab.')],
     });
-    suite.pool.assertScriptsConsumed();
-    expect(allowed.trace.intent).not.toBe('produktion');
+    expect(allowed.trace.intent).toBe('save_as_doc');
   });
 });
 
