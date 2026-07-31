@@ -36,7 +36,7 @@ export const TAB_NOTES: TabNote[] = [
     intro:
       'Der farbige Schimmer auf deiner Startseite — der Fläche, auf der du nach dem Anmelden stehst. Jede Kachel zeigt den Verlauf, den sie einstellt; ein Klick übernimmt ihn sofort.',
     extras: [
-      'Die Presets unterscheiden sich nicht nur in der Farbe, sondern darin, wie viel Fläche farbig bleibt: **Nebel**, **Klarer Kern** und **Dunst von unten** nutzen dieselben vier Töne hinter unterschiedlich viel weißem Schleier.',
+      'Die Auswahl ist zweigeteilt: **Bunt** verteilt mehrere Farben über die Fläche, **Einfarbig** legt einen Ton darüber. Innerhalb von „Bunt" unterscheiden sich **Nebel**, **Klarer Kern** und **Dunst von unten** nicht in der Farbe — sie nutzen dieselben vier Töne hinter unterschiedlich viel weißem Schleier.',
       'Der Senden-Button unter dem Composer übernimmt die Farbe des gewählten Hintergrunds — die Kachel zeigt ihn als Punkt mit an.',
       '**Neutral** schaltet den Verlauf ganz ab; dann steht dort die normale Seitenfläche.',
       'Im Dunkelmodus bleiben dieselben Presets, nur gedämpft — die Kacheln zeigen die Fassung, die zu deinem Farbschema gehört.',
