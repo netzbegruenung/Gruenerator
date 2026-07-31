@@ -93,14 +93,23 @@ describe('selectProviderAndModel — provider and model agree', () => {
   });
 
   it('leaves non-creation traffic on its own lanes', () => {
-    // The creation set must not swallow the rest of the table — chat, search
-    // and the fast helper lanes keep their models.
+    // The creation set must not swallow the rest of the table — lanes with an
+    // explicit entry keep their models.
     expect(selectProviderAndModel({ type: 'image_picker', env: {} }).provider).not.toBe('mistral');
+  });
+
+  it('moves the lanes that only ever rode the base default off GPT-OSS', () => {
+    // `text_adjustment` and `chat_quality_gate` have no branch of their own —
+    // they inherited the base default, which was litellm/verdigado-pro until
+    // the 2026-07-31 GPT-OSS wind-down and is Mistral Medium 3.5 now. Naming
+    // them here so the move is a recorded decision rather than a side effect
+    // nobody noticed: these two are the only types that changed model without
+    // a line of their own being touched.
     expect(selectProviderAndModel({ type: 'text_adjustment', env: {} }).model).toBe(
-      'verdigado-pro'
+      'mistral-medium-2604'
     );
     expect(selectProviderAndModel({ type: 'chat_quality_gate', env: {} }).model).toBe(
-      'verdigado-pro'
+      'mistral-medium-2604'
     );
   });
 
