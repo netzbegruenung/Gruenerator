@@ -12,6 +12,11 @@
 import { createLogger } from '../../utils/logger.js';
 import { urlCrawlerService } from '../scrapers/implementations/UrlCrawler/index.js';
 
+import { distillPassages } from './PassageDistiller.js';
+
+import type { DistilledChunk, DistillMode } from './PassageDistiller.js';
+import type { AIWorkerPool } from '../../workers/types.js';
+
 const log = createLogger('CrawlingService');
 
 export interface CrawlableResult {
@@ -125,4 +130,71 @@ export async function selectAndCrawlTopUrls<T extends CrawlableResult>(
     return uncrawledResult;
   });
   return mergedResults;
+}
+
+export interface DistilledCrawlResult extends CrawledResult {
+  distilled?: boolean;
+  distilledChunks?: DistilledChunk[];
+  sourceChars?: number;
+}
+
+export interface CrawlAndDistillOptions extends CrawlOptions {
+  mode: DistillMode;
+  targetChars: number;
+  aiWorkerPool?: AIWorkerPool | null;
+}
+
+/**
+ * Crawl, then keep the part of the page that answers the question.
+ *
+ * Added ALONGSIDE `selectAndCrawlTopUrls` rather than replacing it:
+ * WebSearchGraph's ContentEnricherNode, SearchGraph's intelligentCrawlNode and
+ * the board agent's scrapeSource all depend on that function's exact contract.
+ *
+ * Unlike the raw crawler this sets `content` — the crawler only ever adds
+ * `fullContent` and leaves the merge to its caller, which is how one of the two
+ * ChatGraph crawl sites ended up never setting `crawled` at all.
+ */
+export async function crawlAndDistill<T extends CrawlableResult>(
+  results: T[],
+  query: string,
+  options: CrawlAndDistillOptions
+): Promise<(T & DistilledCrawlResult)[]> {
+  const crawled = await selectAndCrawlTopUrls(results, query, {
+    maxUrls: options.maxUrls,
+    timeout: options.timeout,
+  });
+
+  const distilled = await Promise.all(
+    crawled.map(async (result) => {
+      const raw = result.fullContent;
+      if (!result.crawled || !raw) return result as T & DistilledCrawlResult;
+
+      const out = await distillPassages({
+        text: raw,
+        query,
+        mode: options.mode,
+        targetChars: options.targetChars,
+        ...(result.url ? { url: result.url } : {}),
+        ...(options.aiWorkerPool ? { aiWorkerPool: options.aiWorkerPool } : {}),
+      });
+
+      return {
+        ...result,
+        content: out.digest || result.content || '',
+        crawled: true,
+        distilled: out.method !== 'disabled' && out.method !== 'passthrough',
+        distilledChunks: out.chunks,
+        sourceChars: out.sourceChars,
+      } as T & DistilledCrawlResult;
+    })
+  );
+
+  const kept = distilled.filter((r) => r.distilled);
+  if (kept.length > 0) {
+    const from = kept.reduce((sum, r) => sum + (r.sourceChars ?? 0), 0);
+    const to = kept.reduce((sum, r) => sum + (r.content?.length ?? 0), 0);
+    log.info(`[Crawl] Distilled ${kept.length}/${crawled.length} pages: ${from}→${to} chars`);
+  }
+  return distilled;
 }

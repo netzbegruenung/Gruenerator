@@ -18,6 +18,12 @@ const webSearch = vi.fn<(params: Record<string, unknown>) => Promise<unknown>>()
 vi.mock('../../../services/search/LinkupService.js', () => ({
   getLinkupService: () => ({ webSearch }),
 }));
+// Pin the cheap GreenPT lane off. These assertions are about what LINKUP is
+// asked for, and the lane is gated on ambient env a developer may have set.
+vi.mock('../../../services/search/GreenPTSearchService.js', () => ({
+  getGreenPTSearchService: () => null,
+  GREENPT_MAX_RESULTS: 10,
+}));
 
 const { executeDirectWebSearch } = await import('./directSearchExecutors.js');
 
