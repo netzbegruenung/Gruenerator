@@ -30,7 +30,7 @@ describe('gridIntensityFor', () => {
   it('separates the French and German upstreams', () => {
     // The recorded provider is the upstream, so Scaleway-routed Mistral Medium
     // must not inherit the German mix.
-    expect(gridIntensityFor('scaleway')).toBe(22);
+    expect(gridIntensityFor('scaleway')).toBe(24);
     expect(gridIntensityFor('mistral')).toBe(22);
     expect(gridIntensityFor('litellm')).toBe(363);
   });

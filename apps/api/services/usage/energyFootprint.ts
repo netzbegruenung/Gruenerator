@@ -16,6 +16,14 @@
  * work. What differs is the hardware, the batching and the grid — hardware and
  * batching we cannot correct for (hence "≈"), the grid we can and do.
  *
+ * One lane is stronger than that: GreenPT states "every GreenPT request runs on
+ * Scaleway's 100% renewable-powered compute in Paris" (greenpt.com/partners),
+ * and Scaleway puts every AI server in DC5 (Impact Report 2025, p. 25). Our
+ * `mistral-medium-2604` lane routes to Scaleway too — so for the default chat
+ * model the measurement and the production workload share a datacenter, a PUE
+ * and a GPU generation. There the transfer is near-exact; for the Regolo and
+ * verdigado lanes it stays a transfer.
+ *
  * WHY ENERGY AND EMISSIONS ARE SEPARATE: emissions = energy x grid intensity.
  * The measurement series found `emissions/energy` pinned at 30.4 g/kWh across
  * all 35 chat runs but 56 g/kWh on an embeddings call minutes later — that is
@@ -98,10 +106,14 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
   // All figures are 2024 annual averages, combustion emissions only (no
   // upstream/lifecycle), so the three stay comparable to each other.
   mistral: 22, // France, RTE Bilan électrique 2024 — nuclear-dominated
-  scaleway: 22, // France, Paris region
+  // Scaleway's own disclosure beats a country average: Impact Report 2025 gives
+  // Scope 2 location-based 3.155 tCO2e over 132.881 MWh = 23,7 g/kWh.
+  scaleway: 24,
   litellm: 363, // Germany 2024, Umweltbundesamt (consumption-based, see caveat)
   regolo: 270, // Italy 2024, Ember Yearly Electricity Data
-  greenpt: 30, // fallback only; GreenPT rows carry measured emissions
+  // Fallback only — GreenPT rows carry measured emissions. Same value as
+  // Scaleway because GreenPT runs on Scaleway Paris.
+  greenpt: 24,
 };
 
 /**
@@ -125,6 +137,12 @@ const PUE_BY_PROVIDER: Readonly<Record<string, number>> = {
   // Seeweb (Regolo's operator), DHH Group sustainability report 2024, p. 8:
   // "achieving a PUE (Power Usage Effectiveness) below 1,20".
   regolo: 1.2,
+  // Scaleway Impact Report 2025, p. 25: DC5 runs at PUE 1,25 and "all the
+  // servers necessary for artificial intelligence are installed in this data
+  // center". Identical to the GreenPT reference, so this is a no-op — stated
+  // explicitly so nobody replaces it with Scaleway's 1,375 fleet average, which
+  // includes the non-AI sites.
+  scaleway: 1.25,
 };
 
 export interface Footprint {
