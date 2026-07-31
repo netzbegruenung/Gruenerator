@@ -39,7 +39,6 @@ import { isExplicitDeepRequest } from '../../../../services/search/searchDepth.j
 import { analyzeTemporality } from '../../../../services/search/TemporalAnalyzer.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
-import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
 import { getActiveAnchors } from './anchorContext.js';
 import {

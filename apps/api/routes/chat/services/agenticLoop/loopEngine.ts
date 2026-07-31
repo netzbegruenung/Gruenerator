@@ -6,7 +6,7 @@
  *  - `unified`: the selected model drives tools AND writes the answer in one
  *    streamed pass. Used only when the selection is a fast native tool-caller
  *    (Mistral) — fastest and highest-fidelity.
- *  - `split` (planner/executor): a fixed fast planner (INTERMEDIATE_MODEL) runs
+ *  - `split` (planner/executor): a fixed fast planner (`standard` stage) runs
  *    the ADAPTIVE tool loop and gathers evidence into the source registry, then
  *    the selected model writes the answer ONCE over those sources (no tools).
  *    Every tool call runs on the confirmed tool-caller, so loop tool-calling no
