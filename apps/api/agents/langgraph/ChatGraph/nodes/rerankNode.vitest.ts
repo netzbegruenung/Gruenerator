@@ -107,4 +107,122 @@ describe('rerankNode', () => {
     expect(result.searchResults).toBeUndefined();
     expect(result.rerankFailed).toBeUndefined();
   });
+
+  const flatScores = (n: number) =>
+    new Map(Array.from({ length: n }, (_, i) => [i, 0.8] as [number, number]));
+
+  describe('distilled candidates', () => {
+    // A distilled page was assembled by taking the passages this same
+    // cross-encoder scored highest against this same query — re-scoring it is a
+    // biased maximum, and it competes against raw party documents.
+    it('damps a distilled candidate against an undistilled one', async () => {
+      rerankPipelineMock.mockResolvedValue({
+        rankedIndices: [0, 1, 2],
+        scores: flatScores(3),
+        rerankTimeMs: 4,
+      });
+      const results = makeResults(3);
+      results[0]!.distilled = true;
+      const out = await rerankNode(makeState({ searchResults: results }));
+      const [first, second] = out.searchResults ?? [];
+      expect(first?.relevance).toBeLessThan(second?.relevance as number);
+      expect(first?.relevance).toBeCloseTo(0.8 * 0.85, 5);
+    });
+
+    it('scores the best passage, not the head of the digest', async () => {
+      rerankPipelineMock.mockResolvedValue({
+        rankedIndices: [0, 1, 2],
+        scores: flatScores(3),
+        rerankTimeMs: 4,
+      });
+      const results = makeResults(3);
+      results[0]!.content = `${'HEAD '.repeat(300)}${'TAIL '.repeat(300)}`;
+      results[0]!.distilledChunks = [
+        { text: 'HEAD '.repeat(300).trim(), score: 0.1, order: 0, start: 0 },
+        { text: 'TAIL '.repeat(300).trim(), score: 0.9, order: 1, start: 1500 },
+      ];
+      await rerankNode(makeState({ searchResults: results }));
+      const items = rerankPipelineMock.mock.calls[0]?.[0]?.items as Array<{ content: string }>;
+      expect(items[0]?.content.startsWith('TAIL')).toBe(true);
+    });
+
+    it('leaves an undistilled candidate on a plain head slice', async () => {
+      rerankPipelineMock.mockResolvedValue({
+        rankedIndices: [0, 1, 2],
+        scores: flatScores(3),
+        rerankTimeMs: 4,
+      });
+      const results = makeResults(3);
+      results[0]!.content = 'ANFANG '.repeat(400);
+      await rerankNode(makeState({ searchResults: results }));
+      const items = rerankPipelineMock.mock.calls[0]?.[0]?.items as Array<{ content: string }>;
+      expect(items[0]?.content.startsWith('ANFANG')).toBe(true);
+      expect(items[0]?.content.length).toBe(1200);
+    });
+  });
+
+  describe('recency', () => {
+    const withDates = (): SearchResult[] => {
+      const r = makeResults(3);
+      r[0]!.publishedDate = new Date(Date.now() - 5 * 86_400_000).toISOString();
+      r[1]!.publishedDate = new Date(Date.now() - 900 * 86_400_000).toISOString();
+      return r;
+    };
+
+    it('lifts a fresh source above a stale one on a temporal question', async () => {
+      rerankPipelineMock.mockResolvedValue({
+        rankedIndices: [0, 1, 2],
+        scores: flatScores(3),
+        rerankTimeMs: 4,
+      });
+      const out = await rerankNode(makeState({ searchResults: withDates(), hasTemporal: true }));
+      const [fresh, stale] = out.searchResults ?? [];
+      expect(fresh?.relevance).toBeGreaterThan(stale?.relevance as number);
+    });
+
+    // For "wer war Marilyn Monroe" preferring recent material is actively wrong.
+    it('changes nothing when the question is not temporal', async () => {
+      rerankPipelineMock.mockResolvedValue({
+        rankedIndices: [0, 1, 2],
+        scores: flatScores(3),
+        rerankTimeMs: 4,
+      });
+      const out = await rerankNode(makeState({ searchResults: withDates(), hasTemporal: false }));
+      expect((out.searchResults ?? []).map((r) => r.relevance)).toEqual([0.8, 0.8, 0.8]);
+    });
+
+    // A provider not reporting a date says nothing about the source.
+    it('does not penalise a source without a date', async () => {
+      rerankPipelineMock.mockResolvedValue({
+        rankedIndices: [0, 1, 2],
+        scores: flatScores(3),
+        rerankTimeMs: 4,
+      });
+      const out = await rerankNode(makeState({ searchResults: withDates(), hasTemporal: true }));
+      expect(out.searchResults?.[2]?.relevance).toBe(0.8);
+    });
+
+    it('ignores an unparseable date instead of throwing', async () => {
+      rerankPipelineMock.mockResolvedValue({
+        rankedIndices: [0, 1, 2],
+        scores: flatScores(3),
+        rerankTimeMs: 4,
+      });
+      const results = makeResults(3);
+      results[0]!.publishedDate = 'letzte Woche';
+      const out = await rerankNode(makeState({ searchResults: results, hasTemporal: true }));
+      expect(out.searchResults?.[0]?.relevance).toBe(0.8);
+    });
+
+    it('no longer asks the cross-encoder for recency it cannot see', async () => {
+      rerankPipelineMock.mockResolvedValue({
+        rankedIndices: [0, 1, 2],
+        scores: flatScores(3),
+        rerankTimeMs: 4,
+      });
+      await rerankNode(makeState({ hasTemporal: true }));
+      const instruct = rerankPipelineMock.mock.calls[0]?.[0]?.instruct as string;
+      expect(instruct).not.toContain('recent');
+    });
+  });
 });

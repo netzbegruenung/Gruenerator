@@ -27,6 +27,79 @@ const RERANK_EXCERPT_CHARS = 1200;
 /** Upper bound on survivors. Was the notebook path's hardcoded value. */
 const RERANK_OUTPUT_CEILING = 12;
 
+/**
+ * Damping for distilled candidates, against the optimizer's curse.
+ *
+ * A distilled page was assembled by picking the passages that scored HIGHEST
+ * with this same cross-encoder against this same query. Re-scoring that is a
+ * biased maximum, not a neutral relevance estimate — while a Qdrant party
+ * document sits here raw. Undamped, distilled web hits would systematically
+ * outrank the party documents the instruct above explicitly asks to prefer, and
+ * eat their share of the prompt budget.
+ *
+ * A calibration constant with no theory behind it. The `[Distill]` telemetry is
+ * how it gets tuned; it is not a number to defend, only one to measure.
+ */
+const DISTILL_SCORE_SHRINK = 0.85;
+
+/** Recency weight when the question is temporal. 0 leaves ranking untouched. */
+const RECENCY_WEIGHT = 0.15;
+/** Age at which the freshness bonus has fully decayed. */
+const RECENCY_HALFLIFE_DAYS = 365;
+
+function shrinkDistilled(score: number, r: { distilled?: boolean | undefined }): number {
+  return r.distilled === true ? score * DISTILL_SCORE_SHRINK : score;
+}
+
+/**
+ * Deterministic freshness bonus, applied only on temporal questions.
+ *
+ * Deliberately NOT an instruction to the cross-encoder: it never sees a date,
+ * and it is not trained on date arithmetic. A source without a date gets no
+ * bonus and no penalty — the provider not reporting one says nothing about the
+ * source. For "wer war Marilyn Monroe" this is off entirely, because there
+ * preferring recent material is actively wrong.
+ */
+function applyRecency(
+  score: number,
+  r: { publishedDate?: string | null | undefined },
+  hasTemporal: boolean | undefined
+): number {
+  if (!hasTemporal || !r.publishedDate) return score;
+  const published = Date.parse(r.publishedDate);
+  if (Number.isNaN(published)) return score;
+  const ageDays = (Date.now() - published) / 86_400_000;
+  if (ageDays < 0) return score;
+  const freshness = Math.max(0, 1 - ageDays / RECENCY_HALFLIFE_DAYS);
+  return score * (1 + RECENCY_WEIGHT * freshness);
+}
+
+/**
+ * Text handed to the cross-encoder for one candidate.
+ *
+ * For a distilled page the digest can exceed the excerpt, and its passages sit
+ * in DOCUMENT order — so a plain head slice would score whatever happened to
+ * come first rather than what the selection actually found.
+ */
+function rerankExcerpt(r: {
+  content: string;
+  distilledChunks?: Array<{ text: string; score: number }> | undefined;
+}): string {
+  const chunks = r.distilledChunks;
+  if (!chunks || chunks.length === 0 || r.content.length <= RERANK_EXCERPT_CHARS) {
+    return r.content.slice(0, RERANK_EXCERPT_CHARS);
+  }
+  const best = [...chunks].sort((a, b) => b.score - a.score);
+  const out: string[] = [];
+  let used = 0;
+  for (const chunk of best) {
+    if (used > 0 && used + chunk.text.length > RERANK_EXCERPT_CHARS) break;
+    out.push(chunk.text);
+    used += chunk.text.length + 2;
+  }
+  return (out.join('\n\n') || r.content).slice(0, RERANK_EXCERPT_CHARS);
+}
+
 function getSourceTag(source: string): string {
   if (source.startsWith(SOURCE_PREFIX.GRUENERATOR)) return 'Parteidokument';
   // Official DIP records. Untagged they fell through to the generic 'Quelle'
@@ -89,8 +162,10 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
 
   const baseInstruct = 'Given a search query, retrieve relevant passages that answer the query.';
   const sourceHint = ' Prefer official party documents and verified sources over web snippets.';
-  const temporalHint = hasTemporal ? ' Prefer recent sources.' : '';
-  const instruct = `${baseInstruct}${sourceHint}${temporalHint}`;
+  // No temporal hint. It used to ask the cross-encoder to "prefer recent
+  // sources" over text that carries no date at all — an instruction it had no
+  // way to follow. Recency is applied deterministically below instead.
+  const instruct = `${baseInstruct}${sourceHint}`;
 
   const queryStr = researchBrief ? `${searchQuery}\n${researchBrief}` : searchQuery || '';
 
@@ -101,7 +176,11 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
       // survive. At 300 chars a crawled page whose relevant passage sits further
       // in was judged on its boilerplate header — a selection loss that then
       // propagates into everything downstream.
-      content: r.content.slice(0, RERANK_EXCERPT_CHARS),
+      //
+      // A distilled page is already the relevant part, but it can exceed the
+      // excerpt: score its best passage rather than whatever the budget put
+      // first, or the selection work is thrown away at the node it was for.
+      content: rerankExcerpt(r),
       source: r.source,
     };
     if (r.relevance != null) {
@@ -123,11 +202,12 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
   const reranked = rankedIndices.flatMap((i) => {
     const candidate = candidates[i];
     if (!candidate) return [];
+    const base = scores.get(i) ?? candidate.relevance ?? DEFAULT_RELEVANCE;
     return [
       {
         ...candidate,
         source: candidate.source ?? '',
-        relevance: scores.get(i) ?? candidate.relevance ?? DEFAULT_RELEVANCE,
+        relevance: applyRecency(shrinkDistilled(base, candidate), candidate, hasTemporal),
       },
     ];
   });

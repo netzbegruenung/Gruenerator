@@ -59,14 +59,23 @@ export async function qualityGateNode(state: ChatGraphState): Promise<Partial<Ch
   // Loop still triggers for weak results (low top score OR few results).
   // If rerank failed, topRerankScore is null and we fall through to the
   // existing LLM path (safety net preserved).
+  //
+  // Distilled sources raise the bar: their text was assembled by picking the
+  // passages that score highest with this very cross-encoder, so clearing 0.7
+  // says little about coverage. Left unguarded, the gate would fall silent on
+  // exactly the turns that crawl — and the follow-up search it protects would
+  // stop firing without anything in the logs saying so.
   const STRONG_RERANK_THRESHOLD = 0.7;
+  const DISTILLED_RERANK_THRESHOLD = 0.85;
+  const topIsDistilled = searchResults[0]?.distilled === true;
+  const threshold = topIsDistilled ? DISTILLED_RERANK_THRESHOLD : STRONG_RERANK_THRESHOLD;
   if (
     state.topRerankScore != null &&
-    state.topRerankScore >= STRONG_RERANK_THRESHOLD &&
+    state.topRerankScore >= threshold &&
     searchResults.length >= 3
   ) {
     log.info(
-      `[QualityGate] Skipping — strong rerank (top=${state.topRerankScore.toFixed(2)}, n=${searchResults.length})`
+      `[QualityGate] Skipping — strong rerank (top=${state.topRerankScore.toFixed(2)} >= ${threshold}${topIsDistilled ? ', distilled' : ''}, n=${searchResults.length})`
     );
     return {
       qualityScore: 4,
