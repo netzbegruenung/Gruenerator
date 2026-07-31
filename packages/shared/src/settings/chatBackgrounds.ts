@@ -16,10 +16,41 @@ import { chatBackgroundSchema, type ChatBackground } from '@gruenerator/contract
  */
 export type ChatBackgroundPlatform = 'web' | 'mobile';
 
+/**
+ * Wie ein Preset die Fläche füllt — die einzige Achse, nach der sich die zehn
+ * überhaupt sortieren lassen.
+ *
+ * Nach Farbe zu gruppieren ginge nicht: die bunten teilen sich alle dieselben
+ * vier Töne und unterscheiden sich nur darin, wie viel Schleier darüber liegt.
+ * Wer die Auswahl öffnet, entscheidet zuerst „viel Farbe oder wenig" und erst
+ * danach „welche".
+ */
+export const CHAT_BACKGROUND_FAMILIES = [
+  {
+    key: 'bunt',
+    label: 'Bunt',
+    description: 'Mehrere Farben über die Fläche verteilt.',
+  },
+  {
+    key: 'einfarbig',
+    label: 'Einfarbig',
+    description: 'Ein Ton für die ganze Fläche — zurückhaltender.',
+  },
+] as const;
+
+export type ChatBackgroundFamily = (typeof CHAT_BACKGROUND_FAMILIES)[number]['key'];
+
 export interface ChatBackgroundPreset {
   key: ChatBackground;
   label: string;
   description: string;
+  /**
+   * Gruppe in der Auswahl. `neutral` steht bei den einfarbigen, obwohl es gar
+   * keinen Ton setzt: es ist trotzdem eine ruhige Fläche, und eine eigene
+   * Gruppe mit genau einer Kachel wäre mehr Überschrift als Inhalt. Was es
+   * wirklich tut, steht in seiner eigenen Beschreibung.
+   */
+  family: ChatBackgroundFamily;
   /** Composer accent (send button). Empty keeps the brand green. */
   accent: string;
   /**
@@ -79,12 +110,14 @@ export const CHAT_BACKGROUND_PRESETS: readonly ChatBackgroundPreset[] = [
     key: 'nebel',
     label: 'Nebel',
     description: 'Farbwolken hinter weißem Dunst — der Composer steht frei.',
+    family: 'bunt',
     accent: '#3f7161',
   },
   {
     key: 'kern',
     label: 'Klarer Kern',
     description: 'Weiß in der Mitte, Farbe nur am Rand — die ruhigste Fassung.',
+    family: 'bunt',
     accent: '#3f7161',
     platforms: ['web'],
   },
@@ -92,12 +125,14 @@ export const CHAT_BACKGROUND_PRESETS: readonly ChatBackgroundPreset[] = [
     key: 'dunst',
     label: 'Dunst von unten',
     description: 'Farbe sammelt sich am unteren Rand, oben bleibt es klar.',
+    family: 'bunt',
     accent: '#3f7161',
   },
   {
     key: 'mesh',
     label: 'Farbwolken',
     description: 'Dieselben Farben ohne Schleier — die kräftigste Fassung.',
+    family: 'bunt',
     accent: '#3f7161',
     platforms: ['mobile'],
   },
@@ -105,42 +140,49 @@ export const CHAT_BACKGROUND_PRESETS: readonly ChatBackgroundPreset[] = [
     key: 'sunrise',
     label: 'Sonnenaufgang',
     description: 'Der Klassiker — warmes Gold hinter dem Composer.',
+    family: 'einfarbig',
     accent: '#8a6d0b',
   },
   {
     key: 'tanne',
     label: 'Tanne',
     description: 'Grünes Licht, ruhig und sattgrün.',
+    family: 'einfarbig',
     accent: '#2f7d4f',
   },
   {
     key: 'himmel',
     label: 'Himmel',
     description: 'Kühles Blau für klaren Kopf.',
+    family: 'einfarbig',
     accent: '#1667b8',
   },
   {
     key: 'sand',
     label: 'Sand',
     description: 'Warmes Beige, sehr zurückhaltend.',
+    family: 'einfarbig',
     accent: '#8f6534',
   },
   {
     key: 'magenta',
     label: 'Magenta',
     description: 'Ein Hauch Pink — auffällig, aber weich.',
+    family: 'einfarbig',
     accent: '#c2185b',
   },
   {
     key: 'regenbogen',
     label: 'Regenbogen',
     description: 'Alle Farben auf einmal — sanft ineinander verlaufend.',
+    family: 'bunt',
     accent: '#8e44ad',
   },
   {
     key: 'neutral',
     label: 'Neutral',
     description: 'Kein Verlauf — nur der Seitenhintergrund.',
+    family: 'einfarbig',
     accent: '',
   },
 ];
