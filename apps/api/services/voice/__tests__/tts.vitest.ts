@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import mistralClient from '../../../workers/mistralClient.js';
+import mistralClient, { mistralGlobalClient } from '../../../workers/mistralClient.js';
 import { CompleteAcceptEnum } from '@mistralai/mistralai/sdk/speech';
 
 const HAS_MISTRAL_KEY = !!process.env.MISTRAL_API_KEY;
@@ -86,7 +86,8 @@ describe.skipIf(!HAS_MISTRAL_KEY)(
     }, 30000);
 
     it('voices list returns paginated response', async () => {
-      const response = await mistralClient.audio.voices.list();
+      // Global client: /v1/audio/voices has no regional route (404 on EU).
+      const response = await mistralGlobalClient.audio.voices.list();
       const result = response as { items?: unknown[]; total: number };
       expect(result).toHaveProperty('total');
       expect(result).toHaveProperty('items');
