@@ -12,19 +12,19 @@
 # vor". Für sie sind die Forced-Intent-Lanes zuständig, nicht diese Tabelle.
 
 ## Dispositionen — was der Klassifikator entschieden hat
-disposition                       n   anteil  davon Tier 4
+disposition                       n   anteil  davon mit Modell
 anchor                            0    0.0 %     0
-artifact                         28   16.9 %     0
+artifact                         29   17.5 %     0
 gated                             3    1.8 %     0
-loop                            112   67.5 %     0
-prose                            23   13.9 %     5
+loop                            112   67.5 %     5
+prose                            22   13.3 %    18
 (unbekannt)                       0    0.0 %     0
 
 ## Entscheidungspunkte — wie entschieden wurde (Zweighäufigkeit)
 (ohne Tier-Eintrag: 6 — Tier-1/2-Zweige journalisieren nicht)
 classifier.tier  (160)
     tier2.7_mcp_followup          0
-    tier2.7_sharepic_followup     5
+    tier2.7_sharepic_followup     6
     tier2.9_docs_help             0
     tier2.95_ambiguous_graphic    3
     tier3_short_message           0
@@ -34,9 +34,10 @@ classifier.tier  (160)
     tier3.5_loop_demotion       101
     tier3.7_source_scope          0
     tier3.7_no_live_source        5
+    tier3.7_source_unavailable    0
     tier3.8_generation_scope     14
-    tier4_llm                     5
-    tier4_llm_error_fallback      0
+    residual                      4
+    error_fallback                0
 
 ## Intents — feinste Körnung, in Enum-Reihenfolge
 research                          0  loop
@@ -57,7 +58,7 @@ wetter                            0  loop
 news                              0  loop
 image                             2  artifact
 image_edit                        1  artifact
-sharepic                         17  artifact
+sharepic                         18  artifact
 social_post                       5  artifact
 summary                           0  gated
 chart                             0  artifact
@@ -75,7 +76,7 @@ create_pdf                        0  artifact
 create_recurring_task             0  gated
 chat_history                      1  gated
 mcp                               0  gated
-produktion                       17  prose
-direct                            5  prose
+produktion                       21  prose
+direct                            0  prose
 greeting                          1  prose
 agentic                         106  loop
