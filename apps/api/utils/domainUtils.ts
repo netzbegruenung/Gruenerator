@@ -44,7 +44,11 @@ export function getCorsOrigins(includeDevOrigins = false): string[] {
       'http://localhost:3004',
       'http://localhost:3005',
       'http://127.0.0.1:3004',
-      'http://127.0.0.1:3005'
+      'http://127.0.0.1:3005',
+      // Office add-in taskpane dev server. Office requires HTTPS even locally,
+      // so there is no http:// counterpart.
+      'https://localhost:3141',
+      'https://127.0.0.1:3141'
     );
   }
 
