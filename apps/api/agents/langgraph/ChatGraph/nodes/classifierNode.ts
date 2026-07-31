@@ -1983,12 +1983,6 @@ export {
 
 export type { HeuristicResult } from './classifierHeuristics.js';
 
-export {
-  extractFilters,
-  heuristicExtractFilters,
-  LANDESVERBAND_ALIASES,
-} from './classifierFilters.js';
-
-export type { ClassifierLLMResponse } from './classifierFilters.js';
+export { heuristicExtractFilters, LANDESVERBAND_ALIASES } from './classifierFilters.js';
 
 export { detectComplexity, detectSearchSources } from './classifierSignals.js';
