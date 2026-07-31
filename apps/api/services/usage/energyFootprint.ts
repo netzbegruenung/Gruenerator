@@ -197,11 +197,22 @@ const GRID_INTENSITY_G_PER_KWH: Readonly<Record<string, number>> = {
   // Fallback only — GreenPT rows carry measured emissions. Same value as
   // Scaleway because GreenPT runs on Scaleway Paris.
   greenpt: 24,
-  // Black Forest Labs (image generation). We call the EU endpoint
-  // (api.eu.bfl.ai), so the power is European, but BFL names no country and no
-  // operator. We charge the German mix: the harshest of the three we use, well
-  // above the EU average of ~230 — the right direction when the location is
-  // undisclosed, and BFL is a German company, so it is not far-fetched either.
+  // Black Forest Labs (image generation) — German mix, and here is the whole
+  // chain of what is known and what is not.
+  //
+  // `api.eu.bfl.ai` is a CNAME onto `azurefd.net`: BFL's own API runs behind
+  // Azure Front Door, so the operator is Microsoft and the scope is the EU. But
+  // Front Door is the EDGE, not the GPU — the name resolves to a PoP, and the
+  // region where inference actually happens stays invisible. Knowing the
+  // operator does not get us a region, so no Azure region factor can be applied
+  // however tempting the extra precision looks.
+  //
+  // Among the Azure EU regions that carry AI capacity, France and Sweden sit
+  // far BELOW the German mix and the Netherlands and Ireland near it. 363 is
+  // therefore at the unfavourable end of the plausible set and clearly above
+  // the EU average of ~230, which is the direction a footprint claim should
+  // err in. Not a proven worst case (Azure also lists Poland Central, whose
+  // grid is worse), just a defensible upper region of the range.
   bfl: 363,
 };
 
