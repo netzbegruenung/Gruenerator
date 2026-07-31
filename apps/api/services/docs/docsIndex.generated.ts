@@ -302,7 +302,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/wissen/inhaltsdatenbank",
     "title": "Inhaltsdatenbank",
     "category": "Wissen",
-    "lead": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 29.720 Vektoren in der Datenbank gespeichert."
+    "lead": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 33.504 Vektoren in der Datenbank gespeichert."
   },
   {
     "url": "/docs/wissen/landesverbaende",
@@ -2460,10 +2460,18 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
     "pageTitle": "Wie nachhaltig ist der Grünerator?",
+    "heading": "Was die ganze Plattform verbraucht",
+    "anchor": "#was-die-ganze-plattform-verbraucht",
+    "category": "Über den Grünerator",
+    "text": "Neben deinem eigenen Verbrauch veröffentlichen wir die Summe über alle Nutzer:innen. Drei Entscheidungen dahinter sind erklärungsbedürftig, weil sie die Zahlen kleiner oder unschärfer machen, als sie sein könnten. Es ist eine Spanne, keine Zahl. Wo ein Modell vermessen ist, fallen beide Enden zusammen. Wo wir nur eine Obergrenze haben, zeigt die Spanne das obere und das untere Ende derselben gemessenen Bandbreite. Ihre Breite ist damit ein direktes Maß dafür, wie viel wir noch nicht wissen — und sie wird schmaler, sobald eine Lane vermessen wird, nicht durch besseres Formulieren. Tage mit sehr wenigen Aktiven fallen ganz heraus. Unterschreitet ein Tag fünf verschiedene Nutzer:innen, wird er nicht nur aus dem Verlauf ausgeblendet, sondern auch aus allen Summen entfernt. Nur auszublenden würde nichts nützen: Wer zwei Zeiträume abfragt, die sich um einen Tag unterscheiden, könnte ihn durch Subtraktion zurückrechnen. Die Zahl der zurückgehaltenen Tage steht mit dabei, damit eine Lücke als Lücke erkennbar ist und nicht als Ruhetag. Die Konstanten stehen dabei. Zu jedem Anbieter veröffentlichen wir den angesetzten Netzmix und den PUE-Wert neben seinem Anteil. Ein Fußabdruck, den niemand "
+  },
+  {
+    "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
+    "pageTitle": "Wie nachhaltig ist der Grünerator?",
     "heading": "Was die Zahl nicht enthält",
     "anchor": "#was-die-zahl-nicht-enthält",
     "category": "Über den Grünerator",
-    "text": "Keine Herstellung, kein Training. Wir zählen den Strom der Anfrage selbst. Der CO₂-Rucksack aus GPU-Produktion und Modelltraining fehlt. Keine Transkription, keine Recherche. Dafür liefert kein Anbieter Messwerte — GreenPTs Transkriptions-Endpunkt etwa gibt gar kein impact-Feld zurück. Diese Schritte fehlen vollständig. Wie groß der fehlende Teil ist, zeigt Scaleways eigene Bilanz besonders klar: Dem Betriebsstrom (Scope 2) mit 3.155 t CO₂e stehen 13.387 t allein für die Server gegenüber — die Hardware-Herstellung wiegt dort das 4,2-fache des Stroms, den sie verbraucht. Mistrals unabhängig geprüfte Ökobilanz kommt in dieselbe Richtung: Sie nennt für eine 400-Token-Antwort rund 1,14 g CO₂e, wo unsere Rechnung für ein vergleichbares Modell bei etwa 0,10 g landet. Wer eine vollständige Bilanz will, muss unsere Zahl als Untergrenze lesen — die Größenordnung des Fehlenden liegt eher beim Vier- bis Zehnfachen als bei ein paar Prozent."
+    "text": "Keine Herstellung, kein Training. Wir zählen den Strom der Anfrage selbst. Der CO₂-Rucksack aus GPU-Produktion und Modelltraining fehlt. Keine Transkription, keine Recherche. Dafür liefert kein Anbieter Messwerte. Bei GreenPT, das als einziges überhaupt misst, haben wir alle in Frage kommenden Endpunkte geprüft: Transkription (/v1/listen) und beide Suchendpunkte antworten ohne impact-Feld, und einen Endpunkt für den Konto-Gesamtverbrauch gibt es nicht. Gemessen wird dort ausschließlich Inferenz auf /v1/chat/completions und /v1/embeddings. Beide Schritte werden deshalb gezählt, aber nicht bewertet — die Übersicht weist sie getrennt aus, damit die Aktivität nicht so aussieht, als wäre sie kostenlos. Kein Grundverbrauch der eigenen Infrastruktur. Datenbanken, Cache, Vektorsuche und die API-Container laufen rund um die Uhr, unabhängig davon, ob jemand etwas erzeugt. Sie stecken in keiner dieser Zahlen. Wie groß der fehlende Teil ist, zeigt Scaleways eigene Bilanz besonders klar: Dem Betriebsstrom (Scope 2) mit 3.155 t CO₂e stehen 13.387 t allein für die Server gegenüber — die Hardware-Herstellung wiegt dort das 4,2-fache des Stroms, den sie verbraucht. Mistrals unabhängig geprüfte Ökob"
   },
   {
     "url": "/docs/ueber-den-gruenerator/nachhaltigkeit",
@@ -2839,7 +2847,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Landesverbände",
     "anchor": "#landesverbände",
     "category": "Wissen",
-    "text": "Die Landesverbände-Sammlung enthält 13.239 Vektoren aus 9 Quellen. Landesverband | Kürzel | Vektoren | ------------------------------- | ------ | ---------: | Mecklenburg-Vorpommern Fraktion | MV-F | 2.428 | Berlin Fraktion | BE-F | 2.253 | Brandenburg | BB | 2.153 | Berlin | BE | 1.834 | Mecklenburg-Vorpommern | MV | 1.412 | Sachsen-Anhalt Fraktion | LSA-F | 1.383 | Thüringen | TH | 770 | Bayern | BY | 722 | Sachsen-Anhalt | LSA | 284 | Gesamt | | 13.239 |"
+    "text": "Die Landesverbände-Sammlung enthält 13.250 Vektoren aus 9 Quellen. Landesverband | Kürzel | Vektoren | ------------------------------- | ------ | ---------: | Mecklenburg-Vorpommern Fraktion | MV-F | 2.428 | Berlin Fraktion | BE-F | 2.253 | Brandenburg | BB | 2.161 | Berlin | BE | 1.834 | Mecklenburg-Vorpommern | MV | 1.412 | Sachsen-Anhalt Fraktion | LSA-F | 1.385 | Thüringen | TH | 771 | Bayern | BY | 722 | Sachsen-Anhalt | LSA | 284 | Gesamt | | 13.250 |"
   },
   {
     "url": "/docs/wissen/inhaltsdatenbank",
@@ -2847,7 +2855,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Sammlungen",
     "anchor": "#sammlungen",
     "category": "Wissen",
-    "text": "Sammlung | Vektoren | -------------- | ---------: | Landesverbände | 19.651 | KommunalWiki | 6.744 | Bundestag | 3.290 | Böll-Stiftung | 35 | Gesamt | 29.720 |"
+    "text": "Sammlung | Vektoren | -------------- | ---------: | Landesverbände | 19.665 | KommunalWiki | 6.773 | Bundestag | 3.304 | Böll-Stiftung | 2.209 | gruene.at | 1.007 | Grünblog | 546 | Gesamt | 33.504 |"
   },
   {
     "url": "/docs/wissen/inhaltsdatenbank",
@@ -2855,7 +2863,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Übersicht",
     "anchor": "#übersicht",
     "category": "Wissen",
-    "text": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 29.720 Vektoren in der Datenbank gespeichert."
+    "text": "Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei. Insgesamt sind 33.504 Vektoren in der Datenbank gespeichert."
   },
   {
     "url": "/docs/wissen/landesverbaende",
