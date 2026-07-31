@@ -23,6 +23,7 @@
 /** Tabs of the web settings dialog. Mobile groups the same ids differently. */
 export type SettingsTab =
   | 'allgemein'
+  | 'hintergrund'
   | 'barrierefreiheit'
   | 'friends'
   | 'personalisierung'
@@ -78,10 +79,18 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     platforms: BOTH,
   },
   {
-    id: 'allgemein.chatHintergrund',
-    tab: 'allgemein',
-    title: 'Chat-Hintergrund',
-    description: 'Färbt den Schimmer hinter dem Chat-Start und den Senden-Button',
+    // Eigener Bereich statt einer Zeile in Allgemein: die Auswahl ist eine
+    // Fläche aus Vorschau-Kacheln, keine Steuerung, die rechts neben eine
+    // Beschriftung passt.
+    //
+    // „Startseite" meint die Fläche, auf der man nach dem Anmelden steht — den
+    // Chat-Start. Der alte Name „Chat-Hintergrund" las sich, als ginge es um
+    // die Fläche hinter einem laufenden Gespräch; gemeint war immer die
+    // Startfläche.
+    id: 'hintergrund.startseite',
+    tab: 'hintergrund',
+    title: 'Startseiten-Hintergrund',
+    description: 'Färbt den Schimmer hinter dem Chat-Start und den Senden-Button darauf',
     platforms: BOTH,
   },
   {
