@@ -274,15 +274,8 @@ async function processVideoAutomatically(
     try {
       const [transcriptionResult, scaledPath] = await Promise.all([
         // The locale drives both the transcription vocabulary and, further
-        // down, the ASS style/font. Duration comes from the metadata pass
-        // above, so the provider policy needs no extra probe.
-        transcribeVideo(
-          inputPath,
-          'manual',
-          undefined,
-          locale,
-          (metadata.duration as number | undefined) ?? null
-        ),
+        // down, the ASS style/font.
+        transcribeVideo(inputPath, 'manual', undefined, locale),
         needsPreScale
           ? preScaleVideo(inputPath, metadata, TARGET_RESOLUTION)
           : Promise.resolve(null),

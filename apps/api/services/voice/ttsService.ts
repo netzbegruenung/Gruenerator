@@ -2,7 +2,7 @@ import { CompleteAcceptEnum } from '@mistralai/mistralai/sdk/speech';
 
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
-import mistralClient from '../../workers/mistralClient.js';
+import mistralClient, { mistralGlobalClient } from '../../workers/mistralClient.js';
 
 const log = createLogger('tts');
 
@@ -127,7 +127,10 @@ class TTSService {
 
   async listVoices(_language?: string): Promise<Voice[]> {
     log.debug('[TTS] Listing voices');
-    const response = await mistralClient.audio.voices.list();
+    // Global client on purpose: /v1/audio/voices is 404 on regional endpoints.
+    // Synthesis itself (`speech.complete` above) IS served regionally, so no
+    // user text leaves the region here — this reads a static voice catalogue.
+    const response = await mistralGlobalClient.audio.voices.list();
     const voices =
       (
         response as {
