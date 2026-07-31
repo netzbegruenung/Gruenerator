@@ -25,6 +25,7 @@ import {
   InvalidToolInputError,
 } from 'ai';
 
+import { buildAiTelemetry } from '../../../../services/telemetry/langfuseTelemetry.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { isWholesaleRefusal, refusalLanguage } from '../refusalDetection.js';
@@ -70,6 +71,18 @@ export interface LoopDeps {
   generateText: typeof generateTextReal;
 }
 const defaultDeps: LoopDeps = { streamText: streamTextReal, generateText: generateTextReal };
+
+/**
+ * Langfuse settings for one loop phase, ready to spread into a streamText call.
+ * The caller has already opened the turn's root span, so these land under it as
+ * named generations — otherwise an agentic turn shows a trace with no LLM work
+ * in it at all. Empty object when Langfuse is off, which is also what the unit
+ * tests see (they never init the telemetry module).
+ */
+const phaseTelemetry = (phase: 'unified' | 'gather' | 'synth') => {
+  const telemetry = buildAiTelemetry(`chat-graph.agentic.${phase}`);
+  return telemetry ? { experimental_telemetry: telemetry } : {};
+};
 
 /** Injected via prepareStep's `system` override on the force-finish step
  *  (LobeHub pattern: strip tools AND tell the model why, instead of a bare
@@ -339,6 +352,7 @@ async function streamWithTools(
       p.forcedToolForStep
     ),
     experimental_repairToolCall: repairToolCall,
+    ...phaseTelemetry('unified'),
   });
   return drain(result, p.onText, p.onReasoning);
 }
@@ -369,6 +383,7 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
         p.forcedToolForStep
       ),
       experimental_repairToolCall: repairToolCall,
+      ...phaseTelemetry('gather'),
     });
     const chunker = p.onNarration ? createSentenceChunker(p.onNarration) : null;
     const iterator = result.stream[Symbol.asyncIterator]();
@@ -531,6 +546,7 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: 
       // Combined so a stalled provider call is torn down, not just abandoned.
       // `writeAbortSignal` deliberately, NOT the turn budget — see its doc.
       abortSignal: AbortSignal.any([p.writeAbortSignal ?? p.abortSignal, idle.signal]),
+      ...phaseTelemetry('synth'),
     });
     try {
       const { text } = await drain(result, gate.push, p.onReasoning, idle);

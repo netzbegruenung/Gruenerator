@@ -145,6 +145,9 @@ const envSchema = z.object({
   LANGFUSE_PUBLIC_KEY: z.string().trim().optional(),
   LANGFUSE_SECRET_KEY: z.string().trim().optional(),
   LANGFUSE_BASE_URL: z.string().trim().optional(),
+  // Optional deploy identifier (image tag / commit sha) stamped onto traces.
+  // Not part of the kill-switch triple — absence just leaves traces unversioned.
+  LANGFUSE_RELEASE: z.string().trim().optional(),
   APIFY_TOKEN: z.string().optional(),
   EVENT_REGISTRY_API_KEY: z.string().optional(),
   POLITPRO_API_KEY: z.string().optional(),
