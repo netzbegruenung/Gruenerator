@@ -5,13 +5,17 @@ import {
   parseGenericFallback,
   resolveToolEntry,
   selectNarration,
+  selectToolRun,
   type PartLike,
 } from '@gruenerator/chat';
-import { Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { Pressable, Text, StyleSheet, View } from 'react-native';
+import { useShallow } from 'zustand/shallow';
 
 import { useTheme } from '../../../hooks/useTheme';
 import { spacing, BODY_FONT, chatType } from '../../../theme';
 import { ShimmerStatusLine } from '../ShimmerStatusLine';
+import { ShimmerText } from '../ShimmerText';
 import { AskHumanCard } from '../tool-ui/AskHumanCard';
 import { ExampleResultsCard } from '../tool-ui/ExampleResultsCard';
 import { ImageResultCard } from '../tool-ui/ImageResultCard';
@@ -22,6 +26,10 @@ import { ResearchArtifactCard } from '../tool-ui/ResearchArtifactCard';
 import { RunPythonCard } from '../tool-ui/RunPythonCard';
 import { ScrapeUrlCard } from '../tool-ui/ScrapeUrlCard';
 import { ToolResultCard } from '../tool-ui/ToolResultCard';
+
+import { useToolGroupExpanded } from './toolGroupContext';
+
+import type { Theme } from '../../../theme/colors';
 
 interface ToolCallProps {
   toolCallId: string;
@@ -48,13 +56,119 @@ function ToolNarration({ toolCallId }: { toolCallId: string }) {
   );
 }
 
-/** Every tool card, with its narration line above it. */
+/**
+ * Every tool card, with its narration line above it and whatever chrome the run
+ * it belongs to calls for — native stand-in for web's `ToolCallGroup`, which
+ * gets the run handed to it by an assistant-ui slot that react-native has no
+ * equivalent of. The decision itself is the shared `selectToolRun` /
+ * `computeToolGroupView`, so the two platforms group alike:
+ *   - streaming run of ≥2 cards → a shimmer collector header above the cards
+ *     (the cards stay visible);
+ *   - finished run of ≥4 → a collapsed summary row, expandable to the full
+ *     transcript (nothing is discarded).
+ * Single cards and short finished runs get no chrome at all.
+ */
 export function AssistantToolCallPartWithNarration(props: ToolCallProps) {
-  return (
+  const theme = useTheme();
+  const { toolCallId } = props;
+
+  // The selector must return only primitives: `useShallow` compares one level
+  // with Object.is, so a freshly built object graph per call would make every
+  // getSnapshot "new" and loop useSyncExternalStore into React #185 as soon as a
+  // message with tool cards renders. Same constraint web's ToolCallGroup notes.
+  const { mode, headerLabel, summary, isRunStart, runKey } = useAuiState(
+    useShallow((s) => {
+      const run = selectToolRun(
+        (s.message?.parts ?? []) as ReadonlyArray<PartLike>,
+        toolCallId,
+        s.message?.status?.type === 'running'
+      );
+      return {
+        mode: run?.view.mode ?? 'passthrough',
+        headerLabel: run?.view.headerLabel ?? '',
+        summary: run?.view.summary ?? '',
+        isRunStart: run?.isRunStart ?? true,
+        runKey: run?.runKey ?? toolCallId,
+      };
+    })
+  );
+
+  const { isExpanded, toggle } = useToolGroupExpanded(runKey);
+
+  const card = (
     <>
-      <ToolNarration toolCallId={props.toolCallId} />
+      <ToolNarration toolCallId={toolCallId} />
       <AssistantToolCallPart {...props} />
     </>
+  );
+
+  if (mode === 'live-header') {
+    return (
+      <>
+        {isRunStart && (
+          <View style={styles.groupHeader}>
+            <ShimmerText
+              mutedColor={theme.textSecondary}
+              brightColor={theme.text}
+              fontSize={chatType.chatBody.fontSize}
+              style={styles.groupHeaderText}
+            >
+              {headerLabel}
+            </ShimmerText>
+          </View>
+        )}
+        {card}
+      </>
+    );
+  }
+
+  if (mode === 'collapsed') {
+    return (
+      <>
+        {isRunStart && (
+          <CollapsedRunRow
+            summary={summary}
+            isExpanded={isExpanded}
+            onToggle={toggle}
+            theme={theme}
+          />
+        )}
+        {isExpanded && (
+          <View style={[styles.collapsedBody, { borderLeftColor: theme.border }]}>{card}</View>
+        )}
+      </>
+    );
+  }
+
+  return card;
+}
+
+function CollapsedRunRow({
+  summary,
+  isExpanded,
+  onToggle,
+  theme,
+}: {
+  summary: string;
+  isExpanded: boolean;
+  onToggle: () => void;
+  theme: Theme;
+}) {
+  return (
+    <Pressable
+      onPress={onToggle}
+      accessibilityRole="button"
+      accessibilityState={{ expanded: isExpanded }}
+      hitSlop={8}
+      style={[styles.collapsedRow, { backgroundColor: theme.surface }]}
+    >
+      <Text style={[styles.collapsedSummary, { color: theme.text }]}>{summary}</Text>
+      <Ionicons
+        name={isExpanded ? 'chevron-up' : 'chevron-down'}
+        size={14}
+        color={theme.textSecondary}
+      />
+    </Pressable>
   );
 }
 
@@ -137,5 +251,35 @@ const styles = StyleSheet.create({
     ...chatType.chatSecondary,
     paddingHorizontal: spacing.small,
     marginTop: spacing.xxsmall,
+  },
+  groupHeader: {
+    paddingHorizontal: spacing.xxsmall,
+    paddingVertical: spacing.xxsmall,
+  },
+  groupHeaderText: {
+    ...chatType.chatBody,
+    fontWeight: '600',
+  },
+  collapsedRow: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxsmall,
+    marginVertical: spacing.xxsmall,
+    paddingHorizontal: spacing.small,
+    paddingVertical: spacing.xxsmall,
+    borderRadius: 999,
+  },
+  collapsedSummary: {
+    ...chatType.chatSecondary,
+    fontFamily: BODY_FONT,
+    fontWeight: '600',
+  },
+  // The rail web draws with border-l-2 on the expanded transcript. Each card
+  // carries its own segment, because on native no single component owns them.
+  collapsedBody: {
+    marginLeft: spacing.xsmall,
+    paddingLeft: spacing.small,
+    borderLeftWidth: 2,
   },
 });
