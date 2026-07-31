@@ -147,6 +147,8 @@
     "knip": "knip",
     "prepare": "husky || true",
     "build": "turbo run build",
+    "overrides:check": "node scripts/sync-pnpm-overrides.mjs --check",
+    "overrides:fix": "node scripts/sync-pnpm-overrides.mjs --fix",
     "typecheck": "turbo run typecheck --concurrency=3",
     "typecheck:affected": "cross-env TURBO_SCM_BASE=origin/master turbo run typecheck --affected --concurrency=1",
     "lint": "turbo run lint",
