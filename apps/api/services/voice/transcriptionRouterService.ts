@@ -3,7 +3,7 @@
  *
  * These helpers used to exist twice, near-identically, in voiceController.ts and
  * voiceContractRouter.ts — roughly 150 duplicated lines including the whole
- * Regolo→Voxtral fallback. Two copies of a provider chain is two places to fix
+ * provider fallback chain. Two copies of a provider chain is two places to fix
  * a provider bug, and only one of them tends to get fixed.
  */
 
@@ -14,17 +14,18 @@ import path from 'path';
 import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 import { extractAudio, cleanupFiles } from '../subtitler/videoUploadService.js';
-import { probeBufferDurationSeconds } from '../transcription/audioDuration.js';
+import {
+  GREENPT_STT_MODEL,
+  groupGreenptWords,
+  listenWithGreenpt,
+} from '../transcription/greenptListen.js';
 import { mimeTypeFromFilename } from '../transcription/mimeTypes.js';
-import { chooseProvider } from '../transcription/providerPolicy.js';
+import { chooseProvider, type TranscriptionProvider } from '../transcription/providerPolicy.js';
 import { recordOperation } from '../usage/UsageTrackingService.js';
 
 import mistralVoiceService from './mistralVoiceService.js';
 
 const log = createLogger('voiceTranscription');
-
-export const REGOLO_BASE_URL = 'https://api.regolo.ai/v1';
-export const WHISPER_MODEL = 'faster-whisper-large-v3';
 
 export const VIDEO_MIME_TYPES = new Set([
   'video/mp4',
@@ -61,16 +62,6 @@ export interface TranscriptionOptions {
   timestamp_granularities?: 'segment'[];
   diarize?: boolean;
   contextBias?: string[];
-  /**
-   * Media length in seconds, when the caller already knows it. Saves the
-   * temp-file probe in transcribeBuffer; omit it and the buffer is probed.
-   */
-  durationSeconds?: number | null;
-}
-
-interface WhisperVerboseResponse {
-  text: string;
-  segments?: TranscriptionSegment[];
 }
 
 export interface ExtractOptions {
@@ -100,51 +91,6 @@ export async function extractAudioFromVideo(
   }
 }
 
-export async function transcribeWithRegoloWhisper(
-  audioBuffer: Buffer,
-  filename: string,
-  options: TranscriptionOptions = {}
-): Promise<TranscriptionResult> {
-  const apiKey = env.REGOLO_API_KEY;
-  if (!apiKey) throw new Error('REGOLO_API_KEY is not configured');
-
-  const { language = 'de', timestamp_granularities } = options;
-  const requestTimestamps = !!timestamp_granularities?.length;
-
-  const blob = new Blob([new Uint8Array(audioBuffer)], { type: mimeTypeFromFilename(filename) });
-  const form = new FormData();
-  form.append('file', blob, filename);
-  form.append('model', WHISPER_MODEL);
-  form.append('language', language);
-
-  if (requestTimestamps) {
-    form.append('response_format', 'verbose_json');
-    form.append('timestamp_granularities[]', 'segment');
-  }
-
-  const response = await fetch(`${REGOLO_BASE_URL}/audio/transcriptions`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}` },
-    body: form,
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Regolo transcription failed (${response.status}): ${errorText}`);
-  }
-
-  const data = (await response.json()) as WhisperVerboseResponse;
-
-  const result: TranscriptionResult = { text: data.text, hasTimestamps: false };
-
-  if (requestTimestamps && data.segments) {
-    result.segments = data.segments.map((s) => ({ start: s.start, end: s.end, text: s.text }));
-    result.hasTimestamps = true;
-  }
-
-  return result;
-}
-
 async function transcribeWithVoxtral(
   audioBuffer: Buffer,
   filename: string,
@@ -160,42 +106,94 @@ async function transcribeWithVoxtral(
 }
 
 /**
+ * GreenPT returns a flat word list, so segments and the `[speaker_N]` markers
+ * that `identifySpeakers` keys off are assembled here. Same marker format as
+ * Voxtral's — the protocol layer must not be able to tell which provider ran.
+ */
+async function transcribeWithGreenpt(
+  audioBuffer: Buffer,
+  filename: string,
+  options: TranscriptionOptions
+): Promise<TranscriptionResult> {
+  const diarize = options.diarize === true;
+  const { text, words } = await listenWithGreenpt(audioBuffer, filename, { diarize });
+
+  const wantsTimestamps = !!options.timestamp_granularities?.length || diarize;
+  if (!wantsTimestamps || words.length === 0) {
+    return { text, hasTimestamps: false };
+  }
+
+  const segments = groupGreenptWords(words);
+  const hasSpeakers = segments.some((s) => s.speaker !== null);
+
+  return {
+    text: hasSpeakers ? segments.map((s) => `[speaker_${s.speaker}] ${s.text}`).join('\n') : text,
+    segments: segments.map((s) => ({ start: s.start, end: s.end, text: s.text })),
+    hasTimestamps: true,
+  };
+}
+
+/** Per-provider key, billing label and caller. Keeps the chain loop flat. */
+const RUNNERS: Record<
+  TranscriptionProvider,
+  {
+    apiKey: () => string | undefined;
+    usage: { provider: string; model: string } | null;
+    run: (
+      audioBuffer: Buffer,
+      filename: string,
+      options: TranscriptionOptions
+    ) => Promise<TranscriptionResult>;
+  }
+> = {
+  // transcribeWithVoxtral records its own operation.
+  voxtral: { apiKey: () => env.MISTRAL_API_KEY, usage: null, run: transcribeWithVoxtral },
+  greenpt: {
+    apiKey: () => env.GREENPT_API_KEY,
+    usage: { provider: 'greenpt', model: GREENPT_STT_MODEL },
+    run: transcribeWithGreenpt,
+  },
+};
+
+/**
  * Provider selection via the shared policy — the same rules the subtitler uses
  * (this router used to carry its own, and ignored TRANSCRIPTION_PROVIDER).
- * Whichever provider loses is still the fallback if the winner errors.
+ * Every provider the policy did not pick stays in the chain as failover.
+ *
  */
 export async function transcribeBuffer(
   audioBuffer: Buffer,
   filename: string,
   options: TranscriptionOptions = {}
 ): Promise<TranscriptionResult> {
-  // Buffer-only entry point: probe via a temp file unless the caller already
-  // knows the length (the upload routes do — they have a path in hand).
-  const durationSeconds =
-    options.durationSeconds ?? (await probeBufferDurationSeconds(audioBuffer, filename));
-
-  const { provider, reason } = chooseProvider({
-    durationSeconds,
+  const { provider, reason, chain } = chooseProvider({
     ...(options.diarize !== undefined && { diarize: options.diarize }),
     ...(options.contextBias !== undefined && { requestedContextBias: options.contextBias }),
     override: env.TRANSCRIPTION_PROVIDER,
   });
 
-  log.info(
-    `[Voice] provider=${provider} (${reason}) duration=${durationSeconds === null ? 'unknown' : `${Math.round(durationSeconds)}s`}`
-  );
+  log.info(`[Voice] provider=${provider} (${reason}) chain=${chain.join('→')}`);
 
-  if (provider === 'regolo' && env.REGOLO_API_KEY) {
+  let lastError: Error | null = null;
+
+  for (const attempt of chain) {
+    const runner = RUNNERS[attempt];
+    if (!runner.apiKey()) continue;
+
     try {
-      const result = await transcribeWithRegoloWhisper(audioBuffer, filename, options);
-      recordOperation({ unit: 'transcriptions', provider: 'regolo', model: WHISPER_MODEL });
+      const result = await runner.run(audioBuffer, filename, options);
+      if (runner.usage) recordOperation({ unit: 'transcriptions', ...runner.usage });
       return result;
     } catch (error) {
-      log.warn(
-        `[Voice] Regolo Whisper failed, falling back to Voxtral: ${(error as Error).message}`
-      );
+      lastError = error as Error;
+      log.warn(`[Voice] ${attempt} transcription failed: ${lastError.message}`);
     }
   }
 
-  return transcribeWithVoxtral(audioBuffer, filename, options);
+  throw (
+    lastError ??
+    new Error(
+      'No transcription provider configured. Set MISTRAL_API_KEY (Voxtral) or GREENPT_API_KEY (green-s-pro).'
+    )
+  );
 }
