@@ -1698,7 +1698,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       case 'chart':
       case 'compute':
       case 'artifact':
+      case 'produktion':
       case 'direct':
+      case 'greeting':
         break;
       // Artefact + editor intents: the content comes from the generation
       // services, not from retrieval here.

@@ -18,14 +18,21 @@ import {
 import { recordDecision } from '../../../../utils/decisionJournal.js';
 
 /**
- * The classifier drops many factual questions into `intent: 'direct'` ("no
- * intent detected") — e.g. "Wie hat X abgestimmt?" — where no tool ever runs.
- * A `direct` turn shaped like a real question is let into the loop (full
- * catalog) so the MODEL decides whether a tool fits: a wrongly-looped chit-chat
- * just answers directly (cheap), while a wrongly-`direct` factual turn fails
+ * The classifier can still drop a factual question into a no-tool verdict —
+ * "Wie hat X abgestimmt?" labelled `produktion` — where nothing is looked up.
+ * Such a turn shaped like a real question is let into the loop (full catalog)
+ * so the MODEL decides whether a tool fits: a wrongly-looped chit-chat just
+ * answers directly (cheap), while a wrongly-`produktion` factual turn fails
  * hard. Kept deliberately narrow (≥4 words + a question mark or interrogative)
  * so greetings ("Wer bist du?", "Wie geht's?") stay on the fast path.
+ *
+ * Since the intent split these three conditions are a RESCUE, not the main
+ * door: what the classifier cannot place now goes to `agentic` directly (prompt
+ * rule 12), which is in AGENTIC_INTENTS. They still matter for the no-tool
+ * verdicts the model DID commit to and got wrong.
  */
+const NO_TOOL_VERDICTS: ReadonlySet<string> = new Set(['produktion', 'direct']);
+
 // Question words. Includes the wo-compounds (worüber/woran/womit/…) that the
 // original list missed — live failure: "worüber hat X im Bundestag gesprochen"
 // slipped the net (no "?" either) and reached the flaky LLM classifier, which
@@ -323,7 +330,7 @@ export function compoundGenerationKind(intent: string, raw: string): CompoundGen
   if (intent === 'create_presentation') return 'presentation';
   if (intent === 'create_sheet') return 'sheet';
   if (intent === 'create_pdf') return 'pdf';
-  if (intent === 'agentic' || intent === 'direct') {
+  if (intent === 'agentic' || intent === 'produktion' || intent === 'direct') {
     // Order = specificity: the concrete products first, the generic "Dokument"
     // last (it's the fallback artifact when nothing more specific matches).
     // pdf before document: "PDF-Dokument" names both nouns but means a PDF.
@@ -485,7 +492,7 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   });
   const inLoopSet =
     p.agenticIntents.has(p.intent) ||
-    (p.intent === 'direct' &&
+    (NO_TOOL_VERDICTS.has(p.intent) &&
       (looksLikeToolableQuestion(p.lastUserText) ||
         p.classifierContradictedResearch === true ||
         unsourcedWriting)) ||
