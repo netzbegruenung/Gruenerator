@@ -84,7 +84,10 @@ describe('getContextWindow', () => {
   it('returns correct context window for known models', () => {
     expect(getContextWindow('mistral-large')).toBe(262_144);
     expect(getContextWindow('gpt-oss')).toBe(64_000);
-    expect(getContextWindow('gemma-4')).toBe(64_000);
+    // Gemma 4 reports the FULL window since it moved off Verdigado — the 64k
+    // ceiling was Ollama's silent-truncation guard, and nothing routes there
+    // for this lane any more.
+    expect(getContextWindow('gemma-4')).toBe(262_144);
     expect(getContextWindow('regolo')).toBe(262_144);
   });
 
@@ -152,28 +155,38 @@ describe('resolveModelTuple — size-aware overflow routing', () => {
   // Stufe 2: an overflow lane serves two very differently sized backends. The
   // reported contextWindow must follow the side actually chosen, otherwise the
   // request is pruned to the small lane's budget while running on the big one.
-  it('reports the PRIMARY window when the Verdigado slot is taken normally', async () => {
+  // Gemma 4 left the overflow scheme on 2026-07-31: Verdigado's Gemma answers
+  // in 38s against Regolo's 4s and thinks unstoppably (no flag disables it on
+  // that host), so there is no load-balancing decision left to make — see
+  // GEMMA_4_REGOLO. These pin that it never reaches Verdigado again.
+  it('always resolves Gemma 4 to Regolo, never to Verdigado', async () => {
     const tuple = await resolveModelTuple('gemma-4', 'req-primary');
-    expect(tuple).not.toBeNull();
-    // Either side may win depending on slot availability, but the window must
-    // match the side that was chosen.
-    if (tuple!.provider === 'litellm') {
-      expect(tuple!.contextWindow).toBe(64_000);
-    } else {
-      expect(tuple!.contextWindow).toBe(262_144);
-    }
-  });
-
-  it('goes straight to the hosted side with preferOverflow, reporting its full window', async () => {
-    const tuple = await resolveModelTuple('gemma-4', 'req-overflow', { preferOverflow: true });
     expect(tuple).not.toBeNull();
     expect(tuple!.provider).toBe('regolo');
     expect(tuple!.model).toBe('gemma4-31b');
+    // Regolo is hosted, so the lane reports the full model context instead of
+    // Verdigado's conservative silent-truncation ceiling.
     expect(tuple!.contextWindow).toBe(262_144);
-    // No slot was acquired, so nothing needs releasing.
+  });
+
+  it('takes no Verdigado slot for Gemma 4', async () => {
+    const tuple = await resolveModelTuple('gemma-4', 'req-noslot');
+    // The slot rations Verdigado's single inference slot. A lane that never
+    // runs there must not hold it — holding one would starve GPT-OSS.
     expect(tuple!.releaseSlot).toBeUndefined();
-    // The unchosen sibling stays available as the timeout fallback.
-    expect(tuple!.sibling).toEqual({ provider: 'litellm', model: 'verdigado-think' });
+  });
+
+  it('falls back to Mistral, not to a Verdigado lane, when Regolo hangs', async () => {
+    const tuple = await resolveModelTuple('gemma-4', 'req-fallback');
+    // Routing the timeout sibling back to verdigado-think would answer a
+    // stalled 4s lane with a 38s one.
+    expect(tuple!.sibling).toEqual({ provider: 'mistral', model: 'mistral-medium-2604' });
+  });
+
+  it('preferOverflow is a no-op for Gemma 4 now that it is a single lane', async () => {
+    const tuple = await resolveModelTuple('gemma-4', 'req-overflow', { preferOverflow: true });
+    expect(tuple!.provider).toBe('regolo');
+    expect(tuple!.contextWindow).toBe(262_144);
   });
 
   it('preferOverflow is a no-op for single lanes', async () => {

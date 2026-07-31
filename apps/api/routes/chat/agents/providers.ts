@@ -129,12 +129,47 @@ const GPT_OSS_OVERFLOW: ModelConfigOverflow = {
   overflowContextWindow: CTX_FULL,
 };
 
-const GEMMA_4_OVERFLOW: ModelConfigOverflow = {
-  kind: 'overflow',
-  primary: { provider: 'litellm', model: 'verdigado-think' },
-  overflow: { provider: 'regolo', model: 'gemma4-31b' },
-  contextWindow: CTX_VERDIGADO,
-  overflowContextWindow: CTX_FULL,
+/**
+ * Gemma 4 — Regolo only. NOT an overflow lane, deliberately.
+ *
+ * It used to be Verdigado-primary with Regolo on overflow, the way GPT-OSS
+ * still is. Measured 2026-07-31, same prompt on both hosts:
+ *
+ *   regolo/gemma4-31b        ~76 tok/s, 0.4s to first token, 4.0s done, NO thinking
+ *   litellm/verdigado-think  23-34 tok/s, 20s to first token, 38s done
+ *
+ * The gap is not only throughput. Verdigado's Gemma thinks before every answer
+ * and no flag stops it — `think:false`, `enable_thinking:false` and
+ * `reasoning_effort:'none'` were each probed and each ignored on that host, so
+ * roughly two thirds of the output budget goes into a reasoning block. Regolo
+ * honours `enable_thinking:false` (verified: zero reasoning characters), which
+ * is why the same weights answer nine times faster there.
+ *
+ * Four places in this codebase were already routing around the slow lane
+ * (AVOID_AS_SYNTH, the agentic respond rewrite, runJudge's model note,
+ * providerSelector's comment) rather than changing it. This is the change
+ * those workarounds were compensating for.
+ *
+ * WHY NOT SIMPLY SWAP THE TWO SIDES: `resolveModelTuple` gates the PRIMARY on
+ * `tryAcquireVerdigadoSlot`. Swapped, Regolo would hold a slot it does not
+ * need, and Verdigado would serve precisely when that slot was busy — i.e.
+ * exactly when it must not run. The slot exists because Verdigado has a single
+ * inference slot, and the rule already established in this file is that
+ * fallback paths never take the Verdigado side (see the `single` fallback
+ * branch). A plain single lane keeps that rule rather than inverting it.
+ *
+ * Verdigado is therefore no longer reachable for Gemma, and its conservative
+ * ceiling went with it: Regolo serves the full model context.
+ */
+const GEMMA_4_REGOLO: ModelConfigSingle = {
+  kind: 'single',
+  provider: 'regolo',
+  model: 'gemma4-31b',
+  contextWindow: CTX_FULL,
+  // Mistral rather than a Verdigado lane, for the reason above. Medium 3.5 is
+  // the other strong German writer here, so a Regolo outage degrades style
+  // instead of taking the lane down.
+  fallback: 'mistral-medium-3.5',
 };
 
 export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
@@ -194,7 +229,7 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
 
   // Overflow lanes — Verdigado primary, Regolo on overflow when slot is busy.
   'gpt-oss': GPT_OSS_OVERFLOW,
-  'gemma-4': GEMMA_4_OVERFLOW,
+  'gemma-4': GEMMA_4_REGOLO,
 };
 
 // Legacy IDs from persisted client state and DB. All point to the new overflow
@@ -202,8 +237,8 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
 // release cycle once chatStore migration v8 has propagated.
 AVAILABLE_MODELS['litellm'] = GPT_OSS_OVERFLOW;
 AVAILABLE_MODELS['gpt-oss-regolo'] = GPT_OSS_OVERFLOW;
-AVAILABLE_MODELS['gemma-litellm'] = GEMMA_4_OVERFLOW;
-AVAILABLE_MODELS['gemma-regolo'] = GEMMA_4_OVERFLOW;
+AVAILABLE_MODELS['gemma-litellm'] = GEMMA_4_REGOLO;
+AVAILABLE_MODELS['gemma-regolo'] = GEMMA_4_REGOLO;
 
 /**
  * Get model configuration by user-facing model ID.
@@ -506,9 +541,11 @@ export function getLoopSynthFallbackModel(
  * pass `false` — the policy's pick reaches the synth slot instead of being
  * silently replaced.
  *
- * AVOID_AS_SYNTH still applies either way: a policy pointing at
- * `gemma-litellm` resolves to `verdigado-think` (a slow reasoning lane), and
- * this rewrites it to the fast gemma4-31b host — same model family, right host.
+ * AVOID_AS_SYNTH still applies either way, but it no longer has to catch the
+ * Gemma lane: `gemma-litellm` now resolves to gemma4-31b on Regolo directly
+ * (see GEMMA_4_REGOLO), so the rewrite that used to save that lane from
+ * `verdigado-think` is a no-op for it. The guard stays for the lanes it still
+ * covers — qwen, gpt-oss, and any agent config naming a think lane by hand.
  */
 export function loopSynthChoice(
   resolvedModelName: string,
