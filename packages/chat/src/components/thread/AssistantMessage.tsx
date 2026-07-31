@@ -253,6 +253,11 @@ export const AssistantMessage = memo(function AssistantMessage() {
         )}
         {custom?.generatedImage && <GeneratedImageDisplay image={custom.generatedImage} />}
 
+        {/* Above the answer, not under it: on a turn that found pictures they are
+            the first thing the reader looks at, and a gallery that follows a
+            1000-word text is a gallery nobody scrolls to. */}
+        {showSearchImages && searchImages && <SearchImagesSection images={searchImages} />}
+
         <CitationProvider citations={citations} fetchFullText={fetchFullText}>
           <MessagePrimitive.Parts components={partComponents} />
         </CitationProvider>
@@ -293,8 +298,6 @@ export const AssistantMessage = memo(function AssistantMessage() {
               : {})}
           />
         )}
-
-        {showSearchImages && searchImages && <SearchImagesSection images={searchImages} />}
 
         {showSearchResults && (
           <SearchResultsSection

@@ -89,14 +89,25 @@ describe('web_search tool — argument mapping onto executeDirectWebSearch', () 
     expect(lastArgs()).not.toHaveProperty('timeRange');
   });
 
-  it('maps bilder: true onto includeImages: true', async () => {
+  /**
+   * Images are no longer something the model asks for. The `bilder` argument is
+   * gone: it existed to avoid paying for pictures nobody looks at, but the engine
+   * charges by depth rather than by what it returns — so all it ever did was make
+   * an explicit image request depend on the planner remembering a flag.
+   */
+  it('asks for image hits on every search, with no argument to forget', async () => {
     await webSearchTool().execute(
-      {
-        query: 'Fotos von der Klimademo',
-        searchType: 'general',
-        tiefe: 'standard',
-        bilder: true,
-      },
+      { query: 'Windkraft Ausbau', searchType: 'general', tiefe: 'standard' },
+      TOOL_OPTS
+    );
+    expect(lastArgs().includeImages).toBe(true);
+  });
+
+  it('ignores a stored `bilder` from a replayed pre-rollout call', async () => {
+    // Persisted tool calls still carry the old argument. The schema strips
+    // unknown keys, so a replay must neither throw nor change what is commissioned.
+    await webSearchTool().execute(
+      { query: 'Fotos von der Klimademo', searchType: 'general', tiefe: 'standard', bilder: false },
       TOOL_OPTS
     );
     expect(lastArgs().includeImages).toBe(true);

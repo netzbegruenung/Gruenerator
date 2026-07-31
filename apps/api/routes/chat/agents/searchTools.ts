@@ -66,21 +66,6 @@ export interface CreateSearchToolsOptions {
    */
   explicitDeepRequest?: boolean;
   /**
-   * Did the user ask to SEE images ("zeig mir Fotos von der Demo")? Decided
-   * deterministically by the classifier (`wantsImageResults`), not by the model.
-   *
-   * The mirror image of `explicitDeepRequest`, needed for the opposite reason:
-   * that one CLAMPS what the model may spend, this one GUARANTEES what the user
-   * already asked for in plain words. Left to the planner alone, an explicit
-   * image request came down to whether the model happened to set `bilder: true`
-   * — a question the classifier had already answered one node earlier, and one
-   * the single-pass path honoured deterministically before the loop took those
-   * intents over.
-   *
-   * Only ever widens: a model that asks for images gets them either way.
-   */
-  wantsImages?: boolean;
-  /**
    * The user's own last message, mention tokens removed. Same role as
    * `explicitDeepRequest`: it is what a narrowing tool argument is checked
    * against. Only `seiten` uses it today — the model invents domains, and an
@@ -277,7 +262,7 @@ EINE SUCHE ZUR ZEIT: Starte eine Suche, lies das Ergebnis, und suche erst dann w
 
 SCOPE GEHÖRT IN DIE PARAMETER, NICHT IN DIE ANFRAGE: Nennt der Benutzer Seiten ("such auf zeit.de und orf.at"), setze seiten; nennt er einen Zeitraum ("seit Januar", "letzte Woche"), setze zeitraum. Schreibe beides NICHT in query — dort werden es bloß Suchwörter, und die Suchmaschine filtert nichts.
 
-BILDER: Will der Benutzer Bilder oder Fotos SEHEN ("zeig mir Fotos von der Demo"), setze bilder: true — er bekommt sie als Links. Bild-Treffer sind Recherchematerial zum Anschauen, KEIN verwendbares Bildmaterial: verwende sie nie für Sharepics oder Social-Posts, und behaupte nicht, sie seien frei nutzbar. Will der Benutzer ein NEUES Bild erstellt haben, ist die Websuche das falsche Tool.
+BILDER: Jede Websuche liefert automatisch Bild-Treffer mit, sie werden dem Benutzer über deiner Antwort angezeigt — du musst nichts dafür setzen. Es ist Recherchematerial zum Anschauen, KEIN verwendbares Bildmaterial: verwende es nie für Sharepics oder Social-Posts, und behaupte nicht, es sei frei nutzbar. Will der Benutzer ein NEUES Bild erstellt haben, ist die Websuche das falsche Tool.
 
 NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
     inputSchema: z.object({
@@ -324,27 +309,18 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
         .array(z.string())
         .optional()
         .describe('Diese Domains überspringen, z.B. ["reddit.com"]. Reine Hostnamen.'),
-      bilder: z
-        .boolean()
-        .optional()
-        .describe(
-          'Bild-Treffer mitliefern (als Links, keine Vorschaubilder). NUR wenn der Benutzer ausdrücklich Bilder oder Fotos sehen will — nicht bei einer Faktenfrage. Für ein NEUES Bild ist das falsche Tool: dann keine Suche.'
-        ),
+      // No `bilder`: image hits now ride along on every web search (see the
+      // `includeImages` call below). The argument existed to keep us from paying
+      // for pictures nobody looks at — but Linkup prices a search by depth ×
+      // outputType, never by what comes back, so it was buying nothing while
+      // making an explicit image request depend on the model remembering a flag.
       // No `maxResults`: the tier owns the source count. Offered to the model it
       // became a second, unlabelled way to under-buy — measured live, a
       // `tiefe: gruendlich` call arrived with `maxResults: 5` and undid the tier.
       // Unknown keys are stripped by the schema, so a replayed stored call that
       // still carries one is simply ignored rather than rejected.
     }),
-    execute: async ({
-      query,
-      searchType,
-      tiefe,
-      zeitraum,
-      seiten,
-      seitenAusschliessen,
-      bilder,
-    }) => {
+    execute: async ({ query, searchType, tiefe, zeitraum, seiten, seitenAusschliessen }) => {
       try {
         // The model's tier is a request in both directions; `resolveSearchTier`
         // clamps it up to the normal case and down to what the user actually
@@ -385,9 +361,12 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
           ...(zeitraum && zeitraum !== 'anytime' ? { timeRange: zeitraum } : {}),
           ...(includeDomains.length > 0 ? { includeDomains } : {}),
           ...(excludeDomains.length > 0 ? { excludeDomains } : {}),
-          // Either the model asked or the user did — the classifier's verdict is
-          // not overridable by a planner that forgot the argument.
-          ...(bilder === true || options.wantsImages === true ? { includeImages: true } : {}),
+          // Always. A web answer is better with pictures next to it, the engine
+          // charges by depth rather than by what it returns, and the extra
+          // `maxResults` headroom keeps the images from eating the text hits.
+          // The client shows three and holds the rest behind a counter, so the
+          // proxy serves three files, not eight.
+          includeImages: true,
         });
       } catch (error) {
         log.error('Direct web search error:', error);

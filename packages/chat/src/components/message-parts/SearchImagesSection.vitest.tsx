@@ -132,3 +132,54 @@ describe('SearchImagesSection', () => {
     expect(container.querySelectorAll('li')).toHaveLength(2);
   });
 });
+
+/**
+ * The mosaic: three tiles open the answer, the rest sits behind a counter.
+ *
+ * Two properties matter beyond the layout. The counter tile is a BUTTON, not a
+ * link — nesting one in the other would make the click ambiguous. And the tiles
+ * behind it are not in the DOM until it is pressed, so a nine-hit turn costs the
+ * proxy three image fetches, not nine.
+ */
+describe('SearchImagesSection mosaic', () => {
+  const many = Array.from({ length: 9 }, (_, i) => ({
+    title: `Bild ${i}`,
+    url: `https://example.test/${i}.jpg`,
+    domain: 'example.test',
+    proxyUrl: `/api/search-image?url=${i}&exp=1&sig=s`,
+  }));
+
+  it('shows three tiles and holds the rest back', () => {
+    const { container } = render(<SearchImagesSection images={many} />);
+    expect(container.querySelectorAll('img')).toHaveLength(3);
+  });
+
+  it('counts the held-back hits on the last tile', () => {
+    const { getByRole } = render(<SearchImagesSection images={many} />);
+    // 9 total − 3 shown = 6 behind the counter.
+    expect(getByRole('button', { name: '6 weitere Bildquellen anzeigen' })).toBeTruthy();
+  });
+
+  it('reveals every hit when the counter is pressed', () => {
+    const { container, getByRole } = render(<SearchImagesSection images={many} />);
+    fireEvent.click(getByRole('button', { name: /weitere Bildquellen/ }));
+    expect(container.querySelectorAll('img')).toHaveLength(9);
+    // And each one is a link again — the counter has nothing left to open.
+    expect(container.querySelectorAll('a')).toHaveLength(9);
+    expect(container.querySelector('button')).toBeNull();
+  });
+
+  it('needs no counter when everything fits', () => {
+    const { container } = render(<SearchImagesSection images={many.slice(0, 3)} />);
+    expect(container.querySelectorAll('img')).toHaveLength(3);
+    expect(container.querySelector('button')).toBeNull();
+  });
+
+  it('still routes every revealed tile through the proxy', () => {
+    const { container, getByRole } = render(<SearchImagesSection images={many} />);
+    fireEvent.click(getByRole('button', { name: /weitere Bildquellen/ }));
+    for (const img of Array.from(container.querySelectorAll('img'))) {
+      expect(img.getAttribute('src') ?? '').toMatch(/^\/api\/search-image\?/);
+    }
+  });
+});
