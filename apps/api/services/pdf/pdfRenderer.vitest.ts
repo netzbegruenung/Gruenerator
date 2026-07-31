@@ -8,11 +8,18 @@ import {
   PDFRef,
   PDFString,
 } from 'pdf-lib';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { type PdfDocumentSpec } from './pdfDocument.js';
 import { PDF_TYPE_AREA, renderPdf } from './pdfRenderer.js';
 import { verifyPdf } from './pdfVerification.js';
+
+// Every test here renders a real PDF and parses it back: font subsetting plus
+// pdf-lib verification runs 1–3 s on a dev box, and the first render in a worker
+// also pays the font warmup. On a CI runner that left no headroom under the 5 s
+// default — "renders every block type (de-DE)" timed out at 5063 ms on master
+// while the same test passed at 3185 ms for de-AT.
+vi.setConfig({ testTimeout: 30_000 });
 
 function spec(overrides: Partial<PdfDocumentSpec> = {}): PdfDocumentSpec {
   return {
