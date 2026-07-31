@@ -6,7 +6,6 @@ import {
   ExtraActionsProvider,
   NotebookChatProvider,
   NotebookComposer,
-  ProgressDisplayContext,
   UserMessage,
   notebookMentionables,
   useAgentStore,
@@ -354,58 +353,54 @@ export const NotebookPageContent = ({
       <PendingQuestionSender />
       <CitationPanelProvider>
         <ExtraActionsProvider factory={extraActionsFactory}>
-          {/* Notebook search runs internally (no tool-call), so render the
-              streaming progress as plain shimmer text instead of the green box. */}
-          <ProgressDisplayContext.Provider value="plain">
-            <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col">
-              <ThreadPrimitive.Empty>
-                <div className="flex flex-1 flex-col overflow-y-auto">
-                  <NotebookStartpage
-                    title={config.startPageTitle}
-                    placeholder={config.placeholder}
-                    exampleQuestions={showExamples ? (config.exampleQuestions ?? []) : []}
-                    composerSourceFilters={sourceFilters}
-                    composerCategoryFilters={categoryFilters}
-                    mode={mode}
-                    onModeChange={setMode}
-                    recentCollectionIds={recentCollectionIds}
-                    showRecentSourceLabel={isMulti}
-                    showStats={showStats}
-                    showLastAdded={showLastAdded}
-                    showManualSearch={showManualSearch}
-                    hideGlobalChat={hideGlobalChat}
-                    manualSearchNotebookId={manualSearchNotebookId}
-                    notebookMention={notebookMention}
-                    notebookId={notebookId}
-                    omniComposer={omniComposer}
-                    pageGradient={pageGradient}
-                    footer={startpageFooter}
-                  />
-                </div>
-              </ThreadPrimitive.Empty>
-              <ThreadPrimitive.If empty={false}>
-                <div className="flex min-h-0 h-full flex-col">
-                  <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
-                    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 py-4">
-                      <ThreadPrimitive.Messages
-                        components={{
-                          UserMessage,
-                          AssistantMessage,
-                        }}
-                      />
-                    </div>
-                  </ThreadPrimitive.Viewport>
-                  <NotebookComposer
-                    placeholder={config.placeholder}
-                    sourceFilters={sourceFilters}
-                    categoryFilters={categoryFilters}
-                    mode={mode}
-                    onModeChange={setMode}
-                  />
-                </div>
-              </ThreadPrimitive.If>
-            </ThreadPrimitive.Root>
-          </ProgressDisplayContext.Provider>
+          <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col">
+            <ThreadPrimitive.Empty>
+              <div className="flex flex-1 flex-col overflow-y-auto">
+                <NotebookStartpage
+                  title={config.startPageTitle}
+                  placeholder={config.placeholder}
+                  exampleQuestions={showExamples ? (config.exampleQuestions ?? []) : []}
+                  composerSourceFilters={sourceFilters}
+                  composerCategoryFilters={categoryFilters}
+                  mode={mode}
+                  onModeChange={setMode}
+                  recentCollectionIds={recentCollectionIds}
+                  showRecentSourceLabel={isMulti}
+                  showStats={showStats}
+                  showLastAdded={showLastAdded}
+                  showManualSearch={showManualSearch}
+                  hideGlobalChat={hideGlobalChat}
+                  manualSearchNotebookId={manualSearchNotebookId}
+                  notebookMention={notebookMention}
+                  notebookId={notebookId}
+                  omniComposer={omniComposer}
+                  pageGradient={pageGradient}
+                  footer={startpageFooter}
+                />
+              </div>
+            </ThreadPrimitive.Empty>
+            <ThreadPrimitive.If empty={false}>
+              <div className="flex min-h-0 h-full flex-col">
+                <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
+                  <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 py-4">
+                    <ThreadPrimitive.Messages
+                      components={{
+                        UserMessage,
+                        AssistantMessage,
+                      }}
+                    />
+                  </div>
+                </ThreadPrimitive.Viewport>
+                <NotebookComposer
+                  placeholder={config.placeholder}
+                  sourceFilters={sourceFilters}
+                  categoryFilters={categoryFilters}
+                  mode={mode}
+                  onModeChange={setMode}
+                />
+              </div>
+            </ThreadPrimitive.If>
+          </ThreadPrimitive.Root>
         </ExtraActionsProvider>
         <CitationSidePanel />
       </CitationPanelProvider>
