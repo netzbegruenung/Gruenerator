@@ -353,3 +353,48 @@ describe('formatSearchContext routing', () => {
     expect(out).toBe('');
   });
 });
+
+describe('formatSearchContext on a distilled source', () => {
+  /** Three passages, the relevant one in the MIDDLE — the case this PR exists for. */
+  function distilledState(budget: number): ChatGraphState {
+    // ~3000 chars each, so the 6000-char crawled floor genuinely bites.
+    const passages = [
+      { text: `ANFANG ${'Vorspann. '.repeat(300)}`.trim(), score: 0.1, order: 0, start: 0 },
+      { text: `MITTE ${'Der Kern. '.repeat(300)}`.trim(), score: 0.95, order: 1, start: 4000 },
+      { text: `ENDE ${'Nachspann. '.repeat(280)}`.trim(), score: 0.2, order: 2, start: 8000 },
+    ];
+    return makeState({
+      contextWindowTokens: budget,
+      searchResults: [
+        {
+          source: 'web',
+          title: 'Lange Seite',
+          url: 'https://example.org/a',
+          content: passages.map((p) => p.text).join('\n\n'),
+          relevance: 0.9,
+          crawled: true,
+          distilled: true,
+          distilledChunks: passages,
+        },
+      ],
+    });
+  }
+
+  it('keeps the strongest passage and drops the weakest when the budget bites', async () => {
+    const out = await formatSearchContext(distilledState(4000));
+    expect(out).toContain('MITTE');
+    expect(out).not.toContain('ANFANG');
+  });
+
+  it('never hollows out the middle the way truncateDocument would', async () => {
+    const out = await formatSearchContext(distilledState(4000));
+    expect(out).not.toContain('Zeichen gekürzt');
+  });
+
+  it('restores document order among the survivors', async () => {
+    const out = await formatSearchContext(distilledState(14000));
+    const mitte = out.indexOf('MITTE');
+    const ende = out.indexOf('ENDE');
+    if (mitte >= 0 && ende >= 0) expect(mitte).toBeLessThan(ende);
+  });
+});
