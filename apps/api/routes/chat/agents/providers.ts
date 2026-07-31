@@ -14,6 +14,7 @@ import {
   isProviderConfigured,
   routeMistralModel,
 } from '../../../services/ai/providerInstances.js';
+import { regoloTextDefault } from '../../../services/ai/textModelPolicy.js';
 import {
   tryAcquireVerdigadoSlot,
   releaseVerdigadoSlot,
@@ -42,7 +43,8 @@ export const VISION_MODEL = {
   model: env.VISION_DEFAULT_MODEL || 'gemma4-31b',
 };
 
-export { INTERMEDIATE_MODEL, getIntermediateModel } from '../../../services/ai/providers.js';
+export { getIntermediateModel } from '../../../services/ai/providers.js';
+export { intermediateLane } from '../../../services/ai/intermediateLanes.js';
 
 export { isVisionCapable };
 
@@ -242,12 +244,12 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
   regolo: {
     kind: 'single',
     provider: 'regolo',
-    model: env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b',
+    model: regoloTextDefault(),
     contextWindow: CTX_FULL,
   },
   // Backend-only lane, reachable via the auto policy but NOT in the model
   // picker (that is driven by MODEL_OPTIONS in @gruenerator/core/models). Same
-  // model as INTERMEDIATE_MODEL: fast, tool-call verified (it is the regolo
+  // model as the intermediate stages: fast, tool-call verified (it is the regolo
   // entry in DOCS_AI_MODELS / BOARD_AI_MODELS) and the right size for the
   // short, structured turns the policy routes here.
   'mistral-small-4': {
@@ -478,7 +480,7 @@ function resolveModel(
         lastFallbackProvider = 'mistral';
         return getMistralProvider()(modelId);
       }
-      return getRegoloProvider().chat(modelId || env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b');
+      return getRegoloProvider().chat(modelId || regoloTextDefault());
     }
     case 'greenpt':
       return getGreenPTProvider().chat(
@@ -507,7 +509,7 @@ export function isAgenticToolCapable(provider: string, _modelName: string): bool
 /**
  * Whether the SELECTED model drives the tool loop directly (unified single-model
  * pass) vs. delegating tool orchestration to the fast planner (planner/executor
- * split: INTERMEDIATE_MODEL gathers, selected model writes the answer).
+ * split: the `standard` intermediate stage gathers, selected model writes the answer).
  *
  * True only for Mistral — our fast NATIVE tool-caller, where one pass is both
  * fastest and highest-fidelity. Everything else splits: the fixed fast planner

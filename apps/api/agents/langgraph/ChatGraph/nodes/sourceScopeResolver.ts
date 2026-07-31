@@ -23,7 +23,8 @@
  * rolled back.
  *
  * Shape as always (`docsIntentTiebreak.ts`): hard timeout, `null` on anything
- * unusable, `INTERMEDIATE_MODEL`, existing `chat_intent_classification` task.
+ * unusable, the `standard` intermediate stage, existing
+ * `chat_intent_classification` task.
  *
  * `keine` and `null` are DIFFERENT answers, and the caller relies on it:
  *   - `keine` — the model decided, and the decision is "no live source". A turn
@@ -36,9 +37,12 @@
  */
 
 import { createLogger } from '../../../../utils/logger.js';
-import { INTERMEDIATE_MODEL } from '../llmConfig.js';
+import { intermediateLane } from '../llmConfig.js';
 
 import type { AIWorkerPool } from '../../../../workers/types.js';
+
+/** @see services/ai/intermediateLanes.ts */
+const LANE = intermediateLane('standard');
 
 const log = createLogger('ChatGraph:SourceScope');
 
@@ -111,10 +115,10 @@ export async function resolveSourceScope({
       aiWorkerPool.processRequest(
         {
           type: 'chat_intent_classification',
-          provider: INTERMEDIATE_MODEL.provider,
+          provider: LANE.provider,
           systemPrompt: RESOLVE_PROMPT,
           messages: [{ role: 'user', content: userMessage }],
-          options: { model: INTERMEDIATE_MODEL.model, max_tokens: 16, temperature: 0 },
+          options: { model: LANE.model, max_tokens: 16, temperature: 0 },
         },
         null
       ),

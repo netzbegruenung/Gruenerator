@@ -20,16 +20,19 @@
  *     path; a slow LLM call here delays *every* response in the docs panel.
  *   - Fail-safe: any error/timeout returns `null`, which the caller treats
  *     as "fall through to chat". Never blocks the user.
- *   - Uses the same `INTERMEDIATE_MODEL` (regolo + mistral-small-4-119b) that
+ *   - Uses the `standard` intermediate stage (services/ai/intermediateLanes.ts) that
  *     the existing Tier-4 LLM classification uses. Inherits the worker
  *     pool's provider-fallback infrastructure rather than adding new
  *     resilience surface.
  */
 
 import { createLogger } from '../../../../utils/logger.js';
-import { INTERMEDIATE_MODEL } from '../llmConfig.js';
+import { intermediateLane } from '../llmConfig.js';
 
 import type { AIWorkerPool } from '../../../../workers/types.js';
+
+/** @see services/ai/intermediateLanes.ts */
+const LANE = intermediateLane('standard');
 
 const log = createLogger('ChatGraph:DocsTiebreak');
 
@@ -83,11 +86,11 @@ export async function classifyDocsIntentTiebreak({
       aiWorkerPool.processRequest(
         {
           type: 'chat_intent_classification',
-          provider: INTERMEDIATE_MODEL.provider,
+          provider: LANE.provider,
           systemPrompt: TIEBREAK_PROMPT,
           messages: [{ role: 'user', content: userMessage }],
           options: {
-            model: INTERMEDIATE_MODEL.model,
+            model: LANE.model,
             max_tokens: 16,
             temperature: 0,
           },

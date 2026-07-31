@@ -46,8 +46,17 @@ export {
 export type { DateResolvable, RecencyBoostOptions, ResolveDateOptions } from './recency.js';
 
 // Export crawling service
-export { selectAndCrawlTopUrls } from './CrawlingService.js';
-export type { CrawlableResult, CrawledResult } from './CrawlingService.js';
+export { selectAndCrawlTopUrls, crawlAndDistill } from './CrawlingService.js';
+export type {
+  CrawlableResult,
+  CrawledResult,
+  DistilledCrawlResult,
+  CrawlAndDistillOptions,
+} from './CrawlingService.js';
+
+// Export passage distillation
+export { distillPassages } from './PassageDistiller.js';
+export type { DistillMode, DistillResult, DistilledChunk } from './PassageDistiller.js';
 
 // Export query expansion service
 export { expandQuery } from './QueryExpansionService.js';
