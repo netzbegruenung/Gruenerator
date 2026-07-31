@@ -79,13 +79,13 @@ export function renderClassifierCensus(run: CensusRun): string {
   // ── 1. Dispositionen ────────────────────────────────────────────────────
   out.push('', '## Dispositionen — was der Klassifikator entschieden hat');
   out.push(
-    `${'disposition'.padEnd(LABEL_COLUMN)} ${'n'.padStart(4)}  ${'anteil'.padStart(7)}  davon Tier 4`
+    `${'disposition'.padEnd(LABEL_COLUMN)} ${'n'.padStart(4)}  ${'anteil'.padStart(7)}  davon mit Modell`
   );
   const unknown = turns.filter((t) => dispositionOf(t.intent) == null);
   for (const disposition of DISPOSITION_ORDER) {
     const mine = turns.filter((t) => dispositionOf(t.intent) === disposition);
-    const viaTier4 = mine.filter((t) => t.reachedBigPrompt).length;
-    out.push(row(disposition, mine.length, total, String(viaTier4).padStart(4)));
+    const viaModel = mine.filter((t) => t.usedModel).length;
+    out.push(row(disposition, mine.length, total, String(viaModel).padStart(4)));
   }
   // Nie leer weglassen: ein unbekanntes Verdikt ist ein Befund (Fehlerwert aus
   // dem Klassifikator, oder ein Intent, den niemand eingeordnet hat).
@@ -94,7 +94,7 @@ export function renderClassifierCensus(run: CensusRun): string {
       '(unbekannt)',
       unknown.length,
       total,
-      String(unknown.filter((t) => t.reachedBigPrompt).length).padStart(4)
+      String(unknown.filter((t) => t.usedModel).length).padStart(4)
     )
   );
   for (const t of unknown) out.push(`    · ${t.intent}  ${t.id}`);
