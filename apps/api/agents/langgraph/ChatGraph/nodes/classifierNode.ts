@@ -1340,29 +1340,47 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // Only retrieval-shaped intents demote — generation/platform-gated intents
     // (sharepic, social_post, image, ...) and chat-recall phrasings keep the
     // LLM tier so their gates/HITL/routing stay intact.
-    const demotable =
+    const demotableApartFromLiveSource =
       isAgenticLoopEnabled() &&
       (DEMOTABLE_HEURISTIC_INTENTS.has(heuristic.intent) ||
         (heuristic.intent === 'direct' && looksLikeToolableQuestion(userContent))) &&
-      !CHAT_HISTORY_KEYWORDS.test(userContent) &&
-      // hotel/reise/bahn/wetter/news are LLM-only: don't let demotion swallow a
-      // "suche hotels …" before the LLM tier can route it to its system source.
-      // Test URL-stripped text so a pasted link (e.g. tagesschau.de) doesn't
-      // trip a keyword — a pasted URL is a scrape job, handled above.
-      !SYSTEM_MCP_PHRASING.test(userContent.replace(/https?:\/\/\S+/gi, ' '));
-    if (demotable) {
+      !CHAT_HISTORY_KEYWORDS.test(userContent);
+
+    // hotel/reise/bahn/wetter/news are LLM-only: don't let demotion swallow a
+    // "suche hotels …" before Tier 3.7 can route it to its system source.
+    // Test URL-stripped text so a pasted link (e.g. tagesschau.de) doesn't
+    // trip a keyword — a pasted URL is a scrape job, handled above.
+    //
+    // The hold is PROVISIONAL, and that is what makes the regex affordable to
+    // widen. It used to be final: a phrasing match sent the turn to the 27k
+    // prompt for good, so every keyword added to catch a real timetable question
+    // also bought a 27k call for every policy question that shares the word.
+    // Tier 3.7 now releases the turn back to demotion when the resolver answers
+    // "keine", so a false positive costs one ~700-character call and lands
+    // exactly where it would have landed without the regex.
+    const heldBackForLiveSource =
+      demotableApartFromLiveSource &&
+      SYSTEM_MCP_PHRASING.test(userContent.replace(/https?:\/\/\S+/gi, ' '));
+    const demotable = demotableApartFromLiveSource && !heldBackForLiveSource;
+
+    const demoteToLoop = (tier: 'tier3.5_loop_demotion' | 'tier3.7_no_live_source') => {
       log.info(
-        `[Classifier] Loop demotion: heuristic ${heuristic.intent}@${effectiveConfidence.toFixed(2)} < ${HEURISTIC_CONFIDENCE_THRESHOLD} → agentic (LLM skipped)`
+        `[Classifier] Loop demotion (${tier}): heuristic ${heuristic.intent}@${effectiveConfidence.toFixed(2)} < ${HEURISTIC_CONFIDENCE_THRESHOLD} → agentic (LLM skipped)`
       );
-      recordDecision('classifier.tier', 'tier3.5_loop_demotion', {
+      recordDecision('classifier.tier', tier, {
         inputs: {
           heuristicIntent: heuristic.intent,
           confidence: heuristic.confidence,
           effectiveConfidence,
           demotable,
+          // Zusammen sind die beiden Felder die Signatur des Wegs: demotable=true
+          // heisst „direkt bei 3.5 abgebogen", heldBack=true + demotable=false
+          // heisst „vom Live-Quellen-Gitter festgehalten und von 3.7 zurück-
+          // gegeben". Ohne das zweite Feld sehen beide Wege gleich aus.
+          heldBackForLiveSource,
         },
       });
-      return {
+      const demoted: Partial<ChatGraphState> = {
         intent: 'agentic',
         // The heuristic named a retrieval intent outright (web/search/examples/
         // bundestag/…), as opposed to the `direct` + toolable-question case.
@@ -1379,7 +1397,10 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         complexity,
         classificationTimeMs: Date.now() - startTime,
       };
-    }
+      return demoted;
+    };
+
+    if (demotable) return demoteToLoop('tier3.5_loop_demotion');
 
     // ── TIER 3.7: live source scope ──────────────────────────────────────
     // "Does this need a timetable / hotel / forecast / news feed, or is it a
@@ -1399,12 +1420,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // no-loss change. `SYSTEM_MCP_PHRASING` keeps its own job: holding these
     // turns back from Tier 3.5 demotion so they arrive here at all.
     //
-    // What that regex misses, the prompt missed too: "Wie hoch ist die Pollen-
-    // belastung in Nürnberg" demotes to the loop before either runs. That gap is
-    // older than this tier and is neither widened nor closed here — widening the
-    // regex is its fix, not moving this call in front of the demotion gate,
-    // which would spend a model call on every demotable turn.
-    //
     // Availability is re-checked because an unset deploy env means the intent
     // has no tools behind it; without the check a `wetter` verdict would route a
     // turn to a source that cannot answer instead of to the web fallback.
@@ -1413,7 +1428,11 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       conversationContext,
       aiWorkerPool,
     });
-    if (sourceScope && isSystemIntentAvailable(sourceScope, state.userLocale)) {
+    if (
+      sourceScope &&
+      sourceScope !== 'keine' &&
+      isSystemIntentAvailable(sourceScope, state.userLocale)
+    ) {
       log.info(`[Classifier] Live source scope → ${sourceScope} (LLM tier skipped)`);
       recordDecision('classifier.tier', 'tier3.7_source_scope', {
         inputs: { scope: sourceScope },
@@ -1428,6 +1447,20 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         complexity,
         classificationTimeMs: Date.now() - startTime,
       };
+    }
+
+    // The phrasing regex held this turn back from demotion only so the question
+    // could be ASKED. It was asked, and the answer is "no live source" — so the
+    // turn goes where it was headed before the hold, instead of paying for the
+    // 27k prompt. Released only on an explicit `keine`: a resolver that timed
+    // out or answered garbage returns `null`, and `null` has meant "carry on to
+    // Tier 4" everywhere in this file since the first resolver landed.
+    //
+    // A named-but-unavailable scope also stays on the Tier-4 path: the user DID
+    // ask for a departure board, the deploy just has no source for it, and the
+    // big prompt still routes that to a usable answer (locale degradation).
+    if (heldBackForLiveSource && sourceScope === 'keine') {
+      return demoteToLoop('tier3.7_no_live_source');
     }
 
     // ── TIER 4: LLM classification ──

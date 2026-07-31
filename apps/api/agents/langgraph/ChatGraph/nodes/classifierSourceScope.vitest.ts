@@ -160,17 +160,21 @@ describe('classifierNode — Live-Quelle vor der LLM-Stufe', () => {
     expect(result.intent).toBeTruthy();
   });
 
-  it('erreicht dieselben Turns wie der Prompt vorher — und dieselben nicht', async () => {
-    // „Pollenbelastung" steht nicht in SYSTEM_MCP_PHRASING, also wird der Turn
-    // schon bei Tier 3.5 in den Loop demotiert und erreicht weder den Auflöser
-    // noch früher den grossen Prompt. Diese Lücke ist älter als der Auflöser und
-    // wird von ihm weder geschlossen noch vergrössert — festgehalten, damit
-    // niemand sie später für einen Rückschritt dieses Umbaus hält.
+  it('erreicht auch die Formulierungen, die der Prompt nur behauptet hat', async () => {
+    // Diese Zeile hielt bis zum 31.07.2026 die Gegenrichtung fest: „Pollen-
+    // belastung" stand nicht in SYSTEM_MCP_PHRASING, der Turn wurde bei Tier 3.5
+    // in den Loop demotiert und erreichte weder den Auflöser noch früher den
+    // grossen Prompt — obwohl der Auflöser-Prompt „Pollen" als seine Zuständig-
+    // keit AUFFÜHRT. Nachgemessen waren es 6 von 13 beworbenen Formulierungen.
+    //
+    // Das Gitter kennt sie jetzt. Die vollständige Tabelle steht in
+    // `classifierSourceScopeReach.vitest.ts`; hier bleibt der eine Fall, an dem
+    // die Lücke ursprünglich auffiel.
     const pool = makeWorkerPool('wetter');
     const result = await classifierNode(
       buildState({ userMessage: 'Wie hoch ist die Pollenbelastung in Nürnberg gerade?', pool })
     );
-    expect(result.intent).toBe('agentic');
+    expect(result.intent).toBe('wetter');
     expect(pool.bigPromptCalls).toHaveLength(0);
   });
 });
