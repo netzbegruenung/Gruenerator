@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
 import { wantsImageResults } from './classifierHeuristics.js';
-import { parseClassifierResponse } from './classifierParsing.js';
 
 /**
  * `wantsImageResults` decides whether the web search should ask Linkup for
@@ -154,42 +153,16 @@ describe('wantsImageResults', () => {
 });
 
 /**
- * The classifier's half of the decision: does the SUBJECT deserve pictures?
+ * Die zweite Hälfte dieser Entscheidung ist WEG, und das gehört benannt.
  *
- * Read off the `bilder` field of its JSON answer, through the real parser rather
- * than a copy of the one line that reads it — a test that restates the
- * implementation agrees with it by construction and guards nothing.
+ * Sie kam aus dem `bilder`-Feld der LLM-Stufe: das Urteil, ob ein SUBJEKT
+ * Bilder verdient — „wer war Marilyn Monroe" (eine Person, sehenswert) gegen
+ * „wie berechne ich die Grunderwerbsteuer" (ein Verfahren, Bilder wären
+ * Rauschen). Kein Regex leistet das, und es wurde nicht ersetzt: es war eine
+ * Annehmlichkeit zum Preis eines 27k-Zeichen-Aufrufs, den derselbe Turn sonst
+ * nicht gebraucht hätte.
+ *
+ * Es bleibt die Hälfte darüber — was der Nutzer selbst sagt. Die galt schon
+ * immer auf jeder Stufe, auch auf denen, die nie ein Modell gefragt haben, und
+ * ist damit die einzige, die nie eine Lotterie war.
  */
-describe('classifier image verdict', () => {
-  const answer = (fields: Record<string, unknown>) =>
-    JSON.stringify({
-      intent: 'web',
-      searchQuery: 'Marilyn Monroe',
-      reasoning: 'Person',
-      ...fields,
-    });
-
-  it('carries a true verdict through', () => {
-    expect(
-      parseClassifierResponse(answer({ bilder: true }), 'wer war marilyn monroe').wantsImages
-    ).toBe(true);
-  });
-
-  it('reads a missing field as no, not as undefined', () => {
-    expect(parseClassifierResponse(answer({}), 'wer war marilyn monroe').wantsImages).toBe(false);
-  });
-
-  it('says no for a subject with nothing to look at', () => {
-    expect(
-      parseClassifierResponse(answer({ bilder: false }), 'wie berechne ich die grunderwerbsteuer')
-        .wantsImages
-    ).toBe(false);
-  });
-
-  it('does not accept a truthy non-boolean', () => {
-    // Models return `"true"` often enough that the difference matters: a string
-    // would sail through a truthiness check and turn the verdict into "always".
-    expect(parseClassifierResponse(answer({ bilder: 'true' }), 'x').wantsImages).toBe(false);
-    expect(parseClassifierResponse(answer({ bilder: 1 }), 'x').wantsImages).toBe(false);
-  });
-});

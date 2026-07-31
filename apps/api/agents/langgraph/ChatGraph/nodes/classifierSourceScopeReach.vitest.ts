@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { SYSTEM_MCP_PHRASING } from './classifierParsing.js';
+import { SYSTEM_MCP_PHRASING } from './classifierSignals.js';
 
 import type { ChatGraphState } from '../types.js';
 
@@ -159,9 +159,9 @@ describe('Tier 3.7 — Erreichbarkeit des Live-Quellen-Auflösers', () => {
   }
 
   it('gibt einen Turn, den nur der Regex festgehalten hat, an die Demotion zurück', async () => {
-    // Das Ventil, das den grosszügigen Regex bezahlbar macht. Ohne es landet
-    // jeder Fehltreffer beim 27k-Prompt — also genau dort, wo diese ganze Reihe
-    // Turns wegholen soll.
+    // Das Ventil, das den grosszügigen Regex bezahlbar macht: ein Fehltreffer
+    // kostet einen ~700-Zeichen-Aufruf und landet danach genau dort, wo der Turn
+    // ohne den Regex gelandet wäre.
     const pool = makePool('keine');
     const result = await classifierNode(
       buildState('Welche Bahnen fahren eigentlich elektrisch?', pool)
@@ -171,14 +171,17 @@ describe('Tier 3.7 — Erreichbarkeit des Live-Quellen-Auflösers', () => {
     expect(result.intent).toBe('agentic');
   });
 
-  it('geht bei einem unlesbaren Verdikt auf die LLM-Stufe, nicht in die Demotion', async () => {
-    // `null` heisst „nichts entschieden". Ein Provider-Aussetzer darf keine
-    // Routing-Änderung sein — sonst ist der Fail-safe eine stille Umleitung.
+  it('gibt auch ein unlesbares Verdikt in den Loop zurück', async () => {
+    // `null` heisst „nichts entschieden", und das hiess bis zum Löschen der
+    // LLM-Stufe „geh eine Stufe weiter". Diese Stufe gibt es nicht mehr, also
+    // gilt dieselbe Regel wie für `keine`: der Turn geht dorthin, wo er ohne den
+    // Regex hingegangen wäre. Alles andere machte aus einem Provider-Aussetzer
+    // eine werkzeuglose Antwort auf eine Fahrplanfrage.
     const pool = makePool('¯\\_(ツ)_/¯');
     const result = await classifierNode(buildState('Wann fährt der nächste Zug nach Köln?', pool));
     expect(pool.resolverCalls).toHaveLength(1);
-    expect(pool.bigPromptCalls).toHaveLength(1);
-    expect(result.intent).not.toBe('agentic');
+    expect(pool.bigPromptCalls).toHaveLength(0);
+    expect(result.intent).toBe('agentic');
   });
 
   it('lässt Umlaut-Anfänge überhaupt matchen', async () => {

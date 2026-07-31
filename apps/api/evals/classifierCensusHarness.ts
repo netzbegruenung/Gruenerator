@@ -3,7 +3,6 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { classifierNode } from '../agents/langgraph/ChatGraph/nodes/classifierNode.js';
-import { CLASSIFIER_PROMPT } from '../agents/langgraph/ChatGraph/nodes/classifierPrompt.js';
 import {
   createDecisionJournal,
   runWithDecisionJournal,
@@ -27,9 +26,9 @@ import type { ModelMessage } from 'ai';
  *
  * METHODE, damit Zahlen zwischen Läufen vergleichbar bleiben:
  *
- *  - Der Worker-Pool ist ein Zähler, kein Modell: er unterscheidet Aufrufe am
- *    Systemprompt und trennt den grossen Klassifikator von den kleinen
- *    Auflösern.
+ *  - Der Worker-Pool ist ein Zähler, kein Modell: er beantwortet jeden Auflöser
+ *    an seinem Systemprompt-Präfix und misst nebenbei, wie gross der grösste
+ *    Prompt ist, den der Klassifikator noch verschickt.
  *  - Mehr-Turn-Einträge laufen als EIN Gespräch: die Vorturns stehen in
  *    `messages`, und aus dem Verdikt des Vorturns wird das Artefakt-Gedächtnis
  *    des Threads simuliert (`lastToolContext` + `threadArtifacts`) — genau die
@@ -101,12 +100,11 @@ const ARTIFACT_KIND_BY_INTENT: Partial<Record<ChatIntentId, ThreadToolContext['k
  * vorwegnimmt, und die muss der Stub liefern, sonst misst die Zählung ihren
  * eigenen Stub:
  *
- *  - Live-Quelle → „keine". Ohne diese Zeile liest `parseScope` aus der
- *    JSON-Antwort unten gar nichts heraus und gibt `null` zurück — was „nichts
- *    entschieden, weiter zu Tier 4" heisst. Jeder Turn, den `SYSTEM_MCP_PHRASING`
- *    von der Demotion zurückhält, landete dann beim grossen Prompt, und ein
- *    VERBREITERTER Regex sähe wie ein Rückschritt aus, obwohl er in Produktion
- *    das Gegenteil bewirkt.
+ *  - Live-Quelle → „keine". Ohne diese Zeile gibt `parseScope` `null` zurück —
+ *    „nichts entschieden" — und der Turn bliebe an der Live-Quellen-Tür hängen,
+ *    statt zur Demotion zurückgegeben zu werden. Ein VERBREITERTER
+ *    `SYSTEM_MCP_PHRASING` sähe dann wie ein Rückschritt aus, obwohl er in
+ *    Produktion das Gegenteil bewirkt.
  *  - Bearbeitungsziel → „0" (keines), damit der Auflöser das Verhalten ohne ihn
  *    nicht verändert.
  *
@@ -119,21 +117,22 @@ const RESOLVER_DEFAULTS: ReadonlyArray<{ prefix: string; reply: string }> = [
   { prefix: 'Entscheide, ob diese Nachricht ein ARTEFAKT', reply: 'keine' },
 ];
 
-/** Zählt Modellaufrufe und trennt den grossen Prompt von den kleinen Auflösern. */
-function makeCountingPool(counts: { big: number; small: number }) {
+/**
+ * Zählt Modellaufrufe und misst den grössten Systemprompt, den der
+ * Klassifikator überhaupt noch verschickt.
+ *
+ * Der Vorgänger unterschied hier den 27k-Prompt von den kleinen Auflösern, per
+ * Identitätsvergleich mit `CLASSIFIER_PROMPT`. Den gibt es nicht mehr, und ein
+ * Zähler, dessen Bezugsgrösse gelöscht ist, misst nichts — deshalb misst dieser
+ * die LÄNGE statt der Identität. Damit bleibt die Frage prüfbar, ohne von einer
+ * einzelnen Konstante abzuhängen: ein wieder wachsender Taxonomie-Prompt fällt
+ * auf, egal wie er heisst.
+ */
+function makeCountingPool(counts: { calls: number; maxPromptChars: number }) {
   return {
     processRequest: async (req: { systemPrompt?: string }) => {
-      if (req.systemPrompt === CLASSIFIER_PROMPT) {
-        counts.big += 1;
-        return {
-          content: JSON.stringify({
-            intent: 'direct',
-            searchQuery: null,
-            reasoning: 'Zähler-Stub',
-          }),
-        };
-      }
-      counts.small += 1;
+      counts.calls += 1;
+      counts.maxPromptChars = Math.max(counts.maxPromptChars, req.systemPrompt?.length ?? 0);
       const resolver = RESOLVER_DEFAULTS.find((r) => req.systemPrompt?.startsWith(r.prefix));
       return { content: resolver?.reply ?? 'keine' };
     },
@@ -192,8 +191,8 @@ export interface CensusTurn {
   prompt: string;
   /** Das Verdikt des Klassifikators, oder `ERR:…` wenn er geworfen hat. */
   intent: string;
-  /** Der Turn hat den 27k-Prompt bezahlt. */
-  reachedBigPrompt: boolean;
+  /** Der Turn hat für seine Einordnung ein Modell gebraucht. */
+  usedModel: boolean;
   /**
    * Die Kette weiss ab hier nicht mehr, welches Artefakt in ihr entstanden ist.
    * Fehlerschranke nach oben, kein bewiesener Befund — siehe `runClassifierCensus`.
@@ -205,8 +204,10 @@ export interface CensusTurn {
 
 export interface CensusRun {
   turns: CensusTurn[];
-  /** Aufrufe der kleinen Auflöser über den gesamten Lauf. */
-  smallResolverCalls: number;
+  /** Modellaufrufe der Auflöser über den gesamten Lauf. */
+  resolverCalls: number;
+  /** Der grösste Systemprompt, den der Klassifikator im Lauf verschickt hat. */
+  maxPromptChars: number;
 }
 
 /**
@@ -228,7 +229,7 @@ export interface CensusRun {
  *     Geraten wird hier nichts, ausgewiesen schon.
  */
 export async function runClassifierCensus(): Promise<CensusRun> {
-  const counts = { big: 0, small: 0 };
+  const counts = { calls: 0, maxPromptChars: 0 };
   const pool = makeCountingPool(counts);
   const turns: CensusTurn[] = [];
 
@@ -244,7 +245,7 @@ export async function runClassifierCensus(): Promise<CensusRun> {
 
     for (const [i, turn] of entryTurns.entries()) {
       const prompt = turn.prompt;
-      const before = counts.big;
+      const before = counts.calls;
       const journal = createDecisionJournal();
       // Kein Startwert: beide Zweige weisen zu, und ein toter Vorbelegungswert
       // wäre genau der, der bei einem künftigen dritten Zweig still stehenbliebe.
@@ -257,13 +258,26 @@ export async function runClassifierCensus(): Promise<CensusRun> {
       } catch (err) {
         intent = `ERR:${(err as Error).message.slice(0, 50)}`;
       }
-      const reachedBigPrompt = counts.big > before;
+      const usedModel = counts.calls > before;
+
+      // Wo der STUB das Verdikt bestimmt hat, ist das Verdikt keine Messung.
+      //
+      // Das war früher „der Turn erreichte den grossen Prompt". Der ist weg, und
+      // die Grenze verschiebt sich damit auf den einen Auflöser, dessen neutrale
+      // Antwort ein echtes Verdikt ersetzt: `tier3.8_generation_scope` antwortet
+      // hier immer „keine" → `produktion`, ein echtes Modell sagt bei manchen
+      // dieser Turns „sharepic". Für alles andere ist die Antwort des Stubs
+      // gleichbedeutend mit „nichts entschieden", und die Stufe darunter
+      // entscheidet deterministisch weiter.
+      const stubDecided = journal.entries.some(
+        (e) => e.point === 'classifier.tier' && e.chose === 'tier3.8_generation_scope'
+      );
 
       turns.push({
         id: entryTurns.length > 1 ? `${entry.id}#${i + 1}` : entry.id,
         prompt,
         intent,
-        reachedBigPrompt,
+        usedModel,
         blind,
         journal,
       });
@@ -274,12 +288,6 @@ export async function runClassifierCensus(): Promise<CensusRun> {
 
       // Welches Verdikt das Gedächtnis fortschreibt.
       //
-      // Erreichte der Turn den grossen Prompt, kam sein Intent vom Stub und ist
-      // wertlos — und `direct` ist nicht neutral, es heisst „kein Artefakt".
-      // Genau daran verhungerte die Simulation: eine Kette, deren ERSTER Turn
-      // bei Tier 4 landet, erzeugt nie ein Artefakt, und jeder Folgeauftrag
-      // darin findet keine deterministische Tür mehr.
-      //
       // Wo der Korpus das erwartete Routing selbst nennt, wird es genommen. Wo
       // nicht, bleibt der Turn unbekannt: das Gedächtnis wird nicht geraten,
       // sondern die Kette ab hier als `blind` gezählt und ausgewiesen. Ein
@@ -287,7 +295,7 @@ export async function runClassifierCensus(): Promise<CensusRun> {
       // ist eine Fehlerschranke.
       const declaredRouting = turn.expect?.routing;
       let effectiveIntent: string | null = intent;
-      if (reachedBigPrompt) {
+      if (stubDecided) {
         effectiveIntent = declaredRouting ?? null;
         if (effectiveIntent == null) blind = true;
       }
@@ -308,5 +316,5 @@ export async function runClassifierCensus(): Promise<CensusRun> {
     }
   }
 
-  return { turns, smallResolverCalls: counts.small };
+  return { turns, resolverCalls: counts.calls, maxPromptChars: counts.maxPromptChars };
 }
