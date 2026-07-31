@@ -1,6 +1,7 @@
 {
   "name": "@gruenerator/hocuspocus",
   "version": "1.0.0",
+  "private": true,
   "description": "Gruenerator Hocuspocus - Real-time collaborative editing WebSocket server",
   "type": "module",
   "main": "./dist/index.js",
