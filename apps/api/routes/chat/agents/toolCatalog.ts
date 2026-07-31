@@ -40,7 +40,7 @@ import {
   buildProductKnowledgeBlock,
   isProductMetaQuestion,
 } from '../../../services/chat/productKnowledge.js';
-import { selectAndCrawlTopUrls } from '../../../services/search/index.js';
+import { crawlAndDistill } from '../../../services/search/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { validateUrlForFetch } from '../../../utils/validation/urlSecurity.js';
 import { isEditorSurface } from '../services/agenticLoop/routing.js';
@@ -104,9 +104,19 @@ const CATALOG_TOOLS = new Set([
 /** Tools whose results feed the citation registry and get the lean `sources` shape. */
 const SOURCE_HARVEST_TOOLS = new Set(['gruenerator_search', 'web_search']);
 
-/** Snippet budget for `scrape_url`. A deliberate page read deserves far more
- *  than a search hit's snippet — see the call site. */
-const CRAWL_SNIPPET_CHARS = 25_000;
+/**
+ * Snippet budget for `scrape_url`. A deliberate page read deserves far more
+ * than a search hit's snippet — see the call site.
+ *
+ * Was 25k, which was never actually reachable: `renderAll`'s shared shrink
+ * collapses it as soon as a second source exists, and in unified mode there is
+ * no `renderAll` at all, so the model saw whatever survived
+ * `truncateResultForModel`. 8k of a DISTILLED page is text that arrives.
+ */
+const CRAWL_SNIPPET_CHARS = 8_000;
+
+/** Char budget handed to the distiller for a deliberately named page. */
+const CRAWL_DISTILL_TARGET_CHARS = 8_000;
 
 type ExecuteFn = (input: unknown, options: { toolCallId: string }) => Promise<unknown>;
 
@@ -287,14 +297,23 @@ NUTZE WENN:
           content: '',
           relevance: 1 - idx * 0.1,
         }));
-        const crawled = await selectAndCrawlTopUrls(seeds, '', { maxUrls: 3, timeout: 8000 });
+        // `faithful`, never query-focused: the page was NAMED, so a relevance
+        // filter would drop precisely the parts the user asked about. The
+        // distiller only condenses here, it does not select.
+        const crawled = await crawlAndDistill(seeds, '', {
+          maxUrls: 3,
+          timeout: 8000,
+          mode: 'faithful',
+          targetChars: CRAWL_DISTILL_TARGET_CHARS,
+          ...(loop?.state.aiWorkerPool ? { aiWorkerPool: loop.state.aiWorkerPool } : {}),
+        });
         const results: SearchResult[] = crawled
-          .filter((r) => r.crawled && (r.fullContent || r.content))
+          .filter((r) => r.crawled && (r.content || r.fullContent))
           .map((r) => ({
             source: 'web',
             url: r.url,
             title: r.title || r.url || '',
-            content: r.fullContent || r.content || '',
+            content: r.content || r.fullContent || '',
           }));
         if (results.length === 0) {
           return {
@@ -305,7 +324,7 @@ NUTZE WENN:
         // picked it out of search hits. Registering it at the ordinary snippet cap
         // meant fetching a 20-80k-char article and showing the model its first few
         // hundred characters, so "fass diesen Artikel zusammen" was answered from
-        // the headline. 25k matches LobeChat's crawl budget.
+        // the headline.
         const sources = sourceRegistry.register(results, { snippetChars: CRAWL_SNIPPET_CHARS });
         return { resultCount: results.length, sources };
       },
