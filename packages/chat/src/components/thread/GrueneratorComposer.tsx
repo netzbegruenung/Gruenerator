@@ -768,7 +768,18 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
             : 'rounded-3xl shadow-lg focus-within:border-primary/30 focus-within:shadow-xl dark:shadow-sm dark:focus-within:shadow-md',
           // The Mistral brand border reads as a focus ring on the slim pill —
           // card layout only.
-          isMistral && !isPill ? 'border-[#003399]' : 'border-border'
+          //
+          // Otherwise the border colour comes from a variable, not from the
+          // token directly: a surface that supplies its own tinted ground under
+          // the composer (the chat backgrounds, the thread's glow band) sets
+          // `--chat-composer-border: transparent` and the fill alone separates
+          // it — which is how the app draws it. Surfaces that set nothing (the
+          // notebook composer, /suche) fall back to the token and keep their
+          // border, so this stays a per-surface decision rather than a prop
+          // threaded through four call sites.
+          isMistral && !isPill
+            ? 'border-[#003399]'
+            : 'border-[color:var(--chat-composer-border,var(--color-border))]'
         )}
       >
         <ComposerPrimitive.Quote
