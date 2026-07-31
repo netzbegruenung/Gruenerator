@@ -49,6 +49,7 @@ const inch = (px: number): number => px / PX_PER_IN;
 const pt = (px: number): number => px * 0.75;
 
 const PAD_X = 72; // .gruene-slide padding-left/right
+const PAD_Y = 64; // .gruene-slide padding-top/bottom
 const MARGIN = inch(PAD_X);
 const CONTENT_W = inch(960 - PAD_X * 2); // 8.5in
 
@@ -66,6 +67,8 @@ const FONT_MONO = 'JetBrains Mono';
 interface BrandCtx {
   fontHead: string;
   fontBody: string;
+  /** Quote-layout face; null uses `fontBody`. */
+  fontQuote: string | null;
   /** Hyperlink colour (brand accent), hex without #. */
   linkHex: string;
   /** Rule/bullet tint on dark surfaces, hex without #. */
@@ -102,6 +105,7 @@ function buildBrandCtx(theme: PresentationBrandTheme, logo: BrandCtx['logo']): B
   return {
     fontHead: theme.pptxFonts.heading,
     fontBody: theme.pptxFonts.body,
+    fontQuote: theme.pptxFonts.quote,
     linkHex: toHex(theme.colors.accent) ?? '52907A',
     onDarkSoftHex: toHex(theme.colors.onDarkSoft) ?? 'A9D3BE',
     headingLine: theme.headingLineHeight,
@@ -119,9 +123,11 @@ interface TypeScale {
 }
 
 function slideTypeScale(slide: Slide): TypeScale {
-  return slide.fontSize
-    ? { fs: PRESENTATION_FONT_SIZE_SCALE[slide.fontSize], shrink: false }
-    : { fs: 1, shrink: true };
+  if (slide.fontSize) return { fs: PRESENTATION_FONT_SIZE_SCALE[slide.fontSize], shrink: false };
+  // Code slides are excluded from auto-fit on screen too (SlideSurface passes
+  // `presetScale == null && !isCode`): their body is its own scroll container,
+  // so the surface never overflows and a shrink would only misrepresent it.
+  return { fs: 1, shrink: slide.layout !== 'code' };
 }
 
 // ── Colour helpers ──────────────────────────────────────────────────────────
@@ -174,6 +180,38 @@ interface ResolvedBg {
  * SSRF-validated; relative paths (e.g. `/images/x.jpg`) and any failure resolve
  * to null so the caller can fall back to a solid fill.
  */
+/**
+ * Intrinsic size of a data: URL image.
+ *
+ * Needed because pptxgenjs never decodes images in Node: its `sizing.contain`
+ * fits against the w/h the caller declared, not the real ones, so it cannot
+ * correct an aspect ratio (and emits a negative <a:srcRect> letterbox that
+ * LibreOffice and Keynote render inconsistently). We compute the contain box
+ * ourselves instead.
+ */
+async function imageSize(dataUrl: string): Promise<{ w: number; h: number } | null> {
+  try {
+    const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
+    const { default: sharp } = await import('sharp');
+    const meta = await sharp(Buffer.from(base64, 'base64')).metadata();
+    return meta.width && meta.height ? { w: meta.width, h: meta.height } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** CSS `object-fit: contain`: largest centred rect of `natW×natH` inside `box`. */
+function containRect(
+  natW: number,
+  natH: number,
+  box: { x: number; y: number; w: number; h: number }
+): { x: number; y: number; w: number; h: number } {
+  const scale = Math.min(box.w / natW, box.h / natH);
+  const w = natW * scale;
+  const h = natH * scale;
+  return { x: box.x + (box.w - w) / 2, y: box.y + (box.h - h) / 2, w, h };
+}
+
 async function fetchImageData(url: string): Promise<string | null> {
   if (url.startsWith('data:image/')) return url;
   if (!/^https?:\/\//i.test(url)) return null;
@@ -255,6 +293,17 @@ interface LineOpts {
   bullet?: PptxTextOptions['bullet'] | undefined;
   indentLevel?: number | undefined;
   italic?: boolean | undefined;
+  /** Overrides the brand body face (the quote layout uses its own). */
+  fontFace?: string | null | undefined;
+  bold?: boolean | undefined;
+}
+
+interface BodyOpts {
+  italic?: boolean;
+  numbered?: boolean;
+  /** Overrides the brand body face for every run (quote layout). */
+  fontFace?: string | null;
+  bold?: boolean;
 }
 
 /** Emit one paragraph (a run of text objects terminated by breakLine). */
@@ -269,10 +318,12 @@ function emitLine(
   effective.forEach((run, idx) => {
     const options: PptxTextOptions = {
       color: run.link ? ctx.linkHex : color,
-      fontFace: run.mono ? FONT_MONO : ctx.fontBody,
+      // Runs carry the face, so a box-level `fontFace` would never win — the
+      // override has to be threaded down to here.
+      fontFace: run.mono ? FONT_MONO : (lineOpts.fontFace ?? ctx.fontBody),
       breakLine: idx === effective.length - 1,
     };
-    if (run.bold) options.bold = true;
+    if (run.bold || lineOpts.bold) options.bold = true;
     if (run.italic || lineOpts.italic) options.italic = true;
     if (run.strike) options.strike = true;
     if (run.link) options.hyperlink = { url: run.link };
@@ -283,18 +334,39 @@ function emitLine(
 }
 
 /**
- * Convert a slide's markdown body into pptxgenjs text runs. `italic` forces the
- * quote style; `accentBullets` picks numbered vs dot bullets for content
- * variants. Images are dropped (handled separately for image layouts).
+ * Convert a slide's markdown body into pptxgenjs text runs, ONE ARRAY PER
+ * PARAGRAPH. `emitLine` pushes one run per span, not per paragraph, so a flat
+ * list cannot be cut safely: the two-column split used to slice it by index and
+ * could land `**Wichtig**` and ` und dringend` in different columns.
+ *
+ * `italic` forces the quote style; `numbered` picks numbered vs dot bullets for
+ * the content variants; `fontFace`/`bold` override the brand body face (the AT
+ * quote uses Vollkorn, which ships only bold faces). Images are dropped —
+ * the image layout handles them separately.
  */
-function bodyToTextProps(
+function bodyToParagraphs(
   markdown: string,
   color: string,
   ctx: BrandCtx,
-  opts: { italic?: boolean; numbered?: boolean } = {}
-): PptxTextProps[] {
+  opts: BodyOpts = {}
+): PptxTextProps[][] {
   const tokens = marked.lexer(markdown);
-  const out: PptxTextProps[] = [];
+  const paragraphs: PptxTextProps[][] = [];
+  /** One paragraph per call, so callers can split on paragraph boundaries. */
+  const emit = (runs: Run[], lineOpts: LineOpts): void => {
+    const paragraph: PptxTextProps[] = [];
+    emitLine(
+      paragraph,
+      runs,
+      color,
+      { ...lineOpts, fontFace: opts.fontFace, bold: opts.bold },
+      ctx
+    );
+    paragraphs.push(paragraph);
+  };
+  const out = {
+    push: (props: PptxTextProps) => paragraphs.push([props]),
+  };
 
   for (const token of tokens) {
     const tok = token as Token & {
@@ -308,26 +380,20 @@ function bodyToTextProps(
       tok.items.forEach((item) => {
         const runs: Run[] = [];
         collectRuns(item.tokens, {}, runs);
-        emitLine(
-          out,
-          runs,
-          color,
-          {
-            bullet: ordered ? { type: 'number' } : { code: '2022' },
-            indentLevel: 0,
-            italic: opts.italic,
-          },
-          ctx
-        );
+        emit(runs, {
+          bullet: ordered ? { type: 'number' } : { code: '2022' },
+          indentLevel: 0,
+          italic: opts.italic,
+        });
       });
     } else if (tok.type === 'blockquote') {
       const runs: Run[] = [];
       collectRuns(tok.tokens, {}, runs);
-      emitLine(out, runs, color, { italic: true }, ctx);
+      emit(runs, { italic: true });
     } else if (tok.type === 'heading') {
       const runs: Run[] = [];
       collectRuns(tok.tokens, { bold: true }, runs);
-      emitLine(out, runs, color, { italic: opts.italic }, ctx);
+      emit(runs, { italic: opts.italic });
     } else if (tok.type === 'code') {
       out.push({
         text: tok.text ?? '',
@@ -336,11 +402,21 @@ function bodyToTextProps(
     } else if (tok.type === 'paragraph') {
       const runs: Run[] = [];
       collectRuns(tok.tokens, {}, runs);
-      emitLine(out, runs, color, { italic: opts.italic }, ctx);
+      emit(runs, { italic: opts.italic });
     }
   }
 
-  return out;
+  return paragraphs;
+}
+
+/** Flat run list for the single-box layouts. */
+function bodyToTextProps(
+  markdown: string,
+  color: string,
+  ctx: BrandCtx,
+  opts: BodyOpts = {}
+): PptxTextProps[] {
+  return bodyToParagraphs(markdown, color, ctx, opts).flat();
 }
 
 /** First markdown image URL in a body, if any (for the image layout). */
@@ -421,7 +497,7 @@ function addTitleSlide(
     x: MARGIN,
     y: variant === 2 ? inch(252) : 0,
     w: textW,
-    h: variant === 2 ? PAGE_H - inch(252) - inch(48) : PAGE_H,
+    h: variant === 2 ? PAGE_H - inch(252) - inch(PAD_Y) : PAGE_H,
     align,
     valign: variant === 0 ? 'middle' : variant === 1 ? 'middle' : 'top',
     lineSpacingMultiple: 1.15,
@@ -468,7 +544,14 @@ function addQuoteSlide(
   }
 
   const bodyX = variant === 0 ? inch(PAD_X + 34) : MARGIN;
-  slide.addText(bodyToTextProps(data.body, bColor, ctx, { italic: true }), {
+  // AT sets quotes in Vollkorn and forces weight 700 — the app ships only its
+  // Bold/BlackItalic faces, so a regular would be a synthesized fake.
+  const quoteRuns = bodyToTextProps(data.body, bColor, ctx, {
+    italic: true,
+    fontFace: ctx.fontQuote,
+    bold: ctx.fontQuote !== null,
+  });
+  slide.addText(quoteRuns, {
     x: bodyX,
     y: inch(180),
     w: variant === 0 ? CONTENT_W - inch(34) : CONTENT_W,
@@ -505,7 +588,7 @@ function addCodeSlide(
     });
   }
   const panelY = inch(160);
-  const panelH = PAGE_H - panelY - inch(48);
+  const panelH = PAGE_H - panelY - inch(PAD_Y);
   slide.addShape('roundRect', {
     x: MARGIN,
     y: panelY,
@@ -540,7 +623,15 @@ async function addImageSlide(
 ): Promise<void> {
   const imgUrl = firstImageUrl(data.body);
   const imgData = imgUrl ? await fetchImageData(imgUrl) : null;
+  const natural = imgData ? await imageSize(imgData) : null;
   const tColor = titleColor(dark, accentHex);
+
+  /** Place the picture aspect-correct; fall back to filling the box. */
+  const placeImage = (box: { x: number; y: number; w: number; h: number }): void => {
+    if (!imgData) return;
+    const rect = natural ? containRect(natural.w, natural.h, box) : box;
+    slide.addImage({ data: imgData, ...rect });
+  };
 
   if (variant === 1) {
     if (data.title.trim()) {
@@ -554,11 +645,10 @@ async function addImageSlide(
         bold: true,
         color: tColor,
         valign: 'middle',
+        lineSpacingMultiple: ctx.headingLine,
       });
     }
-    if (imgData) {
-      slide.addImage({ data: imgData, x: inch(400), y: inch(64), w: inch(488), h: inch(412) });
-    }
+    placeImage({ x: inch(400), y: inch(64), w: inch(488), h: inch(412) });
     return;
   }
 
@@ -575,9 +665,7 @@ async function addImageSlide(
       color: tColor,
     });
   }
-  if (imgData) {
-    slide.addImage({ data: imgData, x: MARGIN, y: inch(160), w: CONTENT_W, h: inch(316) });
-  }
+  placeImage({ x: MARGIN, y: inch(160), w: CONTENT_W, h: inch(316) });
 }
 
 /** Content / split layouts: title top, bullet (or numbered / two-column) body. */
@@ -607,13 +695,22 @@ function addContentSlide(
   }
 
   const bodyY = inch(160);
-  const bodyH = PAGE_H - bodyY - inch(48);
-  const runs = bodyToTextProps(data.body, bColor, ctx, { numbered: variant === 2 });
+  const bodyH = PAGE_H - bodyY - inch(PAD_Y);
+  // `split` has no variant rules in the deck CSS — it is always plain bullets.
+  // Without this guard a split slide the AI planner marked `variant: 2`
+  // exported numbered while the screen showed dots.
+  const paragraphs = bodyToParagraphs(data.body, bColor, ctx, {
+    numbered: !split && variant === 2,
+  });
+  const runs = paragraphs.flat();
 
   if (split) {
-    const mid = Math.ceil(runs.length / 2);
+    // Split on PARAGRAPH boundaries, never inside one.
+    const mid = Math.ceil(paragraphs.length / 2);
+    const left = paragraphs.slice(0, mid).flat();
+    const right = paragraphs.slice(mid).flat();
     const colW = (CONTENT_W - inch(48)) / 2;
-    slide.addText(runs.slice(0, mid), {
+    slide.addText(left, {
       x: MARGIN,
       y: bodyY,
       w: colW,
@@ -623,7 +720,7 @@ function addContentSlide(
       lineSpacingMultiple: 1.15,
       ...(ts.shrink ? { fit: 'shrink' as const } : {}),
     });
-    slide.addText(runs.slice(mid).length ? runs.slice(mid) : [{ text: '' }], {
+    slide.addText(right.length ? right : [{ text: '' }], {
       x: MARGIN + colW + inch(48),
       y: bodyY,
       w: colW,
