@@ -27,7 +27,6 @@ import { MemoryIndicator } from '../message-parts/MemoryIndicator';
 import { MessageActions } from '../message-parts/MessageActions';
 import { MessageErrorBanner } from '../message-parts/MessageErrorBanner';
 import { MessageStreamingProvider } from '../message-parts/messageStreamingContext';
-import { useProgressDisplay } from '../message-parts/progressDisplayContext';
 import { ProgressIndicator } from '../message-parts/ProgressIndicator';
 import { SearchResultsSection, type AdditionalSource } from '../message-parts/SearchResultsSection';
 import { SharepicVariantStack } from '../message-parts/SharepicVariantStack';
@@ -78,7 +77,6 @@ const partComponents = {
 export const AssistantMessage = memo(function AssistantMessage() {
   const message = useMessage();
   const density = useChatDensity();
-  const progressDisplay = useProgressDisplay();
   const isCompact = density === 'compact';
   const custom = message.metadata?.custom as ChatMessageMetadata | undefined;
   const userAgents = useUserAgentsRegistry((s) => s.userAgents);
@@ -227,8 +225,6 @@ export const AssistantMessage = memo(function AssistantMessage() {
           hasOwnDetail={hasOwnDetail}
           textContent={textContent}
           custom={custom}
-          progressDisplay={progressDisplay}
-          agentColor={messageAgent?.backgroundColor || '#316049'}
           toolStatus={toolStatus}
           reasoningText={reasoningText}
           sources={statusSources}
