@@ -703,6 +703,19 @@ describe('looksLikeUnsourcedWritingOrder', () => {
     }
   });
 
+  it('a forbidden artifact is not an order — the verb belongs to the prohibition', () => {
+    // Reading "erstelle" here as a writing order sent the turn into the loop and
+    // past the router's persistent-action gate, which only sees artifact
+    // intents. The gate exists for exactly this sentence.
+    expect(unsourced('Halte die Ergebnisse fest, aber erstelle diesmal kein Dokument.')).toBe(
+      false
+    );
+    expect(unsourced('Fasse das zusammen, schreib aber keine Pressemitteilung')).toBe(false);
+    // The contrastive conjunction still binds the negation to what FOLLOWS it:
+    // the dossier is ordered, only the document is refused.
+    expect(unsourced('Erstelle ein Dossier zur Windkraft, aber kein Dokument')).toBe(true);
+  });
+
   it('pure creative form and rewrites are exempt', () => {
     for (const q of [
       'Schreib mir ein Gedicht über den Frühling',

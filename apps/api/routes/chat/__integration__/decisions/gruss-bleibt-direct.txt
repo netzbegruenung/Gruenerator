@@ -4,7 +4,7 @@
 # about what a real model would have done.
 
 ## turn 0: "Hallo!"
-router.run_agentic               = single_pass                    forcedTool=false gateOpen=false hasImageAttachments=false inLoopSet=false intent=direct isCompound=false isMcpTurn=false isPdfFillRequest=false loopEnabled=true secondaryAllowed=true
+router.run_agentic               = single_pass                    forcedTool=false gateOpen=false hasImageAttachments=false hasOwnMaterial=false inLoopSet=false intent=direct isCompound=false isMcpTurn=false isPdfFillRequest=false loopEnabled=true secondaryAllowed=true unsourcedWriting=false
 router.intent_override           = (not reached)
 router.persistent_action_gate    = (not reached)
 classifier.tier                  = tier3_short_message            confidence=0.95 heuristicIntent=direct
