@@ -38,13 +38,32 @@ const STUB_AGENT_CONFIG = {
   isSystemDefault: true,
 };
 
-/** Trennt den Auflöser vom grossen Prompt am Systemprompt. */
+/**
+ * Trennt den Auflöser vom grossen Prompt am Systemprompt.
+ *
+ * Der Zähler zählt AUSDRÜCKLICH nur, was kein kleiner Auflöser ist. Die erste
+ * Fassung nahm alles ausser dem Quellen-Auflöser als grossen Prompt — und als
+ * der Generierungs-Auflöser dazukam, zählte sie ihn mit. `bigPromptCalls > 0`
+ * wäre damit grün geblieben, auch wenn Tier 4 nie mehr erreicht worden wäre:
+ * die Behauptung des Falls wäre unbeweisbar geworden, ohne rot zu werden.
+ * Deshalb ist die Liste hier explizit und wächst mit jedem neuen Auflöser mit
+ * (dieselbe Pflicht wie bei den beiden `RESOLVER_DEFAULTS`-Listen).
+ */
+const SMALL_RESOLVER_PREFIXES = [
+  'Entscheide, ob diese Anfrage Daten', // sourceScopeResolver
+  'Entscheide, ob diese Nachricht ein ARTEFAKT', // generationResolver
+  'Ein Gespräch hat mehrere Artefakte', // docsIntentTiebreak
+];
+
 function makeWorkerPool(scopeAnswer: string | (() => never)) {
   const bigPromptCalls: number[] = [];
   const processRequest = vi.fn(async (req: { systemPrompt?: string }) => {
     if (req.systemPrompt?.startsWith('Entscheide, ob diese Anfrage Daten')) {
       if (typeof scopeAnswer === 'function') scopeAnswer();
       return { content: scopeAnswer };
+    }
+    if (SMALL_RESOLVER_PREFIXES.some((p) => req.systemPrompt?.startsWith(p))) {
+      return { content: 'keine' };
     }
     bigPromptCalls.push(1);
     return {
@@ -129,15 +148,20 @@ describe('classifierNode — Live-Quelle vor der LLM-Stufe', () => {
   });
 
   it('gibt einen Turn, der keine Live-Quelle braucht, an die LLM-Stufe weiter', async () => {
-    // Ein Umschreibe-Auftrag ist in sich geschlossen: er wird nicht in den Loop
-    // demotiert und ist auch nicht vom Live-Quellen-Gitter gehalten, erreicht
-    // den Auflöser also auf dem regulären Weg — und nach dessen `keine` die
-    // grosse Stufe. Die Sachfrage, die vorher hier stand, tut das seit der
-    // Default-Inversion nicht mehr: sie loopt.
+    // Reine Wortkunst ist in sich geschlossen: nicht in den Loop demotiert, nicht
+    // vom Live-Quellen-Gitter gehalten, und — anders als ein Umschreibe-Auftrag —
+    // auch nicht vom Generierungs-Gitter beansprucht („kürze" steht dort drin).
+    // Sie erreicht den Auflöser also auf dem regulären Weg und nach dessen
+    // `keine` die grosse Stufe.
+    //
+    // Zwei Formulierungen sind hier schon verbrannt: die Sachfrage, die vorher
+    // stand, loopt seit der Default-Inversion; der Umschreibe-Auftrag danach
+    // wird seit dem Generierungs-Auflöser vor Tier 4 entschieden. Beide Male
+    // fiel es erst auf, als der Zähler oben ehrlich wurde.
     const pool = makeWorkerPool('keine');
     await classifierNode(
       buildState({
-        userMessage: 'Formulier diesen Absatz bitte kürzer',
+        userMessage: 'Schreib mir ein Gedicht über den Wald im Herbst',
         pool,
       })
     );

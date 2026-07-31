@@ -124,3 +124,29 @@ describe('no temporal reference', () => {
     expect(at('Maibaum')).toBeNull();
   });
 });
+
+describe('offene Fenster mit "seit"', () => {
+  it('lässt einen Monat mit "seit" offen bis heute', () => {
+    // "seit" ändert die FORM dessen, was folgt: ein offenes Fenster, nicht die
+    // benannte Periode. Die Monatsprüfung zuerst laufen zu lassen liess "seit
+    // März 2024" auf den März 2024 zusammenfallen und warf alles weg, wonach
+    // gefragt war.
+    expect(at('seit März 2024')).toBe('2024-03-01..2026-07-15');
+    expect(at('seit Januar')).toBe('2026-01-01..2026-07-15');
+  });
+
+  it('ohne "seit" bleibt der Monat geschlossen', () => {
+    expect(at('im März 2024')).toBe('2024-03-01..2024-03-31');
+  });
+});
+
+describe('Tagesgrenze', () => {
+  it('nimmt den LOKALEN Kalendertag, nicht den UTC-Tag', () => {
+    // Zwischen Mitternacht und 02:00 MESZ ist der UTC-Tag noch der gestrige.
+    // Vorher hiess "heute" dort das Fenster von gestern — eine Stunde, in der
+    // eine falsche Antwort von einer richtigen nicht zu unterscheiden ist.
+    const justAfterLocalMidnight = new Date(2026, 6, 1, 0, 30, 0);
+    const r = parseRelativeDateRange('heute', justAfterLocalMidnight);
+    expect(r).toEqual({ date_from: '2026-07-01', date_to: '2026-07-01' });
+  });
+});
