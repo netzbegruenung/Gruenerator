@@ -79,6 +79,17 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
   /** Print must not boot reveal before the deck has arrived (see above). */
   const deckReady = !printPdf || slides.length > 0;
 
+  // `deckReady` gates the init effect — and with it the 3s print fallback that
+  // lives inside it. So a deck that never syncs (Hocuspocus unreachable, an id
+  // with no document) arms no timer at all and the export tab just sits there
+  // blank: no dialog, no error, nothing to react to. Say so instead.
+  const [syncFailed, setSyncFailed] = useState(false);
+  useEffect(() => {
+    if (!printPdf || deckReady) return;
+    const timer = setTimeout(() => setSyncFailed(true), 15000);
+    return () => clearTimeout(timer);
+  }, [printPdf, deckReady]);
+
   const optsRef = useRef(deckOptions);
   optsRef.current = deckOptions;
 
@@ -306,7 +317,23 @@ export function PresentMode({ ydoc, onClose, printPdf, scroll }: PresentModeProp
   // `bg-black` that would otherwise sit behind every page. The toolbar is not
   // rendered at all: `print:hidden` kept it off paper, but it still floated
   // over the on-screen stack in the export tab.
-  if (printPdf) return createPortal(deck, document.body);
+  if (printPdf) {
+    // The message carries `gruene-print-root` too — print-pdf.css hides every
+    // other body child, so without the class the tab would stay blank.
+    if (syncFailed) {
+      return createPortal(
+        <div className="gruene-print-root p-8 text-center font-sans" role="alert">
+          <p className="text-lg font-bold">Die Präsentation konnte nicht geladen werden.</p>
+          <p className="mt-2 text-sm">
+            Bitte schließe diesen Tab und starte den PDF-Export erneut. Besteht das Problem, prüfe
+            deine Verbindung.
+          </p>
+        </div>,
+        document.body
+      );
+    }
+    return createPortal(deck, document.body);
+  }
 
   return (
     <div className="fixed inset-0 z-[300] bg-black">

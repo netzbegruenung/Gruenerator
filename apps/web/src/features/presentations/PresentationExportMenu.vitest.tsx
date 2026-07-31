@@ -33,9 +33,10 @@ vi.mock('../../components/utils/apiClient', () => ({
 
 const toastError = vi.fn();
 const toastSuccess = vi.fn();
+const toastInfo = vi.fn();
 vi.mock('sonner', () => ({
   toast: {
-    info: vi.fn(),
+    info: (...args: unknown[]): void => void toastInfo(...args),
     loading: vi.fn(() => 'toast-id'),
     success: (...args: unknown[]): void => void toastSuccess(...args),
     error: (...args: unknown[]): void => void toastError(...args),
@@ -49,7 +50,11 @@ vi.mock('../../utils/downloadFile', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.stubGlobal('open', vi.fn());
+  // A real window.open returns the new Window; a blocked popup returns null.
+  vi.stubGlobal(
+    'open',
+    vi.fn(() => ({}) as Window)
+  );
 });
 
 async function openMenu() {
@@ -74,6 +79,29 @@ describe('PresentationExportMenu', () => {
       'noopener'
     );
     expect(post).not.toHaveBeenCalled();
+  });
+
+  it('says the print dialog is coming — a silent new tab reads as a bug', async () => {
+    render(<PresentationExportMenu documentId="deck-1" title="Haushalt 2027" />);
+    await openMenu();
+    await userEvent.click(screen.getByRole('menuitem', { name: /Als PDF/ }));
+    expect(toastInfo).toHaveBeenCalledWith(
+      expect.stringContaining('Druckdialog'),
+      expect.anything()
+    );
+    expect(toastError).not.toHaveBeenCalled();
+  });
+
+  it('reports a blocked popup instead of promising a dialog that never opens', async () => {
+    vi.stubGlobal(
+      'open',
+      vi.fn(() => null)
+    );
+    render(<PresentationExportMenu documentId="deck-1" title="Haushalt 2027" />);
+    await openMenu();
+    await userEvent.click(screen.getByRole('menuitem', { name: /Als PDF/ }));
+    expect(toastInfo).not.toHaveBeenCalled();
+    expect(toastError).toHaveBeenCalledWith(expect.stringContaining('Pop-ups'), expect.anything());
   });
 
   it('hides PowerPoint from guests but keeps PDF', async () => {

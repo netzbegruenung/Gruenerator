@@ -38,12 +38,19 @@ export function PresentationExportMenu({
   const exportPdf = useCallback(() => {
     // No API call: the export tab re-renders the deck and reveal's print view
     // paginates it for the browser's own print dialog.
-    window.open(`/office/${documentId}?present=1&print-pdf`, '_blank', 'noopener');
+    const tab = window.open(`/office/${documentId}?present=1&print-pdf`, '_blank', 'noopener');
     void import('sonner').then(({ toast }) =>
-      toast.info(
-        'Im neuen Tab öffnet sich der Druckdialog. Dort als Ziel „Als PDF speichern" wählen — Hintergrundgrafiken sind bereits aktiviert.',
-        { duration: 8000 }
-      )
+      // A blocked popup returns null. Announcing a dialog that never opens
+      // leaves the user waiting for it.
+      tab
+        ? toast.info(
+            'Im neuen Tab öffnet sich der Druckdialog. Dort als Ziel „Als PDF speichern" wählen — Hintergrundgrafiken sind bereits aktiviert.',
+            { duration: 8000 }
+          )
+        : toast.error(
+            'Der Browser hat das neue Fenster blockiert. Erlaube Pop-ups für diese Seite und versuche es erneut.',
+            { duration: 8000 }
+          )
     );
   }, [documentId]);
 
