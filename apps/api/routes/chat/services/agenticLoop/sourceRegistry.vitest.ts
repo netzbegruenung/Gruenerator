@@ -378,4 +378,53 @@ describe('sourceRegistry.note', () => {
       expect(createSourceRegistry().renderAll()).toBe('');
     });
   });
+
+  /**
+   * The shared shrink is a backstop against unbounded growth, not a per-turn
+   * budget. Where its water line sits decides whether the two things upstream of
+   * it — the deep tier's raised snippet cap and the deep crawl — reach the model
+   * or get taken back out at the render step they were built for.
+   */
+  describe('shared budget', () => {
+    // Distinct titles AND distinct content prefixes: the registry dedupes on
+    // `url::title::content.slice(0,80)`, so two batches of identical filler
+    // would silently collapse into one and the budget would never be reached.
+    const filled = (n: number, chars: number, tag = 'a') =>
+      Array.from({ length: n }, (_, i) => {
+        const head = `${tag}${i + 1}-`;
+        return result({ title: `${tag}${i + 1}`, content: head + 'x'.repeat(chars - head.length) });
+      });
+
+    /** Longest snippet body in the rendered block, i.e. the effective cap. */
+    const longestBody = (block: string) =>
+      Math.max(...block.split('\n').map((l) => (l.split(' — ')[1] ?? '').length));
+
+    it('leaves a full tiefenrecherche turn untouched (20 hits + 3 read pages)', () => {
+      const reg = createSourceRegistry();
+      reg.register(filled(3, 4000, 'gelesen'), { snippetChars: 4000 });
+      reg.register(filled(17, 1500, 'schnipsel'), { snippetChars: 4000 });
+      expect(reg.size).toBe(20);
+      // 3x4000 + 17x1500 = 37 500 — the case the budget was sized for. At the
+      // old 18k this shrank to 900 per source and the crawl was pointless.
+      expect(longestBody(reg.renderAll())).toBe(4000);
+    });
+
+    it('still shrinks when a long carried thread piles up on a deep turn', () => {
+      const reg = createSourceRegistry();
+      reg.seedCarried(filled(10, 1500, 'frueher'));
+      reg.register(filled(20, 1500, 'frisch'));
+      // 30 x 1500 = 45 000 — above the budget, so the backstop fires. Every
+      // source keeps its number and its line; they shorten together.
+      const block = reg.renderAll();
+      expect(reg.size).toBe(30);
+      expect(block.split('\n').filter((l) => /^\[\d+\]/.test(l))).toHaveLength(30);
+      expect(longestBody(block)).toBeLessThan(1500);
+    });
+
+    it('never shortens a snippet below the evidence floor', () => {
+      const reg = createSourceRegistry();
+      reg.register(filled(200, 1500));
+      expect(longestBody(reg.renderAll())).toBe(500);
+    });
+  });
 });
