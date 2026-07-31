@@ -64,10 +64,12 @@ export const SIM_SCENARIOS: readonly SimScenario[] = [
   {
     id: 'dokument-erlaubt',
     category: 'negative-action',
-    note: 'Gegenstueck zu kein-dokument: gleiche Verben, kein Verbot. Beweist, dass das Gate ueberhaupt der Unterschied ist.',
+    note: 'Gegenstueck zu kein-dokument: gleiche Verben, kein Verbot. Beweist, dass das Gate ueberhaupt der Unterschied ist. Braucht seit #2270 KEIN Verdikt mehr: "leg sie als Dokument ab" erreicht die Heuristik in beiden Wortstellungen und wird bei Tier 3 entschieden. Ein gesetztes Verdikt wuerde hier nichts mehr belegen — der Turn kaeme nie beim Modell an.',
     prompt: 'Halte die Ergebnisse fest und leg sie als Dokument ab.',
-    verdict: { intent: 'save_as_doc' },
-    mustDecide: [{ point: 'router.persistent_action_gate', chose: 'allowed' }],
+    mustDecide: [
+      { point: 'router.persistent_action_gate', chose: 'allowed' },
+      { point: 'classifier.tier', chose: 'tier3_heuristic' },
+    ],
   },
   {
     id: 'sharepic-unlizenziert',
