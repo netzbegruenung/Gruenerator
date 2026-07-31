@@ -48,6 +48,12 @@
    only activate when the site theme is explicitly set to dark. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
+/* `kbd:` — only while the last interaction was a key press. For focus styling
+   that must not answer a mouse click, which :focus-visible cannot express on
+   text fields (the spec exempts them). focusModality.ts writes the attribute;
+   accessibility.css gates the global ring on the same one. */
+@custom-variant kbd (&:where([data-focus-modality="keyboard"] *));
+
 /* ── Chat package component styles (merges into Tailwind's components layer) ── */
 @import "../../../../../packages/chat/src/styles/chat-embedded.css" layer(components);
 

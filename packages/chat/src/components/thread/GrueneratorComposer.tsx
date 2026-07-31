@@ -781,14 +781,20 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
           // noise. What a person means by "the composer has focus" is the text
           // field.
           //
+          // `kbd:` in front of it, because :focus was never the whole story: the
+          // CSS spec exempts text entry from the mouse-click rule, so a textarea
+          // matches :focus AND :focus-visible when clicked into. Swapping one for
+          // the other changes nothing here — only the input modality does. See
+          // focusModality.ts.
+          //
           // Two colours because no single one clears 3:1 on both grounds. Light:
           // primary-600 (#316049) at 7.2:1 on white and 6.3:1 on the glow band's
           // strongest tint. Dark: primary-300 (#8AC9B0) at 8.0:1 on the page and
           // 7.0:1 on the composer's own fill. The app's usual ring colour,
           // primary-500, drops to ~3.2:1 against the band — it was chosen for
           // plain surfaces, not for a tinted one.
-          'has-[textarea:focus]:outline-2 has-[textarea:focus]:outline-offset-2',
-          'has-[textarea:focus]:outline-primary-600 dark:has-[textarea:focus]:outline-primary-300',
+          'kbd:has-[textarea:focus]:outline-2 kbd:has-[textarea:focus]:outline-offset-2',
+          'kbd:has-[textarea:focus]:outline-primary-600 dark:kbd:has-[textarea:focus]:outline-primary-300',
           // Design v2: the pill keeps its resting border/shadow on focus.
           isPill
             ? 'rounded-full shadow-md focus-within:shadow-lg dark:shadow-sm'
