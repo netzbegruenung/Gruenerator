@@ -5,6 +5,7 @@ import {
   estimateFootprint,
   estimateImageFootprint,
   gridIntensityFor,
+  pueFor,
   referenceFootprint,
 } from '../energyFootprint.js';
 
@@ -268,5 +269,72 @@ describe('estimateImageFootprint', () => {
     expect(
       estimateImageFootprint({ provider: 'bfl', model: 'flux-3-whatever', images: 1 })
     ).toBeNull();
+  });
+});
+
+describe('the low end of the band', () => {
+  it('leaves a metered lane exactly where it was', () => {
+    // gemma4-31b has real coefficients. A range around a measurement would be
+    // inventing uncertainty that the meter already removed — and it is what
+    // makes the band's WIDTH readable as remaining ignorance.
+    const args = {
+      provider: 'litellm',
+      model: 'gemma4-31b',
+      inputTokens: 4000,
+      outputTokens: 500,
+      requests: 3,
+    };
+    expect(estimateFootprint({ ...args, bound: 'low' })?.energyWms).toBe(
+      estimateFootprint(args)?.energyWms
+    );
+  });
+
+  it('drops an un-metered lane to the floor of the same measured span', () => {
+    const args = {
+      provider: 'regolo',
+      model: 'qwen3.5-122b',
+      inputTokens: 4000,
+      outputTokens: 500,
+      requests: 3,
+    };
+    const high = estimateFootprint(args);
+    const low = estimateFootprint({ ...args, bound: 'low' });
+    expect(low?.energyWms ?? 0).toBeLessThan(high?.energyWms ?? 0);
+    // The floor is gpt-oss-120b's metered slope, so the low end must not
+    // undercut what that model would itself cost on the same traffic.
+    const floor = estimateFootprint({ ...args, model: 'gpt-oss-120b' });
+    expect(low?.energyWms).toBe(floor?.energyWms);
+  });
+
+  it('keeps calling an un-metered lane a bound at BOTH ends', () => {
+    // Swapping in the floor to draw a range must not relabel the lane as
+    // measured — the share the API reports would then overstate our coverage.
+    const args = {
+      provider: 'regolo',
+      model: 'qwen3.5-122b',
+      inputTokens: 100,
+      outputTokens: 100,
+      requests: 1,
+    };
+    expect(estimateFootprint({ ...args, bound: 'low' })?.basis).toBe('bound');
+    expect(estimateFootprint(args)?.basis).toBe('bound');
+  });
+
+  it('strips exactly the boundary uplift from an image, nothing else', () => {
+    const args = { provider: 'regolo', model: 'Qwen-Image', images: 4 };
+    const high = estimateImageFootprint(args)?.energyWms ?? 0;
+    const low = estimateImageFootprint({ ...args, bound: 'low' })?.energyWms ?? 0;
+    expect(high).toBe(low * 2);
+  });
+});
+
+describe('pueFor', () => {
+  it('reads the table the figure was actually computed from', () => {
+    // Token coefficients arrive from GreenPT carrying 1.25; image figures come
+    // off a bare GPU meter and fall back to the world average instead. Reading
+    // the wrong one would publish a constant no number was computed with.
+    expect(pueFor('bfl', 'tokens')).toBe(1.25);
+    expect(pueFor('bfl', 'images')).toBe(1.56);
+    expect(pueFor('regolo')).toBe(1.2);
   });
 });
