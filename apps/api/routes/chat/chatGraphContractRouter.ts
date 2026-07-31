@@ -35,6 +35,7 @@ import {
 import {
   isSheetFillRequest,
   isTabularComputeQuestion,
+  NOUN_TRIGGER_MAX_LENGTH,
 } from '../../agents/langgraph/ChatGraph/nodes/classifierHeuristics.js';
 import {
   ARTIFACT_NOUN_BY_KIND,
@@ -1273,6 +1274,14 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               )) &&
             isSheetFillRequest(lastUserText),
           classifierContradictedResearch: classifiedState.classifierContradictedResearch === true,
+          // Same question the classifier's Tier 3.5 asks, asked again here
+          // because a turn can reach this gate without having passed that tier
+          // (confident heuristic, LLM verdict, post-pass correction).
+          hasOwnMaterial:
+            lastUserText.length > NOUN_TRIGGER_MAX_LENGTH ||
+            !!classifiedState.attachmentContext ||
+            !!classifiedState.currentDocument ||
+            (classifiedState.docMentionIds ?? []).length > 0,
         });
 
       // A demoted turn that a kill-switch (compound, forced tool, ...) kept out

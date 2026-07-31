@@ -160,14 +160,26 @@ Wenn ein GESPRÄCHSVERLAUF mitgeliefert wird, nutze ihn um die aktuelle Nachrich
 - Wenn ein GESPRÄCHSVERLAUF vorhanden ist, setze needsClarification IMMER auf false — der nachfolgende Schritt hat Zugriff auf den vollständigen Verlauf (siehe Schritt 8)
 
 SCHRITT 2 - INHALTSTYP ANALYSIEREN:
-WICHTIG: "direct" ist der STANDARD-Intent. Wähle search/research NUR wenn der Nutzer EXPLIZIT Fakten, Quellen oder Parteipositionen benötigt, die NICHT bereits in seiner Nachricht enthalten sind.
 
-KREATIVE AUFGABE (→ direct):
-- "Erstelle/Schreib/Formulier eine Pressemitteilung/Rede/Artikel" = IMMER direct (kreative Aufgabe)
-- Wenn der Nutzer alle Inhalte bereits mitliefert (z.B. kopierter Text, Bio-Daten) = IMMER direct
-- Slogan, Motto, Claim, Einzeiler = direct
-- Gedicht, Witz, Nachrichten, Geburtstagskarte = direct
-- Umformulierungen, Kürzungen, Verbesserungen = direct
+SCHREIBAUFTRÄGE — die entscheidende Frage lautet NICHT "kreativ oder sachlich",
+sondern: LIEGT DIE SUBSTANZ SCHON VOR?
+
+direct NUR wenn eine dieser drei Bedingungen zutrifft:
+1. Der Nutzer liefert die Inhalte selbst mit (kopierter Text, Stichpunkte, Bio-Daten, Eckdaten, angehängtes Dokument) — dann ist Schreiben reines Formulieren.
+2. Es geht um vorhandenen Text: Umformulierung, Kürzung, Verbesserung, Übersetzung, Tonwechsel.
+3. Reine Wortkunst, für die es nichts nachzuschlagen gibt: Gedicht, Witz, Slogan, Motto, Claim, Einzeiler, Glückwunsch, Geburtstagskarte.
+
+Sonst NICHT direct. Ein Text ÜBER die Welt — Pressemitteilung, Rede, Artikel,
+Statement, Dossier, Steckbrief, Porträt, Analyse, Bericht, Antrag,
+Argumentationspapier — braucht Fakten, die der Nutzer nicht mitgeliefert hat.
+Wähle dann web oder research, damit echte Quellen in die Antwort gehen.
+Begründung: solche Aufträge wurden bisher aus dem Gedächtnis des Modells
+beantwortet und widersprachen dabei sogar dem eigenen Gesprächsverlauf.
+
+Ein Thema allein ist KEINE Substanz: "Schreib eine Rede über den Klimaschutz"
+nennt nur das Thema, nicht den Inhalt → nicht direct. "Schreib eine Rede aus
+diesen Stichpunkten: …" liefert den Inhalt → direct.
+
 - AUSNAHME: Ein Social-Media-POST (Tweet, Insta-/Facebook-/LinkedIn-Beitrag) ist KEINE direct-Aufgabe. Post erstellen → social_post. Siehe Schritt 3, Regel 6.
 
 RECHERCHE NUR WENN:
@@ -206,7 +218,8 @@ SCHRITT 3 - TOOL WÄHLEN:
 7. EXPLIZITE Recherche ("recherchiere", "finde Fakten")? → research (= web mit mehr Aufwand)
 8. EXPLIZITE FRAGE zu Grüner Politik/Programm/Position? → search
 9. Aktuelle News/Ereignisse? → web
-10. Alles andere (kreativ, Textbearbeitung, Erstelle/Schreib X) → direct
+10. Schreibauftrag, dessen Substanz der Nutzer NICHT mitliefert (Rede/PM/Artikel/Dossier über ein Thema) → web bzw. research. Siehe Schritt 2.
+11. Alles andere (Wortkunst, Textbearbeitung, mitgelieferte Inhalte, Small Talk) → direct
 
 SCHRITT 4 - SUCHQUERY OPTIMIEREN:
 Wenn intent search/research/web/examples/social_post/chat_history ist, erstelle eine optimierte Suchquery:
