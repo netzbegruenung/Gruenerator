@@ -181,9 +181,19 @@ describe('decideRunAgentic', () => {
 
   it('lets a PDF fill ask into the loop, though it is no "toolable question"', () => {
     const fill = { intent: 'direct', lastUserText: 'Füll mir bitte das Formular aus' };
-    // Without the PDF signal the imperative stays on the fast path by design.
-    expect(decide(fill)).toBe(false);
+    // Since the default inversion this imperative loops WITHOUT the PDF signal
+    // too: it is not a question, not a rewrite, not creative form, and carries
+    // no material — so nothing shows it can be answered as it stands. The
+    // control side of this pair therefore had to move; `isPdfFillRequest`
+    // still matters because it survives every kill-switch check below and,
+    // upstream, is what mounts the PDF tools at all.
+    expect(decide(fill)).toBe(true);
     expect(decide({ ...fill, isPdfFillRequest: true })).toBe(true);
+    // The control that still proves the flag does something: WITH own material
+    // the turn is self-contained and stays single-pass unless the PDF signal
+    // says otherwise.
+    expect(decide({ ...fill, hasOwnMaterial: true })).toBe(false);
+    expect(decide({ ...fill, hasOwnMaterial: true, isPdfFillRequest: true })).toBe(true);
     // Kill-switches still win — the PDF tools are not worth a broken contract.
     expect(decide({ ...fill, isPdfFillRequest: true, loopEnabled: false })).toBe(false);
     expect(decide({ ...fill, isPdfFillRequest: true, forcedTool: true })).toBe(false);
@@ -199,8 +209,19 @@ describe('decideRunAgentic', () => {
       intent: 'direct',
       lastUserText: 'Erklär mir die aktuellen Vorwürfe gegen die Partei',
     };
-    expect(decide(statement)).toBe(false);
+    // The default inversion now catches this shape without the flag — which was
+    // the point of inverting: the rescue only ever fired when the LLM tier had
+    // ALSO answered needsResearch=true, so every turn that short-circuited
+    // earlier reached the user unrescued. The flag is kept because it is a
+    // second, independent reason to loop, and it is the only one that survives
+    // a turn the phrasing rules read as self-contained.
+    expect(decide(statement)).toBe(true);
     expect(decide({ ...statement, classifierContradictedResearch: true })).toBe(true);
+    // Creative form is the exemption the inversion must not swallow — and the
+    // contradiction flag still overrides it.
+    const poem = { intent: 'direct', lastUserText: 'Schreib ein Gedicht über den Herbst' };
+    expect(decide(poem)).toBe(false);
+    expect(decide({ ...poem, classifierContradictedResearch: true })).toBe(true);
 
     // Kill-switches still win, exactly as for the PDF rescue above.
     expect(decide({ ...statement, classifierContradictedResearch: true, loopEnabled: false })).toBe(

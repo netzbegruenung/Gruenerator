@@ -112,13 +112,15 @@ describe('classifierNode — Live-Quelle vor der LLM-Stufe', () => {
     // „keine — das ist Bahnpolitik": eine Teilstring-Suche läse hier `bahn`,
     // also genau die Verwechslung, die der Prompt zuletzt ausschliesst.
     //
-    // Die Nachricht muss die LLM-Stufe wirklich erreichen, sonst läuft der
-    // Auflöser gar nicht und der Fall ist grün, ohne etwas zu prüfen — eine
-    // Frage nach der Bahnreform wird vorher in den Loop demotiert.
+    // Die Nachricht muss den Auflöser wirklich erreichen, sonst ist der Fall
+    // grün, ohne etwas zu prüfen. Seit der Default-Inversion führt dorthin nur
+    // noch EIN Weg: `SYSTEM_MCP_PHRASING` muss den Turn vor Tier 3.5
+    // zurückhalten. Genau deshalb steht hier jetzt das Wort "Bahn" — die Frage
+    // ist trotzdem Politik, und das ist der Punkt.
     const pool = makeWorkerPool('keine — das ist Bahnpolitik, keine Fahrplanauskunft.');
     const result = await classifierNode(
       buildState({
-        userMessage: 'Erklär den Unterschied zwischen Nationalrat und Bundesrat in Österreich',
+        userMessage: 'Wie steht die Partei zur Deutschen Bahn?',
         pool,
       })
     );
@@ -127,10 +129,15 @@ describe('classifierNode — Live-Quelle vor der LLM-Stufe', () => {
   });
 
   it('gibt einen Turn, der keine Live-Quelle braucht, an die LLM-Stufe weiter', async () => {
+    // Ein Umschreibe-Auftrag ist in sich geschlossen: er wird nicht in den Loop
+    // demotiert und ist auch nicht vom Live-Quellen-Gitter gehalten, erreicht
+    // den Auflöser also auf dem regulären Weg — und nach dessen `keine` die
+    // grosse Stufe. Die Sachfrage, die vorher hier stand, tut das seit der
+    // Default-Inversion nicht mehr: sie loopt.
     const pool = makeWorkerPool('keine');
     await classifierNode(
       buildState({
-        userMessage: 'Erklär den Unterschied zwischen Nationalrat und Bundesrat in Österreich',
+        userMessage: 'Formulier diesen Absatz bitte kürzer',
         pool,
       })
     );

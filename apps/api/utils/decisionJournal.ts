@@ -75,6 +75,8 @@ export const DECISION_POINTS = {
       'tier2.95_ambiguous_graphic',
       'tier3_short_message',
       'tier3_heuristic',
+      'tier3.4_chat_recall',
+      'tier3.4_recurring_order',
       'tier3.5_loop_demotion',
       'tier3.7_source_scope',
       'tier3.7_no_live_source',

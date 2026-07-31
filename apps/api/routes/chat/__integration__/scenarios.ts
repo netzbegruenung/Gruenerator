@@ -74,8 +74,8 @@ export const SIM_SCENARIOS: readonly SimScenario[] = [
   {
     id: 'sharepic-unlizenziert',
     category: 'sharepic-licence',
-    note: 'Nimmt an, dass der LLM-Tier "optisch aufbereiten" als sharepic liest. Ein unlizenziertes sharepic kann praktisch nur von dort kommen — eine Formulierung, die die Heuristik als sharepic liest, benennt eines und waere damit lizenziert.',
-    prompt: 'Bereite die Kernaussage optisch auf',
+    note: 'Nimmt an, dass der LLM-Tier einen Umformulierungs-Auftrag als sharepic liest. Ein unlizenziertes sharepic kann praktisch nur von dort kommen — eine Formulierung, die die Heuristik als sharepic liest, benennt eines und waere damit lizenziert. Prompt am 31.07.2026 gegen die Tiers gemessen: seit der Default-Inversion erreicht nur noch ein in sich geschlossener Turn (hier: reine Wortkunst) die LLM-Stufe.',
+    prompt: 'Entwickle einen Slogan zur Kernaussage',
     verdict: { intent: 'sharepic' },
     mustDecide: [
       { point: 'router.intent_override', chose: 'sharepic_unlicensed_fixed_text' },
