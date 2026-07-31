@@ -116,6 +116,7 @@ const ARTIFACT_KIND_BY_INTENT: Partial<Record<ChatIntentId, ThreadToolContext['k
 const RESOLVER_DEFAULTS: ReadonlyArray<{ prefix: string; reply: string }> = [
   { prefix: 'Entscheide, ob diese Anfrage Daten', reply: 'keine' },
   { prefix: 'Ein Gespräch hat mehrere Artefakte', reply: '0' },
+  { prefix: 'Entscheide, ob diese Nachricht ein ARTEFAKT', reply: 'keine' },
 ];
 
 /** Zählt Modellaufrufe und trennt den grossen Prompt von den kleinen Auflösern. */
