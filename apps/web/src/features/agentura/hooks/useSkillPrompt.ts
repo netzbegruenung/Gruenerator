@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
  *
  * The catalogue in the bundle is metadata-only on purpose — a prompt field
  * there would be readable by anyone who opens the JS chunk, logged in or not.
- * See apps/api/services/skills/internalSkillPrompts.ts.
+ * See apps/api/services/skills/internalPrompts.ts.
  *
  * `null` data is the expected answer on a host without the internal directory
  * (fork, fresh clone, failed rollout), not an error — callers fall back to the

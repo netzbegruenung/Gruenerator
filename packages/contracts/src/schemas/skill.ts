@@ -5,7 +5,7 @@
  * Frontmatter is the *whole* public file: the prompt body is party-internal,
  * lives outside this repo and is served at runtime by the API — see
  * `skillPromptResponseSchema` below and apps/api/services/skills/
- * internalSkillPrompts.ts. Used by `packages/shared/scripts/build-skills.ts`
+ * internalPrompts.ts. Used by `packages/shared/scripts/build-skills.ts`
  * to validate every `*.md` skill file before emitting `index.generated.ts`.
  *
  * Identifier values are TS-narrowed to `SystemAgentId` at codegen time via

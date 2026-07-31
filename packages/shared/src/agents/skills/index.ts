@@ -9,11 +9,11 @@
  *
  * The files here are frontmatter ONLY. A skill's prompt body is party-internal
  * and lives in the private `netzbegruenung/gruenerator-intern` repo; the API
- * reads it at runtime from `SKILLS_INTERN_DIR`. This array ships inside the web
+ * reads it at runtime from `INTERN_CONTENT_DIR`. This array ships inside the web
  * bundle and every released mobile binary, so a prompt in it is public the
  * moment it builds — and a released binary cannot be recalled. `build-skills.ts`
  * therefore rejects a markdown body outright. See CLAUDE-deployment.md and
- * apps/api/services/skills/internalSkillPrompts.ts.
+ * apps/api/services/skills/internalPrompts.ts.
  *
  * The generated file IS committed (intentionally) so that lint-staged
  * doesn't stash it away and break type resolution in pre-commit hooks.

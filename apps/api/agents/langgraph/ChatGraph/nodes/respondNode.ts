@@ -24,7 +24,7 @@ import {
 import { CONTENT_INTEGRITY_ANSWER_RULE } from '../../../../services/contentPolicy.js';
 import { buildDocsPageMap } from '../../../../services/docs/docsIndex.js';
 import { localizePlaceholders } from '../../../../services/localization/index.js';
-import { getInternalSkillPrompt } from '../../../../services/skills/internalSkillPrompts.js';
+import { getInternalSkillPrompt } from '../../../../services/skills/internalPrompts.js';
 import { type Locale } from '../../../../services/localization/types.js';
 import { getTextFormForInjection } from '../../../../services/user/textFormRepository.js';
 import { recordDecision, type BranchOf } from '../../../../utils/decisionJournal.js';
@@ -1390,7 +1390,7 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
     // The prompt body is party-internal and deliberately absent from `SKILLS`,
     // which ships in the web and mobile bundles — it is read from disk here
     // instead. Null means the directory was never rolled out; the turn then runs
-    // on the agent's base systemRole. See services/skills/internalSkillPrompts.ts.
+    // on the agent's base systemRole. See services/skills/internalPrompts.ts.
     const internalPrompt = getInternalSkillPrompt(activeSkill.mention);
     if (internalPrompt) {
       skillFragment = `\n\n## AKTIVE PLATTFORM: ${activeSkill.title}\n${internalPrompt}`;
