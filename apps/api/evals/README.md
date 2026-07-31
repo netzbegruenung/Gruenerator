@@ -60,8 +60,10 @@ path-independent assertions (`grounded`, `cited`, `retainsPriorSources`) are the
 ones that hold in both configurations, and that lane is otherwise never
 exercised. Run **both lanes** — the sharepic-in-split bug was invisible on
 Mistral (unified); use `EVAL_MODEL_ID=mistral` and a split lane (e.g. `gemma-4`).
-Nightly, `.github/workflows/nightly-eval.yml` does exactly this against the
-deployed test env (matrix over both lanes, judge blocking, per-lane baselines).
+`.github/workflows/chat-eval-live.yml` ("Chat Eval (Live)") does exactly this
+against the deployed test env (matrix over both lanes, judge blocking,
+per-lane baselines) — triggered manually via `workflow_dispatch`, not on a
+schedule.
 
 ## Env
 
