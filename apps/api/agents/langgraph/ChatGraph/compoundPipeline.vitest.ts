@@ -7,6 +7,16 @@
  *
  * Uses mocked external services (directSearch, LLM) but exercises real
  * node logic (classifierNode, searchNode, rerankNode, buildCitations).
+ *
+ * Die gescripteten Modell-Antworten hier gingen lange an die falschen Empfänger.
+ * Sie waren als „classifier LLM" beschriftet, aber seit der Löschung der
+ * LLM-Stufe fragt der Klassifikator auf diesem Pfad kein Modell mehr; die
+ * Antwort bekam der `queryRefineResolver`, der ein `{ query }`-Objekt erwartet,
+ * am Klassifikator-JSON scheiterte und still auf `extractSearchTopic` zurückfiel.
+ * Die zweite, für den Reranker gedachte Antwort wurde nie abgeholt: der Test
+ * bewachte den Rerank-Schritt mit `length > 3`, während der echte Aufrufer
+ * (`intentExecutionService`) bei `> 2` reranked — bei genau 3 Treffern aus der
+ * Fixture lief der Schritt hier also nie, obwohl er in Produktion läuft.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -33,6 +43,15 @@ vi.mock('../../../services/search/CrawlingService.js', () => ({
 const mockExpandQuery = vi.fn();
 vi.mock('../../../services/search/QueryExpansionService.js', () => ({
   expandQuery: (...args: any[]) => mockExpandQuery(...args),
+}));
+
+// Der Reranker ist ein Cross-Encoder-Dienst, KEINE Frage an den Worker-Pool —
+// die „reranker LLM"-Antwort, die früher im Pool-Skript stand, konnte hier gar
+// nicht ankommen. Ohne dieses Mock geht `rerankNode` mit echten Netzaufrufen bei
+// Regolo raus und fällt bloss in seinen catch-Zweig zurück.
+const mockRerank = vi.fn();
+vi.mock('../../../services/search/RegoloRerankService.js', () => ({
+  regoloRerankService: { rerank: (...args: any[]) => mockRerank(...args) },
 }));
 
 vi.mock('../../../utils/logger.js', () => ({
@@ -156,18 +175,14 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
   };
 }
 
-function makeClassifierLLMResponse(overrides: Record<string, unknown> = {}) {
-  return JSON.stringify({
-    intent: 'search',
-    searchQuery: 'Klimapolitik Hamburg',
-    optimizedSearchQuery: 'Klimapolitik Hamburg',
-    subQueries: null,
-    searchSources: [],
-    filters: null,
-    needsClarification: false,
-    reasoning: 'Notebook mention with search topic',
-    ...overrides,
-  });
+/**
+ * Die EINZIGE Modell-Frage, die der Klassifikator auf dem Notebook-Pfad noch
+ * stellt: `queryRefineResolver`. Er liest `query` (plus optional `subQueries`) —
+ * jedes andere Feld verwirft sein Parser, und ein unlesbares Objekt ist für ihn
+ * dasselbe wie ein Timeout.
+ */
+function makeQueryRefineResponse(overrides: Record<string, unknown> = {}) {
+  return JSON.stringify({ query: 'Klimapolitik Hamburg', ...overrides });
 }
 
 function makeSearchResults(
@@ -203,6 +218,11 @@ describe('Compound Pipeline: @notebook + @skill', () => {
     );
 
     mockExpandQuery.mockResolvedValue({ alternatives: [] });
+    // Absteigende Werte, damit die Reihenfolge nach dem Rerank prüfbar die des
+    // Rerankers ist und nicht zufällig die der Suche.
+    mockRerank.mockImplementation(async ({ documents }: { documents: string[] }) =>
+      documents.map((_, i) => ({ originalIndex: i, relevanceScore: 0.9 - i * 0.1 }))
+    );
     mockSelectAndCrawlTopUrls.mockImplementation(async (results: any[]) =>
       results.map((r: any) => ({ ...r, crawled: false }))
     );
@@ -217,9 +237,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
           { role: 'user' as const, content: 'erstelle eine Pressemitteilung über Klimapolitik' },
         ],
         aiWorkerPool: {
-          processRequest: vi.fn().mockResolvedValue({
-            content: makeClassifierLLMResponse({ intent: 'research' }),
-          }),
+          processRequest: vi.fn().mockResolvedValue({ content: makeQueryRefineResponse() }),
         },
       });
 
@@ -227,6 +245,11 @@ describe('Compound Pipeline: @notebook + @skill', () => {
 
       expect(result.intent).toBe('search');
       expect(result.gatherSources).toEqual(['notebook-search']);
+      // Der Verfeinerer beantwortet WONACH gesucht wird, nicht OB — das Notebook
+      // hat den Intent längst erzwungen. Vorher stand hier eine Antwort mit
+      // `intent: 'research'`, die diesen Vorrang beweisen sollte; sie erreichte
+      // den Klassifikator nie, weil er dieses Modell gar nicht mehr fragt.
+      expect(result.searchQuery).toBe('Klimapolitik Hamburg');
     });
 
     it('forces search intent even with empty user text (all mentions stripped)', async () => {
@@ -242,7 +265,8 @@ describe('Compound Pipeline: @notebook + @skill', () => {
     });
 
     it('returns gatherSources on all notebook-forced paths', async () => {
-      // LLM fails → heuristic fallback should still have gatherSources
+      // Verfeinerer fällt aus → deterministischer Fallback, aber gatherSources
+      // müssen auf JEDEM dieser Pfade gesetzt sein.
       const state = makeState({
         messages: [{ role: 'user' as const, content: 'Klimapolitik Hamburg' }],
         aiWorkerPool: {
@@ -314,24 +338,9 @@ describe('Compound Pipeline: @notebook + @skill', () => {
       const aiWorkerPool = {
         processRequest: vi
           .fn()
-          // First call: classifier LLM
-          .mockResolvedValueOnce({
-            content: makeClassifierLLMResponse({
-              intent: 'research',
-              searchQuery: 'Klimapolitik Hamburg',
-              optimizedSearchQuery: 'Klimapolitik Hamburg',
-            }),
-          })
-          // Second call: reranker LLM
-          .mockResolvedValueOnce({
-            content: JSON.stringify({
-              scores: [
-                { index: 0, score: 5 },
-                { index: 1, score: 4 },
-                { index: 2, score: 3 },
-              ],
-            }),
-          }),
+          // Erste Frage: queryRefineResolver (im Klassifikator)
+          .mockResolvedValueOnce({ content: makeQueryRefineResponse() })
+          .mockResolvedValue({ content: '{}' }),
       };
 
       // Step 1: Initialize state (simulates controller)
@@ -359,6 +368,10 @@ describe('Compound Pipeline: @notebook + @skill', () => {
       expect(isCompound).toBe(true);
 
       classifiedState.isCompound = isCompound;
+      // Der Verfeinerer hat geantwortet, also greift der Themen-Fallback hier
+      // nicht — er hat seine eigenen Fälle oben. Dass er FRÜHER griff, lag nur
+      // daran, dass die gescriptete Antwort an ihm vorbeilief.
+      expect(classifiedState.searchQuery).toBe('Klimapolitik Hamburg');
       if (!classifiedState.searchQuery) {
         classifiedState.searchQuery = extractCompoundTopic(
           'erstelle eine Pressemitteilung über Klimapolitik',
@@ -373,12 +386,17 @@ describe('Compound Pipeline: @notebook + @skill', () => {
       expect(searchedState.searchResults!.length).toBeGreaterThan(0);
       expect(getSearchedCollections()).toEqual(['hamburg']);
 
-      // Step 5: Rerank (if enough results)
-      if (searchedState.searchResults!.length > 3) {
-        const rerankResult = await rerankNode(searchedState);
-        const rerankedState = { ...searchedState, ...rerankResult } as ChatGraphState;
-        expect(rerankedState.searchResults!.length).toBeGreaterThanOrEqual(1);
-      }
+      // Step 5: Rerank — dieselbe Schwelle wie im echten Aufrufer
+      // (`intentExecutionService`: `searchResults.length > 2`). Hier stand `> 3`,
+      // und weil die Fixture genau 3 Treffer liefert, lief der Schritt nie: der
+      // Test versprach in seiner Überschrift einen Rerank, den er nicht ausführte.
+      expect(searchedState.searchResults!.length).toBeGreaterThan(2);
+      const rerankResult = await rerankNode(searchedState);
+      const rerankedState = { ...searchedState, ...rerankResult } as ChatGraphState;
+      expect(mockRerank).toHaveBeenCalledTimes(1);
+      expect(rerankedState.searchResults!.length).toBeGreaterThanOrEqual(1);
+      // Der Verfeinerer ist die einzige Modell-Frage auf diesem Pfad.
+      expect(aiWorkerPool.processRequest).toHaveBeenCalledTimes(1);
 
       // Step 6: Build citations
       const citations = buildCitations(searchedState.searchResults!);
@@ -437,9 +455,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
         notebookDocumentIds: [],
         agentConfig: makeUniversalAgentConfig(),
         aiWorkerPool: {
-          processRequest: vi.fn().mockResolvedValue({
-            content: makeClassifierLLMResponse(),
-          }),
+          processRequest: vi.fn().mockResolvedValue({ content: makeQueryRefineResponse() }),
         },
       });
 
@@ -463,15 +479,15 @@ describe('Compound Pipeline: @notebook + @skill', () => {
         notebookDocumentIds: [],
         agentConfig: makeAgentConfig(),
         aiWorkerPool: {
-          processRequest: vi.fn().mockResolvedValue({
-            content: makeClassifierLLMResponse({ intent: 'research' }),
-          }),
+          processRequest: vi.fn().mockResolvedValue({ content: makeQueryRefineResponse() }),
         },
       });
 
       const result = await classifierNode(state);
-      // Without notebooks, classifier goes through normal LLM path
-      expect(result.intent).toBeDefined();
+      // Ohne Notebook erzwingt nichts `search` — der Turn geht den gewöhnlichen
+      // Weg durch die Regeltabelle. `toBeDefined()` stand hier vorher und war
+      // keine Aussage: der Knoten liefert IMMER einen Intent.
+      expect(result.intent).toBe('agentic');
       expect(result.gatherSources).toBeUndefined();
     });
   });
