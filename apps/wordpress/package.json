@@ -1,6 +1,7 @@
 {
   "name": "@gruenerator/wordpress",
   "version": "1.0.0",
+  "private": true,
   "description": "Ein WordPress-Plugin für professionelle Kandidatenseiten der Grünen",
   "main": "webpack.config.js",
   "scripts": {
