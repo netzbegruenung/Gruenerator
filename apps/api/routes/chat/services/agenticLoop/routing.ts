@@ -36,6 +36,16 @@ import { recordDecision } from '../../../../utils/decisionJournal.js';
  * rule 12), which is in AGENTIC_INTENTS. They still matter for the no-tool
  * verdicts the model DID commit to and got wrong.
  */
+// NICHT aus der `prose`-Disposition abgeleitet, obwohl es fast dieselbe Menge
+// ist — und die Differenz ist der Grund. Die Disposition beantwortet „braucht
+// dieser Intent ein Werkzeug?" (ein Gruss: nein). Diese Menge beantwortet
+// „welche Verdikte dürfen die drei Rettungen unten überhaupt anfassen?", und
+// `greeting` steht bewusst NICHT darin: seit #2269 trägt ein Gruss einen eigenen
+// Intent, damit ihn keine Formulierung und kein Selbstwiderspruch des
+// Klassifikators mehr in den Loop ziehen kann. Das ist eine strukturelle
+// Garantie und stärker als jede Wortprüfung — eine Ableitung würde sie
+// aufgeben. `dispositionSets.vitest.ts` hält den Unterschied fest, damit er
+// beim nächsten Mal nicht still verschwindet.
 const NO_TOOL_VERDICTS: ReadonlySet<string> = new Set(['produktion', 'direct']);
 
 // Question words. Includes the wo-compounds (worüber/woran/womit/…) that the
