@@ -47,9 +47,8 @@ const Datenschutz = () => {
         <strong>
           Wenn Du die Sprachaufnahme-Funktion oder den Reel-Grünerator nutzt, werden Deine Audio-
           und Videodaten auf unserem Server verarbeitet. Die Audiodaten werden zur Transkription an{' '}
-          <strong>Scaleway</strong> (EU, Frankreich), <strong>Regolo</strong> (EU, Zero Data
-          Retention) oder <strong>Mistral AI Voxtral</strong> (EU) übermittelt. Die verarbeiteten
-          Daten werden nicht dauerhaft bei uns gespeichert.
+          <strong>Mistral AI Voxtral</strong> (EU) oder <strong>GreenPT</strong> übermittelt. Die
+          verarbeiteten Daten werden nicht dauerhaft bei uns gespeichert.
         </strong>
       </p>
       <p>
@@ -122,10 +121,9 @@ const Datenschutz = () => {
         info@hetzner.com gehostet. Der Hoster empfängt die oben genannten Daten als
         Auftragsverarbeiter. Bei Nutzung des Grünerator Imagine fungiert Black Forest Labs als
         Auftragsverarbeiter für die Bildbearbeitung mittels FLUX-KI (Verarbeitung in der EU). Beim
-        Reel-Grünerator fungieren <strong>Scaleway</strong> und <strong>Regolo AI</strong> (Zero
-        Data Retention) als Auftragsverarbeiter für die Audiotranskription (jeweils
-        EU-Datenverarbeitung). Als Fallback wird <strong>Mistral AI Voxtral</strong> für die
-        Transkription eingesetzt.
+        Reel-Grünerator fungiert <strong>Mistral AI Voxtral</strong> (EU) als Auftragsverarbeiter
+        für die Audiotranskription. Als zweite Strecke — sowohl bei Ausfall als auch bei
+        ausdrücklicher Auswahl — wird <strong>GreenPT</strong> eingesetzt.
       </p>
 
       <p>
@@ -176,21 +174,16 @@ const Datenschutz = () => {
       </ul>
 
       <p>
-        {/* TODO(legal): Ladungsfähige Anschrift der Scaleway SAS ergänzen — die
-            übrigen Einträge nennen eine, hier fehlt sie noch. */}
-        <strong>2. Scaleway SAS</strong> (Frankreich)
+        <strong>2. Scaleway SAS</strong> (8, Rue de la Ville-l&apos;Évêque, 75008 Paris, Frankreich)
       </p>
       <ul>
-        <li>
-          Zweck: Betrieb des KI-Textmodells Mistral Medium 3.5 sowie Spracherkennung (Whisper Large
-          v3)
-        </li>
+        <li>Zweck: Betrieb des KI-Textmodells Mistral Medium 3.5</li>
         <li>Server: EU (Paris, Frankreich)</li>
         <li>
           Besonderheit: Scaleway stellt die Rechenleistung bereit; das Modell selbst stammt von
           Mistral AI. Fällt Scaleway aus, wird dieselbe Anfrage direkt an Mistral AI weitergeleitet.
         </li>
-        <li>Verarbeitete Daten: Eingabetexte bzw. Audiodaten, Ausgaben, Metadaten</li>
+        <li>Verarbeitete Daten: Eingabetexte, Ausgaben, Metadaten</li>
         <li>
           Details: <a href="https://www.scaleway.com/en/privacy-policy/">Datenschutzerklärung</a>
         </li>
@@ -214,16 +207,9 @@ const Datenschutz = () => {
         <strong>4. Seeweb S.r.l. / Regolo AI</strong> (C.so Lazio 9/a, 03100 Frosinone, Italien)
       </p>
       <ul>
-        <li>
-          Zweck: Audio-/Videotranskription (Reel-Grünerator, Sprachaufnahme) sowie KI-Textmodelle
-          und semantische Aufbereitung (Reranking)
-        </li>
+        <li>Zweck: KI-Textmodelle und semantische Aufbereitung (Reranking)</li>
         <li>Server: EU (Italien)</li>
-        <li>Transkriptionsmodell: faster-whisper-large-v3</li>
-        <li>
-          Zero Data Retention: Bei der Transkription werden Input- und Output-Daten am Ende jeder
-          Session gelöscht
-        </li>
+        <li>Zero Data Retention: Input- und Output-Daten werden am Ende jeder Session gelöscht</li>
         <li>DSGVO-konform: Italienisches Unternehmen mit ausschließlicher EU-Datenverarbeitung</li>
         <li>
           Details:{' '}
@@ -234,7 +220,27 @@ const Datenschutz = () => {
       </ul>
 
       <p>
-        <strong>5. netzbegrünung e.V.</strong> (Deutschland)
+        {/* TODO(legal): Firmierung, ladungsfähige Anschrift und Serverstandort der
+            GreenPT-Betreibergesellschaft ergänzen sowie den Link auf deren
+            Datenschutzerklärung — mir lagen sie nicht belegt vor, und geraten wird
+            in einer Datenschutzerklärung nichts. MUSS vor dem Livegang stehen. */}
+        <strong>5. GreenPT</strong>
+      </p>
+      <ul>
+        <li>Zweck: Audio-/Videotranskription (Reel-Grünerator, Sprachaufnahme, Protokolle)</li>
+        <li>Transkriptionsmodell: green-s-pro</li>
+        <li>
+          Verarbeitete Daten: Audiodaten, Transkript, Metadaten; bei Protokollen zusätzlich die
+          Zuordnung von Redebeiträgen zu Sprecherkennungen
+        </li>
+        <li>
+          Besonderheit: Wird als zweite, unabhängige Transkriptionsstrecke neben Mistral AI Voxtral
+          betrieben. Fällt Voxtral aus, übernimmt GreenPT dieselbe Anfrage.
+        </li>
+      </ul>
+
+      <p>
+        <strong>6. netzbegrünung e.V.</strong> (Deutschland)
       </p>
       <ul>
         <li>Zweck: Kerninfrastruktur des GRUENERATOR</li>
@@ -257,7 +263,7 @@ const Datenschutz = () => {
       </ul>
 
       <p>
-        <strong>6. SearXNG (selbstgehostet)</strong>
+        <strong>7. SearXNG (selbstgehostet)</strong>
       </p>
       <ul>
         <li>Zweck: Suchfunktion (Metasuchmaschine für Web-Informationen)</li>
@@ -266,7 +272,7 @@ const Datenschutz = () => {
       </ul>
 
       <p>
-        <strong>7. Linkup Technologies</strong> (Linkup Technologies SAS, 28 avenue des Pépinières,
+        <strong>8. Linkup Technologies</strong> (Linkup Technologies SAS, 28 avenue des Pépinières,
         94260 Fresnes, Frankreich; Handelsregister Créteil 930 910 740)
       </p>
       <ul>
@@ -284,7 +290,7 @@ const Datenschutz = () => {
       </ul>
 
       <p>
-        <strong>8. GlitchTip (selbstgehostet)</strong>
+        <strong>9. GlitchTip (selbstgehostet)</strong>
       </p>
       <ul>
         <li>Zweck: Fehlerüberwachung und Anwendungsmonitoring (Error Tracking)</li>
@@ -302,7 +308,7 @@ const Datenschutz = () => {
       </ul>
 
       <p>
-        <strong>9. Langfuse (selbstgehostet)</strong>
+        <strong>10. Langfuse (selbstgehostet)</strong>
       </p>
       <ul>
         <li>
@@ -447,11 +453,8 @@ const Datenschutz = () => {
         <strong>Externe Verarbeitung durch Dienstleister (Transkription):</strong>
       </p>
       <ul>
-        <li>
-          Sprache-zu-Text (primär): Scaleway (EU-Server Paris, Modell whisper-large-v3) bzw. Regolo
-          / Seeweb (EU-Server, Zero Data Retention, Modell faster-whisper-large-v3)
-        </li>
-        <li>Sprache-zu-Text (Fallback): Mistral Voxtral (EU-Server, max. 30 Tage)</li>
+        <li>Sprache-zu-Text (primär): Mistral Voxtral (EU-Server, max. 30 Tage)</li>
+        <li>Sprache-zu-Text (zweite Strecke): GreenPT (Modell green-s-pro)</li>
         <li>Details zu externen Dienstleistern: siehe Auftragsverarbeiter-Sektion oben</li>
       </ul>
 
