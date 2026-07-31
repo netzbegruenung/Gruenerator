@@ -135,6 +135,13 @@ const envSchema = z.object({
   // Linkup (https://docs.linkup.so) — when set, replaces SearXNG for @web
   // and replaces the deep-research orchestrator for @recherche.
   LINKUP_API_KEY: z.string().optional(),
+  // Route SIMPLE web searches (no domain scope, no time window, no images,
+  // ≤10 results) to GreenPT's link search first, with Linkup as the fallback.
+  // A separate flag rather than a key check on purpose: GREENPT_API_KEY is
+  // already set in production for chat and transcription, so gating on the key
+  // alone would swap the chat's search engine without anyone deciding to.
+  // The throttle it has to contain is documented in GreenPTSearchService.ts.
+  GREENPT_SEARCH_ENABLED: boolFlag(false),
 
   // ── Image / Flux ───────────────────────────────────────────────────────
   FLUX_BACKEND: z.string().optional(),
