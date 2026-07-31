@@ -158,6 +158,16 @@ describe('toolCatalog domain tool mounting', () => {
       'generate_image'
     );
     expect(catalogFor('agentic').toolNames).not.toContain('generate_image');
+    // Poster/Plakat: der Klassifikator kennt `poster` als Bildnomen, diese Liste
+    // kannte es nicht — „Erstell ein Poster" bekam sein Bild, die demotierten
+    // Formulierungen daneben nicht. Beide Zeilen halten die Zwillingslisten
+    // zusammen.
+    expect(catalogFor('agentic', 'Gestalte mir ein Poster zum Klimastreik').toolNames).toContain(
+      'generate_image'
+    );
+    expect(catalogFor('agentic', 'Mach ein Plakat für die Demo').toolNames).toContain(
+      'generate_image'
+    );
   });
 
   it('mounts no domain tools without a loop context (unit-test / non-loop path)', () => {
