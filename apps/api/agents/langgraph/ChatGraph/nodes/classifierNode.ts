@@ -82,6 +82,7 @@ import {
   type ForbiddableArtifact,
 } from './fastPathGuards.js';
 import { refineSearchQuery } from './queryRefineResolver.js';
+import { resolveSourceScope } from './sourceScopeResolver.js';
 
 import type { ChatGraphState, GatherSource, SearchIntent } from '../types.js';
 
@@ -1374,6 +1375,55 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
         searchQuery: (heuristic.searchQuery ?? userContent).slice(0, 500),
         detectedFilters: heuristicExtractFilters(userContent),
         reasoning: `Loop demotion: heuristic ${heuristic.intent}@${effectiveConfidence.toFixed(2)} below threshold`,
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
+    // ── TIER 3.7: live source scope ──────────────────────────────────────
+    // "Does this need a timetable / hotel / forecast / news feed, or is it a
+    // policy question that merely sounds like one?"
+    //
+    // This is the one classifier decision the code itself argues cannot be a
+    // regex: `SYSTEM_MCP_PHRASING` says so at length, because "Bahnreform",
+    // "Tourismuspolitik" and "Klimapolitik" share the vocabulary and a policy
+    // turn must never pull a departure board. It does NOT follow that the
+    // decision needs the whole tool taxonomy — four paragraphs and four steps of
+    // CLASSIFIER_PROMPT, replaced here by ~700 characters with five answers.
+    //
+    // Placed at the door of Tier 4 rather than behind the phrasing regex on
+    // purpose: Tier 4 is the only place the prompt ever decided these intents,
+    // so sitting in front of it gives the resolver EXACTLY the prompt's reach —
+    // which is what makes rolling those four paragraphs out of the prompt a
+    // no-loss change. `SYSTEM_MCP_PHRASING` keeps its own job: holding these
+    // turns back from Tier 3.5 demotion so they arrive here at all.
+    //
+    // What that regex misses, the prompt missed too: "Wie hoch ist die Pollen-
+    // belastung in Nürnberg" demotes to the loop before either runs. That gap is
+    // older than this tier and is neither widened nor closed here — widening the
+    // regex is its fix, not moving this call in front of the demotion gate,
+    // which would spend a model call on every demotable turn.
+    //
+    // Availability is re-checked because an unset deploy env means the intent
+    // has no tools behind it; without the check a `wetter` verdict would route a
+    // turn to a source that cannot answer instead of to the web fallback.
+    const sourceScope = await resolveSourceScope({
+      userContent,
+      conversationContext,
+      aiWorkerPool,
+    });
+    if (sourceScope && isSystemIntentAvailable(sourceScope, state.userLocale)) {
+      log.info(`[Classifier] Live source scope → ${sourceScope} (LLM tier skipped)`);
+      recordDecision('classifier.tier', 'tier3.7_source_scope', {
+        inputs: { scope: sourceScope },
+      });
+      return {
+        intent: sourceScope,
+        searchSources: [],
+        searchQuery: userContent.slice(0, 500),
+        detectedFilters: heuristicExtractFilters(userContent),
+        reasoning: `Live-Quelle erkannt: ${sourceScope}`,
         hasTemporal: temporal.hasTemporal,
         complexity,
         classificationTimeMs: Date.now() - startTime,
