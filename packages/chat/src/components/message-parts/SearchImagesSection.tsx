@@ -21,10 +21,16 @@ import { SourceGlyph } from '../tool-ui/citation/SourceGlyph';
  * configured — the entry falls back to the plain link it was before. The fallback
  * is not a nicety: it is what keeps the rule true when the proxy is off.
  *
- * The second reason for the restraint is legal, and it is why the heading says
- * "gefundene Bildquellen": a web image is research context ("that is what the
- * poster looked like"), not licensed material. The note underneath says so, and
- * nothing here routes an image into the sharepic/social path.
+ * The second reason for the restraint is legal, and it is why the note under the
+ * grid says what it says: a web image is research context ("that is what the
+ * poster looked like"), not licensed material. Nothing here routes an image into
+ * the sharepic/social path.
+ *
+ * It renders directly under the answer, NOT inside the sources disclosure. A
+ * source backs a claim and belongs behind a chevron; these ARE the result — they
+ * only ever arrive on a turn that asked to see pictures. Inside the disclosure an
+ * image-only turn had no way to open at all: its `citations` are empty, and the
+ * action row renders no "Quellen" trigger without them.
  */
 export const SearchImagesSection = memo(function SearchImagesSection({
   images,
@@ -38,22 +44,25 @@ export const SearchImagesSection = memo(function SearchImagesSection({
   const canShowThumbnails = images.some((image) => image.proxyUrl);
 
   return (
-    <div className="mt-3 pt-2 border-t border-border/50">
-      <div className="flex items-center gap-1.5 px-1 mb-1.5">
-        <ImageIcon className="h-3.5 w-3.5 text-foreground-muted flex-shrink-0" aria-hidden="true" />
+    <section className="mt-4 w-full">
+      <div className="mb-2 flex items-center gap-1.5">
+        <ImageIcon className="h-3.5 w-3.5 flex-shrink-0 text-foreground-muted" aria-hidden="true" />
+        {/* "Bildquellen", not "Bilder": the noun frames them as references even
+            now that they are visible, which is the same reason the note below
+            exists. A deliberate wording — see the file comment. */}
         <span className="text-xs font-medium text-foreground">
           {images.length} gefundene {images.length === 1 ? 'Bildquelle' : 'Bildquellen'}
         </span>
       </div>
 
       {canShowThumbnails ? (
-        <ul className="grid grid-cols-2 gap-2 px-1 sm:grid-cols-3">
+        <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {images.map((image) => (
             <ImageTile key={image.url} image={image} />
           ))}
         </ul>
       ) : (
-        <ul className="space-y-1 pl-1">
+        <ul className="space-y-1">
           {images.map((image) => (
             <li key={image.url}>
               <ImageLink image={image} />
@@ -62,11 +71,11 @@ export const SearchImagesSection = memo(function SearchImagesSection({
         </ul>
       )}
 
-      <p className="mt-2 px-1.5 text-[10px] leading-snug text-foreground-muted">
-        Gefundene Bilder sind Recherchematerial — die Rechte liegen bei den Urheber*innen. Für
-        eigene Grafiken die Bildgenerierung nutzen.
+      <p className="mt-2 text-[11px] leading-snug text-foreground-muted">
+        Recherchematerial — die Rechte liegen bei den Urheber*innen. Für eigene Grafiken die
+        Bildgenerierung nutzen.
       </p>
-    </div>
+    </section>
   );
 });
 
@@ -77,6 +86,11 @@ export const SearchImagesSection = memo(function SearchImagesSection({
  * than the cap, the type is not one we serve — and a broken-image icon would
  * leave the user with nothing. On error the tile becomes the same link the
  * no-proxy path renders, so the source stays reachable either way.
+ *
+ * `aspect-[4/3]` rather than a fixed pixel height: the tile keeps a photo's
+ * proportions at every column count. The old fixed 96px turned a 240px-wide
+ * desktop tile into a 2.5:1 letterbox, and `object-cover` then cropped the head
+ * off every portrait.
  */
 const ImageTile = memo(function ImageTile({ image }: { image: SearchImage }) {
   const [failed, setFailed] = useState(false);
@@ -95,26 +109,32 @@ const ImageTile = memo(function ImageTile({ image }: { image: SearchImage }) {
         href={image.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="group block overflow-hidden rounded-md border border-border/50 transition-colors hover:border-foreground/25"
+        className="group block overflow-hidden rounded-lg bg-card ring-1 ring-border/60 transition-shadow hover:ring-2 hover:ring-primary/40"
         title={`${image.title} — ${image.domain}`}
       >
-        <img
-          // Same-origin path only. Never `image.url` — see the file comment.
-          src={image.proxyUrl}
-          alt={image.title}
-          loading="lazy"
-          decoding="async"
-          // Belt and braces: even same-origin, nothing here should carry a
-          // referrer onward if the proxy ever redirected.
-          referrerPolicy="no-referrer"
-          onError={() => setFailed(true)}
-          className="h-24 w-full bg-muted object-cover"
-        />
-        <div className="flex items-center gap-1.5 px-1.5 py-1">
+        <div className="aspect-[4/3] w-full overflow-hidden bg-muted">
+          <img
+            // Same-origin path only. Never `image.url` — see the file comment.
+            src={image.proxyUrl}
+            alt={image.title}
+            loading="lazy"
+            decoding="async"
+            // Belt and braces: even same-origin, nothing here should carry a
+            // referrer onward if the proxy ever redirected.
+            referrerPolicy="no-referrer"
+            onError={() => setFailed(true)}
+            className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
+          />
+        </div>
+        <div className="flex items-center gap-1.5 px-2 py-1.5">
           <SourceGlyph domain={image.domain} size={12} />
-          <span className="line-clamp-1 flex-1 text-[10px] text-foreground-muted group-hover:text-foreground">
+          <span className="line-clamp-1 flex-1 text-[11px] text-foreground-muted group-hover:text-foreground">
             {image.domain}
           </span>
+          <ExternalLink
+            className="h-3 w-3 flex-shrink-0 text-foreground-muted opacity-0 transition-opacity group-hover:opacity-70"
+            aria-hidden="true"
+          />
         </div>
       </a>
     </li>
@@ -127,13 +147,13 @@ const ImageLink = memo(function ImageLink({ image }: { image: SearchImage }) {
       href={image.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="group flex items-center gap-2 rounded px-1.5 py-1 text-xs text-foreground-muted hover:bg-muted hover:text-foreground transition-colors"
+      className="group flex items-center gap-2 rounded px-1.5 py-1 text-xs text-foreground-muted transition-colors hover:bg-muted hover:text-foreground"
     >
       <SourceGlyph domain={image.domain} size={14} />
       <span className="line-clamp-1 flex-1">{image.title}</span>
       <span className="flex-shrink-0 text-[10px] opacity-70">{image.domain}</span>
       <ExternalLink
-        className="h-3 w-3 flex-shrink-0 opacity-0 group-hover:opacity-70 transition-opacity"
+        className="h-3 w-3 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-70"
         aria-hidden="true"
       />
     </a>
