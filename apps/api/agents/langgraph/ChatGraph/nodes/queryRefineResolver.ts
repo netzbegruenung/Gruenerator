@@ -20,7 +20,7 @@
  *   - Fail-safe: any error, timeout or unusable output returns `null`, and the
  *     caller falls back to `extractSearchTopic` — the same fallback its own
  *     catch branch already used.
- *   - `INTERMEDIATE_MODEL` + `chat_intent_classification`, so it inherits the
+ *   - `standard` intermediate stage + `chat_intent_classification`, so it inherits the
  *     worker pool's provider fallback instead of adding new resilience surface.
  *
  * What it deliberately does NOT produce, and why that is safe here:
@@ -35,9 +35,12 @@
  */
 
 import { createLogger } from '../../../../utils/logger.js';
-import { INTERMEDIATE_MODEL } from '../llmConfig.js';
+import { intermediateLane } from '../llmConfig.js';
 
 import type { AIWorkerPool } from '../../../../workers/types.js';
+
+/** @see services/ai/intermediateLanes.ts */
+const LANE = intermediateLane('standard');
 
 const log = createLogger('ChatGraph:QueryRefine');
 
@@ -97,11 +100,11 @@ export async function refineSearchQuery({
       aiWorkerPool.processRequest(
         {
           type: 'chat_intent_classification',
-          provider: INTERMEDIATE_MODEL.provider,
+          provider: LANE.provider,
           systemPrompt: REFINE_PROMPT,
           messages: [{ role: 'user', content: userMessage }],
           options: {
-            model: INTERMEDIATE_MODEL.model,
+            model: LANE.model,
             max_tokens: 200,
             temperature: 0.1,
             response_format: { type: 'json_object' },

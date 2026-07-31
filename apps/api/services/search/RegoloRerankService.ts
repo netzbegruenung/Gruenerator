@@ -17,6 +17,14 @@ const REGOLO_RERANK_URL = 'https://api.regolo.ai/rerank';
 const RERANK_MODEL = 'Qwen3-Reranker-4B';
 const DEFAULT_INSTRUCT = 'Given a search query, retrieve relevant passages that answer the query';
 
+/**
+ * Hard ceiling per rerank call. `fetch` has no default timeout, so without this
+ * a hanging Regolo connection stalls the whole turn behind it. rerankPipeline
+ * catches the abort and degrades to input order, which is the point: a slow
+ * reranker must cost latency, not the request.
+ */
+const RERANK_TIMEOUT_MS = 8000;
+
 export interface RerankRequest {
   query: string;
   documents: string[];
@@ -65,19 +73,28 @@ class RegoloRerankService {
 
     const startTime = Date.now();
 
-    const response = await fetch(REGOLO_RERANK_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: RERANK_MODEL,
-        query: formattedQuery,
-        documents: formattedDocuments,
-        ...(topN && { top_n: topN }),
-      }),
-    });
+    let response: Response;
+    try {
+      response = await fetch(REGOLO_RERANK_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: RERANK_MODEL,
+          query: formattedQuery,
+          documents: formattedDocuments,
+          ...(topN && { top_n: topN }),
+        }),
+        signal: AbortSignal.timeout(RERANK_TIMEOUT_MS),
+      });
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name === 'TimeoutError') {
+        throw new Error(`Regolo rerank timed out after ${RERANK_TIMEOUT_MS}ms`);
+      }
+      throw error;
+    }
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => '');
