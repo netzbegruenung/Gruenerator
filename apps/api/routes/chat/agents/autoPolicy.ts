@@ -226,6 +226,10 @@ export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   image_edit: { modelId: MEDIUM, reasoning: 'off' },
 
   // ── Lane D: GPT-OSS ──
+  // Same lane and grading as `direct`, whose supplied-substance half it took
+  // over: the substance is in the message, so the work is formulating, not
+  // reasoning — but a complex rewrite still earns `low`.
+  produktion: { modelId: FAST, reasoning: graded('off', 'off', 'low') },
   direct: { modelId: FAST, reasoning: graded('off', 'off', 'low') },
   // Ungraded, unlike `direct`: a greeting has no complexity axis to grade on —
   // the gate that produces it only fires when the message is a greeting and
@@ -250,7 +254,12 @@ const DEFAULT_ENTRY: AutoEntry = { modelId: GEMMA, reasoning: graded('off', 'off
  * `direct` when this set was written — an agent that pins a lane for voice
  * consistency should keep getting it on "Hallo" too.
  */
-const HINT_OVERRIDABLE: ReadonlySet<string> = new Set(['direct', 'greeting', 'agentic']);
+const HINT_OVERRIDABLE: ReadonlySet<string> = new Set([
+  'produktion',
+  'direct',
+  'greeting',
+  'agentic',
+]);
 
 function gradeReasoning(rule: ReasoningRule, complexity: Complexity): ReasoningSetting {
   return typeof rule === 'string' ? rule : rule[complexity];
@@ -281,7 +290,7 @@ export interface AutoSelectionInput {
  * hint override (neutral intents only).
  */
 export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
-  const intent = input.intent ?? 'direct';
+  const intent = input.intent ?? 'produktion';
   const complexity = input.complexity ?? 'simple';
 
   if (input.surface === 'notebook') {

@@ -42,8 +42,10 @@ describe('classifier fallback chain covers every offered intent', () => {
     }
   });
 
-  it('still defaults to direct when nothing looks like an intent field', () => {
-    expect(parseClassifierResponse('völlig kaputt, kein Feld hier', 'Hallo').intent).toBe('direct');
+  it('hands an unreadable response to the loop instead of guessing "no tool needed"', () => {
+    expect(parseClassifierResponse('völlig kaputt, kein Feld hier', 'Hallo').intent).toBe(
+      'agentic'
+    );
   });
 
   it('keeps the editorial priorities that a single regex order cannot express', () => {

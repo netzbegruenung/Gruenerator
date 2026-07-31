@@ -148,6 +148,7 @@ export function buildPendingAction(opts: {
     case 'summary':
     case 'chart':
     case 'share_doc':
+    case 'produktion':
     case 'direct':
     case 'greeting':
     case 'edit_current_doc':
