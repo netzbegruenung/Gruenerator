@@ -661,3 +661,16 @@ export function intentToolNames(): {
   }
   return { ui: Object.freeze(ui), persist: Object.freeze(persist) };
 }
+
+/**
+ * Die Dispositions-Achse. Re-exportiert, damit `@gruenerator/shared/chat-intents`
+ * die eine Adresse für „alles über Intents" bleibt — ein zweiter Importpfad wäre
+ * die erste Gelegenheit für eine zweite Wahrheit.
+ */
+export {
+  type Disposition,
+  DISPOSITION_BY_INTENT,
+  DISPOSITION_ORDER,
+  dispositionOf,
+  intentsWithDisposition,
+} from './dispositions.js';

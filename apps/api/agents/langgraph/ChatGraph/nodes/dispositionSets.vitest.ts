@@ -1,0 +1,94 @@
+/**
+ * Die Dispositions-Achse gegen die Mengen, die dieselbe Partition beschreiben.
+ *
+ * Zwei sind seit diesem Schnitt ABGELEITET (`NO_RETRIEVAL_VERDICTS`,
+ * `NO_TOOL_VERDICTS`) — für sie prüft dieser Test nur, dass die Ableitung das
+ * Erwartete ergibt. Interessanter sind die, die bewusst NICHT abgeleitet werden:
+ * `AGENTIC_INTENTS` beantwortet eine andere Frage („wo läuft der Turn?") als die
+ * Disposition („was muss vorher feststehen?"), und der Unterschied zwischen
+ * beiden ist eine inhaltliche Aussage. Sie hier auszubuchstabieren macht aus
+ * einer stillen Divergenz eine, die man beim Ändern sieht: wer einen Intent
+ * verschiebt, muss diese Liste anfassen und dabei begründen, warum.
+ *
+ * Genau diese Bauform fehlte, als `NO_TOOL_VERDICTS` `greeting` verlor, ohne
+ * dass es jemandem auffiel.
+ */
+import { describe, expect, it } from 'vitest';
+
+import {
+  DISPOSITION_BY_INTENT,
+  dispositionOf,
+  intentsWithDisposition,
+  type ChatIntentId,
+} from '@gruenerator/shared/chat-intents';
+
+import { AGENTIC_INTENTS } from '../../../../routes/chat/services/agenticLoop/agenticRespondService.js';
+import { decideRunAgentic } from '../../../../routes/chat/services/agenticLoop/routing.js';
+import { NO_RETRIEVAL_VERDICTS } from './classifierParsing.js';
+
+const sorted = (s: Iterable<string>): string[] => [...s].sort();
+
+/** Eine Sachfrage, damit nur der Intent den Unterschied macht. */
+const BASE = {
+  intent: 'produktion',
+  lastUserText: 'Wie hat Robert Habeck abgestimmt?',
+  agenticIntents: AGENTIC_INTENTS,
+  loopEnabled: true,
+  isCompound: false,
+  isMcpTurn: false,
+  hasImageAttachments: false,
+} as const;
+
+describe('die Achse selbst', () => {
+  it('ordnet jedem Intent genau eine Disposition zu', () => {
+    // Der Compiler erzwingt die Totalität schon (`Record<ChatIntentId, …>`);
+    // was er nicht sieht, ist ein Tippfehler im WERT, der zu einem gültigen
+    // anderen Wert wird. Fünf Gruppen, keine leere.
+    const groups = new Set(Object.values(DISPOSITION_BY_INTENT));
+    expect(sorted(groups)).toEqual(['anchor', 'artifact', 'gated', 'loop', 'prose']);
+    for (const d of groups) {
+      expect(intentsWithDisposition(d).size).toBeGreaterThan(0);
+    }
+  });
+
+  it('kennt keinen Intent ausserhalb der Registry', () => {
+    expect(dispositionOf('gibt-es-nicht')).toBeNull();
+  });
+});
+
+describe('abgeleitete Mengen', () => {
+  it('NO_RETRIEVAL_VERDICTS ist die prose-Gruppe', () => {
+    expect(sorted(NO_RETRIEVAL_VERDICTS)).toEqual(['direct', 'greeting', 'produktion']);
+  });
+
+  it('NO_TOOL_VERDICTS ist es NICHT — greeting fehlt mit Absicht', () => {
+    // Beinahe dieselbe Menge, andere Frage. Die Disposition sagt „ein Gruss
+    // braucht kein Werkzeug"; `NO_TOOL_VERDICTS` sagt „diese Verdikte dürfen die
+    // drei Rettungen in decideRunAgentic anfassen". Seit #2269 ist `greeting`
+    // dort ausgenommen, damit keine Formulierung einen Gruss in den Loop ziehen
+    // kann — eine strukturelle Garantie, die eine Ableitung aufgäbe.
+    expect(decideRunAgentic({ ...BASE, intent: 'greeting' })).toBe(false);
+    expect(decideRunAgentic({ ...BASE, intent: 'produktion' })).toBe(true);
+  });
+});
+
+describe('bewusst NICHT abgeleitet', () => {
+  it('AGENTIC_INTENTS enthält jede loop-Disposition', () => {
+    // Die eine Richtung, die gelten MUSS: ein Intent, dessen Werkzeugwahl der
+    // Planer trifft, muss den Planer auch erreichen. Ein loop-Intent, der hier
+    // fehlt, würde ohne jede Recherche beantwortet — der Fehler, den die
+    // Degrade-Versicherung in `decideRunAgentic` schon einmal auffangen musste.
+    for (const id of intentsWithDisposition('loop')) {
+      expect(AGENTIC_INTENTS.has(id), `loop-Intent ${id} fehlt in AGENTIC_INTENTS`).toBe(true);
+    }
+  });
+
+  it('und darüber hinaus genau diese vier', () => {
+    // Die andere Richtung gilt NICHT, und das ist der Punkt der Trennung: diese
+    // vier laufen IM Loop, aber ihr Verdikt muss vorher feststehen, weil es
+    // steuert, was dort montiert wird (`hilfe`/`summary`/`mcp`) bzw. weil es
+    // Geld kostet (`image`). Wer die Liste ändert, ändert eine Aussage.
+    const extras = [...AGENTIC_INTENTS].filter((id: ChatIntentId) => dispositionOf(id) !== 'loop');
+    expect(sorted(extras)).toEqual(['hilfe', 'image', 'mcp', 'summary']);
+  });
+});

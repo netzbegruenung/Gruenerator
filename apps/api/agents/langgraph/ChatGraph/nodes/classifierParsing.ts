@@ -5,6 +5,8 @@
  * plus heuristic complexity and search-source detection.
  */
 
+import { intentsWithDisposition } from '@gruenerator/shared/chat-intents';
+
 import { createLogger } from '../../../../utils/logger.js';
 
 import { extractFilters } from './classifierFilters.js';
@@ -26,12 +28,13 @@ const log = createLogger('ChatGraph:Classifier');
  * `direct` alone; since the split there are three such values, and a rule that
  * checks only one of them stops firing for the other two without ever failing.
  * `agentic` is NOT a member — the loop's own model retrieves.
+ *
+ * ABGELEITET, nicht aufgeschrieben. Die Menge IST die `prose`-Disposition, und
+ * sie hier ein zweites Mal aufzuzählen ist genau die Bauform, an der schon eine
+ * Regel hing, die nur `direct` prüfte und für die anderen zwei still aufhörte
+ * zu feuern. Ein neuer prose-Intent ist ab jetzt automatisch Mitglied.
  */
-export const NO_RETRIEVAL_VERDICTS: ReadonlySet<string> = new Set([
-  'produktion',
-  'direct',
-  'greeting',
-]);
+export const NO_RETRIEVAL_VERDICTS: ReadonlySet<string> = intentsWithDisposition('prose');
 
 /**
  * Scan order for the malformed-JSON fallback, in DESCENDING priority.
