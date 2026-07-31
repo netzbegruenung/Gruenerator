@@ -60,30 +60,20 @@
 
 /* Base keyboard-focus ring for everything interactive. Lives in the legacy
    layer, so any component with its own focus-visible treatment (Tailwind
-   focus-visible: utilities, form-inputs.css) still wins the cascade. */
-:focus-visible {
+   focus-visible: utilities, form-inputs.css) still wins the cascade.
+ *
+ * Gated on the input modality that focusModality.ts writes to <html>, not on
+ * :focus-visible alone: the CSS spec makes text entry an exception, so an
+ * <input>, a <textarea> and a contenteditable match :focus-visible on a plain
+ * mouse click as well. Without the gate the ring framed every field someone
+ * clicked into — the whole document surface, in the case of the editor. */
+:root[data-focus-modality='keyboard'] :focus-visible {
   outline: 2px solid var(--primary-500, #008939);
   outline-offset: 2px;
 }
 
-/* …except text-entry fields. Buttons and links only match :focus-visible when
-   someone actually navigated by keyboard; a text field matches it on a plain
-   mouse click too, so the ring showed up as a hard green frame around every
-   field you click into. Those fields carry their own focus treatment (the
-   ring on the shared Input/Textarea, the composer outline), which is what a
-   keyboard user sees — this rule was never the one they need. */
-input:not(
-    [type='button'],
-    [type='submit'],
-    [type='reset'],
-    [type='checkbox'],
-    [type='radio'],
-    [type='file'],
-    [type='range'],
-    [type='color'],
-    [type='image']
-  ):focus-visible,
-textarea:focus-visible,
-[contenteditable]:focus-visible {
+/* The document editor keeps the caret as its indicator either way. Ringing a
+   full-page writing surface reads as an error state, not as focus. */
+:root[data-focus-modality='keyboard'] [contenteditable]:focus-visible {
   outline: none;
 }
