@@ -34,7 +34,7 @@ import { isSourceAvailabilityError, renderDegradationNotes } from '../types.js';
 import { type AnchorDescriptor, getActiveAnchors } from './anchorContext.js';
 import { buildCitableSources, MAX_SOURCES, type CitableSource } from './citableSources.js';
 import { lastUserText } from './classifierHeuristics.js';
-import { looksLikeDocsHelpQuestion } from './classifierParsing.js';
+import { looksLikeDocsHelpQuestion } from './classifierSignals.js';
 import { deriveTextFormMention } from './textFormMention.js';
 
 import type { ChatGraphState, DocumentSource, SearchResult, ThreadAttachment } from '../types.js';

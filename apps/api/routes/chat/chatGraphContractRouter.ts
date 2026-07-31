@@ -1288,6 +1288,16 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // A demoted turn that a kill-switch (compound, forced tool, ...) kept out
       // of the loop must not strand in executeIntentPipeline, which has no
       // 'agentic' branch — degrade to plain search.
+      //
+      // KEINE automatisierte Abdeckung mehr, und das ist eine Aussage über die
+      // Erreichbarkeit, nicht über den Aufwand: `agentic` entstand entweder bei
+      // Tier 3.5 (das mit ausgeschaltetem Loop gar nicht erst demotiert) oder als
+      // Auffangwert der LLM-Stufe (gelöscht). Innerhalb eines Requests können
+      // Klassifikator und Router den Schalter also nicht mehr verschieden sehen.
+      // Was bleibt, ist der WIEDERAUFNAHME-Pfad: ein gespeicherter `agentic`-
+      // Intent, der nach einem Deploy mit umgelegtem Schalter fortgesetzt wird.
+      // Die zugehörige Simulation ist in diesem PR gelöscht worden — sie endete
+      // nachweislich im Fehler-Fallback und belegte den Zweig nie.
       if (!runAgentic && classifiedState.intent === 'agentic') {
         recordDecision('router.intent_override', 'agentic_to_search', {
           inputs: { intentBefore: 'agentic', runAgentic },

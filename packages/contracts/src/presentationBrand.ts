@@ -39,7 +39,16 @@ export interface PresentationBrandTheme {
    * PowerPoint fontFace names — must match the fonts' family metadata exactly
    * (read from the TTF/OTF name tables; pptxgenjs cannot embed fonts).
    */
-  pptxFonts: { heading: string; body: string };
+  pptxFonts: {
+    heading: string;
+    body: string;
+    /**
+     * Quote-layout face; null falls back to `body`. Mirrors
+     * `cssFonts.quoteEmphasis` — AT quotes are set in Vollkorn, which ships
+     * only bold faces, so a renderer using it must also set bold.
+     */
+    quote: string | null;
+  };
   /** Headline line-height (AT CI mandates 0.9 × font size). */
   headingLineHeight: number;
   /** "Marke (Akzentfarbe)" swatches offered in the design panel. */
@@ -71,7 +80,7 @@ export const PRESENTATION_BRANDS: Record<PresentationBrand, PresentationBrandThe
       body: "'PT Sans', system-ui, -apple-system, 'Segoe UI', sans-serif",
       quoteEmphasis: null,
     },
-    pptxFonts: { heading: 'GrueneType Neue', body: 'PT Sans' },
+    pptxFonts: { heading: 'GrueneType Neue', body: 'PT Sans', quote: null },
     headingLineHeight: 1.1,
     accentOptions: [
       { value: '#005538', name: 'Tanne' },
@@ -104,7 +113,7 @@ export const PRESENTATION_BRANDS: Record<PresentationBrand, PresentationBrandThe
       body: "'GothamNarrow-Book', 'PT Sans', system-ui, sans-serif",
       quoteEmphasis: "'Vollkorn', Georgia, serif",
     },
-    pptxFonts: { heading: 'Gotham Narrow', body: 'Gotham Narrow Book' },
+    pptxFonts: { heading: 'Gotham Narrow', body: 'Gotham Narrow Book', quote: 'Vollkorn' },
     headingLineHeight: 0.9,
     accentOptions: [
       { value: '#257639', name: 'Dunkelgrün' },
