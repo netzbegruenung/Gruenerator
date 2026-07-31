@@ -20,6 +20,7 @@ import {
   isProviderConfigured,
   routeMistralModel,
 } from './providerInstances.js';
+import { regoloTextDefault } from './textModelPolicy.js';
 
 import type { RouteOptions } from './providerInstances.js';
 import type { LanguageModel } from 'ai';
@@ -31,7 +32,7 @@ export type ProviderName = 'mistral' | 'litellm' | 'regolo' | 'greenpt';
 const PROVIDER_DEFAULTS = {
   mistral: 'mistral-medium-2604',
   litellm: 'verdigado-pro',
-  regolo: env.REGOLO_DEFAULT_MODEL ?? 'qwen3.5-122b',
+  regolo: regoloTextDefault(),
   greenpt: env.GREENPT_DEFAULT_MODEL ?? 'mistral-medium-3.5-128b',
 } as const;
 
