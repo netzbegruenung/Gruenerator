@@ -108,6 +108,64 @@ function StatTile({ label, value, hint }: { label: string; value: string; hint?:
 }
 
 /**
+ * "What if you had used ChatGPT instead."
+ *
+ * Deliberately reports both directions. On CO2 the European lanes win by a
+ * factor of roughly 2-5, but on raw electricity our default Mistral Medium
+ * needs MORE than GPT-4o reportedly does — the advantage comes from the French
+ * grid, not from our engineering. A block that showed only the flattering half
+ * would be the exact kind of claim this whole feature exists to avoid.
+ */
+function ReferenceComparison({ footprint }: { footprint: UsageFootprintDto }) {
+  const co2Factor =
+    footprint.emissions_g > 0 ? footprint.reference_emissions_g / footprint.emissions_g : 0;
+  const energyFactor =
+    footprint.energy_wh > 0 ? footprint.reference_energy_wh / footprint.energy_wh : 0;
+  if (co2Factor <= 0) return null;
+
+  return (
+    <section className="flex flex-col gap-sm rounded-xl border border-grey-200 p-md dark:border-grey-700">
+      <h3 className="m-0 text-sm font-semibold text-foreground-heading">
+        Was dieselbe Arbeit mit ChatGPT gekostet hätte
+      </h3>
+      <div className="grid grid-cols-2 gap-sm">
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-grey-500">CO₂</span>
+          <span className="text-lg font-semibold text-foreground-heading">
+            ≈ {formatGrams(footprint.reference_emissions_g)}
+          </span>
+          <span className="text-xs text-grey-500">
+            statt {formatGrams(footprint.emissions_g)} — {oneDecimal.format(co2Factor)}× so viel
+          </span>
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-grey-500">Energie</span>
+          <span className="text-lg font-semibold text-foreground-heading">
+            ≈ {formatEnergy(footprint.reference_energy_wh)}
+          </span>
+          <span className="text-xs text-grey-500">
+            statt {formatEnergy(footprint.energy_wh)} —{' '}
+            {energyFactor >= 1
+              ? `${oneDecimal.format(energyFactor)}× so viel`
+              : `${oneDecimal.format(1 / energyFactor)}× weniger als bei uns`}
+          </span>
+        </div>
+      </div>
+      <p className="m-0 text-xs leading-relaxed text-grey-500">
+        Geschätzt nach Jegham et al. (2025) für GPT-4o — die einzige veröffentlichte Rechnung mit
+        derselben Systemgrenze wie unserer: nur Betriebsstrom, kein Training, keine
+        Hardware-Herstellung.{' '}
+        {energyFactor < 1
+          ? 'Beim Strom liegen wir hier hinten; unser CO₂-Vorteil kommt vom französischen Netz, nicht von sparsamerer Technik. '
+          : ''}
+        Die GPT-4o-Zahl ist selbst nur eine Schätzung — OpenAI veröffentlicht nichts, sie wurde aus
+        Antwortzeiten und GPU-Datenblättern erschlossen.
+      </p>
+    </section>
+  );
+}
+
+/**
  * The number above is part measurement, part extrapolation, and covers only the
  * text models. Saying so is not optional garnish — an unqualified CO2 figure on
  * a Green party's tool is exactly the kind of claim that gets checked.
@@ -121,8 +179,9 @@ function FootprintNote({ footprint }: { footprint: UsageFootprintDto }) {
         ? `${formatCount(measuredPct)} % dieser Zahl sind Messwerte, die unser Anbieter GreenPT mitliefert. Der Rest ist `
         : 'Die Zahl ist '}
       aus deinen Token-Zahlen hochgerechnet — mit Energiewerten, die an genau denselben Modellen
-      gemessen wurden. Abgedeckt sind {formatCount(coveredPct)} % der Text-Tokens im Zeitraum.
-      Bilder, Transkription und Web-Recherche fehlen, weil dafür keine Messwerte vorliegen.{' '}
+      gemessen wurden. Abgedeckt sind {formatCount(coveredPct)} % der erzeugten Tokens im Zeitraum;
+      sie bestimmen den Verbrauch, gesendete Tokens kosten 100- bis 760-mal weniger. Bilder,
+      Transkription und Web-Recherche fehlen, weil dafür keine Messwerte vorliegen.{' '}
       <a
         href={`${getDocsUrl()}/docs/ueber-den-gruenerator/nachhaltigkeit`}
         target="_blank"
@@ -203,7 +262,12 @@ export default function UsageTab() {
             )}
           </div>
 
-          {footprint.covered_share > 0 && <FootprintNote footprint={footprint} />}
+          {footprint.covered_share > 0 && (
+            <>
+              <ReferenceComparison footprint={footprint} />
+              <FootprintNote footprint={footprint} />
+            </>
+          )}
 
           <section className="flex flex-col gap-sm">
             <h3 className="m-0 text-sm font-semibold text-foreground-heading">Tokens pro Tag</h3>

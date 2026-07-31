@@ -78,6 +78,16 @@ export interface EnergyCoefficients {
 const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
   // GreenPT `mistral-medium-3.5-128b` — 1.1% mean error
   'mistral-medium-2604': { mWhPerOutputToken: 4.519, mWhPerInputToken: 0.0287, mWhFixed: 13.26 },
+  // The SAME lane after Scaleway routing: SCALEWAY_MISTRAL_MODELS rewrites
+  // 'mistral-medium-2604' to 'mistral-medium-3.5-128b', and usage records the
+  // ROUTED id. Both spellings must be here or the best-measured coefficient in
+  // this table silently misses its own traffic — which is exactly what happened
+  // until real usage data showed a `mistral-medium-3.5-128b @ scaleway` row.
+  'mistral-medium-3.5-128b': {
+    mWhPerOutputToken: 4.519,
+    mWhPerInputToken: 0.0287,
+    mWhFixed: 13.26,
+  },
   // GreenPT `gemma4` — 7.2% mean error
   'gemma4-31b': { mWhPerOutputToken: 0.722, mWhPerInputToken: 0.0085, mWhFixed: 0 },
   // Same Gemma 4 weights, served by verdigado under an alias (modelDiscovery.ts)
@@ -150,6 +160,53 @@ export interface Footprint {
   energyWms: number;
   /** Micrograms CO2e. */
   emissionsUg: number;
+}
+
+/**
+ * The "what if you had used ChatGPT instead" reference.
+ *
+ * SOURCE — Jegham et al., "How Hungry is AI? Benchmarking Energy, Water, and
+ * Carbon Footprint of LLM Inference" (arXiv:2505.09598). Chosen over the other
+ * published GPT-4o estimates because its system boundary is IDENTICAL to ours:
+ *   "This study focuses exclusively on operational emissions ... during the
+ *    inference phase ... embodied emissions ... (Scope 3) are excluded ... our
+ *    analysis focuses exclusively on Scope 2 emissions."
+ * No training, no hardware manufacturing, PUE included, location-based grid
+ * factor. Comparing it to our numbers is therefore legitimate; comparing it to
+ * Mistral's full life-cycle assessment would not be.
+ *
+ * DERIVATION — the paper reports per-query energy for fixed token
+ * configurations, not per token. Two of them pin down the same linear form we
+ * fit for our own models:
+ *   short  (100 in,  300 out) = 0.42  Wh
+ *   medium (1000 in, 1000 out) = 1.215 Wh
+ * Solving `E = fix + a * out` (input is neglected — our own series found it
+ * 100-760x cheaper, and a two-term fit on these points returns a nonsensical
+ * negative input cost) gives a = 1.136 mWh per output token, fix = 79 mWh.
+ *
+ * CAVEAT worth repeating wherever this is displayed: their figure is inferred
+ * from API latency, GPU datasheets and a statistically assumed hardware layout
+ * with batch size 8 — OpenAI publishes nothing. Ours comes off a meter. The
+ * uncertainty sits almost entirely on their side.
+ */
+const REFERENCE_MWH_PER_OUTPUT_TOKEN = 1.136;
+const REFERENCE_MWH_FIXED = 79;
+/** Azure carbon intensity factor used by the same paper (0.35 kgCO2e/kWh). */
+const REFERENCE_GRID_G_PER_KWH = 350;
+
+/**
+ * What the same work would have cost on GPT-4o. Feed it ONLY the traffic our
+ * own footprint covers, so both sides of the comparison describe the same
+ * requests.
+ */
+export function referenceFootprint(params: { outputTokens: number; requests: number }): Footprint {
+  const mWh =
+    REFERENCE_MWH_PER_OUTPUT_TOKEN * params.outputTokens + REFERENCE_MWH_FIXED * params.requests;
+  const energyWms = Math.round(mWh * WMS_PER_MWH);
+  return {
+    energyWms,
+    emissionsUg: emissionsFromEnergy(energyWms, REFERENCE_GRID_G_PER_KWH),
+  };
 }
 
 /** emissions[ug] = energy[Wms] / 3.6e9 [kWh] * g/kWh * 1e6 */

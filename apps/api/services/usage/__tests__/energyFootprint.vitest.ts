@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 
-import { emissionsFromEnergy, estimateFootprint, gridIntensityFor } from '../energyFootprint.js';
+import {
+  emissionsFromEnergy,
+  estimateFootprint,
+  gridIntensityFor,
+  referenceFootprint,
+} from '../energyFootprint.js';
 
 /**
  * Anchors taken from the live probe of api.greenpt.ai on 2026-07-31
@@ -38,6 +43,32 @@ describe('gridIntensityFor', () => {
   it('falls back to the German mix for an unknown provider', () => {
     // Erring high is the safe direction for a footprint claim.
     expect(gridIntensityFor('some-future-provider')).toBe(350);
+  });
+});
+
+describe('referenceFootprint — the GPT-4o counterfactual', () => {
+  it('reproduces both anchor points it was fitted to', () => {
+    // Jegham et al. report 0.42 Wh for the short config (300 output tokens) and
+    // 1.215 Wh for the medium one (1000 output). If a later edit breaks the fit,
+    // these two say so.
+    const short = referenceFootprint({ outputTokens: 300, requests: 1 });
+    const medium = referenceFootprint({ outputTokens: 1000, requests: 1 });
+    expect(short.energyWms / 3_600_000).toBeCloseTo(0.42, 2);
+    expect(medium.energyWms / 3_600_000).toBeCloseTo(1.215, 2);
+  });
+
+  it('applies the US-grid factor the same paper used', () => {
+    // 0.42 Wh at 0.35 kgCO2e/kWh = 147 mg. Using our own European factor here
+    // would silently flatter the comparison.
+    const short = referenceFootprint({ outputTokens: 300, requests: 1 });
+    expect(short.emissionsUg / 1000).toBeCloseTo(147, 0);
+  });
+
+  it('scales with request count, not just tokens', () => {
+    // The fixed per-request term is 79 mWh — a hundred tiny requests must not
+    // come out as nearly free.
+    const many = referenceFootprint({ outputTokens: 100, requests: 100 });
+    expect(many.energyWms / 3_600_000).toBeGreaterThan(7.9);
   });
 });
 
@@ -117,6 +148,26 @@ describe('estimateFootprint', () => {
     const de = estimateFootprint({ ...shape, provider: 'litellm' });
     expect(fr?.energyWms).toBeGreaterThan(0);
     expect((de?.emissionsUg ?? 0) / (fr?.emissionsUg ?? 1)).toBeGreaterThan(5);
+  });
+
+  it('covers the Scaleway-routed spelling of Mistral Medium', () => {
+    // Regression: SCALEWAY_MISTRAL_MODELS rewrites 'mistral-medium-2604' to
+    // 'mistral-medium-3.5-128b' and usage records the ROUTED id. Real usage
+    // data showed that row sitting uncovered while the table held only the
+    // pre-routing spelling — the best-measured coefficient missing its own lane.
+    const shape = { inputTokens: 600, outputTokens: 400, requests: 1 };
+    const routed = estimateFootprint({
+      ...shape,
+      provider: 'scaleway',
+      model: 'mistral-medium-3.5-128b',
+    });
+    const direct = estimateFootprint({
+      ...shape,
+      provider: 'mistral',
+      model: 'mistral-medium-2604',
+    });
+    expect(routed).not.toBeNull();
+    expect(routed?.energyWms).toBe(direct?.energyWms);
   });
 
   it('charges embeddings on the input side only', () => {

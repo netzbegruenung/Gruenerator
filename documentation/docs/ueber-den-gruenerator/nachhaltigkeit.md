@@ -136,6 +136,50 @@ Wie groß der fehlende Teil ist, zeigt Scaleways eigene Bilanz besonders klar: D
 
 **Wer eine vollständige Bilanz will, muss unsere Zahl als Untergrenze lesen** — die Größenordnung des Fehlenden liegt eher beim Vier- bis Zehnfachen als bei ein paar Prozent.
 
+### Was dieselbe Arbeit mit ChatGPT gekostet hätte
+
+Die Nutzungs-Übersicht stellt deinem Verbrauch eine Vergleichszahl gegenüber. Sie beruht auf **Jegham et al. (2025)** — der einzigen veröffentlichten Rechnung zu GPT-4o mit **derselben Systemgrenze wie unserer**: nur Betriebsstrom, kein Training, keine Hardware-Herstellung, PUE eingerechnet, standortbasierter Emissionsfaktor. Alles andere wäre ein Vergleich von Äpfeln mit Birnen.
+
+Für eine Kurzanfrage (100 Token rein, 300 raus) nennt die Arbeit 0,42 Wh und damit rund 147 mg CO₂e. Unsere Modelle in derselben Konfiguration:
+
+| Modell und Standort         | Energie | CO₂    |
+| --------------------------- | ------- | ------ |
+| Gemma 4 bei Regolo          | 0,21 Wh | 56 mg  |
+| GPT-OSS 120B bei Regolo     | 0,24 Wh | 66 mg  |
+| Gemma 4 bei verdigado       | 0,20 Wh | 71 mg  |
+| Mistral Medium bei Scaleway | 1,37 Wh | 30 mg  |
+| **GPT-4o (Jegham et al.)**  | 0,42 Wh | 147 mg |
+
+Daraus ergibt sich die Spanne, die die Übersicht zeigt: **rund 2- bis 5-mal weniger CO₂** je vergleichbarer Anfrage.
+
+Zwei Ehrlichkeiten gehören dazu. Erstens: **Beim Strom gewinnen wir nicht durchgehend.** Die kompakten Modelle liegen knapp doppelt so gut, unser Standardmodell Mistral Medium aber gut dreimal schlechter. Dass es beim CO₂ trotzdem den besten Wert erzielt, verdankt sich dem französischen Netz — nicht sparsamerer Technik. Zweitens: **Die GPT-4o-Zahl ist selbst nur geschätzt.** OpenAI veröffentlicht nichts; sie wurde aus Antwortzeiten, GPU-Datenblättern und einer statistisch erschlossenen Hardware-Annahme abgeleitet. Unsere Zahlen kommen von einem Zähler. Die Unsicherheit sitzt fast vollständig auf der anderen Seite.
+
+## Quellen
+
+Alle Zahlen dieser Seite sind nachprüfbar.
+
+**Unsere Anbieter**
+
+- [Scaleway Impact Report 2025](https://www-uploads.scaleway.com/Impact_Report2025_22ee3a8232.pdf) — Scope 1/2/3, PUE je Rechenzentrum, WUE
+- [Hetzner: Nachhaltigkeit](https://www.hetzner.com/de/unternehmen/nachhaltigkeit) — PUE 1,10–1,16, Wasserkraft seit 2008, EMAS
+- [DHH Group Sustainability Report 2024](https://www.dhh.international/wp-content/uploads/2025/04/DHH_sustainability-report-2024_21-03-2025.pdf) — Seeweb (Regolo), Stromverbrauch und PUE
+- [GreenPT: Sustainability](https://docs.greenpt.ai/sustainability) — Methode der CO₂-Berechnung, stündliche Netzdaten von Nodera
+- [GreenPT: Partner](https://greenpt.com/partners) — Infrastruktur läuft bei Scaleway in Paris
+- [Regolo: Sustainable AI](https://regolo.ai/sustainable-ai/)
+- [Mistral AI: Ökobilanz mit ADEME und Carbone 4](https://mistral.ai/news/our-contribution-to-a-global-environmental-standard-for-ai/)
+
+**Strommix**
+
+- [Umweltbundesamt: CO₂-Emissionen pro Kilowattstunde Strom](https://www.umweltbundesamt.de/themen/co2-emissionen-pro-kilowattstunde-strom-2024) — Deutschland, verbrauchsbasiert
+- [RTE: Bilan électrique](https://analysesetdonnees.rte-france.com/en/annual-review-2024/keyfindings) — Frankreich
+- [Ember: Yearly Electricity Data](https://ember-energy.org/data/yearly-electricity-data/) — Italien und Ländervergleich
+
+**Methode und Vergleichszahlen**
+
+- [Jegham et al., „How Hungry is AI?" (arXiv:2505.09598)](https://arxiv.org/abs/2505.09598) — Grundlage des ChatGPT-Vergleichs
+- [GHG Protocol Scope 2 Guidance](https://ghgprotocol.org/scope-2-guidance) — standortbasiert vs. marktbasiert
+- Unsere eigene Messreihe ist im Code dokumentiert und wiederholbar: `apps/api/services/usage/energyFootprint.ts` und `apps/api/scripts/probeGreenptImpact.ts`
+
 :::info[Ehrlich bleiben]
 Die genannten Zahlen sind Anbieterangaben (Stand Juli 2026). Und auch grüne KI verbraucht Ressourcen — Nachhaltigkeit heißt beim Grünerator nicht „kostenlos für die Umwelt", sondern: bewusst kleine Modelle, bewusst grüne Anbieter, bewusst europäische Infrastruktur.
 :::

@@ -13,7 +13,7 @@ import { and, eq, gte } from 'drizzle-orm';
 
 import { userUsageDaily } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
-import { estimateFootprint } from '../../services/usage/energyFootprint.js';
+import { estimateFootprint, referenceFootprint } from '../../services/usage/energyFootprint.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
@@ -102,14 +102,22 @@ export const userUsageContractRouter = s.router(userUsageContract, {
         }
       >();
 
-      // Footprint accumulators. `covered`/`uncovered` count TOKENS, so the
-      // honesty ratio reflects the share of work accounted for, not the share
-      // of rows — a row is a whole day of one model.
+      // Footprint accumulators.
+      //
+      // Coverage is weighted by OUTPUT tokens, not by all tokens. Output drives
+      // energy by a factor of 100-760, and real traffic runs ~14:1 input-heavy
+      // because the intermediate lane ships huge prompts and writes almost
+      // nothing back. Counting all tokens would report ~35% coverage for a
+      // workload whose ENERGY is in fact almost fully accounted for — an
+      // honesty metric that understates its own honesty is worse than useless.
       let energyWms = 0;
       let emissionsUg = 0;
       let measuredEnergyWms = 0;
-      let coveredTokens = 0;
-      let textTokens = 0;
+      let textOutputTokens = 0;
+      // Doubles as the base of the GPT-4o counterfactual, so both sides of the
+      // comparison describe the same requests.
+      let coveredOutputTokens = 0;
+      let coveredRequests = 0;
 
       for (const row of rows) {
         const unit = usageUnitFallback(row.unit);
@@ -117,13 +125,14 @@ export const userUsageContractRouter = s.router(userUsageContract, {
         const tokens = row.inputTokens + row.outputTokens;
 
         if (unit === 'tokens') {
-          textTokens += tokens;
+          textOutputTokens += row.outputTokens;
           if (row.energyWms > 0) {
             // Measured beats estimated: GreenPT already told us the truth.
             energyWms += row.energyWms;
             measuredEnergyWms += row.energyWms;
             emissionsUg += row.emissionsUg;
-            coveredTokens += tokens;
+            coveredOutputTokens += row.outputTokens;
+            coveredRequests += row.requests;
           } else {
             const estimate = estimateFootprint({
               provider: row.provider,
@@ -135,7 +144,8 @@ export const userUsageContractRouter = s.router(userUsageContract, {
             if (estimate) {
               energyWms += estimate.energyWms;
               emissionsUg += estimate.emissionsUg;
-              coveredTokens += tokens;
+              coveredOutputTokens += row.outputTokens;
+              coveredRequests += row.requests;
             }
           }
         }
@@ -183,6 +193,11 @@ export const userUsageContractRouter = s.router(userUsageContract, {
         byModel.set(modelKey, modelEntry);
       }
 
+      const reference = referenceFootprint({
+        outputTokens: coveredOutputTokens,
+        requests: coveredRequests,
+      });
+
       return {
         status: 200 as const,
         body: {
@@ -194,7 +209,9 @@ export const userUsageContractRouter = s.router(userUsageContract, {
             energy_wh: energyWms / 3_600_000,
             emissions_g: emissionsUg / 1_000_000,
             measured_share: energyWms > 0 ? measuredEnergyWms / energyWms : 0,
-            covered_share: textTokens > 0 ? coveredTokens / textTokens : 0,
+            covered_share: textOutputTokens > 0 ? coveredOutputTokens / textOutputTokens : 0,
+            reference_energy_wh: reference.energyWms / 3_600_000,
+            reference_emissions_g: reference.emissionsUg / 1_000_000,
           },
           daily: [...daily.entries()]
             .map(([day, entry]) => ({
