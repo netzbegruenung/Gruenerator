@@ -43,12 +43,28 @@ const SNIPPET_CHARS = 1500;
 /**
  * Budget for the WHOLE source block handed to the synth, across all sources.
  *
- * 18k ≈ 12 sources at the full 1500, which is the point where a research thread
- * with carried sources starts growing the synth prompt without bound (measured
- * live: a thread at 19 sources produced a ~27k block). Above it every source
- * keeps its number and its line and they shorten together — see `renderAll`.
+ * Sized against the ONE turn that legitimately needs the most: `tiefenrecherche`
+ * returns 20 hits, of which the loop reads the top 3 (see `toolCatalog`), so
+ * 3×4000 + 17×1500 = 37 500 is the largest block a single search can honestly
+ * produce. 38k covers it exactly.
+ *
+ * The old 18k predates both. It was set when 12 sources at 1500 was the widest
+ * case, and it silently undid the two changes made since: a `tiefenrecherche`
+ * turn at 20×1500 = 30k already tripped the shared shrink and was handed back
+ * 900 chars per source — so the deep tier's raised snippet budget never once
+ * reached the model, and a crawl added on top would have been shrunk away at
+ * the same step.
+ *
+ * Not a context-window constraint at either value: 38k ≈ 10 900 tokens is 9 % of
+ * the smallest synth lane (`CTX_VERDIGADO` 120k) and 4 % of Mistral's 262k. What
+ * it bounds is unbounded GROWTH — carried sources are re-seeded every turn, so
+ * without a ceiling a long research thread grows the synth prompt forever. That
+ * backstop is intact: at most 10 carried (`getRecentThreadSources`) plus 20 fresh
+ * is 45k, still above this, so the shrink still fires where it was meant to.
+ * Above the budget every source keeps its number and its line and they shorten
+ * together — see `renderAll`.
  */
-const SOURCE_BLOCK_CHARS = 18_000;
+const SOURCE_BLOCK_CHARS = 38_000;
 
 /** Floor for the shared cap. Below this a snippet stops being evidence and
  *  becomes a headline, and the model starts reporting "dazu steht nichts in den
