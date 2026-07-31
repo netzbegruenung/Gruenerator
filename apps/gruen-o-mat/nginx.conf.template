@@ -14,8 +14,14 @@ server {
     add_header X-Frame-Options "DENY" always;
     add_header Content-Security-Policy "frame-ancestors 'none'" always;
 
+    # Never serve source maps — must precede the cache rule below, which used
+    # to match `.map` and hand out the frontend source. See apps/web/Dockerfile.
+    location ~ \.map$ {
+        return 404;
+    }
+
     # Cache static assets (Vite hashed filenames)
-    location ~* \.(css|map|jpe?g|gif|png|webp|svg|ico|woff|woff2)$ {
+    location ~* \.(css|jpe?g|gif|png|webp|svg|ico|woff|woff2)$ {
         expires 1y;
         add_header Cache-Control "public, immutable";
         try_files $uri =404;
