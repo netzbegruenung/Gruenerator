@@ -12,7 +12,7 @@
  * recording) come from `wrapToolsForLoop`; force-finish and lenient arg repair
  * are configured here.
  */
-import { type ChatIntentId } from '@gruenerator/shared/chat-intents';
+import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/chat-intents';
 import { type ModelMessage } from 'ai';
 
 import { forbidsNewResearch } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
@@ -131,6 +131,19 @@ const AGENTIC_INTENT_IDS = [
 // Typed as ChatIntentId, not string: a typo or a renamed intent used to compile
 // here and simply never match at runtime.
 export const AGENTIC_INTENTS: ReadonlySet<ChatIntentId> = new Set(AGENTIC_INTENT_IDS);
+
+/**
+ * Intents, bei denen der Klassifikator die Recherche AUSDRÜCKLICH benannt hat.
+ *
+ * Abgeleitet aus der Dispositions-Achse: `loop` heisst „der Planer wählt die
+ * Werkzeuge" — aber `agentic` ist der AUFFANGWERT dieser Gruppe und darf
+ * deshalb nicht zwingen, sonst würde jede unklare Frage einen Werkzeugaufruf
+ * erzwingen. Für die aus einem Recherche-Verdikt demotierten `agentic`-Turns
+ * gibt es `loopDemotedFromRetrieval`, das genau diese Herkunft festhält.
+ */
+export const NAMED_RETRIEVAL_INTENTS: ReadonlySet<string> = new Set(
+  [...intentsWithDisposition('loop')].filter((id) => id !== 'agentic')
+);
 
 export { isAgenticLoopEnabled } from './flags.js';
 
@@ -1027,7 +1040,19 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
         // Third route to the same failure: the LLM classifier said the turn needs
         // research and labelled it `direct` in the same breath. Its own reasoning
         // named the search it then never ran, and the answer was invented whole.
-        finalState.classifierContradictedResearch === true);
+        finalState.classifierContradictedResearch === true ||
+        // Vierter Weg — und der einfachste, der bis zuletzt keinen hatte: der
+        // Klassifikator hat einen Recherche-Intent AUSDRÜCKLICH benannt.
+        //
+        // Die drei Wege oben decken den demotierten Turn und den
+        // Selbstwiderspruch ab; ein sauberes `web`-Verdikt aus der LLM-Stufe
+        // fiel durch alle drei. Live gemessen: „Wie komme ich am Montag früh von
+        // Wien nach Graz?" → Quellen-Auflöser `bahn`, für de-AT nicht verfügbar,
+        // Degradierung auf `web` — und dann `steps=0 sources=0`. Die Antwort kam
+        // vollständig aus dem Modellgedächtnis, inklusive einer erfundenen
+        // Aussage über den Nutzer. Ein Intent, dessen ganzer Zweck das Abrufen
+        // ist, darf nicht nichts abrufen.
+        NAMED_RETRIEVAL_INTENTS.has(finalState.intent ?? ''));
 
     // The synth phase emits nothing between the last tool result and the first
     // answer token. Until this guard existed a lane that stalled there took the

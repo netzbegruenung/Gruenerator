@@ -334,9 +334,18 @@ export async function handleRecurringTaskCreation(opts: {
     const task = await createRecurringTask(userId, validated.data);
 
     sse.send('response_start', { message: 'Richte wiederkehrende Aufgabe ein...' });
+    // `toLocaleString` ohne `timeZone` nimmt die Zeitzone des SERVERS, und der
+    // Container läuft in UTC. Gemessen: „um 09:00 Uhr" korrekt angelegt, in
+    // derselben Nachricht als „Nächste Ausführung: 07:00" gemeldet — die Aufgabe
+    // war richtig, die Bestätigung log. Wien und Berlin teilen sich CET/CEST,
+    // die Wahl ändert also nur den Namen, nicht die Stunde; sie steht hier
+    // trotzdem am Locale, weil eine österreichische Nutzerin keine deutsche
+    // Zeitzone genannt bekommen soll, wenn das Feld einmal sichtbar wird.
+    const displayZone = opts.userLocale === 'de-AT' ? 'Europe/Vienna' : 'Europe/Berlin';
     const nextRun = new Date(task.nextRunAt).toLocaleString('de-DE', {
       dateStyle: 'medium',
       timeStyle: 'short',
+      timeZone: displayZone,
     });
     const responseText =
       `Wiederkehrende Aufgabe **„${task.title}"** eingerichtet — läuft ${describeRecurrence(task.recurrence)}, ` +
@@ -366,7 +375,15 @@ export async function handleRecurringTaskCreation(opts: {
       await touchThread(actualThreadId);
     }
 
-    log.info(`[ChatGraph] Recurring task created: "${task.title}" (${task.id})`);
+    // Takt und nächster Lauf gehören in die Zeile: das ist die einzige Aktion im
+    // Chat, die OHNE Bestätigungsschritt persistiert, und bis hierher stand im
+    // Log nur, DASS etwas angelegt wurde — nicht, mit welchem Zeitplan. Bei
+    // einer Beschwerde („die Erinnerung kommt zur falschen Zeit") war damit
+    // nicht nachvollziehbar, ob die Extraktion oder der Scheduler danebenlag.
+    log.info(
+      `[ChatGraph] Recurring task created: "${task.title}" (${task.id}) — ` +
+        `${describeRecurrence(task.recurrence)}, next=${new Date(task.nextRunAt).toISOString()}`
+    );
     sse.end();
     return true;
   } catch (err) {
