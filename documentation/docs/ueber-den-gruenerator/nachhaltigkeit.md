@@ -126,11 +126,46 @@ Bei **Regolo** kommt hinzu, dass es gar keine Zahl gäbe, die man einsetzen kön
 
 Wo Berichte konkret werden, rechnen wir es an: Seewebs PUE unter 1,20 und Hetzners 1,13 senken beide Werte gegenüber unserem Referenzwert. Sobald einer der beiden eine Scope-2-Bilanz veröffentlicht, nehmen wir sie auf — bei Scaleway ist genau das schon passiert.
 
+### Modelle ohne Messwert: Obergrenze statt Schätzung
+
+Für einige Lanes betreibt GreenPT kein Gegenstück — Mistral Small 4 (119 Mrd.), Qwen 3.5 (122 Mrd.) und Pixtral Large. Sie einfach wegzulassen wäre die bequemste Lösung und die falscheste: Bei realer Nutzung läuft ein Großteil des Volumens genau dort.
+
+Über die **Modellgröße** lässt sich das nicht schätzen — die Messreihe widerlegt den Zusammenhang direkt: GPT-OSS mit 120 Mrd. Parametern verbraucht je Token weniger als ein Sechstel von Mistral Medium mit 128 Mrd.
+
+Wir haben deshalb einen zweiten Weg geprüft: **Antwortgeschwindigkeit als Energie-Proxy**. Auf identischer Regolo-Hardware sollte ein Modell, das doppelt so lange für ein Token braucht, ungefähr doppelt so viel ziehen. Als Kontrolle haben wir den Proxy an zwei Modellen getestet, deren Energieverbrauch wir _kennen_:
+
+|                             | Verhältnis GPT-OSS 120B zu Gemma 4 |
+| --------------------------- | ---------------------------------- |
+| laut Geschwindigkeits-Proxy | 0,43×                              |
+| laut Messung                | 1,12×                              |
+
+**Der Proxy lag um 62 % daneben — und zwar in der schmeichelhaften Richtung.** Geschwindigkeit sagt vor allem, über wie viele GPUs ein Modell verteilt ist, nicht wie viel es zieht. Die daraus abgeleiteten Zahlen haben wir verworfen.
+
+Was bleibt, ist die gemessene Spanne dieser Größenklasse: 0,81 mWh je Token (GPT-OSS, Mixture-of-Experts) bis 4,52 mWh (Mistral Medium, dicht). Wir setzen für die ungemessenen Lanes das **obere Ende** an. Das ist bewusst zu hoch gegriffen — bei einer Umweltangabe ist das die richtige Fehlerrichtung. Die Nutzungs-Übersicht weist getrennt aus, welcher Anteil deiner Zahl auf einer solchen Obergrenze beruht, und dieser Anteil wird kleiner, sobald jemand die Lane wirklich misst. Nach oben korrigiert er sich nie.
+
+### Erzeugte Bilder
+
+Ein einzelnes Bild wiegt schwerer als alles andere in der Übersicht: **Ein Sharepic mit Flux Pro entspricht rund 25 erzeugten Pressemitteilungen.** Deshalb zeigt die Übersicht den Bildanteil getrennt an — eine Summe allein würde nahelegen, dass Chatten das Problem ist.
+
+Auch hier meldet kein Anbieter Messwerte, und GreenPT betreibt kein Bildmodell, mit dem wir kalibrieren könnten. Die Werte stammen aus einer veröffentlichten Messreihe: **Iyengar et al. (2025)** vermessen gängige Diffusionsmodelle auf einer A100 über das gesamte Raster aus Auflösung, Schritten, Rechengenauigkeit und Guidance. Genau das macht die Arbeit brauchbar — wir können die Zelle nehmen, die zu unserer Nutzung passt, statt eine Schlagzeile zu zitieren. Bei 1024×1024, 50 Schritten, fp16, mit CFG:
+
+| Modell                        | Energie je Bild (nur GPU) |
+| ----------------------------- | ------------------------- |
+| Qwen-Image (läuft bei Regolo) | 3,58 Wh                   |
+| FLUX.1 [dev]                  | 4,28 Wh                   |
+
+**Zwei Korrekturen sind nötig, bevor man das übernehmen darf.** Erstens misst die Arbeit ausschließlich die GPU und zieht deren Leerlauf ab. In einem echten Rechenzentrum zahlt man beides: den Leerlauf ohnehin, dazu CPU, Arbeitsspeicher, Netzwerk, Lüfter und Verluste im Netzteil — Beschleuniger machen typischerweise nur gut die Hälfte der Serverleistung aus. Wir verdoppeln deshalb. Das ist eine runde Zahl und offen eine Setzung, deshalb steht sie hier und nicht nur im Code. Zweitens kommt die Effizienz des Rechenzentrums obendrauf; wo ein Betreiber nichts veröffentlicht, rechnen wir mit dem Weltdurchschnitt von 1,56.
+
+Beim Strommix gilt dasselbe Prinzip: Black Forest Labs bedienen wir über den EU-Endpunkt, aber weder Land noch Betreiber sind benannt. Wir setzen deshalb den deutschen Netzmix an — den härtesten der drei, die wir verwenden, und deutlich über dem EU-Schnitt.
+
+Nur eine der Lanes ist damit gut abgedeckt: **Qwen-Image bei Regolo ist exakt das vermessene Modell**, und Regolo geht ohnehin nicht über 1024×1024 hinaus — die gemessene Zelle ist also zugleich der schlechteste Fall. Bei **Black Forest Labs** liegt FLUX.2 vor, vermessen wurde FLUX.1; die drei Varianten skalieren wir über den von BFL selbst veröffentlichten Kostenfaktor (Klein 0,5×, Pro 1×, Max 2×). Alle Bildwerte gelten daher als **Obergrenze**, nicht als Messung.
+
+Zur Einordnung von außen: Scope3 veranschlagt für ein hochwertiges GPT-4o-Bild rund 5,6 g CO₂e, das entspricht am US-Netz etwa 14,7 Wh. Unser Flux-Pro-Wert landet bei rund 10,7 Wh — gleiche Größenordnung aus völlig anderer Methode.
+
 ### Was die Zahl _nicht_ enthält
 
 - **Keine Herstellung, kein Training.** Wir zählen den Strom der Anfrage selbst. Der CO₂-Rucksack aus GPU-Produktion und Modelltraining fehlt.
-- **Keine Bilder, keine Transkription, keine Recherche.** Dafür liefert kein Anbieter Messwerte — GreenPTs Transkriptions-Endpunkt etwa gibt gar kein `impact`-Feld zurück. Diese Schritte fehlen vollständig.
-- **Nicht jedes Modell.** Für einige Lanes betreibt GreenPT kein Gegenstück. Wir schätzen sie **nicht** über die Modellgröße, weil die Messreihe zeigt, dass das nicht trägt: GPT-OSS mit 120 Mrd. Parametern verbraucht je Token weniger als ein Sechstel von Mistral Medium mit 128 Mrd. Die Anzeige nennt dir stattdessen, welcher Anteil deiner Tokens erfasst ist.
+- **Keine Transkription, keine Recherche.** Dafür liefert kein Anbieter Messwerte — GreenPTs Transkriptions-Endpunkt etwa gibt gar kein `impact`-Feld zurück. Diese Schritte fehlen vollständig.
 
 Wie groß der fehlende Teil ist, zeigt Scaleways eigene Bilanz besonders klar: Dem Betriebsstrom (Scope 2) mit 3.155 t CO₂e stehen **13.387 t allein für die Server** gegenüber — die Hardware-Herstellung wiegt dort das **4,2-fache** des Stroms, den sie verbraucht. Mistrals unabhängig geprüfte Ökobilanz kommt in dieselbe Richtung: Sie nennt für eine 400-Token-Antwort rund 1,14 g CO₂e, wo unsere Rechnung für ein vergleichbares Modell bei etwa 0,10 g landet.
 
@@ -151,6 +186,8 @@ Für eine Kurzanfrage (100 Token rein, 300 raus) nennt die Arbeit 0,42 Wh und da
 | **GPT-4o (Jegham et al.)**  | 0,42 Wh | 147 mg |
 
 Daraus ergibt sich die Spanne, die die Übersicht zeigt: **rund 2- bis 5-mal weniger CO₂** je vergleichbarer Anfrage.
+
+Der Vergleich gilt **nur für Text**. Für erzeugte Bilder gibt es keine OpenAI-Zahl mit vergleichbar sauber benannter Systemgrenze; eine Herstellerschätzung gegen eine grenzkorrigierte Messung zu stellen würde die Sorgfalt entwerten, um die es hier geht. Bilder bleiben im Vergleich deshalb außen vor.
 
 Zwei Ehrlichkeiten gehören dazu. Erstens: **Beim Strom gewinnen wir nicht durchgehend.** Die kompakten Modelle liegen knapp doppelt so gut, unser Standardmodell Mistral Medium aber gut dreimal schlechter. Dass es beim CO₂ trotzdem den besten Wert erzielt, verdankt sich dem französischen Netz — nicht sparsamerer Technik. Zweitens: **Die GPT-4o-Zahl ist selbst nur geschätzt.** OpenAI veröffentlicht nichts; sie wurde aus Antwortzeiten, GPU-Datenblättern und einer statistisch erschlossenen Hardware-Annahme abgeleitet. Unsere Zahlen kommen von einem Zähler. Die Unsicherheit sitzt fast vollständig auf der anderen Seite.
 
@@ -177,6 +214,9 @@ Alle Zahlen dieser Seite sind nachprüfbar.
 **Methode und Vergleichszahlen**
 
 - [Jegham et al., „How Hungry is AI?" (arXiv:2505.09598)](https://arxiv.org/abs/2505.09598) — Grundlage des ChatGPT-Vergleichs
+- [Iyengar et al., „Energy Scaling Laws for Diffusion Models" (arXiv:2511.17031)](https://arxiv.org/abs/2511.17031) — Grundlage der Bildwerte; Tabelle 3 (FLUX.1) und Tabelle 6 (Qwen-Image)
+- [Scope3: Sustainable AI — Image Generation](https://info.scope3.com/hubfs/Sustainable%20AI%20-%20Image%20Gen%20Report.pdf) — unabhängige Gegenprobe für Bilder
+- [Uptime Institute Global Data Center Survey](https://uptimeinstitute.com/resources/research-and-reports/uptime-institute-global-data-center-survey-results-2024) — weltweiter PUE-Durchschnitt 1,56
 - [GHG Protocol Scope 2 Guidance](https://ghgprotocol.org/scope-2-guidance) — standortbasiert vs. marktbasiert
 - Unsere eigene Messreihe ist im Code dokumentiert und wiederholbar: `apps/api/services/usage/energyFootprint.ts` und `apps/api/scripts/probeGreenptImpact.ts`
 

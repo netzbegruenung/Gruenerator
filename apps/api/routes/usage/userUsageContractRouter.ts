@@ -13,7 +13,11 @@ import { and, eq, gte } from 'drizzle-orm';
 
 import { userUsageDaily } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
-import { estimateFootprint, referenceFootprint } from '../../services/usage/energyFootprint.js';
+import {
+  estimateFootprint,
+  estimateImageFootprint,
+  referenceFootprint,
+} from '../../services/usage/energyFootprint.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
@@ -113,11 +117,20 @@ export const userUsageContractRouter = s.router(userUsageContract, {
       let energyWms = 0;
       let emissionsUg = 0;
       let measuredEnergyWms = 0;
+      // Energy that rests on a conservative upper bound rather than a metered
+      // coefficient. Reported separately so the headline number is never taken
+      // for more than it is.
+      let boundedEnergyWms = 0;
       let textOutputTokens = 0;
       // Doubles as the base of the GPT-4o counterfactual, so both sides of the
-      // comparison describe the same requests.
+      // comparison describe the same requests. TEXT only — the counterfactual
+      // has no image half (see energyFootprint.ts).
       let coveredOutputTokens = 0;
       let coveredRequests = 0;
+      // Broken out because a single generated image outweighs hundreds of chat
+      // turns: without the split the headline would read as a chat footprint.
+      let imageEnergyWms = 0;
+      let imageEmissionsUg = 0;
 
       for (const row of rows) {
         const unit = usageUnitFallback(row.unit);
@@ -146,7 +159,23 @@ export const userUsageContractRouter = s.router(userUsageContract, {
               emissionsUg += estimate.emissionsUg;
               coveredOutputTokens += row.outputTokens;
               coveredRequests += row.requests;
+              if (estimate.basis === 'bound') boundedEnergyWms += estimate.energyWms;
             }
+          }
+        }
+
+        if (unit === 'images') {
+          const estimate = estimateImageFootprint({
+            provider: row.provider,
+            model: row.model,
+            images: row.ops,
+          });
+          if (estimate) {
+            energyWms += estimate.energyWms;
+            emissionsUg += estimate.emissionsUg;
+            imageEnergyWms += estimate.energyWms;
+            imageEmissionsUg += estimate.emissionsUg;
+            if (estimate.basis === 'bound') boundedEnergyWms += estimate.energyWms;
           }
         }
 
@@ -209,7 +238,10 @@ export const userUsageContractRouter = s.router(userUsageContract, {
             energy_wh: energyWms / 3_600_000,
             emissions_g: emissionsUg / 1_000_000,
             measured_share: energyWms > 0 ? measuredEnergyWms / energyWms : 0,
+            bounded_share: energyWms > 0 ? boundedEnergyWms / energyWms : 0,
             covered_share: textOutputTokens > 0 ? coveredOutputTokens / textOutputTokens : 0,
+            image_energy_wh: imageEnergyWms / 3_600_000,
+            image_emissions_g: imageEmissionsUg / 1_000_000,
             reference_energy_wh: reference.energyWms / 3_600_000,
             reference_emissions_g: reference.emissionsUg / 1_000_000,
           },
