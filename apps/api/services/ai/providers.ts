@@ -16,9 +16,12 @@ import {
   getLiteLLMProvider,
   getMistralProvider,
   getRegoloProvider,
+  getScalewayProvider,
   isProviderConfigured,
+  routeMistralModel,
 } from './providerInstances.js';
 
+import type { RouteOptions } from './providerInstances.js';
 import type { LanguageModel } from 'ai';
 
 // Provider name types
@@ -71,15 +74,37 @@ export function getPreferredMonitorProvider(): ProviderName {
  * The returned model is wrapped so its token usage is attributed to the
  * current request's user (no-op outside an authenticated request).
  */
-export function getModel(provider: ProviderName | string, modelId?: string): LanguageModel {
-  return withUsageTracking(resolveModel(provider, modelId), provider);
+export function getModel(
+  provider: ProviderName | string,
+  modelId?: string,
+  options: RouteOptions = {}
+): LanguageModel {
+  // Usage is attributed to the upstream that actually serves the request, not
+  // to the lane name: with Mistral Medium 3.5 on Scaleway, billing the tokens
+  // to "mistral" would make the Scaleway invoice unaccountable.
+  const upstream =
+    provider === 'mistral'
+      ? routeMistralModel(modelId || PROVIDER_DEFAULTS.mistral, options).upstream
+      : provider;
+  return withUsageTracking(resolveModel(provider, modelId, options), upstream);
 }
 
-function resolveModel(provider: ProviderName | string, modelId?: string): LanguageModel {
+function resolveModel(
+  provider: ProviderName | string,
+  modelId?: string,
+  options: RouteOptions = {}
+): LanguageModel {
   switch (provider) {
     case 'mistral': {
+      // Medium 3.5 runs on Scaleway; everything else Mistral publishes
+      // (Pixtral, Small, embeddings) stays on the Mistral API, as do thinking
+      // requests. See routeMistralModel for why this is not a ProviderName.
+      const routed = routeMistralModel(modelId || PROVIDER_DEFAULTS.mistral, options);
+      if (routed.upstream === 'scaleway') {
+        return getScalewayProvider().chat(routed.model);
+      }
       const mistral = getMistralProvider();
-      return mistral(modelId || PROVIDER_DEFAULTS.mistral);
+      return mistral(routed.model);
     }
     case 'litellm': {
       const litellm = getLiteLLMProvider();

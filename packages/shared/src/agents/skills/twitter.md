@@ -15,4 +15,4 @@ order: 7
 
 Prägnant, pointiert, direkte Sprache, sparsame Emojis. Eine zentrale Aussage statt mehrerer.
 
-**Beispiel-Suche:** Nutze IMMER `search_examples` mit `platform="bluesky"` (NICHT "twitter"/"x") — unsere Tweet-Beispiele sind in der Beispiel-Datenbank als Bluesky-Posts hinterlegt (Cross-Posts der offiziellen Grünen-Accounts). Orientiere dich an Ton, Aufbau und Formatierung.
+**Beispiel-Suche:** Nutze IMMER `gruenerator_examples_search` mit `platform="bluesky"` (NICHT "twitter"/"x") — unsere Tweet-Beispiele sind in der Beispiel-Datenbank als Bluesky-Posts hinterlegt (Cross-Posts der offiziellen Grünen-Accounts). Orientiere dich an Ton, Aufbau und Formatierung.

@@ -5,11 +5,14 @@
  *
  * The one import is deliberate: fastPathGuards is itself a zero-import leaf, so
  * the "what counts as a sharepic ask" vocabulary can live in exactly one place
- * without this module losing its purity.
+ * without this module losing its purity. `decisionJournal` is the same kind of
+ * leaf (a dependency-free `node:async_hooks` store), so recording here keeps
+ * this module's unit-testability intact.
  */
 import { type ChatIntentId } from '@gruenerator/shared/chat-intents';
 
 import { hasExplicitSharepicWord } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
+import { recordDecision } from '../../../../utils/decisionJournal.js';
 
 /**
  * The classifier drops many factual questions into `intent: 'direct'` ("no
@@ -399,11 +402,25 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   // so it always enters the loop — independent of CHAT_AGENT_LOOP and of inLoopSet.
   // The single-pass kill-switches below (compound / image / secondary) still apply.
   const gateOpen = p.isMcpTurn || (p.loopEnabled && inLoopSet);
-  return (
+  const runAgentic =
     gateOpen &&
     (!p.forcedTool || p.isMcpTurn) &&
     !p.isCompound &&
     secondaryAllowed &&
-    !p.hasImageAttachments
-  );
+    !p.hasImageAttachments;
+  recordDecision('router.run_agentic', runAgentic ? 'loop' : 'single_pass', {
+    inputs: {
+      intent: p.intent,
+      loopEnabled: p.loopEnabled,
+      inLoopSet,
+      gateOpen,
+      isMcpTurn: p.isMcpTurn,
+      isCompound: p.isCompound,
+      forcedTool: p.forcedTool,
+      secondaryAllowed,
+      hasImageAttachments: p.hasImageAttachments,
+      isPdfFillRequest: p.isPdfFillRequest,
+    },
+  });
+  return runAgentic;
 }

@@ -14,6 +14,7 @@ import { CLASSIFIER_CONTEXT_MESSAGES, CLASSIFIER_CONTEXT_MAX_CHARS } from './cla
 import {
   hasExplicitSharepicWord,
   isMetaQuestionAbout,
+  isNegatedArtifactRequest,
   negatedOrMeta,
   stripQuotedSpans,
 } from './fastPathGuards.js';
@@ -267,6 +268,77 @@ export function mentionsImageNoun(text: string): boolean {
   return IMAGE_NOUN_PATTERN.test(text);
 }
 
+// Verbs that ask to SEE something that already exists, as opposed to having it
+// made. Kept separate from SEARCH_LOOKUP_VERB_PATTERN below: that one gates a
+// scope restriction and may under-fire safely, while this one decides whether we
+// pay for image hits, so it lists the showing verbs ("zeig", "hast du") that a
+// search-verb pattern has no reason to know about.
+const IMAGE_LOOKUP_VERB_PATTERN =
+  /\b(?:zeig\w*|find\w*|such\w*|schick\w*|gib\s+mir|hast\s+du|gibt\s+es|gibts|existier\w*|recherchier\w*|google\w*)\b/i;
+
+// Verbs that ask for a NEW image. Their presence vetoes the lookup reading even
+// when a showing verb is also there ("such ein Motiv und erstell daraus ein
+// Bild") — buying stock links for a generation request is the expensive mistake,
+// and the image intent already owns that turn.
+const IMAGE_CREATE_VERB_PATTERN =
+  /\b(?:erstell\w*|generier\w*|erzeug\w*|zeichne\w*|male\w*|mal\s|illustrier\w*|entwirf\w*|entwerf\w*|bau\w*)\b/i;
+
+// "Bilder von der Demo" as a whole message: a bare noun phrase with no verb at
+// all is still unambiguously a request to see them. Anchored at the start so it
+// cannot match the noun buried in prose ("… erklärt das Bild von der Demo").
+const BARE_IMAGE_REQUEST_PATTERN =
+  /^\s*(?:bitte\s+)?(?:bilder|fotos|photos|images|pictures|aufnahmen)\b/i;
+
+// Image nouns INCLUDING their German plurals, for the lookup gate below.
+//
+// Deliberately not `IMAGE_NOUN_PATTERN`/`IMAGE_GEN_NOUN_PATTERN`: both of those
+// stop at "bild" and "foto" and reject "Bilder"/"Fotos", because their alternation
+// is followed by a boundary assertion and "bild" inside "bilder" has none. Those
+// two patterns gate the image-EDIT and image-GENERATION paths, where the singular
+// is what people write ("bearbeite das Foto"), so widening them would change
+// routing that has nothing to do with this feature. Here the plural is the
+// dominant phrasing — nobody asks for "ein Bild von der Demo" when they mean
+// several — so the gate needs its own pattern, and using the SAME one for the
+// presence check and the negation check is what keeps those two from drifting
+// apart (a noun the gate accepts but the negation guard cannot see is a hole).
+const IMAGE_LOOKUP_NOUN_PATTERN =
+  /\b(?:bild(?:er)?|foto(?:s)?|photo(?:s)?|image(?:s)?|picture(?:s)?|aufnahme(?:n)?)\b/i;
+
+/**
+ * True when the user wants to SEE existing images from the web, not to have one
+ * generated — the only signal that may switch `includeImages` on.
+ *
+ * This distinction is the whole reason the function exists. "Erstell ein Bild von
+ * einem Windrad" and "zeig mir Bilder von Windrädern" share every noun and differ
+ * only in the verb, yet they route to entirely different subsystems: one to image
+ * generation, the other to the web search. Getting it wrong in the expensive
+ * direction means paying for stock links on a generation turn; getting it wrong in
+ * the cheap direction means the user sees no images and asks again.
+ *
+ * Deliberately narrow. Images are never a default (a factual question would pay
+ * for pictures nobody looks at), so an under-firing heuristic costs one clarifying
+ * turn while an over-firing one costs money on every turn that happens to mention
+ * a photo. The `bilder: true` tool argument is the escape hatch for the phrasings
+ * this misses — in the loop, the model can say what it wants directly.
+ */
+export function wantsImageResults(text: string): boolean {
+  if (!IMAGE_LOOKUP_NOUN_PATTERN.test(text)) return false;
+  // "ohne Bilder" / "keine Fotos" — a refusal must never be read as a request.
+  // Fed the SAME pattern as the gate above: with the singular-only pattern this
+  // guard was a no-op on exactly the phrasings the gate accepts, so "zeig mir
+  // keine Fotos" passed straight through it.
+  //
+  // Only the NEGATION half, not `negatedOrMeta`. The meta-question half stands
+  // every artifact fast path down when the message opens with a question word,
+  // because "Was macht ein gutes Sharepic aus?" must not build a sharepic. For a
+  // LOOKUP that reasoning inverts: "gibt es Fotos von dem Protest?" is the
+  // request, and `gibt es` is literally one of the openings that pattern rejects.
+  if (isNegatedArtifactRequest(text, IMAGE_LOOKUP_NOUN_PATTERN)) return false;
+  if (IMAGE_CREATE_VERB_PATTERN.test(text)) return false;
+  if (hasImageEditVerb(text)) return false;
+  return IMAGE_LOOKUP_VERB_PATTERN.test(text) || BARE_IMAGE_REQUEST_PATTERN.test(text);
+}
+
 // Document mutation verbs — used by classifierNode to route `edit_current_doc`
 // (open doc in editor) and `modify_doc` (collaborative doc mention) intents.
 // Same `(?:^|\W)` anchor reasoning as IMAGE_EDIT_VERB_PATTERN above: JS `\b` is
@@ -378,6 +450,238 @@ export function extractUrls(text: string): string[] {
     if (cleaned) seen.add(cleaned);
   }
   return [...seen];
+}
+
+/** Domains to include/exclude when the caller wires them into Linkup's
+ *  `includeDomains`/`excludeDomains`. Both keys are always present, possibly empty. */
+export interface DomainScope {
+  include: string[];
+  exclude: string[];
+}
+
+// A "bare" domain — no scheme, unlike URL_PATTERN above. Requires a
+// letters-only TLD (2-6 chars): this is what keeps IP-ish text ("192.168")
+// and version numbers ("3.14") out for free, since their last segment is
+// digits, not letters — no separate numeric check needed.
+const BARE_DOMAIN_PATTERN = /\b(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,6}\b/gi;
+
+// TLD-shaped strings that are actually file extensions ("bericht.pdf",
+// "index.ts"), not domains. Checked against the matched TLD segment only.
+const NON_DOMAIN_EXTENSIONS = new Set([
+  'pdf',
+  'csv',
+  'doc',
+  'docx',
+  'xls',
+  'xlsx',
+  'ppt',
+  'pptx',
+  'txt',
+  'md',
+  'rtf',
+  'jpg',
+  'jpeg',
+  'png',
+  'gif',
+  'svg',
+  'webp',
+  'bmp',
+  'ico',
+  'mp3',
+  'mp4',
+  'mov',
+  'avi',
+  'wav',
+  'ogg',
+  'webm',
+  'zip',
+  'rar',
+  'tar',
+  'gz',
+  '7z',
+  'js',
+  'jsx',
+  'ts',
+  'tsx',
+  'py',
+  'rb',
+  'go',
+  'rs',
+  'java',
+  'c',
+  'cpp',
+  'h',
+  'php',
+  'sh',
+  'json',
+  'xml',
+  'yml',
+  'yaml',
+  'css',
+  'scss',
+  'html',
+  'htm',
+  'exe',
+  'dll',
+  'log',
+  'ini',
+  'cfg',
+  'conf',
+  'bak',
+  'tmp',
+]);
+
+// Only messages that actually ask to search/look something up may use a
+// preposition to scope that search. Without this gate, "die Zeit hat AUF
+// zeit.de berichtet" would read the "auf" in front of "zeit.de" as an
+// include marker even though nothing here is a search request — the
+// sentence has no search verb anywhere, which is exactly what this pattern
+// tests for. It is intentionally coarse (message-wide, not clause-local):
+// this file's heuristics are pattern proxies, not a parser, and a coarse
+// gate that occasionally under-fires is the safer failure mode per rule 4
+// below (nothing detected beats a wrongly narrowed search).
+const SEARCH_LOOKUP_VERB_PATTERN =
+  /\b(?:such\w*|durchsuch\w*|recherchier\w*|informier\w*|nachschau\w*|nachschlag\w*|google\w*)\b|\b(?:schau|guck)\w*\s+nach\b/i;
+
+// Include-marker prepositions (rule 3). "nur auf"/"nur bei" are listed
+// separately from "auf"/"bei" only so a shared-end tie against an exclude
+// phrase resolves by length, not because their polarity differs.
+const INCLUDE_MARKER_PATTERNS: readonly RegExp[] = [
+  /\bausschlie(?:ss|ß)lich\b/gi,
+  /\bnur\s+auf\b/gi,
+  /\bnur\s+bei\b/gi,
+  /\bauf\b/gi,
+  /\bbei\b/gi,
+  /\bin\b/gi,
+  /\bvia\b/gi,
+  /\bvon\b/gi, // ambiguous alone; SEARCH_LOOKUP_VERB_PATTERN above is the guard against it firing on plain prose.
+];
+
+// Exclude-marker prepositions (rule 3). Each of "nicht von"/"nicht auf"/
+// "abgesehen von" fully contains an include marker ("von"/"auf") ending at
+// the same position — the tie-break in findMarkerHits (longest match wins
+// on an end-index tie) is what makes the exclude phrase win there.
+const EXCLUDE_MARKER_PATTERNS: readonly RegExp[] = [
+  /\bnicht\s+von\b/gi,
+  /\bnicht\s+auf\b/gi,
+  /\babgesehen\s+von\b/gi,
+  /\bohne\b/gi,
+  /\b(?:ausser|außer)\b/gi,
+  /\bkeine[nrs]?\b/gi,
+];
+
+// How far back (in characters) a marker may sit before the domain it scopes.
+// Generous enough for "nur auf der Webseite von" plus a couple of filler
+// words, capped so it can't reach past the previous domain match.
+const MARKER_WINDOW_CHARS = 60;
+
+interface MarkerHit {
+  end: number;
+  length: number;
+  polarity: 'include' | 'exclude';
+}
+
+/** All include/exclude marker matches inside `window`, for picking the closest one. */
+function findMarkerHits(window: string): MarkerHit[] {
+  const hits: MarkerHit[] = [];
+  for (const pattern of INCLUDE_MARKER_PATTERNS) {
+    for (const m of window.matchAll(pattern)) {
+      hits.push({ end: (m.index ?? 0) + m[0].length, length: m[0].length, polarity: 'include' });
+    }
+  }
+  for (const pattern of EXCLUDE_MARKER_PATTERNS) {
+    for (const m of window.matchAll(pattern)) {
+      hits.push({ end: (m.index ?? 0) + m[0].length, length: m[0].length, polarity: 'exclude' });
+    }
+  }
+  return hits;
+}
+
+/** True when the gap between two domains is only "und"/"oder"/"sowie"/commas —
+ *  an enumeration continuation, not a new clause that needs its own marker. */
+function isConnectorOnly(window: string): boolean {
+  const stripped = window.replace(/[,;]/g, ' ').trim().toLowerCase();
+  return stripped === '' || /^(?:und|oder|sowie)$/.test(stripped);
+}
+
+/**
+ * Detect a domain search scope from free text ("such auf zeit.de und
+ * spiegel.de nach X" → include zeit.de + spiegel.de), for wiring into
+ * Linkup's `includeDomains`/`excludeDomains`.
+ *
+ * Two deliberate exclusions, each with its own failure-mode reasoning:
+ *
+ * - **Rule 2 (URL collision):** a domain that also appears as a full URL in
+ *   the same message is dropped from the scope entirely. A full URL is a
+ *   "read/scrape this specific page" instruction (→ `scrape_url`); a bare
+ *   domain is a "restrict search to this site" instruction. The two are
+ *   different actions on the same string, so on collision the more specific
+ *   one (the URL) wins and the domain does not also narrow the search.
+ *
+ * - **Rule 4 (no marker → nothing):** a domain with no recognisable
+ *   preposition/marker in front of it, or no search-verb anywhere in the
+ *   message (see SEARCH_LOOKUP_VERB_PATTERN), yields neither include nor
+ *   exclude for that domain. "Die Zeit hat auf zeit.de berichtet, was
+ *   hältst du davon?" must not silently scope every later search in this
+ *   turn to zeit.de — a scope that persists on a false read is worse than
+ *   no scope at all, so ambiguous cases are dropped rather than guessed.
+ *
+ * On a same-domain conflict (mentioned once as include, once as exclude)
+ * exclude wins: an exclusion is the more specific signal, and under-scoping
+ * a search is the safer wrong answer than over-scoping it.
+ */
+export function extractDomainScope(text: string): DomainScope {
+  const empty: DomainScope = { include: [], exclude: [] };
+  if (!text) return empty;
+  if (!SEARCH_LOOKUP_VERB_PATTERN.test(text)) return empty;
+
+  const fullUrlHosts = new Set<string>();
+  for (const url of extractUrls(text)) {
+    try {
+      const hostname = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+      if (hostname) fullUrlHosts.add(hostname);
+    } catch {
+      // extractUrls already anchors on https?://, so this should be rare —
+      // skip rather than let a malformed URL abort extraction.
+    }
+  }
+
+  const candidates: Array<{ normalized: string; start: number; end: number }> = [];
+  for (const m of text.matchAll(BARE_DOMAIN_PATTERN)) {
+    const raw = m[0];
+    const start = m.index ?? 0;
+    const tld = raw.slice(raw.lastIndexOf('.') + 1).toLowerCase();
+    if (NON_DOMAIN_EXTENSIONS.has(tld)) continue;
+    const normalized = raw.toLowerCase().replace(/^www\./, '');
+    if (fullUrlHosts.has(normalized)) continue;
+    candidates.push({ normalized, start, end: start + raw.length });
+  }
+
+  const tagged: Array<{ domain: string; polarity: 'include' | 'exclude' }> = [];
+  let prevEnd = 0;
+  let prevPolarity: 'include' | 'exclude' | null = null;
+  for (const { normalized, start, end } of candidates) {
+    const windowStart = Math.max(prevEnd, start - MARKER_WINDOW_CHARS, 0);
+    const windowText = text.slice(windowStart, start);
+    const hits = findMarkerHits(windowText);
+    let polarity: 'include' | 'exclude' | null = null;
+    if (hits.length > 0) {
+      hits.sort((a, b) => b.end - a.end || b.length - a.length);
+      polarity = hits[0].polarity;
+    } else if (prevPolarity && isConnectorOnly(windowText)) {
+      polarity = prevPolarity;
+    }
+    if (polarity) tagged.push({ domain: normalized, polarity });
+    prevPolarity = polarity;
+    prevEnd = end;
+  }
+
+  const exclude = new Set(tagged.filter((t) => t.polarity === 'exclude').map((t) => t.domain));
+  const include = new Set(
+    tagged.filter((t) => t.polarity === 'include' && !exclude.has(t.domain)).map((t) => t.domain)
+  );
+
+  return { include: [...include], exclude: [...exclude] };
 }
 
 /**

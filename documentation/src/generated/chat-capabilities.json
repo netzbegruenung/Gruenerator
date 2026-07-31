@@ -93,6 +93,11 @@
       "description": "Dateien aus verbundenen Diensten einfügen",
       "mention": "@connect"
     },
+    "deepresearch": {
+      "title": "Tiefenrecherche",
+      "description": "Ausführliches Dossier mit Quellen — 1× pro Tag",
+      "mention": "@deepresearch"
+    },
     "docs-picker-trigger": {
       "title": "Dokument einfügen",
       "description": "Dokumente, Dateien & Notizbuch-Inhalte als Kontext hinzufügen",

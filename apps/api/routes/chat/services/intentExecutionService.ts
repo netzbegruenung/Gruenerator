@@ -47,6 +47,7 @@ import {
   type CreateTurnOpts,
 } from './createTurn.js';
 import { failCreation, rememberArtifact } from './createTurnHelpers.js';
+import { runDeepResearchTurn } from './deepResearchTurn.js';
 import { extractTextContent } from './messageHelpers.js';
 import {
   recallPastChats,
@@ -62,6 +63,7 @@ import {
 import { pendingActionStore } from './pendingActionStore.js';
 import { resolveReferentialTopic } from './referentialTopic.js';
 import { looksLikeRefusal } from './refusalDetection.js';
+import { withImageProxy } from './searchImagePayload.js';
 import {
   detectPreferredVariant,
   generateSharepicVariants,
@@ -1214,6 +1216,34 @@ export async function executeIntentPipeline(opts: {
       if (toolEnabled) {
         let searchInputState = finalState;
 
+        // @deepresearch: Linkup writes the dossier, so this path replaces BOTH
+        // halves of the turn — retrieval and synthesis. It must therefore skip
+        // everything below, not just the search node: reranking reorders
+        // `searchResults`, and Linkup's [N] point at the original order.
+        //
+        // `null` means "not served" (quota spent, no key, failed call) and falls
+        // through to the ordinary research path with the warning already sent.
+        if (searchInputState.deepResearchRequested === true) {
+          const dossier = await runDeepResearchTurn({ state: searchInputState, sse });
+          if (dossier) {
+            finalState = { ...searchInputState, ...dossier } as ChatGraphState;
+            sse.send('search_complete', {
+              message: PROGRESS_MESSAGES.searchComplete(finalState.searchResults?.length ?? 0),
+              resultCount: finalState.searchResults?.length ?? 0,
+              results: (finalState.searchResults ?? []).slice(0, 10).map((r) => {
+                const result: SearchResultPayload = {
+                  source: r.source,
+                  title: r.title,
+                  content: r.content,
+                };
+                if (r.url != null) result.url = r.url;
+                return result;
+              }),
+            });
+            continue;
+          }
+        }
+
         // A retry of a research turn whose GENERATION failed: the sources are
         // already on the thread. Re-running Linkup costs ~17s and a paid call
         // to answer the identical question a second time (observed live, 36s
@@ -1276,11 +1306,21 @@ export async function executeIntentPipeline(opts: {
           explicitDeep: searchInputState.explicitDeepRequest ?? false,
         });
         if (!reused) {
+          const baseProgress =
+            searchTier === 'standard'
+              ? PROGRESS_MESSAGES.searchStart
+              : resolveTier(searchTier).progress;
+          // A site scope must be VISIBLE. It was extracted heuristically from the
+          // user's wording, so a wrong read has to be recognisable as such —
+          // otherwise the user sees results missing and has no way to tell that
+          // the search was narrowed at all. Named in the progress line rather than
+          // a new event field, because that line is already rendered everywhere.
+          const scopeDomains = searchInputState.webSiteScope?.include ?? [];
           sse.send('search_start', {
             message:
-              searchTier === 'standard'
-                ? PROGRESS_MESSAGES.searchStart
-                : resolveTier(searchTier).progress,
+              scopeDomains.length > 0
+                ? `${baseProgress.replace(/[…\s]+$/, '')} — nur auf ${scopeDomains.join(', ')}…`
+                : baseProgress,
             ...(finalState.subQueries?.length && { subQueries: finalState.subQueries }),
           });
           if (searchTier !== 'standard') {
@@ -1355,6 +1395,12 @@ export async function executeIntentPipeline(opts: {
               : PROGRESS_MESSAGES.searchComplete(resultCount),
           resultCount,
           results: payloadResults,
+          // Only present on a turn that explicitly asked for images. Travels
+          // beside `results`, never inside it — an image has no text, so as a
+          // source it would be a numbered citation with an empty snippet.
+          ...(finalState.webImageResults?.length
+            ? { images: finalState.webImageResults.map(withImageProxy) }
+            : {}),
           ...((currentIntent === 'examples' || currentIntent === 'pressemitteilung_examples') &&
           finalState.examplesResult
             ? { examplesResult: finalState.examplesResult }

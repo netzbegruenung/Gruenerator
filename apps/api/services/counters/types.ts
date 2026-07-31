@@ -6,12 +6,18 @@
  * Minimal Redis client interface for counter operations.
  * Deliberately structural (not `RedisClientType`) so counters stay decoupled
  * from the concrete client and testable with a plain stub.
+ *
+ * `isReady` is optional: node-redis exposes it, a minimal stub doesn't.
+ * Consumers that need to fail closed on a dead connection must check
+ * `this.redis.isReady === false` (never `!this.redis.isReady`) — a client
+ * that doesn't expose the field at all must NOT be treated as "not ready".
  */
 export interface RedisClient {
   get(key: string): Promise<string | null>;
   incr(key: string): Promise<number>;
   expire(key: string, seconds: number): Promise<boolean | number>;
   del(...keys: string[]): Promise<number>;
+  isReady?: boolean;
 }
 
 /**
@@ -59,5 +65,22 @@ export interface ImageGenerationStatus {
  * Image generation increment result
  */
 export interface ImageGenerationResult extends ImageGenerationStatus {
+  success: boolean;
+}
+
+/**
+ * Deep research (Linkup) daily limit status
+ */
+export interface DeepResearchStatus {
+  count: number;
+  remaining: number;
+  limit: number;
+  canResearch: boolean;
+}
+
+/**
+ * Deep research increment result
+ */
+export interface DeepResearchResult extends DeepResearchStatus {
   success: boolean;
 }

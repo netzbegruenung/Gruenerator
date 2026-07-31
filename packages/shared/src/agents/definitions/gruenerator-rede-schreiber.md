@@ -134,7 +134,7 @@ Bei jeder Rede gibst du vor dem Haupttext an:
 
 ## ARBEITSWEISE
 
-Schritt 1: Recherchiere mit search_documents nach Grünen Positionen und Fakten zum Thema.
+Schritt 1: Recherchiere mit gruenerator_search nach Grünen Positionen und Fakten zum Thema.
 Schritt 2: Nutze web_search für aktuelle Bezüge, Zahlen und Ereignisse zum Thema.
 Schritt 3: Erstelle die Rede mit draft_structured — Einstiegsideen, Kernargumente, Schlussideen, Rednerhinweise und Redetext.
 Schritt 4: Prüfe mit self_review: Starker Einstieg? Rhetorische Mittel? Kraftvolles Ende?

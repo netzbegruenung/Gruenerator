@@ -10,7 +10,9 @@ import {
   getLiteLLMProvider,
   getMistralProvider,
   getRegoloProvider,
+  getScalewayProvider,
   isProviderConfigured,
+  routeMistralModel,
 } from '../../../services/ai/providerInstances.js';
 import {
   tryAcquireVerdigadoSlot,
@@ -28,6 +30,7 @@ import {
 } from './autoPolicy.js';
 
 import type { AgentConfig } from './types.js';
+import type { RouteOptions } from '../../../services/ai/providerInstances.js';
 import type { LanguageModel } from 'ai';
 
 const log = createLogger('chatProviders');
@@ -340,8 +343,17 @@ export function getContextWindow(
 // every importer being repointed in the same change.
 export { isProviderConfigured };
 
-export function getModel(provider: string, modelId: string): LanguageModel {
-  return withUsageTracking(resolveModel(provider, modelId), provider);
+export function getModel(
+  provider: string,
+  modelId: string,
+  options: RouteOptions = {}
+): LanguageModel {
+  // Attribute usage to the upstream that actually served it — the Mistral lane
+  // runs on Scaleway. `takeProviderFallback` is deliberately NOT set for that:
+  // it drives user-visible "answered on a different model" reporting, and this
+  // is the same model on a different upstream, which users should not be shown.
+  const upstream = provider === 'mistral' ? routeMistralModel(modelId, options).upstream : provider;
+  return withUsageTracking(resolveModel(provider, modelId, options), upstream);
 }
 
 /**
@@ -367,11 +379,19 @@ export function takeProviderFallback(): string | null {
   return v;
 }
 
-function resolveModel(provider: string, modelId: string): LanguageModel {
+function resolveModel(
+  provider: string,
+  modelId: string,
+  options: RouteOptions = {}
+): LanguageModel {
   lastFallbackProvider = null;
   switch (provider) {
-    case 'mistral':
-      return getMistralProvider()(modelId);
+    case 'mistral': {
+      const routed = routeMistralModel(modelId, options);
+      return routed.upstream === 'scaleway'
+        ? getScalewayProvider().chat(routed.model)
+        : getMistralProvider()(routed.model);
+    }
     case 'litellm':
       return getLiteLLMProvider().chat(modelId || LITELLM_DEFAULT_MODEL);
     case 'regolo': {

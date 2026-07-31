@@ -19,7 +19,10 @@ import {
 import { DocumentSearchService } from '../../../services/document-services/index.js';
 import { searchExamples } from '../../../services/examples/exampleSearchService.js';
 import { withRetry } from '../../../services/search/index.js';
-import { getLinkupService } from '../../../services/search/LinkupService.js';
+import {
+  getLinkupService,
+  type LinkupSearchResult,
+} from '../../../services/search/LinkupService.js';
 import { resolveSearchPlan, type SearchTier } from '../../../services/search/searchDepth.js';
 import { searxngService } from '../../../services/search/SearxngService.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -34,6 +37,14 @@ import type {
 } from '../../../services/search/types.js';
 
 const log = createLogger('DirectSearch');
+
+/**
+ * Cap on image hits carried out of a single search. Capped independently of
+ * `maxResults` because images are a side panel, not sources: eight named links
+ * fill the list without pushing the text results the answer is written from out
+ * of the tier's budget.
+ */
+const MAX_IMAGE_HITS = 8;
 
 export interface DirectSearchResult {
   collection: string;
@@ -89,6 +100,17 @@ export interface DirectPressemitteilungExamplesResult {
   message?: string;
 }
 
+/**
+ * An image hit from the web search. Carries no `snippet`, because Linkup's image
+ * entries carry no `content` — that absence is the whole reason these must not
+ * travel with the text results.
+ */
+interface WebImageHit {
+  title: string;
+  url: string;
+  domain: string;
+}
+
 export interface DirectWebSearchResult {
   query: string;
   searchType: string;
@@ -101,6 +123,12 @@ export interface DirectWebSearchResult {
     domain: string;
     publishedDate?: string | null;
   }>;
+  /**
+   * Image hits, kept strictly apart from `results`. Only ever non-empty when the
+   * caller asked for images (`includeImages`) — see the split in
+   * `executeDirectWebSearch` for why they may never be mixed in.
+   */
+  images?: WebImageHit[];
   suggestions?: string[];
   error?: boolean;
   message?: string;
@@ -462,6 +490,22 @@ export async function executeDirectWebSearch(params: {
   maxResults?: number;
   timeRange?: string;
   language?: string;
+  /**
+   * Site scope, applied by the engine before we pay. `include` narrows the search
+   * to these hosts ("such auf zeit.de"); `exclude` keeps them out and carries the
+   * low-value default list. Bare hosts, no scheme.
+   */
+  includeDomains?: readonly string[];
+  excludeDomains?: readonly string[];
+  /** Explicit ISO window (YYYY-MM-DD). Wins over `timeRange`, which is a preset. */
+  fromDate?: string;
+  toDate?: string;
+  /**
+   * Ask the engine for image hits alongside the text ones. Never a default: on a
+   * factual question the images are paid for and then looked at by nobody, and
+   * they arrive mixed into the same result array (see the split below).
+   */
+  includeImages?: boolean;
 }): Promise<DirectWebSearchResult> {
   const { query, searchType = 'general', tier, timeRange, language = 'de-DE' } = params;
   const plan = resolveSearchPlan({
@@ -470,29 +514,77 @@ export async function executeDirectWebSearch(params: {
     ...(params.maxResults != null ? { maxResults: params.maxResults } : {}),
   });
   const maxResults = plan.maxResults;
+
+  // An include scope and the default block list are not the same kind of
+  // statement: naming sites is a positive instruction, so the block list must not
+  // ride along and silently subtract from it. (Linkup applies both if both are
+  // sent, and "search zeit.de but not amazon.de" is a scope nobody asked for.)
+  const includeDomains = params.includeDomains ?? [];
+  const excludeDomains = includeDomains.length > 0 ? [] : (params.excludeDomains ?? []);
+
+  // `searchType: 'news'` was a documented parameter that did nothing at all on
+  // the Linkup path — the branch below only ever used it for SearXNG's category.
+  // A news search is a recency constraint, so that is what it now buys.
+  const NEWS_WINDOW_DAYS = 30;
+  const fromDate =
+    params.fromDate ??
+    (timeRange ? timeRangeToFromDate(timeRange) : undefined) ??
+    (searchType === 'news' ? daysAgoIso(NEWS_WINDOW_DAYS) : undefined);
   // The deeper tiers exist to give the writing model more to work with; a
   // 300-char snippet would cap that no matter how many sources came back.
   // Stays under the source registry's own per-line cap (1500).
   const snippetChars = plan.depth === 'deep' ? 1200 : 300;
+  const includeImages = params.includeImages === true;
+  /**
+   * Extra headroom on `maxResults` when images are requested.
+   *
+   * Image entries arrive INSIDE the same `results` array as the text hits, and
+   * Linkup's reference does not say whether they count toward `maxResults` — it
+   * only promises "the number of results will always be ≤ maxResults". If they do
+   * count, then asking for images silently costs the answer its sources: with
+   * `maxResults: 5` and three images returned, the model gets two text hits and
+   * the tier's promise quietly breaks.
+   *
+   * So the images are asked for ON TOP rather than hoped about. This is free:
+   * Linkup prices a search by `depth` × `outputType` only ($0.005 standard /
+   * $0.05 deep for searchResults, +$0.001 for sourcedAnswer) — `maxResults` is
+   * not a pricing dimension. And it is harmless under either reading of the docs:
+   * if images do NOT count, we merely receive a few more text hits and slice back
+   * down to `maxResults` below.
+   *
+   * An earlier comment here asserted that images "cannot eat into maxResults".
+   * That was true only of OUR OWN capping below; it said nothing about what the
+   * engine returns, which is where the loss would actually happen.
+   */
+  const requestedResults = includeImages ? maxResults + MAX_IMAGE_HITS : maxResults;
 
   // One line carrying the COMPLETE commissioned search. Without it there was no
   // way to tell from the logs what a turn actually asked the engine for — which
   // is how `searchType: 'news'` survived for months as a no-op on this path.
   log.info(
-    `[Direct Web Search] query="${query}" type="${searchType}" tier=${plan.tier} depth=${plan.depth}${plan.fastReason ? `(${plan.fastReason})` : ''} max=${maxResults} adjacent=${plan.adjacentSearches} lang=${language}${timeRange ? ` timeRange=${timeRange}` : ''}`
+    `[Direct Web Search] query="${query}" type="${searchType}" tier=${plan.tier} depth=${plan.depth}${plan.fastReason ? `(${plan.fastReason})` : ''} max=${maxResults} adjacent=${plan.adjacentSearches} lang=${language}${
+      includeDomains.length > 0 ? ` include=[${includeDomains.join(',')}]` : ''
+    }${excludeDomains.length > 0 ? ` exclude=${excludeDomains.length}` : ''}${
+      fromDate ? ` from=${fromDate}` : ''
+    }${params.toDate ? ` to=${params.toDate}` : ''}${timeRange ? ` timeRange=${timeRange}` : ''}${
+      includeImages ? ` images=on(+${MAX_IMAGE_HITS} headroom)` : ''
+    }`
   );
 
   try {
     const linkup = getLinkupService();
     if (linkup) {
-      const fromDate = timeRange ? timeRangeToFromDate(timeRange) : undefined;
       const search = (depth: typeof plan.depth) =>
         linkup.webSearch({
           query,
           depth,
-          maxResults,
+          maxResults: requestedResults,
           adjacentSearches: plan.adjacentSearches,
+          ...(includeDomains.length > 0 ? { includeDomains } : {}),
+          ...(excludeDomains.length > 0 ? { excludeDomains } : {}),
           ...(fromDate ? { fromDate } : {}),
+          ...(params.toDate ? { toDate: params.toDate } : {}),
+          ...(includeImages ? { includeImages: true } : {}),
         });
       // `fast` is flagged beta in Linkup's docs, so it is the one depth that could
       // be rejected for an account without anything else being wrong. A keyword
@@ -506,23 +598,42 @@ export async function executeDirectWebSearch(params: {
             return search('standard');
           })
         : search(plan.depth));
-      const linkupFormatted = linkupRes.results.slice(0, maxResults).map((r, i) => ({
+      // Linkup mixes image entries into the SAME array as the text ones, and an
+      // image entry has `name` + `url` but NO `content`. The `type` field has
+      // existed on the result shape all along and nothing read it, so every entry
+      // was mapped as a text result — which was harmless only for as long as no
+      // caller asked for images. The moment one does, an unsplit mapping puts
+      // content-less entries into the source registry, where they become numbered
+      // citations backing a claim with an empty snippet. Splitting first is
+      // therefore not cleanup, it is the precondition for `includeImages`.
+      const { text: textEntries, images: imageEntries } = partitionLinkupResults(linkupRes.results);
+      const linkupFormatted = textEntries.slice(0, maxResults).map((r, i) => ({
         rank: i + 1,
         // Linkup returns raw HTML-entity-encoded titles/snippets (e.g. "&Ouml;sterreich").
         title: decodeHtmlEntities(r.name) || 'Unbekannt',
         url: r.url,
         snippet: truncateText(decodeHtmlEntities(r.content), snippetChars),
         domain: extractDomain(r.url),
-        publishedDate: null as string | null,
+        // Was hard-coded `null`, so `recencyBoost`/`resolveSourceDate` scored
+        // nothing for web hits — the one source type where freshness matters
+        // most. Normalised rather than passed through: a value the ranking
+        // cannot parse is worse than none, because it looks like data.
+        publishedDate: normalizePublishedDate(r.date),
+      }));
+      const linkupImages = imageEntries.slice(0, MAX_IMAGE_HITS).map((r) => ({
+        title: decodeHtmlEntities(r.name) || extractDomain(r.url) || 'Bild',
+        url: r.url,
+        domain: extractDomain(r.url),
       }));
       log.info(
-        `[Direct Web Search] Linkup returned ${linkupFormatted.length} results for "${query}"`
+        `[Direct Web Search] Linkup returned ${linkupFormatted.length} results${linkupImages.length > 0 ? ` + ${linkupImages.length} images` : ''} for "${query}"`
       );
       return {
         query,
         searchType,
         resultsCount: linkupFormatted.length,
         results: linkupFormatted,
+        ...(linkupImages.length > 0 ? { images: linkupImages } : {}),
       };
     }
 
@@ -603,6 +714,58 @@ export async function executeDirectWebSearch(params: {
  * Map a SearXNG-style `time_range` ("day"|"week"|"month"|"year") to a Linkup
  * `fromDate` (YYYY-MM-DD). Unknown values yield no constraint.
  */
+/** ISO date (YYYY-MM-DD) `days` in the past. */
+function daysAgoIso(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Linkup's `date` field as something the recency ranking can use, or `null`.
+ *
+ * Returning `null` for anything unparseable is deliberate: a bogus date is worse
+ * than a missing one, because the ranking would treat it as a real signal and
+ * boost or bury a source on the strength of a string nobody validated. Future
+ * dates are rejected for the same reason — a page dated next year is metadata
+ * noise, not a fresh source.
+ */
+/**
+ * Split Linkup's single result array into text hits and image hits.
+ *
+ * Classification is by exclusion, not by allow-list: anything NOT marked
+ * `type: 'image'` counts as text. Linkup documents `text` and `image`, and a
+ * hypothetical third type would still carry `content` — mapping it as text keeps
+ * the source, while an allow-list would silently drop it. An entry claiming to be
+ * an image but carrying no usable URL is dropped from both lists: a link is the
+ * only thing we do with it.
+ */
+export function partitionLinkupResults(results: readonly LinkupSearchResult[]): {
+  text: LinkupSearchResult[];
+  images: LinkupSearchResult[];
+} {
+  const text: LinkupSearchResult[] = [];
+  const images: LinkupSearchResult[] = [];
+  for (const r of results) {
+    if (r.type === 'image') {
+      if (r.url && r.url.trim().length > 0) images.push(r);
+      continue;
+    }
+    text.push(r);
+  }
+  return { text, images };
+}
+
+export function normalizePublishedDate(raw: string | undefined): string | null {
+  if (!raw || raw.trim().length === 0) return null;
+  const parsed = new Date(raw);
+  const time = parsed.getTime();
+  if (Number.isNaN(time)) return null;
+  // One day of slack for timezone skew rather than an exact comparison.
+  if (time > Date.now() + 24 * 60 * 60 * 1000) return null;
+  return parsed.toISOString();
+}
+
 function timeRangeToFromDate(timeRange: string): string | undefined {
   const days: Record<string, number> = { day: 1, week: 7, month: 30, year: 365 };
   const offset = days[timeRange.toLowerCase()];

@@ -16,15 +16,261 @@
       "sourceType": "github",
       "computedHash": "31c027d02dbf1faa37f58191f574b9443143042fb2b684fe32df53ab0270487c"
     },
+    "deep-agents-core": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "skillPath": "config/skills/deep-agents-core/SKILL.md",
+      "computedHash": "78899a8217572be9156b0c03f280fea7c250ce29e89a87fc18499766ec67159c"
+    },
+    "deep-agents-memory": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "skillPath": "config/skills/deep-agents-memory/SKILL.md",
+      "computedHash": "54e4fd1e876f5e13bee1b52812a84befe00e8336c19d32766557fcb84c5ecf49"
+    },
+    "deep-agents-orchestration": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "skillPath": "config/skills/deep-agents-orchestration/SKILL.md",
+      "computedHash": "5b039d2c10ef3bd6f6044c70c123060860dc1e1a49c0dc5cc12dde7cd67a3b75"
+    },
+    "deepagents-python-quickstart": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "skillPath": "config/skills/deepagents-python-quickstart/SKILL.md",
+      "computedHash": "259306ab533cf4825a94ecc00d7d5e24e2f44055b2e4af78166db9b53a61e391"
+    },
+    "deepagents-typescript-quickstart": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "skillPath": "config/skills/deepagents-typescript-quickstart/SKILL.md",
+      "computedHash": "1188ed5f28175b57c62e46bd517d61cbd9769bf6254880b5e9137f4b27ba037c"
+    },
+    "ecosystem-primer": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "skillPath": "config/skills/ecosystem-primer/SKILL.md",
+      "computedHash": "cdcbe9115ec444518fc963fa1a5425aacad984f2b03c5e56980e4f9ad3888bc1"
+    },
+    "eval-engineering": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "skillPath": "config/skills/eval-engineering/SKILL.md",
+      "computedHash": "bab4fafb4524b33d9da9f2be80dd992efc97f6b01eae1fc18ec33f7ef49e0a6b"
+    },
+    "langchain-dependencies": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "skillPath": "config/skills/langchain-dependencies/SKILL.md",
+      "computedHash": "d11337493fa4828c12d2d1793fbdf3bb0d5ae67763a03e98b0f1aa3d0ff6825b"
+    },
+    "langchain-fundamentals": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "skillPath": "config/skills/langchain-fundamentals/SKILL.md",
+      "computedHash": "5a1ded1b185ed95aab2b795f6134ce1ea9c19dddc5d5c8f291b31c0db4f0e379"
+    },
+    "langchain-middleware": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "skillPath": "config/skills/langchain-middleware/SKILL.md",
+      "computedHash": "f8b6897ba1f027d56ff9fffa72d4d27d8e048232fe1e1c13e219df98969d55b0"
+    },
+    "langchain-python-quickstart": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "skillPath": "config/skills/langchain-python-quickstart/SKILL.md",
+      "computedHash": "2249f725655e4f5d3f76e8bfab1fdc15b2dfa704bd42eacc55be1b9273cabe69"
+    },
+    "langchain-rag": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "skillPath": "config/skills/langchain-rag/SKILL.md",
+      "computedHash": "d836f8a425104fe4e925135cb06a1217c2ded6576ee426e11e3f657e6c371da4"
+    },
+    "langchain-typescript-quickstart": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "skillPath": "config/skills/langchain-typescript-quickstart/SKILL.md",
+      "computedHash": "66dc2533c29a6097dda563f42102da0c4b1cef7ae455a97df2924dbd42865348"
+    },
+    "langfuse": {
+      "source": "langfuse/skills",
+      "sourceType": "github",
+      "skillPath": "skills/langfuse/SKILL.md",
+      "computedHash": "cc4e1ca6858c43b46e13b67aacf919db854db5e71260e509557609a6308af902"
+    },
+    "langgraph-cli": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "skillPath": "config/skills/langgraph-cli/SKILL.md",
+      "computedHash": "dec48033a9a80c8d8826d0d4303dfc339a0a9145f3266035663104357b2d9c8f"
+    },
+    "langgraph-fundamentals": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "skillPath": "config/skills/langgraph-fundamentals/SKILL.md",
+      "computedHash": "790dd42d79190a6db6a7a82ac9b03fa371402a47d91ff88c1e2731b1ceff1d29"
+    },
+    "langgraph-human-in-the-loop": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "skillPath": "config/skills/langgraph-human-in-the-loop/SKILL.md",
+      "computedHash": "283821ddcbdefb404d5e9c95149364c0962857a6f1e90db33ee5a0062500a88a"
+    },
+    "langgraph-persistence": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "skillPath": "config/skills/langgraph-persistence/SKILL.md",
+      "computedHash": "0e14611b0310a7a30e9977ba99b00a11b7ea63ebdd7b0c490d03040349ead0ed"
+    },
+    "langgraph-python-quickstart": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "skillPath": "config/skills/langgraph-python-quickstart/SKILL.md",
+      "computedHash": "86548f132067cd75586c970250a6bfc145045d0e0495f7d7dd60c065373ba65e"
+    },
+    "langgraph-typescript-quickstart": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "skillPath": "config/skills/langgraph-typescript-quickstart/SKILL.md",
+      "computedHash": "ae3745d29e53b8d8f74057a82b8404bf97039ed71eb598f7c8c97a1a74fb2681"
+    },
+    "linkup-extract": {
+      "source": "LinkupPlatform/skills",
+      "sourceType": "github",
+      "skillPath": "skills/linkup-extract/SKILL.md",
+      "computedHash": "514af1607e7454adf9157623fde7072dfdef73cc29955742066d64341a88dd08"
+    },
+    "linkup-fetch": {
+      "source": "LinkupPlatform/skills",
+      "sourceType": "github",
+      "skillPath": "skills/linkup-fetch/SKILL.md",
+      "computedHash": "6f8e2e3106588aa6d30ff7eb255e102b33a79edaf8fc5cb13ced4b8039bded08"
+    },
+    "linkup-research": {
+      "source": "LinkupPlatform/skills",
+      "sourceType": "github",
+      "skillPath": "skills/linkup-research/SKILL.md",
+      "computedHash": "7187777a0336f5a720d4b31317564c7609b7170a66c8d84cf1a1484352d22702"
+    },
+    "linkup-search": {
+      "source": "LinkupPlatform/skills",
+      "sourceType": "github",
+      "skillPath": "skills/linkup-search/SKILL.md",
+      "computedHash": "f0fa2e7e4389dc5acb512a00d1ea74f655a41848a6f13c70eb27c2e5e291c6f1"
+    },
+    "linkup-workflow": {
+      "source": "LinkupPlatform/skills",
+      "sourceType": "github",
+      "skillPath": "skills/linkup-workflow/SKILL.md",
+      "computedHash": "a6d0ac47ed68992eb8aae324db2e7b5482ca42b2b31dcde37b542a48e4cea982"
+    },
+    "managed-deep-agents": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "skillPath": "config/skills/managed-deep-agents/SKILL.md",
+      "computedHash": "6a2be0785d4e042947d27e0a67abb75f4a705de443d1f372c53970e37cd0fd2a"
+    },
+    "mem0": {
+      "source": "mem0ai/mem0",
+      "sourceType": "github",
+      "skillPath": "skills/mem0/SKILL.md",
+      "computedHash": "b70a0151f31849e71d4d641e4c1e5b0d7d601e49c1587d4aefb753219622d6e6"
+    },
+    "mem0-integrate": {
+      "source": "mem0ai/mem0",
+      "sourceType": "github",
+      "skillPath": "skills/mem0-integrate/SKILL.md",
+      "computedHash": "4f35b9a8bde9382b5b35c7408647453e978f692acbb2fb478893d2d5540ffe98"
+    },
     "organization-best-practices": {
       "source": "better-auth/skills",
       "sourceType": "github",
       "computedHash": "79a5a85b43d10e9fe37582b3506b051a33a991817b938f349099baa5ddba21aa"
     },
+    "qdrant-clients-sdk": {
+      "source": "qdrant/skills",
+      "sourceType": "github",
+      "skillPath": "skills/qdrant-clients-sdk/SKILL.md",
+      "computedHash": "58df9c656977780dd62db051ab81d84639acf0ead3cce162e765456fb3167c91"
+    },
+    "qdrant-deployment-options": {
+      "source": "qdrant/skills",
+      "sourceType": "github",
+      "skillPath": "skills/qdrant-deployment-options/SKILL.md",
+      "computedHash": "43af2c8563c91ddd4c0f2fd2ae8ede66d6b9c8a4421c2a16c13dfa4e934d00e6"
+    },
+    "qdrant-edge": {
+      "source": "qdrant/skills",
+      "sourceType": "github",
+      "skillPath": "skills/qdrant-edge/SKILL.md",
+      "computedHash": "50eb8f2c200d9a3c29433acd99190bcf2ef7da48fd7513d5c13571c7eec5d520"
+    },
+    "qdrant-model-migration": {
+      "source": "qdrant/skills",
+      "sourceType": "github",
+      "skillPath": "skills/qdrant-model-migration/SKILL.md",
+      "computedHash": "6a40dfbc656404be20db1bbc427f05a66d7e2a7d30ce18432a43d140843e426a"
+    },
+    "qdrant-monitoring": {
+      "source": "qdrant/skills",
+      "sourceType": "github",
+      "skillPath": "skills/qdrant-monitoring/SKILL.md",
+      "computedHash": "38afe0d8f006d7febb82390d244a3c5235156569c2671589c437511480e67a6b"
+    },
+    "qdrant-multitenancy": {
+      "source": "qdrant/skills",
+      "sourceType": "github",
+      "skillPath": "skills/qdrant-multitenancy/SKILL.md",
+      "computedHash": "14ef395c4dc65b082d4c56d04a7fc4426a745fde486b8d8f93af078606d19ab7"
+    },
+    "qdrant-performance-optimization": {
+      "source": "qdrant/skills",
+      "sourceType": "github",
+      "skillPath": "skills/qdrant-performance-optimization/SKILL.md",
+      "computedHash": "bb2985424d1a1c754f8590b3478678061298652d84e64552919eecf14b03558c"
+    },
+    "qdrant-scaling": {
+      "source": "qdrant/skills",
+      "sourceType": "github",
+      "skillPath": "skills/qdrant-scaling/SKILL.md",
+      "computedHash": "f3f7a204858b2068b9d7ba5ff4be2000e17e9b3ef5a0c455cf99467ae9d752ee"
+    },
+    "qdrant-search-quality": {
+      "source": "qdrant/skills",
+      "sourceType": "github",
+      "skillPath": "skills/qdrant-search-quality/SKILL.md",
+      "computedHash": "fc840f2df6e1eb9255b97eb6b1c0702850e6edf4cc829fd1f7e9fb6ba5fc9dbe"
+    },
+    "qdrant-version-upgrade": {
+      "source": "qdrant/skills",
+      "sourceType": "github",
+      "skillPath": "skills/qdrant-version-upgrade/SKILL.md",
+      "computedHash": "110d32608b79541c161009ef909e664a69b60a693f5cd2d2110ea4133332fef6"
+    },
     "shadcn": {
       "source": "shadcn/ui",
       "sourceType": "github",
       "computedHash": "1ec42c9b918b315d8e5c6c856b78c3c4725fc93dea30b9b7e9975c69848fcce6"
+    },
+    "swarm": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "skillPath": "config/skills/swarm/SKILL.md",
+      "computedHash": "4091bd7cf88d408a0724d4cc2be2c0c0fdf6fbe4bd3e700c4cabed58900823bb"
+    },
+    "tailwind-4-docs": {
+      "source": "lombiq/tailwind-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/tailwind-4-docs/SKILL.md",
+      "computedHash": "de756f5f03cc20a029983875b00b9dfef9d0ba8567d242c5cbb0262037d0a134"
+    },
+    "tiptap": {
+      "source": "ueberdosis/tiptap",
+      "sourceType": "github",
+      "skillPath": "skills/tiptap/SKILL.md",
+      "computedHash": "d3abb7a7e4cb1eb4064e8dcb0928771d58052c7d92e2ec3725a3a9a3c6cd338b"
     },
     "together-fine-tuning": {
       "source": "togethercomputer/skills",
@@ -40,6 +286,18 @@
       "source": "assistant-ui/tool-ui",
       "sourceType": "github",
       "computedHash": "ef3b319307a8fd68cf3e29a4431c5a85990aa478d1f2632646936a778aa2ff24"
+    },
+    "turborepo": {
+      "source": "vercel/turborepo",
+      "sourceType": "github",
+      "skillPath": "skills/turborepo/SKILL.md",
+      "computedHash": "55a5a48cb45a407ae8e5d6f5f7546486e511e6a911f21e831387607d38df7425"
+    },
+    "vitest": {
+      "source": "antfu/skills",
+      "sourceType": "github",
+      "skillPath": "skills/vitest/SKILL.md",
+      "computedHash": "943d436114c677802426741980146c07560bf375297666b03062444f4b98a785"
     }
   }
 }
