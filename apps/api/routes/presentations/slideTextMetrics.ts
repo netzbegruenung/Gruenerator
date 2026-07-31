@@ -140,6 +140,13 @@ function shorthand(run: MeasureRun, opts: WrapOpts): string {
  * over-long word overflows rather than splitting) and honouring hard breaks.
  *
  * Returns 1 for empty input — an empty paragraph still occupies a line box.
+ *
+ * CONCURRENCY: the measuring 2d context is a module-wide singleton with mutable
+ * `ctx.font`, shared by every in-flight export. That is safe only because the
+ * walk below is synchronous — the single `await` is the first statement, so no
+ * other export can interleave once measuring has started. Do not add an `await`
+ * inside the loop; two exports would then trade fonts mid-paragraph and the
+ * wrong widths would surface as silently misplaced boxes, not as an error.
  */
 export async function countLines(runs: MeasureRun[], opts: WrapOpts): Promise<number> {
   const m = await getMeasurer();

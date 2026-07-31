@@ -765,12 +765,19 @@ function addQuoteSlide(
     });
   }
 
+  // The quote block is vertically centred (`justify-content: center`), so 180px
+  // is the right resting place for a one-line title — but the title box now
+  // grows with the measured text, and a three-line quote title would run
+  // straight through the body. Never start above the title's bottom edge.
+  const bodyY = Math.max(180, ts.bodyTop);
+  const bodyH = SURFACE_H - bodyY - PAD_Y;
+
   if (variant === 0) {
     slide.addShape('rect', {
       x: MARGIN,
-      y: inch(180),
+      y: inch(bodyY),
       w: inch(6),
-      h: inch(200),
+      h: inch(bodyH),
       fill: { color: ruleColor },
     });
   }
@@ -779,9 +786,9 @@ function addQuoteSlide(
   const quoteRuns = blocksToParagraphs(blocks).flat();
   slide.addText(quoteRuns.length ? quoteRuns : [{ text: '' }], {
     x: bodyX,
-    y: inch(180),
+    y: inch(bodyY),
     w: variant === 0 ? CONTENT_W - inch(34) : CONTENT_W,
-    h: inch(220),
+    h: inch(bodyH),
     valign: 'middle',
     align: variant === 1 ? 'center' : 'left',
     fontSize: pt(QUOTE_FS * ts.fs),

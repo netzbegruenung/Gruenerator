@@ -214,6 +214,94 @@ describe('layout fidelity against the deck CSS', () => {
     expect(await topOf('')).toBeCloseTo(64, 1);
   });
 
+  it('uses the AT headline leading (0.9) for the body offset, not the DE 1.1', async () => {
+    // headingLineHeight is a CI property and the offset is derived from it, so
+    // a brand mix-up here shifts every non-title slide in an AT deck.
+    const EMU_PER_PX = 914400 / 96;
+    const topOf = async (brand: 'de-DE' | 'de-AT'): Promise<number> => {
+      const xml = slideXml(
+        await exportPresentationToPptx(
+          [slide({ layout: 'content', title: 'Kurz', body: '- a' })],
+          'Deck',
+          '#316049',
+          { brand }
+        )
+      );
+      const body = shapes(xml).find((sp) => bodyText(sp) === 'a') ?? '';
+      return Number(body.match(/<a:off x="\d+" y="(\d+)"\/>/)?.[1] ?? -1) / EMU_PER_PX;
+    };
+    expect(await topOf('de-AT')).toBeCloseTo(64 + 44 * 0.9 + 20, 1);
+    expect(await topOf('de-AT')).toBeLessThan(await topOf('de-DE'));
+  });
+
+  it('never lets a wrapping quote title run into its own body', async () => {
+    // The quote body rests at 180px (the block is vertically centred), but the
+    // title box grows with the measured text — a long title used to overlap it.
+    const EMU_PER_PX = 914400 / 96;
+    const xml = slideXml(
+      await exportPresentationToPptx(
+        [
+          slide({
+            layout: 'quote',
+            variant: 0,
+            title:
+              'Ein außergewöhnlich langer Zitattitel über Klimagerechtigkeit, Verkehrswende und die Zukunft der Städte',
+            body: 'Der eigentliche Zitattext.',
+          }),
+        ],
+        'Deck',
+        '#316049'
+      )
+    );
+    const boxOf = (text: string): { y: number; h: number } => {
+      const sp = shapes(xml).find((s) => bodyText(s).includes(text)) ?? '';
+      const off = sp.match(/<a:off x="\d+" y="(\d+)"\/>/);
+      const ext = sp.match(/<a:ext cx="\d+" cy="(\d+)"\/>/);
+      return { y: Number(off?.[1]) / EMU_PER_PX, h: Number(ext?.[1]) / EMU_PER_PX };
+    };
+    const title = boxOf('Klimagerechtigkeit');
+    const body = boxOf('eigentliche');
+    expect(title.h).toBeGreaterThan(180 - 64); // the title really did wrap
+    expect(body.y).toBeGreaterThanOrEqual(title.y + title.h);
+    // And it still ends at the padding edge rather than overrunning the slide.
+    expect(body.y + body.h).toBeCloseTo(540 - 64, 1);
+  });
+
+  it.each([
+    ['Karten', 1, 'roundRect'],
+    ['Nummeriert', 2, 'ellipse'],
+  ] as const)(
+    'tints %s markers with transparent white on a dark background',
+    async (_name, variant, prst) => {
+      // On dark the CSS swaps the solid tint for rgba(255,255,255,.12/.16).
+      // pptxgenjs expresses that as a white fill plus a transparency percent —
+      // a solid white card would be unreadable under the white body text.
+      const xml = slideXml(
+        await exportPresentationToPptx(
+          [
+            slide({
+              layout: 'content',
+              title: 'Dunkel',
+              body: '- a\n- b',
+              variant,
+              background: '#005538',
+            }),
+          ],
+          'Deck',
+          '#316049'
+        )
+      );
+      const marker = shapes(xml).find((sp) => sp.includes(`prst="${prst}"`)) ?? '';
+      expect(marker).toContain('<a:srgbClr val="FFFFFF">');
+      // OOXML alpha is percent × 1000 and measures OPACITY, so the CSS .12/.16
+      // must come out as 12000/16000 — not as the 88/84 transparency we pass in.
+      expect(marker).toMatch(/<a:alpha val="(12000|16000)"\/>/);
+      // Body text flips to white with the surface.
+      const body = shapes(xml).find((sp) => bodyText(sp) === 'a') ?? '';
+      expect(body).toContain('<a:srgbClr val="FFFFFF"/>');
+    }
+  );
+
   it('shrinks an overflowing auto-size slide instead of leaving it to PowerPoint', async () => {
     // `<a:normAutofit/>` (what `fit: 'shrink'` emits) is applied by PowerPoint
     // only once the box is edited, and is a no-op in LibreOffice, Keynote and
