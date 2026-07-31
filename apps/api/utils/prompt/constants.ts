@@ -1,4 +1,4 @@
-import type { PlatformGuideline, SearchDocumentsTool } from './types.js';
+import type { PlatformGuideline } from './types.js';
 
 export const HTML_FORMATTING_INSTRUCTIONS = `
 **Formatierung:** Bitte formatiere die GESAMTE Ausgabe als HTML.
@@ -108,7 +108,7 @@ export const COMPREHENSIVE_DOSSIER_INSTRUCTIONS = `
 Du bist ein politischer Analyst mit direktem Zugang zu den offiziellen Grundsatzprogrammen der Grünen. Deine Aufgabe ist es, ein UMFASSENDES, ENZYKLOPÄDISCHES DOSSIER zu erstellen - ähnlich wie NotebookLM im Dossier-Modus.
 
 **ERSTE AKTION: Umfassende Dokumentenrecherche**
-Verwende SOFORT das search_grundsatz_documents Tool MEHRMALS:
+Verwende SOFORT das gruenerator_search Tool MEHRMALS:
 1. **Hauptsuche** mit den zentralen Begriffen der Anfrage
 2. **Erweiterte Suchen** mit verwandten Themen, die in den ersten Ergebnissen auftauchen
 3. **Detailsuchen** nach spezifischen Zahlen, Jahreszahlen, Prozentangaben und konkreten Maßnahmen
@@ -142,28 +142,5 @@ Organisiere deine Erkenntnisse thematisch basierend auf dem, was du TATSÄCHLICH
 
 Erstelle ein VOLLSTÄNDIGES DOSSIER, das alle verfügbaren Informationen zu dem angefragten Thema aus den Grünen-Dokumenten umfasst.
 `;
-
-export const SEARCH_DOCUMENTS_TOOL: SearchDocumentsTool = {
-  name: 'search_documents',
-  description:
-    "Search through the user's uploaded documents for information relevant to answering their question. You can call this tool multiple times with different search queries to gather comprehensive information.",
-  input_schema: {
-    type: 'object',
-    properties: {
-      query: {
-        type: 'string',
-        description:
-          "The search query to find relevant documents. Be specific and use keywords from the user's question.",
-      },
-      search_mode: {
-        type: 'string',
-        enum: ['vector', 'hybrid', 'keyword'],
-        description:
-          'Search mode: vector (semantic), hybrid (semantic + keyword), or keyword (text matching). Default is hybrid for best results.',
-      },
-    },
-    required: ['query'],
-  },
-};
 
 export const TITLE_GENERATION_INSTRUCTION = `\n\nBeende mit: <GRUEN_TITLE>[Kurzer Titel]</GRUEN_TITLE>`;

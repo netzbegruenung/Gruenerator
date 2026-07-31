@@ -18,6 +18,13 @@ import type { ChatGraphState, SearchIntent } from '../types.js';
  * attachment, no image noun). A first version of this suite phrased the prompt
  * with the word "sharepic", which an earlier heuristic tier catches on its own:
  * it passed with the fix reverted and proved nothing.
+ *
+ * The same trap re-opened when Tier 2.7 learned to answer sharepic follow-ups
+ * itself: "Mach den Text größer" stopped reaching the LLM at all, so the case
+ * that used to prove the post-LLM guard would have passed with the guard
+ * deleted. The LLM-tier cases below therefore use a wording the deterministic
+ * branch does NOT claim ("ergänzen" is in neither edit-verb pattern), and the
+ * deterministic branch has its own case that asserts the model was never asked.
  */
 
 const STUB_AGENT_CONFIG = {
@@ -77,12 +84,37 @@ function buildState(overrides: Partial<ChatGraphState> & { userMessage: string }
 describe('classifierNode — Sharepic-Folgeauftrag vs. image_edit', () => {
   const afterSharepic = { kind: 'sharepic' as const, ref: 'canvas-1', label: 'Sharepic' };
 
+  /** Erreicht die LLM-Stufe wirklich: kein Verb aus EDIT_VERB_PATTERN, kein
+   *  Substantiv aus EDIT_NOUN_PATTERN — Tier 2.7 lässt den Turn also durch. */
+  const REACHES_LLM = 'Und jetzt noch die Uhrzeit 15 Uhr ergänzen';
+
   it('korrigiert das LLM, wenn es einen Sharepic-Folgeauftrag image_edit nennt', async () => {
+    const pool = makeWorkerPool();
     const result = await classifierNode(
-      buildState({ userMessage: 'Mach den Text größer', lastToolContext: afterSharepic })
+      buildState({
+        userMessage: REACHES_LLM,
+        lastToolContext: afterSharepic,
+        aiWorkerPool: pool as unknown as ChatGraphState['aiWorkerPool'],
+      })
     );
+    // Ohne diese Zusicherung prüft der Fall den Nach-LLM-Guard nicht mehr,
+    // sobald eine deterministische Stufe die Formulierung übernimmt.
+    expect(pool.processRequest).toHaveBeenCalled();
     expect(result.intent).not.toBe('image_edit');
     expect(result.intent).toBe('sharepic');
+  });
+
+  it('beantwortet den Standard-Folgeauftrag deterministisch, ohne das Modell zu fragen', async () => {
+    const pool = makeWorkerPool();
+    const result = await classifierNode(
+      buildState({
+        userMessage: 'Mach den Text größer',
+        lastToolContext: afterSharepic,
+        aiWorkerPool: pool as unknown as ChatGraphState['aiWorkerPool'],
+      })
+    );
+    expect(result.intent).toBe('sharepic');
+    expect(pool.processRequest).not.toHaveBeenCalled();
   });
 
   it('schreibt mit angehängtem Bild NICHT auf sharepic um', async () => {
