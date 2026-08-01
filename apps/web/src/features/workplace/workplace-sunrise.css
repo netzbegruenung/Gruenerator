@@ -209,8 +209,8 @@
    also mit an. */
 .workplace-chat-bg--regenbogen {
   --wp-bg-base: #fdfaf7;
-  --wp-accent: #8e44ad;
-  --wp-accent-hover: #7d3c98;
+  --wp-accent: #3f7161;
+  --wp-accent-hover: #34604f;
   background-image:
     radial-gradient(
       44% 56% at 10% var(--wp-sunrise-y),
