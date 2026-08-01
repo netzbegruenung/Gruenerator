@@ -43,12 +43,28 @@ const SNIPPET_CHARS = 1500;
 /**
  * Budget for the WHOLE source block handed to the synth, across all sources.
  *
- * 18k ≈ 12 sources at the full 1500, which is the point where a research thread
- * with carried sources starts growing the synth prompt without bound (measured
- * live: a thread at 19 sources produced a ~27k block). Above it every source
- * keeps its number and its line and they shorten together — see `renderAll`.
+ * Sized against the ONE turn that legitimately needs the most: `tiefenrecherche`
+ * returns 20 hits, of which the loop reads the top 3 (see `toolCatalog`), so
+ * 3×4000 + 17×1500 = 37 500 is the largest block a single search can honestly
+ * produce. 38k covers it exactly.
+ *
+ * The old 18k predates both. It was set when 12 sources at 1500 was the widest
+ * case, and it silently undid the two changes made since: a `tiefenrecherche`
+ * turn at 20×1500 = 30k already tripped the shared shrink and was handed back
+ * 900 chars per source — so the deep tier's raised snippet budget never once
+ * reached the model, and a crawl added on top would have been shrunk away at
+ * the same step.
+ *
+ * Not a context-window constraint at either value: 38k ≈ 10 900 tokens is 9 % of
+ * the smallest synth lane (`CTX_VERDIGADO` 120k) and 4 % of Mistral's 262k. What
+ * it bounds is unbounded GROWTH — carried sources are re-seeded every turn, so
+ * without a ceiling a long research thread grows the synth prompt forever. That
+ * backstop is intact: at most 10 carried (`getRecentThreadSources`) plus 20 fresh
+ * is 45k, still above this, so the shrink still fires where it was meant to.
+ * Above the budget every source keeps its number and its line and they shorten
+ * together — see `renderAll`.
  */
-const SOURCE_BLOCK_CHARS = 18_000;
+const SOURCE_BLOCK_CHARS = 38_000;
 
 /** Floor for the shared cap. Below this a snippet stops being evidence and
  *  becomes a headline, and the model starts reporting "dazu steht nichts in den
@@ -275,10 +291,40 @@ export function createSourceRegistry(): SourceRegistry {
       // So every source keeps its number and its line — they just get shorter
       // together once the block would exceed the budget. Below the budget
       // nothing changes at all.
-      const effectiveCap = (() => {
-        const total = entries.reduce((sum, e) => sum + Math.min(e.cap, contentLength(e)), 0);
+      //
+      // The shrink is class-aware, because a uniform one inverts the point of
+      // reading a page. Measured live on a two-round `tiefenrecherche` turn (34
+      // sources, 6 of them crawled): a flat cap of 38 000/34 = 1117 took 72 % off
+      // each read page and 25 % off each snippet — the deep tier spent seconds
+      // fetching six pages and then handed the model less of them than of the
+      // snippets it already had. Worse, a digest is assembled in DOCUMENT order,
+      // so a head cut on it keeps the earliest selected passages rather than the
+      // best ones (the same defect `respondNode` fixes by dropping the weakest).
+      //
+      // So the snippets give way first, down to the evidence floor. Only if that
+      // is still not enough does everything shrink together, as before.
+      const capFor = (() => {
+        const need = (e: Entry) => Math.min(e.cap, contentLength(e));
+        const total = entries.reduce((sum, e) => sum + need(e), 0);
         if (total <= SOURCE_BLOCK_CHARS || entries.length === 0) return null;
-        return Math.max(MIN_SNIPPET_CHARS, Math.floor(SOURCE_BLOCK_CHARS / entries.length));
+
+        const read = entries.filter((e) => e.result.crawled === true);
+        const snips = entries.filter((e) => e.result.crawled !== true);
+        const readNeed = read.reduce((sum, e) => sum + need(e), 0);
+        const snippetBudget = SOURCE_BLOCK_CHARS - readNeed;
+        if (
+          read.length > 0 &&
+          snips.length > 0 &&
+          snippetBudget >= snips.length * MIN_SNIPPET_CHARS
+        ) {
+          const snippetCap = Math.floor(snippetBudget / snips.length);
+          return (e: Entry) => (e.result.crawled === true ? e.cap : snippetCap);
+        }
+        const uniform = Math.max(
+          MIN_SNIPPET_CHARS,
+          Math.floor(SOURCE_BLOCK_CHARS / entries.length)
+        );
+        return () => uniform;
       })();
       // Retrieved snippets are third-party text — a scraped page, a web result,
       // an MCP server's return — and go into the prompt as DATA, delimited the
@@ -288,9 +334,7 @@ export function createSourceRegistry(): SourceRegistry {
       // from an actual system rule. The notes and the provenance line below are
       // OUR statements about the turn, so they stay outside the wrapper.
       const snippets = entries
-        .map((e, i) =>
-          snippetLine(i + 1, e.result, Math.min(e.cap, effectiveCap ?? e.cap), e.prior)
-        )
+        .map((e, i) => snippetLine(i + 1, e.result, Math.min(e.cap, capFor?.(e) ?? e.cap), e.prior))
         .join('\n');
       const current = snippets ? embedUntrusted('suchergebnis', snippets) : '';
       // Unnumbered and explicitly labelled: the synth must be able to REPORT
