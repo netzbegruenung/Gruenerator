@@ -32,6 +32,11 @@ import { formatGermanDate } from '../../../../utils/stringUtils.js';
 import { isSourceAvailabilityError, renderDegradationNotes } from '../types.js';
 
 import { type AnchorDescriptor, getActiveAnchors } from './anchorContext.js';
+import {
+  artifactsFromTurn,
+  buildArtifactInventory,
+  renderArtifactInventory,
+} from './artifactInventory.js';
 import { buildCitableSources, MAX_SOURCES, type CitableSource } from './citableSources.js';
 import { lastUserText } from './classifierHeuristics.js';
 import { looksLikeDocsHelpQuestion } from './classifierSignals.js';
@@ -1290,6 +1295,22 @@ export async function buildSystemMessage(
   const intentGuidance =
     getModeGuidance(state) + getAnchorAdjuncts(state) + getSynthesisGuidance(state);
 
+  // Was dieses Gespräch gebaut hat. Die EINE Naht, die beide Pfade erreicht:
+  // der Loop erbt diesen `systemMessage` und hängt nur noch an, was erst in
+  // seinem Turn entsteht (`buildArtifactNotes`). `threadArtifacts` lädt
+  // `streamContext` ohnehin auf jedem Turn, vor der Verzweigung — bislang las
+  // es allein die Klassifikation, während das Modell nichts davon erfuhr.
+  const artifactInventory = renderArtifactInventory(
+    buildArtifactInventory({
+      prior: state.threadArtifacts ?? [],
+      // Im Einzelpfad läuft dieser Prompt-Bau NACH der Ausführung, hier stehen
+      // die Ergebnisse dieses Turns also schon drin. Im Loop-Fall ist die Liste
+      // leer und der Loop trägt sie nach — dieselbe Funktion, zwei Zeitpunkte,
+      // und die Zeitform stimmt dadurch von selbst.
+      fresh: artifactsFromTurn(state),
+    })
+  );
+
   const hasSources = citableSourcesAvailable(state);
   // Citations are the canonical "what the model can cite as [N]" — derived
   // from the same CitableSource ordering the prompt block uses. Don't
@@ -1360,7 +1381,7 @@ export async function buildSystemMessage(
   // Custom system prompt: replaces the entire agent prompt when set
   if (state.customSystemPrompt) {
     return `${state.customSystemPrompt}
-Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}
+Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${artifactInventory}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}
 
 ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSuspected ? INJECTION_WARNING_NOTE : ''}`;
   }
@@ -1432,7 +1453,7 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
   const injectionWarning = state.injectionSuspected ? INJECTION_WARNING_NOTE : '';
 
   return `${systemRole}${skillFragment}${insightsFragment}${degradationBlock}
-Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${productKnowledge}${docsPageMap}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
+Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${productKnowledge}${docsPageMap}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${artifactInventory}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
 
 ## ANTWORT-REGELN
 1. ${SCOPE_RULE}

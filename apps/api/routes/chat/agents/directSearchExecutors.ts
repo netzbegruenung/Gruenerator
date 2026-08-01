@@ -118,6 +118,21 @@ interface WebImageHit {
 export interface DirectWebSearchResult {
   query: string;
   searchType: string;
+  /**
+   * The tier that was actually SPENT, after `resolveSearchTier` clamped the
+   * model's request against what the user consented to.
+   *
+   * Reported because no caller can reconstruct it: the `tiefe` argument on the
+   * tool call is a request in both directions, and the loop's post-processing
+   * (`toolCatalog`, which crawls only on `tiefenrecherche`) has to key off what
+   * was spent — keying off the argument would put the expensive path one
+   * hallucinated token away.
+   *
+   * Optional so the integration harness and other hand-built stubs stay valid.
+   * Every return of `executeDirectWebSearch` sets it, and absence is read as
+   * "not the deep tier" — the fail-safe direction.
+   */
+  tier?: SearchTier;
   resultsCount: number;
   results: Array<{
     rank: number;
@@ -631,7 +646,13 @@ export async function executeDirectWebSearch(params: {
           publishedDate: null,
         }));
         log.info(`[Direct Web Search] GreenPT returned ${formatted.length} results for "${query}"`);
-        return { query, searchType, resultsCount: formatted.length, results: formatted };
+        return {
+          query,
+          searchType,
+          tier: plan.tier,
+          resultsCount: formatted.length,
+          results: formatted,
+        };
       } catch (err: unknown) {
         // Every GreenPT failure — including an EMPTY result set, which is how
         // its throttle manifests (HTTP 200, no error) — falls through to Linkup
@@ -703,6 +724,7 @@ export async function executeDirectWebSearch(params: {
       return {
         query,
         searchType,
+        tier: plan.tier,
         resultsCount: linkupFormatted.length,
         results: linkupFormatted,
         ...(linkupImages.length > 0 ? { images: linkupImages } : {}),
@@ -730,6 +752,7 @@ export async function executeDirectWebSearch(params: {
       return {
         query,
         searchType,
+        tier: plan.tier,
         resultsCount: 0,
         results: [],
         error: true,
@@ -742,6 +765,7 @@ export async function executeDirectWebSearch(params: {
       return {
         query,
         searchType,
+        tier: plan.tier,
         resultsCount: 0,
         results: [],
         message: 'Keine Websuche-Ergebnisse gefunden.',
@@ -764,6 +788,7 @@ export async function executeDirectWebSearch(params: {
     return {
       query,
       searchType,
+      tier: plan.tier,
       resultsCount: formattedResults.length,
       results: formattedResults,
       suggestions: searchResults.suggestions?.slice(0, 3),
@@ -774,6 +799,7 @@ export async function executeDirectWebSearch(params: {
     return {
       query,
       searchType,
+      tier: plan.tier,
       resultsCount: 0,
       results: [],
       error: true,
