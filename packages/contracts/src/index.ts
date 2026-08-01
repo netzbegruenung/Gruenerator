@@ -25,6 +25,7 @@ export {
   contentContract,
   itemUsageContract,
   userUsageContract,
+  transparencyContract,
   searchContract,
   globalSearchContract,
   researchContract,
@@ -73,6 +74,7 @@ export {
   userAgentsContract,
   userAgentsSharingContract,
   userTextFormsContract,
+  skillPromptContract,
   recurringTasksContract,
   canvasAiContract,
   canvasContract,
@@ -93,6 +95,7 @@ export * from './schemas/recentActivity.js';
 export * from './schemas/content.js';
 export * from './schemas/itemUsage.js';
 export * from './schemas/userUsage.js';
+export * from './schemas/transparency.js';
 export * from './schemas/search.js';
 export * from './schemas/globalSearch.js';
 export * from './schemas/research.js';

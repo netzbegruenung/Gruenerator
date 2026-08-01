@@ -84,6 +84,12 @@ jobs:
       - name: No new silent error swallows
         run: node scripts/check-silent-swallows.mjs
 
+      # This repo is public. Party-internal content (skill prompt bodies, corpus
+      # dumps) must stay out of it — and .gitignore alone does not do that for
+      # files git already tracks. A push here is irreversible in practice.
+      - name: No internal content exposed
+        run: node scripts/check-internal-content.mjs
+
       # `**/*.vitest.ts` is excluded from apps/api/tsconfig.json, so a
       # `Record<SomeUnion, X>` written in a test is decoration — tsc never
       # checks it. Such a map has to live in production code or be looped over

@@ -14,6 +14,7 @@ import {
 } from '@gruenerator/shared/agents';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import { getInternalAgentPrompt } from '../../../services/skills/internalPrompts.js';
 import {
   getGroupSharedUserAgent,
   getUserAgent as getUserAgentRow,
@@ -24,8 +25,45 @@ import type { AgentConfig } from './types.js';
 
 const log = createLogger('AgentLoader');
 
+const missingRoleLogged = new Set<string>();
+
+/**
+ * Fills in the party-internal `systemRole`, which the shared registry ships
+ * empty on purpose — it is bundled into web and mobile, so a persona there
+ * would be public. This is the single seam where a system agent becomes an
+ * `AgentConfig`, so every downstream reader sees a complete agent.
+ *
+ * Three cases:
+ *   - LV agents (lvPrAgents/lvBuergerAgents) build their role in code and keep
+ *     it; they never reach the disk lookup.
+ *   - Markdown-defined agents get theirs from `<INTERN_CONTENT_DIR>/agents/`.
+ *   - Nothing on disk means the rollout did not land. Unlike a recipe, an agent
+ *     has nothing to fall back *to*, and an empty role makes
+ *     `promptAssemblyGraph.buildSystemText` throw — so substitute a generic
+ *     role and log once per agent. A blander answer beats a 500, but this is a
+ *     misconfiguration and the log has to say so.
+ */
+function withInternalRole(agent: Agent): AgentConfig {
+  if (agent.systemRole) return agent as AgentConfig;
+
+  const internal = getInternalAgentPrompt(agent.identifier);
+  if (internal) return { ...agent, systemRole: internal } as AgentConfig;
+
+  if (!missingRoleLogged.has(agent.identifier)) {
+    missingRoleLogged.add(agent.identifier);
+    log.error(
+      `No internal systemRole for "${agent.identifier}" — falling back to a generic ` +
+        `persona. Check INTERN_CONTENT_DIR and the Salt rollout.`
+    );
+  }
+  return {
+    ...agent,
+    systemRole: `Du bist ${agent.title}, ein Assistent für BÜNDNIS 90/DIE GRÜNEN.`,
+  } as AgentConfig;
+}
+
 const sortedAgents: AgentConfig[] = [...SYSTEM_AGENTS]
-  .map((agent) => agent as Agent as AgentConfig)
+  .map((agent) => withInternalRole(agent as Agent))
   .sort((a, b) => {
     if (a.identifier === DEFAULT_SYSTEM_AGENT_ID) return -1;
     if (b.identifier === DEFAULT_SYSTEM_AGENT_ID) return 1;
@@ -38,7 +76,7 @@ export async function loadAgents(): Promise<AgentConfig[]> {
 
 export async function getAgent(identifier: string): Promise<AgentConfig | undefined> {
   const agent = getSystemAgent(identifier);
-  return agent ? (agent as AgentConfig) : undefined;
+  return agent ? withInternalRole(agent as Agent) : undefined;
 }
 
 export function getDefaultAgentId(): string {
