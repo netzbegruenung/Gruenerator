@@ -15,12 +15,19 @@ const TRUNCATION_MARK = '…[gekürzt]';
 /**
  * Top-level fields whose producing tool already applied its own char budget.
  *
- * `sources` is the numbered source block from `sourceRegistry.renderAll()`,
- * bounded by SOURCE_BLOCK_CHARS (18k) with a per-source floor. Handing it to
- * the generic deep-truncation is not a safety net but a second, dumber cap:
- * `perField` is maxChars/8 = 750, so ten sources would collapse into 750 chars
- * TOTAL. In unified mode there is no `renderAll()` later in the turn, so those
- * 750 chars would be the model's entire grounding.
+ * `sources` is the numbered source block from the registry, bounded per source
+ * by the registering tool's `snippetChars` and — in split mode, where
+ * `renderAll()` rebuilds it — again by SOURCE_BLOCK_CHARS across all sources.
+ * Handing it to the generic deep-truncation is not a safety net but a second,
+ * dumber cap: `perField` is maxChars/8 = 750, so ten sources would collapse into
+ * 750 chars TOTAL. In unified mode there is no `renderAll()` later in the turn,
+ * so those 750 chars would be the model's entire grounding.
+ *
+ * What that leaves uncapped is one turn's accumulated `register()` returns in
+ * unified mode. Bounded in practice by what a search can produce: the widest is
+ * `tiefenrecherche` at ~37.5k chars (3 read pages + 17 snippets), and unified
+ * mode is the Mistral lane at 262k tokens — three such calls are ~12 % of it.
+ * Split mode, where the smaller lanes live, goes through `renderAll()`.
  *
  * This is why the pre-distillation snippet length of 300 chars was load-bearing
  * by accident: 10 x 300 stayed just under the 6000 ceiling, so the block was
