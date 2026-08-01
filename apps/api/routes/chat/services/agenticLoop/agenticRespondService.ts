@@ -47,6 +47,7 @@ import {
 import {
   getRecentThreadSources,
   getRecentToolSteps,
+  type ThreadToolHistory,
   getThreadLastMcpServer,
   setThreadLastMcpServer,
 } from '../threadPersistenceService.js';
@@ -541,9 +542,25 @@ export async function streamAgenticResponse(params: {
   /** Express request — required by the sharepic fat tool (compound turns). */
   req?: Request;
   threadId?: string | null;
+  /** The thread's tool memory, already read by `buildStreamContext` for the
+   *  classifier's artifact list. Both reads below project the SAME rows, so
+   *  taking them from here turns three round trips per loop turn into one.
+   *  Null (absent, or the shared read failed) falls back to reading here, which
+   *  keeps each failure as narrow as it was before. */
+  toolHistory?: ThreadToolHistory | null;
 }): Promise<AgenticResponseOutcome> {
-  const { finalState, systemMessage, messages, modelId, requestId, sse, reqSignal, req, threadId } =
-    params;
+  const {
+    finalState,
+    systemMessage,
+    messages,
+    modelId,
+    requestId,
+    sse,
+    reqSignal,
+    req,
+    threadId,
+    toolHistory,
+  } = params;
   const budget = resolveBudget();
   const agentConfig = finalState.agentConfig;
 
@@ -705,7 +722,7 @@ export async function streamAgenticResponse(params: {
     if (threadId) {
       try {
         const catalogNames = new Set(Object.keys(tools));
-        const recent = await getRecentToolSteps(threadId);
+        const recent = toolHistory ? toolHistory.toolSteps() : await getRecentToolSteps(threadId);
         const replayable = recent.filter(
           (s) =>
             !NON_REPLAYABLE_ACTION_TOOLS.has(s.toolName) &&
@@ -749,7 +766,9 @@ export async function streamAgenticResponse(params: {
       extractTextContent(messages[messages.length - 1]?.content ?? '');
     if (threadId && !rewritesSuppliedText(askForCarry)) {
       try {
-        const carried = await getRecentThreadSources(threadId);
+        const carried = toolHistory
+          ? toolHistory.sources()
+          : await getRecentThreadSources(threadId);
         if (carried.length > 0) {
           sourceRegistry.seedCarried(carried);
           log.info(`[Agentic] rehydrated ${carried.length} prior source(s) for grounding`);
