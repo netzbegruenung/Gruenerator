@@ -28,6 +28,8 @@
 import { createLogger } from '../../../../utils/logger.js';
 import { intermediateLane } from '../llmConfig.js';
 
+import { renderArtifactChoices } from './artifactInventory.js';
+
 import type { AIWorkerPool } from '../../../../workers/types.js';
 import type { ThreadToolContext } from '../types.js';
 
@@ -39,22 +41,11 @@ const log = createLogger('ChatGraph:EditTarget');
 /** One word plus punctuation. The tiebreak's 800ms is the right order here. */
 const RESOLVE_TIMEOUT_MS = 900;
 
-/** German artifact nouns for the prompt list. The research kinds never appear —
- *  `listThreadArtifacts` only ever produces the editable ones — but the record
- *  stays total so a new ThreadToolContext kind is a compile error, not a hole. */
-const ARTIFACT_NOUN: Record<ThreadToolContext['kind'], string> = {
-  image: 'Bild',
-  sharepic: 'Sharepic',
-  document: 'Dokument',
-  presentation: 'Präsentation',
-  sheet: 'Tabelle',
-  pdf: 'PDF',
-  board: 'Board',
-  mcp: 'Dienst-Abfrage',
-  notebook: 'Notebook-Recherche',
-  bundestag: 'Bundestag-Recherche',
-  abgeordnetenwatch: 'Abgeordnetenwatch-Recherche',
-};
+// Die Liste und ihre Nomen stehen in `artifactInventory` — dieselbe Ordnung,
+// die das schreibende Modell im ARTEFAKTE-Block sieht. Das ist der Punkt: „2."
+// in der Antwort dieses Auflösers meint denselben Gegenstand, den der Schreiber
+// an zweiter Stelle gelesen hat. Solange beide ihre Liste selbst bauten, war
+// diese Übereinstimmung Zufall.
 
 const RESOLVE_PROMPT = `Ein Gespräch hat mehrere Artefakte erzeugt. Der/die Nutzer*in schreibt jetzt einen kurzen Folgeauftrag. Entscheide, auf WELCHES Artefakt er sich bezieht.
 
@@ -84,12 +75,7 @@ export async function resolveEditTarget({
   if (artifacts.length < 2) return null;
   const startTime = Date.now();
 
-  const list = artifacts
-    .map((a, i) => {
-      const noun = ARTIFACT_NOUN[a.kind] ?? a.kind;
-      return `${i + 1}. ${noun}${a.label ? ` („${a.label}")` : ''}`;
-    })
-    .join('\n');
+  const list = renderArtifactChoices(artifacts);
 
   try {
     const response = await withTimeout(

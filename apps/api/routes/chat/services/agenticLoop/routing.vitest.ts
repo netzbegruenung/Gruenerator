@@ -11,6 +11,7 @@ import {
   decideEditToolLoop,
   type EditToolLoopInput,
   needsThreadGrounding,
+  rewritesSuppliedText,
   looksLikeUnsourcedWritingOrder,
 } from './routing.js';
 
@@ -879,5 +880,44 @@ describe('needsThreadGrounding', () => {
     // das nochmal" is a continuation that must stay grounded.
     expect(needsThreadGrounding('Erklär mir das nochmal')).toBe(true);
     expect(needsThreadGrounding('Prüfe das nochmal im Web')).toBe(true);
+  });
+});
+
+describe('rewritesSuppliedText', () => {
+  /**
+   * Das Prädikat, das BEIDE Quellen-Pfade fragen.
+   *
+   * Vorher fragte es nur der Einzelpfad (`carryThreadSourcesIfNeeded`); der Loop
+   * seedete ungetort. Über den 196-Turn-Korpus gemessen sind das genau zwei
+   * Turns, bei denen der Loop fremde Recherche unter einen Kürzungsauftrag legte
+   * — beide unten als Fall gepinnt. Der Kommentar, der die Enttorung begründete,
+   * beschrieb den Fehler in der anderen Richtung und hat ihn dabei umgedreht,
+   * statt ihn aufzulösen.
+   */
+  const measuredLoopCases = [
+    // sharepic-polite-edit-still-edits#1
+    'Kannst du die Überschrift kürzer machen?',
+    // paste-rede-praesentation-noun#0
+    'Kürze diesen Redeentwurf auf zwei Minuten:\n\nLiebe Freundinnen und Freunde,',
+  ];
+
+  it.each(measuredLoopCases)('hält Recherche von einem Kürzungsauftrag fern: %s', (text) => {
+    expect(rewritesSuppliedText(text)).toBe(true);
+  });
+
+  it('lässt echte Folgefragen durch', () => {
+    for (const q of ['Mehr dazu bitte', 'Und was sagt die SPD dazu?', 'Erklär mir das nochmal']) {
+      expect(rewritesSuppliedText(q), q).toBe(false);
+    }
+  });
+
+  it('deckt genau die Klauseln, die beide Pfade teilen — nicht die Chitchat-Klausel', () => {
+    // `needsThreadGrounding` lehnt zusätzlich Chitchat ab, und dessen
+    // CHITCHAT_RE verschluckt über `^hilfe` eine echte Retrieval-Frage
+    // (Korpus: adv-hier-greeting-trap-2). Diese Klausel bewusst NICHT im Loop —
+    // sie hätte zwei Fehler gegen einen dritten getauscht.
+    const trap = 'Hilfe bei der Formulierung brauche ich nicht, aber: Was fordern die Grünen?';
+    expect(needsThreadGrounding(trap)).toBe(false);
+    expect(rewritesSuppliedText(trap)).toBe(false);
   });
 });
