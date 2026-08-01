@@ -49,6 +49,37 @@ A push that touches **only** `.github/**` or files outside the `web:` filter lis
 
 Production deployment is owned outside this repo (no `deploy-prod.yml` here). Coordinate with infrastructure when promoting `master`.
 
+### Party-internal prompts (`INTERN_CONTENT_DIR`)
+
+This repo is public, and `packages/shared` is bundled into the web app and into every shipped mobile binary. So both prompt registries are split: `agents/skills/*.md` (recipes) and `agents/definitions/*.md` (system agents) carry **frontmatter only**, and the prompt text lives in the private repo **`netzbegruenung/gruenerator-intern`**:
+
+```
+skills/<mention>.md        e.g. presse.md — the skill's mention, not its filename
+agents/<identifier>.md     e.g. gruenerator-antrag.md
+```
+
+**Salt owns the rollout**: clone the private repo onto the server and point `INTERN_CONTENT_DIR` (API env) at its root. Unset falls back to `.external/gruenerator-intern` — a gitignored dev checkout, not a production path.
+
+Read at boot and cached, so a changed prompt needs an API restart. `apps/api/services/skills/internalPrompts.ts` is the loader; `respondNode` appends a recipe body as the `## AKTIVE PLATTFORM` block, `routes/chat/agents/agentLoader.ts` fills in each system agent's `systemRole`, and `GET /api/skills/:mention/prompt` (behind `requireAuth`) serves recipes to the Agentura detail view.
+
+**A missing directory does not crash the API — it quietly makes it worse.** Two different degradations:
+
+- **Recipes** fall back to the agent's base systemRole; output gets generic.
+- **Agents** get a generic substitute persona, because an empty `systemRole` makes `promptAssemblyGraph.buildSystemText` throw. One error line per agent.
+
+After a deploy, check the log for both counts:
+
+```
+[internalPrompts] Loaded 20 internal skills prompt(s) from …
+[internalPrompts] Loaded 25 internal agents prompt(s) from …
+```
+
+Nothing user-facing breaks if the rollout is missed, which is exactly why it needs looking at.
+
+The LV agents (`lvPrAgents.ts` / `lvBuergerAgents.ts`) keep their systemRole in code — one template fans out to N agents, and its content is generic craft guidance plus a regional topic list.
+
+Guards against putting the prompts back: `build-skills.ts` and `build-agents.ts` refuse to emit a body, and `scripts/check-internal-content.mjs` (CI, `pnpm check:internal`) fails on a body in a public skill or agent file, a `skillSystemPrompt` or non-empty `systemRole` in a generated file, or anything tracked under `.external/` or `documentation/docs/intern/`.
+
 ### System MCP sources (bahn/reise/wetter/news chat intents)
 
 The Deutsche-Bahn / Open-Meteo / ARD-Tagesschau / trivago chat sources are env-gated: set `SYSTEM_MCP_DB_URL`, `SYSTEM_MCP_WEATHER_URL`, `SYSTEM_MCP_ARD_URL`, `SYSTEM_MCP_TRIVAGO_URL` (+ optional `…_TOKEN` for shared bearer auth) in the API's deploy env to activate them. The `reise` umbrella intent mounts bahn + hotel + wetter together. Unset URL = intent degrades gracefully (web/direct fallback). The first-party endpoints live only in deploy env — never commit them; users never see them (trivago's hosted URL is public: `https://mcp.trivago.com/mcp`).
