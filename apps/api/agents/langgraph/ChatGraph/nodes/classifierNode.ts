@@ -944,7 +944,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       Array.isArray(state.agentConfig.enabledTools) &&
       (state.agentConfig.enabledTools.includes('examples') ||
         state.agentConfig.enabledTools.includes('pressemitteilung_examples')) &&
-      /Nutze IMMER/i.test(state.agentConfig.systemRole);
+      state.agentConfig.alwaysSearchesExamples === true;
     // For content-creation agents, the noun alone is enough — typical prompts
     // are bare noun-phrases like "PM zu X" or "Tweet zur Verkehrswende"
     // without an explicit creation verb. PMs and social-media posts live in

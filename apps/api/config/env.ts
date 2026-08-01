@@ -58,6 +58,20 @@ const envSchema = z.object({
    */
   CHAT_DECISION_LOG_DIR: z.string().optional(),
 
+  /**
+   * Root of the party-internal content checkout, holding `skills/<mention>.md`
+   * (recipe prompts) and `agents/<identifier>.md` (system-agent personas).
+   * Deliberately outside the public repo: `packages/shared` ships only the
+   * frontmatter, so the prompt text reaches neither git nor the web/mobile
+   * bundle. Salt rolls the directory onto the server; see
+   * services/skills/internalPrompts.ts and CLAUDE-deployment.md.
+   *
+   * Unset falls back to the gitignored `.external/gruenerator-intern` checkout
+   * used in development. A missing directory is a no-op, not a crash: recipes
+   * run on the agent's base systemRole, agents on a generic substitute.
+   */
+  INTERN_CONTENT_DIR: z.string().optional(),
+
   // ── URLs & domains ─────────────────────────────────────────────────────
   BASE_URL: z.string().optional(),
   AUTH_BASE_URL: z.string().optional(),
