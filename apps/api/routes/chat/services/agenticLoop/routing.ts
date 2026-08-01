@@ -565,6 +565,8 @@ export interface EditToolLoopInput {
   hasEditTarget: boolean;
   forcedTool: boolean;
   isCompound: boolean;
+  /** The turn carries a selected notebook. See {@link AgenticDecisionInput}. */
+  hasSelectedNotebook: boolean;
   hasImageAttachments: boolean;
   secondaryIntent: string | null;
 }
@@ -586,7 +588,13 @@ export function decideEditToolLoop(p: EditToolLoopInput): boolean {
   if (!p.surfaceKind || !TOOL_EDIT_SURFACES.has(p.surfaceKind)) return false;
   if (!p.editToolEnabled) return false;
   if (!p.hasEditTarget) return false;
-  return !p.forcedTool && !p.isCompound && !p.hasImageAttachments && p.secondaryIntent == null;
+  return (
+    !p.forcedTool &&
+    !p.isCompound &&
+    !p.hasSelectedNotebook &&
+    !p.hasImageAttachments &&
+    p.secondaryIntent == null
+  );
 }
 
 export interface AgenticDecisionInput {
@@ -604,6 +612,18 @@ export interface AgenticDecisionInput {
   isMcpTurn: boolean;
   /** Notebook gather pipeline — stays single-pass. */
   isCompound: boolean;
+  /** The turn carries a selected notebook (`notebookIds`), whatever the agent.
+   *  Stays single-pass because `searchNode` is the ONLY place that retrieves
+   *  notebook content: `gruenerator_search` takes `collection` as a closed
+   *  `z.enum(ALL_COLLECTIONS)` (searchTools.ts) — eight fixed party corpora, no
+   *  parameter that could address a user or Landesverband notebook. In the loop
+   *  the classifier's `gatherSources: ['notebook-search']` is read by nobody and
+   *  the chosen notebook is silently answered around.
+   *  `isCompound` covered only the NAMED-agent half of this; the universal agent
+   *  reached the loop unguarded. Separate flag rather than a widened
+   *  `isCompound`, because that name means "gather-then-apply pipeline" and
+   *  drives topic extraction and a progress event that this does not. */
+  hasSelectedNotebook: boolean;
   /** A generation secondaryIntent (search + image/chart/...): single-pass
    *  fan-out — entering the loop would silently drop the secondary. Exception:
    *  scrape_url on a compound-generation turn (the loop scrapes itself). */
@@ -671,10 +691,16 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   // so it always enters the loop — independent of CHAT_AGENT_LOOP and of inLoopSet.
   // The single-pass kill-switches below (compound / image / secondary) still apply.
   const gateOpen = p.isMcpTurn || (p.loopEnabled && inLoopSet);
+  // The MCP exception is the same one `forcedTool` gets, and for the same
+  // reason: no turn in the `isMcpTurn` set has a single-pass executor —
+  // intentExecutionService has no branch for `mcp`, `umfragen` or `hilfe` — so
+  // keeping one out of the loop would leave it with nobody to run it. An
+  // unsearched notebook is the lesser loss against a turn that does nothing.
   const runAgentic =
     gateOpen &&
     (!p.forcedTool || p.isMcpTurn) &&
     !p.isCompound &&
+    (!p.hasSelectedNotebook || p.isMcpTurn) &&
     secondaryAllowed &&
     !p.hasImageAttachments;
   recordDecision('router.run_agentic', runAgentic ? 'loop' : 'single_pass', {
@@ -685,6 +711,7 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
       gateOpen,
       isMcpTurn: p.isMcpTurn,
       isCompound: p.isCompound,
+      hasSelectedNotebook: p.hasSelectedNotebook,
       forcedTool: p.forcedTool,
       secondaryAllowed,
       hasImageAttachments: p.hasImageAttachments,

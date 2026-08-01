@@ -38,6 +38,7 @@ const BASE = {
   agenticIntents: AGENTIC_INTENTS,
   loopEnabled: true,
   isCompound: false,
+  hasSelectedNotebook: false,
   isMcpTurn: false,
   hasImageAttachments: false,
 } as const;
