@@ -1148,6 +1148,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           isSystemIntentAvailable(classifiedState.intent, classifiedState.userLocale));
       const isSystemToolIntent =
         classifiedState.intent != null && SYSTEM_TOOL_INTENTS.has(classifiedState.intent);
+      // A chosen notebook keeps the turn single-pass, on EVERY agent — only
+      // `searchNode` retrieves notebook content, and no loop tool can address a
+      // notebook. `isCompound` above covers just the named-agent half of this
+      // and additionally drives topic extraction and a progress event, so the
+      // routing fact gets its own name. See AgenticDecisionInput.
+      const hasSelectedNotebook = notebookIds.length > 0;
       const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
       // Compound research+generation (Phase 3n): a generation ask (sharepic,
       // presentation, sheet, text doc, board) with an explicit research signal
@@ -1192,6 +1198,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         !forcedTool &&
         isAgenticLoopEnabled() &&
         !isCompound &&
+        !hasSelectedNotebook &&
         imageAttachments.length === 0 &&
         isCompoundEdit;
       if (compoundEdit) classifiedState.compoundEdit = true;
@@ -1216,6 +1223,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         hasEditTarget: editTarget != null,
         forcedTool: !!forcedTool,
         isCompound,
+        hasSelectedNotebook,
         hasImageAttachments: imageAttachments.length > 0,
         secondaryIntent: classifiedState.secondaryIntent ?? null,
       });
@@ -1265,6 +1273,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           forcedTool: !!forcedTool,
           isMcpTurn,
           isCompound,
+          hasSelectedNotebook,
           secondaryIntent: classifiedState.secondaryIntent ?? null,
           compoundGeneration,
           hasImageAttachments: imageAttachments.length > 0,
