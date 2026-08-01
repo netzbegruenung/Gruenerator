@@ -796,8 +796,14 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
           'kbd:has-[textarea:focus]:outline-2 kbd:has-[textarea:focus]:outline-offset-2',
           'kbd:has-[textarea:focus]:outline-primary-600 dark:kbd:has-[textarea:focus]:outline-primary-300',
           // Design v2: the pill keeps its resting border/shadow on focus.
+          //
+          // 1.875rem is half the composer's resting one-row height, so the shape
+          // is a true pill while it's one row — but stays a rounded rect once an
+          // attachment tile or extra text rows make it taller. `rounded-full`
+          // would keep tracking half the GROWN height (86px at one image tile)
+          // and sweep the corner arc straight across the tile.
           isPill
-            ? 'rounded-full shadow-md focus-within:shadow-lg dark:shadow-sm'
+            ? 'rounded-[1.875rem] shadow-md focus-within:shadow-lg dark:shadow-sm'
             : 'rounded-3xl shadow-lg focus-within:border-primary/30 focus-within:shadow-xl dark:shadow-sm dark:focus-within:shadow-md',
           // The Mistral brand border reads as a focus ring on the slim pill —
           // card layout only.
@@ -827,7 +833,9 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
           </ComposerPrimitive.QuoteDismiss>
         </ComposerPrimitive.Quote>
 
-        <ComposerAttachments />
+        {/* Inset mirrors the input's horizontal padding per variant, so the
+            tile's left edge lines up with the first character of the draft. */}
+        <ComposerAttachments className={isPill ? 'mx-3.5' : isCompact ? 'mx-3' : 'mx-5'} />
 
         {slots?.aboveInput}
 

@@ -208,19 +208,22 @@ const AttachmentUI: FC = () => {
     <Tooltip>
       <AttachmentPrimitive.Root
         className={cn(
-          'aui-attachment-root relative',
-          isImage && 'aui-attachment-root-composer only:[&>#attachment-tile]:size-24'
+          'aui-attachment-root relative shrink-0',
+          isImage && 'aui-attachment-root-composer'
         )}
       >
         <AttachmentPreviewDialog>
           <TooltipTrigger asChild>
             <div
               className={cn(
-                'aui-attachment-tile size-14 cursor-pointer overflow-hidden rounded-[14px] border bg-muted transition-opacity hover:opacity-75',
+                'aui-attachment-tile cursor-pointer overflow-hidden rounded-[14px] border bg-muted transition-opacity hover:opacity-75',
+                // Die Größe hängt am Inhaltstyp, nicht an der Anzahl: eine
+                // quadratisch beschnittene Bildvorschau ist unter ~96px nicht
+                // mehr identifizierbar, eine Datei-Kachel zeigt nur ein Icon.
+                isImage ? 'size-24' : 'size-14',
                 isComposer && 'aui-attachment-tile-composer border-foreground/20'
               )}
               role="button"
-              id="attachment-tile"
               aria-label={`${typeLabel} attachment`}
             >
               <AttachmentThumb />
@@ -252,15 +255,22 @@ const AttachmentRemove: FC = () => {
 
 export const UserMessageAttachments: FC = () => {
   return (
-    <div className="aui-user-message-attachments-end col-span-full col-start-1 row-start-1 flex w-full flex-row justify-end gap-2">
+    <div className="aui-user-message-attachments-end mb-2 flex w-full flex-row flex-wrap justify-end gap-2 empty:hidden">
       <MessagePrimitive.Attachments components={{ Attachment: AttachmentUI }} />
     </div>
   );
 };
 
-export const ComposerAttachments: FC = () => {
+export const ComposerAttachments: FC<{ className?: string }> = ({ className }) => {
   return (
-    <div className="aui-composer-attachments mx-4 mt-3 mb-1 flex flex-row items-center gap-2 overflow-x-auto empty:hidden">
+    <div
+      className={cn(
+        'aui-composer-attachments mt-3 mb-1 flex flex-row items-center gap-2 overflow-x-auto empty:hidden',
+        // Default matches the card layout's input inset (px-5); the pill passes
+        // its own so the tile lines up with the plus button, not the text.
+        className ?? 'mx-5'
+      )}
+    >
       <ComposerPrimitive.Attachments components={{ Attachment: AttachmentUI }} />
     </div>
   );
