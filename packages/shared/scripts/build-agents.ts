@@ -4,9 +4,8 @@
  *
  * Each markdown file is one hand-written system agent: YAML frontmatter for all
  * structured metadata (validated by `agentFrontmatterSchema` from
- * @gruenerator/contracts), markdown body becomes the agent's `systemRole`
- * prompt. Sibling to `build-skills.ts` — same pattern, so the heavy prompts that
- * used to sit inline as escaped TS string literals are now reviewable markdown.
+ * @gruenerator/contracts), and nothing else. A markdown body is rejected — see
+ * `detectPromptBodies`. Sibling to `build-skills.ts` — same split.
  *
  * The per-Landesverband agents (lvPrAgents.ts / lvBuergerAgents.ts) stay as
  * template builders — one template fans out to N agents, so per-file extraction
@@ -69,6 +68,28 @@ function detectDuplicates(agents: readonly ParsedAgent[]): void {
   }
 }
 
+/**
+ * The systemRole is party-internal and must not enter this repo. It lives in the
+ * directory the API reads at runtime (`INTERN_CONTENT_DIR`, see
+ * apps/api/services/skills/internalPrompts.ts); these files carry frontmatter only.
+ *
+ * This is the seam where a leak would happen, so it fails here rather than in
+ * review: everything downstream of codegen — the committed `index.generated.ts`,
+ * the web bundle, every shipped mobile binary — is public by construction, and a
+ * binary that already shipped cannot be un-shipped.
+ */
+function detectPromptBodies(agents: readonly ParsedAgent[]): void {
+  const offenders = agents.filter((a) => a.body.length > 0);
+  if (offenders.length === 0) return;
+  throw new Error(
+    `[build-agents] Prompt body found in ${offenders.length} public agent file(s):\n` +
+      offenders.map((a) => `  · ${a.filename} (${a.body.length} chars)`).join('\n') +
+      `\n\nAgent personas are party-internal. Move the body to` +
+      ` <INTERN_CONTENT_DIR>/agents/<identifier>.md` +
+      ` (dev: .external/gruenerator-intern/agents/) and leave only frontmatter here.`
+  );
+}
+
 function sortAgents(agents: readonly ParsedAgent[]): ParsedAgent[] {
   return [...agents].sort((a, b) => {
     const ao = a.frontmatter.order ?? Number.POSITIVE_INFINITY;
@@ -94,7 +115,10 @@ function emit(agents: readonly ParsedAgent[]): string {
       if (key === 'order') continue;
       lines.push(`    ${key}: ${JSON.stringify(value)},`);
     }
-    lines.push(`    systemRole: ${JSON.stringify(agent.body)},`);
+    // The persona is party-internal and loaded at runtime by the API; this
+    // registry is bundled into web and mobile. Emitting the empty string keeps
+    // the `Agent` shape intact — `gruenerator-suche` already shipped this way.
+    lines.push("    systemRole: '',");
     lines.push('  },');
   }
   lines.push('] as const satisfies readonly Agent[];');
@@ -105,6 +129,7 @@ function emit(agents: readonly ParsedAgent[]): string {
 function build(): void {
   const parsed = parseAll();
   detectDuplicates(parsed);
+  detectPromptBodies(parsed);
   const sorted = sortAgents(parsed);
   writeFileSync(OUT_PATH, emit(sorted));
   console.log(`[build-agents] wrote ${sorted.length} agents → ${OUT_PATH}`);
