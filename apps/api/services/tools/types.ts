@@ -3,9 +3,12 @@
  */
 
 /**
- * AI Provider types
+ * AI Provider types.
+ *
+ * Abgeleitet statt neu deklariert — dritte Kopie derselben Liste, aufgefallen
+ * beim Hinzufügen von `'scaleway'` (siehe services/providers/types.ts).
  */
-export type AIProvider = 'mistral' | 'litellm' | 'regolo' | 'greenpt';
+export type { ProviderName as AIProvider } from '../ai/providers.js';
 
 /**
  * Claude/Bedrock tool format

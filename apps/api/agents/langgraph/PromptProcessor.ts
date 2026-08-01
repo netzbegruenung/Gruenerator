@@ -10,6 +10,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Import required utilities
+import { stripRoleMarkers } from '@gruenerator/shared/roles';
+
 import {
   localizePromptObject,
   extractLocaleFromRequest,
@@ -321,8 +323,10 @@ export async function applyProfileDefaults(
     const profile = await profileService.getProfileById(req.user.id);
     if (!profile) return requestData;
 
-    if (profile.custom_prompt?.trim()) {
-      requestData.customPrompt = profile.custom_prompt;
+    // Fence markers are storage detail of the column, never instruction.
+    const profilePrompt = stripRoleMarkers(profile.custom_prompt);
+    if (profilePrompt) {
+      requestData.customPrompt = profilePrompt;
     }
 
     if (
