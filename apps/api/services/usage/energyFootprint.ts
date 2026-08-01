@@ -106,6 +106,14 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
     mWhFixed: 0,
     basis: 'measured',
   },
+  // `gemma-4-26b-a4b-it` (Scaleway, die `heavy`-Stufe seit 01.08.2026) fehlt
+  // hier BEWUSST und bleibt „nicht abgedeckt". Es ist eine andere Architektur
+  // als das 31B — MoE mit 4B aktiven Parametern —, der Koeffizient des 31B gilt
+  // also nicht, und Scaleway meldet anders als GreenPT keinen Verbrauch zurück.
+  // Aus der Geschwindigkeit ableiten wäre der Fehler, der unten schon einmal um
+  // 62 % danebenlag. Zu beziffern erst, wenn GreenPT dieselben Gewichte serviert
+  // oder Scaleway Verbrauchsdaten liefert.
+  //
   // Same Gemma 4 weights, served by verdigado under an alias (modelDiscovery.ts)
   'verdigado-think': {
     mWhPerOutputToken: 0.722,
@@ -300,13 +308,14 @@ export interface Footprint {
  * boundary-corrected measurement would undo the care taken everywhere else.
  */
 interface ImageEnergy {
-  /** Milliwatt-hours of IT load per generated image, before PUE. */
-  mWhPerImage: number;
+  /** Milliwatt-hours per image as METERED at the GPU — before the boundary
+   *  uplift and before PUE, both of which the estimator applies. */
+  mWhPerImageGpu: number;
   basis: EnergyCoefficients['basis'];
 }
 
 /**
- * FLUX.1 [dev] @ 1024x1024 / 50 steps / fp16 / CFG, x2 boundary uplift.
+ * FLUX.1 [dev] @ 1024x1024 / 50 steps / fp16 / CFG.
  *
  * RESOLUTION CAVEAT, and it only applies to the BFL entries: Regolo snaps
  * everything to 1024x1024, but BFL receives the real dimensions, and our
@@ -318,8 +327,22 @@ interface ImageEnergy {
  * and no resolution: sizing per format would need a schema change first. The
  * gap is smaller than the headroom already in the x2 uplift, and it is named
  * here rather than left to be discovered.
+ *
+ * Stated GPU-only, i.e. exactly as the paper measured it. The boundary uplift
+ * is applied in `estimateImageFootprint` rather than folded in here, so the
+ * published measurement stays readable in the table and the same numbers can
+ * also produce the LOWER end of a range.
  */
-const FLUX_ANCHOR_MWH = 8556;
+const FLUX_ANCHOR_GPU_MWH = 4278;
+
+/**
+ * The correction from the header, as a factor. `high` (the default everywhere)
+ * multiplies by it; `low` leaves the bare GPU measurement standing. The true
+ * value is above the low end — a datacenter really does pay for the idle draw
+ * and the rest of the node — so the pair brackets the answer rather than
+ * straddling it.
+ */
+const IMAGE_BOUNDARY_UPLIFT = 2;
 
 const IMAGE_ENERGY: Readonly<Record<string, ImageEnergy>> = {
   // BFL's three variants scale by their PUBLISHED cost multiplier (catalog.ts:
@@ -329,11 +352,11 @@ const IMAGE_ENERGY: Readonly<Record<string, ImageEnergy>> = {
   // 'bound' throughout. `flux-2-klein-9b` naming its 9B size is a small
   // corroboration: FLUX.1 [dev] carries a 12B DiT, so half the anchor is a
   // sane place for it to sit.
-  'flux-2-klein-9b': { mWhPerImage: Math.round(FLUX_ANCHOR_MWH * 0.5), basis: 'bound' },
-  'flux-2-pro': { mWhPerImage: FLUX_ANCHOR_MWH, basis: 'bound' },
-  'flux-2-max': { mWhPerImage: FLUX_ANCHOR_MWH * 2, basis: 'bound' },
+  'flux-2-klein-9b': { mWhPerImageGpu: Math.round(FLUX_ANCHOR_GPU_MWH * 0.5), basis: 'bound' },
+  'flux-2-pro': { mWhPerImageGpu: FLUX_ANCHOR_GPU_MWH, basis: 'bound' },
+  'flux-2-max': { mWhPerImageGpu: FLUX_ANCHOR_GPU_MWH * 2, basis: 'bound' },
   // Outpainting runs the same generator over a larger canvas; billed like pro.
-  'flux-tools/outpainting-v1': { mWhPerImage: FLUX_ANCHOR_MWH, basis: 'bound' },
+  'flux-tools/outpainting-v1': { mWhPerImageGpu: FLUX_ANCHOR_GPU_MWH, basis: 'bound' },
   // The one image lane where the paper measured OUR model AT OUR RESOLUTION.
   // `snapToSupportedSize` offers 256/512/1024, but every aspect ratio in
   // FluxPromptBuilder has an edge >= 1024 (square 1024, classic 1152, the rest
@@ -347,8 +370,8 @@ const IMAGE_ENERGY: Readonly<Record<string, ImageEnergy>> = {
   // hardware differing from an A100. That is a far better footing than the
   // Flux entries above — but the uplift alone is our own choice, so this stays
   // 'bound' rather than getting promoted to 'measured'.
-  // 3.583 Wh GPU-only x2 = 7166.
-  'Qwen-Image': { mWhPerImage: 7166, basis: 'bound' },
+  // 3.583 Wh GPU-only.
+  'Qwen-Image': { mWhPerImageGpu: 3583, basis: 'bound' },
 };
 
 /**
@@ -372,12 +395,15 @@ export function estimateImageFootprint(params: {
   provider: string;
   model: string;
   images: number;
+  /** See `EnergyBound`. Defaults to the conservative end. */
+  bound?: EnergyBound;
 }): (Footprint & { basis: ImageEnergy['basis'] }) | null {
   const c = IMAGE_ENERGY[params.model];
   if (!c) return null;
 
+  const uplift = params.bound === 'low' ? 1 : IMAGE_BOUNDARY_UPLIFT;
   const pue = IMAGE_PUE_BY_PROVIDER[params.provider] ?? UNKNOWN_PUE;
-  const energyWms = Math.round(c.mWhPerImage * params.images * pue * WMS_PER_MWH);
+  const energyWms = Math.round(c.mWhPerImageGpu * uplift * params.images * pue * WMS_PER_MWH);
   return {
     energyWms,
     emissionsUg: emissionsFromEnergy(energyWms, gridIntensityFor(params.provider)),
@@ -442,6 +468,55 @@ export function gridIntensityFor(provider: string): number {
   return GRID_INTENSITY_G_PER_KWH[provider] ?? 350;
 }
 
+/**
+ * PUE for a recorded provider, absolute. Exposed for the transparency endpoint,
+ * which publishes the constants a figure was computed with — a footprint nobody
+ * can recompute is a claim, not a disclosure.
+ *
+ * `kind` matters because the two paths carry datacenter overhead differently:
+ * the token coefficients arrive from GreenPT with 1.25 already inside them and
+ * are corrected by a RATIO, while the image figures come off a bare GPU meter
+ * and get PUE applied absolutely. Both return the real PUE of that datacenter,
+ * which is what a reader needs to check the arithmetic — but they come from
+ * different tables, and reading the wrong one would publish a constant the
+ * number was never computed with.
+ */
+export function pueFor(provider: string, kind: 'tokens' | 'images' = 'tokens'): number {
+  return kind === 'images'
+    ? (IMAGE_PUE_BY_PROVIDER[provider] ?? UNKNOWN_PUE)
+    : (PUE_BY_PROVIDER[provider] ?? GREENPT_PUE);
+}
+
+/**
+ * Which end of the uncertainty to report.
+ *
+ * `high` is the default and the only value the personal usage tab uses: where a
+ * lane is not metered, we quote the top of the plausible span so the displayed
+ * cost is an upper bound. `low` quotes the bottom of that same span. Neither is
+ * a better estimate than the other — the pair exists so a public figure can be
+ * shown as the range it actually is instead of a false point.
+ *
+ * For lanes with metered coefficients (`basis: 'measured'`) both ends are equal,
+ * which is exactly the property that makes the width of the range meaningful:
+ * it narrows as measurement coverage grows.
+ */
+export type EnergyBound = 'high' | 'low';
+
+/**
+ * The bottom of the span the `bound` text entries take their top from:
+ * gpt-oss-120b, the thriftiest model we have metered in that size class.
+ *
+ * Only ever used for the low end of a range. As a point estimate it would
+ * understate by as much as the ceiling overstates, which is why nothing
+ * defaults to it.
+ */
+const BOUND_FLOOR: EnergyCoefficients = {
+  mWhPerOutputToken: 0.811,
+  mWhPerInputToken: 0.0003,
+  mWhFixed: 11.05,
+  basis: 'bound',
+};
+
 /** True when this model has measured coefficients behind it. */
 export function hasEnergyCoefficients(model: string): boolean {
   return model in MODEL_ENERGY;
@@ -461,11 +536,17 @@ export function estimateFootprint(params: {
   inputTokens: number;
   outputTokens: number;
   requests: number;
+  /** See `EnergyBound`. Defaults to the conservative end. */
+  bound?: EnergyBound;
 }): (Footprint & { basis: EnergyCoefficients['basis'] }) | null {
-  const c = MODEL_ENERGY[params.model];
-  if (!c) return null;
+  const table = MODEL_ENERGY[params.model];
+  if (!table) return null;
 
-  const pueRatio = (PUE_BY_PROVIDER[params.provider] ?? GREENPT_PUE) / GREENPT_PUE;
+  // A metered lane has no span to pick from, so the low end only moves for the
+  // entries that are an upper bound in the first place.
+  const c = params.bound === 'low' && table.basis === 'bound' ? BOUND_FLOOR : table;
+
+  const pueRatio = pueFor(params.provider) / GREENPT_PUE;
   const mWh =
     (c.mWhPerOutputToken * params.outputTokens +
       c.mWhPerInputToken * params.inputTokens +
@@ -476,6 +557,8 @@ export function estimateFootprint(params: {
   return {
     energyWms,
     emissionsUg: emissionsFromEnergy(energyWms, gridIntensityFor(params.provider)),
-    basis: c.basis,
+    // The LANE's basis, not the variant's: swapping in the floor to draw a range
+    // does not turn an unmetered lane into a metered one.
+    basis: table.basis,
   };
 }

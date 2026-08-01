@@ -196,9 +196,7 @@ function AgenturaPage() {
   const allSkills = useMemo(
     () =>
       agentsList.filter(
-        (s) =>
-          Boolean(s.skillSystemPrompt) &&
-          (s.audience === undefined || s.audience === 'all' || s.audience === userLocale)
+        (s) => s.audience === undefined || s.audience === 'all' || s.audience === userLocale
       ),
     [userLocale]
   );
