@@ -102,7 +102,11 @@ const REGOLO_SMALL_4 = { provider: 'regolo', model: 'mistral-small-4-119b' } as 
 /** Gemma 4 auf Regolo — dieselben Gewichte, die `TEXT_TYPES` und der Synth-Slot
  *  fahren (TEXT_MODEL in providerSelector.ts). Regolos DEFAULT ist qwen, das
  *  Modell muss also benannt werden. */
-const GEMMA_4 = 'gemma4-31b';
+/** Gemma 4 auf Scaleway/Paris, als MoE mit 4B AKTIVEN Parametern — deshalb rund
+ *  doppelt so schnell wie das dichte `gemma4-31b`, das diese Stufe bis zum
+ *  01.08.2026 auf Regolo fuhr. Braucht zwingend den Client aus
+ *  `scalewayThinkingFetch.ts`, sonst kommt leerer Inhalt zurück. */
+const GEMMA_4_SCALEWAY = 'gemma-4-26b-a4b-it';
 
 /** `mistral-medium-2604` === Mistral Medium 3.5. Provider bleibt `mistral`:
  *  `routeMistralModel` schickt genau diese ID nach Scaleway/Paris, und alles
@@ -153,18 +157,50 @@ export const INTERMEDIATE_LANES = {
    * Temperatur 0) trägt das keine Modellentscheidung. Erwähnt, damit niemand
    * beim Debuggen über das Feld stolpert und es für gesichert hält.
    *
-   * Preis: rund doppelte Latenz bei Zusammenfassungen (4,9–6,1 s gegen
-   * 2,2–3,0 s) bei gleicher Token-Zahl, also echt langsamer pro Token. Tragbar,
-   * weil `REQUEST_TIMEOUT` bei 120 s liegt — es gibt hier keine Zeitklippe wie
-   * bei den Auflösern, nur Wartezeit.
+   * ── 01.08.2026: umgezogen nach Scaleway, gleiche Modellfamilie ──
    *
-   * ACHTUNG mem0: `services/mem0/config.ts` baut seinen Extraktions-Client aus
-   * `REGOLO_BASE_URL` + `REGOLO_API_KEY` PLUS dem Modellnamen dieser Stufe.
-   * Wandert `heavy` zu einem anderen Anbieter, muss dort die Basis-URL mit —
-   * sonst schickt es einen fremden Modellnamen an Regolo. Gemma 4 liegt auf
-   * Regolo, der Umzug ist also hier noch folgenlos.
+   * `gemma-4-26b-a4b-it` — Gemma 4 als MoE mit 4B AKTIVEN Parametern. Der oben
+   * notierte Preis („rund doppelte Latenz bei Zusammenfassungen, 4,9–6,1 s")
+   * war der einzige Einwand gegen diese Stufe, und er verschwindet: gemessen
+   * mit den ECHTEN Prompts aller drei Konsumenten, gegen regolo/gemma4-31b.
+   *
+   *   Konsument                                  26B-A4B      31B (vorher)
+   *   Zusammenfassung, Überschriften/Doku (9×)   3,7 · 2,36s  3,7 · 5,28s
+   *   classifyDeliverable (max_tokens=20, 12×)   12/12 · 0,34s 12/12 · 0,46s
+   *   mem0-Extraktion, JSON gültig (3×)          3/3 · 0,51s  3/3 · 0,93s
+   *   Prosa unter 10 parallelen Anfragen         p50 1,78s    p50 2,62s
+   *
+   * Die 5,28 s reproduzieren die oben notierten 4,9–6,1 s — die Messreihe ist
+   * also anschlussfähig, nicht neu kalibriert. Inhaltstreue an 3 Dokumenten mit
+   * präzisen Zahlen: keine erfundene Zahl auf beiden Seiten.
+   *
+   * EIN Befund brauchte eine Prompt-Zeile, keine Modellentscheidung: das 26B
+   * fügte in 4 von 6 Läufen eine Wertung hinzu, die die Quelle nicht macht
+   * (eine Befragungsnote „2,1" als „eher kritisch" gelesen). Mit der ergänzten
+   * Regel in `SINGLE_PASS_PROMPT`/`REDUCE_PROMPT` („Bewerte nichts, was das
+   * Dokument nicht selbst bewertet"): 0 von 6. Das 31B hatte die Lücke nur
+   * überdeckt — dieselbe Diagnose wie bei Commit 27b8a205a.
+   *
+   * PREIS, bewusst angenommen: für dieses Modell existiert kein
+   * Energie-Koeffizient, und Scaleway meldet keinen Verbrauch zurück. `heavy`
+   * fällt damit aus der CO₂-Übersicht (siehe services/usage/energyFootprint.ts).
+   * Das Pariser Netz (24 g/kWh gegen Regolos 270) spricht dafür, dass die reale
+   * Bilanz besser wird — beziffern lässt sie sich nicht mehr. Schätzen aus der
+   * Geschwindigkeit lag im Repo schon einmal um 62 % daneben.
+   *
+   * MUSS mitkommen, wenn diese Stufe erneut umzieht: `provider: 'scaleway'`
+   * bekommt einen Client, der `reasoning_effort: 'none'` erzwingt
+   * (scalewayThinkingFetch.ts). Ohne den antwortet dieses Modell mit LEEREM
+   * `content` — auch bei max_tokens 1500, nach 5386 Zeichen Reasoning. Leerer
+   * Inhalt ist für `aiService` kein Fehler, sondern startet die Fallback-Kette;
+   * `classifyDeliverable` mit seinen 20 Token stirbt zuerst.
+   *
+   * mem0 folgt dieser Stufe NICHT mehr: `services/mem0/config.ts` band
+   * `REGOLO_BASE_URL` + `REGOLO_API_KEY` fest an den Modellnamen von hier und
+   * hätte bei diesem Umzug einen Scaleway-Namen an Regolo geschickt. Es pinnt
+   * jetzt explizit — siehe dort.
    */
-  heavy: { provider: 'regolo', model: GEMMA_4 },
+  heavy: { provider: 'scaleway', model: GEMMA_4_SCALEWAY },
 
   /**
    * Rechnen. Eigene Stufe, weil hier als Einzigem ein Modellfehler als
