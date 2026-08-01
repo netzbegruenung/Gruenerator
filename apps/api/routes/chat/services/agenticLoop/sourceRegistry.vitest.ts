@@ -426,5 +426,41 @@ describe('sourceRegistry.note', () => {
       reg.register(filled(200, 1500));
       expect(longestBody(reg.renderAll())).toBe(500);
     });
+
+    /**
+     * Measured live: a two-round `tiefenrecherche` turn ends at 34 sources, 6 of
+     * them crawled. A uniform cap takes 72 % off each read page and 25 % off each
+     * snippet — the turn pays seconds to fetch six pages and then shows the model
+     * less of them than of the snippets it already had.
+     */
+    it('shrinks the snippets before the pages it paid to read', () => {
+      const reg = createSourceRegistry();
+      const read = filled(6, 4000, 'gelesen').map((r) => ({ ...r, crawled: true }));
+      reg.register(read, { snippetChars: 4000 });
+      reg.register(filled(28, 1500, 'schnipsel'));
+
+      const bodies = reg
+        .renderAll()
+        .split('\n')
+        .filter((l) => /^\[\d+\]/.test(l))
+        .map((l) => (l.split(' — ')[1] ?? '').length);
+      expect(bodies).toHaveLength(34);
+      // The read pages keep their full digest …
+      expect(bodies.slice(0, 6)).toEqual(Array(6).fill(4000));
+      // … and the snippets give way instead, never below the floor.
+      const snippetBodies = bodies.slice(6);
+      expect(Math.max(...snippetBodies)).toBeLessThan(1500);
+      expect(Math.min(...snippetBodies)).toBeGreaterThanOrEqual(500);
+    });
+
+    it('falls back to shrinking everything when the read pages alone burst the budget', () => {
+      const reg = createSourceRegistry();
+      const read = filled(20, 4000, 'gelesen').map((r) => ({ ...r, crawled: true }));
+      reg.register(read, { snippetChars: 4000 });
+      reg.register(filled(10, 1500, 'schnipsel'));
+      // 20x4000 leaves nothing for the snippets, so protecting the pages would
+      // mean starving the rest below the floor. Everyone shortens together.
+      expect(longestBody(reg.renderAll())).toBe(Math.floor(38_000 / 30));
+    });
   });
 });
