@@ -57,7 +57,11 @@ import { isMcpReplayEnabled } from './flags.js';
 import { runAgenticLoop, type LoopMode } from './loopEngine.js';
 import { createToolLoopGuards, MAX_SOURCES } from './loopGuards.js';
 import { buildToolObservationReplay } from './mcpReplay.js';
-import { looksLikeExplicitResearchOrder, resolveEditorSurfaceKind } from './routing.js';
+import {
+  looksLikeExplicitResearchOrder,
+  resolveEditorSurfaceKind,
+  rewritesSuppliedText,
+} from './routing.js';
 import { createSourceRegistry, withResearchedSources } from './sourceRegistry.js';
 import {
   DEFAULT_LOOP_BUDGET,
@@ -369,6 +373,106 @@ const MCP_CAPABILITY_QUESTION =
 // tool-result budget.
 const MCP_CONTENT_CAP = 25_000;
 
+/**
+ * The synth model's only channel for "what did this turn actually produce".
+ *
+ * Split mode runs the writer WITHOUT tools and without the tool-result replay,
+ * so an artifact it cannot see is an artifact it will deny. Extracted from
+ * `buildSynthSystem` to be testable on its own after two live failures that both
+ * came down to what this string does or does not say — see the notes inside.
+ */
+export function buildArtifactNotes(
+  state: ChatGraphState,
+  opts: { artifactToolMounted: boolean }
+): { notes: string; capabilityNote: string; producedArtifact: boolean } {
+  const artifactToolMounted = opts.artifactToolMounted;
+  // Split mode has no tool returns in the synth context — without these
+  // notes the synthesizer is blind to artifacts the gather phase produced.
+  const artifacts = [
+    state.generatedImage
+      ? 'HINWEIS: In diesem Turn wurde bereits ein Bild erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an. Behaupte NIEMALS, die Bildgenerierung sei fehlgeschlagen: sie ist geglückt, das Bild steht sichtbar im Chat.'
+      : '',
+    // Artefakte aus FRÜHEREN Turns stehen NICHT mehr hier, sondern im
+    // ARTEFAKTE-Block von `systemMessage` (respondNode → artifactInventory).
+    // Der Hinweis stand kurz an dieser Stelle und deckte genau eine Art ab
+    // (Bild) aus genau einer Quelle (dem einen `lastToolContext`-Slot). Die
+    // Liste dort kommt aus `threadArtifacts`, kennt alle Arten und erreicht
+    // beide Pfade — dieselbe Zeile hier wäre eine zweite, ärmere Wahrheit.
+    (state.sharepicVariants?.length ?? 0) > 0
+      ? 'HINWEIS: In diesem Turn wurde bereits ein Sharepic erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und biete Anpassungen an.'
+      : '',
+    state.createdDocument != null
+      ? `HINWEIS: In diesem Turn wurde bereits ${
+          state.createdDocument.subtype === 'presentations'
+            ? 'eine Präsentation'
+            : state.createdDocument.subtype === 'sheets'
+              ? 'eine Tabelle'
+              : 'ein Dokument'
+        } ("${state.createdDocument.title}") erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und fasse die recherchierten Kerninhalte zusammen.`
+      : '',
+    state.createdBoard != null
+      ? `HINWEIS: In diesem Turn wurde bereits ein Board ("${state.createdBoard.title}") erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und nenne den Link (/boards/${state.createdBoard.boardId}).`
+      : '',
+    state.compoundEdit === true
+      ? 'HINWEIS: Die recherchierten Inhalte werden gerade in das GEÖFFNETE Dokument eingefügt. Schreibe NUR eine KURZE Bestätigung (1–2 Sätze), die das Thema nennt und sagt, dass es ins Dokument eingearbeitet wird — KEINE lange Ausformulierung (der Inhalt landet im Dokument, nicht im Chat).'
+      : '',
+    // The edit tool already changed the open artefact this turn. Make the
+    // model confirm it in past tense — never write empty text (→ fallback)
+    // or claim it couldn't do it (both observed live: "keine Antwort
+    // gefunden" after 5 slides; "kann die Akzentfarbe nicht ändern" after
+    // set_deck_option succeeded).
+    state.editorEditsSummary
+      ? `HINWEIS: Die gewünschte Änderung wurde SOEBEN vorgenommen: ${state.editorEditsSummary}. Bestätige das dem*der Nutzer*in KURZ in Vergangenheitsform (1 Satz, z.B. „Erledigt — …"). Behaupte NIEMALS, du könntest die Änderung nicht vornehmen — sie ist bereits erfolgt.`
+      : '',
+    // Editor surface with the AI-edit toggle OFF: the edit tool is NOT
+    // mounted, so any "I changed X" would be a false claim the client never
+    // applied. Force the model to say editing is off instead.
+    resolveEditorSurfaceKind(state.agentConfig?.identifier, state.enabledTools) != null &&
+    state.enabledTools?.['edit_current_doc'] !== true &&
+    state.enabledTools?.['edit_current_board'] !== true
+      ? 'HINWEIS: Die KI-Bearbeitung ist ausgeschaltet — du kannst das geöffnete Dokument nur ANSEHEN und Fragen dazu beantworten, aber NICHTS ändern. Wird eine Änderung gewünscht, sag freundlich und knapp, dass die Bearbeitung ausgeschaltet ist (Stift-Symbol im Chat), und behaupte NIEMALS, etwas geändert/eingetragen zu haben.'
+      : '',
+  ]
+    .filter(Boolean)
+    .map((n) => `\n\n${n}`)
+    .join('');
+  // Turn-outcome honesty: with no gathered sources the model must not claim
+  // it researched — the classic follow-up lie ("laut meiner Recherche …"
+  // with zero tool calls). Skip when an artifact WAS produced (those turns
+  // legitimately have their own confirmation notes above).
+  const producedArtifact =
+    state.generatedImage != null ||
+    (state.sharepicVariants?.length ?? 0) > 0 ||
+    state.createdDocument != null ||
+    state.createdBoard != null ||
+    state.editorEditsSummary != null;
+  // The platform CAN generate sharepics/images (via loop tools) — the synth
+  // model has no tools of its own, so without this it defaults to "I'm just
+  // a text model, I can't make images" and refuses (observed live).
+  //
+  // Attached only when an artifact tool was actually mounted this turn, or
+  // one was produced — not unconditionally. On a pure knowledge turn it was
+  // ~550 characters advertising Sharepics nobody had asked about, and it
+  // worked AGAINST answer rule 1, which then had to forbid the very offers
+  // this note invites. Two rules cancelling each other out.
+  //
+  // Der Schluss-Satz hing früher fest an dieser Notiz und nannte BEIDE
+  // Ausgänge — auch auf einem Turn, dessen Artefakt nachweislich fertig war.
+  // Der Prompt trug damit gleichzeitig „ein Bild wurde erstellt, kündige es
+  // an" und eine fertige Formulierung fürs Gegenteil, und der Schreiber
+  // (gemma4-31b) griff live zur zweiten: „Die Bildgenerierung ist leider
+  // fehlgeschlagen" — unter dem sichtbaren Bild. Ein Ausgang, den der Code
+  // bereits kennt, gehört nicht als Wahlmöglichkeit in den Prompt.
+  const outcomeClause = producedArtifact
+    ? ' In diesem Turn wurde ein Artefakt ERSTELLT: kündige es knapp an und fasse die recherchierten Kerninhalte zusammen. Behaupte unter keinen Umständen, die Erstellung sei fehlgeschlagen.'
+    : ' Wurde ein Artefakt angefragt aber nicht erstellt, sag knapp, dass die Erstellung nicht geklappt hat.';
+  const capabilityNote =
+    artifactToolMounted || producedArtifact
+      ? `\n\nWICHTIG: Du bist Teil einer Plattform, die Sharepics, Bilder, Präsentationen, Tabellen, Dokumente und Boards über Tools ERSTELLEN kann. Behaupte NIEMALS, du seist "nur ein Textmodell" oder nutztest "ein textbasiertes Format", und biete NIEMALS ein Text-Konzept/Storyboard als Ersatz für eine echte Präsentation/Tabelle/ein Dokument an.${outcomeClause}`
+      : '';
+  return { notes: artifacts, capabilityNote, producedArtifact };
+}
+
 /** The connector's text payload, length-capped for the synth prompt. */
 function capMcpContent(content: string): string {
   return applyContextCap(content, MCP_CONTENT_CAP, 'agenticLoop:mcpContent');
@@ -629,12 +733,21 @@ export async function streamAgenticResponse(params: {
     // split made the same follow-up sourced or unsourced depending on nothing
     // but whether the turn routed through the loop.
     //
-    // Deliberately UNGATED (was: edit surfaces only). A thread that just looked
-    // something up should still know it a few messages later — dropping the
-    // research the moment the turn ends is what makes a follow-up feel amnesiac.
-    // Bounded by getRecentThreadSources itself: only the most recent assistant
-    // message carrying sources, capped at 10, snippets already trimmed.
-    if (threadId) {
+    // Weit offen, aber nicht mehr ungetort. Der Grundsatz bleibt: ein Thread,
+    // der gerade etwas nachgeschlagen hat, soll es ein paar Nachrichten später
+    // noch wissen — die Recherche mit dem Turn wegzuwerfen ist das, was einen
+    // Folgeauftrag vergesslich macht. Bounded by getRecentThreadSources itself:
+    // only the most recent assistant messages carrying sources, capped at 10,
+    // snippets already trimmed.
+    //
+    // Die eine Ausnahme ist gemessen: über den 196-Turn-Korpus bekamen genau
+    // zwei Turns hier fremde Recherche unter einen KÜRZUNGSAUFTRAG gelegt, weil
+    // der Einzelpfad `needsThreadGrounding` fragte und der Loop niemanden. Ein
+    // Kürzungsauftrag ist in dem Text gegründet, an dem er arbeitet.
+    const askForCarry =
+      finalState.lastUserTextNoMentions ??
+      extractTextContent(messages[messages.length - 1]?.content ?? '');
+    if (threadId && !rewritesSuppliedText(askForCarry)) {
       try {
         const carried = await getRecentThreadSources(threadId);
         if (carried.length > 0) {
@@ -768,75 +881,13 @@ AKTUALITÄT: Hinter dem Titel steht, wo bekannt, das Veröffentlichungsdatum der
 
 Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. Deshalb: empfiehl NIEMALS eine Websuche, eine "kurze Recherche" oder das Nachschlagen auf einer offiziellen Seite. Behaupte aber ebenso NIEMALS, du könntest nicht suchen, hättest keinen Internetzugriff oder könntest "nur auf die bereitgestellten Ergebnisse zugreifen" — das ist falsch: gesucht wird jedes Mal neu, wenn es gebraucht wird, und in diesem Turn ist es geschehen. Reichen die Quellen wirklich nicht, benenne knapp die konkrete LÜCKE ("zum Stand nach September 2025 steht hier nichts") — ohne Suchempfehlung und ohne Aussage über deine Fähigkeiten.`
           : '';
-      // Split mode has no tool returns in the synth context — without these
-      // notes the synthesizer is blind to artifacts the gather phase produced.
-      const artifacts = [
-        finalState.generatedImage
-          ? 'HINWEIS: In diesem Turn wurde bereits ein Bild erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an.'
-          : '',
-        (finalState.sharepicVariants?.length ?? 0) > 0
-          ? 'HINWEIS: In diesem Turn wurde bereits ein Sharepic erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und biete Anpassungen an.'
-          : '',
-        finalState.createdDocument != null
-          ? `HINWEIS: In diesem Turn wurde bereits ${
-              finalState.createdDocument.subtype === 'presentations'
-                ? 'eine Präsentation'
-                : finalState.createdDocument.subtype === 'sheets'
-                  ? 'eine Tabelle'
-                  : 'ein Dokument'
-            } ("${finalState.createdDocument.title}") erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und fasse die recherchierten Kerninhalte zusammen.`
-          : '',
-        finalState.createdBoard != null
-          ? `HINWEIS: In diesem Turn wurde bereits ein Board ("${finalState.createdBoard.title}") erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und nenne den Link (/boards/${finalState.createdBoard.boardId}).`
-          : '',
-        finalState.compoundEdit === true
-          ? 'HINWEIS: Die recherchierten Inhalte werden gerade in das GEÖFFNETE Dokument eingefügt. Schreibe NUR eine KURZE Bestätigung (1–2 Sätze), die das Thema nennt und sagt, dass es ins Dokument eingearbeitet wird — KEINE lange Ausformulierung (der Inhalt landet im Dokument, nicht im Chat).'
-          : '',
-        // The edit tool already changed the open artefact this turn. Make the
-        // model confirm it in past tense — never write empty text (→ fallback)
-        // or claim it couldn't do it (both observed live: "keine Antwort
-        // gefunden" after 5 slides; "kann die Akzentfarbe nicht ändern" after
-        // set_deck_option succeeded).
-        finalState.editorEditsSummary
-          ? `HINWEIS: Die gewünschte Änderung wurde SOEBEN vorgenommen: ${finalState.editorEditsSummary}. Bestätige das dem*der Nutzer*in KURZ in Vergangenheitsform (1 Satz, z.B. „Erledigt — …"). Behaupte NIEMALS, du könntest die Änderung nicht vornehmen — sie ist bereits erfolgt.`
-          : '',
-        // Editor surface with the AI-edit toggle OFF: the edit tool is NOT
-        // mounted, so any "I changed X" would be a false claim the client never
-        // applied. Force the model to say editing is off instead.
-        resolveEditorSurfaceKind(finalState.agentConfig?.identifier, finalState.enabledTools) !=
-          null &&
-        finalState.enabledTools?.['edit_current_doc'] !== true &&
-        finalState.enabledTools?.['edit_current_board'] !== true
-          ? 'HINWEIS: Die KI-Bearbeitung ist ausgeschaltet — du kannst das geöffnete Dokument nur ANSEHEN und Fragen dazu beantworten, aber NICHTS ändern. Wird eine Änderung gewünscht, sag freundlich und knapp, dass die Bearbeitung ausgeschaltet ist (Stift-Symbol im Chat), und behaupte NIEMALS, etwas geändert/eingetragen zu haben.'
-          : '',
-      ]
-        .filter(Boolean)
-        .map((n) => `\n\n${n}`)
-        .join('');
-      // Turn-outcome honesty: with no gathered sources the model must not claim
-      // it researched — the classic follow-up lie ("laut meiner Recherche …"
-      // with zero tool calls). Skip when an artifact WAS produced (those turns
-      // legitimately have their own confirmation notes above).
-      const producedArtifact =
-        finalState.generatedImage != null ||
-        (finalState.sharepicVariants?.length ?? 0) > 0 ||
-        finalState.createdDocument != null ||
-        finalState.createdBoard != null ||
-        finalState.editorEditsSummary != null;
-      // The platform CAN generate sharepics/images (via loop tools) — the synth
-      // model has no tools of its own, so without this it defaults to "I'm just
-      // a text model, I can't make images" and refuses (observed live).
-      //
-      // Attached only when an artifact tool was actually mounted this turn, or
-      // one was produced — not unconditionally. On a pure knowledge turn it was
-      // ~550 characters advertising Sharepics nobody had asked about, and it
-      // worked AGAINST answer rule 1, which then had to forbid the very offers
-      // this note invites. Two rules cancelling each other out.
-      const artifactToolMounted = ARTIFACT_TOOL_NAMES.some((name) => tools[name] != null);
-      const capabilityNote =
-        artifactToolMounted || producedArtifact
-          ? '\n\nWICHTIG: Du bist Teil einer Plattform, die Sharepics, Bilder, Präsentationen, Tabellen, Dokumente und Boards über Tools ERSTELLEN kann. Behaupte NIEMALS, du seist "nur ein Textmodell" oder nutztest "ein textbasiertes Format", und biete NIEMALS ein Text-Konzept/Storyboard als Ersatz für eine echte Präsentation/Tabelle/ein Dokument an. Wurde in diesem Turn ein Artefakt erstellt, kündige es knapp an und fasse die recherchierten Kerninhalte zusammen; wurde eines angefragt aber nicht erstellt, sag knapp, dass die Erstellung nicht geklappt hat.'
-          : '';
+      const {
+        notes: artifacts,
+        capabilityNote,
+        producedArtifact,
+      } = buildArtifactNotes(finalState, {
+        artifactToolMounted: ARTIFACT_TOOL_NAMES.some((name) => tools[name] != null),
+      });
       // Real per-turn MCP outcomes (success/error) so the tool-less synth can
       // report them truthfully instead of guessing — MCP tools don't register
       // sources, so this is the ONLY channel the synth has for connector results.

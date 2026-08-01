@@ -125,19 +125,41 @@ const CHITCHAT_ONLY_RE =
  * The cost of a false positive is a few hundred tokens of topically adjacent
  * context; the cost of a false negative is a confidently wrong answer.
  */
+/**
+ * „Arbeitet dieser Turn an Text, der schon da ist?"
+ *
+ * Kürzen, übersetzen, nochmal-aber-kürzer, ein Gedicht — alle drei sind in dem
+ * gegründet, woran sie arbeiten. Fremde Recherche danebenzulegen lädt das Modell
+ * ein, in einen Kürzungsauftrag neue Behauptungen zu schmuggeln, und schaltet
+ * [N] für eine Antwort ein, die nichts zitiert.
+ *
+ * Herausgezogen, weil der Loop dieselbe Antwort braucht und sie bisher nicht
+ * hatte: `seedCarried` lief ungetort, `carryThreadSourcesIfNeeded` getort. Über
+ * den 196-Turn-Korpus gemessen sind das zwei Turns, die im Loop Recherche unter
+ * eine Kürzung gelegt bekamen — „Kannst du die Überschrift kürzer machen?" und
+ * „Kürze diesen Redeentwurf auf zwei Minuten: <Text>".
+ *
+ * Bewusst NUR diese drei Klauseln, nicht das ganze `needsThreadGrounding`:
+ * dessen Chitchat-Klausel hängt an `CHITCHAT_RE`, und deren `^hilfe` verschluckt
+ * „Hilfe bei der Formulierung brauche ich nicht, aber: Was fordern die Grünen …"
+ * — eine echte Retrieval-Frage. Sie hier mitzunehmen hätte zwei Fehler gegen
+ * einen dritten getauscht.
+ */
+export function rewritesSuppliedText(raw: string): boolean {
+  const t = (raw ?? '').trim().replace(GREETING_PREFIX_RE, '');
+  if (t.length === 0) return false;
+  return REWRITE_TARGET_RE.test(t) || REGENERATE_RE.test(t) || CREATIVE_FORM_RE.test(t);
+}
+
 export function needsThreadGrounding(raw: string): boolean {
   const t = (raw ?? '').trim().replace(GREETING_PREFIX_RE, '');
   if (t.length === 0) return false;
   // Pleasantries want nothing. Kept as the first check so a bare "Danke!" never
   // reaches the database at all.
   if (CHITCHAT_ONLY_RE.test(t) || CHITCHAT_RE.test(t)) return false;
-  // A rewrite or a regenerate is grounded in the text it acts on — handing it
-  // unrelated research invites the model to smuggle new claims into a
-  // shortening job, and flips citations on for an answer that cites nothing.
-  if (REWRITE_TARGET_RE.test(t) || REGENERATE_RE.test(t)) return false;
-  // A poem needs no sources, and grounding it would switch [N] on for a text
-  // that must never carry footnotes. Same exemption the loop gate applies.
-  if (CREATIVE_FORM_RE.test(t)) return false;
+  // Kürzen, nochmal-aber-anders, Gedicht — die Begründung steht bei
+  // `rewritesSuppliedText`, das der Loop seit demselben Befund ebenfalls fragt.
+  if (rewritesSuppliedText(t)) return false;
   return true;
 }
 
