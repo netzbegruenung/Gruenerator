@@ -415,6 +415,93 @@ export async function setThreadToolContext(
 }
 
 /**
+ * How deep each projection looks into the thread. Four functions used to run
+ * the SAME query — `thread_id`, `role='assistant'`, `tool_results IS NOT NULL`,
+ * newest first — differing in nothing but this number, and a single loop turn
+ * fired three of them.
+ *
+ * The windows stay PER PROJECTION on purpose. The widest is read once and each
+ * projection slices its own depth, so unifying the read does not quietly change
+ * how far back replay or source rehydration reaches. Whether artifacts really
+ * need 20 where sources get 12 is a product question; this is not the change
+ * that answers it.
+ */
+const ROW_WINDOW = {
+  artifacts: 20,
+  toolSteps: 12,
+  sources: 12,
+  lastImage: 10,
+} as const;
+
+const WIDEST_ROW_WINDOW = Math.max(...Object.values(ROW_WINDOW));
+
+/** The four `tool_results` keys the projections below read. */
+interface ThreadToolRow extends ArtifactMetadataShape {
+  searchResults?: unknown[] | null;
+}
+
+/**
+ * One read of a thread's recent tool metadata, newest first, for every
+ * projection that needs it.
+ *
+ * Selects the whole column rather than the four keys it needs, and deliberately
+ * so: the two heavy fields ARE `searchResults` and `toolCalls` (8.000 characters
+ * per scraped page, see postResponseService), so a `jsonb_build_object`
+ * projection saves almost nothing while changing the row shape every test double
+ * and the integration harness encode.
+ *
+ * Normalising a malformed row to `{}` here replaces the identical `JSON.parse`
+ * guard the four projections each carried: they now simply find no key and keep
+ * scanning older messages, exactly as before.
+ */
+async function readThreadToolRows(threadId: string): Promise<ThreadToolRow[]> {
+  const postgres = getPostgresInstance();
+  const rows = (await postgres.query(
+    `SELECT tool_results FROM chat_messages
+     WHERE thread_id = $1 AND role = 'assistant' AND tool_results IS NOT NULL
+     ORDER BY created_at DESC LIMIT ${WIDEST_ROW_WINDOW}`,
+    [threadId]
+  )) as Array<{ tool_results?: unknown }>;
+  return rows.map((row) => {
+    const raw = row.tool_results;
+    if (!raw) return {};
+    try {
+      const meta: unknown = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      return meta && typeof meta === 'object' ? (meta as ThreadToolRow) : {};
+    } catch {
+      return {}; // malformed row — skipped by every projection, scanning continues
+    }
+  });
+}
+
+/**
+ * A thread's tool memory, read once and projected many times. Hand this to
+ * anything that would otherwise call two or three of the functions below in the
+ * same turn — see `streamAgenticResponse`, which used to read twice while
+ * `streamContext` had already read the very same rows.
+ *
+ * Safe to build at the start of a turn and use throughout it: the pending
+ * assistant message carries `tool_results = NULL` until `finalizeAssistantMessage`
+ * runs at the end, so the row set cannot change underneath it mid-turn.
+ */
+export interface ThreadToolHistory {
+  artifacts(limit?: number): ThreadToolContext[];
+  toolSteps(limit?: number): PersistedStep[];
+  sources(limit?: number): SearchResult[];
+  lastGeneratedImageUrl(): string | null;
+}
+
+export async function readThreadToolHistory(threadId: string): Promise<ThreadToolHistory> {
+  const rows = await readThreadToolRows(threadId);
+  return {
+    artifacts: (limit = 4) => toArtifacts(rows, limit),
+    toolSteps: (limit = 6) => toToolSteps(rows, limit),
+    sources: (limit = 10) => toSources(rows, limit),
+    lastGeneratedImageUrl: () => toLastGeneratedImageUrl(rows),
+  };
+}
+
+/**
  * The artifacts a thread produced, newest first.
  *
  * `chat_threads.last_tool_context` holds ONE slot and every substantive turn
@@ -434,26 +521,14 @@ export async function listThreadArtifacts(
   threadId: string,
   limit = 4
 ): Promise<ThreadToolContext[]> {
-  const postgres = getPostgresInstance();
-  const rows = (await postgres.query(
-    `SELECT tool_results FROM chat_messages
-     WHERE thread_id = $1 AND role = 'assistant' AND tool_results IS NOT NULL
-     ORDER BY created_at DESC LIMIT 20`,
-    [threadId]
-  )) as Array<{ tool_results?: unknown }>;
+  return toArtifacts(await readThreadToolRows(threadId), limit);
+}
 
+function toArtifacts(rows: ThreadToolRow[], limit: number): ThreadToolContext[] {
   const artifacts: ThreadToolContext[] = [];
   const seen = new Set<string>();
-  for (const row of rows) {
-    const raw = row.tool_results;
-    if (!raw) continue;
-    let meta: unknown;
-    try {
-      meta = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    } catch {
-      continue; // malformed row — keep scanning older messages
-    }
-    const artifact = artifactFromMessageMetadata(meta);
+  for (const row of rows.slice(0, ROW_WINDOW.artifacts)) {
+    const artifact = artifactFromMessageMetadata(row);
     if (!artifact) continue;
     // Two turns editing the same document are one artifact. A sharepic carries
     // no stable id across turns, so its kind alone dedupes — the thread's
@@ -524,25 +599,13 @@ function labelOf(value: unknown): string | null {
  * with "Bitte hänge ein Bild an".
  */
 export async function getLastGeneratedImageUrl(threadId: string): Promise<string | null> {
-  const postgres = getPostgresInstance();
-  const rows = (await postgres.query(
-    `SELECT tool_results FROM chat_messages
-     WHERE thread_id = $1 AND role = 'assistant' AND tool_results IS NOT NULL
-     ORDER BY created_at DESC LIMIT 10`,
-    [threadId]
-  )) as Array<{ tool_results?: unknown }>;
-  for (const row of rows) {
-    const raw = row.tool_results;
-    if (!raw) continue;
-    try {
-      const meta = (typeof raw === 'string' ? JSON.parse(raw) : raw) as {
-        generatedImage?: { url?: string };
-      };
-      const url = meta.generatedImage?.url;
-      if (typeof url === 'string' && url) return url;
-    } catch {
-      // malformed row — keep scanning older messages
-    }
+  return toLastGeneratedImageUrl(await readThreadToolRows(threadId));
+}
+
+function toLastGeneratedImageUrl(rows: ThreadToolRow[]): string | null {
+  for (const row of rows.slice(0, ROW_WINDOW.lastImage)) {
+    const url = row.generatedImage?.url;
+    if (typeof url === 'string' && url) return url;
   }
   return null;
 }
@@ -555,20 +618,13 @@ export async function getLastGeneratedImageUrl(threadId: string): Promise<string
  * search filters on tool name). Bounded so replay stays token-cheap.
  */
 export async function getRecentToolSteps(threadId: string, limit = 6): Promise<PersistedStep[]> {
-  const postgres = getPostgresInstance();
-  const rows = await postgres.query(
-    `SELECT tool_results FROM chat_messages
-     WHERE thread_id = $1 AND role = 'assistant' AND tool_results IS NOT NULL
-     ORDER BY created_at DESC LIMIT 12`,
-    [threadId]
-  );
+  return toToolSteps(await readThreadToolRows(threadId), limit);
+}
+
+function toToolSteps(rows: ThreadToolRow[], limit: number): PersistedStep[] {
   const steps: PersistedStep[] = [];
-  for (const row of rows as Array<{ tool_results?: unknown }>) {
-    const meta = row.tool_results;
-    const calls =
-      meta && typeof meta === 'object' && Array.isArray((meta as { toolCalls?: unknown }).toolCalls)
-        ? ((meta as { toolCalls: unknown[] }).toolCalls as PersistedStep[])
-        : [];
+  for (const row of rows.slice(0, ROW_WINDOW.toolSteps)) {
+    const calls = (Array.isArray(row.toolCalls) ? row.toolCalls : []) as PersistedStep[];
     for (const c of calls) {
       if (c && typeof c === 'object' && typeof (c as PersistedStep).toolName === 'string') {
         steps.push(c);
@@ -604,23 +660,14 @@ export async function getRecentThreadSources(
   threadId: string,
   limit = 10
 ): Promise<SearchResult[]> {
-  const postgres = getPostgresInstance();
-  const rows = await postgres.query(
-    `SELECT tool_results FROM chat_messages
-     WHERE thread_id = $1 AND role = 'assistant' AND tool_results IS NOT NULL
-     ORDER BY created_at DESC LIMIT 12`,
-    [threadId]
-  );
+  return toSources(await readThreadToolRows(threadId), limit);
+}
+
+function toSources(rows: ThreadToolRow[], limit: number): SearchResult[] {
   const collected: SearchResult[] = [];
   const seen = new Set<string>();
-  for (const row of rows as Array<{ tool_results?: unknown }>) {
-    const meta = row.tool_results;
-    const results =
-      meta &&
-      typeof meta === 'object' &&
-      Array.isArray((meta as { searchResults?: unknown }).searchResults)
-        ? ((meta as { searchResults: unknown[] }).searchResults as SearchResult[])
-        : [];
+  for (const row of rows.slice(0, ROW_WINDOW.sources)) {
+    const results = (Array.isArray(row.searchResults) ? row.searchResults : []) as SearchResult[];
     for (const r of results) {
       if (!r || typeof r !== 'object') continue;
       if (typeof r.content !== 'string' || r.content.trim() === '') continue;

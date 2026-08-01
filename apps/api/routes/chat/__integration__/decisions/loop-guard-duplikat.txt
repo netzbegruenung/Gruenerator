@@ -4,7 +4,7 @@
 # about what a real model would have done.
 
 ## turn 0: "Was ist die Position der Gruenen zur Windkraft?"
-router.run_agentic               = loop                           forcedTool=false gateOpen=true hasImageAttachments=false hasOwnMaterial=false inLoopSet=true intent=agentic isCompound=false isMcpTurn=false isPdfFillRequest=false loopEnabled=true secondaryAllowed=true selfContained=false unsourcedWriting=false
+router.run_agentic               = loop                           forcedTool=false gateOpen=true hasImageAttachments=false hasOwnMaterial=false hasSelectedNotebook=false inLoopSet=true intent=agentic isCompound=false isMcpTurn=false isPdfFillRequest=false loopEnabled=true secondaryAllowed=true selfContained=false unsourcedWriting=false
 router.intent_override           = (not reached)
 router.persistent_action_gate    = (not reached)
 classifier.tier                  = tier3.5_loop_demotion          confidence=0.82 demotable=true effectiveConfidence=0.82 heldBackForLiveSource=false heuristicIntent=search selfContained=false
