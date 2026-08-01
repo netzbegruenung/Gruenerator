@@ -505,13 +505,14 @@ async function startWorker(): Promise<void> {
     );
   }
 
-  // Logging middleware (only for errors)
+  // Failing requests only. The POST-to-/api/ exemption that used to sit here
+  // hid every error on exactly the routes that matter most — an OAuth token
+  // exchange answering `invalid_grant` left no trace at all, and neither did
+  // the no-op stream this used to write to.
   app.use(
     morgan('combined', {
-      skip: function (req: Request, res: Response) {
-        return (req.url.includes('/api/') && req.method === 'POST') || res.statusCode < 400;
-      },
-      stream: { write: (_message: string) => {} },
+      skip: (_req: Request, res: Response) => res.statusCode < 400,
+      stream: { write: (message: string) => log.warn(message.trim()) },
     })
   );
 
