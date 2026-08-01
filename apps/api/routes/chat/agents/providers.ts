@@ -32,6 +32,7 @@ import {
 
 import type { AgentConfig } from './types.js';
 import type { RouteOptions } from '../../../services/ai/providerInstances.js';
+import type { ProviderName } from '../../../services/ai/providers.js';
 import type { LanguageModel } from 'ai';
 
 const log = createLogger('chatProviders');
@@ -386,7 +387,10 @@ const DEFAULT_CONTEXT_WINDOW = 32768;
  */
 export function getContextWindow(
   modelId: string | null | undefined,
-  provider?: 'mistral' | 'litellm' | 'regolo' | 'greenpt' | 'anthropic'
+  // `anthropic` stammt aus dem Agent-Contract (agentProviderSchema), der eine
+  // eigene Liste führt und den Bedrock-Rest noch kennt; der Rest ist
+  // ProviderName. Vierte Kopie derselben Achse — siehe services/providers/types.ts.
+  provider?: ProviderName | 'anthropic'
 ): number {
   if (modelId && AVAILABLE_MODELS[modelId]) {
     return AVAILABLE_MODELS[modelId].contextWindow;
@@ -399,6 +403,8 @@ export function getContextWindow(
   if (provider === 'litellm') return CTX_VERDIGADO;
   if (provider === 'regolo') return CTX_FULL;
   if (provider === 'greenpt') return CTX_FULL;
+  // Gemma 4 26B-A4B carries 262k on Scaleway's H100 instances (model card).
+  if (provider === 'scaleway') return CTX_FULL;
 
   return DEFAULT_CONTEXT_WINDOW;
 }

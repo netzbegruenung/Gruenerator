@@ -169,7 +169,8 @@ Zur Einordnung von außen: Scope3 veranschlagt für ein hochwertiges GPT-4o-Bild
 ### Was die Zahl _nicht_ enthält
 
 - **Keine Herstellung, kein Training.** Wir zählen den Strom der Anfrage selbst. Der CO₂-Rucksack aus GPU-Produktion und Modelltraining fehlt.
-- **Keine Transkription, keine Recherche.** Dafür liefert kein Anbieter Messwerte — GreenPTs Transkriptions-Endpunkt etwa gibt gar kein `impact`-Feld zurück. Diese Schritte fehlen vollständig.
+- **Keine Transkription, keine Recherche.** Dafür liefert kein Anbieter Messwerte. Bei GreenPT, das als einziges überhaupt misst, haben wir alle in Frage kommenden Endpunkte geprüft: Transkription (`/v1/listen`) und beide Suchendpunkte antworten ohne `impact`-Feld, und einen Endpunkt für den Konto-Gesamtverbrauch gibt es nicht. Gemessen wird dort ausschließlich Inferenz auf `/v1/chat/completions` und `/v1/embeddings`. Beide Schritte werden deshalb **gezählt, aber nicht bewertet** — die Übersicht weist sie getrennt aus, damit die Aktivität nicht so aussieht, als wäre sie kostenlos.
+- **Kein Grundverbrauch der eigenen Infrastruktur.** Datenbanken, Cache, Vektorsuche und die API-Container laufen rund um die Uhr, unabhängig davon, ob jemand etwas erzeugt. Sie stecken in keiner dieser Zahlen.
 
 Wie groß der fehlende Teil ist, zeigt Scaleways eigene Bilanz besonders klar: Dem Betriebsstrom (Scope 2) mit 3.155 t CO₂e stehen **13.387 t allein für die Server** gegenüber — die Hardware-Herstellung wiegt dort das **4,2-fache** des Stroms, den sie verbraucht. Mistrals unabhängig geprüfte Ökobilanz kommt in dieselbe Richtung: Sie nennt für eine 400-Token-Antwort rund 1,14 g CO₂e, wo unsere Rechnung für ein vergleichbares Modell bei etwa 0,10 g landet.
 
@@ -194,6 +195,18 @@ Daraus ergibt sich die Spanne, die die Übersicht zeigt: **rund 2- bis 5-mal wen
 Der Vergleich gilt **nur für Text**. Für erzeugte Bilder gibt es keine OpenAI-Zahl mit vergleichbar sauber benannter Systemgrenze; eine Herstellerschätzung gegen eine grenzkorrigierte Messung zu stellen würde die Sorgfalt entwerten, um die es hier geht. Bilder bleiben im Vergleich deshalb außen vor.
 
 Zwei Ehrlichkeiten gehören dazu. Erstens: **Beim Strom gewinnen wir nicht durchgehend.** Die kompakten Modelle liegen knapp doppelt so gut, unser Standardmodell Mistral Medium aber gut dreimal schlechter. Dass es beim CO₂ trotzdem den besten Wert erzielt, verdankt sich dem französischen Netz — nicht sparsamerer Technik. Zweitens: **Die GPT-4o-Zahl ist selbst nur geschätzt.** OpenAI veröffentlicht nichts; sie wurde aus Antwortzeiten, GPU-Datenblättern und einer statistisch erschlossenen Hardware-Annahme abgeleitet. Unsere Zahlen kommen von einem Zähler. Die Unsicherheit sitzt fast vollständig auf der anderen Seite.
+
+## Was die ganze Plattform verbraucht
+
+Neben deinem eigenen Verbrauch veröffentlichen wir die Summe über alle Nutzer:innen. Drei Entscheidungen dahinter sind erklärungsbedürftig, weil sie die Zahlen kleiner oder unschärfer machen, als sie sein könnten.
+
+**Es ist eine Spanne, keine Zahl.** Wo ein Modell vermessen ist, fallen beide Enden zusammen. Wo wir nur eine Obergrenze haben, zeigt die Spanne das obere und das untere Ende derselben gemessenen Bandbreite. Ihre Breite ist damit ein direktes Maß dafür, wie viel wir noch nicht wissen — und sie wird schmaler, sobald eine Lane vermessen wird, nicht durch besseres Formulieren.
+
+**Tage mit sehr wenigen Aktiven fallen ganz heraus.** Unterschreitet ein Tag fünf verschiedene Nutzer:innen, wird er nicht nur aus dem Verlauf ausgeblendet, sondern auch aus allen Summen entfernt. Nur auszublenden würde nichts nützen: Wer zwei Zeiträume abfragt, die sich um einen Tag unterscheiden, könnte ihn durch Subtraktion zurückrechnen. Die Zahl der zurückgehaltenen Tage steht mit dabei, damit eine Lücke als Lücke erkennbar ist und nicht als Ruhetag.
+
+**Die Konstanten stehen dabei.** Zu jedem Anbieter veröffentlichen wir den angesetzten Netzmix und den PUE-Wert neben seinem Anteil. Ein Fußabdruck, den niemand nachrechnen kann, ist eine Behauptung und keine Offenlegung.
+
+Was oben unter „Was die Zahl _nicht_ enthält" steht, gilt hier unverändert — die Plattformzahl ist genauso eine Untergrenze wie die persönliche.
 
 ## Quellen
 

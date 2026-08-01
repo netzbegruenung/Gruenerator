@@ -14,6 +14,7 @@ import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
 import { mountGroupsContractRouter } from './routes/auth/groups/groupsContract/index.js';
 import { mountImageModelPreferenceContractRouter } from './routes/auth/imageModelPreferenceContractRouter.js';
+import { mountSkillPromptContractRouter } from './routes/skills/skillPromptContractRouter.js';
 import authInitRouter from './routes/auth/initController.js';
 import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferencesContractRouter.js';
 import { mountPromptsContractRouter } from './routes/auth/promptsContractRouter.js';
@@ -127,6 +128,7 @@ import {
   leichteSpracheRouter,
 } from './routes/texte/index.js';
 import { mountTransferContractRouter } from './routes/transfer/transferContractRouter.js';
+import { mountTransparencyContractRouter } from './routes/transparency/transparencyContractRouter.js';
 import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractRouter.js';
 import { mountItemUsageContractRouter } from './routes/usage/itemUsageContractRouter.js';
 import { mountUserUsageContractRouter } from './routes/usage/userUsageContractRouter.js';
@@ -460,6 +462,14 @@ export async function setupRoutes(app: Application): Promise<void> {
   // requireAuth at the prefix — strictly the caller's own data.
   app.use('/api/usage', requireAuth, publicReadLimiter);
   mountUserUsageContractRouter(app);
+  // ts-rest contract router for /api/transparency (platform-wide footprint).
+  // NO requireAuth, and that is the point: the response is an aggregate over
+  // every user with small cells suppressed, and a transparency figure hidden
+  // behind a login is not one. The limiter and the 15-minute redis cache in
+  // platformUsageStats are what keep the aggregate scans from being a free
+  // denial-of-service lever.
+  app.use('/api/transparency', publicReadLimiter);
+  mountTransparencyContractRouter(app);
   app.use('/api/antraege', requireAuth, standardMutationLimiter, antraegeRouter);
   app.use('/api/scanner', publicReadLimiter, scannerRouter);
   app.use('/api/protokoll', publicReadLimiter, protokollRouter);
@@ -824,6 +834,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountNotificationsContractRouter(app);
   mountModelPreferencesContractRouter(app);
   mountImageModelPreferenceContractRouter(app);
+  // Skill prompt bodies. requireAuth at the prefix: the recipe catalogue is
+  // public (it ships in the bundle), the prompt text behind it is not.
+  app.use('/api/skills', requireAuth);
+  mountSkillPromptContractRouter(app);
   // Per-user external MCP server registry (EXPERIMENTAL). requireAuth at the
   // prefix — every route is user-scoped and handles user-entered credentials.
   app.use('/api/mcp/servers', requireAuth);

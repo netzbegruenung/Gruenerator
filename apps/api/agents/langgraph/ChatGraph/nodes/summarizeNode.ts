@@ -37,6 +37,7 @@ Regeln:
 - Hebe wichtige Fakten, Zahlen und Positionen hervor
 - Behalte die Kernaussagen und den roten Faden bei
 - Max 1500 Zeichen für kurze Dokumente, max 3000 Zeichen für längere
+- Bewerte nichts, was das Dokument nicht selbst bewertet; gib Noten, Quoten und Zahlen neutral wieder
 - Auf Deutsch antworten
 - Antworte NUR mit der Zusammenfassung, ohne Einleitung wie "Hier ist die Zusammenfassung"`;
 
@@ -49,6 +50,7 @@ Regeln:
 - Entferne Redundanzen
 - Behalte alle wichtigen Fakten und Positionen bei
 - Max 3000 Zeichen
+- Bewerte nichts, was die Teilzusammenfassungen nicht selbst bewerten; gib Noten, Quoten und Zahlen neutral wieder
 - Auf Deutsch antworten
 - Antworte NUR mit der Zusammenfassung`;
 
