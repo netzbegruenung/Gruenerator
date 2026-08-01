@@ -97,6 +97,7 @@ describe('decideRunAgentic', () => {
     forcedTool: false,
     isMcpTurn: false,
     isCompound: false,
+    hasSelectedNotebook: false,
     secondaryIntent: null as string | null,
     compoundGeneration: false,
     hasImageAttachments: false,
@@ -174,6 +175,31 @@ describe('decideRunAgentic', () => {
     expect(decide({ secondaryIntent: 'save_as_doc' })).toBe(false);
     expect(decide({ isCompound: true })).toBe(false);
     expect(decide({ hasImageAttachments: true })).toBe(false);
+  });
+
+  it('keeps a turn with a chosen notebook single-pass — on EVERY agent', () => {
+    // `searchNode` is the only place that retrieves notebook content; no loop
+    // tool can address a notebook (`gruenerator_search` takes `collection` from
+    // a closed ALL_COLLECTIONS enum). `isCompound` held back only the named
+    // agents, so on the universal one the chosen notebook was silently answered
+    // around — the classifier even sets `gatherSources: ['notebook-search']`
+    // there and nobody reads it.
+    expect(decide({ hasSelectedNotebook: true })).toBe(false);
+    expect(decide({ intent: 'agentic', hasSelectedNotebook: true })).toBe(false);
+    expect(
+      decide({
+        intent: 'direct',
+        lastUserText: 'Was steht dazu im Notizbuch?',
+        hasSelectedNotebook: true,
+      })
+    ).toBe(false);
+  });
+
+  it('still lets an MCP turn with a notebook into the loop', () => {
+    // The same exception `forcedTool` gets: nothing in the isMcpTurn set has a
+    // single-pass executor, so holding it back would leave the turn with nobody
+    // to run it. An unsearched notebook beats a turn that does nothing.
+    expect(decide({ intent: 'mcp', isMcpTurn: true, hasSelectedNotebook: true })).toBe(true);
   });
 
   it('respects the flag', () => {
@@ -320,6 +346,7 @@ describe('decideRunAgentic — battle-test prompts', () => {
     forcedTool: false,
     isMcpTurn: false,
     isCompound: false,
+    hasSelectedNotebook: false,
     secondaryIntent: null as string | null,
     compoundGeneration: false,
     hasImageAttachments: false,
@@ -743,6 +770,7 @@ describe('decideEditToolLoop', () => {
     hasEditTarget: true,
     forcedTool: false,
     isCompound: false,
+    hasSelectedNotebook: false,
     hasImageAttachments: false,
     secondaryIntent: null,
   };
@@ -779,6 +807,7 @@ describe('decideEditToolLoop', () => {
   it('honours the same kill-switches as decideRunAgentic', () => {
     expect(decideEditToolLoop({ ...base, forcedTool: true })).toBe(false);
     expect(decideEditToolLoop({ ...base, isCompound: true })).toBe(false);
+    expect(decideEditToolLoop({ ...base, hasSelectedNotebook: true })).toBe(false);
     expect(decideEditToolLoop({ ...base, hasImageAttachments: true })).toBe(false);
     expect(decideEditToolLoop({ ...base, secondaryIntent: 'image' })).toBe(false);
   });
