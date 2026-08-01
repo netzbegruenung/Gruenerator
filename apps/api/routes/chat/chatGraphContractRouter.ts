@@ -269,6 +269,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         mentionTokenFields,
         lastUserTextRaw,
         pendingAssistantMessageId,
+        threadToolHistory,
       } = ctxResult.ctx;
 
       // A placeholder assistant row was minted in buildStreamContext. Its writer
@@ -1857,6 +1858,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               sse,
               req,
               threadId: actualThreadId ?? null,
+              // Dieselben Zeilen, die buildStreamContext schon gelesen hat.
+              // Null heisst nur „nicht vorgelesen" — der Loop liest dann selbst.
+              toolHistory: threadToolHistory,
             });
             trace.update({ input: lastUserText, output: result.fullText });
             return result;

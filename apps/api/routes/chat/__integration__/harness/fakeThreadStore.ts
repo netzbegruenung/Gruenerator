@@ -8,6 +8,7 @@
  */
 
 import { type PersistedStep } from '../../services/agenticLoop/types.js';
+import { type ThreadToolHistory } from '../../services/threadPersistenceService.js';
 
 import type {
   SearchResult,
@@ -296,6 +297,21 @@ export async function listThreadArtifacts(
   // which is what every test written before the list existed assumes.
   const tc = threadToolContextFixtures.get(threadId);
   return tc ? [tc] : [];
+}
+
+/**
+ * The real module's one-read/many-projections door. Delegates to the same
+ * fixtures as the functions above, so a test that scripts artifacts sees them
+ * whether the caller reads through here or through `listThreadArtifacts`.
+ */
+export async function readThreadToolHistory(threadId: string): Promise<ThreadToolHistory> {
+  const artifacts = await listThreadArtifacts(threadId, Number.MAX_SAFE_INTEGER);
+  return {
+    artifacts: (limit = 4) => artifacts.slice(0, limit),
+    toolSteps: () => [],
+    sources: () => [],
+    lastGeneratedImageUrl: () => null,
+  };
 }
 
 export async function setThreadToolContext(
