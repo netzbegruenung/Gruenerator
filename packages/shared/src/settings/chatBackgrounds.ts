@@ -176,7 +176,7 @@ export const CHAT_BACKGROUND_PRESETS: readonly ChatBackgroundPreset[] = [
     label: 'Regenbogen',
     description: 'Alle Farben auf einmal — sanft ineinander verlaufend.',
     family: 'bunt',
-    accent: '#8e44ad',
+    accent: '#3f7161',
   },
   {
     key: 'neutral',
