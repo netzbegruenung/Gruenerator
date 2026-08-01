@@ -9,6 +9,7 @@ import {
   GREENPT_BASE_URL,
   isProviderConfigured,
 } from './providers.js';
+import { scalewayBaseUrl } from './scalewayEndpoint.js';
 
 const log = createLogger('modelDiscovery');
 
@@ -40,6 +41,13 @@ const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision:
   'mistral-small-latest': { name: 'Mistral Small', reasoning: false, vision: false },
   'mistral-small-2503': { name: 'Mistral Small (Vision)', reasoning: false, vision: true },
   'gemma4-31b': { name: 'Gemma 4 31B', reasoning: true, vision: true },
+  // Scaleway's Gemma 4, MoE with 4B active parameters — the `heavy` stage.
+  // `reasoning: true` is the honest flag (it thinks by DEFAULT), which is
+  // exactly why its client forces `reasoning_effort: 'none'`; see
+  // scalewayThinkingFetch.ts. Vision per Scaleway's model card, recorded for
+  // the same reason as verdigado-think: without it isVisionCapable says false
+  // and the vision override would hijack image requests off this lane.
+  'gemma-4-26b-a4b-it': { name: 'Gemma 4 26B-A4B', reasoning: true, vision: true },
   // Verdigado/LiteLLM serves Gemma 4 under the 'verdigado-think' alias
   // (resolves server-side to gemma4:31b-ctx128k). Without this entry,
   // isVisionCapable would return false and the vision-override would hijack
@@ -97,9 +105,16 @@ const CATEGORY_NAMES: Record<ProviderName, string> = {
   litellm: 'LiteLLM',
   regolo: 'Regolo',
   greenpt: 'GreenPT',
+  scaleway: 'Scaleway',
 };
 
-const CAT_ORDER: Record<string, number> = { Mistral: 0, Regolo: 1, LiteLLM: 2, GreenPT: 3 };
+const CAT_ORDER: Record<string, number> = {
+  Mistral: 0,
+  Regolo: 1,
+  LiteLLM: 2,
+  GreenPT: 3,
+  Scaleway: 4,
+};
 
 let cachedModels: PlaygroundModel[] | null = null;
 let cacheTimestamp = 0;
@@ -201,6 +216,10 @@ const PROVIDER_ENDPOINTS: Record<
     url: () => `${REGOLO_BASE_URL}/models`,
     getApiKey: () => env.REGOLO_API_KEY ?? null,
   },
+  scaleway: {
+    url: () => `${scalewayBaseUrl()}/models`,
+    getApiKey: () => env.SCALEWAY_API_KEY ?? null,
+  },
 };
 
 function fetchModelsForProvider(provider: ProviderName): Promise<PlaygroundModel[]> {
@@ -222,6 +241,10 @@ const FALLBACK_MODELS: PlaygroundModel[] = ['mistral-medium-2604', 'mistral-smal
   );
 
 async function discoverModels(): Promise<PlaygroundModel[]> {
+  // `greenpt` and `scaleway` are deliberately absent, not forgotten: this list
+  // feeds the Playground's model picker, and both are backend-only lanes
+  // (scaleway serves the `heavy` intermediate stage). They keep their
+  // PROVIDER_ENDPOINTS entry so adding them here is a one-word change.
   const providers: ProviderName[] = ['mistral', 'litellm', 'regolo'];
   const results = await Promise.allSettled(
     providers.filter((p) => isProviderConfigured(p)).map((p) => fetchModelsForProvider(p))

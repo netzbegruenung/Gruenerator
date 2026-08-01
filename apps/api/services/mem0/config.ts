@@ -12,15 +12,27 @@ import { env } from '../../config/env.js';
 import { createQdrantClient } from '../../database/services/QdrantService/connection.js';
 import { extractJsonObject, extractLastJsonObject } from '../../utils/jsonParser.js';
 import { createLogger } from '../../utils/logger.js';
-import { intermediateLane } from '../ai/intermediateLanes.js';
 import { REGOLO_BASE_URL } from '../ai/providers.js';
 import { regoloFetchWithThinkingDisabled } from '../ai/regoloThinkingFetch.js';
 import { MistralEmbeddingService } from '../mistral/MistralEmbeddingService/MistralEmbeddingService.js';
 
 import type { MemoryConfig } from 'mem0ai/oss';
 
-/** @see services/ai/intermediateLanes.ts */
-const LANE = intermediateLane('heavy');
+/**
+ * Explizit gepinnt — folgt NICHT mehr `intermediateLane('heavy')`.
+ *
+ * Der Adapter unten baut seinen Client aus `REGOLO_BASE_URL` + `REGOLO_API_KEY`
+ * und nahm bis 01.08.2026 nur den MODELLNAMEN aus der heavy-Stufe. Das hielt,
+ * solange heavy auf Regolo lag, und wurde in dem Moment falsch, in dem die
+ * Stufe nach Scaleway zog: mem0 hätte einen Scaleway-Modellnamen an Regolos
+ * Basis-URL geschickt. Die Stufe hatte diese Falle selbst dokumentiert.
+ *
+ * Ein Konsument, der Host UND Schlüssel fest verdrahtet, kann einer Lane nicht
+ * folgen — also folgt er ihr nicht mehr. Wer das Modell hier wechselt, wechselt
+ * es bewusst und prüft die JSON-Extraktion (der defensive Parser unten existiert,
+ * weil Reasoning-Modelle das JSON in Chain-of-Thought wickeln).
+ */
+const LANE = { provider: 'regolo' as const, model: 'gemma4-31b' };
 
 const log = createLogger('Mem0Config');
 
