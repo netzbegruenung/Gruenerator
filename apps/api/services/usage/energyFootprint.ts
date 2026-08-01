@@ -106,6 +106,14 @@ const MODEL_ENERGY: Readonly<Record<string, EnergyCoefficients>> = {
     mWhFixed: 0,
     basis: 'measured',
   },
+  // `gemma-4-26b-a4b-it` (Scaleway, die `heavy`-Stufe seit 01.08.2026) fehlt
+  // hier BEWUSST und bleibt „nicht abgedeckt". Es ist eine andere Architektur
+  // als das 31B — MoE mit 4B aktiven Parametern —, der Koeffizient des 31B gilt
+  // also nicht, und Scaleway meldet anders als GreenPT keinen Verbrauch zurück.
+  // Aus der Geschwindigkeit ableiten wäre der Fehler, der unten schon einmal um
+  // 62 % danebenlag. Zu beziffern erst, wenn GreenPT dieselben Gewichte serviert
+  // oder Scaleway Verbrauchsdaten liefert.
+  //
   // Same Gemma 4 weights, served by verdigado under an alias (modelDiscovery.ts)
   'verdigado-think': {
     mWhPerOutputToken: 0.722,

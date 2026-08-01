@@ -110,6 +110,7 @@ const CONFIG_HINT: Record<ProviderName, string> = {
   litellm: 'LITELLM_API_KEY',
   regolo: 'REGOLO_API_KEY',
   greenpt: 'GREENPT_API_KEY',
+  scaleway: 'SCALEWAY_API_KEY',
 };
 
 export async function execute(
