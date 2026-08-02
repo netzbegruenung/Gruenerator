@@ -83,11 +83,28 @@ export function buildPlannerPromptGeneral(): PromptConfig {
 }
 
 /**
+ * Where the finished answer gets rendered.
+ *
+ * The dossier protocol is identical on both surfaces; what differs is who owns
+ * the source list. In the app the references map is authoritative and the UI
+ * renders the citations, so a final "Quellen" section would be a duplicate. An
+ * MCP client has no such UI — it only ever sees the tool's text, so there it
+ * MUST print the list itself. Keeping this a parameter is what stops the
+ * protocol from being copied a sixth time.
+ */
+export type AnswerSurface = 'app' | 'mcp';
+
+/**
  * Grundsatz-specific draft prompt (NotebookLM-Style, German)
  * Builds comprehensive, well-structured dossier prompts
  */
-function buildDraftPrompt(collectionName: string, isPolitical: boolean): PromptConfig {
+function buildDraftPrompt(
+  collectionName: string,
+  isPolitical: boolean,
+  surface: AnswerSurface = 'app'
+): PromptConfig {
   const domain = isPolitical ? 'politische Dokumentenanalyse' : 'Dokumentenanalyse';
+  const isApp = surface === 'app';
   const rules = [
     `Du bist ein Experte für ${domain}. Schreibe ein umfassendes, gut strukturiertes Dossier im NotebookLM-Stil. Stütze dich dabei AUSSCHLIESSLICH auf die bereitgestellten Quellen.`,
     `Sammlung: ${collectionName}.`,
@@ -111,6 +128,14 @@ function buildDraftPrompt(collectionName: string, isPolitical: boolean): PromptC
     '- Bei umfangreichen Antworten: Schließe mit einer synthesierenden Zusammenfassung',
     '- Das Fazit MUSS sich auf Informationen aus den Quellen stützen — keine eigenen Schlussfolgerungen',
     '',
+    ...(isApp
+      ? []
+      : [
+          '### 4. Quellenliste (Pflicht)',
+          '- Schließe mit einer Liste der zitierten Quellen, eine pro Zeile: `[n] Titel — URL`',
+          '- Nur Nummern, die im Text vorkommen. Die Nummerierung bleibt die aus den Tool-Ergebnissen.',
+          '',
+        ]),
     '## STIL-REGELN:',
     '- Schreibe in FLIESSTEXT mit Struktur, KEINE reinen Bullet-Listen',
     '- Verbinde Informationen aus verschiedenen Quellen zu kohärenten Aussagen',
@@ -129,8 +154,10 @@ function buildDraftPrompt(collectionName: string, isPolitical: boolean): PromptC
     '',
     '## ZITATIONS-PROTOKOLL:',
     '- Verwende eckige Klammern: [1], [2], [3]. Keine [0].',
-    '- Nur IDs aus der Referenz-Map verwenden. Keine erfinden.',
-    '- KEINE Blockzitate (>) - die UI zeigt Quellen separat.',
+    isApp
+      ? '- Nur IDs aus der Referenz-Map verwenden. Keine erfinden.'
+      : '- Nur die Quellen-Nummern aus den Tool-Ergebnissen verwenden. Keine erfinden.',
+    isApp ? '- KEINE Blockzitate (>) - die UI zeigt Quellen separat.' : '- KEINE Blockzitate (>).',
     '- Setze [n] NACH dem Satzzeichen (Punkt, Komma): "...Aussage.[1]" NICHT "...Aussage[1]."',
     '- Bei mehreren Quellen für eine Aussage: "statement.[1][3][5]"',
     '- JEDE Faktenaussage braucht mindestens eine Quellenangabe — auch bei Synthese mehrerer Quellen.',
@@ -138,7 +165,7 @@ function buildDraftPrompt(collectionName: string, isPolitical: boolean): PromptC
     '## VERBOTEN:',
     '- Antworten ohne Zitate',
     '- Code-Blöcke oder Backticks um die Antwort',
-    '- Finale "Quellen"-Sektion (wird von UI generiert)',
+    ...(isApp ? ['- Finale "Quellen"-Sektion (wird von UI generiert)'] : []),
     '- Reine Auflistungen ohne verbindende Sätze',
     '- Informationen aus eigenem Wissen, die nicht in den Quellen belegt sind',
     '- Faktenaussagen ohne Quellenangabe',
@@ -147,13 +174,17 @@ function buildDraftPrompt(collectionName: string, isPolitical: boolean): PromptC
 }
 
 export function buildDraftPromptGrundsatz(
-  collectionName: string = 'Grüne Grundsatzprogramme'
+  collectionName: string = 'Grüne Grundsatzprogramme',
+  surface: AnswerSurface = 'app'
 ): PromptConfig {
-  return buildDraftPrompt(collectionName, true);
+  return buildDraftPrompt(collectionName, true, surface);
 }
 
-export function buildDraftPromptGeneral(collectionName: string = 'Ihre Sammlung'): PromptConfig {
-  return buildDraftPrompt(collectionName, false);
+export function buildDraftPromptGeneral(
+  collectionName: string = 'Ihre Sammlung',
+  surface: AnswerSurface = 'app'
+): PromptConfig {
+  return buildDraftPrompt(collectionName, false, surface);
 }
 
 function buildConcisePrompt(collectionName: string, isPolitical: boolean): PromptConfig {
