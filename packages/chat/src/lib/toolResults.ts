@@ -263,8 +263,17 @@ export function extractHeadings(markdown: string): string[] {
   if (!markdown) return [];
   const out: string[] = [];
   for (const line of markdown.split('\n')) {
-    const m = line.match(/^##\s+(.+?)\s*$/);
-    if (m) out.push(m[1].trim());
+    // Sliced rather than matched: `/^##\s+(.+?)\s*$/` lets `\s+`, `.+?` and
+    // `\s*` split the same whitespace run several ways, which is quadratic in
+    // the line length (CodeQL js/polynomial-redos).
+    //
+    // Deliberately equivalent down to the corner cases, including the odd one:
+    // `##` plus two or more blanks still yields an empty heading, because the
+    // old `.+?` could consume a blank. `###` and `##x` still do not match (the
+    // character after `##` has to be whitespace) and neither does `## ` (the
+    // old `.+?` needed a character of its own).
+    if (!line.startsWith('##') || line.length < 4 || !/^\s/.test(line.charAt(2))) continue;
+    out.push(line.slice(2).trim());
     if (out.length >= 6) break;
   }
   return out;

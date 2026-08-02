@@ -133,6 +133,13 @@ router.get('/auth/start', requireAuth, async (req: Request, res: Response): Prom
 
 // No requireAuth: the user is resolved from the one-time PKCE state in Redis.
 router.get('/auth/callback', async (req: Request, res: Response): Promise<void> => {
+  // The authorization code rides in the query string — RFC 6749 §4.1.2 has no
+  // other channel for it. What we can stop is it travelling on from here: no
+  // Referer to anything this page touches, and no copy in any cache
+  // (CodeQL js/sensitive-get-query).
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Cache-Control', 'no-store');
+
   const { code, state, error: oauthError } = req.query;
 
   if (oauthError) {
