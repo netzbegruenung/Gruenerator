@@ -25,7 +25,7 @@
  * `\p{L}` boundaries with the `u` flag instead of `\b`, because `\b` needs a
  * `\w`/non-`\w` transition and without `u` "ä" is not `\w` — every alternative
  * starting with an umlaut ("März") would be dead. Same idiom as
- * `SYSTEM_MCP_PHRASING` and `parseScope`.
+ * `managedSourceTrigger`.
  *
  * Austrian month names (jänner/feber) are first-class, not an afterthought:
  * de-AT is a first-class audience.

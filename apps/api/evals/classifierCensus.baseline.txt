@@ -16,8 +16,8 @@ disposition                       n   anteil  davon mit Modell
 anchor                            0    0.0 %     0
 artifact                         29   17.4 %     0
 gated                             3    1.8 %     0
-loop                            113   67.7 %     5
-prose                            22   13.2 %    18
+loop                            113   67.7 %     0
+prose                            22   13.2 %    14
 (unbekannt)                       0    0.0 %     0
 
 ## Entscheidungspunkte — wie entschieden wurde (Zweighäufigkeit)
@@ -31,10 +31,7 @@ classifier.tier  (161)
     tier3_heuristic              26
     tier3.4_chat_recall           1
     tier3.4_recurring_order       0
-    tier3.5_loop_demotion       102
-    tier3.7_source_scope          0
-    tier3.7_no_live_source        5
-    tier3.7_source_unavailable    0
+    tier3.5_loop_demotion       107
     tier3.8_generation_scope     14
     residual                      4
     error_fallback                0
@@ -49,13 +46,13 @@ examples                          0  loop
 pressemitteilung_examples         0  loop
 abgeordnetenwatch                 0  loop
 bundestag                         0  loop
-bahn                              0  loop
-reise                             0  loop
-hotel                             0  loop
+bahn                              0  retired
+reise                             0  retired
+hotel                             0  retired
 umfragen                          0  loop
 hilfe                             0  gated
-wetter                            0  loop
-news                              0  loop
+wetter                            0  retired
+news                              0  retired
 image                             2  artifact
 image_edit                        1  artifact
 sharepic                         18  artifact

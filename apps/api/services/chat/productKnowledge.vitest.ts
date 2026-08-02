@@ -108,29 +108,26 @@ describe('buildProductKnowledgeBlock', () => {
     expect(block).not.toContain('Satzungen');
   });
 
-  it('shows env-active system MCP sources only', async () => {
+  it('lists only the env-active managed connectors', async () => {
     process.env.SYSTEM_MCP_WEATHER_URL = 'https://weather.example';
     const block = await buildProductKnowledgeBlock({
       locale: 'de-DE',
       userId: null,
       question: 'was kannst du?',
     });
-    expect(block).toContain('Wetter (DWD)');
+    // The connector's TITLE, not the internal source name — this block is what
+    // the assistant reads back to a user, and it has to match the settings list.
+    expect(block).toContain('Wetter:');
     expect(block).not.toContain('Deutsche Bahn:');
   });
 
-  it('keeps managed connectors OUT of the live-source block', async () => {
-    // `gesetze` reaches the chat as a connector, and connectors are listed with
-    // the user's own servers further down. Naming it here too would advertise
-    // the same service twice in one prompt.
-    process.env.SYSTEM_MCP_LAW_URL = 'https://law.example';
+  it('says so plainly when the deploy has no connectors configured', async () => {
     const block = await buildProductKnowledgeBlock({
       locale: 'de-DE',
       userId: null,
       question: 'was kannst du?',
     });
-    expect(block).not.toContain('Gesetze:');
-    expect(block).toContain('keine Live-Daten-Quellen konfiguriert');
+    expect(block).toContain('keine bereitgestellten Dienste aktiv');
   });
 
   it('marks DE-only sources for de-AT users', async () => {

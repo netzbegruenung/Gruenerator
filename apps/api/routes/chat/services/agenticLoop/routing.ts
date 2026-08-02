@@ -610,6 +610,23 @@ export interface AgenticDecisionInput {
   forcedTool: boolean;
   /** `mcp` turns are "forced" via @<server> but still belong in the loop. */
   isMcpTurn: boolean;
+  /**
+   * The vocabulary trigger named at least one first-party connector for this
+   * turn (`managedSourceTrigger`).
+   *
+   * This replaced the five system-MCP intents in `agenticIntents`, which is what
+   * used to guarantee those turns a loop.
+   *
+   * Much of what it covers would be rescued anyway — a `direct` turn with no own
+   * material already enters via `!selfContained`. Where it is the ONLY thing
+   * holding the turn is the pairing of a telegram-style ask ("Wetter Köln
+   * morgen", "§ 823 BGB": no question mark, no interrogative, no leading
+   * auxiliary) with either supplied material or a verdict in neither set. Those
+   * are the cases routing.vitest.ts pins, and they are exactly the ones that
+   * would otherwise be answered from parametric memory with a live source one
+   * step away.
+   */
+  hasManagedSources?: boolean;
   /** Notebook gather pipeline — stays single-pass. */
   isCompound: boolean;
   /** The turn carries a selected notebook (`notebookIds`), whatever the agent.
@@ -678,6 +695,12 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   });
   const inLoopSet =
     p.agenticIntents.has(p.intent) ||
+    // A named first-party connector puts the turn in the loop whatever the
+    // intent says. Deliberately NOT folded into the `NO_TOOL_VERDICTS` branch
+    // below: the asks this covers ("Wetter Köln morgen", "§ 823 BGB") are
+    // telegram-style and fail every one of `looksLikeToolableQuestion`'s four
+    // shapes, and they can arrive under any verdict, not just a no-tool one.
+    p.hasManagedSources === true ||
     (NO_TOOL_VERDICTS.has(p.intent) &&
       (looksLikeToolableQuestion(p.lastUserText) ||
         p.classifierContradictedResearch === true ||
@@ -710,6 +733,7 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
       inLoopSet,
       gateOpen,
       isMcpTurn: p.isMcpTurn,
+      hasManagedSources: p.hasManagedSources === true,
       isCompound: p.isCompound,
       hasSelectedNotebook: p.hasSelectedNotebook,
       forcedTool: p.forcedTool,

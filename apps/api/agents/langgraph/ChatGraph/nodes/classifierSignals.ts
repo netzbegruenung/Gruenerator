@@ -40,14 +40,11 @@ export const NON_SEARCH_INTENTS = new Set([
   'modify_board',
   'share_doc',
   'mcp',
-  // System MCP sources: the loop's tools take the model's own arguments — no
-  // Qdrant search-query optimization involved.
-  'bahn',
-  'reise',
-  'hotel',
+  // `bahn`/`reise`/`hotel`/`wetter`/`news` sat here for the same reason
+  // `umfragen` still does — their tools take the model's own arguments, so there
+  // is no Qdrant query to optimize. They are managed connectors now and never
+  // appear as an intent, so there is nothing left for this list to exclude.
   'umfragen',
-  'wetter',
-  'news',
 ]);
 
 /**
@@ -164,7 +161,7 @@ export const CHAT_HISTORY_KEYWORDS =
  * The subset of `CHAT_HISTORY_KEYWORDS` that can decide the turn on its own.
  *
  * Two patterns, two jobs — the distinction this file has paid for before (see
- * `SYSTEM_MCP_PHRASING`: "IT IS A GATE, NOT A CLASSIFIER"). `CHAT_HISTORY_
+ * `managedSourceTrigger`: "ES IST EIN GITTER, KEIN KLASSIFIKATOR"). `CHAT_HISTORY_
  * KEYWORDS` is the RECALL gate: it may be generous, because a false positive
  * there only costs the turn its Tier-3.5 demotion and sends it one tier further.
  * This one is the PRECISION pattern behind a direct route, where a false
@@ -284,47 +281,6 @@ export function looksLikeRecurringOrder(raw: string): boolean {
       RECURRENCE_DELIVERY.test(sentence)
   );
 }
-
-/**
- * Concrete travel / timetable / weather / news phrasings that map to a
- * system-MCP intent (hotel/reise/bahn/wetter/news). Those intents are
- * LLM-CLASSIFIED ONLY (excluded from the heuristic keyword table on purpose),
- * so a bare "suche hotels …" would otherwise be swallowed by Tier-3.5 loop
- * demotion → `agentic` before Tier 3.7 ever runs, and the system source never
- * mounts. This guards the demotion gate (mirrors CHAT_HISTORY_KEYWORDS, the
- * other LLM-only intent) so these phrasings reach the source-scope resolver.
- *
- * IT IS A GATE, NOT A CLASSIFIER, and since the resolver started releasing
- * `keine` verdicts back to demotion (classifierNode, Tier 3.7) that distinction
- * has teeth: a false positive here costs one ~700-character call and then lands
- * exactly where it would have landed anyway. That is why this list may be
- * generous where the old one had to be stingy — it used to send every false
- * positive to the 27k prompt for good. Recall is what matters; precision is the
- * resolver's job, and its prompt spends its last paragraph on precisely the
- * policy-vs-data line ("Bahnreform", "Tourismuspolitik", "Klimapolitik").
- *
- * The bare-noun alternatives still carry their own boundary — `bahn(?:en|hof…)?`
- * matches "Bahn"/"Bahnen"/"Bahnhof" but not "Bahnreform"; bare `wetter` matches
- * "das Wetter" but not "Wetterextreme"/"Unwetter" — because keeping obvious
- * policy compounds out of the resolver's inbox is free.
- *
- * BOUNDARIES ARE `\p{L}`-BASED, NOT `\b`, and that is load-bearing: `\b` needs a
- * transition between `\w` and non-`\w`, and without the `u` flag "ü" is not
- * `\w`. In " übernachten" both the space and the "ü" are non-`\w`, so there is
- * no boundary and the alternative could never fire — `[üu]bernacht\w+` matched
- * only the "ubernachten" spelling nobody writes. Every alternative that STARTS
- * with an umlaut was dead the same way. Suffix wildcards are `\p{L}*` for the
- * mirror-image reason: `\w*` stops at the umlaut in "Übernachtungsmöglichkeit"
- * and the trailing boundary then fails mid-word. `parseScope` in
- * `sourceScopeResolver.ts` already uses this idiom.
- *
- * Measured misses that the additions close — all four were phrasings the
- * resolver's own prompt advertises as its job while this gate held them back:
- * "wo kann ich in X übernachten", "wie hoch ist die Pollenbelastung",
- * "was gibt es Neues zu X", "aktuelle Nachrichten aus Y".
- */
-export const SYSTEM_MCP_PHRASING =
-  /(?<!\p{L})(hotel\p{L}*|unterkun\p{L}*|unterk[üu]nft\p{L}*|[üu]bernacht\p{L}*|absteige|pension|herberge|dienstreise\p{L}*|reiseplan\p{L}*|bahn(?:en|h(?:o|ö)f\p{L}*)?|z(?:ü|ue)ge|zugverbindung\p{L}*|fahrplan\p{L}*|abfahrtszeit\p{L}*|versp[äa]tung\p{L}*|zug\s+nach|verbindung\s+nach|wie\s+komme\s+ich\s+(?:\p{L}+\s+){0,6}?nach|wetter|wettervorhersage|wetterbericht|regnet\s+es|schneit\s+es|pollen\p{L}*|luftqualit[äa]t\p{L}*|tagesschau|schlagzeile\p{L}*|was\s+gibt\s+es\s+neues|aktuelle\s+nachrichten|neuigkeiten)(?!\p{L})/iu;
 
 /**
  * "How do I …?" — an INSTRUCTIONAL question about operating the Grünerator,
