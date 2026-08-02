@@ -42,6 +42,7 @@ import {
   shareDocToGroupMcp,
 } from './mcpMutations.js';
 
+import type { QAResponse } from '../../services/notebook/types.js';
 import type { Request } from 'express';
 
 const log = createLogger('McpServerFactory');
@@ -56,6 +57,32 @@ let notebookHelperSingleton: NotebookQdrantHelper | null = null;
 function notebookHelper(): NotebookQdrantHelper {
   notebookHelperSingleton ??= new NotebookQdrantHelper();
   return notebookHelperSingleton;
+}
+
+/**
+ * `askSingleCollection` signals these two states by throwing. They are ordinary
+ * outcomes for a tool call, not failures, so they get their own German text
+ * instead of the bridge's generic "prüfe die übergebenen IDs".
+ */
+const NOTEBOOK_QA_ERRORS: Record<string, string> = {
+  'Collection not found or access denied': 'Notizbuch nicht gefunden oder kein Zugriff.',
+  'No documents found in this collection': 'Dieses Notizbuch enthält noch keine Dokumente.',
+};
+
+/**
+ * The cited answer IS this tool's payload, so it leaves as markdown text:
+ * `formatToolResult` passes strings through untouched, while an unrecognised
+ * object shape would reach the client as raw JSON.
+ */
+function renderNotebookAnswer(result: QAResponse, notebookName: string): string {
+  const citations = result.citations ?? [];
+  if (citations.length === 0) return result.answer;
+  const lines = citations.map((c) => {
+    const title = c.document_title ?? c.title ?? 'Ohne Titel';
+    const url = c.source_url ?? c.url;
+    return `[${c.index}] ${title}${url ? ` — ${absolutizeUrl(url)}` : ''}`;
+  });
+  return `${result.answer}\n\nQuellen (${notebookName}):\n${lines.join('\n')}`;
 }
 
 const INSTRUCTIONS = `Grünerator MCP (angemeldet): Zugriff auf die eigenen Grünerator-Inhalte der angemeldeten Person (Dokumente, Boards/Aufgaben, Notizbücher, Gruppen, Medien) plus die Programm- und Beschlusssuche von Bündnis 90/Die Grünen (DE) und den Grünen (AT).
@@ -260,8 +287,8 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
 
     registerAiTool(server, 'notebooks', makeNotebooksTool(ctx), {
       description: contentWrite
-        ? `Zugriff auf die EIGENEN Notizbücher (Quellensammlungen): auflisten (list), inhaltlich durchsuchen (search mit id + query), umbenennen (rename), löschen (delete mit confirm-Protokoll).`
-        : `Die EIGENEN Notizbücher auflisten (list) oder inhaltlich durchsuchen (search mit id + query).`,
+        ? `Zugriff auf die EIGENEN Notizbücher (Quellensammlungen): auflisten (list), inhaltlich befragen (search mit id + query), umbenennen (rename), löschen (delete mit confirm-Protokoll). search liefert eine belegte Antwort mit [n]-Markern und der dazugehörigen Quellenliste — gib die Marker und Quellen in deiner Antwort weiter.`
+        : `Die EIGENEN Notizbücher auflisten (list) oder inhaltlich befragen (search mit id + query). search liefert eine belegte Antwort mit [n]-Markern und der dazugehörigen Quellenliste — gib die Marker und Quellen in deiner Antwort weiter.`,
       actions: contentWrite ? ['list', 'search', 'rename', 'delete'] : ['list', 'search'],
       extraShape: {
         query: z.string().optional().describe('Suchfrage (nur bei action="search")'),
@@ -272,17 +299,28 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
           const query = typeof args.query === 'string' ? args.query.trim() : '';
           if (!id || !query) return { error: 'search braucht id (aus list) und query.' };
           const collection = await notebookHelper().getNotebookCollection(id);
-          if (!collection || collection.user_id !== userId) {
-            return { error: 'Notizbuch nicht gefunden oder kein Zugriff.' };
+          if (!collection) return { error: 'Notizbuch nicht gefunden oder kein Zugriff.' };
+          try {
+            const result = await notebookQAService.askSingleCollection({
+              collectionId: id,
+              question: query,
+              userId,
+              aiWorkerPool: getAIWorkerPool(req),
+              // Both are REQUIRED for user collections — the service throws
+              // without them. Passing the already-fetched row mirrors
+              // notebookContractRouter and hands the access decision to
+              // `checkNotebookAccess` inside the service, which is the
+              // canonical predicate (owner / share_mode / group membership).
+              getCollectionFn: async () => collection,
+              getDocumentIdsFn: async (cid) =>
+                (await notebookHelper().getCollectionDocuments(cid)).map((d) => d.document_id),
+            });
+            return renderNotebookAnswer(result, collection.name);
+          } catch (err) {
+            const mapped = NOTEBOOK_QA_ERRORS[(err as Error).message];
+            if (mapped) return { error: mapped };
+            throw err;
           }
-          const result = await notebookQAService.askSingleCollection({
-            collectionId: id,
-            question: query,
-            userId,
-            aiWorkerPool: getAIWorkerPool(req),
-            fastMode: true,
-          });
-          return { notebook: collection.name, sources: result.sources ?? [] };
         },
       },
       ...(contentWrite ? {} : { readOnly: true }),
