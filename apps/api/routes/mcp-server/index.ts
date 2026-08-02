@@ -16,6 +16,10 @@ import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { env } from '../../config/env.js';
 import { MCP_RESOURCE_URL } from '../../config/mcpServer.js';
 import { Sentry } from '../../lib/sentry.js';
+import {
+  API_KEY_DEFAULT_RATE_LIMIT,
+  consumeApiKeyRateLimit,
+} from '../../middleware/apiKeyRateLimitMiddleware.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { resolveMcpAuth } from './mcpAuth.js';
@@ -78,6 +82,31 @@ router.post('/', async (req, res) => {
     return;
   }
 
+  // Das Kontingent des Schlüssels gilt an beiden Türen — die IP-Begrenzung oben
+  // schützt vor Rateversuchen, nicht vor einem Partner, der sein vereinbartes
+  // Kontingent überzieht, indem er statt der REST-Route den MCP-Weg nimmt.
+  if (authCtx.apiKey) {
+    const verdict = await consumeApiKeyRateLimit(
+      authCtx.apiKey.id,
+      'mcp',
+      authCtx.apiKey.rateLimitPerMinute ?? API_KEY_DEFAULT_RATE_LIMIT
+    );
+    if (!verdict.ok) {
+      res
+        .status(429)
+        .set('Retry-After', String(verdict.retryAfterSeconds))
+        .json({
+          jsonrpc: '2.0',
+          error: {
+            code: JSONRPC_RATE_LIMITED,
+            message: `Kontingent erschöpft (${verdict.limit}/min) – bitte kurz warten.`,
+          },
+          id: null,
+        });
+      return;
+    }
+  }
+
   // aiWorkerPool's privacy counter reads only req.user.id — no need for a
   // full profile load per call (the augmentation types req.user as UserProfile).
   const reqWithUser = req as unknown as { user?: { id: string } };
@@ -87,6 +116,7 @@ router.post('/', async (req, res) => {
     const server = buildAuthenticatedMcpServer({
       userId: authCtx.userId,
       scopes: authCtx.scopes,
+      ...(authCtx.apiKey ? { apiKey: authCtx.apiKey } : {}),
       req,
     });
     // No sessionIdGenerator → stateless mode (exactOptionalPropertyTypes
