@@ -51,7 +51,11 @@ const ROUTES = [
   '/chat',
   '/settings',
   '/profile',
-  '/documents',
+  // `/documents` stand hier und ist keine Route: die Anwendung kennt nur
+  // `/documents/:documentId`. Die Lane hat dort also die Nicht-gefunden-Seite
+  // geprüft und sie als Dokumentenübersicht ausgegeben. Die Übersicht ist
+  // `/office` und steht weiter unten ohnehin drin. Gegen die Wiederholung
+  // steht jetzt der 404-Riegel in `gotoAuthenticated()`.
   '/boards',
   '/notebooks',
   '/agentura',
@@ -98,7 +102,6 @@ const KNOWN_VIOLATIONS: Record<string, string[]> = {
   '/chat': ['color-contrast'],
   '/settings': ['color-contrast'],
   '/profile': ['color-contrast'],
-  '/documents': ['color-contrast'],
   // `nested-interactive` bleibt hier stehen, obwohl die Nachmessung es nicht
   // meldet: die Messung lief mit LEEREM Board (0 Karten). Die Ursache sitzt
   // nicht in unseren Karten, sondern in dnd-kits `role="button"` auf dem
@@ -129,6 +132,21 @@ async function gotoAuthenticated(page: Page, route: string): Promise<void> {
   // Auf Ruhe warten statt auf `networkidle`: die App hält SSE-Verbindungen
   // offen, `networkidle` würde in den Timeout laufen.
   await page.waitForTimeout(1500);
+
+  // Zwei Riegel gegen dieselbe Fehlerklasse: eine Messung, die etwas anderes
+  // prüft als die genannte Route, meldet ein Ergebnis, das erfreulich aussieht
+  // und nichts aussagt. Ohne Bypass ist das 20× die Loginseite, bei einer
+  // falsch geschriebenen Route 1× die Nicht-gefunden-Seite. Beides muss die
+  // Lane als Fehler melden, nicht als Befund.
+  const landed = new URL(page.url()).pathname;
+  expect(
+    landed.startsWith('/login') && route !== '/login',
+    `${route} ist auf ${landed} umgeleitet — der Dev-Auth-Bypass greift nicht.`
+  ).toBe(false);
+  expect(
+    await page.locator('.not-found-container').count(),
+    `${route} rendert die Nicht-gefunden-Seite — die Route gibt es nicht.`
+  ).toBe(0);
 }
 
 test.describe('Barrierefreiheit (WCAG 2.2 AA)', () => {
