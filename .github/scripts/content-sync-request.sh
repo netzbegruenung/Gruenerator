@@ -39,6 +39,25 @@ RESPONSE_BODY=$(echo "$RESPONSE" | sed '$d')
 if [ "$HTTP_CODE" != "202" ]; then
   # 409 busy, 5xx — or a backend without background support, which ignores the
   # flag and answers 200 with the full synchronous result. Pass both through.
+  #
+  # Name that second case out loud. A backend predating #1632 runs the sync
+  # synchronously, so the short hourly runs still come back 200 (looks healthy)
+  # while the nightly full LV walks outlive the proxy's ~5 min ceiling and 504.
+  # That asymmetry is exactly what made #1639 read as a flaky sync for weeks
+  # instead of as a missing production rollout.
+  case "$HTTP_CODE" in
+    200)
+      echo "WARNING: backend answered 200 synchronously and ignored 'background: true'." >&2
+      echo "  It predates #1632 (pollable background jobs). Short runs survive; full" >&2
+      echo "  nightly runs will 504 at the proxy until master is rolled out to prod." >&2
+      ;;
+    504)
+      echo "ERROR: 504 from the reverse proxy on the trigger call itself." >&2
+      echo "  A backend with background support answers 202 immediately, so this means" >&2
+      echo "  'background: true' was ignored and the sync ran synchronously past the" >&2
+      echo "  proxy's ~5 min ceiling. Roll master out to prod (see issue #1639)." >&2
+      ;;
+  esac
   echo "$RESPONSE_BODY" > "$OUT_FILE"
   echo "$HTTP_CODE"
   exit 0
