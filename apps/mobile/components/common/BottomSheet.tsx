@@ -3,7 +3,9 @@ import { View, Modal, Pressable, StyleSheet, useColorScheme } from 'react-native
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useLayout } from '../../hooks/useLayout';
 import { lightTheme, darkTheme, colors, spacing } from '../../theme';
+import { CONTENT_MAX_WIDTH } from '../../theme/layout';
 
 interface BottomSheetProps {
   visible: boolean;
@@ -38,6 +40,7 @@ export function BottomSheet({
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const theme = isDark ? darkTheme : lightTheme;
+  const { isTablet } = useLayout();
 
   const content = (
     <>
@@ -45,6 +48,10 @@ export function BottomSheet({
       <Pressable
         style={[
           styles.sheet,
+          // A sheet that spans a 1024dp slab is not a sheet, it is a second
+          // screen. Capped it needs a bottom edge of its own — the two upper
+          // corners were enough while the lower ones ran off the display.
+          isTablet && styles.sheetWide,
           {
             // Always keep a comfortable gap below the last element — the safe-area
             // inset (often 0 inside a RN Modal) plus a fixed cushion.
@@ -111,6 +118,14 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  sheetWide: {
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
+    marginBottom: spacing.medium,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   handleRow: {
     alignItems: 'center',

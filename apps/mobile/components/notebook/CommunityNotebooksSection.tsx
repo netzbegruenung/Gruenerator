@@ -12,7 +12,6 @@ import {
 
 import { useNotebookLikes } from '../../hooks/notebook/useNotebookLikes';
 import { usePublicNotebookCollections } from '../../hooks/notebook/usePublicNotebookCollections';
-import { useIsTablet } from '../../hooks/useIsTablet';
 import {
   colors,
   spacing,
@@ -23,7 +22,7 @@ import {
   BODY_FONT,
 } from '../../theme';
 
-import { NotebookCard, notebookGridStyles } from './NotebookCard';
+import { NotebookCard, useNotebookGrid } from './NotebookCard';
 
 /**
  * "Von der Basis" — public community notebooks (web's VonDerBasisSection). Reuses
@@ -39,7 +38,7 @@ export function CommunityNotebooksSection({
 }) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-  const isTablet = useIsTablet();
+  const notebookGrid = useNotebookGrid();
   const [query, setQuery] = useState('');
   const { publicNotebooks, isLoading } = usePublicNotebookCollections(enabled);
   const { isLiked, toggleLike } = useNotebookLikes(enabled);
@@ -80,7 +79,7 @@ export function CommunityNotebooksSection({
           Keine Treffer für &ldquo;{query}&rdquo;
         </Text>
       ) : (
-        <View style={isTablet ? notebookGridStyles.grid : undefined}>
+        <View style={notebookGrid.container}>
           {filtered.map((n) => {
             const liked = isLiked(n.id);
             return (
@@ -90,7 +89,7 @@ export function CommunityNotebooksSection({
                 title={n.name}
                 subtitle={n.creator_name ? `von ${n.creator_name}` : undefined}
                 onPress={() => onOpen(n.id, n.name)}
-                style={isTablet ? notebookGridStyles.item : undefined}
+                style={notebookGrid.item}
                 trailing={
                   <Pressable onPress={() => toggleLike(n.id)} hitSlop={8} style={styles.likeButton}>
                     <Ionicons
