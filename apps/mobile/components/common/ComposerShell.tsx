@@ -1,4 +1,4 @@
-import { View, StyleSheet, useColorScheme } from 'react-native';
+import { View, StyleSheet, useColorScheme, Platform } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
 import { colors, spacing, borderRadius, chatType } from '../../theme';
@@ -37,6 +37,43 @@ export const COMPOSER_CARD_MIN_HEIGHT = 130;
  * through `typeScale` instead of being fitted to one handset.
  */
 const LINE_HEIGHT = Number(chatType.chatBody.lineHeight);
+const FONT_SIZE = Number(chatType.chatBody.fontSize);
+
+/**
+ * PT Sans' own line height, as a multiple of the font size.
+ *
+ * `(ascender 1018 + |descender| 276) / 1000 unitsPerEm`, read out of the shipped
+ * `assets/fonts/PTSans-Regular.ttf` (`hhea`; its `OS/2` typo metrics are
+ * identical and `USE_TYPO_METRICS` is off, so CoreText resolves to the same
+ * numbers). At 17pt that is 21.998pt of glyph inside a 27pt line box.
+ */
+const BODY_FONT_LINE_HEIGHT_RATIO = 1.294;
+
+/**
+ * How far iOS drops the text below the middle of its own line box.
+ *
+ * An explicit `lineHeight` reaches iOS as `NSParagraphStyle`'s
+ * `minimum/maximumLineHeight`, and TextKit spends the surplus over the font's
+ * natural line height ENTIRELY above the glyphs — they end up sitting on the
+ * bottom of the box rather than in its centre. React Native knows this and
+ * corrects it with an `NSBaselineOffsetAttributeName` of exactly
+ * `(lineHeight - fontLineHeight) / 2` — but on the New Architecture only for
+ * `<Text>`: `RCTApplyBaselineOffset` is called from `RCTTextLayoutManager.mm`
+ * and from nowhere else, while `RCTTextInputComponentView` hands its attributed
+ * string straight to the UITextView. So `<TextInput>` keeps the whole error,
+ * for the draft and for the placeholder alike.
+ *
+ * We re-apply it as padding rather than reduce `lineHeight`: the surplus is what
+ * gives the wrapped draft its line spacing, and moving it around leaves the
+ * input's measured height — and with it the bar's own height — untouched.
+ *
+ * Android distributes the surplus evenly by itself, hence iOS only. `max(0)`
+ * mirrors RN's own early return for a `lineHeight` below the font's.
+ */
+const IOS_TEXT_BOX_DROP =
+  Platform.OS === 'ios'
+    ? Math.max(0, (LINE_HEIGHT - FONT_SIZE * BODY_FONT_LINE_HEIGHT_RATIO) / 2)
+    : 0;
 
 const BAR_INPUT_PADDING_V = 12;
 const BAR_PADDING_V = 5;
@@ -196,12 +233,15 @@ const inputStyles = StyleSheet.create({
     paddingVertical: 0,
     textAlignVertical: 'top',
   },
+  // The two paddings still add up to `BAR_INPUT_PADDING_V * 2` — the input
+  // measures the same, the bar keeps its height, and only the text moves up onto
+  // the centre line the "+" and the send button already sit on.
   bar: {
     flex: 1,
     ...chatType.chatBody,
     maxHeight: LINE_HEIGHT * BAR_MAX_LINES + BAR_INPUT_PADDING_V * 2,
-    paddingTop: BAR_INPUT_PADDING_V,
-    paddingBottom: BAR_INPUT_PADDING_V,
+    paddingTop: BAR_INPUT_PADDING_V - IOS_TEXT_BOX_DROP,
+    paddingBottom: BAR_INPUT_PADDING_V + IOS_TEXT_BOX_DROP,
     paddingLeft: spacing.xxsmall,
   },
 });
