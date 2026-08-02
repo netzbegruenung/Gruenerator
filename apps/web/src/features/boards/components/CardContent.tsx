@@ -27,7 +27,15 @@ export const CardContent = memo(function CardContent({
   const handleClick = useCallback(() => onCardClick(row), [onCardClick, row]);
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') onCardClick(row);
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      // Der Titel wird per Doppelklick zum Eingabefeld. Dort ist die Leertaste
+      // ein Leerzeichen und kein Auslöser — ohne diese Ausnahme würde
+      // preventDefault() das Tippen abwürgen.
+      if ((e.target as HTMLElement).closest('input, textarea, [contenteditable="true"]')) return;
+      // Ein `role="button"` schuldet Enter UND Leertaste (WCAG 4.1.2); ohne
+      // preventDefault scrollt die Leertaste stattdessen die Spalte.
+      e.preventDefault();
+      onCardClick(row);
     },
     [onCardClick, row]
   );
