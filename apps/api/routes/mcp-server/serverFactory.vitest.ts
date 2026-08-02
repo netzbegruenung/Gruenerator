@@ -109,11 +109,24 @@ describe('search collections', () => {
 
 describe('method discovery', () => {
   it('publishes prompts and resources even to a connection with no scopes', () => {
-    // A client reads the method before it has anything to search.
+    // A client reads the method before it has anything to search. Die
+    // Agenten-Prompts hängen aus demselben Grund an keinem Scope: sie sind
+    // reiner Text und geben nichts frei.
     const built = build([]);
-    expect([...built.prompts.keys()].sort()).toEqual(['notizbuch-antwort', 'recherche']);
+    const prompts = [...built.prompts.keys()];
+    expect(prompts).toContain('recherche');
+    expect(prompts).toContain('notizbuch-antwort');
     expect(built.resources.get('methode')).toBe('gruenerator://methode');
     expect(built.resources.get('sammlungen')).toBe('gruenerator://sammlungen');
+  });
+
+  it('trägt die Agenten als Prompts ohne den gruenerator-Präfix', () => {
+    const prompts = [...build([]).prompts.keys()];
+    // Der Präfix ist eine Registry-Konvention, kein Teil des Prompt-Namens —
+    // und die Namen sind F0: eine Client-Konfiguration nennt sie wörtlich.
+    expect(prompts.some((p) => p.startsWith('gruenerator-'))).toBe(false);
+    expect(prompts).toContain('wahlprogramm');
+    expect(prompts).toContain('universal');
   });
 
   it('points the search tool at the method rather than restating it', () => {

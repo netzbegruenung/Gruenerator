@@ -142,7 +142,11 @@ export const darkTheme = {
   backgroundSand: colors.grey[800],
   surface: colors.grey[900],
   text: colors.grey[100],
-  textSecondary: colors.grey[400],
+  // grey[400] erreichte auf background (#262626) 3,31:1 und auf surface
+  // (#3d3d3d) 3,76:1 — beides unter 4,5:1 (WCAG 1.4.3). Eine Rampenstufe
+  // heller genuegt: 8,05:1 bzw. 5,78:1. Mobile braucht dafuer eine andere
+  // Stufe als das Web, weil grey[900] hier #3d3d3d ist und dort #2e2e2e.
+  textSecondary: colors.grey[300],
   textGreen: colors.primary[400],
   link: colors.primary[400],
   border: 'rgba(255, 255, 255, 0.1)',

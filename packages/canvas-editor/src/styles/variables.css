@@ -46,6 +46,12 @@
     --grey-900: #3d3d3d;
     --grey-950: #262626;
 
+    /* Lesegrau für Text — themeabhängig, weil ein fester Grauwert WCAG 1.4.3
+       (4,5:1) nicht in beiden Modi erfüllen kann. Dark-Werte im
+       [data-theme="dark"]-Block, Werte identisch mit apps/web. */
+    --grey-text-val: #6d6d6d;
+    --grey-text-weak-val: #767676;
+
     /* Neutral Color System ("Sand") */
     --neutral-500: #f8f4ec;
     --neutral-600: #F5F1E9;
@@ -141,7 +147,9 @@
     --editor-border-soft: #E4E2DA;
     --editor-border-strong: #DBD9D0;
     --editor-text-secondary: #4B4A45;
-    --editor-text-muted: #84827A;
+    /* Warmgrau, um 5 % abgedunkelt (war #84827A): 3,85 -> 4,55:1 auf weißer
+       Editor-Fläche. Gleicher Wert wie in apps/web. */
+    --editor-text-muted: #78766E;
     --editor-placeholder: #9A988F;
 }
 
@@ -165,6 +173,8 @@
     --border-subtle: 1px solid rgba(255, 255, 255, 0.1);
 
     --interactive-accent-color: var(--white);
+    --grey-text-val: #909090;
+    --grey-text-weak-val: #a3a3a3;
     --font-color-disabled: var(--grey-500);
     --border-color-disabled: var(--grey-600);
     --input-background: var(--background-color-alt);
