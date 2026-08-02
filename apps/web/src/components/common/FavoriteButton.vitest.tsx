@@ -23,6 +23,10 @@ describe('FavoriteButton', () => {
     const onToggle = vi.fn();
     const onWrapperClick = vi.fn();
     render(
+      // Der Wrapper IST der Prüfgegenstand: er belegt, dass der Knopf die
+      // Weitergabe stoppt. Ein echtes Bedienelement daraus zu machen, würde
+      // den Test gegenstandslos machen.
+      // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
       <div onClick={onWrapperClick}>
         <FavoriteButton favorited={false} onToggle={onToggle} />
       </div>

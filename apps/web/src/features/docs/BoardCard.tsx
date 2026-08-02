@@ -1,4 +1,4 @@
-import { cn } from '@gruenerator/ui';
+import { InteractiveCard, cn, interactiveCardControl } from '@gruenerator/ui';
 import { memo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -35,22 +35,15 @@ export const BoardCard = memo(function BoardCard({
       .join(' · ') + sharedSuffix;
 
   return (
-    <div
+    <InteractiveCard
+      label={board.title}
+      onActivate={handleClick}
       className={cn(
-        'group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border border-grey-200/80 bg-background',
+        'group flex cursor-pointer flex-col overflow-hidden rounded-xl border border-grey-200/80 bg-background',
         'transition-[box-shadow,border-color,transform] duration-150',
         'hover:-translate-y-0.5 hover:border-secondary-300 hover:shadow-md',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
         'dark:border-grey-700/60 dark:hover:border-secondary-700'
       )}
-      onClick={handleClick}
-      onKeyDown={(e) => {
-        if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return;
-        e.preventDefault();
-        handleClick();
-      }}
-      role="button"
-      tabIndex={0}
     >
       <div className="h-[210px] overflow-hidden border-b border-grey-100 bg-grey-50 p-4 dark:border-grey-700/60 dark:bg-grey-800/40">
         <BoardPreviewBody
@@ -67,12 +60,13 @@ export const BoardCard = memo(function BoardCard({
           <p className="m-0 truncate text-[13px] text-grey-500 dark:text-grey-400">{metaLine}</p>
         </div>
         <CardActionMenu
+          className={interactiveCardControl}
           ariaLabel="Boardoptionen"
           onRename={(e) => onRename(board, e)}
           onDelete={(e) => onDelete(board.id, e)}
           {...(onShare ? { onShare: (e: React.MouseEvent) => onShare(board, e) } : {})}
         />
       </div>
-    </div>
+    </InteractiveCard>
   );
 });
