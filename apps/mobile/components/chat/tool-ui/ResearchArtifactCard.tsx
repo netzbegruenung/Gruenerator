@@ -145,6 +145,8 @@ export function ResearchArtifactCard({ part, theme }: { part: ToolCallPart; them
           <Pressable
             onPress={() => setExpanded((x) => !x)}
             style={({ pressed }) => [styles.actionButton, { opacity: pressed ? 0.6 : 1 }]}
+            accessibilityRole="button"
+            accessibilityState={{ expanded }}
           >
             <Ionicons
               name={expanded ? 'chevron-up' : 'chevron-down'}
@@ -160,6 +162,7 @@ export function ResearchArtifactCard({ part, theme }: { part: ToolCallPart; them
           <Pressable
             onPress={handleExport}
             style={({ pressed }) => [styles.actionButton, { opacity: pressed ? 0.6 : 1 }]}
+            accessibilityRole="button"
           >
             <Ionicons name="document-text-outline" size={14} color={colors.primary[600]} />
             <Text style={[styles.actionText, { color: colors.primary[600] }]}>
@@ -175,6 +178,8 @@ export function ResearchArtifactCard({ part, theme }: { part: ToolCallPart; them
             onPress={() => setShowSources((s) => !s)}
             style={styles.sourcesTrigger}
             hitSlop={8}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showSources }}
           >
             <Ionicons
               name={showSources ? 'chevron-down' : 'chevron-forward'}

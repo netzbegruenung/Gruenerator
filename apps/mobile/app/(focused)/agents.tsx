@@ -314,9 +314,15 @@ export default function AgentsScreen() {
             style={[styles.searchInput, { color: theme.text }]}
             returnKeyType="search"
             autoCorrect={false}
+            accessibilityLabel="Grüneratoren und Rezepte durchsuchen"
           />
           {search.length > 0 && (
-            <Pressable onPress={() => setSearch('')} hitSlop={8}>
+            <Pressable
+              onPress={() => setSearch('')}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Suche zurücksetzen"
+            >
               <Ionicons name="close-circle" size={18} color={theme.textSecondary} />
             </Pressable>
           )}

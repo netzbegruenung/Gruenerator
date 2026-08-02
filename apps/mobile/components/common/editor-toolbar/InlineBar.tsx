@@ -39,6 +39,8 @@ export function InlineBar({ children, onClose }: InlineBarProps) {
           onPress={onClose}
           hitSlop={12}
           style={[styles.closeButton, { backgroundColor: theme.background }]}
+          accessibilityRole="button"
+          accessibilityLabel="Bearbeitung schließen"
         >
           <Ionicons name="chevron-back" size={uiScale(26)} color={theme.text} />
         </Pressable>

@@ -122,7 +122,12 @@ function VideoPlayer({ source, onTogglePlayback, isPlaying }: VideoPlayerProps) 
   return (
     <>
       <VideoView player={player} style={styles.video} contentFit="contain" nativeControls={false} />
-      <Pressable style={styles.playOverlay} onPress={onTogglePlayback}>
+      <Pressable
+        style={styles.playOverlay}
+        onPress={onTogglePlayback}
+        accessibilityRole="button"
+        accessibilityLabel={isPlaying ? 'Wiedergabe pausieren' : 'Wiedergabe starten'}
+      >
         {!isPlaying && (
           <View style={styles.playButton}>
             <Ionicons name="play" size={28} color={colors.white} />

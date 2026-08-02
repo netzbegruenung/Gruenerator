@@ -44,7 +44,12 @@ export function RunPythonCard({ args, result, theme }: RunPythonCardProps) {
           {!done ? 'wird ausgeführt…' : error ? 'fehlgeschlagen' : 'abgeschlossen'}
         </Text>
         {code !== '' && (
-          <Pressable onPress={() => setExpanded((x) => !x)} style={styles.toggle}>
+          <Pressable
+            onPress={() => setExpanded((x) => !x)}
+            style={styles.toggle}
+            accessibilityRole="button"
+            accessibilityState={{ expanded }}
+          >
             <Ionicons
               name={expanded ? 'chevron-down' : 'chevron-forward'}
               size={14}

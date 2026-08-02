@@ -43,6 +43,8 @@ export function KeyValueCard({
       <Pressable
         onPress={() => hasContent && setExpanded((x) => !x)}
         style={[styles.pill, { backgroundColor: theme.surface, borderColor: theme.border }]}
+        accessibilityRole="button"
+        accessibilityState={{ expanded, disabled: !hasContent }}
       >
         <Ionicons name={toolIonicon(meta.iconKey)} size={14} color={colors.primary[500]} />
         <Text style={[styles.label, { color: theme.text }]}>{meta.label}</Text>

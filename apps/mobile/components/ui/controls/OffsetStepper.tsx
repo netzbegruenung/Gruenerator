@@ -57,6 +57,9 @@ export function OffsetStepper({
             },
             (disabled || isAtMin) && styles.buttonDisabled,
           ]}
+          accessibilityRole="button"
+          accessibilityLabel="Wert verringern"
+          accessibilityState={{ disabled: disabled || isAtMin }}
         >
           <Ionicons
             name="chevron-back"
@@ -80,6 +83,9 @@ export function OffsetStepper({
             },
             (disabled || isAtMax) && styles.buttonDisabled,
           ]}
+          accessibilityRole="button"
+          accessibilityLabel="Wert erhöhen"
+          accessibilityState={{ disabled: disabled || isAtMax }}
         >
           <Ionicons
             name="chevron-forward"
