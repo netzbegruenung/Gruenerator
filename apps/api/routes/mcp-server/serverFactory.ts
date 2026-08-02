@@ -3,6 +3,7 @@
  * the actions inside a tool — be registered only for granted OAuth scopes, so
  * the model never sees an action it cannot take.
  */
+import { buildSourceRef } from '@gruenerator/shared/utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
@@ -57,6 +58,7 @@ import {
 } from './methodPrompts.js';
 
 import type { QAResponse } from '../../services/notebook/types.js';
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { Request } from 'express';
 
 const log = createLogger('McpServerFactory');
@@ -96,13 +98,17 @@ const NOTEBOOK_QA_ERRORS: Record<string, string> = {
  * `formatToolResult` passes strings through untouched, while an unrecognised
  * object shape would reach the client as raw JSON.
  */
-function renderNotebookAnswer(result: QAResponse, notebookName: string): string {
+export function renderNotebookAnswer(result: QAResponse, notebookName: string): string {
   const citations = result.citations ?? [];
   if (citations.length === 0) return result.answer;
   const lines = citations.map((c) => {
     const title = c.document_title ?? c.title ?? 'Ohne Titel';
     const url = c.source_url ?? c.url;
-    return `[${c.index}] ${title}${url ? ` — ${absolutizeUrl(url)}` : ''}`;
+    // Hashed from the STORED url, shown absolutized: `absolutizeUrl` prepends
+    // APP_BASE_URL, so hashing its output would give one document two different
+    // refs on test and prod.
+    const ref = buildSourceRef({ url, documentId: c.document_id });
+    return `[${c.index}] ${title}${url ? ` — ${absolutizeUrl(url)}` : ''}${ref ? ` [ref: ${ref}]` : ''}`;
   });
   return `${result.answer}\n\nQuellen (${notebookName}):\n${lines.join('\n')}`;
 }
@@ -113,19 +119,36 @@ Für belegte Antworten aus mehreren Quellen gilt ein festes Vorgehen: die Resour
 
 Regeln:
 - Kein Tool schreibt dir den Text der Recherche — die Synthese aus den Treffern ist deine Aufgabe. Ausnahme: notebooks mit action="search" liefert bereits eine belegte Antwort.
-- IDs und refs stammen immer aus einem vorherigen list-/search-Aufruf — niemals raten.
+- Ein ref benennt eine Sache über Aufrufe hinweg: zitiere darüber (nicht über rank, der nur innerhalb einer Antwort gilt), führe zwei Treffer mit gleichem ref als eine Quelle, nummeriere deine Quellenliste selbst — und gib ihn dort zurück, wo ein Tool ihn erwartet. IDs und refs stammen immer aus einem vorherigen list-/search-Aufruf, niemals raten.
 - Destruktive oder nach außen sichtbare Aktionen (löschen, teilen) verlangen das zweistufige Protokoll: erster Aufruf ohne confirm liefert eine Rückfrage; erst nach Zustimmung der Person mit confirm=true erneut aufrufen.
 - create_document/create_board erzeugen echte Inhalte im Konto — Ergebnis-Link nennen.
 - Antworten auf Deutsch, Quellen-URLs nennen.`;
 
-function text(value: string, isError = false) {
+/** The SDK's own result type — it carries an index signature that a hand-rolled
+ *  interface would not satisfy. */
+type ToolResponse = CallToolResult;
+
+function text(value: string, isError = false): ToolResponse {
   return {
     content: [{ type: 'text' as const, text: value }],
     ...(isError ? { isError: true } : {}),
   };
 }
 
-type ToolResponse = ReturnType<typeof text>;
+/**
+ * A successful result in both forms: prose for the model, object for the client.
+ *
+ * `content` is not optional — the SDK does NOT derive it from
+ * `structuredContent` (a tool that returns only the object sends `content: []`).
+ * And once a tool declares an `outputSchema`, EVERY success path has to come
+ * through here: `validateToolOutput` rejects a schema-carrying tool that returns
+ * no `structuredContent`, which would turn a valid "Keine Treffer" into
+ * `-32602`. Error paths are exempt — the SDK skips validation when `isError` is
+ * set — so `guarded()` and the `text(…, true)` returns stay as they are.
+ */
+function structured(value: string, structuredContent: Record<string, unknown>): ToolResponse {
+  return { content: [{ type: 'text' as const, text: value }], structuredContent };
+}
 
 /** Never leak raw service/driver errors to external MCP clients. */
 function guarded<A>(name: string, fn: (args: A) => Promise<ToolResponse>) {
@@ -141,6 +164,55 @@ function guarded<A>(name: string, fn: (args: A) => Promise<ToolResponse>) {
 }
 
 const READONLY = { readOnlyHint: true, destructiveHint: false, openWorldHint: false };
+
+/** Every field is set on every success path — including "Keine Treffer", which
+ *  returns the same object with an empty `results`. */
+const SEARCH_OUTPUT_SCHEMA = {
+  collection: z.string(),
+  query: z.string(),
+  resultsCount: z.number(),
+  results: z.array(
+    z.object({
+      ref: z
+        .string()
+        .nullable()
+        .describe(
+          'Stabiler Schlüssel dieser Quelle — über Aufrufe hinweg gleich. Zum Zitieren und Deduplizieren; rank gilt nur in dieser Antwort.'
+        ),
+      rank: z.number(),
+      title: z.string(),
+      url: z.string().nullable(),
+      excerpt: z.string(),
+      relevance: z.string(),
+      collection: z.string(),
+    })
+  ),
+};
+
+const EXAMPLES_OUTPUT_SCHEMA = {
+  type: z.string(),
+  query: z.string(),
+  country: z.string(),
+  resultsCount: z.number(),
+  examples: z.array(z.record(z.string(), z.unknown())),
+};
+
+/** `values` carries the full facet list — the 25-value cap below is a property
+ *  of the prose, not of the data. A collection without filter fields returns
+ *  `fields: []`; that is a success and needs the object like any other. */
+const FILTERS_OUTPUT_SCHEMA = {
+  collection: z.string(),
+  fields: z.array(
+    z.object({
+      field: z.string(),
+      label: z.string(),
+      type: z.enum(['keyword', 'date_range']),
+      values: z.array(z.object({ value: z.string(), count: z.number() })).optional(),
+      min: z.string().optional(),
+      max: z.string().optional(),
+    })
+  ),
+};
 
 /**
  * Prompts and resources are scope-independent: they describe how to work with
@@ -290,6 +362,7 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
               'Feldfilter, z.B. {"content_type":"praxishilfe"}. Werte NIE raten — vorher gruenerator_get_filters aufrufen.'
             ),
         },
+        outputSchema: SEARCH_OUTPUT_SCHEMA,
         annotations: READONLY,
       },
       guarded('gruenerator_search', async ({ query, collection, limit, filters }) => {
@@ -300,12 +373,25 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
           ...(filters ? { filters } : {}),
         });
         if (result.error) return text(result.message ?? 'Suche fehlgeschlagen.', true);
-        if (result.resultsCount === 0) return text('Keine Treffer.');
-        const lines = result.results.map(
+        const hits = result.results.map((r) => ({
+          // `rank` orders THIS response, `ref` identifies the source across
+          // responses. A client citing by rank re-labels the same document on
+          // every call.
+          ref: buildSourceRef({ url: r.url, documentId: r.documentId }),
+          rank: r.rank,
+          title: r.source,
+          url: r.url ?? null,
+          excerpt: r.excerpt,
+          relevance: r.relevance,
+          collection,
+        }));
+        const payload = { collection, query, resultsCount: hits.length, results: hits };
+        if (hits.length === 0) return structured('Keine Treffer.', payload);
+        const lines = hits.map(
           (r) =>
-            `[${r.rank}] **${r.source}** (${r.relevance})${r.url ? ` — ${r.url}` : ''}\n${r.excerpt}`
+            `[${r.rank}] **${r.title}** (${r.relevance})${r.url ? ` — ${r.url}` : ''}${r.ref ? ` [ref: ${r.ref}]` : ''}\n${r.excerpt}`
         );
-        return text(lines.join('\n\n'));
+        return structured(lines.join('\n\n'), payload);
       })
     );
 
@@ -316,6 +402,7 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
         description:
           'Nennt die tatsächlich belegten Filterwerte einer Sammlung samt Trefferzahl. Vor jeder gefilterten Suche aufrufen — die Werte unterscheiden sich pro Sammlung und lassen sich nicht erraten.',
         inputSchema: { collection: z.enum(SEARCH_COLLECTIONS) },
+        outputSchema: FILTERS_OUTPUT_SCHEMA,
         annotations: READONLY,
       },
       guarded('gruenerator_get_filters', async ({ collection }) => {
@@ -329,7 +416,20 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
         setCachedFilters(cacheKey, merged);
 
         const entries = Object.entries(merged.filters);
-        if (entries.length === 0) return text(`Sammlung "${collection}" hat keine Filterfelder.`);
+        const fields = entries.map(([field, entry]) => ({
+          field,
+          label: entry.label,
+          type: entry.type,
+          ...(entry.values ? { values: entry.values } : {}),
+          ...(entry.min ? { min: entry.min } : {}),
+          ...(entry.max ? { max: entry.max } : {}),
+        }));
+        if (entries.length === 0) {
+          return structured(`Sammlung "${collection}" hat keine Filterfelder.`, {
+            collection,
+            fields,
+          });
+        }
 
         const blocks = entries.map(([field, entry]) => {
           if (entry.type === 'date_range') {
@@ -341,7 +441,10 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
             .join(', ');
           return `**${field}** (${entry.label}): ${values || '— keine Werte'}`;
         });
-        return text(`Filterfelder für "${collection}":\n\n${blocks.join('\n')}`);
+        return structured(`Filterfelder für "${collection}":\n\n${blocks.join('\n')}`, {
+          collection,
+          fields,
+        });
       })
     );
 
@@ -361,9 +464,35 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
             .describe('Nur bei type="social": z.B. instagram, facebook'),
           limit: z.number().int().min(1).max(12).default(6),
         },
+        outputSchema: EXAMPLES_OUTPUT_SCHEMA,
         annotations: READONLY,
       },
       guarded('gruenerator_examples_search', async ({ type, query, country, platform, limit }) => {
+        // Both branches carry their own item shape (a social post is not a press
+        // release), so `examples` stays open in the schema. What is guaranteed is
+        // the envelope — and a `ref` on every item, derived from its permalink.
+        const emit = (result: { resultsCount: number; examples: unknown[] }) => {
+          const { text: body, isError } = formatToolResult(result);
+          if (isError) return text(body, true);
+          const examples = result.examples.map((ex) => {
+            const item = ex as Record<string, unknown>;
+            const url =
+              typeof item.url === 'string'
+                ? item.url
+                : typeof (item.metadata as Record<string, unknown> | undefined)?.url === 'string'
+                  ? ((item.metadata as Record<string, unknown>).url as string)
+                  : null;
+            return { ...item, ref: buildSourceRef({ url, documentId: String(item.id ?? '') }) };
+          });
+          return structured(body, {
+            type,
+            query,
+            country,
+            resultsCount: examples.length,
+            examples,
+          });
+        };
+
         if (type === 'social') {
           const result = await executeDirectExamplesSearch({
             query,
@@ -372,16 +501,13 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
           });
           // executeDirectExamplesSearch has no limit param
           const examples = result.examples.slice(0, limit);
-          const { text: body, isError } = formatToolResult({
+          return emit({
             ...result,
             examples,
             resultsCount: Math.min(result.resultsCount, examples.length),
           });
-          return text(body, isError);
         }
-        const result = await executeDirectPressemitteilungExamples({ query, country, limit });
-        const { text: body, isError } = formatToolResult(result);
-        return text(body, isError);
+        return emit(await executeDirectPressemitteilungExamples({ query, country, limit }));
       })
     );
 
