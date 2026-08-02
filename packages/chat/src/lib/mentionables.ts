@@ -28,9 +28,11 @@ import {
   PiCalculator,
 } from '@gruenerator/shared/icons';
 import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
+import { DEFAULT_INSTANCE_ID, type InstanceId } from '@gruenerator/shared/instances';
 import {
   NOTEBOOK_REGISTRY,
   isNotebookEnabled,
+  isNotebookOfferedIn,
   getNotebooksForAudience,
 } from '@gruenerator/shared/notebooks';
 import { mcpBrandColor, slugifyName } from '@gruenerator/shared/utils';
@@ -179,6 +181,17 @@ export function getMentionLocale(): string {
   return mentionLocale;
 }
 
+// Which instance the host app runs as — decides which notebooks the picker
+// offers. Injected exactly like the locale above, because this package is built
+// into the web bundle and the React Native binary alike and neither shares a way
+// to read it. Defaults to the conservative production selection, so a host that
+// never calls the setter behaves as it did before instances existed.
+let mentionInstance: InstanceId = DEFAULT_INSTANCE_ID;
+
+export function setMentionInstance(instanceId: InstanceId): void {
+  mentionInstance = instanceId;
+}
+
 /** Agent/skill mentionables visible for the current locale (de-DE/de-AT/all). */
 export function getAgentMentionables(): Mentionable[] {
   return agentMentionables.filter(
@@ -215,11 +228,18 @@ export function visibleToolMentionables(): Mentionable[] {
  * `notebookMentionables` (enabled-only) stays the input; `allNotebookMentionables`
  * remains what `resolveMentionable` reads, so a disabled or foreign notebook
  * mentioned in an old thread still resolves.
+ *
+ * The instance filter sits here for the same reason: the picker is discovery, so
+ * a notebook this instance does not offer must not be listed — while a token for
+ * it in an existing thread keeps resolving, which is what makes `hidden`
+ * different from `blocked`.
  */
 export function visibleNotebookMentionables(): Mentionable[] {
   const locale = mentionLocale === 'de-AT' ? 'de-AT' : 'de-DE';
   const allowed = new Set<string>(getNotebooksForAudience(locale).map((n) => n.id));
-  return notebookMentionables.filter((m) => allowed.has(m.identifier));
+  return notebookMentionables.filter(
+    (m) => allowed.has(m.identifier) && isNotebookOfferedIn(m.identifier, mentionInstance)
+  );
 }
 
 let customAgentMentionables: Mentionable[] = [];

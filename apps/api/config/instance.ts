@@ -6,12 +6,14 @@
  * not take the API down, and the conservative selection is the safe landing
  * spot.
  *
- * Today nothing in the API filters on this yet: the instance content policies
- * are all empty, and the backend enforcement of a hidden notebook (so the chat
- * cannot keep citing sources from it) is its own step. See AP4 in
- * `docs/instanz-filterung-plan.md`. This module exists so both sides resolve
- * the instance through the same shared registry rather than growing a second
- * notion of what a deployment is.
+ * What filters on it is the notebook gate in `./notebookCollectionMap.ts`,
+ * reading the same shared registry the frontend does. That gate is what makes
+ * hiding a notebook mean something: Qdrant is *not* partitioned per instance
+ * (one `QDRANT_URL`), so a frontend-only policy would leave the chat citing
+ * sources from a notebook the user cannot see.
+ *
+ * No registered instance carries a content policy yet, so today every gate
+ * answers exactly as it did before instances existed.
  */
 import { resolveInstance, type InstanceId } from '@gruenerator/shared/instances';
 
