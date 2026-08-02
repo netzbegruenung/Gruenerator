@@ -1,15 +1,23 @@
-import { getDisabledNotebookIds } from '@gruenerator/shared/notebooks';
+import { getInstance, type InstancePolicyView } from '@gruenerator/shared/instances';
+import {
+  NOTEBOOK_REGISTRY,
+  getDisabledNotebookIds,
+  getNotebookDefinition,
+  isNotebookOfferedUnder,
+  isNotebookResolvableUnder,
+} from '@gruenerator/shared/notebooks';
 
 import { COLLECTION_MAP } from './collectionMap.js';
+import { CURRENT_INSTANCE } from './instance.js';
 import { getSystemCollectionConfig } from './systemCollectionsConfig.js';
 
 /**
  * Notebook IDs that are configured but currently disabled.
  *
- * Treated as unknown by `isKnownNotebook`, so chat/notebook routes reject queries
- * against them. Keeping the entry in `NOTEBOOK_COLLECTION_MAP` means existing
- * scrape data and admin tooling still resolve collections — only end-user routing
- * is gated.
+ * Treated as unknown by the notebook gate below, so chat/notebook routes reject
+ * queries against them. Keeping the entry in `NOTEBOOK_COLLECTION_MAP` means
+ * existing scrape data and admin tooling still resolve collections — only
+ * end-user routing is gated.
  *
  * Derived from the shared notebook registry (`enabled: false`) so a single switch
  * cascades here automatically — no mirroring needed. Agent-only collections that
@@ -69,12 +77,119 @@ export function resolveNotebookCollections(notebookIds: string[]): string[] {
   return [...collections];
 }
 
-export function isKnownNotebook(id: string): boolean {
-  return id in NOTEBOOK_COLLECTION_MAP && !DISABLED_NOTEBOOK_IDS.has(id);
-}
-
 export function isDisabledNotebook(id: string): boolean {
   return DISABLED_NOTEBOOK_IDS.has(id);
+}
+
+/**
+ * The backend half of the instance content policy.
+ *
+ * `isKnownNotebook` used to answer two different questions with one boolean:
+ * *may this notebook be searched* and *may it be resolved at all*. Once an
+ * instance can merely **hide** a notebook, those answers come apart — hiding is
+ * curation, not a revocation of access — so the gate has two members:
+ *
+ *   - {@link NotebookGate.isImplicitlySearchable} — may a turn that did **not**
+ *     ask for this notebook end up searching it? A hidden notebook must not:
+ *     Qdrant is shared across instances (one `QDRANT_URL`), so without this the
+ *     user would never see the notebook yet still get its sources cited.
+ *   - {@link NotebookGate.isResolvable} — does a direct link or an explicit
+ *     `@mention` still work? For a hidden notebook **yes**, deliberately: a link
+ *     shared from another instance must not die, and once it is open, search
+ *     *inside* it has to keep working or the link leads to an empty page.
+ *
+ * Only the `block` tier and the global `enabled: false` switch answer no to both.
+ */
+export interface NotebookGate {
+  isResolvable(id: string): boolean;
+  isImplicitlySearchable(id: string): boolean;
+  /**
+   * Every collection reachable through a notebook this instance offers. The
+   * "search everything" surfaces use this instead of the raw union.
+   */
+  implicitSearchCollectionIds(): string[];
+  /**
+   * Drop collections that only a non-offered notebook leads to. Applied to the
+   * collection lists a turn did not ask for; explicit notebook scoping is left
+   * untouched.
+   */
+  dropHiddenCollections(collectionIds: readonly string[]): string[];
+}
+
+/**
+ * Build a gate from a policy view. Production uses {@link NOTEBOOK_GATE}, which
+ * binds this process's instance; taking the view as an argument is what lets the
+ * hidden/blocked tiers be exercised while no registered instance hides anything
+ * yet.
+ */
+export function createNotebookGate(view: InstancePolicyView): NotebookGate {
+  const isMapped = (id: string): boolean =>
+    id in NOTEBOOK_COLLECTION_MAP && !DISABLED_NOTEBOOK_IDS.has(id);
+
+  // Unknown ids (user notebooks, agent-only collections) carry no registry entry
+  // and are therefore not subject to the instance policy — `isMapped` already
+  // decided whether they route at all.
+  const underPolicy = (id: string, predicate: typeof isNotebookOfferedUnder): boolean => {
+    if (!isMapped(id)) return false;
+    const nb = getNotebookDefinition(id);
+    return nb ? predicate(nb, view) : true;
+  };
+
+  /**
+   * Collections that no notebook this instance offers leads to.
+   *
+   * Two exclusions, both deliberate:
+   *
+   *   - Computed over the registry, not over `NOTEBOOK_COLLECTION_MAP`, so
+   *     collections no registry notebook claims — `gruene-at`,
+   *     `ricarda-lang-tweets` — are never in here. They are agent territory and
+   *     the instance policy, written in notebooks, says nothing about them.
+   *   - `enabled: false` notebooks are skipped. That switch is global and
+   *     already enforced where notebooks are routed; letting it reach down to
+   *     the collection layer as well would strip collections from callers that
+   *     legitimately name them (admin tooling, agents pinned to an archived
+   *     Landesverband). This set answers only "what does the INSTANCE remove".
+   */
+  const hidden = ((): ReadonlySet<string> => {
+    const claimed = new Set<string>();
+    const reachable = new Set<string>();
+    for (const nb of NOTEBOOK_REGISTRY) {
+      if (nb.enabled === false) continue;
+      const keys = NOTEBOOK_COLLECTION_MAP[nb.id] ?? [];
+      const offered = isNotebookOfferedUnder(nb, view);
+      for (const key of keys) {
+        claimed.add(key);
+        if (offered) reachable.add(key);
+      }
+    }
+    return new Set([...claimed].filter((key) => !reachable.has(key)));
+  })();
+
+  return {
+    isResolvable: (id) => underPolicy(id, isNotebookResolvableUnder),
+    isImplicitlySearchable: (id) => underPolicy(id, isNotebookOfferedUnder),
+    implicitSearchCollectionIds: () => {
+      const all = new Set<string>();
+      for (const collections of Object.values(NOTEBOOK_COLLECTION_MAP)) {
+        for (const c of collections) if (!hidden.has(c)) all.add(c);
+      }
+      return [...all];
+    },
+    dropHiddenCollections: (collectionIds) => collectionIds.filter((c) => !hidden.has(c)),
+  };
+}
+
+/** The gate for the instance this process serves. */
+export const NOTEBOOK_GATE: NotebookGate = createNotebookGate(getInstance(CURRENT_INSTANCE));
+
+/** See {@link NotebookGate.isResolvable} — for explicit mentions and direct links. */
+export function isNotebookResolvable(id: string): boolean {
+  return NOTEBOOK_GATE.isResolvable(id);
+}
+
+/** See {@link NotebookGate.isImplicitlySearchable} — for defaults and catch-alls. */
+export function isNotebookImplicitlySearchable(id: string): boolean {
+  return NOTEBOOK_GATE.isImplicitlySearchable(id);
 }
 
 /**
@@ -104,15 +219,15 @@ export function getDisabledLandesverbandShortNames(): ReadonlySet<string> {
 }
 
 /**
- * Returns all unique collection IDs across all notebooks.
- * Used by SearchGraph to search every available collection in Suche mode.
+ * Collection IDs for the "search everything" surfaces (SearchGraph's Suche
+ * mode), narrowed to what this instance actually offers.
+ *
+ * Was `getAllCollectionIds`; the name had to go once the answer stopped being
+ * "all". Searching every collection is the broadest implicit search there is —
+ * nobody named a notebook — so it is exactly where a hidden one must not appear.
  */
-export function getAllCollectionIds(): string[] {
-  const all = new Set<string>();
-  for (const collections of Object.values(NOTEBOOK_COLLECTION_MAP)) {
-    for (const c of collections) all.add(c);
-  }
-  return [...all];
+export function getImplicitSearchCollectionIds(): string[] {
+  return NOTEBOOK_GATE.implicitSearchCollectionIds();
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
