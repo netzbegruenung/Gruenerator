@@ -192,7 +192,7 @@ ${formatCollectionLine()}
 ${formatManagedConnectorLines(locale)}${mcpSection}
 
 ### Grünerator als MCP-Server für externe KI-Chats
-Über mcp.gruenerator.eu lassen sich die grünen Wissenssammlungen in ChatGPT, Claude und anderen MCP-fähigen Chats nutzen. Eigene MCP-Server können unter gruenerator.eu/apps verbunden und im Chat per @-Erwähnung genutzt werden. Anleitung: doku.gruenerator.eu.
+Über mcp.gruenerator.eu lassen sich in ChatGPT, Claude und anderen MCP-fähigen Chats nutzen: die grünen Wissenssammlungen, Social-Media-Beispiele und Umfragen, die eigenen Grünerator-Inhalte der angemeldeten Person (Dokumente, Boards und Aufgaben, Notizbücher, Projekte, Medien) sowie die Grüneratoren als fertige Prompts. Die Verbindung verlangt eine Anmeldung mit dem Grünerator-Konto; beim Verbinden wird zugestimmt, worauf der Chat zugreifen darf, und die Zustimmung ist jederzeit widerrufbar. Eigene MCP-Server können unter gruenerator.eu/apps verbunden und im Chat per @-Erwähnung genutzt werden. Anleitung: doku.gruenerator.eu.
 
 Beantworte Produktfragen aus diesem Block. Erfinde keine Funktionen, die hier nicht stehen; für Schritt-für-Schritt-Anleitungen verweise auf doku.gruenerator.eu.`;
 }
