@@ -3,6 +3,13 @@ import { type UserRole } from '@gruenerator/chat';
 export interface UserDefaultsRegistry {
   profile: {
     roles: UserRole[];
+    /**
+     * Set once the user has been through — or skipped — the Onboarding area.
+     * Kontoweit statt gerätelokal: die Einrichtung fragt nach Rolle, Friend und
+     * Hintergrund, und alle drei gelten auf allen Geräten. Ein localStorage-Flag
+     * hätte dieselbe Person am zweiten Rechner erneut begrüßt.
+     */
+    onboardingCompleted: boolean;
   };
   notifications: Record<string, boolean>;
   boards: Record<string, boolean>;

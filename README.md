@@ -142,7 +142,7 @@ Professional subtitle generation for videos:
 
 ### Integrations
 
-- **MCP Server** — Model Context Protocol server for searching Green party programs DE/AT ([mcp.gruenerator.eu](https://mcp.gruenerator.eu))
+- **MCP Server** — Model Context Protocol server, served in-process by the API ([mcp.gruenerator.eu](https://mcp.gruenerator.eu)). Search across Green party programs DE/AT plus the signed-in user's own documents, boards, notebooks and groups; OAuth 2.1 login required.
 - **User-managed MCP connectors** — connect third-party MCP servers to the chat, with OAuth support
 - **System search sources** — Deutsche Bahn, weather, and news available as chat tools
 - **Grüne Wolke** — Nextcloud integration for file storage and sharing
@@ -181,16 +181,16 @@ Professional subtitle generation for videos:
 │  │  ChatGraph   │  │  Keycloak    │  │    PostgreSQL      │  │
 │  │  Agent Loop  │  │  OIDC SSO    │  │    Database        │  │
 │  └──────────────┘  └──────────────┘  └────────────────────┘  │
-│  ┌──────────────┐  ┌──────────────┐                          │
-│  │    Redis     │  │   Qdrant     │                          │
-│  │  Cache/PubSub│  │   Vectors    │                          │
-│  └──────────────┘  └──────────────┘                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐  │
+│  │    Redis     │  │   Qdrant     │  │     MCP Server     │  │
+│  │  Cache/PubSub│  │   Vectors    │  │ mcp.gruenerator.eu │  │
+│  └──────────────┘  └──────────────┘  └────────────────────┘  │
 └──────────────────────────────────────────────────────────────┘
-         │                                    │
-┌────────▼─────────┐              ┌───────────▼────────┐
-│   Hocuspocus     │              │    MCP Server      │
-│ (Yjs Realtime)   │              │ mcp.gruenerator.eu │
-└──────────────────┘              └────────────────────┘
+         │
+┌────────▼─────────┐
+│   Hocuspocus     │
+│ (Yjs Realtime)   │
+└──────────────────┘
 ```
 
 ### Key Patterns
@@ -242,13 +242,12 @@ This is a **pnpm + Turborepo** monorepo: 6 apps, 16 packages, and 5 services.
 
 ### Services
 
-| Workspace             | Description                                                                      |
-| --------------------- | -------------------------------------------------------------------------------- |
-| `services/mcp`        | Model Context Protocol server ([mcp.gruenerator.eu](https://mcp.gruenerator.eu)) |
-| `services/hocuspocus` | Real-time collaboration server (Yjs)                                             |
-| `services/nlp`        | Python NLP enrichment for notebook content                                       |
-| `services/nango`      | Self-hosted OAuth broker for third-party connectors                              |
-| `services/iconify`    | Self-hosted icon API                                                             |
+| Workspace             | Description                                         |
+| --------------------- | --------------------------------------------------- |
+| `services/hocuspocus` | Real-time collaboration server (Yjs)                |
+| `services/nlp`        | Python NLP enrichment for notebook content          |
+| `services/nango`      | Self-hosted OAuth broker for third-party connectors |
+| `services/iconify`    | Self-hosted icon API                                |
 
 User documentation lives in `documentation/` (Docusaurus, deployed to [doku.gruenerator.eu](https://doku.gruenerator.eu/)).
 

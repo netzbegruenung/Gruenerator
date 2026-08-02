@@ -14,6 +14,12 @@
  * `--scope` defaults to `notebooks:read`. For the Excel add-in mint a key with
  * `--scope chat:completions` — that one takes no `--lv`.
  *
+ * Am MCP-Endpunkt öffnet `notebooks:read` zweierlei: die Werkzeuge
+ * `notebooks_*` für die hier vergebenen Landesverbände und die Suche im
+ * öffentlichen Programmkorpus. Die Zuordnung steht in
+ * `routes/mcp-server/mcpAuth.ts` — `permissions` und `MCP_SCOPES` sind zwei
+ * verschiedene Mengen.
+ *
  * Prints the plaintext key ONCE — store it immediately, it cannot be recovered.
  */
 

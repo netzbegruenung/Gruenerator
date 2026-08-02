@@ -3,6 +3,7 @@ import { Suspense, lazy, useEffect } from 'react';
 
 import { useSettingsDialogStore } from './settingsDialogStore';
 import { loadSettingsShell, preloadSettingsEntry } from './settingsTabs';
+import { useOnboarding } from './useOnboarding';
 
 import { useAuthStore } from '@/stores/authStore';
 
@@ -15,6 +16,15 @@ const SettingsDialogHost = () => {
   const tab = useSettingsDialogStore((s) => s.tab);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const queryClient = useQueryClient();
+  // Kostenlos: useHydrateUserProfile zieht dieselbe Abfrage ohnehin beim Start.
+  const { isActive: isOnboarding } = useOnboarding();
+
+  // Solange die Einrichtung offen ist, ist SIE der Bereich, auf dem der Dialog
+  // aufgeht — der Effekt unten läuft nur vor dem ersten Öffnen, es gibt hier
+  // also noch keinen benannten Bereich, der vorginge. Die Entscheidung selbst
+  // trifft resolveSettingsTab im Dialog; das hier wärmt nur den passenden Chunk
+  // vor, und daneben zu liegen kostet höchstens einen Moment Skelett.
+  const entryTab = isOnboarding ? 'onboarding' : tab;
 
   // Settings is behind login, so an authenticated session is the earliest
   // honest signal that this chunk will be wanted. Fetching it at the first idle
@@ -24,8 +34,8 @@ const SettingsDialogHost = () => {
   // shell is in memory.
   useEffect(() => {
     if (!isAuthenticated || hasOpened) return;
-    return preloadSettingsEntry(tab, queryClient);
-  }, [isAuthenticated, hasOpened, tab, queryClient]);
+    return preloadSettingsEntry(entryTab, queryClient);
+  }, [isAuthenticated, hasOpened, entryTab, queryClient]);
 
   if (!hasOpened) return null;
 

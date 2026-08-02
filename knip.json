@@ -71,10 +71,6 @@
       "entry": ["base.js", "react.js", "node.js"],
       "project": ["*.js"]
     },
-    "services/mcp": {
-      "entry": ["src/index.ts"],
-      "project": ["src/**/*.ts"]
-    },
     "documentation": {
       "entry": ["docusaurus.config.ts", "sidebars.ts"],
       "project": ["src/**/*.{ts,tsx}"]
