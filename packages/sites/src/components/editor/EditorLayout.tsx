@@ -23,12 +23,14 @@ export const EditorLayout = forwardRef<HTMLDivElement, EditorLayoutProps>(functi
           isMobileEditorOpen && 'max-lg:translate-y-0'
         )}
       >
-        <div
-          className="lg:hidden flex justify-center p-3 cursor-grab touch-none"
+        <button
+          type="button"
+          className="lg:hidden flex justify-center p-3 cursor-grab touch-none border-none bg-transparent"
           onClick={toggleMobileEditor}
+          aria-label="Editor-Bereich ein-/ausblenden"
         >
           <div className="w-10 h-1 bg-grey-400 dark:bg-grey-600 rounded-full" />
-        </div>
+        </button>
         <div className="flex-1 overflow-y-auto overflow-x-hidden">{sidebar}</div>
       </div>
 

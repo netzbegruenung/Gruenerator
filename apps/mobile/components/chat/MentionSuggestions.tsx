@@ -55,6 +55,7 @@ const MentionRow = memo(function MentionRow({
         { backgroundColor: pressed ? theme.surface : 'transparent' },
       ]}
       onPress={() => onSelect(item)}
+      accessibilityRole="button"
     >
       <View style={[styles.avatar, { backgroundColor: item.backgroundColor }]}>
         <Text style={styles.avatarEmoji}>{item.avatar}</Text>

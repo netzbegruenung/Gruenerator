@@ -256,7 +256,7 @@ function ChatPage() {
           onOpenNotebookThread={handleNavigate}
         />
       )}
-      <main className="flex min-h-0 flex-1 flex-col pt-4 md:pt-0">
+      <div className="flex min-h-0 flex-1 flex-col pt-4 md:pt-0">
         {hub ? (
           <LandesverbandHub hub={hub} onNavigate={handleNavigate} userLocale={userLocale} />
         ) : effectiveViewMode === 'overview' ? (
@@ -287,7 +287,7 @@ function ChatPage() {
             userLocale={userLocale}
           />
         )}
-      </main>
+      </div>
       {!hub && effectiveViewMode === 'thread' && (
         // Sharepic-Modus: pins the active sharepic as a docked artifact while
         // the user iterates via chat. Below xl the inline card stays the only

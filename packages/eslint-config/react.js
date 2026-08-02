@@ -104,12 +104,21 @@ export default [
       'jsx-a11y/role-supports-aria-props': 'error',
       'jsx-a11y/scope': 'error',
 
-      // Altlast — Zahlen und Zieltermin siehe Plan, Welle 3.
-      'jsx-a11y/click-events-have-key-events': 'warn',
-      'jsx-a11y/no-static-element-interactions': 'warn',
-      'jsx-a11y/no-noninteractive-element-interactions': 'warn',
-      'jsx-a11y/label-has-associated-control': 'warn',
-      'jsx-a11y/anchor-is-valid': 'warn',
+      // Abgetragen (Welle 3) und deshalb auf 'error': eine Regel, die nach dem
+      // Aufräumen auf 'warn' stehen bleibt, schützt den erreichten Stand nicht.
+      'jsx-a11y/click-events-have-key-events': 'error',
+      'jsx-a11y/no-static-element-interactions': 'error',
+      'jsx-a11y/no-noninteractive-element-interactions': 'error',
+      'jsx-a11y/label-has-associated-control': 'error',
+      // `specialLink: ['to']` ist zwingend, weil wir oben `Link → a` mappen:
+      // ohne die Option prüft die Regel nur `href` und meldet JEDES korrekte
+      // react-router-`<Link to>` als kaputten Anker. Alle 41 Fundstellen im
+      // Repo waren genau das — Fehlalarme, kein einziger echter Defekt.
+      'jsx-a11y/anchor-is-valid': ['error', { specialLink: ['to'] }],
+
+      // Bleibt 'warn': eine Untertitelspur ohne Datei dahinter erfüllt WCAG
+      // 1.2.2 nicht, sie täuscht Konformität nur vor. Inhaltliche Arbeit,
+      // eigenes Ticket — siehe docs/barrierefreiheit-followup-audit.md.
       'jsx-a11y/media-has-caption': 'warn',
 
       // In Dialogen ist Autofokus meist richtig (Radix setzt ihn ohnehin

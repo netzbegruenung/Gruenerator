@@ -26,6 +26,13 @@ export interface CrossControlProps {
 
 type Direction = 'up' | 'down' | 'left' | 'right';
 
+const DIRECTION_LABELS: Record<Direction, string> = {
+  up: 'Nach oben verschieben',
+  down: 'Nach unten verschieben',
+  left: 'Nach links verschieben',
+  right: 'Nach rechts verschieben',
+};
+
 export function CrossControl({
   title,
   description,
@@ -89,6 +96,9 @@ export function CrossControl({
           },
           isDisabled && styles.disabled,
         ]}
+        accessibilityRole="button"
+        accessibilityLabel={DIRECTION_LABELS[direction]}
+        accessibilityState={{ disabled: isDisabled }}
       >
         <Ionicons
           name={icon}

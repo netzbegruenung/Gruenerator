@@ -1,4 +1,4 @@
-import { cn } from '@gruenerator/ui';
+import { InteractiveCard, cn } from '@gruenerator/ui';
 import { memo } from 'react';
 import { FiPlus } from 'react-icons/fi';
 
@@ -15,19 +15,11 @@ export interface NotebookCreateCardProps {
  */
 const NotebookCreateCard = memo(({ onClick, className }: NotebookCreateCardProps) => {
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onClick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onClick();
-        }
-      }}
-      aria-label="Neues Notebook erstellen"
+    <InteractiveCard
+      label="Neues Notebook"
+      onActivate={onClick}
       className={cn(
-        'group relative flex flex-col overflow-hidden rounded-xl border border-dashed border-[#E9A9C8] bg-[#FDF2F8] text-left no-underline',
+        'group flex flex-col overflow-hidden rounded-xl border border-dashed border-[#E9A9C8] bg-[#FDF2F8] text-left no-underline',
         'cursor-pointer transition-all duration-200 ease-out',
         'hover:-translate-y-0.5 hover:border-[#D6006E] hover:shadow-md',
         'dark:border-[#5A2A44] dark:bg-[#2A1B24] dark:hover:border-[#EC5AA0]',
@@ -43,7 +35,7 @@ const NotebookCreateCard = memo(({ onClick, className }: NotebookCreateCardProps
           Neues Notebook
         </span>
       </div>
-    </div>
+    </InteractiveCard>
   );
 });
 

@@ -88,6 +88,7 @@ export function NativeDocTopBar() {
           style={[styles.titleInput, { color: theme.text }]}
           defaultValue={documentTitle}
           editable={canEdit}
+          accessibilityLabel="Dokumenttitel"
           placeholder="Dokumenttitel"
           placeholderTextColor={theme.textSecondary}
           onEndEditing={(e) => {
@@ -195,7 +196,12 @@ export function NativeDocTopBar() {
         animationType="fade"
         onRequestClose={() => setMenuOpen(false)}
       >
-        <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
+        <Pressable
+          style={styles.menuBackdrop}
+          onPress={() => setMenuOpen(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Menü schließen"
+        >
           <View
             style={[
               styles.menuCard,
@@ -212,6 +218,7 @@ export function NativeDocTopBar() {
                   if (router.canGoBack()) router.back();
                   else router.replace('/(tabs)/(arbeiten)');
                 }}
+                accessibilityRole="button"
               >
                 <Ionicons name="arrow-back" size={20} color={theme.text} />
                 <Text style={[styles.menuItemText, { color: theme.text }]}>Zurück</Text>
@@ -223,6 +230,7 @@ export function NativeDocTopBar() {
                 setMenuOpen(false);
                 dispatchAction({ type: 'openShare' });
               }}
+              accessibilityRole="button"
             >
               <Ionicons name="share-social-outline" size={20} color={theme.text} />
               <Text style={[styles.menuItemText, { color: theme.text }]}>Teilen</Text>
@@ -234,6 +242,8 @@ export function NativeDocTopBar() {
                   setMenuOpen(false);
                   toggleSuggestionMode();
                 }}
+                accessibilityRole="button"
+                accessibilityState={{ selected: suggestionMode }}
               >
                 <Ionicons
                   name={suggestionMode ? 'git-compare' : 'git-compare-outline'}
@@ -265,6 +275,7 @@ export function NativeDocTopBar() {
                   setMenuOpen(false);
                   setSuggestionsSheetOpen(true);
                 }}
+                accessibilityRole="button"
               >
                 <Ionicons name="list-outline" size={20} color={theme.text} />
                 <Text style={[styles.menuItemText, { color: theme.text }]}>
@@ -278,6 +289,7 @@ export function NativeDocTopBar() {
                 setMenuOpen(false);
                 setVersionsOpen(true);
               }}
+              accessibilityRole="button"
             >
               <Ionicons name="time-outline" size={20} color={theme.text} />
               <Text style={[styles.menuItemText, { color: theme.text }]}>Versionsverlauf</Text>
@@ -288,6 +300,7 @@ export function NativeDocTopBar() {
                 setMenuOpen(false);
                 toggleFullscreen();
               }}
+              accessibilityRole="button"
             >
               <Ionicons name="expand-outline" size={20} color={theme.text} />
               <Text style={[styles.menuItemText, { color: theme.text }]}>Vollbild</Text>

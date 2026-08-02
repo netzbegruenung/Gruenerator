@@ -83,6 +83,7 @@ export default function NotebookEditForm({ state }: NotebookEditFormProps) {
           disabled={loading || isUploading}
         />
 
+        {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- drag-tracking wrapper only; DocumentsPanel's add button and the file input below are the keyboard-accessible controls */}
         <section
           className="relative space-y-md"
           onDragEnter={handleDragEnter}

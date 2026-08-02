@@ -215,6 +215,7 @@ export default function StudioScreen() {
                 styles.row,
                 { backgroundColor: pressed ? theme.surface : 'transparent' },
               ]}
+              accessibilityRole="button"
             >
               <View style={[styles.rowIcon, { backgroundColor: tone.tile }]}>
                 <MenuIcon name={tool.icon} size={22} color={tone.icon} />

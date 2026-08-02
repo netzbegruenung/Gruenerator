@@ -247,6 +247,7 @@ const TemplatePreviewModal = ({
                       <HiChevronLeft className="w-5 h-5" />
                     </button>
                   )}
+                  {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onError ist ein technischer Ladefehler-Fallback, keine Bedienung */}
                   <img
                     src={currentImage.url}
                     alt={currentImage.title || template.title || 'Vorschau'}

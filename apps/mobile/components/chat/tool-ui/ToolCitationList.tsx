@@ -34,6 +34,7 @@ export function ToolCitationList({
             styles.row,
             { backgroundColor: pressed ? theme.surface : 'transparent' },
           ]}
+          accessibilityRole="link"
         >
           <Text style={[styles.number, { color: theme.textSecondary }]}>[{i + 1}]</Text>
           <View style={styles.body}>

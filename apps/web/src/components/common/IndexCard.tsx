@@ -70,22 +70,18 @@ const IndexCard = memo(
     const isClickable = !!onClick;
     const hasImage = !!thumbnailUrl;
 
-    return (
-      <div
-        className={cn(
-          'flex flex-col bg-background border border-grey-200 dark:border-grey-700 rounded-md shadow-card-subtle h-full',
-          isClickable && 'cursor-pointer',
-          !isClickable && 'cursor-default',
-          variant === 'elevated' && 'shadow-card-subtle',
-          variant === 'subtle' && 'bg-background-alt border-transparent',
-          hasImage ? 'p-0' : 'p-lg max-md:p-md',
-          className
-        )}
-        onClick={isClickable ? onClick : undefined}
-        onKeyDown={isClickable ? handleKeyDown : undefined}
-        role={isClickable ? 'button' : undefined}
-        tabIndex={isClickable ? 0 : undefined}
-      >
+    const cardClassName = cn(
+      'flex flex-col bg-background border border-grey-200 dark:border-grey-700 rounded-md shadow-card-subtle h-full',
+      isClickable && 'cursor-pointer',
+      !isClickable && 'cursor-default',
+      variant === 'elevated' && 'shadow-card-subtle',
+      variant === 'subtle' && 'bg-background-alt border-transparent',
+      hasImage ? 'p-0' : 'p-lg max-md:p-md',
+      className
+    );
+
+    const cardContent = (
+      <>
         {thumbnailUrl && (
           <div className="relative w-full aspect-video overflow-hidden bg-background-alt rounded-t-md">
             <img
@@ -176,7 +172,21 @@ const IndexCard = memo(
             </div>
           )}
         </div>
+      </>
+    );
+
+    return isClickable ? (
+      <div
+        className={cardClassName}
+        onClick={onClick}
+        onKeyDown={handleKeyDown}
+        role="button"
+        tabIndex={0}
+      >
+        {cardContent}
       </div>
+    ) : (
+      <div className={cardClassName}>{cardContent}</div>
     );
   },
   (prev, next) => {

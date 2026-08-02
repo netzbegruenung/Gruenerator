@@ -50,6 +50,8 @@ export function ShareLinkDisplay({ shareUrl, onCopy, onShare, copied }: ShareLin
               styles.iconButton,
               { backgroundColor: pressed ? theme.buttonBackground : theme.background },
             ]}
+            accessibilityRole="button"
+            accessibilityLabel="Link kopieren"
           >
             <Ionicons
               name={copied ? 'checkmark' : 'copy-outline'}
@@ -64,6 +66,8 @@ export function ShareLinkDisplay({ shareUrl, onCopy, onShare, copied }: ShareLin
               styles.iconButton,
               { backgroundColor: pressed ? theme.buttonBackground : theme.background },
             ]}
+            accessibilityRole="button"
+            accessibilityLabel="Link teilen"
           >
             <Ionicons name="share-outline" size={20} color={theme.textSecondary} />
           </Pressable>
