@@ -20,6 +20,7 @@ const CONCRETE_STAGES: ReadonlySet<ProgressStage> = new Set([
   'searching',
   'generating',
   'generating_image',
+  'generating_artifact',
 ]);
 
 /**
@@ -27,8 +28,16 @@ const CONCRETE_STAGES: ReadonlySet<ProgressStage> = new Set([
  * (a tool card or reasoning). `generating_image` is missing on purpose: a
  * sharepic turn's card already says "Sharepic wird erstellt", so the line above
  * it would be the same sentence twice.
+ *
+ * `generating_artifact` IS in: it is the one stage that regularly outlives its
+ * card by a minute or more, and the card's own caption ("PDF erstellen…") stops
+ * being reassuring long before the file exists.
  */
-const DETAIL_STAGES: ReadonlySet<ProgressStage> = new Set(['searching', 'generating']);
+const DETAIL_STAGES: ReadonlySet<ProgressStage> = new Set([
+  'searching',
+  'generating',
+  'generating_artifact',
+]);
 
 export interface StatusLineInput {
   /** The turn has a tool card or reasoning part — see AssistantMessage. */
