@@ -22,3 +22,16 @@ export function isAgenticLoopEnabled(): boolean {
 export function isMcpReplayEnabled(): boolean {
   return process.env.CHAT_MCP_REPLAY !== 'false';
 }
+
+/**
+ * Self-loading recipes ("Rezepte") in the loop. Default OFF, deliberately:
+ * whether a small, fast planner model reliably picks `instagram` over `reel`
+ * for "schreib was für unseren Insta-Kanal" is unproven, and the whole feature
+ * rests on that judgement. Measure with the eval harness before switching it
+ * on — every choice is logged as `[Rezept] gewählt=<mention>`.
+ *
+ * A per-thread opt-out exists independently via `enabledTools.rezept_laden`.
+ */
+export function isRecipeAutoloadEnabled(): boolean {
+  return process.env.CHAT_RECIPE_AUTOLOAD === 'true';
+}
