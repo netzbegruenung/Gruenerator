@@ -155,6 +155,13 @@ export async function installApiFixtures(page: Page): Promise<void> {
    * sie selbst ausgelöst hat — ein Befund über das Prüfmittel, nicht über die
    * Oberfläche. (Dass die Hinweisfarben ihrerseits unter 4,5:1 liegen, ist ein
    * echter Befund; er gehört in einen eigenen PR, nicht in diese Liste.)
+   *
+   * Die vier letzten Einträge kamen dazu, als der Fehlergrenzen-Riegel in
+   * `a11y.spec.ts` sichtbar machte, dass drei Routen gar nicht die Seite
+   * zeigten, deren Namen sie trugen: die Auffangregel ist ein *Objekt*, und wer
+   * das Ergebnis durchläuft, bekommt keinen Leerzustand, sondern einen Absturz
+   * („object is not iterable", „filtered.map is not a function"). Deshalb ist
+   * die Form hier jeweils die, die der Vertrag zusagt — Array bleibt Array.
    */
   const SONDERFORMEN: Record<string, unknown> = {
     // `apiClient.get<ApiThread[]>` — ein nacktes Array, keine Hülle.
@@ -168,6 +175,20 @@ export async function installApiFixtures(page: Page): Promise<void> {
     '/api/auth/notebook-collections/public': { success: true, collections: [] },
     '/api/auth/notebook-collections/likes': { success: true, liked_ids: [] },
     '/api/research/filters': { filters: {} },
+    // ts-rest `canvas.list`, `res.body` ist die Liste selbst — `/studio`.
+    '/api/canvas': [],
+    // ts-rest `groups.discoverPublicGroups`, ebenfalls nackt — `/projekte`.
+    '/api/auth/groups/discover': [],
+    // `MediaListResponse`: die Liste heißt `data` (nicht `items`), und
+    // `pagination` ist nicht optional — `getNextPageParam` liest es ohne Umweg,
+    // `flatMap((page) => page.data)` ebenso. Mit `items` statt `data` ergibt der
+    // flatMap `[undefined]`, und `/media-library` stirbt eine Zeile später an
+    // `item.id`. Deshalb hier genau die Form aus `types.ts`.
+    '/api/media': {
+      success: true,
+      data: [],
+      pagination: { total: 0, limit: 24, offset: 0, hasMore: false },
+    },
   };
   for (const [pfad, antwort] of Object.entries(SONDERFORMEN)) {
     await page.route(
