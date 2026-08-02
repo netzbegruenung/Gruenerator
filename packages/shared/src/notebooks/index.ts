@@ -20,10 +20,11 @@
 import {
   DEFAULT_INSTANCE_ID,
   getInstance,
-  isChannelVisibleIn,
+  isChannelServedBy,
   policyCoversNotebook,
   type InstanceChannel,
   type InstanceId,
+  type InstancePolicyView,
 } from '../instances/index.js';
 
 export type NotebookCategory = 'bundesebene' | 'landesebene' | 'weitere' | 'oesterreich';
@@ -69,9 +70,14 @@ export interface NotebookDefinition {
   /** Locale visibility. CLAUDE.md mandate: tag explicitly. */
   audience: NotebookAudience;
   /**
-   * When false, hidden from gallery listings but still routable / mention-able so links
-   * mid-session don't 404. The backend `notebookCollectionMap.DISABLED_NOTEBOOK_IDS`
-   * should match. Defaults to true when omitted.
+   * The global off switch: gone from every listing AND unroutable — the backend
+   * gate (`notebookCollectionMap.ts`) rejects it and the mention picker drops
+   * it. Defaults to true when omitted.
+   *
+   * This is deliberately harsher than an instance's `hide`, which keeps a direct
+   * link working; see {@link isNotebookResolvableIn}. (An earlier version of this
+   * comment claimed `enabled: false` stayed routable so links would not 404 —
+   * it never did.)
    */
   enabled?: boolean;
   /**
@@ -501,10 +507,21 @@ export const isNotebookOfferedIn = (id: string, instanceId: InstanceId): boolean
   const nb = getNotebookDefinition(id);
   // Unknown ids (user notebooks, agent-only collections) are never gated.
   if (!nb) return true;
+  return isNotebookOfferedUnder(nb, getInstance(instanceId));
+};
+
+/**
+ * {@link isNotebookOfferedIn} against a policy view rather than a registered
+ * instance id — the form the two tiers can actually be tested in, and the one
+ * the backend gate is built from.
+ */
+export const isNotebookOfferedUnder = (
+  nb: NotebookDefinition,
+  view: InstancePolicyView
+): boolean => {
   if (!isEnabled(nb)) return false;
-  if (!isChannelVisibleIn(nb.channel, instanceId)) return false;
-  const instance = getInstance(instanceId);
-  return !policyCoversNotebook(instance.hide, nb) && !policyCoversNotebook(instance.block, nb);
+  if (!isChannelServedBy(nb.channel, view)) return false;
+  return !policyCoversNotebook(view.hide, nb) && !policyCoversNotebook(view.block, nb);
 };
 
 /**
@@ -519,9 +536,17 @@ export const isNotebookOfferedIn = (id: string, instanceId: InstanceId): boolean
 export const isNotebookResolvableIn = (id: string, instanceId: InstanceId): boolean => {
   const nb = getNotebookDefinition(id);
   if (!nb) return true;
+  return isNotebookResolvableUnder(nb, getInstance(instanceId));
+};
+
+/** {@link isNotebookResolvableIn} against a policy view. See {@link isNotebookOfferedUnder}. */
+export const isNotebookResolvableUnder = (
+  nb: NotebookDefinition,
+  view: InstancePolicyView
+): boolean => {
   if (!isEnabled(nb)) return false;
-  if (!isChannelVisibleIn(nb.channel, instanceId)) return false;
-  return !policyCoversNotebook(getInstance(instanceId).block, nb);
+  if (!isChannelServedBy(nb.channel, view)) return false;
+  return !policyCoversNotebook(view.block, nb);
 };
 
 /**
