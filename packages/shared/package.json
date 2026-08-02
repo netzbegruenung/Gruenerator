@@ -217,7 +217,6 @@
     "watch:skills": "cross-env NODE_OPTIONS=--conditions=development tsx scripts/build-skills.ts --watch",
     "build:agents": "cross-env NODE_OPTIONS=--conditions=development tsx scripts/build-agents.ts",
     "watch:agents": "cross-env NODE_OPTIONS=--conditions=development tsx scripts/build-agents.ts --watch",
-    "generate:mcp-agents": "cross-env NODE_OPTIONS=--conditions=development tsx scripts/generate-mcp-agents.ts && pnpm exec prettier --write ../../services/mcp/src/prompts/agents.generated.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

@@ -2,7 +2,7 @@
  * Repository for per-user learned writing styles ("angelernte Textformen").
  *
  * CRUD over `user_text_forms` plus the chat hot-path read `getTextFormForInjection`
- * (in-process 1h cache, mirrors prAgentInsightService). The row is converted to the
+ * (in-process 1h cache). The row is converted to the
  * camelCase `TextForm` contract shape at the boundary.
  */
 
