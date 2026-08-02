@@ -105,8 +105,14 @@ export function hasSharepicEditVerb(text: string): boolean {
   return EDIT_VERB_PATTERN.test(text);
 }
 
+// The trailing group is bounded rather than `*`: unbounded, it backtracks
+// exponentially on "jo so mach so mach …" (38 ms at 163 characters, doubling
+// every 16 — CodeQL js/redos). `isShortAffirmation` caps the input at 40
+// characters, where the head costs 2 and every repetition at least 3, so 13 is
+// past anything reachable and the bound is unobservable — but the cap now lives
+// in the pattern too, instead of only in its one caller.
 const AFFIRMATION_PATTERN =
-  /^(ja|yes|yep|jup|jo|ok(ay)?|passt( so)?|gerne?|genau( so)?|perfekt|super|top|mach( das| es)?( so)?|so umsetzen|setz(e)?( das)?( so)? um|übernimm( das)?|übernehmen|einsetzen|bitte)([.!,\s]+(ja|yes|ok(ay)?|passt|gerne?|genau|bitte|mach( das| es)?( so)?|so|um(setzen)?|das))*[.!\s]*$/iu;
+  /^(ja|yes|yep|jup|jo|ok(ay)?|passt( so)?|gerne?|genau( so)?|perfekt|super|top|mach( das| es)?( so)?|so umsetzen|setz(e)?( das)?( so)? um|übernimm( das)?|übernehmen|einsetzen|bitte)([.!,\s]+(ja|yes|ok(ay)?|passt|gerne?|genau|bitte|mach( das| es)?( so)?|so|um(setzen)?|das)){0,13}[.!\s]*$/iu;
 
 /**
  * Short confirmations ("ja", "yes", "mach das so") right after the assistant
