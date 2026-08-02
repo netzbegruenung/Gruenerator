@@ -2,7 +2,7 @@
 sidebar_position: 3
 ---
 
-import { ConnectorTable, Fact } from '@site/src/components/Reference';
+import { ConnectorTable, Fact, ManagedConnectorTable } from '@site/src/components/Reference';
 
 # Konnektoren: Externe Dienste im Chat
 
@@ -14,6 +14,18 @@ Konnektoren sind aktuell **experimentell**. Die Auswahl der Dienste und das Verh
 
 :::info[Was ist MCP?]
 Konnektoren basieren auf dem **Model Context Protocol (MCP)** — einem offenen Standard, über den KI-Assistenten sicher auf externe Dienste zugreifen. Das ist dieselbe Technik, mit der du auch den [Grünerator in ChatGPT & Co nutzen](./ki-chat-einrichten) kannst — nur in die andere Richtung.
+:::
+
+## Schon da: bereitgestellte Dienste
+
+Einige Dienste betreibt der Grünerator selbst. Sie stehen unter **„Vom Grünerator bereitgestellt"** ganz oben in der Liste, sind **ohne Einrichtung sofort nutzbar** und brauchen weder Login noch Zugangsschlüssel:
+
+<ManagedConnectorTable />
+
+Du sprichst sie wie jeden anderen Konnektor per `@`-Mention an — etwa _„Was steht in **@gesetze** zu § 823 BGB?"_. Wenn du einen davon nicht brauchst, kannst du ihn mit dem Schalter **Aktiv** ausschalten; entfernen lassen sie sich nicht, weil es nichts zu trennen gibt.
+
+:::warning[Kein Rechtsrat]
+Der Gesetzes-Dienst arbeitet auf einem datierten Abzug von [gesetze-im-internet.de](https://www.gesetze-im-internet.de) und kann der amtlichen Fassung um einige Tage hinterherhängen. Für verbindliche Auskünfte immer die amtliche Veröffentlichung heranziehen — und für eine rechtliche Bewertung eine qualifizierte Beratung.
 :::
 
 ## Konnektoren öffnen
@@ -74,6 +86,8 @@ In der Sektion **Verbunden** siehst du alle deine Dienste mit Status (_Verbunden
 - per Schalter **pausieren** (bleibt verbunden, wird im Chat aber nicht genutzt),
 - **testen** (zeigt die verfügbaren Werkzeuge des Servers),
 - oder **löschen** — gespeicherte Zugangsdaten werden dabei entfernt.
+
+Die [bereitgestellten Dienste](#schon-da-bereitgestellte-dienste) stehen in einer eigenen Sektion darüber und zeigen _Verfügbar_ bzw. _Ausgeschaltet_. Für sie gibt es Schalter und Test, aber kein Löschen.
 
 :::info[Datenschutz]
 Zugangsdaten (Tokens) werden verschlüsselt auf EU-Servern gespeichert und ausschließlich für deine eigenen Chat-Anfragen verwendet. Der Zugriff auf einen Dienst erfolgt immer mit **deinem** Konto und dessen Berechtigungen — andere Nutzer\*innen sehen deine Verbindungen nicht.

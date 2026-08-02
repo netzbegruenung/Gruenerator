@@ -3,6 +3,7 @@ import {
   type CategoryFilterConfig,
   type SourceFilterConfig,
 } from '@gruenerator/chat';
+import { type NotebookDepth } from '@gruenerator/contracts';
 import { cn } from '@gruenerator/ui';
 import { useMemo, useState, type ReactNode } from 'react';
 import { HiOutlineChartBar, HiOutlineClock, HiOutlineSparkles } from 'react-icons/hi2';
@@ -33,8 +34,8 @@ interface NotebookStartpageProps {
   exampleQuestions?: ExampleQuestion[];
   composerSourceFilters?: SourceFilterConfig;
   composerCategoryFilters?: CategoryFilterConfig;
-  mode: 'fast' | 'deep';
-  onModeChange: (mode: 'fast' | 'deep') => void;
+  mode: NotebookDepth;
+  onModeChange: (mode: NotebookDepth) => void;
   recentCollectionIds: string[];
   showRecentSourceLabel?: boolean;
   showStats?: boolean;

@@ -1700,6 +1700,14 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/integrationen/konnektoren",
     "pageTitle": "Konnektoren: Externe Dienste im Chat",
+    "heading": "Schon da: bereitgestellte Dienste",
+    "anchor": "#schon-da-bereitgestellte-dienste",
+    "category": "Integrationen",
+    "text": "Einige Dienste betreibt der Grünerator selbst. Sie stehen unter „Vom Grünerator bereitgestellt\" ganz oben in der Liste, sind ohne Einrichtung sofort nutzbar und brauchen weder Login noch Zugangsschlüssel: Du sprichst sie wie jeden anderen Konnektor per @-Mention an — etwa „Was steht in @gesetze zu § 823 BGB?\". Wenn du einen davon nicht brauchst, kannst du ihn mit dem Schalter Aktiv ausschalten; entfernen lassen sie sich nicht, weil es nichts zu trennen gibt. Der Gesetzes-Dienst arbeitet auf einem datierten Abzug von gesetze-im-internet.de und kann der amtlichen Fassung um einige Tage hinterherhängen. Für verbindliche Auskünfte immer die amtliche Veröffentlichung heranziehen — und für eine rechtliche Bewertung eine qualifizierte Beratung."
+  },
+  {
+    "url": "/docs/integrationen/konnektoren",
+    "pageTitle": "Konnektoren: Externe Dienste im Chat",
     "heading": "Verfügbare Konnektoren",
     "anchor": "#verfügbare-konnektoren",
     "category": "Integrationen",
@@ -1711,7 +1719,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Verwalten, pausieren, trennen",
     "anchor": "#verwalten-pausieren-trennen",
     "category": "Integrationen",
-    "text": "In der Sektion Verbunden siehst du alle deine Dienste mit Status (Verbunden / Pausiert / Nicht autorisiert). Dort kannst du jeden Konnektor: per Schalter pausieren (bleibt verbunden, wird im Chat aber nicht genutzt), testen (zeigt die verfügbaren Werkzeuge des Servers), oder löschen — gespeicherte Zugangsdaten werden dabei entfernt. Zugangsdaten (Tokens) werden verschlüsselt auf EU-Servern gespeichert und ausschließlich für deine eigenen Chat-Anfragen verwendet. Der Zugriff auf einen Dienst erfolgt immer mit deinem Konto und dessen Berechtigungen — andere Nutzer*innen sehen deine Verbindungen nicht."
+    "text": "In der Sektion Verbunden siehst du alle deine Dienste mit Status (Verbunden / Pausiert / Nicht autorisiert). Dort kannst du jeden Konnektor: per Schalter pausieren (bleibt verbunden, wird im Chat aber nicht genutzt), testen (zeigt die verfügbaren Werkzeuge des Servers), oder löschen — gespeicherte Zugangsdaten werden dabei entfernt. Die bereitgestellten Dienste stehen in einer eigenen Sektion darüber und zeigen Verfügbar bzw. Ausgeschaltet. Für sie gibt es Schalter und Test, aber kein Löschen. Zugangsdaten (Tokens) werden verschlüsselt auf EU-Servern gespeichert und ausschließlich für deine eigenen Chat-Anfragen verwendet. Der Zugriff auf einen Dienst erfolgt immer mit deinem Konto und dessen Berechtigungen — andere Nutzer*innen sehen deine Verbindungen nicht."
   },
   {
     "url": "/docs/integrationen/mcp-was-kann-ich-fragen",

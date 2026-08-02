@@ -258,6 +258,11 @@
       "capability": "Deutsche Bahn: Bahnhöfe suchen, Abfahrts-/Ankunftspläne (Soll + Störungen) und Bahnhofsausstattung abfragen.",
       "env": "SYSTEM_MCP_DB_URL"
     },
+    "gesetze": {
+      "name": "Gesetze",
+      "capability": "Gesetze: deutsches Bundesrecht im Volltext durchsuchen, einzelne Normen abrufen und Zitate gegen den Bestand prüfen.",
+      "env": "SYSTEM_MCP_LAW_URL"
+    },
     "hotel": {
       "name": "trivago",
       "capability": "Hotels: Unterkünfte per trivago suchen und Preise vergleichen.",

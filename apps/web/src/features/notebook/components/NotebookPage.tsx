@@ -7,6 +7,7 @@ import {
   NotebookChatProvider,
   NotebookComposer,
   UserMessage,
+  notebookDepthDef,
   notebookMentionables,
   useAgentStore,
   type CategoryFilterConfig,
@@ -158,7 +159,12 @@ export const NotebookPageContent = ({
     useNotebookStore();
   const filterValuesCache = useNotebookStore((s) => s.filterValuesCache);
   const activeFiltersStore = useNotebookStore((s) => s.activeFilters);
-  const [mode, setMode] = useState<'fast' | 'deep'>('fast');
+  // Persisted, unlike the source/category filters below: how much work an answer
+  // is worth is a preference, and it used to reset to the narrowest tier on every
+  // mount — including a plain page reload mid-conversation.
+  const storedDepth = useAgentStore((s) => s.notebookDepth);
+  const setMode = useAgentStore((s) => s.setNotebookDepth);
+  const mode = notebookDepthDef(storedDepth).depth;
   const [searchParams, setSearchParams] = useSearchParams();
   const [threadId, setThreadId] = useState<string | null>(threadIdProp ?? null);
   const handleThreadCreated = useCallback((newThreadId: string) => {
