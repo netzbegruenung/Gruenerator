@@ -10,6 +10,8 @@ interface ImageUploadProps {
   size?: 'small' | 'medium' | 'large' | 'fill';
   circular?: boolean;
   disabled?: boolean;
+  /** Forwarded to the dropzone control so a `<label htmlFor>` can target it. */
+  id?: string;
 }
 
 const sizeClasses: Record<NonNullable<ImageUploadProps['size']>, string> = {
@@ -27,6 +29,7 @@ export function ImageUpload({
   size = 'fill',
   circular = false,
   disabled = false,
+  id,
 }: ImageUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const { openImagePicker } = useMediaPicker();
@@ -92,6 +95,7 @@ export function ImageUpload({
         style={{ display: 'none' }}
       />
       <div
+        id={id}
         className={cn(
           'group relative border-2 border-dashed border-grey-300 dark:border-grey-700 rounded-lg cursor-pointer overflow-hidden flex items-center justify-center bg-grey-50 dark:bg-grey-900 transition-colors hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-950 focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15',
           circular && 'rounded-full'

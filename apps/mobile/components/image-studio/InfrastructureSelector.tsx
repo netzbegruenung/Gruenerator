@@ -44,6 +44,8 @@ export function InfrastructureSelector({ selected, onToggle }: InfrastructureSel
             <Pressable
               key={option.id}
               onPress={() => onToggle(option.id)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: isSelected }}
               style={({ pressed }) => [
                 styles.chip,
                 {

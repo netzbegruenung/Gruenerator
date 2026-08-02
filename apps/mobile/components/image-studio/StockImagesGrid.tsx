@@ -92,6 +92,8 @@ export function StockImagesGrid({ onImageSelected }: StockImagesGridProps) {
       <Pressable
         key={category}
         onPress={() => handleCategoryChange(category)}
+        accessibilityRole="tab"
+        accessibilityState={{ selected: isActive }}
         style={[
           styles.categoryPill,
           isActive
@@ -125,6 +127,9 @@ export function StockImagesGrid({ onImageSelected }: StockImagesGridProps) {
           ]}
           onPress={() => handleImagePress(item)}
           disabled={loadingImage !== null}
+          accessibilityRole="button"
+          accessibilityLabel="Stock-Bild auswählen"
+          accessibilityState={{ selected: isSelected, disabled: loadingImage !== null }}
         >
           <Image source={{ uri: imageUrl }} style={styles.thumbnail} contentFit="cover" />
           {isSelected && (

@@ -1,17 +1,10 @@
-import { type KeyboardEvent, type ReactNode } from 'react';
+import { InteractiveCard, cn, interactiveCardControl } from '@gruenerator/ui';
+import { type ReactNode } from 'react';
 import { PiPencilSimple, PiStar, PiStarFill, PiTrash } from 'react-icons/pi';
 
 import { TypeBadge } from './cards';
 
 const ICON_BTN = 'rounded-md p-2 text-secondary-600 transition-colors hover:bg-secondary-600/10';
-
-function keyActivate(e: KeyboardEvent, onSelect: () => void) {
-  if ((e.target as HTMLElement).closest('button')) return;
-  if (e.key === 'Enter' || e.key === ' ') {
-    e.preventDefault();
-    onSelect();
-  }
-}
 
 interface MarketCardProps {
   icon: ReactNode;
@@ -45,14 +38,9 @@ export function MarketCard({
   onDelete,
 }: MarketCardProps) {
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={(e) => {
-        if ((e.target as HTMLElement).closest('button')) return;
-        onSelect();
-      }}
-      onKeyDown={(e) => keyActivate(e, onSelect)}
+    <InteractiveCard
+      label={title}
+      onActivate={onSelect}
       className="group flex cursor-pointer flex-col gap-sm rounded-lg border border-grey-200 bg-card p-md shadow-xs transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-secondary-600/40 hover:shadow-md dark:border-grey-700"
     >
       <div className="flex items-start gap-sm">
@@ -70,7 +58,7 @@ export function MarketCard({
             {description}
           </p>
         </div>
-        <div className="flex shrink-0 gap-1">
+        <div className={cn('flex shrink-0 gap-1', interactiveCardControl)}>
           {onToggleFavorite && (
             <button
               type="button"
@@ -79,7 +67,6 @@ export function MarketCard({
                 e.stopPropagation();
                 onToggleFavorite();
               }}
-              onKeyDown={(e) => e.stopPropagation()}
               className={ICON_BTN}
             >
               {isFavorite ? <PiStarFill className="h-4 w-4" /> : <PiStar className="h-4 w-4" />}
@@ -93,7 +80,6 @@ export function MarketCard({
                 e.stopPropagation();
                 onEdit();
               }}
-              onKeyDown={(e) => e.stopPropagation()}
               className={ICON_BTN}
             >
               <PiPencilSimple className="h-4 w-4" />
@@ -107,7 +93,6 @@ export function MarketCard({
                 e.stopPropagation();
                 onDelete();
               }}
-              onKeyDown={(e) => e.stopPropagation()}
               className="rounded-md p-2 text-red-600 transition-colors hover:bg-red-600/10"
             >
               <PiTrash className="h-4 w-4" />
@@ -118,6 +103,6 @@ export function MarketCard({
       {footer && (
         <div className="border-t border-grey-100 pt-sm dark:border-grey-800">{footer}</div>
       )}
-    </div>
+    </InteractiveCard>
   );
 }

@@ -52,6 +52,8 @@ export function PresetButtonRow<T>({
               buttonStyle,
               disabled && styles.disabled,
             ]}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: isActive, disabled }}
           >
             <Text style={[styles.buttonText, { color: isActive ? colors.white : theme.text }]}>
               {option.label}

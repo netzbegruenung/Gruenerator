@@ -1,3 +1,4 @@
+import { InteractiveCard } from '@gruenerator/ui';
 import { memo, useMemo } from 'react';
 
 import { useScheduledAgentRuns } from '../hooks/useScheduledAgentRuns';
@@ -134,18 +135,14 @@ export const BoardCalendarView = memo(function BoardCalendarView({
           {({ feature }) => {
             const row = rowById.get(feature.id);
             return (
-              <div
+              <InteractiveCard
                 key={feature.id}
-                onClick={() => row && onRowClick(row)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && row) onRowClick(row);
-                }}
-                role="button"
-                tabIndex={0}
+                label={feature.name}
+                onActivate={() => row && onRowClick(row)}
                 className="cursor-pointer hover:bg-grey-100 dark:hover:bg-grey-800 rounded px-1 transition-colors"
               >
                 <CalendarItem feature={feature} className="text-[10px]" />
-              </div>
+              </InteractiveCard>
             );
           }}
         </CalendarBody>

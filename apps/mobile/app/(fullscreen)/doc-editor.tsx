@@ -52,6 +52,7 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
       <TouchableOpacity
         style={[styles.backButton, { backgroundColor: colors.primary[600] }]}
         onPress={retry}
+        accessibilityRole="button"
       >
         <Text style={styles.backButtonText}>Erneut versuchen</Text>
       </TouchableOpacity>
@@ -422,6 +423,7 @@ export default function DocumentScreen() {
         <TouchableOpacity
           style={[styles.backButton, { backgroundColor: colors.primary[600] }]}
           onPress={() => router.back()}
+          accessibilityRole="button"
         >
           <Ionicons name="arrow-back" size={20} color="white" />
           <Text style={styles.backButtonText}>Zurück</Text>
@@ -555,6 +557,7 @@ export default function DocumentScreen() {
           <Pressable
             onPress={handleRetry}
             style={[styles.retryButton, { backgroundColor: colors.primary[600] }]}
+            accessibilityRole="button"
           >
             <Text style={styles.retryButtonText}>Erneut</Text>
           </Pressable>
