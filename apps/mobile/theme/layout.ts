@@ -24,11 +24,59 @@ export const TAB_BAR_CAPSULE_GAP = 8;
 export const FLOATING_TAB_BAR_HEIGHT = TAB_BAR_CAPSULE_HEIGHT + TAB_BAR_CAPSULE_GAP;
 
 /**
+ * Where a tablet begins.
+ *
+ * Phones are portrait-locked (app.json `orientation: "portrait"`) at ≤ ~440pt
+ * wide. The smallest iPad in portrait is the mini at 744pt, so 700 cleanly
+ * separates tablets from phones while still treating a narrow iPad Split View
+ * column as a phone — which is what it is, however large the slab around it.
+ */
+export const TABLET_MIN_WIDTH = 700;
+
+/**
  * Horizontal screen margin for edge-pinned content — composers, hero greetings,
  * the tab landings. One number so a headline and the composer below it share an
  * optical edge; 16 (spacing.medium) read tight under a 28pt greeting.
+ *
+ * Two numbers now, because 20 is a share of the width and not an absolute: on a
+ * 360dp handset it is 5.6% per side, on a 1024dp iPad 2.0%. Read them through
+ * `useLayout().edge` rather than importing the right one at each call site — and
+ * never from inside `StyleSheet.create`, which is evaluated once at import and
+ * cannot see a window that changed.
  */
 export const SCREEN_EDGE = 20;
+export const SCREEN_EDGE_WIDE = 32;
+
+/**
+ * The two widths content is allowed to reach, mirroring what web already caps at
+ * (`ChatHero`: `max-w-3xl` around the composer, `max-w-5xl` around the hero).
+ *
+ * Nothing on mobile capped anything before, so every tab screen was a phone
+ * layout stretched: the composer ran 984dp wide on an iPad, chat bubbles reached
+ * 836dp — about 145 characters a line, against the 60–80 that reads.
+ *
+ * `READING` is for anything with a text measure: hero, composer, chat thread,
+ * forms. `GRID` is for tile fields and lists, which carry no line length and can
+ * use the extra width for another column.
+ */
+export const CONTENT_MAX_WIDTH = 768;
+export const GRID_MAX_WIDTH = 1024;
+
+/**
+ * How many columns fit, from the tile size rather than from the device class.
+ *
+ * The distinction is the whole point. `isTablet ? 3 : 2` keeps the *count* near
+ * the phone's and lets the tile inflate — which is how a 154dp tool tile became
+ * a 320dp one with a 28dp icon still pinned in its corner. Deriving the count
+ * holds the tile still and spends the extra width on more of them.
+ *
+ * The floor of 2 is what keeps a phone at two columns: 320dp of usable width
+ * fits only one 160dp tile plus its gap, and one column of squares is a list
+ * that forgot it was a list.
+ */
+export function gridColumns(available: number, minTile: number, gap: number): number {
+  return Math.max(2, Math.floor((available + gap) / (minTile + gap)));
+}
 
 /**
  * What a bottom-pinned composer keeps under itself — two numbers, because the
