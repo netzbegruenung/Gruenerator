@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getToolCatalog } from '../features/global-search/toolCatalog';
+import { CATALOG } from '../features/global-search/toolCatalog';
 
 import {
   LEGACY_TOOL_ID_ALIASES,
@@ -80,7 +80,7 @@ describe('literal mirrors stay in lockstep with the registry', () => {
   });
 
   it('toolCatalog mirrors the registry search blocks', () => {
-    expect(getToolCatalog(true)).toEqual(toolSearchCatalog());
+    expect(CATALOG).toEqual(toolSearchCatalog());
   });
 
   it('search catalog covers exactly the search-enabled tools', () => {

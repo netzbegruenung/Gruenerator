@@ -12,11 +12,14 @@ import coverThueringen from '@gruenerator/shared/assets/notebook-covers/thuering
 import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
 import {
   NOTEBOOK_REGISTRY,
+  isNotebookOfferedIn,
   type NotebookAudience,
   type NotebookCategory,
   type NotebookDefinition,
   type NotebookId,
 } from '@gruenerator/shared/notebooks';
+
+import { CURRENT_INSTANCE } from '../../../config/instance';
 
 import type { SystemAgentId } from '@gruenerator/shared/agents';
 import type { IconType } from 'react-icons';
@@ -121,11 +124,12 @@ const toEntry = (nb: NotebookDefinition): NotebookConfigEntry => ({
 
 /**
  * Derived from the shared notebook registry (`@gruenerator/shared/notebooks`) so the web
- * gallery, mobile gallery, and chat mention picker stay in sync. `devOnly` notebooks are
- * included only in dev builds, matching the previous DEV_ONLY_NOTEBOOKS behaviour.
+ * gallery, mobile gallery, and chat mention picker stay in sync. Notebooks this instance
+ * does not offer — by channel or by its content policy — are dropped here, the single
+ * point every gallery view below inherits from.
  */
-export const SYSTEM_NOTEBOOKS: NotebookConfigEntry[] = NOTEBOOK_REGISTRY.filter(
-  (nb) => import.meta.env.DEV || !nb.devOnly
+export const SYSTEM_NOTEBOOKS: NotebookConfigEntry[] = NOTEBOOK_REGISTRY.filter((nb) =>
+  isNotebookOfferedIn(nb.id, CURRENT_INSTANCE)
 ).map(toEntry);
 
 const isNotebookEnabled = (nb: NotebookConfigEntry): boolean => nb.enabled !== false;

@@ -77,6 +77,13 @@ const envSchema = z.object({
   AUTH_BASE_URL: z.string().optional(),
   WEB_BASE_URL: z.string().optional(),
   PRIMARY_DOMAIN: z.string().default('gruenerator.eu'),
+  /**
+   * Which instance this deployment serves — see `@gruenerator/shared/instances`.
+   * Unset means `production`, so an existing deployment behaves exactly as it
+   * did before instances existed. An unknown value falls back to that default
+   * too rather than failing the boot: a typo must not take the API down.
+   */
+  INSTANCE_ID: z.string().optional(),
 
   // External: Abgeordnetenwatch API (public, no key). Override only for testing.
   ABGEORDNETENWATCH_BASE_URL: z.string().default('https://www.abgeordnetenwatch.de/api/v2'),

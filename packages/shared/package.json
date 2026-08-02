@@ -184,6 +184,12 @@
       "import": "./dist/notebooks/index.js",
       "default": "./dist/notebooks/index.js"
     },
+    "./instances": {
+      "development": "./src/instances/index.ts",
+      "types": "./src/instances/index.ts",
+      "import": "./dist/instances/index.js",
+      "default": "./dist/instances/index.js"
+    },
     "./chat-intents": {
       "development": "./src/chat-intents/index.ts",
       "types": "./src/chat-intents/index.ts",

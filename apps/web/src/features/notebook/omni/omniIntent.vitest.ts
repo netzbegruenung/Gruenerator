@@ -19,9 +19,8 @@ describe('detectNotebookEntities', () => {
     expect(ids('Wie gesund ist Berliner Luft?')).toEqual([]);
   });
 
-  it('matches curated aliases (MV, Böll, Thüringen umlaut-free)', () => {
+  it('matches curated aliases (MV, Thüringen umlaut-free)', () => {
     expect(ids('Was plant MV zur Windkraft?')).toEqual(['mecklenburg-vorpommern-notebook']);
-    expect(ids('Position der Böll Stiftung zu KI')).toEqual(['boell-stiftung-notebook']);
     expect(ids('Wahlprogramm Thueringen')).toEqual(['thueringen-notebook']);
   });
 
@@ -42,7 +41,15 @@ describe('detectNotebookEntities', () => {
   });
 });
 
-describe('buildSystemTargets audience gating', () => {
+describe('buildSystemTargets audience and instance gating', () => {
+  // `buildSystemTargets` reads the ambient `CURRENT_INSTANCE`, which resolves to
+  // `production` here — no `VITE_INSTANCE_ID` and no `window` in the node lane.
+  // So these expectations describe the production selection, not a dev build.
+  it('withholds internal-channel notebooks, so their aliases route nowhere', () => {
+    expect(targets.map((t) => t.key)).not.toContain('boell-stiftung-notebook');
+    expect(ids('Position der Böll Stiftung zu KI')).toEqual([]);
+  });
+
   it('offers Austrian users no German notebooks', () => {
     const atTargets = buildSystemTargets('de-AT');
     expect(atTargets.map((t) => t.key)).toEqual(['oesterreich-notebook']);
