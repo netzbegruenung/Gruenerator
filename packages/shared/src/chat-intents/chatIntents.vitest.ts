@@ -189,7 +189,10 @@ describe('locale rules', () => {
     // wire that the router no longer resolves.
     for (const intent of ALL_CHAT_INTENTS) {
       if (intent.availability !== 'retired') continue;
-      expect(intent.mention, `${intent.id} is retired but still has a mention`).toBeUndefined();
+      // `ChatIntentDefinition` declares `mention` only on the variant that has
+      // one, so the narrowing has to happen here — same `'mention' in i` idiom
+      // as `allIntentMentions()`.
+      expect('mention' in intent, `${intent.id} is retired but still has a mention`).toBe(false);
     }
   });
 });
