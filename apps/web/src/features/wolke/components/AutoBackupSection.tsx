@@ -26,7 +26,10 @@ const AutoBackupSection = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-sm">
             <FiClock className="w-4 h-4 text-grey-500 dark:text-grey-300" />
-            <h3 className="text-sm font-medium text-grey-600 dark:text-grey-300 uppercase tracking-wide">
+            <h3
+              id="auto-backup-heading"
+              className="text-sm font-medium text-grey-600 dark:text-grey-300 uppercase tracking-wide"
+            >
               Automatische Sicherung
             </h3>
           </div>
@@ -35,6 +38,7 @@ const AutoBackupSection = () => {
               type="checkbox"
               checked={autoBackup.enabled}
               onChange={(e) => setAutoBackupEnabled(e.target.checked)}
+              aria-labelledby="auto-backup-heading"
               className="sr-only peer"
             />
             <div className="w-9 h-5 bg-grey-200 dark:bg-grey-700 rounded-full peer peer-checked:bg-primary-500 peer-checked:dark:bg-primary-400 transition-colors after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full" />

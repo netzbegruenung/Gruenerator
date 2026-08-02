@@ -150,8 +150,15 @@ const EditTemplateModal = ({
 
         <div className="flex-1 overflow-y-auto p-lg">
           <div className={fieldClass}>
-            <label>Vorschaubilder</label>
-            <TemplateImagesEditor images={images} onChange={setImages} disabled={isSubmitting} />
+            <span
+              id="edit-template-images-label"
+              className="block mb-xs text-[0.875rem] font-medium text-foreground"
+            >
+              Vorschaubilder
+            </span>
+            <div role="group" aria-labelledby="edit-template-images-label">
+              <TemplateImagesEditor images={images} onChange={setImages} disabled={isSubmitting} />
+            </div>
           </div>
 
           <div className={fieldClass}>

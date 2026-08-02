@@ -18,6 +18,8 @@ export interface RichTextEditorProps {
   /** Plain-text character limit (CharacterCount semantics, matches server-side getRichTextLength). */
   maxLength: number;
   minHeight?: string;
+  /** Forwarded to the editable element so a `<label htmlFor>` can target it. */
+  id?: string;
 }
 
 interface ToolbarButtonProps {
@@ -131,6 +133,7 @@ export default function RichTextEditor({
   placeholder,
   maxLength,
   minHeight,
+  id,
 }: RichTextEditorProps) {
   const editor = useEditor({
     extensions: [
@@ -141,6 +144,7 @@ export default function RichTextEditor({
       CharacterCount.configure({ limit: maxLength }),
     ],
     content: value,
+    editorProps: id ? { attributes: { id } } : undefined,
     onUpdate: ({ editor: e }) => onChange(e.getJSON() as RichTextDoc),
     onFocus: () => onFocus?.(),
     onBlur: () => onBlur?.(),

@@ -96,7 +96,9 @@ const BulkDeleteConfirmModal = ({
     itemCount === 1 ? getItemTypeLabel(getSingularType()) : getItemTypeLabel(itemType);
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- Hintergrund schließt per Klick, Escape schließt bereits über das Eingabefeld (handleKeyDown unten)
     <div className="citation-modal-overlay" onClick={handleOverlayClick}>
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- fängt nur den Klick ab, damit er nicht den Hintergrund schließt */}
       <div
         className="citation-modal bulk-delete-modal"
         ref={modalRef}
@@ -137,10 +139,11 @@ const BulkDeleteConfirmModal = ({
 
           {/* Confirmation Input Section */}
           <div className="bulk-delete-confirmation">
-            <label className="bulk-delete-confirmation-label">
+            <label className="bulk-delete-confirmation-label" htmlFor="bulk-delete-confirm-input">
               Um fortzufahren, gib <strong>"löschen"</strong> ein:
             </label>
             <input
+              id="bulk-delete-confirm-input"
               autoFocus
               type="text"
               className={`form-input bulk-delete-confirmation-input ${isConfirmValid ? 'valid' : ''}`}

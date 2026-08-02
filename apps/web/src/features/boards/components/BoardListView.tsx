@@ -78,7 +78,12 @@ export const BoardListView = memo(function BoardListView({
                       className="flex-1 cursor-pointer min-w-0"
                       onClick={() => onRowClick(row)}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') onRowClick(row);
+                        // Enter UND Leertaste, wie ein echter Button (WCAG
+                        // 4.1.2); preventDefault, weil die Leertaste sonst
+                        // die Liste scrollt statt die Karte zu öffnen.
+                        if (e.key !== 'Enter' && e.key !== ' ') return;
+                        e.preventDefault();
+                        onRowClick(row);
                       }}
                       role="button"
                       tabIndex={0}

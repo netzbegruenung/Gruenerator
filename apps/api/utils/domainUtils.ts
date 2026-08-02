@@ -28,6 +28,19 @@ export function getCorsOrigins(includeDevOrigins = false): string[] {
   // needs no entry here.
   origins.push('tauri://localhost', 'http://tauri.localhost');
 
+  // Grünerator für Chrome. Eine Erweiterung hat als Origin ihre Extension-ID,
+  // die aus dem `key` im Manifest folgt — sie steht deshalb ausgeschrieben
+  // hier, wie die Tauri-Schemata darüber. Ohne diesen Eintrag scheitert nicht
+  // erst der API-Aufruf, sondern schon die dynamische Client-Registrierung der
+  // Anmeldung (`/api/auth/v2/mcp/register`): der strikte Validator wirft, und
+  // der Fehlerpfad antwortet mit der Keycloak-Anmeldeseite — also HTML, wo der
+  // Client JSON erwartet.
+  //
+  // ACHTUNG: der Web Store vergibt beim ersten Hochladen einen eigenen
+  // Schlüssel und damit eine andere ID. Die gehört zusätzlich hierher, sonst
+  // kommt die ausgelieferte Fassung nicht am CORS-Gitter vorbei.
+  origins.push('chrome-extension://mcogkdgdjackfcpgmncihbobpoijlcio');
+
   if (includeDevOrigins) {
     origins.push(
       'http://localhost:3000',

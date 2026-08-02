@@ -128,8 +128,14 @@ export function ContactSectionEditor({ data, onChange }: ContactSectionEditorPro
       <div className="h-px bg-grey-200 dark:bg-grey-700 my-md" />
 
       <div className="mb-md">
-        <label className="block text-sm font-medium text-foreground mb-1.5">Hintergrundbild</label>
+        <label
+          htmlFor="contact-background-image"
+          className="block text-sm font-medium text-foreground mb-1.5"
+        >
+          Hintergrundbild
+        </label>
         <ImageUpload
+          id="contact-background-image"
           value={data.backgroundImageUrl}
           onChange={(url) => updateField('backgroundImageUrl', url)}
           aspectRatio="16/9"

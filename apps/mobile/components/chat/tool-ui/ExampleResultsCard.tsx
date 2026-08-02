@@ -31,6 +31,8 @@ export function ExampleResultsCard({ part, theme }: { part: ToolCallPart; theme:
       <Pressable
         onPress={() => count > 0 && setExpanded((x) => !x)}
         style={[styles.pill, { backgroundColor: theme.surface, borderColor: theme.border }]}
+        accessibilityRole="button"
+        accessibilityState={{ expanded, disabled: count === 0 }}
       >
         <Ionicons name={toolIonicon(meta.iconKey)} size={14} color={colors.secondary[600]} />
         <Text style={[styles.label, { color: theme.text }]}>{meta.label}</Text>

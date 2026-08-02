@@ -107,6 +107,7 @@ export function TemplateInputStep({
               </Text>
             )}
             <TextInput
+              accessibilityLabel={field.label}
               style={[
                 styles.textInput,
                 isTextarea && styles.textArea,

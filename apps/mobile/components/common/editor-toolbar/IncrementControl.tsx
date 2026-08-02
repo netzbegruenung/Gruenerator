@@ -70,6 +70,9 @@ export function IncrementControl({
           },
           isDisabled && styles.disabled,
         ]}
+        accessibilityRole="button"
+        accessibilityLabel={direction === -1 ? 'Wert verringern' : 'Wert erhöhen'}
+        accessibilityState={{ disabled: isDisabled }}
       >
         <Ionicons
           name={icon}

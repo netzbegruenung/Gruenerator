@@ -18,7 +18,7 @@ export function UnsplashAttribution({ attribution, compact = false }: UnsplashAt
 
   if (compact) {
     return (
-      <Pressable onPress={handlePress} style={styles.compactContainer}>
+      <Pressable onPress={handlePress} accessibilityRole="link" style={styles.compactContainer}>
         <Text style={styles.compactText} numberOfLines={1}>
           {attribution.photographer}
         </Text>
@@ -27,7 +27,7 @@ export function UnsplashAttribution({ attribution, compact = false }: UnsplashAt
   }
 
   return (
-    <Pressable onPress={handlePress} style={styles.container}>
+    <Pressable onPress={handlePress} accessibilityRole="link" style={styles.container}>
       <Text style={styles.text}>
         Foto von <Text style={styles.bold}>{attribution.photographer}</Text> auf Unsplash
       </Text>
