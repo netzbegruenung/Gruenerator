@@ -10,12 +10,12 @@
  * Die Lane prüft ROUTEN, nicht Komponenten. Komponenten-Regressionen gehören
  * weiter in die `.vitest.tsx`-Tests neben der Komponente.
  *
- * Voraussetzungen (sonst skippt die Suite):
- *   VITE_E2E_AUTH_BYPASS=true   im Web-Env (zur BUILD-/Dev-Server-Zeit)
- *   ALLOW_DEV_AUTH_BYPASS=true  + DEV_AUTH_BYPASS_TOKEN im API-Env
+ * Einzige Voraussetzung (sonst skippt die Suite):
+ *   VITE_E2E_AUTH_BYPASS=true   im Env des Dev-Servers
  *
  * Ohne Bypass würde jede Route auf die Loginseite umleiten und wir würden
- * 15× dieselbe Seite prüfen — ein grüner Lauf ohne Aussage.
+ * 13× dieselbe Seite prüfen — ein grüner Lauf ohne Aussage. Ein Backend
+ * braucht die Lane nicht: die Datenpfade beantwortet `apiFixtures.ts`.
  *
  * Abarbeitungsplan und Zielstandard: docs/barrierefreiheit-audit-plan.md
  */
@@ -23,10 +23,22 @@
 import AxeBuilder from '@axe-core/playwright';
 import { test, expect, type Page } from '@playwright/test';
 
-import { isDevBypassHonored } from './fixtures/pageHelpers.js';
+import { FIXTURE_BOARD_ID, installApiFixtures } from './fixtures/apiFixtures.js';
 
-const API_BASE = process.env.E2E_API_BASE_URL ?? 'http://localhost:3001';
-const BYPASS_TOKEN = process.env.DEV_AUTH_BYPASS_TOKEN;
+/**
+ * Der Bypass, an dem diese Lane hängt, ist **rein clientseitig**:
+ * `useAuth.ts` liefert bei `VITE_E2E_AUTH_BYPASS=true` auf einem
+ * localhost-Host eine synthetische Sitzung, ohne das Backend zu fragen
+ * (`buildE2EBypassAuthData`). Die Lane braucht also kein laufendes Backend
+ * und kein Token — sie braucht nur einen Dev-Server, der mit dem Flag
+ * gestartet wurde.
+ *
+ * Das war bis 08/2026 anders verdrahtet: geprüft wurde, ob das *Backend* auf
+ * `localhost:3001` den Header `x-dev-auth-bypass` honoriert. In CI lief dort
+ * nie etwas, also skippte die Suite dort **immer** — 22 von 22 Prüfungen,
+ * auf jedem PR, unter einem grünen Haken namens „axe-core (WCAG 2.2 AA)".
+ */
+const BYPASS_AKTIV = process.env.VITE_E2E_AUTH_BYPASS === 'true';
 
 /**
  * Der Tag-Satz, gegen den geprüft wird. `wcag22aa` ist der eigentliche
@@ -43,27 +55,40 @@ const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
  * Die geprüften Routen. Bewusst die Einstiegsseiten der Hauptbereiche, nicht
  * jede Unterseite: eine Route, die dieselben Komponenten wie eine bereits
  * geprüfte rendert, findet keine neuen Verstöße, kostet aber dieselbe Zeit.
+ *
+ * **Jede Route hier muss die Seite sein, die sie behauptet.** Von den bisher
+ * zwanzig Einträgen waren SIEBEN Weiterleitungen — die Lane maß in Wahrheit
+ * dreizehn verschiedene Seiten, `/workplace` davon viermal:
+ *
+ * | stand hier | landete auf | weil |
+ * | --- | --- | --- |
+ * | `/` | `/workplace` | angemeldete Nutzer werden weitergeleitet |
+ * | `/settings`, `/profile` | `/workplace` | `SettingsRedirect` — die Einstellungen sind ein Dialog, keine Seite |
+ * | `/notebooks` | `/wissen` | `WissenRedirect` |
+ * | `/agents` | `/agentura` | `createRedirect` |
+ * | `/image-studio` | `/studio` | `createRedirect` |
+ * | `/boards` | `/office` | `createRedirect` |
+ * | `/documents` | 404 | die Route existiert nur mit `:documentId` (in Welle 3 entfernt) |
+ *
+ * Die Einträge in `KNOWN_VIOLATIONS` für diese Namen bewachten damit Seiten,
+ * die nie besucht wurden. Dagegen steht jetzt der Weiterleitungs-Riegel in
+ * `gotoAuthenticated()`.
  */
 const ROUTES = [
-  '/',
+  // `/` und `/startseite` fehlen hier: beide leiten Angemeldete auf
+  // `/workplace`. Die öffentliche Startseite ist nur ohne Sitzung messbar und
+  // braucht deshalb einen eigenen, ausgeloggten Kontext — bis dahin deckt
+  // `/login` den öffentlichen Teil ab.
   '/login',
   '/workplace',
   '/chat',
-  '/settings',
-  '/profile',
-  // `/documents` stand hier und ist keine Route: die Anwendung kennt nur
-  // `/documents/:documentId`. Die Lane hat dort also die Nicht-gefunden-Seite
-  // geprüft und sie als Dokumentenübersicht ausgegeben. Die Übersicht ist
-  // `/office` und steht weiter unten ohnehin drin. Gegen die Wiederholung
-  // steht jetzt der 404-Riegel in `gotoAuthenticated()`.
-  '/boards',
-  '/notebooks',
-  '/agentura',
-  '/agents',
+  // Das Kanban liegt auf `/boards/:id` — `/boards` ist eine Weiterleitung.
+  // Erreichbar nur mit festem Datenstand, siehe apiFixtures.
+  `/boards/${FIXTURE_BOARD_ID}`,
   '/wissen',
+  '/agentura',
   '/office',
   '/studio',
-  '/image-studio',
   '/media-library',
   '/apps',
   '/transkription',
@@ -82,79 +107,87 @@ const ROUTES = [
  *
  * Leer = Ziel erreicht.
  *
- * Stand nach Welle 3 (Nachmessung 02.08.2026, hell + dunkel, Dev-Auth-Bypass
- * aktiv): `nested-interactive` (315), `button-name` (9), `aria-allowed-attr` (3)
- * und `link-name` sind weg. Übrig ist ausschließlich `color-contrast`, und zwar
- * an vier Farbpaaren, die alle an einer offenen **Designentscheidung** hängen
- * (weißer Text auf `--secondary-500`/`--secondary-600` erreicht 3,37 bzw.
- * 4,11 statt 4,5). Begründung und Auflösungsvorschläge mit gerechneten Werten:
- * docs/barrierefreiheit-followup-audit.md §1.
- *
- * Der Sprung-Link steht seit Welle 3 per Vorgabe an (WCAG 2.4.1 ist Level A) —
- * er benutzt dieselbe Markenfarbe und bringt den Kontrastbefund deshalb auf
- * JEDE Route. Das ist keine Verschlechterung, sondern derselbe Defekt an einer
- * Stelle, die jetzt überall sichtbar ist.
+ * Stand 08/2026, gemessen mit festem Datenstand über die bereinigte
+ * Routenliste. `color-contrast` stand vorher auf ALLEN zwanzig Routen — das
+ * war der Marken-Grün-Befund, und der ist mit #2334 (Eukalyptus) und der
+ * Grau-Rampe erledigt. Zwölf Routen sind jetzt ohne jede Ausnahme.
  */
 const KNOWN_VIOLATIONS: Record<string, string[]> = {
-  '/': ['color-contrast'],
-  '/login': ['color-contrast'],
-  '/workplace': ['color-contrast'],
-  '/chat': ['color-contrast'],
-  '/settings': ['color-contrast'],
-  '/profile': ['color-contrast'],
-  // `nested-interactive` bleibt hier stehen, obwohl die Nachmessung es nicht
-  // meldet: die Messung lief mit LEEREM Board (0 Karten). Die Ursache sitzt
-  // nicht in unseren Karten, sondern in dnd-kits `role="button"` auf dem
-  // Sortier-Wrapper — siehe Follow-up-Audit §3. Erst mit festem Datenstand
-  // (B4.1) ist ein Nicht-Befund hier überhaupt eine Aussage.
-  '/boards': ['color-contrast', 'nested-interactive'],
-  '/notebooks': ['color-contrast'],
-  '/agentura': ['color-contrast'],
-  '/agents': ['color-contrast'],
-  '/wissen': ['color-contrast'],
-  '/office': ['color-contrast'],
-  '/studio': ['color-contrast'],
-  '/image-studio': ['color-contrast'],
-  '/media-library': ['color-contrast'],
-  '/apps': ['color-contrast'],
-  '/transkription': ['color-contrast'],
-  '/suche': ['color-contrast'],
-  '/projekte': ['color-contrast'],
+  // Beide Befunde sitzen im Board-Kopf, nicht in den Karten: `button-name` an
+  // zwei Radix-Auslösern ohne zugänglichen Namen, `color-contrast` an der
+  // Filterleiste.
+  //
+  // `nested-interactive` steht hier bewusst NICHT (mehr). Nicht, weil die
+  // Lane es widerlegt hätte — sie kann es gar nicht sehen: die Karten leben
+  // in einem Yjs-Dokument, das über Hocuspocus per WebSocket synchronisiert
+  // wird (`useBoardState`), und ohne diesen Server bleibt `isSynced` false.
+  // `page.route()` erreicht das nicht. Die Zusage für die Karten kommt
+  // deshalb aus den Komponententests neben der Komponente
+  // (`kanban.vitest.tsx`, `list.vitest.tsx`, mit Gegenprobe), nicht von hier.
+  [`/boards/${FIXTURE_BOARD_ID}`]: ['button-name', 'color-contrast'],
 };
 
 async function gotoAuthenticated(page: Page, route: string): Promise<void> {
-  // Der Backend-Bypass hängt am Header, nicht am Cookie — also auf jede
-  // API-Anfrage der Seite setzen, nicht nur auf die Navigation.
-  if (BYPASS_TOKEN) {
-    await page.setExtraHTTPHeaders({ 'x-dev-auth-bypass': BYPASS_TOKEN });
-  }
+  await installApiFixtures(page);
   await page.goto(route, { waitUntil: 'domcontentloaded' });
   // Auf Ruhe warten statt auf `networkidle`: die App hält SSE-Verbindungen
   // offen, `networkidle` würde in den Timeout laufen.
   await page.waitForTimeout(1500);
 
-  // Zwei Riegel gegen dieselbe Fehlerklasse: eine Messung, die etwas anderes
+  // Drei Riegel gegen dieselbe Fehlerklasse: eine Messung, die etwas anderes
   // prüft als die genannte Route, meldet ein Ergebnis, das erfreulich aussieht
-  // und nichts aussagt. Ohne Bypass ist das 20× die Loginseite, bei einer
-  // falsch geschriebenen Route 1× die Nicht-gefunden-Seite. Beides muss die
-  // Lane als Fehler melden, nicht als Befund.
+  // und nichts aussagt. Ohne Bypass ist das 19× die Loginseite, bei einer
+  // falsch geschriebenen Route 1× die Nicht-gefunden-Seite, und bei einer
+  // Weiterleitung eine zweite Messung derselben Seite unter fremdem Namen.
+  // Alle drei muss die Lane als Fehler melden, nicht als Befund.
   const landed = new URL(page.url()).pathname;
   expect(
     landed.startsWith('/login') && route !== '/login',
     `${route} ist auf ${landed} umgeleitet — der Dev-Auth-Bypass greift nicht.`
   ).toBe(false);
+  // Der Riegel, der `/boards` entlarvt hat: die Route war ein
+  // `createRedirect('/office')`, also maß die Lane `/office` zweimal.
+  expect(
+    landed,
+    `${route} leitet auf ${landed} weiter und misst dort eine Seite,
+die unter ihrem eigenen Namen ohnehin geprüft wird.`
+  ).toBe(route);
   expect(
     await page.locator('.not-found-container').count(),
     `${route} rendert die Nicht-gefunden-Seite — die Route gibt es nicht.`
   ).toBe(0);
+
+  // Das Cookie-Banner liegt sonst über der Seite. Es steht in `index.html`,
+  // nicht in React, und lässt sich nur über den Schlüssel wegbekommen, den es
+  // wirklich liest — siehe apiFixtures.
+  expect(
+    await page.locator('#terms-banner:visible').count(),
+    `${route}: das Cookie-Banner liegt über der Seite.`
+  ).toBe(0);
+
+  // Ein Hinweis in Rot oder Gelb heißt hier fast immer: eine Fixture-Antwort
+  // hat nicht die Form, die der Aufrufer erwartet. Ohne diesen Riegel meldet
+  // die Lane das als Kontrastverstoß der Oberfläche — ein Befund über das
+  // Prüfmittel, der wie ein Befund über das Produkt aussieht. Genau so hätte
+  // diese Fassung 11 von 13 Routen zu Unrecht gerügt.
+  // `allTextContents()` und nicht `first().textContent()`: letzteres wartet auf
+  // ein Element, das im Gutfall nie kommt — 30 Sekunden Leerlauf je Route.
+  const hinweise = await page
+    .locator('[data-sonner-toast][data-type="error"], [data-sonner-toast][data-type="warning"]')
+    .allTextContents();
+  expect(
+    hinweise,
+    `${route} zeigt einen Fehler- oder Warnhinweis. Das ist in aller Regel eine
+fehlende oder falsch geformte Antwort in apiFixtures.ts, kein Befund über die
+Oberfläche.`
+  ).toEqual([]);
 }
 
 test.describe('Barrierefreiheit (WCAG 2.2 AA)', () => {
-  test.beforeAll(async ({ request }) => {
-    const honored = await isDevBypassHonored(request, API_BASE, BYPASS_TOKEN);
+  test.beforeAll(() => {
     test.skip(
-      !honored,
-      'Dev-Auth-Bypass nicht aktiv — ohne ihn prüft die Lane 15× die Loginseite.'
+      !BYPASS_AKTIV,
+      'VITE_E2E_AUTH_BYPASS ist nicht gesetzt — ohne das Flag im Dev-Server prüft die Lane 19× die Loginseite.'
     );
   });
 

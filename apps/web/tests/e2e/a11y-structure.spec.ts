@@ -26,10 +26,10 @@
 
 import { test, type Page } from '@playwright/test';
 
-import { isDevBypassHonored } from './fixtures/pageHelpers.js';
+import { installApiFixtures } from './fixtures/apiFixtures.js';
 
-const API_BASE = process.env.E2E_API_BASE_URL ?? 'http://localhost:3001';
-const BYPASS_TOKEN = process.env.DEV_AUTH_BYPASS_TOKEN;
+/** Begründung in `a11y.spec.ts`: der Bypass ist rein clientseitig. */
+const BYPASS_AKTIV = process.env.VITE_E2E_AUTH_BYPASS === 'true';
 
 // `/settings` fehlt bewusst: die Route rendert die Workplace-Oberfläche und legt
 // die Einstellungen als Dialog darüber — `main` enthält dort also den
@@ -38,9 +38,7 @@ const BYPASS_TOKEN = process.env.DEV_AUTH_BYPASS_TOKEN;
 const ROUTES = ['/login', '/apps', '/suche'];
 
 async function gotoAuthenticated(page: Page, route: string): Promise<void> {
-  if (BYPASS_TOKEN) {
-    await page.setExtraHTTPHeaders({ 'x-dev-auth-bypass': BYPASS_TOKEN });
-  }
+  await installApiFixtures(page);
   await page.goto(route, { waitUntil: 'domcontentloaded' });
   // Auf Inhalt warten, nicht auf die Uhr: `/settings` lädt seine Tabs nach und
   // lieferte mit fester Wartezeit einen LEEREN Snapshot, der beim nächsten Lauf
@@ -55,9 +53,8 @@ async function gotoAuthenticated(page: Page, route: string): Promise<void> {
 }
 
 test.describe('Accessibility-Tree bleibt stabil', () => {
-  test.beforeAll(async ({ request }) => {
-    const honored = await isDevBypassHonored(request, API_BASE, BYPASS_TOKEN);
-    test.skip(!honored, 'Dev-Auth-Bypass nicht aktiv.');
+  test.beforeAll(() => {
+    test.skip(!BYPASS_AKTIV, 'VITE_E2E_AUTH_BYPASS ist nicht gesetzt.');
   });
 
   for (const route of ROUTES) {
