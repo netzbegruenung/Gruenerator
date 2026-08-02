@@ -142,7 +142,10 @@ export class UrlCrawler {
         },
       };
     } catch (error) {
-      console.error(`[UrlCrawler] Crawl failed for ${url}:`, error);
+      // `url` is an argument, not part of the format string: interpolated, a
+      // pasted URL containing `%s`/`%d` would consume `error` and swallow the
+      // actual failure reason (CodeQL js/tainted-format-string).
+      console.error('[UrlCrawler] Crawl failed for %s:', url, error);
       return {
         success: false,
         error: toUserFacingMessage(error, 'Failed to crawl URL'),
