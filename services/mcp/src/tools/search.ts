@@ -1,4 +1,5 @@
 import { buildQdrantFilter, mergeFilters } from '@gruenerator/query/filters';
+import { buildSourceRef } from '@gruenerator/query/refs';
 import { z } from 'zod';
 
 import { getDefaultSearchCollections, buildCollectionDefaultFilter } from '../catalog.ts';
@@ -117,6 +118,10 @@ function formatResult(
   sourceCollection?: string
 ) {
   const { category, contentType, date } = extractPayloadMetadata(r);
+  // `rank` orders THIS response; `ref` identifies the source across responses.
+  // Keeping them apart is the point: a client that cites by rank re-labels the
+  // same document on every call.
+  const ref = buildSourceRef({ url: r.url, documentId: r.documentId });
   const base: Record<string, unknown> = {
     rank: index + 1,
     relevance: `${Math.round(r.score * 100)}%`,
@@ -126,6 +131,7 @@ function formatResult(
     excerpt: truncateAtSentence(deduplicateText(r.text || ''), 800),
     searchMethod: r.searchMethod || searchMode,
   };
+  if (ref) base.ref = ref;
   if (r.documentId) base.documentId = r.documentId;
   if (category) base.category = category;
   if (contentType) base.contentType = contentType;
@@ -273,9 +279,65 @@ Suche in Berlin nach Quelle:
 { "query": "Verkehrswende", "country": "DE", "collection": "berlin", "filters": { "source_id": "berlin-lv-presse" } }`;
 }
 
+/**
+ * Machine-readable shape of a successful search, handed back as
+ * `structuredContent` alongside the human-readable text block.
+ *
+ * Only fields EVERY success path sets are required — the no-results branch has
+ * no `documentGroups`, the single-collection branch has `collection` where the
+ * multi-collection branch has `collectionsSearched`. A required field that one
+ * branch omits would turn a valid answer into `-32602 Output validation error`.
+ * Error paths are exempt: the SDK skips output validation whenever `isError` is
+ * set (`validateToolOutput` in server/mcp.js), and every error return here
+ * carries `error: true`.
+ */
+const searchHitSchema = z
+  .object({
+    rank: z.number().describe('Position in DIESER Antwort — kein Zitatmarker.'),
+    ref: z
+      .string()
+      .optional()
+      .describe(
+        'Stabiler Schlüssel dieser Quelle: über Aufrufe hinweg gleich, aus der URL abgeleitet. Zum Deduplizieren und Zitieren — nicht rank verwenden.'
+      ),
+    relevance: z.string(),
+    score: z.number(),
+    source: z.string().describe('Titel des Dokuments'),
+    url: z.string().nullable(),
+    excerpt: z.string(),
+    searchMethod: z.string(),
+    documentId: z.string().optional(),
+    category: z.string().optional(),
+    contentType: z.string().optional(),
+    date: z.string().optional(),
+    sourceCollection: z.string().optional(),
+  })
+  .describe('Ein Treffer. Zwei Treffer mit gleichem ref sind zwei Belegstellen derselben Quelle.');
+
+export const searchOutputSchema = {
+  query: z.string(),
+  country: z.string(),
+  searchMode: z.string(),
+  resultsCount: z.number(),
+  results: z.array(searchHitSchema),
+  collection: z.string().optional().describe('Nur bei Suche in einer einzelnen Sammlung'),
+  collectionsSearched: z.string().optional().describe('Nur bei Suche über alle Sammlungen'),
+  description: z.string().optional(),
+  documentGroups: z
+    .record(z.string(), z.number())
+    .optional()
+    .describe('Treffer pro Dokumenttitel — mehr als 1 heißt mehrere Passagen derselben Quelle.'),
+  message: z.string().optional(),
+  hint: z.string().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+  filters: z.record(z.string(), z.unknown()).nullable().optional(),
+  cached: z.boolean().optional(),
+};
+
 export const searchTool = {
   name: 'gruenerator_search',
   description: buildSearchDescription(),
+  outputSchema: searchOutputSchema,
 
   inputSchema: {
     query: z.string().min(1).max(2000).describe('Suchbegriff oder Frage auf Deutsch'),
