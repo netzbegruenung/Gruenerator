@@ -33,8 +33,12 @@ export function hashApiKey(plaintext: string): string {
 export function extractBearer(req: Request): string | null {
   const auth = req.headers.authorization;
   if (typeof auth !== 'string') return null;
-  const match = /^Bearer\s+(.+)$/i.exec(auth.trim());
-  return match ? match[1].trim() : null;
+  // Sliced, not matched: `/^Bearer\s+(.+)$/` lets `\s+` and `.+` split the same
+  // whitespace run two ways, which is quadratic on an attacker-supplied header
+  // (CodeQL js/polynomial-redos).
+  const trimmed = auth.trim();
+  if (!/^Bearer\s/i.test(trimmed)) return null;
+  return trimmed.slice('Bearer'.length).trim() || null;
 }
 
 export type VerifyApiKeyResult =
