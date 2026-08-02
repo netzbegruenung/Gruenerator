@@ -68,9 +68,10 @@ type AttachmentPreviewProps = {
 const AttachmentPreview: FC<AttachmentPreviewProps> = ({ src }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   return (
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onLoad tracks image-decode completion, not a user interaction.
     <img
       src={src}
-      alt="Image Preview"
+      alt="Vorschau des Anhangs"
       className={cn(
         'block h-auto max-h-[80vh] w-auto max-w-full object-contain',
         isLoaded

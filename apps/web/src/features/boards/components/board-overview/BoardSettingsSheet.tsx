@@ -95,8 +95,14 @@ export const BoardSettingsSheet = memo(function BoardSettingsSheet({
         <div className="mt-3 space-y-6">
           {/* Beschreibung */}
           <section>
-            <label className="text-sm font-medium text-foreground">Beschreibung</label>
+            <label
+              htmlFor="board-settings-description"
+              className="text-sm font-medium text-foreground"
+            >
+              Beschreibung
+            </label>
             <textarea
+              id="board-settings-description"
               value={desc}
               onChange={(e) => setDesc(e.target.value)}
               onBlur={() => {

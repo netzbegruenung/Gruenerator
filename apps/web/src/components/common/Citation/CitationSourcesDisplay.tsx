@@ -234,28 +234,34 @@ const CitationSourcesDisplay = ({
               <div className="flex flex-col">
                 {group.citations.map((citation: Citation, idx: number) => {
                   const isClickable = citation.document_id && citation.chunk_index !== undefined;
-                  return (
-                    <div
-                      key={idx}
-                      className={cn(
-                        'flex gap-sm p-xxs ml-xs max-sm:block max-sm:p-xs max-sm:ml-0',
-                        isClickable &&
-                          'cursor-pointer transition-all duration-200 rounded-sm hover:bg-background-alt focus:outline-2 focus:outline-accent focus:outline-offset-2 active:scale-[0.99]'
-                      )}
-                      onClick={isClickable ? () => handleCitationClick(citation) : undefined}
-                      onKeyDown={
-                        isClickable ? (e) => handleCitationKeyDown(e, citation) : undefined
-                      }
-                      tabIndex={isClickable ? 0 : undefined}
-                      role={isClickable ? 'button' : undefined}
-                      title={isClickable ? 'Im Kontext anzeigen' : undefined}
-                    >
+                  const citationContent = (
+                    <>
                       <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-accent dark:bg-primary-400 text-white text-[0.7rem] font-semibold rounded-[10px] shrink-0 max-sm:min-w-auto max-sm:inline max-sm:mr-xxs">
                         {citation.index}
                       </span>
                       <span className="text-foreground italic leading-[1.6] p-md rounded-sm bg-background-alt text-[clamp(0.9rem,1.5vw,1rem)] max-sm:inline max-sm:break-words max-sm:bg-transparent max-sm:p-0 max-sm:rounded-none">
                         "{citation.cited_text?.replace(/\*\*/g, '') || ''}"
                       </span>
+                    </>
+                  );
+                  return isClickable ? (
+                    <div
+                      key={idx}
+                      className="flex gap-sm p-xxs ml-xs max-sm:block max-sm:p-xs max-sm:ml-0 cursor-pointer transition-all duration-200 rounded-sm hover:bg-background-alt focus:outline-2 focus:outline-accent focus:outline-offset-2 active:scale-[0.99]"
+                      onClick={() => handleCitationClick(citation)}
+                      onKeyDown={(e) => handleCitationKeyDown(e, citation)}
+                      tabIndex={0}
+                      role="button"
+                      title="Im Kontext anzeigen"
+                    >
+                      {citationContent}
+                    </div>
+                  ) : (
+                    <div
+                      key={idx}
+                      className="flex gap-sm p-xxs ml-xs max-sm:block max-sm:p-xs max-sm:ml-0"
+                    >
+                      {citationContent}
                     </div>
                   );
                 })}

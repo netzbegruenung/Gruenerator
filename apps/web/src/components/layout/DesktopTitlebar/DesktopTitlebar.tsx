@@ -109,6 +109,7 @@ const DesktopTitlebar = () => {
   };
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- Doppelklick zum Maximieren wie bei nativen Fensterleisten; per Tastatur über den Maximieren-Button in CaptionControls erreichbar
     <div
       className="fixed top-0 left-0 right-0 h-[var(--titlebar-height)] bg-[var(--bar-background)] flex items-center justify-between z-[9999] select-none"
       style={{
