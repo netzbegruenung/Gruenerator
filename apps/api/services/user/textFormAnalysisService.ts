@@ -2,9 +2,8 @@
  * One-shot writing-style analysis for the "Texte anlernen" feature.
  *
  * Takes the user's pasted example texts and distills their COMMONALITIES into an
- * editable German style block — the per-user, self-service analogue of the central
- * LV corpus analysis (services/agents/prAgentInsightService.ts), but sourced from
- * the user's own examples instead of Qdrant. A single Mistral `generateObject`
+ * editable German style block, sourced from the user's own pasted examples
+ * instead of a central corpus. A single Mistral `generateObject`
  * call extracts structured style fields; we render them deterministically to the
  * markdown block that later gets injected into the chat system prompt.
  */
