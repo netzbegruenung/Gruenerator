@@ -177,7 +177,9 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
           '[&_.gallery-thumbnail]:blur-[2px] [&_.gallery-thumbnail]:opacity-40 [&_.gallery-info]:blur-[2px] [&_.gallery-info]:opacity-40'
       )}
       onClick={() => onClick(image)}
+      role="button"
       tabIndex={0}
+      aria-label={image.title ? `${image.title} öffnen` : 'Gespeichertes Bild öffnen'}
       onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && onClick(image)}
     >
       <div className="gallery-thumbnail relative aspect-square w-full overflow-hidden bg-background-alt after:pointer-events-none after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[60px] after:bg-gradient-to-t after:from-overlay-sm after:to-transparent after:opacity-0 after:transition-opacity after:duration-[250ms] after:ease-linear after:content-[''] group-hover:after:opacity-100">
