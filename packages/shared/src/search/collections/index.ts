@@ -3,8 +3,8 @@
  *
  * The runtime collection registry now lives in the backend
  * (`apps/api/config/systemCollectionsConfig.ts`) as the single source of truth;
- * the MCP fetches it at runtime (`services/mcp/src/catalog.ts`). Only the shared
- * type vocabulary + Landesverband registries remain here.
+ * chat search and the MCP server both read it in-process. Only the shared type
+ * vocabulary + Landesverband registries remain here.
  */
 
 // Types

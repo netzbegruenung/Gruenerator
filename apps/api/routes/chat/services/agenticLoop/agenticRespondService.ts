@@ -27,6 +27,12 @@ import {
   loopPlannerModelName,
   prefersUnifiedLoop,
 } from '../../agents/providers.js';
+import {
+  buildRecipeCatalog,
+  renderRecipeCatalog,
+  type RecipeCatalogEntry,
+} from '../../agents/recipeCatalog.js';
+import { makeRecipeTool } from '../../agents/recipeTools.js';
 import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
 import { buildChatToolCatalog } from '../../agents/toolCatalog.js';
 import { extractTextContent } from '../messageHelpers.js';
@@ -57,6 +63,7 @@ import { isMcpReplayEnabled } from './flags.js';
 import { runAgenticLoop, type LoopMode } from './loopEngine.js';
 import { createToolLoopGuards, MAX_SOURCES } from './loopGuards.js';
 import { buildToolObservationReplay } from './mcpReplay.js';
+import { createRecipeRegistry } from './recipeRegistry.js';
 import {
   looksLikeExplicitResearchOrder,
   resolveEditorSurfaceKind,
@@ -710,6 +717,35 @@ export async function streamAgenticResponse(params: {
     }
     mcpMountMs = Date.now() - mcpMountStart;
 
+    // Self-loading recipes. Mounted async like the MCP catalogs (the user's
+    // learned text forms need a DB read), and only when nothing already
+    // decides the writing form for this turn:
+    //   - `activeSkillMention`: the user picked a recipe deliberately and
+    //     `buildSystemMessage` already injected it. Letting the model pick a
+    //     second one would overrule an explicit choice — same double-injection
+    //     guard `product_knowledge` uses.
+    //   - `customSystemPrompt`: a thread-level prompt replaces the whole
+    //     persona; self-loading a recipe into it would fight the user.
+    const recipeRegistry = createRecipeRegistry();
+    let recipeCatalog: RecipeCatalogEntry[] = [];
+    if (
+      !finalState.activeSkillMention &&
+      !finalState.customSystemPrompt &&
+      finalState.enabledTools?.['rezept_laden'] !== false
+    ) {
+      recipeCatalog = await buildRecipeCatalog({
+        userLocale: finalState.userLocale,
+        userId: userId ?? null,
+      });
+      if (recipeCatalog.length > 0) {
+        tools.rezept_laden = makeRecipeTool({
+          catalog: recipeCatalog,
+          registry: recipeRegistry,
+          userId: userId ?? null,
+        });
+      }
+    }
+
     // Tool-card labels for BOTH catalogs (user connectors + system sources).
     const toolLabels = new Map([...(mcpCatalog?.labels ?? []), ...(systemCatalog?.labels ?? [])]);
 
@@ -881,7 +917,7 @@ export async function streamAgenticResponse(params: {
     // so prompt and toolset can never disagree about whether searching is on.
     const researchBanned = forbidsNewResearch(finalState.lastUserTextNoMentions ?? lastUserText);
     const toolSystem = withInstructionHierarchy(
-      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned)}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}`
+      `${systemMessage}\n\n${buildToolUsageBlock(budget.maxSteps, researchBanned)}${mcpNote}${systemNote}${connectorCatalogNote}${carriedNote}${renderRecipeCatalog(recipeCatalog)}`
     );
     // The turn budget is now SOFT: it strips the tools via `forceFinish` (see
     // below) instead of aborting the stream. Only the absolute ceiling aborts —
@@ -952,8 +988,13 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
       // Same failure the sibling comment in respondNode warns about — "Antworte
       // als zusammenhängende Prosa" and "Strukturiere mit Überschriften" in one
       // prompt. One axis, one instruction, one place.
+      // Split mode's ONLY channel for a self-loaded recipe: this model writes
+      // the answer and has no tools, so it never sees the `rezept_laden`
+      // result. Unified mode gets the same text via `getRecipeBlock` in
+      // prepareStep — mirroring how `carriedNote` is injected for unified
+      // BECAUSE split gets it here.
       return withInstructionHierarchy(
-        `${systemMessage}${mcpNote}${cite}${artifacts}${mcpOutcome}${capabilityNote}${honestyNote}\n\nAntworte auf Deutsch (Du-Form, Genderstern).`
+        `${systemMessage}${mcpNote}${cite}${artifacts}${mcpOutcome}${capabilityNote}${honestyNote}${recipeRegistry.render()}\n\nAntworte auf Deutsch (Du-Form, Genderstern).`
       );
     };
 
@@ -1179,6 +1220,9 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
         const note = imageDeliveryNote(finalState.webImageResults?.length ?? 0);
         return note ? `${sources}\n\n${note}` : sources;
       },
+      // Unified mode only — read per step because `rezept_laden` fills the
+      // registry mid-loop. Split mode's writer gets it via buildSynthSystem.
+      getRecipeBlock: () => recipeRegistry.render(),
       // Prepend the reconstructed tool-call/result history just before the
       // current user message so tool_call↔result pairs stay adjacent + valid.
       messages:
