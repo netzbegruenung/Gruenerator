@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Keyboard, Platform, StyleSheet, View } from 'react-native';
+import { Keyboard, Platform, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { spacing } from '../../theme';
-import { FLOATING_TAB_BAR_HEIGHT, SCREEN_EDGE } from '../../theme/layout';
+import { FLOATING_TAB_BAR_HEIGHT } from '../../theme/layout';
 
-import { Composer, type ComposerProps } from './Composer';
+import { Composer, useComposerEdge, type ComposerProps } from './Composer';
 
 /**
  * Bottom-pinned, keyboard-aware composer bar (ChatGPT-style) for the tab screens.
@@ -38,6 +38,7 @@ export function BottomComposerBar({
 }) {
   const insets = useSafeAreaInsets();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const edge = useComposerEdge();
 
   useEffect(() => {
     const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -71,7 +72,7 @@ export function BottomComposerBar({
       automaticOffset
       keyboardVerticalOffset={keyboardVerticalOffset}
     >
-      <View style={[styles.wrap, { paddingBottom }]}>
+      <View style={[edge, { paddingBottom }]}>
         <Composer
           variant="bar"
           testIDPrefix="tab-composer"
@@ -88,10 +89,3 @@ export function BottomComposerBar({
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  wrap: {
-    paddingHorizontal: SCREEN_EDGE,
-    paddingTop: spacing.xsmall,
-  },
-});
