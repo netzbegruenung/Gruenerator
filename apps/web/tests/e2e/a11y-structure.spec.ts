@@ -22,6 +22,14 @@
  *
  * Vorher lesen, was sich geändert hat. Ein Snapshot, der ungeprüft neu
  * geschrieben wird, prüft nichts mehr.
+ *
+ * **Mit der Playwright-Fassung aus dem Lockfile aufzeichnen, nicht mit einer
+ * beliebigen.** Die Dateien sind Playwrights eigene YAML-Ausgabe (deshalb steht
+ * der Ordner in `.prettierignore`), und ihr Format hängt an der Fassung: die
+ * bis 08/2026 eingecheckten Snapshots waren mit vier Leerzeichen eingerückt,
+ * 1.62 schreibt zwei. In CI fiel `/apps` genau daran durch — der Baum war
+ * inhaltlich identisch, markiert war ausschließlich Leerraum. Lokal lief
+ * derselbe Stand grün, weil dort eine ältere Fassung installiert war.
  */
 
 import { test, type Page } from '@playwright/test';
