@@ -49,6 +49,16 @@ async function gotoAuthenticated(page: Page, route: string): Promise<void> {
     .locator(':scope :is(h1, h2, button, a, input)')
     .first()
     .waitFor({ state: 'attached', timeout: 15_000 });
+
+  // Und dann auf die STYLES warten, nicht nur auf den Inhalt. `/apps` blendet
+  // zwei Beschriftungen responsiv aus (`hidden sm:inline`); ist das Stylesheet
+  // noch nicht angewandt, stehen sie im Baum — der Snapshot enthält dann
+  // `text: Android` statt `text: ''`. Genau so ist die Prüfung in CI
+  // durchgefallen, während sie lokal grün war: derselbe Stand, nur eine andere
+  // Ladereihenfolge. Ein Snapshot, der vom Ladezeitpunkt abhängt, prüft die
+  // Uhr und nicht den Baum.
+  await page.waitForLoadState('load');
+  await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(1000);
 }
 
