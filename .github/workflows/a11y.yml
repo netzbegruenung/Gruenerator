@@ -94,12 +94,12 @@ jobs:
       - name: a11y-Lane
         working-directory: apps/web
         env:
-          # Ohne Bypass landet jede Route auf der Loginseite und die Lane
-          # prueft 20x dieselbe Seite — gruen, aber ohne Aussage. Die Suite
-          # skippt dann bewusst, statt falsche Sicherheit zu melden.
+          # Der einzige Schalter, den die Lane braucht. Vite reicht VITE_-Vars
+          # aus process.env an den Client durch; dort liefert useAuth.ts auf
+          # einem localhost-Host eine synthetische Sitzung, ohne das Backend zu
+          # fragen. Deshalb kein Secret und keine Service-Container mehr — die
+          # Datenpfade beantwortet apiFixtures.ts im Browser.
           VITE_E2E_AUTH_BYPASS: 'true'
-          VITE_DEV_AUTH_BYPASS_TOKEN: ${{ secrets.DEV_AUTH_BYPASS_TOKEN }}
-          DEV_AUTH_BYPASS_TOKEN: ${{ secrets.DEV_AUTH_BYPASS_TOKEN }}
           PLAYWRIGHT_JSON_OUTPUT_NAME: a11y-results.json
         run: pnpm exec playwright test a11y.spec.ts a11y-structure.spec.ts --reporter=github,html,json
 
@@ -109,16 +109,14 @@ jobs:
       # Check namens "axe-core (WCAG 2.2 AA)", der nichts geprueft hat, ist
       # schlimmer als kein Check, weil er wie eine Zusage aussieht.
       #
-      # Die Suite skippt (statt falsch gruen zu messen), wenn der
-      # Dev-Auth-Bypass nicht greift. Das ist hier IMMER der Fall: das Secret
-      # DEV_AUTH_BYPASS_TOKEN ist leer, und der Workflow startet ohnehin kein
-      # Backend — `isDevBypassHonored` fragt localhost:3001, dort laeuft
-      # nichts. Solange beides fehlt, kann die Lane in CI grundsaetzlich nur
-      # skippen.
+      # Die Ursache ist seit 08/2026 behoben: die Suite haing an einem
+      # Backend-Test (`isDevBypassHonored` gegen localhost:3001), obwohl der
+      # Bypass rein clientseitig ist. In CI lief dort nie etwas, also skippte
+      # sie dort immer.
       #
-      # Der Schritt macht das sichtbar (Annotation + Job-Zusammenfassung),
-      # ohne den Job rot zu faerben: rot waere hier eine Aussage ueber den
-      # PR, und der kann nichts dafuer.
+      # Der Schritt bleibt trotzdem — er ist der Riegel dagegen, dass es
+      # unbemerkt wieder passiert. Er faerbt den Job nicht rot: rot waere eine
+      # Aussage ueber den PR, und der kann nichts dafuer.
       - name: Ausgefuehrte Pruefungen zaehlen
         if: always()
         working-directory: apps/web
@@ -148,7 +146,7 @@ jobs:
             fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY ?? "/dev/null", `### Barrierefreiheit\n\n${zeile}\n`);
 
             if (gelaufen === 0) {
-              console.log(`::warning title=a11y-Lane hat NICHTS geprueft::${zeile} Ursache: kein Dev-Auth-Bypass. Es fehlen das Repository-Secret DEV_AUTH_BYPASS_TOKEN und ein erreichbares Backend auf localhost:3001. Dieser gruene Haken ist KEIN Barrierefreiheits-Signal.`);
+              console.log(`::warning title=a11y-Lane hat NICHTS geprueft::${zeile} Ursache ist fast immer, dass VITE_E2E_AUTH_BYPASS den Dev-Server nicht erreicht hat — dann skippt die Suite bewusst. Dieser gruene Haken ist KEIN Barrierefreiheits-Signal.`);
             } else if (zaehler.skipped > 0) {
               console.log(`::warning title=a11y-Lane teilweise uebersprungen::${zeile}`);
             }

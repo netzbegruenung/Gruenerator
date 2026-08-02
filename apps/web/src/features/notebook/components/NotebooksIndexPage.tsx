@@ -382,7 +382,10 @@ function useWissenTileIntel(locale: 'de' | 'at') {
 
   return useCallback(
     (id: string): string | null => {
-      if (id === 'monitor-themen') return snapshot?.topics[0]?.topArticles[0]?.title ?? null;
+      // Durchgängig optional: `snapshot?.topics[0]` warf eine TypeError, sobald
+      // der Snapshot da war, `topics` aber fehlte — die ganze Wissen-Seite fiel
+      // dann in die Fehlergrenze. Aufgefallen an der Lane mit leerem Datenstand.
+      if (id === 'monitor-themen') return snapshot?.topics?.[0]?.topArticles?.[0]?.title ?? null;
       if (id === 'monitor-umfragen') {
         const g = pickGrueneValue(polls?.average);
         return g != null
