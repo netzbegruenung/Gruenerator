@@ -132,6 +132,16 @@ async function gotoAuthenticated(page: Page, route: string): Promise<void> {
   await page.goto(route, { waitUntil: 'domcontentloaded' });
   // Auf Ruhe warten statt auf `networkidle`: die App hält SSE-Verbindungen
   // offen, `networkidle` würde in den Timeout laufen.
+  //
+  // Vorher aber auf die STYLES warten, nicht nur auf den Inhalt.
+  // `color-contrast` misst berechnete Farben — solange das Stylesheet nicht
+  // angewandt ist, misst axe die Browser-Vorgaben und meldet Funde, die es im
+  // Produkt nicht gibt. Erkennungszeichen: bei gleichem Stand fallen in jedem
+  // Lauf ANDERE Routen durch, und einzeln ist keine davon reproduzierbar.
+  // `load` wartet auf die verlinkten Stylesheets, `document.fonts.ready` auf
+  // die Schriften — beides verschiebt Layout und Farben.
+  await page.waitForLoadState('load');
+  await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(1500);
 
   // Drei Riegel gegen dieselbe Fehlerklasse: eine Messung, die etwas anderes
