@@ -70,7 +70,7 @@ const AttachmentPreview: FC<AttachmentPreviewProps> = ({ src }) => {
   return (
     <img
       src={src}
-      alt="Image Preview"
+      alt="Vorschau des Anhangs"
       className={cn(
         'block h-auto max-h-[80vh] w-auto max-w-full object-contain',
         isLoaded
