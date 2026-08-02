@@ -193,11 +193,27 @@ export async function executeDirectSearch(params: {
    * Only applied to collections targeting `landesverbaende_documents`.
    */
   agentLandesverband?: readonly string[] | string;
+  /**
+   * Retrieval strategy. Defaults to `hybrid`, which is what every caller wanted
+   * before this was settable; `text` is keyword-only (exact wording, names,
+   * quotes), `vector` purely semantic.
+   */
+  searchMode?: 'hybrid' | 'vector' | 'text';
+  /** Set false to bypass the service-level result cache for a fresh read. */
+  useCache?: boolean;
 }): Promise<DirectSearchResult> {
-  const { query, collection = 'deutschland', limit = 5, filters, agentLandesverband } = params;
+  const {
+    query,
+    collection = 'deutschland',
+    limit = 5,
+    filters,
+    agentLandesverband,
+    searchMode = 'hybrid',
+    useCache,
+  } = params;
 
   log.info(
-    `[Direct Search] query="${query}" collection="${collection}" limit=${limit}${filters ? ` filters=${JSON.stringify(filters)}` : ''}${agentLandesverband ? ` lv=${JSON.stringify(agentLandesverband)}` : ''}`
+    `[Direct Search] query="${query}" collection="${collection}" limit=${limit} mode=${searchMode}${filters ? ` filters=${JSON.stringify(filters)}` : ''}${agentLandesverband ? ` lv=${JSON.stringify(agentLandesverband)}` : ''}`
   );
 
   const mapping = COLLECTION_MAP[collection];
@@ -244,7 +260,7 @@ export async function executeDirectSearch(params: {
       userId: undefined,
       options: {
         limit: Math.min(limit * 2, 30),
-        mode: 'hybrid',
+        mode: searchMode,
         vectorWeight: searchParams.vectorWeight,
         textWeight: searchParams.textWeight,
         threshold: searchParams.threshold,
@@ -252,6 +268,7 @@ export async function executeDirectSearch(params: {
         recallLimit: searchParams.recallLimit,
         qualityMin: searchParams.qualityMin,
         additionalFilter,
+        ...(useCache === undefined ? {} : { useCache }),
       },
     });
 
@@ -276,7 +293,7 @@ export async function executeDirectSearch(params: {
             userId: undefined,
             options: {
               limit: Math.min(limit * 2, 30),
-              mode: 'hybrid',
+              mode: searchMode,
               vectorWeight: searchParams.vectorWeight,
               textWeight: searchParams.textWeight,
               threshold: searchParams.threshold,
@@ -307,7 +324,7 @@ export async function executeDirectSearch(params: {
         return {
           collection,
           query,
-          searchMode: 'hybrid',
+          searchMode,
           resultsCount: 0,
           results: [],
           error: true,
@@ -320,7 +337,7 @@ export async function executeDirectSearch(params: {
         return {
           collection,
           query,
-          searchMode: 'hybrid',
+          searchMode,
           resultsCount: 0,
           results: [],
           message: 'Keine Ergebnisse gefunden.',
@@ -356,7 +373,7 @@ export async function executeDirectSearch(params: {
     return {
       collection,
       query,
-      searchMode: 'hybrid',
+      searchMode,
       resultsCount: formattedResults.length,
       results: formattedResults,
     };
@@ -366,7 +383,7 @@ export async function executeDirectSearch(params: {
     return {
       collection,
       query,
-      searchMode: 'hybrid',
+      searchMode,
       resultsCount: 0,
       results: [],
       error: true,
@@ -386,17 +403,21 @@ export async function executeDirectExamplesSearch(params: {
   query: string;
   platform?: string;
   country?: 'DE' | 'AT';
+  /** Reaches the search itself. Without it the service caps at its own default
+   *  of 10 and a caller asking for more silently gets fewer. */
+  limit?: number;
   /** Override target collection — see `SearchExamplesParams.examplesCollection`. */
   collection?: string;
   lvScope?: string | readonly string[];
 }): Promise<DirectExamplesResult> {
-  const { query, platform, country, collection, lvScope } = params;
+  const { query, platform, country, limit, collection, lvScope } = params;
 
   const result = await searchExamples({
     query,
     kinds: ['social'],
     ...(platform && { platform }),
     ...(country && { country }),
+    ...(limit !== undefined && { limit }),
     ...(collection && { examplesCollection: collection }),
     ...(lvScope !== undefined && { lvScope }),
   });
@@ -419,12 +440,18 @@ export async function executeDirectExamplesSearch(params: {
     };
   }
 
+  // `url` and `relevance` come from UnifiedExample and were dropped here, so a
+  // consumer could neither link a post nor weigh it — the MCP tool's source ref
+  // fell back to the bare id. Social posts often carry no permalink, hence the
+  // conditional spread.
   const examples = items.map((e) => ({
     id: e.id,
     platform: e.platform ?? platform ?? 'unknown',
     content: e.body,
     ...(e.author && { author: e.author }),
     ...(e.publishedAt && { date: e.publishedAt }),
+    ...(e.url && { url: e.url }),
+    relevance: e.relevance,
   }));
 
   return { resultsCount: examples.length, examples };
