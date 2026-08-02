@@ -1,9 +1,13 @@
 import { useMemo } from 'react';
 import { useWindowDimensions } from 'react-native';
 
-import { CONTENT_MAX_WIDTH, GRID_MAX_WIDTH, SCREEN_EDGE, SCREEN_EDGE_WIDE } from '../theme/layout';
-
-import { TABLET_MIN_WIDTH } from './useIsTablet';
+import {
+  CONTENT_MAX_WIDTH,
+  GRID_MAX_WIDTH,
+  SCREEN_EDGE,
+  SCREEN_EDGE_WIDE,
+  TABLET_MIN_WIDTH,
+} from '../theme/layout';
 
 import type { ViewStyle } from 'react-native';
 

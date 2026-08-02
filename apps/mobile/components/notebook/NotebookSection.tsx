@@ -1,16 +1,20 @@
 import { memo, useCallback } from 'react';
-import { View, Text, StyleSheet, useColorScheme, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 
 import { getNotebookCover } from '../../config/notebookCovers';
 import { type MobileNotebookEntry } from '../../config/notebooksConfig';
-import { useIsTablet } from '../../hooks/useIsTablet';
+import { useLayout } from '../../hooks/useLayout';
 import { spacing, lightTheme, darkTheme } from '../../theme';
+import { gridColumns } from '../../theme/layout';
 
 import { NotebookTile } from './NotebookTile';
 
 const GAP = spacing.small;
-/** Horizontal padding of the Wissen screen's scroll content, both sides. */
-const SCREEN_PADDING = spacing.medium * 2;
+/**
+ * Smallest a notebook tile may get before a column is dropped — what a phone
+ * already draws at two columns.
+ */
+const MIN_TILE = 160;
 
 /**
  * One tile, with its own press handlers.
@@ -66,13 +70,12 @@ export const NotebookSection = memo(function NotebookSection({
 }) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-  const isTablet = useIsTablet();
-  const { width } = useWindowDimensions();
+  const { gridWidth } = useLayout();
 
   if (notebooks.length === 0) return null;
 
-  const columns = isTablet ? 3 : 2;
-  const tileSize = Math.floor((width - SCREEN_PADDING - GAP * (columns - 1)) / columns);
+  const columns = gridColumns(gridWidth, MIN_TILE, GAP);
+  const tileSize = Math.floor((gridWidth - GAP * (columns - 1)) / columns);
 
   return (
     <View style={styles.section}>

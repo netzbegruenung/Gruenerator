@@ -5,6 +5,7 @@ import {
   GRID_MAX_WIDTH,
   SCREEN_EDGE,
   SCREEN_EDGE_WIDE,
+  TABLET_MIN_WIDTH,
   gridColumns,
 } from './layout';
 
@@ -23,7 +24,6 @@ const WINDOWS = {
   ipadLandscape: 1366,
 } as const;
 
-const TABLET_MIN_WIDTH = 700;
 const GAP = 12;
 const MIN_TILE = 160;
 
