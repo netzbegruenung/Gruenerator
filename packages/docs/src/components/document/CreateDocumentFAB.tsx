@@ -21,7 +21,7 @@ export function CreateDocumentFAB({ onCreateBlank, onShowGallery }: CreateDocume
         <DropdownMenuTrigger asChild>
           <Button
             size="lg"
-            className="h-[52px] w-[52px] rounded-full bg-[#5F8575] shadow-[0_4px_12px_rgba(0,0,0,0.15),0_2px_4px_rgba(0,0,0,0.1)] hover:bg-[#5F8575]/90"
+            className="h-[52px] w-[52px] rounded-full bg-[#587C6D] shadow-[0_4px_12px_rgba(0,0,0,0.15),0_2px_4px_rgba(0,0,0,0.1)] hover:bg-[#587C6D]/90"
             aria-label="Neues Dokument erstellen"
           >
             <FiPlus size={24} />

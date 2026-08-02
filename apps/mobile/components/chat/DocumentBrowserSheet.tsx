@@ -138,6 +138,7 @@ export function DocumentBrowserSheet({
             }}
             style={styles.backButton}
             hitSlop={8}
+            accessibilityRole="button"
           >
             <Ionicons name="chevron-back" size={22} color={theme.text} />
             <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>
@@ -147,7 +148,12 @@ export function DocumentBrowserSheet({
         ) : (
           <Text style={[styles.headerTitle, { color: theme.text }]}>Dokumente</Text>
         )}
-        <Pressable onPress={onDismiss} hitSlop={8}>
+        <Pressable
+          onPress={onDismiss}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Schließen"
+        >
           <Ionicons name="close" size={22} color={theme.textSecondary} />
         </Pressable>
       </View>
@@ -162,6 +168,7 @@ export function DocumentBrowserSheet({
             value={searchQuery}
             onChangeText={handleSearch}
             autoFocus
+            accessibilityLabel="Dokumente durchsuchen"
           />
           {searching && <ActivityIndicator size="small" color={theme.textGreen} />}
         </View>
@@ -253,6 +260,7 @@ function RootLevel({
             styles.uploadButton,
             { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
           ]}
+          accessibilityRole="button"
         >
           <Ionicons name="cloud-upload-outline" size={20} color={colors.white} />
           <Text style={styles.uploadButtonText}>Datei hochladen</Text>
@@ -277,6 +285,7 @@ function RootLevel({
                 borderBottomColor: theme.border,
               },
             ]}
+            accessibilityRole="button"
           >
             <Ionicons name="cloud-upload-outline" size={20} color={theme.textGreen} />
             <Text style={[styles.uploadRowText, { color: theme.textGreen }]}>Datei hochladen</Text>
@@ -295,6 +304,7 @@ function RootLevel({
                     { backgroundColor: pressed ? theme.surface : 'transparent' },
                   ]}
                   onPress={() => onSelectCollection(c)}
+                  accessibilityRole="button"
                 >
                   <Ionicons name="folder-outline" size={20} color={theme.textGreen} />
                   <View style={styles.rowText}>
@@ -393,6 +403,7 @@ function DocRow({
         { backgroundColor: pressed ? theme.surface : 'transparent' },
       ]}
       onPress={onPress}
+      accessibilityRole="button"
     >
       <Ionicons name="document-text-outline" size={18} color={theme.textSecondary} />
       <View style={styles.rowText}>

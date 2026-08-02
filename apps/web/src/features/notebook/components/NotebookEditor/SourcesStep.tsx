@@ -58,6 +58,7 @@ export default function SourcesStep({ state }: SourcesStepProps) {
   } = state;
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- drag-tracking wrapper only; the button below is the keyboard-accessible control
     <div
       className="flex flex-col gap-lg"
       onDragEnter={handleDragEnter}

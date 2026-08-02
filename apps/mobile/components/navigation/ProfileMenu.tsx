@@ -122,7 +122,12 @@ export function ProfileMenu() {
         onRequestClose={() => setOpen(false)}
         statusBarTranslucent
       >
-        <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
+        <Pressable
+          style={styles.backdrop}
+          onPress={() => setOpen(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Profilmenü schließen"
+        >
           <Pressable
             onPress={(e) => e.stopPropagation()}
             style={[
@@ -135,6 +140,7 @@ export function ProfileMenu() {
                 borderColor: theme.border,
               },
             ]}
+            accessibilityRole="none"
           >
             <Pressable
               onPress={() => {
@@ -145,6 +151,8 @@ export function ProfileMenu() {
                 styles.header,
                 { backgroundColor: pressed ? theme.surface : 'transparent' },
               ]}
+              accessibilityRole="button"
+              accessibilityLabel="Profil und Einstellungen öffnen"
             >
               <ProfileAvatar
                 avatarRobotId={user?.avatar_robot_id}
@@ -175,6 +183,7 @@ export function ProfileMenu() {
                   styles.row,
                   { backgroundColor: pressed ? theme.surface : 'transparent' },
                 ]}
+                accessibilityRole="button"
               >
                 <Ionicons name={item.icon} size={20} color={theme.textSecondary} />
                 <Text style={[styles.rowLabel, { color: theme.text }]}>{item.label}</Text>
@@ -190,6 +199,7 @@ export function ProfileMenu() {
                 styles.row,
                 { backgroundColor: pressed ? theme.surface : 'transparent' },
               ]}
+              accessibilityRole="button"
             >
               <Ionicons name="settings-outline" size={20} color={theme.textSecondary} />
               <Text style={[styles.rowLabel, { color: theme.text }]}>Einstellungen</Text>
@@ -211,6 +221,8 @@ export function ProfileMenu() {
                   opacity: isLoggingOut ? 0.5 : 1,
                 },
               ]}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isLoggingOut, busy: isLoggingOut }}
             >
               <Ionicons name="log-out-outline" size={20} color={colors.error[600]} />
               <Text style={[styles.rowLabel, { color: colors.error[600] }]}>

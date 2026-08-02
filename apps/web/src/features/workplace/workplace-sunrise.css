@@ -262,7 +262,9 @@
    in der Chat-Runtime stays brand green. Falls back to the brand tokens when a
    preset defines no accent (neutral). */
 .workplace-chat-accent {
-  --color-primary: var(--wp-accent, var(--primary-500));
+  /* Rückfall auf --color-primary-val statt direkt auf die Rampenstufe, damit
+     der Hero ohne Preset dieselbe themeabhängige Stufe erbt wie der Rest. */
+  --color-primary: var(--wp-accent, var(--color-primary-val));
   --color-primary-600: var(--wp-accent-hover, var(--primary-600));
 
   /* Der „Entdecke den neuen Grünerator"-Knopf direkt unter dem Composer ist ein

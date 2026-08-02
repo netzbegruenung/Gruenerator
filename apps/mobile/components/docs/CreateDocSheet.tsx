@@ -134,6 +134,7 @@ export function CreateDocSheet({
       style={[styles.row, { borderBottomColor: theme.border }]}
       onPress={onPress}
       activeOpacity={0.7}
+      accessibilityRole="button"
     >
       <View
         style={[styles.iconTile, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
@@ -161,6 +162,7 @@ export function CreateDocSheet({
           <Ionicons name="search" size={18} color={theme.textSecondary} />
           <TextInput
             style={[styles.inputField, { color: theme.text }]}
+            accessibilityLabel="Dokument beschreiben oder suchen"
             placeholder="Beschreiben oder suchen…"
             placeholderTextColor={theme.textSecondary}
             value={query}
@@ -231,6 +233,7 @@ export function CreateDocSheet({
                 <Pressable
                   key={p.label}
                   onPress={() => setQuery(p.text)}
+                  accessibilityRole="button"
                   style={[
                     styles.chip,
                     { borderColor: theme.border, backgroundColor: theme.surface },
@@ -245,6 +248,8 @@ export function CreateDocSheet({
               style={[styles.row, { borderBottomColor: theme.border }]}
               onPress={() => setTemplatesToggled(!templatesExpanded)}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: templatesExpanded }}
             >
               <View
                 style={[

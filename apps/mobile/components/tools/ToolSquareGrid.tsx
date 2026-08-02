@@ -67,6 +67,7 @@ export function ToolSquareGrid({
                   transform: [{ scale: pressed ? 0.98 : 1 }],
                 },
               ]}
+              accessibilityRole="button"
             >
               <MenuIcon name={tool.icon} size={28} color={tone.icon} />
               <View style={styles.caption}>

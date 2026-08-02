@@ -47,7 +47,11 @@ export function GeneratedImageDisplay({ image, theme }: { image: GeneratedImage;
 
   return (
     <View style={styles.wrap}>
-      <Pressable onPress={() => setZoomed(true)}>
+      <Pressable
+        onPress={() => setZoomed(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Bild vergrößern"
+      >
         <Image
           source={{ uri: src }}
           style={[styles.image, { backgroundColor: theme.surface, borderColor: theme.border }]}
@@ -88,11 +92,19 @@ export function GeneratedImageDisplay({ image, theme }: { image: GeneratedImage;
               onPress={() => void shareBase64Image(image.base64, 'Bild teilen')}
               style={styles.save}
               hitSlop={8}
+              accessibilityRole="button"
             >
               <Ionicons name="share-outline" size={14} color={theme.textSecondary} />
               <Text style={[styles.saveText, { color: theme.textSecondary }]}>Teilen</Text>
             </Pressable>
-            <Pressable onPress={handleSave} disabled={saving} style={styles.save} hitSlop={8}>
+            <Pressable
+              onPress={handleSave}
+              disabled={saving}
+              style={styles.save}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: saving }}
+            >
               <Ionicons
                 name={saving ? 'hourglass-outline' : 'download-outline'}
                 size={14}
@@ -112,7 +124,12 @@ export function GeneratedImageDisplay({ image, theme }: { image: GeneratedImage;
         animationType="fade"
         onRequestClose={() => setZoomed(false)}
       >
-        <Pressable style={styles.lightbox} onPress={() => setZoomed(false)}>
+        <Pressable
+          style={styles.lightbox}
+          onPress={() => setZoomed(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Vollbildansicht schließen"
+        >
           <Image source={{ uri: src }} style={styles.lightboxImage} contentFit="contain" />
           <View
             style={styles.closeButton}

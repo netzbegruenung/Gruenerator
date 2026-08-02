@@ -74,6 +74,7 @@ export function NotebookAgentsSection({ notebookId, theme }: { notebookId: strin
               key={agent.identifier}
               onPress={() => handleSelect(agent)}
               style={({ pressed }) => [styles.row, { opacity: pressed ? 0.6 : 1 }]}
+              accessibilityRole="button"
             >
               <View style={[styles.iconCircle, { backgroundColor: theme.surface }]}>
                 <Ionicons name={agentIcon(agent.iconKey)} size={20} color={theme.textGreen} />
