@@ -224,16 +224,6 @@ export const EXAMPLES: CapabilityExample[] = [
       'Was sagen die Umfragen zur Landtagswahl in Sachsen-Anhalt?',
     ],
   },
-  {
-    intent: 'news',
-    group: 'politik',
-    label: 'Nachrichten',
-    hint: 'Aktuelle Meldungen der tagesschau — gesamt, nach Ressort oder Bundesland.',
-    questions: [
-      'Was sind heute die wichtigsten Nachrichten?',
-      'Gibt es aktuelle Meldungen zur Energiepolitik?',
-    ],
-  },
 
   // ---------------------------------------------------------------- Erstellen
   {
@@ -417,48 +407,6 @@ export const EXAMPLES: CapabilityExample[] = [
     questions: [
       'Teil das Dokument mit meiner Kreisverbands-Gruppe.',
       'Gib @Wahlprogramm-Entwurf für die Vorstandsgruppe frei.',
-    ],
-  },
-
-  // ------------------------------------------------------------------ Alltag
-  {
-    intent: 'bahn',
-    group: 'alltag',
-    label: 'Bahnauskunft',
-    hint: 'Abfahrten, Ankünfte und Störungen an einem Bahnhof. Keine Verbindungssuche mit Umstiegen oder Preisen.',
-    questions: [
-      'Wann fahren heute Abend Züge von Kassel Richtung Berlin?',
-      'Gibt es Störungen am Hauptbahnhof Freiburg?',
-    ],
-  },
-  {
-    intent: 'reise',
-    group: 'alltag',
-    label: 'Reise planen (derzeit aus)',
-    hint: 'Die kombinierte Reiseplanung ist abgeschaltet, solange es keine ÖBB-Anbindung gibt — für Österreich wäre die Antwort nur halb. Frage Bahnauskunft, Unterkunft und Wetter einzeln ab; solche Fragen beantwortet der Chat sonst über die Websuche.',
-    questions: [
-      'Wann fahren Donnerstag Züge von Kassel nach Hannover?',
-      'Such mir eine Unterkunft in Hannover für Donnerstag.',
-    ],
-  },
-  {
-    intent: 'hotel',
-    group: 'alltag',
-    label: 'Unterkunft suchen',
-    hint: 'Preisvergleich über trivago. Preise ohne Gewähr.',
-    questions: [
-      'Such mir ein Hotel in Leipzig für den 12. bis 14. März.',
-      'Was kostet eine Übernachtung nahe dem Kongresszentrum?',
-    ],
-  },
-  {
-    intent: 'wetter',
-    group: 'alltag',
-    label: 'Wetter',
-    hint: 'Vorhersage, aktuelles Wetter und Luftqualität — praktisch für Infostände und Aktionen.',
-    questions: [
-      'Wie wird das Wetter am Samstag in Münster? Wir haben Infostand.',
-      'Regnet es morgen Vormittag in Wien?',
     ],
   },
 

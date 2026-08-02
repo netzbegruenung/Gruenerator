@@ -366,13 +366,16 @@ export class McpServerRegistry {
    * path (the classifier runs on every message).
    *
    * MANAGED CONNECTORS ARE DELIBERATELY ABSENT (this reads `mcp_servers` only).
-   * Prose routing fires on a server NAME plus an action verb, and these names are
-   * ordinary German words: "Gesetze", "Wetter", "Deutsche Bahn". Letting them in
-   * would route "erkläre mir die Gesetze zur Bahnreform" into a tool loop scoped
-   * to a law server — the exact policy-vs-data confusion `SYSTEM_MCP_PHRASING`
-   * exists to prevent. Automatic selection for managed connectors is a separate
-   * decision with its own guard; until it lands, they mount on an explicit
-   * @mention only.
+   * Prose routing fires on a server NAME plus an action verb, and these names
+   * are ordinary German words: "Gesetze", "Wetter", "Deutsche Bahn". Letting
+   * them in would route "erkläre mir die Gesetze zur Bahnreform" into a tool
+   * loop scoped to a law server.
+   *
+   * They get selected automatically — just not here. `managedSourceTrigger`
+   * does it on vocabulary, with word boundaries that exclude exactly those
+   * compounds, and it mounts tools instead of scoping the whole turn to one
+   * server. Two mechanisms with different failure modes: this one commits the
+   * turn to a service, that one only offers the tools.
    */
   static async getClassifierContext(userId: string): Promise<McpClassifierServer[]> {
     const cached = classifierCache.get(userId);
