@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { resolveWidgetUri } from './systemMcpCatalog.js';
+import { resolveWidgetUri } from './managedMcpCatalog.js';
 
 describe('resolveWidgetUri', () => {
   it('finds the OpenAI Apps SDK outputTemplate pointer on the result meta', () => {

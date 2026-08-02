@@ -429,7 +429,7 @@ const buildE2EBypassAuthData = (): AuthData => {
       feedback_button: 'text',
       reduce_motion: false,
       reduce_transparency: false,
-      show_skip_link: false,
+      show_skip_link: true,
       groups_enabled: true,
       custom_generators: true,
       database_access: true,
