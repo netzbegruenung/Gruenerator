@@ -14,6 +14,7 @@ import { ViewModeToggle, type ViewMode } from '../../../components/common/ViewMo
 import { MenuIcon } from '../../../components/icons/WebMirrorIcons';
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
 import { STUDIO_TOOLS } from '../../../components/tools/toolsConfig';
+import { useContentColumn } from '../../../hooks/useLayout';
 import { useOpenRecentItem } from '../../../hooks/useRecentActivity';
 import { useStudioMedia } from '../../../hooks/useStudioMedia';
 import { useTabNavigationSwipe } from '../../../hooks/useTabSwipe';
@@ -54,6 +55,7 @@ export default function StudioScreen() {
   const { sharepics, kiImages, reels, isLoading, isError, refetch } = useStudioMedia();
   const openItem = useOpenRecentItem();
   const [createOpen, setCreateOpen] = useState(false);
+  const gridColumn = useContentColumn('grid');
 
   const sections = useMemo(
     () => ({
@@ -146,6 +148,7 @@ export default function StudioScreen() {
         ) : (
           <ScrollView
             contentContainerStyle={[
+              gridColumn,
               styles.content,
               { paddingBottom: insets.bottom + FLOATING_TAB_BAR_HEIGHT + spacing.xxlarge },
             ]}
@@ -231,8 +234,9 @@ export default function StudioScreen() {
 }
 
 const styles = StyleSheet.create({
+  // Horizontal margin comes from the content column, so the sections line up
+  // with the header above them.
   content: {
-    paddingHorizontal: spacing.medium,
     paddingTop: spacing.small,
   },
   // Fills the scaffold so the empty state centres against the gradient rather

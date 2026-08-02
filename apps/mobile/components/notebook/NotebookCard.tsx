@@ -1,5 +1,5 @@
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
-import { type ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import { useLayout } from '../../hooks/useLayout';
 import {
   colors,
   spacing,
@@ -20,6 +21,7 @@ import {
   darkTheme,
   BODY_FONT,
 } from '../../theme';
+import { gridColumns } from '../../theme/layout';
 
 /**
  * The notebook gallery card. One component for both system and user notebooks —
@@ -113,18 +115,41 @@ const styles = StyleSheet.create({
   },
 });
 
+const GRID_GAP = spacing.xsmall;
+
 /**
- * Shared layout for rendering NotebookCards in a 2-column grid on tablets. Apply
- * `grid` to the wrapping container and pass `item` as each card's `style`. On phones
- * pass nothing — cards keep their default full-width stacked layout.
+ * Smallest a notebook card may get before a column is dropped. Wider than a
+ * square tile: this card is a row — icon, title, subtitle and a trailing
+ * control on one line.
  */
-export const notebookGridStyles = StyleSheet.create({
+const MIN_CARD = 300;
+
+const notebookGridStyles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.xsmall,
-  },
-  item: {
-    width: '48%',
+    gap: GRID_GAP,
   },
 });
+
+/**
+ * Shared layout for rendering NotebookCards side by side once there is room for
+ * it. Spread `container` on the wrapper and `item` on each card.
+ *
+ * Both are undefined on a phone, where the cards stay a full-width stack — that
+ * is a list, and a list of one column is what it should be. `'48%'` used to
+ * stand in for the tablet width, which could not account for the gap and fixed
+ * the count at two however wide the window got.
+ */
+export function useNotebookGrid(): { container?: ViewStyle; item?: ViewStyle } {
+  const { isTablet, gridWidth } = useLayout();
+
+  return useMemo(() => {
+    if (!isTablet) return {};
+    const columns = gridColumns(gridWidth, MIN_CARD, GRID_GAP);
+    return {
+      container: notebookGridStyles.grid,
+      item: { width: Math.floor((gridWidth - GRID_GAP * (columns - 1)) / columns) },
+    };
+  }, [isTablet, gridWidth]);
+}

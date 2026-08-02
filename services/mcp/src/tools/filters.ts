@@ -46,6 +46,31 @@ WICHTIG: Rufe dieses Tool IMMER auf BEVOR du gruenerator_search mit Filtern verw
       .describe('Sammlung für die Filterwerte - muss vor gefilterter Suche aufgerufen werden'),
   },
 
+  // Only fields every success path sets are required — the "keine Filter"
+  // branch has no description and no usageExample. Error paths are exempt
+  // (isError skips output validation).
+  outputSchema: {
+    collection: z.string(),
+    collectionId: z.string(),
+    filters: z
+      .record(
+        z.string(),
+        z.object({
+          label: z.string(),
+          type: z.string(),
+          values: z.array(z.unknown()).optional(),
+          totalUniqueValues: z.number().optional(),
+          valueLabels: z.record(z.string(), z.string()).optional(),
+          usage: z.record(z.string(), z.string()).optional(),
+        })
+      )
+      .describe('Feldname → Filterwerte. Werte exakt übernehmen, nicht umformulieren.'),
+    description: z.string().optional(),
+    usageExample: z.record(z.string(), z.string()).nullable().optional(),
+    hinweis: z.string().optional(),
+    message: z.string().optional(),
+  },
+
   async handler({ collection }: { collection: string }) {
     const col = config.collections[collection];
     if (!col) {
