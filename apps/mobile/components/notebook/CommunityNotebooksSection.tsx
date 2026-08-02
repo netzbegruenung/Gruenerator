@@ -66,6 +66,7 @@ export function CommunityNotebooksSection({
             style={[styles.searchInput, { color: theme.text }]}
             placeholder="Notebooks durchsuchen..."
             placeholderTextColor={theme.textSecondary}
+            accessibilityLabel="Notebooks durchsuchen"
             value={query}
             onChangeText={setQuery}
             autoCorrect={false}
@@ -91,7 +92,14 @@ export function CommunityNotebooksSection({
                 onPress={() => onOpen(n.id, n.name)}
                 style={notebookGrid.item}
                 trailing={
-                  <Pressable onPress={() => toggleLike(n.id)} hitSlop={8} style={styles.likeButton}>
+                  <Pressable
+                    onPress={() => toggleLike(n.id)}
+                    hitSlop={8}
+                    style={styles.likeButton}
+                    accessibilityRole="checkbox"
+                    accessibilityLabel="Notizbuch favorisieren"
+                    accessibilityState={{ checked: liked }}
+                  >
                     <Ionicons
                       name={liked ? 'heart' : 'heart-outline'}
                       size={16}

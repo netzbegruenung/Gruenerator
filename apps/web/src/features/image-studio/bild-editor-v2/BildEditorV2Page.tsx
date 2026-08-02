@@ -121,6 +121,7 @@ export default function BildEditorV2Page() {
       />
 
       {/* ── Start ── */}
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- page-level drag-over overlay only; the nested UploadZone provides the actual keyboard-accessible file input */}
       <div
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}

@@ -17,6 +17,14 @@ const CitationModal = (): JSX.Element | null => {
     }
   }, [contextData]);
 
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeCitationModal();
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [closeCitationModal]);
+
   if (!selectedCitation) return null;
 
   const handleOverlayClick = (e: MouseEvent<HTMLDivElement>) => {
@@ -73,6 +81,7 @@ const CitationModal = (): JSX.Element | null => {
   };
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- Hintergrund schließt per Klick, Escape schließt bereits (siehe useEffect oben)
     <div
       className={cn(
         'fixed inset-0 bg-overlay-sm flex items-center justify-center z-[1100] p-md',
@@ -83,6 +92,7 @@ const CitationModal = (): JSX.Element | null => {
       )}
       onClick={handleOverlayClick}
     >
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- fängt nur den Klick ab, damit er nicht den Hintergrund schließt */}
       <div
         className={cn(
           'bg-background-pure rounded-md shadow-card-floating border border-grey-200 dark:border-grey-700',

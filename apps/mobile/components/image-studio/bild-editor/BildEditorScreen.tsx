@@ -82,6 +82,7 @@ export function BildEditorScreen() {
                   <View style={styles.uploadRow}>
                     <Pressable
                       onPress={() => void uploadFromGallery()}
+                      accessibilityRole="button"
                       style={[styles.uploadBtn, { borderColor: palette.accentBorder }]}
                     >
                       <Ionicons name="image" size={18} color={palette.chipInk} />
@@ -91,6 +92,7 @@ export function BildEditorScreen() {
                     </Pressable>
                     <Pressable
                       onPress={() => void uploadFromCamera()}
+                      accessibilityRole="button"
                       style={[styles.uploadBtn, { borderColor: palette.accentBorder }]}
                     >
                       <Ionicons name="camera" size={18} color={palette.chipInk} />
@@ -104,7 +106,7 @@ export function BildEditorScreen() {
             <View style={styles.flex}>
               {/* Top bar */}
               <View style={styles.topBar}>
-                <Pressable onPress={resetAll} hitSlop={6}>
+                <Pressable onPress={resetAll} accessibilityRole="button" hitSlop={6}>
                   <Text style={[styles.restart, { color: palette.accent }]}>Neu starten</Text>
                 </Pressable>
                 <View style={styles.captionWrap}>
@@ -125,12 +127,21 @@ export function BildEditorScreen() {
                   )}
                 </View>
                 <View style={styles.topActions}>
-                  <Pressable onPress={() => void share()} disabled={!active} hitSlop={6}>
+                  <Pressable
+                    onPress={() => void share()}
+                    disabled={!active}
+                    accessibilityRole="button"
+                    accessibilityLabel="Bild teilen"
+                    accessibilityState={{ disabled: !active }}
+                    hitSlop={6}
+                  >
                     <Ionicons name="share-outline" size={20} color={palette.accent} />
                   </Pressable>
                   <Pressable
                     onPress={() => void download()}
                     disabled={!active}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: !active }}
                     style={[styles.downloadBtn, { backgroundColor: palette.primary }]}
                   >
                     <Text style={styles.downloadText}>Speichern</Text>
@@ -173,6 +184,9 @@ export function BildEditorScreen() {
                         <Pressable
                           key={v.id}
                           onPress={() => selectVersion(v.id)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Version ${v.num} anzeigen`}
+                          accessibilityState={{ selected }}
                           style={[
                             styles.thumb,
                             {

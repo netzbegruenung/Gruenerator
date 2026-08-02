@@ -197,6 +197,7 @@ const LoginPage = ({
   if (mode === 'required') {
     return (
       <div className="fixed inset-0 z-[9999] flex items-center justify-center p-lg animate-in fade-in duration-200 max-[480px]:p-md">
+        {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Overlay schließt per Klick; Tastatur nutzt Escape (siehe useEffect oben) */}
         <div className="absolute inset-0 bg-black/60" onClick={handleClose} />
         <div
           className={cn(

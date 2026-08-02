@@ -40,6 +40,8 @@ export const ChatDrawerHeader = memo(function ChatDrawerHeader({
         onPress={onOpenDrawer}
         style={styles.menuButton}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        accessibilityRole="button"
+        accessibilityLabel="Menü öffnen"
       >
         <MenuAlt2Icon size={26} color={theme.text} />
       </Pressable>
@@ -52,6 +54,8 @@ export const ChatDrawerHeader = memo(function ChatDrawerHeader({
             onPress={onNewChat}
             style={styles.menuButton}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="Neuen Chat starten"
           >
             <Ionicons name="add-circle-outline" size={26} color={theme.text} />
           </Pressable>
