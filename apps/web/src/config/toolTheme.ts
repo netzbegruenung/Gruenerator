@@ -158,7 +158,7 @@ export const TOOL_THEME = {
     tile: 'bg-[#DCEFE3] dark:bg-[#14271D]',
     icon: 'text-[#2E6B49] dark:text-[#8FC9A9]',
     title: 'text-[#1F4F35] dark:text-[#B5DEC6]',
-    desc: 'text-[#527B65] dark:text-[#7CA890]',
+    desc: 'text-[#486C59] dark:text-[#7CA890]',
     gradient:
       'bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#E9F5EE_0%,#F5FBF7_55%,#FFFFFF_100%)] dark:bg-[image:radial-gradient(ellipse_55%_45%_at_50%_50%,#142219_0%,#0F1812_55%,#0A0F0C_100%)]',
   },

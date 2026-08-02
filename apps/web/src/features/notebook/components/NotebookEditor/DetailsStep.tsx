@@ -1,6 +1,7 @@
 import { Button, Input, Label } from '@gruenerator/ui';
 
 import LabelsField from './LabelsField';
+
 import type { NotebookEditorStateBundle } from './useNotebookEditorState';
 
 interface DetailsStepProps {
@@ -40,10 +41,15 @@ export default function DetailsStep({ state }: DetailsStepProps) {
         />
       </div>
       <div className="flex flex-col gap-xs">
-        <Label>
+        <span
+          id="notebook-labels-label"
+          className="flex items-center gap-2 text-sm leading-none font-medium select-none"
+        >
           Labels <span className="text-grey-400">(max. 10, optional)</span>
-        </Label>
-        <LabelsField state={state} />
+        </span>
+        <div role="group" aria-labelledby="notebook-labels-label">
+          <LabelsField state={state} />
+        </div>
       </div>
       <div className="flex justify-end gap-sm">
         <Button type="button" variant="ghost" onClick={handleBack}>

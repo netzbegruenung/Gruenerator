@@ -231,9 +231,10 @@ const OparlPage = () => {
 
           <div className="grid grid-cols-2 max-md:grid-cols-1 gap-4 px-4 max-md:px-0">
             {results.map((paper) => (
-              <div
+              <button
                 key={paper.id}
-                className="flex flex-col p-4 max-md:p-3.5 bg-background-alt dark:bg-hover-alt rounded-lg max-md:rounded-xl transition-colors duration-200 overflow-hidden cursor-pointer hover:bg-hover-alt dark:hover:bg-background-alt"
+                type="button"
+                className="flex flex-col p-4 max-md:p-3.5 bg-background-alt dark:bg-hover-alt rounded-lg max-md:rounded-xl transition-colors duration-200 overflow-hidden cursor-pointer hover:bg-hover-alt dark:hover:bg-background-alt border-none text-left w-full"
                 onClick={() => selectPaper(paper)}
               >
                 <h3 className="text-foreground-heading m-0 mb-2 text-base max-md:text-sm font-medium line-clamp-2 leading-[1.4]">
@@ -268,7 +269,7 @@ const OparlPage = () => {
                 <div className="text-xs text-foreground opacity-60 mt-auto pt-2">
                   Relevanz: {Math.round(paper.score * 100)}%
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </div>

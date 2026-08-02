@@ -77,7 +77,7 @@ function TemplateCard({ entry }: { entry: Entry }) {
         </span>
       )}
       <div className="text-sm font-bold text-[#22382E] dark:text-foreground">{entry.title}</div>
-      <div className="mt-[3px] text-xs leading-snug text-[#9AA8A1]">{entry.description}</div>
+      <div className="mt-[3px] text-xs leading-snug text-muted-brand">{entry.description}</div>
     </button>
   );
 }
@@ -114,7 +114,7 @@ function BlankCard({ kind, onSelect }: { kind: DocKind; onSelect: () => void }) 
         </svg>
       </span>
       <div className="text-sm font-bold text-[#22382E] dark:text-foreground">{label}</div>
-      <div className="mt-[3px] text-xs leading-snug text-[#9AA8A1]">Ohne Vorlage beginnen</div>
+      <div className="mt-[3px] text-xs leading-snug text-muted-brand">Ohne Vorlage beginnen</div>
     </button>
   );
 }
@@ -233,6 +233,7 @@ export default function TemplateGalleryModal({
       : byKind[tab];
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- click-outside-to-close convenience; Escape (handled above) is the keyboard equivalent
     <div
       className="fixed inset-0 z-50 flex items-start justify-center bg-[rgba(24,40,33,.34)] px-6 py-16 backdrop-blur-[4px]"
       onClick={(e) => {
@@ -250,7 +251,7 @@ export default function TemplateGalleryModal({
             <h2 className="text-[19px] font-extrabold tracking-[-.01em] text-[#22382E] dark:text-foreground">
               Vorlage wählen
             </h2>
-            <div className="mt-0.5 text-[13px] text-[#9AA8A1]">
+            <div className="mt-0.5 text-[13px] text-muted-brand">
               Starte mit einer fertigen Struktur — oder ganz leer.
             </div>
           </div>

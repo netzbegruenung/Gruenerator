@@ -1,4 +1,4 @@
-import { Badge } from '@gruenerator/ui';
+import { Badge, InteractiveCard, interactiveCardControl } from '@gruenerator/ui';
 import { memo, type JSX, type ReactNode } from 'react';
 import {
   HiHeart,
@@ -84,28 +84,17 @@ const VorlagenCard = memo(
     const [ratioW, ratioH] = format.aspectRatio.split('/').map((n) => parseFloat(n));
     const isWiderThanStage = ratioW / ratioH > STAGE_RATIO;
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        onOpen();
-      }
-    };
-
     const stop = (e: React.MouseEvent) => e.stopPropagation();
 
     return (
-      <div
+      <InteractiveCard
+        label={title}
+        onActivate={onOpen}
         className={cn(
           'group flex flex-col overflow-hidden rounded-lg border border-grey-200 bg-background text-left',
           'shadow-card-subtle transition-all duration-200 dark:border-grey-700',
-          'cursor-pointer hover:-translate-y-0.5 hover:border-primary-500 hover:shadow-md',
-          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500'
+          'cursor-pointer hover:-translate-y-0.5 hover:border-primary-500 hover:shadow-md'
         )}
-        onClick={onOpen}
-        onKeyDown={handleKeyDown}
-        role="button"
-        tabIndex={0}
-        aria-label={`Vorlage ${title} öffnen`}
       >
         {/* Neutral stage — the real format sits centered and proportioned. */}
         <div className="relative flex aspect-[4/5] w-full items-center justify-center overflow-hidden bg-background-alt p-3">
@@ -133,14 +122,14 @@ const VorlagenCard = memo(
 
           <Badge
             variant="secondary"
-            className="absolute left-2 top-2 bg-background/90 text-foreground shadow-sm backdrop-blur-sm"
+            className="pointer-events-none absolute left-2 top-2 bg-background/90 text-foreground shadow-sm backdrop-blur-sm"
           >
             {format.typeLabel}
           </Badge>
           {(badge != null || menu != null) && (
             <div className="absolute right-2 top-2 flex items-center gap-1.5">
-              {badge}
-              {menu}
+              {badge != null && <span className="pointer-events-none">{badge}</span>}
+              {menu != null && <span className={interactiveCardControl}>{menu}</span>}
             </div>
           )}
 
@@ -151,7 +140,8 @@ const VorlagenCard = memo(
                 'translate-y-1 opacity-0 transition-all duration-200',
                 'group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:opacity-100',
                 // Keep the bar (filled heart) visible so a like reads at a glance.
-                liked && 'translate-y-0 opacity-100'
+                liked && 'translate-y-0 opacity-100',
+                interactiveCardControl
               )}
             >
               {onToggleLike && (
@@ -230,7 +220,7 @@ const VorlagenCard = memo(
             )}
           </div>
         </div>
-      </div>
+      </InteractiveCard>
     );
   }
 );

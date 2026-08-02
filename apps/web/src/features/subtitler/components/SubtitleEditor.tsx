@@ -676,6 +676,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
                         value={option.id}
                         checked={localStyle === option.id}
                         onChange={() => handleLocalStyleChange(option.id)}
+                        aria-label={option.name}
                         className="sr-only"
                       />
                       <div className="flex flex-col gap-xs">

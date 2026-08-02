@@ -87,6 +87,7 @@ export default function ProjekteScreen() {
             styles.retryButton,
             { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
           ]}
+          accessibilityRole="button"
         >
           <Text style={styles.retryButtonText}>Erneut versuchen</Text>
         </Pressable>
