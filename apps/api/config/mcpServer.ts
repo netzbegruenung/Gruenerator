@@ -42,8 +42,19 @@ export const MCP_OAUTH_SCOPES_SUPPORTED = [
  */
 export const MCP_DEFAULT_SCOPE = [...OAUTH_BASE_SCOPES, ...MCP_SCOPES].join(' ');
 
-/** Public URL of the MCP endpoint — the OAuth "resource". */
-export const MCP_RESOURCE_URL = env.MCP_SERVER_PUBLIC_URL ?? 'https://mcp.gruenerator.eu/v2';
+/**
+ * Public URL of the MCP endpoint — the OAuth "resource".
+ *
+ * Die Wurzel, nicht mehr `/v2`: es gibt nur noch einen Grünerator-MCP. `/v2` und
+ * `/mcp` bleiben in nginx als dauerhafte Aliasse bestehen (URLs sind F0), aber
+ * die Adresse, die der Server von sich selbst nennt, ist die kanonische.
+ *
+ * **Das entwertet bestehende Client-Registrierungen einmalig:** der
+ * Discovery-Pfad leitet sich hieraus ab und faellt damit von
+ * `/.well-known/oauth-protected-resource/v2` auf den nackten Pfad zurueck.
+ * claude.ai und ChatGPT muessen den Konnektor einmal neu verbinden.
+ */
+export const MCP_RESOURCE_URL = env.MCP_SERVER_PUBLIC_URL ?? 'https://mcp.gruenerator.eu';
 
 /** OAuth login/consent redirects AND absolutized tool-result links must point
  *  at the same SPA origin; in dev the SPA runs on its own port. */
