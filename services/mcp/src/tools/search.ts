@@ -490,7 +490,16 @@ async function searchSingleCollectionWithCache({
       };
     }
 
-    const formattedResults = results.map((r, i) => formatResult(r, i, searchMode));
+    // Sorted before numbering, exactly like the multi-collection path.
+    //
+    // hybridSearchCollection ranks by the fused score and only THEN multiplies in
+    // the quality boost (`score * qualityBoost`, ±20%), so the score it hands back
+    // no longer matches the order it hands it back in. Unsorted, `rank` and
+    // `relevance` contradict each other in the response — measured against
+    // production: rank 1 at 98%, rank 2 at 99%. A model that trusts `rank` and a
+    // model that trusts `relevance` then read the same answer differently.
+    const ranked = [...results].sort((a, b) => b.score - a.score);
+    const formattedResults = ranked.map((r, i) => formatResult(r, i, searchMode));
     const response = {
       collection: collectionConfig.displayName,
       description: collectionConfig.description,
