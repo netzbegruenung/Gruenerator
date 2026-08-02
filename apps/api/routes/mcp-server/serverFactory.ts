@@ -7,6 +7,10 @@ import { buildSourceRef } from '@gruenerator/shared/utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
+import {
+  getCanonicalByKey,
+  getMcpExposedCollections,
+} from '../../config/systemCollectionsConfig.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { Sentry } from '../../lib/sentry.js';
 import { lookupUmfragen } from '../../services/monitor/UmfragenService.js';
@@ -27,8 +31,12 @@ import {
   makeMediaTool,
   makeNotebooksTool,
 } from '../chat/agents/personalDataTools.js';
-import { ALL_COLLECTIONS } from '../chat/agents/searchTools.js';
 import { runBoardGeneration, runDocGeneration } from '../chat/services/intentExecutionService.js';
+import {
+  computeMergedFilters,
+  getCachedFilters,
+  setCachedFilters,
+} from '../research/researchController.js';
 
 import {
   absolutizeUrl,
@@ -42,17 +50,32 @@ import {
   joinGroupDirect,
   shareDocToGroupMcp,
 } from './mcpMutations.js';
+import {
+  buildCollectionCatalog,
+  buildMethodDocument,
+  buildNotizbuchPrompt,
+  buildRecherchePrompt,
+} from './methodPrompts.js';
 
+import type { QAResponse } from '../../services/notebook/types.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { Request } from 'express';
 
 const log = createLogger('McpServerFactory');
 
-// Derived from the chat search catalog — 'examples' has its own tool here.
-const SEARCH_COLLECTIONS = ALL_COLLECTIONS.filter((c) => c !== 'examples') as unknown as [
-  string,
-  ...string[],
-];
+/**
+ * Derived from the canonical config, NOT from the chat catalog.
+ *
+ * `ALL_COLLECTIONS` is the chat agent's allow-list — eight entries, tuned for
+ * what a chat agent should reach by default. Using it here silently hid twelve
+ * `mcpExposed` collections, every Landesverband among them, from a surface
+ * whose whole job is exposure. v1 has served them from `/api/v1/collections`
+ * all along, so v2 was the narrower of the two.
+ */
+const SEARCH_COLLECTIONS = getMcpExposedCollections()
+  .map((c) => c.key)
+  .filter((key) => key !== 'examples')
+  .sort() as [string, ...string[]];
 
 let notebookHelperSingleton: NotebookQdrantHelper | null = null;
 function notebookHelper(): NotebookQdrantHelper {
@@ -60,9 +83,38 @@ function notebookHelper(): NotebookQdrantHelper {
   return notebookHelperSingleton;
 }
 
+/**
+ * `askSingleCollection` signals these two states by throwing. They are ordinary
+ * outcomes for a tool call, not failures, so they get their own German text
+ * instead of the bridge's generic "prüfe die übergebenen IDs".
+ */
+const NOTEBOOK_QA_ERRORS: Record<string, string> = {
+  'Collection not found or access denied': 'Notizbuch nicht gefunden oder kein Zugriff.',
+  'No documents found in this collection': 'Dieses Notizbuch enthält noch keine Dokumente.',
+};
+
+/**
+ * The cited answer IS this tool's payload, so it leaves as markdown text:
+ * `formatToolResult` passes strings through untouched, while an unrecognised
+ * object shape would reach the client as raw JSON.
+ */
+function renderNotebookAnswer(result: QAResponse, notebookName: string): string {
+  const citations = result.citations ?? [];
+  if (citations.length === 0) return result.answer;
+  const lines = citations.map((c) => {
+    const title = c.document_title ?? c.title ?? 'Ohne Titel';
+    const url = c.source_url ?? c.url;
+    return `[${c.index}] ${title}${url ? ` — ${absolutizeUrl(url)}` : ''}`;
+  });
+  return `${result.answer}\n\nQuellen (${notebookName}):\n${lines.join('\n')}`;
+}
+
 const INSTRUCTIONS = `Grünerator MCP (angemeldet): Zugriff auf die eigenen Grünerator-Inhalte der angemeldeten Person (Dokumente, Boards/Aufgaben, Notizbücher, Gruppen, Medien) plus die Programm- und Beschlusssuche von Bündnis 90/Die Grünen (DE) und den Grünen (AT).
 
+Für belegte Antworten aus mehreren Quellen gilt ein festes Vorgehen: die Resource gruenerator://methode beschreibt Ablauf und Zitierprotokoll, gruenerator://sammlungen listet die durchsuchbaren Sammlungen. Die Prompts "recherche" und "notizbuch-antwort" bringen beides fertig mit.
+
 Regeln:
+- Kein Tool schreibt dir den Text der Recherche — die Synthese aus den Treffern ist deine Aufgabe. Ausnahme: notebooks mit action="search" liefert bereits eine belegte Antwort.
 - IDs und refs stammen immer aus einem vorherigen list-/search-Aufruf — niemals raten.
 - Destruktive oder nach außen sichtbare Aktionen (löschen, teilen) verlangen das zweistufige Protokoll: erster Aufruf ohne confirm liefert eine Rückfrage; erst nach Zustimmung der Person mit confirm=true erneut aufrufen.
 - create_document/create_board erzeugen echte Inhalte im Konto — Ergebnis-Link nennen.
@@ -142,6 +194,88 @@ const EXAMPLES_OUTPUT_SCHEMA = {
   examples: z.array(z.record(z.string(), z.unknown())),
 };
 
+/**
+ * Prompts and resources are scope-independent: they describe how to work with
+ * this server, not what the connection may touch. A client that has been
+ * granted nothing can still read the method — and should, because the first
+ * thing it does with a new scope is search.
+ */
+function registerMethod(server: McpServer): void {
+  server.registerPrompt(
+    'recherche',
+    {
+      title: 'Recherche in Programmen und Beschlüssen',
+      description:
+        'Mehrstufige Suche in den Grünen-Sammlungen mit anschließender belegter Zusammenfassung — nach demselben Zitierprotokoll, das die Grünerator-Oberfläche verwendet.',
+      argsSchema: {
+        frage: z.string().describe('Die inhaltliche Frage'),
+        land: z.enum(['DE', 'AT']).describe('DE = Deutschland, AT = Österreich'),
+      },
+    },
+    ({ frage, land }) => ({
+      description: 'Recherche mit Zitaten',
+      messages: buildRecherchePrompt(frage, land as 'DE' | 'AT'),
+    })
+  );
+
+  server.registerPrompt(
+    'notizbuch-antwort',
+    {
+      title: 'Antwort aus einem eigenen Notizbuch',
+      description:
+        'Befragt den eigenen Quellenbestand und fasst die Treffer mit Quellenangaben zusammen.',
+      argsSchema: {
+        frage: z.string().describe('Die inhaltliche Frage'),
+        notizbuch: z.string().optional().describe('Name des Notizbuchs, falls bekannt'),
+      },
+    },
+    ({ frage, notizbuch }) => ({
+      description: 'Notizbuch-Antwort mit Quellen',
+      messages: buildNotizbuchPrompt(frage, notizbuch),
+    })
+  );
+
+  server.registerResource(
+    'methode',
+    'gruenerator://methode',
+    {
+      title: 'Methode: belegt aus mehreren Quellen antworten',
+      description:
+        'Ablauf und Zitierprotokoll für Antworten aus den Grünen-Sammlungen und aus eigenen Notizbüchern.',
+      mimeType: 'text/markdown',
+    },
+    () => ({
+      contents: [
+        {
+          uri: 'gruenerator://methode',
+          mimeType: 'text/markdown',
+          text: buildMethodDocument(),
+        },
+      ],
+    })
+  );
+
+  server.registerResource(
+    'sammlungen',
+    'gruenerator://sammlungen',
+    {
+      title: 'Verfügbare Sammlungen',
+      description:
+        'Alle über gruenerator_search erreichbaren Sammlungen mit Inhalt, Land und Filterfeldern.',
+      mimeType: 'text/markdown',
+    },
+    () => ({
+      contents: [
+        {
+          uri: 'gruenerator://sammlungen',
+          mimeType: 'text/markdown',
+          text: buildCollectionCatalog(),
+        },
+      ],
+    })
+  );
+}
+
 export interface McpServerBuildOptions {
   userId: string;
   scopes: Set<string>;
@@ -157,10 +291,15 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
 
   const server = new McpServer(
     { name: 'gruenerator', version: '2.0.0' },
-    { capabilities: { tools: {} }, instructions: INSTRUCTIONS }
+    {
+      capabilities: { tools: {}, prompts: {}, resources: {} },
+      instructions: INSTRUCTIONS,
+    }
   );
 
   const ctx = makeMcpPersonalCtx(userId);
+
+  registerMethod(server);
 
   // ── whoami (always available) ─────────────────────────────────────────────
   server.registerTool(
@@ -191,17 +330,28 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
       'gruenerator_search',
       {
         title: 'Grüne Programme & Beschlüsse durchsuchen',
-        description: `Semantische Suche in Programmen, Beschlüssen und Positionen von Bündnis 90/Die Grünen (DE) und den Grünen (AT). Sammlungen: ${SEARCH_COLLECTIONS.join(', ')}.`,
+        description: `Semantische Suche in Programmen, Beschlüssen und Positionen von Bündnis 90/Die Grünen (DE) und den Grünen (AT). Einzelne Begriffe treffen besser als ganze Sätze — suche lieber mehrfach mit Varianten. Der Katalog aller ${SEARCH_COLLECTIONS.length} Sammlungen steht in der Resource gruenerator://sammlungen; das Vorgehen samt Zitierprotokoll in gruenerator://methode. Sammlungen: ${SEARCH_COLLECTIONS.join(', ')}.`,
         inputSchema: {
           query: z.string().min(1).describe('Suchbegriff oder Frage'),
           collection: z.enum(SEARCH_COLLECTIONS).default('deutschland'),
           limit: z.number().int().min(1).max(20).default(5),
+          filters: z
+            .record(z.string(), z.union([z.string(), z.array(z.string())]))
+            .optional()
+            .describe(
+              'Feldfilter, z.B. {"content_type":"praxishilfe"}. Werte NIE raten — vorher gruenerator_get_filters aufrufen.'
+            ),
         },
         outputSchema: SEARCH_OUTPUT_SCHEMA,
         annotations: READONLY,
       },
-      guarded('gruenerator_search', async ({ query, collection, limit }) => {
-        const result = await executeDirectSearch({ query, collection, limit });
+      guarded('gruenerator_search', async ({ query, collection, limit, filters }) => {
+        const result = await executeDirectSearch({
+          query,
+          collection,
+          limit,
+          ...(filters ? { filters } : {}),
+        });
         if (result.error) return text(result.message ?? 'Suche fehlgeschlagen.', true);
         const hits = result.results.map((r) => ({
           // `rank` orders THIS response, `ref` identifies the source across
@@ -222,6 +372,42 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
             `[${r.rank}] **${r.title}** (${r.relevance})${r.url ? ` — ${r.url}` : ''}${r.ref ? ` [ref: ${r.ref}]` : ''}\n${r.excerpt}`
         );
         return structured(lines.join('\n\n'), payload);
+      })
+    );
+
+    server.registerTool(
+      'gruenerator_get_filters',
+      {
+        title: 'Filterwerte einer Sammlung',
+        description:
+          'Nennt die tatsächlich belegten Filterwerte einer Sammlung samt Trefferzahl. Vor jeder gefilterten Suche aufrufen — die Werte unterscheiden sich pro Sammlung und lassen sich nicht erraten.',
+        inputSchema: { collection: z.enum(SEARCH_COLLECTIONS) },
+        annotations: READONLY,
+      },
+      guarded('gruenerator_get_filters', async ({ collection }) => {
+        const config = getCanonicalByKey(collection);
+        if (!config) return text(`Unbekannte Sammlung: ${collection}`, true);
+
+        // Same 30-minute cache the Recherche page uses; the aggregation is a
+        // fan-out of Qdrant facet queries and far too costly per tool call.
+        const cacheKey = config.id;
+        const merged = getCachedFilters(cacheKey) ?? (await computeMergedFilters([config.id]));
+        setCachedFilters(cacheKey, merged);
+
+        const entries = Object.entries(merged.filters);
+        if (entries.length === 0) return text(`Sammlung "${collection}" hat keine Filterfelder.`);
+
+        const blocks = entries.map(([field, entry]) => {
+          if (entry.type === 'date_range') {
+            return `**${field}** (${entry.label}, Zeitraum): ${entry.min ?? '?'} bis ${entry.max ?? '?'}`;
+          }
+          const values = (entry.values ?? [])
+            .slice(0, 25)
+            .map((v) => `${v.value} (${v.count})`)
+            .join(', ');
+          return `**${field}** (${entry.label}): ${values || '— keine Werte'}`;
+        });
+        return text(`Filterfelder für "${collection}":\n\n${blocks.join('\n')}`);
       })
     );
 
@@ -349,8 +535,8 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
 
     registerAiTool(server, 'notebooks', makeNotebooksTool(ctx), {
       description: contentWrite
-        ? `Zugriff auf die EIGENEN Notizbücher (Quellensammlungen): auflisten (list), inhaltlich durchsuchen (search mit id + query), umbenennen (rename), löschen (delete mit confirm-Protokoll).`
-        : `Die EIGENEN Notizbücher auflisten (list) oder inhaltlich durchsuchen (search mit id + query).`,
+        ? `Zugriff auf die EIGENEN Notizbücher (Quellensammlungen): auflisten (list), inhaltlich befragen (search mit id + query), umbenennen (rename), löschen (delete mit confirm-Protokoll). search liefert eine belegte Antwort mit [n]-Markern und der dazugehörigen Quellenliste — gib die Marker und Quellen in deiner Antwort weiter.`
+        : `Die EIGENEN Notizbücher auflisten (list) oder inhaltlich befragen (search mit id + query). search liefert eine belegte Antwort mit [n]-Markern und der dazugehörigen Quellenliste — gib die Marker und Quellen in deiner Antwort weiter.`,
       actions: contentWrite ? ['list', 'search', 'rename', 'delete'] : ['list', 'search'],
       extraShape: {
         query: z.string().optional().describe('Suchfrage (nur bei action="search")'),
@@ -361,17 +547,28 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
           const query = typeof args.query === 'string' ? args.query.trim() : '';
           if (!id || !query) return { error: 'search braucht id (aus list) und query.' };
           const collection = await notebookHelper().getNotebookCollection(id);
-          if (!collection || collection.user_id !== userId) {
-            return { error: 'Notizbuch nicht gefunden oder kein Zugriff.' };
+          if (!collection) return { error: 'Notizbuch nicht gefunden oder kein Zugriff.' };
+          try {
+            const result = await notebookQAService.askSingleCollection({
+              collectionId: id,
+              question: query,
+              userId,
+              aiWorkerPool: getAIWorkerPool(req),
+              // Both are REQUIRED for user collections — the service throws
+              // without them. Passing the already-fetched row mirrors
+              // notebookContractRouter and hands the access decision to
+              // `checkNotebookAccess` inside the service, which is the
+              // canonical predicate (owner / share_mode / group membership).
+              getCollectionFn: async () => collection,
+              getDocumentIdsFn: async (cid) =>
+                (await notebookHelper().getCollectionDocuments(cid)).map((d) => d.document_id),
+            });
+            return renderNotebookAnswer(result, collection.name);
+          } catch (err) {
+            const mapped = NOTEBOOK_QA_ERRORS[(err as Error).message];
+            if (mapped) return { error: mapped };
+            throw err;
           }
-          const result = await notebookQAService.askSingleCollection({
-            collectionId: id,
-            question: query,
-            userId,
-            aiWorkerPool: getAIWorkerPool(req),
-            fastMode: true,
-          });
-          return { notebook: collection.name, sources: result.sources ?? [] };
         },
       },
       ...(contentWrite ? {} : { readOnly: true }),
