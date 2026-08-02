@@ -136,7 +136,10 @@ const BEFORE: Row[] = [
     audience: 'all',
     aliases: ['chatverlauf'],
   },
-  { identifier: 'wetter', mention: 'wetter', title: 'Wetter', audience: 'all' },
+  // `@wetter` stood here. It is a managed CONNECTOR now, so its mention comes
+  // from `setMcpServerMentionables` (fed by /api/mcp/servers) rather than from
+  // the intent registry — and it has to leave this table, or the slug stays
+  // taken and `takenByOther('wetter')` renames the connector to `@wetter-2`.
 ];
 
 describe('toolMentionables derived from the intent registry', () => {

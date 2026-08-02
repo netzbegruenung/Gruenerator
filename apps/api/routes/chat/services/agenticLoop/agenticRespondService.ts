@@ -16,9 +16,9 @@ import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/c
 import { type ModelMessage } from 'ai';
 
 import { forbidsNewResearch } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
-import { getSourcesForIntent } from '../../../../services/mcp/systemMcpServers.js';
 import { applyContextCap } from '../../../../utils/contextCap.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { loadManagedMcpCatalog } from '../../agents/managedMcpCatalog.js';
 import { loadMcpCatalog, type McpCatalog } from '../../agents/mcpCatalog.js';
 import {
   getLoopPlannerModel,
@@ -28,7 +28,6 @@ import {
   prefersUnifiedLoop,
 } from '../../agents/providers.js';
 import { imageDeliveryNote } from '../../agents/searchImageHarvest.js';
-import { loadSystemMcpCatalog } from '../../agents/systemMcpCatalog.js';
 import { buildChatToolCatalog } from '../../agents/toolCatalog.js';
 import { extractTextContent } from '../messageHelpers.js';
 import {
@@ -120,11 +119,9 @@ const AGENTIC_INTENT_IDS = [
   'summary',
   'bundestag',
   'abgeordnetenwatch',
-  'bahn',
-  'reise',
-  'hotel',
-  'wetter',
-  'news',
+  // `bahn`/`reise`/`hotel`/`wetter`/`news` were here. They are managed
+  // connectors now and no longer exist as intents — what opens the loop for them
+  // is `managedSourceKeys` (see decideRunAgentic), not membership in this set.
   'umfragen',
   'hilfe',
   'image',
@@ -688,19 +685,25 @@ export async function streamAgenticResponse(params: {
       }
     }
 
-    // First-party system sources (bahn/reise/wetter/news intents): mount their
-    // tools the same way — fixed env configs, no user rows. The `reise` umbrella
-    // mounts bahn+hotel+wetter together (systemMcpCatalog skips an unreachable
-    // source, never breaking the turn).
-    // `userLocale` drops sources that do not cover the user's country, which is
-    // resolved per SOURCE, not per intent: an Austrian `reise` turn keeps hotel
-    // and weather and loses only the train tools.
-    const systemSources = getSourcesForIntent(finalState.intent as string, finalState.userLocale);
-    if (systemSources.length > 0) {
-      systemCatalog = await loadSystemMcpCatalog({
-        intent: finalState.intent as string,
+    // First-party MANAGED connectors: mounted the same way, from fixed env
+    // configs with no user rows.
+    //
+    // Selection used to be `getSourcesForIntent(intent)` — one source per intent,
+    // three for the `reise` umbrella. It is now a list of KEYS the vocabulary
+    // trigger produced for this turn (`managedSourceKeys`), so a travel turn
+    // simply carries `['bahn','hotel']` and needs no umbrella.
+    //
+    // Mounting is cheap: `loadManagedMcpCatalog` builds the tools from cached
+    // descriptors and opens a connection only when the model actually calls one.
+    // The loader also applies the per-user opt-out and the country filter, so no
+    // caller can forget either.
+    const managedKeys = finalState.managedSourceKeys ?? [];
+    if (managedKeys.length > 0) {
+      systemCatalog = await loadManagedMcpCatalog({
+        keys: managedKeys,
         sse,
         sourceRegistry,
+        userId: userId ?? null,
         userLocale: finalState.userLocale,
       });
       Object.assign(tools, systemCatalog.tools);
@@ -837,10 +840,14 @@ export async function streamAgenticResponse(params: {
     // resolved here so the model gets real dates and a real country code for
     // timetable/forecast/accommodation params). On a `reise` turn every mounted
     // source contributes its hint.
+    // Usage + answer-format instructions of the connectors that actually MOUNTED.
+    // Read off the catalog rather than off the trigger's key list: a source whose
+    // descriptors could not be loaded contributes no tools, and its instructions
+    // would then tell the model to call something that is not there.
+    const mountedHints = systemCatalog?.promptHints ?? [];
     const systemNote =
-      systemSources.length > 0 && systemCatalog && systemCatalog.labels.size > 0
-        ? `\n\n${systemSources
-            .map((s) => s.promptHint)
+      mountedHints.length > 0
+        ? `\n\n${mountedHints
             .join('\n\n')
             .replaceAll('{{TODAY_ISO}}', new Date().toISOString().slice(0, 10))
             .replaceAll(
@@ -848,7 +855,7 @@ export async function streamAgenticResponse(params: {
               new Date().toISOString().slice(2, 10).replaceAll('-', '')
             )
             .replaceAll('{{COUNTRY}}', finalState.userLocale === 'de-AT' ? 'AT' : 'DE')}`
-        : systemSources.length > 0
+        : managedKeys.length > 0
           ? '\n\nHINWEIS: Der Auskunftsdienst ist gerade nicht erreichbar. Sag das ehrlich und erfinde keine Daten; biete eine Web-Suche als Alternative an.'
           : '';
     // Up-front connector-tool catalog (unconditional when present, NOT gated on a

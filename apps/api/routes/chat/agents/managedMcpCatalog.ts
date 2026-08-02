@@ -1,8 +1,33 @@
 /**
- * Mounts the first-party system MCP sources (Deutsche Bahn / Open-Meteo / ARD-
- * Tagesschau) as agentic-loop tools — the built-in counterpart to mcpCatalog's
- * per-user connectors. Fixed env configs (systemMcpServers.ts), no registry, no
- * snapshot writes; intent-scoped: a `bahn` turn mounts only the Bahn tools.
+ * Mounts the first-party MANAGED connectors (Deutsche Bahn, Open-Meteo/DWD,
+ * ARD-Tagesschau, trivago, Bundesrecht) as agentic-loop tools — the built-in
+ * counterpart to mcpCatalog's per-user connectors. Fixed env configs
+ * (systemMcpServers.ts), no registry, no snapshot writes.
+ *
+ * SELECTION used to be by INTENT (`a bahn turn mounts the Bahn tools`). It is
+ * now by KEY, and the keys come from either the vocabulary trigger
+ * (`managedSourceTrigger`) or an explicit `@mention` scope. That is what lets a
+ * single turn mount train AND hotel tools — the case the `reise` umbrella intent
+ * existed for, back when the answer had to be one intent.
+ *
+ * ── LAZY CONNECT ────────────────────────────────────────────────────────────
+ *
+ * Mounting no longer opens a connection. `client.connect()` costs a DNS + SSRF
+ * revalidation and up to CONNECT_TIMEOUT_MS, and it used to run BEFORE
+ * `streamText` started — acceptable while only a `wetter` turn paid it, not once
+ * several connectors mount on ordinary turns. The tool DEFINITIONS come from
+ * `toolListCache` (10 min); the connection is opened on the first actual call,
+ * inside `execute`. A mount whose tools the model never calls now costs nothing
+ * but tokens.
+ *
+ * Cold cache is the exception and cannot be avoided: with no cached descriptors
+ * there is nothing to build a tool from, so that one load connects and lists —
+ * and hands the open client to the lazy holder so the first call reuses it.
+ *
+ * NOT a process-wide connection pool. That would save the per-turn handshake
+ * too, but a shared client needs its own failure/reconnect handling and
+ * process-wide call serialization; the mount-time cost is the part that hurt
+ * every turn, and this removes it. Measure before going further.
  *
  * Per-source result handling on top of the raw dynamicTool passthrough:
  * - bahn: DB IRIS timetable JSON (~46k chars/hour) is condensed to a compact
@@ -15,8 +40,9 @@ import { bahnPayloadSchema, type BahnEntry, type BahnPayload } from '@gruenerato
 import { dynamicTool, jsonSchema, type ToolSet } from 'ai';
 
 import { type SearchResult } from '../../../agents/langgraph/ChatGraph/types.js';
+import { McpServerRegistry } from '../../../services/mcp/McpServerRegistry.js';
 import {
-  getSourcesForIntent,
+  getManagedConnectors,
   toSystemConnectionConfig,
   type SystemMcpKey,
   type SystemMcpSource,
@@ -35,7 +61,7 @@ import {
 } from './mcpCatalog.js';
 import { sanitizeMcpSchema } from './mcpSchemaSanitizer.js';
 
-const log = createLogger('systemMcpCatalog');
+const log = createLogger('managedMcpCatalog');
 
 /** Oversized results are condensed here, not clipped mid-JSON by the client. */
 const RAW_RESULT_MAX_CHARS = 400_000;
@@ -228,22 +254,104 @@ const EMPTY: McpCatalog = {
 };
 
 /**
- * Load the system source(s) the turn's intent mounts as loop tools — one source
- * for `bahn`/`wetter`/`news`, the bahn+hotel+wetter trio for the `reise`
- * umbrella. Sources connect in parallel; an unreachable one is skipped (never
- * fatal — the loop then answers honestly / falls back to web search).
+ * A connection that is opened on FIRST USE, not at mount.
+ *
+ * `get()` is idempotent per turn: concurrent tool calls in one step await the
+ * same promise instead of racing two handshakes. A failed connect leaves that
+ * rejected promise in place for the rest of the turn — retrying per call would
+ * pay the timeout again for a server that is already known to be down.
  */
-export async function loadSystemMcpCatalog(params: {
-  intent: string;
+interface LazyConnection {
+  get: () => Promise<{ client: UserMCPClient; serialize: ReturnType<typeof createSerializer> }>;
+  /** Adopt the client the cold-cache path already opened for `listTools`. */
+  adopt: (client: UserMCPClient) => void;
+  close: () => Promise<void>;
+}
+
+function createLazyConnection(source: SystemMcpSource): LazyConnection {
+  let opened: Promise<{
+    client: UserMCPClient;
+    serialize: ReturnType<typeof createSerializer>;
+  }> | null = null;
+  let openedClient: UserMCPClient | null = null;
+
+  return {
+    get() {
+      if (!opened) {
+        opened = (async () => {
+          const client = new UserMCPClient(toSystemConnectionConfig(source));
+          await client.connect();
+          openedClient = client;
+          log.info(`[managedMcpCatalog] "${source.key}" connected on first call`);
+          return { client, serialize: createSerializer() };
+        })();
+      }
+      return opened;
+    },
+    adopt(client) {
+      if (opened) return;
+      openedClient = client;
+      opened = Promise.resolve({ client, serialize: createSerializer() });
+    },
+    async close() {
+      // `openedClient` is only set after a successful connect, so a pending or
+      // rejected `opened` leaves nothing to close — which is the point of not
+      // awaiting it here: closing must not wait out a hanging handshake.
+      if (!openedClient) return;
+      try {
+        await openedClient.close();
+      } catch (err) {
+        // Never rethrow: this runs in the turn's `finally`, and a failed close
+        // must not replace the answer the user is waiting for. Logged rather
+        // than swallowed, because a close that keeps failing is a leaked
+        // connection, and that is invisible from anywhere else.
+        log.warn(
+          `[managedMcpCatalog] close failed for "${source.key}": ${err instanceof Error ? err.message : err}`
+        );
+      }
+    },
+  };
+}
+
+/**
+ * Load the managed connector(s) named by `keys` as loop tools.
+ *
+ * `keys` come from the vocabulary trigger or an explicit `@mention` scope;
+ * several may mount together. Sources resolve in parallel, and one that cannot
+ * be listed is skipped — never fatal, the loop then answers honestly or falls
+ * back to web search.
+ *
+ * Connectors the user switched off are dropped, and so are those whose data does
+ * not cover their country. Both filters are applied here rather than at the call
+ * site so no caller can forget one.
+ */
+export async function loadManagedMcpCatalog(params: {
+  keys: readonly SystemMcpKey[];
   sse: SSEWriter;
   sourceRegistry: SourceRegistry;
+  /** Needed for the per-user opt-out; null (no session) keeps every connector. */
+  userId: string | null;
   /** Drops sources that do not cover this user's country (see SOURCE_AUDIENCE). */
   userLocale?: string | null;
 }): Promise<McpCatalog> {
-  const sources = getSourcesForIntent(params.intent, params.userLocale);
+  if (params.keys.length === 0) return EMPTY;
+  const available = getManagedConnectors(params.userLocale);
+  const disabled = params.userId
+    ? await McpServerRegistry.getDisabledManagedKeys(params.userId).catch((err: unknown) => {
+        // Opposite default to the settings list: there, showing a row is the
+        // safe direction; here, mounting a connector somebody switched off is
+        // the unsafe one. Skip them all rather than override a decision.
+        log.warn(`[managedMcpCatalog] prefs unavailable, skipping managed mounts: ${err}`);
+        return null;
+      })
+    : new Set<string>();
+  if (!disabled) return EMPTY;
+  const sources = params.keys
+    .map((key) => available.find((c) => c.key === key))
+    .filter((s): s is (typeof available)[number] => s != null && !disabled.has(s.key));
   if (sources.length === 0) return EMPTY;
 
-  const clients: UserMCPClient[] = [];
+  const connections: LazyConnection[] = [];
   const tools: ToolSet = {};
   const labels = new Map<string, { serverName: string; toolName: string }>();
   const mountedKeys = new Set<string>();
@@ -252,16 +360,14 @@ export async function loadSystemMcpCatalog(params: {
 
   await Promise.all(
     sources.map(async (source) => {
-      const client = new UserMCPClient(toSystemConnectionConfig(source));
+      const lazy = createLazyConnection(source);
+      connections.push(lazy);
       try {
-        await client.connect();
-        const listed = await listToolsCached(source, client);
-        clients.push(client);
+        const listed = await listToolsCached(source, lazy);
         mountedKeys.add(source.key);
         const allowed = source.toolAllowlist
           ? listed.filter((t) => source.toolAllowlist?.includes(t.name))
           : listed;
-        const callSerialized = createSerializer();
 
         const toolEntries: string[] = [];
         for (const t of allowed) {
@@ -277,8 +383,20 @@ export async function loadSystemMcpCatalog(params: {
             description: `[${source.name}] ${t.description ?? ''}${requiredSuffix}`.slice(0, 1024),
             inputSchema: jsonSchema(sanitized),
             execute: async (input) => {
-              const result = await callSerialized(() =>
-                client.callTool(t.name, (input ?? {}) as Record<string, unknown>, {
+              // THE connection point: opening happens here, on the first real
+              // call, not when this tool was put in the catalog.
+              let conn;
+              try {
+                conn = await lazy.get();
+              } catch (err) {
+                return {
+                  error: `Der Dienst ${source.name} ist gerade nicht erreichbar (${
+                    err instanceof Error ? err.message : String(err)
+                  }).`.slice(0, ERROR_MAX_CHARS),
+                };
+              }
+              const result = await conn.serialize(() =>
+                conn.client.callTool(t.name, (input ?? {}) as Record<string, unknown>, {
                   maxChars: RAW_RESULT_MAX_CHARS,
                 })
               );
@@ -290,10 +408,10 @@ export async function loadSystemMcpCatalog(params: {
                 };
               }
               const shaped = postProcess(source, t.name, result.content, params);
-              // System-only widget detection: attach a lightweight pointer when
+              // Managed-only widget detection: attach a lightweight pointer when
               // the tool ships an MCP-Apps / OpenAI-Apps-SDK `ui://` widget. This
-              // file is system MCPs only, so producing a pointer here IS the
-              // trust gate — user connectors (mcpCatalog) never get one.
+              // file is first-party connectors only, so producing a pointer here
+              // IS the trust gate — user connectors (mcpCatalog) never get one.
               const widgetUri = resolveWidgetUri(t.meta, result.meta, result.resources);
               if (widgetUri) {
                 const uiResource: SystemWidgetPointer = {
@@ -306,7 +424,7 @@ export async function loadSystemMcpCatalog(params: {
                 };
                 shaped.uiResource = uiResource;
                 log.info(
-                  `[systemMcpCatalog] widget ${source.key}__${t.name} → ${widgetUri}${
+                  `[managedMcpCatalog] widget ${source.key}__${t.name} → ${widgetUri}${
                     result.structuredContent ? ' (+structuredContent)' : ''
                   }`
                 );
@@ -320,9 +438,9 @@ export async function loadSystemMcpCatalog(params: {
         }
       } catch (err) {
         log.warn(
-          `[systemMcpCatalog] source "${source.key}" unreachable: ${err instanceof Error ? err.message : err}`
+          `[managedMcpCatalog] source "${source.key}" unreachable: ${err instanceof Error ? err.message : err}`
         );
-        await client.close();
+        await lazy.close();
       }
     })
   );
@@ -339,20 +457,34 @@ export async function loadSystemMcpCatalog(params: {
     scopedServerMissing: false,
     scopedServerUnreachable: false,
     systemSourceKeys: mountedKeys,
+    promptHints: sources.filter((s) => mountedKeys.has(s.key)).map((s) => s.promptHint),
+    /** Closes only what was actually opened — a mount without a call is a no-op. */
     close: async () => {
-      await Promise.all(clients.map((c) => c.close()));
+      await Promise.all(connections.map((c) => c.close()));
     },
   };
 }
 
+/**
+ * Tool descriptors for a source, from cache when possible.
+ *
+ * The cache is what makes the lazy mount work: with a warm entry this returns
+ * without touching the network, so the whole catalog is built without a single
+ * handshake. A cold entry has to connect — there is nothing to build a tool from
+ * otherwise — and hands that open client to the lazy holder so the first actual
+ * call reuses it instead of opening a second one.
+ */
 async function listToolsCached(
   source: SystemMcpSource,
-  client: UserMCPClient
+  lazy: LazyConnection
 ): Promise<McpToolDescriptor[]> {
   const cached = toolListCache.get(source.key);
   if (cached && Date.now() - cached.at < TOOL_LIST_TTL_MS) return cached.tools;
+  const client = new UserMCPClient(toSystemConnectionConfig(source));
+  await client.connect();
   const tools = await client.listTools();
   toolListCache.set(source.key, { at: Date.now(), tools });
+  lazy.adopt(client);
   return tools;
 }
 
