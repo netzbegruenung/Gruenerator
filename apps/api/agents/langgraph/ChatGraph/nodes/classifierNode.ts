@@ -31,10 +31,6 @@ import {
   McpServerRegistry,
   type McpClassifierServer,
 } from '../../../../services/mcp/McpServerRegistry.js';
-import {
-  SYSTEM_MCP_INTENTS,
-  isSystemIntentAvailable,
-} from '../../../../services/mcp/systemMcpServers.js';
 import { isExplicitDeepRequest } from '../../../../services/search/searchDepth.js';
 import { analyzeTemporality } from '../../../../services/search/TemporalAnalyzer.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
@@ -78,7 +74,6 @@ import {
   CHAT_HISTORY_KEYWORDS,
   CURRENT_THREAD_REFERENCE,
   NON_SEARCH_INTENTS,
-  SYSTEM_MCP_PHRASING,
   NO_RETRIEVAL_VERDICTS,
   looksLikeDocsHelpQuestion,
   looksLikeRecurringOrder,
@@ -96,7 +91,6 @@ import {
 import { GENERATION_SIGNAL, resolveGenerationScope } from './generationResolver.js';
 import { refineSearchQuery } from './queryRefineResolver.js';
 import { parseRelativeDateRange } from './relativeDates.js';
-import { resolveSourceScope } from './sourceScopeResolver.js';
 
 import type { ChatGraphState, GatherSource, SearchIntent } from '../types.js';
 
@@ -304,26 +298,11 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     }
   }
 
-  // System MCP sources are env-gated: without the deploy env URL the intent has
-  // no tools behind it — degrade so the question still gets answered (wetter/
-  // news → web has a chance; a live train query without the source doesn't).
-  //
-  // The locale goes in because availability is a per-country question whenever an
-  // intent maps to more than one source. `reise` was that case — train (DE-only)
-  // plus hotel and weather (global), deliberately kept out of
-  // DE_ONLY_SYSTEM_INTENTS, so on a bahn-only deploy an Austrian travel turn
-  // looked "available" and mounted nothing. It is off now, so this argument is
-  // currently prevention rather than a live fix.
-  if (
-    intent &&
-    SYSTEM_MCP_INTENTS.has(intent) &&
-    !isSystemIntentAvailable(intent, state.userLocale)
-  ) {
-    const fallback = intent === 'bahn' ? 'agentic' : 'web';
-    log.info(`[Classifier] ${intent} downgraded to ${fallback} (system MCP source not configured)`);
-    intent = fallback;
-    if (fallback === 'web') downgradedSearchQuery = userText;
-  }
+  // The env-availability degrade for the five system-MCP intents stood here. It
+  // has lost its subject: those intents are no longer produced, and the
+  // connectors that replaced them are filtered at the MOUNT — an unconfigured,
+  // country-excluded or switched-off connector is simply absent from
+  // `getManagedConnectors()`, so there is no verdict left to walk back.
 
   // ── URL context: pasted link(s) → additive scrape_url step ──
   // When the active agent has scraping enabled and the message contains URL(s),
@@ -1542,30 +1521,21 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // MEHRDEUTIGE Band, und für das ist der Loop der bessere Ort als eine
     // Antwort ohne Werkzeug: er sieht den Verlauf, und wo wirklich Nachrichten
     // gefragt sind, kann er suchen.
-    const demotableApartFromLiveSource =
+    // Nothing is held back for a live source any more.
+    //
+    // `SYSTEM_MCP_PHRASING` used to park exactly these turns here so Tier 3.7
+    // could ask a model WHICH source they meant, because the answer had to be a
+    // single intent. It does not have to be one any more: the router's vocabulary
+    // trigger names the connectors directly and opens the loop for them, so a
+    // timetable question now takes the ordinary demotion path with its tools
+    // already mounted. Holding it back would only delay that.
+    const demotable =
       isAgenticLoopEnabled() &&
       (DEMOTABLE_HEURISTIC_INTENTS.has(heuristic.intent) ||
         (NO_RETRIEVAL_VERDICTS.has(heuristic.intent) &&
           (looksLikeToolableQuestion(userContent) || unsourcedWriting || !selfContained)));
 
-    // hotel/reise/bahn/wetter/news are LLM-only: don't let demotion swallow a
-    // "suche hotels …" before Tier 3.7 can route it to its system source.
-    // Test URL-stripped text so a pasted link (e.g. tagesschau.de) doesn't
-    // trip a keyword — a pasted URL is a scrape job, handled above.
-    //
-    // The hold is PROVISIONAL, and that is what makes the regex affordable to
-    // widen. It used to be final: a phrasing match sent the turn to the 27k
-    // prompt for good, so every keyword added to catch a real timetable question
-    // also bought a 27k call for every policy question that shares the word.
-    // Tier 3.7 now releases the turn back to demotion when the resolver answers
-    // "keine", so a false positive costs one ~700-character call and lands
-    // exactly where it would have landed without the regex.
-    const heldBackForLiveSource =
-      demotableApartFromLiveSource &&
-      SYSTEM_MCP_PHRASING.test(userContent.replace(/https?:\/\/\S+/gi, ' '));
-    const demotable = demotableApartFromLiveSource && !heldBackForLiveSource;
-
-    const demoteToLoop = (tier: 'tier3.5_loop_demotion' | 'tier3.7_no_live_source') => {
+    const demoteToLoop = (tier: 'tier3.5_loop_demotion') => {
       log.info(
         `[Classifier] Loop demotion (${tier}): heuristic ${heuristic.intent}@${effectiveConfidence.toFixed(2)} < ${HEURISTIC_CONFIDENCE_THRESHOLD} → agentic (LLM skipped)`
       );
@@ -1576,11 +1546,6 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
           effectiveConfidence,
           selfContained,
           demotable,
-          // Zusammen sind die beiden Felder die Signatur des Wegs: demotable=true
-          // heisst „direkt bei 3.5 abgebogen", heldBack=true + demotable=false
-          // heisst „vom Live-Quellen-Gitter festgehalten und von 3.7 zurück-
-          // gegeben". Ohne das zweite Feld sehen beide Wege gleich aus.
-          heldBackForLiveSource,
         },
       });
       const demoted: Partial<ChatGraphState> = {
@@ -1605,89 +1570,15 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
 
     if (demotable) return demoteToLoop('tier3.5_loop_demotion');
 
-    // ── TIER 3.7: live source scope ──────────────────────────────────────
-    // "Does this need a timetable / hotel / forecast / news feed, or is it a
-    // policy question that merely sounds like one?"
+    // Tier 3.7 stood here: a 900-ms model call that decided WHICH live source a
+    // turn needed, because the answer had to be one intent. The router's
+    // vocabulary trigger answers that now — with a list, deterministically, and
+    // before the classifier runs. `sourceScopeResolver.ts` is deleted with it.
     //
-    // This is the one classifier decision the code itself argues cannot be a
-    // regex: `SYSTEM_MCP_PHRASING` says so at length, because "Bahnreform",
-    // "Tourismuspolitik" and "Klimapolitik" share the vocabulary and a policy
-    // turn must never pull a departure board. It does NOT follow that the
-    // decision needs the whole tool taxonomy — four paragraphs and four steps of
-    // CLASSIFIER_PROMPT, replaced here by ~700 characters with five answers.
-    //
-    // `SYSTEM_MCP_PHRASING` keeps its own job: holding these turns back from
-    // Tier 3.5 demotion so they arrive here at all.
-    //
-    // Availability is re-checked because an unset deploy env means the intent
-    // has no tools behind it; without the check a `wetter` verdict would route a
-    // turn to a source that cannot answer instead of to the web fallback.
-    const sourceScope = await resolveSourceScope({
-      userContent,
-      conversationContext,
-      aiWorkerPool,
-    });
-    if (
-      sourceScope &&
-      sourceScope !== 'keine' &&
-      isSystemIntentAvailable(sourceScope, state.userLocale)
-    ) {
-      log.info(`[Classifier] Live source scope → ${sourceScope} (LLM tier skipped)`);
-      recordDecision('classifier.tier', 'tier3.7_source_scope', {
-        inputs: { scope: sourceScope },
-      });
-      return {
-        intent: sourceScope,
-        searchSources: [],
-        searchQuery: userContent.slice(0, 500),
-        detectedFilters: heuristicExtractFilters(userContent),
-        reasoning: `Live-Quelle erkannt: ${sourceScope}`,
-        hasTemporal: temporal.hasTemporal,
-        complexity,
-        classificationTimeMs: Date.now() - startTime,
-      };
-    }
-
-    // The resolver NAMED a source and the deploy does not have it — the user did
-    // ask for a departure board, there is just nothing to ask. That used to be
-    // left to the big prompt, which routed it to a web fallback. It is spelled
-    // out here now, because the alternative is silence: without this branch the
-    // turn falls to the residual, and "Wie wird das Wetter morgen in Freiburg?"
-    // with the weather source switched off became `produktion` — a forecast
-    // answered from memory. Measured, not guessed.
-    //
-    // `web` rather than the loop, deliberately: the loop's planner may decide no
-    // tool is needed, and this is precisely the turn shape where that decision
-    // would be wrong. The single-pass web search cannot make it.
-    if (sourceScope && sourceScope !== 'keine') {
-      log.info(`[Classifier] Live source ${sourceScope} unavailable → web fallback`);
-      recordDecision('classifier.tier', 'tier3.7_source_unavailable', {
-        inputs: { scope: sourceScope },
-      });
-      return {
-        intent: 'web',
-        searchSources: [],
-        searchQuery: (extractSearchTopic(userContent) || userContent).slice(0, 500),
-        detectedFilters: heuristicExtractFilters(userContent),
-        reasoning: `Live-Quelle ${sourceScope} im Deploy nicht verfügbar → Websuche`,
-        hasTemporal: temporal.hasTemporal,
-        complexity,
-        classificationTimeMs: Date.now() - startTime,
-      };
-    }
-
-    // The phrasing regex held this turn back from demotion only so the question
-    // could be ASKED. It was asked, nothing was named — so the turn goes where it
-    // was headed before the hold.
-    //
-    // Covers `null` too now, not just an explicit `keine`. `null` (timeout,
-    // garbage) meant "carry on to Tier 4" everywhere in this file; with that tier
-    // gone it would mean "answer without a tool", which turns a provider hiccup
-    // on "Wann fährt der nächste Zug nach Köln?" into a made-up timetable. A
-    // fail-safe that degrades to a confident wrong answer is not a fail-safe.
-    if (heldBackForLiveSource) {
-      return demoteToLoop('tier3.7_no_live_source');
-    }
+    // What is genuinely gone is the policy-vs-data judgement that call made
+    // ("Bahnreform" is not a departure board). It lives in the trigger's
+    // trailing `(?!\p{L})` boundary now, which excludes those compounds by
+    // construction — see managedSourceTrigger.ts and its test table.
 
     // ── TIER 3.8: generation scope ────────────────────────────────────────
     // The other half of what the big prompt was still being paid for. Placed at

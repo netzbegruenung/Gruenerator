@@ -27,9 +27,9 @@ import { type ChatIntentId } from './index.js';
  * es?". Das ist der Unterschied, auf den es ankommt: `hilfe`, `summary` und
  * `mcp` laufen im Loop wie jede Recherche, aber ihre Entscheidung fällt an einem
  * eigenen deterministischen Gitter und ändert, welche Werkzeuge montiert werden
- * — sie sind `gated`, nicht `loop`. Umgekehrt sind `bahn`/`wetter`/`news`
- * `loop`: dort wählt der Auflöser nur die Quelle, der Turn geht so oder so an
- * den Planer.
+ * — sie sind `gated`, nicht `loop`. `bahn`/`wetter`/`news` standen hier als
+ * Gegenbeispiel („dort wählt der Auflöser nur die Quelle") und sind inzwischen
+ * `retired`: dieselbe Beobachtung, zu Ende gedacht.
  *
  * Total über `ChatIntentId` und bewusst in einer typgeprüften Datei — nicht in
  * der Testdatei daneben. `apps/api/tsconfig.json` schliesst `**\/*.vitest.ts`
@@ -48,7 +48,17 @@ export type Disposition =
   /** D4 — nicht vorab entschieden: der Planer im Loop wählt die Werkzeuge. */
   | 'loop'
   /** D5 — kein Werkzeug, Einzelpfad. */
-  | 'prose';
+  | 'prose'
+  /**
+   * D6 — stillgelegt: nichts erzeugt dieses Verdikt mehr.
+   *
+   * Kein Ort im Ablauf, sondern dessen Abwesenheit. Der Enum-Wert bleibt, weil
+   * `searchIntentSchema` ein Wire-Vertrag ist (ausgelieferte Binaries lesen ihn)
+   * und diese Karte total über `ChatIntentId` ist — löschen ginge nur, wenn der
+   * Enum-Wert zuerst ginge, und der kann nicht. Siehe `availability: 'retired'`
+   * im Intent-Registry.
+   */
+  | 'retired';
 
 export const DISPOSITION_BY_INTENT: Record<ChatIntentId, Disposition> = {
   // ── D4 loop — Recherche-Familie. Der Planer entscheidet die Werkzeuge neu;
@@ -62,13 +72,16 @@ export const DISPOSITION_BY_INTENT: Record<ChatIntentId, Disposition> = {
   abgeordnetenwatch: 'loop',
   bundestag: 'loop',
   umfragen: 'loop',
-  // System-MCP-Quellen: `sourceScopeResolver` wählt die Quelle, aber der Turn
-  // geht so oder so in den Loop — die Quelle ist Montage, keine Disposition.
-  bahn: 'loop',
-  reise: 'loop',
-  hotel: 'loop',
-  wetter: 'loop',
-  news: 'loop',
+  // ── D6 retired — als verwaltete Connectoren aus der Intent-Achse ausgezogen.
+  // Sie standen hier als `loop` mit der Begründung, der Auflöser wähle nur die
+  // Quelle und der Turn gehe ohnehin an den Planer. Genau das war das Argument,
+  // sie ganz aus der Achse zu nehmen: die Quellenwahl ist Montage, und Montage
+  // braucht kein Verdikt. `managedSourceTrigger` benennt sie jetzt direkt.
+  bahn: 'retired',
+  reise: 'retired',
+  hotel: 'retired',
+  wetter: 'retired',
+  news: 'retired',
   /** Der Auffangwert selbst. Seit #2269 der Residualwert der LLM-Stufe. */
   agentic: 'loop',
 

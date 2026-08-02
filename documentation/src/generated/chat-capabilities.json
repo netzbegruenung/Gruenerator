@@ -3,7 +3,6 @@
     "abgeordnetenwatch",
     "agentic",
     "artifact",
-    "bahn",
     "bundestag",
     "chart",
     "chat_history",
@@ -19,16 +18,13 @@
     "examples",
     "greeting",
     "hilfe",
-    "hotel",
     "image",
     "image_edit",
     "mcp",
     "modify_board",
     "modify_doc",
-    "news",
     "pressemitteilung_examples",
     "produktion",
-    "reise",
     "research",
     "save_as_doc",
     "scrape_url",
@@ -38,19 +34,13 @@
     "social_post",
     "summary",
     "umfragen",
-    "web",
-    "wetter"
+    "web"
   ],
   "experimentalIntents": [
-    "bahn",
     "create_recurring_task",
-    "hotel",
     "mcp",
-    "news",
-    "reise",
     "social_post",
-    "umfragen",
-    "wetter"
+    "umfragen"
   ],
   "mentionables": {
     "abgeordnetenwatch": {
@@ -195,11 +185,6 @@
       "description": "Inhalt einer Webseite per URL anhängen",
       "mention": "@web"
     },
-    "wetter": {
-      "title": "Wetter",
-      "description": "Wettervorhersage für einen Ort (Open-Meteo)",
-      "mention": "@wetter"
-    },
     "wolke-trigger": {
       "title": "Wolke",
       "description": "Eigene Wolke-Dateien einfügen",
@@ -279,18 +264,5 @@
       "env": "SYSTEM_MCP_WEATHER_URL"
     }
   },
-  "systemIntentSources": {
-    "bahn": [
-      "bahn"
-    ],
-    "hotel": [
-      "hotel"
-    ],
-    "news": [
-      "news"
-    ],
-    "wetter": [
-      "wetter"
-    ]
-  }
+  "systemIntentSources": {}
 }

@@ -74,25 +74,17 @@ const ENV_BY_KEY: Record<SystemMcpKey, { url: string; token: string }> = {
 
 /**
  * The sources exposed as MANAGED CONNECTORS — listed in the settings, enabled
- * for every user by default, mountable via `@mention`.
+ * for every user by default, mountable via `@mention` and by the vocabulary
+ * trigger (`managedSourceTrigger.ts`).
  *
- * Only `gesetze` is here, and the four commented-out keys are the whole reason
- * why: each of them is STILL an intent (`INTENT_SOURCES` below). A source that
- * is both would give the user a settings toggle that only governs half of it —
- * switching "tagesschau" off would silently leave the `news` intent mounting the
- * same server. Half a switch is worse than no switch, so they move over in the
- * same change that dismantles their intent, not before.
+ * All of them, now. Four arrived here from the intent side, where each owned an
+ * enum value, a classifier branch, a `searchNode` case and a share of a 900-ms
+ * LLM resolver. What they needed from all that was "mount these tools" — which
+ * is what a connector is.
  *
- * `gesetze` has no `INTENT_SOURCES` entry and therefore no such half — it is a
- * connector and nothing else, which is what makes it safe to ship first.
+ * Order is the mount order the trigger reports and the settings list shows.
  */
-const MANAGED_KEYS: readonly SystemMcpKey[] = [
-  'gesetze',
-  // 'wetter',
-  // 'bahn',
-  // 'news',
-  // 'hotel',
-];
+const MANAGED_KEYS: readonly SystemMcpKey[] = ['bahn', 'hotel', 'wetter', 'news', 'gesetze'];
 
 /**
  * Synthetic connector id. Shares the `system-<key>` shape with
@@ -115,45 +107,26 @@ export function parseManagedConnectorId(id: string): SystemMcpKey | null {
   return key in ENV_BY_KEY ? (key as SystemMcpKey) : null;
 }
 
-/** True when the source is surfaced as a managed connector rather than an intent. */
+/** True when the source is surfaced as a managed connector. */
 export function isManagedKey(key: SystemMcpKey): boolean {
   return MANAGED_KEYS.includes(key);
 }
 
 /**
- * Which sources a system intent mounts. `bahn`/`wetter`/`news` are the pure
- * single-source intents.
+ * Audience per SOURCE.
  *
- * `reise` — the umbrella travel intent that mounted train timetables + hotel
- * search + destination weather in ONE loop turn — is OFF for now. It was the only
- * intent mixing audiences (Deutsche Bahn is German-only, hotels and weather are
- * global), so "is this intent available?" could not be answered without knowing
- * the user's country: on a deploy with only the Bahn URL set, an Austrian travel
- * turn forced the agentic loop and mounted nothing at all.
+ * This used to sit next to an intent→sources map and carry a long note about
+ * why the per-source grain mattered: `reise` mounted three sources at once, and
+ * an intent-level audience could only have dropped the whole intent for Austria
+ * or kept the wrong tools. That is why `reise` was switched off.
  *
- * Off rather than patched, because half an answer is worse than an honest web
- * search — without an ÖBB counterpart an Austrian "Wien→Graz" turn can offer
- * hotels and weather but no train. The enum value stays (F0, wire contract) and
- * `SYSTEM_MCP_INTENTS` still lists it, so a `reise` verdict degrades to `web`.
- */
-const INTENT_SOURCES: Record<string, SystemMcpKey[]> = {
-  bahn: ['bahn'],
-  // reise: ['bahn', 'hotel', 'wetter'],
-  hotel: ['hotel'],
-  wetter: ['wetter'],
-  news: ['news'],
-};
-
-/**
- * Audience per SOURCE rather than per intent. With `reise` off, every remaining
- * intent maps to exactly one source, so the two levels currently coincide — the
- * per-source grain is kept for whatever brings a multi-source intent back (an
- * ÖBB counterpart, a travel umbrella): that is the case an intent-level audience
- * cannot express, because it could only drop the whole intent for Austria or
- * keep the wrong tools.
+ * The grain is now the only grain there is — connectors are selected
+ * individually, so an Austrian travel turn simply keeps hotel and weather and
+ * loses the train tools. The umbrella problem dissolved with the umbrella.
  *
- * Deutsche Bahn has no ÖBB counterpart wired up, and tagesschau covers Austria
- * as foreign news. Weather (Open-Meteo) and hotels (trivago) are global.
+ * Deutsche Bahn has no ÖBB counterpart wired up, tagesschau covers Austria as
+ * foreign news, and the law corpus is German federal law. Weather (Open-Meteo)
+ * and hotels (trivago) are global.
  */
 const SOURCE_AUDIENCE: Record<SystemMcpKey, 'de-DE' | 'all'> = {
   bahn: 'de-DE',
@@ -269,73 +242,35 @@ export function getSystemMcpSources(): SystemMcpSource[] {
   return sources;
 }
 
-export const SYSTEM_MCP_INTENTS: ReadonlySet<SearchIntent> = new Set([
-  'bahn',
-  'reise',
-  'hotel',
-  'wetter',
-  'news',
-] as SearchIntent[]);
-
 /**
- * Every intent that ONLY the agentic loop can execute (system MCP sources plus
- * the native umfragen/hilfe tools). Single source for the router's loop-forcing
- * gate, its kill-switch degrade insurance and the internal-first search
- * exemption. `executeIntentPipeline` has no branch for any of these, so an
- * intent listed here MUST reach the loop or be degraded by the router.
+ * Every intent that ONLY the agentic loop can execute. Single source for the
+ * router's loop-forcing gate and the internal-first search exemption.
+ * `executeIntentPipeline` has no branch for either, so an intent listed here
+ * MUST reach the loop.
+ *
+ * Down to the two NATIVE domain tools. `bahn`/`reise`/`hotel`/`wetter`/`news`
+ * were the other five and are gone from the intent axis entirely — they are
+ * managed connectors now, selected by vocabulary rather than by a verdict, and
+ * they no longer need an intent to force the loop (`managedSourceKeys` does
+ * that). The enum VALUES stay in `searchIntentSchema` (F0: shipped clients parse
+ * them), they are simply never produced.
  */
 export const SYSTEM_TOOL_INTENTS: ReadonlySet<SearchIntent> = new Set([
-  ...SYSTEM_MCP_INTENTS,
   'umfragen',
   'hilfe',
 ] as SearchIntent[]);
 
 /**
- * The env-configured sources the given system intent mounts (possibly []).
- *
- * `locale` drops sources whose data does not cover that country. It is optional
- * so callers with no user context (health checks, catalog listings) keep the
- * full set, but every CHAT path must pass it — without it an Austrian traveller
- * gets Deutsche-Bahn tools mounted for a Vienna→Graz trip.
- */
-export function getSourcesForIntent(intent: string, locale?: string | null): SystemMcpSource[] {
-  const keys = INTENT_SOURCES[intent];
-  if (!keys) return [];
-  const active = getSystemMcpSources();
-  const allowed = locale
-    ? keys.filter((k) => SOURCE_AUDIENCE[k] === 'all' || SOURCE_AUDIENCE[k] === locale)
-    : keys;
-  return allowed.flatMap((k) => active.filter((s) => s.key === k));
-}
-
-/** True when the intent has at least one configured system source behind it. */
-export function isSystemIntentAvailable(intent: string, locale?: string | null): boolean {
-  return getSourcesForIntent(intent, locale).length > 0;
-}
-
-/**
- * System intents with NO source left for a de-AT user — they degrade to the web
- * fallback. Derived from `SOURCE_AUDIENCE` rather than hand-listed, so a source
- * whose coverage changes cannot leave this set stale. `reise` is absent because
- * it has no sources at all now; it degrades via the availability check instead.
- */
-/**
  * True when this SOURCE's data only covers Germany.
  *
- * Distinct from {@link DE_ONLY_SYSTEM_INTENTS}, which answers the same question
- * for an INTENT. The two used to be interchangeable because every source key
- * was also an intent name — `gesetze` is the first source that is a connector
- * only, so the callers that mean "this source" now say so.
+ * There used to be a second, intent-shaped answer to the same question
+ * (`DE_ONLY_SYSTEM_INTENTS`), and the two were interchangeable only because
+ * every source key happened to also be an intent name. With the intents gone
+ * this is the single form.
  */
 export function isSourceGermanOnly(key: SystemMcpKey): boolean {
   return SOURCE_AUDIENCE[key] === 'de-DE';
 }
-
-export const DE_ONLY_SYSTEM_INTENTS: ReadonlySet<SearchIntent> = new Set(
-  Object.keys(INTENT_SOURCES).filter((intent) =>
-    (INTENT_SOURCES[intent] ?? []).every((k) => SOURCE_AUDIENCE[k] === 'de-DE')
-  ) as SearchIntent[]
-);
 
 export function toSystemConnectionConfig(source: SystemMcpSource): McpConnectionConfig {
   return {

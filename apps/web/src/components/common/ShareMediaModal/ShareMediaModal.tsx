@@ -237,9 +237,15 @@ const ShareMediaModal = ({
               </div>
 
               <div className="flex flex-[2] flex-col justify-center max-[600px]:w-full">
-                <label className="text-sm font-medium text-foreground mb-xs">Link kopieren</label>
+                <label
+                  htmlFor="share-media-link"
+                  className="text-sm font-medium text-foreground mb-xs"
+                >
+                  Link kopieren
+                </label>
                 <div className="flex gap-sm mb-md max-[480px]:flex-col min-w-0">
                   <input
+                    id="share-media-link"
                     type="text"
                     readOnly
                     value={getShareUrl(currentShare.shareToken)}
