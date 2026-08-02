@@ -22,6 +22,22 @@
  *
  * Vorher lesen, was sich geändert hat. Ein Snapshot, der ungeprüft neu
  * geschrieben wird, prüft nichts mehr.
+ *
+ * **Keine Platzhalter im Snapshot.** Die bis 08/2026 eingecheckten Dateien
+ * benutzten zwei Sorten: `- text: ""` als „hier steht irgendetwas" und
+ * `- text: /… ab iOS \d+/` als Regex für die Versionsnummer. Beides trägt unter
+ * Playwright 1.62 nicht mehr — `""` verlangt jetzt wirklich leeren Text, und der
+ * Regex greift nicht. Tückisch daran: `--update-snapshots` **erhält** solche
+ * Einträge, statt sie durch den gemessenen Wert zu ersetzen. Ein Neuaufzeichnen
+ * repariert sie also nicht, man muss sie von Hand pinnen. Steht die echte
+ * Mindest-iOS-Version drin, meldet der Snapshot ihre Änderung — das ist
+ * erwünscht, nicht lästig.
+ *
+ * **Mit der Playwright-Fassung aus dem Lockfile aufzeichnen.** Die Dateien sind
+ * Playwrights eigene YAML-Ausgabe (deshalb steht der Ordner in
+ * `.prettierignore`), und Format wie Vergleichsregeln hängen an der Fassung.
+ * `/apps` fiel in CI durch, während lokal alles grün war: dort war 1.61
+ * installiert, im Lockfile steht 1.62.1.
  */
 
 import { test, type Page } from '@playwright/test';

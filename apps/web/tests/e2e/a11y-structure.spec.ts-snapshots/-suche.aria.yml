@@ -1,11 +1,11 @@
 - main:
-    - heading "Grünerator Suche" [level=1]
-    - paragraph: KI-gestützte Recherche in Grünen Quellen und dem Web
-    - textbox "Nachricht schreiben..."
-    - button "Aktionen und Modus"
-    - button "🚲 Verkehrswende in Kommunen"
-    - button "🌍 Klimaschutz für Kommunen"
-    - button "⚡ Energiewende aktuell"
-    - button "Modell wählen – Automatisch (empfohlen)"
-    - button "Diktat starten"
-    - paragraph: KI-Systeme können Fakten falsch interpretieren. Bitte prüfe die Quellen.
+  - heading "Grünerator Suche" [level=1]
+  - paragraph: KI-gestützte Recherche in Grünen Quellen und dem Web
+  - textbox "Nachricht schreiben..."
+  - button "Aktionen und Modus"
+  - button "🚲 Verkehrswende in Kommunen"
+  - button "🌍 Klimaschutz für Kommunen"
+  - button "⚡ Energiewende aktuell"
+  - button "Modell wählen – Automatisch (empfohlen)"
+  - button "Diktat starten"
+  - paragraph: KI-Systeme können Fakten falsch interpretieren. Bitte prüfe die Quellen.
