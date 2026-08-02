@@ -1,3 +1,17 @@
+/**
+ * Strips leading/trailing hyphens. Scanned rather than matched: `/^-+|-+$/g` is
+ * quadratic in the input length on a long run of hyphens, because the engine
+ * retries the unanchored `-+$` alternative from every position (CodeQL
+ * js/polynomial-redos).
+ */
+function trimHyphens(input: string): string {
+  let start = 0;
+  let end = input.length;
+  while (start < end && input[start] === '-') start += 1;
+  while (end > start && input[end - 1] === '-') end -= 1;
+  return input.slice(start, end);
+}
+
 export function nameToSubdomain(name: string): string {
   const transliterated = name
     .replace(/[äÄ]/g, 'ae')
@@ -5,21 +19,18 @@ export function nameToSubdomain(name: string): string {
     .replace(/[üÜ]/g, 'ue')
     .replace(/ß/g, 'ss');
 
-  const raw = transliterated
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+  const raw = trimHyphens(transliterated.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
 
   return sanitizeSubdomain(raw);
 }
 
 export function sanitizeSubdomain(input: string): string {
-  return input
-    .toLowerCase()
-    .replace(/[^a-z0-9-]/g, '')
-    .replace(/--+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 50);
+  return trimHyphens(
+    input
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, '')
+      .replace(/--+/g, '-')
+  ).slice(0, 50);
 }
 
 export function sanitizeEmail(input: string): string {

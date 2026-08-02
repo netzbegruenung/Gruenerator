@@ -37,7 +37,15 @@ const SAFE_USER_ID = /^[a-z0-9_-]{1,64}$/i;
 
 export function resolveComputeAssetPath(userId: string, fileName: string): string | null {
   if (!ASSET_FILE_NAME.test(fileName) || !SAFE_USER_ID.test(userId)) return null;
-  return path.join(baseDir(), userId, fileName);
+  // Belt and braces on top of the shape checks: resolve, then require the
+  // result to sit inside the user's directory. The shape checks alone already
+  // exclude separators and `..`, but a containment check survives any future
+  // loosening of the patterns — and is the barrier CodeQL recognises
+  // (js/path-injection).
+  const userDir = path.resolve(baseDir(), userId);
+  const resolved = path.resolve(userDir, fileName);
+  if (!resolved.startsWith(userDir + path.sep)) return null;
+  return resolved;
 }
 
 export function computeAssetUrl(fileName: string): string {

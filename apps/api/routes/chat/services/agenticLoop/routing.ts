@@ -99,8 +99,14 @@ export function looksLikeToolableQuestion(raw: string): boolean {
 // ungrounded (any writing order), and where it did fire it fired by accident as
 // often as by design — "er ist doch kein MdB mehr" matched on the negation
 // particle "mehr", which the list meant as the expansion word in "erzähl mehr".
-/** Nothing but pasted link(s) — see `looksLikeSelfContainedTurn`. */
-const BARE_URL_ONLY_RE = /^(?:\s*https?:\/\/\S+)+\s*$/i;
+/**
+ * Nothing but pasted link(s) — see `looksLikeSelfContainedTurn`.
+ *
+ * The separator is `\s+`, not `\s*`: with `\s*` the repeated group could split a
+ * single run of non-space characters in more than one way, which is exponential
+ * backtracking on a message the user fully controls (CodeQL js/redos).
+ */
+const BARE_URL_ONLY_RE = /^\s*https?:\/\/\S+(?:\s+https?:\/\/\S+)*\s*$/i;
 
 const CHITCHAT_ONLY_RE =
   /^(danke\w*|dank\s+dir|thx|ok(ay)?|alles\s+klar|super|top|passt|perfekt|prima|cool|ja|nein|gut)\b[\s,.!?–—-]*$/i;

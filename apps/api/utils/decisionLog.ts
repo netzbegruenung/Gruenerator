@@ -118,8 +118,14 @@ export function decisionLogMiddleware(source: DecisionLogEnv = env): RequestHand
         overflowed: journal.overflowed,
       };
       try {
-        mkdirSync(dir, { recursive: true });
-        writeFileSync(path.join(dir, `${id}.json`), JSON.stringify(file, null, 2));
+        // `sanitizeLogId` already collapses every separator and `..`; the
+        // containment check is the second lock, and the one static analysis can
+        // see (CodeQL js/path-injection).
+        const baseDir = path.resolve(dir);
+        const target = path.resolve(baseDir, `${id}.json`);
+        if (!target.startsWith(baseDir + path.sep)) return;
+        mkdirSync(baseDir, { recursive: true });
+        writeFileSync(target, JSON.stringify(file, null, 2));
       } catch (error) {
         // A dev diagnostic must never take a turn down with it.
         log.warn('could not write decision log for %s: %s', id, String(error));

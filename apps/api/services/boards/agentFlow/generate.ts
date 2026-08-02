@@ -195,7 +195,13 @@ export async function generateFromState(
 export function deriveTitle(instruction: string, responseText: string): string {
   const mdHeading = responseText.match(/^\s{0,3}#{1,3}\s+(.+)$/m);
   const htmlHeading = responseText.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
-  const heading = (mdHeading?.[1] ?? htmlHeading?.[1] ?? '').replace(/<[^>]+>/g, '').trim();
+  // The second pass matters: stripping `<…>` pairs leaves an unterminated
+  // `<script` intact, and the title is stored and re-rendered elsewhere
+  // (CodeQL js/incomplete-multi-character-sanitization).
+  const heading = (mdHeading?.[1] ?? htmlHeading?.[1] ?? '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/[<>]/g, '')
+    .trim();
   if (heading) return heading.slice(0, 120);
 
   const cleaned = instruction.replace(/@\S+/g, '').replace(/\s+/g, ' ').trim();
