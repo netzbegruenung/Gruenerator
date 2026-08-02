@@ -5,6 +5,7 @@ import { type ReactElement, type ReactNode } from 'react';
 import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useContentColumn } from '../../hooks/useLayout';
 import { colors, spacing, lightTheme, darkTheme } from '../../theme';
 
 import { ProfileMenu } from './ProfileMenu';
@@ -57,6 +58,11 @@ export function ScreenScaffold({
   // `BlurTargetView` is a plain View, so both branches below are the same there.
   const blurEnabled = useTabBarBlurEnabled();
   const blurTargetRef = useRegisterTabBarBlurTarget(blurEnabled);
+  // Same cap as the content below, so the drawer button and the profile menu stop
+  // where the page stops. Pinned to the screen edges they sat ~990dp apart on an
+  // iPad with the title marooned between them, reading as three unrelated
+  // controls rather than as one bar.
+  const headerColumn = useContentColumn('grid');
 
   const body = (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -71,7 +77,7 @@ export function ScreenScaffold({
         end={{ x: 0, y: 1 }}
       />
       {backdrop}
-      <View style={styles.header}>
+      <View style={[headerColumn, styles.header]}>
         <View style={styles.headerSide}>
           {onBack ? (
             <Pressable
@@ -129,7 +135,6 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.medium,
     paddingVertical: spacing.small,
   },
   // flex:1 on both sides keeps a short title exactly centred. `minWidth` is what

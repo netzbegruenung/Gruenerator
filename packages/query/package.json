@@ -29,6 +29,12 @@
       "types": "./src/text/index.ts",
       "import": "./dist/text/index.js",
       "default": "./dist/text/index.js"
+    },
+    "./refs": {
+      "development": "./src/refs/index.ts",
+      "types": "./src/refs/index.ts",
+      "import": "./dist/refs/index.js",
+      "default": "./dist/refs/index.js"
     }
   },
   "scripts": {

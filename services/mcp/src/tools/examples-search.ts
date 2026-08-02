@@ -4,6 +4,7 @@
  */
 
 import { buildQdrantFilter } from '@gruenerator/query/filters';
+import { buildSourceRef } from '@gruenerator/query/refs';
 import { z } from 'zod';
 
 import { getQdrantCollectionName } from '../catalog.ts';
@@ -46,6 +47,28 @@ Bei Fehler "Collection not found" → Social-Media-Beispiele noch nicht verfügb
 - "Instagram-Posts zu Klimaschutz" → gruenerator_examples_search({ query: "Klimaschutz", platform: "instagram" })
 - "Facebook-Beispiele aus Österreich" → gruenerator_examples_search({ query: "Politik", platform: "facebook", country: "AT" })
 - "Wie posten Grüne über Bildung?" → gruenerator_examples_search({ query: "Bildung", limit: 10 })`,
+
+  // Only fields every success path sets are required — see searchOutputSchema
+  // in search.ts for why (error paths are exempt via isError).
+  outputSchema: {
+    query: z.string(),
+    platform: z.string(),
+    country: z.string(),
+    resultsCount: z.number(),
+    examples: z.array(
+      z.object({
+        id: z.union([z.string(), z.number()]),
+        ref: z.string().nullable().describe('Stabiler Schlüssel dieses Beitrags'),
+        content: z.unknown(),
+        platform: z.unknown().optional(),
+        country: z.unknown().optional(),
+        score: z.number().optional(),
+        metadata: z.record(z.string(), z.unknown()).optional(),
+      })
+    ),
+    message: z.string().optional(),
+    hint: z.string().optional(),
+  },
 
   inputSchema: {
     query: z
@@ -98,6 +121,12 @@ Bei Fehler "Collection not found" → Social-Media-Beispiele noch nicht verfügb
       // Format results
       const examples = (results || []).map((r) => ({
         id: r.id,
+        // A post's permalink is its identity; without one the point id is the
+        // only handle we have, and it survives until the next re-index.
+        ref: buildSourceRef({
+          url: (r.payload?.url || r.payload?.post_url) as string | null | undefined,
+          pointId: r.id,
+        }),
         content: r.payload?.content || r.payload?.caption || r.payload?.text || '',
         platform: r.payload?.platform,
         country: r.payload?.country,
