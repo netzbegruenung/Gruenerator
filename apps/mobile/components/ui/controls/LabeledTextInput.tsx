@@ -62,6 +62,7 @@ export function LabeledTextInput({
         keyboardType={keyboardType}
         returnKeyType={returnKeyType}
         maxLength={maxLength}
+        accessibilityLabel={label ?? placeholder}
         style={[
           styles.input,
           {

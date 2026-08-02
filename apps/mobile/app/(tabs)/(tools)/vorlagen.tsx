@@ -142,6 +142,8 @@ export default function VorlagenScreen() {
         <Pressable
           style={[styles.categoryChip, isSelected && styles.categoryChipActive]}
           onPress={() => handleCategoryPress(item.id)}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: isSelected }}
         >
           <Text style={[styles.categoryChipText, isSelected && styles.categoryChipTextActive]}>
             {item.label}
@@ -162,6 +164,7 @@ export default function VorlagenScreen() {
           <Pressable
             style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
             onPress={() => void handleTemplatePress(item)}
+            accessibilityRole="button"
           >
             {imageUrl ? (
               <Image
@@ -184,6 +187,8 @@ export default function VorlagenScreen() {
               style={styles.likeButton}
               onPress={() => void handleLikeToggle(item.id)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel={isLiked ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
             >
               <Ionicons
                 name={isLiked ? 'heart' : 'heart-outline'}

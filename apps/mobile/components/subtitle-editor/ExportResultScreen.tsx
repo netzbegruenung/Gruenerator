@@ -71,6 +71,8 @@ function IconButton({
         pressed && styles.iconButtonPressed,
         (disabled || loading) && styles.iconButtonDisabled,
       ]}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: disabled || loading }}
     >
       <View style={[styles.iconButtonCircle, active && styles.iconButtonCircleActive]}>
         {loading ? (
@@ -261,7 +263,12 @@ export function ExportScreen({
           nativeControls={false}
         />
 
-        <Pressable style={styles.playOverlay} onPress={togglePlayback}>
+        <Pressable
+          style={styles.playOverlay}
+          onPress={togglePlayback}
+          accessibilityRole="button"
+          accessibilityLabel={isPlaying ? 'Wiedergabe pausieren' : 'Wiedergabe starten'}
+        >
           {!isPlaying && (
             <View style={styles.playButton}>
               <Ionicons name="play" size={32} color={colors.white} />
@@ -270,7 +277,12 @@ export function ExportScreen({
         </Pressable>
 
         <View style={styles.videoControls}>
-          <Pressable style={styles.controlButton} onPress={togglePlayback}>
+          <Pressable
+            style={styles.controlButton}
+            onPress={togglePlayback}
+            accessibilityRole="button"
+            accessibilityLabel={isPlaying ? 'Wiedergabe pausieren' : 'Wiedergabe starten'}
+          >
             <Ionicons name={isPlaying ? 'pause' : 'play'} size={24} color={colors.white} />
           </Pressable>
         </View>
@@ -307,7 +319,13 @@ export function ExportScreen({
         >
           <View style={styles.socialTextHeader}>
             <Text style={[styles.socialTextTitle, { color: theme.text }]}>Dein Beitragstext</Text>
-            <Pressable onPress={handleCopySocialText} style={styles.copyButton} hitSlop={8}>
+            <Pressable
+              onPress={handleCopySocialText}
+              style={styles.copyButton}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Beitragstext kopieren"
+            >
               <Ionicons
                 name={isCopied ? 'checkmark' : 'copy-outline'}
                 size={20}

@@ -165,6 +165,7 @@ export function RecentItemsSection({
                 styles.row,
                 { backgroundColor: pressed ? theme.surface : 'transparent' },
               ]}
+              accessibilityRole="button"
             >
               {thumbnail}
               <View style={styles.rowBody}>{label}</View>
@@ -181,6 +182,7 @@ export function RecentItemsSection({
                   borderColor: theme.cardBorder,
                 },
               ]}
+              accessibilityRole="button"
             >
               {thumbnail}
               <View style={styles.cardBody}>{label}</View>

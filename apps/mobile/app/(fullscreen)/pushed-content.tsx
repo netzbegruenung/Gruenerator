@@ -184,7 +184,12 @@ export default function PushedContentScreen() {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={handleClose} style={styles.closeButton}>
+        <Pressable
+          onPress={handleClose}
+          style={styles.closeButton}
+          accessibilityRole="button"
+          accessibilityLabel="Schließen"
+        >
           <Ionicons name="close" size={28} color={theme.text} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>

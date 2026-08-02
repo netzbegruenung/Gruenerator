@@ -58,6 +58,9 @@ export function SliderWithPresets({
           },
           disabled && styles.disabled,
         ]}
+        accessibilityRole="button"
+        accessibilityLabel="Feineinstellung"
+        accessibilityState={{ expanded: showSlider, disabled }}
       >
         <Ionicons
           name="settings-outline"

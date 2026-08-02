@@ -69,6 +69,8 @@ export function ConfirmActionCard({ action, theme }: { action: ConfirmActionData
         onPress={openResult}
         disabled={!canOpen}
         style={[styles.badge, { backgroundColor: theme.surface, borderColor: theme.border }]}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !canOpen }}
       >
         <Ionicons name="checkmark" size={14} color={colors.primary[600]} />
         <Text style={[styles.badgeText, { color: theme.text }]}>{action.title}</Text>
@@ -106,6 +108,7 @@ export function ConfirmActionCard({ action, theme }: { action: ConfirmActionData
             setErrorMessage(null);
           }}
           style={[styles.cancelButton, { borderColor: theme.border }]}
+          accessibilityRole="button"
         >
           <Text style={[styles.cancelLabel, { color: theme.text }]}>Erneut versuchen</Text>
         </Pressable>
@@ -142,6 +145,8 @@ export function ConfirmActionCard({ action, theme }: { action: ConfirmActionData
           onPress={() => void handleConfirm(true)}
           disabled={status === 'loading'}
           style={[styles.confirmButton, { backgroundColor: colors.primary[600] }]}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: status === 'loading' }}
         >
           {status === 'loading' ? (
             <ActivityIndicator size="small" color={colors.white} />
@@ -154,6 +159,8 @@ export function ConfirmActionCard({ action, theme }: { action: ConfirmActionData
           onPress={() => void handleConfirm(false)}
           disabled={status === 'loading'}
           style={[styles.cancelButton, { borderColor: theme.border }]}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: status === 'loading' }}
         >
           <Text style={[styles.cancelLabel, { color: theme.text }]}>{action.cancelLabel}</Text>
         </Pressable>

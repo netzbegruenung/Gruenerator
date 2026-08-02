@@ -61,6 +61,7 @@ export function DocAiEditSheet({ visible, onClose, onSubmit, isLoading }: Props)
           <Pressable
             key={p.label}
             onPress={() => setPrompt(p.text)}
+            accessibilityRole="button"
             style={[styles.chip, { borderColor: theme.border, backgroundColor: theme.surface }]}
           >
             <Text style={[styles.chipText, { color: theme.text }]}>{p.label}</Text>
@@ -72,6 +73,7 @@ export function DocAiEditSheet({ visible, onClose, onSubmit, isLoading }: Props)
         <TextInput
           value={prompt}
           onChangeText={setPrompt}
+          accessibilityLabel="Bearbeitungsanweisung"
           placeholder="z.B. Förmlicher formulieren…"
           placeholderTextColor={theme.textSecondary}
           style={[styles.input, { color: theme.text, borderColor: theme.border }]}
@@ -82,6 +84,9 @@ export function DocAiEditSheet({ visible, onClose, onSubmit, isLoading }: Props)
         <Pressable
           onPress={submit}
           disabled={!canSubmit}
+          accessibilityRole="button"
+          accessibilityLabel="Bearbeitung starten"
+          accessibilityState={{ disabled: !canSubmit }}
           style={[
             styles.send,
             { backgroundColor: colors.secondary[600], opacity: canSubmit ? 1 : 0.4 },

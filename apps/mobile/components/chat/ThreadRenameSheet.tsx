@@ -59,19 +59,21 @@ export const ThreadRenameSheet = memo(function ThreadRenameSheet({
           placeholder="Titel der Unterhaltung"
           placeholderTextColor={theme.textSecondary}
           testID="thread-rename-input"
+          accessibilityLabel="Titel der Unterhaltung"
           style={[
             styles.renameInput,
             { color: theme.text, borderColor: theme.border, backgroundColor: theme.surface },
           ]}
         />
         <View style={styles.renameActions}>
-          <Pressable onPress={onClose} style={styles.renameButton}>
+          <Pressable onPress={onClose} style={styles.renameButton} accessibilityRole="button">
             <Text style={[styles.renameButtonText, { color: theme.textSecondary }]}>Abbrechen</Text>
           </Pressable>
           <Pressable
             onPress={commit}
             testID="thread-rename-save"
             style={[styles.renameButton, styles.renameSave]}
+            accessibilityRole="button"
           >
             <Text style={[styles.renameButtonText, styles.renameSaveText]}>Speichern</Text>
           </Pressable>
