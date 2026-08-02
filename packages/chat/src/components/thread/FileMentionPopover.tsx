@@ -185,6 +185,7 @@ export function FileMentionPopover({ visible, onSelect, onDismiss }: FileMention
 
   return (
     <MentionFloatingPanel open={visible} onDismiss={onDismiss} width="w-72">
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- Escape-only capture; Command/CommandList below manage their own keyboard navigation. */}
       <div onKeyDown={handleKeyDown} className="flex min-h-0 flex-1 flex-col">
         <Command className="flex min-h-0 flex-1 flex-col rounded-xl" shouldFilter={isRootLevel}>
           <CommandInput

@@ -36,6 +36,9 @@ export function MicButton({
       <Pressable
         disabled
         style={[styles.button, { width: size, height: size, borderRadius: size / 2 }]}
+        accessibilityRole="button"
+        accessibilityLabel="Wird geladen"
+        accessibilityState={{ disabled: true, busy: true }}
       >
         <ActivityIndicator size="small" color={colors.primary[600]} />
       </Pressable>
@@ -61,6 +64,15 @@ export function MicButton({
           opacity: disabled ? 0.5 : 1,
         },
       ]}
+      accessibilityRole="button"
+      accessibilityLabel={
+        isListening
+          ? 'Aufnahme stoppen'
+          : showSubmit
+            ? 'Nachricht senden'
+            : 'Sprachaufnahme starten'
+      }
+      accessibilityState={{ disabled: !!disabled }}
     >
       <Ionicons
         name={isListening ? 'stop' : showSubmit ? submitIcon : 'mic'}

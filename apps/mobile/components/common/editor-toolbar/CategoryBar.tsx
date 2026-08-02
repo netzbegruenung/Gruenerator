@@ -54,6 +54,7 @@ export function CategoryBar<T extends string = string>({
             key={category.id}
             style={[styles.chip, { backgroundColor: theme.background }]}
             onPress={() => onSelectCategory(category.id)}
+            accessibilityRole="button"
           >
             <Ionicons name={category.icon} size={uiScale(20)} color={colors.primary[600]} />
             <Text style={[styles.chipText, { color: theme.text, fontSize: uiScale(15) }]}>

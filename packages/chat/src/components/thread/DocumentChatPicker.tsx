@@ -68,6 +68,7 @@ export function DocumentChatPicker({ visible, onConfirm, onDismiss }: DocumentCh
   if (!visible) return null;
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- Escape-only capture; Command/CommandList below manage their own keyboard navigation.
     <div
       className="absolute z-50 w-80 rounded-xl border border-border bg-background shadow-lg"
       style={{ bottom: '100%', left: 0, marginBottom: '0.5rem' }}

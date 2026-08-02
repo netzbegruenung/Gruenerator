@@ -109,7 +109,12 @@ export default function OnboardingScreen() {
 
       <View style={styles.skipRow}>
         {!isLast && (
-          <Pressable testID="onboarding-skip" onPress={finish} hitSlop={8}>
+          <Pressable
+            testID="onboarding-skip"
+            onPress={finish}
+            hitSlop={8}
+            accessibilityRole="button"
+          >
             <Text style={[styles.skipText, { color: theme.textSecondary }]}>Überspringen</Text>
           </Pressable>
         )}

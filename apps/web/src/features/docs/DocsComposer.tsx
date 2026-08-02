@@ -156,11 +156,11 @@ export function DocsComposer({
           <div className="truncate text-sm font-semibold text-[#22382E] dark:text-foreground">
             {`„${query}" mit KI erstellen`}
           </div>
-          <div className="text-xs text-[#9AA8A1]">
+          <div className="text-xs text-muted-brand">
             Als {DOC_TYPE_META[detectedKind].label} generieren
           </div>
         </div>
-        <FiCornerDownLeft size={14} className="flex-none text-[#9AA8A1]" />
+        <FiCornerDownLeft size={14} className="flex-none text-muted-brand" />
       </div>
     ),
   };
@@ -175,7 +175,7 @@ export function DocsComposer({
           <div className="truncate text-sm font-medium text-[#22382E] dark:text-foreground">
             {it.title}
           </div>
-          <div className="text-xs text-[#9AA8A1]">{DOC_TYPE_META[it.kind].label}</div>
+          <div className="text-xs text-muted-brand">{DOC_TYPE_META[it.kind].label}</div>
         </div>
       </div>
     ),
@@ -191,7 +191,7 @@ export function DocsComposer({
           <div className="truncate text-sm font-medium text-[#22382E] dark:text-foreground">
             {h.title}
           </div>
-          <div className="truncate text-xs text-[#9AA8A1]">
+          <div className="truncate text-xs text-muted-brand">
             {h.snippet || DOC_TYPE_META[h.kind].label}
           </div>
         </div>
@@ -215,7 +215,7 @@ export function DocsComposer({
           <div className="truncate text-sm font-medium text-[#22382E] dark:text-foreground">
             {hit.title}
           </div>
-          {hit.subtitle && <div className="truncate text-xs text-[#9AA8A1]">{hit.subtitle}</div>}
+          {hit.subtitle && <div className="truncate text-xs text-muted-brand">{hit.subtitle}</div>}
         </div>
       </div>
     ),
@@ -231,7 +231,7 @@ export function DocsComposer({
           <div className="truncate text-sm font-medium text-[#22382E] dark:text-foreground">
             {t.title}
           </div>
-          <div className="truncate text-xs text-[#9AA8A1]">Vorlage · {t.description}</div>
+          <div className="truncate text-xs text-muted-brand">Vorlage · {t.description}</div>
         </div>
       </div>
     ),
@@ -301,7 +301,7 @@ export function DocsComposer({
             <TypingAnimation
               words={isMobile ? promptExamplesShort : promptExamples}
               loop
-              className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 truncate text-base text-[#9AA8A1]"
+              className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 truncate text-base text-muted-brand"
               typeSpeed={45}
               deleteSpeed={20}
               pauseDelay={1400}
@@ -321,7 +321,7 @@ export function DocsComposer({
             }}
             onKeyDown={onKeyDown}
             aria-label="Erstellen oder suchen"
-            className="w-full min-w-0 border-0 bg-transparent py-[9px] text-base text-[#22382E] outline-none placeholder:text-[#9AA8A1] dark:text-foreground"
+            className="w-full min-w-0 border-0 bg-transparent py-[9px] text-base text-[#22382E] outline-none placeholder:text-muted-brand dark:text-foreground"
           />
         </div>
 
@@ -372,6 +372,7 @@ export function DocsComposer({
       </div>
 
       {showDropdown && (
+        // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- onMouseDown only preserves focus for the click below; the options themselves are real buttons
         <div
           className="absolute left-0 right-0 top-full z-20 mt-2 max-h-[360px] overflow-y-auto overflow-x-hidden rounded-2xl border border-[#E1E9E4] bg-white p-1.5 shadow-[0_20px_50px_rgba(31,63,51,.18)] dark:border-grey-700 dark:bg-grey-800"
           onMouseDown={(e) => {
@@ -381,7 +382,7 @@ export function DocsComposer({
           }}
         >
           {!promptMode && (
-            <div className="flex items-center gap-2 px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#9AA8A1]">
+            <div className="flex items-center gap-2 px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-brand">
               <FiSearch size={11} /> Ergebnisse
             </div>
           )}

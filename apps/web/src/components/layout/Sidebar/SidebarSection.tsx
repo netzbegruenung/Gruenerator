@@ -174,6 +174,7 @@ const SidebarMenuItem = memo(
 
     return (
       <li>
+        {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Link ist auf 'a' gemappt, jsx-a11y prüft dabei nur href statt to; echte, tastaturzugängliche Navigation ist bereits vorhanden */}
         <Link
           to={item.path}
           className={linkCls(false)}

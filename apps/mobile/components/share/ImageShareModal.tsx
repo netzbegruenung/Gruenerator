@@ -150,7 +150,12 @@ export function ImageShareModal({
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={[styles.header, { borderBottomColor: theme.border }]}>
           <Text style={[styles.title, { color: theme.text }]}>Teilen</Text>
-          <Pressable onPress={onClose} style={styles.closeButton}>
+          <Pressable
+            onPress={onClose}
+            style={styles.closeButton}
+            accessibilityRole="button"
+            accessibilityLabel="Teilen-Dialog schließen"
+          >
             <Ionicons name="close" size={24} color={theme.textSecondary} />
           </Pressable>
         </View>
@@ -166,6 +171,8 @@ export function ImageShareModal({
                 styles.actionButton,
                 { backgroundColor: colors.primary[600], opacity: pressed ? 0.8 : 1 },
               ]}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: sharingImage }}
             >
               {sharingImage ? (
                 <ActivityIndicator size="small" color={colors.white} />
@@ -191,6 +198,8 @@ export function ImageShareModal({
                   opacity: pressed ? 0.8 : 1,
                 },
               ]}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: savingToGallery || savedToGallery }}
             >
               {savingToGallery ? (
                 <ActivityIndicator size="small" color={colors.primary[600]} />
@@ -243,6 +252,7 @@ export function ImageShareModal({
                       opacity: pressed ? 0.8 : 1,
                     },
                   ]}
+                  accessibilityRole="button"
                 >
                   <Ionicons name="link-outline" size={20} color={theme.text} />
                   <Text style={[styles.actionButtonTextOutline, { color: theme.text }]}>

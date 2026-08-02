@@ -108,6 +108,9 @@ export function UnsplashSearchTab({ onImageSelected }: UnsplashSearchTabProps) {
           ]}
           onPress={() => void handleImagePress(item)}
           disabled={loadingImage !== null}
+          accessibilityRole="button"
+          accessibilityLabel="Bild auswählen"
+          accessibilityState={{ selected: isSelected, disabled: loadingImage !== null }}
         >
           <Image source={{ uri: item.url }} style={styles.thumbnail} contentFit="cover" />
           {isSelected && (
@@ -129,6 +132,9 @@ export function UnsplashSearchTab({ onImageSelected }: UnsplashSearchTabProps) {
       <Pressable
         onPress={loadMoreResults}
         disabled={isLoadingSearch}
+        accessibilityRole="button"
+        accessibilityLabel="Weitere Bilder laden"
+        accessibilityState={{ disabled: isLoadingSearch }}
         style={[
           styles.loadMoreButton,
           { backgroundColor: isDark ? colors.grey[800] : colors.grey[100] },
@@ -156,6 +162,7 @@ export function UnsplashSearchTab({ onImageSelected }: UnsplashSearchTabProps) {
       >
         <Ionicons name="search-outline" size={18} color={theme.textSecondary} />
         <TextInput
+          accessibilityLabel="Bilder auf Unsplash suchen"
           placeholder="Bilder auf Unsplash suchen..."
           placeholderTextColor={theme.textSecondary}
           style={[styles.searchInput, { color: theme.text }]}

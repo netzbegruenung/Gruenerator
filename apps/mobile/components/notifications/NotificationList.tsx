@@ -96,6 +96,7 @@ export function NotificationList({ onNavigate }: Props) {
             },
           ]}
           onPress={() => handlePress(item)}
+          accessibilityRole="button"
         >
           <View
             style={[
@@ -149,7 +150,7 @@ export function NotificationList({ onNavigate }: Props) {
           Benachrichtigungen
         </Text>
         {hasUnread && (
-          <Pressable onPress={markAllAsRead} hitSlop={8}>
+          <Pressable onPress={markAllAsRead} hitSlop={8} accessibilityRole="button">
             <Text style={[styles.readAll, { color: colors.primary[600] }]}>Alle gelesen</Text>
           </Pressable>
         )}

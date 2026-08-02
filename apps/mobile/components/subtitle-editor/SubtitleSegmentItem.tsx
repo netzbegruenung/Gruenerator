@@ -86,7 +86,7 @@ export function SubtitleSegmentItem({
   };
 
   return (
-    <Pressable onPress={onTap} style={getContainerStyle()}>
+    <Pressable onPress={onTap} style={getContainerStyle()} accessibilityRole="button">
       <View style={styles.content}>
         {isEditing ? (
           <TextInput
@@ -101,6 +101,7 @@ export function SubtitleSegmentItem({
             returnKeyType="done"
             autoFocus
             selectTextOnFocus
+            accessibilityLabel="Untertiteltext bearbeiten"
           />
         ) : (
           <Text style={[styles.text, { color: theme.text }]} numberOfLines={2} ellipsizeMode="tail">

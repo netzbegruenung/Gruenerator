@@ -248,6 +248,8 @@ export default function NotebooksScreen() {
                     onPress={() => setCreatorVisible(true)}
                     style={[styles.addButton, { backgroundColor: colors.primary[600] + '15' }]}
                     hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Notebook erstellen"
                   >
                     <Ionicons name="add" size={20} color={colors.primary[600]} />
                   </Pressable>

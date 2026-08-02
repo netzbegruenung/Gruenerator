@@ -62,10 +62,10 @@ export function OmniResultsPanel({ parsed }: { parsed: ParsedResearchIntent }) {
 
       {error && <p className="px-1 py-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
 
-      {isLoading && <p className="px-1 py-6 text-center text-sm text-[#9AA8A1]">Suche läuft …</p>}
+      {isLoading && <p className="px-1 py-6 text-center text-sm text-muted-brand">Suche läuft …</p>}
 
       {!isLoading && !error && metadata && (
-        <p className="mb-2 px-1 text-xs text-[#9AA8A1]">
+        <p className="mb-2 px-1 text-xs text-muted-brand">
           {metadata.totalResults} Ergebnisse in {metadata.timeMs}ms
         </p>
       )}
@@ -81,7 +81,7 @@ export function OmniResultsPanel({ parsed }: { parsed: ParsedResearchIntent }) {
       {!isLoading && !error && results.length === 0 && (
         <div className="flex flex-col items-center gap-2 py-8 text-center">
           <FiSearch className="size-8 text-grey-300 dark:text-grey-600" />
-          <p className="text-sm text-[#9AA8A1]">
+          <p className="text-sm text-muted-brand">
             Keine Ergebnisse. Entferne einen Filter oben oder formuliere die Frage um.
           </p>
         </div>

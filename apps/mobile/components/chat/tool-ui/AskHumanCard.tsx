@@ -75,6 +75,7 @@ export function AskHumanCard({
                     : theme.card,
                 },
               ]}
+              accessibilityRole="button"
             >
               <Text style={[styles.optionText, { color: theme.text }]}>{option}</Text>
             </Pressable>
@@ -91,11 +92,15 @@ export function AskHumanCard({
           placeholderTextColor={theme.textSecondary}
           returnKeyType="send"
           style={[styles.input, { color: theme.text, borderColor: theme.border }]}
+          accessibilityLabel="Eigene Antwort eingeben"
         />
         <Pressable
           onPress={() => submit(customInput)}
           disabled={!customInput.trim()}
           style={[styles.sendButton, { opacity: customInput.trim() ? 1 : 0.4 }]}
+          accessibilityRole="button"
+          accessibilityLabel="Antwort senden"
+          accessibilityState={{ disabled: !customInput.trim() }}
         >
           <Ionicons name="send" size={16} color={theme.textGreen} />
         </Pressable>
