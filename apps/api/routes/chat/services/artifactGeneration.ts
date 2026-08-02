@@ -69,6 +69,25 @@ export function pdfKindFromText(text: string): 'document' | 'letter' | 'form' {
 }
 
 /**
+ * Was this generation written off while it was still running?
+ *
+ * The loop's per-call timeout abandons a call, it does not cancel it (see
+ * `wrapTools`). Generation is the one place where that difference is visible to
+ * the user: the abandoned call would finish, write a document and push an
+ * artifact card into a turn that had already reported failure — and, because the
+ * loop then force-starts a replacement, leave two documents behind for one ask.
+ *
+ * Checked at the LAST possible moment, right where `onCommit` sits: everything
+ * before it is a read, everything after it is a write. Nothing is created, so
+ * there is nothing to roll back.
+ */
+function abandonedBeforeCommit(signal: AbortSignal | undefined, what: string): boolean {
+  if (signal?.aborted !== true) return false;
+  log.warn(`[ChatGraph] ${what} abandoned before commit (per-call timeout) — not writing`);
+  return true;
+}
+
+/**
  * PDF generation has its own entry point rather than a `runDocGeneration`
  * branch: it produces a finished file plus a verification report, not a
  * collaborative document, so the return shape genuinely differs.
@@ -80,6 +99,8 @@ export async function runPdfGeneration(opts: {
   userId: string;
   pdfOptions?: PdfGenerationOptions;
   onCommit?: () => void;
+  /** See {@link abandonedBeforeCommit}. */
+  abandoned?: AbortSignal;
 }): Promise<CreatePdfResult | null> {
   const { userContent, aiWorkerPool, req, userId, onCommit } = opts;
   const reqWithUser = req as Express.Request & { user?: { id?: string }; sessionID?: string };
@@ -114,6 +135,7 @@ export async function runPdfGeneration(opts: {
     return null;
   }
   const structure = generated.data;
+  if (abandonedBeforeCommit(opts.abandoned, 'PDF generation')) return null;
   onCommit?.();
 
   const isLetter = structure.kind === 'letter' || pdfOptions.documentKind === 'letter';
@@ -183,6 +205,8 @@ export async function runDocGeneration(opts: {
    *  the in-stream error rather than falling through; the loop fat tool omits
    *  it (the loop owns the stream). */
   onCommit?: () => void;
+  /** See {@link abandonedBeforeCommit}. */
+  abandoned?: AbortSignal;
 }): Promise<CreatedDocument | null> {
   const { kind, userContent, aiWorkerPool, req, userId, onCommit } = opts;
   const reqWithUser = req as Express.Request & {
@@ -235,6 +259,7 @@ export async function runDocGeneration(opts: {
       log.warn(`[ChatGraph] Presentation generation failed: ${generated.error}`);
       return null;
     }
+    if (abandonedBeforeCommit(opts.abandoned, 'Presentation generation')) return null;
     onCommit?.();
     const doc = await createPresentationDocument(generated.data, userId, reqWithUser.user?.locale);
     return {
@@ -265,6 +290,7 @@ export async function runDocGeneration(opts: {
       log.warn(`[ChatGraph] Sheet generation failed: ${generated.error}`);
       return null;
     }
+    if (abandonedBeforeCommit(opts.abandoned, 'Sheet generation')) return null;
     onCommit?.();
     const doc = await createSheetDocument(generated.data, userId);
     return { documentId: doc.id, title: doc.title, subtype: 'sheets', url: `/office/${doc.id}` };
@@ -299,6 +325,7 @@ export async function runDocGeneration(opts: {
     return null;
   }
   const parsed = generated.data;
+  if (abandonedBeforeCommit(opts.abandoned, 'Document generation')) return null;
   onCommit?.();
   const doc = await createDocumentWithContent(parsed.title, parsed.content, parsed.subtype, userId);
   return {
@@ -337,6 +364,8 @@ export async function runBoardGeneration(opts: {
    *  commit point as runDocGeneration/runPdfGeneration, so the turn handler can
    *  open the stream there instead of eagerly. */
   onCommit?: () => void;
+  /** See {@link abandonedBeforeCommit}. */
+  abandoned?: AbortSignal;
 }): Promise<CreatedBoard | null> {
   const { userContent, aiWorkerPool, req, userId, onCommit } = opts;
   const {
@@ -367,6 +396,7 @@ export async function runBoardGeneration(opts: {
     return null;
   }
   const structure = generated.data;
+  if (abandonedBeforeCommit(opts.abandoned, 'Board generation')) return null;
   onCommit?.();
   const { id, title } = await createBoardDocument(structure.title || 'Neues Board', userId);
   return {

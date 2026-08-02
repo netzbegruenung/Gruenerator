@@ -90,6 +90,46 @@ describe('wrapToolsForLoop', () => {
     expect(out.error).toMatch(/Zeitüberschreitung/);
   });
 
+  it('tells the abandoned tool that it was written off', async () => {
+    // A timeout stops the WAIT, not the tool. For a generation tool that meant a
+    // document still got written and a card still got pushed, into a turn whose
+    // model had already been told the call failed (live, 02.08.2026). The signal
+    // is how a tool can tell; the generation tools check it before committing.
+    const { ctx } = makeCtx({ perCallTimeoutMs: 20 });
+    let seen: AbortSignal | undefined;
+    const tools = wrapToolsForLoop(
+      {
+        hang: {
+          execute: (_i: unknown, o: { abortSignal?: AbortSignal }) => {
+            seen = o.abortSignal;
+            return new Promise(() => {});
+          },
+        },
+      } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'hang', {});
+    expect(seen?.aborted).toBe(true);
+  });
+
+  it('leaves the signal untouched when the tool returns in time', async () => {
+    const { ctx } = makeCtx({ perCallTimeoutMs: 200 });
+    let seen: AbortSignal | undefined;
+    const tools = wrapToolsForLoop(
+      {
+        quick: {
+          execute: async (_i: unknown, o: { abortSignal?: AbortSignal }) => {
+            seen = o.abortSignal;
+            return { ok: true };
+          },
+        },
+      } as unknown as ToolSet,
+      ctx
+    );
+    await run(tools, 'quick', {});
+    expect(seen?.aborted).toBe(false);
+  });
+
   it('a timeout counts as a tool failure, closes the card and persists the step', async () => {
     // This is what keeps the hand-rolled `withTimeout` in place. The AI SDK's
     // `timeout.toolMs` aborts from OUTSIDE the wrapper — it merely merges an
