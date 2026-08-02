@@ -13,9 +13,7 @@ import {
   borderRadius,
   lightTheme,
   darkTheme,
-  moderateScale,
-  verticalScale,
-  scale,
+  uiScale,
   BODY_FONT,
 } from '../../theme';
 
@@ -122,13 +120,13 @@ export function SubtitleSegmentItem({
 
 const styles = StyleSheet.create({
   container: {
-    minHeight: verticalScale(48),
-    paddingVertical: verticalScale(10),
-    paddingHorizontal: scale(14),
+    minHeight: uiScale(48),
+    paddingVertical: uiScale(10),
+    paddingHorizontal: uiScale(14),
     borderWidth: 1,
-    borderRadius: moderateScale(8),
-    marginHorizontal: scale(16),
-    marginVertical: verticalScale(3),
+    borderRadius: uiScale(8),
+    marginHorizontal: uiScale(16),
+    marginVertical: uiScale(3),
   },
   active: {
     borderWidth: 2,
@@ -142,39 +140,39 @@ const styles = StyleSheet.create({
   content: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(10),
+    gap: uiScale(10),
   },
   timeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(4),
+    gap: uiScale(4),
   },
   time: {
     fontFamily: BODY_FONT,
-    fontSize: moderateScale(11),
+    fontSize: uiScale(11),
     fontWeight: '500',
     fontVariant: ['tabular-nums'],
   },
   activeDot: {
-    width: moderateScale(6),
-    height: moderateScale(6),
-    borderRadius: moderateScale(3),
+    width: uiScale(6),
+    height: uiScale(6),
+    borderRadius: uiScale(3),
     backgroundColor: colors.primary[600],
   },
   text: {
     flex: 1,
     fontFamily: BODY_FONT,
-    fontSize: moderateScale(14),
-    lineHeight: moderateScale(19),
+    fontSize: uiScale(14),
+    lineHeight: uiScale(19),
   },
   input: {
     flex: 1,
     fontFamily: BODY_FONT,
-    fontSize: moderateScale(14),
-    lineHeight: moderateScale(19),
-    padding: scale(8),
-    borderRadius: moderateScale(6),
-    minHeight: verticalScale(52),
+    fontSize: uiScale(14),
+    lineHeight: uiScale(19),
+    padding: uiScale(8),
+    borderRadius: uiScale(6),
+    minHeight: uiScale(52),
     textAlignVertical: 'top',
   },
 });

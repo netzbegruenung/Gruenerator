@@ -18,10 +18,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useIsTablet } from '../../hooks/useIsTablet';
+import { useContentColumn, useLayout } from '../../hooks/useLayout';
 import { useDocsStore } from '../../stores/docsStore';
 import { lightTheme, darkTheme, colors, spacing, BODY_FONT } from '../../theme';
-import { FLOATING_TAB_BAR_HEIGHT } from '../../theme/layout';
+import { FLOATING_TAB_BAR_HEIGHT, gridColumns } from '../../theme/layout';
 import { officeTypeColor } from '../../theme/officeColors';
 import { getSurfaceFab } from '../../theme/toolTheme';
 import { DocPreview } from '../common/DocPreview';
@@ -227,7 +227,11 @@ export function DocumentsView({
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const { user } = useAuth();
-  const gridCols = useIsTablet() ? 3 : 2;
+  // Columns from the card size rather than from the device class: `isTablet ? 3 : 2`
+  // held the count near the phone's and let the card inflate instead.
+  const { gridWidth } = useLayout();
+  const gridCols = gridColumns(gridWidth, MIN_CARD, CARD_GAP);
+  const gridColumn = useContentColumn('grid');
 
   // One selector per field rather than `useDocsStore()`. The bare call subscribes
   // to the whole store, so this view re-rendered — and with it every visible
@@ -448,9 +452,9 @@ export function DocumentsView({
 
       {/* Document Grid */}
       {isLoading && officeItems.length === 0 ? (
-        <View style={styles.gridContent}>
+        <View style={[gridColumn, styles.gridContent]}>
           <View style={styles.gridRow}>
-            {[0, 1].map((i) => (
+            {Array.from({ length: gridCols }, (_, i) => i).map((i) => (
               <View
                 key={i}
                 style={[
@@ -521,6 +525,7 @@ export function DocumentsView({
           numColumns={gridCols}
           columnWrapperStyle={styles.gridRow}
           contentContainerStyle={[
+            gridColumn,
             styles.gridContent,
             { paddingBottom: fabBottom + 88 },
             officeItems.length === 0 && styles.listEmpty,
@@ -544,6 +549,7 @@ export function DocumentsView({
           keyExtractor={(item) => item.id}
           renderItem={renderListItem}
           contentContainerStyle={[
+            gridColumn,
             styles.listContent,
             { paddingBottom: fabBottom + 88 },
             officeItems.length === 0 && styles.listEmpty,
@@ -605,13 +611,21 @@ export function DocumentsView({
 
 const CARD_GAP = 16;
 
+/**
+ * Smallest a document card may get before a column is dropped. Wider than a tool
+ * tile because a card carries a title, a type badge and a date under its
+ * preview; a phone already draws two of these at ~156dp, so the floor of 2 in
+ * `gridColumns` keeps the phone exactly as it is.
+ */
+const MIN_CARD = 180;
+
 const styles = StyleSheet.create({
   fill: { flex: 1 },
 
-  // Grid
+  // Grid. The horizontal margin comes from the content column now, so that the
+  // grid, the list and the header all stop at the same edge.
   gridContent: {
     paddingTop: 16,
-    paddingHorizontal: 16,
     paddingBottom: 96,
   },
   gridRow: {
@@ -665,7 +679,6 @@ const styles = StyleSheet.create({
   // List view
   listContent: {
     paddingTop: 16,
-    paddingHorizontal: 16,
     paddingBottom: 96,
   },
   listCard: {
