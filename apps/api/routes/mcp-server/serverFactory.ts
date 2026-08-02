@@ -6,6 +6,10 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
+import {
+  getCanonicalByKey,
+  getMcpExposedCollections,
+} from '../../config/systemCollectionsConfig.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { Sentry } from '../../lib/sentry.js';
 import { lookupUmfragen } from '../../services/monitor/UmfragenService.js';
@@ -26,8 +30,12 @@ import {
   makeMediaTool,
   makeNotebooksTool,
 } from '../chat/agents/personalDataTools.js';
-import { ALL_COLLECTIONS } from '../chat/agents/searchTools.js';
 import { runBoardGeneration, runDocGeneration } from '../chat/services/intentExecutionService.js';
+import {
+  computeMergedFilters,
+  getCachedFilters,
+  setCachedFilters,
+} from '../research/researchController.js';
 
 import {
   absolutizeUrl,
@@ -41,17 +49,31 @@ import {
   joinGroupDirect,
   shareDocToGroupMcp,
 } from './mcpMutations.js';
+import {
+  buildCollectionCatalog,
+  buildMethodDocument,
+  buildNotizbuchPrompt,
+  buildRecherchePrompt,
+} from './methodPrompts.js';
 
 import type { QAResponse } from '../../services/notebook/types.js';
 import type { Request } from 'express';
 
 const log = createLogger('McpServerFactory');
 
-// Derived from the chat search catalog — 'examples' has its own tool here.
-const SEARCH_COLLECTIONS = ALL_COLLECTIONS.filter((c) => c !== 'examples') as unknown as [
-  string,
-  ...string[],
-];
+/**
+ * Derived from the canonical config, NOT from the chat catalog.
+ *
+ * `ALL_COLLECTIONS` is the chat agent's allow-list — eight entries, tuned for
+ * what a chat agent should reach by default. Using it here silently hid twelve
+ * `mcpExposed` collections, every Landesverband among them, from a surface
+ * whose whole job is exposure. v1 has served them from `/api/v1/collections`
+ * all along, so v2 was the narrower of the two.
+ */
+const SEARCH_COLLECTIONS = getMcpExposedCollections()
+  .map((c) => c.key)
+  .filter((key) => key !== 'examples')
+  .sort() as [string, ...string[]];
 
 let notebookHelperSingleton: NotebookQdrantHelper | null = null;
 function notebookHelper(): NotebookQdrantHelper {
@@ -87,7 +109,10 @@ function renderNotebookAnswer(result: QAResponse, notebookName: string): string 
 
 const INSTRUCTIONS = `Grünerator MCP (angemeldet): Zugriff auf die eigenen Grünerator-Inhalte der angemeldeten Person (Dokumente, Boards/Aufgaben, Notizbücher, Gruppen, Medien) plus die Programm- und Beschlusssuche von Bündnis 90/Die Grünen (DE) und den Grünen (AT).
 
+Für belegte Antworten aus mehreren Quellen gilt ein festes Vorgehen: die Resource gruenerator://methode beschreibt Ablauf und Zitierprotokoll, gruenerator://sammlungen listet die durchsuchbaren Sammlungen. Die Prompts "recherche" und "notizbuch-antwort" bringen beides fertig mit.
+
 Regeln:
+- Kein Tool schreibt dir den Text der Recherche — die Synthese aus den Treffern ist deine Aufgabe. Ausnahme: notebooks mit action="search" liefert bereits eine belegte Antwort.
 - IDs und refs stammen immer aus einem vorherigen list-/search-Aufruf — niemals raten.
 - Destruktive oder nach außen sichtbare Aktionen (löschen, teilen) verlangen das zweistufige Protokoll: erster Aufruf ohne confirm liefert eine Rückfrage; erst nach Zustimmung der Person mit confirm=true erneut aufrufen.
 - create_document/create_board erzeugen echte Inhalte im Konto — Ergebnis-Link nennen.
@@ -117,6 +142,88 @@ function guarded<A>(name: string, fn: (args: A) => Promise<ToolResponse>) {
 
 const READONLY = { readOnlyHint: true, destructiveHint: false, openWorldHint: false };
 
+/**
+ * Prompts and resources are scope-independent: they describe how to work with
+ * this server, not what the connection may touch. A client that has been
+ * granted nothing can still read the method — and should, because the first
+ * thing it does with a new scope is search.
+ */
+function registerMethod(server: McpServer): void {
+  server.registerPrompt(
+    'recherche',
+    {
+      title: 'Recherche in Programmen und Beschlüssen',
+      description:
+        'Mehrstufige Suche in den Grünen-Sammlungen mit anschließender belegter Zusammenfassung — nach demselben Zitierprotokoll, das die Grünerator-Oberfläche verwendet.',
+      argsSchema: {
+        frage: z.string().describe('Die inhaltliche Frage'),
+        land: z.enum(['DE', 'AT']).describe('DE = Deutschland, AT = Österreich'),
+      },
+    },
+    ({ frage, land }) => ({
+      description: 'Recherche mit Zitaten',
+      messages: buildRecherchePrompt(frage, land as 'DE' | 'AT'),
+    })
+  );
+
+  server.registerPrompt(
+    'notizbuch-antwort',
+    {
+      title: 'Antwort aus einem eigenen Notizbuch',
+      description:
+        'Befragt den eigenen Quellenbestand und fasst die Treffer mit Quellenangaben zusammen.',
+      argsSchema: {
+        frage: z.string().describe('Die inhaltliche Frage'),
+        notizbuch: z.string().optional().describe('Name des Notizbuchs, falls bekannt'),
+      },
+    },
+    ({ frage, notizbuch }) => ({
+      description: 'Notizbuch-Antwort mit Quellen',
+      messages: buildNotizbuchPrompt(frage, notizbuch),
+    })
+  );
+
+  server.registerResource(
+    'methode',
+    'gruenerator://methode',
+    {
+      title: 'Methode: belegt aus mehreren Quellen antworten',
+      description:
+        'Ablauf und Zitierprotokoll für Antworten aus den Grünen-Sammlungen und aus eigenen Notizbüchern.',
+      mimeType: 'text/markdown',
+    },
+    () => ({
+      contents: [
+        {
+          uri: 'gruenerator://methode',
+          mimeType: 'text/markdown',
+          text: buildMethodDocument(),
+        },
+      ],
+    })
+  );
+
+  server.registerResource(
+    'sammlungen',
+    'gruenerator://sammlungen',
+    {
+      title: 'Verfügbare Sammlungen',
+      description:
+        'Alle über gruenerator_search erreichbaren Sammlungen mit Inhalt, Land und Filterfeldern.',
+      mimeType: 'text/markdown',
+    },
+    () => ({
+      contents: [
+        {
+          uri: 'gruenerator://sammlungen',
+          mimeType: 'text/markdown',
+          text: buildCollectionCatalog(),
+        },
+      ],
+    })
+  );
+}
+
 export interface McpServerBuildOptions {
   userId: string;
   scopes: Set<string>;
@@ -132,10 +239,15 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
 
   const server = new McpServer(
     { name: 'gruenerator', version: '2.0.0' },
-    { capabilities: { tools: {} }, instructions: INSTRUCTIONS }
+    {
+      capabilities: { tools: {}, prompts: {}, resources: {} },
+      instructions: INSTRUCTIONS,
+    }
   );
 
   const ctx = makeMcpPersonalCtx(userId);
+
+  registerMethod(server);
 
   // ── whoami (always available) ─────────────────────────────────────────────
   server.registerTool(
@@ -166,16 +278,27 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
       'gruenerator_search',
       {
         title: 'Grüne Programme & Beschlüsse durchsuchen',
-        description: `Semantische Suche in Programmen, Beschlüssen und Positionen von Bündnis 90/Die Grünen (DE) und den Grünen (AT). Sammlungen: ${SEARCH_COLLECTIONS.join(', ')}.`,
+        description: `Semantische Suche in Programmen, Beschlüssen und Positionen von Bündnis 90/Die Grünen (DE) und den Grünen (AT). Einzelne Begriffe treffen besser als ganze Sätze — suche lieber mehrfach mit Varianten. Der Katalog aller ${SEARCH_COLLECTIONS.length} Sammlungen steht in der Resource gruenerator://sammlungen; das Vorgehen samt Zitierprotokoll in gruenerator://methode. Sammlungen: ${SEARCH_COLLECTIONS.join(', ')}.`,
         inputSchema: {
           query: z.string().min(1).describe('Suchbegriff oder Frage'),
           collection: z.enum(SEARCH_COLLECTIONS).default('deutschland'),
           limit: z.number().int().min(1).max(20).default(5),
+          filters: z
+            .record(z.string(), z.union([z.string(), z.array(z.string())]))
+            .optional()
+            .describe(
+              'Feldfilter, z.B. {"content_type":"praxishilfe"}. Werte NIE raten — vorher gruenerator_get_filters aufrufen.'
+            ),
         },
         annotations: READONLY,
       },
-      guarded('gruenerator_search', async ({ query, collection, limit }) => {
-        const result = await executeDirectSearch({ query, collection, limit });
+      guarded('gruenerator_search', async ({ query, collection, limit, filters }) => {
+        const result = await executeDirectSearch({
+          query,
+          collection,
+          limit,
+          ...(filters ? { filters } : {}),
+        });
         if (result.error) return text(result.message ?? 'Suche fehlgeschlagen.', true);
         if (result.resultsCount === 0) return text('Keine Treffer.');
         const lines = result.results.map(
@@ -183,6 +306,42 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
             `[${r.rank}] **${r.source}** (${r.relevance})${r.url ? ` — ${r.url}` : ''}\n${r.excerpt}`
         );
         return text(lines.join('\n\n'));
+      })
+    );
+
+    server.registerTool(
+      'gruenerator_get_filters',
+      {
+        title: 'Filterwerte einer Sammlung',
+        description:
+          'Nennt die tatsächlich belegten Filterwerte einer Sammlung samt Trefferzahl. Vor jeder gefilterten Suche aufrufen — die Werte unterscheiden sich pro Sammlung und lassen sich nicht erraten.',
+        inputSchema: { collection: z.enum(SEARCH_COLLECTIONS) },
+        annotations: READONLY,
+      },
+      guarded('gruenerator_get_filters', async ({ collection }) => {
+        const config = getCanonicalByKey(collection);
+        if (!config) return text(`Unbekannte Sammlung: ${collection}`, true);
+
+        // Same 30-minute cache the Recherche page uses; the aggregation is a
+        // fan-out of Qdrant facet queries and far too costly per tool call.
+        const cacheKey = config.id;
+        const merged = getCachedFilters(cacheKey) ?? (await computeMergedFilters([config.id]));
+        setCachedFilters(cacheKey, merged);
+
+        const entries = Object.entries(merged.filters);
+        if (entries.length === 0) return text(`Sammlung "${collection}" hat keine Filterfelder.`);
+
+        const blocks = entries.map(([field, entry]) => {
+          if (entry.type === 'date_range') {
+            return `**${field}** (${entry.label}, Zeitraum): ${entry.min ?? '?'} bis ${entry.max ?? '?'}`;
+          }
+          const values = (entry.values ?? [])
+            .slice(0, 25)
+            .map((v) => `${v.value} (${v.count})`)
+            .join(', ');
+          return `**${field}** (${entry.label}): ${values || '— keine Werte'}`;
+        });
+        return text(`Filterfelder für "${collection}":\n\n${blocks.join('\n')}`);
       })
     );
 
