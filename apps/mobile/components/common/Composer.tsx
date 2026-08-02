@@ -12,7 +12,7 @@ import {
   type Mentionable,
 } from '@gruenerator/chat';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   TextInput,
@@ -23,6 +23,7 @@ import {
   Keyboard,
 } from 'react-native';
 
+import { useContentColumn } from '../../hooks/useLayout';
 import { useMentionablesSync } from '../../hooks/useMentionablesSync';
 import { useSpeechToText, appendTranscript } from '../../hooks/useSpeechToText';
 import { useTheme } from '../../hooks/useTheme';
@@ -35,7 +36,6 @@ import {
   type PickedDocument,
 } from '../../services/documentPicker';
 import { colors, spacing } from '../../theme';
-import { SCREEN_EDGE } from '../../theme/layout';
 import { ComposerAttachmentUI } from '../chat/AttachmentUI';
 import { ComposerActionSheet } from '../chat/ComposerActionSheet';
 import { DocumentBrowserSheet } from '../chat/DocumentBrowserSheet';
@@ -715,10 +715,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xsmall,
   },
   edge: {
-    paddingHorizontal: SCREEN_EDGE,
     paddingTop: spacing.xsmall,
   },
 });
 
-/** Padding for a composer pinned to the screen edge (chat thread, tab bars). */
-export const composerEdgeStyle = styles.edge;
+/**
+ * Where a composer pinned to the screen edge sits (chat thread, tab bars).
+ *
+ * A hook rather than the exported `StyleSheet` entry it used to be: the
+ * horizontal half of it is now the reading column, whose width and margin depend
+ * on the live window. `StyleSheet.create` runs once at import and would have
+ * frozen both at whatever the app booted in.
+ */
+export function useComposerEdge(): StyleProp<ViewStyle> {
+  const column = useContentColumn('reading');
+
+  return useMemo(() => [column, styles.edge], [column]);
+}

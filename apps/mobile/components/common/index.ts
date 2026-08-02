@@ -5,7 +5,7 @@ export { ImagePicker } from './ImagePicker';
 export { ProfileAvatar } from './ProfileAvatar';
 export { PulseLoader } from './PulseLoader';
 export { MicButton } from './MicButton';
-export { Composer, composerEdgeStyle, type ComposerAccessory } from './Composer';
+export { Composer, useComposerEdge, type ComposerAccessory } from './Composer';
 export { ComposerShell, type ComposerVariant } from './ComposerShell';
 export { BottomSheet } from './BottomSheet';
 export { ContentColumn } from './ContentColumn';
