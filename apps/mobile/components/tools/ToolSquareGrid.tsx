@@ -1,15 +1,9 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter, type Href } from 'expo-router';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  useColorScheme,
-  useWindowDimensions,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native';
 
 import { useIsTablet } from '../../hooks/useIsTablet';
+import { useLayout } from '../../hooks/useLayout';
 import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
 import { spacing, borderRadius, colors, BODY_FONT } from '../../theme';
 import { getToolTheme } from '../../theme/toolTheme';
@@ -26,25 +20,28 @@ const GAP = spacing.small;
  * description pinned to the bottom, favourite star top-right.
  *
  * Tile size is computed rather than expressed in percentages: React Native has no
- * `calc()`, so `width: '48%'` plus a gap overflows the row. `horizontalPadding` is
- * whatever the parent already pads with — pass it or the last column clips.
+ * `calc()`, so `width: '48%'` plus a gap overflows the row. `availableWidth` is
+ * the room the parent has already made — it used to be the padding to subtract
+ * instead, which meant every caller had to restate the screen edge and a caller
+ * inside a capped column had no way to say so at all.
  */
 export function ToolSquareGrid({
   tools,
-  horizontalPadding = spacing.medium * 2,
+  availableWidth,
 }: {
   tools: ToolDef[];
-  horizontalPadding?: number;
+  availableWidth?: number;
 }) {
   const isDark = useColorScheme() === 'dark';
   const isTablet = useIsTablet();
-  const { width } = useWindowDimensions();
+  const { contentWidth } = useLayout();
   const router = useRouter();
   const favorites = useToolFavoritesStore((s) => s.favorites);
   const toggleFavorite = useToolFavoritesStore((s) => s.toggleFavorite);
 
+  const room = availableWidth ?? contentWidth;
   const columns = isTablet ? 3 : 2;
-  const tileSize = Math.floor((width - horizontalPadding - GAP * (columns - 1)) / columns);
+  const tileSize = Math.floor((room - GAP * (columns - 1)) / columns);
 
   return (
     <View style={styles.grid}>
