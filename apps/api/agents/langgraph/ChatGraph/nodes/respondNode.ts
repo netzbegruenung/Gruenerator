@@ -15,7 +15,6 @@ import {
   INJECTION_WARNING_NOTE,
   INSTRUCTION_HIERARCHY_RULE,
 } from '../../../../routes/chat/services/untrustedContent.js';
-import { getPrAgentInsightFragment } from '../../../../services/agents/prAgentInsightService.js';
 import {
   buildCompactProductIdentity,
   buildProductKnowledgeBlock,
@@ -1432,15 +1431,6 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
     }
   }
 
-  // Monthly corpus-insight overlay for the Öffentlichkeitsarbeit (PR) agents:
-  // an additive, subordinate block (current themes / active speakers / style /
-  // fresh real examples) auto-refreshed from the agent's own corpus. No-op for
-  // non-PR agents, for `summary` (neutral role), or when the kill-switch is set.
-  // See services/agents/prAgentInsightService.ts.
-  const insightsFragment = isNeutralTurn
-    ? ''
-    : await getPrAgentInsightFragment(agentConfig.identifier);
-
   // What broke in this turn, in the model's own words. A warning event is
   // telemetry only — without this block the model happily presents a degraded
   // turn as a complete one (answering an arithmetic question from memory after
@@ -1460,7 +1450,7 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
   const hierarchyRule = hasUntrusted ? INSTRUCTION_HIERARCHY_RULE : '';
   const injectionWarning = state.injectionSuspected ? INJECTION_WARNING_NOTE : '';
 
-  return `${systemRole}${skillFragment}${insightsFragment}${degradationBlock}
+  return `${systemRole}${skillFragment}${degradationBlock}
 Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${productKnowledge}${docsPageMap}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${artifactInventory}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
 
 ## ANTWORT-REGELN

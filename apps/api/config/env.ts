@@ -77,6 +77,13 @@ const envSchema = z.object({
   AUTH_BASE_URL: z.string().optional(),
   WEB_BASE_URL: z.string().optional(),
   PRIMARY_DOMAIN: z.string().default('gruenerator.eu'),
+  /**
+   * Which instance this deployment serves — see `@gruenerator/shared/instances`.
+   * Unset means `production`, so an existing deployment behaves exactly as it
+   * did before instances existed. An unknown value falls back to that default
+   * too rather than failing the boot: a typo must not take the API down.
+   */
+  INSTANCE_ID: z.string().optional(),
 
   // External: Abgeordnetenwatch API (public, no key). Override only for testing.
   ABGEORDNETENWATCH_BASE_URL: z.string().default('https://www.abgeordnetenwatch.de/api/v2'),
@@ -242,10 +249,6 @@ const envSchema = z.object({
   CRAWLER_MODE: z.string().optional(),
   CONTENT_SYNC_EMAIL: z.string().trim().optional(),
   TEST_EMAIL_TO: z.string().trim().optional(),
-  // Kill-switch: when true, the ChatGraph respond node skips injecting the
-  // monthly corpus-insight overlay into PR agents (instant revert to the static
-  // systemRole without a deploy rollback). See services/agents/prAgentInsightService.ts.
-  PR_AGENT_INSIGHTS_DISABLED: boolFlag(false),
   BACKUP_DIR: z.string().optional(),
   STATS_OUTPUT_PATH: z.string().optional(),
   SYNC_SUMMARY_PATH: z.string().optional(),

@@ -57,6 +57,12 @@
        heller. Dark-Wert im [data-theme="dark"]-Block. */
     --grey-text-val: #6d6d6d;
 
+    /* Die schwächere Textstufe, an der `text-grey-400` hängt (war --grey-400,
+       #989898 = 2,89:1). Die Rampenstufe bleibt, wo sie ist — sie trägt auch
+       Deaktiviert-Zustände und Ränder, und die sind von 1.4.3 ausgenommen.
+       Hell 4,54:1, dunkel 5,99:1. */
+    --grey-text-weak-val: #767676;
+
     /* Neutral Color System ("Sand") - Backgrounds and subtle hover */
     --neutral-500: #f8f4ec;
     --neutral-600: #F5F1E9;  /* Base "Sand" color */
@@ -176,7 +182,10 @@
     --editor-border-soft: #E4E2DA;
     --editor-border-strong: #DBD9D0;
     --editor-text-secondary: #4B4A45;
-    --editor-text-muted: #84827A;
+    /* Warmgrau, um 5 % abgedunkelt (war #84827A). Auf --editor-surface (weiß)
+       erreichte es 3,85:1; der Farbton bleibt, der Wert ist jetzt 4,55:1.
+       Die dunkle Fassung steht auf #1e1e1e schon bei 5,78:1. */
+    --editor-text-muted: #78766E;
     --editor-placeholder: #9A988F;
 
     /* Scrollbar variables */
@@ -377,8 +386,10 @@
 
     --interactive-accent-color: var(--white);
     --grey-text-val: #909090;
+    --grey-text-weak-val: #a3a3a3;
     --font-color-disabled: var(--grey-500);
-    --font-color-secondary: var(--grey-400);
+    /* Hing bis 08/2026 an --grey-400 und erreichte auf --grey-950 nur 3,31:1. */
+    --font-color-secondary: var(--grey-text-weak-val);
     --font-color-muted: var(--grey-text-val);
     --border-color-disabled: var(--grey-600);
     --border-color: var(--grey-700);
@@ -548,8 +559,10 @@
 
         --interactive-accent-color: var(--white);
         --grey-text-val: #909090;
+        --grey-text-weak-val: #a3a3a3;
         --font-color-disabled: var(--grey-500);
-        --font-color-secondary: var(--grey-400);
+        /* Hing bis 08/2026 an --grey-400 und erreichte auf --grey-950 nur 3,31:1. */
+        --font-color-secondary: var(--grey-text-weak-val);
         --font-color-muted: var(--grey-text-val);
         --border-color-disabled: var(--grey-600);
         --border-color: var(--grey-700);

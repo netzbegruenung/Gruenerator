@@ -8,7 +8,7 @@
  *   - the searchable catalog   (apps/web … toolCatalog.ts) — tools that have no
  *     tile of their own and would otherwise be invisible in the docs,
  *   - the route table          (apps/web … routes.ts) — whether a route needs a
- *     login, and whether it is dev-only.
+ *     login, and which maturity channel it is on.
  *
  * This differs from generate-ui-labels.mjs on purpose. That one flattens every
  * `{id,title}` literal in these files into one lookup map for <UiLabel>, which
@@ -84,11 +84,24 @@ function readTile(node) {
   return tile;
 }
 
-/** `devOnly: true` on a tile literal — those never reach real users. */
-function isDevOnly(node) {
+/**
+ * `channel: 'internal'` on a tile literal — those never reach real users.
+ *
+ * The instance filter deliberately lives in the DERIVED views, not in these
+ * literals, so this file keeps parsing plain array literals and the docs keep
+ * describing the full inventory. Only `internal` is dropped here: `preview`
+ * content is real, just not on every instance.
+ */
+function isInternalChannel(node) {
   for (const p of node.properties) {
     if (!ts.isPropertyAssignment(p) || !p.name || !ts.isIdentifier(p.name)) continue;
-    if (p.name.text === 'devOnly' && p.initializer.kind === ts.SyntaxKind.TrueKeyword) return true;
+    if (
+      p.name.text === 'channel' &&
+      ts.isStringLiteralLike(p.initializer) &&
+      p.initializer.text === 'internal'
+    ) {
+      return true;
+    }
   }
   return false;
 }
@@ -106,7 +119,7 @@ function extractGroups() {
     const tools = [];
     for (const el of decl.elements) {
       const node = unwrap(el);
-      if (!node || !ts.isObjectLiteralExpression(node) || isDevOnly(node)) continue;
+      if (!node || !ts.isObjectLiteralExpression(node) || isInternalChannel(node)) continue;
       const tile = readTile(node);
       if (!tile) continue;
 
@@ -124,7 +137,7 @@ function extractGroups() {
         if (items && ts.isArrayLiteralExpression(items)) {
           for (const itemEl of items.elements) {
             const itemNode = unwrap(itemEl);
-            if (!itemNode || !ts.isObjectLiteralExpression(itemNode) || isDevOnly(itemNode))
+            if (!itemNode || !ts.isObjectLiteralExpression(itemNode) || isInternalChannel(itemNode))
               continue;
             const item = readTile(itemNode);
             if (item) tools.push(item);
@@ -135,7 +148,7 @@ function extractGroups() {
       tools.push(tile);
     }
 
-    if (tools.length === 0) fail(SRC.workplace, group.const, 'at least one non-devOnly tile');
+    if (tools.length === 0) fail(SRC.workplace, group.const, 'at least one non-internal tile');
     groups.push({ id: group.id, title: group.title, tools });
   }
 
@@ -157,7 +170,7 @@ function extractCatalog() {
   const out = {};
   for (const el of decl.elements) {
     const node = unwrap(el);
-    if (!node || !ts.isObjectLiteralExpression(node) || isDevOnly(node)) continue;
+    if (!node || !ts.isObjectLiteralExpression(node) || isInternalChannel(node)) continue;
     const id = stringProp(node, 'id');
     const title = stringProp(node, 'title');
     const path = stringProp(node, 'path');

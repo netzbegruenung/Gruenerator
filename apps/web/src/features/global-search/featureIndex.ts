@@ -78,7 +78,7 @@ export function buildFeatureIndex({
     });
   };
 
-  for (const tool of getToolCatalog(import.meta.env.DEV)) {
+  for (const tool of getToolCatalog()) {
     push(tool);
   }
 

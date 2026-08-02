@@ -187,9 +187,11 @@
   --color-grey-100: var(--grey-100);
   --color-grey-200: var(--grey-200);
   --color-grey-300: var(--grey-300);
-  --color-grey-400: var(--grey-400);
-  /* text-grey-500 trägt den meisten Sekundärtext — deshalb themeabhängig, damit
-     er in beiden Modi 4,5:1 erreicht (siehe --grey-text-val in variables.css). */
+  /* text-grey-400 und -500 tragen den Sekundärtext — deshalb themeabhängig,
+     damit sie in beiden Modi 4,5:1 erreichen (siehe --grey-text-val und
+     --grey-text-weak-val in variables.css). Die Rampenstufen --grey-400/-500
+     bleiben unverändert und tragen weiter Ränder und Deaktiviert-Zustände. */
+  --color-grey-400: var(--grey-text-weak-val);
   --color-grey-500: var(--grey-text-val);
   --color-grey-600: var(--grey-600);
   --color-grey-700: var(--grey-700);
