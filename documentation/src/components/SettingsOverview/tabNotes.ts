@@ -21,6 +21,16 @@ export interface TabNote {
 
 export const TAB_NOTES: TabNote[] = [
   {
+    tab: 'onboarding',
+    intro:
+      'Die einmalige Einrichtung: drei Schritte, die den Grünerator auf dich einstellen — deine Rolle, dein Friend und der Hintergrund deiner Startseite. Der Bereich steht ganz oben, solange er offen ist, und verschwindet danach aus der Liste.',
+    extras: [
+      'Jeder Schritt lässt sich überspringen, einzeln oder alle auf einmal — übersprungen heißt: es bleibt beim Standard, nichts wird später nachgefragt.',
+      'Die drei Schritte zeigen dieselben Bereiche, die es auch einzeln gibt („Personalisierung", „Friends", „Hintergrund"). Was du hier einstellst, ist sofort gespeichert und dort später änderbar.',
+      'Zurückholen kannst du die Einrichtung jederzeit über **Allgemein → Einrichtung erneut starten**.',
+    ],
+  },
+  {
     tab: 'allgemein',
     intro:
       'Aussehen und Grundverhalten der Oberfläche — und ganz oben, wer du bist. Änderungen greifen sofort und gelten auf allen Geräten, an denen du angemeldet bist.',
