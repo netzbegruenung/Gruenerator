@@ -63,6 +63,12 @@ async function handleCallback(req: Request, res: Response): Promise<void> {
   const iss = typeof req.query.iss === 'string' ? req.query.iss : undefined;
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  // The authorization code rides in the query string — RFC 6749 §4.1.2 has no
+  // other channel for it. What we can stop is it travelling on from here: no
+  // Referer to anything this page touches, and no copy in any cache
+  // (CodeQL js/sensitive-get-query).
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Cache-Control', 'no-store');
 
   if (oauthError) {
     res.send(renderResultPage({ success: false, error: oauthError }));
