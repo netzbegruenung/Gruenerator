@@ -49,10 +49,12 @@ export default [
       'react-native-a11y/has-valid-accessibility-actions': 'error',
       'react-native-a11y/no-nested-touchables': 'error',
 
-      // Die Altlast: 409 Touchables, davon der Großteil ohne Namen/Rolle.
-      // Arbeitsliste für Welle 4 — danach auf 'error'.
-      'react-native-a11y/has-accessibility-props': 'warn',
-      'react-native-a11y/has-valid-accessibility-descriptors': 'warn',
+      // Waren als Arbeitsliste für Welle 4 auf 'warn' (295 Fundstellen in 108
+      // Dateien). Welle 4 ist abgetragen, die Zahl steht auf 0 — eine Regel,
+      // die danach auf 'warn' stehen bleibt, schützt nichts mehr: sie meldet
+      // den nächsten Neuzugang, ohne ihn aufzuhalten.
+      'react-native-a11y/has-accessibility-props': 'error',
+      'react-native-a11y/has-valid-accessibility-descriptors': 'error',
 
       // Bewusst AUS: `accessibilityHint` ist laut Apple HIG die Ausnahme, nicht
       // die Regel — ein Hint auf jedem Element macht VoiceOver geschwätzig,
