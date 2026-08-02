@@ -3,6 +3,7 @@
  * the actions inside a tool — be registered only for granted OAuth scopes, so
  * the model never sees an action it cannot take.
  */
+import { buildSourceRef } from '@gruenerator/shared/utils';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
@@ -42,6 +43,7 @@ import {
   shareDocToGroupMcp,
 } from './mcpMutations.js';
 
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { Request } from 'express';
 
 const log = createLogger('McpServerFactory');
@@ -64,16 +66,34 @@ Regeln:
 - IDs und refs stammen immer aus einem vorherigen list-/search-Aufruf — niemals raten.
 - Destruktive oder nach außen sichtbare Aktionen (löschen, teilen) verlangen das zweistufige Protokoll: erster Aufruf ohne confirm liefert eine Rückfrage; erst nach Zustimmung der Person mit confirm=true erneut aufrufen.
 - create_document/create_board erzeugen echte Inhalte im Konto — Ergebnis-Link nennen.
+- Zitiere Suchtreffer über ihr Feld ref, nicht über rank: rank gilt nur innerhalb einer Antwort, ref bleibt über Aufrufe hinweg dasselbe. Nummeriere deine Quellenliste selbst und führe zwei Treffer mit gleichem ref als eine Quelle.
 - Antworten auf Deutsch, Quellen-URLs nennen.`;
 
-function text(value: string, isError = false) {
+/** The SDK's own result type — it carries an index signature that a hand-rolled
+ *  interface would not satisfy. */
+type ToolResponse = CallToolResult;
+
+function text(value: string, isError = false): ToolResponse {
   return {
     content: [{ type: 'text' as const, text: value }],
     ...(isError ? { isError: true } : {}),
   };
 }
 
-type ToolResponse = ReturnType<typeof text>;
+/**
+ * A successful result in both forms: prose for the model, object for the client.
+ *
+ * `content` is not optional — the SDK does NOT derive it from
+ * `structuredContent` (a tool that returns only the object sends `content: []`).
+ * And once a tool declares an `outputSchema`, EVERY success path has to come
+ * through here: `validateToolOutput` rejects a schema-carrying tool that returns
+ * no `structuredContent`, which would turn a valid "Keine Treffer" into
+ * `-32602`. Error paths are exempt — the SDK skips validation when `isError` is
+ * set — so `guarded()` and the `text(…, true)` returns stay as they are.
+ */
+function structured(value: string, structuredContent: Record<string, unknown>): ToolResponse {
+  return { content: [{ type: 'text' as const, text: value }], structuredContent };
+}
 
 /** Never leak raw service/driver errors to external MCP clients. */
 function guarded<A>(name: string, fn: (args: A) => Promise<ToolResponse>) {
@@ -89,6 +109,38 @@ function guarded<A>(name: string, fn: (args: A) => Promise<ToolResponse>) {
 }
 
 const READONLY = { readOnlyHint: true, destructiveHint: false, openWorldHint: false };
+
+/** Every field is set on every success path — including "Keine Treffer", which
+ *  returns the same object with an empty `results`. */
+const SEARCH_OUTPUT_SCHEMA = {
+  collection: z.string(),
+  query: z.string(),
+  resultsCount: z.number(),
+  results: z.array(
+    z.object({
+      ref: z
+        .string()
+        .nullable()
+        .describe(
+          'Stabiler Schlüssel dieser Quelle — über Aufrufe hinweg gleich. Zum Zitieren und Deduplizieren; rank gilt nur in dieser Antwort.'
+        ),
+      rank: z.number(),
+      title: z.string(),
+      url: z.string().nullable(),
+      excerpt: z.string(),
+      relevance: z.string(),
+      collection: z.string(),
+    })
+  ),
+};
+
+const EXAMPLES_OUTPUT_SCHEMA = {
+  type: z.string(),
+  query: z.string(),
+  country: z.string(),
+  resultsCount: z.number(),
+  examples: z.array(z.record(z.string(), z.unknown())),
+};
 
 export interface McpServerBuildOptions {
   userId: string;
@@ -145,17 +197,31 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
           collection: z.enum(SEARCH_COLLECTIONS).default('deutschland'),
           limit: z.number().int().min(1).max(20).default(5),
         },
+        outputSchema: SEARCH_OUTPUT_SCHEMA,
         annotations: READONLY,
       },
       guarded('gruenerator_search', async ({ query, collection, limit }) => {
         const result = await executeDirectSearch({ query, collection, limit });
         if (result.error) return text(result.message ?? 'Suche fehlgeschlagen.', true);
-        if (result.resultsCount === 0) return text('Keine Treffer.');
-        const lines = result.results.map(
+        const hits = result.results.map((r) => ({
+          // `rank` orders THIS response, `ref` identifies the source across
+          // responses. A client citing by rank re-labels the same document on
+          // every call.
+          ref: buildSourceRef({ url: r.url, documentId: r.documentId }),
+          rank: r.rank,
+          title: r.source,
+          url: r.url ?? null,
+          excerpt: r.excerpt,
+          relevance: r.relevance,
+          collection,
+        }));
+        const payload = { collection, query, resultsCount: hits.length, results: hits };
+        if (hits.length === 0) return structured('Keine Treffer.', payload);
+        const lines = hits.map(
           (r) =>
-            `[${r.rank}] **${r.source}** (${r.relevance})${r.url ? ` — ${r.url}` : ''}\n${r.excerpt}`
+            `[${r.rank}] **${r.title}** (${r.relevance})${r.url ? ` — ${r.url}` : ''}${r.ref ? ` [ref: ${r.ref}]` : ''}\n${r.excerpt}`
         );
-        return text(lines.join('\n\n'));
+        return structured(lines.join('\n\n'), payload);
       })
     );
 
@@ -175,9 +241,35 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
             .describe('Nur bei type="social": z.B. instagram, facebook'),
           limit: z.number().int().min(1).max(12).default(6),
         },
+        outputSchema: EXAMPLES_OUTPUT_SCHEMA,
         annotations: READONLY,
       },
       guarded('gruenerator_examples_search', async ({ type, query, country, platform, limit }) => {
+        // Both branches carry their own item shape (a social post is not a press
+        // release), so `examples` stays open in the schema. What is guaranteed is
+        // the envelope — and a `ref` on every item, derived from its permalink.
+        const emit = (result: { resultsCount: number; examples: unknown[] }) => {
+          const { text: body, isError } = formatToolResult(result);
+          if (isError) return text(body, true);
+          const examples = result.examples.map((ex) => {
+            const item = ex as Record<string, unknown>;
+            const url =
+              typeof item.url === 'string'
+                ? item.url
+                : typeof (item.metadata as Record<string, unknown> | undefined)?.url === 'string'
+                  ? ((item.metadata as Record<string, unknown>).url as string)
+                  : null;
+            return { ...item, ref: buildSourceRef({ url, documentId: String(item.id ?? '') }) };
+          });
+          return structured(body, {
+            type,
+            query,
+            country,
+            resultsCount: examples.length,
+            examples,
+          });
+        };
+
         if (type === 'social') {
           const result = await executeDirectExamplesSearch({
             query,
@@ -186,16 +278,13 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
           });
           // executeDirectExamplesSearch has no limit param
           const examples = result.examples.slice(0, limit);
-          const { text: body, isError } = formatToolResult({
+          return emit({
             ...result,
             examples,
             resultsCount: Math.min(result.resultsCount, examples.length),
           });
-          return text(body, isError);
         }
-        const result = await executeDirectPressemitteilungExamples({ query, country, limit });
-        const { text: body, isError } = formatToolResult(result);
-        return text(body, isError);
+        return emit(await executeDirectPressemitteilungExamples({ query, country, limit }));
       })
     );
 
