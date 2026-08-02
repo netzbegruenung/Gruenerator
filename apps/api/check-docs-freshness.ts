@@ -93,7 +93,7 @@ const AREA_HINTS: Record<string, string> = {
   experimente: 'apps/web/src/features/monitor',
   konto:
     'apps/web/src/features/wolke, apps/web/src/features/user-defaults, apps/web/src/features/groups, apps/web/src/features/settings',
-  integrationen: 'apps/web/src/features/connections, services/mcp',
+  integrationen: 'apps/web/src/features/connections, apps/api/routes/mcp-server',
   // The Office articles describe four editors that share one document model, so
   // the hint spans the feature dirs, their packages and the contracts the
   // generated manifest reads. Without this entry no Office code change would

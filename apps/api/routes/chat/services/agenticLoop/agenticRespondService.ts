@@ -59,7 +59,7 @@ import {
 import { withInstructionHierarchy } from '../untrustedContent.js';
 
 import { stripOutOfRangeCitations } from './citationStrip.js';
-import { isMcpReplayEnabled, isRecipeAutoloadEnabled } from './flags.js';
+import { isMcpReplayEnabled } from './flags.js';
 import { runAgenticLoop, type LoopMode } from './loopEngine.js';
 import { createToolLoopGuards, MAX_SOURCES } from './loopGuards.js';
 import { buildToolObservationReplay } from './mcpReplay.js';
@@ -729,7 +729,6 @@ export async function streamAgenticResponse(params: {
     const recipeRegistry = createRecipeRegistry();
     let recipeCatalog: RecipeCatalogEntry[] = [];
     if (
-      isRecipeAutoloadEnabled() &&
       !finalState.activeSkillMention &&
       !finalState.customSystemPrompt &&
       finalState.enabledTools?.['rezept_laden'] !== false
