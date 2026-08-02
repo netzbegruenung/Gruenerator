@@ -174,10 +174,10 @@ const Home = () => {
     contentRef.current?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
   };
 
-  // PageLayout's <main id="main-content"> is the skip-link target; a second id
-  // here would duplicate it.
+  // PageLayout setzt das einzige <main id="main-content"> — Ziel des Sprung-Links.
+  // Ein zweites hier wäre eine doppelte Landmark.
   return (
-    <main>
+    <div>
       <StartpageHero onScrollToContent={scrollToContent} />
 
       <div className="sp-content" ref={contentRef}>
@@ -248,7 +248,7 @@ const Home = () => {
 
         <Footer />
       </div>
-    </main>
+    </div>
   );
 };
 

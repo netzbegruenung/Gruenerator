@@ -659,29 +659,32 @@ const DocumentOverview = ({
             </div>
           ) : (
             <div className="flex-1 min-w-0">
-              <h4
-                className={cn(
-                  'm-0 text-foreground-heading text-base font-semibold leading-tight cursor-pointer transition-colors duration-200 overflow-hidden text-ellipsis whitespace-nowrap max-w-full hover:text-primary-600',
-                  onUpdateTitle && 'hover:text-primary-600',
-                  'select-none hover:underline'
-                )}
-                onClick={(e: React.MouseEvent) => {
-                  e.stopPropagation();
-                  if (onUpdateTitle && e.detail === 2) {
-                    // Double-click for edit
-                    handleTitleEdit(item);
-                  } else if (e.detail === 1) {
-                    // Single-click for preview
-                    if (isDocument && item.status === 'completed') {
-                      void handleEnhancedPreview(item);
-                    } else {
-                      handleViewItem(item);
+              <h4 className="m-0 min-w-0 max-w-full">
+                <button
+                  type="button"
+                  className={cn(
+                    'm-0 w-full max-w-full truncate border-none bg-transparent p-0 text-left text-base font-semibold leading-tight text-foreground-heading cursor-pointer transition-colors duration-200 hover:text-primary-600',
+                    onUpdateTitle && 'hover:text-primary-600',
+                    'select-none hover:underline'
+                  )}
+                  onClick={(e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    if (onUpdateTitle && e.detail === 2) {
+                      // Double-click for edit
+                      handleTitleEdit(item);
+                    } else if (e.detail !== 2) {
+                      // Single click or keyboard activation (detail 0) for preview
+                      if (isDocument && item.status === 'completed') {
+                        void handleEnhancedPreview(item);
+                      } else {
+                        handleViewItem(item);
+                      }
                     }
-                  }
-                }}
-                title={`${itemTitle} (Klicken zum Öffnen${onUpdateTitle ? ', Doppelklick zum Bearbeiten' : ''})`}
-              >
-                {itemTitle}
+                  }}
+                  title={`${itemTitle} (Klicken zum Öffnen${onUpdateTitle ? ', Doppelklick zum Bearbeiten' : ''})`}
+                >
+                  {itemTitle}
+                </button>
               </h4>
             </div>
           )}
@@ -700,6 +703,7 @@ const DocumentOverview = ({
         {/* Preview Image for Templates */}
         {(item.preview_image_url || item.thumbnail_url) && (
           <div className="my-sm rounded-md overflow-hidden bg-grey-50 dark:bg-grey-800">
+            {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onError ist ein technischer Ladefehler-Fallback, keine Bedienung */}
             <img
               src={item.preview_image_url || item.thumbnail_url}
               alt={`Vorschau von ${itemTitle}`}

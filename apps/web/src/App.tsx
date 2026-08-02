@@ -115,7 +115,7 @@ function App() {
   const { login, setAuthState } = useAuthStore();
   const reduceMotion = useAuthStore((s) => s.user?.reduce_motion ?? false);
   const reduceTransparency = useAuthStore((s) => s.user?.reduce_transparency ?? false);
-  const showSkipLink = useAuthStore((s) => s.user?.show_skip_link ?? false);
+  const showSkipLink = useAuthStore((s) => s.user?.show_skip_link ?? true);
 
   // Mirror the profile's a11y preferences onto <html>, next to data-theme from
   // useDarkMode — accessibility.css keys its global guards off these attributes.

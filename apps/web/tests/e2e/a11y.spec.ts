@@ -51,7 +51,11 @@ const ROUTES = [
   '/chat',
   '/settings',
   '/profile',
-  '/documents',
+  // `/documents` stand hier und ist keine Route: die Anwendung kennt nur
+  // `/documents/:documentId`. Die Lane hat dort also die Nicht-gefunden-Seite
+  // geprüft und sie als Dokumentenübersicht ausgegeben. Die Übersicht ist
+  // `/office` und steht weiter unten ohnehin drin. Gegen die Wiederholung
+  // steht jetzt der 404-Riegel in `gotoAuthenticated()`.
   '/boards',
   '/notebooks',
   '/agentura',
@@ -77,27 +81,44 @@ const ROUTES = [
  * hinzufügt, begründet ihn im PR.
  *
  * Leer = Ziel erreicht.
+ *
+ * Stand nach Welle 3 (Nachmessung 02.08.2026, hell + dunkel, Dev-Auth-Bypass
+ * aktiv): `nested-interactive` (315), `button-name` (9), `aria-allowed-attr` (3)
+ * und `link-name` sind weg. Übrig ist ausschließlich `color-contrast`, und zwar
+ * an vier Farbpaaren, die alle an einer offenen **Designentscheidung** hängen
+ * (weißer Text auf `--secondary-500`/`--secondary-600` erreicht 3,37 bzw.
+ * 4,11 statt 4,5). Begründung und Auflösungsvorschläge mit gerechneten Werten:
+ * docs/barrierefreiheit-followup-audit.md §1.
+ *
+ * Der Sprung-Link steht seit Welle 3 per Vorgabe an (WCAG 2.4.1 ist Level A) —
+ * er benutzt dieselbe Markenfarbe und bringt den Kontrastbefund deshalb auf
+ * JEDE Route. Das ist keine Verschlechterung, sondern derselbe Defekt an einer
+ * Stelle, die jetzt überall sichtbar ist.
  */
 const KNOWN_VIOLATIONS: Record<string, string[]> = {
-  '/': [],
+  '/': ['color-contrast'],
   '/login': ['color-contrast'],
-  '/workplace': [],
-  '/chat': [],
+  '/workplace': ['color-contrast'],
+  '/chat': ['color-contrast'],
   '/settings': ['color-contrast'],
   '/profile': ['color-contrast'],
-  '/documents': ['color-contrast'],
+  // `nested-interactive` bleibt hier stehen, obwohl die Nachmessung es nicht
+  // meldet: die Messung lief mit LEEREM Board (0 Karten). Die Ursache sitzt
+  // nicht in unseren Karten, sondern in dnd-kits `role="button"` auf dem
+  // Sortier-Wrapper — siehe Follow-up-Audit §3. Erst mit festem Datenstand
+  // (B4.1) ist ein Nicht-Befund hier überhaupt eine Aussage.
   '/boards': ['color-contrast', 'nested-interactive'],
   '/notebooks': ['color-contrast'],
-  '/agentura': ['button-name', 'color-contrast', 'nested-interactive'],
-  '/agents': ['button-name', 'color-contrast', 'nested-interactive'],
+  '/agentura': ['color-contrast'],
+  '/agents': ['color-contrast'],
   '/wissen': ['color-contrast'],
-  '/office': ['color-contrast', 'nested-interactive'],
-  '/studio': ['aria-allowed-attr', 'color-contrast', 'nested-interactive'],
-  '/image-studio': ['color-contrast', 'nested-interactive'],
-  '/media-library': ['button-name', 'color-contrast'],
+  '/office': ['color-contrast'],
+  '/studio': ['color-contrast'],
+  '/image-studio': ['color-contrast'],
+  '/media-library': ['color-contrast'],
   '/apps': ['color-contrast'],
-  '/transkription': [],
-  '/suche': [],
+  '/transkription': ['color-contrast'],
+  '/suche': ['color-contrast'],
   '/projekte': ['color-contrast'],
 };
 
@@ -111,6 +132,21 @@ async function gotoAuthenticated(page: Page, route: string): Promise<void> {
   // Auf Ruhe warten statt auf `networkidle`: die App hält SSE-Verbindungen
   // offen, `networkidle` würde in den Timeout laufen.
   await page.waitForTimeout(1500);
+
+  // Zwei Riegel gegen dieselbe Fehlerklasse: eine Messung, die etwas anderes
+  // prüft als die genannte Route, meldet ein Ergebnis, das erfreulich aussieht
+  // und nichts aussagt. Ohne Bypass ist das 20× die Loginseite, bei einer
+  // falsch geschriebenen Route 1× die Nicht-gefunden-Seite. Beides muss die
+  // Lane als Fehler melden, nicht als Befund.
+  const landed = new URL(page.url()).pathname;
+  expect(
+    landed.startsWith('/login') && route !== '/login',
+    `${route} ist auf ${landed} umgeleitet — der Dev-Auth-Bypass greift nicht.`
+  ).toBe(false);
+  expect(
+    await page.locator('.not-found-container').count(),
+    `${route} rendert die Nicht-gefunden-Seite — die Route gibt es nicht.`
+  ).toBe(0);
 }
 
 test.describe('Barrierefreiheit (WCAG 2.2 AA)', () => {
