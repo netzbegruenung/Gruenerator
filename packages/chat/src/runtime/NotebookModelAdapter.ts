@@ -21,7 +21,7 @@ import type {
   ChatModelRunOptions,
   ChatModelRunResult,
 } from '@assistant-ui/react';
-import type { NotebookCitation, NotebookSource } from '@gruenerator/contracts';
+import type { NotebookCitation, NotebookDepth, NotebookSource } from '@gruenerator/contracts';
 
 function normalizeCiteMarkers(text: string): string {
   return text.replace(/\[cite:(\d+)\]/g, '[$1]');
@@ -62,7 +62,7 @@ export interface NotebookAdapterConfig {
    * captured at the moment of submission). Merged on top of `extraParams`.
    */
   getExtraParams?: () => Record<string, unknown> | undefined;
-  mode?: 'fast' | 'deep';
+  mode?: NotebookDepth;
   endpoint?: string;
   documentIds?: string[];
   threadId?: string | null;
@@ -330,6 +330,26 @@ export function createNotebookModelAdapter(
                 );
                 currentProgress = { stage: 'searching', ...currentProgress, message, resultCount };
                 yield buildResult();
+                break;
+              }
+
+              case 'progress_step': {
+                // An internal stage of the notebook pipeline — today only the
+                // query expansion the Ultra tier runs before searching. Drives
+                // the status line and nothing else: it must not touch tool
+                // cards (see the chat adapter's case for why that matters).
+                // Without this the event fell into `default:` and Ultra sat
+                // silent through a search three times as long as Klein's.
+                const { title } = data as {
+                  stepId: string;
+                  toolName: string;
+                  title: string;
+                  status: 'in_progress' | 'completed';
+                };
+                if (title) {
+                  currentProgress = { ...currentProgress, stage: 'searching', message: title };
+                  yield buildResult();
+                }
                 break;
               }
 
