@@ -172,15 +172,20 @@ export class DocumentSearchService extends BaseSearchService {
         allowNull: true,
       });
 
+      // `mode` and `recallLimit` have to survive: search() routes on the former,
+      // so dropping it downgraded every caller taking this branch to vector-only.
+      // The flat and legacy branches below always carried both.
       const validatedOptions = {
         limit: limit ?? this.defaultLimit,
         threshold: threshold ?? this.defaultThreshold,
         useCache: pOptions?.useCache !== false,
+        mode: pOptions?.mode as DocumentSearchParams['options']['mode'],
         vectorWeight: pOptions?.vectorWeight as number | undefined,
         textWeight: pOptions?.textWeight as number | undefined,
         useRRF: pOptions?.useRRF as boolean | undefined,
         rrfK: pOptions?.rrfK as number | undefined,
         qualityMin: typeof pOptions?.qualityMin === 'number' ? pOptions.qualityMin : undefined,
+        ...(typeof pOptions?.recallLimit === 'number' ? { recallLimit: pOptions.recallLimit } : {}),
       };
 
       return {
