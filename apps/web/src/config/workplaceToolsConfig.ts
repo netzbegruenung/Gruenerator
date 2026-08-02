@@ -8,9 +8,11 @@
  * registry id, and toolRegistry.vitest.ts asserts each array deep-equals its
  * registry-derived counterpart.
  */
+import { isChannelVisibleIn, type InstanceChannel } from '@gruenerator/shared/instances';
 import { RiSpyLine } from 'react-icons/ri';
 
 import { getIcon } from './icons';
+import { CURRENT_INSTANCE } from './instance';
 
 import type { IconType } from './icons';
 import type { OfficeCreateKind, OfficeSuiteActionId, ToolId } from './toolRegistry';
@@ -34,7 +36,7 @@ export interface WorkplaceToolItem {
   /** External URL (rendered as a new-tab anchor). Mutually exclusive with `path`. */
   href?: string;
   icon: IconType;
-  devOnly?: boolean;
+  channel?: InstanceChannel;
 }
 
 /** A single entry inside a dropdown tool card. Rendered as a tool-card row. */
@@ -244,7 +246,7 @@ export const TOOL_MENUS: WorkplaceToolMenu[] = [
 ] satisfies RegisteredMenu[];
 
 export function filterWorkplaceTools(tools: WorkplaceToolItem[]): WorkplaceToolItem[] {
-  return tools.filter((tool) => !tool.devOnly || import.meta.env.DEV);
+  return tools.filter((tool) => isChannelVisibleIn(tool.channel, CURRENT_INSTANCE));
 }
 
 /** A tool can be pinned to the sidebar only if it has an internal route. */

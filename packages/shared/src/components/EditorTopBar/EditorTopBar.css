@@ -75,7 +75,7 @@
 }
 
 [data-theme='dark'] .editor-topbar__title-input {
-  border-color: var(--secondary-600, #5f8575);
+  border-color: var(--secondary-600, #587c6d);
 }
 
 .editor-topbar__right {
@@ -120,7 +120,7 @@
 
 .glass-btn.active {
   background: var(--secondary-100, #d5e1dc);
-  color: var(--secondary-600, #5f8575);
+  color: var(--secondary-600, #587c6d);
 }
 
 [data-theme='dark'] .glass-btn.active {
@@ -174,7 +174,8 @@
 
 .status-label {
   font-size: 0.6875rem;
-  color: var(--grey-400);
+  /* Gilt in beiden Modi — die Rampenstufe erreichte hell nur 2,89:1. */
+  color: var(--grey-text-weak-val, #767676);
   white-space: nowrap;
   user-select: none;
 }

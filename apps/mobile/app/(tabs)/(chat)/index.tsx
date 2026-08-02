@@ -5,7 +5,7 @@ import { View, Text, Pressable, StyleSheet, useColorScheme, ScrollView } from 'r
 
 import { AssistantThread } from '../../../components/chat/AssistantThread';
 import { ChatDrawerHeader } from '../../../components/chat/ChatDrawerHeader';
-import { Composer } from '../../../components/common';
+import { Composer, ContentColumn } from '../../../components/common';
 import { useDrawerStore } from '../../../hooks/useDrawerStore';
 import { spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../../theme';
 
@@ -57,36 +57,41 @@ export default function ChatScreen() {
           contentContainerStyle={styles.overviewContent}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.greeting}>
-            <Text style={[styles.greetingText, { color: theme.text }]}>
-              {firstName ? `Hallo ${firstName},` : 'Hallo,'}
-            </Text>
-            <Text style={[styles.greetingSubtitle, { color: theme.textSecondary }]}>
-              wie kann ich dir helfen?
-            </Text>
-          </View>
+          <ContentColumn>
+            <View style={styles.greeting}>
+              <Text style={[styles.greetingText, { color: theme.text }]}>
+                {firstName ? `Hallo ${firstName},` : 'Hallo,'}
+              </Text>
+              <Text style={[styles.greetingSubtitle, { color: theme.textSecondary }]}>
+                wie kann ich dir helfen?
+              </Text>
+            </View>
 
-          <Composer
-            binding="runtime"
-            showActionSheet
-            placeholder="Stelle eine Frage oder gib eine Aufgabe..."
-            onSubmit={handleSend}
-          />
+            <Composer
+              binding="runtime"
+              showActionSheet
+              placeholder="Stelle eine Frage oder gib eine Aufgabe..."
+              onSubmit={handleSend}
+            />
 
-          <View style={styles.promptsRow}>
-            {CHAT_EXAMPLES.map((p) => (
-              <Pressable
-                key={p.label}
-                onPress={() => handleSend(p.text)}
-                style={({ pressed }) => [
-                  styles.promptChip,
-                  { borderColor: theme.border, opacity: pressed ? 0.6 : 1 },
-                ]}
-              >
-                <Text style={[styles.promptLabel, { color: theme.textSecondary }]}>{p.label}</Text>
-              </Pressable>
-            ))}
-          </View>
+            <View style={styles.promptsRow}>
+              {CHAT_EXAMPLES.map((p) => (
+                <Pressable
+                  key={p.label}
+                  onPress={() => handleSend(p.text)}
+                  style={({ pressed }) => [
+                    styles.promptChip,
+                    { borderColor: theme.border, opacity: pressed ? 0.6 : 1 },
+                  ]}
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.promptLabel, { color: theme.textSecondary }]}>
+                    {p.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </ContentColumn>
         </ScrollView>
       )}
     </View>
@@ -100,7 +105,6 @@ const styles = StyleSheet.create({
   overviewContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: spacing.medium,
     paddingBottom: spacing.xlarge,
   },
   greeting: {

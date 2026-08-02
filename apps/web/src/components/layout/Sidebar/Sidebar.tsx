@@ -214,9 +214,15 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
     [close]
   );
 
+  // Eingeklappt: `sr-only` statt `hidden`. `hidden` ist display:none und nimmt
+  // das Label aus dem Accessibility-Tree — dann hat jeder Sidebar-Eintrag gar
+  // keinen zugänglichen Namen mehr (axe: button-name/link-name, critical).
+  // `sr-only` blendet es visuell genauso aus, lässt es aber für Screenreader
+  // stehen. Gemessen: allein diese Zeile stand für 333 der 1027 Verstöße im
+  // Baseline-Lauf. Siehe docs/barrierefreiheit-audit-plan.md.
   const titleClass = cn(
     'min-w-0 flex-1 truncate text-left text-sm font-medium leading-tight transition-all duration-150',
-    sidebarExpanded ? 'opacity-100 translate-x-0' : 'hidden'
+    sidebarExpanded ? 'opacity-100 translate-x-0' : 'sr-only'
   );
 
   const badgeClass = cn(
@@ -245,6 +251,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
       )}
 
       <nav
+        aria-label="Hauptnavigation"
         data-tour="sidebar-nav"
         className={cn('flex-none overflow-x-hidden pb-sm', isDesktop ? 'pt-3' : 'pt-12')}
       >
@@ -314,6 +321,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
                   </button>
                 </NavTooltip>
               ) : (
+                // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Link ist auf 'a' gemappt, jsx-a11y prüft dabei nur href statt to; echte, tastaturzugängliche Navigation ist bereits vorhanden
                 <Link
                   key={item.id}
                   to={item.path!}
@@ -397,6 +405,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
       ) : (
         <div className="mt-auto px-2 py-2 shrink-0">
           <NavTooltip label="Anmelden" collapsed={!sidebarExpanded}>
+            {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Link ist auf 'a' gemappt, jsx-a11y prüft dabei nur href statt to; echte, tastaturzugängliche Navigation ist bereits vorhanden */}
             <Link
               to="/login"
               className={menuLinkClass(false, false, !sidebarExpanded)}
@@ -412,6 +421,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
       {/* Legal links - only shown when sidebar is expanded */}
       {sidebarExpanded && (
         <div className="shrink-0 px-4 pb-3 pt-1 flex items-center gap-2 text-xs text-foreground opacity-60">
+          {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Link ist auf 'a' gemappt, jsx-a11y prüft dabei nur href statt to; echte, tastaturzugängliche Navigation ist bereits vorhanden */}
           <Link
             to="/impressum"
             className="hover:text-primary-500 hover:underline transition-colors"
@@ -420,6 +430,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
             Impressum
           </Link>
           <span aria-hidden="true">·</span>
+          {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Link ist auf 'a' gemappt, jsx-a11y prüft dabei nur href statt to; echte, tastaturzugängliche Navigation ist bereits vorhanden */}
           <Link
             to="/datenschutz"
             className="hover:text-primary-500 hover:underline transition-colors"
@@ -456,6 +467,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
       {/* Desktop: fixed aside */}
       {(!isMobile || isDesktop) && (
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Hover-Erweiterung nur für die Maus; Tastatur nutzt Strg/Cmd+B zum Umschalten
         <aside
           data-tour="app-sidebar"
           className={cn(
@@ -588,6 +600,7 @@ const SidebarFavourites = memo(function SidebarFavourites({
         </button>
       </NavTooltip>
     ) : (
+      // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- Link ist auf 'a' gemappt, jsx-a11y prüft dabei nur href statt to; echte, tastaturzugängliche Navigation ist bereits vorhanden
       <Link
         key={key}
         to={path}

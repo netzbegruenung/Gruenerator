@@ -140,10 +140,14 @@ export function ThemesSectionEditor({ data, onChange }: ThemesSectionEditorProps
                   isFieldHighlighted(index, 'content') && 'animate-[field-highlight_1s_ease]'
                 )}
               >
-                <label className="block text-sm font-medium text-foreground mb-1.5">
+                <label
+                  htmlFor={`theme-${index}-content`}
+                  className="block text-sm font-medium text-foreground mb-1.5"
+                >
                   Beschreibung
                 </label>
                 <RichTextEditor
+                  id={`theme-${index}-content`}
                   value={theme.content}
                   onChange={(doc) => updateTheme(index, 'content', doc)}
                   onFocus={() => handleFieldFocus('themes', 'content', index)}
@@ -155,8 +159,14 @@ export function ThemesSectionEditor({ data, onChange }: ThemesSectionEditorProps
               </div>
 
               <div className="mb-md">
-                <label className="block text-sm font-medium text-foreground mb-1.5">Bild</label>
+                <label
+                  htmlFor={`theme-${index}-image`}
+                  className="block text-sm font-medium text-foreground mb-1.5"
+                >
+                  Bild
+                </label>
                 <ImageUpload
+                  id={`theme-${index}-image`}
                   value={theme.imageUrl}
                   onChange={(url) => updateTheme(index, 'imageUrl', url)}
                   aspectRatio="4/3"

@@ -781,17 +781,29 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
           // noise. What a person means by "the composer has focus" is the text
           // field.
           //
+          // `kbd:` in front of it, because :focus was never the whole story: the
+          // CSS spec exempts text entry from the mouse-click rule, so a textarea
+          // matches :focus AND :focus-visible when clicked into. Swapping one for
+          // the other changes nothing here — only the input modality does. See
+          // focusModality.ts.
+          //
           // Two colours because no single one clears 3:1 on both grounds. Light:
           // primary-600 (#316049) at 7.2:1 on white and 6.3:1 on the glow band's
           // strongest tint. Dark: primary-300 (#8AC9B0) at 8.0:1 on the page and
           // 7.0:1 on the composer's own fill. The app's usual ring colour,
           // primary-500, drops to ~3.2:1 against the band — it was chosen for
           // plain surfaces, not for a tinted one.
-          'has-[textarea:focus]:outline-2 has-[textarea:focus]:outline-offset-2',
-          'has-[textarea:focus]:outline-primary-600 dark:has-[textarea:focus]:outline-primary-300',
+          'kbd:has-[textarea:focus]:outline-2 kbd:has-[textarea:focus]:outline-offset-2',
+          'kbd:has-[textarea:focus]:outline-primary-600 dark:kbd:has-[textarea:focus]:outline-primary-300',
           // Design v2: the pill keeps its resting border/shadow on focus.
+          //
+          // 1.875rem is half the composer's resting one-row height, so the shape
+          // is a true pill while it's one row — but stays a rounded rect once an
+          // attachment tile or extra text rows make it taller. `rounded-full`
+          // would keep tracking half the GROWN height (86px at one image tile)
+          // and sweep the corner arc straight across the tile.
           isPill
-            ? 'rounded-full shadow-md focus-within:shadow-lg dark:shadow-sm'
+            ? 'rounded-[1.875rem] shadow-md focus-within:shadow-lg dark:shadow-sm'
             : 'rounded-3xl shadow-lg focus-within:border-primary/30 focus-within:shadow-xl dark:shadow-sm dark:focus-within:shadow-md',
           // The Mistral brand border reads as a focus ring on the slim pill —
           // card layout only.
@@ -821,7 +833,9 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
           </ComposerPrimitive.QuoteDismiss>
         </ComposerPrimitive.Quote>
 
-        <ComposerAttachments />
+        {/* Inset mirrors the input's horizontal padding per variant, so the
+            tile's left edge lines up with the first character of the draft. */}
+        <ComposerAttachments className={isPill ? 'mx-3.5' : isCompact ? 'mx-3' : 'mx-5'} />
 
         {slots?.aboveInput}
 

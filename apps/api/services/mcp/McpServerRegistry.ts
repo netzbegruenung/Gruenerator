@@ -9,17 +9,30 @@
  * Auth: `none`, `bearer` and `oauth` are wired end-to-end; the interactive
  * OAuth (PKCE/DCR) flow lives in McpOAuthService, whose tokens this registry
  * lazy-refreshes in getConnectionConfigs.
+ *
+ * MANAGED CONNECTORS are unioned in on read. They are first-party servers
+ * configured from env (`systemMcpServers.ts`) with no `mcp_servers` row: every
+ * user gets them, enabled unless they opted out in `mcp_system_prefs`. They are
+ * READ-ONLY here — no create, no delete, no URL/token edit — because there is no
+ * per-user record to change, only a switch.
  */
 
 import { type McpServerSummary } from '@gruenerator/contracts';
 import { and, eq } from 'drizzle-orm';
 
 import { mcp_servers, type McpServer } from '../../database/schema/mcpServers.js';
+import { mcp_system_prefs } from '../../database/schema/mcpSystemPrefs.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { createLogger } from '../../utils/logger.js';
 import { decryptCredential, encryptCredential } from '../../utils/validation/encryption.js';
 
 import { findSeedByUrl } from './McpRegistryService.js';
+import {
+  getManagedConnectorById,
+  getManagedConnectors,
+  parseManagedConnectorId,
+  type ManagedConnector,
+} from './systemMcpServers.js';
 import { type McpConnectionConfig, type McpToolDescriptor } from './UserMCPClient.js';
 
 const log = createLogger('mcp-server-registry');
@@ -84,12 +97,121 @@ function toSummary(row: McpServer): McpServerSummary {
   };
 }
 
+/**
+ * A managed connector as the settings UI sees it.
+ *
+ * `url` is deliberately EMPTY: the endpoint is deploy-env-only and must not
+ * reach any API response (see systemMcpServers.ts). Everything the UI needs to
+ * render a managed row — title, description, switch — comes from the definition,
+ * and there is nothing behind the URL for the user to edit anyway.
+ *
+ * `createdAt`/`updatedAt` carry the opt-out row's timestamp when there is one;
+ * a connector nobody ever toggled has no row and reports the epoch. They exist
+ * only to satisfy the shared summary shape — no UI sorts managed rows by date.
+ */
+function managedToSummary(connector: ManagedConnector, enabled: boolean, updatedAt: Date | null) {
+  const ts = (updatedAt ?? new Date(0)).toISOString();
+  return {
+    id: connector.id,
+    name: connector.connector.title,
+    url: '',
+    authType: connector.authType,
+    hasToken: !!connector.token,
+    enabled,
+    createdAt: ts,
+    updatedAt: ts,
+    description: connector.connector.description,
+    toolNames: connector.toolAllowlist,
+    managed: true as const,
+  } satisfies McpServerSummary;
+}
+
+/**
+ * Managed connector → loop connection config. No decryption and no OAuth
+ * refresh: the shared bearer comes straight from env. `managed: true` tells the
+ * catalog there is no row behind this id (no snapshot write, no fingerprint
+ * baseline, no rug-pull check).
+ */
+function toManagedConfig(connector: ManagedConnector): McpConnectionConfig {
+  return {
+    id: connector.id,
+    name: connector.connector.title,
+    url: connector.url,
+    authType: connector.authType,
+    token: connector.token,
+    managed: true,
+  };
+}
+
+/** `system_key` → opt-out row, for one user. Absent key = default (enabled). */
+async function loadSystemPrefs(
+  userId: string
+): Promise<Map<string, { enabled: boolean; updatedAt: Date }>> {
+  const db = getDrizzleInstance();
+  const rows = await db.select().from(mcp_system_prefs).where(eq(mcp_system_prefs.user_id, userId));
+  return new Map(rows.map((r) => [r.system_key, { enabled: r.enabled, updatedAt: r.updated_at }]));
+}
+
 export class McpServerRegistry {
-  /** All of a user's servers (enabled + disabled) for the settings UI. */
+  /**
+   * All of a user's servers for the settings UI — managed connectors first,
+   * then their own (enabled + disabled).
+   *
+   * A prefs-table outage must not blank the connector list: managed rows then
+   * render at their default (enabled), which is what they would do with no row
+   * anyway. Logged, not thrown.
+   */
   static async list(userId: string): Promise<McpServerSummary[]> {
     const db = getDrizzleInstance();
     const rows = await db.select().from(mcp_servers).where(eq(mcp_servers.user_id, userId));
-    return rows.map(toSummary);
+    const prefs = await loadSystemPrefs(userId).catch((err: unknown) => {
+      log.warn(`Failed to load managed-connector prefs; defaulting to enabled: ${err}`);
+      return new Map<string, { enabled: boolean; updatedAt: Date }>();
+    });
+    const managed = getManagedConnectors().map((c) => {
+      const pref = prefs.get(c.key);
+      return managedToSummary(c, pref?.enabled ?? true, pref?.updatedAt ?? null);
+    });
+    return [...managed, ...rows.map(toSummary)];
+  }
+
+  /** The managed connectors this user has switched off (`system_key` values). */
+  static async getDisabledManagedKeys(userId: string): Promise<Set<string>> {
+    const prefs = await loadSystemPrefs(userId);
+    return new Set([...prefs].filter(([, p]) => !p.enabled).map(([key]) => key));
+  }
+
+  /**
+   * Switch a managed connector on/off for one user. Upsert on the composite key:
+   * switching back ON writes `true` rather than deleting the row, so the table
+   * records a decision instead of leaving "never touched" and "explicitly on"
+   * indistinguishable.
+   *
+   * Returns the refreshed summary, or null when the id is not a configured
+   * managed connector (unknown key, or its URL is unset in this deployment).
+   */
+  static async setManagedEnabled(
+    userId: string,
+    id: string,
+    enabled: boolean
+  ): Promise<McpServerSummary | null> {
+    const connector = getManagedConnectorById(id);
+    if (!connector) return null;
+    const db = getDrizzleInstance();
+    const updatedAt = new Date();
+    await db
+      .insert(mcp_system_prefs)
+      .values({ user_id: userId, system_key: connector.key, enabled, updated_at: updatedAt })
+      .onConflictDoUpdate({
+        target: [mcp_system_prefs.user_id, mcp_system_prefs.system_key],
+        set: { enabled, updated_at: updatedAt },
+      });
+    return managedToSummary(connector, enabled, updatedAt);
+  }
+
+  /** True when the id addresses a managed connector rather than a user row. */
+  static isManagedId(id: string): boolean {
+    return parseManagedConnectorId(id) !== null;
   }
 
   /** Count of enabled servers — used to gate the `mcp` intent per user. */
@@ -106,11 +228,24 @@ export class McpServerRegistry {
    * Decrypted connection configs for the tool-loop. Skips disabled servers.
    * Pass `serverId` to scope to a single server (a `@notion`/`@brevo` mention or
    * a classifier hint) — this also limits the OAuth lazy-refresh to that server.
+   *
+   * Managed connectors are unioned in (unless opted out) and short-circuit a
+   * scoped call: a `system-<key>` scope can never match an `mcp_servers` row, and
+   * the id is not a UUID — running the row query on it would raise a column-cast
+   * error rather than return nothing.
    */
   static async getConnectionConfigs(
     userId: string,
     opts?: { serverId?: string }
   ): Promise<McpConnectionConfig[]> {
+    const managedScope = opts?.serverId ? parseManagedConnectorId(opts.serverId) : null;
+    if (opts?.serverId && managedScope) {
+      const connector = getManagedConnectorById(opts.serverId);
+      if (!connector) return [];
+      const disabled = await this.getDisabledManagedKeys(userId).catch(() => new Set<string>());
+      return disabled.has(connector.key) ? [] : [toManagedConfig(connector)];
+    }
+
     const db = getDrizzleInstance();
     const where = opts?.serverId
       ? and(
@@ -120,7 +255,7 @@ export class McpServerRegistry {
         )
       : and(eq(mcp_servers.user_id, userId), eq(mcp_servers.enabled, true));
     const rows = await db.select().from(mcp_servers).where(where);
-    return Promise.all(
+    const userConfigs: McpConnectionConfig[] = await Promise.all(
       rows.map(async (row) => {
         let token: string | null = null;
         if (row.auth_type === 'oauth') {
@@ -148,6 +283,22 @@ export class McpServerRegistry {
         };
       })
     );
+
+    // Managed connectors ride along on an UNSCOPED load: every user has them,
+    // minus their opt-outs. A prefs failure must not silently mount a connector
+    // somebody switched off, so it drops all of them instead of defaulting to on
+    // — the opposite of `list()`, where the safe direction is showing the row.
+    const disabled = await this.getDisabledManagedKeys(userId).catch((err: unknown) => {
+      log.warn(`Managed-connector prefs unavailable; skipping managed mounts: ${err}`);
+      return null;
+    });
+    const managed = disabled
+      ? getManagedConnectors()
+          .filter((c) => !disabled.has(c.key))
+          .map(toManagedConfig)
+      : [];
+
+    return [...userConfigs, ...managed];
   }
 
   /**
@@ -213,6 +364,18 @@ export class McpServerRegistry {
    * Enabled servers with a description + cached tool names, for the classifier's
    * conservative prose routing. Short-TTL cached per user to stay off the DB hot
    * path (the classifier runs on every message).
+   *
+   * MANAGED CONNECTORS ARE DELIBERATELY ABSENT (this reads `mcp_servers` only).
+   * Prose routing fires on a server NAME plus an action verb, and these names
+   * are ordinary German words: "Gesetze", "Wetter", "Deutsche Bahn". Letting
+   * them in would route "erkläre mir die Gesetze zur Bahnreform" into a tool
+   * loop scoped to a law server.
+   *
+   * They get selected automatically — just not here. `managedSourceTrigger`
+   * does it on vocabulary, with word boundaries that exclude exactly those
+   * compounds, and it mounts tools instead of scoping the whole turn to one
+   * server. Two mechanisms with different failure modes: this one commits the
+   * turn to a service, that one only offers the tools.
    */
   static async getClassifierContext(userId: string): Promise<McpClassifierServer[]> {
     const cached = classifierCache.get(userId);

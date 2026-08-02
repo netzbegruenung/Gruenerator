@@ -402,7 +402,9 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
     'Suche vergangene Chats...',
   ],
   mcp: ['Verbinde Tools...', 'Rufe externes Tool auf...', 'Frage verbundenen Dienst...'],
+  produktion: ['Schreibe...', 'Formuliere...', 'Setze um...'],
   direct: ['Antworte...', 'Schreibe...', 'Formuliere...'],
+  greeting: ['Antworte...'],
   agentic: ['Schaue selbst nach...', 'Lege los...', 'Greife zu den Tools...'],
 };
 

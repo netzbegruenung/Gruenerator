@@ -45,9 +45,11 @@ export default function TransferOptionsPanel({
     <div className="flex flex-col gap-md rounded-xl border border-grey-200 bg-background p-md dark:border-grey-700">
       <div className="flex items-center gap-sm">
         <PiTimer className="size-4 text-grey-400" />
-        <Label className="flex-1 text-sm font-medium">Gültigkeitsdauer</Label>
+        <Label htmlFor="transfer-options-expiry" className="flex-1 text-sm font-medium">
+          Gültigkeitsdauer
+        </Label>
         <Select value={expiryDays} onValueChange={(v) => onExpiryChange(v as ExpiryOption)}>
-          <SelectTrigger className="w-[140px]">
+          <SelectTrigger id="transfer-options-expiry" className="w-[140px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -63,8 +65,14 @@ export default function TransferOptionsPanel({
       <div className="flex flex-col gap-sm">
         <div className="flex items-center gap-sm">
           <PiLock className="size-4 text-grey-400" />
-          <Label className="flex-1 text-sm font-medium">Passwortschutz</Label>
-          <Switch checked={passwordEnabled} onCheckedChange={onPasswordToggle} />
+          <Label htmlFor="transfer-options-password-toggle" className="flex-1 text-sm font-medium">
+            Passwortschutz
+          </Label>
+          <Switch
+            id="transfer-options-password-toggle"
+            checked={passwordEnabled}
+            onCheckedChange={onPasswordToggle}
+          />
         </div>
         {passwordEnabled && (
           <Input
@@ -78,8 +86,11 @@ export default function TransferOptionsPanel({
       </div>
 
       <div className="flex flex-col gap-xs">
-        <Label className="text-sm font-medium text-grey-400">Nachricht (optional)</Label>
+        <Label htmlFor="transfer-options-message" className="text-sm font-medium text-grey-400">
+          Nachricht (optional)
+        </Label>
         <Textarea
+          id="transfer-options-message"
           placeholder="Nachricht für Empfänger*in..."
           value={message}
           onChange={(e) => onMessageChange(e.target.value)}

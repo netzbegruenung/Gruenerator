@@ -213,7 +213,7 @@ describe('POST /api/v1/chat/completions', () => {
       // getContextWindow falls back to 32768 for an unknown provider, which
       // would make every test below pass for the wrong reason. This pins the
       // value to CTX_VERDIGADO and fails if either side moves alone.
-      expect(MAX_PROMPT_TOKENS).toBe(64_000);
+      expect(MAX_PROMPT_TOKENS).toBe(120_000);
     });
 
     it('refuses a prompt the upstream would silently truncate', async () => {
@@ -231,7 +231,10 @@ describe('POST /api/v1/chat/completions', () => {
       // The add-in ships 20 Excel tool schemas on every turn; leaving them out
       // of the estimate would let a request past that the upstream truncates.
       const tools = [
-        { type: 'function', function: { name: 'setRange', description: 'y'.repeat(400_000) } },
+        {
+          type: 'function',
+          function: { name: 'setRange', description: 'y'.repeat(MAX_PROMPT_TOKENS * 4 + 10_000) },
+        },
       ];
       const res = await authedPost({ messages: MESSAGES, tools });
 

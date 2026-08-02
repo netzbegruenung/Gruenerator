@@ -68,6 +68,7 @@ export function CanvaLogo({
 
   return (
     <span style={wrapperStyle} className="inline-flex">
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onError ist ein technischer Ladefehler-Fallback, keine Bedienung */}
       <img
         src={src}
         alt="Canva"

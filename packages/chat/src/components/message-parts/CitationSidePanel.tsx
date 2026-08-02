@@ -80,7 +80,7 @@ export const CitationSidePanel = memo(function CitationSidePanel() {
 
   return (
     <>
-      <div className="fixed inset-0 z-[1010] bg-black/30" onClick={close} />
+      <div className="fixed inset-0 z-[1010] bg-black/30" onClick={close} aria-hidden="true" />
       <div className="fixed inset-y-0 right-0 z-[1011] flex w-full max-w-[28rem] flex-col border-l border-border bg-background shadow-xl sm:w-[28rem]">
         {/* Header */}
         <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">

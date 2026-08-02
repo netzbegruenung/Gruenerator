@@ -17,6 +17,15 @@
  * Exposed via the dedicated `@gruenerator/shared/notebooks` subpath so it stays free of
  * UI-framework imports and is safe for backend, mobile, and web alike.
  */
+import {
+  DEFAULT_INSTANCE_ID,
+  getInstance,
+  isChannelServedBy,
+  policyCoversNotebook,
+  type InstanceChannel,
+  type InstanceId,
+  type InstancePolicyView,
+} from '../instances/index.js';
 
 export type NotebookCategory = 'bundesebene' | 'landesebene' | 'weitere' | 'oesterreich';
 
@@ -61,13 +70,22 @@ export interface NotebookDefinition {
   /** Locale visibility. CLAUDE.md mandate: tag explicitly. */
   audience: NotebookAudience;
   /**
-   * When false, hidden from gallery listings but still routable / mention-able so links
-   * mid-session don't 404. The backend `notebookCollectionMap.DISABLED_NOTEBOOK_IDS`
-   * should match. Defaults to true when omitted.
+   * The global off switch: gone from every listing AND unroutable — the backend
+   * gate (`notebookCollectionMap.ts`) rejects it and the mention picker drops
+   * it. Defaults to true when omitted.
+   *
+   * This is deliberately harsher than an instance's `hide`, which keeps a direct
+   * link working; see {@link isNotebookResolvableIn}. (An earlier version of this
+   * comment claimed `enabled: false` stayed routable so links would not 404 —
+   * it never did.)
    */
   enabled?: boolean;
-  /** Gated to dev builds only (web `import.meta.env.DEV`; excluded from mobile gallery). */
-  devOnly?: boolean;
+  /**
+   * Maturity of this notebook. Omitted means `stable` — visible on every
+   * instance. `internal` replaces the former `devOnly` flag and is served only
+   * by the `local` instance; `preview` additionally reaches beta.
+   */
+  channel?: InstanceChannel;
   /**
    * Agent identifier to pre-select when entering this notebook. Typed as `string` here to
    * keep the registry framework-agnostic; web casts to `SystemAgentId` so renames there
@@ -428,7 +446,7 @@ export const NOTEBOOK_REGISTRY = [
     order: 7,
     category: 'weitere',
     audience: 'de-DE',
-    devOnly: true,
+    channel: 'internal',
     mention: {
       alias: 'böll',
       title: 'Heinrich-Böll-Stiftung',
@@ -464,15 +482,82 @@ export const getDisabledNotebookIds = (): ReadonlySet<string> =>
   new Set(NOTEBOOK_REGISTRY.filter((nb) => nb.enabled === false).map((nb) => nb.id));
 
 /**
- * Enabled notebooks, sorted by `order`. `devOnly` notebooks are excluded unless
- * `includeDevOnly` is set (web passes `import.meta.env.DEV`).
+ * Options accepted by every notebook view. `instance` defaults to
+ * {@link DEFAULT_INSTANCE_ID}, so a caller that passes nothing keeps seeing the
+ * conservative production selection — which is what makes adding the instance
+ * axis a no-op for call sites that have not been touched yet.
  */
-export const getOrderedNotebooks = (
-  opts: { includeDevOnly?: boolean } = {}
-): NotebookDefinition[] =>
-  NOTEBOOK_REGISTRY.filter((nb) => isEnabled(nb) && (opts.includeDevOnly || !nb.devOnly)).sort(
+export interface NotebookViewOptions {
+  instance?: InstanceId;
+}
+
+const instanceOf = (opts: NotebookViewOptions): InstanceId => opts.instance ?? DEFAULT_INSTANCE_ID;
+
+/**
+ * Does this instance *offer* the notebook? False for anything the instance
+ * hides or blocks, and for content whose channel it does not serve.
+ *
+ * This is the discovery question — galleries, mention pickers, agent
+ * inventories — and it is also the gate for *implicit* chat search: a notebook
+ * the instance does not offer must not turn up as a source in a turn that never
+ * asked for it. It is NOT the question of whether a direct link resolves; see
+ * {@link isNotebookResolvableIn}.
+ */
+export const isNotebookOfferedIn = (id: string, instanceId: InstanceId): boolean => {
+  const nb = getNotebookDefinition(id);
+  // Unknown ids (user notebooks, agent-only collections) are never gated.
+  if (!nb) return true;
+  return isNotebookOfferedUnder(nb, getInstance(instanceId));
+};
+
+/**
+ * {@link isNotebookOfferedIn} against a policy view rather than a registered
+ * instance id — the form the two tiers can actually be tested in, and the one
+ * the backend gate is built from.
+ */
+export const isNotebookOfferedUnder = (
+  nb: NotebookDefinition,
+  view: InstancePolicyView
+): boolean => {
+  if (!isEnabled(nb)) return false;
+  if (!isChannelServedBy(nb.channel, view)) return false;
+  return !policyCoversNotebook(view.hide, nb) && !policyCoversNotebook(view.block, nb);
+};
+
+/**
+ * Does a direct link / explicit mention still resolve on this instance?
+ *
+ * Only the `block` tier and the global `enabled: false` switch say no. Merely
+ * *hidden* notebooks stay resolvable on purpose, so a link shared from another
+ * instance never dies (URL-Sonderrecht, CLAUDE.md) — and when such a link is
+ * opened, search inside that notebook has to keep working, otherwise the link
+ * leads to an empty page, which is worse than a 404.
+ */
+export const isNotebookResolvableIn = (id: string, instanceId: InstanceId): boolean => {
+  const nb = getNotebookDefinition(id);
+  if (!nb) return true;
+  return isNotebookResolvableUnder(nb, getInstance(instanceId));
+};
+
+/** {@link isNotebookResolvableIn} against a policy view. See {@link isNotebookOfferedUnder}. */
+export const isNotebookResolvableUnder = (
+  nb: NotebookDefinition,
+  view: InstancePolicyView
+): boolean => {
+  if (!isEnabled(nb)) return false;
+  if (!isChannelServedBy(nb.channel, view)) return false;
+  return !policyCoversNotebook(view.block, nb);
+};
+
+/**
+ * Notebooks the instance offers, sorted by `order`.
+ */
+export const getOrderedNotebooks = (opts: NotebookViewOptions = {}): NotebookDefinition[] => {
+  const instanceId = instanceOf(opts);
+  return NOTEBOOK_REGISTRY.filter((nb) => isNotebookOfferedIn(nb.id, instanceId)).sort(
     (a, b) => a.order - b.order
   );
+};
 
 /**
  * Notebooks visible to a given locale: those tagged for that locale plus `audience: 'all'`.
@@ -480,11 +565,11 @@ export const getOrderedNotebooks = (
  */
 export const getNotebooksForAudience = (
   locale: 'de-DE' | 'de-AT',
-  opts: { includeDevOnly?: boolean } = {}
+  opts: NotebookViewOptions = {}
 ): NotebookDefinition[] =>
   getOrderedNotebooks(opts).filter((nb) => nb.audience === 'all' || nb.audience === locale);
 
 export const getNotebooksByCategory = (
   category: NotebookCategory,
-  opts: { includeDevOnly?: boolean } = {}
+  opts: NotebookViewOptions = {}
 ): NotebookDefinition[] => getOrderedNotebooks(opts).filter((nb) => nb.category === category);

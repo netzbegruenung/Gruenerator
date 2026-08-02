@@ -131,7 +131,7 @@ or a scenario:
     },
     {
       "prompt": "Und die FDP?",
-      "expect": { "routingNot": ["direct"], "sameThread": true },
+      "expect": { "routingNot": ["direct", "greeting"], "sameThread": true },
       "padTurns": 16
     }
   ]

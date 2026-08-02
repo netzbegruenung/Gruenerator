@@ -826,11 +826,15 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                       />
                       {/* Recurrence — when set, completing the card spawns the next occurrence */}
                       <div className="border-t border-grey-200 dark:border-grey-700 px-3 py-2.5">
-                        <label className="flex items-center gap-1.5 text-xs font-medium text-grey-500 dark:text-grey-100 mb-1.5">
+                        <label
+                          htmlFor="card-detail-recurrence"
+                          className="flex items-center gap-1.5 text-xs font-medium text-grey-500 dark:text-grey-100 mb-1.5"
+                        >
                           <FiRepeat size={12} />
                           Wiederholung
                         </label>
                         <select
+                          id="card-detail-recurrence"
                           value={recurrence}
                           onChange={(e) => {
                             if (!row) return;

@@ -1,5 +1,5 @@
 import { type useDocsAdapter } from '@gruenerator/docs';
-import { cn } from '@gruenerator/ui';
+import { InteractiveCard, cn, interactiveCardControl } from '@gruenerator/ui';
 import { memo } from 'react';
 import { FiCheck } from 'react-icons/fi';
 
@@ -94,30 +94,23 @@ export const DocumentCard = memo(function DocumentCard({
   };
 
   return (
-    <div
+    <InteractiveCard
+      label={doc.title}
+      onActivate={handleClick}
+      disabled={isDisabled}
+      pressed={isSelectMode ? isSelected : undefined}
       className={cn(
-        'group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border border-grey-200/80 bg-background',
+        'group flex cursor-pointer flex-col overflow-hidden rounded-xl border border-grey-200/80 bg-background',
         'transition-[box-shadow,border-color,transform] duration-150',
         'hover:-translate-y-0.5 hover:border-secondary-300 hover:shadow-md',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
         'dark:border-grey-700/60 dark:hover:border-secondary-700',
         isSelected && 'border-primary-500 ring-2 ring-primary-400 dark:border-primary-400',
         isDisabled && 'pointer-events-none opacity-60'
       )}
-      onClick={handleClick}
-      onKeyDown={(e) => {
-        if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return;
-        e.preventDefault();
-        handleClick();
-      }}
-      role="button"
-      tabIndex={isDisabled ? -1 : 0}
-      aria-pressed={isSelectMode ? isSelected : undefined}
-      aria-disabled={isDisabled || undefined}
     >
       {isSelectMode && isSelected ? (
         <div
-          className="absolute right-2 top-2 z-10 flex size-6 items-center justify-center rounded-full bg-primary-500 text-white shadow-sm"
+          className="pointer-events-none absolute right-2 top-2 z-10 flex size-6 items-center justify-center rounded-full bg-primary-500 text-white shadow-sm"
           aria-hidden
         >
           <FiCheck size={14} />
@@ -160,6 +153,7 @@ export const DocumentCard = memo(function DocumentCard({
         </div>
         {!isSelectMode && onRename && onDelete && onShare ? (
           <CardActionMenu
+            className={interactiveCardControl}
             ariaLabel="Dokumentoptionen"
             onRename={(e) => onRename(doc, e)}
             onDelete={(e) => onDelete(doc.id, e)}
@@ -170,6 +164,6 @@ export const DocumentCard = memo(function DocumentCard({
           />
         ) : null}
       </div>
-    </div>
+    </InteractiveCard>
   );
 });

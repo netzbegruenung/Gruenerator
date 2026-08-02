@@ -11,10 +11,13 @@
  */
 
 import { createLogger } from '../../../../utils/logger.js';
-import { INTERMEDIATE_MODEL } from '../llmConfig.js';
+import { intermediateLane } from '../llmConfig.js';
 
 import type { AIWorkerPool } from '../../../../workers/types.js';
 import type { ChatGraphState } from '../types.js';
+
+/** @see services/ai/intermediateLanes.ts */
+const LANE = intermediateLane('heavy');
 
 const log = createLogger('ChatGraph:Summarize');
 
@@ -34,6 +37,7 @@ Regeln:
 - Hebe wichtige Fakten, Zahlen und Positionen hervor
 - Behalte die Kernaussagen und den roten Faden bei
 - Max 1500 Zeichen für kurze Dokumente, max 3000 Zeichen für längere
+- Bewerte nichts, was das Dokument nicht selbst bewertet; gib Noten, Quoten und Zahlen neutral wieder
 - Auf Deutsch antworten
 - Antworte NUR mit der Zusammenfassung, ohne Einleitung wie "Hier ist die Zusammenfassung"`;
 
@@ -46,6 +50,7 @@ Regeln:
 - Entferne Redundanzen
 - Behalte alle wichtigen Fakten und Positionen bei
 - Max 3000 Zeichen
+- Bewerte nichts, was die Teilzusammenfassungen nicht selbst bewerten; gib Noten, Quoten und Zahlen neutral wieder
 - Auf Deutsch antworten
 - Antworte NUR mit der Zusammenfassung`;
 
@@ -69,7 +74,7 @@ async function singlePassSummarize(
   const response = await aiWorkerPool.processRequest(
     {
       type: 'chat_summarize',
-      provider: INTERMEDIATE_MODEL.provider,
+      provider: LANE.provider,
       systemPrompt: SINGLE_PASS_PROMPT,
       messages: [
         {
@@ -78,7 +83,7 @@ async function singlePassSummarize(
         },
       ],
       options: {
-        model: INTERMEDIATE_MODEL.model,
+        model: LANE.model,
         max_tokens: 1200,
         temperature: 0.2,
       },
@@ -126,7 +131,7 @@ async function mapReduceSummarize(
         const response = await aiWorkerPool.processRequest(
           {
             type: 'chat_summarize_map',
-            provider: INTERMEDIATE_MODEL.provider,
+            provider: LANE.provider,
             systemPrompt: MAP_PROMPT,
             messages: [
               {
@@ -135,7 +140,7 @@ async function mapReduceSummarize(
               },
             ],
             options: {
-              model: INTERMEDIATE_MODEL.model,
+              model: LANE.model,
               max_tokens: 400,
               temperature: 0.2,
             },
@@ -168,7 +173,7 @@ async function mapReduceSummarize(
   const response = await aiWorkerPool.processRequest(
     {
       type: 'chat_summarize_reduce',
-      provider: INTERMEDIATE_MODEL.provider,
+      provider: LANE.provider,
       systemPrompt: REDUCE_PROMPT,
       messages: [
         {
@@ -177,7 +182,7 @@ async function mapReduceSummarize(
         },
       ],
       options: {
-        model: INTERMEDIATE_MODEL.model,
+        model: LANE.model,
         max_tokens: 1200,
         temperature: 0.2,
       },
@@ -218,7 +223,7 @@ async function summarizeConversation(state: ChatGraphState): Promise<string> {
   const response = await aiWorkerPool.processRequest(
     {
       type: 'chat_summarize_conversation',
-      provider: INTERMEDIATE_MODEL.provider,
+      provider: LANE.provider,
       systemPrompt: CONVERSATION_SUMMARY_PROMPT,
       messages: [
         {
@@ -227,7 +232,7 @@ async function summarizeConversation(state: ChatGraphState): Promise<string> {
         },
       ],
       options: {
-        model: INTERMEDIATE_MODEL.model,
+        model: LANE.model,
         max_tokens: 800,
         temperature: 0.2,
       },

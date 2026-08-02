@@ -41,7 +41,7 @@ describe('aiText', () => {
 
   it('sends an unknown lane down the default lane rather than failing', async () => {
     await aiText({ lane: 'brandneu', prompt: 'x' });
-    expect(callAt(0).provider).toBe('litellm');
+    expect(callAt(0).provider).toBe('mistral');
   });
 
   it('turns a prompt into a single user turn', async () => {

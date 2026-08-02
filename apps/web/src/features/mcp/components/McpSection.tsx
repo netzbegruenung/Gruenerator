@@ -346,8 +346,19 @@ const McpServerRow = memo(
       error: string | null;
     } | null>(null);
 
-    const needsAuth = server.authType === 'oauth' && !server.hasToken;
-    const statusLabel = needsAuth ? 'Nicht autorisiert' : server.enabled ? 'Verbunden' : 'Pausiert';
+    // A managed connector is operated by us: no OAuth to complete, nothing to
+    // remove, and "Verbunden" would be misleading — nobody connected it.
+    const isManaged = server.managed === true;
+    const needsAuth = !isManaged && server.authType === 'oauth' && !server.hasToken;
+    const statusLabel = needsAuth
+      ? 'Nicht autorisiert'
+      : server.enabled
+        ? isManaged
+          ? 'Verfügbar'
+          : 'Verbunden'
+        : isManaged
+          ? 'Ausgeschaltet'
+          : 'Pausiert';
     const dotClass = needsAuth ? 'bg-amber-500' : server.enabled ? dotOnClass : 'bg-grey-400';
 
     const authorize = () => {
@@ -403,7 +414,11 @@ const McpServerRow = memo(
                   </span>
                 </span>
               </div>
-              <span className="text-xs text-grey-400 font-mono truncate">{server.url}</span>
+              {isManaged ? (
+                <span className="text-xs text-grey-400 truncate">{server.description}</span>
+              ) : (
+                <span className="text-xs text-grey-400 font-mono truncate">{server.url}</span>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-md flex-wrap sm:flex-none sm:justify-end">
@@ -432,19 +447,21 @@ const McpServerRow = memo(
             >
               {test.isPending ? 'Teste…' : 'Testen'}
             </button>
-            <button
-              type="button"
-              onClick={() =>
-                del.mutate(server.id, {
-                  onSuccess: () => onSuccess('Konnektor entfernt'),
-                  onError: (err) => onError(err instanceof Error ? err.message : 'Fehler'),
-                })
-              }
-              disabled={del.isPending}
-              className="text-xs font-medium text-grey-400 hover:text-[var(--error-red)] transition-colors bg-transparent border-none cursor-pointer disabled:opacity-50"
-            >
-              Entfernen
-            </button>
+            {!isManaged && (
+              <button
+                type="button"
+                onClick={() =>
+                  del.mutate(server.id, {
+                    onSuccess: () => onSuccess('Konnektor entfernt'),
+                    onError: (err) => onError(err instanceof Error ? err.message : 'Fehler'),
+                  })
+                }
+                disabled={del.isPending}
+                className="text-xs font-medium text-grey-400 hover:text-[var(--error-red)] transition-colors bg-transparent border-none cursor-pointer disabled:opacity-50"
+              >
+                Entfernen
+              </button>
+            )}
           </div>
         </div>
         {testResult &&
@@ -718,7 +735,12 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
 
   const refreshMcp = () => void queryClient.invalidateQueries({ queryKey: mcpKeys.list() });
 
-  const connectedUrls = useMemo(() => new Set(servers.map((s) => s.url)), [servers]);
+  // Managed connectors report an empty `url` (the endpoint is deploy-env-only),
+  // so they cannot and must not take part in the "already connected" match.
+  const connectedUrls = useMemo(
+    () => new Set(servers.filter((s) => s.url).map((s) => s.url)),
+    [servers]
+  );
 
   const available = useMemo<AvailableItem[]>(() => {
     const merged = (registry?.recommended ?? [])
@@ -755,10 +777,14 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
     () => (registry?.servers ?? []).filter((e) => !connectedUrls.has(e.url)),
     [registry, connectedUrls]
   );
+  // First-party connectors the Grünerator operates: nobody connected them, so
+  // they belong neither under "Verbunden" nor in the OAuth-pending bucket.
+  const managed = servers.filter((s) => s.managed);
+  const own = servers.filter((s) => !s.managed);
   // OAuth servers without a token aren't usable yet — listing them under
   // "Verbunden" would suggest they work. They get their own action section.
-  const authPending = servers.filter((s) => s.authType === 'oauth' && !s.hasToken);
-  const connected = servers.filter((s) => !(s.authType === 'oauth' && !s.hasToken));
+  const authPending = own.filter((s) => s.authType === 'oauth' && !s.hasToken);
+  const connected = own.filter((s) => !(s.authType === 'oauth' && !s.hasToken));
   const activeCount = connected.filter((s) => s.enabled).length;
 
   const handlePickMcp = (entry: McpRegistryEntry) => {
@@ -881,6 +907,30 @@ const McpSection = memo(({ onSuccess, onError }: McpSectionProps) => {
       {isLoading && (
         <div className="mt-md">
           <SettingsCardsSkeleton cards={3} />
+        </div>
+      )}
+
+      {/* First-party connectors: available to everyone without setup, so they
+          lead — and they get their own heading rather than sitting under
+          "Verbunden", where they would imply the user had connected them. */}
+      {managed.length > 0 && (
+        <div className="mt-xl">
+          <div className="flex items-baseline gap-sm mb-sm">
+            <h3 className="m-0 text-xs font-bold tracking-widest uppercase text-grey-500">
+              Vom Grünerator bereitgestellt
+            </h3>
+            <span className="text-xs text-grey-400">ohne Einrichtung nutzbar</span>
+          </div>
+          <div className="flex flex-col gap-sm">
+            {managed.map((server) => (
+              <McpServerRow
+                key={server.id}
+                server={server}
+                onSuccess={onSuccess}
+                onError={onError}
+              />
+            ))}
+          </div>
         </div>
       )}
 

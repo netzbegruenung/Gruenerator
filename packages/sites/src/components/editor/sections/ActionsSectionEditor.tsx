@@ -192,10 +192,14 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
             </div>
 
             <div className="mb-md">
-              <label className="block text-sm font-medium text-foreground mb-1.5">
+              <label
+                htmlFor={`action-${index}-image`}
+                className="block text-sm font-medium text-foreground mb-1.5"
+              >
                 Hintergrundbild
               </label>
               <ImageUpload
+                id={`action-${index}-image`}
                 value={action.imageUrl}
                 onChange={(url) => updateAction(index, 'imageUrl', url)}
                 aspectRatio="16/9"

@@ -18,10 +18,10 @@ Deployment, Docker, and environment configuration.
 
 ### Adding a New Shared Package (Docker Checklist)
 
-Three files must be updated or Docker builds fail:
+Three files must be updated — **but only the first fails loudly**:
 
-1. **Every Dockerfile that transitively depends on it** — add `COPY packages/<name>/package.json` and `COPY packages/<name>`. Check deps: `pnpm --filter <app> list --depth 1 --json | grep @gruenerator`.
-2. **`.github/workflows/build-images.yml`** — add `'packages/<name>/**'` to `dorny/paths-filter`.
+1. **Every Dockerfile that transitively depends on it** — add `COPY packages/<name>/package.json` and `COPY packages/<name>`. Check deps: `pnpm --filter <app> list --depth 1 --json | grep @gruenerator`. Vergessen = roter Build.
+2. **`.github/workflows/build-images.yml`** — add `'packages/<name>/**'` to that image's `dorny/paths-filter`. Vergessen = **Stille**: eine Änderung an nur diesem Paket löst den Workflow aus (`packages/**` steht im Trigger), überspringt jeden Build-Job und wird nie ausgeliefert. Nichts wird rot. `scripts/check-image-build-filters.mjs` (Guards-Job) leitet die Soll-Liste aus den `COPY packages/…`-Zeilen der Dockerfiles ab und bricht ab, wenn ein Filter dahinter zurückbleibt.
 3. **`.gitignore`** — verify path not matched by broad pattern (e.g. `docs/` matches `*/docs/`; use `/docs/`).
 
 ### `packages/shared` Runtime `.ts` Trap
@@ -48,6 +48,37 @@ A push that touches **only** `.github/**` or files outside the `web:` filter lis
 ## Production
 
 Production deployment is owned outside this repo (no `deploy-prod.yml` here). Coordinate with infrastructure when promoting `master`.
+
+### Party-internal prompts (`INTERN_CONTENT_DIR`)
+
+This repo is public, and `packages/shared` is bundled into the web app and into every shipped mobile binary. So both prompt registries are split: `agents/skills/*.md` (recipes) and `agents/definitions/*.md` (system agents) carry **frontmatter only**, and the prompt text lives in the private repo **`netzbegruenung/gruenerator-intern`**:
+
+```
+skills/<mention>.md        e.g. presse.md — the skill's mention, not its filename
+agents/<identifier>.md     e.g. gruenerator-antrag.md
+```
+
+**Salt owns the rollout**: clone the private repo onto the server and point `INTERN_CONTENT_DIR` (API env) at its root. Unset falls back to `.external/gruenerator-intern` — a gitignored dev checkout, not a production path.
+
+Read at boot and cached, so a changed prompt needs an API restart. `apps/api/services/skills/internalPrompts.ts` is the loader; `respondNode` appends a recipe body as the `## AKTIVE PLATTFORM` block, `routes/chat/agents/agentLoader.ts` fills in each system agent's `systemRole`, and `GET /api/skills/:mention/prompt` (behind `requireAuth`) serves recipes to the Agentura detail view.
+
+**A missing directory does not crash the API — it quietly makes it worse.** Two different degradations:
+
+- **Recipes** fall back to the agent's base systemRole; output gets generic.
+- **Agents** get a generic substitute persona, because an empty `systemRole` makes `promptAssemblyGraph.buildSystemText` throw. One error line per agent.
+
+After a deploy, check the log for both counts:
+
+```
+[internalPrompts] Loaded 20 internal skills prompt(s) from …
+[internalPrompts] Loaded 25 internal agents prompt(s) from …
+```
+
+Nothing user-facing breaks if the rollout is missed, which is exactly why it needs looking at.
+
+The LV agents (`lvPrAgents.ts` / `lvBuergerAgents.ts`) keep their systemRole in code — one template fans out to N agents, and its content is generic craft guidance plus a regional topic list.
+
+Guards against putting the prompts back: `build-skills.ts` and `build-agents.ts` refuse to emit a body, and `scripts/check-internal-content.mjs` (CI, `pnpm check:internal`) fails on a body in a public skill or agent file, a `skillSystemPrompt` or non-empty `systemRole` in a generated file, or anything tracked under `.external/` or `documentation/docs/intern/`.
 
 ### System MCP sources (bahn/reise/wetter/news chat intents)
 

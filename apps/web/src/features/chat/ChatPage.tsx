@@ -4,6 +4,7 @@ import {
   GrueneratorThread,
   ReelArtifactPanel,
   SharepicArtifactPanel,
+  setMentionInstance,
   setMentionLocale,
   useAgentStore,
   useChatRuntimeReady,
@@ -21,6 +22,7 @@ import { useLocation, useNavigate, useParams, useSearchParams } from 'react-rout
 
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
+import { CURRENT_INSTANCE } from '@/config/instance';
 import { useUserAgents } from '@/features/agents/api';
 import ChatHero from '@/features/chat/ChatHero';
 import { LandesverbandHub } from '@/features/chat/LandesverbandHub';
@@ -40,6 +42,11 @@ import '@/features/workplace/workplace-sunrise.css';
  * (no auto-switch when the agent has no preference).
  */
 const AT_DEFAULT_NOTEBOOK_ID = 'oesterreich-notebook';
+
+// Instance-filter the @-mention notebook picker. Set at module scope rather than
+// in an effect: unlike the locale, the instance is fixed for the lifetime of the
+// bundle, and the picker may be read before this component ever mounts.
+setMentionInstance(CURRENT_INSTANCE);
 
 /**
  * The in-thread composer: the slim pill in the browser, the taller card in the
@@ -256,7 +263,7 @@ function ChatPage() {
           onOpenNotebookThread={handleNavigate}
         />
       )}
-      <main className="flex min-h-0 flex-1 flex-col pt-4 md:pt-0">
+      <div className="flex min-h-0 flex-1 flex-col pt-4 md:pt-0">
         {hub ? (
           <LandesverbandHub hub={hub} onNavigate={handleNavigate} userLocale={userLocale} />
         ) : effectiveViewMode === 'overview' ? (
@@ -287,7 +294,7 @@ function ChatPage() {
             userLocale={userLocale}
           />
         )}
-      </main>
+      </div>
       {!hub && effectiveViewMode === 'thread' && (
         // Sharepic-Modus: pins the active sharepic as a docked artifact while
         // the user iterates via chat. Below xl the inline card stays the only

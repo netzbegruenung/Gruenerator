@@ -56,7 +56,17 @@ function walk(dir, out) {
   for (const name of entries) {
     if (SKIP_DIRS.has(name)) continue;
     const full = path.join(dir, name);
-    if (statSync(full).isDirectory()) walk(full, out);
+    // stat folgt Symlinks. In apps/mobile/ios/Pods stehen CocoaPods-Symlinks
+    // nach node_modules; zeigt einer ins Leere, warf der Lauf bisher ENOENT und
+    // brach ab — lokal rot, in der CI grün, weil ios/ dort gitignored ist.
+    // Gültige Symlinks sollen weiter verfolgt werden, tote nur übersprungen.
+    let st;
+    try {
+      st = statSync(full);
+    } catch {
+      continue;
+    }
+    if (st.isDirectory()) walk(full, out);
     else if (/\.[cm]?[tj]sx?$/.test(name)) out.push(full);
   }
   return out;

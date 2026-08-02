@@ -1,4 +1,9 @@
-import { useFetchFullText } from '@gruenerator/chat';
+import {
+  DEFAULT_NOTEBOOK_DEPTH,
+  NOTEBOOK_DEPTHS,
+  notebookDepthDef,
+  useFetchFullText,
+} from '@gruenerator/chat';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -24,6 +29,7 @@ import {
   type SortOption,
 } from '../../hooks/notebook/useNotebookResearch';
 import { useNotebookFilterStore } from '../../stores/notebookFilterStore';
+import { usePreferencesStore } from '../../stores/preferencesStore';
 import { colors, spacing, typography, borderRadius, BODY_FONT } from '../../theme';
 import { getSurfaceFab } from '../../theme/toolTheme';
 import { routeWithParams } from '../../types/routes';
@@ -59,11 +65,6 @@ const SORT_LABELS: Record<SortOption, string> = {
   date_asc: 'Älteste',
 };
 const MODE_CYCLE: SearchMode[] = ['hybrid', 'vector', 'text'];
-const DEPTH_LABELS: Record<'fast' | 'deep', string> = {
-  fast: 'Schnell',
-  deep: 'Tiefenrecherche',
-};
-const DEPTH_CYCLE: ('fast' | 'deep')[] = ['fast', 'deep'];
 
 /** Readable names for the aggregate notebook's `*-system` collections. */
 const COLLECTION_LABELS: Record<string, string> = {
@@ -126,6 +127,8 @@ function OptionChip({
           borderColor: active ? accent : theme.border,
         },
       ]}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: active }}
     >
       <Text style={[styles.optionChipText, { color: active ? onAccent : theme.text }]}>
         {label}
@@ -146,21 +149,22 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
 
   const router = useRouter();
   const fetchFullText = useFetchFullText();
-  // Facets, sources and depth live in a store, not in this component: asking hands
-  // the question to another screen, and the chat runtime builds the request body
-  // from outside the panel.
-  const { keywordFilters, collectionIds, depth } = useNotebookFilterStore(
+  // Facets and sources live in a store, not in this component: asking hands the
+  // question to another screen, and the chat runtime builds the request body from
+  // outside the panel.
+  const { keywordFilters, collectionIds } = useNotebookFilterStore(
     useShallow((st) => ({
       keywordFilters: st.keywordFilters,
       collectionIds: st.collectionIds,
-      depth: st.depth,
     }))
   );
   const setNotebook = useNotebookFilterStore((st) => st.setNotebook);
   const toggleValue = useNotebookFilterStore((st) => st.toggleValue);
   const toggleCollection = useNotebookFilterStore((st) => st.toggleCollection);
   const resetStoreFilters = useNotebookFilterStore((st) => st.reset);
-  const setDepth = useNotebookFilterStore((st) => st.setDepth);
+  // The depth is a persisted preference, not a per-notebook filter.
+  const depth = usePreferencesStore((st) => st.notebookDepth);
+  const setDepth = usePreferencesStore((st) => st.setNotebookDepth);
   const availableCollections = getResearchCollectionIds(notebookId);
 
   useEffect(() => {
@@ -204,7 +208,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
   const activeCount =
     (mode !== 'hybrid' ? 1 : 0) +
     (sortBy !== 'relevance' ? 1 : 0) +
-    (depth !== 'fast' ? 1 : 0) +
+    (depth !== DEFAULT_NOTEBOOK_DEPTH ? 1 : 0) +
     (collectionIds ? 1 : 0) +
     keywordFilterCount;
 
@@ -231,6 +235,9 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
     setMode('hybrid');
     setSortBy('relevance');
     resetStoreFilters();
+    // Counted in `activeCount`, so "Zurücksetzen" has to clear it too — even
+    // though it outlives the sheet as a preference.
+    void setDepth(DEFAULT_NOTEBOOK_DEPTH);
   };
 
   const canSearch = query.trim().length >= 2;
@@ -276,6 +283,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
               style={[styles.composerInput, { color: theme.text }]}
               placeholder="In diesem Notebook recherchieren…"
               placeholderTextColor={theme.textSecondary}
+              accessibilityLabel="In diesem Notebook recherchieren"
               value={query}
               onChangeText={setQuery}
               onSubmitEditing={() => runSearch()}
@@ -287,6 +295,8 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
                 onPress={() => setFiltersSheetVisible(true)}
                 style={styles.iconButton}
                 hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel="Filter und Sortierung öffnen"
               >
                 <Ionicons
                   name="options-outline"
@@ -303,6 +313,9 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
                 onPress={() => runSearch()}
                 style={[styles.sendButton, { backgroundColor: canSearch ? accent : theme.border }]}
                 disabled={!canSearch}
+                accessibilityRole="button"
+                accessibilityLabel="Suchen"
+                accessibilityState={{ disabled: !canSearch }}
               >
                 <Ionicons name="arrow-forward" size={20} color={onAccent} />
               </Pressable>
@@ -377,32 +390,47 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
         <View style={styles.sheetHeader}>
           <Text style={[styles.sheetTitle, { color: theme.text }]}>Filter & Sortierung</Text>
           {activeCount > 0 && (
-            <Pressable onPress={resetFilters} hitSlop={8} style={styles.resetButton}>
+            <Pressable
+              onPress={resetFilters}
+              hitSlop={8}
+              style={styles.resetButton}
+              accessibilityRole="button"
+            >
               <Text style={[styles.resetText, { color: accent }]}>Zurücksetzen</Text>
             </Pressable>
           )}
-          <Pressable onPress={() => setFiltersSheetVisible(false)} hitSlop={8}>
+          <Pressable
+            onPress={() => setFiltersSheetVisible(false)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Filter schließen"
+          >
             <Ionicons name="close" size={24} color={theme.text} />
           </Pressable>
         </View>
         <ScrollView style={styles.sheetScroll}>
-          {/* KI-side setting: web's fast/deep toggle on the notebook page. The
-              Suchmodus/Sortierung below only shape the manual research query. */}
+          {/* KI-side setting: the same three tiers web shows on the notebook
+              page. The Suchmodus/Sortierung below only shape the manual research
+              query. */}
           <View style={styles.filterSection}>
-            <Text style={[styles.filterSectionTitle, { color: theme.text }]}>KI-Recherche</Text>
+            <Text style={[styles.filterSectionTitle, { color: theme.text }]}>Suchtiefe</Text>
             <View style={styles.filterValues}>
-              {DEPTH_CYCLE.map((d) => (
+              {NOTEBOOK_DEPTHS.map((d) => (
                 <OptionChip
-                  key={d}
-                  label={DEPTH_LABELS[d]}
-                  active={depth === d}
-                  onPress={() => setDepth(d)}
+                  key={d.depth}
+                  label={d.label}
+                  active={depth === d.depth}
+                  onPress={() => void setDepth(d.depth)}
                   theme={theme}
                   accent={accent}
                   onAccent={onAccent}
                 />
               ))}
             </View>
+            {/* "Ultra" says nothing on its own — the chips are one word each. */}
+            <Text style={[styles.filterSectionHint, { color: theme.textSecondary }]}>
+              {notebookDepthDef(depth).description}
+            </Text>
           </View>
 
           {/* Only an aggregate notebook has something to pick from. */}
@@ -478,6 +506,8 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
                           borderColor: isActive ? accent : theme.border,
                         },
                       ]}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: isActive }}
                     >
                       <Text
                         style={[styles.valueText, { color: isActive ? onAccent : theme.text }]}
@@ -506,6 +536,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
             runSearch();
           }}
           style={[styles.applyButton, { backgroundColor: accent }]}
+          accessibilityRole="button"
         >
           <Text style={[styles.applyButtonText, { color: onAccent }]}>
             {activeCount > 0 ? `${activeCount} aktiv · Anwenden` : 'Anwenden'}
@@ -680,6 +711,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.xsmall,
+  },
+  filterSectionHint: {
+    fontFamily: BODY_FONT,
+    fontSize: 12,
+    marginTop: spacing.xxsmall,
   },
   optionChip: {
     paddingHorizontal: spacing.medium,

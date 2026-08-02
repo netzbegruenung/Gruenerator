@@ -28,6 +28,19 @@ export function getCorsOrigins(includeDevOrigins = false): string[] {
   // needs no entry here.
   origins.push('tauri://localhost', 'http://tauri.localhost');
 
+  // Grünerator für Chrome. Eine Erweiterung hat als Origin ihre Extension-ID,
+  // die aus dem `key` im Manifest folgt — sie steht deshalb ausgeschrieben
+  // hier, wie die Tauri-Schemata darüber. Ohne diesen Eintrag scheitert nicht
+  // erst der API-Aufruf, sondern schon die dynamische Client-Registrierung der
+  // Anmeldung (`/api/auth/v2/mcp/register`): der strikte Validator wirft, und
+  // der Fehlerpfad antwortet mit der Keycloak-Anmeldeseite — also HTML, wo der
+  // Client JSON erwartet.
+  //
+  // ACHTUNG: der Web Store vergibt beim ersten Hochladen einen eigenen
+  // Schlüssel und damit eine andere ID. Die gehört zusätzlich hierher, sonst
+  // kommt die ausgelieferte Fassung nicht am CORS-Gitter vorbei.
+  origins.push('chrome-extension://mcogkdgdjackfcpgmncihbobpoijlcio');
+
   if (includeDevOrigins) {
     origins.push(
       'http://localhost:3000',
@@ -41,9 +54,7 @@ export function getCorsOrigins(includeDevOrigins = false): string[] {
       'http://127.0.0.1:3002',
       'http://127.0.0.1:3003',
       'http://127.0.0.1:3210',
-      'http://localhost:3004',
       'http://localhost:3005',
-      'http://127.0.0.1:3004',
       'http://127.0.0.1:3005',
       // Office add-in taskpane dev server. Office requires HTTPS even locally,
       // so there is no http:// counterpart.

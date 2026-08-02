@@ -80,6 +80,12 @@ export interface McpCatalog {
    *  turn (env-configured but unreachable sources are absent) — the prompt
    *  hints must be keyed to this, not to the env config. */
   systemSourceKeys?: ReadonlySet<string>;
+  /** Managed catalogs only: the `promptHint` of every source that actually
+   *  MOUNTED this turn, in mount order. Keyed to the mount and not to the env
+   *  config for the same reason `systemSourceKeys` is — a configured but
+   *  unreachable source must not have its usage instructions in the prompt.
+   *  `{{TODAY_*}}` / `{{COUNTRY}}` placeholders are resolved by the caller. */
+  promptHints?: string[];
   /** German explanations for servers whose tools were WITHHELD because their
    *  definitions drifted since the user approved them (rug pull). Non-empty
    *  means the turn ran with fewer tools than the user expects — say so rather
@@ -155,7 +161,12 @@ export async function loadMcpCatalog(params: {
           log.warn(`[mcpCatalog] "${config.name}" connected but exposed 0 tools`);
           anyUnreachable = true;
         }
-        void McpServerRegistry.saveToolsSnapshot(userId, config.id, listed);
+        // A managed connector has no `mcp_servers` row: `config.id` is
+        // `system-<key>`, not a UUID, so this write would fail at the column
+        // cast rather than update nothing. The snapshot only feeds mention hints
+        // and classifier context, and managed connectors get both from their env
+        // definition instead.
+        if (!config.managed) void McpServerRegistry.saveToolsSnapshot(userId, config.id, listed);
         const callSerialized = createSerializer();
 
         // Stable per (server, tool): derived from the server's mcp_servers.id
@@ -198,17 +209,27 @@ export async function loadMcpCatalog(params: {
 
         // Rug-pull check: a server may rewrite a tool DESCRIPTION after the user
         // approved it, and a description is an instruction the model obeys.
-        const drift = await evaluateToolDrift(
-          serverTools,
-          config.approvedFingerprints,
-          config.name
-        );
-        if (drift.blocked) {
-          driftedServers.push(describeDrift(config.name, drift));
-          return; // tools withheld; the connection is still closed via `clients`
-        }
-        if (drift.baselineEstablished) {
-          void McpServerRegistry.saveToolFingerprints(userId, config.id, drift.current);
+        //
+        // Skipped for MANAGED connectors, and not merely because the baseline has
+        // nowhere to live (no row, non-UUID id): the check compares a server's
+        // definitions against what the USER approved by connecting it. Nobody
+        // connects a managed connector — we operate the server, and shipping a
+        // changed tool description is our own deploy, not a third party's rug
+        // pull. Running it here would block the connector on its first load and
+        // re-baseline on every single turn.
+        if (!config.managed) {
+          const drift = await evaluateToolDrift(
+            serverTools,
+            config.approvedFingerprints,
+            config.name
+          );
+          if (drift.blocked) {
+            driftedServers.push(describeDrift(config.name, drift));
+            return; // tools withheld; the connection is still closed via `clients`
+          }
+          if (drift.baselineEstablished) {
+            void McpServerRegistry.saveToolFingerprints(userId, config.id, drift.current);
+          }
         }
 
         for (const [providerName, def] of Object.entries(serverTools)) {

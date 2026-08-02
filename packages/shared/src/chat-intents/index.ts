@@ -37,11 +37,18 @@ export type IntentAudience = 'de-DE' | 'de-AT' | 'all';
 
 /**
  * Whether the capability is always there, or gated on something the picker
- * cannot assume. `'system-mcp'` intents only exist when the matching
- * `SYSTEM_MCP_*_URL` env is configured; `'web-only'` has no React Native
- * runtime; `'dev-only'` is hidden in production builds.
+ * cannot assume. `'web-only'` has no React Native runtime; `'dev-only'` is
+ * hidden in production builds.
+ *
+ * `'retired'` is different in kind: the capability still EXISTS, it is simply no
+ * longer reached through an intent. Nothing produces the verdict, nothing routes
+ * it, and no picker offers it — but the enum value has to stay, because
+ * `searchIntentSchema` is a wire contract that shipped clients parse (and this
+ * registry is a TOTAL `Record<SearchIntent, …>`, so an entry cannot be deleted
+ * without deleting the enum value first). Retired entries are the difference
+ * between "we removed a feature" and "we moved it somewhere better".
  */
-export type IntentAvailability = 'always' | 'system-mcp' | 'web-only' | 'dev-only';
+export type IntentAvailability = 'always' | 'system-mcp' | 'web-only' | 'dev-only' | 'retired';
 
 /**
  * How an `@mention` for this intent reaches the backend. The visible slug is
@@ -170,12 +177,6 @@ const DECLINE_ABGEORDNETENWATCH =
 const DECLINE_BUNDESTAG =
   'Das DIP erfasst nur den Deutschen Bundestag und Bundesrat. ' +
   'Für den österreichischen Nationalrat liegen hier keine Daten vor.';
-const DECLINE_BAHN =
-  'Die Fahrplanauskunft deckt nur die Deutsche Bahn ab. ' +
-  'Für Verbindungen in Österreich liegen hier keine Daten vor.';
-const DECLINE_NEWS =
-  'Die Nachrichtenquelle ist die ARD-Tagesschau und berichtet über Österreich nur als Ausland. ' +
-  'Ich kann stattdessen im Web suchen.';
 
 /**
  * Every intent, exactly once. `Record<ChatIntentId, …>` is what makes this
@@ -303,59 +304,51 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
       backgroundColor: '#4B5563',
     },
   },
-  // Deutsche Bahn IRIS — there is no ÖBB equivalent wired up, so AT degrades.
+  // ── Retired: moved to the managed-connector path ─────────────────────────
+  //
+  // These five reached the chat as INTENTS: a verdict picked one, and the loop
+  // mounted the sources behind it. They are first-party MANAGED CONNECTORS now
+  // (`apps/api/services/mcp/systemMcpServers.ts`) — listed in Einstellungen →
+  // Verbindungen, on by default, selected by vocabulary
+  // (`managedSourceTrigger.ts`) or by an `@mention`, and mountable several at a
+  // time. That last part is why they left: `reise` existed only because an
+  // intent is single-valued and "Zug und Hotel" needs two.
+  //
+  // The entries stay because this registry is a total `Record<SearchIntent, …>`
+  // and those enum values are F0 — mobile binaries in the field parse them. They
+  // describe capabilities the product still has, reached another way; deleting
+  // them would need the enum values gone first, which cannot happen.
   bahn: {
     id: 'bahn',
     category: 'retrieval',
     audience: 'de-DE',
-    degradeTo: 'web',
-    declineNote: DECLINE_BAHN,
-    availability: 'system-mcp',
+    availability: 'retired',
   },
-  // Umbrella travel intent (train + hotel + destination weather), currently OFF:
-  // its source list in systemMcpServers is commented out, so the availability
-  // check degrades every `reise` verdict to `web`. It was the one intent mixing a
-  // German-only source with global ones, which made an Austrian travel turn force
-  // the loop with an empty toolbox. Stays in the enum (F0) and keeps `audience:
-  // 'all'` — the audience axis was never the problem, the missing ÖBB source is.
   reise: {
     id: 'reise',
     category: 'retrieval',
     audience: 'all',
     localeSourced: true,
-    availability: 'system-mcp',
+    availability: 'retired',
   },
   hotel: {
     id: 'hotel',
     category: 'retrieval',
     audience: 'all',
     localeSourced: true,
-    availability: 'system-mcp',
+    availability: 'retired',
   },
-  // Open-Meteo is global; the DWD ICON model covers Austria too.
   wetter: {
     id: 'wetter',
     category: 'retrieval',
     audience: 'all',
-    availability: 'system-mcp',
-    mention: {
-      slug: 'wetter',
-      title: 'Wetter',
-      description: 'Wettervorhersage für einen Ort (Open-Meteo)',
-      avatar: '🌤️',
-      backgroundColor: '#0EA5E9',
-    },
+    availability: 'retired',
   },
-  // tagesschau (ARD) reports Austria as foreign coverage — selling that as "die
-  // Nachrichtenlage" to an Austrian user would be the same category error the
-  // poll lookup used to make.
   news: {
     id: 'news',
     category: 'retrieval',
     audience: 'de-DE',
-    degradeTo: 'web',
-    declineNote: DECLINE_NEWS,
-    availability: 'system-mcp',
+    availability: 'retired',
   },
   // PolitPro covers the Nationalrat and all nine Austrian Länder as fully as
   // the German parliaments — hence `'all'` plus `localeSourced`.
@@ -576,7 +569,9 @@ export const CHAT_INTENTS: Record<ChatIntentId, ChatIntentDefinition> = {
   },
 
   // ── internal ─────────────────────────────────────────────────────────────
+  produktion: { id: 'produktion', category: 'internal', audience: 'all' },
   direct: { id: 'direct', category: 'internal', audience: 'all' },
+  greeting: { id: 'greeting', category: 'internal', audience: 'all' },
   agentic: { id: 'agentic', category: 'internal', audience: 'all' },
 };
 
@@ -659,3 +654,16 @@ export function intentToolNames(): {
   }
   return { ui: Object.freeze(ui), persist: Object.freeze(persist) };
 }
+
+/**
+ * Die Dispositions-Achse. Re-exportiert, damit `@gruenerator/shared/chat-intents`
+ * die eine Adresse für „alles über Intents" bleibt — ein zweiter Importpfad wäre
+ * die erste Gelegenheit für eine zweite Wahrheit.
+ */
+export {
+  type Disposition,
+  DISPOSITION_BY_INTENT,
+  DISPOSITION_ORDER,
+  dispositionOf,
+  intentsWithDisposition,
+} from './dispositions.js';

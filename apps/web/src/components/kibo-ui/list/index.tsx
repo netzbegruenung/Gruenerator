@@ -101,22 +101,46 @@ export const ListItem = ({ id, name, index, parent, children, className }: ListI
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id,
     data: { index, parent },
+    attributes: { roleDescription: 'Aufgabe' },
   });
+
+  // Wie beim Kanban-Board: `attributes` enthaelt `role="button"` + `tabIndex`
+  // und macht damit jede Zeile zu einem Bedienelement, das ein weiteres
+  // enthaelt (axe `nested-interactive`, WCAG 4.1.2). Zeiger-Ziehen bleibt auf
+  // der ganzen Zeile, Tastatur-Ziehen sitzt auf dem Griff.
+  const pointerListeners = Object.fromEntries(
+    Object.entries(listeners ?? {}).filter(([event]) => event !== 'onKeyDown')
+  );
 
   return (
     <div
       className={cn(
-        'flex cursor-grab items-center gap-2 rounded-md border bg-background p-2 shadow-sm',
+        'group/list-item flex cursor-grab items-center gap-2 rounded-md border bg-background p-2 shadow-sm',
         isDragging && 'cursor-grabbing',
         className
       )}
       style={{
         transform: transform ? `translateX(${transform.x}px) translateY(${transform.y}px)` : 'none',
       }}
-      {...listeners}
-      {...attributes}
+      {...pointerListeners}
       ref={setNodeRef}
     >
+      <button
+        type="button"
+        aria-label={`„${name}" verschieben`}
+        className="shrink-0 cursor-grab touch-none rounded border-none bg-transparent p-0.5 text-grey-400 opacity-0 transition-opacity hover:bg-grey-200 hover:text-foreground focus-visible:opacity-100 group-hover/list-item:opacity-100 dark:hover:bg-grey-800"
+        {...attributes}
+        {...listeners}
+      >
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <circle cx="6" cy="4" r="1.3" />
+          <circle cx="10" cy="4" r="1.3" />
+          <circle cx="6" cy="8" r="1.3" />
+          <circle cx="10" cy="8" r="1.3" />
+          <circle cx="6" cy="12" r="1.3" />
+          <circle cx="10" cy="12" r="1.3" />
+        </svg>
+      </button>
       {children ?? <p className="m-0 font-medium text-sm">{name}</p>}
     </div>
   );

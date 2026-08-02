@@ -9,6 +9,11 @@ on:
   # `gh-readonly-queue/*` branch and fires `merge_group`. Without this trigger
   # the required checks never report on the queue and it hangs forever.
   merge_group:
+  # Von Hand auslösbar, damit der volle Lauf ohne offenen PR auf den Runner
+  # geht statt lokal zu laufen: `gh workflow run ci.yml --ref <branch>`.
+  # typecheck/lint/format/test lokal zu wiederholen kostet ~6 GB RAM — hier
+  # laufen sie ohnehin bei jedem PR.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -84,6 +89,12 @@ jobs:
       - name: No new silent error swallows
         run: node scripts/check-silent-swallows.mjs
 
+      # This repo is public. Party-internal content (skill prompt bodies, corpus
+      # dumps) must stay out of it — and .gitignore alone does not do that for
+      # files git already tracks. A push here is irreversible in practice.
+      - name: No internal content exposed
+        run: node scripts/check-internal-content.mjs
+
       # `**/*.vitest.ts` is excluded from apps/api/tsconfig.json, so a
       # `Record<SomeUnion, X>` written in a test is decoration — tsc never
       # checks it. Such a map has to live in production code or be looped over
@@ -106,6 +117,13 @@ jobs:
       - name: No orphaned test files
         run: node scripts/check-orphan-tests.mjs
 
+      # A package copied by a Dockerfile but missing from that image's
+      # paths-filter means a change to it builds nothing: the workflow runs
+      # (`packages/**` is in the trigger), every job is skipped, and the merged
+      # change never ships. Nothing turns red — so this does.
+      - name: Image build filters cover their Dockerfiles
+        run: node scripts/check-image-build-filters.mjs
+
   typecheck:
     name: Typecheck
     runs-on: ubuntu-latest
@@ -124,6 +142,16 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
+
+      # Ein Override ERSETZT den Bereich, den ein Paket selbst deklariert, und
+      # pnpm prueft nicht nach, ob die erzwungene Version ihn noch erfuellt —
+      # bei regulaeren dependencies warnt es dafuer auch nicht. So hielt das
+      # Override @assistant-ui/core auf 0.2.21, waehrend der mitgezogene
+      # @assistant-ui/react 0.14.29 schon ^0.2.23 brauchte: master war rot, aber
+      # erst im Bundler (MISSING_EXPORT fileMatchesAccept). Der Check braucht
+      # node_modules und haengt deshalb an diesem Job statt an `guards`.
+      - name: Overrides erfuellen die deklarierten Bereiche
+        run: node scripts/check-override-ranges.mjs
 
       - name: TypeScript type check
         run: pnpm typecheck

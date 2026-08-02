@@ -138,6 +138,8 @@ function WolkeBody({
                   backgroundColor: link.id === activeShareId ? theme.surface : 'transparent',
                 },
               ]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: link.id === activeShareId }}
             >
               <Text style={[styles.chipText, { color: theme.text }]} numberOfLines={1}>
                 {link.label ?? 'Wolke'}
@@ -393,7 +395,12 @@ export const MentionPickerSheet = memo(function MentionPickerSheet({
       <Text style={[styles.title, { color: theme.text }]}>{source ? TITLES[source] : ''}</Text>
       <ScrollView>{body}</ScrollView>
       {count > 0 ? (
-        <Pressable onPress={confirm} style={styles.confirm} testID="mention-picker-confirm">
+        <Pressable
+          onPress={confirm}
+          style={styles.confirm}
+          testID="mention-picker-confirm"
+          accessibilityRole="button"
+        >
           <Text style={styles.confirmText}>
             {count === 1 ? '1 Element übernehmen' : `${count} Elemente übernehmen`}
           </Text>

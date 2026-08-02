@@ -21,37 +21,31 @@
  *   - Hard timeout; this sits on the user's critical request path.
  *   - Fail-safe: any error, timeout or unusable output returns `null`, and the
  *     caller keeps today's behaviour (newest artifact / LLM tier).
- *   - `INTERMEDIATE_MODEL` + the existing generic `chat_intent_classification`
+ *   - `standard` intermediate stage + the existing generic `chat_intent_classification`
  *     task type, so it inherits the worker pool's provider fallback.
  */
 
 import { createLogger } from '../../../../utils/logger.js';
-import { INTERMEDIATE_MODEL } from '../llmConfig.js';
+import { intermediateLane } from '../llmConfig.js';
+
+import { renderArtifactChoices } from './artifactInventory.js';
 
 import type { AIWorkerPool } from '../../../../workers/types.js';
 import type { ThreadToolContext } from '../types.js';
+
+/** @see services/ai/intermediateLanes.ts */
+const LANE = intermediateLane('standard');
 
 const log = createLogger('ChatGraph:EditTarget');
 
 /** One word plus punctuation. The tiebreak's 800ms is the right order here. */
 const RESOLVE_TIMEOUT_MS = 900;
 
-/** German artifact nouns for the prompt list. The research kinds never appear —
- *  `listThreadArtifacts` only ever produces the editable ones — but the record
- *  stays total so a new ThreadToolContext kind is a compile error, not a hole. */
-const ARTIFACT_NOUN: Record<ThreadToolContext['kind'], string> = {
-  image: 'Bild',
-  sharepic: 'Sharepic',
-  document: 'Dokument',
-  presentation: 'Präsentation',
-  sheet: 'Tabelle',
-  pdf: 'PDF',
-  board: 'Board',
-  mcp: 'Dienst-Abfrage',
-  notebook: 'Notebook-Recherche',
-  bundestag: 'Bundestag-Recherche',
-  abgeordnetenwatch: 'Abgeordnetenwatch-Recherche',
-};
+// Die Liste und ihre Nomen stehen in `artifactInventory` — dieselbe Ordnung,
+// die das schreibende Modell im ARTEFAKTE-Block sieht. Das ist der Punkt: „2."
+// in der Antwort dieses Auflösers meint denselben Gegenstand, den der Schreiber
+// an zweiter Stelle gelesen hat. Solange beide ihre Liste selbst bauten, war
+// diese Übereinstimmung Zufall.
 
 const RESOLVE_PROMPT = `Ein Gespräch hat mehrere Artefakte erzeugt. Der/die Nutzer*in schreibt jetzt einen kurzen Folgeauftrag. Entscheide, auf WELCHES Artefakt er sich bezieht.
 
@@ -81,19 +75,14 @@ export async function resolveEditTarget({
   if (artifacts.length < 2) return null;
   const startTime = Date.now();
 
-  const list = artifacts
-    .map((a, i) => {
-      const noun = ARTIFACT_NOUN[a.kind] ?? a.kind;
-      return `${i + 1}. ${noun}${a.label ? ` („${a.label}")` : ''}`;
-    })
-    .join('\n');
+  const list = renderArtifactChoices(artifacts);
 
   try {
     const response = await withTimeout(
       aiWorkerPool.processRequest(
         {
           type: 'chat_intent_classification',
-          provider: INTERMEDIATE_MODEL.provider,
+          provider: LANE.provider,
           systemPrompt: RESOLVE_PROMPT,
           messages: [
             {
@@ -101,7 +90,7 @@ export async function resolveEditTarget({
               content: `Artefakte (1 = zuletzt erzeugt):\n${list}\n\nFolgeauftrag: "${userContent}"`,
             },
           ],
-          options: { model: INTERMEDIATE_MODEL.model, max_tokens: 8, temperature: 0 },
+          options: { model: LANE.model, max_tokens: 8, temperature: 0 },
         },
         null
       ),
