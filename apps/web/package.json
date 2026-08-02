@@ -93,6 +93,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@gruenerator/eslint-config": "workspace:*",
     "@playwright/test": "^1.62.0",
     "@tailwindcss/vite": "^4.3.3",
@@ -149,7 +150,8 @@
     "lint:fix": "eslint . --fix",
     "build:analyze": "npm run build && npm run analyze",
     "deps:check": "npx depcheck",
-    "deps:clean": "npm prune && npm dedupe"
+    "deps:clean": "npm prune && npm dedupe",
+    "test:a11y": "playwright test a11y.spec.ts"
   },
   "browserslist": {
     "production": [
