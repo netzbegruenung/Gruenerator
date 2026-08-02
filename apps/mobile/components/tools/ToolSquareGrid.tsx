@@ -2,16 +2,24 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter, type Href } from 'expo-router';
 import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native';
 
-import { useIsTablet } from '../../hooks/useIsTablet';
 import { useLayout } from '../../hooks/useLayout';
 import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
 import { spacing, borderRadius, colors, BODY_FONT } from '../../theme';
+import { gridColumns } from '../../theme/layout';
 import { getToolTheme } from '../../theme/toolTheme';
 import { MenuIcon } from '../icons/WebMirrorIcons';
 
 import { type ToolDef } from './toolsConfig';
 
 const GAP = spacing.small;
+
+/**
+ * Smallest a tile may get before a column is dropped. 160 is what a phone
+ * already draws (two columns of ~154 at 360dp), so the phone keeps exactly its
+ * current field and every wider window gets more of the same tile rather than
+ * the same count of bigger ones.
+ */
+const MIN_TILE = 160;
 
 /**
  * Coloured square tool tiles — the mobile port of web's Arbeiten tiles
@@ -33,14 +41,13 @@ export function ToolSquareGrid({
   availableWidth?: number;
 }) {
   const isDark = useColorScheme() === 'dark';
-  const isTablet = useIsTablet();
   const { contentWidth } = useLayout();
   const router = useRouter();
   const favorites = useToolFavoritesStore((s) => s.favorites);
   const toggleFavorite = useToolFavoritesStore((s) => s.toggleFavorite);
 
   const room = availableWidth ?? contentWidth;
-  const columns = isTablet ? 3 : 2;
+  const columns = gridColumns(room, MIN_TILE, GAP);
   const tileSize = Math.floor((room - GAP * (columns - 1)) / columns);
 
   return (

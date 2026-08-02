@@ -24,6 +24,16 @@ export const TAB_BAR_CAPSULE_GAP = 8;
 export const FLOATING_TAB_BAR_HEIGHT = TAB_BAR_CAPSULE_HEIGHT + TAB_BAR_CAPSULE_GAP;
 
 /**
+ * Where a tablet begins.
+ *
+ * Phones are portrait-locked (app.json `orientation: "portrait"`) at ≤ ~440pt
+ * wide. The smallest iPad in portrait is the mini at 744pt, so 700 cleanly
+ * separates tablets from phones while still treating a narrow iPad Split View
+ * column as a phone — which is what it is, however large the slab around it.
+ */
+export const TABLET_MIN_WIDTH = 700;
+
+/**
  * Horizontal screen margin for edge-pinned content — composers, hero greetings,
  * the tab landings. One number so a headline and the composer below it share an
  * optical edge; 16 (spacing.medium) read tight under a 28pt greeting.
