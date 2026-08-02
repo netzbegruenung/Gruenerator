@@ -15,7 +15,7 @@ import { getVisibleSystemAgentsForLocale } from '@gruenerator/shared/agents';
 import { getMcpExposedCollections } from '../../config/systemCollectionsConfig.js';
 import { localizePlaceholders } from '../localization/index.js';
 import { type Locale } from '../localization/types.js';
-import { DE_ONLY_SYSTEM_INTENTS, getSystemMcpSources } from '../mcp/systemMcpServers.js';
+import { getSystemMcpSources, isManagedKey, isSourceGermanOnly } from '../mcp/systemMcpServers.js';
 
 // Meta questions are short; longer texts (pasted documents) are never product
 // meta questions, and skipping them keeps the per-turn regex scan bounded.
@@ -111,11 +111,16 @@ function formatCollectionLine(): string {
 }
 
 function formatSystemMcpLines(locale: Locale): string {
-  const sources = getSystemMcpSources();
+  // Managed connectors are listed with the user's connected servers below —
+  // they reach the chat through the connector path, not through an intent, and
+  // naming them in both blocks would advertise the same service twice.
+  const sources = getSystemMcpSources().filter((s) => !isManagedKey(s.key));
   if (sources.length === 0) return '- Aktuell sind keine Live-Daten-Quellen konfiguriert.';
   return sources
     .map((s) => {
-      const deOnly = locale === 'de-AT' && DE_ONLY_SYSTEM_INTENTS.has(s.key);
+      // Per SOURCE, not per intent: `s.key` is a source key, and since `gesetze`
+      // those are no longer all intent names (see isSourceGermanOnly).
+      const deOnly = locale === 'de-AT' && isSourceGermanOnly(s.key);
       return `- ${s.name}: ${s.capability}${deOnly ? ' (Daten nur für Deutschland)' : ''}`;
     })
     .join('\n');
@@ -127,15 +132,22 @@ async function formatConnectedServerLines(userId: string): Promise<string> {
     // which throws in env-less unit-test contexts (toolCatalog.vitest.ts).
     const { McpServerRegistry } = await import('../mcp/McpServerRegistry.js');
     const servers = (await McpServerRegistry.list(userId)).filter((s) => s.enabled);
-    if (servers.length === 0) {
-      return 'Aktuell sind keine eigenen MCP-Server verbunden — verbinden unter gruenerator.eu/apps.';
+    // `list()` now leads with the managed connectors every user gets. They are
+    // NOT "verbunden" in the sense the empty-state sentence means, so the
+    // invitation to connect one still fires when the user has none of their own.
+    const own = servers.filter((s) => !s.managed);
+    const lines = servers.map(
+      (s) =>
+        `- ${s.name}${s.managed ? ' (vom Grünerator bereitgestellt)' : ''}${
+          s.toolNames?.length ? ` (Tools: ${s.toolNames.slice(0, 6).join(', ')})` : ''
+        }`
+    );
+    if (own.length === 0) {
+      lines.push(
+        'Eigene MCP-Server sind aktuell keine verbunden — verbinden unter gruenerator.eu/apps.'
+      );
     }
-    return servers
-      .map(
-        (s) =>
-          `- ${s.name}${s.toolNames?.length ? ` (Tools: ${s.toolNames.slice(0, 6).join(', ')})` : ''}`
-      )
-      .join('\n');
+    return lines.join('\n');
   } catch {
     return 'Die verbundenen MCP-Server konnten gerade nicht geladen werden.';
   }

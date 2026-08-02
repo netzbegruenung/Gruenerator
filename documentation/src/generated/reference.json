@@ -350,5 +350,12 @@
         "description": "Social-Media-Beiträge planen und vorbereiten (Beta; kein Direkt-Publishing)."
       }
     ]
-  }
+  },
+  "managedConnectors": [
+    {
+      "title": "Gesetze",
+      "description": "Deutsches Bundesrecht durchsuchen, Normen im Volltext lesen und Zitate prüfen.",
+      "category": "Recht & Compliance"
+    }
+  ]
 }

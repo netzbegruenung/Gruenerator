@@ -1,9 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  getManagedConnectorById,
+  getManagedConnectors,
   getSourcesForIntent,
   getSystemMcpSources,
+  isManagedKey,
+  isSourceGermanOnly,
   isSystemIntentAvailable,
+  managedConnectorId,
+  parseManagedConnectorId,
   toSystemConnectionConfig,
 } from './systemMcpServers.js';
 
@@ -18,6 +24,8 @@ const ENV_KEYS = [
   'SYSTEM_MCP_ARD_TOKEN',
   'SYSTEM_MCP_TRIVAGO_URL',
   'SYSTEM_MCP_TRIVAGO_TOKEN',
+  'SYSTEM_MCP_LAW_URL',
+  'SYSTEM_MCP_LAW_TOKEN',
 ];
 
 const saved: Record<string, string | undefined> = {};
@@ -169,5 +177,93 @@ describe('locale gating', () => {
     // `reise` is absent for a different reason than before: it has no sources at
     // all now, so it degrades via the availability check, not the audience one.
     expect(DE_ONLY_SYSTEM_INTENTS.has('reise' as never)).toBe(false);
+  });
+
+  it('answers the German-only question per SOURCE, not per intent', () => {
+    // `gesetze` is a source with no intent of the same name, so the intent set
+    // cannot answer for it. This is the distinction that used to be invisible
+    // because every source key happened to be an intent name too.
+    expect(isSourceGermanOnly('gesetze')).toBe(true);
+    expect(isSourceGermanOnly('bahn')).toBe(true);
+    expect(isSourceGermanOnly('wetter')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Managed connectors: the same env-gated sources, offered through the connector
+// path (settings list, @mention) instead of an intent.
+// ---------------------------------------------------------------------------
+
+describe('managed connectors', () => {
+  it('offers nothing while the URL env is unset', () => {
+    expect(getManagedConnectors()).toEqual([]);
+    expect(getManagedConnectorById('system-gesetze')).toBeNull();
+  });
+
+  it('offers gesetze once its URL is configured', () => {
+    process.env.SYSTEM_MCP_LAW_URL = 'https://law.example.org/mcp';
+    const connectors = getManagedConnectors();
+    expect(connectors.map((c) => c.key)).toEqual(['gesetze']);
+    expect(connectors[0]?.id).toBe('system-gesetze');
+    expect(connectors[0]?.connector.title).toBe('Gesetze');
+  });
+
+  it('leaves the four intent-routed sources OUT of the connector list', () => {
+    // They are still intents (INTENT_SOURCES). Listing them here too would give
+    // the user a switch that governs only half of them — see MANAGED_KEYS.
+    process.env.SYSTEM_MCP_DB_URL = 'https://db.example.org/mcp';
+    process.env.SYSTEM_MCP_WEATHER_URL = 'https://meteo.example.org/mcp';
+    process.env.SYSTEM_MCP_ARD_URL = 'https://ard.example.org/mcp';
+    process.env.SYSTEM_MCP_TRIVAGO_URL = 'https://trivago.example.org/mcp';
+    expect(getManagedConnectors()).toEqual([]);
+    for (const key of ['bahn', 'wetter', 'news', 'hotel'] as const) {
+      expect(isManagedKey(key)).toBe(false);
+    }
+    expect(isManagedKey('gesetze')).toBe(true);
+  });
+
+  it('gesetze is a connector only — no intent mounts it', () => {
+    process.env.SYSTEM_MCP_LAW_URL = 'https://law.example.org/mcp';
+    expect(getSourcesForIntent('gesetze')).toEqual([]);
+    expect(isSystemIntentAvailable('gesetze')).toBe(false);
+  });
+
+  it('round-trips the synthetic id and rejects a user UUID', () => {
+    expect(managedConnectorId('gesetze')).toBe('system-gesetze');
+    expect(parseManagedConnectorId('system-gesetze')).toBe('gesetze');
+    // A user's own server id must never be mistaken for a managed one.
+    expect(parseManagedConnectorId('3f2a9c14-0b7d-4e51-8a6f-2c9e1d7b4a08')).toBeNull();
+    expect(parseManagedConnectorId('system-nichtsda')).toBeNull();
+    expect(parseManagedConnectorId('')).toBeNull();
+  });
+
+  it('keeps the tool-name prefix mcpCatalog derives valid and distinct', () => {
+    // mcpCatalog builds `m${id.replace(/-/g,'').slice(0,8)}__<tool>` and the
+    // provider tool-name regex is ^[a-zA-Z0-9_-]{1,64}$ — a `:` separator here
+    // would produce names every provider rejects.
+    const prefixes = (['bahn', 'wetter', 'news', 'hotel', 'gesetze'] as const).map((k) =>
+      managedConnectorId(k).replace(/-/g, '').slice(0, 8)
+    );
+    for (const p of prefixes) expect(p).toMatch(/^[a-zA-Z0-9_-]+$/);
+    expect(new Set(prefixes).size).toBe(prefixes.length);
+  });
+
+  it('drops a German-only connector for an Austrian user when a locale is given', () => {
+    process.env.SYSTEM_MCP_LAW_URL = 'https://law.example.org/mcp';
+    expect(getManagedConnectors('de-DE').map((c) => c.key)).toEqual(['gesetze']);
+    expect(getManagedConnectors('de-AT')).toEqual([]);
+    // No locale = full set: the explicit-mention path must not second-guess a
+    // user who typed the connector's name.
+    expect(getManagedConnectors().map((c) => c.key)).toEqual(['gesetze']);
+  });
+
+  it('marks the connection config as managed so no row write is attempted', () => {
+    process.env.SYSTEM_MCP_LAW_URL = 'https://law.example.org/mcp';
+    process.env.SYSTEM_MCP_LAW_TOKEN = 'secret';
+    const source = sourceByKey('gesetze');
+    const config = toSystemConnectionConfig(source!);
+    expect(config.managed).toBe(true);
+    expect(config.id).toBe('system-gesetze');
+    expect(config.authType).toBe('bearer');
   });
 });
