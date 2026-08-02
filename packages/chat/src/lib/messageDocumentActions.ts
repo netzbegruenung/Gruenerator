@@ -47,8 +47,31 @@ export function buildDocumentActions({
  * (`dropRepeatedHeadline`), so a message starting with that heading does not
  * print it twice.
  */
+/**
+ * First ATX heading, scanned line by line instead of matched with
+ * `/^\s{0,3}#{1,6}\s+(.+)$/m` — same reason as the HTML-tag scanner in this
+ * branch: the regex reads a chat message, and CodeQL reports the whitespace
+ * quantifiers as js/polynomial-redos. A hand-rolled walk is linear by
+ * construction.
+ */
+function firstHeading(content: string): string | null {
+  for (const rawLine of content.split('\n')) {
+    const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine;
+    let i = 0;
+    while (i < 3 && (line[i] === ' ' || line[i] === '\t')) i++;
+    let hashes = 0;
+    while (hashes < 6 && line[i + hashes] === '#') hashes++;
+    if (hashes === 0) continue;
+    let j = i + hashes;
+    if (line[j] !== ' ' && line[j] !== '\t') continue;
+    while (line[j] === ' ' || line[j] === '\t') j++;
+    if (j < line.length) return line.slice(j);
+  }
+  return null;
+}
+
 export function messageTitle(content: string): string {
-  const heading = content.match(/^\s{0,3}#{1,6}\s+(.+)$/m)?.[1];
+  const heading = firstHeading(content);
   // No leading `\s*` before the class: `\s` is already in it, and the two
   // overlapping made the match backtrack on long runs of whitespace (CodeQL
   // 1417).
