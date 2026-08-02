@@ -150,8 +150,15 @@ Abdunklung würde dort das Gegenteil bewirken. Braucht eine Einzelprüfung.
 
 ## 3. `/boards`: `nested-interactive` hängt an dnd-kit, nicht an unseren Karten
 
-Der schwerste Einzelposten der Baseline (315 Vorkommen) ist auf `/boards`
-**nicht behoben** — und zwar aus einem belegten Grund, nicht aus Zeitmangel.
+> **Nachtrag:** in einem eigenen PR aufgelöst — Ziehgriff statt ziehbarer Karte,
+> abgesichert per Komponententest, weil ein leeres Board in der Lane gar keinen
+> Wrapper rendert. Der Eintrag in `KNOWN_VIOLATIONS` bleibt bis zum festen
+> Datenstand (§6) trotzdem stehen. Der folgende Abschnitt beschreibt den Befund,
+> wie er vorgefunden wurde.
+
+Der schwerste Einzelposten der Baseline (315 Vorkommen) war auf `/boards`
+zunächst **nicht behoben** — und zwar aus einem belegten Grund, nicht aus
+Zeitmangel.
 
 `useSortable`/`useDraggable` setzen auf das Wrapper-Element per Vorgabe
 `role="button"` und `tabIndex={0}`
@@ -220,8 +227,30 @@ ohne Ankündigung (WCAG 3.2.1).
 
 ## 6. Was die Lane weiterhin nicht misst
 
-Diese beiden Punkte aus dem Umsetzungsplan (B4, B5) sind **nicht angefasst**,
-weil sie das Prüfmittel selbst ändern:
+### Zuerst: in CI misst sie überhaupt nichts
+
+Der Check „axe-core (WCAG 2.2 AA)" ist auf jedem Frontend-PR grün und hat noch
+nie etwas geprüft — `Running 22 tests using 4 workers` / `22 skipped`. Die Suite
+skippt korrekt, wenn der Dev-Auth-Bypass nicht greift; sie greift in CI nur nie:
+das Secret `DEV_AUTH_BYPASS_TOKEN` ist leer, **und** der Workflow startet kein
+Backend, das `isDevBypassHonored()` auf `localhost:3001` erreichen könnte.
+
+Sichtbar gemacht ist das in einem eigenen PR (Zählwerk + Annotation, ohne den
+Job rot zu färben). Behoben ist es damit nicht. Dafür braucht es eine
+Entscheidung zwischen zwei Wegen:
+
+- **Backend in CI** — Postgres/Redis als Service-Container plus API mit
+  `ALLOW_DEV_AUTH_BYPASS=true`, dazu das Secret. Misst die echte Anwendung, ist
+  aber der aufwendigere Weg; im Repo gibt es bisher keinen Workflow mit
+  Service-Containern.
+- **API abfangen** — Antworten per `page.route()` aus Fixtures. Braucht kein
+  Backend und liefert denselben festen Datenstand, den der nächste Punkt
+  ohnehin verlangt. Deshalb der bessere Kandidat.
+
+### Und dann die beiden Punkte aus dem Umsetzungsplan
+
+Diese beiden Punkte (B4, B5) sind **nicht angefasst**, weil sie das Prüfmittel
+selbst ändern:
 
 - **Fester Datenstand (Seed oder MSW).** Ohne ihn rendert `/boards`
   datenabhängig — zwei Läufe derselben Fassung ergaben in der Baseline 782 vs.
