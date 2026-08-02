@@ -47,6 +47,11 @@
     --grey-900: #2e2e2e;
     --grey-950: #262626;
 
+    /* Lesegrau für Text — themeabhängig. Ein fester Grauwert kann WCAG 1.4.3
+       (4,5:1) nicht in beiden Modi erfüllen: hell braucht dunkler, dunkel
+       heller. Dark-Wert im [data-theme="dark"]-Block. */
+    --grey-text-val: #6d6d6d;
+
     /* Neutral Color System ("Sand") - Backgrounds and subtle hover */
     --neutral-500: #f8f4ec;
     --neutral-600: #F5F1E9;  /* Base "Sand" color */
@@ -135,8 +140,8 @@
 
     --interactive-accent-color: var(--secondary-600);
     --font-color-disabled: var(--grey-400);
-    --font-color-secondary: var(--grey-500);
-    --font-color-muted: var(--grey-400);
+    --font-color-secondary: var(--grey-text-val);
+    --font-color-muted: var(--grey-text-val);
     --border-color-disabled: var(--grey-200);
     --border-color: var(--grey-200);
     --success-color: var(--klee);
@@ -196,7 +201,7 @@
     --input-border-focus: 2px solid var(--interactive-accent-color);
     --input-border-error: 2px solid var(--error-red);
     --input-text-color: var(--font-color);
-    --input-placeholder-color: var(--font-color-disabled);
+    --input-placeholder-color: var(--grey-text-val);
     --input-shadow-focus: 0 0 0 3px rgba(0, 85, 56, 0.1);
     --input-transition: all 0.25s ease-out;
 
@@ -227,6 +232,9 @@
     --color-foreground-muted-val: #666666;
     --color-foreground-dark-val: #e5e5e5;
     --color-muted-foreground-val: #666666;
+    /* Grünstichiges Sekundärgrau der Composer/Galerien. Hell abgedunkelt auf
+       4,5:1, dunkel bleibt der ursprüngliche Ton (dort 6,1:1). */
+    --color-muted-brand-val: #6a756f;
 
     /* Borders */
     --color-border-val: #e5e5e5;
@@ -348,9 +356,10 @@
     --border-subtle: 1px solid rgba(255, 255, 255, 0.1);
 
     --interactive-accent-color: var(--white);
+    --grey-text-val: #909090;
     --font-color-disabled: var(--grey-500);
     --font-color-secondary: var(--grey-400);
-    --font-color-muted: var(--grey-500);
+    --font-color-muted: var(--grey-text-val);
     --border-color-disabled: var(--grey-600);
     --border-color: var(--grey-700);
     --button-primary-color: var(--white);
@@ -392,6 +401,7 @@
     /* Text */
     --color-foreground-muted-val: #999999;
     --color-muted-foreground-val: #999999;
+    --color-muted-brand-val: #9aa8a1;
 
     /* Borders */
     --color-border-val: #374151;
@@ -508,9 +518,10 @@
         --border-subtle: 1px solid rgba(255, 255, 255, 0.1);
 
         --interactive-accent-color: var(--white);
+        --grey-text-val: #909090;
         --font-color-disabled: var(--grey-500);
         --font-color-secondary: var(--grey-400);
-        --font-color-muted: var(--grey-500);
+        --font-color-muted: var(--grey-text-val);
         --border-color-disabled: var(--grey-600);
         --border-color: var(--grey-700);
         --button-primary-color: var(--white);
@@ -548,6 +559,7 @@
         --color-background-secondary-val: #242424;
         --color-foreground-muted-val: #999999;
         --color-muted-foreground-val: #999999;
+        --color-muted-brand-val: #9aa8a1;
         --color-border-val: #374151;
         --color-card-val: #242424;
         --color-card-foreground-val: #e5e5e5;

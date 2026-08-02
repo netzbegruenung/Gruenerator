@@ -36,6 +36,7 @@ export function ChatThreadListPortal({ onRequestOpen }: ChatThreadListPortalProp
   if (!target) return null;
 
   return createPortal(
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- `contents` must stay unboxed for the host slot's layout, so this can't become a real button; ChatThreadList's own items are already keyboard-operable and stop propagation, this only catches clicks on the empty area around them.
     <div onClick={onRequestOpen} className="contents">
       <ChatThreadList noScroll />
     </div>,

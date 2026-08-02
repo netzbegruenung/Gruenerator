@@ -445,6 +445,7 @@ function ComposerBody({
             style={[composerInputStyle(variant), { color: theme.text }]}
             placeholder={props.placeholder ?? 'Nachricht eingeben...'}
             placeholderTextColor={theme.textSecondary}
+            accessibilityLabel="Nachricht eingeben"
             multiline
             textAlignVertical="top"
             returnKeyType={isBar ? 'send' : 'default'}

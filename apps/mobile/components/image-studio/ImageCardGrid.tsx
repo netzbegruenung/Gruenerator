@@ -53,6 +53,7 @@ export function ImageCardGrid<T extends ImageCard>({ items, onPress }: ImageCard
         <Pressable
           key={item.key}
           onPress={() => onPress(item)}
+          accessibilityRole="button"
           style={({ pressed }) => [
             styles.card,
             {

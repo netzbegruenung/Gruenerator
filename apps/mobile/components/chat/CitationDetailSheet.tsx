@@ -75,7 +75,12 @@ export function CitationDetailSheet({ citation, theme, onClose, fetchFullText }:
             <Text style={[styles.title, { color: theme.text }]} numberOfLines={2}>
               {citation.title || citation.url}
             </Text>
-            <Pressable onPress={onClose} hitSlop={8}>
+            <Pressable
+              onPress={onClose}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Schließen"
+            >
               <Ionicons name="close" size={24} color={theme.text} />
             </Pressable>
           </View>
@@ -131,6 +136,8 @@ export function CitationDetailSheet({ citation, theme, onClose, fetchFullText }:
                 ]}
                 onPress={handleLoadFullText}
                 disabled={isLoading}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: isLoading }}
               >
                 {isLoading ? (
                   <ActivityIndicator size="small" color={theme.textGreen} />
@@ -150,6 +157,7 @@ export function CitationDetailSheet({ citation, theme, onClose, fetchFullText }:
                   { backgroundColor: theme.surface, opacity: pressed ? 0.7 : 1 },
                 ]}
                 onPress={() => Linking.openURL(citation.url)}
+                accessibilityRole="link"
               >
                 <Ionicons name="open-outline" size={16} color={theme.textSecondary} />
                 <Text style={[styles.actionText, { color: theme.textSecondary }]}>

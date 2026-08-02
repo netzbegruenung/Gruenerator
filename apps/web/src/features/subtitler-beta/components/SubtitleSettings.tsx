@@ -1,4 +1,4 @@
-import { Button, Label, Slider } from '@gruenerator/ui';
+import { Button, Slider } from '@gruenerator/ui';
 import { Eye, EyeOff, RotateCcw } from 'lucide-react';
 import { useCallback } from 'react';
 
@@ -202,8 +202,17 @@ export function SubtitleSettings({ style, onStyleChange, className }: SubtitleSe
 
       {/* Stil */}
       <div className="border-b border-grey-200 px-md py-md dark:border-grey-700">
-        <Label className="mb-sm block text-xs font-medium text-grey-500">Stil</Label>
-        <div className="flex flex-wrap gap-1">
+        <span
+          id="subtitle-settings-style-label"
+          className="mb-sm block text-xs font-medium text-grey-500"
+        >
+          Stil
+        </span>
+        <div
+          className="flex flex-wrap gap-1"
+          role="group"
+          aria-labelledby="subtitle-settings-style-label"
+        >
           {STYLE_PRESETS.map((preset) => (
             <button
               key={preset.id}
@@ -224,8 +233,17 @@ export function SubtitleSettings({ style, onStyleChange, className }: SubtitleSe
 
       {/* Größe */}
       <div className="border-b border-grey-200 px-md py-md dark:border-grey-700">
-        <Label className="mb-sm block text-xs font-medium text-grey-500">Schriftgröße</Label>
-        <div className="flex items-center gap-sm">
+        <span
+          id="subtitle-settings-fontsize-label"
+          className="mb-sm block text-xs font-medium text-grey-500"
+        >
+          Schriftgröße
+        </span>
+        <div
+          className="flex items-center gap-sm"
+          role="group"
+          aria-labelledby="subtitle-settings-fontsize-label"
+        >
           <span className="text-xs text-grey-400">A</span>
           <Slider
             value={[style.fontSize]}
@@ -244,8 +262,17 @@ export function SubtitleSettings({ style, onStyleChange, className }: SubtitleSe
 
       {/* Position */}
       <div className="px-md py-md">
-        <Label className="mb-sm block text-xs font-medium text-grey-500">Position</Label>
-        <div className="flex items-center gap-sm">
+        <span
+          id="subtitle-settings-position-label"
+          className="mb-sm block text-xs font-medium text-grey-500"
+        >
+          Position
+        </span>
+        <div
+          className="flex items-center gap-sm"
+          role="group"
+          aria-labelledby="subtitle-settings-position-label"
+        >
           <span className="text-[10px] text-grey-400">Tief</span>
           <Slider
             value={[style.bottomOffset]}

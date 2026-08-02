@@ -36,10 +36,7 @@ const ReelCard = memo(
         duration={item.duration ?? undefined}
         onClick={() => onClick(item)}
         overlay={
-          <div
-            className="absolute top-1 right-1 max-sm:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="absolute top-1 right-1 max-sm:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
             <CardActionsMenu
               onShare={() => onShare(item)}
               onDelete={() => onDelete(item)}

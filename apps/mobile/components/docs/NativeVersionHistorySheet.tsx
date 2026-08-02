@@ -137,7 +137,12 @@ export function NativeVersionHistorySheet({ visible, onClose, documentId, canEdi
   return (
     <BottomSheet visible={visible} onClose={onClose}>
       <View style={styles.titleRow}>
-        <TouchableOpacity onPress={onClose} hitSlop={8}>
+        <TouchableOpacity
+          onPress={onClose}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Zurück"
+        >
           <Ionicons name="arrow-back" size={22} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: theme.text }]}>Versionsverlauf</Text>
@@ -150,6 +155,8 @@ export function NativeVersionHistorySheet({ visible, onClose, documentId, canEdi
           onPress={handleSaveVersion}
           activeOpacity={0.6}
           disabled={saving}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: saving }}
         >
           {saving ? (
             <ActivityIndicator size="small" color={colors.primary[600]} />
@@ -181,6 +188,8 @@ export function NativeVersionHistorySheet({ visible, onClose, documentId, canEdi
                   onPress={() => handleRestore(preview.version)}
                   activeOpacity={0.8}
                   disabled={restoring}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: restoring }}
                 >
                   {restoring ? (
                     <ActivityIndicator size="small" color={colors.white} />
@@ -222,6 +231,8 @@ export function NativeVersionHistorySheet({ visible, onClose, documentId, canEdi
                 ]}
                 onPress={() => handleSelect(s.version)}
                 activeOpacity={0.6}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isSelected }}
               >
                 <Ionicons
                   name={s.is_auto_save ? 'time-outline' : 'bookmark'}

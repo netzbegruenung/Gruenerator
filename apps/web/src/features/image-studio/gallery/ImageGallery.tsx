@@ -1,5 +1,5 @@
 import { useShareStore, getShareUrl } from '@gruenerator/shared';
-import { Button } from '@gruenerator/ui';
+import { Button, InteractiveCard, interactiveCardControl } from '@gruenerator/ui';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   FaImage,
@@ -170,17 +170,14 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
   const hasThumbnail = Boolean(image.thumbnailPath && image.shareToken);
 
   return (
-    <div
+    <InteractiveCard
+      label={image.title ? `${image.title} öffnen` : 'Gespeichertes Bild öffnen'}
+      onActivate={() => onClick(image)}
       className={cn(
-        'group relative cursor-pointer overflow-hidden rounded-[16px] bg-background shadow-sm transition-[transform,box-shadow] duration-[250ms] ease-[cubic-bezier(0.4,0,0.2,1)] [border:var(--border-subtle)] hover:-translate-y-1 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent dark:bg-background-alt max-[768px]:rounded-[12px] motion-reduce:transition-none motion-reduce:hover:translate-y-0',
+        'group cursor-pointer overflow-hidden rounded-[16px] bg-background shadow-sm transition-[transform,box-shadow] duration-[250ms] ease-[cubic-bezier(0.4,0,0.2,1)] [border:var(--border-subtle)] hover:-translate-y-1 hover:shadow-lg dark:bg-background-alt max-[768px]:rounded-[12px] motion-reduce:transition-none motion-reduce:hover:translate-y-0',
         isDeleting &&
           '[&_.gallery-thumbnail]:blur-[2px] [&_.gallery-thumbnail]:opacity-40 [&_.gallery-info]:blur-[2px] [&_.gallery-info]:opacity-40'
       )}
-      onClick={() => onClick(image)}
-      role="button"
-      tabIndex={0}
-      aria-label={image.title ? `${image.title} öffnen` : 'Gespeichertes Bild öffnen'}
-      onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && onClick(image)}
     >
       <div className="gallery-thumbnail relative aspect-square w-full overflow-hidden bg-background-alt after:pointer-events-none after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[60px] after:bg-gradient-to-t after:from-overlay-sm after:to-transparent after:opacity-0 after:transition-opacity after:duration-[250ms] after:ease-linear after:content-[''] group-hover:after:opacity-100">
         {hasThumbnail && image.shareToken ? (
@@ -197,20 +194,20 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
           </div>
         )}
         {image.imageType && (
-          <span className="absolute bottom-sm left-sm z-[2] rounded-[8px] bg-overlay-md px-2 py-1 text-xs font-medium tracking-[0.02em] text-white backdrop-blur-[8px]">
+          <span className="pointer-events-none absolute bottom-sm left-sm z-[2] rounded-[8px] bg-overlay-md px-2 py-1 text-xs font-medium tracking-[0.02em] text-white backdrop-blur-[8px]">
             {image.imageType}
           </span>
         )}
         {image.status === 'draft' && (
           <span
-            className="absolute bottom-sm left-sm z-[2] rounded-[8px] px-2 py-1 text-xs font-medium tracking-[0.02em] text-white backdrop-blur-[8px]"
+            className="pointer-events-none absolute bottom-sm left-sm z-[2] rounded-[8px] px-2 py-1 text-xs font-medium tracking-[0.02em] text-white backdrop-blur-[8px]"
             style={{ background: 'var(--grey-500)' }}
           >
             Entwurf
           </span>
         )}
         {isTemplate && (
-          <span className="absolute bottom-sm left-sm z-[2] flex items-center gap-1 rounded-[8px] bg-overlay-md px-2 py-1 text-xs font-medium tracking-[0.02em] text-white backdrop-blur-[8px]">
+          <span className="pointer-events-none absolute bottom-sm left-sm z-[2] flex items-center gap-1 rounded-[8px] bg-overlay-md px-2 py-1 text-xs font-medium tracking-[0.02em] text-white backdrop-blur-[8px]">
             <FaSave /> Vorlage
           </span>
         )}
@@ -221,7 +218,10 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
             sharepic studio research preview so they aren't dead links when off. */}
         {SHOW_SHAREPIC_STUDIO && isTemplate && (
           <button
-            className="flex size-9 cursor-pointer items-center justify-center rounded-full border-none bg-overlay-md text-white opacity-0 -translate-y-1 backdrop-blur-[8px] transition-[opacity,transform,background-color] duration-200 ease-linear hover:bg-primary-600 group-hover:translate-y-0 group-hover:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-[768px]:size-8 max-[768px]:translate-y-0 max-[768px]:opacity-100 motion-reduce:transition-none [&_svg]:text-[0.9rem]"
+            className={cn(
+              interactiveCardControl,
+              'flex size-9 cursor-pointer items-center justify-center rounded-full border-none bg-overlay-md text-white opacity-0 -translate-y-1 backdrop-blur-[8px] transition-[opacity,transform,background-color] duration-200 ease-linear hover:bg-primary-600 group-hover:translate-y-0 group-hover:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-[768px]:size-8 max-[768px]:translate-y-0 max-[768px]:opacity-100 motion-reduce:transition-none [&_svg]:text-[0.9rem]'
+            )}
             onClick={handleUseTemplate}
             title="Vorlage verwenden"
           >
@@ -230,7 +230,10 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
         )}
         {SHOW_SHAREPIC_STUDIO && isEditable && (
           <button
-            className="flex size-9 cursor-pointer items-center justify-center rounded-full border-none bg-overlay-md text-white opacity-0 -translate-y-1 backdrop-blur-[8px] transition-[opacity,transform,background-color] duration-200 ease-linear hover:bg-primary-600 group-hover:translate-y-0 group-hover:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-[768px]:size-8 max-[768px]:translate-y-0 max-[768px]:opacity-100 motion-reduce:transition-none [&_svg]:text-[0.9rem]"
+            className={cn(
+              interactiveCardControl,
+              'flex size-9 cursor-pointer items-center justify-center rounded-full border-none bg-overlay-md text-white opacity-0 -translate-y-1 backdrop-blur-[8px] transition-[opacity,transform,background-color] duration-200 ease-linear hover:bg-primary-600 group-hover:translate-y-0 group-hover:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-[768px]:size-8 max-[768px]:translate-y-0 max-[768px]:opacity-100 motion-reduce:transition-none [&_svg]:text-[0.9rem]'
+            )}
             onClick={handleEdit}
             title="Bearbeiten"
           >
@@ -238,21 +241,30 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
           </button>
         )}
         <button
-          className="flex size-9 cursor-pointer items-center justify-center rounded-full border-none bg-overlay-md text-white opacity-0 -translate-y-1 backdrop-blur-[8px] transition-[opacity,transform,background-color] duration-200 ease-linear hover:bg-secondary-600 group-hover:translate-y-0 group-hover:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-[768px]:size-8 max-[768px]:translate-y-0 max-[768px]:opacity-100 motion-reduce:transition-none [&_svg]:text-[0.9rem]"
+          className={cn(
+            interactiveCardControl,
+            'flex size-9 cursor-pointer items-center justify-center rounded-full border-none bg-overlay-md text-white opacity-0 -translate-y-1 backdrop-blur-[8px] transition-[opacity,transform,background-color] duration-200 ease-linear hover:bg-secondary-600 group-hover:translate-y-0 group-hover:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-[768px]:size-8 max-[768px]:translate-y-0 max-[768px]:opacity-100 motion-reduce:transition-none [&_svg]:text-[0.9rem]'
+          )}
           onClick={handleShare}
           title="Teilen"
         >
           <FaShareAlt />
         </button>
         <button
-          className="flex size-9 cursor-pointer items-center justify-center rounded-full border-none bg-overlay-md text-white opacity-0 -translate-y-1 backdrop-blur-[8px] transition-[opacity,transform,background-color] duration-200 ease-linear hover:bg-secondary-600 group-hover:translate-y-0 group-hover:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-[768px]:size-8 max-[768px]:translate-y-0 max-[768px]:opacity-100 motion-reduce:transition-none [&_svg]:text-[0.9rem]"
+          className={cn(
+            interactiveCardControl,
+            'flex size-9 cursor-pointer items-center justify-center rounded-full border-none bg-overlay-md text-white opacity-0 -translate-y-1 backdrop-blur-[8px] transition-[opacity,transform,background-color] duration-200 ease-linear hover:bg-secondary-600 group-hover:translate-y-0 group-hover:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-[768px]:size-8 max-[768px]:translate-y-0 max-[768px]:opacity-100 motion-reduce:transition-none [&_svg]:text-[0.9rem]'
+          )}
           onClick={handleDownload}
           title="Herunterladen"
         >
           <FaDownload />
         </button>
         <button
-          className="flex size-9 cursor-pointer items-center justify-center rounded-full border-none bg-overlay-md text-white opacity-0 -translate-y-1 backdrop-blur-[8px] transition-[opacity,transform,background-color] duration-200 ease-linear hover:bg-error group-hover:translate-y-0 group-hover:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-[768px]:size-8 max-[768px]:translate-y-0 max-[768px]:opacity-100 motion-reduce:transition-none [&_svg]:text-[0.9rem]"
+          className={cn(
+            interactiveCardControl,
+            'flex size-9 cursor-pointer items-center justify-center rounded-full border-none bg-overlay-md text-white opacity-0 -translate-y-1 backdrop-blur-[8px] transition-[opacity,transform,background-color] duration-200 ease-linear hover:bg-error group-hover:translate-y-0 group-hover:opacity-100 focus-visible:translate-y-0 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-[768px]:size-8 max-[768px]:translate-y-0 max-[768px]:opacity-100 motion-reduce:transition-none [&_svg]:text-[0.9rem]'
+          )}
           onClick={handleDelete}
           title="Löschen"
         >
@@ -291,7 +303,7 @@ const ImageGalleryCard: React.FC<ImageGalleryCardProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </InteractiveCard>
   );
 };
 

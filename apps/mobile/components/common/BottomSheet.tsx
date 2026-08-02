@@ -44,7 +44,12 @@ export function BottomSheet({
 
   const content = (
     <>
-      <Pressable style={styles.backdrop} onPress={onClose} />
+      <Pressable
+        style={styles.backdrop}
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="Dialog schließen"
+      />
       <Pressable
         style={[
           styles.sheet,
@@ -63,6 +68,7 @@ export function BottomSheet({
           },
         ]}
         onPress={() => {}}
+        accessibilityRole="none"
       >
         <View style={styles.handleRow}>
           <View

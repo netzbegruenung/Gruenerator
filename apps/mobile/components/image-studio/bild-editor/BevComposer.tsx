@@ -112,6 +112,8 @@ function SettingsSheet({
               <Pressable
                 key={o.id}
                 onPress={() => setSettings((s) => ({ ...s, kiLabel: o.id }))}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: active }}
                 style={styles.radioRow}
               >
                 <View
@@ -155,6 +157,7 @@ function ModeSheet({
             setMode(m);
             onClose();
           }}
+          accessibilityRole="button"
           style={styles.modeRow}
         >
           <Ionicons name={MODE_META[m].icon} size={20} color={palette.primary} />
@@ -177,7 +180,12 @@ function ReferenceRow({ bev, palette }: { bev: BildEditorMobile; palette: BevPal
           <Text style={[styles.refChipText, { color: palette.ink }]} numberOfLines={1}>
             Referenz {i + 1}
           </Text>
-          <Pressable onPress={() => removeReference(i)} hitSlop={6}>
+          <Pressable
+            onPress={() => removeReference(i)}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel={`Referenz ${i + 1} entfernen`}
+          >
             <Ionicons name="close" size={14} color={palette.muted} />
           </Pressable>
         </View>
@@ -185,6 +193,8 @@ function ReferenceRow({ bev, palette }: { bev: BildEditorMobile; palette: BevPal
       <Pressable
         disabled={generating}
         onPress={() => void addReferenceFromGallery()}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: generating }}
         style={[
           styles.refAdd,
           { borderColor: palette.accentBorder, opacity: generating ? 0.5 : 1 },
@@ -212,6 +222,8 @@ function TriggerButton({
     <Pressable
       onPress={onPress}
       disabled={disabled}
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
       style={[styles.trigger, { backgroundColor: palette.primary, opacity: disabled ? 0.5 : 1 }]}
     >
       <Text style={styles.triggerText}>{label}</Text>
@@ -269,7 +281,13 @@ export function BevComposer({ bev, palette }: { bev: BildEditorMobile; palette: 
         ]}
       >
         {mode !== 'hintergrund' && (
-          <Pressable onPress={() => setSettingsOpen(true)} style={styles.iconBtn} hitSlop={6}>
+          <Pressable
+            onPress={() => setSettingsOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Einstellungen öffnen"
+            style={styles.iconBtn}
+            hitSlop={6}
+          >
             <Ionicons name="options" size={18} color={palette.muted} />
           </Pressable>
         )}
@@ -277,6 +295,7 @@ export function BevComposer({ bev, palette }: { bev: BildEditorMobile; palette: 
           value={prompt}
           onChangeText={setPrompt}
           editable={!generating}
+          accessibilityLabel={meta.placeholder}
           placeholder={meta.placeholder}
           placeholderTextColor={palette.muted}
           style={[styles.input, { color: palette.ink }]}
@@ -287,6 +306,10 @@ export function BevComposer({ bev, palette }: { bev: BildEditorMobile; palette: 
           <Pressable
             onPress={() => setModeOpen(true)}
             disabled={generating}
+            accessibilityRole="button"
+            accessibilityLabel={`Modus ${meta.label}`}
+            accessibilityHint="Modus wechseln"
+            accessibilityState={{ disabled: generating }}
             style={[styles.modeChip, { borderColor: palette.accentBorder }]}
           >
             <Ionicons name={meta.icon} size={14} color={palette.primary} />
@@ -303,6 +326,9 @@ export function BevComposer({ bev, palette }: { bev: BildEditorMobile; palette: 
           <Pressable
             onPress={() => void submit()}
             disabled={arrowDisabled}
+            accessibilityRole="button"
+            accessibilityLabel="Senden"
+            accessibilityState={{ disabled: arrowDisabled }}
             style={[
               styles.arrow,
               { backgroundColor: palette.primary, opacity: arrowDisabled ? 0.4 : 1 },
