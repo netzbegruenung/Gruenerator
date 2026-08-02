@@ -1,50 +1,50 @@
 - main:
-    - heading "Apps & Connect" [level=1]
-    - paragraph: Hol dir den Grünerator aufs Smartphone — und verbinde deine KI-Clients direkt mit dem Grünerator MCP-Server.
-    - text: Grünerator App
-    - heading "Grünerator aufs Handy holen" [level=2]
-    - paragraph: Die App gibt es für iPhone und Android. Scanne den QR-Code oder öffne die Seite auf deinem Handy.
-    - link "Android-App bei Google Play öffnen":
-        - /url: https://play.google.com/store/apps/details?id=de.gruenerator.app
-        - img
-        - text: ''
-    - button "iPhone & iPad":
-        - img
-        - text: ''
-    - 'img "QR-Code: Grünerator-App für Android herunterladen"'
-    - text: Android scannen
-    - heading "Apps für dein Smartphone" [level=2]
-    - text: Experimentell
-    - paragraph: Die Apps befinden sich noch in einer experimentellen Phase — es kann vereinzelt zu Fehlern kommen. Feedback hilft uns, sie besser zu machen.
+  - heading "Apps & Connect" [level=1]
+  - paragraph: Hol dir den Grünerator aufs Smartphone — und verbinde deine KI-Clients direkt mit dem Grünerator MCP-Server.
+  - text: Grünerator App
+  - heading "Grünerator aufs Handy holen" [level=2]
+  - paragraph: Die App gibt es für iPhone und Android. Scanne den QR-Code oder öffne die Seite auf deinem Handy.
+  - link "Android-App bei Google Play öffnen":
+    - /url: https://play.google.com/store/apps/details?id=de.gruenerator.app
     - img
-    - text: Bald verfügbar
-    - heading "iOS" [level=3]
-    - text: /iPhone & iPad · ab iOS \d+/
-    - button "Im App Store" [disabled]
-    - paragraph: Noch nicht öffentlich im App Store.
+    - text: ""
+  - button "iPhone & iPad":
     - img
-    - 'img "QR-Code: Android-App herunterladen"'
-    - heading "Android" [level=3]
-    - text: Play Store · Open Beta
-    - link "Bei Google Play":
-        - /url: https://play.google.com/store/apps/details?id=de.gruenerator.app
-    - heading "Mit dem MCP-Server verbinden" [level=2]
-    - paragraph: Nutze die Grünerator-Tools direkt in deinem KI-Client. Kein Login notwendig.
-    - text: Server-URL
-    - code: https://mcp.gruenerator.eu/mcp
-    - text: Kein Login nötig
-    - button "URL kopieren"
-    - heading "Was ist der Grünerator MCP-Server?" [level=3]:
-        - button "Was ist der Grünerator MCP-Server?"
-    - heading "Wie verbinde ich Claude?" [level=3]:
-        - button "Wie verbinde ich Claude?"
-    - heading "Wie verbinde ich ChatGPT?" [level=3]:
-        - button "Wie verbinde ich ChatGPT?"
-    - heading "Wie verbinde ich Mistral Le Chat?" [level=3]:
-        - button "Wie verbinde ich Mistral Le Chat?"
-    - heading "Wie verbinde ich OpenWebUI?" [level=3]:
-        - button "Wie verbinde ich OpenWebUI?"
-    - heading "Mein Client ist nicht dabei — was nun?" [level=3]:
-        - button "Mein Client ist nicht dabei — was nun?"
-    - link "Ausführliche Einrichtungsanleitung":
-        - /url: http://localhost:3002/docs/integrationen/ki-chat-einrichten
+    - text: ""
+  - 'img "QR-Code: Grünerator-App für Android herunterladen"'
+  - text: Android scannen
+  - heading "Apps für dein Smartphone" [level=2]
+  - text: Experimentell
+  - paragraph: Die Apps befinden sich noch in einer experimentellen Phase — es kann vereinzelt zu Fehlern kommen. Feedback hilft uns, sie besser zu machen.
+  - img
+  - text: Bald verfügbar
+  - heading "iOS" [level=3]
+  - text: /iPhone & iPad · ab iOS \d+/
+  - button "Im App Store" [disabled]
+  - paragraph: Noch nicht öffentlich im App Store.
+  - img
+  - 'img "QR-Code: Android-App herunterladen"'
+  - heading "Android" [level=3]
+  - text: Play Store · Open Beta
+  - link "Bei Google Play":
+    - /url: https://play.google.com/store/apps/details?id=de.gruenerator.app
+  - heading "Mit dem MCP-Server verbinden" [level=2]
+  - paragraph: Nutze die Grünerator-Tools direkt in deinem KI-Client. Kein Login notwendig.
+  - text: Server-URL
+  - code: https://mcp.gruenerator.eu/mcp
+  - text: Kein Login nötig
+  - button "URL kopieren"
+  - heading "Was ist der Grünerator MCP-Server?" [level=3]:
+    - button "Was ist der Grünerator MCP-Server?"
+  - heading "Wie verbinde ich Claude?" [level=3]:
+    - button "Wie verbinde ich Claude?"
+  - heading "Wie verbinde ich ChatGPT?" [level=3]:
+    - button "Wie verbinde ich ChatGPT?"
+  - heading "Wie verbinde ich Mistral Le Chat?" [level=3]:
+    - button "Wie verbinde ich Mistral Le Chat?"
+  - heading "Wie verbinde ich OpenWebUI?" [level=3]:
+    - button "Wie verbinde ich OpenWebUI?"
+  - heading "Mein Client ist nicht dabei — was nun?" [level=3]:
+    - button "Mein Client ist nicht dabei — was nun?"
+  - link "Ausführliche Einrichtungsanleitung":
+    - /url: http://localhost:3002/docs/integrationen/ki-chat-einrichten
