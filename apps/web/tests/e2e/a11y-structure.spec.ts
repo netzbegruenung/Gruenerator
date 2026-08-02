@@ -22,14 +22,30 @@
  *
  * Vorher lesen, was sich geändert hat. Ein Snapshot, der ungeprüft neu
  * geschrieben wird, prüft nichts mehr.
+ *
+ * **Keine Platzhalter im Snapshot.** Die bis 08/2026 eingecheckten Dateien
+ * benutzten zwei Sorten: `- text: ""` als „hier steht irgendetwas" und
+ * `- text: /… ab iOS \d+/` als Regex für die Versionsnummer. Beides trägt unter
+ * Playwright 1.62 nicht mehr — `""` verlangt jetzt wirklich leeren Text, und der
+ * Regex greift nicht. Tückisch daran: `--update-snapshots` **erhält** solche
+ * Einträge, statt sie durch den gemessenen Wert zu ersetzen. Ein Neuaufzeichnen
+ * repariert sie also nicht, man muss sie von Hand pinnen. Steht die echte
+ * Mindest-iOS-Version drin, meldet der Snapshot ihre Änderung — das ist
+ * erwünscht, nicht lästig.
+ *
+ * **Mit der Playwright-Fassung aus dem Lockfile aufzeichnen.** Die Dateien sind
+ * Playwrights eigene YAML-Ausgabe (deshalb steht der Ordner in
+ * `.prettierignore`), und Format wie Vergleichsregeln hängen an der Fassung.
+ * `/apps` fiel in CI durch, während lokal alles grün war: dort war 1.61
+ * installiert, im Lockfile steht 1.62.1.
  */
 
 import { test, type Page } from '@playwright/test';
 
-import { isDevBypassHonored } from './fixtures/pageHelpers.js';
+import { installApiFixtures } from './fixtures/apiFixtures.js';
 
-const API_BASE = process.env.E2E_API_BASE_URL ?? 'http://localhost:3001';
-const BYPASS_TOKEN = process.env.DEV_AUTH_BYPASS_TOKEN;
+/** Begründung in `a11y.spec.ts`: der Bypass ist rein clientseitig. */
+const BYPASS_AKTIV = process.env.VITE_E2E_AUTH_BYPASS === 'true';
 
 // `/settings` fehlt bewusst: die Route rendert die Workplace-Oberfläche und legt
 // die Einstellungen als Dialog darüber — `main` enthält dort also den
@@ -38,9 +54,7 @@ const BYPASS_TOKEN = process.env.DEV_AUTH_BYPASS_TOKEN;
 const ROUTES = ['/login', '/apps', '/suche'];
 
 async function gotoAuthenticated(page: Page, route: string): Promise<void> {
-  if (BYPASS_TOKEN) {
-    await page.setExtraHTTPHeaders({ 'x-dev-auth-bypass': BYPASS_TOKEN });
-  }
+  await installApiFixtures(page);
   await page.goto(route, { waitUntil: 'domcontentloaded' });
   // Auf Inhalt warten, nicht auf die Uhr: `/settings` lädt seine Tabs nach und
   // lieferte mit fester Wartezeit einen LEEREN Snapshot, der beim nächsten Lauf
@@ -51,13 +65,22 @@ async function gotoAuthenticated(page: Page, route: string): Promise<void> {
     .locator(':scope :is(h1, h2, button, a, input)')
     .first()
     .waitFor({ state: 'attached', timeout: 15_000 });
+
+  // Und dann auf die STYLES warten, nicht nur auf den Inhalt. `/apps` blendet
+  // zwei Beschriftungen responsiv aus (`hidden sm:inline`); ist das Stylesheet
+  // noch nicht angewandt, stehen sie im Baum — der Snapshot enthält dann
+  // `text: Android` statt `text: ''`. Genau so ist die Prüfung in CI
+  // durchgefallen, während sie lokal grün war: derselbe Stand, nur eine andere
+  // Ladereihenfolge. Ein Snapshot, der vom Ladezeitpunkt abhängt, prüft die
+  // Uhr und nicht den Baum.
+  await page.waitForLoadState('load');
+  await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(1000);
 }
 
 test.describe('Accessibility-Tree bleibt stabil', () => {
-  test.beforeAll(async ({ request }) => {
-    const honored = await isDevBypassHonored(request, API_BASE, BYPASS_TOKEN);
-    test.skip(!honored, 'Dev-Auth-Bypass nicht aktiv.');
+  test.beforeAll(() => {
+    test.skip(!BYPASS_AKTIV, 'VITE_E2E_AUTH_BYPASS ist nicht gesetzt.');
   });
 
   for (const route of ROUTES) {
