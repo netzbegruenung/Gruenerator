@@ -1,18 +1,22 @@
 /**
- * Notebook stream core — retrieval reranking per mode.
+ * Notebook stream core — retrieval per depth tier.
  *
- * The load-bearing case is `deep`. Reranking used to be gated on `isFast`, so
- * "Tiefenrecherche" — the path that retrieves the MOST candidates — was the
- * only one handing the model the raw hybrid-search order. These tests pin that
- * both modes rerank, and that they keep different window sizes.
+ * Two things are pinned here. First, every tier reranks: that used to be gated
+ * on `isFast`, so "Tiefenrecherche" — the path that retrieves the MOST
+ * candidates — was the only one handing the model the raw hybrid-search order.
+ * Second, `fast` keeps its exact pre-tier numbers, because the public
+ * Grün-O-Mat surface runs on it and is not part of the tier change.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+import { type NotebookDepth } from '@gruenerator/contracts';
 
 const getSearchContext = vi.fn();
 const rerankNotebookResults = vi.fn();
 const resolveModel = vi.fn();
 const streamWithFallback = vi.fn();
 const isProviderConfigured = vi.fn(() => true);
+const expandQuery = vi.fn();
 
 vi.mock('../../services/notebook/index.js', () => ({
   notebookQAService: {
@@ -42,6 +46,12 @@ vi.mock('../../database/services/NotebookQdrantHelper.js', () => ({
     getNotebookCollection = vi.fn();
     getCollectionDocuments = vi.fn(async () => []);
   },
+}));
+vi.mock('../../services/search/QueryExpansionService.js', () => ({
+  expandQuery: (...args: unknown[]) => expandQuery(...args),
+}));
+vi.mock('../../utils/getAIWorkerPool.js', () => ({
+  getAIWorkerPool: () => ({ processRequest: vi.fn() }),
 }));
 
 const { handleNotebookStream } = await import('./notebookStreamCore.js');
@@ -79,7 +89,7 @@ function searchContextWith(n: number) {
   };
 }
 
-async function run(mode: 'fast' | 'deep') {
+async function run(mode?: NotebookDepth) {
   const { req, res, sse, sent } = makeReqRes();
   await handleNotebookStream({
     req,
@@ -87,14 +97,22 @@ async function run(mode: 'fast' | 'deep') {
     sse,
     messages: [{ role: 'user', content: 'Was steht zur sozialen Sicherung drin?' }],
     collectionId: 'grundsatz-system',
-    mode,
+    ...(mode && { mode }),
     closeStream: false,
   });
   return sent;
 }
 
-beforeEach(() => {
+/** The rerank window a tier asked for, from a clean slate each time. */
+async function windowFor(mode?: NotebookDepth) {
   vi.clearAllMocks();
+  setupMocks();
+  await run(mode);
+  const call = rerankNotebookResults.mock.calls[0][0] as { limit: number; inputLimit: number };
+  return { limit: call.limit, inputLimit: call.inputLimit };
+}
+
+function setupMocks() {
   getSearchContext.mockResolvedValue(searchContextWith(40));
   rerankNotebookResults.mockImplementation(
     async ({ results, limit }: { results: unknown[]; limit: number }) => ({
@@ -107,43 +125,47 @@ beforeEach(() => {
   resolveModel.mockResolvedValue({ provider: 'mistral', model: 'mistral-medium-2604' });
   streamWithFallback.mockResolvedValue('Eine Antwort mit Beleg [1].');
   isProviderConfigured.mockReturnValue(true);
+  expandQuery.mockResolvedValue({
+    primary: 'Was steht zur sozialen Sicherung drin?',
+    alternatives: ['Grundsicherung Positionen', 'Sozialstaat Reform'],
+  });
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  setupMocks();
 });
 
-describe('handleNotebookStream — reranking per mode', () => {
-  it('reranks in deep mode', async () => {
-    await run('deep');
+describe('handleNotebookStream — reranking per tier', () => {
+  it.each(['fast', 'deep', 'ultra'] as const)('reranks in %s', async (mode) => {
+    await run(mode);
     // Red before the fix: deep never called the reranker at all.
     expect(rerankNotebookResults).toHaveBeenCalledTimes(1);
   });
 
-  it('reranks in fast mode', async () => {
-    await run('fast');
-    expect(rerankNotebookResults).toHaveBeenCalledTimes(1);
+  it('keeps fast on its exact pre-tier window', async () => {
+    // Grün-O-Mat runs on `fast` and is out of scope for the tier change, so
+    // these two numbers are a promise, not a default.
+    expect(await windowFor('fast')).toEqual({ inputLimit: 20, limit: 10 });
   });
 
-  it('gives deep a wider ranked window than fast', async () => {
-    await run('deep');
-    const deep = rerankNotebookResults.mock.calls[0][0];
-    vi.clearAllMocks();
-    getSearchContext.mockResolvedValue(searchContextWith(40));
-    rerankNotebookResults.mockResolvedValue({
-      results: [],
-      referencesMap: {},
-      contextSummary: 's',
-      rerankTimeMs: 1,
-    });
-    resolveModel.mockResolvedValue({ provider: 'mistral', model: 'm' });
-    streamWithFallback.mockResolvedValue('Antwort');
-    isProviderConfigured.mockReturnValue(true);
+  it('widens the ranked window with every tier', async () => {
+    const fast = await windowFor('fast');
+    const deep = await windowFor('deep');
+    const ultra = await windowFor('ultra');
 
-    await run('fast');
-    const fast = rerankNotebookResults.mock.calls[0][0];
-
-    // Deep legitimately wants more context — but ranked, not raw.
     expect(deep.limit).toBeGreaterThan(fast.limit);
+    expect(ultra.limit).toBeGreaterThan(deep.limit);
     expect(deep.inputLimit).toBeGreaterThan(fast.inputLimit);
-    // Deep must actually see the candidates it retrieved (30-40), not 20.
-    expect(deep.inputLimit).toBeGreaterThanOrEqual(40);
+    expect(ultra.inputLimit).toBeGreaterThan(deep.inputLimit);
+  });
+
+  it('treats an omitted mode as the thorough tier, not the fast one', async () => {
+    // What `isFast = mode === 'fast'` always did. Callers that never sent a
+    // mode must not silently drop to the narrow window.
+    const omitted = await windowFor(undefined);
+    expect(omitted).toEqual(await windowFor('deep'));
+    expect(omitted).not.toEqual(await windowFor('fast'));
   });
 
   it('keeps the concise prompt fast-only', async () => {
@@ -156,6 +178,40 @@ describe('handleNotebookStream — reranking per mode', () => {
       systemPrompt: string;
     }>;
     expect((await ctxAfterDeep).systemPrompt).toBe('ORIGINAL_SYSTEM_PROMPT');
+  });
+
+  it('searches one formulation below ultra', async () => {
+    await run('deep');
+    expect(expandQuery).not.toHaveBeenCalled();
+    const { queries } = getSearchContext.mock.calls[0][0] as { queries: string[] };
+    expect(queries).toEqual(['Was steht zur sozialen Sicherung drin?']);
+  });
+
+  it('unions several formulations in ultra and announces them', async () => {
+    const sent = await run('ultra');
+    expect(expandQuery).toHaveBeenCalledTimes(1);
+    const { queries, depth } = getSearchContext.mock.calls[0][0] as {
+      queries: string[];
+      depth: string;
+    };
+    expect(queries).toHaveLength(3);
+    expect(depth).toBe('ultra');
+    // Silence during a 3× longer search reads as a hang, not as thoroughness.
+    const progress = sent.find((e) => e.event === 'progress_step');
+    expect(progress?.data.title).toContain('3');
+  });
+
+  it('falls back to the single query when expansion fails', async () => {
+    // expandQuery swallows its own errors and returns no alternatives; ultra
+    // must then behave like a wide single-query search, not break.
+    expandQuery.mockResolvedValue({
+      primary: 'Was steht zur sozialen Sicherung drin?',
+      alternatives: [],
+    });
+    const sent = await run('ultra');
+    const { queries } = getSearchContext.mock.calls[0][0] as { queries: string[] };
+    expect(queries).toHaveLength(1);
+    expect(sent.some((e) => e.event === 'completion')).toBe(true);
   });
 
   it('still answers when the reranker degrades to the original order', async () => {
