@@ -73,7 +73,7 @@ export const profiles = pgTable(
     feedback_button: text('feedback_button').notNull().default('text'),
     reduce_motion: boolean('reduce_motion').notNull().default(false),
     reduce_transparency: boolean('reduce_transparency').notNull().default(false),
-    show_skip_link: boolean('show_skip_link').notNull().default(false),
+    show_skip_link: boolean('show_skip_link').notNull().default(true),
   },
   (table) => ({
     emailIdx: index('idx_profiles_email').on(table.email),
