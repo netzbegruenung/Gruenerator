@@ -26,11 +26,16 @@ Die verbleibenden 45 gehen auf **vier** Farbpaare zurück:
 | `#ffffff` auf `#5f8575` | 4,11 | Sprung-Link, `button variant="brand"` — **§1** |
 | `#8ac9b0` auf `#525252` | 4,11 | Agentura-/Agenten-Karten im Dunkelmodus — **§1** |
 | `#497b69` auf `#262626` | 3,11 | Textlinks auf der dunklen Hälfte der Loginseite |
-| `#316049` auf `#3a3a3a` | 1,57 | die „404"-Riesenziffer der Nicht-gefunden-Seite |
+| ~~`#316049` auf `#3a3a3a`~~ | ~~1,57~~ | ~~„404"-Riesenziffer~~ — behoben, siehe unten |
 
-Die ersten beiden sind §1 — die offene Designentscheidung. Die letzten beiden
-sind eigenständige Befunde, aber beide auf Seiten, deren Farbgebung ohnehin
-mit §1 zusammen entschieden werden sollte.
+Die ersten beiden sind §1 — die offene Designentscheidung. Der dritte ist ein
+eigenständiger Befund, aber auf einer Seite, deren Farbgebung ohnehin mit §1
+zusammen entschieden werden sollte.
+
+Die „404"-Riesenziffer ist inzwischen behoben: sie steht im Dunkelmodus auf
+`--primary-300` (5,99:1) statt auf dem Marken-Grün. Der Hellmodus war mit 6,70:1
+nie betroffen — das ist der Grund, warum ein pauschales Abdunkeln der Rampe
+falsch gewesen wäre und nur die Dunkelfassung überschrieben wurde.
 
 **Eine Nebenwirkung, die benannt gehört:** Der Sprung-Link steht jetzt per
 Vorgabe an (WCAG 2.4.1 ist Level A) und benutzt `--secondary-600`. Damit trägt
@@ -47,10 +52,15 @@ Stelle, die jetzt überall auffällt. Er verschwindet mit §1 auf einen Schlag.
   `VITE_E2E_AUTH_BYPASS` muss im `process.env` stehen, nicht nur in der `.env`.
   Die Messskripte prüfen jetzt auf Login-Umleitung und melden sie als Fehler
   statt als Erfolg.
-- **`/documents` rendert eine 404-Seite.** Die Route in der Lane-Liste ist
-  falsch oder braucht einen Parameter. Solange das so ist, misst die Lane dort
-  die Nicht-gefunden-Seite und nicht die Dokumentenübersicht — der einzige
-  Grund, warum die 404-Riesenziffer oben überhaupt in der Messung auftaucht.
+- **`/documents` war keine Route.** Die Anwendung kennt nur
+  `/documents/:documentId`; die Lane hat dort die Nicht-gefunden-Seite geprüft
+  und als Dokumentenübersicht ausgegeben — der einzige Grund, warum die
+  404-Riesenziffer oben überhaupt in der Messung auftauchte. Der Eintrag ist
+  raus (die Übersicht ist `/office` und stand ohnehin schon drin), und
+  `gotoAuthenticated()` bricht jetzt ab, wenn eine Route auf `/login` umleitet
+  **oder** die Nicht-gefunden-Seite rendert. Beide Riegel prüfen dieselbe
+  Fehlerklasse: eine Messung, die etwas anderes prüft als die genannte Route,
+  sieht erfreulich aus und sagt nichts.
 
 ---
 
@@ -89,8 +99,9 @@ Der Farbwechsel allein löst es also nicht, der Grund muss so oder so bewegt wer
    ziehen. Kleinster Eingriff, aber zwei Grünstufen, die sich nur um einen Hauch
    unterscheiden — pflegeanfällig.
 
-**Solange nichts entschieden ist,** bleibt `color-contrast` auf `/agents`, `/apps`
-und `/documents` in der Ausnahmeliste `KNOWN_VIOLATIONS` stehen.
+**Solange nichts entschieden ist,** bleibt `color-contrast` auf allen geprüften
+Routen in der Ausnahmeliste `KNOWN_VIOLATIONS` stehen — der Sprung-Link trägt den
+Befund seit Welle 3 überallhin.
 
 ---
 
