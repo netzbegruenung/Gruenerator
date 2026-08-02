@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { condenseBahnTimetable, extractNewsResults } from './systemMcpCatalog.js';
+import { condenseBahnTimetable, extractNewsResults } from './managedMcpCatalog.js';
 
 // Trimmed real-shape sample from the DB IRIS API (get_planned_timetable).
 const IRIS_SAMPLE = JSON.stringify({
