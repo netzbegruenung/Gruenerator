@@ -76,6 +76,7 @@ export default function JoinGroupScreen() {
                 styles.primaryButton,
                 { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
               ]}
+              accessibilityRole="button"
             >
               <Text style={styles.primaryButtonText}>Zu meinen Gruppen</Text>
             </Pressable>
@@ -99,6 +100,7 @@ export default function JoinGroupScreen() {
                   opacity: joinGroup.isPending ? 0.6 : 1,
                 },
               ]}
+              accessibilityRole="button"
             >
               <Text style={styles.primaryButtonText}>
                 {joinGroup.isPending ? 'Wird beigetreten...' : 'Beitreten'}
@@ -110,6 +112,7 @@ export default function JoinGroupScreen() {
                 else router.replace('/(focused)/projekte');
               }}
               hitSlop={10}
+              accessibilityRole="button"
             >
               <Text style={[styles.text, { color: theme.textSecondary }]}>Abbrechen</Text>
             </Pressable>

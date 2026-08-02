@@ -68,6 +68,7 @@ export function NotebookCard({
           borderColor: theme.cardBorder,
         },
       ]}
+      accessibilityRole="button"
     >
       <Ionicons name={icon} size={18} color={colors.primary[600]} />
       <View style={styles.textColumn}>

@@ -99,7 +99,13 @@ export function DocumentCreatedCard({
           {isPdf ? 'PDF' : document.subtype}
         </Text>
       </View>
-      <Pressable onPress={openDocument} style={styles.openButton} disabled={downloading}>
+      <Pressable
+        onPress={openDocument}
+        style={styles.openButton}
+        disabled={downloading}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: downloading }}
+      >
         <Text style={styles.openLabel}>{isPdf ? (downloading ? 'Lädt…' : 'PDF') : 'Öffnen'}</Text>
         <Ionicons name={isPdf ? 'share-outline' : 'arrow-forward'} size={14} color={colors.white} />
       </Pressable>

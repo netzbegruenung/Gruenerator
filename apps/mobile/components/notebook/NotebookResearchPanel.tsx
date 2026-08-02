@@ -127,6 +127,8 @@ function OptionChip({
           borderColor: active ? accent : theme.border,
         },
       ]}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: active }}
     >
       <Text style={[styles.optionChipText, { color: active ? onAccent : theme.text }]}>
         {label}
@@ -281,6 +283,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
               style={[styles.composerInput, { color: theme.text }]}
               placeholder="In diesem Notebook recherchieren…"
               placeholderTextColor={theme.textSecondary}
+              accessibilityLabel="In diesem Notebook recherchieren"
               value={query}
               onChangeText={setQuery}
               onSubmitEditing={() => runSearch()}
@@ -292,6 +295,8 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
                 onPress={() => setFiltersSheetVisible(true)}
                 style={styles.iconButton}
                 hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel="Filter und Sortierung öffnen"
               >
                 <Ionicons
                   name="options-outline"
@@ -308,6 +313,9 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
                 onPress={() => runSearch()}
                 style={[styles.sendButton, { backgroundColor: canSearch ? accent : theme.border }]}
                 disabled={!canSearch}
+                accessibilityRole="button"
+                accessibilityLabel="Suchen"
+                accessibilityState={{ disabled: !canSearch }}
               >
                 <Ionicons name="arrow-forward" size={20} color={onAccent} />
               </Pressable>
@@ -382,11 +390,21 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
         <View style={styles.sheetHeader}>
           <Text style={[styles.sheetTitle, { color: theme.text }]}>Filter & Sortierung</Text>
           {activeCount > 0 && (
-            <Pressable onPress={resetFilters} hitSlop={8} style={styles.resetButton}>
+            <Pressable
+              onPress={resetFilters}
+              hitSlop={8}
+              style={styles.resetButton}
+              accessibilityRole="button"
+            >
               <Text style={[styles.resetText, { color: accent }]}>Zurücksetzen</Text>
             </Pressable>
           )}
-          <Pressable onPress={() => setFiltersSheetVisible(false)} hitSlop={8}>
+          <Pressable
+            onPress={() => setFiltersSheetVisible(false)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Filter schließen"
+          >
             <Ionicons name="close" size={24} color={theme.text} />
           </Pressable>
         </View>
@@ -488,6 +506,8 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
                           borderColor: isActive ? accent : theme.border,
                         },
                       ]}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: isActive }}
                     >
                       <Text
                         style={[styles.valueText, { color: isActive ? onAccent : theme.text }]}
@@ -516,6 +536,7 @@ export function NotebookResearchPanel({ notebookId, kind, theme, notebookTitle }
             runSearch();
           }}
           style={[styles.applyButton, { backgroundColor: accent }]}
+          accessibilityRole="button"
         >
           <Text style={[styles.applyButtonText, { color: onAccent }]}>
             {activeCount > 0 ? `${activeCount} aktiv · Anwenden` : 'Anwenden'}

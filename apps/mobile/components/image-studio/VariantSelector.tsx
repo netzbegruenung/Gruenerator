@@ -38,6 +38,8 @@ export function VariantSelector({ selected, onSelect }: VariantSelectorProps) {
             <Pressable
               key={variant.id}
               onPress={() => onSelect(variant.id)}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: isSelected }}
               style={({ pressed }) => [
                 styles.chip,
                 {

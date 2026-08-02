@@ -113,7 +113,12 @@ export const SocialPostCard = memo(function SocialPostCard({
           theme={theme}
         />
         {view.isCollapsible ? (
-          <Pressable onPress={() => setExpanded((e) => !e)} style={styles.expandButton}>
+          <Pressable
+            onPress={() => setExpanded((e) => !e)}
+            style={styles.expandButton}
+            accessibilityRole="button"
+            accessibilityState={{ expanded }}
+          >
             <Text style={[styles.expandText, { color: colors.primary[500] }]}>
               {expanded ? 'Weniger anzeigen' : 'Mehr anzeigen'}
             </Text>

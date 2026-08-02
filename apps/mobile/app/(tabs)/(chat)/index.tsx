@@ -83,6 +83,7 @@ export default function ChatScreen() {
                     styles.promptChip,
                     { borderColor: theme.border, opacity: pressed ? 0.6 : 1 },
                   ]}
+                  accessibilityRole="button"
                 >
                   <Text style={[styles.promptLabel, { color: theme.textSecondary }]}>
                     {p.label}
