@@ -41,6 +41,16 @@ End-to-end OAuth: `npx @modelcontextprotocol/inspector` against the endpoint, or
 - **Deploy**: via Salt (`states/gruenerator-docker`, external infra repo), NOT Coolify — the in-repo artifacts are the Docker image `ghcr.io/netzbegruenung/gruenerator-mcp`, `docker-compose.prod.yml` service `mcp` (port 3004) and the nginx `mcp.*` block. `GRUENERATOR_API_URL` is set in the Salt compose (`http://api:3001`).
 - **Tools**: `gruenerator_search`, `gruenerator_examples_search`, `gruenerator_get_filters`, `gruenerator_cache_stats`, `get_client_config`, plus api-key-gated `notebooks_*` (superseded by v2's in-process notebook tools).
 
+### `structuredContent` + `ref` — Zitieren über Aufrufe hinweg
+
+Suchtools liefern ihr Ergebnis **zweimal**: als Text in `content` und als Objekt in `structuredContent` (v1: die eine Stelle ist `wrapToolHandler` in `services/mcp/src/index.ts`). Drei Fallen, alle gegen SDK 1.30 gemessen:
+
+- **`content` wird NICHT abgeleitet.** Wer nur `structuredContent` zurückgibt, liefert `content: []`. Beide bauen, immer.
+- **Sobald ein Tool `outputSchema` deklariert, ist `structuredContent` auf jedem ERFOLGREICHEN Pfad Pflicht** — sonst `-32602 Output validation error`. Fehlerpfade sind ausgenommen: `validateToolOutput` steigt bei `isError` vorher aus. Deshalb nur Felder als required deklarieren, die **jeder** Erfolgszweig setzt (der „keine Treffer"-Zweig hat kein `documentGroups`).
+- **Objekt an der Wurzel**, `normalizeObjectSchema` erzwingt es — Trefferlisten wrappen.
+
+`ref` (`buildSourceRef` aus `@gruenerator/query/refs`) ist der stabile Zitatschlüssel, aus der **URL** abgeleitet — nicht aus `document_id`: die fehlt in 4 von 7 befüllten Sammlungen, und wo sie existiert, ist sie inhaltsabgeleitet (`lv_${md5(text)}`) und wechselt bei jeder Textänderung. `rank` gilt nur innerhalb einer Antwort. Zwei Treffer mit gleichem `ref` sind zwei Belegstellen derselben Quelle — kein Fehler. Die Nummerierung macht der Client, nicht der Server: über MCP schreibt er die Antwort, wir haben keinen Vorgangszustand (Gegenstück im Chat: `agenticLoop/sourceRegistry.ts`).
+
 ### Collections (single source of truth + runtime catalog)
 
 Collections are defined **once** in `apps/api/config/systemCollectionsConfig.ts` (`SYSTEM_COLLECTIONS`, keyed by `-system` id, carrying `key`/`qdrantCollection`/`mcpExposed`/`agentOnly` + per-field `mcpHidden`). `COLLECTION_MAP` and the MCP catalog derive from it — do **not** hand-maintain a parallel list. Adding a collection = one edit here.

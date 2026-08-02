@@ -182,6 +182,12 @@ function toManifestEntry(entry: {
   };
 }
 
+/** `structuredContent` is an object on the wire — an array or a scalar would be
+ *  a protocol violation, not just an odd payload. */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function wrapToolHandler(
   label: string,
   handler: (params: Record<string, unknown>) => Promise<Record<string, unknown>>
@@ -189,9 +195,18 @@ function wrapToolHandler(
   return async (params: Record<string, unknown>) => {
     try {
       const result = await handler(params);
+      const isError = !!result.error;
       return {
         content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
-        isError: !!result.error,
+        // The same object twice, on purpose: `content` stays the compatibility
+        // path (the SDK never derives it from structuredContent — measured), and
+        // `structuredContent` is what a client can read without parsing prose.
+        // Only on success: with `isError` the SDK skips output validation, so an
+        // error object that does not match the schema would slip through and
+        // teach clients a shape we never declared. The object guard covers the
+        // notebook tools, which hand back whatever the backend API returned.
+        ...(!isError && isPlainObject(result) ? { structuredContent: result } : {}),
+        isError,
       };
     } catch (err) {
       const { detail, isConnection } = classifyError(err);
@@ -245,6 +260,7 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
         '- gruenerator_search ist das Haupttool. Formuliere die Antwort aus den Treffern und verweise auf deren Quelle/URL.',
         '- Der Parameter country ist Pflicht (DE oder AT) und bestimmt, welche Sammlungen durchsucht werden.',
         '- Rufe gruenerator_get_filters für eine Sammlung auf, bevor du mit filters einschränkst — Filterwerte nicht raten.',
+        '- Zitiere über das Feld ref eines Treffers, nicht über rank: rank gilt nur innerhalb einer Antwort, ref bleibt über Aufrufe hinweg dasselbe. Nummeriere deine Quellenliste selbst und führe zwei Treffer mit gleichem ref als eine Quelle.',
         '- Für DE-vs-AT-Vergleiche zweimal suchen (country DE und AT) und gegenüberstellen.',
       ].join('\n'),
     }
@@ -333,6 +349,7 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
       title: 'Grünen-Dokumente durchsuchen',
       description: searchTool.description,
       inputSchema: searchTool.inputSchema,
+      outputSchema: searchTool.outputSchema,
       annotations: READONLY_EXTERNAL,
     },
     async ({
@@ -368,6 +385,7 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
           (result.cached as boolean) || false
         );
 
+        const isError = !!result.error;
         return {
           content: [
             {
@@ -375,7 +393,8 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
               text: JSON.stringify(result, null, 2),
             },
           ],
-          isError: !!result.error,
+          ...(isError ? {} : { structuredContent: result }),
+          isError,
         };
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -445,6 +464,7 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
       title: 'Verfügbare Filter abrufen',
       description: filtersTool.description,
       inputSchema: filtersTool.inputSchema,
+      outputSchema: filtersTool.outputSchema,
       annotations: READONLY_EXTERNAL,
     },
     wrapToolHandler('Filters', (params) => filtersTool.handler(params as { collection: string }))
@@ -460,6 +480,7 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
       title: 'Social-Media-Beispiele durchsuchen',
       description: examplesSearchTool.description,
       inputSchema: examplesSearchTool.inputSchema,
+      outputSchema: examplesSearchTool.outputSchema,
       annotations: READONLY_EXTERNAL,
     },
     wrapToolHandler('ExamplesSearch', (params) =>
