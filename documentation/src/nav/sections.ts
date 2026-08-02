@@ -124,6 +124,7 @@ export const SECTIONS: DocSection[] = [
       { label: 'Konnektoren', to: '/docs/integrationen/konnektoren' },
       { label: 'KI-Chat einrichten', to: '/docs/integrationen/ki-chat-einrichten' },
       { label: 'Was kann der MCP-Server?', to: '/docs/integrationen/mcp-was-kann-ich-fragen' },
+      { label: 'Grünerator für Chrome', to: '/docs/integrationen/chrome-erweiterung' },
     ],
   },
   {
