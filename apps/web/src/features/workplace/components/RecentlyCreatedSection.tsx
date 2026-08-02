@@ -3,6 +3,8 @@ import {
   CardGrid,
   cn,
   DropdownMenuItem,
+  InteractiveCard,
+  interactiveCardControl,
   SectionHeader,
   Skeleton,
   VideoCard,
@@ -11,7 +13,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Download, Share2, Trash2 } from 'lucide-react';
 import React, { memo, useCallback, useState, lazy, Suspense } from 'react';
 import { PiStar, PiStarFill } from 'react-icons/pi';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 import {
   BoardPreviewBody,
@@ -257,20 +259,13 @@ const ImageOwnerCard = memo(
 
     return (
       <>
-        <div
-          role="button"
-          tabIndex={0}
+        <InteractiveCard
+          label={item.title || FALLBACK_TITLES[item.type]}
+          onActivate={() => setOpen(true)}
           className={cn(cardClass, 'text-left')}
-          onClick={() => setOpen(true)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              setOpen(true);
-            }
-          }}
         >
           {cardContent}
-        </div>
+        </InteractiveCard>
         <Lightbox
           isOpen={open}
           onClose={() => setOpen(false)}
@@ -333,6 +328,7 @@ const RecentItemCard = memo(
     onDelete: (item: RecentItem) => void;
     onShare: (item: RecentItem) => void;
   }) => {
+    const navigate = useNavigate();
     const typeLabel = getTypeLabel(item);
     const fallbackTitle = isTablePreview(item) ? 'Unbenannte Tabelle' : FALLBACK_TITLES[item.type];
     const isShared = !!item.accessType && item.accessType !== 'owner';
@@ -348,7 +344,7 @@ const RecentItemCard = memo(
       [typeLabel, scope, formatRelativeDate(item.date)].filter(Boolean).join(' · ') + sharedSuffix;
 
     const cardClass = cn(
-      'group relative flex flex-col overflow-hidden rounded-[14px] border border-grey-200/80 bg-background no-underline',
+      'group flex flex-col overflow-hidden rounded-[14px] border border-grey-200/80 bg-background no-underline',
       'cursor-pointer transition-all duration-200 ease-out',
       'hover:-translate-y-0.5 hover:border-secondary-300 hover:shadow-md',
       'dark:border-grey-700/60 dark:hover:border-secondary-700'
@@ -359,7 +355,7 @@ const RecentItemCard = memo(
         <div className="relative">
           <PreviewArea item={item} />
           {durationLabel && (
-            <span className="absolute bottom-1.5 right-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-white">
+            <span className="pointer-events-none absolute bottom-1.5 right-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-white">
               {durationLabel}
             </span>
           )}
@@ -377,8 +373,13 @@ const RecentItemCard = memo(
           {/* Menu lives in the footer (not an overlay on the preview) so its hit
               target never overlaps the navigable card; CardActionsMenu stops
               propagation *and* preventDefaults internally, so a click here never
-              follows the enclosing <Link>'s href. */}
-          <div className="-mr-1 shrink-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 max-sm:opacity-100">
+              activates the card's InteractiveCard overlay. */}
+          <div
+            className={cn(
+              '-mr-1 shrink-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 max-sm:opacity-100',
+              interactiveCardControl
+            )}
+          >
             <CardActionsMenu onShare={() => onShare(item)} onDelete={() => onDelete(item)}>
               {item.type === 'board' && <FavouriteMenuItem id={item.id} />}
             </CardActionsMenu>
@@ -399,9 +400,13 @@ const RecentItemCard = memo(
     }
 
     return (
-      <Link to={item.href} className={cardClass}>
+      <InteractiveCard
+        label={item.title || fallbackTitle}
+        onActivate={() => navigate(item.href)}
+        className={cardClass}
+      >
         {cardContent}
-      </Link>
+      </InteractiveCard>
     );
   }
 );
@@ -429,10 +434,7 @@ const RecentReelCard = memo(
         aspect="square"
         onTitleClick={() => navigate(item.href)}
         overlay={
-          <div
-            className="absolute top-1 right-1 max-sm:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="absolute top-1 right-1 max-sm:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
             <CardActionsMenu
               onShare={() => onShare(item)}
               onDelete={() => onDelete(item)}
