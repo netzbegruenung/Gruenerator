@@ -51,7 +51,14 @@ vi.mock('./chatToolBridge.js', async (importOriginal) => ({
   registerAiTool: vi.fn(),
 }));
 
-const { buildAuthenticatedMcpServer } = await import('./serverFactory.js');
+const computeMergedFilters = vi.fn();
+vi.mock('../research/researchController.js', () => ({
+  computeMergedFilters: (...a: unknown[]) => computeMergedFilters(...a),
+  getCachedFilters: () => null,
+  setCachedFilters: vi.fn(),
+}));
+
+const { buildAuthenticatedMcpServer, renderNotebookAnswer } = await import('./serverFactory.js');
 
 type Handler = (args: Record<string, unknown>) => Promise<{
   structuredContent?: Record<string, unknown>;
@@ -103,6 +110,7 @@ beforeEach(() => {
   executeDirectSearch.mockReset();
   executeDirectExamplesSearch.mockReset();
   executeDirectPressemitteilungExamples.mockReset();
+  computeMergedFilters.mockReset();
 });
 
 describe('gruenerator_search', () => {
@@ -215,5 +223,87 @@ describe('gruenerator_examples_search', () => {
       country: 'DE',
       limit: 6,
     });
+  });
+});
+
+describe('gruenerator_get_filters', () => {
+  it('erfüllt das Schema und trägt die volle Werteliste, nicht die gekürzte Prosa', async () => {
+    const values = Array.from({ length: 30 }, (_, i) => ({ value: `v${i}`, count: 30 - i }));
+    computeMergedFilters.mockResolvedValue({
+      filters: {
+        content_type: { label: 'Inhaltstyp', type: 'keyword', values },
+        published: { label: 'Datum', type: 'date_range', min: '2020-01-01', max: '2026-01-01' },
+      },
+    });
+    const result = await callAndValidate('gruenerator_get_filters', { collection: 'deutschland' });
+    const fields = (result.structuredContent as { fields: Array<{ values?: unknown[] }> }).fields;
+    expect(fields).toHaveLength(2);
+    expect(fields[0]?.values).toHaveLength(30);
+    expect(result.content[0]?.text).toContain('Inhaltstyp');
+  });
+
+  it('liefert auch ohne Filterfelder structuredContent — sonst kippt die Antwort in -32602', async () => {
+    computeMergedFilters.mockResolvedValue({ filters: {} });
+    const result = await callAndValidate('gruenerator_get_filters', { collection: 'deutschland' });
+    expect(result.structuredContent).toMatchObject({ fields: [] });
+    expect(result.isError).toBeUndefined();
+  });
+});
+
+/**
+ * `notebooks` carries no `outputSchema` on purpose — it returns a finished cited
+ * answer, not material, and a schema would force `list`/`rename`/`delete` and the
+ * confirmation prompt into a common envelope. The `ref` therefore travels in the
+ * prose, and that is what these assert.
+ */
+describe('renderNotebookAnswer', () => {
+  const answer = 'Die Antwort [1].';
+
+  it('hängt jeder Quellenzeile ein ref an', () => {
+    const out = renderNotebookAnswer(
+      {
+        answer,
+        citations: [
+          { index: '1', document_title: 'Papier', source_url: '/docs/a', document_id: 'doc-a' },
+        ],
+      } as never,
+      'Mein Notizbuch'
+    );
+    expect(out).toMatch(/\[1\] Papier — \S+\/docs\/a \[ref: [a-z0-9]+\]/);
+  });
+
+  it('hält das ref über zwei Antworten stabil, obwohl [n] sich dreht', () => {
+    const cite = (index: string) => ({
+      index,
+      document_title: 'Papier',
+      source_url: '/docs/a',
+      document_id: 'doc-a',
+    });
+    const first = renderNotebookAnswer({ answer, citations: [cite('1')] } as never, 'NB');
+    const second = renderNotebookAnswer(
+      {
+        answer,
+        citations: [
+          { index: '1', document_title: 'Anderes', source_url: '/docs/b', document_id: 'doc-b' },
+          cite('2'),
+        ],
+      } as never,
+      'NB'
+    );
+    const ref = /\[ref: ([a-z0-9]+)\]/.exec(first)?.[1];
+    expect(ref).toBeTruthy();
+    expect(second).toContain(`[2] Papier — `);
+    expect(second.split('\n').find((l) => l.startsWith('[2]'))).toContain(`[ref: ${ref}]`);
+  });
+
+  it('fällt ohne source_url auf document_id zurück statt das ref wegzulassen', () => {
+    const out = renderNotebookAnswer(
+      {
+        answer,
+        citations: [{ index: '1', document_title: 'Upload', document_id: 'doc-c' }],
+      } as never,
+      'NB'
+    );
+    expect(out).toMatch(/\[ref: [a-z0-9]+\]/);
   });
 });

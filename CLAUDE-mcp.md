@@ -53,6 +53,10 @@ Suchtools liefern ihr Ergebnis **zweimal**: als Text in `content` und als Objekt
 
 `ref` (`buildSourceRef` aus `@gruenerator/query/refs`) ist der stabile Zitatschlüssel, aus der **URL** abgeleitet — nicht aus `document_id`: die fehlt in 4 von 7 befüllten Sammlungen, und wo sie existiert, ist sie inhaltsabgeleitet (`lv_${md5(text)}`) und wechselt bei jeder Textänderung. `rank` gilt nur innerhalb einer Antwort. Zwei Treffer mit gleichem `ref` sind zwei Belegstellen derselben Quelle — kein Fehler. Die Nummerierung macht der Client, nicht der Server: über MCP schreibt er die Antwort, wir haben keinen Vorgangszustand (Gegenstück im Chat: `agenticLoop/sourceRegistry.ts`).
 
+**Wo eine URL erst absolutiert wird (v2-Notizbücher), wird der ROHE gespeicherte Wert gehasht** — `absolutizeUrl` hängt `APP_BASE_URL` an, und dasselbe Dokument bekäme sonst auf Test und Prod verschiedene refs.
+
+**Nicht jedes Tool braucht ein `outputSchema`.** `notebooks` mit `action="search"` hat bewusst keins: es liefert eine fertige belegte Antwort, kein Material zum Weiterverarbeiten, und ein Schema zwänge `list`/`rename`/`delete` samt confirm-Rückfrage in eine gemeinsame Hülle — `registerAiTool` reicht nur Text durch, jeder übersehene Erfolgszweig wäre ein `-32602` auf einem funktionierenden Tool. Der `ref` steht dort in der Quellenzeile. Dieselbe Überlegung hält `whoami`, `umfragen`, `cache_stats` und `get_client_config` schemafrei: daraus zitiert niemand.
+
 ### Collections (single source of truth + runtime catalog)
 
 Collections are defined **once** in `apps/api/config/systemCollectionsConfig.ts` (`SYSTEM_COLLECTIONS`, keyed by `-system` id, carrying `key`/`qdrantCollection`/`mcpExposed`/`agentOnly` + per-field `mcpHidden`). `COLLECTION_MAP` and the MCP catalog derive from it — do **not** hand-maintain a parallel list. Adding a collection = one edit here.

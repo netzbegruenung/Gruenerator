@@ -98,13 +98,17 @@ const NOTEBOOK_QA_ERRORS: Record<string, string> = {
  * `formatToolResult` passes strings through untouched, while an unrecognised
  * object shape would reach the client as raw JSON.
  */
-function renderNotebookAnswer(result: QAResponse, notebookName: string): string {
+export function renderNotebookAnswer(result: QAResponse, notebookName: string): string {
   const citations = result.citations ?? [];
   if (citations.length === 0) return result.answer;
   const lines = citations.map((c) => {
     const title = c.document_title ?? c.title ?? 'Ohne Titel';
     const url = c.source_url ?? c.url;
-    return `[${c.index}] ${title}${url ? ` — ${absolutizeUrl(url)}` : ''}`;
+    // Hashed from the STORED url, shown absolutized: `absolutizeUrl` prepends
+    // APP_BASE_URL, so hashing its output would give one document two different
+    // refs on test and prod.
+    const ref = buildSourceRef({ url, documentId: c.document_id });
+    return `[${c.index}] ${title}${url ? ` — ${absolutizeUrl(url)}` : ''}${ref ? ` [ref: ${ref}]` : ''}`;
   });
   return `${result.answer}\n\nQuellen (${notebookName}):\n${lines.join('\n')}`;
 }
@@ -115,10 +119,9 @@ Für belegte Antworten aus mehreren Quellen gilt ein festes Vorgehen: die Resour
 
 Regeln:
 - Kein Tool schreibt dir den Text der Recherche — die Synthese aus den Treffern ist deine Aufgabe. Ausnahme: notebooks mit action="search" liefert bereits eine belegte Antwort.
-- IDs und refs stammen immer aus einem vorherigen list-/search-Aufruf — niemals raten.
+- Ein ref benennt eine Sache über Aufrufe hinweg: zitiere darüber (nicht über rank, der nur innerhalb einer Antwort gilt), führe zwei Treffer mit gleichem ref als eine Quelle, nummeriere deine Quellenliste selbst — und gib ihn dort zurück, wo ein Tool ihn erwartet. IDs und refs stammen immer aus einem vorherigen list-/search-Aufruf, niemals raten.
 - Destruktive oder nach außen sichtbare Aktionen (löschen, teilen) verlangen das zweistufige Protokoll: erster Aufruf ohne confirm liefert eine Rückfrage; erst nach Zustimmung der Person mit confirm=true erneut aufrufen.
 - create_document/create_board erzeugen echte Inhalte im Konto — Ergebnis-Link nennen.
-- Zitiere Suchtreffer über ihr Feld ref, nicht über rank: rank gilt nur innerhalb einer Antwort, ref bleibt über Aufrufe hinweg dasselbe. Nummeriere deine Quellenliste selbst und führe zwei Treffer mit gleichem ref als eine Quelle.
 - Antworten auf Deutsch, Quellen-URLs nennen.`;
 
 /** The SDK's own result type — it carries an index signature that a hand-rolled
@@ -192,6 +195,23 @@ const EXAMPLES_OUTPUT_SCHEMA = {
   country: z.string(),
   resultsCount: z.number(),
   examples: z.array(z.record(z.string(), z.unknown())),
+};
+
+/** `values` carries the full facet list — the 25-value cap below is a property
+ *  of the prose, not of the data. A collection without filter fields returns
+ *  `fields: []`; that is a success and needs the object like any other. */
+const FILTERS_OUTPUT_SCHEMA = {
+  collection: z.string(),
+  fields: z.array(
+    z.object({
+      field: z.string(),
+      label: z.string(),
+      type: z.enum(['keyword', 'date_range']),
+      values: z.array(z.object({ value: z.string(), count: z.number() })).optional(),
+      min: z.string().optional(),
+      max: z.string().optional(),
+    })
+  ),
 };
 
 /**
@@ -382,6 +402,7 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
         description:
           'Nennt die tatsächlich belegten Filterwerte einer Sammlung samt Trefferzahl. Vor jeder gefilterten Suche aufrufen — die Werte unterscheiden sich pro Sammlung und lassen sich nicht erraten.',
         inputSchema: { collection: z.enum(SEARCH_COLLECTIONS) },
+        outputSchema: FILTERS_OUTPUT_SCHEMA,
         annotations: READONLY,
       },
       guarded('gruenerator_get_filters', async ({ collection }) => {
@@ -395,7 +416,20 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
         setCachedFilters(cacheKey, merged);
 
         const entries = Object.entries(merged.filters);
-        if (entries.length === 0) return text(`Sammlung "${collection}" hat keine Filterfelder.`);
+        const fields = entries.map(([field, entry]) => ({
+          field,
+          label: entry.label,
+          type: entry.type,
+          ...(entry.values ? { values: entry.values } : {}),
+          ...(entry.min ? { min: entry.min } : {}),
+          ...(entry.max ? { max: entry.max } : {}),
+        }));
+        if (entries.length === 0) {
+          return structured(`Sammlung "${collection}" hat keine Filterfelder.`, {
+            collection,
+            fields,
+          });
+        }
 
         const blocks = entries.map(([field, entry]) => {
           if (entry.type === 'date_range') {
@@ -407,7 +441,10 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
             .join(', ');
           return `**${field}** (${entry.label}): ${values || '— keine Werte'}`;
         });
-        return text(`Filterfelder für "${collection}":\n\n${blocks.join('\n')}`);
+        return structured(`Filterfelder für "${collection}":\n\n${blocks.join('\n')}`, {
+          collection,
+          fields,
+        });
       })
     );
 
