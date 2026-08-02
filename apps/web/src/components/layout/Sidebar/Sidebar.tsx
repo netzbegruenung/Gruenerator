@@ -214,9 +214,15 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
     [close]
   );
 
+  // Eingeklappt: `sr-only` statt `hidden`. `hidden` ist display:none und nimmt
+  // das Label aus dem Accessibility-Tree — dann hat jeder Sidebar-Eintrag gar
+  // keinen zugänglichen Namen mehr (axe: button-name/link-name, critical).
+  // `sr-only` blendet es visuell genauso aus, lässt es aber für Screenreader
+  // stehen. Gemessen: allein diese Zeile stand für 333 der 1027 Verstöße im
+  // Baseline-Lauf. Siehe docs/barrierefreiheit-audit-plan.md.
   const titleClass = cn(
     'min-w-0 flex-1 truncate text-left text-sm font-medium leading-tight transition-all duration-150',
-    sidebarExpanded ? 'opacity-100 translate-x-0' : 'hidden'
+    sidebarExpanded ? 'opacity-100 translate-x-0' : 'sr-only'
   );
 
   const badgeClass = cn(
