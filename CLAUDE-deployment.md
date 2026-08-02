@@ -18,10 +18,10 @@ Deployment, Docker, and environment configuration.
 
 ### Adding a New Shared Package (Docker Checklist)
 
-Three files must be updated or Docker builds fail:
+Three files must be updated — **but only the first fails loudly**:
 
-1. **Every Dockerfile that transitively depends on it** — add `COPY packages/<name>/package.json` and `COPY packages/<name>`. Check deps: `pnpm --filter <app> list --depth 1 --json | grep @gruenerator`.
-2. **`.github/workflows/build-images.yml`** — add `'packages/<name>/**'` to `dorny/paths-filter`.
+1. **Every Dockerfile that transitively depends on it** — add `COPY packages/<name>/package.json` and `COPY packages/<name>`. Check deps: `pnpm --filter <app> list --depth 1 --json | grep @gruenerator`. Vergessen = roter Build.
+2. **`.github/workflows/build-images.yml`** — add `'packages/<name>/**'` to that image's `dorny/paths-filter`. Vergessen = **Stille**: eine Änderung an nur diesem Paket löst den Workflow aus (`packages/**` steht im Trigger), überspringt jeden Build-Job und wird nie ausgeliefert. Nichts wird rot. `scripts/check-image-build-filters.mjs` (Guards-Job) leitet die Soll-Liste aus den `COPY packages/…`-Zeilen der Dockerfiles ab und bricht ab, wenn ein Filter dahinter zurückbleibt.
 3. **`.gitignore`** — verify path not matched by broad pattern (e.g. `docs/` matches `*/docs/`; use `/docs/`).
 
 ### `packages/shared` Runtime `.ts` Trap
