@@ -2,5 +2,4 @@ packages:
   - 'apps/*'
   - 'packages/*'
   - 'services/hocuspocus'
-  - 'services/mcp'
   - 'documentation'
