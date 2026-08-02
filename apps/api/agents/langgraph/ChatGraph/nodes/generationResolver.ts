@@ -91,7 +91,7 @@ export type GenerationVerdict = { intent: ChatIntentId } | 'keine';
 /**
  * Does this turn look like it could be about producing something?
  *
- * A GATE, not a classifier — the same division of labour `SYSTEM_MCP_PHRASING`
+ * A GATE, not a classifier — the same division of labour `managedSourceTrigger`
  * spells out. Recall is what matters here: a false positive costs one ~900-
  * character call and then lands exactly where it would have landed anyway (the
  * resolver answers `keine`, the turn continues to Tier 4). A false negative
@@ -114,7 +114,7 @@ export type GenerationVerdict = { intent: ChatIntentId } | 'keine';
  *
  * `\p{L}` lookarounds with the `u` flag rather than `\b`: without `u`, "ä" is
  * not `\w`, so every alternative touching an umlaut ("präsentation") would be
- * dead at the boundary. Same trap documented at `SYSTEM_MCP_PHRASING`.
+ * dead at the boundary. Same trap documented at `managedSourceTrigger`.
  */
 export const GENERATION_SIGNAL =
   /(?<!\p{L})(erstell\p{L}*|erzeug\p{L}*|generier\p{L}*|entwirf|entwerfe|speicher\p{L}*|hinterleg\p{L}*|export\p{L}*|dokument\p{L}*|sharepic\p{L}*|grafik\p{L}*|kachel\p{L}*|tabelle\p{L}*|spreadsheet|pr[äa]sentation\p{L}*|folien?|slides?|pdf|diagramm\p{L}*|chart|posting|tweet|caption|reel\p{L}*|fass|fasse|zusammenfass\p{L}*|k[üu]rz\p{L}*|straff\p{L}*|pr[üu]f\p{L}*)(?!\p{L})/iu;

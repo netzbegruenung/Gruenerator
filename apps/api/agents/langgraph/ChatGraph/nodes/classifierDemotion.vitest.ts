@@ -272,70 +272,55 @@ describe('Tier 3.5 — NOT demoted (gates preserved)', () => {
   });
 
   /**
-   * Der Live-Quellen-Auflöser (Tier 3.7) wurde gefragt.
+   * Live-Quellen-Formulierungen laufen jetzt GLATT durch die Demotion.
    *
-   * Das ist die Nachfolge-Aussage von „erreicht die LLM-Stufe": das Gitter hält
-   * den Turn aus der Demotion zurück, DAMIT diese Frage gestellt wird. Was der
-   * Auflöser antwortet, ist hier egal — der Stub sagt immer „keine", und der
-   * Turn geht danach zurück in die Demotion. Geprüft wird das Zurückhalten.
+   * Vorher hielt `SYSTEM_MCP_PHRASING` genau diese Turns hier fest, damit ein
+   * 900-ms-Auflöser die Quelle benennen konnte — die alte Zusicherung lautete
+   * „der Auflöser wurde gefragt". Es gibt keinen Auflöser mehr: der Router
+   * benennt die Connectoren am Wortlaut (`managedSourceTrigger`) und montiert
+   * ihre Werkzeuge in denselben Loop, in den die Demotion den Turn ohnehin
+   * schickt. Zugesichert wird deshalb das Gegenteil von früher — nicht
+   * zurückgehalten, sondern demotiert — und dass dabei KEIN Modell läuft.
+   *
+   * Dass der Wortlaut die richtige Quelle trifft, prüft
+   * `managedSourceTrigger.vitest.ts` mit denselben Formulierungen.
    */
-  function askedSourceResolver(pool: ReturnType<typeof makeWorkerPool>): boolean {
-    return pool.processRequest.mock.calls.some((call) =>
-      (call[0] as { systemPrompt?: string })?.systemPrompt?.startsWith(
-        'Entscheide, ob diese Anfrage Daten'
-      )
-    );
+  async function demotesWithoutAskingAModel(userMessage: string): Promise<void> {
+    const state = buildState({ userMessage });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('agentic');
+    expect(state.aiWorkerPool.processRequest).not.toHaveBeenCalled();
   }
 
-  it('system-MCP phrasing is held back from demotion and asked (hotel/reise)', async () => {
-    const state = buildState({ userMessage: 'suche hotels für berlin' });
-    await classifierNode(state);
-    expect(askedSourceResolver(state.aiWorkerPool)).toBe(true);
+  it('hotel phrasing demotes straight into the loop', async () => {
+    await demotesWithoutAskingAModel('suche hotels für berlin');
   });
 
-  it('a Bahn timetable phrasing is asked too', async () => {
-    const state = buildState({ userMessage: 'wann fährt der nächste zug nach hamburg' });
-    await classifierNode(state);
-    expect(askedSourceResolver(state.aiWorkerPool)).toBe(true);
+  it('a Bahn timetable phrasing demotes too', async () => {
+    await demotesWithoutAskingAModel('wann fährt der nächste zug nach hamburg');
   });
 
   // Live failure (11:34): bare "bahnen" slipped the compound-only phrasing list
-  // (which only had zugverbindung/fahrplan/zug+nach) → demoted to agentic → the
-  // bahn intent never got a chance. The guard now covers bare Bahn/Bahnen/Zug.
-  it('bare "bahnen" (welche bahnen fahren) is asked, not demoted unseen', async () => {
-    const state = buildState({ userMessage: 'welche bahnen fahren gerade nach berlin' });
-    await classifierNode(state);
-    expect(askedSourceResolver(state.aiWorkerPool)).toBe(true);
+  // → demoted to agentic → the bahn intent never got a chance. That failure mode
+  // is gone with the intent: demotion IS the path now, and the trigger catches
+  // "bahnen" (see managedSourceTrigger.vitest.ts) so the tools ride along.
+  it('bare "bahnen" demotes', async () => {
+    await demotesWithoutAskingAModel('welche bahnen fahren gerade nach berlin');
   });
 
-  // Live failure (11:34): bare "wetter" slipped the list (only wettervorhersage/
-  // wetterbericht) → demoted → wetter intent never assigned. Now guarded.
-  it('bare "wetter" (wie ist das wetter) is asked, not demoted unseen', async () => {
-    const state = buildState({ userMessage: 'wie ist das wetter gerade in hamburg' });
-    await classifierNode(state);
-    expect(askedSourceResolver(state.aiWorkerPool)).toBe(true);
+  // Live failure (11:34): bare "wetter" slipped the list → demoted → wetter
+  // intent never assigned. Same resolution as "bahnen" above.
+  it('bare "wetter" demotes', async () => {
+    await demotesWithoutAskingAModel('wie ist das wetter gerade in hamburg');
   });
 
-  // The bare-noun additions must stay policy-safe: "Bahnreform"/"Bahnpolitik"/
-  // "Wetterextreme" are single words where the trailing \b can't fall, so they
-  // must NOT be caught by the guard — they demote/search like any policy ask.
-  it('policy compounds (Bahnreform, Wetterextreme) are NOT caught by the guard', async () => {
-    // Diese beiden dürfen den Auflöser gar nicht erst kosten.
-    const bahnState = buildState({
-      userMessage: 'was fordern die grünen bei der bahnreform genau',
-    });
-    await classifierNode(bahnState);
-    expect(bahnState.aiWorkerPool.processRequest).not.toHaveBeenCalled();
-    const bahn = await classifierNode(
-      buildState({ userMessage: 'was fordern die grünen bei der bahnreform genau' })
+  // Policy compounds took the same path before and after — the point is that
+  // they never cost a model call, which the guard used to be able to break.
+  it('policy compounds (Bahnreform, Wetterextreme) demote without a model call', async () => {
+    await demotesWithoutAskingAModel('was fordern die grünen bei der bahnreform genau');
+    await demotesWithoutAskingAModel(
+      'welche position haben die grünen zu wetterextremen und klimaschutz'
     );
-    expect(bahn.intent).toBe('agentic');
-    const wetter = await classifierNode(
-      buildState({
-        userMessage: 'welche position haben die grünen zu wetterextremen und klimaschutz',
-      })
-    );
-    expect(wetter.intent).toBe('agentic');
   });
 
   it('policy wording is NOT caught by the system-MCP guard (Tourismuspolitik still demotes/searches)', async () => {

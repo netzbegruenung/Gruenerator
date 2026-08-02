@@ -1,15 +1,15 @@
 - main:
-  - heading "Willkommen zurück!" [level=1]
-  - paragraph:
-    - text: Mit der Anmeldung stimmst du unseren
-    - link "Nutzungsbedingungen und der Datenschutzerklärung":
-      - /url: /datenschutz
-    - text: zu.
-  - button "Grünes Netz Grünes Netz Login Mit deinem Grünes Netz Account anmelden":
-    - img "Grünes Netz"
-    - heading "Grünes Netz Login" [level=3]
-    - paragraph: Mit deinem Grünes Netz Account anmelden
-  - button "Die Grünen – Die Grüne Alternative Die Grünen – Die Grüne Alternative Mit deinem Groupware Account (Zimbra) anmelden":
-    - img "Die Grünen – Die Grüne Alternative"
-    - heading "Die Grünen – Die Grüne Alternative" [level=3]
-    - paragraph: Mit deinem Groupware Account (Zimbra) anmelden
+    - heading "Willkommen zurück!" [level=1]
+    - paragraph:
+        - text: Mit der Anmeldung stimmst du unseren
+        - link "Nutzungsbedingungen und der Datenschutzerklärung":
+            - /url: /datenschutz
+        - text: zu.
+    - button "Grünes Netz Grünes Netz Login Mit deinem Grünes Netz Account anmelden":
+        - img "Grünes Netz"
+        - heading "Grünes Netz Login" [level=3]
+        - paragraph: Mit deinem Grünes Netz Account anmelden
+    - button "Die Grünen – Die Grüne Alternative Die Grünen – Die Grüne Alternative Mit deinem Groupware Account (Zimbra) anmelden":
+        - img "Die Grünen – Die Grüne Alternative"
+        - heading "Die Grünen – Die Grüne Alternative" [level=3]
+        - paragraph: Mit deinem Groupware Account (Zimbra) anmelden
