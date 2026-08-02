@@ -66,6 +66,15 @@ export {
   type SearchDepthIconKey,
 } from './lib/composerControls';
 
+// Notebook retrieval depth — shared registry for the notebook page's tier control
+export {
+  NOTEBOOK_DEPTHS,
+  DEFAULT_NOTEBOOK_DEPTH,
+  notebookDepthDef,
+  type NotebookDepthDef,
+  type NotebookDepthIconKey,
+} from './lib/notebookDepth';
+
 // Context & API Client
 export {
   chatFetch,
