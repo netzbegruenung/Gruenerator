@@ -37,6 +37,7 @@ export const SECTIONS: DocSection[] = [
         to: '/docs/ueber-den-gruenerator/nachhaltigkeit',
       },
       { label: 'Deine Daten im Grünerator', to: '/docs/ueber-den-gruenerator/notebook' },
+      { label: 'Barrierefreiheit', to: '/docs/ueber-den-gruenerator/barrierefreiheit' },
     ],
   },
   {
