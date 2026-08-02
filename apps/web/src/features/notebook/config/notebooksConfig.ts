@@ -12,11 +12,15 @@ import coverThueringen from '@gruenerator/shared/assets/notebook-covers/thuering
 import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
 import {
   NOTEBOOK_REGISTRY,
+  isNotebookOfferedIn,
+  isNotebookResolvableIn,
   type NotebookAudience,
   type NotebookCategory,
   type NotebookDefinition,
   type NotebookId,
 } from '@gruenerator/shared/notebooks';
+
+import { CURRENT_INSTANCE } from '../../../config/instance';
 
 import type { SystemAgentId } from '@gruenerator/shared/agents';
 import type { IconType } from 'react-icons';
@@ -120,24 +124,44 @@ const toEntry = (nb: NotebookDefinition): NotebookConfigEntry => ({
 });
 
 /**
- * Derived from the shared notebook registry (`@gruenerator/shared/notebooks`) so the web
- * gallery, mobile gallery, and chat mention picker stay in sync. `devOnly` notebooks are
- * included only in dev builds, matching the previous DEV_ONLY_NOTEBOOKS behaviour.
+ * Every registered notebook, unfiltered — the resolution list.
+ *
+ * Route lookups read from here (via `getNotebookById` / `getNotebookByPath`)
+ * because an instance that merely *hides* a notebook must not break a link
+ * shared from another instance. Nothing renders a listing off this array; that
+ * is what {@link SYSTEM_NOTEBOOKS} is for.
  */
-export const SYSTEM_NOTEBOOKS: NotebookConfigEntry[] = NOTEBOOK_REGISTRY.filter(
-  (nb) => import.meta.env.DEV || !nb.devOnly
-).map(toEntry);
+const ALL_SYSTEM_NOTEBOOKS: NotebookConfigEntry[] = NOTEBOOK_REGISTRY.map(toEntry);
+
+/**
+ * Derived from the shared notebook registry (`@gruenerator/shared/notebooks`) so the web
+ * gallery, mobile gallery, and chat mention picker stay in sync. Notebooks this instance
+ * does not offer — by channel or by its content policy — are dropped here, the single
+ * point every gallery view below inherits from.
+ */
+export const SYSTEM_NOTEBOOKS: NotebookConfigEntry[] = ALL_SYSTEM_NOTEBOOKS.filter((nb) =>
+  isNotebookOfferedIn(nb.id, CURRENT_INSTANCE)
+);
 
 const isNotebookEnabled = (nb: NotebookConfigEntry): boolean => nb.enabled !== false;
 
 export const getOrderedNotebooks = (): NotebookConfigEntry[] =>
   SYSTEM_NOTEBOOKS.filter(isNotebookEnabled).sort((a, b) => a.order - b.order);
 
+/**
+ * Direct-link resolution: `hidden` still resolves, `blocked` does not. Mirrors
+ * the backend gate in `apps/api/config/notebookCollectionMap.ts`, which lets an
+ * explicitly mentioned notebook through on the same terms.
+ */
 export const getNotebookById = (id: string): NotebookConfigEntry | undefined =>
-  SYSTEM_NOTEBOOKS.find((nb) => nb.id === id);
+  ALL_SYSTEM_NOTEBOOKS.find(
+    (nb) => nb.id === id && isNotebookResolvableIn(nb.id, CURRENT_INSTANCE)
+  );
 
 export const getNotebookByPath = (path: string): NotebookConfigEntry | undefined =>
-  SYSTEM_NOTEBOOKS.find((nb) => nb.path === path);
+  ALL_SYSTEM_NOTEBOOKS.find(
+    (nb) => nb.path === path && isNotebookResolvableIn(nb.id, CURRENT_INSTANCE)
+  );
 
 export const getNotebooksByCategory = (category: NotebookCategory): NotebookConfigEntry[] =>
   SYSTEM_NOTEBOOKS.filter((nb) => isNotebookEnabled(nb) && nb.category === category).sort(

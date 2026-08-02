@@ -23,7 +23,8 @@ import { convertToModelMessages } from 'ai';
 
 import { initializeChatState } from '../../../agents/langgraph/ChatGraph/index.js';
 import {
-  isKnownNotebook,
+  isNotebookImplicitlySearchable,
+  isNotebookResolvable,
   isUserNotebookId,
   resolveUserNotebookDocumentIds,
 } from '../../../config/notebookCollectionMap.js';
@@ -208,15 +209,20 @@ export async function buildStreamContext({
     return { done: true };
   }
 
-  const systemNotebookIds = mergedNotebookIds.filter(isKnownNotebook);
+  // @notebook mentions are the turn naming a notebook out loud — the one case a
+  // merely *hidden* notebook still resolves, so a link or thread shared from
+  // another instance keeps working. Only `block` and `enabled: false` say no here.
+  const systemNotebookIds = mergedNotebookIds.filter(isNotebookResolvable);
   const userNotebookUuids = mergedNotebookIds.filter(isUserNotebookId);
   const { documentIds: notebookDocumentIds, resolvedUserNotebookIds } =
     userNotebookUuids.length > 0
       ? await resolveUserNotebookDocumentIds(userId, userNotebookUuids)
       : { documentIds: [], resolvedUserNotebookIds: [] };
   const notebookIds = [...systemNotebookIds, ...resolvedUserNotebookIds];
+  // The composer's default pick scopes every following turn without being
+  // restated, so it is implicit scoping — unlike the mention above.
   const defaultNotebookId =
-    rawDefaultNotebookId && isKnownNotebook(rawDefaultNotebookId)
+    rawDefaultNotebookId && isNotebookImplicitlySearchable(rawDefaultNotebookId)
       ? rawDefaultNotebookId
       : undefined;
   // An agent can bind a user-owned notebook (UUID) as its default knowledge

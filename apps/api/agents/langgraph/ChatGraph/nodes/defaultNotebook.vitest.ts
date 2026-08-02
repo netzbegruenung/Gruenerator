@@ -2,7 +2,7 @@
  * Tests for the Persistent Default Notebook Selection feature.
  *
  * Covers:
- * 1. Pure functions: resolveNotebookCollections, isKnownNotebook, getDefaultCollectionsForLocale
+ * 1. Pure functions: resolveNotebookCollections, isNotebookResolvable, getDefaultCollectionsForLocale
  * 2. searchNode() with mocked services — verifies the 5-level collection priority chain
  * 3. Default behavior equivalence (gruenerator-notebook ≡ de-DE locale fallback)
  */
@@ -44,9 +44,12 @@ vi.mock('../../../../utils/logger.js', () => ({
 
 // ─── Import modules under test (after mocks) ────────────────────────────
 
+import { isNotebookOfferedIn } from '@gruenerator/shared/notebooks';
+
+import { CURRENT_INSTANCE } from '../../../../config/instance.js';
 import {
   resolveNotebookCollections,
-  isKnownNotebook,
+  isNotebookResolvable,
   isDisabledNotebook,
   NOTEBOOK_COLLECTION_MAP,
 } from '../../../../config/notebookCollectionMap.js';
@@ -180,22 +183,27 @@ describe('resolveNotebookCollections', () => {
   });
 });
 
-// ─── isKnownNotebook ────────────────────────────────────────────────────
+// ─── notebook gate ──────────────────────────────────────────────────────
+// The two tiers themselves are covered in `config/notebookCollectionMap.vitest.ts`;
+// this only pins the routing behaviour the node tests below depend on.
 
-describe('isKnownNotebook', () => {
-  it('returns true for all known notebook IDs', () => {
-    // DISABLED_NOTEBOOK_IDS entries stay in the map for admin tooling but
-    // isKnownNotebook returns false for them by design — filter them out.
+describe('isNotebookResolvable', () => {
+  it('returns true for all known notebook IDs this instance carries', () => {
+    // Two exclusions: DISABLED_NOTEBOOK_IDS entries stay in the map for admin
+    // tooling but never route, and a notebook on a channel this instance does
+    // not serve (`boell-stiftung-notebook` is `internal`) is not its content —
+    // the backend now agrees with the gallery, which has always hidden it.
     for (const id of Object.keys(NOTEBOOK_COLLECTION_MAP)) {
       if (isDisabledNotebook(id)) continue;
-      expect(isKnownNotebook(id)).toBe(true);
+      if (!isNotebookOfferedIn(id, CURRENT_INSTANCE)) continue;
+      expect(isNotebookResolvable(id)).toBe(true);
     }
   });
 
   it('returns false for unknown notebook IDs', () => {
-    expect(isKnownNotebook('nonexistent-notebook')).toBe(false);
-    expect(isKnownNotebook('')).toBe(false);
-    expect(isKnownNotebook('deutschland')).toBe(false);
+    expect(isNotebookResolvable('nonexistent-notebook')).toBe(false);
+    expect(isNotebookResolvable('')).toBe(false);
+    expect(isNotebookResolvable('deutschland')).toBe(false);
   });
 });
 

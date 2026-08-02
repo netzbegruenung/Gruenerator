@@ -179,7 +179,10 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
       const errorMessage = this.getErrorMessage();
 
       return (
-        <div className="p-lg border border-grey-200 dark:border-grey-700 rounded-xs bg-background-alt mx-auto my-lg max-w-[800px] text-center font-sans text-foreground">
+        <div
+          data-testid="error-boundary"
+          className="p-lg border border-grey-200 dark:border-grey-700 rounded-xs bg-background-alt mx-auto my-lg max-w-[800px] text-center font-sans text-foreground"
+        >
           <h1 className="text-foreground-heading text-[2em] mb-md">{errorMessage.title}</h1>
           <p className="mb-md leading-relaxed">{errorMessage.message}</p>
 
