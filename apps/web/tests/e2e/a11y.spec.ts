@@ -110,7 +110,7 @@ const ROUTES = [
  * Stand 08/2026, gemessen mit festem Datenstand über die bereinigte
  * Routenliste. `color-contrast` stand vorher auf ALLEN zwanzig Routen — das
  * war der Marken-Grün-Befund, und der ist mit #2334 (Eukalyptus) und der
- * Grau-Rampe erledigt. Elf Routen sind jetzt ohne jede Ausnahme.
+ * Grau-Rampe erledigt. Zwölf Routen sind jetzt ohne jede Ausnahme.
  */
 const KNOWN_VIOLATIONS: Record<string, string[]> = {
   // Beide Befunde sitzen im Board-Kopf, nicht in den Karten: `button-name` an
@@ -125,17 +125,6 @@ const KNOWN_VIOLATIONS: Record<string, string[]> = {
   // deshalb aus den Komponententests neben der Komponente
   // (`kanban.vitest.tsx`, `list.vitest.tsx`, mit Gegenprobe), nicht von hier.
   [`/boards/${FIXTURE_BOARD_ID}`]: ['button-name', 'color-contrast'],
-  // Neu, und der einzige Eintrag, der durch diesen PR **dazu**kommt: `/projekte`
-  // zeigte bis eben die Fehlergrenze, axe fand darauf null Verstöße. Jetzt
-  // rendert die Seite — und die Beschreibungszeile der Projekt-Kacheln steht bei
-  // 4,05:1 (`#56708F` auf `#DCE6F2`, aus `config/toolTheme.ts`). Der Befund ist
-  // älter als dieser PR, er war nur unsichtbar.
-  //
-  // Er wird hier nicht mitbehoben, weil er nicht bei `/projekte` aufhört: von
-  // 66 Farbpaaren der Kachel-Palette liegen SECHS unter 4,5:1, alle in der
-  // Rolle `desc`, alle im hellen Modus. Das ist eine Palettenentscheidung und
-  // gehört in einen eigenen PR, der diesen Eintrag wieder streicht.
-  '/projekte': ['color-contrast'],
 };
 
 async function gotoAuthenticated(page: Page, route: string): Promise<void> {
