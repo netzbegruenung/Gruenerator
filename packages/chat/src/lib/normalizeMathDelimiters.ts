@@ -10,13 +10,37 @@
  * citation markers are still bare `[1]`, so the `\[ … \]` rule cannot collide
  * with escaped citations (which only appear as `\[1\]` AFTER escaping).
  */
+/**
+ * Same job the lazy `/\\\[([\s\S]+?)\\\]/g` pair used to do, scanned with
+ * `indexOf` instead. The regex form was quadratic in the message length on
+ * unbalanced input (`\[a\[a\[a…` with no closing delimiter — CodeQL
+ * js/polynomial-redos), and every streamed assistant token runs through here.
+ * Semantics are unchanged: shortest match, at least one inner character, and
+ * scanning resumes after the closing delimiter.
+ */
+function replacePairedDelimiters(text: string, open: string, close: string, wrap: string): string {
+  let out = '';
+  let cursor = 0;
+  for (;;) {
+    const start = text.indexOf(open, cursor);
+    if (start === -1) break;
+    // `+ 1` because the inner group is `+?`, not `*?`.
+    const end = text.indexOf(close, start + open.length + 1);
+    // No closing delimiter left anywhere — no later opener can match either.
+    if (end === -1) break;
+    out += text.slice(cursor, start) + wrap + text.slice(start + open.length, end) + wrap;
+    cursor = end + close.length;
+  }
+  return out + text.slice(cursor);
+}
+
 export function normalizeMathDelimiters(text: string): string {
-  return (
-    text
-      // Display math: \[ … \] → $$ … $$  (non-greedy, spans newlines)
-      .replace(/\\\[([\s\S]+?)\\\]/g, (_match, inner: string) => `$$${inner}$$`)
-      // Inline math: \( … \) → $ … $
-      .replace(/\\\(([\s\S]+?)\\\)/g, (_match, inner: string) => `$${inner}$`)
+  // Display math: \[ … \] → $$ … $$, then inline math: \( … \) → $ … $
+  return replacePairedDelimiters(
+    replacePairedDelimiters(text, '\\[', '\\]', '$$'),
+    '\\(',
+    '\\)',
+    '$'
   );
 }
 

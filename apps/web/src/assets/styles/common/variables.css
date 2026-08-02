@@ -28,7 +28,12 @@
     --secondary-300: #A0BBB0;
     --secondary-400: #85A899;
     --secondary-500: #6A9583;
-    --secondary-600: #5F8575;  /* Base "Eucalyptus" color */
+    /* Eukalyptus, um 4 % Helligkeit abgedunkelt (war #5F8575). Weiß darauf
+       erreichte 4,12:1 und verfehlte damit 4,5:1 (WCAG 1.4.3) -- an dieser
+       einen Stufe hingen Brand-Button, Sprung-Link, die Legacy-Buttons und
+       jedes bg-secondary-600. Jetzt 4,65:1. Als Textfarbe auf Weiß
+       (51x text-secondary-600) gilt derselbe Sprung. */
+    --secondary-600: #587C6D;  /* Base "Eucalyptus" color */
     --secondary-700: #445F54;
     --secondary-800: #31453C;
     --secondary-900: #1E2A25;
@@ -220,6 +225,21 @@
     --color-primary-light-val: #46962b;
     --color-primary-dark-val: #1a332a;
 
+    /* `bg-primary`/`text-primary` (224 bzw. 107 Fundstellen) hingen auf
+       --primary-500. Weiß darauf erreicht 3,73:1 und die Farbe auf Weiß
+       ebenfalls 3,73:1 — im Hellmodus fielen BEIDE Rollen durch. --primary-600
+       löst beide auf einmal (je 7,24:1).
+
+       Im Dunkelmodus geht das nicht: dort will der Grund dunkel sein (weiß
+       darauf) und der Text hell (auf dunklem Grund). Ein Token kann das nicht,
+       deshalb bleibt dunkel vorerst auf --primary-500 — Bestand, keine
+       Verschlechterung. Auflösung ist die Trennung von Grund- und Textrolle,
+       siehe docs/barrierefreiheit-followup-audit.md.
+
+       Dasselbe für --color-secondary (Badge, bg-secondary). */
+    --color-primary-val: var(--primary-600);
+    --color-secondary-val: var(--secondary-600);
+
     /* Surface & Layout */
     --color-surface-val: #f3f4f6;
     --color-surface-hover-val: #e5e7eb;
@@ -391,6 +411,15 @@
 
     /* ── Tailwind @theme token values (dark mode) ── */
 
+    /* --color-primary bleibt Bestand: im Dunkelmodus ziehen Grund- und
+       Textrolle desselben Tokens in entgegengesetzte Richtungen (224x
+       bg-primary gegen 107x text-primary). Siehe den :root-Block.
+
+       --color-secondary hat KEINE Textrolle -- kein einziges text-secondary im
+       Bestand -- und kann deshalb auch dunkel mitziehen. */
+    --color-primary-val: var(--primary-500);
+    --color-secondary-val: var(--secondary-600);
+
     /* Surface & Layout */
     --color-surface-val: rgba(255,255,255,0.05);
     --color-surface-hover-val: rgba(255,255,255,0.1);
@@ -552,6 +581,10 @@
         --input-background: var(--background-color-alt);
 
         /* ── Tailwind @theme token values (prefers-color-scheme dark) ── */
+        /* Dieselbe Begründung wie im [data-theme="dark"]-Block. */
+        --color-primary-val: var(--primary-500);
+        --color-secondary-val: var(--secondary-600);
+
         --color-surface-val: rgba(255,255,255,0.05);
         --color-surface-hover-val: rgba(255,255,255,0.1);
         --color-hover-overlay-val: rgba(255,255,255,0.05);
