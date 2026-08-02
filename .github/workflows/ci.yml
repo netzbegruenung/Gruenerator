@@ -9,6 +9,11 @@ on:
   # `gh-readonly-queue/*` branch and fires `merge_group`. Without this trigger
   # the required checks never report on the queue and it hangs forever.
   merge_group:
+  # Von Hand auslösbar, damit der volle Lauf ohne offenen PR auf den Runner
+  # geht statt lokal zu laufen: `gh workflow run ci.yml --ref <branch>`.
+  # typecheck/lint/format/test lokal zu wiederholen kostet ~6 GB RAM — hier
+  # laufen sie ohnehin bei jedem PR.
+  workflow_dispatch:
 
 permissions:
   contents: read
