@@ -10,12 +10,13 @@ export function SectionNavigation({ className }: SectionNavigationProps) {
   const { activeSection, navigateToSection } = useEditorStore();
 
   return (
-    <nav
+    <div
       className={cn(
         'flex gap-0.5 p-sm bg-background-pure border-b border-grey-200 dark:border-grey-700 overflow-x-auto',
         className
       )}
       role="tablist"
+      aria-label="Seitenabschnitte"
     >
       {SECTION_ORDER.map((section) => (
         <button
@@ -32,6 +33,6 @@ export function SectionNavigation({ className }: SectionNavigationProps) {
           {SECTION_LABELS[section]}
         </button>
       ))}
-    </nav>
+    </div>
   );
 }
