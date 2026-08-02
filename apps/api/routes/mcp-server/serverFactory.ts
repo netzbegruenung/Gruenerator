@@ -361,15 +361,22 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
             .describe(
               'Feldfilter, z.B. {"content_type":"praxishilfe"}. Werte NIE raten — vorher gruenerator_get_filters aufrufen.'
             ),
+          searchMode: z
+            .enum(['hybrid', 'vector', 'text'])
+            .default('hybrid')
+            .describe(
+              'hybrid kombiniert Bedeutung und Wortlaut und passt fast immer. text sucht rein nach Wortlaut — für wörtliche Zitate, Eigennamen und Paragraphen. vector rein nach Bedeutung.'
+            ),
         },
         outputSchema: SEARCH_OUTPUT_SCHEMA,
         annotations: READONLY,
       },
-      guarded('gruenerator_search', async ({ query, collection, limit, filters }) => {
+      guarded('gruenerator_search', async ({ query, collection, limit, filters, searchMode }) => {
         const result = await executeDirectSearch({
           query,
           collection,
           limit,
+          searchMode,
           ...(filters ? { filters } : {}),
         });
         if (result.error) return text(result.message ?? 'Suche fehlgeschlagen.', true);
@@ -497,15 +504,10 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
           const result = await executeDirectExamplesSearch({
             query,
             country,
+            limit,
             ...(platform ? { platform } : {}),
           });
-          // executeDirectExamplesSearch has no limit param
-          const examples = result.examples.slice(0, limit);
-          return emit({
-            ...result,
-            examples,
-            resultsCount: Math.min(result.resultsCount, examples.length),
-          });
+          return emit(result);
         }
         return emit(await executeDirectPressemitteilungExamples({ query, country, limit }));
       })
