@@ -189,19 +189,35 @@ export async function generateFromState(
 }
 
 /**
+ * Reduce a heading to plain text. The title is stored and re-rendered
+ * elsewhere, so a single `replace` is not enough (CodeQL
+ * js/incomplete-multi-character-sanitization): stripping `<…>` pairs once
+ * splices the halves of `<scr<a>ipt>` back into `<script>`, so it repeats until
+ * the string stops changing. The final pass drops stray brackets, which is what
+ * catches an unterminated `<script` — no `>`, so no pair ever matches it.
+ *
+ * Input is capped first: every pass shrinks the string, so the loop terminates,
+ * but the bound keeps it away from quadratic behaviour. The result is cut to
+ * 120 characters anyway, so the cap is unobservable.
+ */
+function toPlainTitleText(raw: string): string {
+  let prev = raw.slice(0, 4096);
+  for (;;) {
+    const next = prev.replace(/<[^>]*>/g, '');
+    if (next === prev) break;
+    prev = next;
+  }
+  return prev.replace(/[<>]/g, '');
+}
+
+/**
  * Derive a document/result title: prefer a leading heading from the generated
  * content, otherwise fall back to the (mention-stripped) instruction text.
  */
 export function deriveTitle(instruction: string, responseText: string): string {
   const mdHeading = responseText.match(/^\s{0,3}#{1,3}\s+(.+)$/m);
   const htmlHeading = responseText.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
-  // The second pass matters: stripping `<…>` pairs leaves an unterminated
-  // `<script` intact, and the title is stored and re-rendered elsewhere
-  // (CodeQL js/incomplete-multi-character-sanitization).
-  const heading = (mdHeading?.[1] ?? htmlHeading?.[1] ?? '')
-    .replace(/<[^>]*>/g, '')
-    .replace(/[<>]/g, '')
-    .trim();
+  const heading = toPlainTitleText(mdHeading?.[1] ?? htmlHeading?.[1] ?? '').trim();
   if (heading) return heading.slice(0, 120);
 
   const cleaned = instruction.replace(/@\S+/g, '').replace(/\s+/g, ' ').trim();
