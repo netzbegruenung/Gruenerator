@@ -114,7 +114,17 @@ export function assertLandesverbandAllowed(
   ctx: ApiKeyContext,
   requested: string
 ): { ok: true } | { ok: false; reason: string } {
-  const allowed = ctx.scopes.landesverbaende;
+  return assertLandesverbandScope(ctx.scopes.landesverbaende, requested);
+}
+
+/**
+ * Dieselbe Prüfung ohne `ApiKeyContext` — der MCP-Server baut seinen eigenen
+ * Auth-Kontext und hat nur die Liste, nicht die Express-Form drumherum.
+ */
+export function assertLandesverbandScope(
+  allowed: string[] | '*' | undefined,
+  requested: string
+): { ok: true } | { ok: false; reason: string } {
   if (allowed === '*') return { ok: true };
   if (!allowed || allowed.length === 0) {
     return { ok: false, reason: 'API key has no Landesverband scope assigned' };

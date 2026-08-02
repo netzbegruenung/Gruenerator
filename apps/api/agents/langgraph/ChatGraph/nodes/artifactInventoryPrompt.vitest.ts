@@ -18,9 +18,6 @@ import type { ChatGraphState } from '../types.js';
  *     Ausführung → die Artefakte dieses Turns stehen schon drin.
  */
 
-vi.mock('../../../../services/agents/prAgentInsightService.js', () => ({
-  getPrAgentInsightFragment: async () => '',
-}));
 vi.mock('../../../../services/docs/docsIndex.js', () => ({ buildDocsPageMap: async () => '' }));
 vi.mock('../../../../services/user/textFormRepository.js', () => ({
   getTextFormForInjection: async () => null,

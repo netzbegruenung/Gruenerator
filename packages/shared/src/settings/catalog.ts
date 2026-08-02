@@ -22,6 +22,7 @@
 
 /** Tabs of the web settings dialog. Mobile groups the same ids differently. */
 export type SettingsTab =
+  | 'onboarding'
   | 'allgemein'
   | 'hintergrund'
   | 'barrierefreiheit'
@@ -163,6 +164,17 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     title: 'Einführungs-Touren zurücksetzen',
     description:
       'Zeigt die Touren durch Workplace, Dokumente, Tabellen, Präsentationen und das Sharepic-Studio beim nächsten Öffnen wieder an.',
+  },
+  {
+    // Web-only, wie der Bereich selbst: die Einrichtung stellt Rolle, Friend und
+    // Hintergrund ein, und die Rollen legt man laut Katalog ohnehin am Rechner
+    // an. Die Zeile steht in Allgemein, weil der Bereich „Onboarding" nach dem
+    // Abschluss verschwindet — ohne sie gäbe es keinen Weg zurück.
+    id: 'allgemein.onboarding',
+    tab: 'allgemein',
+    title: 'Einrichtung erneut starten',
+    description:
+      'Holt den Bereich „Onboarding" zurück und führt noch einmal durch Rolle, Friend und Hintergrund.',
   },
   {
     id: 'friends.avatar',
