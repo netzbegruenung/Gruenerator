@@ -42,7 +42,9 @@ export default [
           Label: 'label',
           Link: 'a',
           NavLink: 'a',
-          Image: 'img',
+          // Kein `Image: 'img'`: Eine <Image>-Komponente gibt es hier nicht,
+          // der Name gehört dem lucide-Icon (drei Importe in chat und web).
+          // Das Mapping hätte jedes dieser Icons als Bild ohne alt gemeldet.
         },
       },
     },
