@@ -182,7 +182,7 @@ export const DOCS_PAGES: readonly DocPage[] = [
     "url": "/docs/integrationen/ki-chat-einrichten",
     "title": "Grünerator in ChatGPT & Co nutzen",
     "category": "Integrationen",
-    "lead": "Du kannst den Grünerator direkt in ChatGPT, Claude, Mistral Le Chat oder OpenWebUI verwenden — ohne gruenerator.eu öffnen zu müssen. Dein KI-Assistent kann dann grüne Parteiprogramme durchsuchen, Pos…"
+    "lead": "Du kannst den Grünerator direkt in ChatGPT, Claude, Mistral Le Chat oder OpenWebUI verwenden — ohne gruenerator.eu öffnen zu müssen. Dein KI-Assistent durchsucht dann grüne Parteiprogramme, findet Po…"
   },
   {
     "url": "/docs/integrationen/konnektoren",
@@ -1591,7 +1591,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Grünerator in ChatGPT & Co nutzen",
     "anchor": "",
     "category": "Integrationen",
-    "text": "Du kannst den Grünerator direkt in ChatGPT, Claude, Mistral Le Chat oder OpenWebUI verwenden — ohne gruenerator.eu öffnen zu müssen. Dein KI-Assistent kann dann grüne Parteiprogramme durchsuchen, Positionen zu Themen finden und dir beim Schreiben politischer Texte helfen. MCP (Model Context Protocol) ist ein offener Standard, über den KI-Chatbots auf externe Datenquellen zugreifen können — hier sorgt es dafür, dass dein Chat-Assistent den Grünerator nutzen kann."
+    "text": "Du kannst den Grünerator direkt in ChatGPT, Claude, Mistral Le Chat oder OpenWebUI verwenden — ohne gruenerator.eu öffnen zu müssen. Dein KI-Assistent durchsucht dann grüne Parteiprogramme, findet Positionen zu Themen und greift auf deine eigenen Grünerator-Inhalte zu: Dokumente, Boards, Notizbücher, Projekte. MCP (Model Context Protocol) ist ein offener Standard, über den KI-Chatbots auf externe Datenquellen zugreifen können — hier sorgt es dafür, dass dein Chat-Assistent den Grünerator nutzen kann."
   },
   {
     "url": "/docs/integrationen/ki-chat-einrichten",
@@ -1599,7 +1599,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "ChatGPT",
     "anchor": "#chatgpt",
     "category": "Integrationen",
-    "text": "Öffne chatgpt.com und logge dich ein. Klicke oben rechts auf dein Profil → Settings. Wähle in der Sidebar Connectors. Aktiviere unter Advanced den Developer Mode, damit du eigene Verbindungen hinzufügen kannst. Klicke auf Create bzw. Add custom connector. Trage folgende Daten ein: Name: Grünerator URL: https://mcp.gruenerator.eu/mcp Auth: Keine (leer lassen) Speichern — der Grünerator steht nun in normalen Chats und in Deep Research als Datenquelle zur Verfügung. ---"
+    "text": "Öffne chatgpt.com und logge dich ein. Klicke oben rechts auf dein Profil → Settings. Wähle in der Sidebar Connectors. Aktiviere unter Advanced den Developer Mode, damit du eigene Verbindungen hinzufügen kannst. Klicke auf Create bzw. Add custom connector. Trage folgende Daten ein: Name: Grünerator URL: https://mcp.gruenerator.eu Authentication: OAuth — Client-ID und Client Secret leer lassen Speichern. ChatGPT leitet dich zur Grünerator-Anmeldung und anschließend auf die Zustimmungsseite. Fertig — der Grünerator steht nun in normalen Chats und in Deep Research als Datenquelle zur Verfügung. ---"
   },
   {
     "url": "/docs/integrationen/ki-chat-einrichten",
@@ -1607,7 +1607,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Claude",
     "anchor": "#claude",
     "category": "Integrationen",
-    "text": "Öffne claude.ai und logge dich ein. Klicke oben rechts auf dein Profil → Settings. Gehe in der linken Sidebar auf Integrations. Klicke auf Add integration. Trage folgende Daten ein: Name: Grünerator URL: https://mcp.gruenerator.eu/mcp Auth: Keine (leer lassen) Speichern — fertig! Claude nutzt den Grünerator nun automatisch, wenn es zu deiner Anfrage passt. Du kannst die Verbindung auch manuell im Chat aktivieren, indem du sie in der Tool-Auswahl anhakst. ---"
+    "text": "Öffne claude.ai und logge dich ein. Klicke oben rechts auf dein Profil → Settings. Gehe in der linken Sidebar auf Integrations. Klicke auf Add integration. Trage folgende Daten ein: Name: Grünerator URL: https://mcp.gruenerator.eu Speichern und auf Connect klicken — melde dich an und stimme zu. Fertig! Claude nutzt den Grünerator nun automatisch, wenn es zu deiner Anfrage passt. Du kannst die Verbindung auch manuell im Chat aktivieren, indem du sie in der Tool-Auswahl anhakst. ---"
   },
   {
     "url": "/docs/integrationen/ki-chat-einrichten",
@@ -1615,7 +1615,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Mistral Le Chat",
     "anchor": "#mistral-le-chat",
     "category": "Integrationen",
-    "text": "Öffne chat.mistral.ai und logge dich ein. Gehe in der linken Sidebar auf Connectors (oder über Profil → Settings → Connectors). Klicke auf Add Connector. Wähle den Tab Custom MCP Connector. Trage folgende Daten ein: Name: Grünerator URL: https://mcp.gruenerator.eu/mcp Auth: Keine (leer lassen) Speichern. Im Chat die Verbindung aktivieren: In der Seitenleiste unter Connectors den Grünerator anhaken, oder im Prompt /Grünerator eingeben, um ihn als Tool zu aktivieren. ---"
+    "text": "Öffne chat.mistral.ai und logge dich ein. Gehe in der linken Sidebar auf Connectors (oder über Profil → Settings → Connectors). Klicke auf Add Connector. Wähle den Tab Custom MCP Connector. Trage folgende Daten ein: Name: Grünerator URL: https://mcp.gruenerator.eu Auth: OAuth Speichern, anmelden, zustimmen. Im Chat die Verbindung aktivieren: In der Seitenleiste unter Connectors den Grünerator anhaken, oder im Prompt /Grünerator eingeben, um ihn als Tool zu aktivieren. ---"
   },
   {
     "url": "/docs/integrationen/ki-chat-einrichten",
@@ -1623,7 +1623,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "OpenWebUI (für Fortgeschrittene)",
     "anchor": "#openwebui-für-fortgeschrittene",
     "category": "Integrationen",
-    "text": "OpenWebUI ist eine selbst gehostete Chat-Oberfläche, die viele verschiedene KI-Modelle unterstützt. Ab Version 0.6 kann der Grünerator direkt eingebunden werden. Öffne die OpenWebUI-Einstellungen → Tools → MCP Servers. Füge einen neuen Server hinzu: Name: Grünerator URL: https://mcp.gruenerator.eu/mcp Speichern und im Chat als Tool aktivieren. ---"
+    "text": "OpenWebUI ist eine selbst gehostete Chat-Oberfläche, die viele verschiedene KI-Modelle unterstützt. Ab Version 0.6 kann der Grünerator direkt eingebunden werden. Öffne die OpenWebUI-Einstellungen → Tools → MCP Servers. Füge einen neuen Server hinzu: Name: Grünerator URL: https://mcp.gruenerator.eu Auth: OAuth Speichern, anmelden, zustimmen und im Chat als Tool aktivieren. ---"
   },
   {
     "url": "/docs/integrationen/ki-chat-einrichten",
@@ -1631,7 +1631,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Übersicht",
     "anchor": "#übersicht",
     "category": "Integrationen",
-    "text": "Plattform | Wo einrichten? | URL | Anmeldung nötig? | ------------------- | -------------------------------------- | -------------------------------- | ---------------- | ChatGPT | Settings → Connectors (Developer Mode) | https://mcp.gruenerator.eu/mcp | Nein | Claude | Settings → Integrations | https://mcp.gruenerator.eu/mcp | Nein | Mistral Le Chat | Settings → Connectors → Custom MCP | https://mcp.gruenerator.eu/mcp | Nein | OpenWebUI | Settings → Tools → MCP Servers | https://mcp.gruenerator.eu/mcp | Nein | ---"
+    "text": "Plattform | Wo einrichten? | URL | Anmeldung | ------------------- | -------------------------------------- | ---------------------------- | ------------------------- | ChatGPT | Settings → Connectors (Developer Mode) | https://mcp.gruenerator.eu | OAuth, Felder leer lassen | Claude | Settings → Integrations | https://mcp.gruenerator.eu | OAuth, läuft automatisch | Mistral Le Chat | Settings → Connectors → Custom MCP | https://mcp.gruenerator.eu | OAuth | OpenWebUI | Settings → Tools → MCP Servers | https://mcp.gruenerator.eu | OAuth | ---"
   },
   {
     "url": "/docs/integrationen/ki-chat-einrichten",
@@ -1647,7 +1647,23 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was du dafür brauchst",
     "anchor": "#was-du-dafür-brauchst",
     "category": "Integrationen",
-    "text": "Ein Konto bei einem der unterstützten KI-Chats (ChatGPT, Claude, Mistral Le Chat oder OpenWebUI) ChatGPT: Ein Plan mit Connector-Unterstützung (Plus, Pro oder Team)"
+    "text": "Ein Grünerator-Konto — die Verbindung läuft über deine Anmeldung Ein Konto bei einem der unterstützten KI-Chats (ChatGPT, Claude, Mistral Le Chat oder OpenWebUI) ChatGPT: Ein Plan mit Connector-Unterstützung (Plus, Pro oder Team) https://mcp.gruenerator.eu Ältere Anleitungen nennen …/mcp oder …/v2 — beide funktionieren weiter und führen an dieselbe Stelle."
+  },
+  {
+    "url": "/docs/integrationen/ki-chat-einrichten",
+    "pageTitle": "Grünerator in ChatGPT & Co nutzen",
+    "heading": "Wenn es nicht klappt",
+    "anchor": "#wenn-es-nicht-klappt",
+    "category": "Integrationen",
+    "text": "„Unauthorized\" oder die Verbindung fragt nicht nach der Anmeldung. Entferne die Verbindung und lege sie neu an — manche Clients merken sich einen alten Stand. Die Verbindung stand schon einmal und ist plötzlich weg. Mit der Zusammenlegung der beiden früheren Server hat sich die Kennung geändert; einmal neu verbinden genügt. Es kommt nur „Keine Treffer\". Suche mit einzelnen Begriffen statt mit ganzen Sätzen — und nenne das Land, wenn es um Österreich geht. ---"
+  },
+  {
+    "url": "/docs/integrationen/ki-chat-einrichten",
+    "pageTitle": "Grünerator in ChatGPT & Co nutzen",
+    "heading": "Wie die Anmeldung abläuft",
+    "anchor": "#wie-die-anmeldung-abläuft",
+    "category": "Integrationen",
+    "text": "Beim ersten Verbinden schickt dich dein KI-Chat auf die Grünerator-Anmeldung. Danach siehst du eine Zustimmungsseite, auf der steht, worauf die Verbindung zugreifen darf — Suche, eigene Inhalte lesen, eigene Inhalte anlegen, Projekte, Medien. Erst nach deiner Zustimmung steht die Verbindung. Du gibst dabei kein Passwort an den KI-Chat weiter, und du kannst die Verbindung jederzeit im Grünerator wieder entziehen. Ein Zugangsschlüssel ist nicht nötig: Client-ID und Geheimnis bleiben leer — die Chat-Dienste melden sich selbst am Grünerator an."
   },
   {
     "url": "/docs/integrationen/konnektoren",
@@ -1727,7 +1743,7 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "heading": "Was kann ich den MCP-Server fragen?",
     "anchor": "",
     "category": "Integrationen",
-    "text": "Du hast den Grünerator mit deinem KI-Chat verbunden — aber was kannst du damit eigentlich alles machen? Hier erfährst du, welche Fähigkeiten dir zur Verfügung stehen und wie du sie am besten nutzt. Der Grünerator MCP-Server gibt deinem KI-Assistenten Zugriff auf grüne Parteiprogramme, Beschlüsse, Analysen und Social-Media-Beispiele. Du kannst darin suchen, Inhalte filtern und sogar fertige Texte in verschiedenen Formaten erstellen lassen. ---"
+    "text": "Du hast den Grünerator mit deinem KI-Chat verbunden — aber was kannst du damit eigentlich alles machen? Hier erfährst du, welche Fähigkeiten dir zur Verfügung stehen und wie du sie am besten nutzt. Der Grünerator MCP-Server gibt deinem KI-Assistenten Zugriff auf grüne Parteiprogramme, Beschlüsse, Analysen und Social-Media-Beispiele — und auf deine eigenen Grünerator-Inhalte. Du kannst darin suchen, Inhalte filtern und fertige Texte in verschiedenen Formaten erstellen lassen. Beim Verbinden stimmst du einzelnen Bereichen zu — Suche, eigene Inhalte lesen, eigene Inhalte anlegen, Projekte, Medien. Werkzeuge, denen du nicht zugestimmt hast, tauchen gar nicht erst in der Liste auf; dein Assistent kann sie also weder benutzen noch versehentlich vorschlagen. ---"
   },
   {
     "url": "/docs/integrationen/mcp-was-kann-ich-fragen",
@@ -1748,10 +1764,26 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
   {
     "url": "/docs/integrationen/mcp-was-kann-ich-fragen",
     "pageTitle": "Was kann ich den MCP-Server fragen?",
+    "heading": "Deine eigenen Inhalte",
+    "anchor": "#deine-eigenen-inhalte",
+    "category": "Integrationen",
+    "text": "Weil die Verbindung an deinem Konto hängt, erreicht dein Assistent auch das, was im Grünerator dir gehört: Dokumente, Tabellen und Präsentationen, Boards und Aufgaben, Notizbücher, Projekte und Medien — je nachdem, wozu du beim Verbinden zugestimmt hast. „Liste meine Notizbücher auf\" „Was steht in meinem Wahlkampf-Notizbuch zur Verkehrswende?\" „Welche Aufgaben sind bei mir noch offen?\" „Leg mir ein Dokument mit einer Rede zum Thema X an\" Beim Notizbuch bekommst du eine belegte Antwort samt Quellenliste zurück. Die Suche im Parteikorpus liefert dagegen die gefundenen Textstellen und keine fertig formulierte Antwort — die schreibt dein KI-Assistent selbst daraus. Das ist der Unterschied zum Grünerator-Chat, der die Synthese übernimmt. Aktionen, die etwas löschen oder nach außen sichtbar machen, fragen immer zuerst nach. Erst nach deinem Ja werden sie ausgeführt."
+  },
+  {
+    "url": "/docs/integrationen/mcp-was-kann-ich-fragen",
+    "pageTitle": "Was kann ich den MCP-Server fragen?",
     "heading": "Ergebnisse filtern",
     "anchor": "#ergebnisse-filtern",
     "category": "Integrationen",
     "text": "Du kannst die Suchergebnisse nach Kategorien einschränken. Sag der KI einfach, wonach du filtern möchtest: „Zeig mir nur Praxishilfen im KommunalWiki zum Thema Haushalt\" „Europa-Analysen der Böll-Stiftung\" „Nur Fachtexte der Bundestagsfraktion zur Energiewende\""
+  },
+  {
+    "url": "/docs/integrationen/mcp-was-kann-ich-fragen",
+    "pageTitle": "Was kann ich den MCP-Server fragen?",
+    "heading": "Für Landesverbände",
+    "anchor": "#für-landesverbände",
+    "category": "Integrationen",
+    "text": "Partner-Zugänge mit einem freigeschalteten Landesverband bekommen zusätzlich die Werkzeuge notebookslist, notebookssearch und notebooksgetfilters — der Zugriff auf den Quellenbestand des jeweiligen Landesverbands. ---"
   },
   {
     "url": "/docs/integrationen/mcp-was-kann-ich-fragen",
@@ -1768,14 +1800,6 @@ export const DOCS_SECTIONS: readonly DocSection[] = [
     "anchor": "#landesverbände",
     "category": "Integrationen",
     "text": "Zusätzlich kannst du gezielt in Dokumenten einzelner Landesverbände suchen. Diese werden bei einer normalen Landessuche nicht automatisch mitdurchsucht — du musst den Landesverband explizit nennen. Beispielfragen: „Was sagen die Grünen Hamburg zum Thema Verkehr?\" · „Wahlprogramm der Grünen Schleswig-Holstein zu Bildung\" · „Grüne Bayern Position zur Wirtschaft\" Du kannst auch nach demselben Thema in verschiedenen Sammlungen suchen lassen, z.B.: „Vergleiche die Position von Deutschland und Österreich zum Thema Mobilität.\" Die KI sucht dann automatisch in beiden Sammlungen."
-  },
-  {
-    "url": "/docs/integrationen/mcp-was-kann-ich-fragen",
-    "pageTitle": "Was kann ich den MCP-Server fragen?",
-    "heading": "Notizbücher durchsuchen",
-    "anchor": "#notizbücher-durchsuchen",
-    "category": "Integrationen",
-    "text": "Wenn du dich beim MCP-Server mit deinem Grünerator-Konto anmeldest, stehen zusätzlich Notizbuch-Werkzeuge bereit: deine Notebooks auflisten, durchsuchen und ihre Filter abfragen. Ohne Anmeldung tauchen sie gar nicht erst in der Werkzeugliste auf. Die Suche liefert dabei die gefundenen Textstellen, keine fertig formulierte Antwort — die schreibt dein KI-Assistent selbst daraus. Das ist der Unterschied zum Grünerator-Chat, der die Synthese übernimmt. „Liste meine Notebooks auf\" „Was steht in meinem Wahlkampf-Notebook zur Verkehrswende?\" ---"
   },
   {
     "url": "/docs/integrationen/mcp-was-kann-ich-fragen",

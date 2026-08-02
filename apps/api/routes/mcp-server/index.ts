@@ -1,8 +1,10 @@
 /**
- * Authenticated MCP endpoint (POST /api/mcp-server; public URL
- * mcp.gruenerator.eu/v2 via nginx). NOT routes/mcp/ — that is the user-managed
- * OUTBOUND client registry; here Grünerator is the MCP SERVER for external
- * clients, authenticated via OAuth (Better Auth `mcp` plugin) or API key.
+ * Der Grünerator-MCP (POST /api/mcp-server; öffentlich mcp.gruenerator.eu über
+ * nginx, mit /v2 und /mcp als dauerhaften Aliassen). NOT routes/mcp/ — that is
+ * the user-managed OUTBOUND client registry; here Grünerator is the MCP SERVER
+ * for external clients, authenticated via OAuth (Better Auth `mcp` plugin) or
+ * API key. Anonymen Zugang gibt es nicht: ohne Token 401 mit
+ * `WWW-Authenticate`, aus dem ein OAuth-fähiger Client selbst weiterfindet.
  *
  * Stateless streamable HTTP JSON, fresh McpServer per POST — claude.ai/ChatGPT
  * don't carry an mcp-session-id, and per-user/per-scope registration needs it.

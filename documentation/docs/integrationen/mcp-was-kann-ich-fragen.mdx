@@ -9,7 +9,14 @@ import { CollectionTable, Fact } from '@site/src/components/Reference';
 Du hast den [Grünerator mit deinem KI-Chat verbunden](./ki-chat-einrichten) — aber was kannst du damit eigentlich alles machen? Hier erfährst du, welche Fähigkeiten dir zur Verfügung stehen und wie du sie am besten nutzt.
 
 :::info[Kurz erklärt]
-Der Grünerator MCP-Server gibt deinem KI-Assistenten Zugriff auf grüne Parteiprogramme, Beschlüsse, Analysen und Social-Media-Beispiele. Du kannst darin suchen, Inhalte filtern und sogar fertige Texte in verschiedenen Formaten erstellen lassen.
+Der Grünerator MCP-Server gibt deinem KI-Assistenten Zugriff auf grüne Parteiprogramme, Beschlüsse, Analysen und Social-Media-Beispiele — und auf deine eigenen Grünerator-Inhalte. Du kannst darin suchen, Inhalte filtern und fertige Texte in verschiedenen Formaten erstellen lassen.
+:::
+
+:::note[Was dein Assistent sehen darf, entscheidest du]
+Beim Verbinden stimmst du einzelnen Bereichen zu — Suche, eigene Inhalte lesen,
+eigene Inhalte anlegen, Projekte, Medien. **Werkzeuge, denen du nicht zugestimmt
+hast, tauchen gar nicht erst in der Liste auf**; dein Assistent kann sie also
+weder benutzen noch versehentlich vorschlagen.
 :::
 
 ---
@@ -217,15 +224,36 @@ Darüber hinaus gibt es u. a. Assistenten für **Sharepics**, **Leichte Sprache*
 
 ---
 
-## Notizbücher durchsuchen
+## Deine eigenen Inhalte
 
-Wenn du dich beim MCP-Server mit deinem Grünerator-Konto anmeldest, stehen zusätzlich **Notizbuch-Werkzeuge** bereit: deine Notebooks auflisten, durchsuchen und ihre Filter abfragen. Ohne Anmeldung tauchen sie gar nicht erst in der Werkzeugliste auf.
+Weil die Verbindung an deinem Konto hängt, erreicht dein Assistent auch das, was
+im Grünerator dir gehört: **Dokumente, Tabellen und Präsentationen**, **Boards
+und Aufgaben**, **Notizbücher**, **Projekte** und **Medien** — je nachdem, wozu
+du beim Verbinden zugestimmt hast.
 
-Die Suche liefert dabei die gefundenen Textstellen, **keine fertig formulierte Antwort** — die schreibt dein KI-Assistent selbst daraus. Das ist der Unterschied zum Grünerator-Chat, der die Synthese übernimmt.
-
-> _„Liste meine Notebooks auf"_
+> _„Liste meine Notizbücher auf"_
 >
-> _„Was steht in meinem Wahlkampf-Notebook zur Verkehrswende?"_
+> _„Was steht in meinem Wahlkampf-Notizbuch zur Verkehrswende?"_
+>
+> _„Welche Aufgaben sind bei mir noch offen?"_
+>
+> _„Leg mir ein Dokument mit einer Rede zum Thema X an"_
+
+Beim Notizbuch bekommst du eine **belegte Antwort samt Quellenliste** zurück.
+Die Suche im Parteikorpus liefert dagegen die gefundenen Textstellen und **keine
+fertig formulierte Antwort** — die schreibt dein KI-Assistent selbst daraus. Das
+ist der Unterschied zum Grünerator-Chat, der die Synthese übernimmt.
+
+:::tip[Nichts passiert ungefragt]
+Aktionen, die etwas löschen oder nach außen sichtbar machen, fragen immer zuerst
+nach. Erst nach deinem Ja werden sie ausgeführt.
+:::
+
+### Für Landesverbände
+
+Partner-Zugänge mit einem freigeschalteten Landesverband bekommen zusätzlich die
+Werkzeuge `notebooks_list`, `notebooks_search` und `notebooks_get_filters` — der
+Zugriff auf den Quellenbestand des jeweiligen Landesverbands.
 
 ---
 
