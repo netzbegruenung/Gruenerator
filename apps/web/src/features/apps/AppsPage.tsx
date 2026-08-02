@@ -16,7 +16,41 @@ import { getVisitorDevice, type VisitorDevice } from '../../utils/platform';
 
 import { cn } from '@/utils/cn';
 
-const MCP_URL = 'https://mcp.gruenerator.eu/mcp';
+// The MCP server lives on an `mcp.` sibling of whatever host serves this page,
+// so beta advertises its own endpoint instead of sending testers to production.
+// Dev and preview hosts have no such sibling and fall back to production.
+const mcpOrigin = (): string => {
+  const host = window.location.host.replace(/^www\./, '');
+  return /(^|\.)gruenerator\.(eu|de)$/.test(host)
+    ? `https://mcp.${host}`
+    : 'https://mcp.gruenerator.eu';
+};
+
+interface McpEndpoint {
+  id: string;
+  path: string;
+  label: string;
+  badge: string;
+  hint: string;
+}
+
+const MCP_ENDPOINTS: McpEndpoint[] = [
+  {
+    id: 'v2',
+    path: '/v2',
+    label: 'Mit Grünerator-Login',
+    badge: 'Neu',
+    hint: 'Zusätzlich zu Programmen und Recherche: deine eigenen Dokumente, Boards, Notizbücher, Gruppen und Medien. Du meldest dich einmal an und legst fest, worauf der Client zugreifen darf.',
+  },
+  {
+    id: 'v1',
+    path: '/mcp',
+    label: 'Ohne Anmeldung',
+    badge: 'Anonym',
+    hint: 'Durchsucht Programme, Beschlüsse und Positionen. Kein Konto nötig, keine persönlichen Inhalte.',
+  },
+];
+
 const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=de.gruenerator.app';
 // TestFlight-only so far — set once the app is public on the App Store.
 const APP_STORE_URL = null as string | null;
@@ -43,7 +77,13 @@ const FAQ_ITEMS = [
     id: 'what',
     question: 'Was ist der Grünerator MCP-Server?',
     answer:
-      'Über das Model Context Protocol (MCP) kann dein KI-Client die Grünerator-Tools direkt nutzen — Texte, Anträge, Recherche und mehr. Der Server spricht Streamable HTTP nach MCP-Standard; eine Anmeldung ist nicht notwendig.',
+      'Über das Model Context Protocol (MCP) kann dein KI-Client die Grünerator-Tools direkt nutzen — Texte, Anträge, Recherche und mehr. Der Server spricht Streamable HTTP nach MCP-Standard.',
+  },
+  {
+    id: 'which',
+    question: 'Welche der beiden Adressen nehme ich?',
+    answer:
+      'Die mit Login, wenn dein Client auf deine eigenen Inhalte zugreifen soll — Dokumente, Boards, Notizbücher, Gruppen, Medien. Die ohne Anmeldung reicht, wenn du nur Programme und Beschlüsse durchsuchen willst.',
   },
   {
     id: 'claude',
@@ -55,7 +95,7 @@ const FAQ_ITEMS = [
     id: 'chatgpt',
     question: 'Wie verbinde ich ChatGPT?',
     answer:
-      'Öffne die Einstellungen → Connectors → „Erstellen" (Developer Mode nötig). Füge die Server-URL ein und wähle „Keine Authentifizierung".',
+      'Öffne die Einstellungen → Connectors → „Erstellen" (Developer Mode nötig). Füge die Server-URL ein. Bei der Adresse ohne Anmeldung wählst du „Keine Authentifizierung", bei der mit Login „OAuth" — die Felder für Client-ID und Geheimnis bleiben leer, der Connector registriert sich selbst.',
   },
   {
     id: 'mistral',
@@ -73,7 +113,7 @@ const FAQ_ITEMS = [
     id: 'other',
     question: 'Mein Client ist nicht dabei — was nun?',
     answer:
-      'Jeder MCP-fähige Client funktioniert: Füge die Server-URL als Streamable-HTTP-Endpunkt hinzu — ohne Authentifizierung. Mehr braucht es nicht.',
+      'Jeder MCP-fähige Client funktioniert: Füge die Server-URL als Streamable-HTTP-Endpunkt hinzu. Mehr braucht es nicht — bei der Adresse mit Login übernimmt der Client die Anmeldung selbst.',
   },
 ];
 
@@ -282,13 +322,14 @@ const AppCardsGrid = ({ device }: { device: VisitorDevice }) => (
 );
 
 const McpSection = () => {
-  const [copied, setCopied] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const origin = mcpOrigin();
 
-  const handleCopy = async () => {
+  const handleCopy = async (endpoint: McpEndpoint) => {
     try {
-      await navigator.clipboard.writeText(MCP_URL);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(`${origin}${endpoint.path}`);
+      setCopiedId(endpoint.id);
+      setTimeout(() => setCopiedId(null), 2000);
     } catch {
       // Fallback: select text for manual copy
     }
@@ -300,23 +341,38 @@ const McpSection = () => {
         Mit dem MCP-Server verbinden
       </h2>
       <p className="mb-4 text-sm text-grey-600 dark:text-grey-400">
-        Nutze die Grünerator-Tools direkt in deinem KI-Client. Kein Login notwendig.
+        Nutze die Grünerator-Tools direkt in deinem KI-Client. Es gibt zwei Adressen — je nachdem,
+        ob der Client auch deine eigenen Inhalte sehen soll.
       </p>
 
-      <div className="mb-4 flex flex-wrap items-center gap-3.5 rounded-2xl border border-grey-200 bg-background p-5 dark:border-grey-700">
-        <div className="flex min-w-52 flex-1 flex-col gap-1">
-          <span className="text-xs font-bold uppercase tracking-wider text-grey-600 dark:text-grey-400">
-            Server-URL
-          </span>
-          <code className="text-sm text-foreground [overflow-wrap:anywhere] sm:text-base">
-            {MCP_URL}
-          </code>
-        </div>
-        <Badge variant="secondary">Kein Login nötig</Badge>
-        <Button variant="brand" className="w-full gap-1.5 sm:w-auto" onClick={handleCopy}>
-          {copied ? <HiCheck /> : <HiClipboardCopy />}
-          {copied ? 'Kopiert' : 'URL kopieren'}
-        </Button>
+      <div className="mb-4 flex flex-col gap-3">
+        {MCP_ENDPOINTS.map((endpoint) => (
+          <div
+            key={endpoint.id}
+            className="flex flex-wrap items-center gap-3.5 rounded-2xl border border-grey-200 bg-background p-5 dark:border-grey-700"
+          >
+            <div className="flex min-w-52 flex-1 flex-col gap-1">
+              <span className="text-xs font-bold uppercase tracking-wider text-grey-600 dark:text-grey-400">
+                {endpoint.label}
+              </span>
+              <code className="text-sm text-foreground [overflow-wrap:anywhere] sm:text-base">
+                {origin}
+                {endpoint.path}
+              </code>
+              <p className="mt-1 text-sm text-grey-600 dark:text-grey-400">{endpoint.hint}</p>
+            </div>
+            <Badge variant="secondary">{endpoint.badge}</Badge>
+            <Button
+              variant="brand"
+              className="w-full gap-1.5 sm:w-auto"
+              aria-label={`Server-URL kopieren — ${endpoint.label}`}
+              onClick={() => void handleCopy(endpoint)}
+            >
+              {copiedId === endpoint.id ? <HiCheck /> : <HiClipboardCopy />}
+              {copiedId === endpoint.id ? 'Kopiert' : 'URL kopieren'}
+            </Button>
+          </div>
+        ))}
       </div>
 
       <div className="rounded-2xl border border-grey-200 bg-background px-5 py-1.5 dark:border-grey-700">
