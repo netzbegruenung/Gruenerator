@@ -66,6 +66,7 @@ export const TAB_NOTES: TabNote[] = [
     intro:
       'Dein Profilbild: eine Galerie gezeichneter Grünerator-Figuren, aus der du deinen „Friend" wählst. Er erscheint überall dort, wo du auftauchst — in Chats, Projekten und Kommentaren.',
     extras: [
+      'Solange die Einrichtung läuft, stehen drei zur Wahl — Feuri, Robosam und Schildi. Die übrige Truppe kommt dazu, sobald du sie abgeschlossen hast.',
       'Ein Klick auf eine Figur übernimmt sie sofort; ein Foto-Upload ist nicht vorgesehen.',
       'Wolki ist zunächst gesperrt und wird freigeschaltet, sobald du deine Grüne Wolke verbunden hast.',
     ],

@@ -1,8 +1,15 @@
-import { GRUENERATOR_FRIENDS, getRobotAvatarPath } from '@gruenerator/shared/avatar';
+import {
+  GRUENERATOR_FRIENDS,
+  STARTER_FRIENDS,
+  getRobotAvatarPath,
+  type StarterElement,
+} from '@gruenerator/shared/avatar';
 import { toast } from '@gruenerator/ui';
 import { fetchShareLinks, useShareLinks, wolkeKeys } from '@gruenerator/wolke';
 import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { Check, Lock } from 'lucide-react';
+
+import { useOnboarding } from '../useOnboarding';
 
 import { QUERY_KEYS, useProfile } from '@/features/auth/hooks/useProfileData';
 import { profileApiService, type Profile } from '@/features/auth/services/profileApiService';
@@ -28,6 +35,27 @@ export const prefetch = (queryClient: QueryClient) => {
   });
 };
 
+/**
+ * Die Farben der drei Starter. Fest an der Figur, nicht an der Auswahl — die
+ * Auswahl entscheidet nur, wie kräftig der Ring ausfällt. Ein Ring, der beim
+ * Anklicken die Farbe wechselt, würde die Zuordnung Figur→Element auflösen,
+ * die den Dreier überhaupt lesbar macht.
+ *
+ * Ganze Klassennamen, keine zusammengesetzten: Tailwind liest den Quelltext,
+ * ein `ring-${farbe}-500` stünde am Ende in keinem Stylesheet.
+ */
+const STARTER_STYLE: Record<StarterElement, { ring: string; idle: string; tint: string }> = {
+  feuer: { ring: 'ring-red-500', idle: 'ring-red-500/40', tint: 'bg-red-500/10' },
+  natur: { ring: 'ring-emerald-500', idle: 'ring-emerald-500/40', tint: 'bg-emerald-500/10' },
+  wasser: { ring: 'ring-sky-500', idle: 'ring-sky-500/40', tint: 'bg-sky-500/10' },
+};
+
+const NEUTRAL_STYLE = {
+  ring: 'ring-primary-500',
+  idle: 'ring-grey-200 dark:ring-grey-700',
+  tint: 'bg-background-alt',
+};
+
 const FriendsTab = () => {
   const userId = useAuthStore((s) => s.user?.id);
   const queryClient = useQueryClient();
@@ -37,6 +65,12 @@ const FriendsTab = () => {
   // Wolki stays locked until the user has connected their Wolke.
   const { data: shareLinks = [] } = useShareLinks();
   const wolkeConnected = shareLinks.length > 0;
+
+  // Solange die Einrichtung läuft, steht nur der Dreier zur Wahl. Danach ist er
+  // getroffen und die ganze Truppe kommt dazu — dieselbe Reihenfolge wie beim
+  // Starter, den man zuerst wählt und dessen Gesellschaft man später sammelt.
+  const { isActive: isOnboarding } = useOnboarding();
+  const friends = isOnboarding ? STARTER_FRIENDS : GRUENERATOR_FRIENDS;
 
   const selectedId = Number(profile?.avatar_robot_id ?? 1);
 
@@ -69,14 +103,18 @@ const FriendsTab = () => {
   return (
     <div className="flex flex-col gap-lg">
       <p className="m-0 text-xs text-grey-500 dark:text-grey-400">
-        Wähle, wer dich im Grünerator vertritt. Dein Friend erscheint als Profilbild in Chats,
-        Projekten und Kommentaren.
+        {isOnboarding
+          ? 'Such dir einen aus — Feuer, Natur oder Wasser. Dein Friend erscheint als Profilbild in Chats, Projekten und Kommentaren, und die übrige Truppe kannst du später hier wechseln.'
+          : 'Wähle, wer dich im Grünerator vertritt. Dein Friend erscheint als Profilbild in Chats, Projekten und Kommentaren.'}
       </p>
 
-      <div className="grid grid-cols-3 gap-sm sm:grid-cols-4">
-        {GRUENERATOR_FRIENDS.map((friend) => {
+      <div
+        className={cn('grid gap-sm', isOnboarding ? 'grid-cols-3' : 'grid-cols-3 sm:grid-cols-4')}
+      >
+        {friends.map((friend) => {
           const isLocked = friend.unlock === 'wolke' && !wolkeConnected;
           const isSelected = selectedId === friend.id;
+          const style = friend.starter ? STARTER_STYLE[friend.starter] : NEUTRAL_STYLE;
 
           return (
             <button
@@ -92,20 +130,21 @@ const FriendsTab = () => {
               }
               title={isLocked ? 'Verbinde deine Wolke, um Wolki freizuschalten' : friend.tagline}
               className={cn(
-                'flex flex-col items-center gap-1.5 rounded-lg border p-2 text-center transition-colors',
+                'flex flex-col items-center gap-2 rounded-lg p-2 text-center transition-colors',
                 'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30',
-                isLocked
-                  ? 'cursor-not-allowed border-transparent opacity-40'
-                  : 'hover:bg-background-alt',
-                isSelected && !isLocked
-                  ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/20'
-                  : 'border-grey-200 dark:border-grey-700'
+                isLocked ? 'cursor-not-allowed opacity-40' : 'hover:bg-background-alt'
               )}
             >
-              <div className="relative aspect-square w-full">
+              <div
+                className={cn(
+                  'relative aspect-square w-full rounded-full p-1.5 transition-all',
+                  style.tint,
+                  isSelected && !isLocked ? cn('ring-4', style.ring) : cn('ring-2', style.idle)
+                )}
+              >
                 <img
                   src={getRobotAvatarPath(friend.id)}
-                  alt={friend.name}
+                  alt=""
                   className={cn('size-full object-contain', isLocked && 'grayscale')}
                   width={88}
                   height={88}
@@ -113,17 +152,22 @@ const FriendsTab = () => {
                   decoding="async"
                 />
                 {isSelected && !isLocked && (
-                  <span className="absolute top-0 right-0 flex size-4 items-center justify-center rounded-full bg-primary-500 text-white">
-                    <Check className="size-2.5" />
+                  <span className="absolute right-0 bottom-0 flex size-5 items-center justify-center rounded-full bg-primary-500 text-white ring-2 ring-background">
+                    <Check className="size-3" />
                   </span>
                 )}
                 {isLocked && (
-                  <span className="absolute top-0 right-0 flex size-4 items-center justify-center rounded-full bg-grey-400 text-white dark:bg-grey-600">
-                    <Lock className="size-2.5" />
+                  <span className="absolute right-0 bottom-0 flex size-5 items-center justify-center rounded-full bg-grey-400 text-white ring-2 ring-background dark:bg-grey-600">
+                    <Lock className="size-3" />
                   </span>
                 )}
               </div>
               <span className="text-xs font-medium text-foreground">{friend.name}</span>
+              {isOnboarding && (
+                <span className="text-[0.6875rem] leading-snug text-grey-500 dark:text-grey-400">
+                  {friend.tagline}
+                </span>
+              )}
             </button>
           );
         })}
