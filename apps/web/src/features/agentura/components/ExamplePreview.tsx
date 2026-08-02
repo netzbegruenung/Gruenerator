@@ -7,8 +7,8 @@ interface ExamplePreviewProps {
   agent: Agent;
 }
 
-function Bubble({ role, children }: { role: 'assistant' | 'user'; children: ReactNode }) {
-  const isAssistant = role === 'assistant';
+function Bubble({ speaker, children }: { speaker: 'assistant' | 'user'; children: ReactNode }) {
+  const isAssistant = speaker === 'assistant';
   return (
     <div className={`flex ${isAssistant ? 'justify-start' : 'justify-end'}`}>
       <div
@@ -39,7 +39,7 @@ export function ExamplePreview({ agent }: ExamplePreviewProps) {
 
   return (
     <div className="flex flex-col gap-md rounded-lg border border-grey-200 bg-hover-alt p-md dark:border-grey-700 dark:bg-grey-800/40">
-      {agent.openingMessage && <Bubble role="assistant">{agent.openingMessage}</Bubble>}
+      {agent.openingMessage && <Bubble speaker="assistant">{agent.openingMessage}</Bubble>}
 
       {agent.openingQuestions.length > 0 && (
         <div className="flex flex-wrap gap-xs">
@@ -56,8 +56,8 @@ export function ExamplePreview({ agent }: ExamplePreviewProps) {
 
       {examples.map((example, index) => (
         <div key={index} className="flex flex-col gap-sm">
-          <Bubble role="user">{example.input}</Bubble>
-          <Bubble role="assistant">{example.output}</Bubble>
+          <Bubble speaker="user">{example.input}</Bubble>
+          <Bubble speaker="assistant">{example.output}</Bubble>
         </div>
       ))}
     </div>
