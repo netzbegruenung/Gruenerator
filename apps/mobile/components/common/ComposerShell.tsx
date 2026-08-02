@@ -45,18 +45,17 @@ const BAR_ACTION_SIZE = 42;
 const BAR_MAX_LINES = 4;
 const CARD_MAX_LINES = 5;
 
-/**
- * Where the last text line's centre sits above the bar's content bottom.
- *
- * Everything the bar is made of follows from this, because the row is
- * `alignItems: 'flex-end'` and the input is taller than either button. Derived
- * rather than written down: these were literals until the type moved under
- * them, and the comment explaining them had been quoting a line height two
- * revisions out of date while the arithmetic used the current one. A formula
- * cannot fall out of step with itself.
- */
-const BAR_TEXT_CENTRE = BAR_INPUT_PADDING_V + LINE_HEIGHT / 2;
 const BAR_INPUT_HEIGHT = LINE_HEIGHT + BAR_INPUT_PADDING_V * 2;
+
+/**
+ * The bar's height while the draft is one line — the shape it is designed as.
+ *
+ * Derived rather than written down: it was a literal until the type moved under
+ * it, and the comment explaining it had been quoting a line height two revisions
+ * out of date while the arithmetic used the current one. A formula cannot fall
+ * out of step with itself.
+ */
+const BAR_RESTING_HEIGHT = BAR_INPUT_HEIGHT + BAR_PADDING_V * 2;
 
 interface ComposerShellProps {
   variant?: ComposerVariant;
@@ -145,32 +144,15 @@ const buttonStyles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  // Bar-only. The row is `alignItems: 'flex-end'` so the buttons stay beside the
-  // LAST line once the input grows — but that bottom-aligns them against the
-  // input, which is taller than either button. Without compensation both sit
-  // below the text they belong to, and 2dp apart from each other, since they are
-  // not the same size.
-  //
-  // `BAR_TEXT_CENTRE` minus half the button lifts each one's centre onto the
-  // text line's centre. Correct for the multi-line case too — the target is the
-  // last line, not the input's outer box.
-  //
-  // The fractions the arithmetic produces are not cosmetic. Rounded to whole
-  // points both glyphs sat a measured ~1dp below the pill's centre line — small,
-  // but on a capsule with nothing else to reference, the eye catches it. And
-  // while the input is one line the text-line centre IS the pill's centre, so
-  // exact here means exact against the capsule too.
+  // Bar-only. Nothing but size: the row centres them (see `styles.bar`), so
+  // neither carries a margin of its own.
   //
   // The sizes stay fixed while the type scales: a touch target is set by the
   // finger, not by the screen it sits on.
-  //
-  // The `card` variant centres its toolbar in a row of its own and needs none of
-  // this, which is why these are separate styles rather than edits above.
   barIcon: {
     width: BAR_ICON_SIZE,
     height: BAR_ICON_SIZE,
     borderRadius: BAR_ICON_SIZE / 2,
-    marginBottom: BAR_TEXT_CENTRE - BAR_ICON_SIZE / 2,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -178,7 +160,6 @@ const buttonStyles = StyleSheet.create({
     width: BAR_ACTION_SIZE,
     height: BAR_ACTION_SIZE,
     borderRadius: BAR_ACTION_SIZE / 2,
-    marginBottom: BAR_TEXT_CENTRE - BAR_ACTION_SIZE / 2,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -251,22 +232,30 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   // minHeight is deliberately the natural content height, not a round number
-  // above it: the row is `alignItems: 'flex-end'`, so any minHeight in excess of
-  // the content becomes slack that lands on TOP and pushes everything down.
-  // Computed, so the capsule keeps hugging the text when the type scales.
+  // above it: it also sets the radius below, so a value in excess of the content
+  // would round a shape the bar never actually has. Computed, so the capsule
+  // keeps hugging the text when the type scales.
   bar: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    // `full`, not `pill` (24): web's is `rounded-full`, i.e. radius = half the
-    // height. At 64dp tall, 24 left a 16dp straight segment on each end — the
-    // bar read as a rounded rectangle beside web's capsule. Measured on the
-    // emulator before the change: the edge stopped curving 23dp in.
-    // Kept as a ratio-free `full` so it stays a true capsule if the height moves.
-    borderRadius: borderRadius.full,
+    // Centred, like web's pill (`items-center`). The row was `flex-end` with a
+    // per-button `marginBottom` that pinned each glyph onto the LAST text line —
+    // exact while the draft was one line, since the line's centre IS the pill's
+    // centre then, but visibly wrong the moment it wrapped: at two lines both
+    // buttons sat half a line below the middle of a capsule that had grown
+    // around them.
+    alignItems: 'center',
+    // Half the RESTING height, not `full`. `pill` (24) was too little — it left
+    // a straight segment on each end and the bar read as a rounded rectangle
+    // beside web's capsule (measured on the emulator: the edge stopped curving
+    // 23dp in). But `full` tracks half the GROWN height, so every wrapped line
+    // widened the end arcs by half a line around buttons that never change size.
+    // Freezing it here is web's own fix (`rounded-[1.875rem]`, and the comment
+    // above it): a true capsule at rest, a rounded rect once it grows.
+    borderRadius: BAR_RESTING_HEIGHT / 2,
     paddingLeft: spacing.xsmall,
     paddingRight: spacing.xxsmall,
     paddingVertical: BAR_PADDING_V,
-    minHeight: BAR_INPUT_HEIGHT + BAR_PADDING_V * 2,
+    minHeight: BAR_RESTING_HEIGHT,
     gap: spacing.xxsmall,
   },
 });
