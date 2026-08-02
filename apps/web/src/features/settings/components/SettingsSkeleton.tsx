@@ -154,6 +154,8 @@ export function SettingsStatsSkeleton() {
 }
 
 const TAB_SKELETONS: Record<SettingsTab, () => React.ReactElement> = {
+  // Schritt 1 der Einrichtung ist die Rollen-Karte.
+  onboarding: () => <SettingsCardsSkeleton cards={1} />,
   allgemein: () => <SettingsRowsSkeleton rows={6} />,
   hintergrund: () => <SettingsTilesSkeleton />,
   barrierefreiheit: () => <SettingsRowsSkeleton rows={3} />,
