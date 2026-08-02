@@ -38,12 +38,14 @@ import {
   setCachedFilters,
 } from '../research/researchController.js';
 
+import { registerAgentPrompts } from './agentPrompts.js';
 import {
   absolutizeUrl,
   formatToolResult,
   makeMcpPersonalCtx,
   registerAiTool,
 } from './chatToolBridge.js';
+import { hasLandesverbandAccess, registerLandesverbandTools } from './landesverbandTools.js';
 import {
   addCardDirect,
   createGroupDirect,
@@ -57,6 +59,7 @@ import {
   buildRecherchePrompt,
 } from './methodPrompts.js';
 
+import type { McpAuthContext } from './mcpAuth.js';
 import type { QAResponse } from '../../services/notebook/types.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { Request } from 'express';
@@ -221,6 +224,8 @@ const FILTERS_OUTPUT_SCHEMA = {
  * thing it does with a new scope is search.
  */
 function registerMethod(server: McpServer): void {
+  registerAgentPrompts(server);
+
   server.registerPrompt(
     'recherche',
     {
@@ -299,18 +304,22 @@ function registerMethod(server: McpServer): void {
 export interface McpServerBuildOptions {
   userId: string;
   scopes: Set<string>;
+  /** Nur beim Schlüssel-Weg gesetzt — trägt die Landesverbands-Freigabe. */
+  apiKey?: McpAuthContext['apiKey'];
   /** The live Express request — carries app.locals.aiWorkerPool and req.user. */
   req: Request;
 }
 
 export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpServer {
-  const { userId, scopes, req } = opts;
+  const { userId, scopes, apiKey, req } = opts;
   const has = (s: string) => scopes.has(s);
   const contentRead = has('content:read');
   const contentWrite = has('content:write');
 
   const server = new McpServer(
-    { name: 'gruenerator', version: '2.0.0' },
+    // 3.0.0 markiert die Vereinigung der beiden Server, keine dritte
+    // Generation: v1 war 1.0.0, der authentifizierte Server 2.0.0.
+    { name: 'gruenerator', version: '3.0.0' },
     {
       capabilities: { tools: {}, prompts: {}, resources: {} },
       instructions: INSTRUCTIONS,
@@ -689,6 +698,15 @@ export function buildAuthenticatedMcpServer(opts: McpServerBuildOptions): McpSer
             },
           }
         : { readOnly: true }),
+    });
+  }
+
+  // ── Landesverbände (eigene Achse, kein OAuth-Scope) ───────────────────────
+  if (apiKey && hasLandesverbandAccess(apiKey.landesverbaende)) {
+    registerLandesverbandTools(server, {
+      userId,
+      landesverbaende: apiKey.landesverbaende,
+      apiKeyId: apiKey.id,
     });
   }
 
