@@ -145,7 +145,33 @@ function extractIntents() {
     .filter((e) => ts.isStringLiteral(e))
     .map((e) => e.text);
   if (intents.length === 0) throw new Error(`${SRC.intents}: searchIntentSchema is empty.`);
-  return intents;
+  // The enum is a WIRE contract and keeps values the product no longer routes:
+  // shipped mobile binaries parse it, so a capability that moved elsewhere
+  // cannot be deleted from it. The registry says which those are, and
+  // documenting them would advertise a chat capability that no longer answers.
+  const retired = extractRetiredIntents();
+  return intents.filter((i) => !retired.has(i));
+}
+
+/** Intents marked `availability: 'retired'` in the registry (see CHAT_INTENTS). */
+function extractRetiredIntents() {
+  const sf = parse(SRC.chatIntents);
+  const decl = unwrap(findDeclaration(sf, 'CHAT_INTENTS'));
+  if (!decl || !ts.isObjectLiteralExpression(decl)) {
+    throw new Error(
+      `${SRC.chatIntents}: could not read CHAT_INTENTS — expected an object literal keyed by ` +
+        `intent id. The registry moved or changed shape; update generate-chat-capabilities.mjs.`
+    );
+  }
+  const retired = new Set();
+  for (const prop of decl.properties) {
+    if (!ts.isPropertyAssignment(prop) || !prop.name) continue;
+    const id = ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name) ? prop.name.text : null;
+    const value = unwrap(prop.initializer);
+    if (!id || !value || !ts.isObjectLiteralExpression(value)) continue;
+    if (stringProp(value, 'availability') === 'retired') retired.add(id);
+  }
+  return retired;
 }
 
 /** Intents whose entry in CONTROLLER_HANDLED_INTENTS is marked EXPERIMENTAL. */

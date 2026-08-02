@@ -18,6 +18,10 @@ import {
 } from '../../../config/systemCollectionsConfig.js';
 import { DocumentSearchService } from '../../../services/document-services/index.js';
 import { searchExamples } from '../../../services/examples/exampleSearchService.js';
+import {
+  getGreenPTSearchService,
+  GREENPT_MAX_RESULTS,
+} from '../../../services/search/GreenPTSearchService.js';
 import { withRetry } from '../../../services/search/index.js';
 import {
   getLinkupService,
@@ -114,6 +118,21 @@ interface WebImageHit {
 export interface DirectWebSearchResult {
   query: string;
   searchType: string;
+  /**
+   * The tier that was actually SPENT, after `resolveSearchTier` clamped the
+   * model's request against what the user consented to.
+   *
+   * Reported because no caller can reconstruct it: the `tiefe` argument on the
+   * tool call is a request in both directions, and the loop's post-processing
+   * (`toolCatalog`, which crawls only on `tiefenrecherche`) has to key off what
+   * was spent — keying off the argument would put the expensive path one
+   * hallucinated token away.
+   *
+   * Optional so the integration harness and other hand-built stubs stay valid.
+   * Every return of `executeDirectWebSearch` sets it, and absence is read as
+   * "not the deep tier" — the fail-safe direction.
+   */
+  tier?: SearchTier;
   resultsCount: number;
   results: Array<{
     rank: number;
@@ -174,11 +193,27 @@ export async function executeDirectSearch(params: {
    * Only applied to collections targeting `landesverbaende_documents`.
    */
   agentLandesverband?: readonly string[] | string;
+  /**
+   * Retrieval strategy. Defaults to `hybrid`, which is what every caller wanted
+   * before this was settable; `text` is keyword-only (exact wording, names,
+   * quotes), `vector` purely semantic.
+   */
+  searchMode?: 'hybrid' | 'vector' | 'text';
+  /** Set false to bypass the service-level result cache for a fresh read. */
+  useCache?: boolean;
 }): Promise<DirectSearchResult> {
-  const { query, collection = 'deutschland', limit = 5, filters, agentLandesverband } = params;
+  const {
+    query,
+    collection = 'deutschland',
+    limit = 5,
+    filters,
+    agentLandesverband,
+    searchMode = 'hybrid',
+    useCache,
+  } = params;
 
   log.info(
-    `[Direct Search] query="${query}" collection="${collection}" limit=${limit}${filters ? ` filters=${JSON.stringify(filters)}` : ''}${agentLandesverband ? ` lv=${JSON.stringify(agentLandesverband)}` : ''}`
+    `[Direct Search] query="${query}" collection="${collection}" limit=${limit} mode=${searchMode}${filters ? ` filters=${JSON.stringify(filters)}` : ''}${agentLandesverband ? ` lv=${JSON.stringify(agentLandesverband)}` : ''}`
   );
 
   const mapping = COLLECTION_MAP[collection];
@@ -225,7 +260,7 @@ export async function executeDirectSearch(params: {
       userId: undefined,
       options: {
         limit: Math.min(limit * 2, 30),
-        mode: 'hybrid',
+        mode: searchMode,
         vectorWeight: searchParams.vectorWeight,
         textWeight: searchParams.textWeight,
         threshold: searchParams.threshold,
@@ -233,6 +268,7 @@ export async function executeDirectSearch(params: {
         recallLimit: searchParams.recallLimit,
         qualityMin: searchParams.qualityMin,
         additionalFilter,
+        ...(useCache === undefined ? {} : { useCache }),
       },
     });
 
@@ -257,7 +293,7 @@ export async function executeDirectSearch(params: {
             userId: undefined,
             options: {
               limit: Math.min(limit * 2, 30),
-              mode: 'hybrid',
+              mode: searchMode,
               vectorWeight: searchParams.vectorWeight,
               textWeight: searchParams.textWeight,
               threshold: searchParams.threshold,
@@ -288,7 +324,7 @@ export async function executeDirectSearch(params: {
         return {
           collection,
           query,
-          searchMode: 'hybrid',
+          searchMode,
           resultsCount: 0,
           results: [],
           error: true,
@@ -301,7 +337,7 @@ export async function executeDirectSearch(params: {
         return {
           collection,
           query,
-          searchMode: 'hybrid',
+          searchMode,
           resultsCount: 0,
           results: [],
           message: 'Keine Ergebnisse gefunden.',
@@ -337,7 +373,7 @@ export async function executeDirectSearch(params: {
     return {
       collection,
       query,
-      searchMode: 'hybrid',
+      searchMode,
       resultsCount: formattedResults.length,
       results: formattedResults,
     };
@@ -347,7 +383,7 @@ export async function executeDirectSearch(params: {
     return {
       collection,
       query,
-      searchMode: 'hybrid',
+      searchMode,
       resultsCount: 0,
       results: [],
       error: true,
@@ -367,17 +403,21 @@ export async function executeDirectExamplesSearch(params: {
   query: string;
   platform?: string;
   country?: 'DE' | 'AT';
+  /** Reaches the search itself. Without it the service caps at its own default
+   *  of 10 and a caller asking for more silently gets fewer. */
+  limit?: number;
   /** Override target collection — see `SearchExamplesParams.examplesCollection`. */
   collection?: string;
   lvScope?: string | readonly string[];
 }): Promise<DirectExamplesResult> {
-  const { query, platform, country, collection, lvScope } = params;
+  const { query, platform, country, limit, collection, lvScope } = params;
 
   const result = await searchExamples({
     query,
     kinds: ['social'],
     ...(platform && { platform }),
     ...(country && { country }),
+    ...(limit !== undefined && { limit }),
     ...(collection && { examplesCollection: collection }),
     ...(lvScope !== undefined && { lvScope }),
   });
@@ -400,12 +440,18 @@ export async function executeDirectExamplesSearch(params: {
     };
   }
 
+  // `url` and `relevance` come from UnifiedExample and were dropped here, so a
+  // consumer could neither link a post nor weigh it — the MCP tool's source ref
+  // fell back to the bare id. Social posts often carry no permalink, hence the
+  // conditional spread.
   const examples = items.map((e) => ({
     id: e.id,
     platform: e.platform ?? platform ?? 'unknown',
     content: e.body,
     ...(e.author && { author: e.author }),
     ...(e.publishedAt && { date: e.publishedAt }),
+    ...(e.url && { url: e.url }),
+    relevance: e.relevance,
   }));
 
   return { resultsCount: examples.length, examples };
@@ -532,8 +578,18 @@ export async function executeDirectWebSearch(params: {
     (searchType === 'news' ? daysAgoIso(NEWS_WINDOW_DAYS) : undefined);
   // The deeper tiers exist to give the writing model more to work with; a
   // 300-char snippet would cap that no matter how many sources came back.
-  // Stays under the source registry's own per-line cap (1500).
-  const snippetChars = plan.depth === 'deep' ? 1200 : 300;
+  //
+  // Linkup returns the longer text either way — the old flat 300 threw it away
+  // and left `gruendlich` (the DEFAULT tier) writing its answer from 10 x 300 =
+  // 3000 chars total. Scaled by result count so a wide search stays inside the
+  // registry's SOURCE_BLOCK_CHARS budget instead of triggering its shared
+  // shrink. Always <= SNIPPET_CHARS (1500), the registry's per-line cap.
+  //
+  // Load-bearing precondition: `truncateResultForModel` must exempt the
+  // `sources` field (see agenticLoop/truncate.ts). Without that exemption the
+  // block crosses the 6000-char ceiling and the model gets 750 chars for ALL
+  // sources combined — strictly worse than the 300 this replaces.
+  const snippetChars = plan.depth === 'deep' ? 1500 : plan.maxResults >= 10 ? 900 : 1200;
   const includeImages = params.includeImages === true;
   /**
    * Extra headroom on `maxResults` when images are requested.
@@ -572,6 +628,70 @@ export async function executeDirectWebSearch(params: {
   );
 
   try {
+    // ── Cheap lane: GreenPT for simple lookups, Linkup for everything else ──
+    //
+    // Only searches that ask for nothing GreenPT cannot do are eligible. The
+    // endpoint has NO date field on its results (keys are exactly url, title,
+    // description, position, favicon), no image hits, no exclude list, and a
+    // hard ceiling of 10 — so a time window, a news window, images or a deeper
+    // tier all have to stay on Linkup rather than be silently dropped.
+    //
+    // Domain scope is excluded even though `site:` was observed to work
+    // (10/10 on-domain): GreenPT's own docs say operators are STRIPPED before
+    // searching, so that behaviour is undocumented and free to vanish. When it
+    // does, the search would not fail — it would quietly return unscoped
+    // results for "such auf zeit.de", which is the failure we would never see.
+    //
+    // Unknown parameters are accepted and ignored rather than rejected (a
+    // made-up parameter returned byte-identical results to `fromDate` and
+    // `freshness`), so none of these constraints can be probed at runtime —
+    // they have to be gated here.
+    const greenptEligible =
+      includeDomains.length === 0 &&
+      excludeDomains.length === 0 &&
+      !fromDate &&
+      !params.toDate &&
+      !timeRange &&
+      searchType !== 'news' &&
+      !includeImages &&
+      plan.depth !== 'deep' &&
+      maxResults <= GREENPT_MAX_RESULTS;
+
+    const greenpt = greenptEligible ? getGreenPTSearchService() : null;
+    if (greenpt) {
+      try {
+        const hits = await greenpt.webSearch({ query, maxResults, language });
+        const formatted = hits.slice(0, maxResults).map((r, i) => ({
+          rank: i + 1,
+          title: decodeHtmlEntities(r.title) || 'Unbekannt',
+          url: r.url,
+          snippet: truncateText(decodeHtmlEntities(r.description ?? ''), snippetChars),
+          domain: extractDomain(r.url),
+          // GreenPT carries no date at all, so recency ranking scores nothing
+          // for these hits. Null rather than invented: `resolveSourceDate`
+          // treats an unparseable value as a real signal.
+          publishedDate: null,
+        }));
+        log.info(`[Direct Web Search] GreenPT returned ${formatted.length} results for "${query}"`);
+        return {
+          query,
+          searchType,
+          tier: plan.tier,
+          resultsCount: formatted.length,
+          results: formatted,
+        };
+      } catch (err: unknown) {
+        // Every GreenPT failure — including an EMPTY result set, which is how
+        // its throttle manifests (HTTP 200, no error) — falls through to Linkup
+        // rather than surfacing. An empty list passed to the caller would read
+        // as "the web has nothing on this" and the model would answer
+        // ungrounded with nothing in the logs to explain it.
+        log.info(
+          `[Direct Web Search] GreenPT unavailable (${err instanceof Error ? err.message : String(err)}) — falling back to Linkup`
+        );
+      }
+    }
+
     const linkup = getLinkupService();
     if (linkup) {
       const search = (depth: typeof plan.depth) =>
@@ -631,6 +751,7 @@ export async function executeDirectWebSearch(params: {
       return {
         query,
         searchType,
+        tier: plan.tier,
         resultsCount: linkupFormatted.length,
         results: linkupFormatted,
         ...(linkupImages.length > 0 ? { images: linkupImages } : {}),
@@ -658,6 +779,7 @@ export async function executeDirectWebSearch(params: {
       return {
         query,
         searchType,
+        tier: plan.tier,
         resultsCount: 0,
         results: [],
         error: true,
@@ -670,6 +792,7 @@ export async function executeDirectWebSearch(params: {
       return {
         query,
         searchType,
+        tier: plan.tier,
         resultsCount: 0,
         results: [],
         message: 'Keine Websuche-Ergebnisse gefunden.',
@@ -692,6 +815,7 @@ export async function executeDirectWebSearch(params: {
     return {
       query,
       searchType,
+      tier: plan.tier,
       resultsCount: formattedResults.length,
       results: formattedResults,
       suggestions: searchResults.suggestions?.slice(0, 3),
@@ -702,6 +826,7 @@ export async function executeDirectWebSearch(params: {
     return {
       query,
       searchType,
+      tier: plan.tier,
       resultsCount: 0,
       results: [],
       error: true,

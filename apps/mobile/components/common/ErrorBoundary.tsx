@@ -27,7 +27,7 @@ function ErrorFallback({ error, onRetry }: { error: Error | null; onRetry: () =>
       <Text style={[styles.message, { color: theme.textSecondary }]}>
         {error?.message || 'Ein unerwarteter Fehler ist aufgetreten.'}
       </Text>
-      <Pressable style={styles.retryButton} onPress={onRetry}>
+      <Pressable style={styles.retryButton} onPress={onRetry} accessibilityRole="button">
         <Ionicons name="refresh" size={20} color={colors.white} />
         <Text style={styles.retryText}>Erneut versuchen</Text>
       </Pressable>

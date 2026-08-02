@@ -129,6 +129,7 @@ const TemplateImagesEditor = ({ images, onChange, disabled }: TemplateImagesEdit
               key={img.id}
               className="relative w-[88px] h-[88px] rounded-lg overflow-hidden bg-background-alt border border-grey-200 dark:border-grey-700 group"
             >
+              {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onError ist ein technischer Ladefehler-Fallback, keine Bedienung */}
               <img
                 src={img.url}
                 alt={img.title || `Vorschau ${index + 1}`}

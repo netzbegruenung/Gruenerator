@@ -143,6 +143,7 @@ export function ProjectList({
           onPress={() => onSelectProject(item)}
           onLongPress={() => showProjectOptions(item)}
           activeOpacity={0.7}
+          accessibilityRole="button"
         >
           <View style={styles.thumbnailContainer}>
             {thumbnailUrl && authToken ? (
@@ -182,6 +183,8 @@ export function ProjectList({
             style={styles.moreButton}
             onPress={() => showProjectOptions(item)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel="Weitere Optionen anzeigen"
           >
             <Ionicons name="ellipsis-vertical" size={18} color={theme.textSecondary} />
           </TouchableOpacity>
@@ -217,6 +220,7 @@ export function ProjectList({
       <TouchableOpacity
         style={[styles.newButton, { backgroundColor: colors.primary[600] }]}
         onPress={onNewReel}
+        accessibilityRole="button"
       >
         <Ionicons name="add" size={20} color="#fff" />
         <Text style={styles.newButtonText}>Neues Reel</Text>
@@ -245,6 +249,7 @@ export function ProjectList({
             clearError();
             void fetchProjects();
           }}
+          accessibilityRole="button"
         >
           <Text style={styles.retryButtonText}>Erneut versuchen</Text>
         </TouchableOpacity>

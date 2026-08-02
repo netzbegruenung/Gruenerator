@@ -64,7 +64,12 @@ export function PressemitteilungExamplesCard({
 
   return (
     <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-      <Pressable style={styles.headerRow} onPress={() => setExpanded((v) => !v)}>
+      <Pressable
+        style={styles.headerRow}
+        onPress={() => setExpanded((v) => !v)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+      >
         <Ionicons name="newspaper-outline" size={16} color={colors.secondary[700]} />
         <View style={styles.headerBody}>
           <Text style={[styles.title, { color: theme.text }]} numberOfLines={2}>
@@ -94,6 +99,8 @@ export function PressemitteilungExamplesCard({
                 <Pressable
                   style={styles.itemHeader}
                   onPress={() => setOpenRow(isOpen ? null : ex.id)}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: isOpen }}
                 >
                   <Ionicons
                     name={isOpen ? 'chevron-down' : 'chevron-forward'}
@@ -121,6 +128,7 @@ export function PressemitteilungExamplesCard({
                       <Pressable
                         style={styles.sourceLink}
                         onPress={() => ex.url && void Linking.openURL(ex.url)}
+                        accessibilityRole="link"
                       >
                         <Text style={[styles.sourceLinkText, { color: colors.primary[600] }]}>
                           Quelle öffnen

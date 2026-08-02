@@ -13,6 +13,7 @@
  */
 
 import { type chatGraphContract } from '@gruenerator/contracts';
+import { stripRoleMarkers } from '@gruenerator/shared/roles';
 import {
   hasMentionTokens,
   parseMentionTokens,
@@ -22,7 +23,8 @@ import { convertToModelMessages } from 'ai';
 
 import { initializeChatState } from '../../../agents/langgraph/ChatGraph/index.js';
 import {
-  isKnownNotebook,
+  isNotebookImplicitlySearchable,
+  isNotebookResolvable,
   isUserNotebookId,
   resolveUserNotebookDocumentIds,
 } from '../../../config/notebookCollectionMap.js';
@@ -56,7 +58,8 @@ import {
   deleteMessagesFrom,
   deleteTrailingAssistant,
   getThreadToolContext,
-  listThreadArtifacts,
+  readThreadToolHistory,
+  type ThreadToolHistory,
 } from './threadPersistenceService.js';
 
 import type {
@@ -118,6 +121,11 @@ export interface StreamContext {
    *  turn still persists (WP-B). Null when no thread/user message, or when the
    *  placeholder insert failed (the turn then runs as before). */
   pendingAssistantMessageId: string | null;
+  /** The thread's tool metadata, read once here for the classifier's artifact
+   *  list and handed on so the agentic loop's replay and source rehydration
+   *  project the same rows instead of re-reading them. Null on a new thread or
+   *  when the read failed — every consumer then reads for itself, as before. */
+  threadToolHistory: ThreadToolHistory | null;
 }
 
 export type BuildStreamContextResult = { done: true } | { done: false; ctx: StreamContext };
@@ -201,15 +209,20 @@ export async function buildStreamContext({
     return { done: true };
   }
 
-  const systemNotebookIds = mergedNotebookIds.filter(isKnownNotebook);
+  // @notebook mentions are the turn naming a notebook out loud — the one case a
+  // merely *hidden* notebook still resolves, so a link or thread shared from
+  // another instance keeps working. Only `block` and `enabled: false` say no here.
+  const systemNotebookIds = mergedNotebookIds.filter(isNotebookResolvable);
   const userNotebookUuids = mergedNotebookIds.filter(isUserNotebookId);
   const { documentIds: notebookDocumentIds, resolvedUserNotebookIds } =
     userNotebookUuids.length > 0
       ? await resolveUserNotebookDocumentIds(userId, userNotebookUuids)
       : { documentIds: [], resolvedUserNotebookIds: [] };
   const notebookIds = [...systemNotebookIds, ...resolvedUserNotebookIds];
+  // The composer's default pick scopes every following turn without being
+  // restated, so it is implicit scoping — unlike the mention above.
   const defaultNotebookId =
-    rawDefaultNotebookId && isKnownNotebook(rawDefaultNotebookId)
+    rawDefaultNotebookId && isNotebookImplicitlySearchable(rawDefaultNotebookId)
       ? rawDefaultNotebookId
       : undefined;
   // An agent can bind a user-owned notebook (UUID) as its default knowledge
@@ -555,7 +568,9 @@ export async function buildStreamContext({
   }
 
   // === Read user profile instructions ===
-  const userInstructions = user.custom_prompt?.trim() || undefined;
+  // The column carries the role wizard's fence markers; they are storage, not
+  // instruction, and must not reach the model. See stripRoleMarkers.
+  const userInstructions = stripRoleMarkers(user.custom_prompt) || undefined;
 
   // === Resolve context window for model-aware budgets ===
   const contextWindowTokens = getContextWindow(modelId);
@@ -631,20 +646,26 @@ export async function buildStreamContext({
   // Thread tool memory for the classifier: which tool family the previous
   // substantive turn used ("@tally" is stripped from message text on send, so
   // this is the only carrier a vague follow-up has). Non-fatal on failure.
+  let threadToolHistory: ThreadToolHistory | null = null;
   if (actualThreadId && !isNewThread) {
     // The single slot and the full list, in one round trip. The list is what a
     // follow-up gets matched against when the thread holds several artifacts —
     // the slot only ever remembers the newest one.
-    const [toolContext, artifacts] = await Promise.all([
+    const [toolContext, history] = await Promise.all([
       getThreadToolContext(actualThreadId).catch(() => null),
       // Eine verlorene Artefakt-Liste heisst „Thread ohne Gedächtnis": der Turn
       // läuft mit dem heutigen Verhalten weiter, statt an einer Komfortfunktion
       // zu scheitern — dieselbe Abwägung wie in der Zeile darüber.
       // swallow-ok: best-effort Thread-Gedächtnis, Fallback ist das Ist-Verhalten
-      listThreadArtifacts(actualThreadId).catch(() => []),
+      readThreadToolHistory(actualThreadId).catch(() => null),
     ]);
     initialState.lastToolContext = toolContext;
-    initialState.threadArtifacts = artifacts;
+    initialState.threadArtifacts = history?.artifacts() ?? [];
+    // Weitergereicht statt verworfen: der agentische Loop las bis hierher
+    // dieselben Zeilen ein zweites und drittes Mal (Tool-Replay und
+    // Quellen-Rehydrierung). Bleibt es null, weil der Lesevorgang scheiterte,
+    // liest der Loop selbst — der Ausfall bleibt so eng wie zuvor.
+    threadToolHistory = history;
   }
   if (memoryContext) {
     initialState.memoryContext = memoryContext;
@@ -695,6 +716,7 @@ export async function buildStreamContext({
       mentionTokenFields,
       lastUserTextRaw,
       pendingAssistantMessageId,
+      threadToolHistory,
     },
   };
 }

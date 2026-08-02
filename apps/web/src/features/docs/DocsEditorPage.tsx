@@ -968,7 +968,7 @@ function EditorContent() {
       )}
 
       <div className="flex-1 flex flex-row overflow-hidden max-md:flex-col">
-        <main
+        <div
           data-tour="docs-surface"
           className={`flex-1 min-w-0 overflow-y-auto scrollbar-thin py-4 px-6 max-sm:px-0 max-sm:pt-0 max-sm:pb-[var(--mobile-keyboard-offset,0px)] ${
             isDesktopApp()
@@ -1001,7 +1001,7 @@ function EditorContent() {
           <div className="sticky bottom-4 z-[150] flex justify-center pointer-events-none [&>*]:pointer-events-auto">
             <DocAiReviewBar documentId={id!} editor={editor} />
           </div>
-        </main>
+        </div>
 
         {hasOpenedChat && id && (
           // Mount the chat infra (runtime, Hocuspocus, thread query) outside

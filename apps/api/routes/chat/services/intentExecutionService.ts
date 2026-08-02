@@ -334,9 +334,18 @@ export async function handleRecurringTaskCreation(opts: {
     const task = await createRecurringTask(userId, validated.data);
 
     sse.send('response_start', { message: 'Richte wiederkehrende Aufgabe ein...' });
+    // `toLocaleString` ohne `timeZone` nimmt die Zeitzone des SERVERS, und der
+    // Container läuft in UTC. Gemessen: „um 09:00 Uhr" korrekt angelegt, in
+    // derselben Nachricht als „Nächste Ausführung: 07:00" gemeldet — die Aufgabe
+    // war richtig, die Bestätigung log. Wien und Berlin teilen sich CET/CEST,
+    // die Wahl ändert also nur den Namen, nicht die Stunde; sie steht hier
+    // trotzdem am Locale, weil eine österreichische Nutzerin keine deutsche
+    // Zeitzone genannt bekommen soll, wenn das Feld einmal sichtbar wird.
+    const displayZone = opts.userLocale === 'de-AT' ? 'Europe/Vienna' : 'Europe/Berlin';
     const nextRun = new Date(task.nextRunAt).toLocaleString('de-DE', {
       dateStyle: 'medium',
       timeStyle: 'short',
+      timeZone: displayZone,
     });
     const responseText =
       `Wiederkehrende Aufgabe **„${task.title}"** eingerichtet — läuft ${describeRecurrence(task.recurrence)}, ` +
@@ -366,7 +375,15 @@ export async function handleRecurringTaskCreation(opts: {
       await touchThread(actualThreadId);
     }
 
-    log.info(`[ChatGraph] Recurring task created: "${task.title}" (${task.id})`);
+    // Takt und nächster Lauf gehören in die Zeile: das ist die einzige Aktion im
+    // Chat, die OHNE Bestätigungsschritt persistiert, und bis hierher stand im
+    // Log nur, DASS etwas angelegt wurde — nicht, mit welchem Zeitplan. Bei
+    // einer Beschwerde („die Erinnerung kommt zur falschen Zeit") war damit
+    // nicht nachvollziehbar, ob die Extraktion oder der Scheduler danebenlag.
+    log.info(
+      `[ChatGraph] Recurring task created: "${task.title}" (${task.id}) — ` +
+        `${describeRecurrence(task.recurrence)}, next=${new Date(task.nextRunAt).toISOString()}`
+    );
     sse.end();
     return true;
   } catch (err) {
@@ -778,11 +795,25 @@ export async function runSharepicGeneration(opts: {
  * thread. That is a memory horizon, not a correctness bug, but it is why the
  * predicate demands an anaphor: topical continuity is the licence.
  */
+/**
+ * Which verdicts may inherit the thread's earlier research.
+ *
+ * `produktion` is the one that matters now: the classifier prompt sends a
+ * reference to THIS running conversation there ("vorhin", "deine letzte
+ * Antwort"), which is exactly the "Mehr dazu bitte" shape this carry was built
+ * for. `direct` stays because the parser and the heuristic can still produce
+ * it. `greeting` is absent on purpose — a greeting has nothing to ground — and
+ * so is `agentic`, which does its own retrieval inside the loop and would
+ * otherwise start every turn with a stale source block.
+ */
+const CARRY_ELIGIBLE_INTENTS: ReadonlySet<string> = new Set(['produktion', 'direct']);
+
 export async function carryThreadSourcesIfNeeded(
   state: ChatGraphState,
   threadId: string | null
 ): Promise<ChatGraphState> {
-  if (state.intent !== 'direct' || state.searchResults.length > 0 || !threadId) return state;
+  if (!CARRY_ELIGIBLE_INTENTS.has(state.intent) || state.searchResults.length > 0 || !threadId)
+    return state;
   const lastUser = [...state.messages].reverse().find((m) => m.role === 'user');
   if (!needsThreadGrounding(lastUser ? extractTextContent(lastUser.content) : '')) return state;
   try {
@@ -1144,10 +1175,23 @@ export async function executeIntentPipeline(opts: {
           recallPastChats(userId, query, {
             limit: 5,
             ...(opts.threadId != null && { excludeThreadId: opts.threadId }),
-            ...(dateFrom && { startDate: new Date(dateFrom) }),
-            ...(dateTo && { endDate: new Date(dateTo) }),
+            ...(dateFrom && { startDate: new Date(`${dateFrom}T00:00:00.000Z`) }),
+            // Das Fenster ist INKLUSIV erzeugt (`parseRelativeDateRange`), die
+            // SQL-Klausel ist `created_at <= $n`, und `new Date('2026-07-30')`
+            // ist Mitternacht. Beides zusammen machte aus jedem Ein-Tages-Fenster
+            // („gestern") einen einzigen Zeitpunkt: nur eine Nachricht, die
+            // exakt um 00:00:00 UTC geschrieben wurde, konnte noch treffen — und
+            // „letzte Woche" verlor den ganzen Sonntag. Genau die „0 Treffer →
+            // keine Quellen gefunden"-Antwort, gegen die diese Stufe gebaut ist.
+            ...(dateTo && { endDate: new Date(`${dateTo}T23:59:59.999Z`) }),
             ...(spaceScope && { threadIds: spaceScope.threadIds }),
           }),
+          // BEKANNTE LÜCKE: das Datumsfenster geht nur an den Chat-Recall.
+          // `searchOfficeContent`/`searchReels` nehmen keine Datumsparameter, ein
+          // Durchreichen wäre also eine Änderung an beiden Suchdiensten und ihrem
+          // SQL — eigener Schnitt. Folge heute: „meine Dokumente vom letzten
+          // Monat" filtert die CHATS auf den Monat, die Dokumente und Reels aber
+          // nicht. Das untertreibt nie (es fehlt kein Treffer), es übertreibt.
           recallOfficeDocuments(userId, query, 5),
           recallReels(userId, query, 5),
         ]);
@@ -1207,7 +1251,9 @@ export async function executeIntentPipeline(opts: {
         });
       }
     } else if (
+      currentIntent !== 'produktion' &&
       currentIntent !== 'direct' &&
+      currentIntent !== 'greeting' &&
       currentIntent !== 'save_as_doc' &&
       currentIntent !== 'modify_doc' &&
       currentIntent !== 'modify_board'

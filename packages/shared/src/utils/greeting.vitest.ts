@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { getGreeting } from './greeting.js';
+import { LAUNCH_GREETING_DAYS, LAUNCH_GREETING_START, getGreeting } from './greeting.js';
 
 /**
  * The `short` option exists for the phone hero, where a full sentence wraps to
@@ -74,5 +74,59 @@ describe('getGreeting', () => {
       vi.useRealTimers();
     }
     expect([...seen].some(isSentence)).toBe(true);
+  });
+});
+
+/**
+ * The launch greeting is a dated window, so every case is anchored to
+ * LAUNCH_GREETING_START rather than to a literal date — moving the cut-off must
+ * not mean rewriting the tests.
+ *
+ * The boundaries are what actually breaks: an off-by-one on the end leaves the
+ * announcement up for an eighth day, and nobody notices until it is stale.
+ */
+describe('getGreeting during launch week', () => {
+  const LAUNCH = 'Willkommen im neuen Grünerator';
+
+  function atLaunchOffset(days: number, hour = 13): void {
+    const at = new Date(LAUNCH_GREETING_START);
+    at.setDate(at.getDate() + days);
+    at.setHours(hour, 0, 0, 0);
+    vi.useFakeTimers();
+    vi.setSystemTime(at);
+  }
+
+  it('takes over the hero for the whole window, at any hour and locale', () => {
+    for (const locale of ['de-DE', 'de-AT']) {
+      for (const hour of [0, 3, 9, 13, 16, 20, 23]) {
+        for (let day = 0; day < LAUNCH_GREETING_DAYS; day += 1) {
+          atLaunchOffset(day, hour);
+          expect(getGreeting(locale, 'Moritz'), `${locale} ${hour}h day ${day}`).toBe(
+            `${LAUNCH}, Moritz`
+          );
+          vi.useRealTimers();
+        }
+      }
+    }
+  });
+
+  it('reaches the phone too — short mode does not filter it out', () => {
+    atLaunchOffset(0, 9);
+    expect(getGreeting('de-DE', 'Moritz', { short: true })).toBe(`${LAUNCH}, Moritz`);
+  });
+
+  it('drops the name cleanly when none is known', () => {
+    atLaunchOffset(2);
+    expect(getGreeting('de-DE', null)).toBe(LAUNCH);
+  });
+
+  it('is not up the day before the cut-off', () => {
+    atLaunchOffset(-1);
+    expect(getGreeting('de-DE', 'Moritz')).not.toContain(LAUNCH);
+  });
+
+  it('is gone on day seven — the window closes on its own', () => {
+    atLaunchOffset(LAUNCH_GREETING_DAYS);
+    expect(getGreeting('de-DE', 'Moritz')).not.toContain(LAUNCH);
   });
 });

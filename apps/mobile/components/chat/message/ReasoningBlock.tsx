@@ -20,7 +20,12 @@ export const ReasoningBlock = memo(function ReasoningBlock({
 
   return (
     <View style={[styles.container, { borderColor: theme.border }]}>
-      <Pressable style={styles.trigger} onPress={() => setExpanded(!expanded)}>
+      <Pressable
+        style={styles.trigger}
+        onPress={() => setExpanded(!expanded)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+      >
         <Ionicons name="bulb-outline" size={14} color={colors.primary[500]} />
         <Text style={[styles.label, { color: theme.textSecondary }]}>Gedankengang</Text>
         <Ionicons

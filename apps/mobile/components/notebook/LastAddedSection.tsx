@@ -35,6 +35,8 @@ function Card({
           borderColor: theme.cardBorder,
         },
       ]}
+      accessibilityRole={href ? 'link' : 'none'}
+      accessibilityState={{ disabled: !href }}
     >
       <View style={styles.meta}>
         {showSourceLabel && item.collectionName ? (

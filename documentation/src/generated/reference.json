@@ -350,5 +350,32 @@
         "description": "Social-Media-Beiträge planen und vorbereiten (Beta; kein Direkt-Publishing)."
       }
     ]
-  }
+  },
+  "managedConnectors": [
+    {
+      "title": "Deutsche Bahn",
+      "description": "Bahnhöfe, Abfahrtspläne und Störungsmeldungen der Deutschen Bahn.",
+      "category": "Reise & Verkehr"
+    },
+    {
+      "title": "Gesetze",
+      "description": "Deutsches Bundesrecht durchsuchen, Normen im Volltext lesen und Zitate prüfen.",
+      "category": "Recht & Compliance"
+    },
+    {
+      "title": "tagesschau",
+      "description": "Aktuelle tagesschau-Meldungen nach Thema, Ressort oder Bundesland.",
+      "category": "Nachrichten"
+    },
+    {
+      "title": "trivago",
+      "description": "Unterkünfte suchen und Preise vergleichen.",
+      "category": "Reise & Verkehr"
+    },
+    {
+      "title": "Wetter",
+      "description": "Wettervorhersage, aktuelles Wetter und Luftqualität (Open-Meteo/DWD).",
+      "category": "Wetter & Umwelt"
+    }
+  ]
 }

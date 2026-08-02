@@ -51,6 +51,7 @@ function ActionButton({
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [styles.actionWrapper, pressed && styles.actionPressed]}
+      accessibilityRole="button"
     >
       <View style={styles.actionCircle}>
         <Ionicons name={icon} size={24} color={colors.white} />
@@ -149,7 +150,12 @@ export function ReelReadyScreen({ project, onEdit, onShare, onNewReel }: ReelRea
               stylePreference={stylePreference}
               heightPreference={heightPreference}
             />
-            <Pressable style={styles.playOverlay} onPress={togglePlayback}>
+            <Pressable
+              style={styles.playOverlay}
+              onPress={togglePlayback}
+              accessibilityRole="button"
+              accessibilityLabel={isPlaying ? 'Wiedergabe pausieren' : 'Wiedergabe starten'}
+            >
               {!isPlaying && (
                 <View style={styles.playButton}>
                   <Ionicons name="play" size={28} color={colors.white} />

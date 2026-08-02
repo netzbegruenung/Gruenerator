@@ -20,7 +20,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@assistant-ui/react-markdown": "0.14.7",
+    "@assistant-ui/react-markdown": "0.14.8",
     "@base-ui/react": "^1.6.0",
     "ai": "^7.0.37",
     "blurhash": "^2.0.5",

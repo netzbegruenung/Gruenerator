@@ -67,7 +67,6 @@ vi.mock('../services/responseStreamingService.js', async (orig) => {
 const { useChatApp } = await import('./harness/suite.js');
 const { userTurn } = await import('./harness/testApp.js');
 const { runTurn } = await import('./harness/trace.js');
-const { classifierVerdict } = await import('./harness/aiWorkerPoolStub.js');
 const { respond } = await import('./harness/respondScript.js');
 const { sharepicControl } = await import('./harness/mocks.js');
 const { NO_SHAREPIC_TO_EDIT_TEXT, APP_REDIRECT_TEXTS } =
@@ -75,9 +74,17 @@ const { NO_SHAREPIC_TO_EDIT_TEXT, APP_REDIRECT_TEXTS } =
 
 const suite = useChatApp();
 
-/** Force the classifier's LLM tier to a chosen verdict. */
-function scriptIntent(intent: string, extra: Record<string, unknown> = {}): void {
-  suite.pool.script('chat_intent_classification', classifierVerdict({ intent, ...extra }));
+/**
+ * Force the generation resolver (Tier 3.8) to a chosen artifact kind.
+ *
+ * The one remaining way to put a model-decided verdict into a turn: the LLM
+ * tier is deleted, and the resolver is the only step left that can answer
+ * "sharepic" for a message that does not say the word. Which is exactly the
+ * input the licence gate below exists for — the prompts here therefore have to
+ * carry a `GENERATION_SIGNAL` word so the resolver runs at all.
+ */
+function scriptGenerationKind(kind: string): void {
+  suite.pool.scriptResolver('Entscheide, ob diese Nachricht ein ARTEFAKT', kind);
 }
 
 describe('sharepic licence', () => {
@@ -86,10 +93,16 @@ describe('sharepic licence', () => {
     // or a secondaryIntent — a phrasing the heuristics read as "sharepic" names
     // one, and would therefore be licensed. That is the whole reason this gate
     // exists, so the prompt is deliberately one measured to reach the LLM tier.
-    scriptIntent('sharepic');
+    //
+    // Since the default inversion that measurement moved: a bare "bereite die
+    // Kernaussage optisch auf" now loops. And since the LLM tier was deleted,
+    // the only step left that can say "sharepic" without the user saying it is
+    // the generation resolver — so the prompt carries "Entwirf", one of its
+    // trigger words, and still names no sharepic.
+    scriptGenerationKind('sharepic');
 
     const { trace } = await runTurn(suite.baseUrl(), {
-      messages: [userTurn('Bereite die Kernaussage optisch auf')],
+      messages: [userTurn('Entwirf einen Slogan zur Kernaussage')],
     });
     suite.pool.assertScriptsConsumed();
 
@@ -103,21 +116,19 @@ describe('sharepic licence', () => {
     // IS something to edit and the edit lanes declined it. Answering beats
     // minting a surprise second one.
     sharepicControl.threadHasSharepic = true;
-    scriptIntent('sharepic');
+    scriptGenerationKind('sharepic');
 
     const { trace } = await runTurn(suite.baseUrl(), {
-      messages: [userTurn('Bereite die Kernaussage optisch auf')],
+      messages: [userTurn('Entwirf einen Slogan zur Kernaussage')],
     });
     suite.pool.assertScriptsConsumed();
 
-    expect(trace.intent).toBe('direct');
+    expect(trace.intent).toBe('produktion');
     expect(trace.fullText).not.toContain(NO_SHAREPIC_TO_EDIT_TEXT.slice(0, 40));
     expect(trace.sharepicGenerated).toBe(false);
   });
 
   it('licenses the turn when the user names a sharepic', async () => {
-    scriptIntent('sharepic');
-
     const { trace } = await runTurn(suite.baseUrl(), {
       messages: [userTurn('Erstelle ein Sharepic zur Windkraft')],
     });
@@ -129,8 +140,6 @@ describe('sharepic licence', () => {
     // `lastUserTextNoMentions` is the remove-form on purpose: a mention LABEL
     // like "@[Bild generieren](tool:image)" would false-positive the noun
     // patterns. The word here sits in the prose, so the licence must still hold.
-    scriptIntent('sharepic');
-
     const { trace } = await runTurn(suite.baseUrl(), {
       messages: [userTurn('@[Recherche](tool:web_search) Erstelle ein Sharepic zur Windkraft')],
     });
@@ -139,8 +148,6 @@ describe('sharepic licence', () => {
   });
 
   it('drops an unlicensed sharepic secondaryIntent', async () => {
-    scriptIntent('direct', { secondaryIntent: 'sharepic' });
-
     const { trace } = await runTurn(suite.baseUrl(), {
       messages: [userTurn('Erkläre mir kurz die Windkraft-Debatte')],
     });
@@ -183,31 +190,37 @@ describe('negative action constraints', () => {
     expect(trace.confirmActions).toEqual([]);
   });
 
-  it('demotes an artifact intent to direct, and only because it was forbidden', async () => {
+  it('demotes an artifact intent to produktion, and only because it was forbidden', async () => {
     // The pair is the point: a gate that never fires at all would look exactly
     // like a gate that works, so the control run must reach the artifact path.
-    scriptIntent('save_as_doc');
+    // Kein Skript mehr, und das ist der Befund: seit dem Löschen der LLM-Stufe
+    // gibt es keinen Weg mehr, ein VERBOTENES `save_as_doc` überhaupt zu
+    // erzeugen. Die Heuristik erkennt das Verbot selbst, und der
+    // Generierungs-Auflöser wird bei einem Verbot gar nicht erst gefragt. Das
+    // Gitter im Router bleibt als zweite Tür für `secondaryIntent` — geprüft
+    // von den Ausgangs-Fällen oben.
     const forbidden = await runTurn(suite.baseUrl(), {
       messages: [userTurn('Halte die Ergebnisse fest, aber erstelle diesmal kein Dokument.')],
     });
     suite.pool.assertScriptsConsumed();
-    expect(forbidden.trace.intent).toBe('direct');
+    expect(forbidden.trace.intent).toBe('produktion');
     expect(forbidden.trace.documentCreated).toBe(false);
 
+    // Der Kontrolllauf braucht seit #2270 kein Skript mehr: "leg sie als
+    // Dokument ab" wird in beiden Wortstellungen von der Heuristik erkannt und
+    // bei Tier 3 entschieden. Ein Skript hier waere schlimmer als keins — es
+    // wuerde nie verbraucht und damit behaupten, einen Pfad zu pinnen, den der
+    // Turn gar nicht nimmt.
     suite.pool.reset();
-    scriptIntent('save_as_doc');
     const allowed = await runTurn(suite.baseUrl(), {
       messages: [userTurn('Halte die Ergebnisse fest und leg sie als Dokument ab.')],
     });
-    suite.pool.assertScriptsConsumed();
-    expect(allowed.trace.intent).not.toBe('direct');
+    expect(allowed.trace.intent).toBe('save_as_doc');
   });
 });
 
 describe('platform gating', () => {
   it('redirects a sharepic request from the app instead of generating', async () => {
-    scriptIntent('sharepic');
-
     const { trace } = await runTurn(suite.baseUrl(), {
       messages: [userTurn('Erstelle ein Sharepic zur Windkraft')],
       platform: 'app',

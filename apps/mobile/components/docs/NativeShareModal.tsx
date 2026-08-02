@@ -83,6 +83,7 @@ function QuickAction({
       ]}
       onPress={onPress}
       activeOpacity={0.6}
+      accessibilityRole="button"
     >
       <View
         style={[
@@ -200,7 +201,12 @@ function PermissionsSheet({
   return (
     <BottomSheet visible={visible} onClose={onClose}>
       <View style={styles.titleRow}>
-        <TouchableOpacity onPress={onClose} hitSlop={8}>
+        <TouchableOpacity
+          onPress={onClose}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Zurück"
+        >
           <Ionicons name="arrow-back" size={22} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: theme.text }]}>Berechtigungen</Text>
@@ -226,6 +232,8 @@ function PermissionsSheet({
                 ]}
                 onPress={() => updateMode(opt.mode)}
                 activeOpacity={0.6}
+                accessibilityRole="button"
+                accessibilityState={{ selected: shareMode === opt.mode }}
               >
                 <Ionicons
                   name={opt.icon}
@@ -261,6 +269,7 @@ function PermissionsSheet({
                 style={styles.permToggle}
                 onPress={togglePermission}
                 activeOpacity={0.6}
+                accessibilityRole="button"
               >
                 <Ionicons
                   name={sharePermission === 'editor' ? 'create-outline' : 'eye-outline'}
@@ -296,7 +305,12 @@ function PermissionsSheet({
                     </Text>
                   </View>
                   {c.permission_level !== 'owner' && (
-                    <TouchableOpacity onPress={() => removeCollab(c.user_id)} hitSlop={8}>
+                    <TouchableOpacity
+                      onPress={() => removeCollab(c.user_id)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${c.display_name || c.email} entfernen`}
+                    >
                       <Ionicons name="close-circle-outline" size={20} color={colors.error[400]} />
                     </TouchableOpacity>
                   )}
@@ -322,7 +336,12 @@ function PermissionsSheet({
                   >
                     {g.group_name}
                   </Text>
-                  <TouchableOpacity onPress={() => removeGroup(g.group_id)} hitSlop={8}>
+                  <TouchableOpacity
+                    onPress={() => removeGroup(g.group_id)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${g.group_name} entfernen`}
+                  >
                     <Ionicons name="close-circle-outline" size={20} color={colors.error[400]} />
                   </TouchableOpacity>
                 </View>
@@ -338,6 +357,8 @@ function PermissionsSheet({
                         { borderColor: isDark ? colors.grey[700] : colors.grey[300] },
                       ]}
                       activeOpacity={0.6}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${g.name} hinzufügen`}
                     >
                       <Ionicons name="add" size={14} color={colors.primary[600]} />
                       <Text style={styles.addChipText}>{g.name}</Text>
@@ -526,7 +547,12 @@ export function NativeShareModal({
       {/* Download sub-modal */}
       <BottomSheet visible={showDownload} onClose={() => setShowDownload(false)}>
         <View style={styles.titleRow}>
-          <TouchableOpacity onPress={() => setShowDownload(false)} hitSlop={8}>
+          <TouchableOpacity
+            onPress={() => setShowDownload(false)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Zurück"
+          >
             <Ionicons name="arrow-back" size={22} color={theme.text} />
           </TouchableOpacity>
           <Text style={[styles.title, { color: theme.text }]}>Herunterladen</Text>
@@ -536,6 +562,7 @@ export function NativeShareModal({
           style={styles.downloadRow}
           onPress={() => handleExport('docx')}
           activeOpacity={0.6}
+          accessibilityRole="button"
         >
           <Ionicons name="document-outline" size={24} color={colors.primary[600]} />
           <View style={styles.downloadRowContent}>
@@ -550,6 +577,7 @@ export function NativeShareModal({
           style={styles.downloadRow}
           onPress={() => handleExport('pdf')}
           activeOpacity={0.6}
+          accessibilityRole="button"
         >
           <Ionicons name="document-text-outline" size={24} color="#E53935" />
           <View style={styles.downloadRowContent}>
@@ -564,6 +592,7 @@ export function NativeShareModal({
           style={styles.downloadRow}
           onPress={() => handleTextFormatExport('markdown')}
           activeOpacity={0.6}
+          accessibilityRole="button"
         >
           <Ionicons name="code-slash-outline" size={24} color={colors.secondary[600]} />
           <View style={styles.downloadRowContent}>
@@ -578,6 +607,7 @@ export function NativeShareModal({
           style={styles.downloadRow}
           onPress={() => handleTextFormatExport('text')}
           activeOpacity={0.6}
+          accessibilityRole="button"
         >
           <Ionicons name="text-outline" size={24} color={theme.textSecondary} />
           <View style={styles.downloadRowContent}>
@@ -593,7 +623,12 @@ export function NativeShareModal({
       {/* Save-as-template sub-modal */}
       <BottomSheet visible={showTemplate} onClose={() => setShowTemplate(false)} keyboardAvoiding>
         <View style={styles.titleRow}>
-          <TouchableOpacity onPress={() => setShowTemplate(false)} hitSlop={8}>
+          <TouchableOpacity
+            onPress={() => setShowTemplate(false)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Zurück"
+          >
             <Ionicons name="arrow-back" size={22} color={theme.text} />
           </TouchableOpacity>
           <Text style={[styles.title, { color: theme.text }]}>Als Vorlage speichern</Text>
@@ -612,6 +647,7 @@ export function NativeShareModal({
             ]}
             value={templateTitle}
             onChangeText={setTemplateTitle}
+            accessibilityLabel="Name der Vorlage"
             placeholder="Name der Vorlage"
             placeholderTextColor={theme.textSecondary}
             autoFocus
@@ -626,6 +662,9 @@ export function NativeShareModal({
             onPress={handleSaveTemplate}
             activeOpacity={0.8}
             disabled={!templateTitle.trim() || savingTemplate}
+            accessibilityRole="button"
+            accessibilityLabel="Vorlage speichern"
+            accessibilityState={{ disabled: !templateTitle.trim() || savingTemplate }}
           >
             {savingTemplate ? (
               <ActivityIndicator size="small" color={colors.white} />

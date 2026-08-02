@@ -93,6 +93,9 @@ export function MediathekSelector({ visible, onClose, onImageSelect }: Mediathek
           ]}
           onPress={() => handleImagePress(item)}
           disabled={loadingImage}
+          accessibilityRole="button"
+          accessibilityLabel={item.title ? `${item.title} auswählen` : 'Bild auswählen'}
+          accessibilityState={{ selected: isSelected, disabled: loadingImage }}
         >
           <SharedMediaImage
             shareToken={item.shareToken}
@@ -141,7 +144,12 @@ export function MediathekSelector({ visible, onClose, onImageSelect }: Mediathek
         <View style={[styles.header, { borderBottomColor: theme.border }]}>
           <View style={styles.headerLeft} />
           <Text style={[styles.headerTitle, { color: theme.text }]}>Mediathek</Text>
-          <Pressable onPress={onClose} style={styles.closeButton}>
+          <Pressable
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="Mediathek schließen"
+            style={styles.closeButton}
+          >
             <Ionicons name="close" size={24} color={theme.text} />
           </Pressable>
         </View>

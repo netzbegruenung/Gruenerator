@@ -15,7 +15,7 @@ import { getVisibleSystemAgentsForLocale } from '@gruenerator/shared/agents';
 import { getMcpExposedCollections } from '../../config/systemCollectionsConfig.js';
 import { localizePlaceholders } from '../localization/index.js';
 import { type Locale } from '../localization/types.js';
-import { DE_ONLY_SYSTEM_INTENTS, getSystemMcpSources } from '../mcp/systemMcpServers.js';
+import { getManagedConnectors, isSourceGermanOnly } from '../mcp/systemMcpServers.js';
 
 // Meta questions are short; longer texts (pasted documents) are never product
 // meta questions, and skipping them keeps the per-turn regex scan bounded.
@@ -110,13 +110,24 @@ function formatCollectionLine(): string {
     .join(', ');
 }
 
-function formatSystemMcpLines(locale: Locale): string {
-  const sources = getSystemMcpSources();
-  if (sources.length === 0) return '- Aktuell sind keine Live-Daten-Quellen konfiguriert.';
-  return sources
-    .map((s) => {
-      const deOnly = locale === 'de-AT' && DE_ONLY_SYSTEM_INTENTS.has(s.key);
-      return `- ${s.name}: ${s.capability}${deOnly ? ' (Daten nur für Deutschland)' : ''}`;
+/**
+ * The first-party MANAGED connectors, with the country caveat where it applies.
+ *
+ * This block used to list the intent-gated "system MCP sources" and was keyed to
+ * `getSystemMcpSources()` directly. Same sources, different door: they are
+ * connectors now, on for every user unless switched off, so the heading says
+ * what the user actually sees in Einstellungen → Verbindungen.
+ *
+ * Env still decides existence — an unconfigured connector is absent from
+ * `getManagedConnectors()`, so this never advertises a source the deploy lacks.
+ */
+function formatManagedConnectorLines(locale: Locale): string {
+  const connectors = getManagedConnectors();
+  if (connectors.length === 0) return '- Aktuell sind keine bereitgestellten Dienste aktiv.';
+  return connectors
+    .map((c) => {
+      const deOnly = locale === 'de-AT' && isSourceGermanOnly(c.key);
+      return `- ${c.connector.title}: ${c.capability}${deOnly ? ' (Daten nur für Deutschland)' : ''}`;
     })
     .join('\n');
 }
@@ -127,15 +138,22 @@ async function formatConnectedServerLines(userId: string): Promise<string> {
     // which throws in env-less unit-test contexts (toolCatalog.vitest.ts).
     const { McpServerRegistry } = await import('../mcp/McpServerRegistry.js');
     const servers = (await McpServerRegistry.list(userId)).filter((s) => s.enabled);
-    if (servers.length === 0) {
-      return 'Aktuell sind keine eigenen MCP-Server verbunden — verbinden unter gruenerator.eu/apps.';
+    // `list()` now leads with the managed connectors every user gets. They are
+    // NOT "verbunden" in the sense the empty-state sentence means, so the
+    // invitation to connect one still fires when the user has none of their own.
+    const own = servers.filter((s) => !s.managed);
+    const lines = servers.map(
+      (s) =>
+        `- ${s.name}${s.managed ? ' (vom Grünerator bereitgestellt)' : ''}${
+          s.toolNames?.length ? ` (Tools: ${s.toolNames.slice(0, 6).join(', ')})` : ''
+        }`
+    );
+    if (own.length === 0) {
+      lines.push(
+        'Eigene MCP-Server sind aktuell keine verbunden — verbinden unter gruenerator.eu/apps.'
+      );
     }
-    return servers
-      .map(
-        (s) =>
-          `- ${s.name}${s.toolNames?.length ? ` (Tools: ${s.toolNames.slice(0, 6).join(', ')})` : ''}`
-      )
-      .join('\n');
+    return lines.join('\n');
   } catch {
     return 'Die verbundenen MCP-Server konnten gerade nicht geladen werden.';
   }
@@ -170,11 +188,11 @@ ${STATIC_TOOL_LINES.join('\n')}
 ### Wissenssammlungen (durchsuchbar in Chat & Notebooks)
 ${formatCollectionLine()}
 
-### Live-Daten im Chat (eingebaute MCP-Quellen)
-${formatSystemMcpLines(locale)}${mcpSection}
+### Bereitgestellte Dienste (ohne Einrichtung nutzbar, per @-Erwähnung ansprechbar)
+${formatManagedConnectorLines(locale)}${mcpSection}
 
 ### Grünerator als MCP-Server für externe KI-Chats
-Über mcp.gruenerator.eu lassen sich die grünen Wissenssammlungen in ChatGPT, Claude und anderen MCP-fähigen Chats nutzen. Eigene MCP-Server können unter gruenerator.eu/apps verbunden und im Chat per @-Erwähnung genutzt werden. Anleitung: doku.gruenerator.eu.
+Über mcp.gruenerator.eu lassen sich in ChatGPT, Claude und anderen MCP-fähigen Chats nutzen: die grünen Wissenssammlungen, Social-Media-Beispiele und Umfragen, die eigenen Grünerator-Inhalte der angemeldeten Person (Dokumente, Boards und Aufgaben, Notizbücher, Projekte, Medien) sowie die Grüneratoren als fertige Prompts. Die Verbindung verlangt eine Anmeldung mit dem Grünerator-Konto; beim Verbinden wird zugestimmt, worauf der Chat zugreifen darf, und die Zustimmung ist jederzeit widerrufbar. Eigene MCP-Server können unter gruenerator.eu/apps verbunden und im Chat per @-Erwähnung genutzt werden. Anleitung: doku.gruenerator.eu.
 
 Beantworte Produktfragen aus diesem Block. Erfinde keine Funktionen, die hier nicht stehen; für Schritt-für-Schritt-Anleitungen verweise auf doku.gruenerator.eu.`;
 }

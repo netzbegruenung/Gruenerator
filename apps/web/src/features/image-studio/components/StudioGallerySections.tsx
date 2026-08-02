@@ -2,7 +2,15 @@ import { isCanvasTemplateType, type CanvasListItem } from '@gruenerator/contract
 import { useShareStore } from '@gruenerator/shared';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { isKiImage } from '@gruenerator/shared/media-library';
-import { CardActionsMenu, CardGrid, DropdownMenuItem, SectionHeader } from '@gruenerator/ui';
+import {
+  CardActionsMenu,
+  CardGrid,
+  cn,
+  DropdownMenuItem,
+  InteractiveCard,
+  interactiveCardControl,
+  SectionHeader,
+} from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { Download, Pencil, Share2 } from 'lucide-react';
 import { useState, useMemo, useCallback, type ReactNode } from 'react';
@@ -64,12 +72,10 @@ const PreviewCard = ({
   /** Optional kebab menu (rename/delete), overlaid top-right, shown on hover. */
   actions?: ReactNode;
 }) => (
-  <div
-    className="group relative flex flex-col bg-background border border-grey-200 dark:border-grey-700 rounded-md overflow-hidden cursor-pointer transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-grey-300 dark:hover:border-grey-600"
-    onClick={onClick}
-    role="button"
-    tabIndex={0}
-    onKeyDown={(e) => e.key === 'Enter' && onClick()}
+  <InteractiveCard
+    label={title}
+    onActivate={onClick}
+    className="group flex flex-col bg-background border border-grey-200 dark:border-grey-700 rounded-md overflow-hidden cursor-pointer transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-grey-300 dark:hover:border-grey-600"
   >
     {actions && (
       <div className="absolute right-1.5 top-1.5 z-10 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 max-sm:opacity-100">
@@ -95,7 +101,7 @@ const PreviewCard = ({
     <div className="border-t border-grey-100 dark:border-grey-700 px-sm py-sm">
       <span className="text-sm font-medium text-foreground-heading truncate block">{title}</span>
     </div>
-  </div>
+  </InteractiveCard>
 );
 
 /** Studio gallery (Sharepics + Imagine + Reels) without page chrome — shared
@@ -344,7 +350,10 @@ const StudioGallerySections = () => {
                     actions={
                       <CardActionsMenu
                         onDelete={() => handleDeleteCanvas(card.item)}
-                        className="[&_button]:bg-white/80 dark:[&_button]:bg-grey-800/80 [&_button]:backdrop-blur-sm"
+                        className={cn(
+                          interactiveCardControl,
+                          '[&_button]:bg-white/80 dark:[&_button]:bg-grey-800/80 [&_button]:backdrop-blur-sm'
+                        )}
                       >
                         <DropdownMenuItem onClick={() => handleRenameCanvas(card.item)}>
                           <Pencil size={14} />
@@ -370,7 +379,10 @@ const StudioGallerySections = () => {
                     actions={
                       <CardActionsMenu
                         onDelete={() => handleDeleteShare(card.item)}
-                        className="[&_button]:bg-white/80 dark:[&_button]:bg-grey-800/80 [&_button]:backdrop-blur-sm"
+                        className={cn(
+                          interactiveCardControl,
+                          '[&_button]:bg-white/80 dark:[&_button]:bg-grey-800/80 [&_button]:backdrop-blur-sm'
+                        )}
                       >
                         <DropdownMenuItem onClick={() => handleRenameShare(card.item)}>
                           <Pencil size={14} />

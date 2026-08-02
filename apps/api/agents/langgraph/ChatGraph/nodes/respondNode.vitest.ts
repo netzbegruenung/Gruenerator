@@ -5,6 +5,7 @@ import {
   formatTabularComputeGuidance,
   getModeGuidance,
   citableSourcesAvailable,
+  truncateDocument,
 } from './respondNode.js';
 
 import type { ChatGraphState, ComputeData, SearchResult } from '../types.js';
@@ -61,6 +62,44 @@ function makeComputeResult(overrides: Partial<ComputeData> = {}): ComputeData {
   };
 }
 
+describe('truncateDocument', () => {
+  const long = 'A'.repeat(10_000);
+
+  it('returns short text untouched', () => {
+    expect(truncateDocument('kurz', 500)).toBe('kurz');
+  });
+
+  it('keeps intro and outro at a generous limit', () => {
+    const out = truncateDocument(long + 'ZZZ', 2000);
+    expect(out.startsWith('AAAA')).toBe(true);
+    expect(out.endsWith('ZZZ')).toBe(true);
+    expect(out).toContain('Zeichen gekürzt');
+  });
+
+  // The arithmetic used to produce outroLength === 0 here, and `slice(-0)` is
+  // `slice(0)` — the cap returned the WHOLE text. 150 is exactly the per-chunk
+  // floor in formatSourceChunks, so this fired on the multi-chunk path.
+  it('caps instead of expanding at the 150-char floor', () => {
+    const out = truncateDocument(long, 150);
+    expect(out.length).toBeLessThan(300);
+    expect(out).not.toBe(long);
+  });
+
+  it('caps instead of expanding below the floor', () => {
+    for (const limit of [10, 50, 100, 149]) {
+      const out = truncateDocument(long, limit);
+      expect(out.length, `limit=${limit}`).toBeLessThan(200);
+      expect(out, `limit=${limit}`).not.toBe(long);
+    }
+  });
+
+  it('never returns more than it was given', () => {
+    for (const limit of [1, 60, 149, 150, 151, 400, 5000]) {
+      expect(truncateDocument(long, limit).length, `limit=${limit}`).toBeLessThan(long.length);
+    }
+  });
+});
+
 describe('getModeGuidance turn-outcome honesty (direct path)', () => {
   it('a direct turn carries the no-research/no-artifact honesty note', () => {
     const out = getModeGuidance(makeState({ intent: 'direct', searchResults: [] }));
@@ -113,6 +152,52 @@ describe('citableSourcesAvailable', () => {
 
   it('is unchanged for retrieval intents', () => {
     expect(citableSourcesAvailable(makeState({ intent: 'search', searchResults: SRC }))).toBe(true);
+  });
+
+  it('treats produktion exactly like direct — shut, unless sources were carried', () => {
+    expect(citableSourcesAvailable(makeState({ intent: 'produktion', searchResults: SRC }))).toBe(
+      false
+    );
+    expect(
+      citableSourcesAvailable(
+        makeState({ intent: 'produktion', searchResults: SRC, sourcesCarriedFromThread: true })
+      )
+    ).toBe(true);
+  });
+
+  it('opens for the residual: an agentic turn did its own retrieval', () => {
+    expect(citableSourcesAvailable(makeState({ intent: 'agentic', searchResults: SRC }))).toBe(
+      true
+    );
+  });
+
+  it('stays shut for a greeting even with the carry flag set', () => {
+    // `greeting` has no carry exception, unlike `direct`. The carry never runs
+    // for it, so the flag can only arrive here through a bug — and a "Hallo"
+    // answered with [1]–[6] is the failure this closes.
+    expect(
+      citableSourcesAvailable(
+        makeState({ intent: 'greeting', searchResults: SRC, sourcesCarriedFromThread: true })
+      )
+    ).toBe(false);
+  });
+});
+
+describe('getModeGuidance for greeting', () => {
+  it('scopes the answer and claims neither research nor artefact', () => {
+    const out = getModeGuidance(makeState({ intent: 'greeting', searchResults: [] }));
+    expect(out).toMatch(/ein bis zwei S(ä|ae)tzen/);
+    expect(out).toMatch(/nichts recherchiert/i);
+  });
+
+  it('drops the direct path’s citation-ban paragraph', () => {
+    // The one turn in the product where nobody could have claimed a citation
+    // does not need a paragraph of citation bans.
+    const out = getModeGuidance(makeState({ intent: 'greeting', searchResults: [] }));
+    expect(out).not.toMatch(/keine Quellen\/\[N\]-Belege/);
+    expect(out.length).toBeLessThan(
+      getModeGuidance(makeState({ intent: 'direct', searchResults: [] })).length
+    );
   });
 });
 

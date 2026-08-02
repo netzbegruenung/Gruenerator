@@ -29,9 +29,9 @@ export function ChatLayout({ userId, firstName, onLogout, onNavigate }: ChatLayo
             onLogout={onLogout}
             onNavigate={onNavigate}
           />
-          <main className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex flex-1 flex-col overflow-hidden">
             <GrueneratorThread onNavigate={onNavigate} firstName={firstName} />
-          </main>
+          </div>
         </div>
       </TooltipProvider>
     </GrueneratorChatProvider>

@@ -195,7 +195,7 @@ Halte die Zusammenfassung sehr kompakt (max. 150 Wörter). Beginne direkt mit de
 
   try {
     const result = await generateText({
-      model: getIntermediateModel(),
+      model: getIntermediateModel('heavy'),
       system: systemPrompt,
       prompt: textToSummarize,
       maxOutputTokens: SUMMARY_MAX_TOKENS,

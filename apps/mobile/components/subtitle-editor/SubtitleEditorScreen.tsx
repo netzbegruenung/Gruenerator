@@ -379,6 +379,7 @@ export function SubtitleEditorScreen({
                 <Pressable
                   style={[styles.shareChip, { backgroundColor: theme.background }]}
                   onPress={() => setShowShareModal(true)}
+                  accessibilityRole="button"
                 >
                   <Ionicons name="share-outline" size={20} color={colors.primary[600]} />
                   <Text style={[styles.shareChipText, { color: theme.text }]}>Teilen</Text>
@@ -394,12 +395,19 @@ export function SubtitleEditorScreen({
         animationType="fade"
         onRequestClose={() => setShowShareModal(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setShowShareModal(false)}>
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowShareModal(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Menü schließen"
+        >
           <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
             <Pressable
               style={[styles.modalOption, { borderBottomColor: theme.border }]}
               onPress={handleShareSave}
               disabled={isSaving}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isSaving }}
             >
               {isSaving ? (
                 <ActivityIndicator size="small" color={colors.primary[600]} />
@@ -417,6 +425,8 @@ export function SubtitleEditorScreen({
               style={styles.modalOption}
               onPress={handleShareExport}
               disabled={isSaving || exportHook.status !== 'idle'}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isSaving || exportHook.status !== 'idle' }}
             >
               <Ionicons name="download-outline" size={24} color={colors.primary[600]} />
               <View style={styles.modalOptionText}>

@@ -21,7 +21,7 @@
  *   - sharepic → the answer text is a fixed template string in the router; the
  *     slogan comes from sharepicGenerationService. Auto has NO effect, so
  *     `sharepic` is intentionally absent from the table.
- *   - summary → summarizeNode already runs on INTERMEDIATE_MODEL (Small 4).
+ *   - summary → summarizeNode already runs on the `heavy` intermediate stage.
  *
  * ── Second-order effect ─────────────────────────────────────────────────────
  * `prefersUnifiedLoop` is true only for Mistral. Picking a Mistral lane
@@ -226,7 +226,15 @@ export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
   image_edit: { modelId: MEDIUM, reasoning: 'off' },
 
   // ── Lane D: GPT-OSS ──
+  // Same lane and grading as `direct`, whose supplied-substance half it took
+  // over: the substance is in the message, so the work is formulating, not
+  // reasoning — but a complex rewrite still earns `low`.
+  produktion: { modelId: FAST, reasoning: graded('off', 'off', 'low') },
   direct: { modelId: FAST, reasoning: graded('off', 'off', 'low') },
+  // Ungraded, unlike `direct`: a greeting has no complexity axis to grade on —
+  // the gate that produces it only fires when the message is a greeting and
+  // nothing else. Spending reasoning tokens on "Hallo" is pure latency.
+  greeting: { modelId: FAST, reasoning: 'off' },
 };
 
 /**
@@ -240,12 +248,18 @@ export const POLICY: Record<Exclude<SearchIntent, ExemptIntent>, AutoEntry> = {
 const DEFAULT_ENTRY: AutoEntry = { modelId: GEMMA, reasoning: graded('off', 'off', 'low') };
 
 /**
- * Intents with no inherent task shape — a greeting and a "just answer me" turn
- * look the same to the table. Only these may be overridden by an agent's
- * `autoRoutingHint`; a `create_sheet` turn stays on the tool lane no matter
- * which agent is active.
+ * Intents with no inherent task shape. Only these may be overridden by an
+ * agent's `autoRoutingHint`; a `create_sheet` turn stays on the tool lane no
+ * matter which agent is active. `greeting` is listed because it was part of
+ * `direct` when this set was written — an agent that pins a lane for voice
+ * consistency should keep getting it on "Hallo" too.
  */
-const HINT_OVERRIDABLE: ReadonlySet<string> = new Set(['direct', 'agentic']);
+const HINT_OVERRIDABLE: ReadonlySet<string> = new Set([
+  'produktion',
+  'direct',
+  'greeting',
+  'agentic',
+]);
 
 function gradeReasoning(rule: ReasoningRule, complexity: Complexity): ReasoningSetting {
   return typeof rule === 'string' ? rule : rule[complexity];
@@ -276,7 +290,7 @@ export interface AutoSelectionInput {
  * hint override (neutral intents only).
  */
 export function resolveAutoSelection(input: AutoSelectionInput): AutoSelection {
-  const intent = input.intent ?? 'direct';
+  const intent = input.intent ?? 'produktion';
   const complexity = input.complexity ?? 'simple';
 
   if (input.surface === 'notebook') {

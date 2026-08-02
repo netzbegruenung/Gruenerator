@@ -39,7 +39,7 @@ function generateSlug(): string {
 async function generatePromptName(promptText: string): Promise<string> {
   try {
     const result = await generateText({
-      model: getIntermediateModel(),
+      model: getIntermediateModel('trivial'),
       prompt: `Generate a short, descriptive German title (3-5 words) for this prompt template. Only respond with the title, nothing else.\n\nPrompt:\n${promptText.substring(0, 500)}`,
       maxOutputTokens: 30,
       temperature: 0.3,

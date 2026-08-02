@@ -185,6 +185,7 @@ const ImageTile = memo(function ImageTile({
   }
 
   const picture = (
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onError reacts to a failed image load, not a user interaction.
     <img
       // Same-origin path only. Never `image.url` — see the file comment.
       src={image.proxyUrl}

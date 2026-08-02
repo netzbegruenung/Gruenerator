@@ -85,6 +85,7 @@ export function SiteMediaPicker() {
   if (!isOpen) return null;
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- schließt nur den Hintergrund; Escape-Taste (Zeile 42-49) und der sichtbare Schließen-Button (aria-label "Schließen") decken die Tastaturbedienung ab
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10000] p-5"
       ref={modalRef}

@@ -14,6 +14,7 @@ import {
   isProviderConfigured,
   routeMistralModel,
 } from '../../../services/ai/providerInstances.js';
+import { regoloTextDefault } from '../../../services/ai/textModelPolicy.js';
 import {
   tryAcquireVerdigadoSlot,
   releaseVerdigadoSlot,
@@ -31,6 +32,7 @@ import {
 
 import type { AgentConfig } from './types.js';
 import type { RouteOptions } from '../../../services/ai/providerInstances.js';
+import type { ProviderName } from '../../../services/ai/providers.js';
 import type { LanguageModel } from 'ai';
 
 const log = createLogger('chatProviders');
@@ -42,7 +44,8 @@ export const VISION_MODEL = {
   model: env.VISION_DEFAULT_MODEL || 'gemma4-31b',
 };
 
-export { INTERMEDIATE_MODEL, getIntermediateModel } from '../../../services/ai/providers.js';
+export { getIntermediateModel } from '../../../services/ai/providers.js';
+export { intermediateLane } from '../../../services/ai/intermediateLanes.js';
 
 export { isVisionCapable };
 
@@ -242,12 +245,12 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
   regolo: {
     kind: 'single',
     provider: 'regolo',
-    model: env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b',
+    model: regoloTextDefault(),
     contextWindow: CTX_FULL,
   },
   // Backend-only lane, reachable via the auto policy but NOT in the model
   // picker (that is driven by MODEL_OPTIONS in @gruenerator/core/models). Same
-  // model as INTERMEDIATE_MODEL: fast, tool-call verified (it is the regolo
+  // model as the intermediate stages: fast, tool-call verified (it is the regolo
   // entry in DOCS_AI_MODELS / BOARD_AI_MODELS) and the right size for the
   // short, structured turns the policy routes here.
   'mistral-small-4': {
@@ -384,7 +387,10 @@ const DEFAULT_CONTEXT_WINDOW = 32768;
  */
 export function getContextWindow(
   modelId: string | null | undefined,
-  provider?: 'mistral' | 'litellm' | 'regolo' | 'greenpt' | 'anthropic'
+  // `anthropic` stammt aus dem Agent-Contract (agentProviderSchema), der eine
+  // eigene Liste führt und den Bedrock-Rest noch kennt; der Rest ist
+  // ProviderName. Vierte Kopie derselben Achse — siehe services/providers/types.ts.
+  provider?: ProviderName | 'anthropic'
 ): number {
   if (modelId && AVAILABLE_MODELS[modelId]) {
     return AVAILABLE_MODELS[modelId].contextWindow;
@@ -397,6 +403,8 @@ export function getContextWindow(
   if (provider === 'litellm') return CTX_VERDIGADO;
   if (provider === 'regolo') return CTX_FULL;
   if (provider === 'greenpt') return CTX_FULL;
+  // Gemma 4 26B-A4B carries 262k on Scaleway's H100 instances (model card).
+  if (provider === 'scaleway') return CTX_FULL;
 
   return DEFAULT_CONTEXT_WINDOW;
 }
@@ -478,7 +486,7 @@ function resolveModel(
         lastFallbackProvider = 'mistral';
         return getMistralProvider()(modelId);
       }
-      return getRegoloProvider().chat(modelId || env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b');
+      return getRegoloProvider().chat(modelId || regoloTextDefault());
     }
     case 'greenpt':
       return getGreenPTProvider().chat(
@@ -507,7 +515,7 @@ export function isAgenticToolCapable(provider: string, _modelName: string): bool
 /**
  * Whether the SELECTED model drives the tool loop directly (unified single-model
  * pass) vs. delegating tool orchestration to the fast planner (planner/executor
- * split: INTERMEDIATE_MODEL gathers, selected model writes the answer).
+ * split: the `standard` intermediate stage gathers, selected model writes the answer).
  *
  * True only for Mistral — our fast NATIVE tool-caller, where one pass is both
  * fastest and highest-fidelity. Everything else splits: the fixed fast planner

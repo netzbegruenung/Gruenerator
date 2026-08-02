@@ -1,3 +1,5 @@
+import { DEFAULT_NOTEBOOK_DEPTH } from '@gruenerator/chat';
+import { notebookDepthSchema } from '@gruenerator/contracts';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Appearance } from 'react-native';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -16,7 +18,12 @@ import { usePreferencesStore } from './preferencesStore';
 beforeEach(() => {
   __resetAsyncStorage();
   vi.clearAllMocks();
-  usePreferencesStore.setState({ isLoading: true, themeMode: 'system', performanceMode: false });
+  usePreferencesStore.setState({
+    isLoading: true,
+    themeMode: 'system',
+    performanceMode: false,
+    notebookDepth: DEFAULT_NOTEBOOK_DEPTH,
+  });
 });
 
 describe('setThemeMode', () => {
@@ -127,5 +134,44 @@ describe('loadPreferences', () => {
     await usePreferencesStore.getState().loadPreferences();
 
     expect(usePreferencesStore.getState().isLoading).toBe(false);
+  });
+});
+
+/**
+ * The notebook depth lives here rather than in `notebookFilterStore` because it
+ * is a standing preference, not a per-session filter — so unlike the facets it
+ * has to survive an app restart.
+ */
+describe('notebookDepth', () => {
+  it.each(notebookDepthSchema.options)('round-trips %s', async (depth) => {
+    await usePreferencesStore.getState().setNotebookDepth(depth);
+    expect(await AsyncStorage.getItem('notebookDepth')).toBe(depth);
+
+    usePreferencesStore.setState({ notebookDepth: DEFAULT_NOTEBOOK_DEPTH });
+    await usePreferencesStore.getState().loadPreferences();
+
+    expect(usePreferencesStore.getState().notebookDepth).toBe(depth);
+  });
+
+  it('falls back to the default for a tier this build no longer knows', async () => {
+    // A binary that shipped a tier since dropped from the enum wrote this key.
+    // Sending it back on the wire would fail the request at the contract.
+    await AsyncStorage.setItem('notebookDepth', 'gigantisch');
+
+    await usePreferencesStore.getState().loadPreferences();
+
+    expect(usePreferencesStore.getState().notebookDepth).toBe(DEFAULT_NOTEBOOK_DEPTH);
+  });
+
+  it('starts on the default when nothing was ever chosen', async () => {
+    await usePreferencesStore.getState().loadPreferences();
+    expect(usePreferencesStore.getState().notebookDepth).toBe(DEFAULT_NOTEBOOK_DEPTH);
+  });
+
+  it('still applies the choice when persisting fails', async () => {
+    vi.spyOn(AsyncStorage, 'setItem').mockRejectedValueOnce(new Error('disk full'));
+
+    await expect(usePreferencesStore.getState().setNotebookDepth('ultra')).resolves.toBeUndefined();
+    expect(usePreferencesStore.getState().notebookDepth).toBe('ultra');
   });
 });

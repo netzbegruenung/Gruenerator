@@ -31,6 +31,7 @@ export function ScrapeUrlCard({ part, theme }: { part: ToolCallPart; theme: Them
         styles.card,
         { backgroundColor: pressed ? theme.surface : theme.card, borderColor: theme.cardBorder },
       ]}
+      accessibilityRole="link"
     >
       <View style={styles.header}>
         <Ionicons name="open-outline" size={14} color={colors.secondary[700]} />

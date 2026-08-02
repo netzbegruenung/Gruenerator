@@ -31,8 +31,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
-      API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
+      ADMIN_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
     steps:
+      - uses: actions/checkout@v7
+
       - name: Build request payload
         id: payload
         run: |
@@ -46,30 +48,58 @@ jobs:
       - name: Trigger enrichment
         id: enrich
         continue-on-error: true
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          # A run normally answers in ~11s. When it does not, the reverse proxy
+          # cuts the connection at ~5 min (504) while the enrichment keeps going
+          # server-side — so allow exactly one retry: enough to ride out a blip,
+          # few enough that we do not stack several overlapping enrichments.
+          # `mode: missing` makes an overlap wasteful but harmless (already
+          # enriched docs are skipped).
+          ATTEMPTS: '2'
+          RETRY_DELAY: '60'
+          MAX_TIME: '7000'
         run: |
-          echo "POST $API_URL/api/internal/notebook/enrich"
-          RESULT=$(curl -sfS -X POST "$API_URL/api/internal/notebook/enrich" \
-            -H "x-admin-token: ${{ secrets.ADMIN_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d '${{ steps.payload.outputs.payload }}' \
-            --max-time 7000)
+          HTTP_CODE=$(.github/scripts/admin-post.sh /api/internal/notebook/enrich \
+            /tmp/enrich.json '${{ steps.payload.outputs.payload }}')
+          jq . /tmp/enrich.json
 
-          echo "$RESULT" | jq .
-          echo "result<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$RESULT" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
+          # Only the status code travels as a step output. The body stays in the
+          # file and is read back with `cat`: an upstream error page can contain
+          # an apostrophe, which would break the single-quoted expansion of a
+          # step output in the summary step below.
+          echo "status=$HTTP_CODE" >> "$GITHUB_OUTPUT"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Enrichment failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
 
       - name: Generate summary
         if: always()
         run: |
-          RESULT='${{ steps.enrich.outputs.result }}'
+          STATUS='${{ steps.enrich.outputs.status }}'
+          RESULT=$(cat /tmp/enrich.json 2>/dev/null || echo '{}')
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
-          if [ -z "$RESULT" ] || [ "$RESULT" = "" ]; then
+          if [ "$STATUS" != "200" ]; then
+            case "$STATUS" in
+              000 | '') REASON="Could not reach $ADMIN_API_URL (timeout, DNS, or TLS error)." ;;
+              403) REASON="The API rejected the admin token — the \`ADMIN_TOKEN\` secret does not match \`env.ADMIN_TOKEN\` on $ADMIN_API_URL." ;;
+              504) REASON="The reverse proxy cut the request at ~5 min. The enrichment itself most likely kept running server-side, so this is a *reporting* failure, not necessarily a lost run — check the API logs before re-dispatching." ;;
+              5*) REASON="The enrichment endpoint failed server-side (HTTP $STATUS)." ;;
+              *) REASON="The enrichment endpoint answered HTTP $STATUS." ;;
+            esac
             {
-              echo "## :x: NLP Enrichment — No Result"
+              echo "## :x: NLP Enrichment — HTTP ${STATUS:-000}"
               echo ""
-              echo "Service did not return a result. Check [workflow logs]($RUN_URL)."
+              echo "$REASON"
+              echo ""
+              echo '```json'
+              echo "$RESULT"
+              echo '```'
+              echo ""
+              echo "[Workflow logs]($RUN_URL)"
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi

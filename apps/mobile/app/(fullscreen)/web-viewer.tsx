@@ -57,7 +57,13 @@ export default function WebViewerScreen() {
       <View
         style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: theme.border }]}
       >
-        <Pressable onPress={handleClose} hitSlop={12} style={styles.closeButton}>
+        <Pressable
+          onPress={handleClose}
+          hitSlop={12}
+          style={styles.closeButton}
+          accessibilityRole="button"
+          accessibilityLabel="Schließen"
+        >
           <Ionicons name="close" size={24} color={theme.text} />
         </Pressable>
         <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>

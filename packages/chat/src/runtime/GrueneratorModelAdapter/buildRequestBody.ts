@@ -1,3 +1,4 @@
+import { DEFAULT_NOTEBOOK_DEPTH } from '../../lib/notebookDepth';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useLastComputeStore } from '../../stores/lastComputeStore';
 import { getAvailableClientTools } from '../clientTools';
@@ -190,7 +191,7 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
       ...(notebookFilters && Object.keys(notebookFilters).length > 0
         ? { filters: notebookFilters }
         : {}),
-      mode: config.notebookMode || 'fast',
+      mode: config.notebookMode || DEFAULT_NOTEBOOK_DEPTH,
       threadId: config.threadId,
     };
   }

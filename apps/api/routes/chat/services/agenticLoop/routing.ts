@@ -12,20 +12,42 @@
 import { type ChatIntentId } from '@gruenerator/shared/chat-intents';
 
 import {
+  ARTIFACT_NOUN_BY_KIND,
+  CREATION_VERB_RE,
+  creationOrderPattern,
+  forbidsPersistentAction,
   hasExplicitSharepicWord,
   isNegatedArtifactRequest,
+  type ForbiddableArtifact,
 } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { recordDecision } from '../../../../utils/decisionJournal.js';
 
 /**
- * The classifier drops many factual questions into `intent: 'direct'` ("no
- * intent detected") — e.g. "Wie hat X abgestimmt?" — where no tool ever runs.
- * A `direct` turn shaped like a real question is let into the loop (full
- * catalog) so the MODEL decides whether a tool fits: a wrongly-looped chit-chat
- * just answers directly (cheap), while a wrongly-`direct` factual turn fails
+ * The classifier can still drop a factual question into a no-tool verdict —
+ * "Wie hat X abgestimmt?" labelled `produktion` — where nothing is looked up.
+ * Such a turn shaped like a real question is let into the loop (full catalog)
+ * so the MODEL decides whether a tool fits: a wrongly-looped chit-chat just
+ * answers directly (cheap), while a wrongly-`produktion` factual turn fails
  * hard. Kept deliberately narrow (≥4 words + a question mark or interrogative)
  * so greetings ("Wer bist du?", "Wie geht's?") stay on the fast path.
+ *
+ * Since the intent split these three conditions are a RESCUE, not the main
+ * door: what the classifier cannot place now goes to `agentic` directly (prompt
+ * rule 12), which is in AGENTIC_INTENTS. They still matter for the no-tool
+ * verdicts the model DID commit to and got wrong.
  */
+// NICHT aus der `prose`-Disposition abgeleitet, obwohl es fast dieselbe Menge
+// ist — und die Differenz ist der Grund. Die Disposition beantwortet „braucht
+// dieser Intent ein Werkzeug?" (ein Gruss: nein). Diese Menge beantwortet
+// „welche Verdikte dürfen die drei Rettungen unten überhaupt anfassen?", und
+// `greeting` steht bewusst NICHT darin: seit #2269 trägt ein Gruss einen eigenen
+// Intent, damit ihn keine Formulierung und kein Selbstwiderspruch des
+// Klassifikators mehr in den Loop ziehen kann. Das ist eine strukturelle
+// Garantie und stärker als jede Wortprüfung — eine Ableitung würde sie
+// aufgeben. `dispositionSets.vitest.ts` hält den Unterschied fest, damit er
+// beim nächsten Mal nicht still verschwindet.
+const NO_TOOL_VERDICTS: ReadonlySet<string> = new Set(['produktion', 'direct']);
+
 // Question words. Includes the wo-compounds (worüber/woran/womit/…) that the
 // original list missed — live failure: "worüber hat X im Bundestag gesprochen"
 // slipped the net (no "?" either) and reached the flaky LLM classifier, which
@@ -77,6 +99,15 @@ export function looksLikeToolableQuestion(raw: string): boolean {
 // ungrounded (any writing order), and where it did fire it fired by accident as
 // often as by design — "er ist doch kein MdB mehr" matched on the negation
 // particle "mehr", which the list meant as the expansion word in "erzähl mehr".
+/**
+ * Nothing but pasted link(s) — see `looksLikeSelfContainedTurn`.
+ *
+ * The separator is `\s+`, not `\s*`: with `\s*` the repeated group could split a
+ * single run of non-space characters in more than one way, which is exponential
+ * backtracking on a message the user fully controls (CodeQL js/redos).
+ */
+const BARE_URL_ONLY_RE = /^\s*https?:\/\/\S+(?:\s+https?:\/\/\S+)*\s*$/i;
+
 const CHITCHAT_ONLY_RE =
   /^(danke\w*|dank\s+dir|thx|ok(ay)?|alles\s+klar|super|top|passt|perfekt|prima|cool|ja|nein|gut)\b[\s,.!?–—-]*$/i;
 
@@ -100,19 +131,41 @@ const CHITCHAT_ONLY_RE =
  * The cost of a false positive is a few hundred tokens of topically adjacent
  * context; the cost of a false negative is a confidently wrong answer.
  */
+/**
+ * „Arbeitet dieser Turn an Text, der schon da ist?"
+ *
+ * Kürzen, übersetzen, nochmal-aber-kürzer, ein Gedicht — alle drei sind in dem
+ * gegründet, woran sie arbeiten. Fremde Recherche danebenzulegen lädt das Modell
+ * ein, in einen Kürzungsauftrag neue Behauptungen zu schmuggeln, und schaltet
+ * [N] für eine Antwort ein, die nichts zitiert.
+ *
+ * Herausgezogen, weil der Loop dieselbe Antwort braucht und sie bisher nicht
+ * hatte: `seedCarried` lief ungetort, `carryThreadSourcesIfNeeded` getort. Über
+ * den 196-Turn-Korpus gemessen sind das zwei Turns, die im Loop Recherche unter
+ * eine Kürzung gelegt bekamen — „Kannst du die Überschrift kürzer machen?" und
+ * „Kürze diesen Redeentwurf auf zwei Minuten: <Text>".
+ *
+ * Bewusst NUR diese drei Klauseln, nicht das ganze `needsThreadGrounding`:
+ * dessen Chitchat-Klausel hängt an `CHITCHAT_RE`, und deren `^hilfe` verschluckt
+ * „Hilfe bei der Formulierung brauche ich nicht, aber: Was fordern die Grünen …"
+ * — eine echte Retrieval-Frage. Sie hier mitzunehmen hätte zwei Fehler gegen
+ * einen dritten getauscht.
+ */
+export function rewritesSuppliedText(raw: string): boolean {
+  const t = (raw ?? '').trim().replace(GREETING_PREFIX_RE, '');
+  if (t.length === 0) return false;
+  return REWRITE_TARGET_RE.test(t) || REGENERATE_RE.test(t) || CREATIVE_FORM_RE.test(t);
+}
+
 export function needsThreadGrounding(raw: string): boolean {
   const t = (raw ?? '').trim().replace(GREETING_PREFIX_RE, '');
   if (t.length === 0) return false;
   // Pleasantries want nothing. Kept as the first check so a bare "Danke!" never
   // reaches the database at all.
   if (CHITCHAT_ONLY_RE.test(t) || CHITCHAT_RE.test(t)) return false;
-  // A rewrite or a regenerate is grounded in the text it acts on — handing it
-  // unrelated research invites the model to smuggle new claims into a
-  // shortening job, and flips citations on for an answer that cites nothing.
-  if (REWRITE_TARGET_RE.test(t) || REGENERATE_RE.test(t)) return false;
-  // A poem needs no sources, and grounding it would switch [N] on for a text
-  // that must never carry footnotes. Same exemption the loop gate applies.
-  if (CREATIVE_FORM_RE.test(t)) return false;
+  // Kürzen, nochmal-aber-anders, Gedicht — die Begründung steht bei
+  // `rewritesSuppliedText`, das der Loop seit demselben Befund ebenfalls fragt.
+  if (rewritesSuppliedText(t)) return false;
   return true;
 }
 
@@ -187,6 +240,72 @@ export function looksLikeUnsourcedWritingOrder(
   // skipped by the very phrasing it exists for.
   if (isNegatedArtifactRequest(t, WRITING_ORDER_RE)) return false;
   return WRITING_ORDER_RE.test(t);
+}
+
+/**
+ * "Can this turn be answered from what is already on the table?"
+ *
+ * The inversion of the old default, and the reason it exists: a no-tool verdict
+ * used to be the RESIDUAL — anything the heuristics could not name became
+ * `direct`, and three separate rescue predicates (`looksLikeToolableQuestion`,
+ * `classifierContradictedResearch`, `looksLikeUnsourcedWritingOrder`) were bolted
+ * on over time to pull specific shapes back out of it. Each rescue was written
+ * after a live failure, which is the tell: the residual was answering questions
+ * it had never been asked. A bare topic ("Windkraft Bayern"), a statement to
+ * check, an imperative with no question word — none of them carried a signal any
+ * of the three looked for, so all of them were answered from parametric memory.
+ *
+ * So the burden of proof moves. A turn stays off the loop only when it POSITIVELY
+ * shows it needs nothing fetched:
+ *  - pleasantries, which want no answer at all;
+ *  - pure creative form — a poem needs no sources and must never carry [N];
+ *  - a rewrite or a regenerate, definitionally grounded in the text it acts on;
+ *  - a turn carrying its own material (long paste, attachment, open document),
+ *    where a planner would go looking for what the user already supplied.
+ *
+ * Everything else defaults into the loop, where the planner decides whether to
+ * call a tool. That is the cheap direction to be wrong in: an unnecessary loop
+ * costs latency, an unnecessary `direct` costs a confidently wrong answer.
+ *
+ * Same predicate on both sides of the wire on purpose — the classifier's
+ * demotion gate and the router's `decideRunAgentic` implement one rule, and two
+ * hand-maintained copies of one rule is the drift shape this whole series is
+ * unwinding.
+ */
+export function looksLikeSelfContainedTurn(
+  raw: string,
+  opts: { hasOwnMaterial: boolean }
+): boolean {
+  const t = (raw ?? '').trim().replace(GREETING_PREFIX_RE, '');
+  if (t.length === 0) return true;
+  // Under three words nothing can be demonstrated either way — "Und nun?",
+  // "mach weiter", "und Bayern?" are whatever the THREAD says they are, and this
+  // predicate cannot see the thread. Same floor `looksLikeToolableQuestion` uses,
+  // for the same reason: a default must not fire on absent evidence. The
+  // classifier applies a wider version of this exemption (it CAN see the thread,
+  // via the vague-follow-up penalty and `lastToolContext`); here it stays at the
+  // floor so the router never contradicts a decision the classifier made with
+  // more information.
+  if (t.split(/\s+/).filter(Boolean).length < 3) return true;
+  if (CHITCHAT_ONLY_RE.test(t) || CHITCHAT_RE.test(t)) return true;
+  // A message that is nothing but pasted link(s) names its own subject — the
+  // page IS the material. It already has a deterministic single-pass route
+  // (the classifier's URL wrapper takes the `scrape_url` slot outright), and
+  // looping it would buy a planner call to arrive at the same one tool. A link
+  // WITH prose around it is a different turn and still loops.
+  if (BARE_URL_ONLY_RE.test(t)) return true;
+  if (CREATIVE_FORM_RE.test(t)) return true;
+  if (REWRITE_TARGET_RE.test(t) || REGENERATE_RE.test(t)) return true;
+  // A PROHIBITION is not a request, and it must not reach a planner. "Halte die
+  // Ergebnisse fest, aber erstelle diesmal kein Dokument" is honoured by exactly
+  // one thing — the router's persistent-action gate — and that gate only ever
+  // sees ARTIFACT intents. Demoting this turn to `agentic` would hand the
+  // forbidden tool to a model that never saw the gate, which is the same hole
+  // `looksLikeUnsourcedWritingOrder` documents one function up; the default
+  // inversion would have re-opened it from the other side.
+  if (isNegatedArtifactRequest(t, WRITING_ORDER_RE)) return true;
+  if (opts.hasOwnMaterial) return true;
+  return false;
 }
 
 /**
@@ -298,14 +417,32 @@ export function isEditorSurface(enabledTools: Record<string, boolean> | undefine
 export type CompoundGenerationKind =
   'sharepic' | 'presentation' | 'sheet' | 'document' | 'board' | 'pdf';
 
+// `sharepic` is absent on purpose: hasExplicitSharepicWord already refuses a
+// negated ask, so it needs no second guard here.
+const FORBIDDABLE_BY_KIND: Partial<Record<CompoundGenerationKind, ForbiddableArtifact>> = {
+  presentation: 'presentation',
+  sheet: 'sheet',
+  board: 'board',
+  pdf: 'pdf',
+  document: 'document',
+};
+
 // Per-artifact nouns, used to recover the generation KIND from the text when the
 // intent no longer names it (a demoted `agentic` turn, or a `direct` misroute).
-const PRESENTATION_NOUN_RE = /\b(pr[äa]sentation|presentation|folien?|slides?)\b/i;
-const SHEET_NOUN_RE = /\b(tabelle|kalkulation|spreadsheet|sheet)\b/i;
-const BOARD_NOUN_RE = /\b(board|kanban|aufgabenboard|taskboard)\b/i;
-const PDF_NOUN_RE =
-  /\b(pdf|briefkopf|antragsformular|anmeldeformular|fragebogen|(ausf(ü|ue)llbar)[a-zäöü]*\s+(formular|vorlage))\b/i;
-const DOCUMENT_NOUN_RE = /\b(dokument|schriftst[üu]ck|textdokument|entwurf)\b/i;
+// Paired with a creation verb via creationOrderPattern — the SAME builder the
+// classifier fast paths use, so both word orders are recognised here too and the
+// two layers cannot drift apart on phrasing again.
+const PRESENTATION_CREATE_RE = creationOrderPattern('pr[äa]sentation|presentation|folien?|slides?');
+const SHEET_CREATE_RE = creationOrderPattern('tabelle|kalkulation|spreadsheet|sheet');
+const BOARD_CREATE_RE = creationOrderPattern('board|kanban|aufgabenboard|taskboard');
+const PDF_CREATE_RE = creationOrderPattern(
+  'pdf|briefkopf|antragsformular|anmeldeformular|fragebogen' +
+    '|(?:ausf(?:ü|ue)llbar)[a-zäöü]*\\s+(?:formular|vorlage)',
+  { extraVerbs: 'schreib', forward: 60 }
+);
+const DOCUMENT_CREATE_RE = creationOrderPattern('dokument|schriftst[üu]ck|textdokument|entwurf', {
+  extraVerbs: 'schreib|anleg',
+});
 
 /**
  * The generation KIND a compound turn should mount a fat tool for. Prefers the
@@ -313,26 +450,61 @@ const DOCUMENT_NOUN_RE = /\b(dokument|schriftst[üu]ck|textdokument|entwurf)\b/i
  * (`direct`) turn — where the intent no longer names the artifact — it recovers
  * the kind from the noun in the text. This is why "mach mir eine Tabelle draus"
  * still creates a sheet even though the classifier only reached `direct@0.50`
- * (→ demoted to `agentic`), not `create_sheet`. Returns null when the turn is
- * not compound (no research signal, or no generation noun).
+ * (→ demoted to `agentic`), not `create_sheet`.
  */
 export function compoundGenerationKind(intent: string, raw: string): CompoundGenerationKind | null {
   const t = (raw ?? '').trim();
-  if (!looksLikeCompoundGeneration(t)) return null;
-  if (intent === 'sharepic') return 'sharepic';
-  if (intent === 'create_presentation') return 'presentation';
-  if (intent === 'create_sheet') return 'sheet';
-  if (intent === 'create_pdf') return 'pdf';
-  if (intent === 'agentic' || intent === 'direct') {
+  // A NAMED generation intent has a single-pass dispatcher of its own, so only a
+  // turn that ALSO carries a research signal is lifted into the loop; without it
+  // `null` means "the dispatcher builds it", which is correct and faster.
+  if (COMPOUND_GENERATION_INTENTS.has(intent)) {
+    if (!looksLikeCompoundGeneration(t)) return null;
+    if (intent === 'sharepic') return 'sharepic';
+    if (intent === 'create_presentation') return 'presentation';
+    if (intent === 'create_sheet') return 'sheet';
+    if (intent === 'create_pdf') return 'pdf';
+  }
+  if (intent === 'agentic' || intent === 'produktion' || intent === 'direct') {
+    // No research gate on this branch, and the asymmetry is the whole point:
+    // none of these three has a dispatcher behind it. Here `null` means the loop
+    // runs with no generation tool mounted at all — which is how "das bitte
+    // schön als PDF erstellen" was answered with "ich habe keine technische
+    // Funktion, um PDFs zu erstellen" while create_pdf sat unmounted. That turn
+    // is a `produktion` one since the intent split: a writing order whose
+    // substance is already in the thread is exactly what the research gate
+    // could never license.
+    // What replaces the research signal is the creation ORDER: a verb that
+    // actually points at the artifact noun. A turn that merely MENTIONS one
+    // ("was steht im PDF?") still returns null, which matters because the kind
+    // does not just mount the tool — forceCompoundGeneration GUARANTEES the
+    // artifact when the planner skips it.
+    //
     // Order = specificity: the concrete products first, the generic "Dokument"
     // last (it's the fallback artifact when nothing more specific matches).
     // pdf before document: "PDF-Dokument" names both nouns but means a PDF.
-    if (hasExplicitSharepicWord(t)) return 'sharepic';
-    if (PRESENTATION_NOUN_RE.test(t)) return 'presentation';
-    if (SHEET_NOUN_RE.test(t)) return 'sheet';
-    if (BOARD_NOUN_RE.test(t)) return 'board';
-    if (PDF_NOUN_RE.test(t)) return 'pdf';
-    if (DOCUMENT_NOUN_RE.test(t)) return 'document';
+    const kind =
+      hasExplicitSharepicWord(t) && CREATION_VERB_RE.test(t)
+        ? 'sharepic'
+        : PRESENTATION_CREATE_RE.test(t)
+          ? 'presentation'
+          : SHEET_CREATE_RE.test(t)
+            ? 'sheet'
+            : BOARD_CREATE_RE.test(t)
+              ? 'board'
+              : PDF_CREATE_RE.test(t)
+                ? 'pdf'
+                : DOCUMENT_CREATE_RE.test(t)
+                  ? 'document'
+                  : null;
+    if (kind == null) return null;
+    // The router's negative-action gate keys on the classified INTENT, so a kind
+    // recovered from the TEXT never passes under it — "erstelle diesmal kein
+    // Dokument" on a demoted turn would mount the doc tool, and
+    // forceCompoundGeneration would then guarantee the very artifact the user
+    // forbade. Re-checked here because this is where the kind first exists.
+    const family = FORBIDDABLE_BY_KIND[kind];
+    if (family && forbidsPersistentAction(t, ARTIFACT_NOUN_BY_KIND[family])) return null;
+    return kind;
   }
   return null;
 }
@@ -399,6 +571,8 @@ export interface EditToolLoopInput {
   hasEditTarget: boolean;
   forcedTool: boolean;
   isCompound: boolean;
+  /** The turn carries a selected notebook. See {@link AgenticDecisionInput}. */
+  hasSelectedNotebook: boolean;
   hasImageAttachments: boolean;
   secondaryIntent: string | null;
 }
@@ -420,7 +594,13 @@ export function decideEditToolLoop(p: EditToolLoopInput): boolean {
   if (!p.surfaceKind || !TOOL_EDIT_SURFACES.has(p.surfaceKind)) return false;
   if (!p.editToolEnabled) return false;
   if (!p.hasEditTarget) return false;
-  return !p.forcedTool && !p.isCompound && !p.hasImageAttachments && p.secondaryIntent == null;
+  return (
+    !p.forcedTool &&
+    !p.isCompound &&
+    !p.hasSelectedNotebook &&
+    !p.hasImageAttachments &&
+    p.secondaryIntent == null
+  );
 }
 
 export interface AgenticDecisionInput {
@@ -436,8 +616,37 @@ export interface AgenticDecisionInput {
   forcedTool: boolean;
   /** `mcp` turns are "forced" via @<server> but still belong in the loop. */
   isMcpTurn: boolean;
+  /**
+   * The vocabulary trigger named at least one first-party connector for this
+   * turn (`managedSourceTrigger`).
+   *
+   * This replaced the five system-MCP intents in `agenticIntents`, which is what
+   * used to guarantee those turns a loop.
+   *
+   * Much of what it covers would be rescued anyway — a `direct` turn with no own
+   * material already enters via `!selfContained`. Where it is the ONLY thing
+   * holding the turn is the pairing of a telegram-style ask ("Wetter Köln
+   * morgen", "§ 823 BGB": no question mark, no interrogative, no leading
+   * auxiliary) with either supplied material or a verdict in neither set. Those
+   * are the cases routing.vitest.ts pins, and they are exactly the ones that
+   * would otherwise be answered from parametric memory with a live source one
+   * step away.
+   */
+  hasManagedSources?: boolean;
   /** Notebook gather pipeline — stays single-pass. */
   isCompound: boolean;
+  /** The turn carries a selected notebook (`notebookIds`), whatever the agent.
+   *  Stays single-pass because `searchNode` is the ONLY place that retrieves
+   *  notebook content: `gruenerator_search` takes `collection` as a closed
+   *  `z.enum(ALL_COLLECTIONS)` (searchTools.ts) — eight fixed party corpora, no
+   *  parameter that could address a user or Landesverband notebook. In the loop
+   *  the classifier's `gatherSources: ['notebook-search']` is read by nobody and
+   *  the chosen notebook is silently answered around.
+   *  `isCompound` covered only the NAMED-agent half of this; the universal agent
+   *  reached the loop unguarded. Separate flag rather than a widened
+   *  `isCompound`, because that name means "gather-then-apply pipeline" and
+   *  drives topic extraction and a progress event that this does not. */
+  hasSelectedNotebook: boolean;
   /** A generation secondaryIntent (search + image/chart/...): single-pass
    *  fan-out — entering the loop would silently drop the secondary. Exception:
    *  scrape_url on a compound-generation turn (the loop scrapes itself). */
@@ -483,12 +692,26 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   const unsourcedWriting = looksLikeUnsourcedWritingOrder(p.lastUserText, {
     hasOwnMaterial: p.hasOwnMaterial === true,
   });
+  // The three rescues above are now the SUBSET of a default: `looksLike-
+  // SelfContainedTurn` says which turns provably need nothing fetched, and
+  // everything else loops. They stay named in the journal because each one
+  // records a live failure, and losing the names would lose the reason.
+  const selfContained = looksLikeSelfContainedTurn(p.lastUserText, {
+    hasOwnMaterial: p.hasOwnMaterial === true,
+  });
   const inLoopSet =
     p.agenticIntents.has(p.intent) ||
-    (p.intent === 'direct' &&
+    // A named first-party connector puts the turn in the loop whatever the
+    // intent says. Deliberately NOT folded into the `NO_TOOL_VERDICTS` branch
+    // below: the asks this covers ("Wetter Köln morgen", "§ 823 BGB") are
+    // telegram-style and fail every one of `looksLikeToolableQuestion`'s four
+    // shapes, and they can arrive under any verdict, not just a no-tool one.
+    p.hasManagedSources === true ||
+    (NO_TOOL_VERDICTS.has(p.intent) &&
       (looksLikeToolableQuestion(p.lastUserText) ||
         p.classifierContradictedResearch === true ||
-        unsourcedWriting)) ||
+        unsourcedWriting ||
+        !selfContained)) ||
     p.isPdfFillRequest ||
     compoundGen;
   const secondaryAllowed =
@@ -497,10 +720,16 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
   // so it always enters the loop — independent of CHAT_AGENT_LOOP and of inLoopSet.
   // The single-pass kill-switches below (compound / image / secondary) still apply.
   const gateOpen = p.isMcpTurn || (p.loopEnabled && inLoopSet);
+  // The MCP exception is the same one `forcedTool` gets, and for the same
+  // reason: no turn in the `isMcpTurn` set has a single-pass executor —
+  // intentExecutionService has no branch for `mcp`, `umfragen` or `hilfe` — so
+  // keeping one out of the loop would leave it with nobody to run it. An
+  // unsearched notebook is the lesser loss against a turn that does nothing.
   const runAgentic =
     gateOpen &&
     (!p.forcedTool || p.isMcpTurn) &&
     !p.isCompound &&
+    (!p.hasSelectedNotebook || p.isMcpTurn) &&
     secondaryAllowed &&
     !p.hasImageAttachments;
   recordDecision('router.run_agentic', runAgentic ? 'loop' : 'single_pass', {
@@ -510,12 +739,15 @@ export function decideRunAgentic(p: AgenticDecisionInput): boolean {
       inLoopSet,
       gateOpen,
       isMcpTurn: p.isMcpTurn,
+      hasManagedSources: p.hasManagedSources === true,
       isCompound: p.isCompound,
+      hasSelectedNotebook: p.hasSelectedNotebook,
       forcedTool: p.forcedTool,
       secondaryAllowed,
       hasImageAttachments: p.hasImageAttachments,
       isPdfFillRequest: p.isPdfFillRequest,
       unsourcedWriting,
+      selfContained,
       hasOwnMaterial: p.hasOwnMaterial === true,
     },
   });

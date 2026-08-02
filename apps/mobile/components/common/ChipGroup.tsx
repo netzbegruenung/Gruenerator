@@ -63,6 +63,8 @@ export function ChipGroup<T extends string>({
                 backgroundColor: active ? colors.primary[600] : 'transparent',
               },
             ]}
+            accessibilityRole={multiSelect ? 'checkbox' : 'radio'}
+            accessibilityState={{ checked: active }}
           >
             {icon && <Ionicons name={icon} size={14} color={active ? '#fff' : theme.text} />}
             <Text style={[styles.chipText, { color: active ? '#fff' : theme.text }]}>

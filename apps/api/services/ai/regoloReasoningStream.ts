@@ -74,7 +74,7 @@ const REGOLO_REASONING_MODELS = new Set([
   'gpt-oss-120b',
   'gemma4-31b',
   // Small 4 is reasoning-capable but ran with thinking hard-off everywhere
-  // (it was only ever INTERMEDIATE_MODEL). The auto policy can now grade it up
+  // (it was only ever the intermediate model). The auto policy can now grade it up
   // to `low` on moderate/complex turns; without this entry that grading would
   // be silently ignored — the SDK path forces enable_thinking:false.
   'mistral-small-4-119b',

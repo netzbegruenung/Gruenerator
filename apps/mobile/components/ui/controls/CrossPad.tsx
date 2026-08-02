@@ -11,6 +11,13 @@ import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from 
 export type Offset2D = [number, number];
 type Direction = 'up' | 'down' | 'left' | 'right';
 
+const DIRECTION_LABELS: Record<Direction, string> = {
+  up: 'Nach oben verschieben',
+  down: 'Nach unten verschieben',
+  left: 'Nach links verschieben',
+  right: 'Nach rechts verschieben',
+};
+
 interface CrossPadProps {
   offset: Offset2D;
   onChange: (offset: Offset2D) => void;
@@ -69,6 +76,9 @@ export function CrossPad({
         },
         disabled && styles.disabled,
       ]}
+      accessibilityRole="button"
+      accessibilityLabel={DIRECTION_LABELS[direction]}
+      accessibilityState={{ disabled }}
     >
       <Ionicons
         name={icon}

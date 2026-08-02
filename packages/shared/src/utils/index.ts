@@ -9,6 +9,9 @@ export {
   containsNormalized,
 } from './textNormalization.js';
 
+// Stable citation keys for search hits (shared by both MCP servers)
+export { buildSourceRef, canonicalizeSourceUrl, type SourceRefInput } from './sourceRefs.js';
+
 // String distance and similarity utilities
 export {
   levenshteinDistance,

@@ -20,9 +20,12 @@
  * an override and keeps its existing contract schema.
  */
 
-import { INTERMEDIATE_MODEL } from './providers.js';
+import { intermediateLane } from './intermediateLanes.js';
 
 import type { ProviderName } from './providers.js';
+
+/** @see services/ai/intermediateLanes.ts */
+const LANE = intermediateLane('standard');
 
 export interface LaneConfig {
   readonly provider: ProviderName;
@@ -109,30 +112,31 @@ export const AI_LANES = {
   board_generation: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
   canvas_ai_suggest: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
 
-  // — Fast helper tasks. One edit to INTERMEDIATE_MODEL moves all of them.
+  // — Fast helper tasks. Alle auf der `standard`-Stufe: kurze Ausgabe, aber
+  //   nutzersichtbare Latenz. Ein Edit an der Stufe bewegt alle fünf.
   image_picker: {
-    provider: INTERMEDIATE_MODEL.provider,
-    model: INTERMEDIATE_MODEL.model,
+    provider: LANE.provider,
+    model: LANE.model,
     structuredMode: 'tool',
   },
   antrag_question_generation: {
-    provider: INTERMEDIATE_MODEL.provider,
-    model: INTERMEDIATE_MODEL.model,
+    provider: LANE.provider,
+    model: LANE.model,
     structuredMode: 'tool',
   },
   antrag_qa_summary: {
-    provider: INTERMEDIATE_MODEL.provider,
-    model: INTERMEDIATE_MODEL.model,
+    provider: LANE.provider,
+    model: LANE.model,
     structuredMode: 'tool',
   },
   gruenerator_ask: {
-    provider: INTERMEDIATE_MODEL.provider,
-    model: INTERMEDIATE_MODEL.model,
+    provider: LANE.provider,
+    model: LANE.model,
     structuredMode: 'tool',
   },
   gruenerator_ask_grundsatz: {
-    provider: INTERMEDIATE_MODEL.provider,
-    model: INTERMEDIATE_MODEL.model,
+    provider: LANE.provider,
+    model: LANE.model,
     structuredMode: 'tool',
   },
 
@@ -201,6 +205,10 @@ export function laneTarget(
  */
 export function providerForModel(modelName = ''): ProviderName {
   const name = String(modelName || '').toLowerCase();
+  // Before the generic gemma test below: `gemma-4-26b-a4b-it` is Scaleway's id,
+  // while `gemma4-31b` (no dash after gemma) is Regolo's. An operator who names
+  // the Scaleway one would otherwise land on the wrong host and get a 404.
+  if (name === 'gemma-4-26b-a4b-it') return 'scaleway';
   if (
     name.includes('mistral-medium-') ||
     name.includes('mistral-large-') ||

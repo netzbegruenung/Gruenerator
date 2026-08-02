@@ -11,6 +11,8 @@ import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from 
 export interface ColorOption<T extends string = string> {
   id: T;
   colors: { background: string }[];
+  /** Readable name announced by screen readers; falls back to the option's position. */
+  name?: string;
 }
 
 interface ColorOptionGridProps<T extends string = string> {
@@ -38,7 +40,7 @@ export function ColorOptionGrid<T extends string = string>({
       {label && <Text style={[styles.label, { color: theme.text }]}>{label}</Text>}
 
       <View style={styles.optionsRow}>
-        {options.map((option) => {
+        {options.map((option, index) => {
           const isActive = value === option.id;
 
           return (
@@ -55,6 +57,9 @@ export function ColorOptionGrid<T extends string = string>({
                 },
                 disabled && styles.disabled,
               ]}
+              accessibilityRole="radio"
+              accessibilityLabel={option.name ?? `Farbschema ${index + 1}`}
+              accessibilityState={{ checked: isActive, disabled }}
             >
               <View style={styles.colorPreview}>
                 {option.colors.map((color, index) => (

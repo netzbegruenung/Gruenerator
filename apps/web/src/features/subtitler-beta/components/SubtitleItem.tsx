@@ -56,6 +56,17 @@ export function SubtitleItem({
     }
   }, [chunk.timestamp, onSeekTo, isEditing]);
 
+  const handleRowKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.target !== e.currentTarget) return;
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handleChunkClick();
+      }
+    },
+    [handleChunkClick]
+  );
+
   const handlePlayClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -118,6 +129,9 @@ export function SubtitleItem({
         className
       )}
       onClick={handleChunkClick}
+      onKeyDown={handleRowKeyDown}
+      role="button"
+      tabIndex={0}
     >
       {/* Auswahlfeld */}
       <input

@@ -27,6 +27,10 @@ const PINNED: Record<string, string> = {
   SYSTEM_MCP_WEATHER_URL: '',
   SYSTEM_MCP_ARD_URL: '',
   SYSTEM_MCP_TRIVAGO_URL: '',
+  // Not an intent — a managed connector. Set here for the same reason as the
+  // others: leaving it to the ambient env would make a run's connector list
+  // depend on the developer's .env.
+  SYSTEM_MCP_LAW_URL: '',
   SYSTEM_MCP_INTENTS: '',
 
   // Provider keys decide which lane the loop picks (isProviderConfigured).

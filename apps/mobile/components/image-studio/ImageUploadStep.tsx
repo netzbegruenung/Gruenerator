@@ -101,6 +101,8 @@ export function ImageUploadStep({
       <Image source={{ uri: uploadedImageUri! }} style={styles.preview} contentFit="cover" />
       <Pressable
         onPress={handleClearImage}
+        accessibilityRole="button"
+        accessibilityLabel="Bild entfernen"
         style={[styles.removeButton, { backgroundColor: isDark ? colors.grey[800] : colors.white }]}
       >
         <Ionicons name="close" size={20} color={theme.text} />
@@ -114,6 +116,8 @@ export function ImageUploadStep({
       <Pressable
         onPress={handleTakePhoto}
         disabled={loading}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: loading }}
         style={[
           styles.deviceOption,
           {
@@ -136,6 +140,8 @@ export function ImageUploadStep({
       <Pressable
         onPress={handlePickImage}
         disabled={loading}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: loading }}
         style={[
           styles.deviceOption,
           {
