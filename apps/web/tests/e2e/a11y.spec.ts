@@ -110,7 +110,7 @@ const ROUTES = [
  * Stand 08/2026, gemessen mit festem Datenstand über die bereinigte
  * Routenliste. `color-contrast` stand vorher auf ALLEN zwanzig Routen — das
  * war der Marken-Grün-Befund, und der ist mit #2334 (Eukalyptus) und der
- * Grau-Rampe erledigt. Zwölf Routen sind jetzt ohne jede Ausnahme.
+ * Grau-Rampe erledigt. Elf Routen sind jetzt ohne jede Ausnahme.
  */
 const KNOWN_VIOLATIONS: Record<string, string[]> = {
   // Beide Befunde sitzen im Board-Kopf, nicht in den Karten: `button-name` an
@@ -125,6 +125,17 @@ const KNOWN_VIOLATIONS: Record<string, string[]> = {
   // deshalb aus den Komponententests neben der Komponente
   // (`kanban.vitest.tsx`, `list.vitest.tsx`, mit Gegenprobe), nicht von hier.
   [`/boards/${FIXTURE_BOARD_ID}`]: ['button-name', 'color-contrast'],
+  // Neu, und der einzige Eintrag, der durch diesen PR **dazu**kommt: `/projekte`
+  // zeigte bis eben die Fehlergrenze, axe fand darauf null Verstöße. Jetzt
+  // rendert die Seite — und die Beschreibungszeile der Projekt-Kacheln steht bei
+  // 4,05:1 (`#56708F` auf `#DCE6F2`, aus `config/toolTheme.ts`). Der Befund ist
+  // älter als dieser PR, er war nur unsichtbar.
+  //
+  // Er wird hier nicht mitbehoben, weil er nicht bei `/projekte` aufhört: von
+  // 66 Farbpaaren der Kachel-Palette liegen SECHS unter 4,5:1, alle in der
+  // Rolle `desc`, alle im hellen Modus. Das ist eine Palettenentscheidung und
+  // gehört in einen eigenen PR, der diesen Eintrag wieder streicht.
+  '/projekte': ['color-contrast'],
 };
 
 async function gotoAuthenticated(page: Page, route: string): Promise<void> {
@@ -156,6 +167,23 @@ die unter ihrem eigenen Namen ohnehin geprüft wird.`
     await page.locator('.not-found-container').count(),
     `${route} rendert die Nicht-gefunden-Seite — die Route gibt es nicht.`
   ).toBe(0);
+
+  // Der vierte Riegel derselben Klasse, und der teuerste bisher: `/studio`,
+  // `/media-library` und `/projekte` zeigten die Fehlergrenze statt der Seite,
+  // und axe fand darauf brav null Verstöße. Drei von dreizehn Routen meldeten
+  // also „sauber" über eine Seite, die niemand je zu sehen bekommt.
+  // Die Ursachen lagen alle in apiFixtures, aber das ist genau der Punkt: ohne
+  // diesen Riegel merkt man es nicht — die Lane wird umso grüner, je kaputter
+  // die Seite ist.
+  const absturz = await page.locator('[data-testid="error-boundary"]').count();
+  if (absturz > 0) {
+    const details = await page.locator('[data-testid="error-boundary"] p').allTextContents();
+    expect(
+      details.join(' | '),
+      `${route} zeigt die Fehlergrenze statt der Seite. axe prüft dann eine
+Fehlermeldung und meldet sie als sauber.`
+    ).toBe('');
+  }
 
   // Das Cookie-Banner liegt sonst über der Seite. Es steht in `index.html`,
   // nicht in React, und lässt sich nur über den Schlüssel wegbekommen, den es
