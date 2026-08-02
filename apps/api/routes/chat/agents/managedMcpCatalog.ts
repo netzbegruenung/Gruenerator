@@ -297,7 +297,18 @@ function createLazyConnection(source: SystemMcpSource): LazyConnection {
       // `openedClient` is only set after a successful connect, so a pending or
       // rejected `opened` leaves nothing to close — which is the point of not
       // awaiting it here: closing must not wait out a hanging handshake.
-      if (openedClient) await openedClient.close().catch(() => {});
+      if (!openedClient) return;
+      try {
+        await openedClient.close();
+      } catch (err) {
+        // Never rethrow: this runs in the turn's `finally`, and a failed close
+        // must not replace the answer the user is waiting for. Logged rather
+        // than swallowed, because a close that keeps failing is a leaked
+        // connection, and that is invisible from anywhere else.
+        log.warn(
+          `[managedMcpCatalog] close failed for "${source.key}": ${err instanceof Error ? err.message : err}`
+        );
+      }
     },
   };
 }
