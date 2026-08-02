@@ -6,7 +6,7 @@
 #
 # Dependabot's npm ecosystem reads /package.json and follows the workspace
 # definition (pnpm-workspace.yaml: apps/*, packages/*, services/hocuspocus,
-# services/mcp, documentation). A `directory: '/'` entry therefore already
+# documentation). A `directory: '/'` entry therefore already
 # covers every workspace member. The 24 per-directory entries this file used to
 # carry were not additional coverage, they were DUPLICATE coverage:
 #
