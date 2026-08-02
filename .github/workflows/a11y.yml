@@ -100,12 +100,67 @@ jobs:
           VITE_E2E_AUTH_BYPASS: 'true'
           VITE_DEV_AUTH_BYPASS_TOKEN: ${{ secrets.DEV_AUTH_BYPASS_TOKEN }}
           DEV_AUTH_BYPASS_TOKEN: ${{ secrets.DEV_AUTH_BYPASS_TOKEN }}
-        run: pnpm exec playwright test a11y.spec.ts a11y-structure.spec.ts
+          PLAYWRIGHT_JSON_OUTPUT_NAME: a11y-results.json
+        run: pnpm exec playwright test a11y.spec.ts a11y-structure.spec.ts --reporter=github,html,json
+
+      # Der Grund fuer diesen Schritt: am 02.08.2026 meldete dieser Job vier
+      # Minuten lang "pass" und hatte 22 von 22 Pruefungen uebersprungen. Das
+      # Uebersprungensein steht nur im Log, der Haken davor ist gruen — ein
+      # Check namens "axe-core (WCAG 2.2 AA)", der nichts geprueft hat, ist
+      # schlimmer als kein Check, weil er wie eine Zusage aussieht.
+      #
+      # Die Suite skippt (statt falsch gruen zu messen), wenn der
+      # Dev-Auth-Bypass nicht greift. Das ist hier IMMER der Fall: das Secret
+      # DEV_AUTH_BYPASS_TOKEN ist leer, und der Workflow startet ohnehin kein
+      # Backend — `isDevBypassHonored` fragt localhost:3001, dort laeuft
+      # nichts. Solange beides fehlt, kann die Lane in CI grundsaetzlich nur
+      # skippen.
+      #
+      # Der Schritt macht das sichtbar (Annotation + Job-Zusammenfassung),
+      # ohne den Job rot zu faerben: rot waere hier eine Aussage ueber den
+      # PR, und der kann nichts dafuer.
+      - name: Ausgefuehrte Pruefungen zaehlen
+        if: always()
+        working-directory: apps/web
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const pfad = "a11y-results.json";
+            if (!fs.existsSync(pfad)) {
+              console.log("::warning title=a11y-Lane::Kein Testbericht — der Lauf ist vor der ersten Pruefung abgebrochen.");
+              process.exit(0);
+            }
+            const bericht = JSON.parse(fs.readFileSync(pfad, "utf8"));
+            const zaehler = { passed: 0, failed: 0, skipped: 0, timedOut: 0, interrupted: 0 };
+            const gehe = (eintrag) => {
+              for (const spec of eintrag.specs ?? []) {
+                for (const test of spec.tests ?? []) {
+                  const status = test.results?.at(-1)?.status ?? "skipped";
+                  zaehler[status] = (zaehler[status] ?? 0) + 1;
+                }
+              }
+              for (const kind of eintrag.suites ?? []) gehe(kind);
+            };
+            for (const suite of bericht.suites ?? []) gehe(suite);
+
+            const gelaufen = zaehler.passed + zaehler.failed + zaehler.timedOut;
+            const zeile = `axe-Lane: ${gelaufen} ausgefuehrt, ${zaehler.skipped} uebersprungen (bestanden ${zaehler.passed}, durchgefallen ${zaehler.failed}).`;
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY ?? "/dev/null", `### Barrierefreiheit\n\n${zeile}\n`);
+
+            if (gelaufen === 0) {
+              console.log(`::warning title=a11y-Lane hat NICHTS geprueft::${zeile} Ursache: kein Dev-Auth-Bypass. Es fehlen das Repository-Secret DEV_AUTH_BYPASS_TOKEN und ein erreichbares Backend auf localhost:3001. Dieser gruene Haken ist KEIN Barrierefreiheits-Signal.`);
+            } else if (zaehler.skipped > 0) {
+              console.log(`::warning title=a11y-Lane teilweise uebersprungen::${zeile}`);
+            }
+            console.log(zeile);
+          '
 
       - name: Bericht hochladen
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: a11y-report
-          path: apps/web/playwright-report/
+          path: |
+            apps/web/playwright-report/
+            apps/web/a11y-results.json
           retention-days: 14
