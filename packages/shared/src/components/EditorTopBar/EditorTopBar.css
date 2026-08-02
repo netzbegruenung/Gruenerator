@@ -174,7 +174,8 @@
 
 .status-label {
   font-size: 0.6875rem;
-  color: var(--grey-400);
+  /* Gilt in beiden Modi — die Rampenstufe erreichte hell nur 2,89:1. */
+  color: var(--grey-text-weak-val, #767676);
   white-space: nowrap;
   user-select: none;
 }
