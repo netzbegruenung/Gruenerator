@@ -1,4 +1,5 @@
-import { type NotebookId, isNotebookEnabled } from '../notebooks/index.js';
+import { DEFAULT_INSTANCE_ID, type InstanceId } from '../instances/index.js';
+import { type NotebookId, isNotebookOfferedIn } from '../notebooks/index.js';
 
 import { LANDESVERBAENDE } from './landesverbaende.js';
 import { type SystemAgentId } from './system.js';
@@ -64,12 +65,33 @@ export function getLandesverbandHubBySlug(slug: string): LvHub | null {
 }
 
 /**
- * Hubs visible to a user's locale. A Landesverband is inherently
- * locale-specific (the AT hub surfaces only for Austrian users, the rest only
- * for German users) — so unlike agents, a hub never has an `'all'` audience.
+ * Hubs visible to a user's locale on a given instance. A Landesverband is
+ * inherently locale-specific (the AT hub surfaces only for Austrian users, the
+ * rest only for German users) — so unlike agents, a hub never has an `'all'`
+ * audience.
  */
-export function getLandesverbandHubs(userLocale: string): readonly LvHub[] {
-  return LV_HUBS.filter((hub) => hub.audience === userLocale && isNotebookEnabled(hub.notebookId));
+export function getLandesverbandHubs(
+  userLocale: string,
+  instanceId: InstanceId = DEFAULT_INSTANCE_ID
+): readonly LvHub[] {
+  return LV_HUBS.filter(
+    (hub) => hub.audience === userLocale && isNotebookOfferedIn(hub.notebookId, instanceId)
+  );
+}
+
+/**
+ * The specialist agents of every Landesverband whose notebook this instance
+ * does not offer. This is the cascade that makes hiding LV notebooks a
+ * one-liner: the hub owns the notebook↔agents relation, so switching off the
+ * notebook switches off both agents without naming either of them.
+ */
+export function getLvAgentIdsHiddenIn(instanceId: InstanceId): ReadonlySet<string> {
+  return new Set(
+    LV_HUBS.filter((hub) => !isNotebookOfferedIn(hub.notebookId, instanceId)).flatMap((hub) => [
+      hub.prAgentId,
+      hub.buergerAgentId,
+    ])
+  );
 }
 
 /**

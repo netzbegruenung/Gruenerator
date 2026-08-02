@@ -24,6 +24,7 @@ import multer from 'multer';
 
 import { createCorsOptions } from './config/cors.js';
 import { env } from './config/env.js';
+import { CURRENT_INSTANCE } from './config/instance.js';
 import { getServerConfig } from './config/serverConfig.js';
 import { Sentry } from './lib/sentry.js';
 import { requireAuth } from './middleware/authMiddleware.js';
@@ -773,7 +774,9 @@ async function startWorker(): Promise<void> {
 
   // Start server
   server.listen(config.port, config.host, () => {
-    log.info(`Worker ${process.pid} listening on http://${config.host}:${config.port}`);
+    log.info(
+      `Worker ${process.pid} listening on http://${config.host}:${config.port} (instance: ${CURRENT_INSTANCE})`
+    );
 
     // Warm the research filter cache in the background (non-blocking)
     import('./routes/research/researchController.js')

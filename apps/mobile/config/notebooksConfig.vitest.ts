@@ -1,4 +1,5 @@
-import { NOTEBOOK_REGISTRY } from '@gruenerator/shared/notebooks';
+import { DEFAULT_INSTANCE_ID } from '@gruenerator/shared/instances';
+import { NOTEBOOK_REGISTRY, isNotebookOfferedIn } from '@gruenerator/shared/notebooks';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -19,8 +20,10 @@ import {
  */
 
 describe('MOBILE_SYSTEM_NOTEBOOKS', () => {
-  it('excludes dev-only and disabled notebooks from the registry', () => {
-    const excluded = NOTEBOOK_REGISTRY.filter((nb) => nb.devOnly || nb.enabled === false);
+  it('excludes notebooks the default instance does not offer', () => {
+    const excluded = NOTEBOOK_REGISTRY.filter(
+      (nb) => !isNotebookOfferedIn(nb.id, DEFAULT_INSTANCE_ID)
+    );
     const ids = MOBILE_SYSTEM_NOTEBOOKS.map((nb) => nb.id);
 
     excluded.forEach((nb) => expect(ids).not.toContain(nb.id));
@@ -54,7 +57,7 @@ describe('getVisibleNotebooks', () => {
 
   it('shows notebooks marked for all audiences to both locales', () => {
     const shared = NOTEBOOK_REGISTRY.filter(
-      (nb) => (nb.audience ?? 'all') === 'all' && !nb.devOnly && nb.enabled !== false
+      (nb) => (nb.audience ?? 'all') === 'all' && isNotebookOfferedIn(nb.id, DEFAULT_INSTANCE_ID)
     ).filter((nb) => !HIDDEN_NOTEBOOK_IDS.includes(nb.id));
 
     const de = getVisibleNotebooks('de-DE').map((nb) => nb.id);
