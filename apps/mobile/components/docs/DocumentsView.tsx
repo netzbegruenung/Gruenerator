@@ -111,6 +111,7 @@ const OfficeGridCard = memo(function OfficeGridCard({
       style={[styles.gridCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
       onPress={handleOpen}
       activeOpacity={0.7}
+      accessibilityRole="button"
     >
       {item.kind === 'canvas' && item.thumbnailUrl ? (
         <Image
@@ -139,6 +140,8 @@ const OfficeGridCard = memo(function OfficeGridCard({
             onPress={handleActions}
             style={styles.cardMenuButton}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="Weitere Optionen"
           >
             <Ionicons name="ellipsis-vertical" size={16} color={theme.textSecondary} />
           </TouchableOpacity>
@@ -174,6 +177,7 @@ const OfficeListRow = memo(function OfficeListRow({
       style={[styles.listCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
       onPress={handleOpen}
       activeOpacity={0.7}
+      accessibilityRole="button"
     >
       <View style={[styles.listIconTile, { backgroundColor: typeColor.tile }]}>
         <Ionicons name={officeIconFor(item.kind)} size={18} color={typeColor.icon} />
@@ -191,6 +195,8 @@ const OfficeListRow = memo(function OfficeListRow({
           onPress={handleActions}
           style={styles.cardMenuButton}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="Weitere Optionen"
         >
           <Ionicons name="ellipsis-vertical" size={16} color={theme.textSecondary} />
         </TouchableOpacity>
@@ -434,6 +440,7 @@ export function DocumentsView({
           <TouchableOpacity
             style={[styles.retryButton, { backgroundColor: colors.primary[600] }]}
             onPress={handleRefresh}
+            accessibilityRole="button"
           >
             <Text style={styles.retryButtonText}>Erneut versuchen</Text>
           </TouchableOpacity>

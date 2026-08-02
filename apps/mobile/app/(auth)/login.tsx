@@ -181,6 +181,7 @@ export default function LoginScreen() {
                 onPress={() => startLogin('netzbegruenung-login')}
                 disabled={isLoading}
                 style={styles.ghost}
+                accessibilityRole="button"
               >
                 {loadingSource === 'netzbegruenung-login' ? (
                   <ActivityIndicator size="small" color={theme.textSecondary} />
@@ -195,6 +196,7 @@ export default function LoginScreen() {
                 onPress={() => setLoginOpen(false)}
                 disabled={isLoading}
                 style={styles.back}
+                accessibilityRole="button"
               >
                 <Text style={[styles.backText, { color: theme.textSecondary }]}>Zurück</Text>
               </Pressable>
@@ -226,7 +228,12 @@ export default function LoginScreen() {
             </Text>{' '}
             zu.
           </Text>
-          <Pressable onPress={() => router.back()} disabled={isLoading} style={styles.cancel}>
+          <Pressable
+            onPress={() => router.back()}
+            disabled={isLoading}
+            style={styles.cancel}
+            accessibilityRole="button"
+          >
             <Text style={[styles.cancelText, { color: theme.textSecondary }]}>Abbrechen</Text>
           </Pressable>
         </View>
@@ -260,6 +267,8 @@ function PillButton({
         styles.pill,
         { opacity: disabled && !loading ? 0.6 : pressed ? 0.92 : 1 },
       ]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
     >
       {loading ? (
         <ActivityIndicator color="#111111" />

@@ -42,6 +42,7 @@ export const ResearchResultCard = memo(function ResearchResultCard({
         styles.card,
         { backgroundColor: pressed ? theme.surface : theme.card, borderColor: theme.cardBorder },
       ]}
+      accessibilityRole="button"
     >
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.text }]} numberOfLines={2}>
