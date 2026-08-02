@@ -289,7 +289,11 @@ function catalogPlatforms() {
     const id = stringProp(el, 'id');
     if (!id) continue;
     const prop = el.properties.find(
-      (p) => ts.isPropertyAssignment(p) && p.name && ts.isIdentifier(p.name) && p.name.text === 'platforms'
+      (p) =>
+        ts.isPropertyAssignment(p) &&
+        p.name &&
+        ts.isIdentifier(p.name) &&
+        p.name.text === 'platforms'
     );
     const init = prop ? unwrap(prop.initializer) : null;
     if (!init) {
@@ -300,7 +304,9 @@ function catalogPlatforms() {
     } else {
       // `platforms: BOTH` and friends: an identifier we can't evaluate without
       // running the module. Resolve the alias from its own declaration.
-      const alias = ts.isIdentifier(init) ? unwrap(findDeclaration(parse(SRC.catalog), init.text)) : null;
+      const alias = ts.isIdentifier(init)
+        ? unwrap(findDeclaration(parse(SRC.catalog), init.text))
+        : null;
       platforms[id] =
         alias && ts.isArrayLiteralExpression(alias)
           ? alias.elements.filter(ts.isStringLiteral).map((e) => e.text)

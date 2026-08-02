@@ -1730,12 +1730,11 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       case 'create_pdf':
       case 'create_recurring_task':
         break;
-      // System-MCP / connector intents: the MCP client does the retrieval.
-      case 'bahn':
-      case 'reise':
-      case 'hotel':
-      case 'wetter':
-      case 'news':
+      // Connector / native-tool intents: the MCP client does the retrieval.
+      // `bahn`/`reise`/`hotel`/`wetter`/`news` stood here too. They are managed
+      // connectors now and are never produced as an intent, so they cannot
+      // reach this switch — the `default` warning below is free to fire on them
+      // again if something ever does produce one.
       case 'umfragen':
       case 'hilfe':
       case 'mcp':

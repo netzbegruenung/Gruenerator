@@ -47,9 +47,10 @@ describe('die Achse selbst', () => {
   it('ordnet jedem Intent genau eine Disposition zu', () => {
     // Der Compiler erzwingt die Totalität schon (`Record<ChatIntentId, …>`);
     // was er nicht sieht, ist ein Tippfehler im WERT, der zu einem gültigen
-    // anderen Wert wird. Fünf Gruppen, keine leere.
+    // anderen Wert wird. Sechs Gruppen, keine leere — `retired` ist die
+    // Abwesenheit eines Orts im Ablauf, nicht einer.
     const groups = new Set(Object.values(DISPOSITION_BY_INTENT));
-    expect(sorted(groups)).toEqual(['anchor', 'artifact', 'gated', 'loop', 'prose']);
+    expect(sorted(groups)).toEqual(['anchor', 'artifact', 'gated', 'loop', 'prose', 'retired']);
     for (const d of groups) {
       expect(intentsWithDisposition(d).size).toBeGreaterThan(0);
     }
@@ -115,7 +116,12 @@ describe('NAMED_RETRIEVAL_INTENTS — der vierte Zwang zum Werkzeugaufruf', () =
     // Wien nach Graz?" wurde auf `web` degradiert und dann mit steps=0,
     // sources=0 aus dem Modellgedächtnis beantwortet — samt einer erfundenen
     // Aussage über den Nutzer.
-    for (const id of ['web', 'search', 'research', 'compare', 'news', 'bundestag'] as const) {
+    // `news` stand hier und ist raus: als verwalteter Connector ist es kein
+    // Verdikt mehr, das man erzwingen könnte. Der zitierte Live-Fall (eine
+    // Fahrplanfrage, aus dem Modellgedächtnis beantwortet) wird jetzt eine Stufe
+    // früher verhindert — der Trigger montiert die Quelle, statt dass ein
+    // Verdikt einen Abruf erzwingen muss.
+    for (const id of ['web', 'search', 'research', 'compare', 'bundestag'] as const) {
       expect(NAMED_RETRIEVAL_INTENTS.has(id), `${id} müsste einen Abruf erzwingen`).toBe(true);
     }
   });
