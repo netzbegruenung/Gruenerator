@@ -231,8 +231,11 @@ function wrapToolHandler(
 function extractBearerKey(req: express.Request): string | null {
   const auth = req.headers.authorization;
   if (typeof auth !== 'string') return null;
-  const match = /^Bearer\s+(.+)$/i.exec(auth.trim());
-  const key = match?.[1]?.trim() ?? null;
+  // Sliced, not matched: `/^Bearer\s+(.+)$/` lets `\s+` and `.+` split the same
+  // whitespace run two ways, which is quadratic on an attacker-supplied header
+  // (CodeQL js/polynomial-redos).
+  const trimmed = auth.trim();
+  const key = /^Bearer\s/i.test(trimmed) ? trimmed.slice('Bearer'.length).trim() || null : null;
   // An *invalid* key still surfaces to the model, because the notebook tools get
   // registered and their 401 carries an actionable hint (see notebooksApiError).
   // A *malformed* header is the silent case: the tools are never advertised and
