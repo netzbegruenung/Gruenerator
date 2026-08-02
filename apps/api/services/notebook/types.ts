@@ -10,7 +10,7 @@ import type {
   SourcesByCollection as SearchSourcesByCollection,
   ReferencesMap,
 } from '../search/types.js';
-import type { NotebookCitation } from '@gruenerator/contracts';
+import type { NotebookCitation, NotebookDepth } from '@gruenerator/contracts';
 
 /**
  * Request filters for search
@@ -190,6 +190,14 @@ export interface GetSearchContextParams {
   collectionIds?: string[] | undefined;
   userId?: string | undefined;
   requestFilters?: RequestFilters | undefined;
+  /** Retrieval depth; omitted means the thorough tier (see notebookStreamCore). */
+  depth?: NotebookDepth | undefined;
+  /**
+   * Formulations to search in parallel, results unioned. Defaults to
+   * `[question]`; the caller expands it (QueryExpansionService) because it owns
+   * both the worker pool and the progress channel.
+   */
+  queries?: string[] | undefined;
   getCollectionFn?: (
     collectionId: string
   ) => Promise<{ name: string; user_id: string | null } | null>;

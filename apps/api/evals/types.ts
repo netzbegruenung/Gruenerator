@@ -10,6 +10,7 @@
  * nothing. `loadCorpus()` now safeParses every line and names the file, line
  * number and offending path.
  */
+import { notebookDepthSchema } from '@gruenerator/contracts';
 import { z } from 'zod';
 
 /** One captured SSE frame (`event: <name>\ndata: <json>`). */
@@ -89,8 +90,8 @@ export interface ChatTrace {
 export const evalSurfaceSchema = z.enum(['chat', 'notebook']);
 export type EvalSurface = z.infer<typeof evalSurfaceSchema>;
 
-/** Notebook retrieval mode (mirrors NotebookStreamOptions['mode']). */
-export const evalNotebookModeSchema = z.enum(['fast', 'deep']);
+/** Notebook retrieval depth — the wire enum itself, not a second copy of it. */
+export const evalNotebookModeSchema = notebookDepthSchema;
 
 /**
  * The LLM-judge rubrics a turn may request. An enum, not a free string: a
