@@ -215,6 +215,8 @@ const Timeline: React.FC<TimelineProps> = ({
                 isSelected && 'outline-2 outline-primary-500 outline-offset-2',
                 isEditing && 'border-primary-500 p-0'
               )}
+              role="button"
+              aria-pressed={isSelected}
               tabIndex={0}
               onClick={(e: React.MouseEvent) => handleSegmentClick(e, segment)}
               onKeyDown={(e: React.KeyboardEvent) =>
