@@ -349,7 +349,6 @@ const TOOL_MENTION_ORDER: readonly string[] = [
   'beispiele',
   'pressemitteilungen',
   'verlauf',
-  'wetter',
 ];
 
 /**
@@ -370,27 +369,33 @@ function buildToolMentionables(): Mentionable[] {
     const i = TOOL_MENTION_ORDER.indexOf(slug);
     return i === -1 ? TOOL_MENTION_ORDER.length : i;
   };
-  return allIntentMentions()
-    .filter(({ intent }) => intent.availability !== 'web-only' || typeof document !== 'undefined')
-    .map(({ intent, mention }) => {
-      const icon = TOOL_MENTION_ICONS[mention.slug];
-      return {
-        type: 'tool' as const,
-        category: 'function' as const,
-        trigger: '@' as const,
-        identifier: mention.forcedTool ?? forcedToolFor(intent),
-        title: mention.title,
-        description: mention.description,
-        avatar: mention.avatar,
-        backgroundColor: mention.backgroundColor,
-        mention: mention.slug,
-        audience: intent.audience,
-        ...(mention.aliases ? { aliases: [...mention.aliases] } : {}),
-        ...(mention.promptTemplate ? { promptTemplate: mention.promptTemplate } : {}),
-        ...(icon ? { icon } : {}),
-      };
-    })
-    .sort((a, b) => rank(a.mention) - rank(b.mention));
+  return (
+    allIntentMentions()
+      // A retired intent has no route left — offering it would put a token on the
+      // wire the router no longer resolves. Belt and braces: retired entries drop
+      // their `mention` too, so `allIntentMentions()` already skips them.
+      .filter(({ intent }) => intent.availability !== 'retired')
+      .filter(({ intent }) => intent.availability !== 'web-only' || typeof document !== 'undefined')
+      .map(({ intent, mention }) => {
+        const icon = TOOL_MENTION_ICONS[mention.slug];
+        return {
+          type: 'tool' as const,
+          category: 'function' as const,
+          trigger: '@' as const,
+          identifier: mention.forcedTool ?? forcedToolFor(intent),
+          title: mention.title,
+          description: mention.description,
+          avatar: mention.avatar,
+          backgroundColor: mention.backgroundColor,
+          mention: mention.slug,
+          audience: intent.audience,
+          ...(mention.aliases ? { aliases: [...mention.aliases] } : {}),
+          ...(mention.promptTemplate ? { promptTemplate: mention.promptTemplate } : {}),
+          ...(icon ? { icon } : {}),
+        };
+      })
+      .sort((a, b) => rank(a.mention) - rank(b.mention))
+  );
 }
 
 export const toolMentionables: Mentionable[] = buildToolMentionables();

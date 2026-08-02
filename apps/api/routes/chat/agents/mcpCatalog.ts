@@ -80,6 +80,12 @@ export interface McpCatalog {
    *  turn (env-configured but unreachable sources are absent) — the prompt
    *  hints must be keyed to this, not to the env config. */
   systemSourceKeys?: ReadonlySet<string>;
+  /** Managed catalogs only: the `promptHint` of every source that actually
+   *  MOUNTED this turn, in mount order. Keyed to the mount and not to the env
+   *  config for the same reason `systemSourceKeys` is — a configured but
+   *  unreachable source must not have its usage instructions in the prompt.
+   *  `{{TODAY_*}}` / `{{COUNTRY}}` placeholders are resolved by the caller. */
+  promptHints?: string[];
   /** German explanations for servers whose tools were WITHHELD because their
    *  definitions drifted since the user approved them (rug pull). Non-empty
    *  means the turn ran with fewer tools than the user expects — say so rather
