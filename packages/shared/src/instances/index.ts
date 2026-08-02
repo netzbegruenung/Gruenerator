@@ -53,6 +53,18 @@ export interface InstanceContentPolicy {
   notebookIds?: readonly NotebookId[];
 }
 
+/**
+ * The part of an instance that decides what content it carries.
+ *
+ * Split out from {@link InstanceDefinition} so the policy can be evaluated
+ * without a deployment behind it: the registry holds no instance that hides
+ * anything yet, so `hidden` and `blocked` would otherwise be untestable until
+ * the day someone fills a policy in — which is exactly the day a regression
+ * would ship unnoticed. Tests build a view; production passes `getInstance(id)`,
+ * which satisfies this shape structurally.
+ */
+export type InstancePolicyView = Pick<InstanceDefinition, 'channels' | 'hide' | 'block'>;
+
 export interface InstanceDefinition {
   id: string;
   /** Hostnames served by this instance, lowercase and without port. */
@@ -177,8 +189,16 @@ export function isChannelVisibleIn(
   channel: InstanceChannel | null | undefined,
   instanceId: InstanceId
 ): boolean {
+  return isChannelServedBy(channel, getInstance(instanceId));
+}
+
+/** {@link isChannelVisibleIn} against a policy view rather than a registered id. */
+export function isChannelServedBy(
+  channel: InstanceChannel | null | undefined,
+  view: InstancePolicyView
+): boolean {
   const effective: InstanceChannel = channel ?? 'stable';
-  return getInstance(instanceId).channels.includes(effective);
+  return view.channels.includes(effective);
 }
 
 /** Does `policy` cover this notebook? Shared by the hide and block tiers. */

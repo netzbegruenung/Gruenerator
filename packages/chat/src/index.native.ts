@@ -335,6 +335,7 @@ export {
   documentMentionables,
   getAllMentionables,
   getAgentMentionables,
+  setMentionInstance,
   setMentionLocale,
   getMentionLocale,
   setCustomAgents,
