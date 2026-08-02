@@ -6,7 +6,9 @@
  *     and the four size/count caps,
  *   - collections (apps/api … systemCollectionsConfig.ts) — the collections the
  *     MCP server exposes, split into nationwide and Landesverbände,
- *   - connectors  (apps/api … McpRegistryService.ts) — the connector directory.
+ *   - connectors  (apps/api … McpRegistryService.ts) — the connector directory,
+ *   - managedConnectors (apps/api … systemMcpServers.ts) — the first-party
+ *     connectors every user gets without connecting anything.
  *
  * ── Why one manifest, and why no audit ──────────────────────────────────────
  *
@@ -43,6 +45,7 @@ const SRC = {
   fileUtils: 'packages/chat/src/lib/fileUtils.ts',
   collections: 'apps/api/config/systemCollectionsConfig.ts',
   connectors: 'apps/api/services/mcp/McpRegistryService.ts',
+  managed: 'apps/api/services/mcp/systemMcpServers.ts',
 };
 
 const OUT_FILE = 'documentation/src/generated/reference.json';
@@ -244,19 +247,74 @@ function extractConnectors() {
   return sortKeys(byCategory);
 }
 
+// ── Managed connectors ──────────────────────────────────────────────────────
+
+/**
+ * The first-party connectors every user gets without connecting anything.
+ *
+ * Read from `MANAGED_KEYS`, NOT from `DEFINITIONS`: a source that is defined but
+ * still routed as a chat intent is commented out of that array, and a commented
+ * line has no AST node — so it drops out of the docs by exactly the same edit
+ * that keeps it out of the settings list. Uncommenting one adds its row here on
+ * the next generate, with no second place to remember.
+ */
+function extractManagedConnectors() {
+  const sf = parse(SRC.managed);
+  const keysDecl = unwrap(findDeclaration(sf, 'MANAGED_KEYS'));
+  if (!keysDecl || !ts.isArrayLiteralExpression(keysDecl)) {
+    fail(SRC.managed, 'MANAGED_KEYS', 'an array literal of source keys');
+  }
+  const keys = arrayStrings(keysDecl);
+
+  const defsDecl = unwrap(findDeclaration(sf, 'DEFINITIONS'));
+  if (!defsDecl || !ts.isArrayLiteralExpression(defsDecl)) {
+    fail(SRC.managed, 'DEFINITIONS', 'an array literal of source definitions');
+  }
+
+  const byKey = {};
+  for (const el of defsDecl.elements) {
+    const def = unwrap(el);
+    if (!def || !ts.isObjectLiteralExpression(def)) continue;
+    const key = stringProp(def, 'key');
+    if (!key) continue;
+    const info = objectEntries(def).get('connector');
+    if (!info || !ts.isObjectLiteralExpression(info)) continue;
+    byKey[key] = {
+      title: stringProp(info, 'title') ?? '',
+      description: stringProp(info, 'description') ?? '',
+      category: stringProp(info, 'category') ?? '',
+    };
+  }
+
+  const rows = [];
+  for (const key of keys) {
+    const info = byKey[key];
+    if (!info) {
+      fail(
+        SRC.managed,
+        `DEFINITIONS[key=${key}].connector`,
+        'a { title, description, category } object — MANAGED_KEYS lists this key'
+      );
+    }
+    rows.push(info);
+  }
+  return rows.sort((a, b) => a.title.localeCompare(b.title, 'de'));
+}
+
 // ── Manifest ────────────────────────────────────────────────────────────────
 
 function generate() {
   const uploads = extractUploads();
   const collections = extractCollections();
   const connectors = extractConnectors();
+  const managedConnectors = extractManagedConnectors();
   const connectorCount = Object.values(connectors).reduce((n, list) => n + list.length, 0);
 
   return {
-    json: JSON.stringify({ uploads, collections, connectors }, null, 2) + '\n',
+    json: JSON.stringify({ uploads, collections, connectors, managedConnectors }, null, 2) + '\n',
     summary:
       `${collections.nationwide.length} überregionale + ${collections.landesverbaende.length} Landesverband-Sammlungen, ` +
-      `${connectorCount} Konnektoren, ${uploads.groups.length} Datei-Gruppen`,
+      `${connectorCount} Konnektoren (+${managedConnectors.length} bereitgestellt), ${uploads.groups.length} Datei-Gruppen`,
   };
 }
 
