@@ -1,6 +1,6 @@
 'use client';
 
-import { MessagePrimitive, useMessage } from '@assistant-ui/react';
+import { MessagePrimitive, useAuiState } from '@assistant-ui/react';
 import { type SkillIcon } from '@gruenerator/shared/agents';
 import { memo, useCallback, useMemo, useState } from 'react';
 
@@ -50,7 +50,7 @@ function AssistantMessageTextPart() {
   const isCompact = useChatDensity() === 'compact';
   // Expose streaming state to descendants (ChatCodeBlock auto-runs a spreadsheet
   // block only once the message has finished streaming).
-  const isStreaming = useMessage().status?.type === 'running';
+  const isStreaming = useAuiState((s) => s.message.status?.type === 'running');
   return (
     <div
       className={
@@ -76,7 +76,7 @@ const partComponents = {
 };
 
 export const AssistantMessage = memo(function AssistantMessage() {
-  const message = useMessage();
+  const message = useAuiState((s) => s.message);
   const density = useChatDensity();
   const isCompact = density === 'compact';
   const custom = message.metadata?.custom as ChatMessageMetadata | undefined;

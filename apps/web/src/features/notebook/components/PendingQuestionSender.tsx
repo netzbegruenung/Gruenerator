@@ -1,4 +1,4 @@
-import { useComposerRuntime } from '@assistant-ui/react';
+import { useAui } from '@assistant-ui/react';
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -14,7 +14,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 export function PendingQuestionSender() {
   const location = useLocation();
   const navigate = useNavigate();
-  const composerRuntime = useComposerRuntime();
+  const composerRuntime = useAui().composer;
   const sentRef = useRef(false);
   const question = (location.state as { question?: string } | null)?.question;
 
