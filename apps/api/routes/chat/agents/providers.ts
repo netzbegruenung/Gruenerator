@@ -339,6 +339,22 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
   'gemma-4-greenpt': GEMMA_4_GREENPT,
 };
 
+/**
+ * Die drei Größen-Lanes des Modellwählers (`MODEL_OPTIONS` in
+ * @gruenerator/core/models) — dieselben Kennungen, die der OpenAI-kompatible
+ * Endpunkt den Erweiterungen anbietet (`GATEWAY_LANES` in
+ * services/ai/modelGateway.ts).
+ *
+ * Geteilt ist der NAME, nicht der Upstream: dort geht `gruenerator-medium`
+ * direkt an Scaleways Gemma 26B, hier an die Konfiguration, die der Chat-Stack
+ * für dieselbe Größe schon fährt — mit Fallback-Kette, Verdigado-Slot und
+ * Reasoning. Genau dafür gibt es einen Lane-Namen: er lässt sich je Oberfläche
+ * umhängen, ohne dass ein ausgeliefertes Bundle davon weiß.
+ */
+AVAILABLE_MODELS['gruenerator-small'] = GPT_OSS_OVERFLOW;
+AVAILABLE_MODELS['gruenerator-medium'] = GEMMA_4_REGOLO;
+AVAILABLE_MODELS['gruenerator-ultra'] = AVAILABLE_MODELS['mistral-medium-3.5'];
+
 // Legacy IDs from persisted client state and DB. All point to the new overflow
 // lanes so existing users get LB behavior automatically. Drop after one
 // release cycle once chatStore migration v8 has propagated.
