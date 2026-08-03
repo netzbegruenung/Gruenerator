@@ -70,6 +70,8 @@ export interface GrueneratorAdapterConfig {
   searchMode?: SearchMode;
   customSystemPrompt?: string | null;
   customRoleName?: string | null;
+  /** Verweis auf die gewählte Rolle; der Prompttext bleibt server-seitig. */
+  customRoleRef?: { ebene: string; rolle: string } | null;
   customEnabledTools?: Record<string, boolean> | null;
   /** Mention key of the active /skill (e.g. 'instagram'). Server appends the
    *  skill's `skillSystemPrompt` to the agent's systemRole when set. */

@@ -18,6 +18,7 @@
  * Layout — one file per id, no frontmatter, body only:
  *   <INTERN_CONTENT_DIR>/skills/presse-berlin.md      (keyed by skill mention)
  *   <INTERN_CONTENT_DIR>/agents/gruenerator-antrag.md (keyed by agent identifier)
+ *   <INTERN_CONTENT_DIR>/rollen/mdb-buero.md          (keyed by role baustein key)
  *
  * A missing directory is a no-op, not a crash — see the two callers for what
  * each degrades to. That keeps forks and fresh clones runnable, so the warning
@@ -41,7 +42,7 @@ const DEV_FALLBACK_DIR = resolve(__dirname, '../../../../.external/gruenerator-i
 /** Strips an accidental YAML frontmatter block — the private files carry none. */
 const FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---\r?\n/;
 
-type Kind = 'skills' | 'agents';
+type Kind = 'skills' | 'agents' | 'rollen';
 
 const caches = new Map<Kind, Map<string, string>>();
 
@@ -107,6 +108,19 @@ export function getInternalSkillPrompt(mention: string): string | null {
  */
 export function getInternalAgentPrompt(identifier: string): string | null {
   return get('agents', identifier);
+}
+
+/**
+ * Der Auftrag zu einem Rollen-Baustein (`roleBausteinKey` aus
+ * `@gruenerator/shared/roles`), oder null, wenn er nie ausgerollt wurde.
+ *
+ * Null degradiert wie ein Rezept: der Rollen-Chat fällt auf den Basis-Agenten
+ * zurück und antwortet ohne Rollenzuschnitt. Der Aufrufer
+ * (`services/roles/roleSystemPrompt.ts`) loggt das — anders als bei einem
+ * Rezept ist es hier die einzige Wirkung, die die Rolle überhaupt hat.
+ */
+export function getInternalRolePrompt(key: string): string | null {
+  return get('rollen', key);
 }
 
 /** How many bodies are loaded. Boot diagnostics and the prompt endpoint use it. */
