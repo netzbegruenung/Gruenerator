@@ -132,6 +132,52 @@
   object-fit: contain;
 }
 
+/* ── Tables ──────────────────────────────────────────────────────────────── */
+/* Every length scales with `--gs-font-scale` so a table shrinks with the rest
+ * of the slide when auto-fit steps down — a fixed padding would keep the rows
+ * tall while the type got smaller and defeat the fit. */
+.gruene-slide__body table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: calc(24px * var(--gs-font-scale, 1));
+  margin: 0 0 calc(12px * var(--gs-font-scale, 1));
+}
+
+.gruene-slide__body th,
+.gruene-slide__body td {
+  padding: calc(10px * var(--gs-font-scale, 1)) calc(14px * var(--gs-font-scale, 1));
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid rgba(38, 42, 40, 0.14);
+  /* A long token (URL, compound noun) must wrap instead of pushing the table
+   * past the 960px surface, where auto-fit can only see it as overflow. */
+  overflow-wrap: anywhere;
+}
+
+.gruene-slide__body th {
+  background: var(--deck-accent);
+  color: #ffffff;
+  font-family: var(--deck-heading-font);
+  font-weight: 700;
+  border-bottom: none;
+}
+
+.gruene-slide__body tbody tr:nth-child(even) td {
+  background: #f0f5f2;
+}
+
+.gruene-slide__body table p {
+  margin: 0;
+}
+
+/* The card and numbered content variants restyle `ul li`; a table inside them
+ * keeps the plain treatment, so nothing to undo — but the card grid puts its
+ * children in two columns, and a table has to span both. */
+.gruene-slide.layout-content.variant-1 .gruene-slide__body table {
+  grid-column: 1 / -1;
+}
+
 /* ── Dark surfaces (custom dark bg, or title/quote defaults) ─────────────── */
 /* Text colour is driven by `.is-dark` (computed from the resolved background),
  * NOT hardcoded per layout, so a custom light background on a title slide still
@@ -152,6 +198,18 @@
 .gruene-slide.is-dark .gruene-slide__body a,
 .gruene-slide.is-dark .gruene-slide__input::placeholder {
   color: rgba(255, 255, 255, 0.6);
+}
+/* On a dark surface the accent header row loses its contrast against the
+ * background, so the header carries the tint and the rules do the separating. */
+.gruene-slide.is-dark .gruene-slide__body th {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+.gruene-slide.is-dark .gruene-slide__body td {
+  border-bottom-color: rgba(255, 255, 255, 0.2);
+}
+.gruene-slide.is-dark .gruene-slide__body tbody tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.07);
 }
 
 /* ── Layout presets (background comes from SlideSurface) ─────────────────── */
