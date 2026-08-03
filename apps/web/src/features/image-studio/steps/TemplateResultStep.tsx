@@ -616,7 +616,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
   if (supportsCanvas && isCanvasMode) {
     return (
       <motion.div
-        className="flex flex-col items-center w-full p-0 min-h-[calc(100vh-60px)]"
+        className="flex flex-col items-center w-full p-0 min-h-[calc(100dvh-60px)]"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}

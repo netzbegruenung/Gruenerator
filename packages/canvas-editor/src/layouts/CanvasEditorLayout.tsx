@@ -57,7 +57,7 @@ export function CanvasEditorLayout({
   return (
     <div
       className={cn(
-        'canvas-editor-layout flex flex-col h-screen min-h-[500px] bg-[var(--editor-bg)]',
+        'canvas-editor-layout flex flex-col h-dvh min-h-[500px] bg-[var(--editor-bg)]',
         hasSidebar && 'max-canvas-mobile:pb-16',
         hideMobileChrome && 'pb-0 max-canvas-mobile:pb-0'
       )}

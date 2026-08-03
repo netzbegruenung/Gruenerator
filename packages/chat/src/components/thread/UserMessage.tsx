@@ -154,7 +154,7 @@ export function UserMessage() {
                 <MessagePrimitive.Parts components={userPartComponents} />
               </div>
             </div>
-            <div className="mt-1 flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+            <div className="mt-1 flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
               <MessageBranchPicker />
               <button
                 type="button"

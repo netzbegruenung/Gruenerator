@@ -9,7 +9,8 @@
 
 export interface GenerationConfig {
   temperature: number;
-  maxTokens: number;
+  /** `null` = send no `max_tokens`, let the model's own ceiling apply. */
+  maxTokens: number | null;
   topP: number;
 }
 
@@ -76,6 +77,28 @@ const PLATFORM_MAX_TOKENS: Record<string, number> = {
   reelScript: 550,
   actionIdeas: 400,
 };
+
+/**
+ * Types whose answer is a whole ARTIFACT and therefore gets NO output cap.
+ *
+ * Everything without an entry falls to the 4096 default below — which is what a
+ * six-slide deck with a source matrix, and a researched sheet, were generated
+ * under. Measured live on 03.08.2026:
+ *
+ *   Output token budget exhausted (finish_reason=length) for type=doc_generation,
+ *   model=mistral-medium-2604 … outputTokens: 4096
+ *   → [GenerateStructured] [sheet] attempt 1: no tool call, recovered from text
+ *
+ * The second line is the damage: the lax parser salvaged the torso of a cut-off
+ * JSON and the turn reported success.
+ *
+ * A HIGHER number would only move the cliff. Nobody can say in advance how long
+ * a document the person asked for is, and a number picked here is wrong in both
+ * directions — too low it truncates, too high it exceeds a fallback model's own
+ * limit and errors. `null` sends no `max_tokens` at all and lets the model's own
+ * ceiling apply, which is the only bound that is actually correct per model.
+ */
+const UNCAPPED_TYPES: ReadonlySet<string> = new Set(['doc_generation', 'board_generation']);
 
 /**
  * Platform-specific top_p values
@@ -158,7 +181,7 @@ export function determineTemperature(options: GenerationOptions): number {
 /**
  * Determine max tokens based on content type and platform
  */
-export function determineMaxTokens(options: GenerationOptions): number {
+export function determineMaxTokens(options: GenerationOptions): number | null {
   const { type, platforms, maxTokens } = options;
 
   // Explicit max tokens takes precedence
@@ -184,12 +207,9 @@ export function determineMaxTokens(options: GenerationOptions): number {
     return 300;
   }
 
-  // Artefakte geben ein ganzes Dokument in EINEM Zug aus — ein langes PDF oder
-  // ein 14-Folien-Deck liegt über dem 4096er-Default. Gemessen: die Lane lief
-  // dort in 4 von 4 Läufen in `finish_reason=length`, worauf generateStructured
-  // den Reparaturversuch startet und die Erstellung ein zweites Mal bezahlt.
-  if (type === 'doc_generation') {
-    return 12_000;
+  // Artifact types run without a cap (see UNCAPPED_TYPES).
+  if (type && UNCAPPED_TYPES.has(type)) {
+    return null;
   }
 
   // Default
