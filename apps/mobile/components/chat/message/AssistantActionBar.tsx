@@ -65,10 +65,10 @@ export const AssistantActionBar = memo(function AssistantActionBar({
 
   // Same shape as the edit composer's Send: the run has to be flagged as a
   // regenerate before it starts, and ActionBarPrimitive.Reload takes no
-  // `onPress`, so this calls the `aui.message().reload()` the primitive wraps.
+  // `onPress`, so this calls the `aui.message.reload()` the primitive wraps.
   const handleReload = useCallback(() => {
     flagRegenerate();
-    aui.message().reload();
+    aui.message.reload();
   }, [aui]);
 
   const handleTTS = useCallback(() => {

@@ -56,7 +56,7 @@ export function ChatThreadRouting({
     let cancelled = false;
     void (async () => {
       try {
-        await aui.threads().getLoadThreadsPromise();
+        await aui.threads.getLoadThreadsPromise();
         if (cancelled) return;
         let remoteId = resolveThreadBySlugSuffix(suffix);
         if (!remoteId && didLastThreadListFetchFail()) {
@@ -64,7 +64,7 @@ export function ChatThreadRouting({
           // assistant-ui swallows that failure internally and just leaves the
           // list empty, so an empty result here doesn't mean the thread is
           // actually gone. Retry once with a fresh fetch before giving up.
-          await aui.threads().reload();
+          await aui.threads.reload();
           if (cancelled) return;
           remoteId = resolveThreadBySlugSuffix(suffix);
         }
@@ -90,7 +90,7 @@ export function ChatThreadRouting({
           store.restoreSelectedAgent(targetAgent);
         }
         store.setChatViewMode('thread');
-        aui.threads().switchToThread(remoteId);
+        aui.threads.switchToThread(remoteId);
         if (!cancelled) activatedSuffixRef.current = suffix;
       } catch (err) {
         console.warn('[ChatThreadRouting] Failed to open thread from URL:', err);
@@ -117,7 +117,7 @@ export function ChatThreadRouting({
         // slot). Re-resolve before concluding the thread is actually gone.
         const remoteId = resolveThreadBySlugSuffix(suffix);
         if (remoteId) {
-          void aui.threads().switchToThread(remoteId);
+          void aui.threads.switchToThread(remoteId);
           return;
         }
         onThreadGone();
@@ -132,10 +132,7 @@ export function ChatThreadRouting({
     if (!s) return;
     const title =
       currentThreadTitle ??
-      aui
-        .threads()
-        .getState()
-        .threadItems.find((t) => t.remoteId === currentThreadId)?.title ??
+      aui.threads.getState().threadItems.find((t) => t.remoteId === currentThreadId)?.title ??
       null;
     const slug = buildChatThreadSlug(title, s);
     if (slug === threadSlug) return;
