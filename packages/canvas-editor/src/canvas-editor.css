@@ -52,7 +52,7 @@
 /* Override layout to use natural page scroll instead of nested scroll */
 .canvas-editor-layout:has(.heterogeneous-multipage__pages-container) {
   height: auto;
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .canvas-editor-layout__main:has(.heterogeneous-multipage__pages-container) {
