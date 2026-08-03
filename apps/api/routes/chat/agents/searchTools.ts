@@ -101,14 +101,69 @@ export interface CreateSearchToolsOptions {
  * Matched on the bare host or on its registrable label, because people write
  * "auf zeit.de", "bei der Zeit" and "Zeit Online" for the same wish. Label
  * matching is word-bounded so "orf" does not match inside another word.
+ *
+ * Naming an INSTITUTION counts as naming its sites — see `INSTITUTION_HOSTS`.
  */
-function namedByUser(host: string, userText: string): boolean {
+export function namedByUser(host: string, userText: string): boolean {
   const haystack = userText.toLowerCase();
   const needle = host.toLowerCase();
   if (haystack.includes(needle)) return true;
   const label = needle.split('.')[0];
-  if (label == null || label.length < 3) return false;
-  return new RegExp(`\\b${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(haystack);
+  if (label != null && label.length >= 3) {
+    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (new RegExp(`\\b${escaped}\\b`).test(haystack)) return true;
+  }
+  return institutionNamed(needle, haystack);
+}
+
+/**
+ * Institutions people name instead of hosts, and the hosts that ARE them.
+ *
+ * "Nutze ausschließlich Primärquellen von EU-Kommission, Rat der EU und
+ * Europäischem Parlament" contains no hostname, so the check above dropped
+ * exactly the scope the planner had got right — three times in one live turn on
+ * 02.08.2026 (`site scope dropped (not named by the user): ec.europa.eu,
+ * eur-lex.europa.eu, europa.eu`). The search then ran the open web and the
+ * answer was built from euractiv and a blog, under an instruction that had said
+ * primary sources only. That is the opposite failure to the invented scope this
+ * guard was built for, and it is the worse one: the user's own narrowing was
+ * silently discarded.
+ *
+ * Deliberately not a general "which body owns this domain?" resolver. Every
+ * entry is an institution whose OWN publications are the primary source people
+ * ask for, and the mapping only ever widens what the user demonstrably named —
+ * the planner still cannot invent a scope out of nothing.
+ *
+ * Additive by design: an institution that turns up in a real request gets a
+ * line here. A missing entry costs a dropped scope (today's behaviour), never a
+ * wrong one.
+ */
+const INSTITUTION_HOSTS: ReadonlyArray<{ hosts: readonly string[]; phrases: readonly RegExp[] }> = [
+  {
+    hosts: ['ec.europa.eu', 'europa.eu', 'eur-lex.europa.eu'],
+    phrases: [/\beu[- ]kommission\b/u, /\beurop(?:ä|ae)ische\w*\s+kommission\b/u],
+  },
+  {
+    hosts: ['consilium.europa.eu', 'europa.eu'],
+    phrases: [/\brat der eu\b/u, /\beu[- ]rat\b/u, /\beurop(?:ä|ae)ische\w*\s+rat\b/u],
+  },
+  {
+    hosts: ['europarl.europa.eu', 'europa.eu'],
+    phrases: [/\beu[- ]parlament\b/u, /\beurop(?:ä|ae)ische\w*\s+parlament\b/u],
+  },
+  { hosts: ['eur-lex.europa.eu'], phrases: [/\bamtsblatt der eu\b/u] },
+  // Only where the common German name shares no word with the domain label —
+  // "Bundestag", "Umweltbundesamt" and the like are already matched by the
+  // label rule above, and a second entry for them would be dead code.
+  { hosts: ['destatis.de'], phrases: [/\bstatistische[sn]? bundesamt\b/u] },
+  { hosts: ['parlament.gv.at'], phrases: [/\bnationalrat(?:s|es)?\b/u] },
+];
+
+/** Did the user name an institution that owns this host? */
+function institutionNamed(host: string, haystack: string): boolean {
+  return INSTITUTION_HOSTS.some(
+    (entry) => entry.hosts.includes(host) && entry.phrases.some((p) => p.test(haystack))
+  );
 }
 
 /**
