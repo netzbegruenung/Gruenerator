@@ -4,6 +4,7 @@ import {
   computeTextMetrics,
   evaluateArithmetic,
   computeArithmetic,
+  computeArithmeticBatch,
   computeUnitConvert,
   computeDateDiff,
   computeDateAdd,
@@ -115,5 +116,66 @@ describe('date math', () => {
   });
   it('adds years', () => {
     expect(computeDateAdd('2026-07-01', 2, 'years')?.summary).toContain('01.07.2028');
+  });
+});
+
+/**
+ * The gap that let a "prüfe diese Angaben" turn pass with ONE verified figure:
+ * the plan carried a single expression, and the responder wrote the rest of the
+ * arithmetic free-hand — confirming `42.000 + 84.000 = 120.000` as correct.
+ */
+describe('computeArithmeticBatch', () => {
+  it('marks a claim the material got wrong, with the real figure', () => {
+    const out = computeArithmeticBatch([
+      { label: 'Summe der Einzelposten', expression: '42000 + 84000', claimed: 120000 },
+    ]);
+    expect(out?.entries[0]?.value).toBe('126.000 — FALSCH, im Text steht 120.000');
+    expect(out?.summary).toBe('1 von 1 geprüften Angaben ist falsch.');
+  });
+
+  it('confirms a claim that holds', () => {
+    const out = computeArithmeticBatch([
+      { label: 'Anteil', expression: '0.35 * 120000', claimed: 42000 },
+    ]);
+    expect(out?.entries[0]?.value).toBe('42.000 — stimmt');
+    expect(out?.summary).toBe('1 geprüfte Angabe stimmt.');
+  });
+
+  it('checks every claim, not just the first', () => {
+    const out = computeArithmeticBatch([
+      { label: 'Summe', expression: '42000 + 84000', claimed: 120000 },
+      { label: 'Differenz', expression: '74 - 62', claimed: 8 },
+      { label: 'Anteil', expression: '0.35 * 120000', claimed: 42000 },
+    ]);
+    expect(out?.entries).toHaveLength(3);
+    expect(out?.summary).toBe('2 von 3 geprüften Angaben sind falsch.');
+  });
+
+  it('tolerates a float artefact instead of calling it a discrepancy', () => {
+    const out = computeArithmeticBatch([
+      { label: 'Anteil', expression: '0.1 + 0.2', claimed: 0.3 },
+    ]);
+    expect(out?.entries[0]?.value).toContain('stimmt');
+  });
+
+  it('drops an unparseable expression instead of guessing it', () => {
+    // A missing row reads as incomplete; a fabricated one does not.
+    const out = computeArithmeticBatch([
+      { label: 'kaputt', expression: 'zwölf Euro', claimed: 12 },
+      { label: 'Summe', expression: '1 + 1', claimed: 2 },
+    ]);
+    expect(out?.entries).toHaveLength(1);
+    expect(out?.entries[0]?.label).toBe('Summe');
+  });
+
+  it('computes without a verdict when the material claims nothing', () => {
+    const out = computeArithmeticBatch([{ label: 'Summe', expression: '2 + 3', claimed: null }]);
+    expect(out?.entries[0]?.value).toBe('5');
+    expect(out?.summary).toBe('Summe = 5');
+  });
+
+  it('returns null when nothing could be computed', () => {
+    expect(computeArithmeticBatch([])).toBeNull();
+    expect(computeArithmeticBatch([{ label: null, expression: 'x + y', claimed: 1 }])).toBeNull();
   });
 });
