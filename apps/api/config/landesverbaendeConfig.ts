@@ -548,6 +548,24 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           sitemapUrls: ['https://gruene.berlin/sitemap.xml'],
           sitemapFilter: '/beschluesse/',
         },
+        {
+          // Wahlprüfsteine: die Antworten des LV auf Verbände-Fragebögen liegen
+          // nicht auf gruene.berlin, sondern in einem öffentlichen Wolke-Share
+          // (WPS-Gruene-Berlin-<datum>-<verband>-Antwort.pdf, plus die Unterordner
+          // „Wahlprüfsteine aus 2021/2023" — recursive ist der Default).
+          // Eigener content_type, damit sie im „Typ"-Filter als eigene Kategorie
+          // stehen und nicht unter Beschlüsse verschwinden.
+          //
+          // Wolke-Dateien werden ohne published_at gespeichert (der WebDAV-mtime
+          // ist kein Veröffentlichungsdatum). Das ist hier erwünscht: sonst
+          // würde der 5-Jahres-Alterfilter die 2021er-Antworten wieder wegwerfen.
+          // `path`/`listSelector` sind bei wolkeShare ungenutzte Pflichtfelder.
+          type: 'wahlpruefstein',
+          path: '/wolke/xfFABYzM7pX83Fj/',
+          listSelector: '',
+          wolkeShare: { shareLink: 'https://wolke.netzbegruenung.de/s/xfFABYzM7pX83Fj' },
+          recentSkip: true,
+        },
       ],
       contentSelectors: {
         title: ['h1', 'meta[property="og:title"]'],
@@ -1149,6 +1167,7 @@ export const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
   antrag: 'Antrag/Motion',
   blog: 'Blog/News',
   wahlprogramm: 'Wahlprogramm',
+  wahlpruefstein: 'Wahlprüfstein',
 };
 
 export const CMS_TYPES: Record<CMSType, CMSType> = {

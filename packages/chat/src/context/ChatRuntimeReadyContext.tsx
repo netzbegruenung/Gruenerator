@@ -9,8 +9,8 @@ import { createContext, useContext, type ReactNode } from 'react';
  * the ~200 KB runtime chunk loads — read `false` instead of crashing.
  *
  * Page entry points gate their runtime-dependent content on this so no
- * assistant-ui hook (useAssistantRuntime/useComposerRuntime/…) ever runs in the
- * Suspense fallback. See GrueneratorChatProvider / GrueneratorChatRuntime.
+ * assistant-ui hook (useAui/useAuiState/…) ever runs in the Suspense fallback.
+ * See GrueneratorChatProvider / GrueneratorChatRuntime.
  */
 const ChatRuntimeReadyContext = createContext(false);
 

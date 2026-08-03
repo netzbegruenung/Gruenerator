@@ -1,4 +1,4 @@
-import { useMessage } from '@assistant-ui/react';
+import { useAuiState } from '@assistant-ui/react';
 import {
   CitationProvider,
   MarkdownContent,
@@ -21,7 +21,7 @@ function getErrorMessage(error: unknown): string | null {
 }
 
 function GruenOMatAssistantMessageInner() {
-  const message = useMessage();
+  const message = useAuiState((s) => s.message);
   const meta = message.metadata?.custom as NotebookMessageMetadata | undefined;
   const isRunning = message.status?.type === 'running';
   const isError = message.status?.type === 'incomplete' && message.status?.reason === 'error';

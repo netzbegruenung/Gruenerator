@@ -183,13 +183,16 @@ const SettingsDialog = () => {
           orientation={isMobile ? 'horizontal' : 'vertical'}
           className="min-h-0 flex-1 gap-0"
         >
-          <div className="flex shrink-0 flex-col border-grey-200 max-md:border-b dark:border-grey-700 md:w-56 md:border-r md:bg-background-alt/50">
+          <div className="flex shrink-0 flex-col border-grey-200 max-md:border-b dark:border-grey-700 md:w-56 md:min-h-0 md:border-r md:bg-background-alt/50">
             <DialogTitle className="px-md pt-4 pb-2 text-base font-semibold text-foreground-heading md:px-4 md:pt-5">
               Einstellungen
             </DialogTitle>
+            {/* md: the vertical nav can outgrow the dialog height (many tabs, short
+                viewport) — let it shrink and scroll instead of relying on
+                DialogContent's overflow-hidden, which would just cut it off. */}
             <TabsList
               variant="line"
-              className="w-full shrink-0 justify-start gap-1 overflow-x-auto px-2 pb-2 md:flex-col md:items-stretch md:px-3 md:pb-lg"
+              className="w-full shrink-0 justify-start gap-1 overflow-x-auto px-2 pb-2 md:min-h-0 md:shrink md:flex-col md:items-stretch md:overflow-y-auto md:px-3 md:pb-lg"
             >
               {nav.map(({ value, label, icon: Icon }) => (
                 <TabsTrigger

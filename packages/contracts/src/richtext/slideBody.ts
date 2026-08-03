@@ -18,19 +18,29 @@ import { getSchema } from '@tiptap/core';
 import { Bold } from '@tiptap/extension-bold';
 import { Document } from '@tiptap/extension-document';
 import { HardBreak } from '@tiptap/extension-hard-break';
+import { Image } from '@tiptap/extension-image';
 import { Italic } from '@tiptap/extension-italic';
 import { BulletList, ListItem, OrderedList } from '@tiptap/extension-list';
 import { Paragraph } from '@tiptap/extension-paragraph';
+import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table';
 import { Text } from '@tiptap/extension-text';
 import { marked, type Token, type Tokens } from 'marked';
 import { prosemirrorJSONToYXmlFragment, yXmlFragmentToProsemirrorJSON } from 'y-prosemirror';
 import { type XmlFragment } from 'yjs';
 
 /**
- * The slide-body editor schema: paragraphs + bullet/ordered lists + bold /
- * italic, no headings (the slide title is a separate field). The editable
- * element inherits `.gruene-slide__body`, so its `<ul><li>` DOM picks up the
- * deck's variant CSS (dot bullets / cards / numbered circles) live.
+ * The slide-body editor schema: paragraphs + bullet/ordered lists + tables +
+ * images + bold / italic, no headings (the slide title is a separate field).
+ * The editable element inherits `.gruene-slide__body`, so its `<ul><li>` and
+ * `<table>` DOM picks up the deck's variant CSS live.
+ *
+ * `resizable` stays off: it mounts a node view and a ProseMirror plugin, and
+ * this schema is also built on the server. Column widths are a follow-up for
+ * the editor package, not a property of the shared document.
+ *
+ * Images are block-level (`inline: false`) — a slide image is its own element,
+ * never a character inside a sentence — and base64 sources stay rejected so a
+ * pasted data URL never lands in the CRDT.
  */
 export const slideBodyExtensions = [
   Document,
@@ -42,6 +52,11 @@ export const slideBodyExtensions = [
   BulletList,
   OrderedList,
   ListItem,
+  Table.configure({ resizable: false }),
+  TableRow,
+  TableHeader,
+  TableCell,
+  Image,
 ];
 
 /** ProseMirror schema built from the extensions (DOM-free — safe on the server). */
@@ -62,6 +77,7 @@ interface PMNode {
   text?: string;
   content?: PMNode[];
   marks?: PMMark[];
+  attrs?: Record<string, unknown>;
 }
 
 function textNode(text: string, marks: string[]): PMNode[] {
@@ -96,6 +112,11 @@ function inlineToPM(tokens: Token[] | undefined, marks: string[]): PMNode[] {
         break;
       case 'br':
         out.push({ type: 'hardBreak' });
+        break;
+      case 'html':
+        // A table cell can't span lines, so `serializeCell` writes hard breaks
+        // as `<br>`. Read them back rather than printing the tag as text.
+        if (/^<br\s*\/?>$/i.test((t as Tokens.HTML).raw.trim())) out.push({ type: 'hardBreak' });
         break;
       default: {
         const text = (t as { text?: string }).text;
@@ -142,40 +163,78 @@ function listToPM(token: Tokens.List): PMNode {
   };
 }
 
+const CELL_ALIGNMENTS = ['left', 'center', 'right'] as const;
+
+type CellAlign = (typeof CELL_ALIGNMENTS)[number];
+
+function normalizeAlign(value: unknown): CellAlign | null {
+  return CELL_ALIGNMENTS.includes(value as CellAlign) ? (value as CellAlign) : null;
+}
+
+function cellToPM(cell: Tokens.TableCell, align: CellAlign | null, header: boolean): PMNode {
+  const node: PMNode = {
+    type: header ? 'tableHeader' : 'tableCell',
+    content: [paragraph(inlineToPM(cell.tokens, []))],
+  };
+  if (align) node.attrs = { align };
+  return node;
+}
+
 /**
- * A markdown table, rendered as a bullet list — one item per row, cells labelled
- * with their column header.
- *
- * The schema above has no table node and will not get one lightly (it would pull
- * the editor, the static renderer and the PPTX export along). What it must not
- * do is lose the content: `Tokens.Table` carries `header`/`rows` and NO `.text`,
- * so it fell into `blockToPM`'s default branch and became `[]` — silently, and
- * AFTER `findEmptySlides` had already passed the deck, because that gate reads
- * the generated structure while the loss happens later, at seeding.
- *
- * Live on 03.08.2026: a slide titled "Quellenmatrix" reached the audience as a
- * headline over white space.
+ * A markdown table → a ProseMirror table. Column alignment lives on the table
+ * token (`align[i]`), not on the cell, so it is threaded in per index; marked's
+ * `splitCells` has already turned `\|` back into a literal pipe by this point
+ * (`serializeCell` is what writes the escape).
  */
 function tableToPM(token: Tokens.Table): PMNode {
-  const headers = token.header.map((cell) => cell.text.trim());
-  // A header-only table has nothing to label WITH — its cells are the content.
-  const labelled = token.rows.length > 0;
-  const rows = labelled ? token.rows : [token.header];
-  return {
-    type: 'bulletList',
-    content: rows.map((row) => {
-      const line = row
-        .map((cell, i) => {
-          const value = cell.text.trim();
-          if (!value) return '';
-          const header = headers[i];
-          return labelled && header ? `${header}: ${value}` : value;
-        })
-        .filter(Boolean)
-        .join(' — ');
-      return { type: 'listItem', content: [paragraph(textNode(line, []))] };
-    }),
+  const align = Array.isArray(token.align) ? token.align : [];
+  const rows: PMNode[] = [];
+  if (token.header.length) {
+    rows.push({
+      type: 'tableRow',
+      content: token.header.map((cell, i) => cellToPM(cell, normalizeAlign(align[i]), true)),
+    });
+  }
+  for (const row of token.rows) {
+    rows.push({
+      type: 'tableRow',
+      content: row.map((cell, i) => cellToPM(cell, normalizeAlign(align[i]), false)),
+    });
+  }
+  return { type: 'table', content: rows };
+}
+
+function imageToPM(token: Tokens.Image): PMNode {
+  const attrs: Record<string, unknown> = { src: token.href, alt: token.text || null };
+  if (token.title) attrs['title'] = token.title;
+  return { type: 'image', attrs };
+}
+
+/**
+ * A markdown paragraph → one or more blocks. Slide images are block-level (see
+ * `slideBodyExtensions`), but markdown puts `![…](…)` inline, so a paragraph
+ * mixing prose and images is split: each image becomes its own block and the
+ * prose around it keeps its paragraphs.
+ */
+function paragraphToPM(tokens: Token[] | undefined): PMNode[] {
+  const out: PMNode[] = [];
+  let run: Token[] = [];
+  const flush = () => {
+    if (!run.length) return;
+    const content = inlineToPM(run, []);
+    if (content.length) out.push(paragraph(content));
+    run = [];
   };
+  for (const t of tokens ?? []) {
+    if (t.type === 'image') {
+      flush();
+      out.push(imageToPM(t as Tokens.Image));
+    } else {
+      run.push(t);
+    }
+  }
+  flush();
+  return out.length ? out : [paragraph([])];
 }
 
 function blockToPM(token: Token): PMNode[] {
@@ -189,7 +248,7 @@ function blockToPM(token: Token): PMNode[] {
     case 'paragraph':
     case 'heading':
     case 'text':
-      return [paragraph(inlineToPM((token as Tokens.Paragraph).tokens, []))];
+      return paragraphToPM((token as Tokens.Paragraph).tokens);
     default: {
       const text = (token as { text?: string }).text;
       return text ? [paragraph(textNode(text, []))] : [];
@@ -243,15 +302,95 @@ function serializeList(list: PMNode, ordered: boolean, depth: number): string {
     .join('\n');
 }
 
+/**
+ * `![alt](src)` with the two characters that would end the construct early
+ * escaped: a `]` in the alt text closes the label, a `)` in the URL closes the
+ * destination. Exported because the touch editor writes markdown by hand and
+ * has to produce exactly what this reads back.
+ */
+export function formatSlideImageMarkdown(image: {
+  src: string;
+  alt?: string | null;
+  title?: string | null;
+}): string {
+  const alt = (image.alt ?? '').replace(/([[\]])/g, '\\$1');
+  const src = image.src.replace(/([()])/g, '\\$1');
+  return image.title ? `![${alt}](${src} "${image.title}")` : `![${alt}](${src})`;
+}
+
+function serializeImage(node: PMNode): string {
+  return formatSlideImageMarkdown({
+    src: String(node.attrs?.['src'] ?? ''),
+    alt: node.attrs?.['alt'] == null ? null : String(node.attrs['alt']),
+    title: node.attrs?.['title'] == null ? null : String(node.attrs['title']),
+  });
+}
+
+/**
+ * One table cell → its markdown text. A cell has to stay on one line and inside
+ * one column, so hard breaks become `<br>` (read back by `inlineToPM`) and a
+ * literal pipe is escaped (marked's `splitCells` unescapes it again).
+ */
+function serializeCell(cell: PMNode): string {
+  return (cell.content ?? [])
+    .map((block) => serializeInline(block.content))
+    .join(' ')
+    .replace(/\s*\n\s*/g, '<br>')
+    .replace(/(?<!\\)\|/g, '\\|')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const ALIGN_RULE: Record<CellAlign, string> = {
+  left: ':---',
+  center: ':---:',
+  right: '---:',
+};
+
+/**
+ * A ProseMirror table → a GFM pipe table. GFM has no table without a header
+ * row, so a body-only table gets an empty one — that keeps it a table on the
+ * way back in instead of degrading to paragraphs.
+ */
+function serializeTable(node: PMNode): string {
+  const rows = (node.content ?? []).map((row) => row.content ?? []);
+  const columns = rows.reduce((max, row) => Math.max(max, row.length), 0);
+  if (!columns) return '';
+
+  const aligns: (CellAlign | null)[] = Array.from({ length: columns }, (_, i) => {
+    for (const row of rows) {
+      const align = normalizeAlign(row[i]?.attrs?.['align']);
+      if (align) return align;
+    }
+    return null;
+  });
+
+  const line = (cells: PMNode[]) =>
+    `| ${Array.from({ length: columns }, (_, i) => (cells[i] ? serializeCell(cells[i]!) : '')).join(' | ')} |`;
+
+  const hasHeader = rows[0]?.some((cell) => cell.type === 'tableHeader') ?? false;
+  const header: PMNode[] = hasHeader ? rows[0]! : [];
+  const body = hasHeader ? rows.slice(1) : rows;
+
+  return [
+    line(header),
+    `| ${aligns.map((a) => (a ? ALIGN_RULE[a] : '---')).join(' | ')} |`,
+    ...body.map(line),
+  ].join('\n');
+}
+
 /** ProseMirror JSON (`doc`) → markdown. */
 export function pmJSONToMarkdown(doc: unknown): string {
   // Boundary cast: we only read the closed node set the slide-body schema
-  // produces (paragraph, bullet/ordered list, list item, text + bold/italic).
+  // produces (paragraph, bullet/ordered list, list item, table, image, text +
+  // bold/italic).
   const root = doc as PMNode;
   const blocks: string[] = [];
   for (const node of root.content ?? []) {
     if (node.type === 'bulletList') blocks.push(serializeList(node, false, 0));
     else if (node.type === 'orderedList') blocks.push(serializeList(node, true, 0));
+    else if (node.type === 'table') blocks.push(serializeTable(node));
+    else if (node.type === 'image') blocks.push(serializeImage(node));
     else blocks.push(serializeInline(node.content));
   }
   return blocks
