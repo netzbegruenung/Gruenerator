@@ -14,33 +14,65 @@ import { createLogger } from '../../utils/logger.js';
 import { sanitizeFilename as sanitizeFilenameCentral } from '../../utils/validation/index.js';
 
 import { parseFormattedContent } from './contentParser.js';
+import {
+  buildNumberingConfig,
+  isLinkable,
+  renderBlocks,
+  BODY_FONT,
+  HEADING_FONT,
+} from './docxRenderer.js';
+
+import type { FormattedBlock } from './types.js';
+import type * as Docx from 'docx';
 
 const log = createLogger('chatMessageExport');
 
 const router = express.Router();
 
+/**
+ * Epoch millis. Shipped mobile binaries post an ISO string here (see
+ * `apps/mobile/hooks/useMessageActions.ts`), and a strict `z.number()` rejected
+ * the whole request with a 400 — the download button did nothing at all on
+ * those builds. The wire format stays tolerant even after the app is fixed,
+ * because the old binaries keep sending strings.
+ */
+const timestampSchema = z
+  .union([z.number(), z.string()])
+  .transform((value) => {
+    const millis = typeof value === 'number' ? value : Date.parse(value);
+    return Number.isFinite(millis) ? millis : null;
+  })
+  .nullable()
+  .optional();
+
+/**
+ * The chat client posts its whole message metadata object. Only the source
+ * lists are read; `.passthrough()`-free `z.object` drops the rest, and every
+ * field is lenient so a shape change upstream cannot turn a download into a
+ * 400.
+ */
 const chatMessageExportSchema = z.object({
   content: z.string(),
-  role: z.enum(['user', 'assistant']),
-  timestamp: z.number().optional(),
+  role: z.enum(['user', 'assistant']).catch('assistant'),
+  timestamp: timestampSchema,
   metadata: z
     .object({
       citations: z
         .array(
           z.object({
-            id: z.number(),
-            title: z.string(),
-            url: z.string(),
-            snippet: z.string(),
+            id: z.number().catch(0),
+            title: z.string().catch(''),
+            url: z.string().catch(''),
+            snippet: z.string().catch(''),
           })
         )
         .optional(),
       searchResults: z
         .array(
           z.object({
-            source: z.string(),
-            title: z.string(),
-            content: z.string(),
+            source: z.string().catch(''),
+            title: z.string().catch(''),
+            content: z.string().catch(''),
             url: z.string().optional(),
           })
         )
@@ -49,12 +81,64 @@ const chatMessageExportSchema = z.object({
     .optional(),
 });
 
+type ExportSource = { title: string; content: string; url?: string | undefined };
+
+/**
+ * Sources for the appendix. `searchResults` is the web-search shape;
+ * `citations` is what notebook and document answers carry. Only `searchResults`
+ * used to be rendered, so a document-grounded answer exported with `[1]`…`[10]`
+ * markers and no list of what they pointed at.
+ */
+function collectSources(
+  metadata: z.infer<typeof chatMessageExportSchema>['metadata']
+): ExportSource[] {
+  if (metadata?.searchResults && metadata.searchResults.length > 0) {
+    return metadata.searchResults.map((result) => ({
+      title: result.title,
+      content: result.content,
+      url: result.url,
+    }));
+  }
+
+  if (metadata?.citations && metadata.citations.length > 0) {
+    return metadata.citations.map((citation) => ({
+      title: citation.id ? `[${citation.id}] ${citation.title}` : citation.title,
+      content: citation.snippet,
+      url: citation.url || undefined,
+    }));
+  }
+
+  return [];
+}
+
 function sanitizeFilename(name: string, fallback = 'Chat-Nachricht'): string {
   const sanitized = sanitizeFilenameCentral(name, fallback);
   return sanitized.slice(0, 80) || fallback;
 }
 
-function formatTimestamp(timestamp?: number): string {
+/**
+ * Name the file after the answer's first heading, falling back to its opening
+ * sentence. Slicing the raw markdown (the old approach) put `##`-stripped
+ * fragments and half words into the download name.
+ */
+function filenameFromBlocks(blocks: FormattedBlock[]): string {
+  const source =
+    blocks.find((block) => block.kind === 'heading') ??
+    blocks.find((block) => block.kind === 'paragraph');
+  if (!source || !('segments' in source)) return 'Chat-Nachricht';
+
+  const text = source.segments
+    .map((segment) => segment.text)
+    .join('')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!text) return 'Chat-Nachricht';
+
+  const firstSentence = text.split(/(?<=[.!?])\s/)[0] ?? text;
+  return firstSentence.slice(0, 60).trim() || 'Chat-Nachricht';
+}
+
+function formatTimestamp(timestamp?: number | null): string {
   const date = timestamp ? new Date(timestamp) : new Date();
   return date.toLocaleString('de-DE', {
     day: '2-digit',
@@ -83,14 +167,20 @@ router.post(
     try {
       const { content, role, timestamp, metadata } = req.body;
 
-      const formattedParagraphs = parseFormattedContent(content);
+      const blocks = parseFormattedContent(content);
 
       const docx = await import('docx');
-      const { Document, Paragraph, TextRun, HeadingLevel, AlignmentType, Packer, BorderStyle } =
-        docx;
+      const {
+        Document,
+        Paragraph,
+        TextRun,
+        Packer,
+        BorderStyle,
+        AlignmentType,
+        ExternalHyperlink,
+      } = docx;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const children: any[] = [];
+      const children: Docx.FileChild[] = [];
       const roleLabel = getRoleLabel(role || 'assistant');
       const formattedTime = formatTimestamp(timestamp);
 
@@ -102,7 +192,7 @@ router.post(
               text: `${roleLabel} • ${formattedTime}`,
               bold: true,
               size: 24,
-              font: 'GrueneTypeNeue',
+              font: HEADING_FONT,
               color: '666666',
             }),
           ],
@@ -117,73 +207,10 @@ router.post(
         })
       );
 
-      // Process each paragraph with its formatting
-      for (const paragraph of formattedParagraphs) {
-        if (!paragraph.segments || paragraph.segments.length === 0) continue;
+      children.push(...renderBlocks(docx, blocks));
 
-        const fullText = paragraph.segments.map((seg) => seg.text).join('');
-
-        if (paragraph.isHeader) {
-          const textRuns = paragraph.segments.map(
-            (segment) =>
-              new TextRun({
-                text: segment.text,
-                bold: true,
-                italics: segment.italic,
-                size: paragraph.headerLevel === 1 ? 28 : paragraph.headerLevel === 2 ? 26 : 24,
-                font: 'GrueneTypeNeue',
-              })
-          );
-
-          const headingLevel =
-            paragraph.headerLevel === 1
-              ? HeadingLevel.HEADING_1
-              : paragraph.headerLevel === 2
-                ? HeadingLevel.HEADING_2
-                : HeadingLevel.HEADING_3;
-
-          children.push(
-            new Paragraph({
-              children: textRuns,
-              heading: headingLevel,
-              spacing: { before: 300, after: 200 },
-            })
-          );
-        } else {
-          const textRuns = paragraph.segments.map(
-            (segment) =>
-              new TextRun({
-                text: segment.text,
-                bold: segment.bold,
-                italics: segment.italic,
-                size: 22,
-                font: 'PT Sans',
-              })
-          );
-
-          const isList = fullText.startsWith('•') || /^\d+\./.test(fullText);
-
-          const paragraphOptions: {
-            children: typeof textRuns;
-            spacing: { after: number };
-            alignment?: (typeof AlignmentType)[keyof typeof AlignmentType];
-            indent?: { left: number };
-          } = {
-            children: textRuns,
-            spacing: { after: isList ? 100 : 200 },
-          };
-          if (!isList) {
-            paragraphOptions.alignment = AlignmentType.JUSTIFIED;
-          }
-          if (isList) {
-            paragraphOptions.indent = { left: 360 };
-          }
-          children.push(new Paragraph(paragraphOptions));
-        }
-      }
-
-      // Add search results/sources section if available
-      if (metadata?.searchResults && metadata.searchResults.length > 0) {
+      const sources = collectSources(metadata);
+      if (sources.length > 0) {
         children.push(
           new Paragraph({
             children: [
@@ -191,7 +218,7 @@ router.post(
                 text: 'Verwendete Quellen',
                 bold: true,
                 size: 24,
-                font: 'GrueneTypeNeue',
+                font: HEADING_FONT,
               }),
             ],
             spacing: { before: 400, after: 200 },
@@ -205,15 +232,15 @@ router.post(
           })
         );
 
-        for (const result of metadata.searchResults) {
+        for (const source of sources) {
           children.push(
             new Paragraph({
               children: [
                 new TextRun({
-                  text: `• ${result.title}`,
+                  text: `• ${source.title || 'Unbenannte Quelle'}`,
                   bold: true,
                   size: 20,
-                  font: 'PT Sans',
+                  font: BODY_FONT,
                 }),
               ],
               spacing: { after: 50 },
@@ -221,14 +248,14 @@ router.post(
             })
           );
 
-          if (result.content) {
+          if (source.content) {
             children.push(
               new Paragraph({
                 children: [
                   new TextRun({
-                    text: result.content.slice(0, 200) + (result.content.length > 200 ? '...' : ''),
+                    text: source.content.slice(0, 200) + (source.content.length > 200 ? '…' : ''),
                     size: 18,
-                    font: 'PT Sans',
+                    font: BODY_FONT,
                     color: '666666',
                   }),
                 ],
@@ -238,17 +265,19 @@ router.post(
             );
           }
 
-          if (result.url) {
+          if (source.url) {
+            const urlRun = new TextRun({
+              text: source.url,
+              size: 16,
+              font: BODY_FONT,
+              style: 'Hyperlink',
+            });
             children.push(
               new Paragraph({
                 children: [
-                  new TextRun({
-                    text: result.url,
-                    size: 16,
-                    font: 'PT Sans',
-                    color: '0066cc',
-                    style: 'Hyperlink',
-                  }),
+                  isLinkable(source.url)
+                    ? new ExternalHyperlink({ children: [urlRun], link: source.url })
+                    : urlRun,
                 ],
                 spacing: { after: 150 },
                 indent: { left: 720 },
@@ -267,7 +296,7 @@ router.post(
               size: 18,
               italics: true,
               color: '666666',
-              font: 'PT Sans',
+              font: BODY_FONT,
             }),
             new TextRun({
               text: PRIMARY_DOMAIN,
@@ -275,7 +304,7 @@ router.post(
               italics: true,
               color: '0066cc',
               style: 'Hyperlink',
-              font: 'PT Sans',
+              font: BODY_FONT,
             }),
           ],
           alignment: AlignmentType.CENTER,
@@ -285,6 +314,7 @@ router.post(
 
       const doc = new Document({
         sections: [{ properties: {}, children }],
+        numbering: buildNumberingConfig(docx),
         title: `Chat-Nachricht - ${roleLabel}`,
         creator: 'Grünerator',
         description: 'Chat message exported from Grünerator',
@@ -292,12 +322,7 @@ router.post(
 
       const buffer = await Packer.toBuffer(doc);
 
-      // Create filename from content preview
-      const contentPreview = content
-        .slice(0, 30)
-        .replace(/[^a-zA-Z0-9äöüÄÖÜß\s]/g, '')
-        .trim();
-      const filename = `${sanitizeFilename(contentPreview || 'Chat-Nachricht')}.docx`;
+      const filename = `${sanitizeFilename(filenameFromBlocks(blocks))}.docx`;
 
       res.setHeader(
         'Content-Type',
