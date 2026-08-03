@@ -35,7 +35,34 @@ export function generateProfilePrompt(roles: RolePromptInput[], isAustrian: bool
     return line;
   });
 
-  return `Du unterstützt eine*n Mitarbeiter*in von ${partyName} mit folgenden Rollen:\n\n${roleLines.join('\n')}\n\nPasse deine Antworten an die jeweils relevante Rolle an. Berücksichtige die Zuständigkeiten und die Ebene bei Stil, Detailtiefe und Zielgruppe.`;
+  // Kein Schlusssatz mehr ("Passe deine Antworten an die jeweils relevante
+  // Rolle an ..."): dieser Block landet bei JEDER Anfrage — Chat wie
+  // Generator-Formulare — im Systemprompt, und beide Leser rahmen ihn bereits
+  // mit genau dieser Anweisung ein (respondNode: "Befolge diese Profilangaben
+  // bei allen Antworten — sie legen Ton und Kontext fest"). Was hier steht,
+  // sind die Daten; die Anweisung darauf gehört an die Einbettungsstelle.
+  return `Rollen bei ${partyName}:\n\n${roleLines.join('\n')}`;
+}
+
+/**
+ * Die Beschreibung, aus der `/api/chat-service/generate-system-prompt` das
+ * Rollenprofil erzeugt. Liegt hier, damit Anlegen und späteres Neu-Erzeugen
+ * einer Rolle dieselbe Beschreibung schicken — sonst driftet ein neu erzeugtes
+ * Profil gegen das ursprüngliche, ohne dass sich an der Rolle etwas geändert
+ * hätte.
+ */
+export function buildRoleDescription(
+  role: RolePromptInput,
+  ebeneLabel: string,
+  isAustrian: boolean
+): string {
+  const lines = [`Ebene: ${ebeneLabel}`, `Rolle: ${role.rolle}`];
+  if (role.bundesland) lines.push(`Bundesland: ${role.bundesland}`);
+  if (role.gliederung) lines.push(`${ebeneLabel}: ${role.gliederung}`);
+  if (role.abgeordnete) lines.push(`Abgeordnete*r: ${role.abgeordnete}`);
+  if (isAustrian) lines.push('Land: Österreich (Die Grünen – Die Grüne Alternative)');
+  if (role.instructions) lines.push(`Zusätzliche Anweisungen: ${role.instructions}`);
+  return lines.join('\n');
 }
 
 /**

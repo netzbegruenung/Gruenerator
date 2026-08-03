@@ -13,6 +13,7 @@ import {
   LOCAL_NAME_LABELS,
   LOCAL_NAME_PLACEHOLDERS,
   needsAbgeordneteName,
+  buildRoleDescription,
   generateProfilePrompt,
   mergeRoleBlock,
   searchMdBs,
@@ -31,7 +32,7 @@ import {
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, useCallback, useEffect, useMemo, useRef, memo } from 'react';
-import { HiOutlineArrowLeft, HiOutlineTrash, HiPlus } from 'react-icons/hi2';
+import { HiOutlineArrowLeft, HiOutlineArrowPath, HiOutlineTrash, HiPlus } from 'react-icons/hi2';
 
 import { QUERY_KEYS } from '../../../features/auth/hooks/useProfileData';
 import { profileApiService, type Profile } from '../../../features/auth/services/profileApiService';
@@ -70,14 +71,39 @@ const MdBSuggestions = memo(function MdBSuggestions({
   );
 });
 
+/**
+ * Holt das Rollenprofil, das im Chat als System-Prompt der Rolle mitläuft.
+ * Best effort: schlägt der Aufruf fehl, wird die Rolle trotzdem gespeichert —
+ * nur eben ohne Profil.
+ */
+async function fetchRolePrompt(description: string): Promise<string | null> {
+  try {
+    const response = await platformFetch('/api/chat-service/generate-system-prompt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ description }),
+    });
+    if (!response.ok) return null;
+    const data = (await response.json()) as { systemPrompt?: string };
+    return data.systemPrompt?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 function RoleCard({
   role,
   ebenen,
   onDelete,
+  onRegenerate,
+  regenerating,
 }: {
   role: UserRole;
   ebenen: EbeneConfig[];
   onDelete: () => void;
+  onRegenerate: () => void;
+  regenerating: boolean;
 }) {
   const ebene = ebenen.find((e) => e.id === role.ebene);
   const subtitle = [role.gliederung, role.bundesland].filter(Boolean).join(' · ');
@@ -99,9 +125,19 @@ function RoleCard({
       </div>
       <button
         type="button"
+        onClick={onRegenerate}
+        disabled={regenerating}
+        className="shrink-0 p-1 text-grey-400 hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 max-sm:opacity-100 disabled:opacity-50"
+        aria-label={`Rollenprofil für ${role.rolle} neu erzeugen`}
+        title="Rollenprofil neu erzeugen"
+      >
+        <HiOutlineArrowPath className={`size-4 ${regenerating ? 'animate-spin' : ''}`} />
+      </button>
+      <button
+        type="button"
         onClick={onDelete}
         className="shrink-0 p-1 text-grey-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 max-sm:opacity-100"
-        aria-label="Rolle entfernen"
+        aria-label={`Rolle ${role.rolle} entfernen`}
       >
         <HiOutlineTrash className="size-4" />
       </button>
@@ -161,6 +197,7 @@ export default function RolesSection() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [generating, setGenerating] = useState(false);
+  const [regeneratingIndex, setRegeneratingIndex] = useState<number | null>(null);
 
   // ─── Wizard handlers ─────────────────────────────────────────────────────
 
@@ -297,33 +334,12 @@ export default function RolesSection() {
 
     // System-prompt enrichment is best-effort. If the chat-service endpoint is
     // down, the role still gets added and saved without a custom prompt.
-    const lines = [`Ebene: ${ebeneLabel}`, `Rolle: ${rolle}`];
-    if (wizBundesland) lines.push(`Bundesland: ${wizBundesland}`);
-    if (wizGliederung.trim()) lines.push(`${ebeneLabel}: ${wizGliederung.trim()}`);
-    if (wizAbgeordnete.trim()) lines.push(`Abgeordnete*r: ${wizAbgeordnete.trim()}`);
-    if (isAustrian) lines.push('Land: Österreich (Die Grünen – Die Grüne Alternative)');
-    if (wizInstructions.trim()) lines.push(`Zusätzliche Anweisungen: ${wizInstructions.trim()}`);
-
     setGenerating(true);
     setErrorMessage(null);
-    let promptGenFailed = false;
 
-    try {
-      const response = await platformFetch('/api/chat-service/generate-system-prompt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ description: lines.join('\n') }),
-      });
-      if (response.ok) {
-        const data = (await response.json()) as { systemPrompt?: string };
-        if (data.systemPrompt) newRole.systemPrompt = data.systemPrompt;
-      } else {
-        promptGenFailed = true;
-      }
-    } catch {
-      promptGenFailed = true;
-    }
+    const generated = await fetchRolePrompt(buildRoleDescription(newRole, ebeneLabel, isAustrian));
+    if (generated) newRole.systemPrompt = generated;
+    const promptGenFailed = !generated;
 
     const nextRoles = [...roles, newRole];
     setRoles(nextRoles);
@@ -359,6 +375,39 @@ export default function RolesSection() {
     roles,
     persistRoles,
   ]);
+
+  // Das Rollenprofil wird einmal beim Anlegen erzeugt und danach bei jeder
+  // Nachricht des Rollen-Chats mitgeschickt. Rollen, die vor der Kürzung des
+  // Generator-Prompts angelegt wurden, tragen deshalb dauerhaft das alte, lange
+  // Profil — hierüber lässt es sich ohne Löschen und Neuanlegen erneuern.
+  const handleRegeneratePrompt = useCallback(
+    async (index: number) => {
+      const role = roles[index];
+      if (!role) return;
+
+      setRegeneratingIndex(index);
+      setErrorMessage(null);
+      const ebeneLabel = ebenen.find((e) => e.id === role.ebene)?.label || '';
+      const generated = await fetchRolePrompt(buildRoleDescription(role, ebeneLabel, isAustrian));
+      setRegeneratingIndex(null);
+
+      if (!generated) {
+        setErrorMessage('Rollenprofil konnte nicht neu erzeugt werden. Bitte später erneut.');
+        return;
+      }
+
+      const nextRoles = roles.map((r, i) => (i === index ? { ...r, systemPrompt: generated } : r));
+      setRoles(nextRoles);
+      const result = await persistRoles(nextRoles);
+      if (result.ok) {
+        setSuccessMessage('Rollenprofil neu erzeugt');
+        setTimeout(() => setSuccessMessage(null), 3000);
+      } else {
+        setErrorMessage(`Neues Profil konnte nicht gespeichert werden: ${result.detail}`);
+      }
+    },
+    [roles, ebenen, isAustrian, persistRoles]
+  );
 
   const handleDeleteRole = useCallback(
     async (index: number) => {
@@ -623,6 +672,10 @@ export default function RolesSection() {
                       onDelete={() => {
                         void handleDeleteRole(i);
                       }}
+                      onRegenerate={() => {
+                        void handleRegeneratePrompt(i);
+                      }}
+                      regenerating={regeneratingIndex === i}
                     />
                   ))}
                 </div>
