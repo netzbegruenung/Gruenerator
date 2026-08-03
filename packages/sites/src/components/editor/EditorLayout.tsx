@@ -15,7 +15,7 @@ export const EditorLayout = forwardRef<HTMLDivElement, EditorLayoutProps>(functi
   const { isMobileEditorOpen, toggleMobileEditor } = useEditorStore();
 
   return (
-    <div className="grid grid-cols-[1fr_1fr] h-[calc(100vh-60px)] overflow-hidden max-lg:grid-cols-1 max-lg:grid-rows-[1fr_auto]">
+    <div className="grid grid-cols-[1fr_1fr] h-[calc(100dvh-60px)] overflow-hidden max-lg:grid-cols-1 max-lg:grid-rows-[1fr_auto]">
       <div
         className={cn(
           'flex flex-col bg-grey-50 dark:bg-grey-900 border-r border-grey-200 dark:border-grey-700 h-full overflow-hidden',
@@ -34,7 +34,7 @@ export const EditorLayout = forwardRef<HTMLDivElement, EditorLayoutProps>(functi
         <div className="flex-1 overflow-y-auto overflow-x-hidden">{sidebar}</div>
       </div>
 
-      <div className="flex flex-col bg-grey-100 dark:bg-grey-800 h-full overflow-hidden max-lg:h-[calc(100vh-60px-56px)]">
+      <div className="flex flex-col bg-grey-100 dark:bg-grey-800 h-full overflow-hidden max-lg:h-[calc(100dvh-60px-56px)]">
         <div className="flex items-center justify-between py-sm px-md bg-background-pure border-b border-grey-200 dark:border-grey-700">
           <h3 className="m-0 text-base font-medium text-foreground">Vorschau</h3>
         </div>
