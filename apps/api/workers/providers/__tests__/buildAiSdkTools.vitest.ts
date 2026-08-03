@@ -1,3 +1,4 @@
+import { jsonSchema } from 'ai';
 import { describe, it, expect } from 'vitest';
 
 import ToolHandler from '../../../services/tools/index.js';
@@ -37,6 +38,33 @@ describe('buildAiSdkTools', () => {
   it('returns undefined for empty payloads', () => {
     expect(buildAiSdkTools({})).toBeUndefined();
     expect(buildAiSdkTools({ tools: [] })).toBeUndefined();
+  });
+
+  /**
+   * `generateStructured` and `toolForcedEdit` hand over an ALREADY wrapped
+   * `input_schema`. Wrapping it a second time here used to send the provider
+   * `{"jsonSchema": {…}}` as the parameter schema — no `type`, no `properties`.
+   * Live on 02.08.2026 the model followed that shape faithfully and answered
+   * `{"jsonSchema":{"title":…,"blocks":[…]}}`, which the PDF/deck validators
+   * rejected as "title: Required; blocks: Required".
+   */
+  it('does not wrap an already-wrapped schema a second time', () => {
+    const real = {
+      type: 'object' as const,
+      properties: { title: { type: 'string' }, blocks: { type: 'array' } },
+      required: ['title', 'blocks'],
+    };
+    const payload = ToolHandler.prepareToolsPayload(
+      { tools: [{ name: 'create_pdf', description: 'x', input_schema: jsonSchema(real) }] },
+      'mistral',
+      'req',
+      'test'
+    );
+    const tools = buildAiSdkTools(payload);
+    // What the provider actually receives as `parameters`.
+    expect((tools!['create_pdf']!.inputSchema as ReturnType<typeof jsonSchema>).jsonSchema).toEqual(
+      real
+    );
   });
 });
 

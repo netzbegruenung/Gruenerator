@@ -15,6 +15,7 @@
 import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/chat-intents';
 import { type ModelMessage } from 'ai';
 
+import { NO_ARTIFACT_URL_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import { forbidsNewResearch } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { applyContextCap } from '../../../../utils/contextCap.js';
 import { createLogger } from '../../../../utils/logger.js';
@@ -413,10 +414,10 @@ export function buildArtifactNotes(
             : state.createdDocument.subtype === 'sheets'
               ? 'eine Tabelle'
               : 'ein Dokument'
-        } ("${state.createdDocument.title}") erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und fasse die recherchierten Kerninhalte zusammen.`
+        } ("${state.createdDocument.title}") erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und fasse die recherchierten Kerninhalte zusammen. ${NO_ARTIFACT_URL_RULE}`
       : '',
     state.createdBoard != null
-      ? `HINWEIS: In diesem Turn wurde bereits ein Board ("${state.createdBoard.title}") erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und nenne den Link (/boards/${state.createdBoard.boardId}).`
+      ? `HINWEIS: In diesem Turn wurde bereits ein Board ("${state.createdBoard.title}") erstellt und dem*der Nutzer*in angezeigt — kündige es kurz an und nenne den Pfad genau so: /boards/${state.createdBoard.boardId}. ${NO_ARTIFACT_URL_RULE}`
       : '',
     state.compoundEdit === true
       ? 'HINWEIS: Die recherchierten Inhalte werden gerade in das GEÖFFNETE Dokument eingefügt. Schreibe NUR eine KURZE Bestätigung (1–2 Sätze), die das Thema nennt und sagt, dass es ins Dokument eingearbeitet wird — KEINE lange Ausformulierung (der Inhalt landet im Dokument, nicht im Chat).'
