@@ -8,6 +8,8 @@ import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
 import { env } from './config/env.js';
 import { requireAdminToken } from './middleware/adminTokenMiddleware.js';
+import { requireApiKey } from './middleware/apiKeyMiddleware.js';
+import { apiKeyRateLimit } from './middleware/apiKeyRateLimitMiddleware.js';
 import authMiddleware from './middleware/authMiddleware.js';
 import { deprecatedRoute } from './middleware/deprecatedRoute.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
@@ -145,6 +147,7 @@ import v1ChatCompletionsRouter, {
 } from './routes/v1/chatCompletionsRouter.js';
 import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
 import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
+import { mountPushIngestContractRouter } from './routes/v1/pushIngestContractRouter.js';
 import { mountVideoContractRouter } from './routes/video/videoContractRouter.js';
 import ttsRouter from './routes/voice/ttsController.js';
 import { mountVoiceContractRouter } from './routes/voice/voiceContractRouter.js';
@@ -425,6 +428,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Auth: per-route Bearer API key middleware (requireApiKey). Rate-limited
   // per-key via apiKeyRateLimit. LV scope enforced inside each handler.
   app.use('/api/v1/notebooks', v1NotebooksRouter);
+  // External push-ingest API (WordPress gruenerator-sync plugin). ts-rest contract
+  // router, so the API-key + rate-limit middleware must be applied at the prefix
+  // before createExpressEndpoints registers the absolute paths on `app`.
+  app.use('/api/v1/push', requireApiKey, apiKeyRateLimit('push'));
+  mountPushIngestContractRouter(app);
   // OpenAI-compatible model access for headless clients with their own agent
   // loop (Excel add-in). Same Bearer-API-key auth, plus a 'chat:completions'
   // scope check and a model allowlist inside the router.

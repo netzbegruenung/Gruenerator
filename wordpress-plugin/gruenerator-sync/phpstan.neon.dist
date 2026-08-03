@@ -1,0 +1,10 @@
+parameters:
+    level: 6
+    paths:
+        - gruenerator-sync.php
+        - uninstall.php
+        - src
+    bootstrapFiles:
+        - gruenerator-sync.php
+includes:
+    - vendor/szepeviktor/phpstan-wordpress/extension.neon

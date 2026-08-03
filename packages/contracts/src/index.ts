@@ -82,6 +82,7 @@ export {
   contentSyncContract,
   monitorContract,
   sitesContract,
+  pushIngestContract,
   reisekostenContract,
   promptsContract,
 } from './contracts/index.js';
@@ -161,6 +162,7 @@ export * from './schemas/contentSync.js';
 export * from './schemas/monitor.js';
 export * from './schemas/sites.js';
 export * from './schemas/richtext.js';
+export * from './schemas/pushIngest.js';
 export * from './schemas/reisekosten.js';
 
 // Sheets (Univer) collab schema + pure formatting helpers — Univer-free, shared

@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<ruleset name="gruenerator-sync">
+    <description>WordPress coding standards for Grünerator Sync.</description>
+
+    <file>gruenerator-sync.php</file>
+    <file>uninstall.php</file>
+    <file>src</file>
+
+    <arg name="extensions" value="php"/>
+    <arg value="ps"/>
+
+    <rule ref="WordPress-Extra"/>
+    <rule ref="WordPress.WP.I18n">
+        <properties>
+            <property name="text_domain" type="array" value="gruenerator-sync"/>
+        </properties>
+    </rule>
+
+    <config name="minimum_supported_wp_version" value="6.5"/>
+    <config name="testVersion" value="8.1-"/>
+    <rule ref="PHPCompatibilityWP"/>
+</ruleset>
