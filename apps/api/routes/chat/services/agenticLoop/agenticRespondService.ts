@@ -15,7 +15,10 @@
 import { type ChatIntentId, intentsWithDisposition } from '@gruenerator/shared/chat-intents';
 import { type ModelMessage } from 'ai';
 
-import { NO_ARTIFACT_URL_RULE } from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
+import {
+  knownArtifactRefs,
+  NO_ARTIFACT_URL_RULE,
+} from '../../../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import { forbidsNewResearch } from '../../../../agents/langgraph/ChatGraph/nodes/fastPathGuards.js';
 import { applyContextCap } from '../../../../utils/contextCap.js';
 import { createLogger } from '../../../../utils/logger.js';
@@ -41,6 +44,7 @@ import {
   defersToSearchDespiteSources,
   deniesSearchAbilityDespiteSearching,
   looksCutOff,
+  stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
 } from '../outputSanity.js';
 import { resolveModel, type ResolvedModelTuple } from '../responseStreamingService.js';
@@ -1340,6 +1344,15 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
       `[Agentic] Removed fabricated internal file claim(s): ${sanity.fabricated.join(', ')}`
     );
     text = sanity.text;
+  }
+
+  // Same guarantee as the single-pass funnel: no typed-out file, no invented
+  // artefact path. The allowlist carries this turn's and the thread's real ids,
+  // so the `/boards/<id>` the board note ASKS the model to print survives.
+  const delivery = stripFabricatedArtifactDelivery(text, knownArtifactRefs(finalState));
+  if (delivery.removed.length > 0) {
+    log.warn(`[Agentic] Removed fabricated artefact delivery: ${delivery.removed.join(', ')}`);
+    text = delivery.text;
   }
 
   if (
