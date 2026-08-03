@@ -366,7 +366,7 @@ const LetterheadsSection = () => {
           ) : (
             <li
               key={lh.id}
-              className="flex items-start justify-between gap-sm rounded-md border border-grey-200 p-sm dark:border-grey-700"
+              className="flex flex-wrap items-start justify-between gap-sm rounded-md border border-grey-200 p-sm dark:border-grey-700"
             >
               <div className="min-w-0">
                 <p className="m-0 text-sm text-foreground">
@@ -389,7 +389,7 @@ const LetterheadsSection = () => {
                 </p>
                 <StationeryField letterhead={lh} />
               </div>
-              <div className="flex flex-shrink-0 gap-xs">
+              <div className="flex flex-wrap gap-xs">
                 {!lh.is_default && (
                   <Button
                     type="button"
