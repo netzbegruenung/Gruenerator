@@ -69,7 +69,7 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
           // Mobile: bottom sheet
           'bottom-0 left-0 right-0 max-h-[85vh] rounded-t-2xl shadow-[0_-4px_24px_rgba(0,0,0,0.12)]',
           // Desktop: side panel
-          'lg:top-0 lg:right-0 lg:bottom-0 lg:left-auto lg:w-[480px] lg:max-h-screen lg:rounded-l-2xl lg:rounded-tr-none lg:shadow-[-4px_0_24px_rgba(0,0,0,0.12)]',
+          'lg:top-0 lg:right-0 lg:bottom-0 lg:left-auto lg:w-[480px] lg:max-h-dvh lg:rounded-l-2xl lg:rounded-tr-none lg:shadow-[-4px_0_24px_rgba(0,0,0,0.12)]',
           'min-[1440px]:w-[520px]',
           'dark:shadow-[0_-4px_24px_rgba(0,0,0,0.4)] dark:lg:shadow-[-4px_0_24px_rgba(0,0,0,0.4)]'
         )}

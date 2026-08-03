@@ -16,7 +16,7 @@ export function HomePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-neutral-600 dark:from-grey-900 dark:to-grey-950 p-[var(--spacing-responsive-large)]">
+      <div className="min-h-dvh flex items-center justify-center bg-gradient-to-br from-primary-50 to-neutral-600 dark:from-grey-900 dark:to-grey-950 p-[var(--spacing-responsive-large)]">
         <div className="text-center p-[var(--spacing-responsive-large)] max-w-[600px] md:p-[var(--spacing-responsive-xlarge)]">
           <div className="w-10 h-10 border-[3px] border-grey-200 dark:border-grey-700 border-t-primary-600 rounded-full animate-spin" />
           <p className="text-[length:var(--font-size-lg)] text-grey-600 dark:text-grey-400 mb-xl">
@@ -28,7 +28,7 @@ export function HomePage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-neutral-600 dark:from-grey-900 dark:to-grey-950 p-[var(--spacing-responsive-large)]">
+    <div className="min-h-dvh flex items-center justify-center bg-gradient-to-br from-primary-50 to-neutral-600 dark:from-grey-900 dark:to-grey-950 p-[var(--spacing-responsive-large)]">
       <div className="text-center p-[var(--spacing-responsive-large)] max-w-[600px] md:p-[var(--spacing-responsive-xlarge)]">
         <h1 className="text-[length:var(--font-size-2xl)] text-primary-600 dark:text-primary-400 mb-md md:text-[length:var(--font-size-3xl)]">
           Grünerator Sites
