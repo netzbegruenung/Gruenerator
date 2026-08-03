@@ -1335,12 +1335,22 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       hasTabularAttachment: state.hasTabularAttachment ?? false,
     });
 
-    // Penalize confidence for multi-topic search queries → forces LLM decomposition
+    // Both penalties were written to "force the LLM tier". That tier is gone
+    // (the dispositions series deleted Tier 4), so what they do NOW is hold the
+    // turn back from the Tier-3 early return below and let it walk the rest of
+    // the ladder — 3.4, the loop demotion, the generation scope, the residual.
+    // That is still a defensible effect, and it is the only one, so the names
+    // and the log lines say it. Nothing about the behaviour changes here; what
+    // changes is that reading the log no longer suggests a call that never
+    // happens (a live log full of "forcing LLM (0.80 → 0.50)" immediately
+    // followed by "LLM skipped" cost real debugging time on 02.08.2026).
     const isSearchIntent = !NON_SEARCH_INTENTS.has(heuristic.intent);
     const needsDecomposition = isSearchIntent && looksMultiTopic(userContent);
 
-    // Penalize confidence for vague follow-ups in multi-turn conversations →
-    // forces LLM path which now has conversation context for query enrichment
+    // A short message inside a running conversation carries no signal of its
+    // own. The penalty is not its only job any more: `isVagueFollowup` also
+    // feeds `selfContained` at Tier 3.5, which is what keeps "mach es blauer"
+    // out of a planner that has nothing to plan.
     const isVagueFollowup = conversationContext && userContent.split(/\s+/).length <= 8;
 
     const effectiveConfidence =
@@ -1348,12 +1358,12 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
 
     if (needsDecomposition) {
       log.info(
-        `[Classifier] Multi-topic detected, forcing LLM (${heuristic.confidence.toFixed(2)} → ${effectiveConfidence.toFixed(2)})`
+        `[Classifier] Multi-topic — past the heuristic early return (${heuristic.confidence.toFixed(2)} → ${effectiveConfidence.toFixed(2)})`
       );
     }
     if (isVagueFollowup) {
       log.info(
-        `[Classifier] Vague follow-up in conversation, forcing LLM (${heuristic.confidence.toFixed(2)} → ${effectiveConfidence.toFixed(2)})`
+        `[Classifier] Vague follow-up — past the heuristic early return (${heuristic.confidence.toFixed(2)} → ${effectiveConfidence.toFixed(2)})`
       );
     }
 
@@ -1537,7 +1547,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
 
     const demoteToLoop = (tier: 'tier3.5_loop_demotion') => {
       log.info(
-        `[Classifier] Loop demotion (${tier}): heuristic ${heuristic.intent}@${effectiveConfidence.toFixed(2)} < ${HEURISTIC_CONFIDENCE_THRESHOLD} → agentic (LLM skipped)`
+        `[Classifier] Loop demotion (${tier}): heuristic ${heuristic.intent}@${effectiveConfidence.toFixed(2)} (< ${HEURISTIC_CONFIDENCE_THRESHOLD}, demotable) → agentic`
       );
       recordDecision('classifier.tier', tier, {
         inputs: {
