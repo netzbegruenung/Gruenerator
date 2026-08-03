@@ -178,7 +178,7 @@ const ZeichenzaehlerPage = () => {
   return (
     <div
       style={{
-        minHeight: '100vh',
+        minHeight: '100dvh',
         background: 'var(--color-background)',
         padding: 'clamp(24px, 6vw, 48px) clamp(14px, 4vw, 24px) 80px',
         boxSizing: 'border-box',

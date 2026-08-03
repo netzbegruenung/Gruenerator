@@ -53,3 +53,39 @@ describe('slide body markdown ⇄ fragment', () => {
     expect(pmJSONToMarkdown({ type: 'doc', content: [] })).toBe('');
   });
 });
+
+/**
+ * The slide-body schema has no table node, and a markdown table used to vanish
+ * entirely: `Tokens.Table` carries `header`/`rows` and no `.text`, so it hit
+ * `blockToPM`'s default branch and produced `[]`.
+ *
+ * The gate that should have caught it could not: `findEmptySlides` reads the
+ * GENERATED STRUCTURE, where the body was a full table, while the loss happens
+ * later, at seeding. On 03.08.2026 a slide titled "Quellenmatrix" reached the
+ * audience as a headline over white space.
+ */
+describe('a markdown table survives as a list', () => {
+  it('keeps every cell, labelled by its column', () => {
+    const md = ['| Quelle | Datum |', '| --- | --- |', '| Rat der EU | 05.03.2026 |'].join('\n');
+    expect(roundTrip(md)).toBe('- Quelle: Rat der EU — Datum: 05.03.2026');
+  });
+
+  it('keeps a multi-row matrix intact', () => {
+    const md = [
+      '| Punkt | Wert |',
+      '| --- | --- |',
+      '| Minderung | 90 % |',
+      '| Bezugsjahr | 1990 |',
+    ].join('\n');
+    expect(roundTrip(md)).toBe('- Punkt: Minderung — Wert: 90 %\n- Punkt: Bezugsjahr — Wert: 1990');
+  });
+
+  it('does not label a header-only table with itself', () => {
+    expect(roundTrip('| Eins | Zwei |\n| --- | --- |')).toBe('- Eins — Zwei');
+  });
+
+  it('never yields an empty body for a non-empty table', () => {
+    const md = '| A |\n| --- |\n| x |';
+    expect(roundTrip(md).trim().length).toBeGreaterThan(0);
+  });
+});

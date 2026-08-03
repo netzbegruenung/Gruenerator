@@ -60,7 +60,7 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          'fixed top-[50%] left-[50%] z-[1010] grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-background p-6 shadow-lg duration-200 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-[32rem]',
+          'fixed top-[50%] left-[50%] z-[1010] grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto rounded-lg border bg-background p-6 shadow-lg duration-200 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-[32rem]',
           className
         )}
         {...props}
@@ -70,8 +70,10 @@ function DialogContent({
           <DialogPrimitive.Close
             data-slot="dialog-close"
             // 44px hit area on touch (WCAG 2.2 "Target Size"); the icon stays
-            // 16px, only the tappable box grows.
-            className="absolute top-2 right-2 flex size-11 items-center justify-center rounded-md opacity-70 ring-offset-background-pure transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-hover-alt sm:top-3 sm:right-3 sm:size-9 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+            // 16px, only the tappable box grows. Gated on the pointer type
+            // (pointer-coarse:), not the viewport width — an iPad is a touch device
+            // regardless of how wide its window is.
+            className="absolute top-3 right-3 flex size-9 items-center justify-center rounded-md opacity-70 ring-offset-background-pure transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-hover-alt pointer-coarse:top-2 pointer-coarse:right-2 pointer-coarse:size-11 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
           >
             <XIcon />
             <span className="sr-only">Close</span>
