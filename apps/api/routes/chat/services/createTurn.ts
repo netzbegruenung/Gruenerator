@@ -112,9 +112,23 @@ export function buildCreateTurnContext(
 }
 
 /**
+ * The brief asks the model to judge what it ITSELF said earlier: "Prüfe deine
+ * Antworten auf Follow-up 1 bis 9", "Bewerte deine bisherigen Angaben".
+ */
+const SELF_AUDIT_BRIEF_RE =
+  /\bselbst(?:pr[üu]fung|kontrolle)\b|\b(?:pr[üu]f|[üu]berpr[üu]f|kontrollier|bewert|evaluier|beurteil)\w*\b[^.!?\n]{0,40}?\b(?:deine|meine|eigene|eigenen|bisherige|bisherigen|obige|obigen|vorherige|vorherigen)\b[^.!?\n]{0,20}?\b(?:antwort\w*|angaben|aussage\w*|ergebnis\w*|ausgabe\w*)\b/i;
+
+/**
  * Frames the transcript so the model knows which half is the instruction. The
  * brief goes LAST: it is what the turn is for, and recency is the cheapest way
  * to say so.
+ *
+ * On a self-audit the label flips from "Hintergrund" to "Prüfgegenstand". The
+ * word matters because the two readings license opposite behaviour: background
+ * may be summarised generously, a subject of examination may not. Live on
+ * 03.08.2026 the transcript said an earlier task had gone unanswered, and the
+ * check reported it as PASS with a freshly computed, correct result attached —
+ * it graded the solvable task instead of the answer that was actually given.
  *
  * Exported because the agentic loop's artifact tools need the identical framing:
  * a generator is a SEPARATE model call with no access to the chat's system
@@ -122,9 +136,11 @@ export function buildCreateTurnContext(
  * it — see `makeCreateDocTool` in `agents/domainTools.ts`.
  */
 export function withConversationContext(brief: string, transcript: string): string {
-  return transcript.trim()
-    ? `BISHERIGES GESPRÄCH (Hintergrund — ein Auftrag wie „mach ein PDF daraus" bezieht sich auf den letzten Beitrag darin):\n${transcript}\n\nAUFTRAG:\n${brief}`
-    : brief;
+  if (!transcript.trim()) return brief;
+  const frame = SELF_AUDIT_BRIEF_RE.test(brief)
+    ? 'BISHERIGES GESPRÄCH (PRÜFGEGENSTAND — bewerte ausschließlich, was hier TATSÄCHLICH steht. Eine Aufgabe ohne Antwort ist nicht bestanden, auch wenn du sie jetzt lösen könntest; trage keine nachträglich richtige Lösung in die Bewertung ein):'
+    : 'BISHERIGES GESPRÄCH (Hintergrund — ein Auftrag wie „mach ein PDF daraus" bezieht sich auf den letzten Beitrag darin):';
+  return `${frame}\n${transcript}\n\nAUFTRAG:\n${brief}`;
 }
 
 export interface CreateTurnOpts {
