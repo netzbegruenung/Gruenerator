@@ -457,7 +457,8 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     mcpExposed: true,
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne Berlin',
-    description: 'Pressemitteilungen und Beschlüsse der Grünen Berlin (Landesverband & Fraktion)',
+    description:
+      'Pressemitteilungen, Beschlüsse und Wahlprüfsteine der Grünen Berlin (Landesverband & Fraktion)',
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
