@@ -54,6 +54,13 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Ohne dieses Feld tauscht die Action ihr OIDC-Token gegen ein Token
+          # der Claude-Code-GitHub-App — die auf diesem Repo nicht installiert
+          # ist, was den Job mit 401 beendet, bevor Claude ueberhaupt startet.
+          # Ein explizites github_token wird in setupGitHubToken() direkt
+          # zurueckgegeben und ueberspringt den Tausch. Kommentare kommen dann
+          # von github-actions[bot] statt von claude[bot].
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           track_progress: true
           prompt: |
             /review ${{ github.event.pull_request.number }}
