@@ -100,6 +100,8 @@ describe('laneFallback', () => {
     // these lanes started.
     expect(laneFallback('antrag')).toEqual(['litellm', 'mistral']);
     expect(laneFallback('social')).toEqual(['litellm', 'mistral']);
-    expect(laneFallback('doc_generation')).toEqual(['litellm', 'regolo']);
+    // `doc_generation` liegt auf GreenPT, das in keiner der beiden Ketten
+    // steht — also bleiben alle drei übrig, Mistral als letzte Instanz.
+    expect(laneFallback('doc_generation')).toEqual(['litellm', 'regolo', 'mistral']);
   });
 });

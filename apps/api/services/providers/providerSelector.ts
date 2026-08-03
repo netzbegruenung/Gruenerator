@@ -109,8 +109,8 @@ interface SelectProviderParams {
  * Ein Aufrufer darf weiterhin sein eigenes Modell benennen (`options.model`).
  */
 const STRUCTURE_TYPES: ReadonlySet<string> = new Set([
-  // Artefakte über erzwungene Tool-Calls
-  'doc_generation', // PDF, Präsentation, Sheet, Dokument, Aufgabenlisten
+  // Artefakte über erzwungene Tool-Calls. `doc_generation` ist HIER NICHT MEHR
+  // drin — siehe ARTIFACT_MODEL.
   'board_generation',
   'canvas_ai_suggest', // Canvas-Vorschläge + Sharepic-/Social-Edits
   'website', // Kandidat*innen-Seiten: langes strukturiertes JSON
@@ -170,6 +170,38 @@ const TEXT_PROVIDER = 'regolo';
 const TEXT_MODEL = 'gemma4-31b';
 
 /**
+ * PDF, Präsentation, Sheet und Dokument — Gemma 4 auf GreenPT statt Mistral
+ * Medium 3.5.
+ *
+ * Der Kommentar über STRUCTURE_TYPES begründet den Mistral-Pin damit, dass nur
+ * Mistral den erzwungenen Tool-Call bedient. Für DIESE Lane stimmt das nicht:
+ * gemessen am 03.08.2026 gegen die echten Prompts, Schemata und Validatoren
+ * (langes PDF, 14-Folien-Deck) rief Mistral das Tool in keinem einzigen Lauf
+ * auf. Es schrieb das JSON als Prosa und lief in `finish_reason=length` —
+ * gerettet hat es nur der Text-Fallback in generateStructured, und der nur in
+ * 2 von 4 Läufen. Mit größerem Budget wird es schlechter statt besser: bei
+ * 12.000 Tokens 187 s, bei 16.000 Tokens 248 s, beide Male in Wiederholung
+ * degeneriert (Tool-Name ```jsonljsonljsonljsonl). Auf der Mistral-API wie auf
+ * Scaleway gleich.
+ *
+ * gemma4 auf GreenPT ruft `create_pdf_document` / `create_presentation` sauber
+ * auf und terminiert: 10 von 10 gültig, 17–43 s statt 63 s pro Versuch.
+ *
+ * NICHT verallgemeinert. Die anderen STRUCTURE_TYPES sind ungemessen, und die
+ * Sharepics sitzen aus einem eigenen gemessenen Grund auf Mistral. Die
+ * Schwester-Lanes bei Regolo (`gemma4-31b`) und LiteLLM (`verdigado-think`)
+ * liefern zwar gültiges JSON, aber nur über den Text-Fallback und mit 105–168 s
+ * bei LiteLLM.
+ *
+ * Voraussetzung ist das größere Output-Budget in services/ai/config.ts: bei
+ * 4096 Tokens verliert ein abgeschnittener Tool-Call ALLES (`content` bleibt
+ * leer, der Text-Fallback hat nichts zu greifen), während Mistrals Prosa noch
+ * halb rettbar war. Budget und Modell gehören hier zusammen.
+ */
+const ARTIFACT_PROVIDER = 'greenpt';
+const ARTIFACT_MODEL = 'gemma4';
+
+/**
  * Select provider and model given request context and environment
  * Handles type-based routing and environment overrides
  */
@@ -216,7 +248,12 @@ export function selectProviderAndModel({
   // Mistral-API einen verdigado-Alias, kassierte einen Fehler und wurde von
   // der Fallback-Kette gerettet — ein garantiert scheiternder Roundtrip pro
   // Request, unsichtbar hinter dem Fallback.
-  else if (STRUCTURE_TYPES.has(type)) {
+  // Artefakte (PDF, Präsentation, Sheet, Dokument) — Gemma 4 auf GreenPT.
+  // Siehe ARTIFACT_MODEL.
+  else if (type === 'doc_generation') {
+    provider = ARTIFACT_PROVIDER;
+    model = options.model || ARTIFACT_MODEL;
+  } else if (STRUCTURE_TYPES.has(type)) {
     provider = 'mistral';
     model = options.model || STRUCTURE_MODEL;
   }
