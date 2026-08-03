@@ -71,8 +71,8 @@ function ChatPage() {
   const location = useLocation();
   // False while the lazy assistant-ui runtime chunk is still loading (or in the
   // Suspense fallback on a cold direct load of /chat). Gating the runtime-using
-  // content below on it keeps useAssistantRuntime()/useComposerRuntime() from
-  // running outside the provider — the "requires an AuiProvider" prod crash.
+  // content below on it keeps useAui() from running outside the provider —
+  // the "requires an AuiProvider" prod crash.
   const runtimeReady = useChatRuntimeReady();
   const chatViewMode = useAgentStore((s) => s.chatViewMode);
   const currentThreadTitle = useAgentStore((s) => s.currentThreadTitle);

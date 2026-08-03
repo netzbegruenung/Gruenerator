@@ -40,8 +40,8 @@ export default function ChatScreen() {
 
   const handleSend = useCallback(
     (text: string) => {
-      aui.composer().setText(text);
-      aui.composer().send();
+      aui.composer.setText(text);
+      aui.composer.send();
       setShowThread(true);
     },
     [aui]

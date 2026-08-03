@@ -1,6 +1,6 @@
 'use client';
 
-import { useMessage } from '@assistant-ui/react';
+import { useAuiState } from '@assistant-ui/react';
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 
 import type { ChatMessageMetadata } from '../types/messageMetadata';
@@ -33,7 +33,7 @@ export function ExtraActionsProvider({
 
 export function useExtraActions(): ExtraAction[] {
   const factory = useContext(ExtraActionsContext);
-  const message = useMessage();
+  const message = useAuiState((s) => s.message);
 
   return useMemo(() => {
     if (!factory) return [];

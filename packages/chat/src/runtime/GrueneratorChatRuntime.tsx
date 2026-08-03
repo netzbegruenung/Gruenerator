@@ -82,7 +82,7 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
       async load() {
         let remoteId: string | null;
         try {
-          const itemState = aui.threadListItem().getState();
+          const itemState = aui.threadListItem.getState();
           remoteId = itemState.status === 'new' ? null : (itemState.remoteId ?? null);
         } catch (err) {
           console.warn('[History] Thread entry not available (likely deleted):', err);
@@ -393,10 +393,10 @@ function ThreadTitleEffect() {
   useEffect(() => {
     if (messageCount >= 2 && currentThreadId && titleTriggeredRef.current !== currentThreadId) {
       try {
-        const state = aui.threadListItem().getState();
+        const state = aui.threadListItem.getState();
         if (!state.title) {
           titleTriggeredRef.current = currentThreadId;
-          aui.threadListItem().generateTitle();
+          aui.threadListItem.generateTitle();
         }
       } catch (err: unknown) {
         console.warn('[TitleGen] Thread entry not available (likely deleted):', err);
