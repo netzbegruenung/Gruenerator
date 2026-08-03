@@ -139,4 +139,27 @@ describe('sampling is the same wherever the request lands', () => {
       expect(sentToSdk().topP, name).toBe(1);
     }
   });
+
+  it('artifact generation is sent with NO output cap at all', async () => {
+    // A deck, a sheet or a PDF has no length anyone can name in advance, and
+    // the generic 4096 default cut one off live on 03.08.2026 (finish_reason=
+    // length at exactly 4096 output tokens, torso shipped as a finished deck).
+    // A bigger number would only move the cliff — and above a fallback model's
+    // own limit it is an error, not a longer document. Omitting the field lets
+    // each model's own ceiling apply, the only bound correct per model.
+    for (const name of PROVIDERS) {
+      generateText.mockClear();
+      await run(name, { ...request(), type: 'doc_generation' });
+      expect(sentToSdk(), name).not.toHaveProperty('maxOutputTokens');
+    }
+  });
+
+  it('still caps everything that is not an artifact', async () => {
+    // The uncapping is a per-type exception, not a removal of the mechanism.
+    for (const name of PROVIDERS) {
+      generateText.mockClear();
+      await run(name, request());
+      expect(sentToSdk().maxOutputTokens, name).toBe(4096);
+    }
+  });
 });

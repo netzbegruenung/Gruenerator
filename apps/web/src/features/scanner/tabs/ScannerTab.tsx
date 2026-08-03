@@ -8,7 +8,7 @@ import {
   type OcrProvider,
   type ScannerExtractResponse,
 } from '@gruenerator/contracts';
-import { FeatureToggle } from '@gruenerator/ui';
+import { FeatureToggle, useIsMobile } from '@gruenerator/ui';
 import { motion, AnimatePresence } from 'motion/react';
 import { lazy, Suspense, useState, useCallback, useRef, useEffect } from 'react';
 import { HiX } from 'react-icons/hi';
@@ -18,7 +18,6 @@ import { useNavigate } from 'react-router-dom';
 import SubmitButton from '../../../components/common/SubmitButton';
 import apiClient from '../../../components/utils/apiClient';
 import { extractHTMLContent } from '../../../components/utils/contentExtractor';
-import useResponsive from '../../../hooks/useResponsive';
 import { cn } from '../../../utils/cn';
 import { uploadZoneVariants, AnimatedUploadIcon, AnimatedFileIcon } from '../ScannerAnimations';
 
@@ -52,7 +51,7 @@ const ScannerTab = () => {
   const [useHandwriting, setUseHandwriting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
-  const { isMobileView } = useResponsive(768);
+  const isMobileView = useIsMobile();
   const navigate = useNavigate();
 
   const validateFile = (file: File): string | null => {
@@ -282,7 +281,7 @@ const ScannerTab = () => {
               </div>
             ) : (
               <motion.div
-                className="relative cursor-pointer rounded-[20px] border-none bg-transparent px-12 py-16 text-center focus:outline-none focus-visible:rounded-full focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary max-md:rounded-2xl max-md:px-8 max-md:py-12 max-[480px]:rounded-xl max-[480px]:px-6 max-[480px]:py-10"
+                className="relative cursor-pointer rounded-[20px] border-none bg-transparent px-12 py-16 text-center focus:outline-none focus-visible:rounded-full focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
                 variants={uploadZoneVariants}
                 initial="idle"
                 whileHover="hover"

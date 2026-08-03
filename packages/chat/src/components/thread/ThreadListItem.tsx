@@ -150,7 +150,7 @@ export function GrueneratorThreadListItem() {
 
         <ThreadListItemMorePrimitive.Root>
           <ThreadListItemMorePrimitive.Trigger
-            className="flex h-6 w-6 items-center justify-center rounded opacity-0 transition-opacity hover:bg-primary/10 group-hover:opacity-100"
+            className="flex h-6 w-6 items-center justify-center rounded opacity-0 transition-opacity hover:bg-primary/10 group-hover:opacity-100 pointer-coarse:opacity-100"
             aria-label="Mehr Optionen"
           >
             <MoreVertical className="h-3.5 w-3.5" />
@@ -270,7 +270,7 @@ export function GrueneratorArchivedThreadListItem() {
 
       <ThreadListItemMorePrimitive.Root>
         <ThreadListItemMorePrimitive.Trigger
-          className="flex h-6 w-6 items-center justify-center rounded opacity-0 transition-opacity hover:bg-primary/10 group-hover:opacity-100"
+          className="flex h-6 w-6 items-center justify-center rounded opacity-0 transition-opacity hover:bg-primary/10 group-hover:opacity-100 pointer-coarse:opacity-100"
           aria-label="Mehr Optionen"
         >
           <MoreVertical className="h-3.5 w-3.5" />

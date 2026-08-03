@@ -19,7 +19,7 @@ const Footer = () => {
                 href="https://twitter.com/MoritzWaech"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-foreground text-[1.25em] transition-colors duration-300 hover:text-primary-500"
+                className="text-foreground text-[1.25em] transition-colors duration-300 hover:text-primary-500 pointer-coarse:inline-flex pointer-coarse:items-center pointer-coarse:justify-center pointer-coarse:min-w-11 pointer-coarse:min-h-11"
                 aria-label="Twitter von Moritz Wächter"
               >
                 <FaTwitter aria-hidden="true" />
@@ -28,7 +28,7 @@ const Footer = () => {
                 href="https://www.instagram.com/moritz_waechter/?hl=bg"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-foreground text-[1.25em] transition-colors duration-300 hover:text-primary-500"
+                className="text-foreground text-[1.25em] transition-colors duration-300 hover:text-primary-500 pointer-coarse:inline-flex pointer-coarse:items-center pointer-coarse:justify-center pointer-coarse:min-w-11 pointer-coarse:min-h-11"
                 aria-label="Instagram von Moritz Wächter"
               >
                 <FaInstagram aria-hidden="true" />
@@ -37,7 +37,7 @@ const Footer = () => {
                 href="https://www.linkedin.com/in/moritz-w%C3%A4chter-6ab033210"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-foreground text-[1.25em] transition-colors duration-300 hover:text-primary-500"
+                className="text-foreground text-[1.25em] transition-colors duration-300 hover:text-primary-500 pointer-coarse:inline-flex pointer-coarse:items-center pointer-coarse:justify-center pointer-coarse:min-w-11 pointer-coarse:min-h-11"
                 aria-label="LinkedIn von Moritz Wächter"
               >
                 <FaLinkedin aria-hidden="true" />

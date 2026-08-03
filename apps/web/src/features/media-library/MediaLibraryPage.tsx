@@ -135,7 +135,7 @@ const MediaCard: React.FC<MediaCardProps> = ({
       </div>
 
       {!selectionMode && (
-        <div className="absolute top-sm right-sm flex gap-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <div className="absolute top-sm right-sm flex gap-xs opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100 transition-opacity duration-200">
           {showDeleteConfirm ? (
             <div className="flex gap-xs">
               <button

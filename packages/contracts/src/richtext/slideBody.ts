@@ -142,10 +142,48 @@ function listToPM(token: Tokens.List): PMNode {
   };
 }
 
+/**
+ * A markdown table, rendered as a bullet list — one item per row, cells labelled
+ * with their column header.
+ *
+ * The schema above has no table node and will not get one lightly (it would pull
+ * the editor, the static renderer and the PPTX export along). What it must not
+ * do is lose the content: `Tokens.Table` carries `header`/`rows` and NO `.text`,
+ * so it fell into `blockToPM`'s default branch and became `[]` — silently, and
+ * AFTER `findEmptySlides` had already passed the deck, because that gate reads
+ * the generated structure while the loss happens later, at seeding.
+ *
+ * Live on 03.08.2026: a slide titled "Quellenmatrix" reached the audience as a
+ * headline over white space.
+ */
+function tableToPM(token: Tokens.Table): PMNode {
+  const headers = token.header.map((cell) => cell.text.trim());
+  // A header-only table has nothing to label WITH — its cells are the content.
+  const labelled = token.rows.length > 0;
+  const rows = labelled ? token.rows : [token.header];
+  return {
+    type: 'bulletList',
+    content: rows.map((row) => {
+      const line = row
+        .map((cell, i) => {
+          const value = cell.text.trim();
+          if (!value) return '';
+          const header = headers[i];
+          return labelled && header ? `${header}: ${value}` : value;
+        })
+        .filter(Boolean)
+        .join(' — ');
+      return { type: 'listItem', content: [paragraph(textNode(line, []))] };
+    }),
+  };
+}
+
 function blockToPM(token: Token): PMNode[] {
   switch (token.type) {
     case 'list':
       return [listToPM(token as Tokens.List)];
+    case 'table':
+      return [tableToPM(token as Tokens.Table)];
     case 'space':
       return [];
     case 'paragraph':

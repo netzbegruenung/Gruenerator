@@ -16,7 +16,7 @@ interface CandidatePageProps {
 
 export function CandidatePage({ candidate }: CandidatePageProps) {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-dvh flex flex-col">
       <HeroSection data={candidate.hero} />
       <AboutSection data={candidate.about} />
       <HeroImageSection data={candidate.heroImage} />
