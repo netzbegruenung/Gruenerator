@@ -24,11 +24,11 @@ export interface AutoResolverContext {
 }
 
 export function resolveAutoModel(ctx: AutoResolverContext): TextModelId {
-  // Mistral Medium 3.5 is the notebook default; outside notebooks the
-  // previous defaults stay (Gemma general/creative, Mistral for
-  // instruction-heavy agents like the agent creator).
-  if (ctx.threadMode === 'notebook') return 'mistral-medium-3.5';
-  if (ctx.agent?.autoRoutingHint === 'precise') return 'mistral-medium-3.5';
-  if (ctx.agent?.autoRoutingHint === 'creative') return 'gemma-litellm';
-  return 'gemma-litellm';
+  // Ultra ist die Notizbuch-Vorgabe; außerhalb bleibt es bei den bisherigen
+  // Zuordnungen (Mittel allgemein/kreativ, Ultra für anweisungslastige Agenten
+  // wie den Agenten-Ersteller).
+  if (ctx.threadMode === 'notebook') return 'gruenerator-ultra';
+  if (ctx.agent?.autoRoutingHint === 'precise') return 'gruenerator-ultra';
+  if (ctx.agent?.autoRoutingHint === 'creative') return 'gruenerator-medium';
+  return 'gruenerator-medium';
 }
