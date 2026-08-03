@@ -6,11 +6,12 @@
 import {
   type CheerioCrawler as CheerioCrawlerClass,
   type CheerioCrawlingContext,
+} from '@crawlee/cheerio';
+import { type Configuration as CrawleeConfiguration, type Log } from '@crawlee/core';
+import {
   type PlaywrightCrawler as PlaywrightCrawlerClass,
   type PlaywrightCrawlingContext,
-  type Configuration as CrawleeConfiguration,
-  type Log,
-} from 'crawlee';
+} from '@crawlee/playwright';
 
 import { type CrawlerConfig, type RawCrawlResult, type CrawlOptions } from '../types.js';
 
@@ -19,6 +20,60 @@ interface CrawleeModule {
   PlaywrightCrawler: typeof PlaywrightCrawlerClass;
   Configuration: typeof CrawleeConfiguration;
   log: Log;
+}
+
+/**
+ * Why the three scoped packages and not the `crawlee` barrel.
+ *
+ * `crawlee/index.js` re-exports ELEVEN sub-packages eagerly, `@crawlee/jsdom`
+ * among them, and `@crawlee/jsdom/internals/jsdom-crawler.js:87` builds a
+ * `new ResourceLoader({...})` at module top level. jsdom 27 dropped that export.
+ * The root `pnpm.overrides` pin `"jsdom": "30.0.1"` (f453965bc, 31.07.2026)
+ * applies to `@crawlee/jsdom` too — it declares `^26.0.0`, but an override
+ * replaces the declared range instead of being checked against it. So since
+ * that commit `await import('crawlee')` throws on the very first line, in every
+ * container, for every URL. Every crawl has silently run on the naive
+ * FetchCrawler since: hence the 403 from consilium.europa.eu and the unreadable
+ * EUR-Lex hit on 03.08.2026.
+ *
+ * We use CheerioCrawler and PlaywrightCrawler; neither `@crawlee/cheerio`,
+ * `@crawlee/playwright` nor `@crawlee/core` depends on jsdom at all. Importing
+ * them directly means the broken module is never loaded and the override can
+ * stay where the security bump put it.
+ */
+let cachedModule: CrawleeModule | null = null;
+let importFailure: Error | null = null;
+
+async function loadCrawlee(): Promise<CrawleeModule> {
+  if (cachedModule) return cachedModule;
+  if (importFailure) throw importFailure;
+
+  try {
+    const [cheerio, core, playwright] = await Promise.all([
+      import('@crawlee/cheerio'),
+      import('@crawlee/core'),
+      import('@crawlee/playwright'),
+    ]);
+    cachedModule = {
+      CheerioCrawler: cheerio.CheerioCrawler,
+      PlaywrightCrawler: playwright.PlaywrightCrawler,
+      Configuration: core.Configuration,
+      log: core.log,
+    };
+    return cachedModule;
+  } catch (error) {
+    // Loud, and exactly once per process. A missing crawler is a deployment
+    // defect, not a property of the page being fetched — the previous wording
+    // ("Crawlee not available: …") arrived at `console.log` next to genuine
+    // remote failures and read like one for three days.
+    importFailure =
+      error instanceof Error ? error : new Error(String(error ?? 'Unknown import error'));
+    console.error(
+      '[CrawleeCrawler] Crawlee konnte nicht geladen werden — alle Crawls laufen ab jetzt auf dem einfachen fetch-Pfad (kein JavaScript, keine Bot-Umgehung). Das ist ein Installationsfehler, kein Seitenproblem:',
+      importFailure.message
+    );
+    throw importFailure;
+  }
 }
 
 interface CrawlerRunOptions {
@@ -41,17 +96,7 @@ export class CrawleeCrawler {
    * Crawls URL using Crawlee with memory-only storage
    */
   async crawlWithCrawlee(url: string, options: CrawlOptions = {}): Promise<RawCrawlResult> {
-    let crawlee: CrawleeModule;
-    try {
-      crawlee = await import('crawlee');
-    } catch (importError) {
-      throw new Error(
-        'Crawlee not available: ' +
-          (importError instanceof Error ? importError.message : 'Unknown error')
-      );
-    }
-
-    const { CheerioCrawler, PlaywrightCrawler, Configuration, log } = crawlee;
+    const { CheerioCrawler, PlaywrightCrawler, Configuration, log } = await loadCrawlee();
 
     // Reduce Crawlee log verbosity - only show warnings and errors
     log.setLevel(log.LEVELS.WARNING);
