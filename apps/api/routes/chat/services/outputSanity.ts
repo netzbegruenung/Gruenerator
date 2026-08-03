@@ -287,7 +287,7 @@ export function looksCutOff(text: string): boolean {
  * instead of answering, and it shipped into the post widget verbatim, exposing
  * internal prompt structure to the user.
  *
- * The agentic loop already recognises this shape (`looksDegenerateSynth`), but
+ * The agentic loop already recognises this shape (`looksLikeToolPlanLeak`), but
  * the single-pass composers have no equivalent. Two independent signals, both
  * of which a real post never carries: a JSON object literal with a quoted key,
  * and an English "let's search"-style announcement of work to come.

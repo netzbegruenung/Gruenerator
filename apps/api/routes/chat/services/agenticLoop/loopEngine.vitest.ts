@@ -4,7 +4,7 @@ import {
   runAgenticLoop,
   buildPrepareStep,
   createSentenceChunker,
-  looksDegenerateSynth,
+  looksLikeToolPlanLeak,
   looksLikeSynthRefusal,
   FORCE_FINISH_SYSTEM_SUFFIX,
   FORCE_FINISH_GATHER_SUFFIX,
@@ -313,29 +313,47 @@ describe('synthMessages — the tool replay must not reach the tool-less synth',
   });
 });
 
-describe('looksDegenerateSynth', () => {
+describe('looksLikeToolPlanLeak', () => {
   it('flags the observed live failure (short, English, names a mounted tool)', () => {
-    expect(looksDegenerateSynth("Let's perform web_search.", ['web_search'])).toBe(true);
+    expect(looksLikeToolPlanLeak("Let's perform web_search.", ['web_search'])).toBe(true);
   });
 
-  it('flags a short non-German sentence even without a tool name', () => {
-    expect(looksDegenerateSynth('I will search for that now.', [])).toBe(true);
+  it('flags an announced action even without a tool name', () => {
+    expect(looksLikeToolPlanLeak('I will search for that now.', [])).toBe(true);
+  });
+
+  // The two answers this guard destroyed live on 02.08.2026 — both correct, both
+  // in the format the message prescribed, both replaced with "Ich konnte dazu
+  // leider keine passende Antwort finden". They are short, English-free and
+  // carry no German function word, which is exactly what the deleted rule
+  // punished.
+  it('keeps a short answer whose format the user prescribed', () => {
+    expect(looksLikeToolPlanLeak('ALT=45000 €; NEU=49500 €; DIFFERENZ=4500 €', ['web_search'])).toBe(
+      false
+    );
+    expect(
+      looksLikeToolPlanLeak('ZUSTAND=ORIGINAL; STANDORTE=75|80; SATZ=600EUR', ['web_search'])
+    ).toBe(false);
+  });
+
+  it('keeps a short answer in a foreign language', () => {
+    expect(looksLikeToolPlanLeak('The budget gap remains unresolved.', ['web_search'])).toBe(false);
   });
 
   it('accepts a short GERMAN confirmation', () => {
-    expect(looksDegenerateSynth('Erledigt — die Spalte wurde ergänzt.', ['web_search'])).toBe(
+    expect(looksLikeToolPlanLeak('Erledigt — die Spalte wurde ergänzt.', ['web_search'])).toBe(
       false
     );
   });
 
   it('never flags a bare token or an empty answer', () => {
-    expect(looksDegenerateSynth('Erledigt', [])).toBe(false);
-    expect(looksDegenerateSynth('   ', ['web_search'])).toBe(false);
+    expect(looksLikeToolPlanLeak('Erledigt', [])).toBe(false);
+    expect(looksLikeToolPlanLeak('   ', ['web_search'])).toBe(false);
   });
 
   it('never flags real prose, even if it mentions a tool name', () => {
     const long = `Das Wirtschaftswachstum liegt laut OeNB bei 0,6 Prozent [1]. ${'Weitere Details dazu findest du in den Quellen. '.repeat(4)} web_search`;
-    expect(looksDegenerateSynth(long, ['web_search'])).toBe(false);
+    expect(looksLikeToolPlanLeak(long, ['web_search'])).toBe(false);
   });
 });
 
@@ -373,7 +391,7 @@ describe('looksLikeSynthRefusal', () => {
   });
 });
 
-describe('split synthesis — degenerate answer is retried, never streamed', () => {
+describe('split synthesis — a leaked tool plan is retried, never streamed', () => {
   function synthDeps(answers: string[]): { deps: LoopDeps; systems: string[] } {
     const systems: string[] = [];
     let call = 0;
@@ -404,13 +422,13 @@ describe('split synthesis — degenerate answer is retried, never streamed', () 
     expect(out.text).toBe('Das Wachstum liegt laut OeNB bei 0,6 Prozent [1].');
     expect(systems).toHaveLength(2);
     expect(systems[1]).toContain(SYNTH_RETRY_SYSTEM_SUFFIX.trim().slice(0, 30));
-    // The degenerate first pass stayed buffered — the client never saw it.
+    // The leaked first pass stayed buffered — the client never saw it.
     const streamed = onText.mock.calls.map((c) => c[0] as string).join('');
     expect(streamed).toBe('Das Wachstum liegt laut OeNB bei 0,6 Prozent [1].');
     expect(streamed).not.toContain('web_search');
   });
 
-  it('emits nothing at all when both passes degenerate (caller fallback takes over)', async () => {
+  it('emits nothing at all when both passes leak a plan (caller fallback takes over)', async () => {
     const onText = vi.fn();
     const { deps } = synthDeps(["Let's perform web_search.", 'Now calling web_search again.']);
 
@@ -753,28 +771,28 @@ describe('createSentenceChunker', () => {
   });
 });
 
-describe('looksDegenerateSynth — markup is not degeneration', () => {
+describe('looksLikeToolPlanLeak — markup is not a leaked plan', () => {
   it('keeps a short HTML answer the user explicitly asked for', () => {
     // Live symptom: "gib mir den Text mit HTML-Tags" produced markup with no
     // German function word, the gate discarded it, and the turn reported the
     // generic fallback instead — no content, no error.
-    expect(looksDegenerateSynth('<p>Klimaschutz jetzt</p>', ['web_search'])).toBe(false);
+    expect(looksLikeToolPlanLeak('<p>Klimaschutz jetzt</p>', ['web_search'])).toBe(false);
   });
 
   it('keeps a short fenced code answer', () => {
-    expect(looksDegenerateSynth('```js\nconst a = 1;\n```', ['web_search'])).toBe(false);
+    expect(looksLikeToolPlanLeak('```js\nconst a = 1;\n```', ['web_search'])).toBe(false);
   });
 
   it('still catches the leaked tool plan', () => {
-    expect(looksDegenerateSynth("Let's perform web_search now.", ['web_search'])).toBe(true);
+    expect(looksLikeToolPlanLeak("Let's perform web_search now.", ['web_search'])).toBe(true);
   });
 
-  it('still catches a short non-German non-answer', () => {
-    expect(looksDegenerateSynth('I will now look this up.', ['web_search'])).toBe(true);
+  it('still catches an announced action', () => {
+    expect(looksLikeToolPlanLeak('I will now look this up.', ['web_search'])).toBe(true);
   });
 
   it('passes normal short German prose', () => {
-    expect(looksDegenerateSynth('Erledigt — die Spalte wurde ergänzt.', ['web_search'])).toBe(
+    expect(looksLikeToolPlanLeak('Erledigt — die Spalte wurde ergänzt.', ['web_search'])).toBe(
       false
     );
   });
