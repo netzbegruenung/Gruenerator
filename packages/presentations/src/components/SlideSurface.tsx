@@ -3,6 +3,7 @@ import {
   PRESENTATION_FONT_SIZE_SCALE,
   type Slide,
 } from '@gruenerator/contracts';
+import { type Editor } from '@tiptap/react';
 import { type ComponentProps, type CSSProperties } from 'react';
 import Markdown from 'react-markdown';
 import rehypeKatex from 'rehype-katex';
@@ -40,6 +41,8 @@ export interface SlideSurfaceProps {
    * edit in place.
    */
   onRequestEdit?: (field: 'title' | 'body') => void;
+  /** Hands the live body editor up so the chrome can host the insert toolbar. */
+  onBodyEditor?: (editor: Editor | null) => void;
 }
 
 const LAYOUT_CLASS: Record<Slide['layout'], string> = {
@@ -113,6 +116,7 @@ export function SlideSurface({
   onChange,
   presenting,
   onRequestEdit,
+  onBodyEditor,
 }: SlideSurfaceProps) {
   const touchEdit = !!editable && !!onRequestEdit;
   const inlineEdit = !!editable && !touchEdit;
@@ -250,7 +254,7 @@ export function SlideSurface({
           </pre>
         )
       ) : inlineEdit && ydoc ? (
-        <SlideBodyEditor key={slide.id} ydoc={ydoc} slideId={slide.id} />
+        <SlideBodyEditor key={slide.id} ydoc={ydoc} slideId={slide.id} onEditor={onBodyEditor} />
       ) : inlineEdit ? (
         <textarea
           className="gruene-slide__input gruene-slide__body"

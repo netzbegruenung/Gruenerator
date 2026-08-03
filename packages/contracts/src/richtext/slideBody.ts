@@ -302,11 +302,28 @@ function serializeList(list: PMNode, ordered: boolean, depth: number): string {
     .join('\n');
 }
 
+/**
+ * `![alt](src)` with the two characters that would end the construct early
+ * escaped: a `]` in the alt text closes the label, a `)` in the URL closes the
+ * destination. Exported because the touch editor writes markdown by hand and
+ * has to produce exactly what this reads back.
+ */
+export function formatSlideImageMarkdown(image: {
+  src: string;
+  alt?: string | null;
+  title?: string | null;
+}): string {
+  const alt = (image.alt ?? '').replace(/([[\]])/g, '\\$1');
+  const src = image.src.replace(/([()])/g, '\\$1');
+  return image.title ? `![${alt}](${src} "${image.title}")` : `![${alt}](${src})`;
+}
+
 function serializeImage(node: PMNode): string {
-  const src = String(node.attrs?.['src'] ?? '');
-  const alt = String(node.attrs?.['alt'] ?? '');
-  const title = node.attrs?.['title'] ? String(node.attrs['title']) : '';
-  return title ? `![${alt}](${src} "${title}")` : `![${alt}](${src})`;
+  return formatSlideImageMarkdown({
+    src: String(node.attrs?.['src'] ?? ''),
+    alt: node.attrs?.['alt'] == null ? null : String(node.attrs['alt']),
+    title: node.attrs?.['title'] == null ? null : String(node.attrs['title']),
+  });
 }
 
 /**
