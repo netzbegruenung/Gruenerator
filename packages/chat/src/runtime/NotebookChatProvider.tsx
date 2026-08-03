@@ -3,7 +3,6 @@
 import {
   AuiProvider,
   AssistantRuntimeProvider,
-  useAui,
   useLocalRuntime,
   type ThreadMessageLike,
 } from '@assistant-ui/react';
@@ -65,8 +64,7 @@ export interface NotebookChatProviderProps {
  * nesting mode (which leaves thread list methods unimplemented).
  */
 function NotebookAuiReset({ children }: { children: ReactNode }) {
-  const freshAui = useAui({}, { parent: null });
-  return <AuiProvider value={freshAui}>{children}</AuiProvider>;
+  return <AuiProvider value={null}>{children}</AuiProvider>;
 }
 
 function NotebookChatProviderInner({

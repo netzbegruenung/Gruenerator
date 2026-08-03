@@ -1,9 +1,4 @@
-import {
-  ThreadPrimitive,
-  useAssistantRuntime,
-  useThreadRuntime,
-  useVoiceState,
-} from '@assistant-ui/react';
+import { ThreadPrimitive, useAui, useAuiState, useVoiceState } from '@assistant-ui/react';
 import { GrueneratorComposer, useAgentStore, useChatRuntimeReady } from '@gruenerator/chat';
 import React, { memo, useCallback, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -17,7 +12,7 @@ import { cn } from '@/utils/cn';
 function NavigateToChatOnSend() {
   const navigate = useNavigate();
   const location = useLocation();
-  const threadRuntime = useThreadRuntime({ optional: true });
+  const isRunning = useAuiState((s) => s.optional.thread?.isRunning ?? false);
   const voiceState = useVoiceState();
   const hasNavigated = useRef(false);
   // On /chat itself the view-mode flip suffices (ChatPage renders the thread
@@ -39,18 +34,15 @@ function NavigateToChatOnSend() {
   }, [voiceActive, navigate, onChat]);
 
   useEffect(() => {
-    if (!threadRuntime) return;
-    return threadRuntime.subscribe(() => {
-      if (threadRuntime.getState().isRunning && !hasNavigated.current) {
-        hasNavigated.current = true;
-        useAgentStore.getState().setChatViewMode('thread');
-        if (!onChat) void navigate('/chat');
-      }
-      if (!threadRuntime.getState().isRunning && !voiceActive) {
-        hasNavigated.current = false;
-      }
-    });
-  }, [threadRuntime, navigate, voiceActive, onChat]);
+    if (isRunning && !hasNavigated.current) {
+      hasNavigated.current = true;
+      useAgentStore.getState().setChatViewMode('thread');
+      if (!onChat) void navigate('/chat');
+    }
+    if (!isRunning && !voiceActive) {
+      hasNavigated.current = false;
+    }
+  }, [isRunning, navigate, voiceActive, onChat]);
 
   return null;
 }
@@ -59,8 +51,8 @@ const ChatInnerReady: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const firstName = useFirstName();
-  const threadRuntime = useThreadRuntime({ optional: true });
-  const assistantRuntime = useAssistantRuntime();
+  const aui = useAui();
+  const threadAvailable = aui.thread.source != null;
   const onChat = location.pathname.startsWith('/chat');
 
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
@@ -82,10 +74,10 @@ const ChatInnerReady: React.FC = () => {
       return;
     }
     useAgentStore.getState().resetChatContext();
-    void assistantRuntime.threads.switchToNewThread();
-  }, [assistantRuntime, onChat]);
+    void aui.threads.switchToNewThread();
+  }, [aui, onChat]);
 
-  if (!threadRuntime) return null;
+  if (!threadAvailable) return null;
 
   return (
     <ThreadPrimitive.Root
@@ -110,7 +102,7 @@ const ChatInnerReady: React.FC = () => {
 
 // While the lazy assistant-ui runtime chunk loads, GrueneratorChatProvider's
 // Suspense fallback renders the page WITHOUT AssistantRuntimeProvider — calling
-// useAssistantRuntime()/useVoiceState() there crashes with "requires an
+// useAui()/useVoiceState() there crashes with "requires an
 // AuiProvider". Gate on runtime readiness (same guard as ChatPage/SearchPage)
 // and reserve the composer's footprint so the hero doesn't jump.
 const ChatInner: React.FC = memo(() => {

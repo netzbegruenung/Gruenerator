@@ -1,4 +1,4 @@
-import { ThreadPrimitive } from '@assistant-ui/react';
+import { ThreadPrimitive, AuiIf } from '@assistant-ui/react';
 import {
   AssistantMessage,
   CitationPanelProvider,
@@ -360,7 +360,7 @@ export const NotebookPageContent = ({
       <CitationPanelProvider>
         <ExtraActionsProvider factory={extraActionsFactory}>
           <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col">
-            <ThreadPrimitive.Empty>
+            <AuiIf condition={(s) => s.thread.isEmpty}>
               <div className="flex flex-1 flex-col overflow-y-auto">
                 <NotebookStartpage
                   title={config.startPageTitle}
@@ -384,8 +384,8 @@ export const NotebookPageContent = ({
                   footer={startpageFooter}
                 />
               </div>
-            </ThreadPrimitive.Empty>
-            <ThreadPrimitive.If empty={false}>
+            </AuiIf>
+            <AuiIf condition={(s) => !s.thread.isEmpty}>
               <div className="flex min-h-0 h-full flex-col">
                 <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
                   <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 py-4">
@@ -405,7 +405,7 @@ export const NotebookPageContent = ({
                   onModeChange={setMode}
                 />
               </div>
-            </ThreadPrimitive.If>
+            </AuiIf>
           </ThreadPrimitive.Root>
         </ExtraActionsProvider>
         <CitationSidePanel />
