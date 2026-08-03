@@ -86,7 +86,7 @@ Each run renders to a committed map under `decisions/`. Three states per point,
 which is what makes a regression readable:
 
 ```
-router.persistent_action_gate  = demoted_primary_to_direct   family=document
+router.persistent_action_gate  = demoted_primary_to_produktion   family=document
 router.run_agentic             = single_pass                 gateOpen=false …
 loop.synth_verdict             = (not reached)
 loop.tool_guard                = (none)
