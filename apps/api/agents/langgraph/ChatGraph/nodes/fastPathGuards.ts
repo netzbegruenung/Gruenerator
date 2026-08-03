@@ -92,6 +92,25 @@ const NEGATOR_AFTER_RE =
   /^(?![^.!?\n]{0,30}?\b(?:aber|jedoch|sondern|allerdings|dafür|stattdessen)\b)[^.!?\n]{0,30}?\b(nicht|kein\w{0,2})\b/i;
 
 /**
+ * A prohibition whose object is the DELIVERY FORM rather than the artifact:
+ * "kein Base64", "kein data:-URI", "keine erfundene öffentliche URL", "keine
+ * bloße Gliederung". It says HOW the thing must not arrive and therefore ORDERS
+ * it — the opposite of standing the turn down.
+ *
+ * Live on 03.08.2026: „Liefere ein echtes Präsentationsartefakt zum Öffnen,
+ * kein Base64, kein data:-URI, keine erfundene öffentliche URL und keine bloße
+ * Gliederung." The window after „Präsentationsartefakt" reads „ zum Öffnen,
+ * kein Base64, kein" — so the gate demoted `create_presentation`, and the very
+ * sentence the user had added to prevent a hand-written file was what removed
+ * the tool that writes a real one.
+ *
+ * Stripped rather than looked-ahead for: the bans come in chains, and a bounded
+ * window can always end between two of them.
+ */
+const DELIVERY_FORM_BAN_RE =
+  /\b(?:kein\w{0,2}|nicht\s+als)\b(?:\s+\p{L}+){0,3}\s+(?:base-?64|data[:\-\s]{0,2}ur[il]s?|ur[il]s?|links?|gliederung\w*|rohtext\w*|platzhalter\w*|dummy\w*|attrappe\w*)\b/giu;
+
+/**
  * True when an occurrence of `nounPattern` is negated within a sentence-bounded
  * window. Per-noun-family: "statt eines Posts ein Sharepic" negates `post`, not
  * `sharepic`, so passing each branch its own noun yields correct routing.
@@ -101,13 +120,34 @@ export function isNegatedArtifactRequest(text: string, nounPattern: RegExp): boo
     nounPattern.source,
     nounPattern.flags.includes('g') ? nounPattern.flags : `${nounPattern.flags}g`
   );
-  for (const m of text.matchAll(g)) {
+  const scanned = text.replace(DELIVERY_FORM_BAN_RE, ' ');
+  for (const m of scanned.matchAll(g)) {
     const i = m.index ?? 0;
     const end = i + m[0].length;
-    if (NEGATOR_BEFORE_RE.test(text.slice(Math.max(0, i - 30), i))) return true;
-    if (NEGATOR_AFTER_RE.test(text.slice(end, end + 30))) return true;
+    if (NEGATOR_BEFORE_RE.test(scanned.slice(Math.max(0, i - 30), i))) return true;
+    if (NEGATOR_AFTER_RE.test(scanned.slice(end, end + 30))) return true;
   }
   return false;
+}
+
+/**
+ * The message dictates the table's columns inline, pipe-separated: "Erstelle
+ * eine Tabelle mit genau neun Zeilen: Nr. | PASS/FAIL | kürzester konkreter
+ * Grund", "Gib eine Tabelle mit den Spalten Thema | Aussage A | Status".
+ *
+ * Someone who writes out a Markdown table header is describing what they want
+ * to READ in the answer, not a spreadsheet to open — and a sheet artifact costs
+ * them the answer they asked for, because the chat then says "Tabelle wurde
+ * erstellt" and shows a card. Observed twice: 02.08. (an unasked second table
+ * after a correction) and 03.08. (the self-check table).
+ *
+ * Two separators required, on one line: a single pipe is ordinary punctuation.
+ */
+const INLINE_TABLE_COLUMNS_RE = /^[^\n]*\S[ \t]*\|[ \t]*\S[^\n]*\|[^\n]*$/m;
+
+/** True when the turn spells out a pipe-separated table header inline. */
+export function dictatesInlineTableColumns(text: string): boolean {
+  return typeof text === 'string' && INLINE_TABLE_COLUMNS_RE.test(text);
 }
 
 // A question-word-initial message that mentions the artifact noun is a question
