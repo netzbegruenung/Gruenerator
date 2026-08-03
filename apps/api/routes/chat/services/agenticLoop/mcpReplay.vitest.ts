@@ -101,4 +101,18 @@ describe('buildToolObservationReplay', () => {
     // the surrounding text survives, only the markers are gone
     expect(out).toContain('Wahlprogramm');
   });
+  it('gives a knowledge result the same replay budget as a source block', () => {
+    // `product_knowledge` registers no sources, so it fell into the 500-char
+    // action preview: live on 03.08.2026 its replay was cut from 3.876 to 500
+    // characters, and the next turn described the product from an eighth of
+    // what it had just been told.
+    const step = mcpStep({
+      toolName: 'gruenerator_search',
+      serverName: undefined,
+      result: { knowledge: 'K'.repeat(3800) },
+    });
+    const msgs = buildToolObservationReplay([step], catalog);
+    const out = (msgs[1].content as Array<{ output: { value: string } }>)[0].output.value;
+    expect(out.length).toBeGreaterThan(3000);
+  });
 });

@@ -9,8 +9,6 @@ import { fetchShareLinks, useShareLinks, wolkeKeys } from '@gruenerator/wolke';
 import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { Check, Lock } from 'lucide-react';
 
-import { useOnboarding } from '../useOnboarding';
-
 import { QUERY_KEYS, useProfile } from '@/features/auth/hooks/useProfileData';
 import { profileApiService, type Profile } from '@/features/auth/services/profileApiService';
 import { useAuthStore } from '@/stores/authStore';
@@ -56,7 +54,16 @@ const NEUTRAL_STYLE = {
   tint: 'bg-background-alt',
 };
 
-const FriendsTab = () => {
+interface FriendsTabProps {
+  /**
+   * Nur der Starter-Dreier. Hängt am Einrichtungsschritt, nicht an
+   * `useOnboarding().isActive`: Wer die Einrichtung offen liegen lässt und den
+   * Friends-Bereich direkt ansteuert, soll dort die ganze Truppe sehen.
+   */
+  starterOnly?: boolean;
+}
+
+const FriendsTab = ({ starterOnly = false }: FriendsTabProps) => {
   const userId = useAuthStore((s) => s.user?.id);
   const queryClient = useQueryClient();
   const updateAvatarOptimistic = useProfileStore((s) => s.updateAvatarOptimistic);
@@ -66,11 +73,10 @@ const FriendsTab = () => {
   const { data: shareLinks = [] } = useShareLinks();
   const wolkeConnected = shareLinks.length > 0;
 
-  // Solange die Einrichtung läuft, steht nur der Dreier zur Wahl. Danach ist er
+  // Im Einrichtungsschritt steht nur der Dreier zur Wahl. Danach ist er
   // getroffen und die ganze Truppe kommt dazu — dieselbe Reihenfolge wie beim
   // Starter, den man zuerst wählt und dessen Gesellschaft man später sammelt.
-  const { isActive: isOnboarding } = useOnboarding();
-  const friends = isOnboarding ? STARTER_FRIENDS : GRUENERATOR_FRIENDS;
+  const friends = starterOnly ? STARTER_FRIENDS : GRUENERATOR_FRIENDS;
 
   const selectedId = Number(profile?.avatar_robot_id ?? 1);
 
@@ -102,14 +108,15 @@ const FriendsTab = () => {
 
   return (
     <div className="flex flex-col gap-lg">
-      <p className="m-0 text-xs text-grey-500 dark:text-grey-400">
-        {isOnboarding
-          ? 'Such dir einen aus — Feuer, Natur oder Wasser. Dein Friend erscheint als Profilbild in Chats, Projekten und Kommentaren, und die übrige Truppe kannst du später hier wechseln.'
-          : 'Wähle, wer dich im Grünerator vertritt. Dein Friend erscheint als Profilbild in Chats, Projekten und Kommentaren.'}
-      </p>
+      {!starterOnly && (
+        <p className="m-0 text-xs text-grey-500 dark:text-grey-400">
+          Wähle, wer dich im Grünerator vertritt. Dein Friend erscheint als Profilbild in Chats,
+          Projekten und Kommentaren.
+        </p>
+      )}
 
       <div
-        className={cn('grid gap-sm', isOnboarding ? 'grid-cols-3' : 'grid-cols-3 sm:grid-cols-4')}
+        className={cn('grid gap-sm', starterOnly ? 'grid-cols-3' : 'grid-cols-3 sm:grid-cols-4')}
       >
         {friends.map((friend) => {
           const isLocked = friend.unlock === 'wolke' && !wolkeConnected;
@@ -163,11 +170,6 @@ const FriendsTab = () => {
                 )}
               </div>
               <span className="text-xs font-medium text-foreground">{friend.name}</span>
-              {isOnboarding && (
-                <span className="text-[0.6875rem] leading-snug text-grey-500 dark:text-grey-400">
-                  {friend.tagline}
-                </span>
-              )}
             </button>
           );
         })}
