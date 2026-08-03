@@ -291,16 +291,16 @@ function SubtitlerBetaPageInner() {
 
   if (loading) {
     return (
-      <div className="flex h-[calc(100dvh-64px)] overflow-hidden">
-        <div className="flex w-72 flex-shrink-0 flex-col gap-sm border-r border-grey-200 p-sm dark:border-grey-700 lg:w-80">
+      <div className="flex h-[calc(100dvh-64px)] flex-col overflow-hidden md:flex-row">
+        <div className="flex min-h-0 w-full flex-[2] flex-col gap-sm overflow-y-auto border-r border-grey-200 p-sm dark:border-grey-700 md:w-72 md:flex-none lg:w-80">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-16 w-full rounded-lg" />
           ))}
         </div>
-        <div className="flex flex-1 items-center justify-center bg-grey-950">
+        <div className="flex min-h-0 flex-[3] items-center justify-center bg-grey-950 md:flex-1">
           <Skeleton className="aspect-[9/16] h-[70%] rounded-lg" />
         </div>
-        <div className="flex w-72 flex-shrink-0 flex-col gap-sm border-l border-grey-200 p-sm dark:border-grey-700 lg:w-80">
+        <div className="flex min-h-0 w-full flex-[2] flex-col gap-sm overflow-y-auto border-l border-grey-200 p-sm dark:border-grey-700 md:w-72 md:flex-none lg:w-80">
           <Skeleton className="h-8 w-full" />
           <Skeleton className="h-24 w-full rounded-lg" />
           <Skeleton className="h-12 w-full rounded-lg" />
@@ -328,14 +328,14 @@ function SubtitlerBetaPageInner() {
   }
 
   return (
-    <div className="flex h-[calc(100dvh-64px)] overflow-hidden">
+    <div className="flex h-[calc(100dvh-64px)] flex-col overflow-hidden md:flex-row">
       {/* Left Panel: Subtitle List */}
-      <div className="flex w-72 flex-shrink-0 flex-col border-r border-grey-200 bg-background dark:border-grey-700 lg:w-80">
+      <div className="flex min-h-0 w-full flex-[2] flex-col border-r border-grey-200 bg-background dark:border-grey-700 md:w-72 md:flex-none lg:w-80">
         <SubtitleList videoPlayerRef={videoPlayerRef} />
       </div>
 
       {/* Center Panel: Video Player */}
-      <div className="min-w-0 flex-1 overflow-hidden bg-grey-950">
+      <div className="min-h-0 min-w-0 flex-[3] overflow-hidden bg-grey-950 md:flex-1">
         {videoUrl && (
           <BetaVideoPlayer
             ref={videoPlayerRef}
@@ -351,7 +351,7 @@ function SubtitlerBetaPageInner() {
       </div>
 
       {/* Right Panel: Subtitle Settings */}
-      <div className="w-72 flex-shrink-0 overflow-y-auto border-l border-grey-200 bg-background dark:border-grey-700 lg:w-80">
+      <div className="min-h-0 w-full flex-[2] overflow-y-auto border-l border-grey-200 bg-background dark:border-grey-700 md:w-72 md:flex-none lg:w-80">
         <SubtitleSettings style={subtitleStyle} onStyleChange={setSubtitleStyle} />
       </div>
     </div>
