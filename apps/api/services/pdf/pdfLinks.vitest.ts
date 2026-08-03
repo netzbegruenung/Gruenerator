@@ -245,3 +245,55 @@ describe('eine überlange URL bleibt lesbar', () => {
     expect(new Set(links.map((l) => l.uri))).toEqual(new Set([LONG]));
   });
 });
+
+describe('das Quellenverzeichnis', () => {
+  const SOURCES: PdfDocumentSpec['blocks'] = [
+    {
+      type: 'sources',
+      entries: [
+        { label: 'Europäische Kommission: Vorschlag zum Klimaziel 2040', value: EURLEX },
+        { label: 'Rat der EU: Pressemitteilung', value: 'https://www.consilium.europa.eu/de/x' },
+      ],
+    },
+  ];
+
+  it('nummeriert die Einträge und macht jede Adresse anklickbar', async () => {
+    const { bytes } = await render(SOURCES);
+    const buf = Buffer.from(bytes);
+    const text = (await drawnLines(buf)).join('\n');
+
+    expect(text).toContain('Quellen');
+    expect(text).toContain('[1]');
+    expect(text).toContain('[2]');
+    expect((await linkAnnotations(buf)).map((l) => l.uri)).toEqual([
+      EURLEX,
+      'https://www.consilium.europa.eu/de/x',
+    ]);
+  });
+
+  it('ist eine getaggte Liste, keine Tabelle', async () => {
+    // Als Tabelle bekam die URL ein Drittel der Seitenbreite — dort zerfiel sie.
+    const roles = await allRoles(Buffer.from((await render(SOURCES)).bytes));
+    expect(roles).toContain('L');
+    expect(roles).toContain('LI');
+    expect(roles).not.toContain('Table');
+  });
+
+  it('schreibt die Überschrift nicht zweimal, wenn das Modell schon eine gesetzt hat', async () => {
+    const { bytes } = await render([{ type: 'heading', level: 2, text: 'Quellen' }, ...SOURCES]);
+    const lines = await drawnLines(Buffer.from(bytes));
+    expect(lines.filter((line) => line === 'Quellen')).toHaveLength(1);
+  });
+});
+
+describe('Fußnotenmarken', () => {
+  it('stehen nicht als rohes Markdown im Dokument', async () => {
+    const { bytes } = await render([
+      { type: 'paragraph', text: 'Der Rat hat zugestimmt[^1] und die Kommission[^2] auch.' },
+    ]);
+    const text = (await drawnLines(Buffer.from(bytes))).join(' ');
+    expect(text).not.toContain('[^1]');
+    expect(text).toContain('[1]');
+    expect(text).toContain('[2]');
+  });
+});
