@@ -150,7 +150,7 @@ describe('loop decision maps', () => {
     searchBackend.failNext = scenario.backendFailures ?? 0;
     loopScript.script(...scenario.streams);
 
-    // No `expectError` escape hatch on purpose. Even the both-passes-degenerate
+    // No `expectError` escape hatch on purpose. Even the both-passes-leaked
     // scenario reaches `done` — the loop returns empty and the caller's honest
     // no-answer fallback writes the text — so every scenario here keeps the
     // harness's most important rail (`trace.error === null`) armed.

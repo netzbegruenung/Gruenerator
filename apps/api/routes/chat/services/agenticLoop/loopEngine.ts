@@ -440,18 +440,26 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
   }
 }
 
-/** Answers at or below this length are candidates for the degeneracy check, and
+/** Answers at or below this length are candidates for the tool-plan check, and
  *  the gate holds them back until the verdict is in. Above it the answer is real
  *  prose by definition and streams through unbuffered. */
-const DEGENERATE_MAX_CHARS = 200;
-
-// Any of these means real German prose — umlauts or the closed-class words no
-// German sentence avoids. Their ABSENCE in a short answer is the signal.
-const GERMAN_MARKER_RE =
-  /[äöüßÄÖÜ]|\b(der|die|das|dass|und|oder|ich|du|dir|wir|hier|nicht|kein\w*|ist|sind|war\w*|wurde\w*|habe?n?|hat|eine?[nmrs]?|dem|den|mit|von|auf|aus|bei|zum|zur|es|sich)\b/i;
+const SHORT_ANSWER_MAX_CHARS = 200;
 
 /** A fenced block, an HTML/XML tag, or a JSON object — content, not prose. */
 const MARKUP_OR_CODE_RE = /```|<\/?[a-z][\w-]*(?:\s[^>]*)?>|^\s*[[{]/i;
+
+/**
+ * The answer ANNOUNCES an action instead of being one — the second half of the
+ * leaked-plan shape, for the case where the plan names no mounted tool ("I will
+ * search for that now.").
+ *
+ * English only, and anchored to the opening. A German equivalent would have to
+ * read "Ich werde …", which is also how a perfectly good short answer starts
+ * ("Ich werde das kurz zusammenfassen."), and no bounded pattern separates the
+ * two.
+ */
+const PLAN_ANNOUNCEMENT_RE =
+  /^\s*(?:okay|ok|sure|alright|first|now)?[,:\s]*(?:let'?s\b|i'?ll\b|i\s+will\b|i\s+am\s+going\s+to\b|i\s+need\s+to\b|we'?ll\b|we\s+will\b|we\s+need\s+to\b)/i;
 
 /**
  * What the user reads when the synth DECLINED the request. Distinct from the
@@ -463,16 +471,21 @@ const MARKUP_OR_CODE_RE = /```|<\/?[a-z][\w-]*(?:\s[^>]*)?>|^\s*[[{]/i;
 export const SYNTH_REFUSAL_TEXT =
   'Diese Anfrage setze ich nicht um — sie widerspricht den inhaltlichen Regeln des Grünerators, etwa erfundene Zitate, erfundene Quellen oder ausgrenzende Aussagen. Für ein anderes Anliegen bin ich gern da.';
 
+/**
+ * The retry nudge. Says nothing about LENGTH on purpose: an output format the
+ * message prescribed ("Antworte in genau einer Zeile") must survive the retry,
+ * and a suffix demanding "die vollständige, ausformulierte Antwort" would leave
+ * the model no compliant move.
+ */
 export const SYNTH_RETRY_SYSTEM_SUFFIX =
-  '\n\nWICHTIG: Schreibe JETZT die vollständige, ausformulierte Antwort für die*den Nutzer*in — auf Deutsch. Du hast KEINE Tools und kannst keine aufrufen; kündige KEINE Tool-Aufrufe, Suchen oder Arbeitsschritte an, sondern nutze ausschließlich die oben gelieferten Quellen. Beginne direkt mit dem Inhalt.';
+  '\n\nWICHTIG: Schreibe JETZT die Antwort für die*den Nutzer*in — auf Deutsch und in dem Format, das die Nachricht verlangt. Du hast KEINE Tools und kannst keine aufrufen; kündige KEINE Tool-Aufrufe, Suchen oder Arbeitsschritte an, sondern nutze ausschließlich die oben gelieferten Quellen. Beginne direkt mit dem Inhalt.';
 
 /**
- * Whether the synth DECLINED rather than degenerated. Both look alike from the
- * outside — short, and (when the model falls back to English boilerplate) devoid
- * of German markers — but they need opposite handling: a degenerate answer is
- * retried, a refusal must be surfaced as a refusal and never retried.
+ * Whether the synth DECLINED rather than leaked its plan. Both look alike from
+ * the outside — short and English — but they need opposite handling: a leaked
+ * plan is retried, a refusal must be surfaced as a refusal and never retried.
  *
- * Bounded by {@link DEGENERATE_MAX_CHARS} for two reasons. Precision: a long
+ * Bounded by {@link SHORT_ANSWER_MAX_CHARS} for two reasons. Precision: a long
  * answer that merely contains a refusal-shaped clause is prose, not a decline.
  * And correctness: past that length the emitter gate has already opened and the
  * text is on the wire, so it can no longer be swapped for the German message.
@@ -483,38 +496,45 @@ export const SYNTH_RETRY_SYSTEM_SUFFIX =
  */
 export function looksLikeSynthRefusal(text: string): boolean {
   const trimmed = text.trim();
-  if (trimmed.length === 0 || trimmed.length > DEGENERATE_MAX_CHARS) return false;
+  if (trimmed.length === 0 || trimmed.length > SHORT_ANSWER_MAX_CHARS) return false;
   return isWholesaleRefusal(trimmed);
 }
 
 /**
- * Whether a synthesized answer is a degenerate non-answer rather than prose.
+ * Whether the synth leaked its TOOL PLAN instead of writing an answer.
  *
  * The live failure this catches: with the cross-turn tool replay in its context
  * but no tools mounted, the synth model imitated the tool-call pattern and the
- * ENTIRE answer was "Let's perform web_search." Short + names a mounted tool, or
- * short + not German at all. Long answers are never degenerate — a real answer
- * that happens to be brief ("Erledigt — die Spalte wurde ergänzt.") carries
- * German markers and passes.
+ * ENTIRE answer was "Let's perform web_search." Short, plus either a mounted
+ * tool's name or an opening that announces an action.
+ *
+ * It used to carry a third rule — short and carrying no German umlaut or
+ * function word — and that rule is deliberately gone. It was a LANGUAGE test
+ * doing duty as a quality test, and on 02.08.2026 it destroyed two correct
+ * answers in one QA run: "ALT=45000 €; NEU=49500 €; DIFFERENZ=4500 €" and
+ * "ZUSTAND=ORIGINAL; STANDORTE=75|80; SATZ=600EUR" — both exactly the format
+ * the message had prescribed, both replaced with "Ich konnte dazu leider keine
+ * passende Antwort finden". A guard against a made-up answer must never be able
+ * to withhold a real one, so it now only recognises the one shape it was built
+ * for.
  */
-export function looksDegenerateSynth(text: string, toolNames: readonly string[]): boolean {
+export function looksLikeToolPlanLeak(text: string, toolNames: readonly string[]): boolean {
   const trimmed = text.trim();
   // Empty is the caller's existing fallback case, not this one's.
-  if (trimmed.length === 0 || trimmed.length > DEGENERATE_MAX_CHARS) return false;
-  // Needs to read as a SENTENCE before we judge its language — a bare token
-  // ("Erledigt", "Ja") is a legitimate answer, not a leaked plan.
+  if (trimmed.length === 0 || trimmed.length > SHORT_ANSWER_MAX_CHARS) return false;
+  // Needs to read as a SENTENCE — a bare token ("Erledigt", "Ja") is a
+  // legitimate answer, not a leaked plan.
   if (trimmed.split(/\s+/).filter(Boolean).length < 3) return false;
-  // Markup and code are legitimately un-German. "Gib mir den Absatz mit
-  // HTML-Tags" answers with `<p>…</p>`, which carries no German function word
-  // and was silently discarded — the user got the generic fallback and no error.
+  // "Gib mir den Absatz mit HTML-Tags" answers with `<p>…</p>`, and a JSON
+  // answer may legitimately quote a tool name.
   if (MARKUP_OR_CODE_RE.test(trimmed)) return false;
   if (toolNames.some((name) => name.length > 3 && trimmed.includes(name))) return true;
-  return !GERMAN_MARKER_RE.test(trimmed);
+  return PLAN_ANNOUNCEMENT_RE.test(trimmed);
 }
 
 /**
- * Holds the first {@link DEGENERATE_MAX_CHARS} of the answer back so a degenerate
- * one can be discarded and retried before the client ever sees it. Once the
+ * Holds the first {@link SHORT_ANSWER_MAX_CHARS} of the answer back so a leaked
+ * plan can be discarded and retried before the client ever sees it. Once the
  * answer grows past the threshold the gate opens and every delta passes straight
  * through — so normal answers only pay a one-paragraph delay on first token, and
  * long answers stream as before.
@@ -550,7 +570,7 @@ function createGatedEmitter(
 }
 
 /** Split phase 2: the selected model writes the answer over the gathered
- *  sources — no tools. One retry when the first pass degenerates. */
+ *  sources — no tools. One retry when the first pass leaks its tool plan. */
 async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: string }> {
   // Synthesis runs WITHOUT tools, so it must not see the tool-call/tool-result
   // replay the gather phase needs — see `synthMessages`.
@@ -562,7 +582,7 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: 
     system: string,
     model: LanguageModel
   ): Promise<{ text: string; flush: () => void; discard: () => void }> => {
-    const gate = createGatedEmitter(p.onText, DEGENERATE_MAX_CHARS);
+    const gate = createGatedEmitter(p.onText, SHORT_ANSWER_MAX_CHARS);
     const idle = createIdleDeadline(
       SYNTH_IDLE_DEADLINE_MS,
       () => new SynthStallError(SYNTH_IDLE_DEADLINE_MS)
@@ -633,7 +653,7 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: 
     p.onText(SYNTH_REFUSAL_TEXT);
     return { text: SYNTH_REFUSAL_TEXT };
   }
-  if (!looksDegenerateSynth(first.text, toolNames)) {
+  if (!looksLikeToolPlanLeak(first.text, toolNames)) {
     recordDecision('loop.synth_verdict', 'accepted', {
       inputs: { textLength: first.text.length },
     });
@@ -642,15 +662,15 @@ async function synthesize(p: LoopEngineParams, deps: LoopDeps): Promise<{ text: 
   }
 
   log.warn(
-    `[Engine] synth degenerated into a non-answer (${first.text.length} chars: ${JSON.stringify(
+    `[Engine] synth announced a tool plan instead of answering (${first.text.length} chars: ${JSON.stringify(
       first.text.trim().slice(0, 80)
     )}) — retrying once`
   );
-  recordDecision('loop.synth_verdict', 'degenerate_retried', {
+  recordDecision('loop.synth_verdict', 'tool_plan_retried', {
     inputs: { textLength: first.text.length },
   });
   const retry = await runPassWithFallback(`${baseSystem}${SYNTH_RETRY_SYSTEM_SUFFIX}`);
-  if (retry.text.trim().length === 0 || looksDegenerateSynth(retry.text, toolNames)) {
+  if (retry.text.trim().length === 0 || looksLikeToolPlanLeak(retry.text, toolNames)) {
     // Neither pass produced an answer — emit NEITHER (both are still buffered)
     // and return empty, so the caller's honest no-answer fallback fires instead
     // of a leaked tool-planning line.

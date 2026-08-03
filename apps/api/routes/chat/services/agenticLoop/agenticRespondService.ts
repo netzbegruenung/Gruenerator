@@ -1335,6 +1335,8 @@ Die Suche für diesen Turn ist bereits GELAUFEN — ihre Treffer stehen oben. De
   // into the answer — they read as a leak. Checked against everything the model
   // legitimately saw, so real attachment names pass through.
   const sanity = stripFabricatedSystemClaims(text, [
+    // A name the user typed themselves is not one the model invented.
+    finalState.lastUserTextNoMentions ?? '',
     sourceRegistry.renderAll(),
     finalState.attachmentContext ?? '',
     finalState.currentDocument?.title ?? '',

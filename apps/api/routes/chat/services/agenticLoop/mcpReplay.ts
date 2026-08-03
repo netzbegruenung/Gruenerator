@@ -37,9 +37,19 @@ const RESULT_PREVIEW_CHARS = 500;
  */
 const SOURCE_RESULT_CHARS = 4000;
 
-/** A result that carries a rendered `sources` block (search/web/domain tools). */
-function carriesSources(result: Record<string, unknown>): boolean {
-  return typeof result.sources === 'string' && result.sources.trim().length > 0;
+/**
+ * A result whose payload is REFERENCE TEXT rather than an action confirmation.
+ *
+ * `sources` was the only field here, and the omission had the exact symptom the
+ * comment above describes. `product_knowledge` answers "was kannst du?" with a
+ * `knowledge` block and registers no sources, so on 03.08.2026 its replay was
+ * capped at 500 of 3.876 characters — 87 % dropped — and the next turn answered
+ * about the product from an eighth of what it had just been told.
+ */
+function carriesReferenceText(result: Record<string, unknown>): boolean {
+  return ['sources', 'knowledge'].some(
+    (key) => typeof result[key] === 'string' && (result[key] as string).trim().length > 0
+  );
 }
 
 // A prior search tool-result embeds its OWN numbered "[1] … [2] …" source block.
@@ -61,8 +71,9 @@ function shortValue(result: Record<string, unknown>): string {
   }
   if (!s) return '';
   s = stripReplayCitationMarkers(s);
-  const cap = carriesSources(result) ? SOURCE_RESULT_CHARS : RESULT_PREVIEW_CHARS;
-  return applyContextCap(s, cap, carriesSources(result) ? 'mcpReplay:sources' : 'mcpReplay:result');
+  const reference = carriesReferenceText(result);
+  const cap = reference ? SOURCE_RESULT_CHARS : RESULT_PREVIEW_CHARS;
+  return applyContextCap(s, cap, reference ? 'mcpReplay:sources' : 'mcpReplay:result');
 }
 
 /**
