@@ -6,12 +6,12 @@ import { type SystemAgentId } from './system.js';
 import { type AgentAudience } from './types.js';
 
 /**
- * A Landesverband hub groups the two specialist agents that share one
- * Landesverband (a creative `Öffentlichkeitsarbeit` agent and a factual
- * `Bürger*innenanfragen` agent) behind a single branded slug.
+ * A Landesverband hub groups the specialist agents that share one Landesverband
+ * (a creative `Öffentlichkeitsarbeit` agent, a factual `Bürger*innenanfragen`
+ * agent and a `Wahlprüfsteine` agent) behind a single branded slug.
  *
- * The branded slug (`gruene-berlin`) lives here, NOT on either agent — so
- * `/agents/gruene-berlin` opens a small landing offering both agents instead
+ * The branded slug (`gruene-berlin`) lives here, NOT on any agent — so
+ * `/agents/gruene-berlin` opens a small landing offering all of them instead
  * of silently dropping into just one. The specialist agents keep their derived
  * slugs (`/agents/oeffentlichkeitsarbeit-berlin`) as the direct entry points
  * the hub links to. See `apps/web/src/features/chat/LandesverbandHub.tsx`.
@@ -26,11 +26,12 @@ export interface LvHub {
   slug: string;
   /** Display name on the landing, e.g. "Grüne Berlin". */
   name: string;
-  /** The LV notebook both agents pin. Also drives the hub's icon (the LV's
+  /** The LV notebook every agent pins. Also drives the hub's icon (the LV's
    *  chosen notebook icon) via `NOTEBOOK_ICONS` on the web side. */
   notebookId: NotebookId;
   prAgentId: SystemAgentId;
   buergerAgentId: SystemAgentId;
+  wahlpruefsteinAgentId: SystemAgentId;
   audience: AgentAudience;
 }
 
@@ -51,6 +52,7 @@ export const LV_HUBS: readonly LvHub[] = LANDESVERBAENDE.flatMap((lv) =>
           notebookId: lv.notebookId,
           prAgentId: lv.prAgentId as SystemAgentId,
           buergerAgentId: lv.buergerAgentId as SystemAgentId,
+          wahlpruefsteinAgentId: lv.wahlpruefsteinAgentId as SystemAgentId,
           audience: lv.audience,
         },
       ]
@@ -83,13 +85,14 @@ export function getLandesverbandHubs(
  * The specialist agents of every Landesverband whose notebook this instance
  * does not offer. This is the cascade that makes hiding LV notebooks a
  * one-liner: the hub owns the notebook↔agents relation, so switching off the
- * notebook switches off both agents without naming either of them.
+ * notebook switches off every one of its agents without naming any of them.
  */
 export function getLvAgentIdsHiddenIn(instanceId: InstanceId): ReadonlySet<string> {
   return new Set(
     LV_HUBS.filter((hub) => !isNotebookOfferedIn(hub.notebookId, instanceId)).flatMap((hub) => [
       hub.prAgentId,
       hub.buergerAgentId,
+      hub.wahlpruefsteinAgentId,
     ])
   );
 }
@@ -97,8 +100,10 @@ export function getLvAgentIdsHiddenIn(instanceId: InstanceId): ReadonlySet<strin
 /**
  * Every agent identifier owned by a hub. Used by the inventory (AllAgentsDialog)
  * to hide the per-LV specialist agents — they're reached through their hub, so
- * listing all 14 individually would re-introduce the clutter the hub removes.
+ * listing them all individually would re-introduce the clutter the hub removes.
  */
 export function getHubMemberAgentIds(): ReadonlySet<string> {
-  return new Set(LV_HUBS.flatMap((hub) => [hub.prAgentId, hub.buergerAgentId]));
+  return new Set(
+    LV_HUBS.flatMap((hub) => [hub.prAgentId, hub.buergerAgentId, hub.wahlpruefsteinAgentId])
+  );
 }
