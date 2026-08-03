@@ -13,7 +13,7 @@
  */
 
 import { type chatGraphContract } from '@gruenerator/contracts';
-import { stripRoleBlock } from '@gruenerator/shared/roles';
+import { type UserRole, stripRoleBlock } from '@gruenerator/shared/roles';
 import {
   hasMentionTokens,
   parseMentionTokens,
@@ -34,6 +34,7 @@ import {
   formatMemoriesByCategory,
 } from '../../../services/mem0/index.js';
 import { getCachedPersona } from '../../../services/mem0/personaService.js';
+import { findRole, resolveRoleSystemPrompt } from '../../../services/roles/roleSystemPrompt.js';
 import { recordItemUsageSafe } from '../../../services/usage/ItemUsageService.js';
 import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { NextcloudShareManager } from '../../../utils/integrations/nextcloud/shareManager.js';
@@ -154,6 +155,7 @@ export async function buildStreamContext({
     connectFiles: rawConnectFiles,
     currentDocument: rawCurrentDocument,
     customSystemPrompt: rawCustomSystemPrompt,
+    roleRef: rawRoleRef,
     roleName: rawRoleName,
     initialAssistantMessage: rawInitialAssistantMessage,
     activeSkillMention: rawActiveSkillMention,
@@ -573,6 +575,28 @@ export async function buildStreamContext({
   // mehr in jeder Anfrage mit; die Rolle wirkt allein über den Rollen-Chat.
   const userInstructions = stripRoleBlock(user.custom_prompt) || undefined;
 
+  // === Rollen-Chat: Systemprompt server-seitig auflösen ===
+  // Der Client schickt nur die Referenz. Der Auftrag zur Rolle ist parteiintern
+  // und liegt in INTERN_CONTENT_DIR/rollen — er darf den Server nicht verlassen,
+  // dieselbe Grenze wie bei den Rezepten. `rawCustomSystemPrompt` bleibt der
+  // Weg für frei eingetippte Rollen und für Bestandsdaten, die den Text noch
+  // mitschicken.
+  let customSystemPrompt = rawCustomSystemPrompt ?? undefined;
+  if (rawRoleRef) {
+    const storedRoles = user.user_defaults?.profile?.roles;
+    const role = Array.isArray(storedRoles)
+      ? findRole(storedRoles as UserRole[], rawRoleRef)
+      : null;
+    if (!role) {
+      log.warn(
+        `[${requestId}] roleRef ${rawRoleRef.ebene}/${rawRoleRef.rolle} findet keine ` +
+          'gespeicherte Rolle — der Turn läuft mit dem Basis-Agenten.'
+      );
+    } else {
+      customSystemPrompt = resolveRoleSystemPrompt(role, user.locale ?? 'de-DE') ?? undefined;
+    }
+  }
+
   // === Resolve context window for model-aware budgets ===
   const contextWindowTokens = getContextWindow(modelId);
 
@@ -634,7 +658,7 @@ export async function buildStreamContext({
       : undefined,
     userLocale: user.locale ?? 'de-DE',
     clientPlatform: rawPlatform ?? 'web',
-    customSystemPrompt: rawCustomSystemPrompt ?? undefined,
+    customSystemPrompt,
     activeSkillMention: rawActiveSkillMention ?? undefined,
     userInstructions,
     contextWindowTokens,

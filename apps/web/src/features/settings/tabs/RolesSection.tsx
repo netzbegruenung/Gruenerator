@@ -14,6 +14,7 @@ import {
   LOCAL_NAME_PLACEHOLDERS,
   needsAbgeordneteName,
   needsRolePromptRefresh,
+  roleBausteinKey,
   buildRoleDescription,
   stripRoleBlock,
   ROLE_PROMPT_VERSION,
@@ -108,6 +109,9 @@ function RoleCard({
 }) {
   const ebene = ebenen.find((e) => e.id === role.ebene);
   const subtitle = [role.gliederung, role.bundesland].filter(Boolean).join(' · ');
+  // Katalogrollen haben nichts zum Neu-Erzeugen: ihr Auftrag liegt fertig auf
+  // dem Server. Der Knopf erscheint nur bei frei eingetippten Rollen.
+  const canRegenerate = !roleBausteinKey(role.ebene, role.rolle);
 
   return (
     <div className="group flex items-center gap-sm bg-background border border-grey-200 dark:border-grey-700 rounded-md px-md py-md transition-colors">
@@ -124,16 +128,18 @@ function RoleCard({
           </p>
         )}
       </div>
-      <button
-        type="button"
-        onClick={onRegenerate}
-        disabled={regenerating}
-        className="shrink-0 p-1 text-grey-400 hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 max-sm:opacity-100 disabled:opacity-50"
-        aria-label={`Rollenprofil für ${role.rolle} neu erzeugen`}
-        title="Rollenprofil neu erzeugen"
-      >
-        <HiOutlineArrowPath className={`size-4 ${regenerating ? 'animate-spin' : ''}`} />
-      </button>
+      {canRegenerate && (
+        <button
+          type="button"
+          onClick={onRegenerate}
+          disabled={regenerating}
+          className="shrink-0 p-1 text-grey-400 hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 max-sm:opacity-100 disabled:opacity-50"
+          aria-label={`Rollenprofil für ${role.rolle} neu erzeugen`}
+          title="Rollenprofil neu erzeugen"
+        >
+          <HiOutlineArrowPath className={`size-4 ${regenerating ? 'animate-spin' : ''}`} />
+        </button>
+      )}
       <button
         type="button"
         onClick={onDelete}
@@ -337,17 +343,24 @@ export default function RolesSection() {
     if (wizAbgeordnete.trim()) newRole.abgeordnete = wizAbgeordnete.trim();
     if (wizInstructions.trim()) newRole.instructions = wizInstructions.trim();
 
-    // System-prompt enrichment is best-effort. If the chat-service endpoint is
-    // down, the role still gets added and saved without a custom prompt.
-    setGenerating(true);
-    setErrorMessage(null);
-
-    const generated = await fetchRolePrompt(buildRoleDescription(newRole, ebeneLabel, isAustrian));
-    if (generated) {
-      newRole.systemPrompt = generated;
-      newRole.promptVersion = ROLE_PROMPT_VERSION;
+    // Katalogrollen brauchen hier nichts: ihr Auftrag ist parteiintern, liegt
+    // server-seitig und wird bei jeder Anfrage aus der Referenz aufgelöst. Nur
+    // frei eingetippte Rollen bekommen weiterhin ein KI-erzeugtes Profil — und
+    // das best effort: fällt der Endpunkt aus, wird die Rolle trotzdem
+    // gespeichert.
+    let promptGenFailed = false;
+    if (!roleBausteinKey(newRole.ebene, newRole.rolle)) {
+      setGenerating(true);
+      setErrorMessage(null);
+      const generated = await fetchRolePrompt(
+        buildRoleDescription(newRole, ebeneLabel, isAustrian)
+      );
+      if (generated) {
+        newRole.systemPrompt = generated;
+        newRole.promptVersion = ROLE_PROMPT_VERSION;
+      }
+      promptGenFailed = !generated;
     }
-    const promptGenFailed = !generated;
 
     const nextRoles = [...roles, newRole];
     setRoles(nextRoles);
@@ -391,7 +404,7 @@ export default function RolesSection() {
   const handleRegeneratePrompt = useCallback(
     async (index: number) => {
       const role = roles[index];
-      if (!role) return;
+      if (!role || roleBausteinKey(role.ebene, role.rolle)) return;
 
       setRegeneratingIndex(index);
       setErrorMessage(null);
@@ -427,7 +440,9 @@ export default function RolesSection() {
   const refreshedRef = useRef(false);
   useEffect(() => {
     if (refreshedRef.current || !seededRef.current || roles.length === 0) return;
-    const stale = roles.filter(needsRolePromptRefresh);
+    const stale = roles.filter(
+      (r) => !roleBausteinKey(r.ebene, r.rolle) && needsRolePromptRefresh(r)
+    );
     if (stale.length === 0) return;
 
     refreshedRef.current = true;
@@ -439,7 +454,7 @@ export default function RolesSection() {
 
       for (const [index, role] of refreshed.entries()) {
         if (cancelled) return;
-        if (!needsRolePromptRefresh(role)) continue;
+        if (roleBausteinKey(role.ebene, role.rolle) || !needsRolePromptRefresh(role)) continue;
 
         setRegeneratingIndex(index);
         const ebeneLabel = ebenen.find((e) => e.id === role.ebene)?.label || '';

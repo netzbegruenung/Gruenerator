@@ -203,6 +203,7 @@ function useGrueneratorThreadRuntime() {
     searchMode,
     customSystemPrompt,
     customRoleName,
+    customRoleRef,
     customEnabledTools,
     activeSkillMention,
     pinnedConnector,
@@ -216,6 +217,7 @@ function useGrueneratorThreadRuntime() {
       searchMode: s.searchMode,
       customSystemPrompt: s.customSystemPrompt,
       customRoleName: s.customRoleName,
+      customRoleRef: s.customRoleRef,
       customEnabledTools: s.customEnabledTools,
       activeSkillMention: s.activeSkillMention,
       pinnedConnector: s.pinnedConnector,
@@ -241,6 +243,7 @@ function useGrueneratorThreadRuntime() {
       searchMode,
       customSystemPrompt,
       customRoleName,
+      customRoleRef,
       customEnabledTools,
       activeSkillMention,
       pinnedConnector,
@@ -254,6 +257,7 @@ function useGrueneratorThreadRuntime() {
     searchMode,
     customSystemPrompt,
     customRoleName,
+    customRoleRef,
     customEnabledTools,
     activeSkillMention,
     pinnedConnector,
@@ -272,7 +276,7 @@ function useGrueneratorThreadRuntime() {
   const onThreadCreated = useCallback((newThreadId: string) => {
     useAgentStore.getState().setCurrentThread(newThreadId);
     const state = useAgentStore.getState();
-    if (state.threadMode === 'eigener' && state.customSystemPrompt) {
+    if (state.threadMode === 'eigener' && (state.customSystemPrompt || state.customRoleRef)) {
       void state.saveThreadSettings(newThreadId, runtimeApiClientRef.current);
     }
   }, []);

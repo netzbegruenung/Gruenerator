@@ -41,8 +41,9 @@ export function buildRoleDescription(
  * älterer (oder fehlender) Fassung erzeugen ihr Profil beim nächsten Öffnen der
  * Einstellungen automatisch neu.
  *
- * Fassung 2 (03.08.2026): höchstens 120 statt 600 Wörter, ohne Ton- und
- * Werkzeugregeln, die die Laufzeit ohnehin bei jedem Turn mitschickt.
+ * Fassung 2 (03.08.2026): Auftrag in Fließtext statt Profil mit Stichpunkten,
+ * höchstens 100 statt 600 Wörter — ohne Ton- und Werkzeugregeln, die die
+ * Laufzeit ohnehin bei jedem Turn mitschickt.
  */
 export const ROLE_PROMPT_VERSION = 2;
 
@@ -89,13 +90,15 @@ export function stripRoleBlock(prompt: string | null | undefined): string {
     text = text.slice(0, start) + text.slice(end + ROLE_BLOCK_END.length);
   }
 
-  return text
-    .replace(LEGACY_ROLE_BLOCK_RE, '')
-    .split('\n')
-    // Ein halb geschriebener Zaun (nur ein Marker) darf nicht als Text übrig
-    // bleiben; der Inhalt daneben gehört der Person und bleibt stehen.
-    .filter((line) => line.trim() !== ROLE_BLOCK_START && line.trim() !== ROLE_BLOCK_END)
-    .join('\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  return (
+    text
+      .replace(LEGACY_ROLE_BLOCK_RE, '')
+      .split('\n')
+      // Ein halb geschriebener Zaun (nur ein Marker) darf nicht als Text übrig
+      // bleiben; der Inhalt daneben gehört der Person und bleibt stehen.
+      .filter((line) => line.trim() !== ROLE_BLOCK_START && line.trim() !== ROLE_BLOCK_END)
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+  );
 }

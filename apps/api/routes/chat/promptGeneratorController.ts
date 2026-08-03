@@ -9,22 +9,26 @@ const router = createAuthenticatedRouter();
 
 // Was hier entsteht, hängt bei JEDER Nachricht eines Rollen-Threads im
 // Systemprompt (`customSystemPrompt` in respondNode) — die Länge ist also kein
-// einmaliger, sondern ein laufender Preis. Deshalb steht im erzeugten Prompt
-// nur, was diese eine Rolle von jeder anderen unterscheidet. Ton, Sprache,
-// Werkzeug- und Zitierregeln liefert die Laufzeit ohnehin bei jedem Turn
-// (`buildToolUsageBlock`); im Rollenprompt wiederholt wären sie doppelt — und
+// einmaliger, sondern ein laufender Preis. Deshalb steht im erzeugten Text nur,
+// was diese eine Rolle von jeder anderen unterscheidet. Ton, Sprache, Werkzeug-
+// und Zitierregeln liefert die Laufzeit ohnehin bei jedem Turn
+// (`buildToolUsageBlock`); im Rollenauftrag wiederholt wären sie doppelt — und
 // eine dort ausbuchstabierte Schrittfolge ("erst gruenerator_search, dann
 // web_search") widerspricht ihr sogar, weil die Laufzeit möglichst wenige
 // Tool-Aufrufe und bei parteifremden Fragen den direkten Weg ins Web verlangt.
-const META_PROMPT = `Du schreibst kurze Rollenprofile als System-Prompt für den Grünerator, den KI-Assistenten von Bündnis 90/Die Grünen bzw. Die Grünen Österreich.
+//
+// Form ist bewusst ein Auftrag in Fließtext, kein Profil mit Stichpunktliste:
+// eine Liste lädt zum Auffüllen ein ("noch ein Kriterium schadet ja nicht"),
+// ein Auftrag muss sich auf das beschränken, was die Rolle tatsächlich tut.
+const META_PROMPT = `Du schreibst den Arbeitsauftrag, mit dem der Grünerator — der KI-Assistent von Bündnis 90/Die Grünen bzw. Die Grünen Österreich — für eine bestimmte Rolle arbeitet.
 
-Der*die Nutzer*in beschreibt Ebene, Rolle und Aufgabe. Du machst daraus ein Profil, das ausschließlich enthält, was DIESE Rolle von jeder anderen unterscheidet.
+Der*die Nutzer*in beschreibt Ebene, Rolle und Aufgabe. Du machst daraus einen kurzen Auftrag in Fließtext, der ausschließlich enthält, was DIESE Rolle von jeder anderen unterscheidet.
 
-## AUFBAU (in dieser Reihenfolge, ohne Überschriften, als Fließtext)
+## AUFBAU (genau diese vier Teile, ohne Überschriften und ohne Aufzählungszeichen)
 
-1. Ein Satz Identität: "Du bist ein*e [Rolle] für {{partyName}} ..." — {{partyName}} bleibt wörtlich als Platzhalter stehen, er wird zur Laufzeit nach Land aufgelöst.
-2. Ein bis zwei Sätze Kernaufgabe: woran diese Rolle konkret arbeitet und für wen.
-3. "Achte besonders auf:" mit 3-4 Stichpunkten, die NUR auf diese Rolle zutreffen — Zuständigkeiten, Zielgruppe, typische Textformen, Gremien- oder Regionalbezug.
+1. Ein Satz Identität: "Du bist ein*e [Rolle] ... für {{partyName}}." — {{partyName}} bleibt wörtlich als Platzhalter stehen, er wird zur Laufzeit nach Land aufgelöst.
+2. Ein bis zwei Sätze Auftrag: woran diese Rolle arbeitet und für wen. Die typischen Textformen gehören in diese Sätze hinein ("... schreibst, was das Büro nach außen gibt: Pressemitteilungen, Reden, Grußworte"), nicht in eine eigene Liste.
+3. Ein Satz Maßstab: woran sich das Ergebnis messen lassen muss — Beschlusslage, Zielgruppe, Orts- oder Gremienbezug.
 4. Als letzte Zeile exakt: "Schreibe auf Deutsch, in der Du-Form, mit Genderstern."
 
 ## WEGLASSEN — das liefert die Laufzeit bereits bei jeder Nachricht
@@ -38,10 +42,11 @@ Der*die Nutzer*in beschreibt Ebene, Rolle und Aufgabe. Du machst daraus ein Prof
 ## FORM
 
 - Deutsch, geschlechtergerecht mit Genderstern
-- HÖCHSTENS 120 Wörter insgesamt
-- Beginne direkt mit "Du bist" — keine Überschrift, kein Markdown-Header, keine Einleitung
+- HÖCHSTENS 100 Wörter insgesamt
+- Fließtext: keine Stichpunkte, keine Überschrift, kein Markdown, keine Einleitung
+- Beginne direkt mit "Du bist"
 
-Antworte NUR mit dem Profil, ohne Erklärungen oder Kommentare.`;
+Antworte NUR mit dem Auftrag, ohne Erklärungen oder Kommentare.`;
 
 router.post('/', async (req, res) => {
   try {
