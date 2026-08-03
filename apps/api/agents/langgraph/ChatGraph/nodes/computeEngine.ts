@@ -205,6 +205,73 @@ export function computeArithmetic(expression: string, label?: string): ComputeRe
   };
 }
 
+/** One arithmetic claim to check: what to compute, and what the material says it is. */
+export interface ArithmeticCheck {
+  label: string | null;
+  expression: string;
+  /** The figure the material asserts. `null` = "just compute", no claim to test. */
+  claimed: number | null;
+}
+
+/** Two figures agree if they match to the cent — material writes "42.000", not
+ *  "42000.0000001", and a float artefact is not a discrepancy. */
+function agrees(a: number, b: number): boolean {
+  return Math.abs(a - b) < 0.005;
+}
+
+/**
+ * Several arithmetic claims at once, each optionally checked against what the
+ * material asserts.
+ *
+ * One expression per turn was the whole gap. Live on 02.08.2026 the request was
+ * "prüfe diese Angaben auf Widersprüche": the plan extracted exactly one
+ * expression (`0.35 * 120000`), and the rest of the answer's arithmetic —
+ * including `42.000 + 84.000 = 120.000` and `74 − 62 = 8` — was written
+ * free-hand by the responder and confirmed as correct. The deterministic engine
+ * was right about the one thing it was asked and silent about everything else,
+ * which from the outside is indistinguishable from having checked it all.
+ *
+ * The verdict rides inside the entry's `value` string on purpose: the wire shape
+ * is `{label, value}` and the card renders both verbatim, so a claim and its
+ * verdict cannot come apart anywhere downstream.
+ */
+export function computeArithmeticBatch(checks: readonly ArithmeticCheck[]): ComputeResult | null {
+  const entries: ComputeEntry[] = [];
+  let wrong = 0;
+  let checked = 0;
+
+  for (const check of checks) {
+    const value = evaluateArithmetic(check.expression);
+    // An unparseable expression is dropped, never guessed: a missing row is
+    // visibly incomplete, a fabricated one is not.
+    if (value === null) continue;
+    const shown = fmt(value);
+    const label = check.label?.trim() || check.expression.trim();
+    if (check.claimed === null) {
+      entries.push({ label, value: shown });
+      continue;
+    }
+    checked++;
+    const ok = agrees(value, check.claimed);
+    if (!ok) wrong++;
+    entries.push({
+      label,
+      value: ok ? `${shown} — stimmt` : `${shown} — FALSCH, im Text steht ${fmt(check.claimed)}`,
+    });
+  }
+
+  if (entries.length === 0) return null;
+
+  const summary =
+    checked === 0
+      ? entries.map((e) => `${e.label} = ${e.value}`).join('; ')
+      : wrong === 0
+        ? `${checked} geprüfte Angabe${checked === 1 ? '' : 'n'} stimmt${checked === 1 ? '' : 'en'}.`
+        : `${wrong} von ${checked} geprüften Angaben ${wrong === 1 ? 'ist' : 'sind'} falsch.`;
+
+  return { operation: checks.length > 1 ? 'Angaben prüfen' : 'Berechnung', entries, summary };
+}
+
 // ── Unit conversion ───────────────────────────────────────────────────────────
 
 /**
