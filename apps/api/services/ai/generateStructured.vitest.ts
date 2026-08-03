@@ -184,6 +184,43 @@ describe('generateStructured', () => {
     expect(repair.messages.at(-1).content).toContain('title: Required');
   });
 
+  /**
+   * The live failure: `doc_generation` ran under the generic 4096-token
+   * default, a six-slide deck with a source matrix did not fit, and the lax
+   * parser handed back the torso of the cut-off JSON. The log read "recovered
+   * from text" — i.e. success — and the deck shipped with an empty last slide.
+   * A structure whose answer was cut off is not a result.
+   */
+  it('rejects a CUT-OFF answer and retries, even though it parsed', async () => {
+    const { pool, processRequest } = poolReturning(
+      { ...toolCall({ title: 'Halb' }), stop_reason: 'length' },
+      toolCall({ title: 'Ganz' })
+    );
+
+    const result = await generateStructured({ ...base, aiWorkerPool: pool });
+
+    expect(result).toEqual({ ok: true, data: { title: 'Ganz' } });
+    expect(processRequest).toHaveBeenCalledTimes(2);
+    // The repair names the CAUSE and echoes nothing: replaying the cut-off
+    // draft would make the model "correct" the truncation (see MAX_ECHO_CHARS).
+    const [repair] = processRequest.mock.calls[1];
+    expect(repair.messages.at(-1).content).toContain('abgeschnitten');
+    expect(repair.messages.some((m: { role: string }) => m.role === 'assistant')).toBe(false);
+  });
+
+  it('ships the torso when EVERY attempt was cut off', async () => {
+    // Half a document the person can still finish beats none at all — the same
+    // call createPdfDocument makes for its own repair round.
+    const { pool } = poolReturning(
+      { ...toolCall({ title: 'Torso A' }), stop_reason: 'length' },
+      { ...toolCall({ title: 'Torso B' }), stop_reason: 'length' }
+    );
+
+    const result = await generateStructured({ ...base, aiWorkerPool: pool });
+
+    expect(result).toEqual({ ok: true, data: { title: 'Torso A' } });
+  });
+
   it('leaves the model choice to providerSelector', async () => {
     // A top-level `provider` picks the ADAPTER without picking a matching
     // model — routes/texte/website.ts documents where that lands. The creation

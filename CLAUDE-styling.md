@@ -14,6 +14,14 @@ Use for all new code. Import `cn()` from `@/utils/cn` for conditional classes.
 - **`fixed` does not set `inset: 0`.** Use `fixed inset-0 m-auto h-fit w-full max-w-[32rem]` for centered dialogs.
 - **`mx-auto` in flex column collapses width.** Add `w-full` alongside `mx-auto` inside `flex flex-col` parents.
 
+### Breite und Zeigergerät sind zwei Fragen
+
+**Umstapeln hängt an der gemessenen Breite, Trefferflächen und Hover-Ersatz am Zeigergerät.** Ein iPad ist beides, ein schmales Desktop-Fenster keines von beidem — deshalb beantwortet ein Breakpoint die Touch-Frage nie.
+
+- **Zeigergerät**: `pointer-coarse:` — Tailwind v4 bringt die Variante mit, es braucht **kein** `@custom-variant` (anders als `kbd:`, das CSS wirklich nicht ausdrücken kann). Dafür und **nur** dafür: Trefferflächen und alles, was heute hinter `group-hover:` versteckt ist. Ein `opacity-0 group-hover:opacity-100` ohne `pointer-coarse:opacity-100` ist auf jedem Telefon dauerhaft unsichtbar.
+- **Trefferflächen**: `touch-target` legt per unsichtbarem `::after` die 44px aus WCAG 2.2 „Target Size" über ein Element, ohne dessen Optik zu ändern. Zwei Voraussetzungen: kein Vorfahre mit `overflow: hidden`, und `::after` ist nicht schon belegt (`tabs.tsx` hängt dort seinen Aktiv-Indikator hinein). Wo das Element allein steht und Wachstum nichts verdrängt, ist `coarse:size-11` ehrlicher als eine Phantomfläche — und zwei Phantomflächen mit weniger als 44px Abstand überlappen sich, dann gewinnt die obere.
+- **Breite**: der Breakpoint bleibt der Breakpoint — aber miss die eigene Box, nicht das Fenster, wo dieselbe Oberfläche auch in einem Panel stecken kann (`useIsNarrowerThan` aus `@gruenerator/ui`; `useIsMobile` misst das Fenster und ist für Vollbild-Layouts gedacht).
+
 ### Legacy Code & Migration
 
 - Design tokens: `apps/web/src/assets/styles/common/variables.css`
