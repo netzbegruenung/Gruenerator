@@ -69,6 +69,117 @@ export function stripFabricatedSystemClaims(
 }
 
 /**
+ * A `data:` URI carrying a DOCUMENT payload. Image mime types are deliberately
+ * absent: an inline `data:image/svg+xml` inside an `artifact` turn's HTML block
+ * is legitimate content, while there is no turn in this product where the
+ * assistant should type out an Office file, a PDF or a ZIP.
+ *
+ * Bounded on purpose — the point is to RECOGNISE the block, not to consume it;
+ * removal happens at fence/paragraph granularity below.
+ */
+const DOCUMENT_DATA_URI_RE =
+  /data:application\/(?:vnd\.(?:openxmlformats-officedocument|oasis\.opendocument|ms-)[^\s;,]*|pdf|zip|x-zip-compressed|octet-stream|msword)\s*;\s*base64,[A-Za-z0-9+/=]{16}/i;
+
+/**
+ * An artefact path with a UUID in it, with or without a host in front. The
+ * UUID shape is the whole gate: a Notion-style slug path carries a name prefix
+ * and cannot collide, and a bare `/office/` with no id is prose, not a promise.
+ */
+const ARTIFACT_PATH_RE =
+  /(?:https?:\/\/[^\s)\]]*?)?\/(?:office|docs?|documents|boards?|sheets?|presentations?)\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi;
+
+const FENCED_BLOCK_RE = /```[\s\S]*?(?:```|$)/g;
+
+export interface ArtifactDeliveryResult {
+  text: string;
+  /** What was removed — for logging. Empty means the text was left untouched. */
+  removed: string[];
+}
+
+/**
+ * Remove a FILE the model typed out and a PATH it made up.
+ *
+ * Live on 02.08.2026, both in the same thread. Asked for a presentation on a
+ * turn whose artefact action was forbidden, the model wrote
+ * `data:application/vnd.openxmlformats-officedocument.presentationml.presentation;base64,…`
+ * into the chat and told the user to save it as `.pptx` — 252 bytes, a ZIP
+ * header, no central directory, no end-of-archive: not a file. Told that it was
+ * broken, it answered with the bare path `/office/7f9a3c2b-1e45-4d8a-b6fa-0c2e5b9d4e12`,
+ * an id nothing had ever minted, and the click 404'd in the access log.
+ *
+ * Both failures share a shape the prompt cannot fully close: they are the
+ * model's idea of being helpful when the tool it needed was not mounted. So the
+ * prompt states the rule ({@link NO_HANDMADE_FILE_NOTE}) and this states the
+ * guarantee.
+ *
+ * `knownRefs` is the allowlist — the ids of artefacts this thread really built.
+ * A path the CODE handed the model (`/boards/<id>` in the agentic loop's board
+ * note) is in there and survives; an invented one is not and does not.
+ *
+ * Deliberately NOT total: a sentence like "speichere den Block als .pptx" may
+ * outlive the block it referred to, because the sentence carries no signature to
+ * key on. Removing the payload is what makes the answer honest; the leftover
+ * reads as a mistake rather than as a broken download.
+ */
+export function stripFabricatedArtifactDelivery(
+  text: string,
+  knownRefs: readonly (string | null | undefined)[] = []
+): ArtifactDeliveryResult {
+  if (typeof text !== 'string' || text.length === 0) {
+    return { text: typeof text === 'string' ? text : '', removed: [] };
+  }
+
+  const allowed = new Set(
+    knownRefs
+      .filter((ref): ref is string => typeof ref === 'string' && ref.length > 0)
+      .map(normalize)
+  );
+  const removed: string[] = [];
+
+  const fabricatedPath = (segment: string): string | null => {
+    for (const m of segment.matchAll(ARTIFACT_PATH_RE)) {
+      const id = m[1];
+      if (id && !allowed.has(normalize(id))) return m[0];
+    }
+    return null;
+  };
+
+  const offence = (segment: string): string | null => {
+    if (DOCUMENT_DATA_URI_RE.test(segment)) return 'data:-Block';
+    return fabricatedPath(segment);
+  };
+
+  // Fenced blocks first: a base64 payload arrives inside one, and its blank
+  // lines would otherwise split it across several "paragraphs", leaving half
+  // the blob standing.
+  let out = text.replace(FENCED_BLOCK_RE, (block) => {
+    const found = offence(block);
+    if (!found) return block;
+    removed.push(found);
+    return '';
+  });
+
+  out = out
+    .split(/\n{2,}/)
+    .filter((paragraph) => {
+      const found = offence(paragraph);
+      if (!found) return true;
+      removed.push(found);
+      return false;
+    })
+    .join('\n\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  if (removed.length === 0) return { text, removed: [] };
+
+  const notice =
+    'Hinweis: Ich kann eine Datei nicht selbst in die Antwort schreiben — ein Teil dieser Antwort behauptete das und wurde entfernt. Präsentationen, Dokumente, Tabellen und PDFs lege ich über die Erstellungsfunktion an; sie erscheinen dann als Karte im Chat. Sag Bescheid, dann mache ich das.';
+
+  return { text: out.length > 0 ? `${out}\n\n${notice}` : notice, removed };
+}
+
+/**
  * The answer tells the user to go and search, although this turn already
  * searched and got sources. Observed live: two web searches + a document search
  * returned three sources naming the chancellor, and the answer closed with

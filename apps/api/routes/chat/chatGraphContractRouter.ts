@@ -32,6 +32,7 @@ import {
   pandasComputeNode,
   buildSystemMessage,
 } from '../../agents/langgraph/ChatGraph/index.js';
+import { knownArtifactRefs } from '../../agents/langgraph/ChatGraph/nodes/artifactInventory.js';
 import {
   isSheetFillRequest,
   isTabularComputeQuestion,
@@ -94,7 +95,10 @@ import {
   executeIntentPipeline,
 } from './services/intentExecutionService.js';
 import { estimateRequestTokens, extractTextContent } from './services/messageHelpers.js';
-import { stripFabricatedSystemClaims } from './services/outputSanity.js';
+import {
+  stripFabricatedArtifactDelivery,
+  stripFabricatedSystemClaims,
+} from './services/outputSanity.js';
 import {
   recallPastChats,
   recallOfficeDocuments,
@@ -1088,7 +1092,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         );
         recordDecision(
           'router.persistent_action_gate',
-          forbidden ? 'demoted_primary_to_direct' : 'allowed',
+          forbidden ? 'demoted_primary_to_produktion' : 'allowed',
           { inputs: { family: primaryFamily, intent: classifiedState.intent } }
         );
         if (forbidden) {
@@ -1096,6 +1100,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             `[ChatGraph] Turn forbids ${primaryFamily} action → demoting intent ${classifiedState.intent} to produktion`
           );
           classifiedState.intent = 'produktion';
+          // Carry the REASON, not just the outcome. `produktion` is the prose
+          // lane, and the demoted turn lands there still carrying "mach eine
+          // Präsentation" — the tool gone, and nothing in the prompt saying
+          // why. That gap is what the model filled with a hand-written file
+          // (see `forbiddenArtifactAction` in ChatGraph/types.ts).
+          classifiedState.forbiddenArtifactAction = primaryFamily;
         }
       }
 
@@ -2127,8 +2137,18 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             );
             fullText = sanity.text;
           }
+          // A file the model typed out, or an artefact path it made up. This is
+          // the path that produced the base64 „.pptx" and the 404'ing
+          // /office/<uuid> on 02.08.2026 — single-pass, no artefact tool.
+          const delivery = stripFabricatedArtifactDelivery(fullText, knownArtifactRefs(finalState));
+          if (delivery.removed.length > 0) {
+            log.warn(
+              `[ChatGraph] Removed fabricated artefact delivery: ${delivery.removed.join(', ')}`
+            );
+            fullText = delivery.text;
+          }
           const citeClamp = stripOutOfRangeCitations(fullText, finalState.citations.length);
-          if (citeClamp.changed || sanity.fabricated.length > 0) {
+          if (citeClamp.changed || sanity.fabricated.length > 0 || delivery.removed.length > 0) {
             fullText = citeClamp.text;
             sse.send('completion', { text: fullText, citations: finalState.citations });
           }

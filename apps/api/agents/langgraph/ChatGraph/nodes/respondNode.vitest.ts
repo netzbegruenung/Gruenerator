@@ -117,6 +117,52 @@ describe('getModeGuidance turn-outcome honesty (direct path)', () => {
 });
 
 /**
+ * Der Turn, der am 02.08.2026 einen Base64-Block als „.pptx" ausgab: Der
+ * Nutzer verlangte eine Präsentation UND untersagte im selben Zug die Aktion,
+ * das Gitter demotierte auf `produktion` — und sagte niemandem, warum.
+ */
+describe('getModeGuidance on a demoted artefact turn', () => {
+  it('names the refused family and forbids a hand-built file', () => {
+    const out = getModeGuidance(
+      makeState({
+        intent: 'produktion',
+        searchResults: [],
+        forbiddenArtifactAction: 'presentation',
+        lastUserTextNoMentions: 'Mach eine Präsentation, aber speichere nichts ab.',
+      })
+    );
+    expect(out).toContain('Präsentation');
+    expect(out).toMatch(/KEIN Artefakt erstellt/);
+    expect(out).toContain('data:');
+    expect(out).toContain('Erstellungsfunktion');
+  });
+
+  it('warns about hand-built files whenever the turn talks about them', () => {
+    const out = getModeGuidance(
+      makeState({
+        intent: 'produktion',
+        searchResults: [],
+        lastUserTextNoMentions: 'Der Block ist keine gültige Datei.',
+      })
+    );
+    expect(out).toContain('data:');
+    // No demotion happened, so no refusal sentence.
+    expect(out).not.toMatch(/KEIN Artefakt erstellt/);
+  });
+
+  it('spends nothing on a turn that never mentions a file', () => {
+    const out = getModeGuidance(
+      makeState({
+        intent: 'direct',
+        searchResults: [],
+        lastUserTextNoMentions: 'Wie geht es dir heute?',
+      })
+    );
+    expect(out).not.toContain('data:');
+  });
+});
+
+/**
  * "Mehr dazu bitte" after a sourced answer classifies `direct`, and a `direct`
  * turn used to carry no sources at all — so the model rewrote its own previous
  * answer from that answer's prose. Carrying the thread's research fixes the
