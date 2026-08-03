@@ -68,7 +68,7 @@ export const ModelPicker = memo(function ModelPicker() {
       <span className="flex items-center gap-1.5">
         <span className="text-sm font-medium leading-tight">{AUTO_OPTION.name}</span>
         <Badge variant="secondary" className="px-1.5 py-0 text-[10px] leading-4 font-medium">
-          Empfohlen
+          {AUTO_OPTION.recommendedLabel}
         </Badge>
       </span>
       <span className="text-muted-foreground text-xs leading-tight">{AUTO_OPTION.description}</span>
@@ -114,7 +114,7 @@ export const ModelPicker = memo(function ModelPicker() {
         <span className="flex items-center gap-1.5">
           <span className="font-medium">{AUTO_OPTION.name}</span>
           <Badge variant="secondary" className="px-1.5 py-0 text-[10px] leading-4 font-medium">
-            Empfohlen
+            {AUTO_OPTION.recommendedLabel}
           </Badge>
         </span>
         <span className="text-muted-foreground block text-xs">{AUTO_OPTION.description}</span>

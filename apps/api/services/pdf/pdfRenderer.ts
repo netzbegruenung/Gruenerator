@@ -25,7 +25,9 @@ import {
   PDFArray,
   PDFDocument,
   PDFName,
+  PDFNumber,
   PDFRef,
+  PDFString,
   rgb,
   type PDFDict,
   type PDFEmbeddedPage,
@@ -241,11 +243,14 @@ export const PDF_TYPE_AREA = {
 interface FontRun {
   text: string;
   font: PDFFont;
+  /** Ziel der umgebenden Verknüpfung; farbig gezeichnet und mit /Link annotiert. */
+  href?: string;
 }
 
 interface InlineSegment {
   text: string;
   bold: boolean;
+  href?: string;
 }
 
 interface RendererFonts {
@@ -329,12 +334,17 @@ const SILENTLY_DROPPED = new Set([
  * character: body font first, emoji font second, ASCII stand-in third. A
  * character with no glyph anywhere is dropped and recorded.
  */
-function splitIntoFontRuns(text: string, textFont: PDFFont, fonts: RendererFonts): FontRun[] {
+function splitIntoFontRuns(
+  text: string,
+  textFont: PDFFont,
+  fonts: RendererFonts,
+  href?: string
+): FontRun[] {
   const runs: FontRun[] = [];
   const push = (chunk: string, font: PDFFont) => {
     const last = runs[runs.length - 1];
     if (last && last.font === font) last.text += chunk;
-    else runs.push({ text: chunk, font });
+    else runs.push(href ? { text: chunk, font, href } : { text: chunk, font });
   };
 
   // NFC zuerst: in zerlegter Form (NFD — der Normalfall bei macOS-Dateinamen
@@ -392,38 +402,70 @@ function decodeEntities(text: string): string {
     .replace(/&amp;/g, '&');
 }
 
-/** Flatten marked inline tokens into bold-aware segments (links keep their text). */
-function flattenInline(tokens: Token[] | undefined, bold = false): InlineSegment[] {
+/**
+ * Ziele, denen ein PDF-Reader folgen darf.
+ *
+ * Ein `/URI`-Ziel ist ausführbarer Inhalt: Acrobat kennt `javascript:`, und
+ * `file:` greift auf die Platte der lesenden Person zu. Der Text, aus dem diese
+ * Adressen kommen, stammt aus einem Sprachmodell und aus fremden Webseiten —
+ * also gilt hier eine Erlaubnisliste, keine Sperrliste.
+ */
+function safeHref(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const value = raw.trim();
+  if (!/^(?:https?:\/\/|mailto:)/i.test(value)) return null;
+  // Steuerzeichen und Leerraum brechen aus dem PDF-String aus. Als Schleife und
+  // nicht als Zeichenklasse: ein Steuerzeichen im regulären Ausdruck ist genau
+  // das, was `no-control-regex` verbietet.
+  for (const char of value) {
+    const cp = char.codePointAt(0) ?? 0;
+    if (cp <= 0x20 || cp === 0x7f) return null;
+  }
+  return value.length > 2000 ? null : value;
+}
+
+/** Flatten marked inline tokens into bold-aware segments. */
+function flattenInline(tokens: Token[] | undefined, bold = false, href?: string): InlineSegment[] {
   if (!tokens) return [];
   const out: InlineSegment[] = [];
+  const emit = (text: string, isBold = bold) =>
+    out.push(href ? { text, bold: isBold, href } : { text, bold: isBold });
   for (const token of tokens) {
     switch (token.type) {
       case 'strong':
-        out.push(...flattenInline((token as Tokens.Strong).tokens, true));
+        out.push(...flattenInline((token as Tokens.Strong).tokens, true, href));
         break;
+      case 'link': {
+        // Das Ziel ging bisher verloren — auch bei Auto-Verlinkung, die der
+        // Lexer für nackte URLs schon selbst erzeugt. Eine recherchierte Quelle
+        // stand im fertigen PDF damit als toter Text, den niemand anklicken und
+        // bei einer umbrochenen URL auch niemand abtippen konnte.
+        const link = token as Tokens.Link;
+        out.push(...flattenInline(link.tokens, bold, safeHref(link.href) ?? href));
+        break;
+      }
       case 'em':
-      case 'link':
       case 'del':
-        out.push(...flattenInline((token as Tokens.Em).tokens, bold));
+        out.push(...flattenInline((token as Tokens.Em).tokens, bold, href));
         break;
       case 'codespan':
-        out.push({ text: (token as Tokens.Codespan).text, bold });
+        emit((token as Tokens.Codespan).text);
         break;
       case 'br':
-        out.push({ text: '\n', bold });
+        emit('\n');
         break;
       case 'escape':
-        out.push({ text: (token as Tokens.Escape).text, bold });
+        emit((token as Tokens.Escape).text);
         break;
       case 'text': {
         const t = token as Tokens.Text;
-        if (t.tokens?.length) out.push(...flattenInline(t.tokens, bold));
-        else out.push({ text: decodeEntities(t.text), bold });
+        if (t.tokens?.length) out.push(...flattenInline(t.tokens, bold, href));
+        else emit(decodeEntities(t.text));
         break;
       }
       default: {
         const raw = (token as { raw?: string }).raw;
-        if (raw) out.push({ text: decodeEntities(raw), bold });
+        if (raw) emit(decodeEntities(raw));
       }
     }
   }
@@ -431,17 +473,57 @@ function flattenInline(tokens: Token[] | undefined, bold = false): InlineSegment
 }
 
 /**
+ * Fußnotenmarken in eine Form bringen, die ein PDF lesbar macht.
+ *
+ * `[^1]` ist Markdown-Syntax für eine Fußnote, die anderswo definiert wird.
+ * Ein PDF hat diesen Mechanismus nicht, `marked` kennt die Erweiterung nicht,
+ * und so stand das Zeichen am 03.08.2026 wörtlich im fertigen Dokument: „Der
+ * Rat hat zugestimmt[^1]." — eine Marke, die auf nichts zeigt. Die eckige
+ * Klammer bleibt (sie verweist auf den Quellenblock), das Dach fällt weg.
+ */
+function normalizeFootnoteMarkers(text: string): string {
+  return text.replace(/\[\^(\d{1,3})\]/g, '[$1]');
+}
+
+/**
  * Block text may still carry inline markdown (**fett**, *kursiv*) — block-level
  * structure is expressed by the block type instead, so only inline is parsed.
  */
 function inlineSegments(text: string): InlineSegment[] {
-  const trimmed = (text ?? '').trim();
+  const trimmed = normalizeFootnoteMarkers((text ?? '').trim());
   if (!trimmed) return [];
   try {
     return flattenInline(marked.Lexer.lexInline(trimmed));
   } catch {
     return [{ text: trimmed, bold: false }];
   }
+}
+
+/**
+ * Bevorzugte Bruchstellen innerhalb eines Wortes, das breiter ist als die Zeile.
+ *
+ * Betroffen sind praktisch nur URLs. Die alte Notlösung trennte zeichenweise,
+ * also mitten im Prozent-Escape: aus
+ * `…/TXT/?uri=CELEX%3A52026PC0077` wurde `…/TXT/?uri=CELEX%3A5202` / `6PC0077`.
+ * Diese Adresse ist weder wiederzuerkennen noch abzutippen — und genau das
+ * musste man am 03.08.2026 im erzeugten PDF tun, weil sie zusätzlich nicht
+ * anklickbar war. Getrennt wird NACH dem Trennzeichen, damit es am Zeilenende
+ * stehen bleibt und nicht als führendes Zeichen einer neuen Zeile gelesen wird.
+ */
+const BREAK_AFTER = /[/\-._?&=,;:#+~%]/;
+
+function breakChunks(text: string): string[] {
+  const chunks: string[] = [];
+  let current = '';
+  for (const ch of text) {
+    current += ch;
+    if (BREAK_AFTER.test(ch)) {
+      chunks.push(current);
+      current = '';
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks;
 }
 
 /** Break segments into per-word font runs and word-wrap them into lines. */
@@ -477,7 +559,7 @@ function wrapSegments(
         }
         continue;
       }
-      const runs = splitIntoFontRuns(token, font, fonts);
+      const runs = splitIntoFontRuns(token, font, fonts, seg.href);
       const width = measureRuns(runs, fontSize);
       if (current) {
         current.runs.push(...runs);
@@ -508,10 +590,22 @@ function wrapSegments(
     // Hard-break words wider than the line so they can never overflow.
     if (word.width > maxWidth) {
       for (const run of word.runs) {
-        for (const ch of run.text) {
-          const w = safeWidth(run.font, ch, fontSize);
+        const piece = (text: string): FontRun =>
+          run.href ? { text, font: run.font, href: run.href } : { text, font: run.font };
+        for (const chunk of breakChunks(run.text)) {
+          const w = safeWidth(run.font, chunk, fontSize);
           if (lineWidth + w > maxWidth && line.length) flush();
-          line.push({ text: ch, font: run.font });
+          if (w > maxWidth) {
+            // Auch der Abschnitt sprengt die Zeile — dann zeichenweise, wie bisher.
+            for (const ch of chunk) {
+              const cw = safeWidth(run.font, ch, fontSize);
+              if (lineWidth + cw > maxWidth && line.length) flush();
+              line.push(piece(ch));
+              lineWidth += cw;
+            }
+            continue;
+          }
+          line.push(piece(chunk));
           lineWidth += w;
         }
       }
@@ -520,7 +614,17 @@ function wrapSegments(
     const needed = (line.length ? spaceWidth : 0) + word.width;
     if (lineWidth + needed > maxWidth && line.length) flush();
     if (line.length) {
-      line.push({ text: ' ', font: fonts.body });
+      // Das Trennzeichen gehört zur Verknüpfung, wenn beide Nachbarn dazu
+      // gehören. Ohne das zerfiel "der Vorschlag der Kommission" in drei
+      // Annotationen mit Löchern dazwischen — anklickbar waren die Wörter,
+      // nicht der Link.
+      const before = line[line.length - 1]?.href;
+      const after = word.runs[0]?.href;
+      line.push(
+        before && before === after
+          ? { text: ' ', font: fonts.body, href: before }
+          : { text: ' ', font: fonts.body }
+      );
       lineWidth += spaceWidth;
     }
     line.push(...word.runs);
@@ -547,6 +651,20 @@ function drawRuns(
     }
     x += safeWidth(run.font, run.text, fontSize);
   }
+}
+
+const SOURCES_HEADING = 'Quellen';
+
+/** Aufeinanderfolgende Läufe mit demselben Ziel bilden EINE Verknüpfung. */
+function groupByHref(runs: FontRun[]): Array<{ href: string | null; runs: FontRun[] }> {
+  const groups: Array<{ href: string | null; runs: FontRun[] }> = [];
+  for (const run of runs) {
+    const href = run.href ?? null;
+    const last = groups[groups.length - 1];
+    if (last && last.href === href) last.runs.push(run);
+    else groups.push({ href, runs: [run] });
+  }
+  return groups;
 }
 
 function formatDate(locale: PdfLocale): string {
@@ -745,6 +863,102 @@ class PdfRenderer {
     });
   }
 
+  // ── links ──────────────────────────────────────────────────────────────────
+
+  /**
+   * Eine fertig umbrochene Zeile zeichnen — und jede Verlinkung darin zu einer
+   * echten PDF-Verknüpfung machen.
+   *
+   * Bis hierher war ein Link im erzeugten PDF nur Text: `flattenInline` warf
+   * das Ziel weg. Ein Quellenverzeichnis war damit Dekoration — anklicken ging
+   * nicht, abtippen wegen des zeichenweisen Umbruchs auch nicht.
+   *
+   * Der Link braucht drei Dinge gleichzeitig, sonst ist er nur zwei Drittel da:
+   * eine eigene markierte Inhaltsfolge (sonst gehört der Text zum Absatz und
+   * das /Link-Element hat kein Kind), eine Annotation mit /URI-Aktion (das
+   * Klickbare) und das OBJR, das beide verbindet. Sichtbar wird er durch Farbe
+   * UND Unterstreichung — Farbe allein trägt keine Bedeutung (WCAG 1.4.1).
+   */
+  private paintLine(
+    page: PDFPage,
+    runs: FontRun[],
+    startX: number,
+    y: number,
+    fontSize: number,
+    color: RGB
+  ): void {
+    const groups = groupByHref(runs);
+    if (groups.length === 1 && !groups[0]!.href) {
+      this.tagger.content(page, () => drawRuns(page, runs, startX, y, fontSize, color));
+      return;
+    }
+
+    let x = startX;
+    for (const group of groups) {
+      const width = measureRuns(group.runs, fontSize);
+      const groupX = x;
+      const href = group.href;
+      x += width;
+      if (!href) {
+        this.tagger.content(page, () => drawRuns(page, group.runs, groupX, y, fontSize, color));
+        continue;
+      }
+      this.tagger.tag('Link', () => {
+        this.tagger.content(page, () => {
+          drawRuns(page, group.runs, groupX, y, fontSize, this.theme.primary);
+          page.drawLine({
+            start: { x: groupX, y: y - fontSize * 0.13 },
+            end: { x: groupX + width, y: y - fontSize * 0.13 },
+            thickness: Math.max(fontSize * 0.05, 0.4),
+            color: this.theme.primary,
+          });
+        });
+        const ref = this.addLinkAnnotation(page, href, groupX, y, width, fontSize);
+        if (ref) this.tagger.attachAnnotation(page, ref, href);
+      });
+    }
+  }
+
+  /**
+   * Die klickbare Fläche. `/F 4` setzt das Druck-Flag: PDF/UA 7.18.1 verlangt
+   * es für jede Annotation, veraPDF beanstandet sie sonst. `/Border [0 0 0]`
+   * unterdrückt den Reader-eigenen Rahmen — die Auszeichnung machen wir selbst.
+   */
+  private addLinkAnnotation(
+    page: PDFPage,
+    href: string,
+    x: number,
+    y: number,
+    width: number,
+    fontSize: number
+  ): PDFRef | null {
+    try {
+      const ctx = this.doc.context;
+      const action = ctx.obj({}) as PDFDict;
+      action.set(PDFName.of('S'), PDFName.of('URI'));
+      action.set(PDFName.of('URI'), PDFString.of(href));
+
+      const annot = ctx.obj({}) as PDFDict;
+      annot.set(PDFName.of('Type'), PDFName.of('Annot'));
+      annot.set(PDFName.of('Subtype'), PDFName.of('Link'));
+      annot.set(
+        PDFName.of('Rect'),
+        ctx.obj([x, y - fontSize * 0.28, x + width, y + fontSize * 0.92])
+      );
+      annot.set(PDFName.of('Border'), ctx.obj([0, 0, 0]));
+      annot.set(PDFName.of('F'), PDFNumber.of(4));
+      annot.set(PDFName.of('A'), ctx.register(action));
+
+      const ref = ctx.register(annot);
+      page.node.addAnnot(ref);
+      return ref;
+    } catch (err) {
+      // Ein fehlgeschlagener Link darf das Dokument nicht kosten.
+      log.warn(`Link-Annotation für ${href} nicht erzeugt: ${String(err)}`);
+      return null;
+    }
+  }
+
   // ── text primitives ────────────────────────────────────────────────────────
 
   /** Draw wrapped text as content of the CURRENT structure element. */
@@ -764,9 +978,7 @@ class PdfRenderer {
       const page = this.page;
       const y = this.y;
       if (line.length) {
-        this.tagger.content(page, () =>
-          drawRuns(page, line, MARGIN_L + indent, y, fontSize, color)
-        );
+        this.paintLine(page, line, MARGIN_L + indent, y, fontSize, color);
       }
       this.y -= lineHeight;
     }
@@ -832,7 +1044,7 @@ class PdfRenderer {
       lines.forEach((line, i) => {
         if (!line.length) return;
         const lineY = y - i * lineHeight;
-        this.tagger.content(page, () => drawRuns(page, line, x, lineY, size, color));
+        this.paintLine(page, line, x, lineY, size, color);
       });
     });
     return Math.max(lines.length, 1);
@@ -851,6 +1063,16 @@ class PdfRenderer {
           i += 1;
           continue;
         }
+      }
+      // Ein Quellenblock bringt seine Überschrift selbst mit. Schreibt das
+      // Modell trotzdem eine davor — was es zuverlässig tut, sobald es im
+      // Auftrag "Quellen" gelesen hat —, stünde sie zweimal auf dem Blatt.
+      if (block.type === 'sources') {
+        const previous = blocks[i - 1];
+        const heading = block.title?.trim() || SOURCES_HEADING;
+        const titled = previous?.type === 'heading' && sameHeadline(previous.text, heading);
+        this.renderSources(block, !titled);
+        continue;
       }
       this.renderBlock(block);
     }
@@ -912,6 +1134,9 @@ class PdfRenderer {
         break;
       case 'keyvalue':
         this.renderKeyValue(block);
+        break;
+      case 'sources':
+        this.renderSources(block, true);
         break;
       case 'divider': {
         this.ensureSpace(22);
@@ -1001,6 +1226,60 @@ class PdfRenderer {
     };
 
     renderLevel(roots, 0);
+    this.y -= 5;
+  }
+
+  /**
+   * Quellenverzeichnis — der Teil des Dokuments, an dem sich entscheidet, ob es
+   * zitierfähig ist.
+   *
+   * Bewusst KEINE Tabelle. Der Prompt verlangte bis hierher eine mit den
+   * Spalten "Nr./Quelle/URL"; eine URL bekam damit ein Drittel der Seitenbreite,
+   * und genau dort zerfiel sie in Zeichenkolonnen. Als Liste steht der Titel in
+   * der einen Zeile und die vollständige Adresse darunter über die ganze
+   * Breite — anklickbar, und wenn sie doch umbricht, an ihren eigenen
+   * Trennzeichen.
+   */
+  private renderSources(block: Extract<PdfBlock, { type: 'sources' }>, withHeading: boolean): void {
+    if (withHeading) {
+      this.renderBlock({ type: 'heading', level: 2, text: block.title?.trim() || SOURCES_HEADING });
+    }
+
+    const fontSize = 10.5;
+    const indent = 22;
+    this.tagger.open('L');
+    block.entries.forEach((entry, i) => {
+      this.tagger.open('LI');
+      this.ensureSpace(fontSize * 3);
+      this.writeLineAt(
+        'Lbl',
+        `[${i + 1}]`,
+        MARGIN_L,
+        this.y,
+        fontSize,
+        this.fonts.bodyBold,
+        this.theme.accent
+      );
+      this.tagger.open('LBody');
+      this.writeText(inlineSegments(entry.label), { fontSize, indent, spacingAfter: 1 });
+      // Die URL als eigenes Segment mit Ziel: `inlineSegments` würde sie zwar
+      // selbst auto-verlinken, aber nur solange marked sie als URL erkennt —
+      // hier ist sie per Schema eine, das muss nicht geraten werden.
+      const href = safeHref(entry.value);
+      if (entry.value.trim()) {
+        this.writeText(
+          [
+            href
+              ? { text: entry.value.trim(), bold: false, href }
+              : { text: entry.value.trim(), bold: false },
+          ],
+          { fontSize: fontSize - 1, indent, color: MUTED_COLOR, spacingAfter: 4 }
+        );
+      }
+      this.tagger.close();
+      this.tagger.close();
+    });
+    this.tagger.close();
     this.y -= 5;
   }
 
@@ -1104,9 +1383,7 @@ class PdfRenderer {
       for (const line of slice) {
         if (line.length) {
           const lineY = this.y;
-          this.tagger.content(page, () =>
-            drawRuns(page, line, MARGIN_L + padding, lineY, fontSize, BODY_COLOR)
-          );
+          this.paintLine(page, line, MARGIN_L + padding, lineY, fontSize, BODY_COLOR);
         }
         this.y -= lineHeight;
       }
@@ -1233,13 +1510,10 @@ class PdfRenderer {
           const isHeaderCell = header || rowHeaderColumn === i;
           const cellX = x;
           const color = isHeaderCell ? this.theme.primary : BODY_COLOR;
-          const paint = (wrap: (draw: () => void) => void) => {
+          const paint = (drawLine: (line: FontRun[], lineY: number) => void) => {
             let cellY = this.y;
             for (const line of lines.slice(from, from + take)) {
-              if (line.length) {
-                const lineY = cellY;
-                wrap(() => drawRuns(page, line, cellX + padX, lineY, fontSize, color));
-              }
+              if (line.length) drawLine(line, cellY);
               cellY -= lineHeight;
             }
           };
@@ -1248,12 +1522,19 @@ class PdfRenderer {
               isHeaderCell ? 'TH' : 'TD',
               isHeaderCell ? { scope: header ? 'Column' : 'Row' } : {}
             );
-            paint((draw) => this.tagger.content(page, draw));
+            paint((line, lineY) =>
+              this.paintLine(page, line, cellX + padX, lineY, fontSize, color)
+            );
             this.tagger.close();
           } else {
             // A repeated header is a visual aid only; tagging it again would
-            // make a screen reader read the header row twice.
-            paint((draw) => this.tagger.artifact(page, draw));
+            // make a screen reader read the header row twice — and a second
+            // annotation for the same target would be a second link.
+            paint((line, lineY) =>
+              this.tagger.artifact(page, () =>
+                drawRuns(page, line, cellX + padX, lineY, fontSize, color)
+              )
+            );
           }
           x += widths[i] ?? 0;
         });

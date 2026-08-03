@@ -47,7 +47,7 @@ export function MentionFloatingPanel({
           }}
           role={role}
           aria-label={ariaLabel}
-          className={`mention-popover z-50 flex max-h-(--radix-popover-content-available-height) flex-col overflow-hidden rounded-xl border border-border bg-background shadow-lg ${width} ${className}`.trim()}
+          className={`mention-popover z-50 flex max-h-(--radix-popover-content-available-height) max-w-(--radix-popover-content-available-width) flex-col overflow-hidden rounded-xl border border-border bg-background shadow-lg ${width} ${className}`.trim()}
         >
           {children}
         </PopoverPrimitive.Content>
