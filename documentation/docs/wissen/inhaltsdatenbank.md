@@ -6,28 +6,28 @@ description: Aktuelle Statistiken über die indexierten Inhalte im Grünerator
 
 # Inhaltsdatenbank
 
-> Zuletzt aktualisiert: **31.07.2026, 23:00**
+> Zuletzt aktualisiert: **03.08.2026, 08:58**
 
 ## Übersicht
 
 Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei.
-Insgesamt sind **33.504 Vektoren** in der Datenbank gespeichert.
+Insgesamt sind **33.514 Vektoren** in der Datenbank gespeichert.
 
 ## Sammlungen
 
 | Sammlung       |   Vektoren |
 | -------------- | ---------: |
-| Landesverbände |     19.665 |
-| KommunalWiki   |      6.773 |
-| Bundestag      |      3.304 |
+| Landesverbände |     19.660 |
+| KommunalWiki   |      6.789 |
+| Bundestag      |      3.305 |
 | Böll-Stiftung  |      2.209 |
 | gruene.at      |      1.007 |
-| Grünblog       |        546 |
-| **Gesamt**     | **33.504** |
+| Grünblog       |        544 |
+| **Gesamt**     | **33.514** |
 
 ## Landesverbände
 
-Die Landesverbände-Sammlung enthält **13.250 Vektoren** aus 9 Quellen.
+Die Landesverbände-Sammlung enthält **13.247 Vektoren** aus 9 Quellen.
 
 | Landesverband                   | Kürzel |   Vektoren |
 | ------------------------------- | ------ | ---------: |
@@ -38,9 +38,9 @@ Die Landesverbände-Sammlung enthält **13.250 Vektoren** aus 9 Quellen.
 | Mecklenburg-Vorpommern          | MV     |      1.412 |
 | Sachsen-Anhalt Fraktion         | LSA-F  |      1.385 |
 | Thüringen                       | TH     |        771 |
-| Bayern                          | BY     |        722 |
+| Bayern                          | BY     |        719 |
 | Sachsen-Anhalt                  | LSA    |        284 |
-| **Gesamt**                      |        | **13.250** |
+| **Gesamt**                      |        | **13.247** |
 
 ## Aktualisierung
 
