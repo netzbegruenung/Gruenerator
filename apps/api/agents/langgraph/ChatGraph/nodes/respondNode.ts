@@ -1444,9 +1444,20 @@ export async function buildSystemMessage(
       : '';
   if (docsPageMap) log.debug('[Respond] docs page map attached');
 
-  // Custom system prompt: replaces the entire agent prompt when set
+  // Custom system prompt: replaces the entire agent prompt when set.
+  //
+  // Auch dieser Zweig muss lokalisieren. Der Meta-Prompt in
+  // `promptGeneratorController` verlangt {{partyName}} wörtlich im erzeugten
+  // Rollen-Prompt und verspricht dort, er werde „automatisch lokalisiert" —
+  // eingelöst wurde das aber nur für `agentConfig.systemRole` weiter unten, und
+  // dieser Zweig kehrt vorher zurück. Jede per KI erzeugte Rolle schickte die
+  // geschweiften Klammern deshalb roh ans Modell.
   if (state.customSystemPrompt) {
-    return `${state.customSystemPrompt}
+    const customSystemPrompt = localizePlaceholders(
+      state.customSystemPrompt,
+      (state.userLocale as Locale) || 'de-DE'
+    );
+    return `${customSystemPrompt}
 Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${artifactInventory}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}
 
 ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSuspected ? INJECTION_WARNING_NOTE : ''}`;

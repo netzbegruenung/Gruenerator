@@ -75,7 +75,7 @@ const OparlPage = () => {
 
   if (selectedPaper) {
     return (
-      <div className="flex flex-col items-center min-h-screen p-5 bg-background transition-colors duration-300">
+      <div className="flex flex-col items-center min-h-dvh p-5 bg-background transition-colors duration-300">
         <div className="w-full max-w-[750px] mx-auto my-5 p-[35px] bg-background-alt dark:bg-hover-alt rounded-lg shadow-[0_2px_4px_rgba(0,0,0,0.1)] relative max-md:mx-4 max-md:p-5">
           <div className="flex justify-between items-start mb-5">
             <h2 className="text-foreground-heading m-0 text-2xl max-md:text-xl font-semibold flex-1 pr-4">
@@ -155,7 +155,7 @@ const OparlPage = () => {
   }
 
   return (
-    <div className="flex flex-col items-center min-h-screen p-5 bg-background transition-colors duration-300">
+    <div className="flex flex-col items-center min-h-dvh p-5 bg-background transition-colors duration-300">
       <div className="flex flex-col items-center mb-8 mt-24 max-md:mt-20 max-md:mb-6 max-md:px-4 text-center w-full max-w-[var(--container-max-width,1200px)]">
         <h1 className="text-[56px] max-md:text-4xl text-foreground-heading dark:text-[var(--secondary)] m-0 tracking-[-1px] leading-[1.2]">
           Kommunale Anträge

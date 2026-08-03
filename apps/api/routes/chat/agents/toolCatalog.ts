@@ -63,6 +63,7 @@ import { makeReadPdfFormTool, makeFillPdfFormTool } from './pdfFormTools.js';
 import {
   makeBoardsTasksTool,
   makeDocumentsTool,
+  makeReadArtifactTool,
   makeFindContentTool,
   makeSearchThreadsTool,
   makeGroupsTool,
@@ -564,6 +565,11 @@ NUTZE WENN nach Funktionen, Fähigkeiten oder Anbindungen des Grünerators gefra
     }
     if (state.enabledTools?.['documents'] !== false) {
       tools.documents = makeDocumentsTool(personalCtx);
+      // Gated together with `documents` on purpose: they are the pointer and
+      // the content of the same thing. A catalog that can LIST artifacts but
+      // never OPEN one is what left "vergleiche das PDF und die Präsentation"
+      // answerable only by invention.
+      tools.read_artifact = makeReadArtifactTool(personalCtx);
     }
     if (state.enabledTools?.['boards_tasks'] !== false) {
       tools.boards_tasks = makeBoardsTasksTool(personalCtx);
