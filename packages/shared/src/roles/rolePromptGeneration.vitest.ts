@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ROLE_BLOCK_END,
   ROLE_BLOCK_START,
+  buildRoleDescription,
   generateProfilePrompt,
   mergeRoleBlock,
   stripRoleMarkers,
@@ -36,6 +37,48 @@ describe('generateProfilePrompt', () => {
       '- Mitarbeiter*in MdB-Büro, KV Köln, Nordrhein-Westfalen, (Katharina Dröge)'
     );
     expect(prompt).toContain('Hinweis: Immer mit Zitat.');
+  });
+
+  // Der Block hängt bei jeder Anfrage im Systemprompt; die Anweisung, wie damit
+  // umzugehen ist, steht an der Einbettungsstelle (respondNode) und darf hier
+  // nicht ein zweites Mal mitlaufen.
+  it('carries only the role data, no instruction sentence of its own', () => {
+    const prompt = generateProfilePrompt([{ rolle: 'Ratsmitglied' }], false);
+    expect(prompt).toBe('Rollen bei Bündnis 90/Die Grünen:\n\n- Ratsmitglied');
+  });
+});
+
+describe('buildRoleDescription', () => {
+  it('names the level, the role and the optional fields', () => {
+    const description = buildRoleDescription(
+      {
+        rolle: 'Mitarbeiter*in MdB-Büro',
+        gliederung: 'KV Köln',
+        bundesland: 'Nordrhein-Westfalen',
+        abgeordnete: 'Katharina Dröge',
+        instructions: 'Immer mit Zitat.',
+      },
+      'Kreisverband',
+      false
+    );
+
+    expect(description).toContain('Ebene: Kreisverband');
+    expect(description).toContain('Rolle: Mitarbeiter*in MdB-Büro');
+    expect(description).toContain('Kreisverband: KV Köln');
+    expect(description).toContain('Abgeordnete*r: Katharina Dröge');
+    expect(description).toContain('Zusätzliche Anweisungen: Immer mit Zitat.');
+    expect(description).not.toContain('Österreich');
+  });
+
+  it('adds the Austrian country line for AT users', () => {
+    const description = buildRoleDescription({ rolle: 'Gemeinderät*in' }, 'Gemeinde', true);
+    expect(description).toContain('Land: Österreich (Die Grünen – Die Grüne Alternative)');
+  });
+
+  it('omits lines for fields the role does not carry', () => {
+    expect(buildRoleDescription({ rolle: 'Ratsmitglied' }, 'Ortsverband', false)).toBe(
+      'Ebene: Ortsverband\nRolle: Ratsmitglied'
+    );
   });
 });
 
