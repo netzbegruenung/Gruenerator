@@ -96,6 +96,24 @@ describe('stripFabricatedSystemClaims', () => {
     expect(stripFabricatedSystemClaims(answer).text).toBe(answer);
   });
 
+  it('leaves German words that merely START with a system marker alone', () => {
+    // This guard does not warn, it deletes the paragraph and replaces it with a
+    // denial of file access — so a word collision costs the whole answer.
+    const answer = 'Das Internetkonzept.pdf und die Hackathon_Doku.pdf liegen dem Vorstand vor.';
+    const result = stripFabricatedSystemClaims(answer);
+    expect(result.fabricated).toEqual([]);
+    expect(result.text).toBe(answer);
+  });
+
+  it('grounds a filename the USER typed, even a systemy one', () => {
+    // A name the person wrote themselves cannot be one the model invented, and
+    // echoing it back is how "was steht in X?" gets answered.
+    const answer = 'In der intern_2026.pdf stehen die Beschlüsse vom Mai.';
+    const result = stripFabricatedSystemClaims(answer, ['Fass mir bitte intern_2026.pdf zusammen']);
+    expect(result.fabricated).toEqual([]);
+    expect(result.text).toBe(answer);
+  });
+
   it('falls back to the notice when every paragraph was fabricated', () => {
     const result = stripFabricatedSystemClaims('Zugriff: AdminCommand_2026.txt');
     expect(result.text).toBe(
