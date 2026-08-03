@@ -184,6 +184,14 @@ export function determineMaxTokens(options: GenerationOptions): number {
     return 300;
   }
 
+  // Artefakte geben ein ganzes Dokument in EINEM Zug aus — ein langes PDF oder
+  // ein 14-Folien-Deck liegt über dem 4096er-Default. Gemessen: die Lane lief
+  // dort in 4 von 4 Läufen in `finish_reason=length`, worauf generateStructured
+  // den Reparaturversuch startet und die Erstellung ein zweites Mal bezahlt.
+  if (type === 'doc_generation') {
+    return 12_000;
+  }
+
   // Default
   return 4096;
 }
