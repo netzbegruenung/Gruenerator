@@ -5,6 +5,7 @@ import {
   deniesSearchAbilityDespiteSearching,
   looksCutOff,
   looksLikeToolCallLeak,
+  stripFabricatedArtifactDelivery,
   stripFabricatedSystemClaims,
 } from './outputSanity.js';
 
@@ -172,5 +173,57 @@ describe('deniesSearchAbilityDespiteSearching', () => {
     const recommendation = 'Dazu empfehle ich dir eine kurze Websuche.';
     expect(defersToSearchDespiteSources(recommendation, SEARCHED)).toBe(true);
     expect(deniesSearchAbilityDespiteSearching(recommendation, SEARCHED)).toBe(false);
+  });
+});
+
+describe('stripFabricatedArtifactDelivery', () => {
+  const REAL_ID = '3f1c9d20-4b7e-4a11-9c8d-5e2a7b6f0d43';
+  const INVENTED = '7f9a3c2b-1e45-4d8a-b6fa-0c2e5b9d4e12';
+
+  it('removes the typed-out .pptx from the 02.08.2026 run', () => {
+    const answer = [
+      'Hier ist deine Präsentation. Speichere den folgenden Block als `klimaziel.pptx`:',
+      '```\ndata:application/vnd.openxmlformats-officedocument.presentationml.presentation;base64,UEsDBBQABgAIAAAAIQBi\n```',
+      'Viel Erfolg damit!',
+    ].join('\n\n');
+    const result = stripFabricatedArtifactDelivery(answer);
+    expect(result.removed).toEqual(['data:-Block']);
+    expect(result.text).not.toContain('base64');
+    expect(result.text).toContain('Viel Erfolg damit!');
+    expect(result.text).toContain('Erstellungsfunktion');
+  });
+
+  it('removes an artefact path nothing ever minted — the 404 in the access log', () => {
+    const result = stripFabricatedArtifactDelivery(`/office/${INVENTED}`);
+    expect(result.removed).toEqual([`/office/${INVENTED}`]);
+    expect(result.text).not.toContain(INVENTED);
+  });
+
+  it('keeps a path the code itself handed the model', () => {
+    // The agentic board note instructs the model to print exactly this.
+    const answer = `Ich habe das Board angelegt: /boards/${REAL_ID}`;
+    expect(stripFabricatedArtifactDelivery(answer, [REAL_ID])).toEqual({
+      text: answer,
+      removed: [],
+    });
+  });
+
+  it('judges each path on its own id', () => {
+    const answer = `Das Board steht unter /boards/${REAL_ID}.\n\nDie Folien liegen unter /office/${INVENTED}.`;
+    const result = stripFabricatedArtifactDelivery(answer, [REAL_ID]);
+    expect(result.text).toContain(REAL_ID);
+    expect(result.text).not.toContain(INVENTED);
+  });
+
+  it('leaves an inline SVG in an artifact answer alone', () => {
+    // `artifact` turns legitimately emit self-contained HTML/SVG; only DOCUMENT
+    // payloads are a fabricated delivery.
+    const answer = '```html\n<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0i" />\n```';
+    expect(stripFabricatedArtifactDelivery(answer).removed).toEqual([]);
+  });
+
+  it('leaves an ordinary answer untouched', () => {
+    const answer = 'Das EU-Klimaziel für 2040 ist noch nicht final beschlossen.';
+    expect(stripFabricatedArtifactDelivery(answer)).toEqual({ text: answer, removed: [] });
   });
 });

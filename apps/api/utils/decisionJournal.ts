@@ -63,7 +63,7 @@ export const DECISION_POINTS = {
 
   /** "…aber erstelle kein Dokument." — the negative-action gate. */
   'router.persistent_action_gate': {
-    branches: ['allowed', 'dropped_secondary', 'demoted_primary_to_direct'],
+    branches: ['allowed', 'dropped_secondary', 'demoted_primary_to_produktion'],
   },
 
   /** Which classifier tier produced the verdict. */
