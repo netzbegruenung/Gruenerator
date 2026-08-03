@@ -54,6 +54,11 @@ export class UrlCrawler {
     this.contentExtractor = new ContentExtractor();
     this.crawleeCrawler = new CrawleeCrawler(this.config);
     this.fetchCrawler = new FetchCrawler(this.config);
+
+    // Which path crawls actually take is otherwise only visible per URL, buried
+    // between the crawl logs. Crawlee was broken for three days without anyone
+    // reading that; the mode belongs in the boot output.
+    console.log(`[UrlCrawler] Crawler-Modus: ${this.config.crawlerMode}`);
   }
 
   /**
