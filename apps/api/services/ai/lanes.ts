@@ -44,6 +44,10 @@ const MISTRAL_MEDIUM = 'mistral-medium-2604';
 const VERDIGADO_PRO = 'verdigado-pro';
 /** Gemma 4 — named explicitly because Regolo's DEFAULT is qwen, which policy excludes. */
 const GEMMA_4 = 'gemma4-31b';
+/** Dasselbe Modell bei GreenPT, wo es unter kurzem Namen läuft und — anders als
+ *  bei Regolo — den erzwungenen Tool-Call bedient statt JSON als Prosa zu
+ *  schreiben. Siehe ARTIFACT_MODEL in services/providers/providerSelector.ts. */
+const GEMMA_4_GREENPT = 'gemma4';
 
 /**
  * Every routed lane. A `type` that is not here answers on `default`, and
@@ -108,7 +112,14 @@ export const AI_LANES = {
   //   lane at all, so both tables put them on `default` — GPT-OSS, which
   //   answers a forced tool call with prose. That killed a PDF generation in
   //   production: two attempts, both stop_reason=stop, no tool call.
-  doc_generation: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
+  //
+  //   `doc_generation` liegt seit dem 03.08.2026 NICHT mehr auf Mistral: dort
+  //   ruft Medium 3.5 das Tool gar nicht auf und läuft ins Token-Limit,
+  //   während Gemma 4 auf GreenPT beides richtig macht. Messwerte und
+  //   Begründung bei ARTIFACT_MODEL in
+  //   services/providers/providerSelector.ts — der Tabelle, die auf dem
+  //   Artefakt-Pfad tatsächlich greift.
+  doc_generation: { provider: 'greenpt', model: GEMMA_4_GREENPT, structuredMode: 'tool' },
   board_generation: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
   canvas_ai_suggest: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
 

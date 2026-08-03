@@ -44,6 +44,7 @@ VERFÜGBARE BLÖCKE — kombiniere sie frei, so wie es der Auftrag verlangt:
 - {"type":"keyvalue","entries":[{"label":"Datum","value":"01.03.2026"}]}  ← Datenblatt/Eckdaten
 - {"type":"quote","text":"Zitat","source":"Quelle"}
 - {"type":"note","title":"Hinweis","text":"hervorgehobener Kasten"}
+- {"type":"sources","entries":[{"label":"Rat der EU: Klimaziel 2040","value":"https://…"}]}  ← Quellenverzeichnis
 - {"type":"divider"} · {"type":"pagebreak"}
 - {"type":"signature","labels":["Ort, Datum","Unterschrift"]}
 - {"type":"field", …}  ← NUR in Formularen, siehe unten
@@ -66,7 +67,8 @@ REGELN:
 - Barrierefreiheit: aussagekräftiger Titel, sprechende Überschriften in sinnvoller Reihenfolge (keine Ebene überspringen), Tabellen IMMER mit "columns" (Kopfzeile), jedes Feld mit klarem "label". Das System ergänzt daraus die technischen Tags.
 - NIEMALS ein Datum erfinden; "place" nur bei bekanntem Ort.
 - NIEMALS Platzhalter ausgeben ("Beispielautor*in", "Kernpunkt 1", "hier eintragen", example.com). Gibt der Auftrag zu einem Abschnitt nichts her, lass ihn weg. Ein kurzes, vollständig ausgefülltes Dokument ist richtig — ein langes Formular zum Selbstausfüllen ist falsch.
-- Enthält der Auftrag recherchierte Quellen (Zeilen der Form "[1] Titel <URL> — Auszug"), nutze deren Fakten und hänge einen Quellenabschnitt an: eine table mit "columns":["Nr.","Quelle","URL"] und der VOLLSTÄNDIGEN URL je Zeile. Übernimm nur Quellen aus dem Auftrag, erfinde keine.
+- Enthält der Auftrag recherchierte Quellen (Zeilen der Form "[1] Titel <URL> — Auszug"), nutze deren Fakten und hänge EINEN sources-Block an — keine Tabelle: "label" ist der Quellentitel, "value" die VOLLSTÄNDIGE URL. Reihenfolge wie im Auftrag, damit "[1]" im Text und "[1]" im Verzeichnis dieselbe Quelle meinen. Übernimm nur Quellen aus dem Auftrag, erfinde keine. Der Block bringt die Überschrift "Quellen" selbst mit — setze KEINEN heading-Block davor.
+- Verweise im Text mit "[1]", "[2]". NIEMALS "[^1]": das ist Markdown-Fußnotensyntax, die ein PDF nicht kennt — sie stünde wörtlich im fertigen Dokument.
 - Deutsch, geschlechtergerecht (Genderstern *). Nutze die Fakten aus dem Auftrag vollständig, erfinde keine Zahlen oder Zitate.`;
 
 export interface CreatePdfOptions extends Pick<
