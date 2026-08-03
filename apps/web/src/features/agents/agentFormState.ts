@@ -11,7 +11,7 @@ export type Locale = 'de-DE' | 'de-AT';
 export const AGENT_BACKGROUND_COLOR = '#587C6D';
 
 /** Default model for new agents — the chat composer's allrounder pick. */
-const DEFAULT_AGENT_MODEL = TEXT_MODEL_BY_ID['mistral-medium-3.5'];
+const DEFAULT_AGENT_MODEL = TEXT_MODEL_BY_ID['gruenerator-ultra'];
 
 export interface FormState {
   identifier: string;
