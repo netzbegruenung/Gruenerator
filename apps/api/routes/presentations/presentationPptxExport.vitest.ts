@@ -410,6 +410,109 @@ describe('layout fidelity against the deck CSS', () => {
   });
 });
 
+/**
+ * Tables reach the export as a real markdown table now, so they have to leave it
+ * as a real PowerPoint table. `bodyToBlocks` used to know only list, blockquote,
+ * heading, code and paragraph — a `table` token matched nothing and the export
+ * silently shipped a slide with a headline and no data.
+ */
+describe('tables', () => {
+  const TABLE = ['| Quelle | Datum |', '| --- | --- |', '| Rat der EU | 05.03.2026 |'].join('\n');
+
+  it('emits a graphicFrame table, not a text box', async () => {
+    const buf = await exportPresentationToPptx(
+      [slide({ title: 'Quellenmatrix', body: TABLE })],
+      'Deck',
+      '#316049'
+    );
+    const xml = slideXml(buf);
+    expect(xml).toContain('<a:tbl>');
+    expect((xml.match(/<a:tr /g) ?? []).length).toBe(2);
+  });
+
+  it('keeps every cell', async () => {
+    const buf = await exportPresentationToPptx([slide({ body: TABLE })], 'Deck', '#316049');
+    const xml = slideXml(buf);
+    for (const cell of ['Quelle', 'Datum', 'Rat der EU', '05.03.2026']) {
+      expect(xml).toContain(`<a:t>${cell}</a:t>`);
+    }
+  });
+
+  it('fills the header row with the deck accent', async () => {
+    const buf = await exportPresentationToPptx([slide({ body: TABLE })], 'Deck', '#7D4F9E');
+    const firstRow = slideXml(buf).match(/<a:tr [\s\S]*?<\/a:tr>/)?.[0] ?? '';
+    expect(firstRow).toContain('7D4F9E');
+  });
+
+  it('places a table below the text that precedes it', async () => {
+    const buf = await exportPresentationToPptx(
+      [slide({ title: 'T', body: `Ein Absatz davor.\n\n${TABLE}` })],
+      'Deck',
+      '#316049'
+    );
+    const xml = slideXml(buf);
+    const paraY = Number(
+      shapes(xml)
+        .find((s) => bodyText(s).includes('Ein Absatz davor.'))
+        ?.match(/<a:off x="\d+" y="(\d+)"\/>/)?.[1] ?? 0
+    );
+    const tableY = Number(
+      xml.match(/<p:graphicFrame>[\s\S]*?<a:off x="\d+" y="(\d+)"\/>/)?.[1] ?? 0
+    );
+    expect(paraY).toBeGreaterThan(0);
+    expect(tableY).toBeGreaterThan(paraY);
+  });
+
+  it('degrades to text on a layout that cannot place a shape', async () => {
+    // A quote pours its whole body into one box; losing the table there would be
+    // the very failure this export is fixing.
+    const buf = await exportPresentationToPptx(
+      [slide({ layout: 'quote', body: TABLE })],
+      'Deck',
+      '#316049'
+    );
+    expect(slideXml(buf)).toContain('Rat der EU');
+  });
+});
+
+/**
+ * A body image only became reachable when the slide schema learned an image
+ * node: before that, seeding threw the URL away and `firstImageUrl` searched a
+ * body that could never contain one.
+ */
+describe('images in the body', () => {
+  async function pngBody(): Promise<string> {
+    const png = await sharp({
+      create: { width: 200, height: 100, channels: 3, background: '#005538' },
+    })
+      .png()
+      .toBuffer();
+    return `![Ein Diagramm](data:image/png;base64,${png.toString('base64')})`;
+  }
+
+  it('embeds an image that sits in a content body', async () => {
+    const buf = await exportPresentationToPptx(
+      [slide({ title: 'Mit Bild', body: `Davor\n\n${await pngBody()}` })],
+      'Deck',
+      '#316049'
+    );
+    const xml = slideXml(buf);
+    expect(xml).toContain('<p:pic>');
+    expect(xml).toContain('Davor');
+  });
+
+  it('keeps the image aspect ratio inside the body box', async () => {
+    const buf = await exportPresentationToPptx(
+      [slide({ body: await pngBody() })],
+      'Deck',
+      '#316049'
+    );
+    const pic = slideXml(buf).match(/<p:pic>[\s\S]*?<\/p:pic>/)?.[0] ?? '';
+    const ext = pic.match(/<a:ext cx="(\d+)" cy="(\d+)"\/>/);
+    expect(Number(ext?.[1]) / Number(ext?.[2])).toBeCloseTo(2, 2);
+  });
+});
+
 describe('sanitizeFilename', () => {
   it('strips unsafe characters and keeps letters/numbers', () => {
     expect(sanitizeFilename('Klima: 2035 / Plan"')).toBe('Klima 2035  Plan');
