@@ -244,6 +244,7 @@ function ChatPage() {
             onNavigate={handleNavigate}
             firstName={firstName}
             requireProfileHydration
+            enablePastedTextAttachments
             userLocale={userLocale}
           />
         )}

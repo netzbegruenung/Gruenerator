@@ -406,6 +406,7 @@ export async function runChatGraphResume({
         classifiedState,
         userId: requestContext.userId,
         processedMeta: requestContext.processedMeta,
+        userMessageId: requestContext.userMessageId ?? null,
         sharepicVariants,
         socialPost,
       });
@@ -644,6 +645,7 @@ export async function runChatGraphResume({
       classifiedState,
       userId: requestContext.userId,
       processedMeta: requestContext.processedMeta,
+      userMessageId: requestContext.userMessageId ?? null,
       ...(resumeTraceId != null && { traceId: resumeTraceId }),
       pendingMessageId: pendingId,
     });

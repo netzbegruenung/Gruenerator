@@ -1146,6 +1146,7 @@ CREATE TABLE IF NOT EXISTS chat_thread_attachments (
 CREATE INDEX IF NOT EXISTS idx_thread_attachments_thread ON chat_thread_attachments(thread_id);
 CREATE INDEX IF NOT EXISTS idx_thread_attachments_created ON chat_thread_attachments(thread_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_thread_attachments_user ON chat_thread_attachments(user_id);
+CREATE INDEX IF NOT EXISTS idx_thread_attachments_message_id ON chat_thread_attachments(message_id);
 
 -- Chat triggers
 CREATE TRIGGER update_chat_threads_updated_at
