@@ -23,6 +23,6 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-native-a11y": "^3.5.1",
     "globals": "^17.8.0",
-    "typescript-eslint": "^8.63.0"
+    "typescript-eslint": "^8.65.0"
   }
 }

@@ -4,11 +4,11 @@
 
 /**
  * Minimal Redis client interface for counter operations.
- * Structurally compatible with both the `redis` package (RedisClientType)
- * and `ioredis` (Redis), so counters can be used with either client.
+ * Deliberately structural (not `RedisClientType`) so counters stay decoupled
+ * from the concrete client and testable with a plain stub.
  *
- * `isReady` is optional: node-redis exposes it, ioredis doesn't. Consumers
- * that need to fail closed on a dead connection must check
+ * `isReady` is optional: node-redis exposes it, a minimal stub doesn't.
+ * Consumers that need to fail closed on a dead connection must check
  * `this.redis.isReady === false` (never `!this.redis.isReady`) — a client
  * that doesn't expose the field at all must NOT be treated as "not ready".
  */
@@ -22,9 +22,8 @@ export interface RedisClient {
 
 /**
  * Extension required by ImageGenerationCounter to support per-call increment
- * amounts (centi-credits per model). node-redis exposes `incrBy`; ioredis
- * uses lowercase `incrby`. We keep this off the base RedisClient interface so
- * other counters remain structurally compatible with both clients.
+ * amounts (centi-credits per model). Kept off the base RedisClient interface
+ * so the other counters need only the four core commands.
  */
 export interface RedisIncrByClient extends RedisClient {
   incrBy(key: string, increment: number): Promise<number>;
