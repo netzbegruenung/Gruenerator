@@ -67,7 +67,7 @@ export function makeCitationComponents(citationMap: Map<number, Citation>) {
     ),
     table: ({ children }: { children?: ReactNode }) => (
       <div className="my-4 overflow-x-auto">
-        <table className="w-full border-collapse">{children}</table>
+        <table className="w-full min-w-[28rem] border-collapse">{children}</table>
       </div>
     ),
     th: ({ children }: { children?: ReactNode }) => (
