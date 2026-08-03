@@ -114,6 +114,20 @@ export function resolveSettingsTab(
     : 'allgemein';
 }
 
+/**
+ * Ob das Schließen des Dialogs die Einrichtung als erledigt verbucht.
+ *
+ * Wer aus der Einrichtung heraus zumacht, ist damit fertig — sonst steht der
+ * Bereich beim nächsten Öffnen wieder da, obwohl die Schritte längst durchlaufen
+ * sind. Nur „Fertig" zu zählen macht das Wegklicken zu einem Weg, der nirgendwo
+ * hinführt. Aus einem anderen Bereich heraus zählt es nicht: Dort hat die
+ * Einrichtung gar nicht stattgefunden, sie steht nur noch in der Seitenleiste.
+ * Zurückholen lässt sie sich über Allgemein → „Einrichtung erneut starten".
+ */
+export function closeCompletesOnboarding(isOnboarding: boolean, activeTab: SettingsTab): boolean {
+  return isOnboarding && activeTab === 'onboarding';
+}
+
 // Radix only renders the active tab's content, so resolving the component in
 // here rather than in the map below means a tab's lazy-vs-already-loaded choice
 // is only fixed when it actually renders — a hover that preloads it first still
@@ -138,7 +152,7 @@ const SettingsDialog = () => {
   const close = useSettingsDialogStore((s) => s.close);
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
-  const { isActive: isOnboarding } = useOnboarding();
+  const { isActive: isOnboarding, complete: completeOnboarding } = useOnboarding();
 
   const nav = visibleSettingsNav(isOnboarding);
   const activeTab = resolveSettingsTab(tab, tabWasNamed, isOnboarding);
@@ -152,8 +166,13 @@ const SettingsDialog = () => {
     return preloadRemainingSettingsTabs(activeTab);
   }, [isOpen, activeTab, queryClient]);
 
+  const handleClose = () => {
+    if (closeCompletesOnboarding(isOnboarding, activeTab)) completeOnboarding();
+    close();
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && close()}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent className="flex w-full flex-col gap-0 overflow-hidden p-0 max-sm:top-0 max-sm:left-0 max-sm:h-dvh max-sm:max-w-full max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:border-none sm:h-[min(85vh,46rem)] sm:max-w-4xl">
         <DialogDescription className="sr-only">
           Einstellungen für Konto, Personalisierung, Benachrichtigungen und Verbindungen

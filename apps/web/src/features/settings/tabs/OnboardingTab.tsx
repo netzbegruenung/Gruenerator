@@ -53,7 +53,7 @@ const STEPS: OnboardingStep[] = [
     id: 'friend',
     title: 'Wer vertritt dich?',
     description: 'Dein Friend wird dein Profilbild in Chats, Projekten und Kommentaren.',
-    Body: FriendsTab,
+    Body: () => <FriendsTab starterOnly />,
   },
   {
     id: 'hintergrund',
@@ -80,7 +80,7 @@ const OnboardingTab = () => {
 
   return (
     <div className="flex flex-col gap-lg">
-      <div className="flex flex-wrap items-center justify-between gap-sm">
+      <div className="flex flex-wrap items-center gap-sm">
         <ol className="m-0 flex list-none items-center gap-xs p-0">
           {STEPS.map((s, i) => (
             <li key={s.id} className="flex items-center gap-xs">
@@ -111,14 +111,6 @@ const OnboardingTab = () => {
             </li>
           ))}
         </ol>
-
-        <button
-          type="button"
-          onClick={complete}
-          className="text-xs text-grey-500 underline-offset-2 transition-colors hover:text-foreground hover:underline dark:text-grey-400"
-        >
-          Alles überspringen
-        </button>
       </div>
 
       <div>

@@ -10,6 +10,8 @@
  * einblenden und dann wieder wegnehmen — ein Reiter, der aufblitzt und
  * verschwindet, liest sich als Fehler.
  */
+import { toast } from '@gruenerator/ui';
+
 import { useSetUserDefault, useUserDefault } from '@/features/user-defaults/userDefaultsQueries';
 
 interface OnboardingState {
@@ -25,8 +27,22 @@ export function useOnboarding(): OnboardingState {
   const { value, isPending } = useUserDefault('profile', 'onboardingCompleted');
   const setOnboarding = useSetUserDefault<'profile', 'onboardingCompleted'>();
 
+  // Ohne eigenes onError bliebe ein Fehlschlag unsichtbar: useSetUserDefault
+  // nimmt den optimistischen Wert nur wieder zurück. Die Einrichtung sähe
+  // erledigt aus und stünde beim nächsten Laden wieder da — ohne dass irgendwo
+  // etwas von einem Fehler stünde.
   const set = (completed: boolean) => {
-    setOnboarding.mutate({ generator: 'profile', key: 'onboardingCompleted', value: completed });
+    setOnboarding.mutate(
+      { generator: 'profile', key: 'onboardingCompleted', value: completed },
+      {
+        onError: () =>
+          toast.error(
+            completed
+              ? 'Abschluss konnte nicht gespeichert werden — die Einrichtung erscheint beim nächsten Öffnen wieder.'
+              : 'Einrichtung konnte nicht neu gestartet werden.'
+          ),
+      }
+    );
   };
 
   return {
