@@ -1,7 +1,10 @@
 import {
+  LEGACY_TEXT_MODEL_ALIASES,
   TEXT_MODEL_IDS,
   TEXT_MODEL_BY_ID,
   isModelEnabledByDefault,
+  resolveTextModelId,
+  type LegacyTextModelId,
   type TextModelId,
 } from '@gruenerator/shared/models';
 
@@ -54,20 +57,44 @@ export async function getModelPreferencesForUser(
 
   const result = {} as ModelPreferencesMap;
   for (const id of TEXT_MODEL_IDS) {
-    result[id] = resolvePreference(stored[id], id);
+    result[id] = resolvePreference(stored[id] ?? legacyStored(stored, id), id);
   }
   return result;
 }
 
+/**
+ * Der unter einer Vendor-ID abgelegte Wert derselben Lane.
+ *
+ * Ohne das verliert jeder, der ein Modell abgeschaltet hatte, diese
+ * Einstellung in dem Moment, in dem die Lane umbenannt wird — der neue
+ * Schlüssel fehlt im Profil und fällt auf „an" zurück. Gelesen wird nur, nicht
+ * migriert: der nächste Schaltvorgang schreibt ohnehin unter der neuen ID.
+ */
+function legacyStored(stored: Record<string, unknown>, id: TextModelId): unknown {
+  for (const [legacyId, target] of Object.entries(LEGACY_TEXT_MODEL_ALIASES)) {
+    if (target === id) {
+      const value = stored[legacyId];
+      if (value !== undefined) return value;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Ein alter Client schickt weiter seine Vendor-ID (das Contract-Enum nimmt sie
+ * an, siehe schemas/modelPreferences.ts). Geschrieben wird trotzdem unter der
+ * Lane, sonst legte er einen zweiten Schlüssel für dieselbe Sache an.
+ */
 export async function setModelPreference(
   userId: string,
-  modelId: TextModelId,
+  modelId: TextModelId | LegacyTextModelId,
   enabled: boolean
 ): Promise<ModelPreferencesMap> {
-  if (!TEXT_MODEL_BY_ID[modelId]) {
+  const resolved = resolveTextModelId(modelId);
+  if (!resolved || !TEXT_MODEL_BY_ID[resolved]) {
     throw new Error(`Unknown modelId: ${modelId}`);
   }
-  await getProfileService().updateUserDefault(userId, USER_DEFAULTS_KEY, modelId, { enabled });
+  await getProfileService().updateUserDefault(userId, USER_DEFAULTS_KEY, resolved, { enabled });
   return getModelPreferencesForUser(userId);
 }
 
