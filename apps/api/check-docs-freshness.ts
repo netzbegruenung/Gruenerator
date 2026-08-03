@@ -744,8 +744,18 @@ async function main(): Promise<void> {
   const args = parseArgs();
 
   if (!process.env.CLAUDE_CODE_OAUTH_TOKEN && !process.env.ANTHROPIC_API_KEY) {
-    // Local dev: fall back to the Claude CLI's stored login. CI MUST set
-    // CLAUDE_CODE_OAUTH_TOKEN (the agent has no stored login there).
+    // Local dev: fall back to the Claude CLI's stored login. On a runner there
+    // is no stored login to fall back on, so every audit fails with "Not
+    // logged in" — and because a failed audit is only a per-doc `status:
+    // 'error'`, the run still ended green having checked nothing. Refuse to
+    // start instead of producing that.
+    if (process.env.CI || process.env.GITHUB_ACTIONS) {
+      console.error(
+        'No CLAUDE_CODE_OAUTH_TOKEN / ANTHROPIC_API_KEY in env. In CI there is no stored CLI ' +
+          'login to fall back on — set CLAUDE_CODE_OAUTH_TOKEN (from `claude setup-token`).'
+      );
+      process.exit(1);
+    }
     console.warn(
       'No CLAUDE_CODE_OAUTH_TOKEN / ANTHROPIC_API_KEY in env — relying on the Claude CLI stored ' +
         'login (local dev). In CI, set CLAUDE_CODE_OAUTH_TOKEN (from `claude setup-token`).'
@@ -868,6 +878,24 @@ async function main(): Promise<void> {
   console.log(`Summary written to ${summaryPath}`);
 
   writeStepSummary(results, actions);
+
+  // A per-doc failure is a `status: 'error'` result, not a throw — that keeps
+  // one flaky audit from sinking the other nineteen. But if EVERY audit
+  // errored, the run learned nothing about any doc, and reporting that as
+  // success is indistinguishable from "all docs are fresh". Exit after the
+  // summary and step-summary are written, so the artefact still explains why.
+  if (results.length > 0 && errored.length === results.length) {
+    console.error(
+      `All ${errored.length} audit(s) errored — this run checked nothing. ` +
+        `First error: ${errored[0]?.error ?? 'unknown'}`
+    );
+    process.exit(1);
+  }
+  if (errored.length > 0) {
+    console.warn(
+      `::warning::${errored.length} of ${results.length} audits errored — their docs went unchecked.`
+    );
+  }
 }
 
 main().catch((err) => {
