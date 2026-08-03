@@ -58,11 +58,32 @@ const envSchema = z.object({
    */
   CHAT_DECISION_LOG_DIR: z.string().optional(),
 
+  /**
+   * Root of the party-internal content checkout, holding `skills/<mention>.md`
+   * (recipe prompts) and `agents/<identifier>.md` (system-agent personas).
+   * Deliberately outside the public repo: `packages/shared` ships only the
+   * frontmatter, so the prompt text reaches neither git nor the web/mobile
+   * bundle. Salt rolls the directory onto the server; see
+   * services/skills/internalPrompts.ts and CLAUDE-deployment.md.
+   *
+   * Unset falls back to the gitignored `.external/gruenerator-intern` checkout
+   * used in development. A missing directory is a no-op, not a crash: recipes
+   * run on the agent's base systemRole, agents on a generic substitute.
+   */
+  INTERN_CONTENT_DIR: z.string().optional(),
+
   // ── URLs & domains ─────────────────────────────────────────────────────
   BASE_URL: z.string().optional(),
   AUTH_BASE_URL: z.string().optional(),
   WEB_BASE_URL: z.string().optional(),
   PRIMARY_DOMAIN: z.string().default('gruenerator.eu'),
+  /**
+   * Which instance this deployment serves — see `@gruenerator/shared/instances`.
+   * Unset means `production`, so an existing deployment behaves exactly as it
+   * did before instances existed. An unknown value falls back to that default
+   * too rather than failing the boot: a typo must not take the API down.
+   */
+  INSTANCE_ID: z.string().optional(),
 
   // External: Abgeordnetenwatch API (public, no key). Override only for testing.
   ABGEORDNETENWATCH_BASE_URL: z.string().default('https://www.abgeordnetenwatch.de/api/v2'),
@@ -135,6 +156,13 @@ const envSchema = z.object({
   // Linkup (https://docs.linkup.so) — when set, replaces SearXNG for @web
   // and replaces the deep-research orchestrator for @recherche.
   LINKUP_API_KEY: z.string().optional(),
+  // Route SIMPLE web searches (no domain scope, no time window, no images,
+  // ≤10 results) to GreenPT's link search first, with Linkup as the fallback.
+  // A separate flag rather than a key check on purpose: GREENPT_API_KEY is
+  // already set in production for chat and transcription, so gating on the key
+  // alone would swap the chat's search engine without anyone deciding to.
+  // The throttle it has to contain is documented in GreenPTSearchService.ts.
+  GREENPT_SEARCH_ENABLED: boolFlag(false),
 
   // ── Image / Flux ───────────────────────────────────────────────────────
   FLUX_BACKEND: z.string().optional(),
@@ -221,10 +249,6 @@ const envSchema = z.object({
   CRAWLER_MODE: z.string().optional(),
   CONTENT_SYNC_EMAIL: z.string().trim().optional(),
   TEST_EMAIL_TO: z.string().trim().optional(),
-  // Kill-switch: when true, the ChatGraph respond node skips injecting the
-  // monthly corpus-insight overlay into PR agents (instant revert to the static
-  // systemRole without a deploy rollback). See services/agents/prAgentInsightService.ts.
-  PR_AGENT_INSIGHTS_DISABLED: boolFlag(false),
   BACKUP_DIR: z.string().optional(),
   STATS_OUTPUT_PATH: z.string().optional(),
   SYNC_SUMMARY_PATH: z.string().optional(),

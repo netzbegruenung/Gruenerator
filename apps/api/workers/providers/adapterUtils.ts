@@ -3,6 +3,31 @@ import { jsonSchema, type ModelMessage, type Tool } from 'ai';
 import type { AIRequestData, AIWorkerResult, ContentBlock, ToolCall } from '../types.js';
 import type { RequestMetadata, ResponseMetadata } from './types.js';
 
+/** The AI SDK's own `Schema` wrapper, as produced by `jsonSchema()`. */
+type SdkSchema = ReturnType<typeof jsonSchema>;
+
+/**
+ * Is this ALREADY an AI-SDK schema wrapper?
+ *
+ * `jsonSchema()` is not idempotent, and wrapping a wrapper fails silently in the
+ * worst possible way: the tool's `parameters` then serialise to
+ * `{"jsonSchema": {…the real schema…}}` — no top-level `type`, no `properties`.
+ * The model obeys that shape, nests its whole payload under a `jsonSchema` key,
+ * and every downstream validator rejects it with "title: Required". It reads
+ * like an unreliable model; it is our own double wrap.
+ *
+ * Callers are genuinely split about which shape they hand over —
+ * `generateStructured` and `toolForcedEdit` wrap before calling, the MCP
+ * catalogs pass raw JSON Schema — so this detects instead of demanding one.
+ * `isSchema` is internal to @ai-sdk/provider-utils (not re-exported by `ai`),
+ * hence the mirrored predicate; checked against ai@7.0.37.
+ */
+function isSdkSchema(value: unknown): value is SdkSchema {
+  return (
+    typeof value === 'object' && value !== null && 'jsonSchema' in value && 'validate' in value
+  );
+}
+
 /**
  * Build the Vercel AI SDK `tools` map from a ToolHandler payload.
  *
@@ -27,11 +52,12 @@ export function buildAiSdkTools(toolsPayload: {
       input_schema?: unknown;
     };
     if (!fn.name) continue;
-    const schema = (fn.parameters ??
-      fn.input_schema ?? { type: 'object', properties: {} }) as Parameters<typeof jsonSchema>[0];
+    const schema = fn.parameters ?? fn.input_schema ?? { type: 'object', properties: {} };
     tools[fn.name] = {
       description: fn.description ?? '',
-      inputSchema: jsonSchema(schema),
+      inputSchema: isSdkSchema(schema)
+        ? schema
+        : jsonSchema(schema as Parameters<typeof jsonSchema>[0]),
     };
   }
   return Object.keys(tools).length > 0 ? tools : undefined;

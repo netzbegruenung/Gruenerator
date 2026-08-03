@@ -28,7 +28,12 @@
     --secondary-300: #A0BBB0;
     --secondary-400: #85A899;
     --secondary-500: #6A9583;
-    --secondary-600: #5F8575;  /* Base "Eucalyptus" color */
+    /* Eukalyptus, um 4 % Helligkeit abgedunkelt (war #5F8575). Weiß darauf
+       erreichte 4,12:1 und verfehlte damit 4,5:1 (WCAG 1.4.3) -- an dieser
+       einen Stufe hingen Brand-Button, Sprung-Link, die Legacy-Buttons und
+       jedes bg-secondary-600. Jetzt 4,65:1. Als Textfarbe auf Weiß
+       (51x text-secondary-600) gilt derselbe Sprung. */
+    --secondary-600: #587C6D;  /* Base "Eucalyptus" color */
     --secondary-700: #445F54;
     --secondary-800: #31453C;
     --secondary-900: #1E2A25;
@@ -46,6 +51,17 @@
     --grey-800: #3a3a3a;
     --grey-900: #2e2e2e;
     --grey-950: #262626;
+
+    /* Lesegrau für Text — themeabhängig. Ein fester Grauwert kann WCAG 1.4.3
+       (4,5:1) nicht in beiden Modi erfüllen: hell braucht dunkler, dunkel
+       heller. Dark-Wert im [data-theme="dark"]-Block. */
+    --grey-text-val: #6d6d6d;
+
+    /* Die schwächere Textstufe, an der `text-grey-400` hängt (war --grey-400,
+       #989898 = 2,89:1). Die Rampenstufe bleibt, wo sie ist — sie trägt auch
+       Deaktiviert-Zustände und Ränder, und die sind von 1.4.3 ausgenommen.
+       Hell 4,54:1, dunkel 5,99:1. */
+    --grey-text-weak-val: #767676;
 
     /* Neutral Color System ("Sand") - Backgrounds and subtle hover */
     --neutral-500: #f8f4ec;
@@ -135,8 +151,8 @@
 
     --interactive-accent-color: var(--secondary-600);
     --font-color-disabled: var(--grey-400);
-    --font-color-secondary: var(--grey-500);
-    --font-color-muted: var(--grey-400);
+    --font-color-secondary: var(--grey-text-val);
+    --font-color-muted: var(--grey-text-val);
     --border-color-disabled: var(--grey-200);
     --border-color: var(--grey-200);
     --success-color: var(--klee);
@@ -166,7 +182,10 @@
     --editor-border-soft: #E4E2DA;
     --editor-border-strong: #DBD9D0;
     --editor-text-secondary: #4B4A45;
-    --editor-text-muted: #84827A;
+    /* Warmgrau, um 5 % abgedunkelt (war #84827A). Auf --editor-surface (weiß)
+       erreichte es 3,85:1; der Farbton bleibt, der Wert ist jetzt 4,55:1.
+       Die dunkle Fassung steht auf #1e1e1e schon bei 5,78:1. */
+    --editor-text-muted: #78766E;
     --editor-placeholder: #9A988F;
 
     /* Scrollbar variables */
@@ -196,7 +215,7 @@
     --input-border-focus: 2px solid var(--interactive-accent-color);
     --input-border-error: 2px solid var(--error-red);
     --input-text-color: var(--font-color);
-    --input-placeholder-color: var(--font-color-disabled);
+    --input-placeholder-color: var(--grey-text-val);
     --input-shadow-focus: 0 0 0 3px rgba(0, 85, 56, 0.1);
     --input-transition: all 0.25s ease-out;
 
@@ -215,6 +234,21 @@
     --color-primary-light-val: #46962b;
     --color-primary-dark-val: #1a332a;
 
+    /* `bg-primary`/`text-primary` (224 bzw. 107 Fundstellen) hingen auf
+       --primary-500. Weiß darauf erreicht 3,73:1 und die Farbe auf Weiß
+       ebenfalls 3,73:1 — im Hellmodus fielen BEIDE Rollen durch. --primary-600
+       löst beide auf einmal (je 7,24:1).
+
+       Im Dunkelmodus geht das nicht: dort will der Grund dunkel sein (weiß
+       darauf) und der Text hell (auf dunklem Grund). Ein Token kann das nicht,
+       deshalb bleibt dunkel vorerst auf --primary-500 — Bestand, keine
+       Verschlechterung. Auflösung ist die Trennung von Grund- und Textrolle,
+       siehe docs/barrierefreiheit-followup-audit.md.
+
+       Dasselbe für --color-secondary (Badge, bg-secondary). */
+    --color-primary-val: var(--primary-600);
+    --color-secondary-val: var(--secondary-600);
+
     /* Surface & Layout */
     --color-surface-val: #f3f4f6;
     --color-surface-hover-val: #e5e7eb;
@@ -227,6 +261,9 @@
     --color-foreground-muted-val: #666666;
     --color-foreground-dark-val: #e5e5e5;
     --color-muted-foreground-val: #666666;
+    /* Grünstichiges Sekundärgrau der Composer/Galerien. Hell abgedunkelt auf
+       4,5:1, dunkel bleibt der ursprüngliche Ton (dort 6,1:1). */
+    --color-muted-brand-val: #6a756f;
 
     /* Borders */
     --color-border-val: #e5e5e5;
@@ -348,9 +385,12 @@
     --border-subtle: 1px solid rgba(255, 255, 255, 0.1);
 
     --interactive-accent-color: var(--white);
+    --grey-text-val: #909090;
+    --grey-text-weak-val: #a3a3a3;
     --font-color-disabled: var(--grey-500);
-    --font-color-secondary: var(--grey-400);
-    --font-color-muted: var(--grey-500);
+    /* Hing bis 08/2026 an --grey-400 und erreichte auf --grey-950 nur 3,31:1. */
+    --font-color-secondary: var(--grey-text-weak-val);
+    --font-color-muted: var(--grey-text-val);
     --border-color-disabled: var(--grey-600);
     --border-color: var(--grey-700);
     --button-primary-color: var(--white);
@@ -382,6 +422,15 @@
 
     /* ── Tailwind @theme token values (dark mode) ── */
 
+    /* --color-primary bleibt Bestand: im Dunkelmodus ziehen Grund- und
+       Textrolle desselben Tokens in entgegengesetzte Richtungen (224x
+       bg-primary gegen 107x text-primary). Siehe den :root-Block.
+
+       --color-secondary hat KEINE Textrolle -- kein einziges text-secondary im
+       Bestand -- und kann deshalb auch dunkel mitziehen. */
+    --color-primary-val: var(--primary-500);
+    --color-secondary-val: var(--secondary-600);
+
     /* Surface & Layout */
     --color-surface-val: rgba(255,255,255,0.05);
     --color-surface-hover-val: rgba(255,255,255,0.1);
@@ -392,6 +441,7 @@
     /* Text */
     --color-foreground-muted-val: #999999;
     --color-muted-foreground-val: #999999;
+    --color-muted-brand-val: #9aa8a1;
 
     /* Borders */
     --color-border-val: #374151;
@@ -508,9 +558,12 @@
         --border-subtle: 1px solid rgba(255, 255, 255, 0.1);
 
         --interactive-accent-color: var(--white);
+        --grey-text-val: #909090;
+        --grey-text-weak-val: #a3a3a3;
         --font-color-disabled: var(--grey-500);
-        --font-color-secondary: var(--grey-400);
-        --font-color-muted: var(--grey-500);
+        /* Hing bis 08/2026 an --grey-400 und erreichte auf --grey-950 nur 3,31:1. */
+        --font-color-secondary: var(--grey-text-weak-val);
+        --font-color-muted: var(--grey-text-val);
         --border-color-disabled: var(--grey-600);
         --border-color: var(--grey-700);
         --button-primary-color: var(--white);
@@ -541,6 +594,10 @@
         --input-background: var(--background-color-alt);
 
         /* ── Tailwind @theme token values (prefers-color-scheme dark) ── */
+        /* Dieselbe Begründung wie im [data-theme="dark"]-Block. */
+        --color-primary-val: var(--primary-500);
+        --color-secondary-val: var(--secondary-600);
+
         --color-surface-val: rgba(255,255,255,0.05);
         --color-surface-hover-val: rgba(255,255,255,0.1);
         --color-hover-overlay-val: rgba(255,255,255,0.05);
@@ -548,6 +605,7 @@
         --color-background-secondary-val: #242424;
         --color-foreground-muted-val: #999999;
         --color-muted-foreground-val: #999999;
+        --color-muted-brand-val: #9aa8a1;
         --color-border-val: #374151;
         --color-card-val: #242424;
         --color-card-foreground-val: #e5e5e5;

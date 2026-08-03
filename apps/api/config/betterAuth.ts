@@ -25,7 +25,6 @@ import {
   MCP_LOGIN_PAGE,
   MCP_OAUTH_SCOPES_SUPPORTED,
   MCP_RESOURCE_URL,
-  MCP_SCOPES,
 } from './mcpServer.js';
 
 const KC_BASE = env.KEYCLOAK_BASE_URL;
@@ -195,7 +194,7 @@ export const auth = betterAuth({
       feedback_button: { type: 'string', required: false, defaultValue: 'text' },
       reduce_motion: { type: 'boolean', required: false, defaultValue: false },
       reduce_transparency: { type: 'boolean', required: false, defaultValue: false },
-      show_skip_link: { type: 'boolean', required: false, defaultValue: false },
+      show_skip_link: { type: 'boolean', required: false, defaultValue: true },
       avatar_robot_id: { type: 'number', required: false, defaultValue: 1 },
       profile_image: { type: 'number', required: false, defaultValue: 1 },
       is_admin: { type: 'boolean', required: false, defaultValue: false },
@@ -307,6 +306,14 @@ export const auth = betterAuth({
 
   verification: {
     modelName: 'ba_verification',
+    // Load-bearing for the MCP OAuth flow, not a preference. With
+    // `secondaryStorage` set and this flag off, verification values live ONLY
+    // in Redis — and `updateVerificationByIdentifier` re-keys the OAuth code
+    // under its OLD Redis key while returning before it ever reaches the DB
+    // (better-auth 1.6.25, db/internal-adapter.mjs). The consent step is the
+    // one caller that changes the identifier, so the code handed to the client
+    // never exists as a key and `/mcp/token` answers `invalid_grant`.
+    storeInDatabase: true,
     fields: {
       expiresAt: 'expires_at',
       createdAt: 'created_at',
@@ -548,7 +555,10 @@ export const auth = betterAuth({
         // required by OIDCOptions' type; the plugin overrides it anyway
         loginPage: MCP_LOGIN_PAGE,
         requirePKCE: true,
-        scopes: [...MCP_SCOPES],
+        // Alles, was ausgestellt werden darf — nicht nur die MCP-Rechte.
+        // Fehlt `chat:completions` hier, weist der Server die Anfrage des
+        // Excel-Add-ins als unbekannten Scope ab.
+        scopes: [...MCP_OAUTH_SCOPES_SUPPORTED],
         defaultScope: MCP_DEFAULT_SCOPE,
         accessTokenExpiresIn: 3600,
         refreshTokenExpiresIn: 60 * 60 * 24 * 30,

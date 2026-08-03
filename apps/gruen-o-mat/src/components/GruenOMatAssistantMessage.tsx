@@ -57,7 +57,7 @@ function GruenOMatAssistantMessageInner() {
         {isRunning &&
           !text &&
           (progress?.stage === 'searching' || progress?.stage === 'generating' ? (
-            <ProgressIndicator progress={progress} agentColor="#316049" />
+            <ProgressIndicator progress={progress} />
           ) : (
             <TypingIndicator />
           ))}

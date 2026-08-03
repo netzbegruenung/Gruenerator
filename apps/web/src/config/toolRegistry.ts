@@ -17,6 +17,7 @@
  *     mirrors deep-equal the derived arrays below. After a registry edit, the
  *     typecheck/tests point at every mirror literal still carrying old values.
  */
+import { type InstanceChannel } from '@gruenerator/shared/instances';
 import { RiSpyLine } from 'react-icons/ri';
 
 import { getIcon, type ActionIconName, type IconType, type NavigationIconName } from './icons';
@@ -58,7 +59,7 @@ export interface ToolDefinition {
     keywords: readonly string[];
     /** Icon override when the catalog shows a different icon than the tile. */
     icon?: ToolIconRef;
-    devOnly?: true;
+    channel?: InstanceChannel;
   };
   /** Default sidebar-favourites entry, optionally retitled for the sidebar. */
   favourite?: true | { title: string };
@@ -348,7 +349,7 @@ const TOOLS = [
     search: {
       subtitle: 'Dateien sicher übertragen',
       keywords: ['transfer', 'datei', 'upload', 'senden', 'teilen'],
-      devOnly: true,
+      channel: 'internal',
     },
   },
 ] as const satisfies readonly ToolDefinition[];
@@ -581,7 +582,7 @@ export interface DerivedCatalogEntry {
   path: string;
   icon: IconType | null;
   keywords: string[];
-  devOnly?: boolean;
+  channel?: InstanceChannel;
 }
 
 export function toolSearchCatalog(): DerivedCatalogEntry[] {
@@ -601,7 +602,7 @@ export function toolSearchCatalog(): DerivedCatalogEntry[] {
       path: tool.path,
       icon: resolveToolIcon(tool.search.icon ?? tool.icon),
       keywords: [...tool.search.keywords],
-      ...(tool.search.devOnly ? { devOnly: true } : {}),
+      ...(tool.search.channel ? { channel: tool.search.channel } : {}),
     };
   });
 }

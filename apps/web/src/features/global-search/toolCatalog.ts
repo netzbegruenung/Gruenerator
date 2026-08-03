@@ -10,7 +10,10 @@
  * ids to the registry and toolRegistry.vitest.ts asserts the entries deep-equal
  * the registry-derived catalog.
  */
+import { isChannelVisibleIn, type InstanceChannel } from '@gruenerator/shared/instances';
+
 import { getIcon } from '../../config/icons';
+import { CURRENT_INSTANCE } from '../../config/instance';
 
 import type { IconType } from '../../config/icons';
 import type { ToolSearchId } from '../../config/toolRegistry';
@@ -22,14 +25,19 @@ export interface ToolCatalogEntry {
   path: string;
   icon?: IconType | null;
   keywords: string[];
-  devOnly?: boolean;
+  channel?: InstanceChannel;
 }
 
 const nav = (name: string): IconType | null => getIcon('navigation', name) ?? null;
 
 type RegisteredEntry = ToolCatalogEntry & { id: ToolSearchId };
 
-const CATALOG: ToolCatalogEntry[] = [
+/**
+ * The full mirror, before any instance filtering. Exported so the lockstep test
+ * can compare the literal against the registry — comparing the filtered view
+ * would silently pass whenever an entry is merely hidden on the test's instance.
+ */
+export const CATALOG: ToolCatalogEntry[] = [
   {
     id: 'tool-reel',
     title: 'Reel',
@@ -192,10 +200,10 @@ const CATALOG: ToolCatalogEntry[] = [
     path: '/transfer',
     icon: getIcon('actions', 'upload') ?? null,
     keywords: ['transfer', 'datei', 'upload', 'senden', 'teilen'],
-    devOnly: true,
+    channel: 'internal',
   },
 ] satisfies RegisteredEntry[];
 
-export function getToolCatalog(includeDevOnly: boolean): ToolCatalogEntry[] {
-  return includeDevOnly ? CATALOG : CATALOG.filter((entry) => !entry.devOnly);
+export function getToolCatalog(): ToolCatalogEntry[] {
+  return CATALOG.filter((entry) => isChannelVisibleIn(entry.channel, CURRENT_INSTANCE));
 }

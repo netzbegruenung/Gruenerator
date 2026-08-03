@@ -6,6 +6,7 @@
   "exports": {
     "./base": "./base.js",
     "./react": "./react.js",
+    "./react-native": "./react-native.js",
     "./node": "./node.js"
   },
   "peerDependencies": {
@@ -17,9 +18,11 @@
     "@typescript-eslint/eslint-plugin": "^8.63.0",
     "@typescript-eslint/parser": "^8.63.0",
     "eslint-plugin-import-x": "^4.17.1",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "globals": "^17.7.0",
+    "eslint-plugin-react-native-a11y": "^3.5.1",
+    "globals": "^17.8.0",
     "typescript-eslint": "^8.65.0"
   }
 }

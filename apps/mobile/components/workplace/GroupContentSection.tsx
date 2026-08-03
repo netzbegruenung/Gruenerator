@@ -129,7 +129,11 @@ export const GroupContentSection = memo(function GroupContentSection({
     return (
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>Inhalte</Text>
-        <Pressable onPress={() => void refetch()} style={styles.errorRow}>
+        <Pressable
+          onPress={() => void refetch()}
+          style={styles.errorRow}
+          accessibilityRole="button"
+        >
           <Ionicons name="alert-circle-outline" size={18} color={colors.semantic.error} />
           <Text style={[styles.errorText, { color: colors.semantic.error }]}>
             Inhalte konnten nicht geladen werden. Erneut versuchen.
@@ -200,6 +204,7 @@ function ContentRow({
           borderColor: theme.cardBorder,
         },
       ]}
+      accessibilityRole="button"
     >
       <View style={[styles.iconWrapper, { backgroundColor: colors.primary[600] + '18' }]}>
         <Ionicons name={icon} size={20} color={colors.primary[600]} />

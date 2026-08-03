@@ -85,7 +85,12 @@ export function NativeSuggestionsSheet({ visible, onClose, canEdit }: Props) {
   return (
     <BottomSheet visible={visible} onClose={onClose}>
       <View style={styles.titleRow}>
-        <TouchableOpacity onPress={onClose} hitSlop={8}>
+        <TouchableOpacity
+          onPress={onClose}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Zurück"
+        >
           <Ionicons name="arrow-back" size={22} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: theme.text }]}>Änderungen</Text>
@@ -98,6 +103,7 @@ export function NativeSuggestionsSheet({ visible, onClose, canEdit }: Props) {
             style={[styles.bulkBtn, { borderColor: isDark ? colors.grey[700] : colors.grey[300] }]}
             onPress={() => confirmAll('accept')}
             activeOpacity={0.6}
+            accessibilityRole="button"
           >
             <Ionicons name="checkmark" size={16} color={colors.primary[600]} />
             <Text style={[styles.bulkBtnText, { color: colors.primary[600] }]}>Alle annehmen</Text>
@@ -106,6 +112,7 @@ export function NativeSuggestionsSheet({ visible, onClose, canEdit }: Props) {
             style={[styles.bulkBtn, { borderColor: isDark ? colors.grey[700] : colors.grey[300] }]}
             onPress={() => confirmAll('reject')}
             activeOpacity={0.6}
+            accessibilityRole="button"
           >
             <Ionicons name="close" size={16} color={theme.textSecondary} />
             <Text style={[styles.bulkBtnText, { color: theme.text }]}>Alle ablehnen</Text>
@@ -129,6 +136,7 @@ export function NativeSuggestionsSheet({ visible, onClose, canEdit }: Props) {
                   style={styles.rowMain}
                   onPress={() => jumpTo(s)}
                   activeOpacity={0.6}
+                  accessibilityRole="button"
                 >
                   <View
                     style={[
@@ -165,6 +173,7 @@ export function NativeSuggestionsSheet({ visible, onClose, canEdit }: Props) {
                       onPress={() => dispatchAction({ type: 'accept-suggestion', id: s.id })}
                       hitSlop={6}
                       style={styles.actionBtn}
+                      accessibilityRole="button"
                     >
                       <Text style={[styles.actionText, { color: colors.primary[600] }]}>
                         Annehmen
@@ -174,6 +183,7 @@ export function NativeSuggestionsSheet({ visible, onClose, canEdit }: Props) {
                       onPress={() => dispatchAction({ type: 'reject-suggestion', id: s.id })}
                       hitSlop={6}
                       style={styles.actionBtn}
+                      accessibilityRole="button"
                     >
                       <Text style={[styles.actionText, { color: theme.textSecondary }]}>
                         Ablehnen
@@ -195,6 +205,7 @@ export function NativeSuggestionsSheet({ visible, onClose, canEdit }: Props) {
             onClose();
           }}
           activeOpacity={0.6}
+          accessibilityRole="button"
         >
           <Ionicons name="git-compare-outline" size={18} color={theme.textSecondary} />
           <Text style={[styles.endBtnText, { color: theme.textSecondary }]}>

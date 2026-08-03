@@ -12,6 +12,7 @@
 
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
+import type { SystemMcpKey } from '../../../services/mcp/systemMcpServers.js';
 import type { AIWorkerPool } from '../../../workers/types.js';
 import type {
   WolkeFileRef,
@@ -941,6 +942,17 @@ export interface ChatGraphState {
   // hint. Null = run over all enabled servers.
   mcpServerScope?: string | null | undefined;
 
+  // The first-party MANAGED connectors this turn mounts (`bahn`, `wetter`,
+  // `gesetze`, …). Set by the vocabulary trigger in the router, or by an
+  // explicit `@gesetze`-style mention. Empty/absent = mount none.
+  //
+  // A LIST, not one value, which is the whole reason these stopped being
+  // intents: "Zug nach Hamburg und ein Hotel" needs two, and an intent can only
+  // ever be one — the `reise` umbrella existed to work around exactly that.
+  // Non-empty also OPENS the loop (see decideRunAgentic); the intent used to
+  // guarantee that, and without it a telegram-style ask stays single-pass.
+  managedSourceKeys?: SystemMcpKey[] | undefined;
+
   // Deterministic computation (set by computeNode; null when nothing computable)
   computedResult: ComputeData | null;
   computedResultTimeMs: number;
@@ -1042,6 +1054,17 @@ export interface ClassificationResult {
    * ChatGraphState for what that cost.
    */
   needsResearch?: boolean | undefined;
+  /**
+   * Would pictures belong beside this answer? The classifier's judgement — it is
+   * the node that already reads what the turn is about, and a regex cannot tell
+   * "wer war Marilyn Monroe" (a person: yes) from "wie berechne ich die
+   * Grunderwerbsteuer" (a procedure: no).
+   *
+   * Absent whenever no LLM classification ran, which is every tier that
+   * short-circuits earlier. That is why the deterministic "the user asked for
+   * photos" check stays beside it instead of being replaced by it.
+   */
+  wantsImages?: boolean | undefined;
   needsClarification?: boolean | undefined;
   clarificationQuestion?: string | undefined;
   clarificationOptions?: string[] | undefined;

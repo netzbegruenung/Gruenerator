@@ -184,6 +184,12 @@
       "import": "./dist/notebooks/index.js",
       "default": "./dist/notebooks/index.js"
     },
+    "./instances": {
+      "development": "./src/instances/index.ts",
+      "types": "./src/instances/index.ts",
+      "import": "./dist/instances/index.js",
+      "default": "./dist/instances/index.js"
+    },
     "./chat-intents": {
       "development": "./src/chat-intents/index.ts",
       "types": "./src/chat-intents/index.ts",
@@ -217,7 +223,6 @@
     "watch:skills": "cross-env NODE_OPTIONS=--conditions=development tsx scripts/build-skills.ts --watch",
     "build:agents": "cross-env NODE_OPTIONS=--conditions=development tsx scripts/build-agents.ts",
     "watch:agents": "cross-env NODE_OPTIONS=--conditions=development tsx scripts/build-agents.ts --watch",
-    "generate:mcp-agents": "cross-env NODE_OPTIONS=--conditions=development tsx scripts/generate-mcp-agents.ts && pnpm exec prettier --write ../../services/mcp/src/prompts/agents.generated.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

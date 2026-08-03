@@ -14,12 +14,13 @@
  */
 
 import { createLogger } from '../../../../utils/logger.js';
-import { INTERMEDIATE_MODEL } from '../llmConfig.js';
+import { intermediateLane } from '../llmConfig.js';
 
 import { extractMessageText, formatConversationHistory } from './classifierHeuristics.js';
 import {
   computeTextMetrics,
   computeArithmetic,
+  computeArithmeticBatch,
   computeUnitConvert,
   computeDateDiff,
   computeDateAdd,
@@ -28,16 +29,35 @@ import {
 
 import type { ChatGraphState } from '../types.js';
 
+/** @see services/ai/intermediateLanes.ts */
+const LANE = intermediateLane('compute');
+
 const log = createLogger('ChatGraph:Compute');
 
 type ComputeOperation =
   'text_metrics' | 'arithmetic' | 'unit_convert' | 'date_diff' | 'date_add' | 'unsupported';
+
+interface PlanCheck {
+  label: string | null;
+  expression: string | null;
+  claimed: number | null;
+}
 
 interface ComputePlan {
   operation: ComputeOperation;
   label: string | null;
   text: string | null;
   expression: string | null;
+  /**
+   * Every arithmetic claim in the material, not just the one the question names.
+   *
+   * `expression` alone is what let a "prüfe diese Angaben" turn pass with ONE
+   * verified figure and a table of unverified ones beside it — see
+   * `computeArithmeticBatch`. Kept alongside rather than replaced: a plain
+   * "was ist 20% von 340" has exactly one expression and no claim, and making
+   * that request build a one-element array would be ceremony.
+   */
+  checks: PlanCheck[] | null;
   value: number | null;
   fromUnit: string | null;
   toUnit: string | null;
@@ -55,6 +75,11 @@ Heutiges Datum (ISO): ${todayISO}
 Wähle GENAU EINE operation:
 - "text_metrics": Zeichen/Wörter/Zeilen/Vokale eines Textes zählen. Gib in "text" den EXAKTEN, unveränderten Zieltext an (kopiere ihn wörtlich inkl. Zeilenumbrüche; lasse die Aufforderung wie "zähl die Zeichen von" weg). Der Text kann in der aktuellen Nachricht oder weiter oben im Verlauf stehen.
 - "arithmetic": Rechenausdruck. Gib in "expression" einen NORMALISIERTEN Ausdruck mit '.' als Dezimaltrennzeichen und nur den Operatoren + - * / % ^ und Klammern an. Wandle Prozente um: "20% von 340" → "0.2 * 340". KEINE Einheiten, keine Wörter.
+  Soll ein Text auf RECHNERISCHE WIDERSPRÜCHE geprüft werden ("stimmen die Zahlen", "prüfe die Angaben", "sind die Zahlen konsistent"), dann trage in "checks" JEDE nachrechenbare Behauptung des Textes EINZELN ein — Summen, Differenzen, Anteile, Prozentangaben, Zwischensummen. Pro Eintrag:
+  · "expression": wie oben normalisiert, NUR die Operanden aus dem Text
+  · "claimed": die Zahl, die der Text als Ergebnis behauptet (nur die Zahl, ohne Tausenderpunkte und ohne Einheit) — oder null, wenn der Text kein Ergebnis nennt
+  · "label": kurze deutsche Beschreibung, z.B. "Summe der Einzelposten"
+  Lass KEINE nachrechenbare Angabe weg und erfinde keine dazu. Ob eine Behauptung stimmt, entscheidest du NICHT — das Programm rechnet nach.
 - "unit_convert": Einheitenumrechnung. Gib "value" (Zahl), "fromUnit" und "toUnit" an (z.B. km, mi, kg, lb, °C, °F, m, ft, h, min, GB, MB).
 - "date_diff": Tage zwischen zwei Daten. Gib "dateFrom" und "dateTo" als "YYYY-MM-DD" an (relative Angaben wie "heute" mit dem heutigen Datum auflösen).
 - "date_add": Datum plus/minus Zeitspanne. Gib "dateFrom" (Basisdatum "YYYY-MM-DD"), "dateAmount" (ganze Zahl, negativ = abziehen) und "dateUnit" ("days"|"weeks"|"months"|"years") an.
@@ -64,7 +89,7 @@ Setze "label" auf eine kurze deutsche Beschreibung (z.B. "Zeichen zählen", "20%
 Alle nicht zutreffenden Felder auf null.
 
 Antworte NUR mit JSON:
-{"operation":"...","label":"...","text":null,"expression":null,"value":null,"fromUnit":null,"toUnit":null,"dateFrom":null,"dateTo":null,"dateAmount":null,"dateUnit":null}`;
+{"operation":"...","label":"...","text":null,"expression":null,"checks":null,"value":null,"fromUnit":null,"toUnit":null,"dateFrom":null,"dateTo":null,"dateAmount":null,"dateUnit":null}`;
 }
 
 /** Parse the LLM plan JSON tolerantly (direct parse, then first JSON object). */
@@ -109,8 +134,20 @@ function executePlan(plan: ComputePlan, rawUserText: string): ComputeResult | nu
       const result = computeTextMetrics(target);
       return plan.label ? { ...result, operation: plan.label } : result;
     }
-    case 'arithmetic':
+    case 'arithmetic': {
+      // A consistency check outranks the single expression: when the model
+      // listed the material's claims, THEY are the answer, and `expression`
+      // is at best one of them repeated.
+      const checks = (plan.checks ?? [])
+        .filter((c): c is PlanCheck & { expression: string } => typeof c?.expression === 'string')
+        .map((c) => ({
+          label: c.label ?? null,
+          expression: c.expression,
+          claimed: typeof c.claimed === 'number' && Number.isFinite(c.claimed) ? c.claimed : null,
+        }));
+      if (checks.length > 0) return computeArithmeticBatch(checks);
       return plan.expression ? computeArithmetic(plan.expression, plan.label ?? undefined) : null;
+    }
     case 'unit_convert':
       return plan.value !== null && plan.fromUnit && plan.toUnit
         ? computeUnitConvert(plan.value, plan.fromUnit, plan.toUnit)
@@ -143,12 +180,15 @@ export async function computeNode(state: ChatGraphState): Promise<Partial<ChatGr
     const response = await aiWorkerPool.processRequest(
       {
         type: 'chat_intent_classification',
-        provider: INTERMEDIATE_MODEL.provider,
+        provider: LANE.provider,
         systemPrompt: buildExtractionPrompt(todayISO),
         messages: [{ role: 'user', content: userContent }],
         options: {
-          model: INTERMEDIATE_MODEL.model,
-          max_tokens: 600,
+          model: LANE.model,
+          // 600 fitted a single expression. A consistency check lists every
+          // claim in the material, and a truncated plan is a SILENT loss — the
+          // JSON simply ends and the dropped rows look like rows that passed.
+          max_tokens: 1500,
           temperature: 0,
           response_format: { type: 'json_object' },
         },

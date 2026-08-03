@@ -12,7 +12,7 @@
  * annotation-derived type.
  */
 
-import { getAllCollectionIds } from '../../../config/notebookCollectionMap.js';
+import { getImplicitSearchCollectionIds } from '../../../config/notebookCollectionMap.js';
 import { getDefaultAgentId, getAgent } from '../../../routes/chat/agents/agentLoader.js';
 
 import type { SearchGraphInput, SearchGraphState, UserLocale } from './types.js';
@@ -48,7 +48,7 @@ export async function initializeSearchState(input: SearchGraphInput): Promise<Se
 
     intent: 'search',
     searchSources: ['documents', 'web'],
-    notebookCollectionIds: getAllCollectionIds(),
+    notebookCollectionIds: getImplicitSearchCollectionIds(),
     defaultNotebookCollectionIds: [],
     detectedFilters: null,
     enabledTools: { search: true, web: true, research: true },

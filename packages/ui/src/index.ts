@@ -242,6 +242,7 @@ export {
 export { ProcessingState, type ProcessingStateProps } from './components/processing-state';
 export { PreviewImage, type PreviewImageProps } from './components/preview-image';
 export { FeatureCard, type FeatureCardProps } from './components/feature-card';
+export { InteractiveCard, interactiveCardControl } from './components/interactive-card';
 
 export {
   PillGroup,

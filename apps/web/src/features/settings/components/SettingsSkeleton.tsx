@@ -62,6 +62,49 @@ export function SettingsCardsSkeleton({ cards = 3 }: { cards?: number }) {
   );
 }
 
+/**
+ * The real group sizes, so the placeholder is as tall as what replaces it — a
+ * short grid that grows on load pushes the second heading down while you are
+ * reading it. Hardcoded rather than derived: pulling the preset table into the
+ * always-loaded dialog shell to size a placeholder is the wrong trade.
+ */
+const BACKGROUND_GROUPS = [
+  { id: 'bunt', tiles: 4 },
+  { id: 'einfarbig', tiles: 6 },
+];
+
+/** Intro line plus the grouped preview tiles of the background picker. */
+export function SettingsTilesSkeleton({
+  groups = BACKGROUND_GROUPS,
+}: {
+  groups?: typeof BACKGROUND_GROUPS;
+}) {
+  return (
+    <LoadingRegion>
+      <div className="flex flex-col gap-lg">
+        <Skeleton className="h-3 w-full max-w-prose" />
+        {groups.map(({ id, tiles }) => (
+          <div key={id} className="flex flex-col gap-sm">
+            <div>
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="mt-1.5 h-3 w-56 max-w-full" />
+            </div>
+            <div className="grid grid-cols-2 gap-md sm:grid-cols-3">
+              {Array.from({ length: tiles }, (_, i) => (
+                <div key={i} className="flex flex-col gap-xs">
+                  <Skeleton className="aspect-[16/10] w-full rounded-xl" />
+                  <Skeleton className="h-4 w-24 max-w-full" />
+                  <Skeleton className="h-3 w-full" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </LoadingRegion>
+  );
+}
+
 /** Intro paragraph plus a textarea-sized block. */
 export function SettingsFormSkeleton() {
   return (
@@ -111,7 +154,10 @@ export function SettingsStatsSkeleton() {
 }
 
 const TAB_SKELETONS: Record<SettingsTab, () => React.ReactElement> = {
+  // Schritt 1 der Einrichtung ist die Rollen-Karte.
+  onboarding: () => <SettingsCardsSkeleton cards={1} />,
   allgemein: () => <SettingsRowsSkeleton rows={6} />,
+  hintergrund: () => <SettingsTilesSkeleton />,
   barrierefreiheit: () => <SettingsRowsSkeleton rows={3} />,
   friends: () => <SettingsCardsSkeleton cards={4} />,
   personalisierung: () => <SettingsFormSkeleton />,

@@ -3,7 +3,6 @@
     "abgeordnetenwatch",
     "agentic",
     "artifact",
-    "bahn",
     "bundestag",
     "chart",
     "chat_history",
@@ -17,16 +16,15 @@
     "edit_current_board",
     "edit_current_doc",
     "examples",
+    "greeting",
     "hilfe",
-    "hotel",
     "image",
     "image_edit",
     "mcp",
     "modify_board",
     "modify_doc",
-    "news",
     "pressemitteilung_examples",
-    "reise",
+    "produktion",
     "research",
     "save_as_doc",
     "scrape_url",
@@ -36,19 +34,13 @@
     "social_post",
     "summary",
     "umfragen",
-    "web",
-    "wetter"
+    "web"
   ],
   "experimentalIntents": [
-    "bahn",
     "create_recurring_task",
-    "hotel",
     "mcp",
-    "news",
-    "reise",
     "social_post",
-    "umfragen",
-    "wetter"
+    "umfragen"
   ],
   "mentionables": {
     "abgeordnetenwatch": {
@@ -193,11 +185,6 @@
       "description": "Inhalt einer Webseite per URL anhängen",
       "mention": "@web"
     },
-    "wetter": {
-      "title": "Wetter",
-      "description": "Wettervorhersage für einen Ort (Open-Meteo)",
-      "mention": "@wetter"
-    },
     "wolke-trigger": {
       "title": "Wolke",
       "description": "Eigene Wolke-Dateien einfügen",
@@ -256,6 +243,11 @@
       "capability": "Deutsche Bahn: Bahnhöfe suchen, Abfahrts-/Ankunftspläne (Soll + Störungen) und Bahnhofsausstattung abfragen.",
       "env": "SYSTEM_MCP_DB_URL"
     },
+    "gesetze": {
+      "name": "Gesetze",
+      "capability": "Gesetze: deutsches Bundesrecht im Volltext durchsuchen, einzelne Normen abrufen und Zitate gegen den Bestand prüfen.",
+      "env": "SYSTEM_MCP_LAW_URL"
+    },
     "hotel": {
       "name": "trivago",
       "capability": "Hotels: Unterkünfte per trivago suchen und Preise vergleichen.",
@@ -272,18 +264,5 @@
       "env": "SYSTEM_MCP_WEATHER_URL"
     }
   },
-  "systemIntentSources": {
-    "bahn": [
-      "bahn"
-    ],
-    "hotel": [
-      "hotel"
-    ],
-    "news": [
-      "news"
-    ],
-    "wetter": [
-      "wetter"
-    ]
-  }
+  "systemIntentSources": {}
 }

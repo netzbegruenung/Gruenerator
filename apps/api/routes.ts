@@ -14,6 +14,7 @@ import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
 import { mountGroupsContractRouter } from './routes/auth/groups/groupsContract/index.js';
 import { mountImageModelPreferenceContractRouter } from './routes/auth/imageModelPreferenceContractRouter.js';
+import { mountSkillPromptContractRouter } from './routes/skills/skillPromptContractRouter.js';
 import authInitRouter from './routes/auth/initController.js';
 import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferencesContractRouter.js';
 import { mountPromptsContractRouter } from './routes/auth/promptsContractRouter.js';
@@ -127,6 +128,7 @@ import {
   leichteSpracheRouter,
 } from './routes/texte/index.js';
 import { mountTransferContractRouter } from './routes/transfer/transferContractRouter.js';
+import { mountTransparencyContractRouter } from './routes/transparency/transparencyContractRouter.js';
 import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractRouter.js';
 import { mountItemUsageContractRouter } from './routes/usage/itemUsageContractRouter.js';
 import { mountUserUsageContractRouter } from './routes/usage/userUsageContractRouter.js';
@@ -138,6 +140,9 @@ import { mountUserWebsitesContractRouter } from './routes/user/userWebsitesContr
 import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
 import { mountUserAgentsSharingContractRouter } from './routes/userAgents/userAgentsSharingContractRouter.js';
 import { mountUserTextFormsContractRouter } from './routes/userTextForms/userTextFormsContractRouter.js';
+import v1ChatCompletionsRouter, {
+  modelsRouter as v1ModelsRouter,
+} from './routes/v1/chatCompletionsRouter.js';
 import v1CollectionsRouter from './routes/v1/collectionsRouter.js';
 import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
 import { mountVideoContractRouter } from './routes/video/videoContractRouter.js';
@@ -307,8 +312,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: websiteRoute } = await import('./routes/texte/website.js');
   const { default: customPromptRoute } = await import('./routes/custom_prompts/custom_prompt.js');
   const { internalNotebookRouter } = await import('./routes/notebook/index.js');
-  const { internalAgentInsightRouter } =
-    await import('./routes/agents/internalAgentInsightController.js');
   const { default: nextcloudApiRouter } = await import('./routes/nextcloud/nextcloudApi.js');
   const { default: connectionsRouter } =
     await import('./routes/connections/connectionsController.js');
@@ -422,6 +425,12 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Auth: per-route Bearer API key middleware (requireApiKey). Rate-limited
   // per-key via apiKeyRateLimit. LV scope enforced inside each handler.
   app.use('/api/v1/notebooks', v1NotebooksRouter);
+  // OpenAI-compatible model access for headless clients with their own agent
+  // loop (Excel add-in). Same Bearer-API-key auth, plus a 'chat:completions'
+  // scope check and a model allowlist inside the router.
+  app.use('/api/v1/chat/completions', v1ChatCompletionsRouter);
+  // Modell-Discovery: OpenAI-kompatible Clients fragen ${baseUrl}/models ab.
+  app.use('/api/v1/models', v1ModelsRouter);
   // Public MCP collection catalog (unauthenticated, rate-limited).
   app.use('/api/v1/collections', publicReadLimiter, v1CollectionsRouter);
   // ts-rest contract router for /api/documents — mounts BEFORE the legacy documentsRouter
@@ -451,6 +460,14 @@ export async function setupRoutes(app: Application): Promise<void> {
   // requireAuth at the prefix — strictly the caller's own data.
   app.use('/api/usage', requireAuth, publicReadLimiter);
   mountUserUsageContractRouter(app);
+  // ts-rest contract router for /api/transparency (platform-wide footprint).
+  // NO requireAuth, and that is the point: the response is an aggregate over
+  // every user with small cells suppressed, and a transparency figure hidden
+  // behind a login is not one. The limiter and the 15-minute redis cache in
+  // platformUsageStats are what keep the aggregate scans from being a free
+  // denial-of-service lever.
+  app.use('/api/transparency', publicReadLimiter);
+  mountTransparencyContractRouter(app);
   app.use('/api/antraege', requireAuth, standardMutationLimiter, antraegeRouter);
   app.use('/api/scanner', publicReadLimiter, scannerRouter);
   app.use('/api/protokoll', publicReadLimiter, protokollRouter);
@@ -815,6 +832,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountNotificationsContractRouter(app);
   mountModelPreferencesContractRouter(app);
   mountImageModelPreferenceContractRouter(app);
+  // Skill prompt bodies. requireAuth at the prefix: the recipe catalogue is
+  // public (it ships in the bundle), the prompt text behind it is not.
+  app.use('/api/skills', requireAuth);
+  mountSkillPromptContractRouter(app);
   // Per-user external MCP server registry (EXPERIMENTAL). requireAuth at the
   // prefix — every route is user-scoped and handles user-entered credentials.
   app.use('/api/mcp/servers', requireAuth);
@@ -951,7 +972,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/internal/wolke-watch', wolkeWatchRouter);
   app.use('/api/internal/gruene-api', grueneApiTestRouter);
   app.use('/api/internal/notebook', internalNotebookRouter);
-  app.use('/api/internal/agents', internalAgentInsightRouter);
   // Content-sync is a ts-rest contract router; apply the admin-token prefix
   // before the endpoints register on `app` (createExpressEndpoints uses
   // absolute paths, so prefix middleware must be mounted first).

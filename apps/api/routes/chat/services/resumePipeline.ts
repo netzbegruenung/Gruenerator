@@ -78,6 +78,7 @@ import type { Request } from 'express';
  * why this is NOT `NON_SEARCH_INTENTS`).
  */
 const CLARIFICATION_UPGRADE_INTENTS: ReadonlySet<ChatIntentId> = new Set([
+  'produktion',
   'direct',
   'image',
   'image_edit',
@@ -430,7 +431,7 @@ export async function runChatGraphResume({
     // Intents that become a SEARCH once the user has answered a clarification:
     // the answer supplies the query the original turn was missing.
     //
-    // NOT to be confused with `NON_SEARCH_INTENTS` in classifierPrompt.ts,
+    // NOT to be confused with `NON_SEARCH_INTENTS` in classifierSignals.ts,
     // which answers a different question (which intents need no optimised
     // search query) and has 22 members. Merging the two would rewrite a
     // `create_pdf` or `wetter` turn into a search after a clarification and

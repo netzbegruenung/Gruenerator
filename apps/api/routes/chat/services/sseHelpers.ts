@@ -28,6 +28,7 @@ import type {
   DocumentCreatedEvent,
   EditorOperationsEvent,
   SearchResultPayload,
+  SearchImagePayload,
   ThinkingStepPayload,
   SocialPostPayload,
   BahnPayload,
@@ -38,7 +39,7 @@ import type { Response } from 'express';
 
 // Wire shapes shared with the chat runtime parser — defined once in
 // @gruenerator/contracts (chatStreamEvents) and re-exported for the emitters.
-export type { SearchResultPayload, ThinkingStepPayload };
+export type { SearchResultPayload, SearchImagePayload, ThinkingStepPayload };
 
 /**
  * SSE event types for chat streaming.
@@ -49,6 +50,7 @@ export type SSEEventType =
   | 'intent'
   | 'search_start'
   | 'search_complete'
+  | 'search_images'
   | 'summary_start'
   | 'summary_complete'
   | 'image_start'
@@ -157,7 +159,18 @@ export interface SSEEventPayloads {
      * onto the tool-call's `result.examples` so the card renders mid-stream.
      */
     examplesResult?: { press?: unknown[]; social?: unknown[]; message?: string };
+    /** Image hits. Never inside `results` — an image carries no text to cite. */
+    images?: SearchImagePayload[];
   };
+  /**
+   * Image hits found inside the agentic loop.
+   *
+   * Its own event, because the loop sends no `search_complete` (it streams
+   * `tool_step_*` cards instead) and because that event also moves the progress
+   * stage — which must not happen while the model is still working. Carries the
+   * turn's FULL list every time, so the client replaces rather than merges.
+   */
+  search_images: { images: SearchImagePayload[] };
   summary_start: { message: string; documentCount: number };
   summary_complete: { message: string; summaryLength: number; timeMs: number };
   image_start: { message: string };
@@ -389,7 +402,9 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
     'Suche vergangene Chats...',
   ],
   mcp: ['Verbinde Tools...', 'Rufe externes Tool auf...', 'Frage verbundenen Dienst...'],
+  produktion: ['Schreibe...', 'Formuliere...', 'Setze um...'],
   direct: ['Antworte...', 'Schreibe...', 'Formuliere...'],
+  greeting: ['Antworte...'],
   agentic: ['Schaue selbst nach...', 'Lege los...', 'Greife zu den Tools...'],
 };
 

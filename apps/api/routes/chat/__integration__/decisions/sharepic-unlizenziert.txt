@@ -3,11 +3,11 @@
 # A green diff proves the BRANCHES ran as scripted. It proves nothing
 # about what a real model would have done.
 
-## turn 0: "Bereite die Kernaussage optisch auf"
+## turn 0: "Entwirf einen Slogan zur Kernaussage"
 router.run_agentic               = (not reached)
 router.intent_override           = sharepic_unlicensed_fixed_text intentBefore=sharepic sharepicLicensed=false threadHasSharepic=false
 router.persistent_action_gate    = (not reached)
-classifier.tier                  = tier4_llm                      intent=sharepic needsClarification=false
+classifier.tier                  = tier3.8_generation_scope       decidedNoArtifact=false resolved=sharepic
 respond.answer_format            = (not reached)
 loop.tool_guard                  = (none)
 loop.synth_verdict               = (not reached)

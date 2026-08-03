@@ -22,7 +22,9 @@
 
 /** Tabs of the web settings dialog. Mobile groups the same ids differently. */
 export type SettingsTab =
+  | 'onboarding'
   | 'allgemein'
+  | 'hintergrund'
   | 'barrierefreiheit'
   | 'friends'
   | 'personalisierung'
@@ -78,10 +80,18 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     platforms: BOTH,
   },
   {
-    id: 'allgemein.chatHintergrund',
-    tab: 'allgemein',
-    title: 'Chat-Hintergrund',
-    description: 'Färbt den Schimmer hinter dem Chat-Start und den Senden-Button',
+    // Eigener Bereich statt einer Zeile in Allgemein: die Auswahl ist eine
+    // Fläche aus Vorschau-Kacheln, keine Steuerung, die rechts neben eine
+    // Beschriftung passt.
+    //
+    // „Startseite" meint die Fläche, auf der man nach dem Anmelden steht — den
+    // Chat-Start. Der alte Name „Chat-Hintergrund" las sich, als ginge es um
+    // die Fläche hinter einem laufenden Gespräch; gemeint war immer die
+    // Startfläche.
+    id: 'hintergrund.startseite',
+    tab: 'hintergrund',
+    title: 'Startseiten-Hintergrund',
+    description: 'Färbt den Schimmer hinter dem Chat-Start und den Senden-Button darauf',
     platforms: BOTH,
   },
   {
@@ -154,6 +164,17 @@ export const SETTINGS_CATALOG: readonly SettingsCatalogEntry[] = [
     title: 'Einführungs-Touren zurücksetzen',
     description:
       'Zeigt die Touren durch Workplace, Dokumente, Tabellen, Präsentationen und das Sharepic-Studio beim nächsten Öffnen wieder an.',
+  },
+  {
+    // Web-only, wie der Bereich selbst: die Einrichtung stellt Rolle, Friend und
+    // Hintergrund ein, und die Rollen legt man laut Katalog ohnehin am Rechner
+    // an. Die Zeile steht in Allgemein, weil der Bereich „Onboarding" nach dem
+    // Abschluss verschwindet — ohne sie gäbe es keinen Weg zurück.
+    id: 'allgemein.onboarding',
+    tab: 'allgemein',
+    title: 'Einrichtung erneut starten',
+    description:
+      'Holt den Bereich „Onboarding" zurück und führt noch einmal durch Rolle, Friend und Hintergrund.',
   },
   {
     id: 'friends.avatar',

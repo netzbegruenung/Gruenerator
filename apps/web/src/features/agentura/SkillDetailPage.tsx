@@ -13,6 +13,7 @@ import {
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { SkillCard } from './components/cards';
+import { useSkillPrompt } from './hooks/useSkillPrompt';
 import { findSkillByMention, relatedSkills } from './lib/lookups';
 
 import { Markdown } from '@/components/common/Markdown';
@@ -28,13 +29,14 @@ function SkillDetailPage() {
   const toggleFavorite = useSkillFavoritesStore((s) => s.toggleFavorite);
 
   const skill = findSkillByMention(mention);
+  // The recipe text is not in the bundle — it is party-internal and comes from
+  // the API, for signed-in users only. See hooks/useSkillPrompt.ts.
+  const { data: skillPrompt } = useSkillPrompt(skill?.mention);
 
   const related = useMemo(() => {
     if (!skill) return [];
     const pool = agentsList.filter(
-      (s) =>
-        Boolean(s.skillSystemPrompt) &&
-        (s.audience === undefined || s.audience === 'all' || s.audience === userLocale)
+      (s) => s.audience === undefined || s.audience === 'all' || s.audience === userLocale
     );
     return relatedSkills(skill, pool);
   }, [skill, userLocale]);
@@ -127,7 +129,7 @@ function SkillDetailPage() {
               </div>
             )}
             <Markdown fallback={<p>{skill.description}</p>}>
-              {skill.skillSystemPrompt ?? skill.description}
+              {skillPrompt ?? skill.description}
             </Markdown>
           </div>
         </TabsContent>

@@ -157,6 +157,7 @@ export function ImagePicker({
             },
           ]}
           onPress={pickImage}
+          accessibilityRole="button"
         >
           <Ionicons name="images-outline" size={28} color={theme.textGreen} />
           <Text style={[styles.optionText, { color: theme.textGreen }]}>Galerie</Text>
@@ -171,6 +172,7 @@ export function ImagePicker({
             },
           ]}
           onPress={takePhoto}
+          accessibilityRole="button"
         >
           <Ionicons name="camera-outline" size={28} color={theme.textGreen} />
           <Text style={[styles.optionText, { color: theme.textGreen }]}>Kamera</Text>
