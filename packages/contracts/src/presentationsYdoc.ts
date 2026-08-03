@@ -40,7 +40,13 @@ export const PRESENTATION_META_KEYS = {
   showLogo: 'showLogo',
 } as const;
 
-export const PRESENTATION_SCHEMA_VERSION = 1;
+/**
+ * 2 — the slide-body ProseMirror schema gained table and image nodes
+ * (`richtext/slideBody.ts`). Purely additive: a version-1 body is valid under
+ * the version-2 schema, so there is no migration. The number is what tells a
+ * client whether a document may contain nodes it cannot map.
+ */
+export const PRESENTATION_SCHEMA_VERSION = 2;
 
 /**
  * Multiplier each font-size preset applies to the deck's base type scale

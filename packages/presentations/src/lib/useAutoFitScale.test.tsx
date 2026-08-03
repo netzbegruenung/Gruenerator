@@ -29,6 +29,25 @@ function stubLayout(natural: number, capacity = CAPACITY): void {
   });
 }
 
+/**
+ * The horizontal axis, modelled the same way. jsdom reports 0 for both width
+ * properties by default, which is why the height-only tests above need no
+ * width stub — `0 <= 0` always fits.
+ */
+function stubWidth(natural: number, capacity: number): void {
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+    configurable: true,
+    get: () => capacity,
+  });
+  Object.defineProperty(HTMLElement.prototype, 'scrollWidth', {
+    configurable: true,
+    get(this: HTMLElement) {
+      const raw = this.style.getPropertyValue('--gs-font-scale');
+      return Math.round(natural * Number(raw || 1));
+    },
+  });
+}
+
 interface FontsStub {
   ready: Promise<void>;
   addEventListener: ReturnType<typeof vi.fn>;
@@ -80,6 +99,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
   Reflect.deleteProperty(HTMLElement.prototype, 'clientHeight');
   Reflect.deleteProperty(HTMLElement.prototype, 'scrollHeight');
+  Reflect.deleteProperty(HTMLElement.prototype, 'clientWidth');
+  Reflect.deleteProperty(HTMLElement.prototype, 'scrollWidth');
   Reflect.deleteProperty(document, 'fonts');
 });
 
@@ -158,6 +179,23 @@ describe('useAutoFitScale', () => {
     expect(registered).toBeDefined();
     unmount();
     expect(fonts.removeEventListener).toHaveBeenCalledWith('loadingdone', registered?.[1]);
+  });
+
+  // Tables and images introduced content that overflows sideways. The surface
+  // clips it (`overflow: hidden`) without ever getting taller, so a height-only
+  // probe reports "fits" for a table whose last column is off the slide.
+  it('shrinks for content that overflows sideways at full height', () => {
+    stubLayout(400); // height is comfortable …
+    stubWidth(1200, 960); // … the width is not: needs <= 0.8
+    render(<Surface enabled contentKey="a" />);
+    expect(surface().dataset.scale).toBe('0.8');
+  });
+
+  it('takes the smaller of the two axes', () => {
+    stubLayout(900, CAPACITY); // height alone → 0.6
+    stubWidth(1100, 960); // width alone → 0.8
+    render(<Surface enabled contentKey="a" />);
+    expect(surface().dataset.scale).toBe('0.6');
   });
 
   it('re-fits when reveal reveals the slide, and disconnects on unmount', () => {

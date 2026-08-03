@@ -90,7 +90,7 @@ export function startWorkplaceTour(navigate: NavigateFn): void {
         popover: {
           title: 'Zuletzt',
           description:
-            'Alle deine Inhalte an einem Ort: Dokumente, Tabellen, Präsentationen, Boards, Sharepics, Bilder und Reels.',
+            'Alle deine Inhalte an einem Ort: Dokumente, Tabellen, Präsentationen, Boards, Sharepics, Bilder und Videos.',
           side: 'top',
           onNextClick: (_el, _step, opts) => {
             expandSidebar(() => opts.driver.moveNext());

@@ -41,7 +41,7 @@ export function startPresentationsTour(): void {
       popover: {
         title: 'Präsentieren',
         description:
-          'Startet die Präsentationsansicht. PDF- und PowerPoint-Export findest du oben in der Leiste.',
+          'Startet die Präsentationsansicht. PDF- und PowerPoint-Download findest du über den ↓ Download-Button oben in der Leiste.',
         side: 'bottom',
       },
     },
