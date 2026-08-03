@@ -3,7 +3,7 @@
 import {
   ThreadListItemPrimitive,
   ThreadListItemMorePrimitive,
-  useThreadListItem,
+  useAuiState,
   useAui,
 } from '@assistant-ui/react';
 import {
@@ -40,7 +40,7 @@ function useSafeThreadAction(action: 'delete' | 'switchTo' | 'archive' | 'unarch
     (e: MouseEvent) => {
       e.preventDefault();
       Promise.resolve()
-        .then(() => aui.threadListItem()[action]())
+        .then(() => aui.threadListItem[action]())
         .catch((err) => {
           console.warn(`[ThreadList] ${action} failed (thread likely already removed):`, err);
         });
@@ -50,7 +50,7 @@ function useSafeThreadAction(action: 'delete' | 'switchTo' | 'archive' | 'unarch
 }
 
 function ExternalThreadItem() {
-  const { title, externalId } = useThreadListItem();
+  const { title, externalId } = useAuiState((s) => s.threadListItem);
   const ctx = useExternalThread();
   const isActive = ctx?.activePath != null && ctx.activePath === externalId;
 
@@ -79,7 +79,7 @@ function ExternalThreadItem() {
 }
 
 export function GrueneratorThreadListItem() {
-  const { externalId, remoteId } = useThreadListItem();
+  const { externalId, remoteId } = useAuiState((s) => s.threadListItem);
   const baseSwitchTo = useSafeThreadAction('switchTo');
   const handleArchive = useSafeThreadAction('archive');
   const handleDelete = useSafeThreadAction('delete');

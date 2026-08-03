@@ -1,4 +1,4 @@
-import { useMessageRuntime } from '@assistant-ui/react';
+import { useAui } from '@assistant-ui/react';
 import { useCallback } from 'react';
 
 import { useChatConfigStore } from '../stores/chatConfigStore';
@@ -12,7 +12,7 @@ import { useAgentStore } from '../stores/chatStore';
  * error banner so a retry after a failure behaves exactly like a regenerate.
  */
 export function useRegenerateMessage(): () => void {
-  const messageRuntime = useMessageRuntime();
+  const messageRuntime = useAui().message;
 
   return useCallback(() => {
     const threadId = useAgentStore.getState().currentThreadId;

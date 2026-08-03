@@ -89,7 +89,17 @@ export function EditorAssistantProvider(props: EditorAssistantProviderProps) {
 // tool-call parts (search steps, edit_document) render the SAME cards as /chat —
 // isolating the scope must NOT drop the tool-render registration.
 function EditorAuiReset({ children }: { children: ReactNode }) {
-  const freshAui = useAui({ tools: Tools({ toolkit: grueneratorToolkit }) }, { parent: null });
+  return (
+    <AuiProvider value={null}>
+      <EditorToolScope>{children}</EditorToolScope>
+    </AuiProvider>
+  );
+}
+
+// Registers the toolkit onto the isolated root above — `useAui` extends the
+// nearest provider, so this must sit INSIDE the `value={null}` boundary.
+function EditorToolScope({ children }: { children: ReactNode }) {
+  const freshAui = useAui({ tools: Tools({ toolkit: grueneratorToolkit }) });
   return <AuiProvider value={freshAui}>{children}</AuiProvider>;
 }
 

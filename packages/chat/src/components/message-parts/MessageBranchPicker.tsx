@@ -1,6 +1,6 @@
 'use client';
 
-import { useMessage, useMessageRuntime } from '@assistant-ui/react';
+import { useAui, useAuiState } from '@assistant-ui/react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 /**
@@ -9,8 +9,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
  * only the latest version, so this disappears after a reload.
  */
 export function MessageBranchPicker() {
-  const runtime = useMessageRuntime();
-  const message = useMessage();
+  const runtime = useAui().message;
+  const message = useAuiState((s) => s.message);
   const { branchNumber, branchCount } = message;
 
   if (branchCount <= 1) return null;

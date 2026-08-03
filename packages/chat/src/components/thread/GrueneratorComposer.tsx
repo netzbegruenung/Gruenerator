@@ -3,7 +3,8 @@
 import {
   AuiIf,
   ComposerPrimitive,
-  useComposerRuntime,
+  useAui,
+  useAuiEvent,
   useVoiceControls,
   useVoiceState,
 } from '@assistant-ui/react';
@@ -11,7 +12,7 @@ import { useAuiState } from '@assistant-ui/store';
 import { mcpBrandColor } from '@gruenerator/shared/utils';
 import { cn, useIsMobile } from '@gruenerator/ui';
 import { ArrowUp, Mic, Plug, Square, X } from 'lucide-react';
-import { memo, useRef, useState, useCallback, useEffect } from 'react';
+import { memo, useRef, useState, useCallback } from 'react';
 import { type IconType } from 'react-icons';
 import { RiVoiceAiFill } from 'react-icons/ri';
 import {
@@ -300,7 +301,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   slots,
   requireProfileHydration = false,
 }: GrueneratorComposerProps) {
-  const composerRuntime = useComposerRuntime();
+  const composerRuntime = useAui().composer;
   const isCompact = useChatDensity() === 'compact';
   const isMobile = useIsMobile();
   const effectivePlaceholder = placeholder ?? (isMobile ? 'Schreibe...' : 'Nachricht schreiben...');
@@ -318,10 +319,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   // AUI's file-input handler validates against the adapter's `accept` list and
   // throws a raw English error before our adapter's add() runs. Subscribe to
   // the structured event so the user sees a clean German toast instead.
-  useEffect(
-    () => composerRuntime.unstable_on('attachmentAddError', handleAttachmentAddError),
-    [composerRuntime]
-  );
+  useAuiEvent('composer.attachmentAddError', handleAttachmentAddError);
 
   const dismissPopover = useCallback(() => setMention(INITIAL_MENTION_STATE), []);
 
