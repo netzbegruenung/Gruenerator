@@ -28,6 +28,7 @@ import {
 import { CLASSIFIER_CONTEXT_MESSAGES, CLASSIFIER_CONTEXT_MAX_CHARS } from './classifierSignals.js';
 import {
   creationOrderPattern,
+  dictatesInlineTableColumns,
   hasExplicitSharepicWord,
   isNegatedArtifactRequest,
   negatedOrMeta,
@@ -1087,8 +1088,16 @@ const ARTIFACT_CREATE_IMPERATIVE_PATTERN =
 const COUNT_PATTERN =
   /\b(z(?:ä|ae)hl\w*|anzahl|wie\s+viele?|wie\s+lang)\b[\s\S]*\b(zeichen|buchstaben|w(?:ö|oe)rter|worte|wortanzahl|zeilen|vokale|silben|absätze|abs(?:ä|ae)tze)\b/i;
 const PURE_EXPR_PATTERN = /^(?=[\s\S]*[+\-*/%^×÷])[\s\d().,+\-*/%^×÷]+[=?]?$/;
+// `[nt]?` and not `\w*`: "rechnest"/"berechnest" is how a message talks ABOUT
+// calculating rather than ordering it, and „Stelle eine Rückfrage, bevor du
+// rechnest" was classified `compute` on 03.08.2026 — the node then logged
+// `operation=unsupported produced no result` after 1,6 s.
+//
+// The percent branch is the counterpart: „erhöhe das Schulungsbudget pro
+// Standort um 10 %" IS deterministic arithmetic and reached no compute rule at
+// all, so the turn went to the loop instead of the arithmetic engine.
 const MATH_PATTERN =
-  /(\d+\s*%\s*(von|of)\s*\d+)|\b(rechne|berechne|wie\s?viel\s+(ist|sind|macht)|was\s+(ist|sind|ergibt)\s+\d)/i;
+  /(\d+\s*%\s*(von|of)\s*\d+)|\b(rechne|berechne)[nt]?\b|\bwie\s?viel\s+(ist|sind|macht)\b|\bwas\s+(ist|sind|ergibt)\s+\d|\b(erh(?:ö|oe)h|reduzier|senk|k(?:ü|ue)rz|steiger|verringer)\w*\b[^.!?\n]{0,60}?\bum\s+\d+(?:[.,]\d+)?\s*(%|prozent)/i;
 const DATE_MATH_PATTERN = /\b(wie\s+viele?\s+tage|tage\s+(bis|zwischen)|datum\s+in\s+\d)/i;
 
 const EXPLICIT_WEB_SEARCH_PATTERN =
@@ -1331,7 +1340,9 @@ const HEURISTIC_RULES: ReadonlyArray<ClassifierRule<HeuristicResult>> = [
     longPaste: 'skip',
     guard: 'negatedOrMeta',
     guardNoun: SHEET_NOUN_PATTERN,
-    match: (m) => SHEET_CREATE_PATTERN.test(m.stripped),
+    // Columns spelled out with pipes mean the table is wanted IN the answer —
+    // see `dictatesInlineTableColumns`.
+    match: (m) => SHEET_CREATE_PATTERN.test(m.stripped) && !dictatesInlineTableColumns(m.stripped),
     result: () => ({
       intent: 'create_sheet',
       searchQuery: null,
