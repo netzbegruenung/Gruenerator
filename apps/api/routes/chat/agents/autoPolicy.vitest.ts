@@ -119,8 +119,11 @@ describe('autoPolicy — lane assignment per task shape', () => {
     }
   });
 
-  it('short/structured turns take the Small 4 lane', () => {
-    // Reporting/summarising over material that is already in context.
+  it('short/structured turns take the small Gemma lane', () => {
+    // Reporting/summarising over material that is already in context. Since
+    // 03.08.2026 that is Gemma 4 26B (Scaleway, GreenPT on failover) rather than
+    // Mistral Small 4: both only narrate, so the deciding argument is the German,
+    // and keeping A and B in one family means a turn changes size, not voice.
     for (const intent of [
       'mcp',
       'summary',
@@ -132,12 +135,12 @@ describe('autoPolicy — lane assignment per task shape', () => {
       'wetter',
       'umfragen',
     ]) {
-      expect(resolveAutoSelection({ intent }).modelId, intent).toBe('mistral-small-4');
+      expect(resolveAutoSelection({ intent }).modelId, intent).toBe('gemma-4-26b');
     }
   });
 
   it('narrating a platform ACTION takes the Mistral lane, not the small one', () => {
-    // Measured on the live eval: Small 4 AND Gemma answer "ich kann keine
+    // Measured on the live eval: the small lane AND Gemma answer "ich kann keine
     // Dokumente speichern" while the document is created anyway; Medium
     // narrates it correctly. See the note in autoPolicy.ts.
     for (const intent of ['save_as_doc', 'modify_doc', 'share_doc', 'artifact']) {
@@ -230,15 +233,17 @@ describe('autoPolicy — complexity grading', () => {
     }
   });
 
-  it('the Small 4 lane never thinks — measured, not assumed', () => {
+  it('the small Gemma lane never thinks — measured, not assumed', () => {
     // Live probe: thinking is correct but costs ~1.6–2k chars of reasoning on a
     // trivial question, `low` barely reduces it (no native dial), and a small
     // token budget was consumed entirely by reasoning → empty answer. Too
-    // expensive for the lane chosen FOR speed. See the note in autoPolicy.ts.
+    // expensive for the lane chosen FOR speed. The rule survived the move off
+    // Small 4 because the host now ENFORCES it: scalewayThinkingFetch pins
+    // `reasoning_effort: 'none'`. See the note in autoPolicy.ts.
     for (const intent of ALL_INTENTS) {
       for (const complexity of COMPLEXITIES) {
         const sel = resolveAutoSelection({ intent, complexity });
-        if (sel.modelId !== 'mistral-small-4') continue;
+        if (sel.modelId !== 'gemma-4-26b') continue;
         expect(sel.reasoning, `${intent}/${complexity}`).toBe('off');
       }
     }
