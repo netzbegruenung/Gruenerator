@@ -14,10 +14,11 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [master, main]
 
+# Kein id-token: write — das OIDC-Token brauchte nur der App-Token-Tausch, und
+# den ueberspringt die Action, seit github_token gesetzt ist.
 permissions:
   contents: read
   pull-requests: write
-  id-token: write
 
 # Auf einem PR-Zweig zählt nur die Spitze: ein neuer Push macht den laufenden
 # Review gegenstandslos, seine Inline-Kommentare hingen an Zeilen, die es
