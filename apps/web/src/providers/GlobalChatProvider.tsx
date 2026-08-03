@@ -10,6 +10,10 @@ import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import apiClient, { handleUnauthorized } from '../components/utils/apiClient';
+import {
+  ChatPdfLetterheadExportHost,
+  requestPdfLetterheadExport,
+} from '../features/chat/ChatPdfLetterheadExport';
 import { renderSharepicToImage } from '../features/image-studio/renderSharepicToImage';
 import { updateCanvasThumbnail } from '../features/image-studio/services/canvasThumbnailService';
 import { useModelPreferences } from '../features/models/hooks/useModelPreferences';
@@ -312,6 +316,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       onOpenReelStudio: (projectId: string) => {
         window.open(`/reel/studio?project=${projectId}`, '_blank', 'noopener,noreferrer');
       },
+      onExportPdfLetterhead: requestPdfLetterheadExport,
       onEditInDocs: async (content: string, title?: string, existingDocId?: string) => {
         if (existingDocId) {
           window.open(`/office/${existingDocId}`, '_blank', 'noopener,noreferrer');
@@ -347,7 +352,10 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       threadListPortalSlotId={PORTAL_SLOT_ID}
       onRequestOpenChat={openChat}
     >
-      <TooltipProvider>{children}</TooltipProvider>
+      <TooltipProvider>
+        {children}
+        <ChatPdfLetterheadExportHost />
+      </TooltipProvider>
     </GrueneratorChatProvider>
   );
 }
