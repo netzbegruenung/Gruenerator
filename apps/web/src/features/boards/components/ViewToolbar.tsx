@@ -73,7 +73,7 @@ export const ViewToolbar = memo(function ViewToolbar({
   const hasFiltersOrSorts = filters.length > 0 || sorts.length > 0;
 
   return (
-    <div className="flex items-center gap-1 px-md sm:px-lg pb-xs">
+    <div className="flex items-center gap-1 px-md sm:px-lg pb-xs overflow-x-auto scrollbar-none">
       <FilterButton
         fields={fields}
         filters={filters}
@@ -102,7 +102,7 @@ export const ViewToolbar = memo(function ViewToolbar({
       {hasFiltersOrSorts && (
         <button
           onClick={() => onUpdateView(activeView.id, { filters: [], sorts: [] })}
-          className="text-[10px] text-grey-400 hover:text-foreground bg-transparent border-none cursor-pointer transition-colors ml-1"
+          className="text-[10px] text-grey-400 hover:text-foreground bg-transparent border-none cursor-pointer transition-colors ml-1 shrink-0 whitespace-nowrap"
         >
           Zurücksetzen
         </button>
@@ -159,7 +159,7 @@ function FilterButton({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
-          className={`flex items-center gap-1 px-2 py-1 max-sm:min-h-11 max-sm:px-3 text-xs rounded-md border-none cursor-pointer transition-colors ${
+          className={`flex items-center gap-1 px-2 py-1 max-sm:min-h-11 max-sm:px-3 text-xs rounded-md border-none cursor-pointer transition-colors shrink-0 whitespace-nowrap ${
             filters.length > 0
               ? 'bg-primary-600/10 text-primary-600 dark:text-primary-400'
               : 'bg-transparent text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800'
@@ -288,7 +288,7 @@ function SortButton({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
-          className={`flex items-center gap-1 px-2 py-1 max-sm:min-h-11 max-sm:px-3 text-xs rounded-md border-none cursor-pointer transition-colors ${
+          className={`flex items-center gap-1 px-2 py-1 max-sm:min-h-11 max-sm:px-3 text-xs rounded-md border-none cursor-pointer transition-colors shrink-0 whitespace-nowrap ${
             sorts.length > 0
               ? 'bg-primary-600/10 text-primary-600 dark:text-primary-400'
               : 'bg-transparent text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800'
@@ -379,7 +379,7 @@ function GroupByButton({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className={`flex items-center gap-1 px-2 py-1 max-sm:min-h-11 max-sm:px-3 text-xs rounded-md border-none cursor-pointer transition-colors ${
+          className={`flex items-center gap-1 px-2 py-1 max-sm:min-h-11 max-sm:px-3 text-xs rounded-md border-none cursor-pointer transition-colors shrink-0 whitespace-nowrap ${
             groupByFieldId
               ? 'bg-primary-600/10 text-primary-600 dark:text-primary-400'
               : 'bg-transparent text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800'
@@ -443,7 +443,7 @@ function SwimlaneButton({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md border-none cursor-pointer transition-colors ${
+          className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md border-none cursor-pointer transition-colors shrink-0 whitespace-nowrap ${
             swimlaneFieldId
               ? 'bg-primary-600/10 text-primary-600 dark:text-primary-400'
               : 'bg-transparent text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800'
