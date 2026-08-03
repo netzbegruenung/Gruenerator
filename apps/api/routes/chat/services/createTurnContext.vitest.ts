@@ -78,7 +78,8 @@ describe('buildCreateTurnContext', () => {
 });
 
 describe('withConversationContext', () => {
-  const transcript = 'user: Rechne das aus\nassistant: Ich konnte dazu leider keine Antwort finden.';
+  const transcript =
+    'user: Rechne das aus\nassistant: Ich konnte dazu leider keine Antwort finden.';
 
   it('frames the thread as background for an ordinary brief', () => {
     const out = withConversationContext('Mach ein PDF daraus', transcript);
