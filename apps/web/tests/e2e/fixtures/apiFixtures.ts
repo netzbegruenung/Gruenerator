@@ -175,6 +175,11 @@ export async function installApiFixtures(page: Page): Promise<void> {
     '/api/auth/notebook-collections/public': { success: true, collections: [] },
     '/api/auth/notebook-collections/likes': { success: true, liked_ids: [] },
     '/api/research/filters': { filters: {} },
+    // ts-rest, `res.body.letterheads`. Der Briefkopf-Host hängt im
+    // `GlobalChatProvider`, fragt also auf JEDER Route — ohne diese Zeile
+    // schlägt der Fehlerhinweis-Guard nicht auf einer Seite an, sondern auf
+    // allen.
+    '/api/auth/letterheads': { letterheads: [] },
     // ts-rest `canvas.list`, `res.body` ist die Liste selbst — `/studio`.
     '/api/canvas': [],
     // ts-rest `groups.discoverPublicGroups`, ebenfalls nackt — `/projekte`.
