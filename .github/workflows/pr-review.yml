@@ -1,0 +1,129 @@
+name: PR Review
+
+# Führt denselben mehrphasigen Review wie der lokale `/review`-Slash-Command,
+# nur auf dem Runner statt im Terminal: die Action startet die echte Claude-Code-
+# CLI, `/review <nr>` ist dort also verfügbar. Befunde landen als Inline-
+# Kommentare am Code, die Übersicht als PR-Kommentar.
+#
+# Läuft parallel zu ci.yml — eigener Workflow, eigene Concurrency-Gruppe, keine
+# gemeinsamen Jobs. Auth über den Max-Abo-Token (`claude setup-token`), wie in
+# docs-freshness.yml, nicht über einen Pay-per-Token-API-Key.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [master, main]
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+# Auf einem PR-Zweig zählt nur die Spitze: ein neuer Push macht den laufenden
+# Review gegenstandslos, seine Inline-Kommentare hingen an Zeilen, die es
+# schon nicht mehr gibt.
+concurrency:
+  group: pr-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Claude Review
+    # Drafts nicht — dort ist der Diff noch in Bewegung, und jeder Push kostet
+    # einen vollen Lauf. `ready_for_review` holt sie nach.
+    # Bots nicht — Dependabot-PRs gehen ohnehin über dependabot-auto-merge.yml.
+    # Forks nicht — dort hat der Job weder Secrets noch Schreibrechte, der Lauf
+    # würde nur mit einem irreführenden Auth-Fehler enden.
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.user.type != 'Bot' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    # Der Runner idlet fast nur — die Zeit geht an den Agenten, nicht an die CPU.
+    timeout-minutes: 45
+    steps:
+      # fetch-depth: 0, damit der Agent gegen den Basis-Branch diffen und
+      # umliegenden Code lesen kann. Kein pnpm install: der Review liest Code,
+      # er baut nichts.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Review pull request
+        id: review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          track_progress: true
+          prompt: |
+            /review ${{ github.event.pull_request.number }}
+
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+            Der PR-Branch ist bereits in das Arbeitsverzeichnis ausgecheckt.
+
+            Halte dich an die Konventionen aus CLAUDE.md und den CLAUDE-*.md im
+            Wurzelverzeichnis sowie an eine CLAUDE.md im betroffenen Paket.
+            Besonders relevant: die Frozen-Stufen F0/F1/F2 bei Umbenennungen, der
+            Vier-Schichten-Typcheck (Contract → Zod → Drizzle → ts-rest) bei
+            Feature-Änderungen, und dass parteiinterne Inhalte nicht in dieses
+            öffentliche Repo gehören.
+
+            Poste das Ergebnis ausschließlich als GitHub-Kommentare, nicht als
+            Antworttext:
+            - Jeden überlebenden Befund per
+              `mcp__github_inline_comment__create_inline_comment` (mit
+              `confirmed: true`) an seine Datei und Zeile.
+            - Die 2–3-Sätze-Übersicht per `gh pr comment`.
+            - Nichts überlebt die Verifikation? Dann nur die Übersicht mit einem
+              entsprechenden Hinweis, keine Inline-Kommentare.
+
+            Gib am Ende die strukturierte Zusammenfassung ab. `confirmed_blocking`
+            zählt NUR Befunde mit Verdikt CONFIRMED in den Kategorien
+            correctness und security — die machen den Check rot. Alles andere
+            (PLAUSIBLE, Stil, Vereinfachung, Effizienz, Testabdeckung) zählt zu
+            `advisory` und blockiert nicht.
+          claude_args: |
+            --model ${{ vars.PR_REVIEW_MODEL || 'claude-opus-5' }}
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Read,Grep,Glob,Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(git diff:*),Bash(git log:*)"
+            --json-schema '{"type":"object","properties":{"overview":{"type":"string"},"confirmed_blocking":{"type":"integer"},"advisory":{"type":"integer"},"blocking_titles":{"type":"array","items":{"type":"string"}}},"required":["overview","confirmed_blocking","advisory","blocking_titles"]}'
+
+      # Der Check wird rot, sobald ein bestätigter Korrektheits- oder
+      # Sicherheitsbefund überlebt. Leere Ausgabe heißt: der Review ist nicht
+      # durchgelaufen — das ist ebenfalls rot, sonst wäre ein Ausfall der Action
+      # von „nichts gefunden" nicht zu unterscheiden.
+      - name: Gate on confirmed findings
+        env:
+          RESULT: ${{ steps.review.outputs.structured_output }}
+        run: |
+          if [ -z "$RESULT" ]; then
+            echo "::error::Der Review hat keine strukturierte Ausgabe geliefert — der Lauf ist nicht durchgekommen (Auth, Timeout oder Action-Fehler). Das ist kein Befund am Code."
+            exit 1
+          fi
+
+          echo "$RESULT" | jq .
+
+          BLOCKING=$(echo "$RESULT" | jq -r '.confirmed_blocking // 0')
+          ADVISORY=$(echo "$RESULT" | jq -r '.advisory // 0')
+
+          {
+            echo "## Claude Review"
+            echo
+            echo "$RESULT" | jq -r '.overview'
+            echo
+            echo "| | Anzahl |"
+            echo "|---|---|"
+            echo "| Bestätigt, blockierend | $BLOCKING |"
+            echo "| Beratend | $ADVISORY |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$BLOCKING" -gt 0 ]; then
+            echo
+            echo "$RESULT" | jq -r '.blocking_titles[]' | while read -r t; do
+              echo "::error::$t"
+            done
+            echo "$BLOCKING bestätigte(r) Befund(e) — siehe die Inline-Kommentare am PR."
+            exit 1
+          fi
+
+          echo "Keine bestätigten blockierenden Befunde ($ADVISORY beratend)."
