@@ -1,4 +1,4 @@
-import { useComposerRuntime } from '@assistant-ui/react';
+import { useAui } from '@assistant-ui/react';
 import { buildNotebookSlug } from '@gruenerator/shared/utils';
 import { TypingAnimation, useIsMobile } from '@gruenerator/ui';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
@@ -111,7 +111,7 @@ function OptionRow({
 export function NotebookOmniComposer({ onManualSearch }: NotebookOmniComposerProps) {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const composerRuntime = useComposerRuntime();
+  const composerRuntime = useAui().composer;
   const locale = useAuthStore((s) => s.locale);
   const isAustrian = locale === 'de-AT';
   const [q, setQ] = useState('');

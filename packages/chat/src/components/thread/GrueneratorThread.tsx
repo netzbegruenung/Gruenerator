@@ -136,7 +136,7 @@ export function GrueneratorThread({
                 : 'flex flex-grow flex-col gap-6 px-4 pt-8 pb-4'
             }
           >
-            <ThreadPrimitive.Empty>
+            <AuiIf condition={(s) => s.thread.isEmpty}>
               <WelcomeScreen
                 firstName={firstName ?? null}
                 description={activeAgent?.description}
@@ -147,7 +147,7 @@ export function GrueneratorThread({
                   ? { welcomeQuestion: activeAgent.welcomeQuestion }
                   : {})}
               />
-            </ThreadPrimitive.Empty>
+            </AuiIf>
 
             <CompactionIndicator />
 

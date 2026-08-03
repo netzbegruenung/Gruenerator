@@ -1,4 +1,4 @@
-import { useComposerRuntime } from '@assistant-ui/react';
+import { useAui } from '@assistant-ui/react';
 import { type ReactNode } from 'react';
 
 import { cn } from '../../lib/utils';
@@ -20,7 +20,7 @@ export function CompactWelcome({
   suggestions,
   iconBgClassName,
 }: CompactWelcomeProps) {
-  const composerRuntime = useComposerRuntime();
+  const composerRuntime = useAui().composer;
 
   return (
     <div className="flex flex-col items-center px-4 pt-6 pb-4 text-center">

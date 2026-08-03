@@ -1,4 +1,4 @@
-import { ThreadPrimitive } from '@assistant-ui/react-native';
+import { ThreadPrimitive, AuiIf } from '@assistant-ui/react-native';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { memo, useMemo, useRef } from 'react';
 import { View, Text, type TextInput, StyleSheet } from 'react-native';
@@ -149,9 +149,9 @@ export const AssistantThread = memo(function AssistantThread({
           { backgroundColor: transparent ? 'transparent' : theme.background },
         ]}
       >
-        <ThreadPrimitive.Empty>
+        <AuiIf condition={(s) => s.thread.isEmpty}>
           <EmptyState theme={theme} welcome={welcome} />
-        </ThreadPrimitive.Empty>
+        </AuiIf>
         {/* Above the list rather than inside it, like web: the summary covers
             the whole thread, not one message. */}
         <CompactionIndicator theme={theme} />

@@ -1,8 +1,8 @@
-import { useMessage } from '@assistant-ui/react';
+import { useAuiState } from '@assistant-ui/react';
 import { memo } from 'react';
 
 function GruenOMatUserMessageInner() {
-  const message = useMessage();
+  const message = useAuiState((s) => s.message);
 
   const text = message.content
     .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
