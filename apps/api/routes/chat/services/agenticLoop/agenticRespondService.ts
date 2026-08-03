@@ -426,13 +426,24 @@ export function buildArtifactNotes(
     state.compoundEdit === true
       ? 'HINWEIS: Die recherchierten Inhalte werden gerade in das GEÖFFNETE Dokument eingefügt. Schreibe NUR eine KURZE Bestätigung (1–2 Sätze), die das Thema nennt und sagt, dass es ins Dokument eingearbeitet wird — KEINE lange Ausformulierung (der Inhalt landet im Dokument, nicht im Chat).'
       : '',
-    // The edit tool already changed the open artefact this turn. Make the
-    // model confirm it in past tense — never write empty text (→ fallback)
-    // or claim it couldn't do it (both observed live: "keine Antwort
-    // gefunden" after 5 slides; "kann die Akzentfarbe nicht ändern" after
-    // set_deck_option succeeded).
+    // The edit tool PLANNED a change for the open artefact this turn and sent
+    // it to the client, which applies it in place (Univer / Yjs). Two failure
+    // modes to hold apart, and the prompt used to invite the second while
+    // fixing the first:
+    //
+    //  - The model writes nothing (→ fallback) or claims it cannot edit at all
+    //    — observed live as "keine Antwort gefunden" after 5 slides and "kann
+    //    die Akzentfarbe nicht ändern" after set_deck_option succeeded. Still
+    //    forbidden below.
+    //  - The model reports the change as SAVED. The server cannot know that:
+    //    `editor_operations` has no acknowledgement channel, so with the deck
+    //    not open in a client the ops go nowhere and only a toast appears. On
+    //    03.08.2026 the answer said "AKTUALISIERT" and the deck was unchanged
+    //    on reload. Ordering past tense here is what produced that sentence.
+    //
+    // Present tense is the honest form of what the server actually knows.
     state.editorEditsSummary
-      ? `HINWEIS: Die gewünschte Änderung wurde SOEBEN vorgenommen: ${state.editorEditsSummary}. Bestätige das dem*der Nutzer*in KURZ in Vergangenheitsform (1 Satz, z.B. „Erledigt — …"). Behaupte NIEMALS, du könntest die Änderung nicht vornehmen — sie ist bereits erfolgt.`
+      ? `HINWEIS: Die gewünschte Änderung ist geplant und wird gerade in die GEÖFFNETE Datei übernommen: ${state.editorEditsSummary}. Sag das dem*der Nutzer*in KURZ in der GEGENWART (1 Satz, z.B. „Die Folien werden gerade aktualisiert — …"). Behaupte NIEMALS, du könntest die Änderung nicht vornehmen — sie ist bereits ausgelöst. Behaupte aber ebenso NICHT, sie sei fertig GESPEICHERT: das Übernehmen geschieht in der geöffneten Datei.`
       : '',
     // Editor surface with the AI-edit toggle OFF: the edit tool is NOT
     // mounted, so any "I changed X" would be a false claim the client never
