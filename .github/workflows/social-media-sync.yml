@@ -116,9 +116,26 @@ jobs:
       - name: Update content stats page
         if: always()
         run: |
+          # In eine temporäre Datei und erst dann an ihren Platz: `curl | jq >
+          # datei` ohne pipefail endet auch dann mit 0, wenn der Endpunkt weg
+          # oder der Token abgelaufen ist — jq gibt auf leerer Eingabe nichts
+          # aus. Committet würde eine LEERE Statistikseite, und mit dem Index
+          # darunter gleich zweimal Unsinn.
+          TMP=$(mktemp)
           curl -sfS -H "x-admin-token: $ADMIN_TOKEN" \
             "$CONTENT_SYNC_API_URL/api/internal/content-sync/stats" \
-            | jq -r '.markdown' > documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
+            | jq -r '.markdown' > "$TMP"
+          if [ -s "$TMP" ]; then
+            mv "$TMP" documentation/docs/wissen/inhaltsdatenbank.md
+            # Die Seite ist zugleich Quelle des Chat-Doku-Index. Ohne diesen
+            # Lauf steht `Format & Generated` nach dem Merge auf master rot —
+            # und damit auf jedem PR, der darauf aufsetzt (03.08.2026: #2370
+            # und #2375). Der Automatik-PR selbst zeigt es nie: peter-evans
+            # erzeugt ihn mit GITHUB_TOKEN, und das löst keine Workflows aus.
+            node documentation/scripts/generate-docs-index.mjs
+          else
+            echo "::warning::Statistik-Antwort war leer — Seite und Index bleiben unverändert"
+          fi
         env:
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           CONTENT_SYNC_API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
@@ -131,7 +148,9 @@ jobs:
           title: 'docs: update content stats'
           body: 'Automated content stats update from Social Media Sync workflow.'
           branch: automated/content-stats-update
-          add-paths: documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
+          add-paths: |
+            documentation/docs/wissen/inhaltsdatenbank.md
+            apps/api/services/docs/docsIndex.generated.ts
           delete-branch: true
           labels: automated
 
