@@ -198,7 +198,7 @@ const SharedVideoPage = () => {
   };
 
   const CenteredState = ({ children }: { children: React.ReactNode }) => (
-    <div className="flex min-h-screen items-center justify-center bg-background p-lg">
+    <div className="flex min-h-dvh items-center justify-center bg-background p-lg">
       <div className="flex max-w-[500px] flex-col items-center gap-md text-center">{children}</div>
     </div>
   );
@@ -271,7 +271,7 @@ const SharedVideoPage = () => {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-lg">
+    <div className="flex min-h-dvh items-center justify-center bg-background p-lg">
       <div className="relative w-full max-w-[900px] overflow-hidden rounded-xl border border-grey-200 bg-background shadow-lg dark:border-grey-700 dark:bg-background-alt">
         <button
           className="absolute right-md top-md z-10 rounded-lg bg-white/90 p-xs shadow-sm backdrop-blur-sm transition-transform hover:scale-105"
