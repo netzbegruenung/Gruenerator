@@ -473,11 +473,24 @@ function flattenInline(tokens: Token[] | undefined, bold = false, href?: string)
 }
 
 /**
+ * Fußnotenmarken in eine Form bringen, die ein PDF lesbar macht.
+ *
+ * `[^1]` ist Markdown-Syntax für eine Fußnote, die anderswo definiert wird.
+ * Ein PDF hat diesen Mechanismus nicht, `marked` kennt die Erweiterung nicht,
+ * und so stand das Zeichen am 03.08.2026 wörtlich im fertigen Dokument: „Der
+ * Rat hat zugestimmt[^1]." — eine Marke, die auf nichts zeigt. Die eckige
+ * Klammer bleibt (sie verweist auf den Quellenblock), das Dach fällt weg.
+ */
+function normalizeFootnoteMarkers(text: string): string {
+  return text.replace(/\[\^(\d{1,3})\]/g, '[$1]');
+}
+
+/**
  * Block text may still carry inline markdown (**fett**, *kursiv*) — block-level
  * structure is expressed by the block type instead, so only inline is parsed.
  */
 function inlineSegments(text: string): InlineSegment[] {
-  const trimmed = (text ?? '').trim();
+  const trimmed = normalizeFootnoteMarkers((text ?? '').trim());
   if (!trimmed) return [];
   try {
     return flattenInline(marked.Lexer.lexInline(trimmed));
@@ -639,6 +652,8 @@ function drawRuns(
     x += safeWidth(run.font, run.text, fontSize);
   }
 }
+
+const SOURCES_HEADING = 'Quellen';
 
 /** Aufeinanderfolgende Läufe mit demselben Ziel bilden EINE Verknüpfung. */
 function groupByHref(runs: FontRun[]): Array<{ href: string | null; runs: FontRun[] }> {
@@ -1049,6 +1064,16 @@ class PdfRenderer {
           continue;
         }
       }
+      // Ein Quellenblock bringt seine Überschrift selbst mit. Schreibt das
+      // Modell trotzdem eine davor — was es zuverlässig tut, sobald es im
+      // Auftrag "Quellen" gelesen hat —, stünde sie zweimal auf dem Blatt.
+      if (block.type === 'sources') {
+        const previous = blocks[i - 1];
+        const heading = block.title?.trim() || SOURCES_HEADING;
+        const titled = previous?.type === 'heading' && sameHeadline(previous.text, heading);
+        this.renderSources(block, !titled);
+        continue;
+      }
       this.renderBlock(block);
     }
   }
@@ -1109,6 +1134,9 @@ class PdfRenderer {
         break;
       case 'keyvalue':
         this.renderKeyValue(block);
+        break;
+      case 'sources':
+        this.renderSources(block, true);
         break;
       case 'divider': {
         this.ensureSpace(22);
@@ -1198,6 +1226,60 @@ class PdfRenderer {
     };
 
     renderLevel(roots, 0);
+    this.y -= 5;
+  }
+
+  /**
+   * Quellenverzeichnis — der Teil des Dokuments, an dem sich entscheidet, ob es
+   * zitierfähig ist.
+   *
+   * Bewusst KEINE Tabelle. Der Prompt verlangte bis hierher eine mit den
+   * Spalten "Nr./Quelle/URL"; eine URL bekam damit ein Drittel der Seitenbreite,
+   * und genau dort zerfiel sie in Zeichenkolonnen. Als Liste steht der Titel in
+   * der einen Zeile und die vollständige Adresse darunter über die ganze
+   * Breite — anklickbar, und wenn sie doch umbricht, an ihren eigenen
+   * Trennzeichen.
+   */
+  private renderSources(block: Extract<PdfBlock, { type: 'sources' }>, withHeading: boolean): void {
+    if (withHeading) {
+      this.renderBlock({ type: 'heading', level: 2, text: block.title?.trim() || SOURCES_HEADING });
+    }
+
+    const fontSize = 10.5;
+    const indent = 22;
+    this.tagger.open('L');
+    block.entries.forEach((entry, i) => {
+      this.tagger.open('LI');
+      this.ensureSpace(fontSize * 3);
+      this.writeLineAt(
+        'Lbl',
+        `[${i + 1}]`,
+        MARGIN_L,
+        this.y,
+        fontSize,
+        this.fonts.bodyBold,
+        this.theme.accent
+      );
+      this.tagger.open('LBody');
+      this.writeText(inlineSegments(entry.label), { fontSize, indent, spacingAfter: 1 });
+      // Die URL als eigenes Segment mit Ziel: `inlineSegments` würde sie zwar
+      // selbst auto-verlinken, aber nur solange marked sie als URL erkennt —
+      // hier ist sie per Schema eine, das muss nicht geraten werden.
+      const href = safeHref(entry.value);
+      if (entry.value.trim()) {
+        this.writeText(
+          [
+            href
+              ? { text: entry.value.trim(), bold: false, href }
+              : { text: entry.value.trim(), bold: false },
+          ],
+          { fontSize: fontSize - 1, indent, color: MUTED_COLOR, spacingAfter: 4 }
+        );
+      }
+      this.tagger.close();
+      this.tagger.close();
+    });
+    this.tagger.close();
     this.y -= 5;
   }
 

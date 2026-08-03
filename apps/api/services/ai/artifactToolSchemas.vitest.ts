@@ -185,6 +185,18 @@ const BLOCK_CASES: Array<{ kind: string; block: Record<string, unknown>; optiona
     block: { type: 'keyvalue', entries: [{ label: 'Datum', value: '01.03.2026' }] },
     optional: [],
   },
+  {
+    // Bewusst `entries` und nicht `items`: der flache Draht-Vertrag lässt pro
+    // Eigenschafts-NAMEN nur einen Typ zu, und `items` ist dort das `string[]`
+    // der Liste. Quellentitel und URL passen genau in label/value.
+    kind: 'sources',
+    block: {
+      type: 'sources',
+      title: 'Quellen',
+      entries: [{ label: 'Rat der EU: Klimaziel 2040', value: 'https://www.consilium.europa.eu/' }],
+    },
+    optional: ['title'],
+  },
   { kind: 'divider', block: { type: 'divider' }, optional: [] },
   { kind: 'pagebreak', block: { type: 'pagebreak' }, optional: [] },
   {

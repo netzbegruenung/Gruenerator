@@ -60,6 +60,23 @@ export const pdfBlockSchema = z.discriminatedUnion('type', [
       .min(1)
       .max(60),
   }),
+  z.object({
+    type: z.literal('sources'),
+    /** Überschrift des Verzeichnisses; "Quellen", wenn nicht gesetzt. */
+    title: z.string().max(200).optional(),
+    /**
+     * `entries` und NICHT `items` oder `sources`: das flache Draht-Schema führt
+     * pro Eigenschafts-NAMEN genau einen Typ über alle Blockarten (siehe der
+     * Kommentar bei `lines`), und `items` ist dort schon das `string[]` der
+     * Liste. `label` trägt den Quellentitel, `value` die vollständige URL —
+     * dieselbe Gestalt wie bei `keyvalue`, also kein neues Draht-Feld und kein
+     * Modell, das die beiden verwechselt.
+     */
+    entries: z
+      .array(z.object({ label: z.string().min(1).max(300), value: z.string().max(2000) }))
+      .min(1)
+      .max(60),
+  }),
   z.object({ type: z.literal('divider') }),
   z.object({ type: z.literal('pagebreak') }),
   z.object({
@@ -237,6 +254,7 @@ export const PDF_DOCUMENT_TOOL_SCHEMA: Record<string, unknown> = {
               'quote',
               'note',
               'keyvalue',
+              'sources',
               'divider',
               'pagebreak',
               'field',
