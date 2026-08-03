@@ -172,10 +172,25 @@ function describe(entry: InventoryEntry): string {
  * Formulierung fürs Gegenteil stand. Ein Ausgang, den der Code bereits kennt,
  * darf nicht als Wahlmöglichkeit im Prompt liegen.
  */
+/**
+ * Das Modell kennt die Adresse eines Artefakts nicht — und kann sie nicht
+ * kennen: die Karte im Chat trägt einen RELATIVEN Pfad (`/office/<id>`), der
+ * gegen die Umgebung aufgelöst wird, aus der die Anfrage kam (Beta, Desktop-App,
+ * Produktion). Schreibt das Modell trotzdem eine Adresse, rät es die Domain —
+ * live am 02.08.2026 „https://www.gruenerator.eu/office/…" aus einer
+ * Beta-Sitzung, also ein 404 direkt unter der Karte, die funktioniert hätte.
+ *
+ * Deshalb ein Verbot und keine Vorlage: es gibt keine richtige Domain, die man
+ * dem Modell mitgeben könnte, ohne sie in der nächsten Umgebung wieder falsch
+ * zu machen.
+ */
+export const NO_ARTIFACT_URL_RULE =
+  'Schreibe NIEMALS eine Internetadresse (http…, www…, Domain) zu einem Artefakt in deine Antwort — die Karte im Chat öffnet es selbst, jede ausgeschriebene Adresse wäre geraten und führte ins Leere. Nenne höchstens den Pfad, den dir der Code ausdrücklich genannt hat, und stelle ihm nichts voran.';
+
 export function renderArtifactInventory(entries: readonly InventoryEntry[]): string {
   if (entries.length === 0) return '';
   const lines = entries.map(describe).join('\n');
-  return `\n\n## ARTEFAKTE IN DIESEM GESPRÄCH\n\n${lines}\n\nDiese Artefakte sind fertig und stehen sichtbar im Chat. Behaupte NIEMALS, eines davon existiere nicht, sei nicht erstellt worden oder seine Erstellung sei fehlgeschlagen. Wenn sich der Auftrag auf eines bezieht, meine dieses — erfinde kein zweites.`;
+  return `\n\n## ARTEFAKTE IN DIESEM GESPRÄCH\n\n${lines}\n\nDiese Artefakte sind fertig und stehen sichtbar im Chat. Behaupte NIEMALS, eines davon existiere nicht, sei nicht erstellt worden oder seine Erstellung sei fehlgeschlagen. Wenn sich der Auftrag auf eines bezieht, meine dieses — erfinde kein zweites. ${NO_ARTIFACT_URL_RULE}`;
 }
 
 /**
