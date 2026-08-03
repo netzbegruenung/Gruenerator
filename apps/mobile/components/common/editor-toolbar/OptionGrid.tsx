@@ -73,6 +73,8 @@ export function OptionGrid<T extends string = string>({
             ]}
             onPress={() => onChange(option.id)}
             disabled={disabled}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: isSelected, disabled }}
           >
             {option.renderPreview && (
               <View style={[styles.preview, compact && styles.previewCompact]}>

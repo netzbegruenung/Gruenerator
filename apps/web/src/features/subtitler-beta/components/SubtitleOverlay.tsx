@@ -337,6 +337,18 @@ export function SubtitleOverlay({
     [style.bottomOffset]
   );
 
+  // Tastaturäquivalent zum Ziehen: Pfeiltasten verschieben die Untertitelposition
+  const handleDragHandleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+      e.preventDefault();
+      const step = e.key === 'ArrowUp' ? 5 : -5;
+      const newOffset = Math.max(20, Math.min(200, style.bottomOffset + step));
+      onStyleChange({ ...style, bottomOffset: newOffset });
+    },
+    [style, onStyleChange]
+  );
+
   // Drag-Bewegung verarbeiten
   const handleDragMove = useCallback(
     (e: MouseEvent) => {
@@ -424,7 +436,14 @@ export function SubtitleOverlay({
           className="absolute left-1/2 transform -translate-x-1/2 w-20 h-8 opacity-0 hover:opacity-20 bg-primary rounded cursor-ns-resize pointer-events-auto transition-opacity"
           style={{ bottom: `${scaleSize(style.bottomOffset) - 16}px` }}
           onMouseDown={handleDragStart}
+          onKeyDown={handleDragHandleKeyDown}
           title="Klicken und ziehen, um die Untertitelposition anzupassen"
+          role="slider"
+          tabIndex={0}
+          aria-label="Untertitelposition"
+          aria-valuemin={20}
+          aria-valuemax={200}
+          aria-valuenow={style.bottomOffset}
         />
       )}
     </div>

@@ -70,6 +70,23 @@ const log = createLogger('PostResponse');
 export const INTENT_TO_TOOL: Record<string, string> = intentToolNames().persist;
 
 /**
+ * Strips the transient crawl payload before a result goes into the database.
+ *
+ * A crawled web result carries the SAME full page text under both `content` and
+ * `fullContent` (searchNode spreads the crawler's object, then overwrites
+ * `content` with it). Two crawled pages are ~160k chars of JSON per turn in
+ * `chat_messages.tool_results`, and `getRecentThreadSources` reads all of it
+ * back on the next turn — while its own docstring promises the content is
+ * "already snippet-sized at persist time". `fullContent` has no reader after
+ * the search stage, so nothing downstream loses anything.
+ */
+function forPersistence(r: SearchResult): SearchResult {
+  if (!('fullContent' in r)) return r;
+  const { fullContent: _dropped, ...rest } = r as SearchResult & { fullContent?: unknown };
+  return rest as SearchResult;
+}
+
+/**
  * Result payload shape for non-research tool calls (search, web, examples).
  * The chat UI's generic result renderers read `result.results`. The examples
  * cards (`PressemitteilungExamplesCard`, generic `ToolCallUI`) additionally
@@ -424,7 +441,13 @@ export async function persistAssistantResponse(params: PersistParams): Promise<P
       // reload matches the live stream (which sets agentInfo only for agents).
       ...(agentId && agentId !== 'gruenerator-universal' ? { agentId } : {}),
       citations: persistedCitations,
-      searchResults: finalState.searchResults?.slice(0, MAX_SOURCES) || [],
+      searchResults: finalState.searchResults?.slice(0, MAX_SOURCES).map(forPersistence) || [],
+      // Image hits, so a reloaded turn still shows what it found. Stored BARE —
+      // the `proxyUrl` handle is deliberately NOT persisted: it is a signed 24h
+      // capability and a database row outlives it. The load path mints a fresh
+      // one (messagesController), which also keeps the "signed at the moment of
+      // handing out" rule true on reload.
+      ...(finalState.webImageResults?.length ? { searchImages: finalState.webImageResults } : {}),
       generatedImage: generatedImage
         ? {
             url: generatedImage.url,
@@ -706,7 +729,7 @@ export async function persistResumedResponse(params: {
       searchCount: finalState.searchCount,
       ...(traceId && { traceId }),
       citations: persistedCitations,
-      searchResults: finalState.searchResults?.slice(0, MAX_SOURCES) || [],
+      searchResults: finalState.searchResults?.slice(0, MAX_SOURCES).map(forPersistence) || [],
       resumed: true,
       // Same shape the non-resumed path persists, so the document card
       // rehydrates identically on reload.

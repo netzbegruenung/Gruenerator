@@ -13,7 +13,7 @@ import { BottomComposerBar } from '../../../components/common/BottomComposerBar'
 import { NotebookGradientBackground } from '../../../components/common/NotebookGradientBackground';
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
 import { CommunityNotebooksSection } from '../../../components/notebook/CommunityNotebooksSection';
-import { NotebookCard, notebookGridStyles } from '../../../components/notebook/NotebookCard';
+import { NotebookCard, useNotebookGrid } from '../../../components/notebook/NotebookCard';
 import { NotebookCreator } from '../../../components/notebook/NotebookCreator';
 import { NotebookSection } from '../../../components/notebook/NotebookSection';
 import {
@@ -22,7 +22,7 @@ import {
   type MobileNotebookEntry,
 } from '../../../config/notebooksConfig';
 import { useNotebookSharing } from '../../../hooks/notebook/useNotebookSharing';
-import { useIsTablet } from '../../../hooks/useIsTablet';
+import { useContentColumn } from '../../../hooks/useLayout';
 import {
   useNotebookCollections,
   type MobileNotebookCollection,
@@ -44,7 +44,8 @@ export default function NotebooksScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
-  const isTablet = useIsTablet();
+  const notebookGrid = useNotebookGrid();
+  const gridColumn = useContentColumn('grid');
   const insets = useSafeAreaInsets();
   const fabTone = getSurfaceFab('wissen', colorScheme === 'dark');
   const [creatorVisible, setCreatorVisible] = useState(false);
@@ -205,7 +206,7 @@ export default function NotebooksScreen() {
         <View style={styles.container}>
           <ScrollView
             style={styles.container}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[gridColumn, styles.scrollContent]}
             keyboardShouldPersistTaps="handled"
           >
             <View>
@@ -247,6 +248,8 @@ export default function NotebooksScreen() {
                     onPress={() => setCreatorVisible(true)}
                     style={[styles.addButton, { backgroundColor: colors.primary[600] + '15' }]}
                     hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Notebook erstellen"
                   >
                     <Ionicons name="add" size={20} color={colors.primary[600]} />
                   </Pressable>
@@ -268,7 +271,7 @@ export default function NotebooksScreen() {
                     Noch keine eigenen Notebooks.
                   </Text>
                 ) : (
-                  <View style={isTablet ? notebookGridStyles.grid : undefined}>
+                  <View style={notebookGrid.container}>
                     {collections.map((c) => (
                       <NotebookCard
                         key={c.id}
@@ -278,7 +281,7 @@ export default function NotebooksScreen() {
                         onPress={() => handleCollectionPress(c.id, c.name)}
                         onLongPress={() => handleCollectionActions(c)}
                         isProcessing={processingIds.has(c.id)}
-                        style={isTablet ? notebookGridStyles.item : undefined}
+                        style={notebookGrid.item}
                       />
                     ))}
                   </View>
@@ -345,8 +348,9 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 6,
   },
+  // Horizontal margin comes from the content column; only the vertical rhythm
+  // is this screen's own.
   scrollContent: {
-    padding: spacing.medium,
     // The hero above the first section is gone, so the sections carry the top
     // spacing themselves — without this the first heading sits on the header.
     paddingTop: spacing.small,

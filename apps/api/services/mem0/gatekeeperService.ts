@@ -68,7 +68,7 @@ export async function shouldExtractMemories(
   const startTime = Date.now();
 
   try {
-    const model = getIntermediateModel();
+    const model = getIntermediateModel('heavy');
 
     const result = await generateObject({
       model,

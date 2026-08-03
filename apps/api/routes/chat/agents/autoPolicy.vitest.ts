@@ -5,7 +5,7 @@ import { isReasoningCapable } from '../../../services/ai/modelDiscovery.js';
 import { isReasoningStreamModel } from '../../../services/ai/regoloReasoningStream.js';
 import { mistralReasoningOption } from '../services/responseStreamingService.js';
 
-import { AUTO_POLICY_EXEMPT, resolveAutoSelection, type Complexity } from './autoPolicy.js';
+import { AUTO_POLICY_EXEMPT, POLICY, resolveAutoSelection, type Complexity } from './autoPolicy.js';
 import { AVAILABLE_MODELS } from './providers.js';
 
 const ALL_INTENTS = searchIntentSchema.options;
@@ -38,9 +38,12 @@ describe('autoPolicy — every intent resolves to a real lane', () => {
     }
   });
 
-  it('an unknown intent falls back to the speed lane instead of throwing', () => {
+  it('an unknown intent falls back to Gemma 4 instead of throwing', () => {
     const sel = resolveAutoSelection({ intent: 'not-a-real-intent' });
-    expect(sel.modelId).toBe('litellm');
+    // Was the GPT-OSS speed lane until the 2026-07-31 wind-down. A catch-all is
+    // where that lane does the most damage: an unlisted intent may be one that
+    // forces a tool call, and GPT-OSS answers those with prose.
+    expect(sel.modelId).toBe('gemma-litellm');
     expect(sel.reasoning).toBe('off');
   });
 
@@ -165,17 +168,17 @@ describe('autoPolicy — lane assignment per task shape', () => {
    * `create_pdf` sat there unnoticed.
    */
   it('no other intent falls through to the default by accident', () => {
-    const fallthrough = JSON.stringify(resolveAutoSelection({ intent: 'not-a-real-intent' }));
+    // Checked on the TABLE KEYS, not by comparing resolved results. The old
+    // version resolved an unknown intent and flagged every intent whose result
+    // matched — which silently stopped working the moment DEFAULT_ENTRY shared
+    // a lane with a real intent. Pointing the default at Gemma 4 (2026-07-31)
+    // did exactly that and made `image` and `social_post` look forgotten.
     const exempt: readonly string[] = AUTO_POLICY_EXEMPT;
-    const silent = ALL_INTENTS.filter(
-      (intent) =>
-        !exempt.includes(intent) &&
-        // `direct` and `hilfe` ARE the speed lane on purpose, so they match it.
-        intent !== 'direct' &&
-        intent !== 'hilfe' &&
-        JSON.stringify(resolveAutoSelection({ intent })) === fallthrough
+    const declared = new Set(Object.keys(POLICY));
+    const missing = ALL_INTENTS.filter(
+      (intent) => !exempt.includes(intent) && !declared.has(intent)
     );
-    expect(silent).toEqual([]);
+    expect(missing).toEqual([]);
   });
 
   it('create_pdf sits with its create_* siblings, not on the speed lane', () => {
@@ -202,9 +205,29 @@ describe('autoPolicy — complexity grading', () => {
     }
   });
 
+  it('produktion keeps the lane and grading direct had', () => {
+    // The split renamed the verdict, not the work: formulating supplied
+    // substance is the same task on the same lane.
+    for (const complexity of COMPLEXITIES) {
+      expect(resolveAutoSelection({ intent: 'produktion', complexity })).toEqual(
+        resolveAutoSelection({ intent: 'direct', complexity })
+      );
+    }
+  });
+
   it('a complex direct question earns some thought; a greeting does not', () => {
     expect(resolveAutoSelection({ intent: 'direct', complexity: 'simple' }).reasoning).toBe('off');
     expect(resolveAutoSelection({ intent: 'direct', complexity: 'complex' }).reasoning).toBe('low');
+    // `greeting` is ungraded on purpose: the complexity detector reads the raw
+    // message, and a long-ish "Guten Morgen, wie geht es dir denn heute?" can
+    // grade `moderate` — which would buy reasoning tokens for "Hallo".
+    for (const complexity of COMPLEXITIES) {
+      const sel = resolveAutoSelection({ intent: 'greeting', complexity });
+      expect(sel.reasoning, complexity).toBe('off');
+      expect(sel.modelId, complexity).toBe(
+        resolveAutoSelection({ intent: 'direct', complexity: 'simple' }).modelId
+      );
+    }
   });
 
   it('the Small 4 lane never thinks — measured, not assumed', () => {

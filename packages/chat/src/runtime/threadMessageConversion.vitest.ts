@@ -23,6 +23,16 @@ function customOf(metadata: LoadedMessage['metadata']): Record<string, unknown> 
 // field name so the `it.each` below cannot pass unless each key is handled.
 const PASSTHROUGH_SAMPLES: Record<(typeof PASSTHROUGH_METADATA_FIELDS)[number], unknown> = {
   citations: [{ id: 'c1', title: 'Quelle' }],
+  searchImages: [
+    {
+      title: 'Demo in Berlin',
+      url: 'https://example.test/demo.jpg',
+      domain: 'example.test',
+      // Present on the wire but never in the database — the backend mints it
+      // fresh on every load, so what reaches this converter already carries one.
+      proxyUrl: '/api/search-image?url=x&exp=1&sig=y',
+    },
+  ],
   generatedImage: { url: 'https://example.test/i.png', filename: 'i.png' },
   createdDocument: {
     documentId: 'doc_1',

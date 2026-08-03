@@ -123,6 +123,15 @@ export {
   type SearchDepthIconKey,
 } from './lib/composerControls';
 
+// Notebook retrieval depth — shared registry for the notebook page's tier control
+export {
+  NOTEBOOK_DEPTHS,
+  DEFAULT_NOTEBOOK_DEPTH,
+  notebookDepthDef,
+  type NotebookDepthDef,
+  type NotebookDepthIconKey,
+} from './lib/notebookDepth';
+
 export { useDocumentChatStore } from './stores/documentChatStore';
 export { useSkillFavoritesStore } from './stores/skillFavoritesStore';
 
@@ -197,6 +206,22 @@ export { parseSSELine, type SSECurrentEvent, type SSEParseResult } from './lib/s
 // Narration view-logic + label pacing (shared web + mobile)
 export { selectNarration, type PartLike } from './lib/narrationView';
 export { usePacedLabel } from './hooks/usePacedLabel';
+
+// The streaming status line's two decisions — which element, which sentence.
+// Shared verbatim with web's StreamingStatusLine/ProgressTracker; the platforms
+// used to hand-sync these rules by comment, and drifted.
+export {
+  selectStatusLabel,
+  selectStatusLineView,
+  type StatusLabel,
+  type StatusLineView,
+} from './lib/statusLineView';
+
+// Contiguous tool-call runs. Web gets the boundaries from assistant-ui's
+// ToolGroup slot; @assistant-ui/react-native has none, so mobile derives them
+// here and both then feed the same computeToolGroupView.
+export { selectToolRun, type ToolRunView } from './lib/toolRunGrouping';
+export { type ToolGroupView, type ToolGroupMode } from './lib/narrationView';
 
 // Which tool calls live in the shimmering status line instead of drawing a card.
 export {
@@ -310,6 +335,7 @@ export {
   documentMentionables,
   getAllMentionables,
   getAgentMentionables,
+  setMentionInstance,
   setMentionLocale,
   getMentionLocale,
   setCustomAgents,

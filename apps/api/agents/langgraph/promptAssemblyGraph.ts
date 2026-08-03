@@ -26,7 +26,7 @@ import type {
   Locale,
   Platform,
 } from './types/promptAssembly.js';
-import type { ClaudeMessage } from '../../services/attachments/types.js';
+import type { ClaudeContentBlock, ClaudeMessage } from '../../services/attachments/types.js';
 import type { contentExamplesService as ContentExamplesServiceInstance } from '../../services/contentExamplesService.js';
 
 // ============================================================================
@@ -285,8 +285,14 @@ function assemblePromptGraph(state: PromptAssemblyState): PromptAssemblyResult {
   const docBlocks = buildDocumentBlocks(state.documents as DocumentBlock[]);
   if (docBlocks && docBlocks.length > 0) {
     console.log(`📋 [PromptAssembly] Added ${docBlocks.length} document blocks`);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    messages.push({ role: 'user', content: docBlocks as any });
+    // Zwei Vokabulare für dieselbe Drahtform: `MessageContent` ist ein loser
+    // Sack (vier `type`-Werte, alle Felder optional), `ClaudeContentBlock` eine
+    // diskriminierte Union. Die Umwandlung ist eine echte Typgrenze, also steht
+    // hier eine benannte Zusicherung statt `any` — `any` hätte zusätzlich
+    // no-unsafe-assignment ausgelöst, wogegen der alte no-explicit-any-Disable
+    // nicht half (genau daran ist der Lint in CI gescheitert, während er lokal
+    // durchlief).
+    messages.push({ role: 'user', content: docBlocks as unknown as ClaudeContentBlock[] });
   }
 
   // Only include examples for Facebook and Instagram platforms
@@ -712,8 +718,15 @@ async function assemblePromptGraphAsync(
 
   if (effectiveDocuments.length > 0) {
     console.log(`📋 [PromptAssemblyAsync] Adding ${effectiveDocuments.length} effective documents`);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    messages.push({ role: 'user', content: buildDocumentBlocks(effectiveDocuments) as any });
+    // Siehe oben. Zusätzlich das `?? []`: `buildDocumentBlocks` gibt `null`
+    // zurück, wenn die Liste leer ist. Der Guard darüber schliesst das aus, aber
+    // `as any` hätte ein `content: null` auch dann durchgelassen, wenn sich das
+    // ändert — die benannte Zusicherung würde es nur verstecken statt beheben.
+    const effectiveBlocks = buildDocumentBlocks(effectiveDocuments) ?? [];
+    messages.push({
+      role: 'user',
+      content: effectiveBlocks as unknown as ClaudeContentBlock[],
+    });
   }
 
   const tools = Array.isArray(enrichedState.tools) ? [...enrichedState.tools] : [];

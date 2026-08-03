@@ -22,6 +22,23 @@ export function waitForElement(selector: string, timeoutMs = 5000): Promise<Elem
 
 let activeTour: TourId | null = null;
 
+const NATIVELY_INTERACTIVE = new Set(['A', 'BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'SUMMARY']);
+
+// driver.js hängt `aria-haspopup`/`aria-expanded` an das hervorgehobene Element.
+// Auf einem <div> ohne Rolle sind beide Attribute unzulässig (axe:
+// `aria-allowed-attr`, WCAG 4.1.2) — und ohne Rolle sagen sie einem Screenreader
+// ohnehin nichts. Der Popover selbst ist ein `role="dialog"` und bleibt unberührt.
+// Nicht nur das eben hervorgehobene Element: driver.js setzt die Attribute je
+// nach Schritt auch noch nach dem Callback und räumt sie beim Wechsel nicht
+// immer ab. Der Rollen-Test hält echte Bedienelemente heraus.
+function dropInvalidPopupHints(): void {
+  for (const el of document.querySelectorAll('[aria-haspopup], [aria-expanded]')) {
+    if (el.hasAttribute('role') || NATIVELY_INTERACTIVE.has(el.tagName)) continue;
+    el.removeAttribute('aria-haspopup');
+    el.removeAttribute('aria-expanded');
+  }
+}
+
 export function runTour(id: TourId, steps: DriveStep[], config?: Config): void {
   if (activeTour) return;
   activeTour = id;
@@ -37,6 +54,14 @@ export function runTour(id: TourId, steps: DriveStep[], config?: Config): void {
     prevBtnText: 'Zurück',
     doneBtnText: 'Fertig',
     ...config,
+    onHighlighted: (el, step, opts) => {
+      dropInvalidPopupHints();
+      config?.onHighlighted?.(el, step, opts);
+    },
+    onPopoverRender: (popover, opts) => {
+      dropInvalidPopupHints();
+      config?.onPopoverRender?.(popover, opts);
+    },
     onDestroyed: (el, step, opts) => {
       activeTour = null;
       config?.onDestroyed?.(el, step, opts);

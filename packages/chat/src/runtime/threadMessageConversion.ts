@@ -13,6 +13,7 @@ import {
   type ComputeData,
   type GeneratedImage,
   type Citation,
+  type SearchImage,
   type SearchResult,
 } from '../hooks/useChatGraphStream';
 import { INTENT_TO_TOOL } from '../lib/toolMappings';
@@ -44,6 +45,9 @@ export interface LoadedMessage {
     traceId?: string;
     citations?: Citation[];
     searchResults?: SearchResult[];
+    /** Web-search image hits. The proxy handle on each is minted at LOAD time by
+     *  the backend, not stored — see `messagesController`. */
+    searchImages?: SearchImage[];
     generatedImage?: GeneratedImage;
     createdDocument?: DocumentCreatedData;
     computeData?: ComputeData;
@@ -120,6 +124,7 @@ function extractContent(content: unknown): string {
  */
 export const PASSTHROUGH_METADATA_FIELDS = [
   'citations',
+  'searchImages',
   'generatedImage',
   'createdDocument',
   'computeData',

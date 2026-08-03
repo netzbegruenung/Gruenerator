@@ -48,6 +48,7 @@ export const OverviewLanding = memo(function OverviewLanding({
               styles.chip,
               { borderColor: theme.border, opacity: pressed ? 0.6 : 1 },
             ]}
+            accessibilityRole="button"
           >
             <Text style={[styles.chipLabel, { color: theme.textSecondary }]}>{p.label}</Text>
           </Pressable>

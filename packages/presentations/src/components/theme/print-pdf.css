@@ -1,0 +1,70 @@
+/*
+ * PDF export only (`/office/:id?present=1&print-pdf`).
+ *
+ * Every rule is scoped to `html.reveal-print` — the class reveal's
+ * PrintView.activate() puts on <html> — and deliberately NOT to a bare
+ * `@media print`:
+ *   • `reveal-print` only ever exists in the dedicated export tab, so a stray
+ *     Ctrl+P on the editor or in live present mode is unaffected. Under
+ *     `@media print` these rules would blank those pages.
+ *   • Not being inside `@media print` means they also apply ON SCREEN in that
+ *     tab, so the tab shows exactly the paginated stack the PDF will contain —
+ *     preview and output cannot disagree.
+ *
+ * Imported only by PresentMode (not by PresentationEditor, which also pulls in
+ * gruene-deck.css), so this ships in the lazy reveal chunk.
+ */
+
+/* The app shell must not paginate — it is what the browser was laying out
+ * before, one editor screenshot's worth of it. PresentMode portals the deck to
+ * <body> for the export, so one rule removes everything else: #root (sidebar,
+ * top bar, slide canvas, thumbnail rail, chat aside), the pre-React cookie
+ * banner that sits outside #root, and any body-level portal (sonner, Radix).
+ * Everything stays mounted — only painting stops, so the Hocuspocus connection
+ * and the Y.Doc are untouched. */
+html.reveal-print body > :not(.gruene-print-root) {
+  display: none !important;
+}
+
+html.reveal-print body {
+  /* The app sets `body { min-height: 100vh; display: flex }`. `min-height`
+   * beats the inline one-page height PrintView writes, and the flex formatting
+   * context changes how the `.pdf-page` children stack. reveal's own print
+   * sheet resets only margin/border/padding/float/overflow, so do the rest
+   * here. Deliberately no `height`: PrintView's inline value plus reveal's
+   * `overflow: visible` is reveal's own tested arrangement. */
+  display: block !important;
+  min-height: 0 !important;
+
+  /* PrintView copies the computed body background onto every `.pdf-page`.
+   * reveal's own `.reveal-viewport { background-color: #fff }` already outranks
+   * the app's themed `body` rule — but the app also animates that property for
+   * 500ms, and a computed read taken mid-transition returns the old dark-mode
+   * colour. Killing the transition is the actual fix; the explicit white is the
+   * floor. */
+  background: #ffffff !important;
+  transition: none !important;
+}
+
+/* Belt and braces for the above: an !important author declaration outranks the
+ * inline background PrintView writes per page, whatever it managed to read. */
+html.reveal-print .reveal .slides .pdf-page {
+  background: #ffffff !important;
+}
+
+/* The deck chrome is painted `--grey-100`; on paper that would only tint the
+ * strip around the 960×540 surface. */
+html.reveal-print .reveal.gruene-deck {
+  background: transparent !important;
+}
+
+/* reveal sets only the -webkit- prefix. Firefox needs the unprefixed property
+ * or it drops every slide background, accent panel and title bar.
+ * `color-scheme: light` keeps a dark-mode profile from tinting the page. */
+html.reveal-print {
+  color-scheme: light;
+}
+html.reveal-print,
+html.reveal-print * {
+  print-color-adjust: exact;
+}

@@ -40,7 +40,14 @@ const QUESTIONS = [
 ];
 for (const p of PREFIXES) {
   for (const q of QUESTIONS) {
-    emit('greeting-trap', `${p} ${q}`, { routingNot: ['direct'], noCapabilityRefusal: true });
+    emit('greeting-trap', `${p} ${q}`, {
+      // `greeting` alongside `direct`: the trap is a real question wearing a
+      // greeting prefix, and since the split there are TWO ways to answer it
+      // without retrieval. Asserting only against `direct` would let the
+      // greeting gate swallow these silently.
+      routingNot: ['produktion', 'direct', 'greeting'],
+      noCapabilityRefusal: true,
+    });
   }
 }
 
@@ -53,7 +60,7 @@ const UMLAUT_TAILS = [
 ];
 for (const v of UMLAUT_VERBS) {
   for (const t of UMLAUT_TAILS) {
-    emit('umlaut-verbfirst', `${v} ${t}`, { routingNot: ['direct'] });
+    emit('umlaut-verbfirst', `${v} ${t}`, { routingNot: ['produktion', 'direct', 'greeting'] });
   }
 }
 

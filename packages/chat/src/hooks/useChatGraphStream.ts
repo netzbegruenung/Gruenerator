@@ -9,6 +9,7 @@ import { sharepicVariantSchema } from '@gruenerator/contracts';
 import { useState, useCallback, useRef } from 'react';
 
 import { parseSSELine } from '../lib/sseParser';
+import { ARTIFACT_STAGE_INTENTS } from '../lib/toolMappings';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 
 import type { ProcessedFile } from '../lib/fileUtils';
@@ -28,6 +29,14 @@ export type ProgressStage =
   | 'idle'
   | 'classifying'
   | 'searching'
+  // Ein Artefakt entsteht (PDF, Präsentation, Tabelle, Dokument, Board). Eigene
+  // Stufe, weil sie die längste ist: die Erzeugung ist ein zweiter,
+  // strukturierter Modellaufruf über einen langen Auftrag. Ohne sie fielen genau
+  // diese Turns auf `searching` zurück, und die Zeile sagte drei Minuten lang
+  // „Durchsuche …" — live am 02.08.2026 auch in einem Turn, in dem gar keine
+  // Suchwerkzeuge montiert waren, weil die Person neue Recherche ausgeschlossen
+  // hatte. Die Anzeige behauptete damit einen Regelbruch, den es nicht gab.
+  | 'generating_artifact'
   | 'summarizing'
   | 'generating_image'
   | 'generating'
@@ -138,8 +147,11 @@ export type Citation = ChatCitation;
 export type SearchResult = SearchResultPayload;
 
 /**
- * An image hit from the web search. A named LINK, never a rendered picture — see
- * `searchImagePayloadSchema` for why there is no thumbnail field.
+ * An image hit from the web search.
+ *
+ * Shown as a thumbnail ONLY via `proxyUrl` (same-origin, signed, short-lived);
+ * with no proxy handle it stays the named link it used to be. Never rendered
+ * from `url` — see `SearchImagesSection`.
  */
 export type SearchImage = SearchImagePayload;
 
@@ -377,8 +389,10 @@ export function useChatGraphStream(
                   reasoning?: string;
                 };
                 let stage: ProgressStage = 'searching';
-                if (intent === 'direct') {
+                if (intent === 'produktion' || intent === 'direct' || intent === 'greeting') {
                   stage = 'generating';
+                } else if (ARTIFACT_STAGE_INTENTS.has(intent)) {
+                  stage = 'generating_artifact';
                 } else if (intent === 'image' || intent === 'image_edit') {
                   stage = 'generating_image';
                 } else if (intent === 'summary') {

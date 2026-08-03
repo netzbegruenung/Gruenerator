@@ -51,6 +51,7 @@ export function TextFieldsSection({
             </View>
 
             <TextInput
+              accessibilityLabel={field.label}
               style={[
                 styles.input,
                 field.multiline && styles.multilineInput,

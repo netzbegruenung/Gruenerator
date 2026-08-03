@@ -3,7 +3,6 @@ import {
   agentMentionables,
   getCustomAgentMentionables,
   getDefaultAgent,
-  selectHasVisibleToolCard,
   selectReasoningText,
   selectSearchSources,
   selectSearchStatusLabel,
@@ -18,7 +17,7 @@ import { View } from 'react-native';
 import { useTheme } from '../../../hooks/useTheme';
 import { BahnCard } from '../BahnCard';
 import { ChatChartCard } from '../ChatChartCard';
-import { ChatProgressIndicator } from '../ChatProgressIndicator';
+import { ChatStatusLine } from '../ChatStatusLine';
 import { CitationDetailSheet } from '../CitationDetailSheet';
 import { CitationsFooter } from '../CitationsFooter';
 import { ComputeCard } from '../ComputeCard';
@@ -37,15 +36,19 @@ import { resolveMessageAgent, shouldShowAgentBadge } from './messageAgent';
 import { messageLayout } from './messageLayout';
 import { HiddenReasoningPart } from './ReasoningBlock';
 import { AssistantToolCallPartWithNarration } from './ToolCallPart';
-import { TypingIndicator } from './TypingIndicator';
+import { ToolGroupScope } from './toolGroupContext';
 
 // Reasoning renders NOTHING in document order: the thinking hangs under the
 // status line's chevron (StatusLineDetails), and retires with it.
+//
+// No `Empty` slot either. The typing dots belong to ChatStatusLine, which is the
+// only place that knows whether something better is available. As a part slot
+// they were a second, blind decider, happily filling every silence the shimmer's
+// own gates produced — which is what a plain question looked like on mobile.
 const partsComponents = {
   Text: AssistantTextPart,
   tools: { Fallback: AssistantToolCallPartWithNarration },
   Reasoning: HiddenReasoningPart,
-  Empty: TypingIndicator,
 };
 
 export const AssistantMessage = memo(function AssistantMessage() {
@@ -72,10 +75,9 @@ export const AssistantMessage = memo(function AssistantMessage() {
 
   // While this (last) message is still streaming, surface the cycling stage word
   // + spinning cog the same way web does — the label rides on metadata.progress,
-  // written by the shared SSE adapter. Once a tool CARD exists, the tool UI owns
-  // the progress affordance, so we step aside. Retrieval steps draw no card;
-  // they ride this line instead, naming the running search rather than the
-  // generic stage word — and, like web, only until the answer text starts.
+  // written by the shared SSE adapter. Retrieval steps draw no card; they ride
+  // this line instead, naming the running search rather than the generic stage
+  // word — and, like web, only until the answer text starts.
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const isLast = useAuiState((s) => s.message.isLast);
   const isStreaming = isRunning && isLast;
@@ -83,7 +85,6 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const hasOwnDetail =
     message.content.some((p) => p.type === 'tool-call') ||
     message.content.some((p) => p.type === 'reasoning');
-  const hasToolCard = selectHasVisibleToolCard(statusParts);
   const toolStatus = selectSearchStatusLabel(statusParts);
   const reasoningText = selectReasoningText(statusParts);
   const statusSources = useMemo(() => selectSearchSources(statusParts), [statusParts]);
@@ -109,32 +110,29 @@ export const AssistantMessage = memo(function AssistantMessage() {
       .join('');
   }, [message.content]);
 
-  // A tool CARD owns the affordance outright; a turn whose only detail is
-  // cardless (retrieval, reasoning) keeps the line, but only until the answer
-  // text starts (web's !textContent gate).
-  const showsProgress =
-    isStreaming && !!progress && !hasToolCard && (!hasOwnDetail || messageText.length === 0);
-
   return (
     <MessagePrimitive.Root style={[messageLayout.row, messageLayout.assistantRow]}>
       <View style={messageLayout.assistantContent}>
         {shouldShowAgentBadge(agent, getDefaultAgent()) && (
           <AgentBadge agent={agent} theme={theme} />
         )}
-        {showsProgress && progress && (
-          <ChatProgressIndicator
-            progress={progress}
-            theme={theme}
-            toolStatus={toolStatus}
-            reasoningText={reasoningText}
-            sources={statusSources}
-          />
-        )}
+        <ChatStatusLine
+          isStreaming={isStreaming}
+          hasOwnDetail={hasOwnDetail}
+          textLength={messageText.length}
+          progress={progress}
+          theme={theme}
+          toolStatus={toolStatus}
+          reasoningText={reasoningText}
+          sources={statusSources}
+        />
         {/* Above the prose, like web: when a turn produced a post, the post is
             the answer and the surrounding text is commentary on it. */}
         {socialPostData && <SocialPostCard post={socialPostData} theme={theme} />}
         <MessageCitationsContext.Provider value={citationCtx}>
-          <MessagePrimitive.Parts components={partsComponents} />
+          <ToolGroupScope>
+            <MessagePrimitive.Parts components={partsComponents} />
+          </ToolGroupScope>
         </MessageCitationsContext.Provider>
         {/* Mirrors web's AssistantMessage: compute/chart cards appear once the
             stream is done — during streaming the progress affordance owns the

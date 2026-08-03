@@ -21,7 +21,13 @@ export function ChatSidebar({ isOpen, onToggle, userId, onLogout, onNavigate }: 
 
   return (
     <>
-      {isOpen && <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={onToggle} />}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={onToggle}
+          aria-hidden="true"
+        />
+      )}
 
       <aside
         className={cn(
@@ -75,7 +81,11 @@ function SidebarFooter({ theme, onThemeToggle, onLogout }: SidebarFooterProps) {
 
           {menuOpen && (
             <>
-              <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setMenuOpen(false)}
+                aria-hidden="true"
+              />
               <div className="menu-dropdown-content">
                 <button
                   onClick={() => {

@@ -109,6 +109,7 @@ const ThreadItemBody = memo(function ThreadItemBody({
           styles.itemTrigger,
           { backgroundColor: pressed ? theme.surface : 'transparent' },
         ]}
+        accessibilityRole="button"
       >
         <Text style={[styles.itemTitle, { color: theme.text }]} numberOfLines={1}>
           <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
@@ -284,6 +285,7 @@ function DrawerSections({
             styles.navRow,
             { backgroundColor: pressed ? theme.surface : 'transparent' },
           ]}
+          accessibilityRole="button"
         >
           <MenuIcon name={tool.icon} size={DRAWER_ICON} color={theme.text} />
           <Text style={[styles.navLabel, { color: theme.text }]} numberOfLines={1}>
@@ -307,6 +309,7 @@ function EmptyThreads({ theme, onNewChat }: { theme: Theme; onNewChat: () => voi
       <Pressable
         onPress={onNewChat}
         style={({ pressed }) => [styles.emptyButton, { opacity: pressed ? 0.8 : 1 }]}
+        accessibilityRole="button"
       >
         <Ionicons name="create-outline" size={18} color={colors.white} />
         <Text style={styles.emptyButtonText}>Neue Unterhaltung</Text>
@@ -338,6 +341,7 @@ function ProfileFooter({
           backgroundColor: pressed ? theme.surface : 'transparent',
         },
       ]}
+      accessibilityRole="button"
     >
       <ProfileAvatar
         avatarRobotId={user?.avatar_robot_id}

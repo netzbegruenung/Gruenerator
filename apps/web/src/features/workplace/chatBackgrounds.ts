@@ -1,7 +1,9 @@
 import { chatBackgroundSchema, type ChatBackground } from '@gruenerator/contracts';
 import {
+  CHAT_BACKGROUND_FAMILIES,
   DEFAULT_CHAT_BACKGROUND,
   chatBackgroundsFor,
+  type ChatBackgroundFamily,
   type ChatBackgroundPreset as SharedPreset,
 } from '@gruenerator/shared/settings';
 
@@ -114,6 +116,28 @@ const RENDERING: Record<ChatBackground, { className: string; swatch: string }> =
 export const CHAT_BACKGROUND_PRESETS: readonly ChatBackgroundPreset[] = chatBackgroundsFor(
   'web'
 ).map((preset) => ({ ...preset, ...RENDERING[preset.key] }));
+
+export interface ChatBackgroundGroup {
+  family: ChatBackgroundFamily;
+  label: string;
+  description: string;
+  presets: readonly ChatBackgroundPreset[];
+}
+
+/**
+ * The picker's sections, in the order of `CHAT_BACKGROUND_FAMILIES`.
+ *
+ * A family the platform draws nothing for is dropped rather than rendered as an
+ * empty heading — the `platforms` filter above can empty one out.
+ */
+export const CHAT_BACKGROUND_GROUPS: readonly ChatBackgroundGroup[] = CHAT_BACKGROUND_FAMILIES.map(
+  ({ key, label, description }) => ({
+    family: key,
+    label,
+    description,
+    presets: CHAT_BACKGROUND_PRESETS.filter((preset) => preset.family === key),
+  })
+).filter((group) => group.presets.length > 0);
 
 /** Falls back to `sunrise` for unset, unknown, legacy or app-only values. */
 export const resolveChatBackground = (value: unknown): ChatBackgroundPreset => {

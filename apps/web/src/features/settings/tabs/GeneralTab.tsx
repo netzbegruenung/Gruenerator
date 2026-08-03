@@ -1,7 +1,7 @@
 import { type FeedbackButtonMode, type StartPage } from '@gruenerator/contracts';
 import { Button, toast } from '@gruenerator/ui';
 import { type QueryClient } from '@tanstack/react-query';
-import { Check, RotateCcw } from 'lucide-react';
+import { Rocket, RotateCcw } from 'lucide-react';
 import { type IconType } from 'react-icons';
 import {
   PiBriefcase,
@@ -16,12 +16,13 @@ import {
 
 import { AccountIdentityRow, DeleteAccountSection } from '../components/AccountSection';
 import SettingsRow from '../components/SettingsRow';
+import { useSettingsDialogStore } from '../settingsDialogStore';
+import { useOnboarding } from '../useOnboarding';
 
 import useDarkMode, { type ThemePreference } from '@/components/hooks/useDarkMode';
 import { QUERY_KEYS } from '@/features/auth/hooks/useProfileData';
 import { profileApiService } from '@/features/auth/services/profileApiService';
 import { resetAllTours } from '@/features/tours/tourState';
-import { CHAT_BACKGROUND_PRESETS } from '@/features/workplace/chatBackgrounds';
 import { useAuthStore, type SupportedLocale } from '@/stores/authStore';
 import { cn } from '@/utils/cn';
 
@@ -63,12 +64,12 @@ const GeneralTab = () => {
   const [, , themePreference, , setThemePreference] = useDarkMode();
   const locale = useAuthStore((s) => s.locale);
   const updateLocale = useAuthStore((s) => s.updateLocale);
-  const chatBackground = useAuthStore((s) => s.user?.chat_background ?? 'sunrise');
-  const updateChatBackground = useAuthStore((s) => s.updateChatBackground);
   const startPage = useAuthStore((s) => s.user?.default_startpage ?? 'chat');
   const updateStartPage = useAuthStore((s) => s.updateStartPage);
   const feedbackButton = useAuthStore((s) => s.user?.feedback_button ?? 'text');
   const updateFeedbackButton = useAuthStore((s) => s.updateFeedbackButton);
+  const setTab = useSettingsDialogStore((s) => s.setTab);
+  const { isActive: isOnboarding, restart: restartOnboarding } = useOnboarding();
 
   return (
     <div className="flex flex-col gap-lg">
@@ -91,40 +92,6 @@ const GeneralTab = () => {
               >
                 <Icon className="size-4" />
                 {label}
-              </button>
-            ))}
-          </div>
-        </SettingsRow>
-
-        <SettingsRow id="allgemein.chatHintergrund">
-          {/* Umbrechend und begrenzt: die Zeile sitzt in einem shrink-0-Slot, eine
-              Reihe aus zehn Plättchen würde die Beschriftung links zusammendrücken
-              statt selbst schmaler zu werden. */}
-          <div className="flex max-w-[13.5rem] flex-wrap justify-end gap-1.5">
-            {CHAT_BACKGROUND_PRESETS.map(({ key, label, swatch, accent }) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => void updateChatBackground(key)}
-                aria-label={label}
-                aria-pressed={chatBackground === key}
-                title={label}
-                className={cn(
-                  'flex size-7 items-center justify-center rounded-full border transition-all',
-                  chatBackground === key
-                    ? 'border-primary-500 ring-2 ring-primary-500/25'
-                    : 'border-grey-300 hover:scale-110 dark:border-grey-600'
-                )}
-                style={{ backgroundImage: swatch }}
-              >
-                {/* Der Haken trägt die Akzentfarbe — so zeigt das ausgewählte
-                  Plättchen gleich mit, welche Farbe der Senden-Button bekommt. */}
-                {chatBackground === key && (
-                  <Check
-                    className="size-3.5 text-primary-700"
-                    style={accent ? { color: accent } : undefined}
-                  />
-                )}
               </button>
             ))}
           </div>
@@ -191,6 +158,25 @@ const GeneralTab = () => {
             ))}
           </div>
         </SettingsRow>
+
+        {/* Nur, wenn die Einrichtung nicht ohnehin offen ist: eine Zeile, die
+            einen Bereich zurückholt, der zwei Zentimeter weiter oben in der
+            Seitenleiste steht, ist eine Schaltfläche ohne Wirkung. */}
+        {!isOnboarding && (
+          <SettingsRow id="allgemein.onboarding">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                restartOnboarding();
+                setTab('onboarding');
+              }}
+            >
+              <Rocket className="mr-xs h-4 w-4" />
+              Starten
+            </Button>
+          </SettingsRow>
+        )}
 
         <SettingsRow id="allgemein.touren">
           <Button

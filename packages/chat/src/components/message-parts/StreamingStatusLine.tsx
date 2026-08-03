@@ -3,9 +3,9 @@
 import { useRef, type ReactNode } from 'react';
 
 import { useDelayedUnmount } from '../../hooks/useDelayedUnmount';
+import { selectStatusLineView } from '../../lib/statusLineView';
 import { ProgressTracker } from '../tool-ui/progress-tracker/ProgressTracker';
 
-import { type ProgressDisplay } from './progressDisplayContext';
 import { ProgressIndicator } from './ProgressIndicator';
 import { StatusLineDetails } from './StatusLineDetails';
 import { TypingIndicator } from './TypingIndicator';
@@ -21,8 +21,6 @@ interface StreamingStatusLineProps {
   hasOwnDetail: boolean;
   textContent: string;
   custom: ChatMessageMetadata | undefined;
-  progressDisplay: ProgressDisplay;
-  agentColor: string;
   /** The running retrieval step ("Websuche „Klimageld"") — see toolStatusLine. */
   toolStatus?: string | null;
   /** Dropdown content: the model's thinking so far. */
@@ -51,33 +49,24 @@ export function StreamingStatusLine({
   hasOwnDetail,
   textContent,
   custom,
-  progressDisplay,
-  agentColor,
   toolStatus = null,
   reasoningText = null,
   sources = NO_SOURCES,
 }: StreamingStatusLineProps): ReactNode {
   const stage = custom?.progress?.stage;
   const progress = custom?.progress;
-  const concrete = stage === 'searching' || stage === 'generating' || stage === 'generating_image';
 
   const labelEl =
     progress &&
     (progress.steps ? (
       <ProgressTracker
         steps={progress.steps}
-        agentColor={agentColor}
         totalTimeMs={custom?.streamMetadata?.totalTimeMs}
         {...(progress.pendingNarration ? { pendingNarration: progress.pendingNarration } : {})}
         {...(toolStatus ? { toolStatus } : {})}
       />
     ) : (
-      <ProgressIndicator
-        progress={progress}
-        agentColor={agentColor}
-        variant={progressDisplay}
-        {...(toolStatus ? { toolStatus } : {})}
-      />
+      <ProgressIndicator progress={progress} {...(toolStatus ? { toolStatus } : {})} />
     ));
 
   const progressEl = labelEl && (
@@ -86,13 +75,18 @@ export function StreamingStatusLine({
     </StatusLineDetails>
   );
 
+  // Which of the three elements to show — the rule itself lives in
+  // `selectStatusLineView`, shared verbatim with mobile's ChatStatusLine.
+  const view = selectStatusLineView({
+    hasOwnDetail,
+    hasText: textContent.length > 0,
+    stage,
+    hasProgress: progress != null,
+  });
+
   let node: ReactNode = null;
-  if (!hasOwnDetail) {
-    if (concrete && progressEl) node = progressEl;
-    else if (!textContent) node = <TypingIndicator />;
-  } else if (!textContent && progressEl && (stage === 'generating' || stage === 'searching')) {
-    node = progressEl;
-  }
+  if (view === 'progress') node = progressEl ?? null;
+  else if (view === 'typing') node = <TypingIndicator />;
 
   const active = isStreaming && node !== null;
   const { mounted, exiting } = useDelayedUnmount(active);

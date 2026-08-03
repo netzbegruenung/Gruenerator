@@ -159,6 +159,7 @@ export function KiInputStep({
       <View style={styles.section}>
         {!isPureCreate && <Text style={[styles.label, { color: theme.text }]}>Anweisung</Text>}
         <TextInput
+          accessibilityLabel="Anweisung eingeben"
           style={[
             styles.textInput,
             {

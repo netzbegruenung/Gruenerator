@@ -3,8 +3,8 @@
  * `index.generated.ts` as a typed `SKILLS` array.
  *
  * Each markdown file is one skill: YAML frontmatter for metadata
- * (validated by `skillFrontmatterSchema` from @gruenerator/contracts),
- * markdown body becomes `skillSystemPrompt` (empty body → field omitted).
+ * (validated by `skillFrontmatterSchema` from @gruenerator/contracts) and
+ * nothing else. A markdown body is rejected — see `detectPromptBodies`.
  *
  * Ordering: numeric `order` ascending, ties break alphabetically by `mention`.
  *
@@ -63,6 +63,28 @@ function detectDuplicates(skills: readonly ParsedSkill[]): void {
   }
 }
 
+/**
+ * The prompt body is party-internal and must not enter this repo. It lives in
+ * the directory the API reads at runtime (`INTERN_CONTENT_DIR`, see
+ * apps/api/services/skills/internalPrompts.ts); these files carry
+ * frontmatter only.
+ *
+ * This is the seam where a leak would happen, so it fails here rather than in
+ * review: everything downstream of codegen — the committed `index.generated.ts`,
+ * the web bundle, every shipped mobile binary — is public by construction, and
+ * a binary that already shipped cannot be un-shipped.
+ */
+function detectPromptBodies(skills: readonly ParsedSkill[]): void {
+  const offenders = skills.filter((s) => s.body.length > 0);
+  if (offenders.length === 0) return;
+  throw new Error(
+    `[build-skills] Prompt body found in ${offenders.length} public skill file(s):\n` +
+      offenders.map((s) => `  · ${s.filename} (${s.body.length} chars)`).join('\n') +
+      `\n\nSkill prompts are party-internal. Move the body to <INTERN_CONTENT_DIR>/skills/<mention>.md` +
+      ` (dev: .external/gruenerator-intern/skills/) and leave only frontmatter here.`
+  );
+}
+
 function sortSkills(skills: readonly ParsedSkill[]): ParsedSkill[] {
   return [...skills].sort((a, b) => {
     const ao = a.frontmatter.order ?? Number.POSITIVE_INFINITY;
@@ -88,9 +110,6 @@ function emit(skills: readonly ParsedSkill[]): string {
       if (key === 'order') continue;
       lines.push(`    ${key}: ${JSON.stringify(value)},`);
     }
-    if (skill.body) {
-      lines.push(`    skillSystemPrompt: ${JSON.stringify(skill.body)},`);
-    }
     lines.push('  },');
   }
   lines.push('] as const satisfies readonly SystemSkill[];');
@@ -101,6 +120,7 @@ function emit(skills: readonly ParsedSkill[]): string {
 function build(): void {
   const parsed = parseAll();
   detectDuplicates(parsed);
+  detectPromptBodies(parsed);
   const sorted = sortSkills(parsed);
   writeFileSync(OUT_PATH, emit(sorted));
   console.log(`[build-skills] wrote ${sorted.length} skills → ${OUT_PATH}`);

@@ -33,7 +33,13 @@ export function CitationsFooter({ citations, theme, fetchFullText, onSelect }: P
   return (
     <View style={[styles.container, { borderTopColor: theme.border }]}>
       {/* Collapsed trigger */}
-      <Pressable style={styles.trigger} onPress={() => setIsOpen(!isOpen)} hitSlop={8}>
+      <Pressable
+        style={styles.trigger}
+        onPress={() => setIsOpen(!isOpen)}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: isOpen }}
+      >
         <Ionicons name="attach-outline" size={14} color={theme.textSecondary} />
         <Text style={[styles.triggerText, { color: theme.textSecondary }]}>
           {citations.length} Quellen
@@ -54,6 +60,7 @@ export function CitationsFooter({ citations, theme, fetchFullText, onSelect }: P
               { backgroundColor: theme.background, opacity: pressed ? 0.7 : 1 },
             ]}
             onPress={() => handlePress(citation)}
+            accessibilityRole="button"
           >
             <View style={styles.itemContent}>
               <Text style={[styles.number, { color: theme.textSecondary }]}>

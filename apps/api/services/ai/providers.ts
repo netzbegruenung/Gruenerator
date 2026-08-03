@@ -11,41 +11,70 @@
 import { env } from '../../config/env.js';
 import { withUsageTracking } from '../usage/usageModelMiddleware.js';
 
+import { intermediateLane } from './intermediateLanes.js';
 import {
   getGreenPTProvider,
   getLiteLLMProvider,
   getMistralProvider,
   getRegoloProvider,
   getScalewayProvider,
+  getScalewayTextProvider,
   isProviderConfigured,
   routeMistralModel,
 } from './providerInstances.js';
+import { regoloTextDefault } from './textModelPolicy.js';
 
+import type { IntermediateLaneId } from './intermediateLanes.js';
 import type { RouteOptions } from './providerInstances.js';
 import type { LanguageModel } from 'ai';
 
-// Provider name types
-export type ProviderName = 'mistral' | 'litellm' | 'regolo' | 'greenpt';
+/**
+ * Provider name types.
+ *
+ * `scaleway` is the newest member and the one with a caveat. Mistral Medium 3.5
+ * runs on Scaleway WITHOUT being this provider — that lane stays `mistral` and
+ * picks its upstream in `routeMistralModel`, because every policy check
+ * (`isAgenticToolCapable`, `prefersUnifiedLoop`, the context windows, the
+ * fallback chains) keys off `provider === 'mistral'` and a sibling name would
+ * have switched all of it off for the main model. See CLAUDE.md.
+ *
+ * What `scaleway` IS for: models Scaleway serves that Mistral does not publish,
+ * where no such policy applies. Today exactly one — Gemma 4 26B-A4B on the
+ * `heavy` intermediate stage. A model that needs the mistral policy set does
+ * NOT belong here.
+ *
+ * When adding a provider, note that most switches below carry a `default`
+ * branch, so the compiler will NOT find the sites for you. The exhaustive ones
+ * (`Record<ProviderName, …>` in workers/providers/execute.ts and
+ * services/ai/modelDiscovery.ts) will; the rest are listed in the PR that
+ * introduced this member.
+ */
+export type ProviderName = 'mistral' | 'litellm' | 'regolo' | 'greenpt' | 'scaleway';
 
 // Default models per provider
 const PROVIDER_DEFAULTS = {
   mistral: 'mistral-medium-2604',
   litellm: 'verdigado-pro',
-  regolo: env.REGOLO_DEFAULT_MODEL ?? 'qwen3.5-122b',
+  regolo: regoloTextDefault(),
   greenpt: env.GREENPT_DEFAULT_MODEL ?? 'mistral-medium-3.5-128b',
+  // Gemma 4 26B-A4B. Named rather than inherited: Scaleway also serves
+  // `mistral-medium-3.5-128b`, and an unnamed default here would quietly hand
+  // the expensive model to a caller that asked for the cheap lane.
+  scaleway: 'gemma-4-26b-a4b-it',
 } as const;
 
 /**
- * Central config for all intermediate/agent processing tasks.
- * Change this once to switch all intermediate tasks to a different provider/model.
+ * A language model for one of the intermediate stages.
+ *
+ * The lane is REQUIRED — the old parameterless `getIntermediateModel()` is what
+ * put a thread title and `computeNode` on the same model, and a default value
+ * here would rebuild exactly that. Which stage a caller belongs to is a
+ * decision, not a fallback; `services/ai/intermediateLanes.ts` holds the table
+ * and the measurements behind it.
  */
-export const INTERMEDIATE_MODEL = {
-  provider: 'regolo' as const,
-  model: 'mistral-small-4-119b',
-};
-
-export function getIntermediateModel(): LanguageModel {
-  return getModel(INTERMEDIATE_MODEL.provider, INTERMEDIATE_MODEL.model);
+export function getIntermediateModel(lane: IntermediateLaneId): LanguageModel {
+  const { provider, model } = intermediateLane(lane);
+  return getModel(provider, model);
 }
 
 // Provider clients are constructed in ONE place — see ./providerInstances.ts
@@ -118,6 +147,15 @@ function resolveModel(
       const greenpt = getGreenPTProvider();
       return greenpt.chat(modelId || PROVIDER_DEFAULTS.greenpt);
     }
+    case 'scaleway': {
+      // Its own client, NOT the one routeMistralModel reaches: this one forces
+      // `reasoning_effort: 'none'` on every request (scalewayThinkingFetch).
+      // Gemma 4 26B-A4B thinks by default and answers with an EMPTY `content`
+      // when it does — measured 2026-08-01, empty even at max_tokens 1500 after
+      // 5386 characters of reasoning.
+      const scaleway = getScalewayTextProvider();
+      return scaleway.chat(modelId || PROVIDER_DEFAULTS.scaleway);
+    }
     default:
       throw new Error(`Unknown provider: ${provider}`);
   }
@@ -136,6 +174,8 @@ export function getDefaultModel(provider: ProviderName | string): string {
       return PROVIDER_DEFAULTS.regolo;
     case 'greenpt':
       return PROVIDER_DEFAULTS.greenpt;
+    case 'scaleway':
+      return PROVIDER_DEFAULTS.scaleway;
     default:
       return PROVIDER_DEFAULTS.mistral;
   }
@@ -154,6 +194,8 @@ export function getProviderDisplayName(provider: ProviderName | string): string 
       return 'Regolo AI';
     case 'greenpt':
       return 'GreenPT';
+    case 'scaleway':
+      return 'Scaleway';
     default:
       return 'Unknown Provider';
   }
@@ -167,5 +209,6 @@ export function normalizeProviderName(provider: string): ProviderName {
   if (lower === 'litellm') return 'litellm';
   if (lower === 'regolo') return 'regolo';
   if (lower === 'greenpt') return 'greenpt';
+  if (lower === 'scaleway') return 'scaleway';
   return 'mistral';
 }

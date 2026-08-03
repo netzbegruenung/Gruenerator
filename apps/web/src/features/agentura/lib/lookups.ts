@@ -74,10 +74,7 @@ export function relatedSkills(
 ): AgentListItem[] {
   return pool
     .filter(
-      (other) =>
-        other.mention !== skill.mention &&
-        other.skillCategory === skill.skillCategory &&
-        Boolean(other.skillSystemPrompt)
+      (other) => other.mention !== skill.mention && other.skillCategory === skill.skillCategory
     )
     .slice(0, limit);
 }

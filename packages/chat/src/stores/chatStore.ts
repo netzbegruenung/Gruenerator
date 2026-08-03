@@ -1,4 +1,4 @@
-import { type SearchMode } from '@gruenerator/contracts';
+import { type NotebookDepth, type SearchMode } from '@gruenerator/contracts';
 import { isApiErrorWithStatus } from '@gruenerator/shared/api';
 import {
   TEXT_MODELS,
@@ -10,6 +10,7 @@ import {
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { DEFAULT_NOTEBOOK_DEPTH } from '../lib/notebookDepth';
 import { notifyError, notifyWarning } from '../lib/notify';
 import { AUTO_MODEL_ID, type AutoModelId, type SelectedModel } from '../lib/resolveAutoModel';
 
@@ -117,6 +118,12 @@ interface AgentState {
   chatViewMode: 'overview' | 'thread';
   threadMode: ThreadMode;
   searchMode: SearchMode;
+  /**
+   * Notebook retrieval depth. A preference, not a filter: it says how much work
+   * an answer is worth to you, which does not change per notebook, so unlike the
+   * source/category filters it is persisted and survives a reload.
+   */
+  notebookDepth: NotebookDepth;
   customSystemPrompt: string | null;
   customRoleName: string | null;
   customEnabledTools: Record<string, boolean> | null;
@@ -148,6 +155,7 @@ interface AgentState {
   setChatViewMode: (mode: 'overview' | 'thread') => void;
   setThreadMode: (mode: ThreadMode) => void;
   setSearchMode: (mode: SearchMode) => void;
+  setNotebookDepth: (depth: NotebookDepth) => void;
   setCompactionState: (state: CompactionState) => void;
   loadCompactionState: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   triggerCompaction: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
@@ -201,6 +209,7 @@ export const useAgentStore = create<AgentState>()(
       chatViewMode: 'overview' as const,
       threadMode: 'chat' as ThreadMode,
       searchMode: 'web' as SearchMode,
+      notebookDepth: DEFAULT_NOTEBOOK_DEPTH,
       customSystemPrompt: null,
       customRoleName: null,
       customEnabledTools: null,
@@ -333,6 +342,8 @@ export const useAgentStore = create<AgentState>()(
 
       setSearchMode: (mode) => set({ searchMode: mode }),
 
+      setNotebookDepth: (depth) => set({ notebookDepth: depth }),
+
       setCompactionState: (state) => set({ compactionState: state }),
 
       loadCompactionState: async (threadId: string, apiClient: ChatApiClient) => {
@@ -463,7 +474,7 @@ export const useAgentStore = create<AgentState>()(
           removeItem: (key: string) => mem.delete(key),
         };
       }),
-      version: 14,
+      version: 15,
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Record<string, unknown>;
         if (version === 0) {
@@ -564,6 +575,11 @@ export const useAgentStore = create<AgentState>()(
           delete state.selectedModel;
           delete state.selectedProvider;
         }
+        if (version < 15) {
+          // The notebook depth used to be component state that reset on every
+          // mount, so there is nothing to carry over — only a floor to set.
+          state.notebookDepth = DEFAULT_NOTEBOOK_DEPTH;
+        }
         return state;
       },
       partialize: (state) => ({
@@ -575,6 +591,7 @@ export const useAgentStore = create<AgentState>()(
         currentThreadId: state.currentThreadId,
         selectedNotebookId: state.selectedNotebookId,
         searchMode: state.searchMode,
+        notebookDepth: state.notebookDepth,
         // Survive a reload that happens between text generation and the first
         // user message (no thread exists yet, so server-side persistence
         // hasn't kicked in). Cleared once the backend confirms thread_created.

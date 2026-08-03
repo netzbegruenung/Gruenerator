@@ -9,7 +9,9 @@
       "dependsOn": ["^typecheck"],
       "outputs": ["**/*.tsbuildinfo"]
     },
-    "lint": {},
+    "lint": {
+      "dependsOn": ["^typecheck"]
+    },
     "lint:fix": {},
     "test": {
       "dependsOn": ["^build"]

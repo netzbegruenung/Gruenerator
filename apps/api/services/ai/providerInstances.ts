@@ -28,6 +28,7 @@ import { litellmFetchWithThinkingDisabled } from './litellmThinkingFetch.js';
 import { regoloFetchWithThinkingDisabled } from './regoloThinkingFetch.js';
 import { scalewayBaseUrl } from './scalewayEndpoint.js';
 import { scalewayFetchWithMistralFallback } from './scalewayMistralFallbackFetch.js';
+import { scalewayFetchWithThinkingDisabled } from './scalewayThinkingFetch.js';
 
 const log = createLogger('providerInstances');
 
@@ -62,6 +63,7 @@ let litellmInstance: ReturnType<typeof createOpenAI> | null = null;
 let regoloInstance: ReturnType<typeof createOpenAI> | null = null;
 let greenptInstance: ReturnType<typeof createOpenAI> | null = null;
 let scalewayInstance: ReturnType<typeof createOpenAI> | null = null;
+let scalewayTextInstance: ReturnType<typeof createOpenAI> | null = null;
 
 /**
  * Mistral. Does NOT throw on a missing key — `createMistral` reads
@@ -178,6 +180,36 @@ export function getScalewayProvider(): ReturnType<typeof createOpenAI> {
 }
 
 /**
+ * Scaleway for models it serves that Mistral does NOT publish — reached via
+ * `provider: 'scaleway'` rather than through `routeMistralModel`.
+ *
+ * Two deliberate differences to {@link getScalewayProvider}:
+ *
+ *  - `scalewayFetchWithThinkingDisabled` instead of the Mistral-fallback fetch.
+ *    Replaying a failed `gemma-4-26b-a4b-it` call against the Mistral API would
+ *    ask for a model that does not exist there; the lane's safety net is the
+ *    ordinary provider chain (litellm → regolo → mistral), not a same-host
+ *    replay.
+ *  - it forces `reasoning_effort: 'none'`, without which this lane answers with
+ *    empty `content` — see scalewayThinkingFetch.ts for the measurement.
+ */
+export function getScalewayTextProvider(): ReturnType<typeof createOpenAI> {
+  if (!scalewayTextInstance) {
+    const apiKey = env.SCALEWAY_API_KEY;
+    if (!apiKey) {
+      throw new Error('SCALEWAY_API_KEY environment variable is required');
+    }
+    scalewayTextInstance = createOpenAI({
+      baseURL: scalewayBaseUrl(),
+      apiKey,
+      name: 'scaleway',
+      fetch: scalewayFetchWithThinkingDisabled,
+    });
+  }
+  return scalewayTextInstance;
+}
+
+/**
  * The Mistral models Scaleway serves, keyed by the id the codebase already
  * uses. `mistral-medium-2604` IS "Mistral Medium 3.5" (see
  * services/ai/modelDiscovery.ts); Scaleway publishes the same weights as
@@ -187,8 +219,12 @@ export function getScalewayProvider(): ReturnType<typeof createOpenAI> {
  * embedding models are not served by this Scaleway project, so they must keep
  * going to the Mistral API — which is why this is a lookup table and not a
  * `startsWith('mistral-')` test.
+ *
+ * Exported because the reasoning streamer (services/ai/regoloReasoningStream.ts)
+ * has to answer the same question — "does Scaleway serve this id, and under what
+ * name" — for the thinking lane. Two tables would drift.
  */
-const SCALEWAY_MISTRAL_MODELS: Readonly<Record<string, string>> = {
+export const SCALEWAY_MISTRAL_MODELS: Readonly<Record<string, string>> = {
   'mistral-medium-2604': 'mistral-medium-3.5-128b',
   'mistral-medium-3.5': 'mistral-medium-3.5-128b',
   'mistral-medium-latest': 'mistral-medium-3.5-128b',

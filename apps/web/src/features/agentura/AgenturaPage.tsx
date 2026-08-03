@@ -196,9 +196,7 @@ function AgenturaPage() {
   const allSkills = useMemo(
     () =>
       agentsList.filter(
-        (s) =>
-          Boolean(s.skillSystemPrompt) &&
-          (s.audience === undefined || s.audience === 'all' || s.audience === userLocale)
+        (s) => s.audience === undefined || s.audience === 'all' || s.audience === userLocale
       ),
     [userLocale]
   );
@@ -555,8 +553,8 @@ function AgenturaPage() {
           />
         </div>
         <Select value={sort} onValueChange={(v) => updateParam('sort', v, 'empfohlen')}>
-          <SelectTrigger className="h-11 w-auto gap-xs sm:min-w-[10rem]">
-            <PiArrowsDownUp className="h-4 w-4 text-foreground-muted" />
+          <SelectTrigger aria-label="Sortierung" className="h-11 w-auto gap-xs sm:min-w-[10rem]">
+            <PiArrowsDownUp aria-hidden="true" className="h-4 w-4 text-foreground-muted" />
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

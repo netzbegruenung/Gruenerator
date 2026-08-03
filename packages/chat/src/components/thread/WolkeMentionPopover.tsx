@@ -99,6 +99,7 @@ export function WolkeMentionPopover({ visible, onSelect, onDismiss }: WolkeMenti
       role="dialog"
       ariaLabel="Wolke-Dateien auswählen"
     >
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- Escape-only capture inside the already-labeled dialog panel above, not new interactive semantics. */}
       <div
         className="flex min-h-0 flex-1 flex-col"
         onKeyDown={(e) => {

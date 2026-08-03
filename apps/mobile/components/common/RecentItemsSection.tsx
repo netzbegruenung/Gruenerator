@@ -12,14 +12,24 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { useIsTablet } from '../../hooks/useIsTablet';
+import { useLayout } from '../../hooks/useLayout';
 import { type RecentItem, type RecentItemType } from '../../hooks/useRecentActivity';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, BODY_FONT } from '../../theme';
+import { gridColumns } from '../../theme/layout';
 
 import { DocPreview } from './DocPreview';
 import { type ViewMode } from './ViewModeToggle';
 
 const WEB_ORIGIN = 'https://gruenerator.eu';
+
+const GAP = spacing.small;
+
+/**
+ * Smallest a recent-activity card may get before a column is dropped. Matches
+ * what a phone already draws at two columns, so the floor of 2 in `gridColumns`
+ * leaves the phone untouched.
+ */
+const MIN_CARD = 160;
 const dateFormat: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
 
 const TYPE_ICONS: Record<RecentItemType, IoniconsIconName> = {
@@ -70,8 +80,13 @@ export function RecentItemsSection({
 }) {
   const isDark = useColorScheme() === 'dark';
   const theme = isDark ? darkTheme : lightTheme;
-  const isTablet = useIsTablet();
+  const { gridWidth } = useLayout();
   const [failedThumbs, setFailedThumbs] = useState<Set<string>>(new Set());
+
+  // Percentages ('48%' / '31%') could not express a gap, so the count was picked
+  // by device class and the card took whatever was left — 317dp on an iPad.
+  const columns = gridColumns(gridWidth, MIN_CARD, GAP);
+  const cardWidth = Math.floor((gridWidth - GAP * (columns - 1)) / columns);
 
   if (isLoading) {
     return (
@@ -150,6 +165,7 @@ export function RecentItemsSection({
                 styles.row,
                 { backgroundColor: pressed ? theme.surface : 'transparent' },
               ]}
+              accessibilityRole="button"
             >
               {thumbnail}
               <View style={styles.rowBody}>{label}</View>
@@ -160,12 +176,13 @@ export function RecentItemsSection({
               onPress={() => onOpen(item)}
               style={({ pressed }) => [
                 styles.card,
-                { width: isTablet ? '31%' : '48%' },
+                { width: cardWidth },
                 {
                   backgroundColor: pressed ? theme.surface : theme.card,
                   borderColor: theme.cardBorder,
                 },
               ]}
+              accessibilityRole="button"
             >
               {thumbnail}
               <View style={styles.cardBody}>{label}</View>
@@ -193,7 +210,7 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.small,
+    gap: GAP,
   },
   // No card chrome in list mode: a border around every full-width row turns the
   // section into a stack of boxes. The thumbnail carries the separation.

@@ -116,6 +116,10 @@ Expo-Skills sind als Plugin `expo@claude-plugins-official` installiert (user sco
 
 See `CLAUDE-styling.md` for Tailwind v4, theme/dark mode, CSS variables, shadcn/ui setup, docs app conventions.
 
+### Barrierefreiheit
+
+Zielstandard WCAG 2.2 AA im Rahmen von EN 301 549. **Vor Farb-, Karten-, Fokus- oder ARIA-Änderungen `CLAUDE-a11y.md` lesen** — dort stehen die Prüfmittel je Ebene, die Farbregeln (ein Token kann nicht `bg-` und `text-` in beiden Modi bedienen; `opacity` frisst den Kontrast von allem darin) und das Messrezept, ohne das jede Nachmessung zwanzigmal die Loginseite prüft und grün meldet. Öffentliche Selbstauskunft: `documentation/docs/ueber-den-gruenerator/barrierefreiheit.md` — bei behobenen oder neuen Mängeln dort das Stand-Datum und die Liste nachziehen.
+
 ### State Management
 
 Zustand (global state). TanStack Query v5 (server state/fetching) with axios.
@@ -133,6 +137,16 @@ Zustand (global state). TanStack Query v5 (server state/fetching) with axios.
 **Persist-Konvention:** Jeder zustand-persist-Store wird mit `version` + `migrate` angelegt. DB-Umbauten mit ID-Semantik: expand → backfill/dual-write → contract; bei Spalten-Änderungen alle Queries greppen.
 
 **Sprachregelungen (Produkt-Wording):** Plural **„Grüneratoren"**, Singular **„Grünerator-Agent"** (nie „Agent" allein — „der Grünerator" meint das Produkt); **„Rezepte"** (nicht „Skills"); **„Projekte"** (nicht „Gruppen"/„Spaces"). Neue Produktnamen hier eintragen, bevor das Feature gebaut wird.
+
+### Parteiinterne Inhalte gehören nicht in dieses Repo
+
+**Dieses Repo ist öffentlich, und `packages/shared` landet im Web-Bundle und in jeder ausgelieferten Mobile-Binary.** Was dort hineingerät, ist veröffentlicht — `.gitignore` kommt zu spät, und eine ausgelieferte Binary holt man nicht zurück.
+
+Betroffen sind **Rezept-Prompts und Agenten-Personas**: `agents/skills/*.md` und `agents/definitions/*.md` in `packages/shared` tragen nur Frontmatter. Der Prompttext liegt im privaten Repo `netzbegruenung/gruenerator-intern` und wird zur Laufzeit aus `INTERN_CONTENT_DIR` gelesen (`apps/api/services/skills/internalPrompts.ts`) — Rezepte in `respondNode`, Personas in `routes/chat/agents/agentLoader.ts`. Dasselbe gilt für Korpus-Rohdaten und Sprachanalysen unter `documentation/docs/intern/`.
+
+Die LV-Agenten (`lvPrAgents.ts` / `lvBuergerAgents.ts`) bleiben bewusst im Repo: sie bauen ihre `systemRole` aus einem Template, das generische Handwerksregeln plus regionale Themenliste enthält — kein Korpuswissen, keine Gegner-Frames.
+
+`pnpm check:internal` (in `pnpm ci` und in der CI) bewacht die Grenze. Neue interne Pfade in `PRIVATE_PREFIXES` in `scripts/check-internal-content.mjs` eintragen — **nicht** nur in `.gitignore`: eine bereits getrackte Datei ignoriert git weiter fröhlich mit (genau so lagen 26 Dateien aus `documentation/docs/intern/` auf `origin/master`, obwohl der Pfad seit Langem in `.gitignore` stand).
 
 ### Commits
 
@@ -183,9 +197,18 @@ When changing column type via migration, grep all queries for that column and up
 
 ESLint (flat config), Prettier, Husky pre-commit (lint-staged), Knip (unused code). Don't add files to `allowDefaultProject` if already discovered by TS project service.
 
+**`pnpm.overrides` hat zwei Ausfallarten, und für jede gibt es einen eigenen Check.** Ein Override *ersetzt* den Bereich, den ein Paket selbst deklariert, und pnpm prüft danach nicht mehr nach — bei regulären `dependencies` warnt es auch nicht (nur unerfüllte `peerDependencies` meldet es). (1) Manifest und Lockfile driften auseinander, weil Dependabot `pnpm.overrides` nicht editieren kann → `pnpm overrides:check` / `overrides:fix`, läuft im `guards`-Job vor dem Install. (2) Das Override rutscht **unter** den Bereich, den ein Abhängiger fordert → `pnpm overrides:ranges` (`scripts/check-override-ranges.mjs`), hängt am `typecheck`-Job, weil es `node_modules` braucht. Fall 2 trifft Paketfamilien, die gemeinsam versioniert sind und einzeln in den Overrides stehen (`@assistant-ui/*`, `@tiptap/*`, `@blocknote/*`): Dependabot hebt das eine Paket, die Geschwister-Pins bleiben stehen — und weil der alte Caret die alte Version weiterhin erlaubt, merkt es niemand bis der Bundler mit `MISSING_EXPORT` abbricht. **Ein Override einer Familie nie allein heben.** Bewusste Rückwärts-Pins (zod 3, `@expo/dom-webview`, `http-proxy-middleware`) stehen mit Begründung in `DELIBERATE` im Check.
+
 **Knip** (`pnpm knip`, nicht in CI) findet toten Code — die Entry-Punkte in `knip.json` sind load-bearing: was knip nicht als Entry kennt, sieht es als „unbenutzt" und alles darunter gleich mit. Dynamisch geladene Dateien müssen deshalb explizit als Entry stehen (`apps/api/workers/aiWorker.ts` wird über einen berechneten Pfad in `new Worker()` geladen; `apps/mobile/app/**` kommt aus dem Expo Router; Web-Worker unter `apps/web/src/services/*.worker.ts`). Tests/Skripte gehören als **Entry** eingetragen, nicht in `ignore` — sonst zählen ihre Importe nicht als Nutzung und die Deps, die nur sie brauchen, gelten als unbenutzt. `apps/desktop` (Tauri-Wrapper) und `apps/wordpress` (Einstiege liegen in PHP) sind bewusst per `ignoreWorkspaces` ausgenommen.
 
-**Check-Budget.** 16 GB RAM, oft ~5 Agenten parallel. `pnpm typecheck` startet 3 parallele `tsc` (`apps/web` allein 2,6 GB / 85 s) → **~6 GB pro Agent**. Deshalb:
+**Cache-Soundness in `turbo.json` — die `^`-Kanten sind load-bearing, nicht kosmetisch.** Turbo hasht für einen Task nur die **eigenen** Dateien seines Pakets plus die Hashes der per `dependsOn` verketteten Tasks. Unsere Pakete lesen sich aber gegenseitig über tsconfig-`paths` **im Quelltext** (`apps/web/tsconfig.json` bildet `@gruenerator/shared` auf `../../packages/shared/src` ab, es gibt keine Project References). Ohne `^`-Kante fällt der Hash eines Konsumenten deshalb nicht aus, wenn sich die Quelle seiner Abhängigkeit ändert — Turbo liefert einen Cache-Treffer und ein echter Typfehler bleibt still grün. Gemessen am `web#typecheck`-Hash gegen eine Änderung in `packages/shared`: mit `^typecheck` `e0c91092…` → `7c2d8ba7…`, ohne die Kante zweimal `0d31e29f…`.
+
+Konsequenzen:
+
+- `typecheck` **und** `lint` tragen `dependsOn: ["^typecheck"]`. Bei `lint` sieht die Kante falsch aus, ist es aber nicht: ESLint läuft hier voll typ-bewusst (`projectService` + `no-floating-promises`/`no-unsafe-*` in `packages/eslint-config/base.js`) und liest dieselben fremden Quellen. `^lint` genügt nicht, weil die Hälfte der Zwischenpakete (`canvas-editor`, `collab`, `docs`, `presentations`, `sheets`, `voice`, `wolke`, `sites-design`) gar kein `lint`-Skript hat und die Hash-Kette dort abreißen würde — `typecheck` haben sie alle.
+- Wer eine `^`-Kante entfernen will, weil sie „nur serialisiert": vorher den Hash messen (`turbo run <task> --dry=json`, Feld `hash`), nicht bloß prüfen, ob der Task isoliert grün läuft. `--only` beweist nur, dass die Reihenfolge egal ist, nichts über die Korrektheit des Caches.
+
+**Check-Budget.** `pnpm ci` fasst typecheck/lint/test in **einen** Turbo-Aufruf, danach `format:check` (Prettier läuft mit `--cache --cache-strategy content`: 19,6 s → 4,1 s warm). Auf einem M5/10 Kerne kostet ein kalter Voll-Typecheck ~64 s, ein kalter Voll-Lint ~287 s (`web` 287 s, `api` 281 s, `mobile` 236 s dominieren), die Testsuite ~114 s. Bei ~5 parallelen Agenten auf 16 GB bleibt es trotzdem bei:
 
 - Während der Arbeit paketweise: `pnpm --filter @gruenerator/<pkg> exec tsc --noEmit`, `npx eslint <dateien>`, `npx vitest run <eine.vitest.ts>`.
 - Voll-Check (`pnpm ci`) **einmal am Ende**, in einem Worktree — nicht als Zwischenstand, nicht als Statusbericht.
@@ -194,7 +217,7 @@ ESLint (flat config), Prettier, Husky pre-commit (lint-staged), Knip (unused cod
 
 ### Frontend component testing
 
-`apps/web` and `packages/chat` have a jsdom vitest lane (`*.vitest.tsx`) running **alongside** the fast node lane (`*.vitest.ts`) — never flip the whole config to jsdom. Pick the tool by component shape: **RTL** for render/branching/interaction, **MSW** for `getContractsClient()` data hooks (success/error/empty branches), **axe** (`axe` from `test-utils`) wherever `aria-*`/`role=` is hand-written. Full guide, reference tests, the component→tool matrix, the sweep plan, and the load-bearing gotchas (jsdom pinned to 26.1.0; react aliased + react-query inlined in the dom project) live in **`apps/web/CLAUDE-testing.md`** — read it before adding component tests.
+`apps/web` and `packages/chat` have a jsdom vitest lane (`*.vitest.tsx`) running **alongside** the fast node lane (`*.vitest.ts`) — never flip the whole config to jsdom. Pick the tool by component shape: **RTL** for render/branching/interaction, **MSW** for `getContractsClient()` data hooks (success/error/empty branches), **axe** (`axe` from `test-utils`) wherever `aria-*`/`role=` is hand-written. Full guide, reference tests, the component→tool matrix, the sweep plan, and the load-bearing gotchas (react aliased + react-query inlined in the dom project) live in **`apps/web/CLAUDE-testing.md`** — read it before adding component tests. jsdom is pinned exactly in `pnpm.overrides` (now `30.0.0`, was `26.1.0` while jsdom 29 broke against the `undici >=8.5.0` override) so the three vitest lanes and jest-expo's `jest-environment-jsdom` share one copy — a bump therefore needs the override line too, see `pnpm overrides:fix`.
 
 ### Newsletter
 

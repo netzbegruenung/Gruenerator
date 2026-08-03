@@ -58,6 +58,7 @@ import {
   templateInteractionsContract,
   userAgentsContract,
   userAgentsSharingContract,
+  skillPromptContract,
   userTextFormsContract,
   recurringTasksContract,
   docsContract,
@@ -224,6 +225,7 @@ const _userTemplatesClient = () => initClient(userTemplatesContract, CLIENT_OPTS
 const _templateInteractionsClient = () => initClient(templateInteractionsContract, CLIENT_OPTS);
 const _userAgentsClient = () => initClient(userAgentsContract, CLIENT_OPTS);
 const _userAgentsSharingClient = () => initClient(userAgentsSharingContract, CLIENT_OPTS);
+const _skillPromptClient = () => initClient(skillPromptContract, CLIENT_OPTS);
 const _userTextFormsClient = () => initClient(userTextFormsContract, CLIENT_OPTS);
 const _recurringTasksClient = () => initClient(recurringTasksContract, CLIENT_OPTS);
 const _docsClient = () => initClient(docsContract, CLIENT_OPTS);
@@ -282,6 +284,7 @@ export interface ContractsClient {
   templateInteractions: ReturnType<typeof _templateInteractionsClient>;
   userAgents: ReturnType<typeof _userAgentsClient>;
   userAgentsSharing: ReturnType<typeof _userAgentsSharingClient>;
+  skillPrompt: ReturnType<typeof _skillPromptClient>;
   userTextForms: ReturnType<typeof _userTextFormsClient>;
   recurringTasks: ReturnType<typeof _recurringTasksClient>;
   docs: ReturnType<typeof _docsClient>;
@@ -357,6 +360,7 @@ export function getContractsClient(): ContractsClient {
     templateInteractions: _templateInteractionsClient(),
     userAgents: _userAgentsClient(),
     userAgentsSharing: _userAgentsSharingClient(),
+    skillPrompt: _skillPromptClient(),
     userTextForms: _userTextFormsClient(),
     recurringTasks: _recurringTasksClient(),
     docs: _docsClient(),

@@ -43,7 +43,15 @@ export default defineConfig({
           // Inline deps that render React so their internal `import 'react'` goes
           // through the alias instead of Node-resolving a nested copy (vitest
           // externalizes node_modules by default, bypassing the react dedupe).
-          server: { deps: { inline: [/@radix-ui/, '@gruenerator/ui'] } },
+          // Two react instances don't share the hook dispatcher, so the symptom
+          // is "Cannot read properties of null (reading 'useContext')" at render.
+          //
+          // `/radix-ui/`, NOT `/@radix-ui/`: the shadcn components in
+          // @gruenerator/ui import from the `radix-ui` UMBRELLA package, whose
+          // name has no `@` and so never matched the scoped pattern — it stayed
+          // externalized and Node-resolved @radix-ui/react-slot's nested react.
+          // apps/web's config carries the same note.
+          server: { deps: { inline: [/radix-ui/, '@gruenerator/ui'] } },
         },
       },
     ],

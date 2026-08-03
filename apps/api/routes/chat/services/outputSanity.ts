@@ -78,8 +78,15 @@ export function stripFabricatedSystemClaims(
  * guesswork. It tells us how often the synth ignores its source block, which is
  * the number that decides whether the writer lane needs to change.
  */
+// `(?<!\p{L})…(?!\p{L})` and `\p{L}*` rather than `\b`/bare stems. The original
+// used `\b` and ended its first alternative at `such` — so "empfehle ich eine
+// kurze Websuche", the exact sentence the doc comment above cites as the reason
+// this check exists, never matched: `\b` sits between a word and a non-word
+// character, and "such" is followed by "e". The counter read zero and looked
+// like good news. Same family as the umlaut trap (`\b` is defined over `\w`,
+// which excludes ä/ö/ü), so both are fixed the same way.
 const DEFERS_TO_SEARCH_RE =
-  /\b(?:empfehle?\s+ich\s+(?:dir\s+)?eine?\s+(?:kurze\s+)?(?:web)?(?:such|recherche)|schau\s+(?:am\s+besten\s+)?(?:kurz\s+)?(?:im\s+netz|online|auf\s+der\s+offiziellen)|bitte\s+(?:selbst\s+)?nachschlagen|solltest\s+du\s+(?:kurz\s+)?(?:googeln|nachschlagen|recherchieren))\b/i;
+  /(?<!\p{L})(?:empfehle?\s+ich\s+(?:dir\s+)?eine?\s+(?:\p{L}+\s+){0,2}?(?:web|internet)?(?:such\p{L}*|recherche\p{L}*)|schau\s+(?:am\s+besten\s+)?(?:kurz\s+)?(?:im\s+netz|online|auf\s+der\s+offiziellen)|bitte\s+(?:selbst\s+)?nachschlagen|solltest\s+du\s+(?:kurz\s+)?(?:googeln|nachschlagen|recherchieren))(?!\p{L})/iu;
 
 export function defersToSearchDespiteSources(
   text: string,
@@ -87,6 +94,35 @@ export function defersToSearchDespiteSources(
 ): boolean {
   if (opts.sources === 0 || opts.toolCalls === 0) return false;
   return DEFERS_TO_SEARCH_RE.test(text);
+}
+
+/**
+ * The answer denies being ABLE to search, in a turn where a search just ran.
+ *
+ * A different failure from {@link defersToSearchDespiteSources} and worth its own
+ * counter: that one hands the work back to the user, this one describes the
+ * product as less capable than it is. Observed live on `gemma`: "prüfe nochmal
+ * im web" ran a fresh web search, returned ten sources, and the answer opened
+ * with "Ich kann keine neue Websuche durchführen, da ich nur auf die bereits
+ * bereitgestellten Recherche-Ergebnisse zugreifen kann" — and then cited the
+ * results it had just claimed not to have.
+ *
+ * The cause was the synth prompt: it said the research had already run, which a
+ * smaller model generalises into "I have no search tool". The prompt now forbids
+ * the claim explicitly; this detector is what tells us whether that took.
+ *
+ * `(?<!\p{L})…(?!\p{L})` rather than `\b`: `\b` is defined over `\w`, which
+ * excludes umlauts, so any alternative touching ä/ö/ü would silently never match.
+ */
+const DENIES_SEARCH_ABILITY_RE =
+  /(?<!\p{L})ich\s+(?:kann|habe|darf)\s+(?:\p{L}+\s+){0,3}?(?:kein\p{L}*\s+(?:\p{L}+\s+){0,2}?(?:web|internet)?(?:such\p{L}*|recherche\p{L}*|internetzugriff\p{L}*|zugriff\s+auf\s+das\s+internet)|nicht\s+(?:im\s+)?(?:internet|netz|web)\s+(?:such\p{L}*|recherchier\p{L}*))|(?<!\p{L})nur\s+auf\s+die\s+(?:bereits\s+)?(?:bereitgestellten|vorliegenden|vorhandenen)\s+(?:\p{L}+\s+){0,2}?(?:ergebnisse|quellen|informationen)\s+zugreifen/iu;
+
+export function deniesSearchAbilityDespiteSearching(
+  text: string,
+  opts: { sources: number; toolCalls: number }
+): boolean {
+  if (opts.sources === 0 || opts.toolCalls === 0) return false;
+  return DENIES_SEARCH_ABILITY_RE.test(text);
 }
 
 /**

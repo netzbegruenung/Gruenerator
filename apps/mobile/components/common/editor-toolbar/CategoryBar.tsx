@@ -8,15 +8,7 @@ import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ioni
 import { View, Text, Pressable, ScrollView, StyleSheet, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {
-  colors,
-  spacing,
-  borderRadius,
-  lightTheme,
-  darkTheme,
-  moderateScale,
-  verticalScale,
-} from '../../../theme';
+import { colors, spacing, borderRadius, lightTheme, darkTheme, uiScale } from '../../../theme';
 
 import type { ReactNode } from 'react';
 
@@ -62,9 +54,10 @@ export function CategoryBar<T extends string = string>({
             key={category.id}
             style={[styles.chip, { backgroundColor: theme.background }]}
             onPress={() => onSelectCategory(category.id)}
+            accessibilityRole="button"
           >
-            <Ionicons name={category.icon} size={moderateScale(20)} color={colors.primary[600]} />
-            <Text style={[styles.chipText, { color: theme.text, fontSize: moderateScale(15) }]}>
+            <Ionicons name={category.icon} size={uiScale(20)} color={colors.primary[600]} />
+            <Text style={[styles.chipText, { color: theme.text, fontSize: uiScale(15) }]}>
               {category.label}
             </Text>
           </Pressable>
@@ -82,20 +75,20 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     borderTopWidth: 1,
-    paddingTop: verticalScale(28),
+    paddingTop: uiScale(28),
   },
   chipsContainer: {
     paddingHorizontal: spacing.medium,
-    gap: moderateScale(10),
+    gap: uiScale(10),
     flexDirection: 'row',
-    paddingBottom: verticalScale(24),
+    paddingBottom: uiScale(24),
   },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: moderateScale(8),
-    paddingVertical: moderateScale(14),
-    paddingHorizontal: moderateScale(18),
+    gap: uiScale(8),
+    paddingVertical: uiScale(14),
+    paddingHorizontal: uiScale(18),
     borderRadius: borderRadius.full,
   },
   chipText: {

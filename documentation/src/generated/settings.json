@@ -1,8 +1,16 @@
 {
   "tabs": [
     {
+      "value": "onboarding",
+      "label": "Onboarding"
+    },
+    {
       "value": "allgemein",
       "label": "Allgemein"
+    },
+    {
+      "value": "hintergrund",
+      "label": "Hintergrund"
     },
     {
       "value": "personalisierung",
@@ -64,10 +72,10 @@
       "title": "Aussehen",
       "description": "Farbschema der Oberfläche"
     },
-    "allgemein.chatHintergrund": {
-      "tab": "allgemein",
-      "title": "Chat-Hintergrund",
-      "description": "Färbt den Schimmer hinter dem Chat-Start und den Senden-Button"
+    "hintergrund.startseite": {
+      "tab": "hintergrund",
+      "title": "Startseiten-Hintergrund",
+      "description": "Färbt den Schimmer hinter dem Chat-Start und den Senden-Button darauf"
     },
     "allgemein.sprache": {
       "tab": "allgemein",
@@ -108,6 +116,11 @@
       "tab": "allgemein",
       "title": "Einführungs-Touren zurücksetzen",
       "description": "Zeigt die Touren durch Workplace, Dokumente, Tabellen, Präsentationen und das Sharepic-Studio beim nächsten Öffnen wieder an."
+    },
+    "allgemein.onboarding": {
+      "tab": "allgemein",
+      "title": "Einrichtung erneut starten",
+      "description": "Holt den Bereich „Onboarding\" zurück und führt noch einmal durch Rolle, Friend und Hintergrund."
     },
     "friends.avatar": {
       "tab": "friends",

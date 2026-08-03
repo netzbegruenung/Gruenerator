@@ -14,6 +14,7 @@ import {
   isProviderConfigured,
   routeMistralModel,
 } from '../../../services/ai/providerInstances.js';
+import { regoloTextDefault } from '../../../services/ai/textModelPolicy.js';
 import {
   tryAcquireVerdigadoSlot,
   releaseVerdigadoSlot,
@@ -31,6 +32,7 @@ import {
 
 import type { AgentConfig } from './types.js';
 import type { RouteOptions } from '../../../services/ai/providerInstances.js';
+import type { ProviderName } from '../../../services/ai/providers.js';
 import type { LanguageModel } from 'ai';
 
 const log = createLogger('chatProviders');
@@ -42,7 +44,8 @@ export const VISION_MODEL = {
   model: env.VISION_DEFAULT_MODEL || 'gemma4-31b',
 };
 
-export { INTERMEDIATE_MODEL, getIntermediateModel } from '../../../services/ai/providers.js';
+export { getIntermediateModel } from '../../../services/ai/providers.js';
+export { intermediateLane } from '../../../services/ai/intermediateLanes.js';
 
 export { isVisionCapable };
 
@@ -105,19 +108,37 @@ export type ModelConfig = ModelConfigSingle | ModelConfigOverflow;
  */
 const CTX_FULL = 262_144;
 /**
- * Deliberately conservative ceiling for the Ollama-backed Verdigado lanes.
+ * Ceiling for the Ollama-backed Verdigado lanes.
  *
- * 120k was verified working end-to-end, but the failure mode above it is silent
- * truncation, and the observed truncation point was `prompt_tokens: 65538` —
- * exactly 64Ki + 2. That is the signature of a runtime `num_ctx` of 65536,
- * regardless of what the model tag advertises. Rather than sit just below a
- * cliff whose position we infer from one data point, we stay below the value
- * the backend itself fell back to. Costs headroom, buys the guarantee that a
- * long thread is never answered from a fragment.
+ * The failure mode above this line is SILENT truncation: HTTP 200, but
+ * `prompt_tokens` collapses to ~64Ki and the answer is written over a fragment.
+ * Nothing in the response says so. That is why this number is measured rather
+ * than taken from the model tag.
  *
- * Raise only alongside a fresh needle test AND an overflow probe on the lane.
+ * History. It sat at 64k because the only observed truncation point was
+ * `prompt_tokens: 65538` — exactly 64Ki + 2, the signature of a runtime
+ * `num_ctx` of 65536 — and one data point does not locate a cliff. Re-measured
+ * 2026-07-31 with a needle at the very start of the prompt:
+ *
+ *   ~130k sent -> prompt_tokens 122,956, needle found
+ *   ~155k sent -> prompt_tokens  65,539, needle gone
+ *
+ * So the fallback is real, but it sits far above 64k. 120k stays under the
+ * highest verified value with room to spare. The tag's 128k would sit in the
+ * unmeasured stretch just before the cliff, and being wrong there is invisible.
+ *
+ * KNOWN GAP, read before raising further: the needle test ran against
+ * `verdigado-think`, but since Gemma 4 moved to Regolo the main consumer of
+ * this constant is `verdigado-pro` (GPT-OSS 120B) via GPT_OSS_OVERFLOW. Both
+ * are Ollama behind the same LiteLLM, so the 64Ki fallback signature is
+ * expected to be identical — but that is an inference, not a measurement. The
+ * value is chosen conservatively enough that the inference does not have to
+ * hold exactly.
+ *
+ * Raise only alongside a fresh needle test AND an overflow probe on the lane,
+ * and measure the lane you are raising.
  */
-const CTX_VERDIGADO = 64_000;
+const CTX_VERDIGADO = 120_000;
 
 const GPT_OSS_OVERFLOW: ModelConfigOverflow = {
   kind: 'overflow',
@@ -129,12 +150,68 @@ const GPT_OSS_OVERFLOW: ModelConfigOverflow = {
   overflowContextWindow: CTX_FULL,
 };
 
-const GEMMA_4_OVERFLOW: ModelConfigOverflow = {
-  kind: 'overflow',
-  primary: { provider: 'litellm', model: 'verdigado-think' },
-  overflow: { provider: 'regolo', model: 'gemma4-31b' },
+/**
+ * Gemma 4 — Regolo only. NOT an overflow lane, deliberately.
+ *
+ * It used to be Verdigado-primary with Regolo on overflow, the way GPT-OSS
+ * still is. Measured 2026-07-31, same prompt on both hosts:
+ *
+ *   regolo/gemma4-31b        ~76 tok/s, 0.4s to first token, 4.0s done, NO thinking
+ *   litellm/verdigado-think  23-34 tok/s, 20s to first token, 38s done
+ *
+ * The gap is not only throughput. Verdigado's Gemma thinks before every answer
+ * and no flag stops it — `think:false`, `enable_thinking:false` and
+ * `reasoning_effort:'none'` were each probed and each ignored on that host, so
+ * roughly two thirds of the output budget goes into a reasoning block. Regolo
+ * honours `enable_thinking:false` (verified: zero reasoning characters), which
+ * is why the same weights answer nine times faster there.
+ *
+ * Four places in this codebase were already routing around the slow lane
+ * (AVOID_AS_SYNTH, the agentic respond rewrite, runJudge's model note,
+ * providerSelector's comment) rather than changing it. This is the change
+ * those workarounds were compensating for.
+ *
+ * WHY NOT SIMPLY SWAP THE TWO SIDES: `resolveModelTuple` gates the PRIMARY on
+ * `tryAcquireVerdigadoSlot`. Swapped, Regolo would hold a slot it does not
+ * need, and Verdigado would serve precisely when that slot was busy — i.e.
+ * exactly when it must not run. The slot exists because Verdigado has a single
+ * inference slot. A plain single lane sidesteps that inversion.
+ *
+ * Verdigado is still reachable, but only as the failover below, never as the
+ * lane that serves a normal turn. Its conservative context ceiling went with
+ * it: on the Regolo path this lane serves the full model context.
+ */
+const GEMMA_4_REGOLO: ModelConfigSingle = {
+  kind: 'single',
+  provider: 'regolo',
+  model: 'gemma4-31b',
+  contextWindow: CTX_FULL,
+  // Verdigado keeps the same weights and stays the failover, so a Regolo
+  // outage answers in the same model family rather than switching writer.
+  // Two costs were weighed and accepted when this was chosen:
+  //   - it is a SLOW failover (20s to first token). The path that uses it is a
+  //     first-token timeout, i.e. the user is already waiting.
+  //   - it runs WITHOUT the Verdigado slot, which the `single` fallback branch
+  //     below avoids for every other lane. A timeout failover is rare enough
+  //     that colliding with a GPT-OSS turn holding the slot means queueing,
+  //     not breakage — but it is a real, deliberate exception to that rule.
+  fallback: 'gemma-4-verdigado',
+};
+
+/**
+ * The Verdigado side of Gemma 4, reachable ONLY as the failover above.
+ *
+ * Not in the user-facing catalog (packages/core/src/models/catalog.ts) and not
+ * an auto-policy target: selecting it deliberately would opt into the 38s path.
+ * It exists as its own entry because `fallback` resolves through
+ * AVAILABLE_MODELS, and every other Gemma id now points at Regolo.
+ */
+const GEMMA_4_VERDIGADO: ModelConfigSingle = {
+  kind: 'single',
+  provider: 'litellm',
+  model: 'verdigado-think',
+  // Ollama truncates silently above this — see CTX_VERDIGADO.
   contextWindow: CTX_VERDIGADO,
-  overflowContextWindow: CTX_FULL,
 };
 
 export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
@@ -168,12 +245,12 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
   regolo: {
     kind: 'single',
     provider: 'regolo',
-    model: env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b',
+    model: regoloTextDefault(),
     contextWindow: CTX_FULL,
   },
   // Backend-only lane, reachable via the auto policy but NOT in the model
   // picker (that is driven by MODEL_OPTIONS in @gruenerator/core/models). Same
-  // model as INTERMEDIATE_MODEL: fast, tool-call verified (it is the regolo
+  // model as the intermediate stages: fast, tool-call verified (it is the regolo
   // entry in DOCS_AI_MODELS / BOARD_AI_MODELS) and the right size for the
   // short, structured turns the policy routes here.
   'mistral-small-4': {
@@ -194,7 +271,7 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
 
   // Overflow lanes — Verdigado primary, Regolo on overflow when slot is busy.
   'gpt-oss': GPT_OSS_OVERFLOW,
-  'gemma-4': GEMMA_4_OVERFLOW,
+  'gemma-4': GEMMA_4_REGOLO,
 };
 
 // Legacy IDs from persisted client state and DB. All point to the new overflow
@@ -202,8 +279,10 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
 // release cycle once chatStore migration v8 has propagated.
 AVAILABLE_MODELS['litellm'] = GPT_OSS_OVERFLOW;
 AVAILABLE_MODELS['gpt-oss-regolo'] = GPT_OSS_OVERFLOW;
-AVAILABLE_MODELS['gemma-litellm'] = GEMMA_4_OVERFLOW;
-AVAILABLE_MODELS['gemma-regolo'] = GEMMA_4_OVERFLOW;
+AVAILABLE_MODELS['gemma-litellm'] = GEMMA_4_REGOLO;
+AVAILABLE_MODELS['gemma-regolo'] = GEMMA_4_REGOLO;
+// Failover target only — see GEMMA_4_VERDIGADO.
+AVAILABLE_MODELS['gemma-4-verdigado'] = GEMMA_4_VERDIGADO;
 
 /**
  * Get model configuration by user-facing model ID.
@@ -308,7 +387,10 @@ const DEFAULT_CONTEXT_WINDOW = 32768;
  */
 export function getContextWindow(
   modelId: string | null | undefined,
-  provider?: 'mistral' | 'litellm' | 'regolo' | 'greenpt' | 'anthropic'
+  // `anthropic` stammt aus dem Agent-Contract (agentProviderSchema), der eine
+  // eigene Liste führt und den Bedrock-Rest noch kennt; der Rest ist
+  // ProviderName. Vierte Kopie derselben Achse — siehe services/providers/types.ts.
+  provider?: ProviderName | 'anthropic'
 ): number {
   if (modelId && AVAILABLE_MODELS[modelId]) {
     return AVAILABLE_MODELS[modelId].contextWindow;
@@ -321,6 +403,8 @@ export function getContextWindow(
   if (provider === 'litellm') return CTX_VERDIGADO;
   if (provider === 'regolo') return CTX_FULL;
   if (provider === 'greenpt') return CTX_FULL;
+  // Gemma 4 26B-A4B carries 262k on Scaleway's H100 instances (model card).
+  if (provider === 'scaleway') return CTX_FULL;
 
   return DEFAULT_CONTEXT_WINDOW;
 }
@@ -402,7 +486,7 @@ function resolveModel(
         lastFallbackProvider = 'mistral';
         return getMistralProvider()(modelId);
       }
-      return getRegoloProvider().chat(modelId || env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b');
+      return getRegoloProvider().chat(modelId || regoloTextDefault());
     }
     case 'greenpt':
       return getGreenPTProvider().chat(
@@ -431,7 +515,7 @@ export function isAgenticToolCapable(provider: string, _modelName: string): bool
 /**
  * Whether the SELECTED model drives the tool loop directly (unified single-model
  * pass) vs. delegating tool orchestration to the fast planner (planner/executor
- * split: INTERMEDIATE_MODEL gathers, selected model writes the answer).
+ * split: the `standard` intermediate stage gathers, selected model writes the answer).
  *
  * True only for Mistral — our fast NATIVE tool-caller, where one pass is both
  * fastest and highest-fidelity. Everything else splits: the fixed fast planner
@@ -506,9 +590,11 @@ export function getLoopSynthFallbackModel(
  * pass `false` — the policy's pick reaches the synth slot instead of being
  * silently replaced.
  *
- * AVOID_AS_SYNTH still applies either way: a policy pointing at
- * `gemma-litellm` resolves to `verdigado-think` (a slow reasoning lane), and
- * this rewrites it to the fast gemma4-31b host — same model family, right host.
+ * AVOID_AS_SYNTH still applies either way, but it no longer has to catch the
+ * Gemma lane: `gemma-litellm` now resolves to gemma4-31b on Regolo directly
+ * (see GEMMA_4_REGOLO), so the rewrite that used to save that lane from
+ * `verdigado-think` is a no-op for it. The guard stays for the lanes it still
+ * covers — qwen, gpt-oss, and any agent config naming a think lane by hand.
  */
 export function loopSynthChoice(
   resolvedModelName: string,

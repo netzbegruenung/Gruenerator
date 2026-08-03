@@ -6,8 +6,8 @@ import {
   ExtraActionsProvider,
   NotebookChatProvider,
   NotebookComposer,
-  ProgressDisplayContext,
   UserMessage,
+  notebookDepthDef,
   notebookMentionables,
   useAgentStore,
   type CategoryFilterConfig,
@@ -159,7 +159,12 @@ export const NotebookPageContent = ({
     useNotebookStore();
   const filterValuesCache = useNotebookStore((s) => s.filterValuesCache);
   const activeFiltersStore = useNotebookStore((s) => s.activeFilters);
-  const [mode, setMode] = useState<'fast' | 'deep'>('fast');
+  // Persisted, unlike the source/category filters below: how much work an answer
+  // is worth is a preference, and it used to reset to the narrowest tier on every
+  // mount — including a plain page reload mid-conversation.
+  const storedDepth = useAgentStore((s) => s.notebookDepth);
+  const setMode = useAgentStore((s) => s.setNotebookDepth);
+  const mode = notebookDepthDef(storedDepth).depth;
   const [searchParams, setSearchParams] = useSearchParams();
   const [threadId, setThreadId] = useState<string | null>(threadIdProp ?? null);
   const handleThreadCreated = useCallback((newThreadId: string) => {
@@ -354,58 +359,54 @@ export const NotebookPageContent = ({
       <PendingQuestionSender />
       <CitationPanelProvider>
         <ExtraActionsProvider factory={extraActionsFactory}>
-          {/* Notebook search runs internally (no tool-call), so render the
-              streaming progress as plain shimmer text instead of the green box. */}
-          <ProgressDisplayContext.Provider value="plain">
-            <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col">
-              <ThreadPrimitive.Empty>
-                <div className="flex flex-1 flex-col overflow-y-auto">
-                  <NotebookStartpage
-                    title={config.startPageTitle}
-                    placeholder={config.placeholder}
-                    exampleQuestions={showExamples ? (config.exampleQuestions ?? []) : []}
-                    composerSourceFilters={sourceFilters}
-                    composerCategoryFilters={categoryFilters}
-                    mode={mode}
-                    onModeChange={setMode}
-                    recentCollectionIds={recentCollectionIds}
-                    showRecentSourceLabel={isMulti}
-                    showStats={showStats}
-                    showLastAdded={showLastAdded}
-                    showManualSearch={showManualSearch}
-                    hideGlobalChat={hideGlobalChat}
-                    manualSearchNotebookId={manualSearchNotebookId}
-                    notebookMention={notebookMention}
-                    notebookId={notebookId}
-                    omniComposer={omniComposer}
-                    pageGradient={pageGradient}
-                    footer={startpageFooter}
-                  />
-                </div>
-              </ThreadPrimitive.Empty>
-              <ThreadPrimitive.If empty={false}>
-                <div className="flex min-h-0 h-full flex-col">
-                  <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
-                    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 py-4">
-                      <ThreadPrimitive.Messages
-                        components={{
-                          UserMessage,
-                          AssistantMessage,
-                        }}
-                      />
-                    </div>
-                  </ThreadPrimitive.Viewport>
-                  <NotebookComposer
-                    placeholder={config.placeholder}
-                    sourceFilters={sourceFilters}
-                    categoryFilters={categoryFilters}
-                    mode={mode}
-                    onModeChange={setMode}
-                  />
-                </div>
-              </ThreadPrimitive.If>
-            </ThreadPrimitive.Root>
-          </ProgressDisplayContext.Provider>
+          <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col">
+            <ThreadPrimitive.Empty>
+              <div className="flex flex-1 flex-col overflow-y-auto">
+                <NotebookStartpage
+                  title={config.startPageTitle}
+                  placeholder={config.placeholder}
+                  exampleQuestions={showExamples ? (config.exampleQuestions ?? []) : []}
+                  composerSourceFilters={sourceFilters}
+                  composerCategoryFilters={categoryFilters}
+                  mode={mode}
+                  onModeChange={setMode}
+                  recentCollectionIds={recentCollectionIds}
+                  showRecentSourceLabel={isMulti}
+                  showStats={showStats}
+                  showLastAdded={showLastAdded}
+                  showManualSearch={showManualSearch}
+                  hideGlobalChat={hideGlobalChat}
+                  manualSearchNotebookId={manualSearchNotebookId}
+                  notebookMention={notebookMention}
+                  notebookId={notebookId}
+                  omniComposer={omniComposer}
+                  pageGradient={pageGradient}
+                  footer={startpageFooter}
+                />
+              </div>
+            </ThreadPrimitive.Empty>
+            <ThreadPrimitive.If empty={false}>
+              <div className="flex min-h-0 h-full flex-col">
+                <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
+                  <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 py-4">
+                    <ThreadPrimitive.Messages
+                      components={{
+                        UserMessage,
+                        AssistantMessage,
+                      }}
+                    />
+                  </div>
+                </ThreadPrimitive.Viewport>
+                <NotebookComposer
+                  placeholder={config.placeholder}
+                  sourceFilters={sourceFilters}
+                  categoryFilters={categoryFilters}
+                  mode={mode}
+                  onModeChange={setMode}
+                />
+              </div>
+            </ThreadPrimitive.If>
+          </ThreadPrimitive.Root>
         </ExtraActionsProvider>
         <CitationSidePanel />
       </CitationPanelProvider>

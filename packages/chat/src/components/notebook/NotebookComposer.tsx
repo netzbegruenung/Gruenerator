@@ -14,14 +14,28 @@ import {
   DropdownMenuSubContent,
   DropdownMenuLabel,
 } from '@gruenerator/ui';
-import { BookOpen, Zap } from 'lucide-react';
+import { BookOpen, Telescope, Zap } from 'lucide-react';
 import { LuSettings2 } from 'react-icons/lu';
 
+import {
+  NOTEBOOK_DEPTHS,
+  notebookDepthDef,
+  type NotebookDepthIconKey,
+} from '../../lib/notebookDepth';
 import { composerToolbarButtonClass } from '../../lib/utils';
 import { GrueneratorComposer } from '../thread/GrueneratorComposer';
 
 import { type CategoryFilterField } from './CategoryFilterDropdown';
 import { type SourceFilterCollection } from './SourceFilterDropdown';
+
+import type { NotebookDepth } from '@gruenerator/contracts';
+
+/** Semantic icon key → lucide component. The registry stays renderer-agnostic. */
+const DEPTH_ICONS: Record<NotebookDepthIconKey, typeof Zap> = {
+  fast: Zap,
+  deep: BookOpen,
+  ultra: Telescope,
+};
 
 export interface SourceFilterConfig {
   collections: SourceFilterCollection[];
@@ -42,8 +56,8 @@ interface NotebookComposerProps {
   placeholder?: string;
   sourceFilters?: SourceFilterConfig;
   categoryFilters?: CategoryFilterConfig;
-  mode?: 'fast' | 'deep';
-  onModeChange?: (mode: 'fast' | 'deep') => void;
+  mode?: NotebookDepth;
+  onModeChange?: (mode: NotebookDepth) => void;
 }
 
 function CategoryFilterItems({
@@ -88,8 +102,8 @@ function NotebookSettingsDropdown({
   sourceFilters,
   categoryFilters,
 }: {
-  mode?: 'fast' | 'deep';
-  onModeChange?: (mode: 'fast' | 'deep') => void;
+  mode?: NotebookDepth;
+  onModeChange?: (mode: NotebookDepth) => void;
   sourceFilters?: SourceFilterConfig;
   categoryFilters?: CategoryFilterConfig;
 }) {
@@ -100,12 +114,22 @@ function NotebookSettingsDropdown({
     ? sourceFilters.collections.length - sourceFilters.selectedIds.length
     : 0;
   const hasActiveBadge = categoryActiveCount > 0 || sourceActiveCount > 0;
+  const activeDepth = notebookDepthDef(mode);
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button type="button" className={composerToolbarButtonClass()}>
+        <button
+          type="button"
+          className={composerToolbarButtonClass()}
+          aria-label={
+            mode ? `Suchtiefe & Filter — Suchtiefe: ${activeDepth.label}` : 'Filter & Quellen'
+          }
+        >
           <LuSettings2 className="h-4 w-4" />
+          {/* The tier used to be invisible until you opened the menu, so nothing
+              on screen said whether an answer came from one search or three. */}
+          {mode && <span className="text-xs font-medium">{activeDepth.label}</span>}
           {hasActiveBadge && (
             <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-white">
               {categoryActiveCount + sourceActiveCount}
@@ -114,22 +138,30 @@ function NotebookSettingsDropdown({
         </button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent side="top" align="start" className="w-52">
+      <DropdownMenuContent side="top" align="start" className="w-64">
         {mode && onModeChange && (
           <>
-            <DropdownMenuLabel className="text-xs text-foreground-muted">Modus</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-xs text-foreground-muted">
+              Suchtiefe
+            </DropdownMenuLabel>
             <DropdownMenuRadioGroup
               value={mode}
-              onValueChange={(v) => onModeChange(v as 'fast' | 'deep')}
+              onValueChange={(v) => onModeChange(v as NotebookDepth)}
             >
-              <DropdownMenuRadioItem value="fast">
-                <Zap className="h-3.5 w-3.5" />
-                Schnell
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="deep">
-                <BookOpen className="h-3.5 w-3.5" />
-                Tiefenrecherche
-              </DropdownMenuRadioItem>
+              {NOTEBOOK_DEPTHS.map((depth) => {
+                const Icon = DEPTH_ICONS[depth.icon];
+                return (
+                  <DropdownMenuRadioItem key={depth.depth} value={depth.depth}>
+                    <Icon className="h-3.5 w-3.5 shrink-0" />
+                    <span className="flex flex-col">
+                      <span>{depth.label}</span>
+                      <span className="text-[11px] leading-tight text-foreground-muted">
+                        {depth.description}
+                      </span>
+                    </span>
+                  </DropdownMenuRadioItem>
+                );
+              })}
             </DropdownMenuRadioGroup>
           </>
         )}

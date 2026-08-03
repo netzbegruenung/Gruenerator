@@ -15,7 +15,6 @@ import {
   INJECTION_WARNING_NOTE,
   INSTRUCTION_HIERARCHY_RULE,
 } from '../../../../routes/chat/services/untrustedContent.js';
-import { getPrAgentInsightFragment } from '../../../../services/agents/prAgentInsightService.js';
 import {
   buildCompactProductIdentity,
   buildProductKnowledgeBlock,
@@ -24,6 +23,7 @@ import {
 import { CONTENT_INTEGRITY_ANSWER_RULE } from '../../../../services/contentPolicy.js';
 import { buildDocsPageMap } from '../../../../services/docs/docsIndex.js';
 import { localizePlaceholders } from '../../../../services/localization/index.js';
+import { getInternalSkillPrompt } from '../../../../services/skills/internalPrompts.js';
 import { type Locale } from '../../../../services/localization/types.js';
 import { getTextFormForInjection } from '../../../../services/user/textFormRepository.js';
 import { recordDecision, type BranchOf } from '../../../../utils/decisionJournal.js';
@@ -32,9 +32,14 @@ import { formatGermanDate } from '../../../../utils/stringUtils.js';
 import { isSourceAvailabilityError, renderDegradationNotes } from '../types.js';
 
 import { type AnchorDescriptor, getActiveAnchors } from './anchorContext.js';
+import {
+  artifactsFromTurn,
+  buildArtifactInventory,
+  renderArtifactInventory,
+} from './artifactInventory.js';
 import { buildCitableSources, MAX_SOURCES, type CitableSource } from './citableSources.js';
 import { lastUserText } from './classifierHeuristics.js';
-import { looksLikeDocsHelpQuestion } from './classifierParsing.js';
+import { looksLikeDocsHelpQuestion } from './classifierSignals.js';
 import { deriveTextFormMention } from './textFormMention.js';
 
 import type { ChatGraphState, DocumentSource, SearchResult, ThreadAttachment } from '../types.js';
@@ -55,6 +60,9 @@ const ATTACHMENT_LIMITS = {
   TOTAL_BUDGET_CHARS: 20000,
 };
 
+/** Chars reserved for the "[...N Zeichen gekürzt...]" marker. */
+const TRUNCATION_MARKER_CHARS = 60;
+
 /**
  * Smart document truncation.
  * Keeps the introduction (60%) and conclusion (40%) for better context.
@@ -66,20 +74,31 @@ export function truncateDocument(
 ): string {
   if (!text || text.length <= limit) return text;
 
-  log.warn(
-    `[respondNode:attachment] cap hit: ${text.length} → ${limit} chars ` +
-      `(${text.length - limit} dropped from the middle)`
-  );
+  const removedChars = text.length - limit;
+  const marker = `\n\n[...${removedChars.toLocaleString('de-DE')} Zeichen gekürzt...]\n\n`;
 
   // Smart truncation: keep intro (60%) + conclusion (40%)
   const introLength = Math.floor(limit * 0.6);
-  const outroLength = limit - introLength - 60; // 60 chars for marker
+  const outroLength = limit - introLength - TRUNCATION_MARKER_CHARS;
 
-  const intro = text.slice(0, introLength);
-  const outro = text.slice(-outroLength);
+  // Below ~150 chars there is no room for a meaningful tail, and the naive
+  // arithmetic inverts the function: at outroLength === 0, `slice(-0)` is
+  // `slice(0)` and the WHOLE text comes back; below zero, `slice(-(-20))`
+  // returns all but the first 20 chars. The cap would silently expand instead
+  // of capping — and 150 is exactly the per-chunk floor in formatSourceChunks.
+  if (outroLength <= 0) {
+    log.warn(
+      `[respondNode:attachment] cap hit: ${text.length} → ${limit} chars (head only, no room for a tail)`
+    );
+    return `${text.slice(0, Math.max(0, limit - TRUNCATION_MARKER_CHARS))}${marker}`;
+  }
 
-  const removedChars = text.length - limit;
-  return `${intro}\n\n[...${removedChars.toLocaleString('de-DE')} Zeichen gekürzt...]\n\n${outro}`;
+  log.warn(
+    `[respondNode:attachment] cap hit: ${text.length} → ${limit} chars ` +
+      `(${removedChars} dropped from the middle)`
+  );
+
+  return `${text.slice(0, introLength)}${marker}${text.slice(-outroLength)}`;
 }
 
 /**
@@ -805,7 +824,13 @@ Regeln:
 // supplementary breakdown, not a substitute for answering.
 function getComputeGuidance(state: ChatGraphState): string {
   if (state.computedResult) {
-    return '\nDer*die Nutzer*in hat eine Berechnung/Zählung angefordert. Das Ergebnis wurde bereits deterministisch per Programm berechnet (siehe BERECHNUNGSERGEBNIS unten); die Karte darüber ist eine ergänzende Anzeige, nicht deine Antwort. Beantworte die konkrete Frage direkt, hilfsbereit und konversationell in natürlicher Sprache und stütze dich dabei auf die berechneten Werte. Ordne die Zahlen ein oder fasse sie kurz zusammen (1–3 Sätze), wenn das der Frage hilft — du musst aber nicht jede Kennzahl wiederholen, die vollständige Aufschlüsselung steht in der Karte. Übernimm genannte Zahlen EXAKT und unverändert, rechne oder zähle NICHT selbst nach und erfinde keine abweichende Zahl. Verneine NICHT die Fähigkeit zu zählen/rechnen und bitte NIEMALS um das Ergebnis — es liegt bereits vor.';
+    // The "don't do your own arithmetic" rule alone was not enough, because it
+    // reads as being about the ONE figure that was computed. Live on 02.08.2026
+    // the responder obeyed it for `0.35 * 120000` and then wrote a comparison
+    // table beside it in which `42.000 + 84.000 = 120.000` and `74 − 62 = 8`
+    // were marked as correct — arithmetic nobody had computed. So the rule now
+    // names what may NOT be said about everything else: silence, not a verdict.
+    return '\nDer*die Nutzer*in hat eine Berechnung/Zählung angefordert. Das Ergebnis wurde bereits deterministisch per Programm berechnet (siehe BERECHNUNGSERGEBNIS unten); die Karte darüber ist eine ergänzende Anzeige, nicht deine Antwort. Beantworte die konkrete Frage direkt, hilfsbereit und konversationell in natürlicher Sprache und stütze dich dabei auf die berechneten Werte. Ordne die Zahlen ein oder fasse sie kurz zusammen (1–3 Sätze), wenn das der Frage hilft — du musst aber nicht jede Kennzahl wiederholen, die vollständige Aufschlüsselung steht in der Karte. Übernimm genannte Zahlen EXAKT und unverändert, rechne oder zähle NICHT selbst nach und erfinde keine abweichende Zahl. Verneine NICHT die Fähigkeit zu zählen/rechnen und bitte NIEMALS um das Ergebnis — es liegt bereits vor.\nDas BERECHNUNGSERGEBNIS ist die EINZIGE Rechnung, die geprüft ist. Bestätige oder verwirf KEINE weitere Zahl, Summe, Differenz oder Prozentangabe, die dort nicht steht — schreibe zu ihnen weder „stimmt" noch „korrekt" noch „Widerspruch". Wenn im Material noch nachrechenbare Angaben stehen, die nicht geprüft wurden, sag genau das in einem Satz.';
   }
   return '\nDer*die Nutzer*in hat eine Berechnung/Zählung angefordert, aber es konnte kein sicheres Ergebnis ermittelt werden. Erkläre in einem Satz, dass du die Berechnung nicht sicher durchführen konntest, und bitte um eine Präzisierung (z.B. den genauen Text oder Ausdruck). Erfinde niemals eine Zahl.';
 }
@@ -829,6 +854,13 @@ const IMAGE_EDIT_FAILED_GUIDANCE =
 
 const DIRECT_GUIDANCE =
   '\nDies ist eine direkte Anfrage ohne Recherche-Bedarf. Antworte natürlich und hilfsbereit aus dem verfügbaren Kontext.';
+
+// A greeting used to get DIRECT_GUIDANCE plus the full DIRECT_HONESTY_NOTE —
+// a paragraph of citation and artefact bans on the one turn in the product
+// where nobody could have claimed either. The scope sentence is what this turn
+// actually needs: the unprompted capability listing was the observed failure.
+const GREETING_GUIDANCE =
+  '\nDies ist eine reine Begrüßung, ein Dank oder kurzer Small Talk. Antworte in ein bis zwei Sätzen, freundlich und ohne Floskelkette. Zähle NICHT unaufgefordert auf, was du alles kannst. In diesem Turn wurde nichts recherchiert und nichts erstellt — behaupte weder das eine noch das andere.';
 
 // Turn-outcome honesty for the `direct` path: no tool ran, nothing was
 // researched or created this turn. A misrouted factual/generation follow-up
@@ -907,17 +939,23 @@ function getSynthesisGuidance(state: ChatGraphState): string {
 /**
  * May the model emit [N] markers this turn?
  *
- * A `direct` turn normally has no sources at all, so the intent doubled as the
- * gate. The ONE exception is a turn whose sources were carried in from earlier
- * in the thread — those are real, persisted and already shown as chips, so
- * suppressing citations for them produced an answer that looked researched but
- * pointed at nothing. Every other `direct` turn stays closed; that is the
+ * A `produktion` turn normally has no sources at all, so the intent doubled as
+ * the gate. The ONE exception is a turn whose sources were carried in from
+ * earlier in the thread — those are real, persisted and already shown as chips,
+ * so suppressing citations for them produced an answer that looked researched
+ * but pointed at nothing. Every other such turn stays closed; that is the
  * regression guard this whole design rests on.
+ *
+ * `greeting` has no exception at all: the source carry never runs for it (see
+ * CARRY_ELIGIBLE_INTENTS), so it is closed unconditionally.
  */
+const CITATION_GATED_INTENTS: ReadonlySet<string> = new Set(['produktion', 'direct']);
+
 export function citableSourcesAvailable(state: ChatGraphState): boolean {
+  if (state.intent === 'greeting') return false;
   return (
     state.searchResults.length > 0 &&
-    (state.intent !== 'direct' || state.sourcesCarriedFromThread === true)
+    (!CITATION_GATED_INTENTS.has(state.intent) || state.sourcesCarriedFromThread === true)
   );
 }
 
@@ -939,6 +977,9 @@ export function getModeGuidance(state: ChatGraphState): string {
         : IMAGE_FAILED_GUIDANCE;
     case 'image_edit':
       return state.generatedImage ? IMAGE_EDIT_SUCCESS_GUIDANCE : IMAGE_EDIT_FAILED_GUIDANCE;
+    case 'greeting':
+      return GREETING_GUIDANCE;
+    case 'produktion':
     case 'direct':
       return (
         DIRECT_GUIDANCE +
@@ -1260,6 +1301,22 @@ export async function buildSystemMessage(
   const intentGuidance =
     getModeGuidance(state) + getAnchorAdjuncts(state) + getSynthesisGuidance(state);
 
+  // Was dieses Gespräch gebaut hat. Die EINE Naht, die beide Pfade erreicht:
+  // der Loop erbt diesen `systemMessage` und hängt nur noch an, was erst in
+  // seinem Turn entsteht (`buildArtifactNotes`). `threadArtifacts` lädt
+  // `streamContext` ohnehin auf jedem Turn, vor der Verzweigung — bislang las
+  // es allein die Klassifikation, während das Modell nichts davon erfuhr.
+  const artifactInventory = renderArtifactInventory(
+    buildArtifactInventory({
+      prior: state.threadArtifacts ?? [],
+      // Im Einzelpfad läuft dieser Prompt-Bau NACH der Ausführung, hier stehen
+      // die Ergebnisse dieses Turns also schon drin. Im Loop-Fall ist die Liste
+      // leer und der Loop trägt sie nach — dieselbe Funktion, zwei Zeitpunkte,
+      // und die Zeitform stimmt dadurch von selbst.
+      fresh: artifactsFromTurn(state),
+    })
+  );
+
   const hasSources = citableSourcesAvailable(state);
   // Citations are the canonical "what the model can cite as [N]" — derived
   // from the same CitableSource ordering the prompt block uses. Don't
@@ -1330,7 +1387,7 @@ export async function buildSystemMessage(
   // Custom system prompt: replaces the entire agent prompt when set
   if (state.customSystemPrompt) {
     return `${state.customSystemPrompt}
-Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}
+Heutiges Datum: ${today}${localeContext}${platformContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${artifactInventory}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}
 
 ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSuspected ? INJECTION_WARNING_NOTE : ''}`;
   }
@@ -1369,18 +1426,16 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
     skillFragment = activeSkill
       ? `\n\n## AKTIVE PLATTFORM: ${activeSkill.title}\n${userTextForm.styleBlock}`
       : `\n\n## AKTIVE TEXTFORM: ${userTextForm.title}\n${userTextForm.styleBlock}`;
-  } else if (activeSkill && 'skillSystemPrompt' in activeSkill && activeSkill.skillSystemPrompt) {
-    skillFragment = `\n\n## AKTIVE PLATTFORM: ${activeSkill.title}\n${activeSkill.skillSystemPrompt}`;
+  } else if (activeSkill) {
+    // The prompt body is party-internal and deliberately absent from `SKILLS`,
+    // which ships in the web and mobile bundles — it is read from disk here
+    // instead. Null means the directory was never rolled out; the turn then runs
+    // on the agent's base systemRole. See services/skills/internalPrompts.ts.
+    const internalPrompt = getInternalSkillPrompt(activeSkill.mention);
+    if (internalPrompt) {
+      skillFragment = `\n\n## AKTIVE PLATTFORM: ${activeSkill.title}\n${internalPrompt}`;
+    }
   }
-
-  // Monthly corpus-insight overlay for the Öffentlichkeitsarbeit (PR) agents:
-  // an additive, subordinate block (current themes / active speakers / style /
-  // fresh real examples) auto-refreshed from the agent's own corpus. No-op for
-  // non-PR agents, for `summary` (neutral role), or when the kill-switch is set.
-  // See services/agents/prAgentInsightService.ts.
-  const insightsFragment = isNeutralTurn
-    ? ''
-    : await getPrAgentInsightFragment(agentConfig.identifier);
 
   // What broke in this turn, in the model's own words. A warning event is
   // telemetry only — without this block the model happily presents a degraded
@@ -1401,8 +1456,8 @@ ${CONTENT_INTEGRITY_ANSWER_RULE}${INSTRUCTION_HIERARCHY_RULE}${state.injectionSu
   const hierarchyRule = hasUntrusted ? INSTRUCTION_HIERARCHY_RULE : '';
   const injectionWarning = state.injectionSuspected ? INJECTION_WARNING_NOTE : '';
 
-  return `${systemRole}${skillFragment}${insightsFragment}${degradationBlock}
-Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${productKnowledge}${docsPageMap}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
+  return `${systemRole}${skillFragment}${degradationBlock}
+Heutiges Datum: ${today}${localeContext}${platformContext}${productIdentity}${productKnowledge}${docsPageMap}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${sheetContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${artifactInventory}${summaryContextFormatted}${computedResultFormatted}${tabularComputeGuidance}${searchContext}${perSourceContext}
 
 ## ANTWORT-REGELN
 1. ${SCOPE_RULE}

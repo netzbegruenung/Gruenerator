@@ -7,11 +7,13 @@ export {
   type SettingsTab,
 } from './catalog';
 export {
+  CHAT_BACKGROUND_FAMILIES,
   CHAT_BACKGROUND_PRESETS,
   DEFAULT_CHAT_BACKGROUND,
   DEFAULT_CHAT_BACKGROUND_MOBILE,
   chatBackgroundsFor,
   resolveChatBackground,
+  type ChatBackgroundFamily,
   type ChatBackgroundPlatform,
   type ChatBackgroundPreset,
 } from './chatBackgrounds';

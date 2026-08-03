@@ -11,38 +11,47 @@ function progress(over: Partial<ChatProgress> = {}): ChatProgress {
 
 describe('ProgressIndicator', () => {
   it('renders nothing while idle', () => {
-    const { container } = render(
-      <ProgressIndicator progress={progress({ stage: 'idle' })} agentColor="#000" />
-    );
+    const { container } = render(<ProgressIndicator progress={progress({ stage: 'idle' })} />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it('renders nothing once complete', () => {
-    const { container } = render(
-      <ProgressIndicator progress={progress({ stage: 'complete' })} agentColor="#000" />
-    );
+    const { container } = render(<ProgressIndicator progress={progress({ stage: 'complete' })} />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it('renders nothing for a direct intent even mid-stage', () => {
-    const { container } = render(
-      <ProgressIndicator progress={progress({ intent: 'direct' })} agentColor="#000" />
-    );
+    const { container } = render(<ProgressIndicator progress={progress({ intent: 'direct' })} />);
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('shows the message text in the default "box" variant', () => {
-    render(
-      <ProgressIndicator progress={progress({ message: 'Recherche läuft' })} agentColor="#0a0" />
+  it('shows the message as bare shimmering text', () => {
+    const { container } = render(
+      <ProgressIndicator progress={progress({ message: 'Recherche läuft' })} />
     );
     expect(screen.getByText('Recherche läuft')).toBeInTheDocument();
+    // The status line IS the shimmer. Anything that reads as a chip around it —
+    // a tinted box, a rounded outline, an agent dot — is the pill #2213 removed
+    // from the tool card and must not reappear here.
+    expect(container.querySelector('.bg-primary\\/5')).not.toBeInTheDocument();
+    expect(container.querySelector('[class*="rounded"]')).not.toBeInTheDocument();
+    expect(container.querySelector('svg')).not.toBeInTheDocument();
+  });
+
+  it('draws no chip for the image stage either', () => {
+    const { container } = render(
+      <ProgressIndicator
+        progress={progress({ stage: 'generating_image', message: 'Bild entsteht' })}
+      />
+    );
+    expect(screen.getByText('Bild entsteht')).toBeInTheDocument();
+    expect(container.querySelector('svg')).not.toBeInTheDocument();
   });
 
   it('prefers the running retrieval step over the generic stage message', () => {
     render(
       <ProgressIndicator
         progress={progress({ message: 'Durchsuche Quellen…' })}
-        agentColor="#0a0"
         toolStatus="Websuche „Klimageld“"
       />
     );
@@ -54,47 +63,19 @@ describe('ProgressIndicator', () => {
     render(
       <ProgressIndicator
         progress={progress({ pendingNarration: ['Ich schaue kurz nach.'] })}
-        agentColor="#0a0"
         toolStatus="Websuche „Klimageld“"
       />
     );
     expect(screen.getByText('Ich schaue kurz nach.')).toBeInTheDocument();
   });
 
-  it('renders the error message with error styling in "box" variant', () => {
+  it('renders the error message as a plain span', () => {
     render(
       <ProgressIndicator
         progress={progress({ stage: 'error', message: 'Etwas ist schiefgelaufen' })}
-        agentColor="#0a0"
       />
     );
     const msg = screen.getByText('Etwas ist schiefgelaufen');
-    expect(msg).toBeInTheDocument();
-    expect(msg.closest('div')?.className).toContain('bg-error-bg');
-  });
-
-  it('renders shimmering plain text (no box) in "plain" variant', () => {
-    const { container } = render(
-      <ProgressIndicator
-        progress={progress({ message: 'Nur Text' })}
-        agentColor="#0a0"
-        variant="plain"
-      />
-    );
-    expect(screen.getByText('Nur Text')).toBeInTheDocument();
-    // No box wrapper — plain variant renders a bare span, not the rounded pill div.
-    expect(container.querySelector('.bg-primary\\/5')).not.toBeInTheDocument();
-  });
-
-  it('renders the error message as a plain span in "plain" variant', () => {
-    render(
-      <ProgressIndicator
-        progress={progress({ stage: 'error', message: 'Fehler' })}
-        agentColor="#0a0"
-        variant="plain"
-      />
-    );
-    const msg = screen.getByText('Fehler');
     expect(msg.tagName).toBe('SPAN');
     expect(msg.className).toContain('text-error');
   });

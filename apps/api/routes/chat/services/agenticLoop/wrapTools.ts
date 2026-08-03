@@ -123,10 +123,16 @@ class ToolTimeoutError extends Error {
  * timeout count as a tool failure (`noteFailure` → MAX_FAILURES_PER_TOOL),
  * persist via `recordStep`, and close the tool card via `sendResult`. An
  * abort from outside would skip all three and leave the card spinning.
+ *
+ * `onTimeout` is what makes the abandonment visible to the tool — see the
+ * `abandoned` controller at the call site.
  */
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+function withTimeout<T>(promise: Promise<T>, ms: number, onTimeout?: () => void): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new ToolTimeoutError(ms)), ms);
+    const timer = setTimeout(() => {
+      onTimeout?.();
+      reject(new ToolTimeoutError(ms));
+    }, ms);
     promise.then(
       (v) => {
         clearTimeout(timer);
@@ -140,7 +146,10 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-type ExecuteFn = (input: unknown, options: { toolCallId: string }) => Promise<unknown>;
+type ExecuteFn = (
+  input: unknown,
+  options: { toolCallId: string; abortSignal?: AbortSignal }
+) => Promise<unknown>;
 
 export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet {
   const maxResultChars = ctx.maxResultChars ?? 6000;
@@ -235,9 +244,22 @@ export function wrapToolsForLoop(tools: ToolSet, ctx: WrapToolsContext): ToolSet
       sendStart(stepId, args, narration);
 
       let output: unknown;
+      // A timed-out call is ABANDONED, not cancelled: `withTimeout` stops
+      // waiting, the tool itself runs on. For a retrieval tool that is merely
+      // wasteful; for a GENERATION tool it produces a second reality. Live on
+      // 02.08.2026 a `create_pdf` written off after 20s finished 45s later, wrote
+      // its document and pushed a `document_created` card into a turn whose model
+      // had been told twice that the call failed — and whose answer then claimed
+      // success it could not know about. This signal is how a tool can tell; the
+      // generation tools check it immediately before they commit anything.
+      const abandoned = new AbortController();
       try {
         const timeoutMs = ctx.perCallTimeoutOverridesMs?.[toolName] ?? ctx.perCallTimeoutMs;
-        output = await withTimeout(Promise.resolve(original(input, options)), timeoutMs);
+        output = await withTimeout(
+          Promise.resolve(original(input, { ...options, abortSignal: abandoned.signal })),
+          timeoutMs,
+          () => abandoned.abort()
+        );
       } catch (err) {
         output = { error: err instanceof Error ? err.message : String(err) };
       }

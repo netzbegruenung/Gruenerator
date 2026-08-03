@@ -1,8 +1,11 @@
-import reactConfig from '@gruenerator/eslint-config/react';
+// react-native statt react: derselbe Satz, aber mit dem
+// react-native-a11y-Gitter statt jsx-a11y (das DOM-Elemente prüft und auf
+// <Pressable> nie feuern würde). Siehe docs/barrierefreiheit-audit-plan.md.
+import reactNativeConfig from '@gruenerator/eslint-config/react-native';
 import globals from 'globals';
 
 export default [
-  ...reactConfig,
+  ...reactNativeConfig,
   {
     languageOptions: {
       parserOptions: {

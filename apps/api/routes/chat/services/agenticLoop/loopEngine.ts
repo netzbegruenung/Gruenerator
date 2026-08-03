@@ -6,7 +6,7 @@
  *  - `unified`: the selected model drives tools AND writes the answer in one
  *    streamed pass. Used only when the selection is a fast native tool-caller
  *    (Mistral) — fastest and highest-fidelity.
- *  - `split` (planner/executor): a fixed fast planner (INTERMEDIATE_MODEL) runs
+ *  - `split` (planner/executor): a fixed fast planner (`standard` stage) runs
  *    the ADAPTIVE tool loop and gathers evidence into the source registry, then
  *    the selected model writes the answer ONCE over those sources (no tools).
  *    Every tool call runs on the confirmed tool-caller, so loop tool-calling no
@@ -98,6 +98,11 @@ const GATHER_SUFFIX = [
   'ARBEITSPHASE (hier erledigst du die TOOL-Arbeit: Belege sammeln UND angeforderte Inhalte erstellen — die finale Textantwort schreibst du NICHT hier):',
   '- Für grüne Positionen, Programme und Beschlüsse ZUERST gruenerator_search (interne Dokumente). Nutze die Websuche NUR, wenn die internen Dokumente die Frage nicht abdecken oder es um tagesaktuelle Ereignisse/Zahlen geht — NICHT parallel oder auf Vorrat. Bei Fragen OHNE Parteibezug (Allgemeinwissen, Personen, Ereignisse, Zahlen) suchst du DIREKT im Web — gruenerator_search kennt ausschließlich Parteidokumente.',
   '- Verlass dich NICHT auf dein eigenes Wissen — belege mit Tools. Aber STOPPE, sobald die ersten 1–2 Treffer die Frage beantworten; sammle nicht auf Vorrat und wiederhole keine ähnlichen Suchen.',
+  // Live am 02.08.2026: eine Rückfrage zu einer eingefügten Fallstudie löste
+  // `web_search "Projekt GrünMobil Mobilitätsprojekt Pilotgebiet Budget"` aus —
+  // ein Name, den es nur in dieser Unterhaltung gab. Das Web kann dazu per
+  // Konstruktion nur Fremdes liefern, und genau das landete in der Antwort.
+  '- PRÜFE ZUERST das Material im Gespräch: eingefügter Text, Anhänge, ein geöffnetes Dokument, Quellen aus früheren Turns. Steht die Antwort dort, antworte DARAUS und suche NICHT. Suche nur nach Fakten, die dieses Material gar nicht enthalten KANN (tagesaktuelle Zahlen, externe Ereignisse). Nach einem Namen, den es nur in diesem Gespräch gibt — ein internes Projekt, ein zitierter Entwurf, eine erfundene Fallstudie — suchst du NIE.',
   '- scrape_url NUR für URLs, die tatsächlich in Suchergebnissen erscheinen — rate keine Adressen.',
   '- Wenn der*die Nutzer*in ausdrücklich eine ERSTELLUNG wünscht (z.B. ein Sharepic, Bild, eine Präsentation, Tabelle, ein Dokument oder ein Board), MUSST du das passende Erstellungs-Tool (z.B. sharepic / generate_image / create_presentation / create_sheet / create_document / create_board) in dieser Phase aufrufen — recherchiere zuerst die Fakten, dann rufe das Tool mit dem belegten, konkreten Auftrag auf. Verweigere die Erstellung NICHT.',
   '- Schreibe in dieser Phase KEINE finale Antwort und KEINE Zusammenfassung. Du darfst vor einem Tool-Aufruf in EINEM kurzen Satz ankündigen, was du als Nächstes tust (z.B. "Ich suche jetzt im Wahlprogramm nach Windkraft."). Sobald die Belege reichen und angeforderte Inhalte erstellt sind, beende die Tool-Aufrufe ohne weiteren Text.',
@@ -134,14 +139,27 @@ export function buildPrepareStep(
   /** Names a tool the NEXT step must call (see guards.emptyResultFallback), or
    *  null to leave the choice to the model. Consulted on every step but the
    *  first — step 0 has no tool result to react to yet. */
-  forcedTool: () => string | null = () => null
+  forcedTool: () => string | null = () => null,
+  /**
+   * Text appended to the system on EVERY step once it is non-empty — a GETTER,
+   * not a captured string, because it fills up mid-loop (`rezept_laden`
+   * registers during the run).
+   *
+   * Unified mode's only channel for the recipe body. Note the branch above:
+   * force-finish is the step where the model writes the answer WITHOUT tools,
+   * so a recipe missing there is lost exactly where it matters. It has to land
+   * in both branches, and in the plain `{}` one — hence the `system` override
+   * appearing where previously nothing was returned.
+   */
+  extraSystem: () => string = () => ''
 ): ({ stepNumber }: { stepNumber: number }) => {
   toolChoice?: 'none' | 'required' | { type: 'tool'; toolName: string };
   system?: string;
 } {
   return ({ stepNumber }) => {
+    const extra = extraSystem();
     if (stepNumber >= maxSteps - 1 || forceFinish()) {
-      return { toolChoice: 'none' as const, system: `${baseSystem}${finishSuffix}` };
+      return { toolChoice: 'none' as const, system: `${baseSystem}${extra}${finishSuffix}` };
     }
     // Explicit-scope MCP FOLLOW-UP: the small planner otherwise answers from
     // prose without ever calling the connector (observed: intent=mcp steps=0,
@@ -149,15 +167,19 @@ export function buildPrepareStep(
     // the first step so it actually hits the server. Gated off for the first
     // scope turn (clarification allowed) and meta questions by the caller.
     if (forceFirstToolCall && stepNumber === 0) {
-      return { toolChoice: 'required' as const };
+      return { toolChoice: 'required' as const, ...(extra && { system: `${baseSystem}${extra}` }) };
     }
     if (stepNumber > 0) {
       const toolName = forcedTool();
       // `required` would only guarantee SOME call — the model would happily
       // re-run the internal search that just came back empty. Name the tool.
-      if (toolName) return { toolChoice: { type: 'tool' as const, toolName } };
+      if (toolName)
+        return {
+          toolChoice: { type: 'tool' as const, toolName },
+          ...(extra && { system: `${baseSystem}${extra}` }),
+        };
     }
-    return {};
+    return extra ? { system: `${baseSystem}${extra}` } : {};
   };
 }
 
@@ -253,6 +275,12 @@ export interface LoopEngineParams {
   /** Builds the synthesizer system from the gathered numbered sources block. */
   buildSynthSystem: (sourcesBlock: string) => string;
   getSourcesBlock: () => string;
+  /**
+   * Recipe block for the TOOL phase, read fresh on every step because
+   * `rezept_laden` fills it mid-loop. Split mode's writer gets the same text
+   * through `buildSynthSystem` instead — the caller owns that side.
+   */
+  getRecipeBlock?: () => string;
   messages: ModelMessage[];
   /** Split mode only: the message list the SYNTH phase writes over. Defaults to
    *  `messages`. The caller passes the history WITHOUT the cross-turn tool
@@ -349,7 +377,8 @@ async function streamWithTools(
       p.maxSteps,
       p.forceFinish,
       p.forceFirstToolCall ?? false,
-      p.forcedToolForStep
+      p.forcedToolForStep,
+      p.getRecipeBlock
     ),
     experimental_repairToolCall: repairToolCall,
     ...phaseTelemetry('unified'),
@@ -380,7 +409,8 @@ async function gather(p: LoopEngineParams, deps: LoopDeps): Promise<void> {
         p.maxSteps,
         p.forceFinish,
         p.forceFirstToolCall ?? false,
-        p.forcedToolForStep
+        p.forcedToolForStep,
+        p.getRecipeBlock
       ),
       experimental_repairToolCall: repairToolCall,
       ...phaseTelemetry('gather'),

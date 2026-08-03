@@ -21,6 +21,16 @@ export interface TabNote {
 
 export const TAB_NOTES: TabNote[] = [
   {
+    tab: 'onboarding',
+    intro:
+      'Die einmalige Einrichtung: drei Schritte, die den Grünerator auf dich einstellen — deine Rolle, dein Friend und der Hintergrund deiner Startseite. Der Bereich steht ganz oben, solange er offen ist, und verschwindet danach aus der Liste.',
+    extras: [
+      'Jeder Schritt lässt sich überspringen, einzeln oder alle auf einmal — übersprungen heißt: es bleibt beim Standard, nichts wird später nachgefragt.',
+      'Die drei Schritte zeigen dieselben Bereiche, die es auch einzeln gibt („Personalisierung", „Friends", „Hintergrund"). Was du hier einstellst, ist sofort gespeichert und dort später änderbar.',
+      'Zurückholen kannst du die Einrichtung jederzeit über **Allgemein → Einrichtung erneut starten**.',
+    ],
+  },
+  {
     tab: 'allgemein',
     intro:
       'Aussehen und Grundverhalten der Oberfläche — und ganz oben, wer du bist. Änderungen greifen sofort und gelten auf allen Geräten, an denen du angemeldet bist.',
@@ -29,6 +39,17 @@ export const TAB_NOTES: TabNote[] = [
       'Dein Profilbild ist ein Grünerator Friend — ausgewählt wird er im Bereich „Friends".',
       'Die Sprachwahl entscheidet nicht nur über Wortwahl, sondern auch über Inhalte: Mit „Deutsch (Österreich)" bekommst du österreichische Quellen und Begriffe statt deutscher.',
       'Ganz unten kannst du dein Konto endgültig löschen. Das entfernt deine Inhalte und lässt sich nicht rückgängig machen.',
+    ],
+  },
+  {
+    tab: 'hintergrund',
+    intro:
+      'Der farbige Schimmer auf deiner Startseite — der Fläche, auf der du nach dem Anmelden stehst. Jede Kachel zeigt den Verlauf, den sie einstellt; ein Klick übernimmt ihn sofort.',
+    extras: [
+      'Die Auswahl ist zweigeteilt: **Bunt** verteilt mehrere Farben über die Fläche, **Einfarbig** legt einen Ton darüber. Innerhalb von „Bunt" unterscheiden sich **Nebel**, **Klarer Kern** und **Dunst von unten** nicht in der Farbe — sie nutzen dieselben vier Töne hinter unterschiedlich viel weißem Schleier.',
+      'Der Senden-Button unter dem Composer übernimmt die Farbe des gewählten Hintergrunds — die Kachel zeigt ihn als Punkt mit an.',
+      '**Neutral** schaltet den Verlauf ganz ab; dann steht dort die normale Seitenfläche.',
+      'Im Dunkelmodus bleiben dieselben Presets, nur gedämpft — die Kacheln zeigen die Fassung, die zu deinem Farbschema gehört.',
     ],
   },
   {
@@ -45,6 +66,7 @@ export const TAB_NOTES: TabNote[] = [
     intro:
       'Dein Profilbild: eine Galerie gezeichneter Grünerator-Figuren, aus der du deinen „Friend" wählst. Er erscheint überall dort, wo du auftauchst — in Chats, Projekten und Kommentaren.',
     extras: [
+      'Solange die Einrichtung läuft, stehen drei zur Wahl — Feuri, Robosam und Schildi. Die übrige Truppe kommt dazu, sobald du sie abgeschlossen hast.',
       'Ein Klick auf eine Figur übernimmt sie sofort; ein Foto-Upload ist nicht vorgesehen.',
       'Wolki ist zunächst gesperrt und wird freigeschaltet, sobald du deine Grüne Wolke verbunden hast.',
     ],

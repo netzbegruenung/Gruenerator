@@ -380,6 +380,7 @@ export const ColorSchemeControl = ({
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   handleColorChange(idx, e.target.value)
                 }
+                aria-label={`Farbe für Zeile ${idx + 1}`}
                 className="w-8 h-8 p-0 border-2 border-[var(--border-color)] rounded-md cursor-pointer bg-none hover:border-[var(--interactive-accent-color)] [&::-webkit-color-swatch-wrapper]:p-0.5 [&::-webkit-color-swatch]:rounded-sm [&::-webkit-color-swatch]:border-none [&::-moz-color-swatch]:rounded-sm [&::-moz-color-swatch]:border-none"
               />
             </label>

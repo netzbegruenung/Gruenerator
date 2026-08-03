@@ -275,7 +275,12 @@ export default function ReelScreen() {
           options={{
             headerBackVisible: false,
             headerLeft: () => (
-              <Pressable onPress={handleBackToProjects} hitSlop={8}>
+              <Pressable
+                onPress={handleBackToProjects}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Zurück zu den Projekten"
+              >
                 <Ionicons name="arrow-back" size={24} color={theme.text} />
               </Pressable>
             ),

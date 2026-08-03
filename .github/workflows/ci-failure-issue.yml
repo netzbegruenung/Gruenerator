@@ -19,7 +19,6 @@ on:
       - Monthly Notebook Keyword Snapshots
       - Nightly Notebook NLP Enrichment
       - Daily Offboarding
-      - Monthly PR-Agent Insights
       - Social Media Sync
       - Hourly Wolke Watch
     types: [completed]

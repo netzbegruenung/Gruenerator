@@ -14,7 +14,13 @@ import { coerceSharepicVariants } from '../../hooks/useChatGraphStream';
 import { notifyError, notifyWarning } from '../../lib/notify';
 import { pickStageLabels } from '../../lib/progressLabels';
 import { parseSSELine } from '../../lib/sseParser';
-import { INTENT_TO_TOOL, DEEP_TOOL_MAP, formatNamespacedToolLabel } from '../../lib/toolMappings';
+import {
+  ARTIFACT_STAGE_INTENTS,
+  ARTIFACT_TOOL_NAMES,
+  INTENT_TO_TOOL,
+  DEEP_TOOL_MAP,
+  formatNamespacedToolLabel,
+} from '../../lib/toolMappings';
 import { useArtifactLiveStore, type ActiveArtifact } from '../../stores/artifactLiveStore';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
@@ -52,6 +58,17 @@ import type {
   ReelProcessingData,
 } from '../../types/messageMetadata';
 import type { ChatModelRunResult } from '@assistant-ui/react';
+
+/**
+ * Verdicts under which nothing is looked up — the progress bar goes straight to
+ * "generating". `direct` is kept for threads and older backends that still send
+ * it; `agentic` is absent because the loop DOES retrieve.
+ */
+const NO_RETRIEVAL_STAGE_INTENTS: ReadonlySet<string> = new Set([
+  'produktion',
+  'direct',
+  'greeting',
+]);
 
 /** Display titles for agentic sharepic-loop steps (tool_step_start events). */
 const TOOL_STEP_TITLES: Record<string, string> = {
@@ -401,7 +418,8 @@ export async function* parseSSEStream(
               agentic?: boolean;
             };
           let stage: ProgressStage = 'searching';
-          if (intent === 'direct' || intent === 'artifact') stage = 'generating';
+          if (NO_RETRIEVAL_STAGE_INTENTS.has(intent) || intent === 'artifact') stage = 'generating';
+          else if (ARTIFACT_STAGE_INTENTS.has(intent)) stage = 'generating_artifact';
           else if (intent === 'image' || intent === 'sharepic' || intent === 'social_post')
             stage = 'generating_image';
           else if (intent === 'summary') stage = 'summarizing';
@@ -539,6 +557,20 @@ export async function* parseSSEStream(
             orderReplaceCard(activeToolCall);
           }
           yield buildResult();
+          break;
+        }
+
+        // The loop's channel for image hits. Deliberately touches NOTHING but the
+        // image list: unlike `search_complete` it must not move the progress
+        // stage, because it arrives mid-loop while the model is still working.
+        // The payload is the full list for the turn, so replacing is correct —
+        // a second search's event supersedes the first.
+        case 'search_images': {
+          const { images } = data as { images: SearchImage[] };
+          if (images.length > 0) {
+            receivedSearchImages = images;
+            yield buildResult();
+          }
           break;
         }
 
@@ -822,7 +854,14 @@ export async function* parseSSEStream(
             orderPushCard(toolCall);
           }
           // Narration now lives on the card; clear the transient status line.
-          currentProgress = { stage: 'searching', message: title, pendingNarration: [] };
+          // A generation tool gets its own stage — see ARTIFACT_TOOL_NAMES. The
+          // step is also transitioned so the tracker stops showing the previous
+          // stage as still running while a 90s generation goes on beneath it.
+          const toolStage: ProgressStage = ARTIFACT_TOOL_NAMES.has(toolName)
+            ? 'generating_artifact'
+            : 'searching';
+          if (toolStage !== currentProgress.stage) transitionStep(toolStage);
+          currentProgress = { stage: toolStage, message: title, pendingNarration: [] };
           yield buildResult();
           break;
         }

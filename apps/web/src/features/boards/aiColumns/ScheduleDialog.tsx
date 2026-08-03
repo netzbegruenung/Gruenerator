@@ -114,8 +114,17 @@ export function ScheduleDialog({
 
           {frequency === 'weekly' && (
             <div className="space-y-1.5">
-              <Label>Wochentage</Label>
-              <div className="flex flex-wrap gap-1.5">
+              <span
+                id="schedule-weekdays-label"
+                className="flex items-center gap-2 text-sm leading-none font-medium select-none"
+              >
+                Wochentage
+              </span>
+              <div
+                className="flex flex-wrap gap-1.5"
+                role="group"
+                aria-labelledby="schedule-weekdays-label"
+              >
                 {WEEKDAYS.map((label, day) => {
                   const active = weekdays.includes(day);
                   return (

@@ -4,12 +4,14 @@
  * notebook controller and the public Gruen-O-Mat controller.
  */
 
+import { type NotebookDepth } from '@gruenerator/contracts';
 import { type ModelMessage } from 'ai';
 
 import {
   buildConcisePromptGrundsatz,
   buildConcisePromptGeneral,
 } from '../../agents/langgraph/prompts.js';
+import { getNotebookDepthProfile } from '../../config/notebookDepthProfiles.js';
 import {
   SYSTEM_COLLECTIONS,
   getSystemCollectionConfig,
@@ -22,12 +24,14 @@ import {
   validateAndInjectCitations,
   groupSourcesByCollection,
 } from '../../services/search/index.js';
+import { expandQuery } from '../../services/search/QueryExpansionService.js';
 import {
   BOTH_LANES_FAILED,
   buildAiTelemetry,
   withLangfuseTrace,
 } from '../../services/telemetry/langfuseTelemetry.js';
 import { toUserFacingMessage } from '../../utils/errors/index.js';
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import { containsPromptLeakage } from '../gruenomat/topicGuard.js';
 
@@ -58,7 +62,7 @@ export interface NotebookStreamOptions {
   filters?: Record<string, unknown>;
   provider?: string;
   model?: string;
-  mode?: 'fast' | 'deep';
+  mode?: NotebookDepth;
   userId?: string;
   allowUserCollections?: boolean;
   systemPromptOverride?: string;
@@ -103,7 +107,11 @@ export async function handleNotebookStream(
     documentIds,
   } = options;
 
-  const isFast = mode === 'fast';
+  // An omitted mode has always meant the thorough tier here (`isFast` was
+  // `mode === 'fast'`), so it keeps meaning that. The UI's default is a
+  // separate question and belongs to the UI.
+  const depth: NotebookDepth = mode ?? 'deep';
+  const profile = getNotebookDepthProfile(depth);
 
   // SSE headers (skip if already flushed by controller for thread_created)
   if (!res.headersSent) {
@@ -145,6 +153,24 @@ export async function handleNotebookStream(
 
     sse.send('search_start', { message: 'Suche in Dokumenten...' });
 
+    // Tiers above one variant search several formulations of the question and
+    // union the hits. expandQuery degrades to zero alternatives on failure, so
+    // the worst case is the single-query behaviour of the tiers below.
+    let queries = [question];
+    if (profile.queryVariants > 1) {
+      const expanded = await expandQuery(question, getAIWorkerPool(req));
+      queries = [expanded.primary, ...expanded.alternatives].slice(0, profile.queryVariants);
+      if (queries.length > 1) {
+        sse.send('progress_step', {
+          stepId: 'notebook-query-expansion',
+          toolName: 'notebook_search',
+          title: `Suche mit ${queries.length} Formulierungen...`,
+          status: 'in_progress',
+          args: { queries },
+        });
+      }
+    }
+
     let searchContext: SearchContext | null;
     try {
       searchContext = await notebookQAService.getSearchContext({
@@ -153,6 +179,8 @@ export async function handleNotebookStream(
         collectionIds,
         userId: userId || 'anonymous',
         requestFilters: filters,
+        depth,
+        queries,
         getCollectionFn: async (id: string) => {
           const systemConfig = getSystemCollectionConfig(id);
           if (systemConfig) return null;
@@ -193,39 +221,38 @@ export async function handleNotebookStream(
       resultCount: searchContext?.sortedResults.length ?? 0,
     });
 
-    // Rerank in BOTH modes.
+    // Rerank in EVERY tier.
     //
     // This used to be gated on `isFast`, which left "Tiefenrecherche" — the
-    // path that retrieves the MOST candidates (30-40 vs the chat path's 12
-    // after rerank) — as the only one without a cross-encoder. That is inverse
-    // to what the UI promises: the mode advertised as the thorough one was
-    // handing the model the raw hybrid-search order.
+    // path that retrieves the MOST candidates — as the only one without a
+    // cross-encoder. That is inverse to what the UI promises: the mode
+    // advertised as the thorough one was handing the model the raw
+    // hybrid-search order.
     //
-    // The two modes differ in HOW MUCH survives, not in WHETHER it is ranked.
-    // Deep keeps a bigger, ranked window (18 of up to 40 candidates); fast
-    // keeps the tight one (10 of 20). rerankNotebookResults degrades openly —
-    // with Regolo unconfigured it returns the original order rather than
-    // throwing — so this cannot make the deep path fail where it used to work.
+    // The tiers differ in HOW MUCH survives, not in WHETHER it is ranked.
+    // rerankNotebookResults degrades openly — with Regolo unconfigured it
+    // returns the original order rather than throwing — so a bigger window
+    // cannot make a tier fail where a smaller one used to work.
     if (searchContext) {
       const reranked = await rerankNotebookResults({
         results: searchContext.sortedResults,
         referencesMap: searchContext.referencesMap,
         question,
-        limit: isFast ? 10 : 18,
-        inputLimit: isFast ? 20 : 40,
+        limit: profile.rerankOutput,
+        inputLimit: profile.rerankInput,
       });
       searchContext.sortedResults = reranked.results;
       searchContext.referencesMap = reranked.referencesMap;
       searchContext.contextSummary = reranked.contextSummary;
 
       log.debug(
-        `⏱ Rerank (${isFast ? 'fast' : 'deep'}): ${reranked.rerankTimeMs}ms, ${searchContext.sortedResults.length} results kept`
+        `⏱ Rerank (${depth}): ${reranked.rerankTimeMs}ms, ${searchContext.sortedResults.length} results kept`
       );
 
-      // The concise prompt stays fast-only: it exists to shrink the answer to
-      // match a shrunken context. Deep is asked for a thorough answer and keeps
+      // The concise prompt exists to shrink the answer to match a shrunken
+      // context. The thorough tiers are asked for a thorough answer and keep
       // the prompt getSearchContext chose.
-      if (isFast) {
+      if (profile.conciseAnswer) {
         const isSystemCollection =
           searchContext.effectiveCollectionIds?.some((id) => !!getSystemCollectionConfig(id)) ??
           false;
@@ -325,8 +352,8 @@ export async function handleNotebookStream(
     log.debug(`⏱ Model setup: ${t2 - t1}ms`);
 
     // Generous ceilings: reasoning models spend a large share on the <think>
-    // block before visible content, so both modes get ample headroom.
-    const baseMaxOutput = isFast ? 20000 : 40000;
+    // block before visible content, so every tier gets ample headroom.
+    const baseMaxOutput = profile.maxOutputTokens;
 
     sse.send('response_start', { message: 'Generiere Antwort...' });
 
@@ -450,12 +477,14 @@ export async function handleNotebookStream(
         effectiveCollectionIds: searchContext.effectiveCollectionIds,
         totalResults: searchContext.sortedResults.length,
         citationsCount: citations.length,
+        depth,
+        queryCount: queries.length,
       },
     });
 
     const t6 = Date.now();
     log.debug(
-      `⏱ Total: ${t6 - t0}ms [${isFast ? 'fast' : 'deep'}] (search=${t1 - t0}, setup=${t2 - t1}, stream=${t4 - t2}, cite=${t5 - t4})`
+      `⏱ Total: ${t6 - t0}ms [${depth}] (search=${t1 - t0}, setup=${t2 - t1}, stream=${t4 - t2}, cite=${t5 - t4})`
     );
     if (options.closeStream !== false) sse.end();
 

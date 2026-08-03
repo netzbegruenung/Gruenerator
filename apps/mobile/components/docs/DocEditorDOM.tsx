@@ -761,7 +761,6 @@ function EditorContent({
           flex: 1,
           overflow: 'auto',
           WebkitOverflowScrolling: 'touch',
-          paddingInline: 8,
         }}
       >
         {editorReady ? (

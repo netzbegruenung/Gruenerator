@@ -28,7 +28,9 @@ interface SettingsTabModule {
 // Tabelle von oben nach unten ab. Was am ehesten gebraucht wird, liegt damit
 // als Erstes im Speicher.
 const LOADERS: Record<SettingsTab, () => Promise<SettingsTabModule>> = {
+  onboarding: () => import('./tabs/OnboardingTab'),
   allgemein: () => import('./tabs/GeneralTab'),
+  hintergrund: () => import('./tabs/BackgroundTab'),
   personalisierung: () => import('./tabs/PersonalizationTab'),
   erinnerungen: () => import('./tabs/MemoriesSection'),
   'texte-anlernen': () => import('./tabs/TexteAnlernenTab'),
@@ -179,7 +181,15 @@ export function preloadSettingsEntry(tab: SettingsTab, queryClient?: QueryClient
  * hover or the visit.
  */
 export function preloadRemainingSettingsTabs(active: SettingsTab): () => void {
-  const queue = SETTINGS_TABS.filter((tab) => tab !== active && !loadedTabs.has(tab));
+  const queue = SETTINGS_TABS.filter(
+    (tab) =>
+      tab !== active &&
+      !loadedTabs.has(tab) &&
+      // Die Einrichtung steht nur so lange in der Seitenleiste, bis sie erledigt
+      // ist. Für alle anderen wäre ihr Chunk ein Download für einen Reiter, den
+      // es gerade nicht gibt — sie wird geladen, wenn sie aktiv ist.
+      tab !== 'onboarding'
+  );
   let cancelled = false;
   let cancelIdle = () => {};
 

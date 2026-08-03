@@ -51,3 +51,9 @@ apps/api/services/pdf/__fixtures__/export-content/
 # and byte-compared by `docs:index --check`. Reformatting it would make that
 # check fail until the next regenerate, so the two must not fight.
 apps/api/services/docs/docsIndex.generated.ts
+
+# Playwright-ARIA-Snapshots — geschrieben von `playwright test
+# --update-snapshots` in Playwrights eigenem YAML-Stil und von
+# `toMatchAriaSnapshot` verglichen. Dieselbe Lage wie oben: formatiert Prettier
+# sie, laufen sie beim nächsten Snapshot-Update wieder auseinander.
+apps/web/tests/e2e/**/*-snapshots/

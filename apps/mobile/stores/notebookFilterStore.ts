@@ -7,11 +7,8 @@ interface NotebookFilterState {
   keywordFilters: Record<string, string[]>;
   /** Chosen collections, or null for "all of the notebook's". */
   collectionIds: string[] | null;
-  /** KI retrieval depth — web's fast/deep toggle on the notebook page. */
-  depth: 'fast' | 'deep';
 
   setNotebook: (notebookId: string) => void;
-  setDepth: (depth: 'fast' | 'deep') => void;
   toggleValue: (field: string, value: string) => void;
   toggleCollection: (id: string, available: string[]) => void;
   reset: () => void;
@@ -24,20 +21,20 @@ interface NotebookFilterState {
  * request body from outside the panel either way.
  *
  * Not persisted — a filter is scoped to the session you set it in, and reviving
- * one silently on the next app start would quietly narrow every answer.
+ * one silently on the next app start would quietly narrow every answer. The
+ * retrieval depth is the opposite case and therefore lives elsewhere: it widens
+ * rather than narrows, and it is a standing preference, so it is persisted in
+ * `preferencesStore`.
  */
 export const useNotebookFilterStore = create<NotebookFilterState>((set, get) => ({
   notebookId: null,
   keywordFilters: {},
   collectionIds: null,
-  depth: 'fast',
 
   setNotebook: (notebookId) => {
     if (get().notebookId === notebookId) return;
-    set({ notebookId, keywordFilters: {}, collectionIds: null, depth: 'fast' });
+    set({ notebookId, keywordFilters: {}, collectionIds: null });
   },
-
-  setDepth: (depth) => set({ depth }),
 
   toggleValue: (field, value) =>
     set((state) => {
@@ -62,7 +59,7 @@ export const useNotebookFilterStore = create<NotebookFilterState>((set, get) => 
       return { collectionIds: isAll ? null : updated };
     }),
 
-  reset: () => set({ keywordFilters: {}, collectionIds: null, depth: 'fast' }),
+  reset: () => set({ keywordFilters: {}, collectionIds: null }),
 }));
 
 /**
@@ -72,15 +69,13 @@ export const useNotebookFilterStore = create<NotebookFilterState>((set, get) => 
 export function notebookFiltersFor(notebookId: string | undefined): {
   keywordFilters: Record<string, string[]>;
   collectionIds: string[] | null;
-  depth: 'fast' | 'deep';
 } {
   const state = useNotebookFilterStore.getState();
   if (!notebookId || state.notebookId !== notebookId) {
-    return { keywordFilters: {}, collectionIds: null, depth: 'fast' };
+    return { keywordFilters: {}, collectionIds: null };
   }
   return {
     keywordFilters: state.keywordFilters,
     collectionIds: state.collectionIds,
-    depth: state.depth,
   };
 }

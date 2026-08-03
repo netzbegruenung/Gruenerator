@@ -459,9 +459,12 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
           /* ── Link form — progressive: URL first, details after ── */
           <div className="flex flex-col gap-md px-lg py-sm">
             <div className="flex flex-col gap-xs">
-              <label className="text-sm font-medium text-foreground">URL</label>
+              <label htmlFor="add-content-link-url" className="text-sm font-medium text-foreground">
+                URL
+              </label>
               <div className="flex items-center gap-xs">
                 <Input
+                  id="add-content-link-url"
                   value={linkUrl}
                   onChange={(e) => {
                     const val = e.target.value;
@@ -528,8 +531,14 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
             {linkUrl.trim().length > 0 && (
               <>
                 <div className="flex flex-col gap-xs">
-                  <label className="text-sm font-medium text-foreground">Titel</label>
+                  <label
+                    htmlFor="add-content-link-title"
+                    className="text-sm font-medium text-foreground"
+                  >
+                    Titel
+                  </label>
                   <Input
+                    id="add-content-link-title"
                     value={linkTitle}
                     onChange={(e) => {
                       setLinkTitle(e.target.value);
@@ -540,10 +549,14 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
                   />
                 </div>
                 <div className="flex flex-col gap-xs">
-                  <label className="text-sm font-medium text-foreground">
+                  <label
+                    htmlFor="add-content-link-description"
+                    className="text-sm font-medium text-foreground"
+                  >
                     Beschreibung (optional)
                   </label>
                   <Input
+                    id="add-content-link-description"
                     value={linkDescription}
                     onChange={(e) => setLinkDescription(e.target.value)}
                     placeholder="Kurze Beschreibung..."

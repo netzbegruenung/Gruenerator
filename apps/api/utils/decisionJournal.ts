@@ -75,11 +75,23 @@ export const DECISION_POINTS = {
       'tier2.95_ambiguous_graphic',
       'tier3_short_message',
       'tier3_heuristic',
+      'tier3.4_chat_recall',
+      'tier3.4_recurring_order',
       'tier3.5_loop_demotion',
-      'tier3.7_source_scope',
-      'tier3.7_no_live_source',
-      'tier4_llm',
-      'tier4_llm_error_fallback',
+      // Die drei `tier3.7_*`-Zweige sind mit ihrer Stufe gegangen: der
+      // Live-Quellen-Auflöser ist gelöscht, die Quellenwahl macht der Router am
+      // Wortlaut (`managedSourceTrigger`). Nach derselben Regel wie bei
+      // `tier4_llm` unten entfernt statt auf 0 stehen gelassen.
+      'tier3.8_generation_scope',
+      // Kein `tier4_llm` mehr: die LLM-Stufe ist gelöscht. `residual` ist ihr
+      // Platz — die Regeltabelle behält ihr eigenes Verdikt, statt einen
+      // 27k-Prompt zu fragen, was „nichts erkannt" heisst. Beide Namen sind
+      // bewusst umbenannt und nicht beibehalten: ein Zweigname, der eine nicht
+      // mehr existierende Stufe nennt, ist genau die Karteileiche, die eine
+      // Entscheidungskarte unlesbar macht. Die goldenen Karten werden in
+      // demselben PR neu erzeugt.
+      'residual',
+      'error_fallback',
     ],
   },
 

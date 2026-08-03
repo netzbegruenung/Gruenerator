@@ -236,19 +236,35 @@
   font-family: 'Raleway', 'PT Sans', Arial, sans-serif;
 }
 
+/* Größen laufen über BlockNotes `--level`, nicht über `font-size`: dessen eigene
+   font-size-Regel steht bei (0,5,0). Eine H1 trägt kein `data-level` — BlockNote
+   lässt Props weg, die ihrem Default entsprechen, und `defaultLevel` ist 1.
+   Level 4-6 behalten BlockNotes Werte, dürfen hier also nicht mitmatchen.
+   Das Schriftgewicht setzt BlockNote (700 für jede Überschrift, dieselbe Regel). */
+.bn-block-content[data-content-type='heading']:not([data-level]),
 .bn-block-content[data-content-type='heading'][data-level='1'] {
-  font-size: 2em;
-  font-weight: 700;
+  --level: 2em;
 }
 
 .bn-block-content[data-content-type='heading'][data-level='2'] {
-  font-size: 1.5em;
-  font-weight: 600;
+  --level: 1.5em;
 }
 
 .bn-block-content[data-content-type='heading'][data-level='3'] {
-  font-size: 1.25em;
-  font-weight: 600;
+  --level: 1.25em;
+}
+
+/* Dieselben Werte während BlockNotes 0,2s-Übergang beim Level-Wechsel. */
+.bn-block-outer[data-prev-level='1'] {
+  --prev-level: 2em;
+}
+
+.bn-block-outer[data-prev-level='2'] {
+  --prev-level: 1.5em;
+}
+
+.bn-block-outer[data-prev-level='3'] {
+  --prev-level: 1.25em;
 }
 
 /* Paragraph styles */

@@ -90,7 +90,7 @@ describe('laneFallback', () => {
     // Matches the two chains `providerFallback` runs today: short creative
     // German is what Mistral is best at, so sharepics try it first.
     expect(laneFallback('sharepic_zitat')[0]).toBe('litellm'); // mistral is primary, so dropped
-    expect(laneFallback('default')[0]).toBe('regolo'); // litellm is primary, so dropped
+    expect(laneFallback('default')[0]).toBe('litellm'); // mistral is primary, so dropped
     expect(laneFallback('image_picker')[0]).toBe('litellm'); // regolo is primary, so dropped
   });
 

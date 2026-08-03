@@ -20,9 +20,12 @@
  * an override and keeps its existing contract schema.
  */
 
-import { INTERMEDIATE_MODEL } from './providers.js';
+import { intermediateLane } from './intermediateLanes.js';
 
 import type { ProviderName } from './providers.js';
+
+/** @see services/ai/intermediateLanes.ts */
+const LANE = intermediateLane('standard');
 
 export interface LaneConfig {
   readonly provider: ProviderName;
@@ -49,8 +52,19 @@ const GEMMA_4 = 'gemma4-31b';
  * route believed it had asked for Mistral.
  */
 export const AI_LANES = {
-  /** Anything unrouted. */
-  default: { provider: 'litellm', model: VERDIGADO_PRO, structuredMode: 'tool' },
+  /**
+   * Anything unrouted.
+   *
+   * Mistral Medium 3.5 since the 2026-07-31 GPT-OSS wind-down. GPT-OSS was the
+   * worst possible catch-all for this slot: every lane here declares
+   * `structuredMode: 'tool'`, and GPT-OSS answers a forced tool call with
+   * prose — the exact failure the artefact note below records, where two
+   * attempts came back `stop_reason=stop` with no tool call and a production
+   * PDF generation died. The artefact lanes were moved to Medium 3.5 for that
+   * reason; the fallthrough now lands somewhere that can satisfy the mode it
+   * promises.
+   */
+  default: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
 
   // — Notebook / QA. Mistral Medium 3.5 is the notebook default.
   notebook_enrich: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
@@ -98,30 +112,31 @@ export const AI_LANES = {
   board_generation: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
   canvas_ai_suggest: { provider: 'mistral', model: MISTRAL_MEDIUM, structuredMode: 'tool' },
 
-  // — Fast helper tasks. One edit to INTERMEDIATE_MODEL moves all of them.
+  // — Fast helper tasks. Alle auf der `standard`-Stufe: kurze Ausgabe, aber
+  //   nutzersichtbare Latenz. Ein Edit an der Stufe bewegt alle fünf.
   image_picker: {
-    provider: INTERMEDIATE_MODEL.provider,
-    model: INTERMEDIATE_MODEL.model,
+    provider: LANE.provider,
+    model: LANE.model,
     structuredMode: 'tool',
   },
   antrag_question_generation: {
-    provider: INTERMEDIATE_MODEL.provider,
-    model: INTERMEDIATE_MODEL.model,
+    provider: LANE.provider,
+    model: LANE.model,
     structuredMode: 'tool',
   },
   antrag_qa_summary: {
-    provider: INTERMEDIATE_MODEL.provider,
-    model: INTERMEDIATE_MODEL.model,
+    provider: LANE.provider,
+    model: LANE.model,
     structuredMode: 'tool',
   },
   gruenerator_ask: {
-    provider: INTERMEDIATE_MODEL.provider,
-    model: INTERMEDIATE_MODEL.model,
+    provider: LANE.provider,
+    model: LANE.model,
     structuredMode: 'tool',
   },
   gruenerator_ask_grundsatz: {
-    provider: INTERMEDIATE_MODEL.provider,
-    model: INTERMEDIATE_MODEL.model,
+    provider: LANE.provider,
+    model: LANE.model,
     structuredMode: 'tool',
   },
 
@@ -190,6 +205,10 @@ export function laneTarget(
  */
 export function providerForModel(modelName = ''): ProviderName {
   const name = String(modelName || '').toLowerCase();
+  // Before the generic gemma test below: `gemma-4-26b-a4b-it` is Scaleway's id,
+  // while `gemma4-31b` (no dash after gemma) is Regolo's. An operator who names
+  // the Scaleway one would otherwise land on the wrong host and get a 404.
+  if (name === 'gemma-4-26b-a4b-it') return 'scaleway';
   if (
     name.includes('mistral-medium-') ||
     name.includes('mistral-large-') ||

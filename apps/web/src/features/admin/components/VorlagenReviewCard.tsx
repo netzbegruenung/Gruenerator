@@ -41,6 +41,7 @@ const VorlagenReviewCard = ({
     <div className="flex flex-col bg-background border border-grey-200 dark:border-grey-700 rounded-md overflow-hidden">
       <div className="flex items-center justify-center bg-white dark:bg-grey-800 aspect-[4/3]">
         {thumbnailUrl && !imageError ? (
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- onError ist ein technischer Ladefehler-Fallback, keine Bedienung
           <img
             src={thumbnailUrl}
             alt={vorlage.title}

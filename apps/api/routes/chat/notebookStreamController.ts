@@ -5,6 +5,7 @@
  * Delegates to the shared notebookStreamCore for SSE streaming logic.
  */
 
+import { notebookDepthSchema } from '@gruenerator/contracts';
 import { z } from 'zod';
 
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
@@ -31,7 +32,7 @@ const notebookStreamRequestSchema = z.object({
   filters: z.record(z.unknown()).optional(),
   provider: z.string().optional(),
   model: z.string().optional(),
-  mode: z.enum(['fast', 'deep']).optional(),
+  mode: notebookDepthSchema.optional(),
   documentIds: z.array(z.string()).optional(),
   threadId: z.string().nullable().optional(),
 });

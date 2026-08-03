@@ -22,13 +22,12 @@ vi.mock('./searchTools.js', () => ({
 }));
 
 const validateUrlForFetch = vi.fn<(u: string) => Promise<unknown>>();
-const selectAndCrawlTopUrls = vi.fn<(s: unknown, q: unknown, o: unknown) => Promise<unknown>>();
+const crawlAndDistill = vi.fn<(s: unknown, q: unknown, o: unknown) => Promise<unknown>>();
 vi.mock('../../../utils/validation/urlSecurity.js', () => ({
   validateUrlForFetch: (u: string) => validateUrlForFetch(u),
 }));
 vi.mock('../../../services/search/index.js', () => ({
-  selectAndCrawlTopUrls: (seeds: unknown, q: unknown, opts: unknown) =>
-    selectAndCrawlTopUrls(seeds, q, opts),
+  crawlAndDistill: (seeds: unknown, q: unknown, opts: unknown) => crawlAndDistill(seeds, q, opts),
 }));
 
 const agentConfig = { identifier: 'test' } as unknown as AgentConfig;
@@ -158,6 +157,16 @@ describe('toolCatalog domain tool mounting', () => {
       'generate_image'
     );
     expect(catalogFor('agentic').toolNames).not.toContain('generate_image');
+    // Poster/Plakat: der Klassifikator kennt `poster` als Bildnomen, diese Liste
+    // kannte es nicht — „Erstell ein Poster" bekam sein Bild, die demotierten
+    // Formulierungen daneben nicht. Beide Zeilen halten die Zwillingslisten
+    // zusammen.
+    expect(catalogFor('agentic', 'Gestalte mir ein Poster zum Klimastreik').toolNames).toContain(
+      'generate_image'
+    );
+    expect(catalogFor('agentic', 'Mach ein Plakat für die Demo').toolNames).toContain(
+      'generate_image'
+    );
   });
 
   it('mounts no domain tools without a loop context (unit-test / non-loop path)', () => {
@@ -284,7 +293,7 @@ describe('toolCatalog domain tool mounting', () => {
 describe('toolCatalog scrape_url', () => {
   beforeEach(() => {
     validateUrlForFetch.mockReset();
-    selectAndCrawlTopUrls.mockReset();
+    crawlAndDistill.mockReset();
   });
 
   function scrapeTool() {
@@ -300,7 +309,22 @@ describe('toolCatalog scrape_url', () => {
       error?: string;
     };
     expect(out.error).toBeTruthy();
-    expect(selectAndCrawlTopUrls).not.toHaveBeenCalled();
+    expect(crawlAndDistill).not.toHaveBeenCalled();
+  });
+
+  // A named page must never be relevance-filtered — the user pointed at it.
+  it('reads a named page faithfully, not query-focused', async () => {
+    validateUrlForFetch.mockImplementation(async (u: string) => ({
+      isValid: true,
+      url: new URL(u),
+    }));
+    crawlAndDistill.mockResolvedValue([
+      { url: 'https://example.com/', crawled: true, content: 'Hallo Welt Inhalt' },
+    ]);
+    const { execute } = scrapeTool();
+    await execute({ urls: ['https://example.com/'] }, { toolCallId: 'c1' });
+    const opts = crawlAndDistill.mock.calls[0]?.[2] as { mode?: string };
+    expect(opts.mode).toBe('faithful');
   });
 
   it('crawls validated URLs and registers content as sources', async () => {
@@ -308,8 +332,8 @@ describe('toolCatalog scrape_url', () => {
       isValid: true,
       url: new URL(u),
     }));
-    selectAndCrawlTopUrls.mockResolvedValue([
-      { url: 'https://example.com/', crawled: true, fullContent: 'Hallo Welt Inhalt' },
+    crawlAndDistill.mockResolvedValue([
+      { url: 'https://example.com/', crawled: true, content: 'Hallo Welt Inhalt' },
     ]);
     const { execute, sourceRegistry } = scrapeTool();
     const out = (await execute({ urls: ['https://example.com/'] }, { toolCallId: 'c1' })) as {
@@ -326,7 +350,7 @@ describe('toolCatalog scrape_url', () => {
       isValid: true,
       url: new URL(u),
     }));
-    selectAndCrawlTopUrls.mockResolvedValue([
+    crawlAndDistill.mockResolvedValue([
       { url: 'https://example.com/', crawled: false, crawlError: 'timeout' },
     ]);
     const { execute } = scrapeTool();
@@ -334,6 +358,153 @@ describe('toolCatalog scrape_url', () => {
       error?: string;
     };
     expect(out.error).toMatch(/nicht lesen/);
+  });
+});
+
+/**
+ * The loop reads pages on `tiefenrecherche` and on nothing else.
+ *
+ * The gate is the whole feature: crawling costs seconds inside a loop that has a
+ * wall-clock budget, and the tier is the only place the user's own consent to
+ * spend them is recorded. It keys off the tier the executor reports having SPENT
+ * — never off the `tiefe` argument, which is the model's request.
+ */
+describe('toolCatalog deep crawl', () => {
+  beforeEach(() => {
+    webExec.mockReset();
+    validateUrlForFetch.mockReset();
+    crawlAndDistill.mockReset();
+    validateUrlForFetch.mockImplementation(async (u: string) => ({
+      isValid: true,
+      url: new URL(u),
+    }));
+  });
+
+  function webResults(count: number, tier: string | undefined) {
+    return {
+      query: 'Wärmepumpen Förderung',
+      searchType: 'general',
+      ...(tier ? { tier } : {}),
+      resultsCount: count,
+      results: Array.from({ length: count }, (_, i) => ({
+        rank: i + 1,
+        title: `Treffer ${i + 1}`,
+        url: `https://example.com/${i + 1}`,
+        snippet: `Schnipsel ${i + 1}`,
+        domain: 'example.com',
+      })),
+    };
+  }
+
+  function webTool() {
+    const sourceRegistry = createSourceRegistry();
+    const { tools } = buildChatToolCatalog({ agentConfig, sourceRegistry });
+    return { execute: execOf(tools.web_search), sourceRegistry };
+  }
+
+  for (const tier of ['standard', 'gruendlich', undefined]) {
+    it(`does not crawl on tier=${tier ?? 'absent'} — every ordinary turn stays untouched`, async () => {
+      webExec.mockResolvedValue(webResults(5, tier));
+      const { execute, sourceRegistry } = webTool();
+      await execute({ query: 'q' }, { toolCallId: 'c1' });
+      expect(crawlAndDistill).not.toHaveBeenCalled();
+      expect(sourceRegistry.size).toBe(5);
+    });
+  }
+
+  it('reads the top 3 hits query-focused on tiefenrecherche', async () => {
+    webExec.mockResolvedValue(webResults(20, 'tiefenrecherche'));
+    crawlAndDistill.mockResolvedValue([
+      {
+        url: 'https://example.com/1',
+        crawled: true,
+        content: 'Gelesener Volltext eins',
+        distilled: true,
+      },
+    ]);
+    const { execute, sourceRegistry } = webTool();
+    await execute({ query: 'q' }, { toolCallId: 'c1' });
+
+    const [seeds, query, opts] = crawlAndDistill.mock.calls[0] as [
+      Array<{ url: string }>,
+      string,
+      { mode?: string; maxUrls?: number },
+    ];
+    expect(seeds).toHaveLength(3);
+    expect(seeds.map((s) => s.url)).toEqual([
+      'https://example.com/1',
+      'https://example.com/2',
+      'https://example.com/3',
+    ]);
+    // The question must reach the distiller — without it, "query-focused"
+    // selects against an empty string and degrades to a head cut.
+    expect(query).toBe('Wärmepumpen Förderung');
+    expect(opts.mode).toBe('query-focused');
+    // All 20 hits keep their number; only 3 got longer.
+    expect(sourceRegistry.size).toBe(20);
+    expect(sourceRegistry.renderAll()).toContain('Gelesener Volltext eins');
+  });
+
+  /**
+   * The raw page must not ride along. `fullContent` is what the crawler produces
+   * and what `postResponseService` would persist into `chat_messages` — two
+   * crawled pages are ~160k chars of JSON per turn (see forPersistence).
+   */
+  it('merges the distilled text without dragging fullContent into the registry', async () => {
+    webExec.mockResolvedValue(webResults(3, 'tiefenrecherche'));
+    crawlAndDistill.mockResolvedValue([
+      {
+        url: 'https://example.com/1',
+        crawled: true,
+        content: 'Destillat',
+        fullContent: 'X'.repeat(50_000),
+        distilled: true,
+        sourceChars: 50_000,
+      },
+    ]);
+    const { execute, sourceRegistry } = webTool();
+    await execute({ query: 'q' }, { toolCallId: 'c1' });
+    const first = sourceRegistry.getResults(10)[0] as Record<string, unknown>;
+    expect(first.content).toBe('Destillat');
+    expect(first.crawled).toBe(true);
+    expect(first.fullContent).toBeUndefined();
+  });
+
+  it('keeps the snippets when the crawl throws', async () => {
+    webExec.mockResolvedValue(webResults(5, 'tiefenrecherche'));
+    crawlAndDistill.mockRejectedValue(new Error('crawler down'));
+    const { execute, sourceRegistry } = webTool();
+    const out = (await execute({ query: 'q' }, { toolCallId: 'c1' })) as { resultCount?: number };
+    expect(out.resultCount).toBe(5);
+    expect(sourceRegistry.renderAll()).toContain('Schnipsel 1');
+  });
+
+  it('keeps the snippets when no page could be read', async () => {
+    webExec.mockResolvedValue(webResults(5, 'tiefenrecherche'));
+    crawlAndDistill.mockResolvedValue([
+      { url: 'https://example.com/1', crawled: false, crawlError: 'timeout' },
+    ]);
+    const { execute, sourceRegistry } = webTool();
+    await execute({ query: 'q' }, { toolCallId: 'c1' });
+    expect(sourceRegistry.renderAll()).toContain('Schnipsel 1');
+  });
+
+  it('skips URLs that fail SSRF validation and crawls the rest', async () => {
+    webExec.mockResolvedValue(webResults(5, 'tiefenrecherche'));
+    validateUrlForFetch.mockImplementation(async (u: string) =>
+      u.endsWith('/1')
+        ? { isValid: false, error: 'Host is blocked' }
+        : { isValid: true, url: new URL(u) }
+    );
+    crawlAndDistill.mockResolvedValue([]);
+    const { execute } = webTool();
+    await execute({ query: 'q' }, { toolCallId: 'c1' });
+    const [seeds] = crawlAndDistill.mock.calls[0] as [Array<{ url: string }>];
+    expect(seeds.map((s) => s.url)).toEqual([
+      'https://example.com/2',
+      'https://example.com/3',
+      'https://example.com/4',
+    ]);
   });
 });
 
@@ -389,5 +560,97 @@ describe('research ban (forbidsNewResearch → no search tools)', () => {
     expect(names).toContain('gruenerator_search');
     expect(names).toContain('web_search');
     expect(names).toContain('scrape_url');
+  });
+});
+
+/**
+ * Image hits on the loop path.
+ *
+ * The lean `{resultCount, sources}` shape used to swallow them one hop after we
+ * had paid Linkup for them: `bilder: true` reached the engine, the images came
+ * back, and neither the model nor the client ever saw one. These pin the two
+ * halves of the fix — out to the client as their own event, into the model as a
+ * count and nothing more.
+ */
+describe('toolCatalog image hits', () => {
+  beforeEach(() => {
+    searchExec.mockReset();
+    webExec.mockReset();
+  });
+
+  const image = { title: 'Windrad', url: 'https://example.test/wind.jpg', domain: 'example.test' };
+
+  function loopCatalog() {
+    const send = vi.fn();
+    const state = {
+      intent: 'web',
+      messages: [{ role: 'user', content: 'zeig mir Fotos von Windrädern' }],
+      enabledTools: {},
+    } as unknown as ChatGraphState;
+    const { tools } = buildChatToolCatalog({
+      agentConfig,
+      sourceRegistry: createSourceRegistry(),
+      loop: { sse: { send, sendRaw: () => {}, end: () => {} } as never, state },
+    });
+    return { tools, send, state };
+  }
+
+  it('sends the images to the client and hands the model a count, not a URL', async () => {
+    webExec.mockResolvedValue({
+      query: 'Windräder',
+      resultsCount: 1,
+      results: [{ rank: 1, title: 'Windkraft', url: 'https://example.test/a', snippet: 'Text.' }],
+      images: [image],
+    });
+    const { tools, send, state } = loopCatalog();
+    const out = (await execOf(tools.web_search)({ query: 'Windräder' }, { toolCallId: 'c1' })) as {
+      sources: string;
+      bilder?: string;
+    };
+
+    const [event, payload] = send.mock.calls.find(([name]) => name === 'search_images') ?? [];
+    expect(event).toBe('search_images');
+    expect((payload as { images: unknown[] }).images).toHaveLength(1);
+    // Carried on the state too, so persistence and the synth note read one field
+    // regardless of which path produced the images.
+    expect(state.webImageResults).toHaveLength(1);
+
+    expect(out.bilder).toContain('1 Bildtreffer');
+    expect(JSON.stringify(out)).not.toContain('wind.jpg');
+  });
+
+  /**
+   * "Zeig mir Fotos" is the one turn where an empty `results` is a success. The
+   * early return used to hand the raw result — image URLs included — straight to
+   * the model, which is the one place a hotlink could enter the answer text.
+   */
+  it('an image-only search returns the note, never the raw result', async () => {
+    webExec.mockResolvedValue({ query: 'Fotos', resultsCount: 0, results: [], images: [image] });
+    const { tools, send } = loopCatalog();
+    const out = (await execOf(tools.web_search)({ query: 'Fotos' }, { toolCallId: 'c1' })) as {
+      resultCount: number;
+      bilder?: string;
+    };
+
+    expect(out.resultCount).toBe(0);
+    expect(out.bilder).toContain('1 Bildtreffer');
+    expect(JSON.stringify(out)).not.toContain('wind.jpg');
+    expect(send.mock.calls.some(([name]) => name === 'search_images')).toBe(true);
+  });
+
+  it('stays silent when the search asked for no images', async () => {
+    webExec.mockResolvedValue({
+      query: 'Windkraft',
+      resultsCount: 1,
+      results: [{ rank: 1, title: 'T', url: 'https://example.test/a', snippet: 'Text.' }],
+    });
+    const { tools, send, state } = loopCatalog();
+    const out = (await execOf(tools.web_search)({ query: 'Windkraft' }, { toolCallId: 'c1' })) as {
+      bilder?: string;
+    };
+
+    expect(out.bilder).toBeUndefined();
+    expect(send.mock.calls.some(([name]) => name === 'search_images')).toBe(false);
+    expect(state.webImageResults).toBeUndefined();
   });
 });

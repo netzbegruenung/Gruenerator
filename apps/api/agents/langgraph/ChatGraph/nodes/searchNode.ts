@@ -8,6 +8,7 @@
 import { dipSearchUrl, btpProtokollPdfUrl as btpPdfUrl } from '@gruenerator/contracts';
 import { isIntentAllowedForLocale, intentDeclineNote } from '@gruenerator/shared/chat-intents';
 
+import { NOTEBOOK_GATE } from '../../../../config/notebookCollectionMap.js';
 import { vectorConfig } from '../../../../config/vectorConfig.js';
 import {
   executeDirectSearch,
@@ -31,6 +32,7 @@ import {
   type ExampleKind,
 } from '../../../../services/examples/exampleSearchService.js';
 import {
+  crawlAndDistill,
   selectAndCrawlTopUrls,
   type CrawlableResult,
 } from '../../../../services/search/CrawlingService.js';
@@ -91,6 +93,13 @@ const log = createLogger('ChatGraph:Search');
  * reranker is the thing that decides, not the fan-in.
  */
 const FANIN_CANDIDATE_LIMIT = 24;
+
+/**
+ * Char budget per page for a user-pasted URL. Generous, because the user named
+ * this page: the alternative to a big budget is answering "fass das zusammen"
+ * from the headline.
+ */
+const SCRAPE_URL_TARGET_CHARS = 12_000;
 
 // ── Abgeordnetenwatch → SearchResult mapping ──────────────────────────────────
 const AW_VOTE_LABELS: Record<string, string> = {
@@ -363,6 +372,27 @@ function buildBundestagResults(enriched: BtEnrichedResult, standalone = true): S
 }
 
 /**
+ * Last stop before Qdrant for the collection lists nobody asked for.
+ *
+ * Qdrant is shared across instances — there is one `QDRANT_URL` — so hiding a
+ * notebook in the frontend registry alone would leave the chat happily citing
+ * its sources. This is where that is prevented for the *implicit* branches of
+ * the selection chain below.
+ *
+ * Deliberately NOT applied to the three explicit branches:
+ *   - `notebookCollectionIds` — the turn named the notebook (`@berlin`), which
+ *     is precisely the case a hidden notebook stays reachable for.
+ *   - the agent's `allowedCollections` / `defaultCollection` — picking an agent
+ *     whose entire purpose is one Landesverband is asking as clearly as a
+ *     mention does. Such an agent is already gone from the inventory on an
+ *     instance that hides it; filtering its collections here would leave it
+ *     selectable but silently answerless, which is worse than either tier.
+ */
+function dropCollectionsHiddenByInstance(collectionIds: readonly string[]): string[] {
+  return NOTEBOOK_GATE.dropHiddenCollections(collectionIds);
+}
+
+/**
  * Return default Qdrant collections based on user locale.
  * Austrian users search Austrian collections; everyone else gets German defaults.
  */
@@ -410,10 +440,12 @@ export async function executeDocumentSearchParallel(
     const dc = agentConfig.toolRestrictions.defaultCollection;
     collectionsToSearch = [dc, ...getSupplementaryCollectionsForLocale(userLocale)];
   } else if (defaultNotebookCollectionIds && defaultNotebookCollectionIds.length > 0) {
-    collectionsToSearch = defaultNotebookCollectionIds;
+    collectionsToSearch = dropCollectionsHiddenByInstance(defaultNotebookCollectionIds);
     log.info(`[Search] Using default notebook collections: ${collectionsToSearch.join(', ')}`);
   } else {
-    collectionsToSearch = getDefaultCollectionsForLocale(userLocale);
+    collectionsToSearch = dropCollectionsHiddenByInstance(
+      getDefaultCollectionsForLocale(userLocale)
+    );
     log.info(`[Search] Using locale-based collections: ${collectionsToSearch.join(', ')}`);
   }
   const uniqueCollections = [...new Set(collectionsToSearch)];
@@ -1297,12 +1329,14 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           state.defaultNotebookCollectionIds &&
           state.defaultNotebookCollectionIds.length > 0
         ) {
-          collectionsToSearch = state.defaultNotebookCollectionIds;
+          collectionsToSearch = dropCollectionsHiddenByInstance(state.defaultNotebookCollectionIds);
           log.info(
             `[Search] Using default notebook collections: ${collectionsToSearch.join(', ')}`
           );
         } else {
-          collectionsToSearch = getDefaultCollectionsForLocale(state.userLocale);
+          collectionsToSearch = dropCollectionsHiddenByInstance(
+            getDefaultCollectionsForLocale(state.userLocale)
+          );
           log.info(`[Search] Using locale-based collections: ${collectionsToSearch.join(', ')}`);
         }
         // Deduplicate in case of overlap
@@ -1563,15 +1597,22 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           relevance: 1 - idx * 0.1,
         }));
         try {
-          const crawled = await selectAndCrawlTopUrls(seeds, searchQuery || '', {
+          // `faithful`: the "query" on this path is often a writing instruction
+          // ("fass das zusammen", "schreib einen Post dazu"), not a retrieval
+          // query. Scoring passages against it would drop the parts of the page
+          // the user actually pointed at.
+          const crawled = await crawlAndDistill(seeds, searchQuery || '', {
             maxUrls: 3,
             timeout: 8000,
+            mode: 'faithful',
+            targetChars: SCRAPE_URL_TARGET_CHARS,
+            aiWorkerPool: state.aiWorkerPool,
           });
           results = crawled
-            .filter((r) => r.crawled && (r.fullContent || r.content))
+            .filter((r) => r.crawled && (r.content || r.fullContent))
             .map((r) => ({
               ...r,
-              content: r.fullContent || r.content || '',
+              content: r.content || r.fullContent || '',
               source: 'web',
               title: r.title || r.url || '',
             }));
@@ -1698,7 +1739,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       case 'chart':
       case 'compute':
       case 'artifact':
+      case 'produktion':
       case 'direct':
+      case 'greeting':
         break;
       // Artefact + editor intents: the content comes from the generation
       // services, not from retrieval here.
@@ -1713,12 +1756,11 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       case 'create_pdf':
       case 'create_recurring_task':
         break;
-      // System-MCP / connector intents: the MCP client does the retrieval.
-      case 'bahn':
-      case 'reise':
-      case 'hotel':
-      case 'wetter':
-      case 'news':
+      // Connector / native-tool intents: the MCP client does the retrieval.
+      // `bahn`/`reise`/`hotel`/`wetter`/`news` stood here too. They are managed
+      // connectors now and are never produced as an intent, so they cannot
+      // reach this switch — the `default` warning below is free to fire on them
+      // again if something ever does produce one.
       case 'umfragen':
       case 'hilfe':
       case 'mcp':

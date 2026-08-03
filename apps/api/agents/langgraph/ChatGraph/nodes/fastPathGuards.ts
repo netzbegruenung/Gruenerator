@@ -24,8 +24,52 @@ const QUOTED_SPAN_PATTERNS: readonly RegExp[] = [
   /‚[^‘’]{0,240}[‘’]/g, // German single ‚…'
 ];
 
-/** Replace quoted spans with a space so noun tests don't fire on reported speech. */
+/**
+ * Die ganze Nachricht IST das Zitat — Anführungszeichen ganz aussen, sonst
+ * nichts. Bewusst ohne Längenkappung (anders als QUOTED_SPAN_PATTERNS): die
+ * Länge entscheidet hier nichts, die Position tut es.
+ */
+const WHOLLY_QUOTED_PATTERNS: readonly RegExp[] = [
+  /^\s*„[\s\S]*["“”]\s*$/,
+  /^\s*»[\s\S]*«\s*$/,
+  /^\s*«[\s\S]*»\s*$/,
+  /^\s*"[\s\S]*"\s*$/,
+  /^\s*“[\s\S]*”\s*$/,
+];
+
+/**
+ * Replace quoted spans with a space so noun tests don't fire on reported speech.
+ *
+ * AUSSER die Anführungszeichen umschliessen die GANZE Nachricht. Dann ist sie
+ * keine fremde Rede, sondern der Auftrag selbst — nur mit Anführungszeichen
+ * eingefügt, wie es Nutzer ständig tun.
+ *
+ * Ohne diese Ausnahme war die Arbeitsteilung im Aufrufer asymmetrisch und damit
+ * gefährlich: die ERKENNER (`DOCUMENT_CREATE_RE` & Co. in
+ * `compoundGenerationKind`) lesen den rohen Text, die SCHUTZPRÜFUNGEN
+ * (`forbidsPersistentAction`, `hasExplicitSharepicWord`) den gestrippten. Eine
+ * eingeklammerte Nachricht wurde also als Auftrag ERKANNT, während ihre Guards
+ * ins Leere sahen. Zwei live beobachtete Folgen, beide aus derselben Zeile:
+ *
+ *  - „…, aber erstelle bitte kein Dokument daraus." → das Verbot unsichtbar,
+ *    `compoundGenerationKind` lieferte `document`, und die Garantie in
+ *    `forceCompoundGeneration` baute genau das verbotene Dokument.
+ *  - „… Mach mir daraus ein Sharepic." → das Wort unsichtbar, das Lizenz-Gate
+ *    verweigerte, und der Turn antwortete „In diesem Chat gibt es noch kein
+ *    Sharepic", statt die Frage zu beantworten.
+ *
+ * Tückisch war zusätzlich die Längenabhängigkeit: die Muster oben kappen bei 240
+ * Zeichen, eine kürzere eingeklammerte Nachricht wurde also geschluckt, eine
+ * längere nicht.
+ *
+ * Die Prüfung ist auf POSITION gestellt, nicht auf „wie viel bleibt übrig".
+ * Eine Restwort-Schwelle sah zunächst naheliegender aus, hätte aber echte
+ * fremde Rede mit kurzem Rahmen zerstört — `Titel "Grafik des Jahres" prüfen`
+ * und `Antworte auf: „…"` lassen beide nur zwei Wörter stehen und sind trotzdem
+ * genau das, wofür das Strippen existiert.
+ */
 export function stripQuotedSpans(text: string): string {
+  if (WHOLLY_QUOTED_PATTERNS.some((p) => p.test(text))) return text;
   let out = text;
   for (const p of QUOTED_SPAN_PATTERNS) out = out.replace(p, ' ');
   return out;
@@ -197,6 +241,56 @@ export function forbidsNewResearch(text: string): boolean {
     if (!BAN_REVERSER_RE.test(t.slice(Math.max(0, i - 30), i))) return true;
   }
   return false;
+}
+
+/**
+ * A creation order in BOTH German word orders. Every artifact heuristic used to
+ * spell out only the verb-first one ("mach mir ein PDF daraus") and was blind to
+ * the verb-final one ("das bitte schön als PDF erstellen") — the subordinate and
+ * infinitive phrasings, which is how a good half of real asks are worded. The
+ * two that DID attempt the second order got it wrong in opposite ways: the image
+ * alternate forgot the inflection suffix (`(erstell|…)\b` matches "Bild mach",
+ * never "Bild erstellen"), and save_as_doc spelled its mirror out by hand for a
+ * hand-picked four verbs. One builder means a phrasing gap can no longer be
+ * closed for one artifact and stay open for the other five.
+ *
+ * The verb sets differ only where the product does: text products take
+ * `schreib`, sheets take "leg … an", images take the drawing verbs. Merging
+ * those too would widen each intent into its neighbours.
+ *
+ * Verb-final position is restricted to infinitive/imperative on purpose. That is
+ * what a REQUEST looks like at the end of a German clause ("… als PDF
+ * erstellen"); a participle in that slot is narration about something that
+ * already exists ("… die Präsentation, die ich erstellt habe"). Without the
+ * restriction the second word order would turn every mention of an existing
+ * artifact into an order to build a new one.
+ *
+ * Callers build their patterns at MODULE scope: new RegExp compiles per call,
+ * unlike a regex literal.
+ */
+export const CREATION_VERB_CORE = 'erstell|erzeug|generier|mach|bau|entwirf|entwerf|gestalte';
+
+/** Any core creation verb, any inflection, anywhere — "is this an order at all?" */
+export const CREATION_VERB_RE = new RegExp(`\\b(?:${CREATION_VERB_CORE})[a-zäöü]*\\b`, 'i');
+
+export function creationOrderPattern(
+  noun: string,
+  opts: { extraVerbs?: string; verbs?: string; forward?: number; backward?: number } = {}
+): RegExp {
+  // `verbs` REPLACES the core rather than extending it. One artifact needs that:
+  // for images `mach` is the EDIT verb ("Mach das Foto heller"), so inheriting it
+  // from the core would swallow every image_edit follow-up into generation.
+  const base = opts.verbs ?? CREATION_VERB_CORE;
+  const stem = opts.extraVerbs ? `${base}|${opts.extraVerbs}` : base;
+  const verbAnyForm = `(?:${stem})[a-zäöü]*`;
+  const verbFinalForm = `(?:${stem})(?:e|en|n|st)?`;
+  const forward = opts.forward ?? 40;
+  const backward = opts.backward ?? forward;
+  return new RegExp(
+    `\\b${verbAnyForm}\\b.{0,${forward}}\\b(?:${noun})\\b` +
+      `|\\b(?:${noun})\\b.{0,${backward}}\\b${verbFinalForm}\\b`,
+    'i'
+  );
 }
 
 /**

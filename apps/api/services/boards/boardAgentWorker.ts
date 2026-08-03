@@ -14,7 +14,7 @@ import { type CommentBlock } from '@gruenerator/contracts';
 import { type AgentTask } from '../../database/schema/agentTasks.js';
 import { createLogger } from '../../utils/logger.js';
 import { getAIService } from '../ai/aiService.js';
-import { INTERMEDIATE_MODEL } from '../ai/providers.js';
+import { intermediateLane } from '../ai/intermediateLanes.js';
 import { createDocumentWithContent } from '../docs/DocGenerationService.js';
 import { createNotification } from '../notifications/NotificationService.js';
 
@@ -39,6 +39,9 @@ import { inheritBoardSharingToDocument } from './boardSharingService.js';
 import { linkAgentDocumentToCard } from './cardDocumentService.js';
 
 import type { SearchIntent } from '../../agents/langgraph/ChatGraph/index.js';
+
+/** @see services/ai/intermediateLanes.ts */
+const LANE = intermediateLane('heavy');
 
 const log = createLogger('boardAgentWorker');
 
@@ -395,11 +398,11 @@ async function classifyDeliverable(taskText: string): Promise<DeliverableKind> {
   try {
     const response = await getAIService().processRequest({
       type: 'chat_intent_classification',
-      provider: INTERMEDIATE_MODEL.provider,
+      provider: LANE.provider,
       systemPrompt: DELIVERABLE_PROMPT,
       messages: [{ role: 'user', content: taskText }],
       options: {
-        model: INTERMEDIATE_MODEL.model,
+        model: LANE.model,
         max_tokens: 20,
         temperature: 0,
         response_format: { type: 'json_object' },

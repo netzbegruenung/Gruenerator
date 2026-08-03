@@ -4,7 +4,12 @@ import { createRoot } from 'react-dom/client';
 
 import './assets/styles/index.css';
 import App from './App';
+import { trackFocusModality } from './components/utils/focusModality';
 import { registerServiceWorker } from './utils/registerServiceWorker';
+
+// Before React renders: the composer autofocuses itself, so the attribute has
+// to be on <html> ahead of the first paint.
+trackFocusModality();
 
 // Stale deploy: cached HTML/chunks reference hashed assets that no longer exist.
 // Reload once per URL to pick up the new build; a second failure surfaces normally.

@@ -13,7 +13,7 @@
 import { vectorConfig } from '../../../../config/vectorConfig.js';
 import { getBundestagEnrichedService } from '../../../../services/bundestag/BundestagEnrichedService.js';
 
-import { detectSearchSources } from './classifierParsing.js';
+import { detectSearchSources } from './classifierSignals.js';
 import { mergeSearchResults, normalizeScore } from './searchNode.js';
 
 import type { SearchResult } from '../types.js';

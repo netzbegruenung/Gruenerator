@@ -241,6 +241,7 @@ export default function ScannerScreen() {
                 styles.pickButton,
                 { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
               ]}
+              accessibilityRole="button"
             >
               <Ionicons name="document" size={24} color={colors.white} />
               <View style={styles.pickButtonTextContainer}>
@@ -259,6 +260,7 @@ export default function ScannerScreen() {
                   backgroundColor: pressed ? colors.primary[50] : 'transparent',
                 },
               ]}
+              accessibilityRole="button"
             >
               <Ionicons name="camera" size={24} color={colors.primary[600]} />
               <View style={styles.pickButtonTextContainer}>
@@ -279,6 +281,7 @@ export default function ScannerScreen() {
                   backgroundColor: pressed ? colors.primary[50] : 'transparent',
                 },
               ]}
+              accessibilityRole="button"
             >
               <Ionicons name="images" size={24} color={colors.primary[600]} />
               <View style={styles.pickButtonTextContainer}>
@@ -330,6 +333,8 @@ export default function ScannerScreen() {
               styles.previewCard,
               { backgroundColor: pressed ? theme.border : theme.surface },
             ]}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: previewExpanded }}
           >
             <View style={styles.previewHeader}>
               <Text style={[styles.previewLabel, { color: theme.textSecondary }]}>
@@ -366,6 +371,7 @@ export default function ScannerScreen() {
                     borderColor: theme.border,
                   },
                 ]}
+                accessibilityRole="button"
               >
                 <Ionicons name={preset.icon} size={20} color={colors.primary[600]} />
                 <Text style={[styles.transformButtonText, { color: theme.text }]}>
@@ -375,7 +381,7 @@ export default function ScannerScreen() {
             ))}
           </View>
 
-          <Pressable onPress={reset} style={styles.resetButton}>
+          <Pressable onPress={reset} style={styles.resetButton} accessibilityRole="button">
             <Ionicons name="arrow-back" size={18} color={theme.textSecondary} />
             <Text style={[styles.resetButtonText, { color: theme.textSecondary }]}>
               Anderes Dokument wählen
