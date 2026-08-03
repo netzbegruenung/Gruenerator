@@ -253,7 +253,10 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
       <nav
         aria-label="Hauptnavigation"
         data-tour="sidebar-nav"
-        className={cn('flex-none overflow-x-hidden pb-sm', isDesktop ? 'pt-3' : 'pt-12')}
+        className={cn(
+          'min-h-0 shrink overflow-x-hidden overflow-y-auto pb-sm',
+          isDesktop ? 'pt-3' : 'pt-12'
+        )}
       >
         {/* Direct menu items - main navigation */}
         {additionalItems.length > 0 && (

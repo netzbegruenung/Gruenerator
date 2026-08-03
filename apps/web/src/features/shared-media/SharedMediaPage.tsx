@@ -201,7 +201,7 @@ const SharedMediaPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-lg bg-background-alt">
+      <div className="min-h-dvh flex items-center justify-center p-lg bg-background-alt">
         <div className="bg-background rounded-xl shadow-lg max-w-[500px] w-full overflow-hidden border border-grey-200 dark:border-grey-700">
           <div className="p-2xl text-center">
             <div className="size-12 border-4 border-grey-200 border-t-secondary-600 rounded-full animate-spin mx-auto mb-md" />
@@ -214,7 +214,7 @@ const SharedMediaPage = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-lg bg-background-alt">
+      <div className="min-h-dvh flex items-center justify-center p-lg bg-background-alt">
         <div className="bg-background rounded-xl shadow-lg max-w-[500px] w-full overflow-hidden border border-grey-200 dark:border-grey-700">
           <div className="p-2xl text-center">
             <svg
@@ -240,7 +240,7 @@ const SharedMediaPage = () => {
 
   if (isProcessing) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-lg bg-background-alt">
+      <div className="min-h-dvh flex items-center justify-center p-lg bg-background-alt">
         <div className="bg-background rounded-xl shadow-lg max-w-[500px] w-full overflow-hidden border border-grey-200 dark:border-grey-700">
           <div className="p-2xl text-center">
             <div className="size-12 border-4 border-grey-200 border-t-secondary-600 rounded-full animate-spin mx-auto mb-md" />
@@ -266,7 +266,7 @@ const SharedMediaPage = () => {
     return (
       <Suspense
         fallback={
-          <div className="flex min-h-screen items-center justify-center bg-background-alt">
+          <div className="flex min-h-dvh items-center justify-center bg-background-alt">
             <Spinner />
           </div>
         }
@@ -292,7 +292,7 @@ const SharedMediaPage = () => {
   const isVideo = shareData?.mediaType === 'video';
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-lg max-md:p-md max-md:items-start bg-background-alt">
+    <div className="min-h-dvh flex items-center justify-center p-lg max-md:p-md max-md:items-start bg-background-alt">
       <div className="relative bg-background rounded-xl shadow-lg border border-grey-200 dark:border-grey-700 flex max-w-[1400px] max-md:flex-col max-md:w-full overflow-hidden">
         <button
           className="absolute top-md right-md z-10 bg-none border-none p-0 cursor-pointer transition-transform duration-200 hover:scale-105 max-md:hidden"
