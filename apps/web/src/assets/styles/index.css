@@ -54,6 +54,27 @@
    accessibility.css gates the global ring on the same one. */
 @custom-variant kbd (&:where([data-focus-modality="keyboard"] *));
 
+/* Trefferfläche auf die 44px aus WCAG 2.2 „Target Size" bringen, ohne die
+   Optik anzufassen — ein unsichtbares Pseudo-Element deckt die fehlenden
+   Pixel ab, statt das Element selbst wachsen zu lassen. Nur auf
+   Zeigergeräten, wo die Größe überhaupt ein Problem ist.
+   Voraussetzung: kein Vorfahre mit `overflow: hidden`, und das Element
+   benutzt `::after` nicht schon selbst. */
+@utility touch-target {
+  @media (pointer: coarse) {
+    position: relative;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 50%;
+      min-width: 44px;
+      min-height: 44px;
+      translate: -50% -50%;
+    }
+  }
+}
+
 /* ── Chat package component styles (merges into Tailwind's components layer) ── */
 @import "../../../../../packages/chat/src/styles/chat-embedded.css" layer(components);
 

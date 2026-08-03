@@ -4,10 +4,13 @@ import { cleanup } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, expect } from 'vitest';
 import * as axeMatchers from 'vitest-axe/matchers';
 
+import { installMatchMediaStub } from './src/test/match-media';
 import { server } from './src/test/msw-server';
 
 // jest-dom + axe matchers (toBeInTheDocument, toHaveNoViolations, …).
 expect.extend(axeMatchers);
+
+installMatchMediaStub();
 
 // MSW: intercept HTTP for the dom lane. Unhandled requests error out so a stray
 // real network call is a loud failure, not a silent hang. Pure-render tests make
