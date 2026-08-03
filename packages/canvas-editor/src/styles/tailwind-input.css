@@ -158,6 +158,9 @@
   /* Canvas Editor Layout */
   --image-studio-tab-bar-width: 76px;
   --mobile-tab-bar-height: 60px;
+  /* Desktop-rail width of the open SidebarPanel, in px. 0 when closed/mobile —
+     see SidebarPanel.tsx, which sets/clears this on document.documentElement. */
+  --canvas-panel-width: 0px;
 
   /* Custom Breakpoints */
   --breakpoint-canvas-mobile: 900px;
