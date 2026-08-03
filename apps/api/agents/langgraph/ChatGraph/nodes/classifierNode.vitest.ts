@@ -1104,6 +1104,24 @@ describe('heuristicClassify – fast-path hardening', () => {
   it('does not create a sheet when negated', () => {
     expect(heuristicClassify('Mach daraus bitte keine Tabelle').intent).not.toBe('create_sheet');
   });
+  it('keeps a table whose columns are written out with pipes in the answer', () => {
+    // Live 03.08.2026: this produced a spreadsheet card, so the nine rows the
+    // person asked to READ never appeared in the chat.
+    expect(
+      heuristicClassify(
+        'Erstelle eine Tabelle mit genau neun Zeilen: Nr. | PASS/FAIL | kürzester konkreter Grund'
+      ).intent
+    ).not.toBe('create_sheet');
+    expect(
+      heuristicClassify(
+        'Gib zuerst eine Tabelle mit den Spalten Thema | Aussage A | Aussage B | Status'
+      ).intent
+    ).not.toBe('create_sheet');
+    // Unchanged without pipes: still a spreadsheet ask.
+    expect(heuristicClassify('Erstell mir eine Tabelle mit den Infostand-Terminen').intent).toBe(
+      'create_sheet'
+    );
+  });
 });
 
 // ─── chat_history: reel recall ────────────────────────────────────────────

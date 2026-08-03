@@ -15,6 +15,7 @@ import {
   ARTIFACT_NOUN_BY_KIND,
   CREATION_VERB_RE,
   creationOrderPattern,
+  dictatesInlineTableColumns,
   forbidsPersistentAction,
   hasExplicitSharepicWord,
   isNegatedArtifactRequest,
@@ -487,7 +488,7 @@ export function compoundGenerationKind(intent: string, raw: string): CompoundGen
         ? 'sharepic'
         : PRESENTATION_CREATE_RE.test(t)
           ? 'presentation'
-          : SHEET_CREATE_RE.test(t)
+          : SHEET_CREATE_RE.test(t) && !dictatesInlineTableColumns(t)
             ? 'sheet'
             : BOARD_CREATE_RE.test(t)
               ? 'board'
