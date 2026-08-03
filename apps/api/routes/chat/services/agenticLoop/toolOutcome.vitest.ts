@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { buildMcpOutcomeNote } from './agenticRespondService.js';
+import { buildMcpOutcomeNote, buildToolFailureNote } from './agenticRespondService.js';
 import { readMcpResult } from './types.js';
 
 import type { PersistedStep } from './types.js';
@@ -115,5 +115,55 @@ describe('buildMcpOutcomeNote', () => {
     ]);
     expect(note).toMatch(/FEHLGESCHLAGEN — no workspace/);
     expect(note).toMatch(/NIEMALS einen Erfolg/);
+  });
+});
+
+/**
+ * The other half of the same honesty channel.
+ *
+ * `buildMcpOutcomeNote` opens with `filter(s => s.serverName)`, so it only ever
+ * spoke for connectors. A NATIVE tool that succeeded reaches the split synth
+ * through the source registry — but a native tool that FAILED registered
+ * nothing, so where the error had been the writer saw plain silence.
+ *
+ * Live on 03.08.2026: `documents` answered "Dokument nicht gefunden oder kein
+ * Zugriff" for the PDF and errored on the presentation, and the answer went on
+ * to report which slide had been corrected and that the source matrix was now
+ * complete. It had opened neither.
+ */
+describe('buildToolFailureNote', () => {
+  it('names the failed native tool and its error', () => {
+    const note = buildToolFailureNote([
+      step({
+        toolName: 'documents',
+        result: { error: 'Dokument nicht gefunden oder kein Zugriff.' },
+      }),
+    ]);
+    expect(note).toMatch(/documents: FEHLGESCHLAGEN — Dokument nicht gefunden/);
+  });
+
+  it('forbids reporting content it never saw', () => {
+    const note = buildToolFailureNote([
+      step({ toolName: 'scrape_url', result: { error: 'HTTP 403' } }),
+    ]);
+    expect(note).toMatch(/kein Vergleich/);
+    expect(note).toMatch(/kein Prüfergebnis/);
+    expect(note).toMatch(/Erfinde keine IDs/);
+  });
+
+  it('stays silent on a clean turn', () => {
+    expect(buildToolFailureNote([])).toBe('');
+    expect(buildToolFailureNote([step({ toolName: 'web_search', result: { results: [] } })])).toBe(
+      ''
+    );
+  });
+
+  it('leaves connector steps to buildMcpOutcomeNote — no double report', () => {
+    const mcpFailure = step({
+      serverName: 'Tally',
+      toolName: 'm123__create_form',
+      result: { error: 'no workspace' },
+    });
+    expect(buildToolFailureNote([mcpFailure])).toBe('');
   });
 });
