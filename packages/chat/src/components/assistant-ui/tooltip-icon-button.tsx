@@ -1,7 +1,7 @@
 'use client';
 
 import { Button, Tooltip, TooltipContent, TooltipTrigger, cn } from '@gruenerator/ui';
-import { Slottable } from '@radix-ui/react-slot';
+import { Slot } from 'radix-ui';
 import { type ComponentPropsWithRef, forwardRef } from 'react';
 
 export type TooltipIconButtonProps = ComponentPropsWithRef<typeof Button> & {
@@ -21,7 +21,7 @@ export const TooltipIconButton = forwardRef<HTMLButtonElement, TooltipIconButton
             className={cn('aui-button-icon size-6 p-1', className)}
             ref={ref}
           >
-            <Slottable>{children}</Slottable>
+            <Slot.Slottable>{children}</Slot.Slottable>
             <span className="aui-sr-only sr-only">{tooltip}</span>
           </Button>
         </TooltipTrigger>
