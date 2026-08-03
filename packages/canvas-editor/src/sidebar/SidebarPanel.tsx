@@ -12,6 +12,15 @@ interface ExtendedSidebarPanelProps extends SidebarPanelProps {
   bottomOffset?: number;
 }
 
+/**
+ * Desktop-rail panel width in px. Mirrors the `348px` in the
+ * `canvas-mobile:w-[348px]`/`max-w-[348px]` classes below — kept as a separate
+ * literal because Tailwind's static scanner needs the class's arbitrary value
+ * to appear as literal text, so it can't be generated from this constant.
+ * Change both together.
+ */
+const SIDEBAR_PANEL_DESKTOP_WIDTH_PX = 348;
+
 export function SidebarPanel({
   isOpen,
   children,
@@ -29,6 +38,23 @@ export function SidebarPanel({
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Reports the panel's desktop-rail width so CanvasEditorLayout can indent the
+  // stage clear of it (Befund 8: the panel otherwise sits on top of the stage).
+  // Cleared on close, unmount, and the switch to the mobile bottom-sheet layout.
+  useEffect(() => {
+    if (!isOpen || !isDesktop) {
+      document.documentElement.style.removeProperty('--canvas-panel-width');
+      return;
+    }
+    document.documentElement.style.setProperty(
+      '--canvas-panel-width',
+      `${SIDEBAR_PANEL_DESKTOP_WIDTH_PX}px`
+    );
+    return () => {
+      document.documentElement.style.removeProperty('--canvas-panel-width');
+    };
+  }, [isOpen, isDesktop]);
 
   const { handleRef, isDragging, translateY } = useMobileSheet({
     isOpen: isOpen && !isDesktop,

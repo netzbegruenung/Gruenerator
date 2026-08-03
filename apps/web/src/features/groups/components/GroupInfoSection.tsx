@@ -488,12 +488,12 @@ const GroupInfoSection = memo(
               {data?.isAdmin && onUploadAvatar && (
                 <button
                   type="button"
-                  className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 group-hover/avatar:bg-black/40 transition-colors cursor-pointer border-none"
+                  className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 group-hover/avatar:bg-black/40 group-focus-within/avatar:bg-black/40 transition-colors cursor-pointer border-none"
                   onClick={() => avatarInputRef.current?.click()}
                   disabled={isUploadingAvatar}
                   aria-label="Bild ändern"
                 >
-                  <HiOutlinePhotograph className="size-5 text-white opacity-0 group-hover/avatar:opacity-100 transition-opacity" />
+                  <HiOutlinePhotograph className="size-5 text-white opacity-0 group-hover/avatar:opacity-100 group-focus-within/avatar:opacity-100 transition-opacity" />
                 </button>
               )}
               {isUploadingAvatar && (
@@ -786,7 +786,7 @@ const GroupInfoSection = memo(
                                         item.contentType ?? section.contentType
                                       )
                                     }
-                                    className="absolute top-1 right-1 p-1 text-grey-400 hover:text-red-500 bg-background/80 dark:bg-background/80 backdrop-blur-sm transition-colors border-none cursor-pointer rounded opacity-0 group-hover:opacity-100"
+                                    className="absolute top-1 right-1 p-1 text-grey-400 hover:text-red-500 bg-background/80 dark:bg-background/80 backdrop-blur-sm transition-colors border-none cursor-pointer rounded opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
                                     aria-label="Aus Gruppe entfernen"
                                   >
                                     <HiOutlineTrash size={16} />
@@ -837,7 +837,7 @@ const GroupInfoSection = memo(
                                       item.contentType ?? section.contentType
                                     )
                                   }
-                                  className="shrink-0 p-1 text-grey-400 hover:text-red-500 transition-colors bg-transparent border-none cursor-pointer rounded opacity-0 group-hover:opacity-100"
+                                  className="shrink-0 p-1 text-grey-400 hover:text-red-500 transition-colors bg-transparent border-none cursor-pointer rounded opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
                                   aria-label="Aus Gruppe entfernen"
                                 >
                                   <HiOutlineTrash size={16} />
