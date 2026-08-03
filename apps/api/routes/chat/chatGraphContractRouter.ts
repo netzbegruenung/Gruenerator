@@ -272,6 +272,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         lastUserTextRaw,
         pendingAssistantMessageId,
         threadToolHistory,
+        userMessageId,
       } = ctxResult.ctx;
 
       // A placeholder assistant row was minted in buildStreamContext. Its writer
@@ -351,6 +352,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             actualThreadId: threadId,
             isNewThread,
             processedMeta,
+            userMessageId,
             imageAttachments,
             memoryContext,
             memoryRetrieveTimeMs,
@@ -2299,6 +2301,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         ...(agenticSteps != null && { agenticSteps }),
         ...(langfuseTraceId != null && { traceId: langfuseTraceId }),
         ...(pendingId != null && { pendingMessageId: pendingId }),
+        ...(userMessageId != null && { userMessageId }),
       });
 
       // === Stage 4b: Emit confirm_action for intents that need user approval ===

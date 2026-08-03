@@ -40,6 +40,7 @@ interface GrueneratorThreadProps {
     sendAdornment?: ReactNode;
   };
   requireProfileHydration?: boolean;
+  enablePastedTextAttachments?: boolean;
   /**
    * Extra classes on the thread's root. The one surface a consumer can dress:
    * the root carries `bg-background`, so a page that wants its own ground under
@@ -106,6 +107,7 @@ export function GrueneratorThread({
   requireProfileHydration,
   className,
   composerVariant = 'card',
+  enablePastedTextAttachments,
   userLocale,
 }: GrueneratorThreadProps = {}) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
@@ -185,6 +187,7 @@ export function GrueneratorThread({
           {...(showModelPicker !== undefined && { showModelPicker })}
           {...(composerSlots ? { slots: composerSlots } : {})}
           {...(requireProfileHydration !== undefined && { requireProfileHydration })}
+          {...(enablePastedTextAttachments !== undefined && { enablePastedTextAttachments })}
         />
       </ThreadPrimitive.Root>
     </ChatDensityContext.Provider>
