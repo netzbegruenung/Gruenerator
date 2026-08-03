@@ -1,142 +1,244 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-// Mock the markdown service — marked converts markdown to HTML
-vi.mock('../../services/markdown/index.js', () => ({
-  isMarkdownContent: (s: string) => /[#*\-]/.test(s),
-  markdownForExport: (md: string) => {
-    // Simplified marked-like conversion for testing
-    let html = md;
-    // Headers
-    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-    html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-    // Bold
-    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    // Italic
-    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-    // Bullet lists: consecutive lines starting with "- "
-    html = html.replace(/((?:^- .+\n?)+)/gm, (match) => {
-      const items = match
-        .trim()
-        .split('\n')
-        .map((line) => `<li>${line.replace(/^- /, '')}</li>`)
-        .join('\n');
-      return `<ul>\n${items}\n</ul>`;
+import { decodeEntities, parseFormattedContent } from './contentParser.js';
+
+import type { FormattedBlock, FormattedSegment } from './types.js';
+
+/** Full text of a block, segments joined exactly as they will be written. */
+function textOf(block: FormattedBlock): string {
+  return 'segments' in block ? block.segments.map((segment) => segment.text).join('') : '';
+}
+
+function allText(blocks: FormattedBlock[]): string {
+  return blocks.map(textOf).join(' | ');
+}
+
+function segmentsOf(block: FormattedBlock | undefined): FormattedSegment[] {
+  return block && 'segments' in block ? block.segments : [];
+}
+
+describe('parseFormattedContent — markdown', () => {
+  // The bug in the exported Word file: `**A** wurde am **B** in C` came out as
+  // `AwurdeamBin C` because every segment was trimmed individually.
+  it('keeps the whitespace between adjacent styled runs', () => {
+    const blocks = parseFormattedContent(
+      '**Marilyn Monroe** wurde am **1. Juni 1926** in Los Angeles geboren.'
+    );
+
+    expect(textOf(blocks[0])).toBe('Marilyn Monroe wurde am 1. Juni 1926 in Los Angeles geboren.');
+  });
+
+  it('trims only the outer edges of a paragraph', () => {
+    const blocks = parseFormattedContent('   **fett** danach   ');
+    expect(textOf(blocks[0])).toBe('fett danach');
+  });
+
+  it('emits one block per list item instead of one run-on paragraph', () => {
+    const blocks = parseFormattedContent(
+      ['- **Blondinen bevorzugt** (1953)', '- **Das verflixte 7. Jahr** (1955)'].join('\n')
+    );
+
+    const items = blocks.filter((block) => block.kind === 'listItem');
+    expect(items).toHaveLength(2);
+    expect(textOf(items[0])).toBe('Blondinen bevorzugt (1953)');
+    expect(textOf(items[1])).toBe('Das verflixte 7. Jahr (1955)');
+    expect(allText(blocks)).not.toContain('•');
+  });
+
+  it('marks ordered lists as ordered and keeps nesting depth', () => {
+    const blocks = parseFormattedContent(['1. Erste', '2. Zweite', '   - tiefer'].join('\n'));
+    const items = blocks.filter((block) => block.kind === 'listItem');
+
+    expect(items.map((item) => item.ordered)).toEqual([true, true, false]);
+    expect(items.map((item) => item.level)).toEqual([0, 0, 1]);
+  });
+
+  it('gives separate lists separate ids so Word can restart numbering', () => {
+    const blocks = parseFormattedContent(
+      ['1. Erste', '2. Zweite', '', 'Dazwischen.', '', '1. Neu', '2. Wieder'].join('\n')
+    );
+    const ids = blocks.filter((block) => block.kind === 'listItem').map((item) => item.listId);
+
+    expect(new Set(ids).size).toBe(2);
+  });
+
+  // marked's HTML output escaped the apostrophe; the old parser never decoded
+  // it, so `Manche mögen's heiß` shipped as `Manche mögen&#39;s heiß`.
+  it('never introduces HTML entities', () => {
+    const blocks = parseFormattedContent("**Manche mögen's heiß** & mehr <5%");
+    expect(textOf(blocks[0])).toBe("Manche mögen's heiß & mehr <5%");
+  });
+
+  it('captures headings with their level', () => {
+    const blocks = parseFormattedContent('# Eins\n\n## Zwei\n\n### Drei');
+    expect(blocks.filter((block) => block.kind === 'heading').map((block) => block.level)).toEqual([
+      1, 2, 3,
+    ]);
+  });
+
+  it('keeps links, inline code and strikethrough as styled segments', () => {
+    const blocks = parseFormattedContent('Ein [Link](https://example.com), `code` und ~~weg~~.');
+    const segments = segmentsOf(blocks[0]);
+
+    expect(segments.find((segment) => segment.href)).toMatchObject({
+      text: 'Link',
+      href: 'https://example.com',
     });
-    // Paragraphs: wrap remaining non-tag lines
-    html = html
-      .split('\n\n')
-      .map((block) => {
-        const trimmed = block.trim();
-        if (!trimmed) return '';
-        if (trimmed.startsWith('<')) return trimmed;
-        return `<p>${trimmed}</p>`;
-      })
-      .join('\n');
-    return html;
-  },
-}));
-
-import { parseFormattedContent, parseFormattedParagraph } from './contentParser.js';
-
-describe('parseFormattedParagraph', () => {
-  it('converts list items to bullet points', () => {
-    const html = '<ul><li>Relevanz: 87%</li><li>Quelle: Grundsatzprogramm</li></ul>';
-    const segments = parseFormattedParagraph(html);
-    const text = segments.map((s) => s.text).join(' ');
-    expect(text).toContain('Relevanz: 87%');
-    expect(text).toContain('Quelle: Grundsatzprogramm');
+    expect(segments.find((segment) => segment.code)?.text).toBe('code');
+    expect(segments.find((segment) => segment.strike)?.text).toBe('weg');
   });
 
-  it('handles multiline list items', () => {
-    const html = '<ul>\n<li>First item\nwith continuation</li>\n<li>Second item</li>\n</ul>';
-    const segments = parseFormattedParagraph(html);
-    const text = segments.map((s) => s.text).join(' ');
-    expect(text).toContain('First item');
-    expect(text).toContain('Second item');
+  it('keeps tables as tables', () => {
+    const blocks = parseFormattedContent('| A | B |\n| - | - |\n| 1 | 2 |');
+    const table = blocks.find((block) => block.kind === 'table');
+
+    expect(table).toBeDefined();
+    expect(table?.kind === 'table' && table.header.map((cell) => cell[0]?.text)).toEqual([
+      'A',
+      'B',
+    ]);
+    expect(table?.kind === 'table' && table.rows[0].map((cell) => cell[0]?.text)).toEqual([
+      '1',
+      '2',
+    ]);
   });
 
-  it('handles bold and italic within list items', () => {
-    const html = '<ul><li><strong>Bold item</strong></li><li><em>Italic item</em></li></ul>';
-    const segments = parseFormattedParagraph(html);
-    const boldSegment = segments.find((s) => s.bold);
-    expect(boldSegment?.text).toBe('Bold item');
+  it('keeps fenced code verbatim', () => {
+    const blocks = parseFormattedContent('```js\nconst x = 1;\nconst y = 2;\n```');
+    const code = blocks.find((block) => block.kind === 'code');
+
+    expect(code?.kind === 'code' && code.text).toBe('const x = 1;\nconst y = 2;');
+    expect(code?.kind === 'code' && code.lang).toBe('js');
+  });
+
+  it('records blockquote depth', () => {
+    const blocks = parseFormattedContent('> Ein Zitat');
+    const quote = blocks.find((block) => block.kind === 'paragraph');
+
+    expect(quote?.kind === 'paragraph' && quote.quoteDepth).toBe(1);
+  });
+
+  it('returns an empty array for empty input', () => {
+    expect(parseFormattedContent(null)).toEqual([]);
+    expect(parseFormattedContent(undefined)).toEqual([]);
+    expect(parseFormattedContent('   ')).toEqual([]);
   });
 });
 
-describe('parseFormattedContent', () => {
-  it('preserves ul elements alongside paragraphs', () => {
-    const html =
-      '<p>Introduction paragraph</p>' +
-      '<ul><li>Item one</li><li>Item two</li></ul>' +
-      '<p>Conclusion paragraph</p>';
+describe('parseFormattedContent — HTML', () => {
+  it('splits list items and keeps ordered-ness', () => {
+    const blocks = parseFormattedContent(
+      '<p>Intro</p><ol><li>Eins</li><li>Zwei</li></ol><p>Schluss</p>'
+    );
+    const items = blocks.filter((block) => block.kind === 'listItem');
 
-    const result = parseFormattedContent(html);
-    const allText = result.map((p) => p.segments.map((s) => s.text).join(' ')).join(' | ');
-
-    expect(allText).toContain('Introduction paragraph');
-    expect(allText).toContain('Item one');
-    expect(allText).toContain('Item two');
-    expect(allText).toContain('Conclusion paragraph');
+    expect(items).toHaveLength(2);
+    expect(items.every((item) => item.ordered)).toBe(true);
+    expect(allText(blocks)).toBe('Intro | Eins | Zwei | Schluss');
   });
 
-  it('handles ul elements with multiline content', () => {
-    const html = '<ul>\n<li>Relevanz: 87%</li>\n<li>Quelle: Grundsatzprogramm</li>\n</ul>';
-    const result = parseFormattedContent(html);
+  it('keeps nested lists one level deeper', () => {
+    const blocks = parseFormattedContent('<ul><li>Oben<ul><li>Unten</li></ul></li></ul>');
+    const items = blocks.filter((block) => block.kind === 'listItem');
 
-    expect(result.length).toBeGreaterThan(0);
-    const allText = result.map((p) => p.segments.map((s) => s.text).join(' ')).join(' | ');
-    expect(allText).toContain('Relevanz: 87%');
-    expect(allText).toContain('Grundsatzprogramm');
+    expect(items.map((item) => [textOf(item), item.level])).toEqual([
+      ['Oben', 0],
+      ['Unten', 1],
+    ]);
   });
 
-  it('handles ordered lists', () => {
-    const html = '<ol><li>First source</li><li>Second source</li></ol>';
-    const result = parseFormattedContent(html);
+  // A closing tag must pop the INNERMOST element of that name. Popping the
+  // outermost let `</li>` of the nested list close the outer `<li>` as well, so
+  // every sibling after the nested list fell out of the `<ul>` and rendered as
+  // a paragraph.
+  it('keeps sibling items that follow a nested list', () => {
+    const blocks = parseFormattedContent('<ul><li>A<ul><li>B</li></ul></li><li>C</li></ul>');
+    const items = blocks.filter((block) => block.kind === 'listItem');
 
-    expect(result.length).toBeGreaterThan(0);
-    const allText = result.map((p) => p.segments.map((s) => s.text).join(' ')).join(' | ');
-    expect(allText).toContain('First source');
-    expect(allText).toContain('Second source');
+    expect(items.map((item) => [textOf(item), item.level])).toEqual([
+      ['A', 0],
+      ['B', 1],
+      ['C', 0],
+    ]);
+    expect(blocks.some((block) => block.kind === 'paragraph')).toBe(false);
   });
 
-  it('preserves headers mixed with lists', () => {
-    const html =
-      '<h2>Verwendete Argumente</h2>' +
-      '<h3>1. Grundsatzprogramm</h3>' +
-      '<ul><li>Relevanz: 90%</li><li>Auszug: Klimaschutz braucht...</li></ul>' +
-      '<h3>2. KommunalWiki</h3>' +
-      '<ul><li>Relevanz: 75%</li></ul>';
+  it('closes the inner element first when the same tag is nested', () => {
+    const blocks = parseFormattedContent(
+      '<div><div><strong>tief</strong></div><em>danach</em></div>'
+    );
 
-    const result = parseFormattedContent(html);
-    const headers = result.filter((p) => p.isHeader);
-    const nonHeaders = result.filter((p) => !p.isHeader);
-
-    expect(headers.length).toBe(3); // h2 + 2x h3
-    expect(nonHeaders.length).toBe(2); // 2x ul
+    expect(allText(blocks)).toBe('tief | danach');
   });
 
-  it('handles markdown input with bullet lists via mock conversion', () => {
-    const markdown = `## Verwendete Argumente
+  // Overlapping regexes used to let two patterns claim the same span and emit
+  // the text twice.
+  it('does not duplicate text across nested inline tags', () => {
+    const blocks = parseFormattedContent('<p><strong><em>Marilyn</em> Monroe</strong> lebte.</p>');
 
-### 1. Grundsatzprogramm
-
-- Relevanz: 87%
-- Quelle: Grundsatzprogramm
-- Auszug: Artenschutz ist wichtig`;
-
-    const result = parseFormattedContent(markdown);
-    const allText = result.map((p) => p.segments.map((s) => s.text).join(' ')).join(' | ');
-
-    expect(allText).toContain('Verwendete Argumente');
-    expect(allText).toContain('Relevanz: 87%');
-    expect(allText).toContain('Grundsatzprogramm');
-    expect(allText).toContain('Artenschutz ist wichtig');
+    expect(textOf(blocks[0])).toBe('Marilyn Monroe lebte.');
+    expect(segmentsOf(blocks[0])[0]).toMatchObject({ text: 'Marilyn', bold: true, italic: true });
   });
 
-  it('returns empty array for null/undefined input', () => {
-    expect(parseFormattedContent(null)).toEqual([]);
-    expect(parseFormattedContent(undefined)).toEqual([]);
-    expect(parseFormattedContent('')).toEqual([]);
+  it('preserves the space between adjacent tags', () => {
+    const blocks = parseFormattedContent('<p><strong>A</strong> und <strong>B</strong></p>');
+    expect(textOf(blocks[0])).toBe('A und B');
+  });
+
+  it('keeps headings, blockquotes and tables', () => {
+    const blocks = parseFormattedContent(
+      '<h2>Titel</h2><blockquote><p>Zitat</p></blockquote><table><tr><th>A</th></tr><tr><td>1</td></tr></table>'
+    );
+
+    expect(blocks.find((block) => block.kind === 'heading')?.kind).toBe('heading');
+    const quote = blocks.find((block) => block.kind === 'paragraph');
+    expect(quote?.kind === 'paragraph' && quote.quoteDepth).toBe(1);
+    expect(blocks.find((block) => block.kind === 'table')).toBeDefined();
+  });
+
+  it('survives unclosed tags without losing text', () => {
+    const blocks = parseFormattedContent('<p>Erst<strong>zweit<p>dritt');
+    expect(allText(blocks)).toContain('Erst');
+    expect(allText(blocks)).toContain('dritt');
+  });
+
+  it('treats a lone "<" as text, not as a tag', () => {
+    expect(allText(parseFormattedContent('<p>5 < 7 und 9 > 3</p>'))).toBe('5 < 7 und 9 > 3');
+  });
+
+  it('keeps a ">" that sits inside a quoted attribute out of the tag end', () => {
+    const blocks = parseFormattedContent('<p title="a > b">Inhalt</p>');
+    expect(allText(blocks)).toBe('Inhalt');
+  });
+
+  // The regex this replaced let the tag-name class and the attribute class both
+  // match `-`, so `<a` plus a run of dashes backtracked quadratically: 16k
+  // dashes blocked the event loop for 350ms, 100k for seconds. Export content
+  // is user-supplied and the API worker is single-threaded.
+  it('scans pathological input in linear time', () => {
+    const pathological = [
+      '<a' + '-'.repeat(50_000),
+      '<a"' + '"<a"'.repeat(12_500),
+      '<a<a'.repeat(12_500),
+    ];
+
+    for (const input of pathological) {
+      const started = performance.now();
+      parseFormattedContent(input);
+      expect(performance.now() - started).toBeLessThan(1_000);
+    }
+  });
+});
+
+describe('decodeEntities', () => {
+  it('decodes numeric and named entities', () => {
+    expect(decodeEntities('mögen&#39;s hei&szlig;')).toBe("mögen's heiß");
+    expect(decodeEntities('a &#x26; b')).toBe('a & b');
+  });
+
+  // `&amp;lt;` is an escaped `&lt;`, not an escaped `<`. Decoding `&amp;` first
+  // would turn escaped markup back into markup.
+  it('does not double-decode', () => {
+    expect(decodeEntities('&amp;lt;script&amp;gt;')).toBe('&lt;script&gt;');
   });
 });
