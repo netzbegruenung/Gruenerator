@@ -35,7 +35,23 @@ router.get('/', async (req, res) => {
 
     const messages = await postgres.query(
       `SELECT cm.id, cm.thread_id, cm.role, cm.content, cm.tool_calls, cm.tool_results, cm.user_id, cm.status, cm.created_at,
-              p.display_name as sender_name
+              p.display_name as sender_name,
+              COALESCE(
+                (
+                  SELECT json_agg(
+                    json_build_object(
+                      'id', cta.id,
+                      'name', cta.name,
+                      'contentType', cta.mime_type,
+                      'preview', LEFT(COALESCE(cta.extracted_text, ''), 2000),
+                      'truncated', CHAR_LENGTH(COALESCE(cta.extracted_text, '')) > 2000
+                    ) ORDER BY cta.created_at ASC
+                  )
+                  FROM chat_thread_attachments cta
+                  WHERE cta.message_id = cm.id
+                ),
+                '[]'::json
+              ) AS attachments
        FROM chat_messages cm
        LEFT JOIN profiles p ON cm.user_id = p.id
        WHERE cm.thread_id = $1
@@ -93,6 +109,31 @@ router.get('/', async (req, res) => {
       const parsedToolResults = parseJsonField(msg.tool_results, 'tool_results', msg.id);
       const parsedToolCalls = parseJsonField(msg.tool_calls, 'tool_calls', msg.id);
       const content = (msg.content as string) || '';
+      const parsedAttachments = parseJsonField(msg.attachments, 'attachments', msg.id);
+      const attachments = Array.isArray(parsedAttachments)
+        ? parsedAttachments.flatMap((attachment) => {
+            if (!attachment || typeof attachment !== 'object') return [];
+            const record = attachment as Record<string, unknown>;
+            if (
+              typeof record.id !== 'string' ||
+              typeof record.name !== 'string' ||
+              typeof record.contentType !== 'string' ||
+              typeof record.preview !== 'string' ||
+              typeof record.truncated !== 'boolean'
+            ) {
+              return [];
+            }
+            return [
+              {
+                id: record.id,
+                name: record.name,
+                contentType: record.contentType,
+                preview: record.preview,
+                truncated: record.truncated,
+              },
+            ];
+          })
+        : [];
 
       // Extract metadata from tool_results if it's an object (not array)
       // tool_results can be either:
@@ -217,6 +258,7 @@ router.get('/', async (req, res) => {
         createdAt: msg.created_at,
         parts: parts.length > 0 ? parts : undefined,
         toolInvocations,
+        ...(attachments.length > 0 ? { attachments } : {}),
         metadata: {
           ...metadata,
           ...(embeddedToolCalls ? { toolCalls: embeddedToolCalls } : {}),

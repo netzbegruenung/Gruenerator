@@ -39,6 +39,7 @@ interface GrueneratorThreadProps {
     sendAdornment?: ReactNode;
   };
   requireProfileHydration?: boolean;
+  enablePastedTextAttachments?: boolean;
   /**
    * User's locale (`'de-DE'` or `'de-AT'`). Plumbed into `useActiveAgentMeta`
    * so the welcome screen (greeting, opening questions, party-name
@@ -87,6 +88,7 @@ export function GrueneratorThread({
   showModelPicker,
   composerSlots,
   requireProfileHydration,
+  enablePastedTextAttachments,
   userLocale,
 }: GrueneratorThreadProps = {}) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
@@ -163,6 +165,7 @@ export function GrueneratorThread({
           {...(showModelPicker !== undefined && { showModelPicker })}
           {...(composerSlots ? { slots: composerSlots } : {})}
           {...(requireProfileHydration !== undefined && { requireProfileHydration })}
+          {...(enablePastedTextAttachments !== undefined && { enablePastedTextAttachments })}
         />
       </ThreadPrimitive.Root>
     </ChatDensityContext.Provider>

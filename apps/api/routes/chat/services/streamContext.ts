@@ -118,6 +118,9 @@ export interface StreamContext {
    *  turn still persists (WP-B). Null when no thread/user message, or when the
    *  placeholder insert failed (the turn then runs as before). */
   pendingAssistantMessageId: string | null;
+  /** Persisted row for the current user turn. Attachments link here so history
+   * can render them on the same message after a reload. */
+  userMessageId: string | null;
 }
 
 export type BuildStreamContextResult = { done: true } | { done: false; ctx: StreamContext };
@@ -336,6 +339,7 @@ export async function buildStreamContext({
   // Placeholder assistant row for turn persistence — minted just below, after
   // the user message is written (so ordering stays user → assistant).
   let pendingAssistantMessageId: string | null = null;
+  let userMessageId: string | null = null;
 
   if (!actualThreadId && lastUserMessage) {
     // Titles are user-visible — never show raw mention tokens.
@@ -417,7 +421,7 @@ export async function buildStreamContext({
     // would duplicate the row. Edit-resubmit removed it above, so write it fresh.
     if (!rawRegenerate) {
       const userText = extractTextContent(lastUserMessage.content);
-      await createMessage(
+      userMessageId = await createMessage(
         actualThreadId,
         'user',
         userText,
@@ -695,6 +699,7 @@ export async function buildStreamContext({
       mentionTokenFields,
       lastUserTextRaw,
       pendingAssistantMessageId,
+      userMessageId,
     },
   };
 }
