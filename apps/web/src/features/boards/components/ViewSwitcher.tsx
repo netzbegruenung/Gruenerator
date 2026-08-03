@@ -48,7 +48,7 @@ export const ViewSwitcher = memo(function ViewSwitcher({
   const handleAdd = useCallback((layout: ViewLayout) => onAddView(layout), [onAddView]);
 
   return (
-    <div className="flex items-center gap-1 px-md sm:px-lg pt-xs">
+    <div className="flex items-center gap-1 px-md sm:px-lg pt-xs overflow-x-auto scrollbar-none">
       {views.map((view) => {
         const Icon = VIEW_ICONS[view.layout] ?? FiGrid;
         const isActive = view.id === activeViewId;
@@ -56,7 +56,7 @@ export const ViewSwitcher = memo(function ViewSwitcher({
           <div
             key={view.id}
             className={cn(
-              'group flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all',
+              'group flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all shrink-0',
               isActive
                 ? 'bg-background-pure text-foreground shadow-sm dark:bg-[#282828]'
                 : 'bg-transparent text-grey-500 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800'
@@ -66,7 +66,7 @@ export const ViewSwitcher = memo(function ViewSwitcher({
               type="button"
               onClick={() => onViewChange(view.id)}
               aria-pressed={isActive}
-              className="flex items-center gap-1.5 border-none bg-transparent p-0 cursor-pointer text-inherit"
+              className="flex items-center gap-1.5 border-none bg-transparent p-0 cursor-pointer text-inherit whitespace-nowrap"
             >
               <Icon size={13} />
               {view.name}
@@ -94,7 +94,7 @@ export const ViewSwitcher = memo(function ViewSwitcher({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
-            className="flex items-center justify-center w-7 h-7 rounded-md bg-transparent text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800 border-none cursor-pointer transition-colors"
+            className="flex items-center justify-center w-7 h-7 rounded-md bg-transparent text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800 border-none cursor-pointer transition-colors shrink-0"
             title="Ansicht hinzufügen"
           >
             <FiPlus size={14} />
