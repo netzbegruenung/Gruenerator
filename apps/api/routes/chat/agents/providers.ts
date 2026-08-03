@@ -11,6 +11,7 @@ import {
   getMistralProvider,
   getRegoloProvider,
   getScalewayProvider,
+  getScalewayTextProvider,
   isProviderConfigured,
   routeMistralModel,
 } from '../../../services/ai/providerInstances.js';
@@ -61,7 +62,7 @@ export { isVisionCapable };
  * sees an explicit warning before selecting them; auto-routing in or out
  * would break that informed-consent boundary.
  */
-export type Provider = 'mistral' | 'litellm' | 'regolo' | 'greenpt';
+export type Provider = 'mistral' | 'litellm' | 'regolo' | 'greenpt' | 'scaleway';
 
 const GREENPT_DEFAULT_MODEL = 'mistral-medium-3.5-128b';
 
@@ -214,6 +215,64 @@ const GEMMA_4_VERDIGADO: ModelConfigSingle = {
   contextWindow: CTX_VERDIGADO,
 };
 
+/**
+ * Gemma 4 26B-A4B on Scaleway — the SMALL side of the Gemma family, and the
+ * lane the auto policy's short/structured turns take.
+ *
+ * `provider: 'scaleway'` is correct here and would be wrong for Mistral Medium:
+ * the caveat in services/ai/providers.ts applies to models that need the
+ * mistral policy set (`isAgenticToolCapable`, context windows, fallback
+ * chains). This lane needs none of it — it writes prose over material that is
+ * already in context and calls no tools of its own. Gemma 4 26B is exactly the
+ * case that comment names: a model Scaleway serves and Mistral does not
+ * publish.
+ *
+ * The host also happens to match the lane's rule that it never thinks:
+ * `scalewayThinkingFetch` pins `reasoning_effort: 'none'` on every request, so
+ * "reasoning off" is enforced at the transport instead of being requested.
+ *
+ * Failover is Gemma 4 on GreenPT — same family, second EU host.
+ */
+const GEMMA_4_26B: ModelConfigSingle = {
+  kind: 'single',
+  provider: 'scaleway',
+  model: 'gemma-4-26b-a4b-it',
+  contextWindow: CTX_FULL,
+  fallback: 'gemma-4-greenpt',
+};
+
+/**
+ * The GreenPT side of the SAME 26B model, reachable ONLY as the failover above.
+ *
+ * Same weights, second EU host — that is the whole point of this entry: a
+ * Scaleway outage keeps the lane on the model it was chosen for instead of
+ * silently promoting the turn to the 31B. (Regolo's `gemma4-31b` is the bigger
+ * sibling and belongs to Lane B; it is NOT this model.)
+ *
+ * Not in the user-facing catalog and not an auto-policy target, for the same
+ * reason as GEMMA_4_VERDIGADO: picking it deliberately would opt into a
+ * behaviour nobody wants as a default. Measured 31.07.2026, three runs against
+ * this endpoint: 207 tok/s and 7.3s end to end — fast — but it ALWAYS thinks,
+ * ~5,400 characters of it, and no flag stops that. `enable_thinking:false`,
+ * `think:false` and `reasoning_effort:'none'` were each probed here: accepted
+ * and ignored (5,337 chars with the flag, 5,282 without). `greenptThinkingFetch`
+ * sends them anyway; here that is documented as known residue, not as a working
+ * switch — unlike Scaleway, where the transport really does pin the thinking off.
+ *
+ * The practical consequence is why this is the failover and not the primary:
+ * with a small output budget the entire allowance goes into the invisible
+ * reasoning block and `content` comes back EMPTY (3/3 runs at max_tokens 700).
+ * Our answer paths carry no output cap since #2002, so the case is out of reach
+ * today — but re-introducing one on this lane would resurrect it, which is what
+ * this note is for.
+ */
+const GEMMA_4_GREENPT: ModelConfigSingle = {
+  kind: 'single',
+  provider: 'greenpt',
+  model: 'gemma4',
+  contextWindow: CTX_FULL,
+};
+
 export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
   // 'mistral' is intentionally absent — it uses agent defaults (like 'auto')
   'mistral-medium-3.5': {
@@ -248,11 +307,12 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
     model: regoloTextDefault(),
     contextWindow: CTX_FULL,
   },
-  // Backend-only lane, reachable via the auto policy but NOT in the model
-  // picker (that is driven by MODEL_OPTIONS in @gruenerator/core/models). Same
-  // model as the intermediate stages: fast, tool-call verified (it is the regolo
-  // entry in DOCS_AI_MODELS / BOARD_AI_MODELS) and the right size for the
-  // short, structured turns the policy routes here.
+  // Backend-only lane and, since 03.08.2026, no longer an auto-policy target:
+  // Lane A moved to `gemma-4-26b`. It stays registered because it is still the
+  // model the intermediate stages and the loop PLANNER run on
+  // (LOOP_PLANNER_PRIMARY, DOCS_AI_MODELS / BOARD_AI_MODELS), and because an id
+  // that has been persisted in threads must keep resolving. Not in the model
+  // picker either (that is driven by MODEL_OPTIONS in @gruenerator/core/models).
   'mistral-small-4': {
     kind: 'single',
     provider: 'regolo',
@@ -272,6 +332,11 @@ export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
   // Overflow lanes — Verdigado primary, Regolo on overflow when slot is busy.
   'gpt-oss': GPT_OSS_OVERFLOW,
   'gemma-4': GEMMA_4_REGOLO,
+  // The small side of the Gemma family — auto-policy Lane A. Backend-only, like
+  // `mistral-small-4`: not in MODEL_OPTIONS, so nothing picks it by hand.
+  'gemma-4-26b': GEMMA_4_26B,
+  // Failover target only — see GEMMA_4_GREENPT.
+  'gemma-4-greenpt': GEMMA_4_GREENPT,
 };
 
 // Legacy IDs from persisted client state and DB. All point to the new overflow
@@ -492,6 +557,23 @@ function resolveModel(
       return getGreenPTProvider().chat(
         modelId || env.GREENPT_DEFAULT_MODEL || GREENPT_DEFAULT_MODEL
       );
+    // The TEXT instance, not `getScalewayProvider()`: that one carries the
+    // Mistral-fallback fetch, which belongs to Medium 3.5 and would route a
+    // Gemma id to an upstream that does not serve it. This one pins
+    // `reasoning_effort: 'none'` instead — the enforcement Lane A relies on.
+    case 'scaleway': {
+      if (!env.SCALEWAY_API_KEY) {
+        // Without the key every Lane A turn would 401 and only then fail over.
+        // Naming the substitute here keeps the lane inside the Gemma family and
+        // says so once in the log instead of once per request downstream.
+        log.warn(
+          `SCALEWAY_API_KEY not set — answering on Regolo Gemma 4 instead (requested "${modelId}")`
+        );
+        lastFallbackProvider = 'regolo';
+        return getRegoloProvider().chat(GEMMA_4_REGOLO.model);
+      }
+      return getScalewayTextProvider().chat(modelId || GEMMA_4_26B.model);
+    }
     case 'anthropic':
       throw new Error('Anthropic provider is not yet implemented');
     default:
@@ -643,6 +725,8 @@ export function getProviderName(provider: AgentConfig['provider'] | Provider): s
       return 'Regolo AI';
     case 'greenpt':
       return 'GreenPT';
+    case 'scaleway':
+      return 'Scaleway';
     case 'anthropic':
       return 'Anthropic Claude';
     default:
