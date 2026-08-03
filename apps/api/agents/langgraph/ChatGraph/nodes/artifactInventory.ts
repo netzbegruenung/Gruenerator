@@ -124,6 +124,18 @@ export function artifactsFromTurn(state: ChatGraphState): ThreadToolContext[] {
 }
 
 /**
+ * Die Ids, die es wirklich gibt — Erlaubnisliste für den Ausgabe-Filter
+ * (`stripFabricatedArtifactDelivery`). Dieser Turn und die früheren zusammen:
+ * ein Pfad, den der Code dem Modell selbst genannt hat (`/boards/<id>` aus dem
+ * agentischen Loop), muss die Antwort überleben — ein erfundener nicht.
+ */
+export function knownArtifactRefs(state: ChatGraphState): string[] {
+  return [...artifactsFromTurn(state), ...(state.threadArtifacts ?? [])]
+    .map((a) => a.ref)
+    .filter((ref): ref is string => typeof ref === 'string' && ref.length > 0);
+}
+
+/**
  * Die Liste, gegen die alles andere spricht.
  *
  * Reihenfolge ist neueste-zuerst: erst was dieser Turn gebaut hat, dann die
