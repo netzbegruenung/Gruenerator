@@ -434,6 +434,11 @@
   /* Canvas Editor Layout */
   --image-studio-tab-bar-width: 76px;
   --mobile-tab-bar-height: 60px;
+  /* Desktop-rail width of the open SidebarPanel, in px. 0 when closed/mobile —
+     see SidebarPanel.tsx, which sets/clears this on document.documentElement.
+     Twin of the same line in packages/canvas-editor/src/styles/tailwind-input.css;
+     the two bundles compile separately, so both need it. */
+  --canvas-panel-width: 0px;
 
   /* Custom Breakpoints (xl: 1280px is Tailwind default) */
   --breakpoint-canvas-mobile: 900px;
